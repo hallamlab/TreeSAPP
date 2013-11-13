@@ -157,11 +157,14 @@ def removePreviousOutput(args):
     #
     
     if (not re.search('/$', args.output)):
-        args.output = args.output + '/'
+        args.output = args.output + PATHDELIM
     os.makedirs(args.output)
-    os.mkdir(args.output + 'various_outputs/')
-    os.mkdir(args.output + 'final_RAxML_outputs/')
-    os.mkdir(args.output + 'final_outputs/')
+    args.output_dir_var = args.output + 'various_outputs' + PATHDELIM
+    args.output_dir_raxml = args.output + 'final_RAxML_outputs' + PATHDELIM
+    args.output_dir_final = args.output + 'final_outputs' + PATHDELIM
+    os.mkdir(args.output_dir_var)
+    os.mkdir(args.output_dir_raxml)
+    os.mkdir(args.output_dir_final)
 
     return args
 
@@ -736,6 +739,42 @@ def produceGenewiseFiles(args, blast_hits_purified):
     #        if not line:
     #            sequence += line
 
+def startGenewise(args, shortened_sequence_files, blast_hits_purified):
+
+    genewise_outputfiles = Autovivify()
+
+    # For each file which has been shortened by produceGenewiseFiles...
+
+    for shortened_sequence_file in sorted(shortened_sequence_files.keys()):
+        contig = shortened_sequence_files[shortened_sequence_file]
+        
+        # For each identifier associated with this contig in the output of parseBlastResults
+
+        for indentifier in sorted(blast_hits_purified[contig].keys()):
+            cog = blast_hits_purified[contig][identifier]['cog']
+
+            # Prepare the output file name, and store it
+
+            genewise_outputfile = args.output_dir_var + contig + '_' + cog + '_genewise.txt'
+
+            genewise_outputfiles[contig][genewise_outputfile] = 1
+
+            # Prepare the Genewise command and run it
+
+            genewise_command = 'sub_binaries' + PATHDELIM + 'genewise data' + PATHDELIM + \
+                               args.reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm ' + \
+                               shortened_sequence_file + ' -init local -quiet -gene data' + PATHDELIM + \
+                               'genewise_support_files' + PATHDELIM + 'human.gf -matrix data' + \
+                               PATHDELIM + 'genewise_support_files' + PATHDELIM + 'blosum62.bla -codon data' + \
+                               PATHDELIM + 'genewise_support_files' + PATHDELIM + 'codon.table -hmmer -subs' + \
+                               ' 0.01 -indel 0.01 -gap 11 -ext 1 -both -pep -sum > ' + genewise_outputfile
+
+            os.system(genewise_command)
+
+    # Return the list of output files for each contig
+
+    return genewise_outputfiles
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
@@ -770,6 +809,10 @@ def main(argv):
     purified_blast_results = parseBlastResults(args, blastResults, cogList)
 
     sequencesForGenewise = produceGenewiseFiles(args, purified_blast_results)
+
+    print 'Run Genewise'
+    startGenewise(args, sequencesForGenewise, purified_blast_results)
+
 if __name__ == "__main__":
    main(sys.argv[1:])
 
