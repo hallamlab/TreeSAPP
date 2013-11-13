@@ -255,6 +255,7 @@ def splitFastaInput(args):
     outputSplit = open(args.output + PATHDELIM + 'various_outputs' + PATHDELIM + inputFileName + '_0.txt', 'w')
     outputFormatted = open(args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt', 'w')
     args.formatted_input_file = args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt'
+    args.output_directory_var = args.output + PATHDELIM + 'various_outputs' 
     countFiles = 0
     countSequences = 0
     
@@ -643,17 +644,15 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
 def produceGenewiseFiles(args, blast_hits_purified):
     flanking_length = 1000; # Recommended: 1000
     prae_contig_coordinates = Autovivify()
-    contig_coordinates = {}
+    contig_coordinates = Autovivify()
     shortened_sequence_files = {}
-
 
     for contig in sorted(blast_hits_purified.keys()):
         for base_identifier in sorted(blast_hits_purified[contig].keys()):
-            print base_identifier
             #
             # Skip rRNA hits for now (we work with them later)
             #
-            if re.match(r'rRNA', blast_hits_purified[contig][base_identifier]['cog']):
+            if re.search("rRNA", blast_hits_purified[contig][base_identifier]['cog']):
                 continue
             #
             # Skip hits which have already been placed; otherwise, mark them as placed
@@ -670,7 +669,7 @@ def produceGenewiseFiles(args, blast_hits_purified):
                 #
                 # Skip rRNA hits for now (we work with them later)
                 #
-                if re.match(r'rRNA', blast_hits_purified[contig][check_identifier]['cog']):
+                if re.search(r'rRNA', blast_hits_purified[contig][check_identifier]['cog']):
                     check_identifier +=1
                     continue
                 #
@@ -723,18 +722,72 @@ def produceGenewiseFiles(args, blast_hits_purified):
     contig_name = ''
     sequence = ''
 
-    line = input.readline()
+    line = 'x'
     while line:
-        print line.strip()
+        line= input.readline()
+        line =  line.strip()
+        line = re.sub(r'\s', '_', line)
+        searchmatch =re.search(r'\A>(.+)', line)
+
+        if searchmatch or not line:
+            if not line:
+               sequence += line
+            if contig_name in prae_contig_coordinates:
+                sequence_length = len(sequence)
+                shortened_sequence="" 
+                #start searching for the information to shorten the file.
+                for start_B in sorted(prae_contig_coordinates[contig_name].keys()) :
+                    for end_B in sorted(prae_contig_coordinates[contig_name][start_B].keys()) :
+                         #ok, now we have all information about the hit. Correct start and end if needed: 
+                        if start_B < 0:
+                           start_B = 0 
+
+                        if end_B >= sequence_length:
+                           end_B = sequence_length -1 
+      
+                        #Note: Genewise (GW) positions start with 1, Blast (B) positions with 0 -> thus differenciate between start_B and start_GW
+                        shortened_start_GW = len(shortened_sequence) + 1; 
+                        count = -1;
+                        for nucleotide in sequence: 
+                            count += 1     
+                            if not (count >= start_B and count <= end_B):
+                               continue
+                            shortened_sequence += nucleotide;
+      
+                        shortened_end_GW = len(shortened_sequence)
+                        addition_factor = (start_B + 1) - shortened_start_GW #$start_B + 1 == $start_GW
+                        contig_coordinates[contig_name][shortened_start_GW][shortened_end_GW] = addition_factor
+        
+        
+                try:
+                    with open(args.output_directory_var + PATHDELIM + contig_name + "_sequence.txt", 'w') as f:
+                       fprintf(f, "%s\n", ">"+ contig_name + "\n" + sequence)
+                    f.close()
+                except:
+                    print  "ERROR: Can't create " + args.output_directory_var + PATHDELIM + contig_name + "_sequence.txt!"; 
+
+
+                try:   
+                   with open(args.output_directory_var + PATHDELIM + contig_name + "_sequence_shortened.txt", 'w') as f:
+                      fprintf(f, "%s\n",">" + contig_name + "\n" + shortened_sequence)
+                   f.close()
+                   shortened_sequence_files[args.output_directory_var + PATHDELIM +  contig_name + "_sequence_shortened.txt"]=contig_name
+                except:
+                   print "ERROR: Can't create " + args.output_directory_var + PATHDELIM +  contig_name +"_sequence_shortened.txt!"; 
+
+            if searchmatch:
+               contig_name = searchmatch.group(1)
+            sequence = ""
+        else:
+            sequence += line
+    input.close()
+    return contig_coordinates, shortened_sequence_files
 
 
 
+def fprintf(file, fmt, *args): 
+   file.write(fmt % args)
 
-        line = input.readline()
-    #    line = re.sub(r'\s', '_', line)
-    #    if re.match(r'\A>(.+)') or not line:
-    #        if not line:
-    #            sequence += line
 
 def main(argv):
     parser = getParser()
@@ -769,7 +822,8 @@ def main(argv):
 
     purified_blast_results = parseBlastResults(args, blastResults, cogList)
 
-    sequencesForGenewise = produceGenewiseFiles(args, purified_blast_results)
+    contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, purified_blast_results)
+    print contig_coordinates
 if __name__ == "__main__":
    main(sys.argv[1:])
 
