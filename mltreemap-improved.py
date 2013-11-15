@@ -228,6 +228,31 @@ def createCogList(args):
 
     return (cog_list, text_of_analysis_type)
 
+def calculate_overlap(info):
+    overlap = 0
+    base_start = info['base']['start']
+    base_end = info['base']['end']
+    check_start = info['check']['start']
+    check_end = info['check']['end']
+
+    if base_start <= check_start and check_start <= base_end and base_end <= check_end:
+        overlap = base_end - check_start # TK Why not +1?
+    elif base_start <= check_start and check_end <= base_end:
+        # Base     --------
+        # Check        --
+        overlap = check_end - check_start # TK Why not +1?
+    elif check_start <= base_start and base_start <= check_end and check_end <= base_end:
+        # Base         -----
+        # Check    -----
+        overlap = check_end - base_start # TK Why not +1?
+    elif check_start <= base_start and base_end <= check_end:
+        # Base       --
+        # Check    --------
+        overlap = base_end - base_start #TK Why not +1?
+
+    return overlap 
+
+
 def splitFastaInput(args):
 
     #
@@ -464,10 +489,10 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
     purifiedBlastHits =Autovivify()
     for file in sorted(rawBlastResultFiles):
         try:     
-           blastResults = open(file, 'r')
+            blastResults = open(file, 'r')
         except IOError:
-           print "ERROR: Cannot open BLAST outputfile " + file
-           continue
+            print "ERROR: Cannot open BLAST outputfile " + file
+            continue
 
         contigs = Autovivify()
         identifier = 0
@@ -574,23 +599,18 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                     #
                     # Compare the base and check BLAST hits
                     #
-                    overlap = 0
-                    
-                    if base_start <= check_start and check_start <= base_end and base_end <= check_end:
-                        overlap = base_end - check_start # TK Why not +1?
-                    elif base_start <= check_start and check_end <= base_end:
-                        # Base     --------
-                        # Check        --
-                        overlap = check_end - check_start # TK Why not +1?
-                    elif check_start <= base_start and base_start <= check_end and check_end <= base_end:
-                        # Base         -----
-                        # Check    -----
-                        overlap = check_end - base_start # TK Why not +1?
-                    elif check_start <= base_start and base_end <= check_end:
-                        # Base       --
-                        # Check    --------
-                        overlap = base_end - base_start #TK Why not +1?
+
+                    info = Autovivify()
+
+                    info['base']['start'] = base_start
+                    info['base']['end'] = base_end
+                    info['check']['start'] = check_start
+                    info['check']['end'] = check_end
+
+                    overlap = calculate_overlap(info)
+
                     counter +=1
+
                     #
                     # Check for validity for hits with overlap
                     #
@@ -803,7 +823,7 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
         
         # For each identifier associated with this contig in the output of parseBlastResults
 
-        for indentifier in sorted(blast_hits_purified[contig].keys()):
+        for identifier in sorted(blast_hits_purified[contig].keys()):
             cog = blast_hits_purified[contig][identifier]['cog']
 
             # Prepare the output file name, and store it
@@ -828,11 +848,243 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
 
     return genewise_outputfiles
 
+def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
+
+    genewise_summary_files = Autovivify()
+
+    # For each contig analyzed by Genewise...
+
+    for contig in sorted(genewise_outputfiles.keys()):
+        genewise_results_raw = Autovivify()
+        genewise_results = Autovivify()
+        at_least_one_hit = 0
+        count = 0
+
+        # Parse each output file of that contig
+
+        for genewise_outputfile in sorted(genewise_outputfiles[contig].keys()):
+
+            try:     
+                input = open(genewise_outputfile, 'r')
+            except IOError:
+                print "ERROR: Cannot open Genewise outputfile " + genewise_outputfile
+                continue
+
+            header_count = 0
+            sequence_count = -1
+
+            for line in input:
+                line.strip()
+
+                # If the line starts with a digit, parse it
+
+                if re.match(r'\A\d', line):
+
+                    # Split the results based on one or more spaces between the desired data
+                    bitscore, query, _, _, _, start, end, _, _ = re.split(' +', line)
+                    bitscore = float(bitscore)
+                    start = int(start)
+                    end = int(end)
+
+                    # If there is at least one query, take note for future use
+
+                    if query is not None:
+
+                        at_least_one_hit = 1
+
+                    # Determine the direction of the predicted amino acid sequence
+
+                    direction = 'forward'
+                    if start > end:
+                        temp = start
+                        start = end
+                        end = start
+                        direction = 'reverse'
+
+                    # Correct the positions
+                    # Genewise is run on a shortened sequence, so the true positions must be calculated
+
+                    for coords_start in sorted(contig_coordinates[contig].keys()):
+
+                        if start >= coords_start:
+
+                            for coords_end in sorted(contig_coordinates[contig][coords_start].keys()):
+
+                                if end <= coords_end:
+
+                                    addition_factor = contig_coordinates[contig][coords_start][coords_end]
+                                    start += addition_factor
+                                    end += addition_factor
+                                    break
+
+                    genewise_results_raw[contig][genewise_outputfile][header_count]['start'] = start
+                    genewise_results_raw[contig][genewise_outputfile][header_count]['end'] = end
+                    genewise_results_raw[contig][genewise_outputfile][header_count]['cog'] = query
+                    genewise_results_raw[contig][genewise_outputfile][header_count]['bitscore'] = bitscore
+                    genewise_results_raw[contig][genewise_outputfile][header_count]['direction'] = direction
+                    header_count += 1
+
+                # Otherwise, if the line starts with a '>', prepare to intake the sequence
+
+                elif re.match(r'\A>', line):
+
+                    sequence_count += 1
+                    genewise_results_raw[contig][genewise_outputfile][sequence_count]['sequence'] = ''
+
+                # If the line begins with any word character, and contains neither 'Bits' (a title line)
+                # nor 'Making' (a Genewise comment about the treatment of introns)
+
+                elif re.match(r'\A\w', line) and not re.match(r'\ABits', line) and not re.match(r'\AMaking', line):
+
+                    genewise_results_raw[contig][genewise_outputfile][sequence_count]['sequence'] += line
+
+            input.close()
+
+        # Skip to next contig if there isn't at least 1 hit
+
+        if at_least_one_hit != 1:
+            continue
+
+        # Purify the parsed results
+
+        # For each genewise_outputfile for the contig...
+
+        for base_genewise_outputfile in sorted(genewise_results_raw[contig].keys()):
+
+            # For each count of the genewise_outputfile...
+
+            for base_count in sorted(genewise_results_raw[contig][base_genewise_outputfile].keys()):
+
+                base_start = genewise_results_raw[contig][base_genewise_outputfile][base_count]['start']
+                base_end = genewise_results_raw[contig][base_genewise_outputfile][base_count]['end']
+                base_cog = genewise_results_raw[contig][base_genewise_outputfile][base_count]['cog']
+                base_bitscore = genewise_results_raw[contig][base_genewise_outputfile][base_count]['bitscore']
+                base_direction = genewise_results_raw[contig][base_genewise_outputfile][base_count]['direction']
+                base_sequence = genewise_results_raw[contig][base_genewise_outputfile][base_count]['sequence']
+
+                # Ensure that the base_cog, base_start, and base_end are defined
+
+                if base_cog is None or base_start is None or base_end is None:
+                    error_string = 'ERROR: The file "' + base_genewise_outputfile + '" cannot be parsed!\n' +\
+                                   'Please contact the authors about it. As a quick solution to the problem, ' +\
+                                   'try to remove the sequence which produced this hit from your input file.\n'
+                    sys.exit(error_string)
+
+                base_length = base_end - base_start
+                is_valid = 1
+
+                # Check against all other genewise_outputfiles for that contig
+
+                # For each genewise_outputfile for the contig...
+
+                for check_genewise_outputfile in sorted(genewise_results_raw[contig].keys()):
+
+                    # For each count of the genewise_outputfile...
+
+                    for check_count in sorted(genewise_results_raw[contig][check_genewise_outputfile].keys()):
+
+                        # Skip to next iteration if comparing the base to itself
+
+                        if base_count == check_count:
+                            continue
+
+                        check_start = genewise_results_raw[contig][check_genewise_outputfile][check_count]['start']
+                        check_end = genewise_results_raw[contig][check_genewise_outputfile][check_count]['end']
+                        check_cog = genewise_results_raw[contig][check_genewise_outputfile][check_count]['cog']
+
+                        # Ensure that the check_cog, check_start, and check_end are defined
+
+                        if check_cog is None or check_start is None or check_end is None:
+                            error_string = 'ERROR: The file "' + check_genewise_outputfile + '" cannot be parsed!\n' +\
+                                           'Please contact the authors about it. As a quick solution to the problem, ' +\
+                                           'try to remove the sequence which produced this hit from your input file.\n'
+                            sys.exit(error_string)
+
+                        check_length = check_end - check_start
+                        info = Autovivify()
+                        info['base']['start'] = base_start
+                        info['base']['end'] = base_end
+                        info['check']['start'] = check_start
+                        info['check']['end'] = check_end
+
+                        overlap = calculate_overlap(info)
+
+                        # Purify the results
+
+                        # If the size of the overlap is more than half the size of the hit...
+
+                        if overlap / float(base_length) > 0.5:
+
+                            # And if the hit and check are the same COG...
+
+                            if base_cog == check_cog:
+
+                                # Keep only the longer hit, since the major difference between the hits is the length 
+
+                                if base_length < check_length:
+
+                                    is_valid = 0
+
+                            # The COGs are different, so only skip the hit if it is less than half the length of the check
+
+                            elif base_length < check_length / 2:
+
+                                is_valid = 0
+
+                        # But if the overlap is not more than half the size of the hit, and the hit remains valid...
+
+                        if is_valid and base_cog == check_cog:
+
+                            # Invalidate the hit if it is a side hit of the same COG
+
+                            if base_length < check_length * 0.7:
+
+                                is_valid = 0
+
+                # If the hit is valid, save it
+
+                if is_valid == 1:
+
+                    genewise_results[contig][count]['start'] = base_start
+                    genewise_results[contig][count]['end'] = base_end
+                    genewise_results[contig][count]['cog'] = base_cog
+                    genewise_results[contig][count]['direction'] = base_direction
+                    genewise_results[contig][count]['sequence'] = base_sequence
+                    count += 1
+
+        # Skip to next hit if there are no valid hits
+
+        if count <= 0:
+            continue
+
+        # Write the summary file
+
+        genewise_summary_file = args.output_directory_var + contig + '_genewise_result_summary.txt'
+
+        try:     
+            output = open(genewise_summary_file, 'w')
+        except IOError:
+            print 'ERROR: Cannot open Genewise summary file ' + genewise_summary_file + ' for writing'
+            continue
+
+        genewise_summary_files[contig][genewise_summary_file] = 1
+
+        for count in sorted(genewise_results[contig].keys()):
+            output.write(genewise_results[contig][count]['cog'] + '\t' +\
+                         str(genewise_results[contig][count]['start']) + '\t' +\
+                         str(genewise_results[contig][count]['end']) + '\t' +\
+                         genewise_results[contig][count]['direction'] + '\t' +\
+                         genewise_results[contig][count]['sequence'] + '\n')
+
+        output.close()
+
+    return genewise_summary_files
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
 
-    #removePreviousOutput(args)
+    args = removePreviousOutput(args)
     
     #this creates the list of the marker COGs 
     (cogList, textOfAnalysisType) = createCogList(args)
@@ -844,7 +1096,7 @@ def main(argv):
     (blastxDB, blastnDB) = createBlastDBList(args)
 
     print('Run BLAST')
-    #runBlast(args, splitFiles, blastxDB, blastnDB)
+    runBlast(args, splitFiles, blastxDB, blastnDB)
 
     blastResults =  readBlastResults(args.output)
 
@@ -862,7 +1114,8 @@ def main(argv):
     purified_blast_results = parseBlastResults(args, blastResults, cogList)
 
     contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, purified_blast_results)
-    startGenewise(args, sequencesForGenewise, purified_blast_results)
+    genewise_outputfiles = startGenewise(args, shortened_sequence_files, purified_blast_results)
+    genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
