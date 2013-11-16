@@ -1,0 +1,55 @@
+#phylogenetic_cogs
+COG0012
+COG0016
+COG0018
+COG0048
+COG0049
+COG0052
+COG0080
+COG0081
+COG0085
+COG0087
+COG0088
+COG0090
+COG0091
+COG0092
+COG0093
+COG0094
+COG0096
+COG0097
+COG0098
+COG0099
+COG0100
+COG0102
+COG0103
+COG0124
+COG0172
+COG0184
+COG0185
+COG0186
+COG0197
+COG0200
+COG0201
+COG0202
+COG0215
+COG0256
+COG0495
+COG0522
+COG0525
+COG0533
+COG0541
+COG0552
+#phylogenetic_rRNA_cogs
+16srRNA	a	16s rRNA
+18srRNA	b	18s rRNA
+#functional_cogs
+phocryp	c	Photolyase/Cryptochrome
+dsr_v2_	d	dsrAB
+hzo_hao	e	Hydrazine/Hydroxylamine Oxidoreductase (HZO)/(HAO)
+pufMKEG	f	pufM
+_K02588	h	Nitrogenase (nifH)
+p_a_moA	m	Methane Monooxygenase (amoA & pmoA)
+_K02586	n	Nitrogenase (nifD)
+COG1850	r	RuBisCO
+bssAref	w	Fumarate adding enzymes (bssA-nmsA-assA)
+mcrAref	y	Methyl coenzyme M reductase alpha subunit (mcrA)

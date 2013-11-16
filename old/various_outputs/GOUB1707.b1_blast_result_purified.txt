@@ -1,0 +1,2 @@
+GOUB1707.b1	282	740	reverse	18srRNA	 557
+GOUB1707.b1	101	183	reverse	16srRNA	69.9

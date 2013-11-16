@@ -1,0 +1,32 @@
+
+
+IMPORTANT WARNING: Sequences 42 and 96 are exactly identical
+
+
+IMPORTANT WARNING: Sequences 42 and 129 are exactly identical
+
+
+IMPORTANT WARNING: Sequences 67 and 81 are exactly identical
+
+
+IMPORTANT WARNING: Sequences 67 and 98 are exactly identical
+
+
+IMPORTANT WARNING: Sequences 67 and 111 are exactly identical
+
+IMPORTANT WARNING
+Found 5 sequences that are exactly identical to other sequences in the alignment.
+Normally they should be excluded from the analysis.
+
+Just in case you might need it, an alignment file with 
+sequence duplicates removed is printed to file old/various_outputs/c_GOUB1402.g1.phy.reduced
+
+
+You are using RAxML version 7.1.0 released by Alexandros Stamatakis in October 2008
+
+Alignment has 162 distinct alignment patterns
+
+Proportion of gaps and completely undetermined characters in this alignment: 0.034689
+
+RAxML classification algorithm
+

@@ -129,6 +129,11 @@ def checkParserArguments(parser):
 #
 
 def removePreviousOutput(args):
+    args.output_dir_var = args.output + PATHDELIM + 'various_outputs' + PATHDELIM
+    args.output_dir_raxml = args.output + PATHDELIM + 'final_RAxML_outputs' + PATHDELIM
+    args.output_dir_final = args.output + PATHDELIM + 'final_outputs' + PATHDELIM
+    return args
+
     while os.path.isdir(args.output):
         print('WARNING: Your output directory "' + args.output + '" already exists!')
         print('Overwrite [1], quit [2], or change directory [3]?')
@@ -159,9 +164,6 @@ def removePreviousOutput(args):
     if (not re.search('/$', args.output)):
         args.output = args.output + PATHDELIM
     os.makedirs(args.output)
-    args.output_dir_var = args.output + 'various_outputs' + PATHDELIM
-    args.output_dir_raxml = args.output + 'final_RAxML_outputs' + PATHDELIM
-    args.output_dir_final = args.output + 'final_outputs' + PATHDELIM
     os.mkdir(args.output_dir_var)
     os.mkdir(args.output_dir_raxml)
     os.mkdir(args.output_dir_final)
@@ -665,7 +667,7 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
     return purifiedBlastHits
 
 def produceGenewiseFiles(args, blast_hits_purified):
-    flanking_length = 1000; # Recommended: 1000
+    flanking_length = 1000 # Recommended: 1000
     prae_contig_coordinates = Autovivify()
     contig_coordinates = Autovivify()
     shortened_sequence_files = {}
@@ -769,13 +771,13 @@ def produceGenewiseFiles(args, blast_hits_purified):
                            end_B = sequence_length -1 
       
                         #Note: Genewise (GW) positions start with 1, Blast (B) positions with 0 -> thus differenciate between start_B and start_GW
-                        shortened_start_GW = len(shortened_sequence) + 1; 
-                        count = -1;
+                        shortened_start_GW = len(shortened_sequence) + 1 
+                        count = -1
                         for nucleotide in sequence: 
                             count += 1     
                             if not (count >= start_B and count <= end_B):
                                continue
-                            shortened_sequence += nucleotide;
+                            shortened_sequence += nucleotide
       
                         shortened_end_GW = len(shortened_sequence)
                         addition_factor = (start_B + 1) - shortened_start_GW #$start_B + 1 == $start_GW
@@ -787,7 +789,7 @@ def produceGenewiseFiles(args, blast_hits_purified):
                        fprintf(f, "%s\n", ">"+ contig_name + "\n" + sequence)
                     f.close()
                 except:
-                    print  "ERROR: Can't create " + args.output_directory_var + PATHDELIM + contig_name + "_sequence.txt!"; 
+                    print  "ERROR: Can't create " + args.output_directory_var + PATHDELIM + contig_name + "_sequence.txt!" 
 
 
                 try:   
@@ -796,11 +798,11 @@ def produceGenewiseFiles(args, blast_hits_purified):
                    f.close()
                    shortened_sequence_files[args.output_directory_var + PATHDELIM +  contig_name + "_sequence_shortened.txt"]=contig_name
                 except:
-                   print "ERROR: Can't create " + args.output_directory_var + PATHDELIM +  contig_name +"_sequence_shortened.txt!"; 
+                   print "ERROR: Can't create " + args.output_directory_var + PATHDELIM +  contig_name +"_sequence_shortened.txt!" 
 
             if searchmatch:
                contig_name = searchmatch.group(1)
-            sequence = ""
+               sequence = ""
         else:
             sequence += line
     input.close()
@@ -849,11 +851,8 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
     return genewise_outputfiles
 
 def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
-
     genewise_summary_files = Autovivify()
-
     # For each contig analyzed by Genewise...
-
     for contig in sorted(genewise_outputfiles.keys()):
         genewise_results_raw = Autovivify()
         genewise_results = Autovivify()
@@ -861,9 +860,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
         count = 0
 
         # Parse each output file of that contig
-
         for genewise_outputfile in sorted(genewise_outputfiles[contig].keys()):
-
             try:     
                 input = open(genewise_outputfile, 'r')
             except IOError:
@@ -875,9 +872,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
             for line in input:
                 line.strip()
-
                 # If the line starts with a digit, parse it
-
                 if re.match(r'\A\d', line):
 
                     # Split the results based on one or more spaces between the desired data
@@ -887,13 +882,10 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                     end = int(end)
 
                     # If there is at least one query, take note for future use
-
                     if query is not None:
-
                         at_least_one_hit = 1
 
                     # Determine the direction of the predicted amino acid sequence
-
                     direction = 'forward'
                     if start > end:
                         temp = start
@@ -903,15 +895,10 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
                     # Correct the positions
                     # Genewise is run on a shortened sequence, so the true positions must be calculated
-
                     for coords_start in sorted(contig_coordinates[contig].keys()):
-
                         if start >= coords_start:
-
                             for coords_end in sorted(contig_coordinates[contig][coords_start].keys()):
-
                                 if end <= coords_end:
-
                                     addition_factor = contig_coordinates[contig][coords_start][coords_end]
                                     start += addition_factor
                                     end += addition_factor
@@ -923,38 +910,27 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                     genewise_results_raw[contig][genewise_outputfile][header_count]['bitscore'] = bitscore
                     genewise_results_raw[contig][genewise_outputfile][header_count]['direction'] = direction
                     header_count += 1
-
                 # Otherwise, if the line starts with a '>', prepare to intake the sequence
-
                 elif re.match(r'\A>', line):
-
                     sequence_count += 1
                     genewise_results_raw[contig][genewise_outputfile][sequence_count]['sequence'] = ''
 
                 # If the line begins with any word character, and contains neither 'Bits' (a title line)
                 # nor 'Making' (a Genewise comment about the treatment of introns)
-
                 elif re.match(r'\A\w', line) and not re.match(r'\ABits', line) and not re.match(r'\AMaking', line):
-
-                    genewise_results_raw[contig][genewise_outputfile][sequence_count]['sequence'] += line
+                    genewise_results_raw[contig][genewise_outputfile][sequence_count]['sequence'] += line.strip()
 
             input.close()
 
         # Skip to next contig if there isn't at least 1 hit
-
         if at_least_one_hit != 1:
             continue
 
         # Purify the parsed results
-
         # For each genewise_outputfile for the contig...
-
         for base_genewise_outputfile in sorted(genewise_results_raw[contig].keys()):
-
             # For each count of the genewise_outputfile...
-
             for base_count in sorted(genewise_results_raw[contig][base_genewise_outputfile].keys()):
-
                 base_start = genewise_results_raw[contig][base_genewise_outputfile][base_count]['start']
                 base_end = genewise_results_raw[contig][base_genewise_outputfile][base_count]['end']
                 base_cog = genewise_results_raw[contig][base_genewise_outputfile][base_count]['cog']
@@ -972,28 +948,19 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
                 base_length = base_end - base_start
                 is_valid = 1
-
                 # Check against all other genewise_outputfiles for that contig
-
                 # For each genewise_outputfile for the contig...
-
                 for check_genewise_outputfile in sorted(genewise_results_raw[contig].keys()):
-
                     # For each count of the genewise_outputfile...
-
                     for check_count in sorted(genewise_results_raw[contig][check_genewise_outputfile].keys()):
-
                         # Skip to next iteration if comparing the base to itself
-
                         if base_count == check_count:
                             continue
-
                         check_start = genewise_results_raw[contig][check_genewise_outputfile][check_count]['start']
                         check_end = genewise_results_raw[contig][check_genewise_outputfile][check_count]['end']
                         check_cog = genewise_results_raw[contig][check_genewise_outputfile][check_count]['cog']
 
                         # Ensure that the check_cog, check_start, and check_end are defined
-
                         if check_cog is None or check_start is None or check_end is None:
                             error_string = 'ERROR: The file "' + check_genewise_outputfile + '" cannot be parsed!\n' +\
                                            'Please contact the authors about it. As a quick solution to the problem, ' +\
@@ -1010,41 +977,26 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                         overlap = calculate_overlap(info)
 
                         # Purify the results
-
                         # If the size of the overlap is more than half the size of the hit...
-
                         if overlap / float(base_length) > 0.5:
-
                             # And if the hit and check are the same COG...
-
                             if base_cog == check_cog:
-
                                 # Keep only the longer hit, since the major difference between the hits is the length 
-
                                 if base_length < check_length:
-
                                     is_valid = 0
-
                             # The COGs are different, so only skip the hit if it is less than half the length of the check
-
                             elif base_length < check_length / 2:
-
                                 is_valid = 0
 
                         # But if the overlap is not more than half the size of the hit, and the hit remains valid...
-
                         if is_valid and base_cog == check_cog:
-
                             # Invalidate the hit if it is a side hit of the same COG
-
                             if base_length < check_length * 0.7:
-
                                 is_valid = 0
 
                 # If the hit is valid, save it
 
                 if is_valid == 1:
-
                     genewise_results[contig][count]['start'] = base_start
                     genewise_results[contig][count]['end'] = base_end
                     genewise_results[contig][count]['cog'] = base_cog
@@ -1058,17 +1010,14 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
             continue
 
         # Write the summary file
-
-        genewise_summary_file = args.output_directory_var + contig + '_genewise_result_summary.txt'
-
+        genewise_summary_file = args.output_directory_var + PATHDELIM +  contig + '_genewise_result_summary.txt'
         try:     
             output = open(genewise_summary_file, 'w')
         except IOError:
             print 'ERROR: Cannot open Genewise summary file ' + genewise_summary_file + ' for writing'
-            continue
+            sys.exit(0)
 
         genewise_summary_files[contig][genewise_summary_file] = 1
-
         for count in sorted(genewise_results[contig].keys()):
             output.write(genewise_results[contig][count]['cog'] + '\t' +\
                          str(genewise_results[contig][count]['start']) + '\t' +\
@@ -1080,6 +1029,171 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
     return genewise_summary_files
 
+def  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files):
+    contig_rRNA_coordinates = Autovivify()
+    rRNA_hit_files = {}
+    
+    for contig in sorted(blast_hits_purified.keys()) :
+        #note: We skipped the Genewise step (we are dealing with rRNA) but we bring the rRNA files in the same structure as the Genewise summary files and bring them back into the ordinary pipeline.
+        for identifier in sorted(blast_hits_purified[contig].keys()):
+            if not re.search("rRNA", blast_hits_purified[contig][identifier]['cog']):
+                continue
+
+            start = blast_hits_purified[contig][identifier]["start"]
+            end = blast_hits_purified[contig][identifier]["end"]
+            cog = blast_hits_purified[contig][identifier]["cog"]
+            direction = blast_hits_purified[contig][identifier]["direction"]
+            contig_rRNA_coordinates[contig][identifier]["start"] = start
+            contig_rRNA_coordinates[contig][identifier]["end"] = end
+            contig_rRNA_coordinates[contig][identifier]["cog"] = cog
+            contig_rRNA_coordinates[contig][identifier]["direction"] = direction
+            outfile_name = args.output_directory_var + PATHDELIM +  contig + '_rRNA_result_summary.txt'   
+            contig_rRNA_coordinates[contig][identifier]["outfile"] = outfile_name
+            genewise_summary_files[contig][outfile_name] = 1     
+            try:
+               outfile = open(outfile_name, 'w')
+               outfile.close() 
+            except IOError, e:
+               print "ERROR: Can't create " + outfile_name + '!\n' 
+               sys.exit(0)
+
+    try:
+       input = open(args.input, 'r')
+    except IOError, e:
+       print "ERROR: Can't create " + args.input +'!\n' 
+       sys.exit(0)
+    contig_name = ''
+    sequence = ''
+
+    line = 'x'
+    while line:
+        line= input.readline()
+        line =  line.strip()
+        line = re.sub(r'\s', '_', line)
+        searchmatch =re.search(r'\A>(.+)', line)
+
+        if searchmatch or not line:
+            if not line:
+               sequence += line
+
+            if contig_name in contig_rRNA_coordinates:
+                sequence_length = len(sequence)
+                shortened_sequence="" 
+                #start searching for the information to shorten the file.
+                for identifier in sorted(contig_rRNA_coordinates[contig_name].keys()) :
+                    start = contig_rRNA_coordinates[contig_name][identifier]["start"]
+                    end = contig_rRNA_coordinates[contig_name][identifier]["end"]
+                    cog = contig_rRNA_coordinates[contig_name][identifier]["cog"]
+                    direction = contig_rRNA_coordinates[contig_name][identifier]["direction"]
+                    outfile = contig_rRNA_coordinates[contig_name][identifier]['outfile']
+                    denominator = cog_list['all_cogs'][cog]
+                    count = -1
+                    shortened_sequence = ""
+                    for nucleotide in sequence: 
+                        count+=1
+                        if not (count >= start and count <= end):
+                           continue
+                        shortened_sequence += nucleotide
+
+                    if direction == 'reverse':
+                        #ok, our hit has been on the opposite strand of the reference.
+                        #to get a proper alignment, we thus have to produce a negative strand version of the input
+                        nucleotides2 = ''.join(reversed(shortened_sequence))
+                        shortened_sequence = ""
+                        nucleotides2 = nucleotides2.lower()
+                        for nucleotide in  nucleotides2:
+                            if nucleotide == 't':
+                                nucleotide = 'a'
+                            elif nucleotide == 'a' :
+                                nucleotide = 't'
+                            elif nucleotide == 'c':
+                                nucleotide = 'g'
+                            elif nucleotide == 'g':
+                                nucleotide = 'c'
+
+                            shortened_sequence += nucleotide
+                    try:
+                       out = open(outfile, 'a')
+                       fprintf(out,'%s\t%s\t%s\t%s\t%s\n', cog, start, end,'n/a', shortened_sequence)
+                       out.close()
+                    except IOError, e:
+                       print "ERROR: Can't create " + outfile + '!\n' 
+                       sys.exit(0)
+
+                try:
+                   output_file = open(args.output_directory_var + PATHDELIM + contig_name + '_sequence.txt', 'w')
+                   fprintf(output_file, '>%s\n%s',contig_name, sequence)
+                   output_file.close()
+                except IOError, e:
+                    print "ERROR: Can't create " + args.output_directory_var + PATHDELIM + contig_name + '_sequence.txt!\n'
+                    sys.exit(0)
+
+            if searchmatch:
+               contig_name = searchmatch.group(1)
+               sequence = ""
+        else:
+           sequence += line
+    input.close()
+    return contig_rRNA_coordinates, rRNA_hit_files
+
+
+     
+def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
+
+    reference_data_prefix = args.reference_data_prefix
+    
+    hmmalign_singlehit_files = Autovivify();
+    
+    print "run hmmalign\n";
+    
+    for contig in sorted(genewise_summary_files.keys()) :
+        for genewise_summary_file in sorted(genewise_summary_files[contig].keys()) :
+            try:
+               input = open(genewise_summary_file, 'r')
+            except IOError:  
+               print  "ERROR: Can't open " + genewise_summary_file + "!\n"
+               sys.exit(0)
+
+            line= input.readline()
+            line =  line.strip()
+            while line:
+                cog, start, end, _, sequence = line.split('\t')
+
+                denominator = cog_list["all_cogs"][cog]
+                f_contig = denominator + "_" + contig
+                genewise_singlehit_file = args.output_directory_var +PATHDELIM +f_contig+'_'+cog+"_"+str(start)+"_"+str(end)
+                hmmalign_singlehit_files[f_contig]["$genewise_singlehit_file.mfa"] = True 
+                genewise_singlehit_file_fa = genewise_singlehit_file + ".fa" 
+                try:
+                   outfile = open(genewise_singlehit_file_fa, 'w')
+                   fprintf(outfile, '>query\n%s', sequence)
+                   outfile.close()
+                except IOError:
+                   print  'Can\'t create ' + genewise_singlehit_file_fa +'\n'
+                   sys.exit(0)
+       
+                hmmalign_command = [ 'sub_binaries/hmmalign', '-m', '--mapali',\
+                                     'data' +PATHDELIM + reference_data_prefix + 'alignment_data' + PATHDELIM +  cog + '.fa',\
+                                     '--outformat', 'Clustal',\
+                                      'data' + PATHDELIM + reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm',\
+                                      genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ] 
+                #print ' '.join(hmmalign_command)
+                os.system(' '.join(hmmalign_command))
+                line= input.readline()
+                line =  line.strip()
+
+#                try:
+#                   outfile = open(genewise_singlehit_file + '.mfa', 'w')
+#                   fprintf(outfile, '%s',result)
+#                   outfile.close()
+#                except IOError:
+#                   print  'Can\'t create ' + genewise_singlehit_file  + '.fa\n'
+#                   sys.exit(0)
+            input.close()
+                   
+
+
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
@@ -1087,7 +1201,7 @@ def main(argv):
     args = removePreviousOutput(args)
     
     #this creates the list of the marker COGs 
-    (cogList, textOfAnalysisType) = createCogList(args)
+    (cog_list, textOfAnalysisType) = createCogList(args)
 
     #splits the input files to smaller files for blasting
     splitFiles = splitFastaInput(args)
@@ -1096,26 +1210,29 @@ def main(argv):
     (blastxDB, blastnDB) = createBlastDBList(args)
 
     print('Run BLAST')
-    runBlast(args, splitFiles, blastxDB, blastnDB)
+#    runBlast(args, splitFiles, blastxDB, blastnDB)
 
     blastResults =  readBlastResults(args.output)
 
     print blastResults
     print 'types of cogs'
-    print cogList.keys()
+    print cog_list.keys()
+    print 'all_cogs ' + str(len(cog_list['all_cogs'] ))
+    print 'functional_cogs ' + str(len(cog_list['functional_cogs'] ))
+    print 'functional_cogs ', cog_list['functional_cogs'] 
 
-    print 'all_cogs ' + str(len(cogList['all_cogs'] ))
-    print 'functional_cogs ' + str(len(cogList['functional_cogs'] ))
-    print 'functional_cogs ', cogList['functional_cogs'] 
+    print 'phylogenetic_rRNA_cogs ' + str( len(cog_list['phylogenetic_rRNA_cogs']))
+    print 'phylogenetic_rRNA_cogs ',cog_list['phylogenetic_rRNA_cogs']
 
-    print 'phylogenetic_rRNA_cogs ' + str( len(cogList['phylogenetic_rRNA_cogs']))
-    print 'phylogenetic_rRNA_cogs ',cogList['phylogenetic_rRNA_cogs']
+    blast_hits_purified = parseBlastResults(args, blastResults, cog_list)
 
-    purified_blast_results = parseBlastResults(args, blastResults, cogList)
-
-    contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, purified_blast_results)
-    genewise_outputfiles = startGenewise(args, shortened_sequence_files, purified_blast_results)
+    contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
+    genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
     genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
+
+    contig_rRNA_coordinates, rRNA_hit_files =  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
+    hmmalign_singlehit_files  = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list);
+
 
 if __name__ == "__main__":
    main(sys.argv[1:])

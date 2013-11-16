@@ -1,5 +1,4 @@
 #! /usr/bin/perl -w
-
 #####################################################
 ##
 ## mltreemap.pl
@@ -1087,13 +1086,10 @@ sub get_rRNA_hit_sequences {
                 $sequence .= $_;
             }
             if (exists $contig_rRNA_coordinates{$contig_name}) {
-                
                 #ok, we have a sequence with a hit. Save the sequence file as well as a shortened version of it.
-                
                 my $sequence_length = length ($sequence);
                 my @nucleotides = split //, $sequence;
                 my $shortened_sequence = "";
-                
                 #start searching for the information to shorten the file.
                 
                 foreach my $identifier (sort {$a <=> $b} keys %{$contig_rRNA_coordinates{$contig_name}}) {
@@ -1137,7 +1133,6 @@ sub get_rRNA_hit_sequences {
                 }
                 
                 #done
-                
                 open (OUT, "> $output_directory_var/$contig_name"."_sequence.txt")
                 or die "ERROR: Can't create $output_directory_var/$contig_name"."_sequence.txt!\n"; 
                 print OUT ">$contig_name\n$sequence";
@@ -1172,7 +1167,6 @@ sub prepare_and_run_hmmalign {
     my %hmmalign_singlehit_files = ();
     my %hmmalign_singlehit_files_for_sun_grid_control = ();
     my %sun_grid_jobs = ();
-    
     print "run hmmalign\n";
     
     foreach my $contig (sort {$a cmp $b} keys %$genewise_summary_files) {

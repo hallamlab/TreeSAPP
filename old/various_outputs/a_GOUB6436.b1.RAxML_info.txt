@@ -1,0 +1,10 @@
+
+
+You are using RAxML version 7.1.0 released by Alexandros Stamatakis in October 2008
+
+Alignment has 1128 distinct alignment patterns
+
+Proportion of gaps and completely undetermined characters in this alignment: 0.080321
+
+RAxML classification algorithm
+

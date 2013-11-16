@@ -1,0 +1,1 @@
+GOUB3747.b1	316	385	forward	16srRNA	99.6
