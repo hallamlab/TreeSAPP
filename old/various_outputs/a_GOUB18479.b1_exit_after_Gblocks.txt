@@ -1,1 +1,0 @@
-final alignment after gblocks is to short (<50 aa) - unsufficient number of marker gene residues in query sequence.
