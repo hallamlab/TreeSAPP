@@ -1,1 +1,0 @@
-GOUB7063.b1	146	387	reverse	18srRNA	250.0
