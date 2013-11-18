@@ -1190,6 +1190,8 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
 #                   print  'Can\'t create ' + genewise_singlehit_file  + '.fa\n'
 #                   sys.exit(0)
             input.close()
+
+    return hmmalign_singlehit_files
                    
 
 def get_non_wag_cogs():
@@ -1215,7 +1217,6 @@ def get_non_wag_cogs():
 
 
 def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list):
-    
     sequences = Autovivify()
 
     # For each type of gene...
@@ -1343,7 +1344,7 @@ def main(argv):
     contig_rRNA_coordinates, rRNA_hit_files =  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
     hmmalign_singlehit_files  = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list);
 
-    concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehitsfiles(args, hmmalign_singlehit_files, non_wag_cog_list)
+    concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
 
 
 if __name__ == "__main__":
