@@ -1159,7 +1159,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                 denominator = cog_list["all_cogs"][cog]
                 f_contig = denominator + "_" + contig
                 genewise_singlehit_file = args.output_directory_var +PATHDELIM +f_contig+'_'+cog+"_"+str(start)+"_"+str(end)
-                hmmalign_singlehit_files[f_contig]["$genewise_singlehit_file.mfa"] = True 
+                hmmalign_singlehit_files[f_contig][genewise_singlehit_file + ".mfa"] = True 
                 genewise_singlehit_file_fa = genewise_singlehit_file + ".fa" 
                 try:
                    outfile = open(genewise_singlehit_file_fa, 'w')
@@ -1174,18 +1174,11 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                                      '--outformat', 'Clustal',\
                                       'data' + PATHDELIM + reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm',\
                                       genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ] 
-                #print ' '.join(hmmalign_command)
+
                 os.system(' '.join(hmmalign_command))
                 line= input.readline()
                 line =  line.strip()
 
-#                try:
-#                   outfile = open(genewise_singlehit_file + '.mfa', 'w')
-#                   fprintf(outfile, '%s',result)
-#                   outfile.close()
-#                except IOError:
-#                   print  'Can\'t create ' + genewise_singlehit_file  + '.fa\n'
-#                   sys.exit(0)
             input.close()
 
     return hmmalign_singlehit_files
@@ -1214,64 +1207,61 @@ def get_non_wag_cogs():
 
 
 def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list):
-    sequences = Autovivify()
-
     # For each type of gene...
-
+    concatenated_mfa_files = {}
+    models_to_be_used = {}
+    nrs_of_sequences = {}
     for f_contig in sorted(hmmalign_singlehit_files.keys()):
-
         # Determine what type of gene is currently represented, or die an error
-
-        if re.match(r'\A(.)', f_contig):
-            denominator = re.match(r'\A(.)', f_contig).group(0)
+        sequences = Autovivify()
+        model_to_be_used = ""
+        query_sequence = ""
+        denominator = ""
+        if re.search(r'\A(.)', f_contig):
+            denominator = re.match(r'\A(.)', f_contig).group(1)
         else:
             sys.exit('ERROR: The analysis type could not be parsed from ' + f_contig + '!\n')
 
         # For each file...
-
         for hmmalign_singlehit_file in sorted(hmmalign_singlehit_files[f_contig].keys()):
-
             # Open the file
-
             try:
                 input = open(hmmalign_singlehit_file, 'r')
             except IOError:
                 sys.exit('Can\'t open ' + hmmalign_singlehit_file + '!\n')
-
+            reached_data_part = False
             # Determine the best AA model
 
-            if re.match(r'\A.+_(.{7})_\d+_\d+\.mfa\Z', hmmalign_singlehit_file):
-                cog = re.match(r'\A.+_(.{7})_\d+_\d+\.mfa\Z', hmmalign_singlehit_file).group(0)
+            if re.search(r'\A.+_(.{7})_\d+_\d+\.mfa\Z', hmmalign_singlehit_file):
+                cog = re.search(r'\A.+_(.{7})_\d+_\d+\.mfa\Z', hmmalign_singlehit_file).group(1)
             else:
                 sys.exit('ERROR: The COG could not be parsed from ' + hmmalign_singlehit_file + '!\n')
 
-            if non_wag_cog_list[denominator][cog] in locals() and model_to_be_used != 'PROTGAMMAWAG':
+            if non_wag_cog_list[denominator][cog] and model_to_be_used != 'PROTGAMMAWAG':
                 model_to_be_used = non_wag_cog_list[denominator][cog]
             else:
                 model_to_be_used = 'PROTGAMMAWAG'
-
-            reached_data_part = 0
-
             # Get sequence from file
 
-            for line in input:
-                line.strip()
+            for _line in input:
+                line = _line.strip()
 
-                if re.match(r'.*query.*', line):
-                    reached_data_part = 1
+                if re.search(r'query', line):
+                    reached_data_part = True
 
-                if reached_data_part != 1:
+                if not reached_data_part:
                     continue
 
-                if re.match(r'\A(.+) (\S+)\Z', line):
-                    name_long = re.match(r'\A(.+) (\S+)\Z', line).group(0)
-                    sequence_part = re.match(r'\A(.+) (\S+)\Z', line).group(1)
+                searchResult =  re.search(r'\A(.+) (\S+)\Z', line)
+                if searchResult:
+                    name_long = searchResult.group(1)
+                    sequence_part = searchResult.group(2)
                     sequence_name = ''
-                    if re.match(r'.*query.*', name_long):
+                    if re.search(r'query', name_long):
                         query_sequence += sequence_part
-                    elif re.match(r'.*(\d+)_.*', name_long):
-                        sequence_name = re.match(r'.*(\d+)_.*', name_long).group(0)
-                        if sequences[sequence_name] in locals():
+                    elif re.search(r'(\d+)_', name_long):
+                        sequence_name = re.search(r'(\d+)_', name_long).group(1)
+                        if sequences[sequence_name]:
                             sequences[sequence_name] += sequence_part
                         else:
                             sequences[sequence_name] = sequence_part
@@ -1279,14 +1269,14 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
             input.close()
 
         models_to_be_used[f_contig] = model_to_be_used
-        concatenated_mfa_files[f_contig] = args.output_directory_var + f_contig + '.mfa'
+        concatenated_mfa_files[f_contig] = args.output_directory_var + PATHDELIM +  f_contig + '.mfa'
 
         # Write to the output file
 
         try:
-            output = open(args.output_directory_var + f_contig + '.mfa', 'w')
+            output = open(args.output_directory_var + PATHDELIM + f_contig + '.mfa', 'w')
         except IOError:
-            sys.exit('ERROR: Can\'t create ' + args.output_directory_var + f_contig + '.mfa\n')
+            sys.exit('ERROR: Can\'t create ' + args.output_directory_var + PATHDELIM +  f_contig + '.mfa\n')
 
         output.write('>query\n' + query_sequence + '\n')
 
@@ -1300,6 +1290,28 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
 
     return (concatenated_mfa_files, nrs_of_sequences, models_to_be_used)
 
+
+def  start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
+    gblocks_files = {}
+    sun_grid_jobs = {}
+    
+    print "run Gblocks\n"
+    
+    for f_contig  in sorted(concatenated_mfa_files.keys()) :
+        concatenated_mfa_file = concatenated_mfa_files[f_contig]
+        nr_of_sequences = nrs_of_sequences[f_contig]
+        min_flank_pos = int(nr_of_sequences * 0.55)
+        gblocks_file = concatenated_mfa_file+ "-gb"
+        gblocks_files[f_contig] = gblocks_file;
+        gblocks_command = [ "sub_binaries/Gblocks" ]
+        gblocks_command.append(concatenated_mfa_file)
+        gblocks_command += ['-t=p', '-s=y', '-u=n', '-p=t', '-b3=15',\
+                                 '-b4=3', '-b5=h', '-b2='+str(min_flank_pos),\
+                                 '>', '/dev/null']
+
+        os.system(' '.join(gblocks_command))
+    
+    return gblocks_files
 
 def main(argv):
     parser = getParser()
@@ -1342,6 +1354,10 @@ def main(argv):
     hmmalign_singlehit_files  = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list);
 
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
+    gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
+
+
+    
 
 
 if __name__ == "__main__":
