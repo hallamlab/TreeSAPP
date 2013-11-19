@@ -1413,6 +1413,33 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
     return phy_files
 
 
+#TK undef_hashes on genewise_summary_files, hmmalign_singlehit_files, concatenated_mfa_files, nrs_of_sequences, gblocks_files
+
+
+def start_RAxML(args, phy_files, cog_list):
+    expected_raxml_outfiles = Autovivify()
+    raxml_outfiles = Autovivify()
+    print 'run RAxML\n'
+
+    if args.bootstraps > 1 and args.phylogeny == 'p':
+        print 'ATTENTION: You intended to do ' + args.bootstraps + ' bootstrap replications. Unfortunately, bootstrapping is ' +\
+              'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n'
+        args.bootstraps = 1
+
+    for f_contig in sorted(phy_files.keys()):
+        reference_tree_file = 'data/tree_data/' + args.reference_tree
+        phy_file = phy_files[f_contig]
+        if re.search(r'\A(.)', f_contig):
+            denominator = re.search(r'\A(.)', f_contig).group(0)
+        if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
+
+            for cog in sorted(cog_list['all_cogs'].keys()):
+                if not cog_list['all_cogs'][cog] == denominator:
+                    continue
+                reference_tree_file = 'data/tree/' + cog + '_tree.txt'
+                break
+
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
@@ -1456,7 +1483,7 @@ def main(argv):
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
-
+    TK = start_RAxML(args, phy_files, cog_list)
     
 
 
