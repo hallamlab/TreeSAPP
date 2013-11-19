@@ -1139,13 +1139,10 @@ def  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summar
 
      
 def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
-
     reference_data_prefix = args.reference_data_prefix
-    
     hmmalign_singlehit_files = Autovivify();
     
     print "run hmmalign\n";
-    
     for contig in sorted(genewise_summary_files.keys()) :
         for genewise_summary_file in sorted(genewise_summary_files[contig].keys()) :
             try:
