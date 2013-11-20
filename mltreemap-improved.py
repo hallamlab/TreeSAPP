@@ -1333,15 +1333,16 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
 
         for line in input:
             line = line.strip()
-            if re.match(r'\A>(.+)', line):
-                seq_name = re.match(r'\A>(.+)', line).group(0)
-                if seq_name == '-666':
-                    sys.exit('ERROR: Your reference alignment contains an element with the number -666. ' +\
+            seq_name_search =  re.search(r'\A>(.+)', line)
+            if seq_name_search:
+                seq_name = seq_name_search.group(1)
+                if seq_name == -666:
+                    sys.exit('ERROR: Your reference alignment contains element with the number -666. ' +\
                              'Please change it, because this number is needed for internal purposes.\n')
                 if seq_name == 'query':
                    seq_name = -666
             else:
-                line = re.sub(r' ', r'', line)
+                line = re.sub(r' ', '', line)
                 if seq_name in sequences_raw:
                     sequences_raw[seq_name] += line
                 else:
@@ -1352,7 +1353,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                 continue
             sequence = sequences_raw[seq_name]
             count = 0
-            sequence_lengths[f_contig] = sequence.__len__()
+            sequence_lengths[f_contig] = len(sequence)
             sequence = re.sub(r'\.', 'X', sequence)
             sequence = re.sub(r'\*', 'X', sequence)
             sequence = re.sub('-', 'X', sequence)
@@ -1360,7 +1361,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                 sequence = re.sub('X', 'V', sequence, 1)
             if seq_name == -666:
                 seq_dummy = re.sub('X', '', sequence)
-                if seq_dummy.__len__() < args.gblocks:
+                if len(seq_dummy) < args.gblocks:
                     do_not_continue = 1
                     exit_file_name = args.output_directory_var + PATHDELIM + f_contig + '_exit_after_Gblocks.txt'
                     try:
@@ -1374,11 +1375,10 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
 
             sub_sequences = re.findall(r'.{1,50}', sequence)
             for sub_sequence in sub_sequences:
-                sequences_for_phy[f_contig][count][seq_name] = sub_sequence
-                print 'sub_sequence count at ' + str(count) + ' !!!\n'
+                sequences_for_phy[f_contig][count][int(seq_name)] = sub_sequence
                 count += 1
 
-        if (do_not_continue == 1):
+        if do_not_continue == 1:
             continue
 
         phy_file_name = args.output_directory_var + PATHDELIM + f_contig + '.phy'
@@ -1388,19 +1388,18 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
         except IOError:
             sys.exit('ERROR: Can\'t open ' + phy_file_name + '!\n')
         nr_of_sequences = nrs_of_sequences[f_contig]
-        output.write(' ' + str(nr_of_sequences) + ' ' + str(sequence_lengths[f_contig]) + '\n')
+        output.write(' ' + str(nr_of_sequences) + '  ' + str(sequence_lengths[f_contig]) + '\n')
 
 
         for count in sorted(sequences_for_phy[f_contig].keys()):
-
             for seq_name in sorted(sequences_for_phy[f_contig][count].keys()):
                 sequence_part = sequences_for_phy[f_contig][count][seq_name]
-                if count > 0:
+                if count== 0:
                     print_seqname = seq_name
                     if seq_name == -666:
                         print_seqname = 'query'
-                    output.write(print_seqname)
-                    length = print_seqname.__len__()
+                    output.write(str(print_seqname))
+                    length = len(str(print_seqname))
                     c = length
                     while c < 10:
                         output.write(' ')
@@ -1483,7 +1482,7 @@ def main(argv):
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
-    TK = start_RAxML(args, phy_files, cog_list)
+    #1TK = start_RAxML(args, phy_files, cog_list)
     
 
 
