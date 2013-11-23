@@ -284,8 +284,8 @@ def splitFastaInput(args):
     
     outputSplit = open(args.output + PATHDELIM + 'various_outputs' + PATHDELIM + inputFileName + '_0.txt', 'w')
     outputFormatted = open(args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt', 'w')
-    args.formatted_input_file = args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt'
-    args.output_directory_var = args.output + PATHDELIM + 'various_outputs' 
+    args.formatted_input_file = args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt' + PATHDELIM
+    args.output_directory_var = args.output + PATHDELIM + 'various_outputs' + PATHDELIM
     countFiles = 0
     countSequences = 0
     
@@ -785,20 +785,20 @@ def produceGenewiseFiles(args, blast_hits_purified):
         
         
                 try:
-                    with open(args.output_directory_var + PATHDELIM + contig_name + "_sequence.txt", 'w') as f:
+                    with open(args.output_directory_var + contig_name + "_sequence.txt", 'w') as f:
                        fprintf(f, "%s\n", ">"+ contig_name + "\n" + sequence)
                     f.close()
                 except:
-                    print  "ERROR: Can't create " + args.output_directory_var + PATHDELIM + contig_name + "_sequence.txt!" 
+                    print  "ERROR: Can't create " + args.output_directory_var + contig_name + "_sequence.txt!" 
 
 
                 try:   
-                   with open(args.output_directory_var + PATHDELIM + contig_name + "_sequence_shortened.txt", 'w') as f:
+                   with open(args.output_directory_var + contig_name + "_sequence_shortened.txt", 'w') as f:
                       fprintf(f, "%s\n",">" + contig_name + "\n" + shortened_sequence)
                    f.close()
-                   shortened_sequence_files[args.output_directory_var + PATHDELIM +  contig_name + "_sequence_shortened.txt"]=contig_name
+                   shortened_sequence_files[args.output_directory_var +  contig_name + "_sequence_shortened.txt"]=contig_name
                 except:
-                   print "ERROR: Can't create " + args.output_directory_var + PATHDELIM +  contig_name +"_sequence_shortened.txt!" 
+                   print "ERROR: Can't create " + args.output_directory_var +  contig_name +"_sequence_shortened.txt!" 
 
             if searchmatch:
                contig_name = searchmatch.group(1)
@@ -1010,7 +1010,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
             continue
 
         # Write the summary file
-        genewise_summary_file = args.output_directory_var + PATHDELIM +  contig + '_genewise_result_summary.txt'
+        genewise_summary_file = args.output_directory_var +  contig + '_genewise_result_summary.txt'
         try:     
             output = open(genewise_summary_file, 'w')
         except IOError:
@@ -1047,7 +1047,7 @@ def  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summar
             contig_rRNA_coordinates[contig][identifier]["end"] = end
             contig_rRNA_coordinates[contig][identifier]["cog"] = cog
             contig_rRNA_coordinates[contig][identifier]["direction"] = direction
-            outfile_name = args.output_directory_var + PATHDELIM +  contig + '_rRNA_result_summary.txt'   
+            outfile_name = args.output_directory_var +  contig + '_rRNA_result_summary.txt'   
             contig_rRNA_coordinates[contig][identifier]["outfile"] = outfile_name
             genewise_summary_files[contig][outfile_name] = 1     
             try:
@@ -1121,11 +1121,11 @@ def  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summar
                        sys.exit(0)
 
                 try:
-                   output_file = open(args.output_directory_var + PATHDELIM + contig_name + '_sequence.txt', 'w')
+                   output_file = open(args.output_directory_var + contig_name + '_sequence.txt', 'w')
                    fprintf(output_file, '>%s\n%s',contig_name, sequence)
                    output_file.close()
                 except IOError, e:
-                    print "ERROR: Can't create " + args.output_directory_var + PATHDELIM + contig_name + '_sequence.txt!\n'
+                    print "ERROR: Can't create " + args.output_directory_var + contig_name + '_sequence.txt!\n'
                     sys.exit(0)
 
             if searchmatch:
@@ -1269,14 +1269,14 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
             input.close()
 
         models_to_be_used[f_contig] = model_to_be_used
-        concatenated_mfa_files[f_contig] = args.output_directory_var + PATHDELIM +  f_contig + '.mfa'
+        concatenated_mfa_files[f_contig] = args.output_directory_var +  f_contig + '.mfa'
 
         # Write to the output file
 
         try:
-            output = open(args.output_directory_var + PATHDELIM + f_contig + '.mfa', 'w')
+            output = open(args.output_directory_var + f_contig + '.mfa', 'w')
         except IOError:
-            sys.exit('ERROR: Can\'t create ' + args.output_directory_var + PATHDELIM +  f_contig + '.mfa\n')
+            sys.exit('ERROR: Can\'t create ' + args.output_directory_var +  f_contig + '.mfa\n')
 
         output.write('>query\n' + query_sequence + '\n')
 
@@ -1363,7 +1363,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                 seq_dummy = re.sub('X', '', sequence)
                 if len(seq_dummy) < args.gblocks:
                     do_not_continue = 1
-                    exit_file_name = args.output_directory_var + PATHDELIM + f_contig + '_exit_after_Gblocks.txt'
+                    exit_file_name = args.output_directory_var + f_contig + '_exit_after_Gblocks.txt'
                     try:
                         output = open(exit_file_name, 'w')
                     except IOError:
@@ -1381,7 +1381,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
         if do_not_continue == 1:
             continue
 
-        phy_file_name = args.output_directory_var + PATHDELIM + f_contig + '.phy'
+        phy_file_name = args.output_directory_var + f_contig + '.phy'
         phy_files[f_contig] = phy_file_name
         try:
             output = open(phy_file_name, 'w')
@@ -1415,13 +1415,13 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
 #TK undef_hashes on genewise_summary_files, hmmalign_singlehit_files, concatenated_mfa_files, nrs_of_sequences, gblocks_files
 
 
-def start_RAxML(args, phy_files, cog_list):
+def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     expected_raxml_outfiles = Autovivify()
     raxml_outfiles = Autovivify()
     print 'run RAxML\n'
 
     if args.bootstraps > 1 and args.phylogeny == 'p':
-        print 'ATTENTION: You intended to do ' + args.bootstraps + ' bootstrap replications. Unfortunately, bootstrapping is ' +\
+        print 'ATTENTION: You intended to do ' + str(args.bootstraps) + ' bootstrap replications. Unfortunately, bootstrapping is ' +\
               'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n'
         args.bootstraps = 1
 
@@ -1437,6 +1437,56 @@ def start_RAxML(args, phy_files, cog_list):
                     continue
                 reference_tree_file = 'data/tree/' + cog + '_tree.txt'
                 break
+
+        args['reference_tree_file_of_denominator'][denominator] = reference_tree_file
+        raxml_files = [args.output_directory_var + 'RAxML_info.' + f_contig,\
+                       args.output_directory_var + 'RAxML_labelledTree.' + f_contig,\
+                       args.output_directory_var + 'RAxML_classification.' + f_contig]
+        
+        for raxml_file in raxml_files:
+            shutil.rmtree(file) 
+
+        model_to_be_used = models_to_be_used[f_contig]
+        if model_to_be_used not in models_to_be_used[f_contig].keys():
+            sys.exit('ERROR: No best AA model could be detected for the ML step!\n')
+        raxml_command = [ 'sub_binaries/raxmlHPC', '-m', model_to_be_used]
+        if bootstrap_replicates > 1:
+            raxml_command += [ '-x', '12345', '-#', bootstrap_replicates]
+        raxml_command += [ '-s', phy_file, '-t', reference_tree_file, '-f', raxml_option, '-n', f_contig,\
+                           '-w', args.output_directory_var, '>', str(args.output_directory_var) + str(f_contig), '_RAxML.txt']
+        os.system(' '.join(raxml_command))
+
+    for f_contig in sorted(phy_files.keys()):
+        denominator = ''
+        if re.match(r'\A(.)', f_contig):
+            denominator = re.match(r'\A(.)', f_contig).group(1)
+        move_command = [ 'mv', str(args.output_directory_var), 'RAxML_info.' + str(f_contig), \
+                         str(args.output_directory_var) + str(f_contig) + '.RAxML_info.txt']
+        os.system(' '.join(move_command))
+        if raxml_option == 'v':
+            raxml_outfiles[denominator][f_contig]['classification'] = str(args.output_directory_var) + str(f_contig) + '.RAxML_classification.txt'
+            raxml_outfiles[denominator][f_contig]['labelled_tree'] = str(args.output_directory_var) + str(f_contig) + '.originalRAxML_labelledTree.txt'
+            move_command1 = [ 'mv', str(args.output_directory_var) + 'RAxML_classification.' + str(f_contig),\
+                              str(raxml_outfiles[denominator][f_contig]['classification'])]
+            move_command2 = [ 'mv', str(args.output_directory_var) + 'RAxML_originalLabelledTree.' + str(f_contig),\
+                              str(raxml_outfiles[denominator][f_contig]['labelled_tree'])]
+            remove_command = [ 'rm', str(args.output_directory_var) + 'RAxML_labelledTree.' + str(f_contig)]
+            os.system(' '.join(move_command1))
+            os.system(' '.join(move_command2))
+            os.system(' '.join(remove_command))
+        elif raxml_option == 'p':
+            raxml_outfiles[denominator][f_contig] = str(args.output_directory_var) + str(f_contig) + '.RAxML_parsimonyTree.txt'
+            move_command1 = [ 'mv', str(args.output_directory_var) + 'RAxML_parsimonyTree.' + str(f_contig),\
+                              str(raxml_outfiles[denominator][f_contig])]
+            os.system(' '.join(move_command1))
+        else:
+            sys.exit('ERROR: The chosen RAxML mode is invalid. This should have been noticed earlier by MLTreeMap.' +\
+                     'Please notify the authors\n')
+
+    return raxml_outfiles
+
+
+#def parse_RAxML_output()
 
 
 def main(argv):
@@ -1482,8 +1532,8 @@ def main(argv):
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
-    #1TK = start_RAxML(args, phy_files, cog_list)
-    
+    raxml_outfiles = start_RAxML(args, phy_files, cog_list)
+    #final_RAxML_output_files = parse_RAxML_output(args)
 
 
 if __name__ == "__main__":
