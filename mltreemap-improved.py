@@ -1486,7 +1486,338 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     return raxml_outfiles
 
 
-#def parse_RAxML_output()
+def parse_RAxML_output(args, raxml_outfiles):
+    raxml_option = args.phylogeny
+    print 'finishing\n'
+    output_directory_final_RAxML = args.output_dir_raxml
+    final_RAxML_output_files = Autovivify()
+
+    for denominator in sorted(raxml_outfiles.keys()):
+        description_text = '# ' + text_of_analysis_type[denominator] + '\n'
+        reference_tree_file = args['reference_tree_file_of_denominator'][denominator]
+        terminal_children_strings_of_reference = # TK
+
+
+def read_and_understand_the_reference_tree(reference_tree_file):
+    reference_tree_elements = read_the_reference_tree(reference_tree_file)
+    reference_tree_info = create_tree_info_hash()
+    get_node_subtrees(reference_tree_elements, reference_tree_info)
+    assign_parents_and_children(reference_tree_info)
+    terminal_children_strings_of_reference = build_terminal_children_strings_of_reference_nodes(reference_tree_info)
+    return terminal_children_strings_of_reference
+
+
+def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
+    labelled_tree_elements, insertion_point_node_hash = read_the_raxml_out_tree(labelled_tree_file)
+    labelled_tree_info = create_tree_info_hash()
+    get_node_subtrees(labelled_tree_elements, labelled_tree_info)
+    assign_parents_and_children(labelled_tree_info)
+    build_tree_info_quartets(labelled_tree_info)
+    rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
+    return rooted_labelled_trees, insertion_point_node_hash
+
+
+def identify_the_correct_terminal_children_of_each_assignment(terminal_children_strings_of_reference, rooted_labelled_trees, insertion_point_node_hash, assignments):
+    terminal_children_strings_of_assignments = build_terminal_children_strings_of_assignments(rooted_labelled_trees, insertion_point_node_hash, assignments)
+    real_terminal_children_strings_of_assignments = compare_terminal_children_strings(terminal_children_strings_of_assignments, terminal_children_strings_of_reference)
+    return real_terminal_children_strings_of_assignments
+
+
+def get_correct_mp_assignment(terminal_children_strings_of_reference, mp_tree_file, assignments):
+    potential_terminal_children_strings = read_the_raxml_mp_out_tree(mp_tree_file, assignments)
+    real_terminal_children_strings_of_assignments = compare_terminal_children_strings(potential_terminal_children_strings, terminal_children_strings_of_reference)
+    return real_terminal_children_strings_of_assignments
+
+
+def read_the_reference_tree(reference_tree_file):
+    try:
+        input = open(reference_tree_file, 'r')
+    except IOError:
+        sys.exit('ERROR: Could not open ' + reference_tree_file + '!\n')
+    tree_string = ''
+
+    for line in input:
+        line = line.strip()
+        tree_string += line
+
+    input.close()
+
+    tree_string = re.sub('(', 'L', tree_string)
+    tree_string = re.sub(')', 'R', tree_string)
+    tree_string = re.sub(r':\d+\.\d+', '', tree_string)
+    count = -2
+
+    while re.search(r'R'):
+        tree_string = re.sub('R', 'Q' + count, tree_string, 1)
+        count += -1
+
+    tree_string = re.sub(r'Q-\d+;', 'Q;', tree_string)
+    tree_string = re.sub('L', '(', tree_string)
+    tree_string = re.sub('Q', ')', tree_string)
+    reference_tree_elements = split_tree_string(tree_string)
+    return reference_tree_elements
+
+
+def read_the_raxml_out_tree(labelled_tree_file):
+    insertion_point_node_hash = Autovivify()
+    try:
+        input = open(labelled_tree_file, 'r')
+    except IOError:
+        sys.exit('ERROR: Could not open ' + labelled_tree_file + '!\n')
+    tree_string = ''
+
+    for line in input:
+        line = line.strip()
+        tree_string += line
+
+    input.close()
+    tree_symbols_raw_1 = list(tree_string)
+    bracket_diff = 0
+    tree_string_neu = '('
+    comma_count = 0
+
+    for tree_symbol_raw_1 in tree_symbols_raw_1
+        if comma_count < 2:
+            if tree_symbol_raw_1 == '(':
+                bracket_diff += 1
+            if tree_symbol_raw_1 == ')':
+                bracket_diff += -1
+            if tree_symbol_raw_1 == ',' and bracket_diff == 1:
+                comma_count += 1
+            if comma_count == 2:
+                tree_string_neu += '):1.0[I666999666]'
+        tree_string_neu += tree_symbol_raw_1
+
+    tree_string = tree_string_neu
+    tree_string = re.sub('(', 'L', tree_string)
+    tree_string = re.sub(')', 'R', tree_string)
+    tree_string = re.sub('[', 'Q', tree_string)
+    tree_string = re.sub(':1.0', '', tree_string)
+
+    while re.search(r'((\D(\d+))QI(\d+)])', tree_string):
+        to_be_replaced = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(1)
+        replacement = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(2)
+        terminal_leaf = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(3)
+        insertion_point = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(4)
+        if terminal_leaf <= 0:
+            sys.exit('ERROR: Your tree has terminal leaves with numbers <= 0. Please change them to positive values!\n')
+        insertion_point_node_hash[insertion_point] = terminal_leaf
+        tree_string = re.sub(to_be_replaced, replacement, tree_string)
+
+    count = -2
+
+    while re.search(r'QI(\d+)', tree_string):
+        tree_string = re.sub(r'QI(\d+)', count, tree_string, 1)
+        insertion_point_node_hash[re.search(r'QI(\d+)', tree_string).group(1)] = count
+        count += -1
+
+    tree_string = re.sub('L', '(', tree_string)
+    tree_string = re.sub('R', ')', tree_string)
+    tree_string = re.sub('Q', '[', tree_string)
+    tree_elements = split_tree_string(tree_string)
+    return tree_elements, insertion_point_node_hash
+
+
+def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
+    potential_terminal_children_strings = Autovivify()
+    assignment = ''
+
+    for assig in sorted(assignments.keys()):
+        assignment = assig
+        break
+
+    try:
+        input = open(mp_tree_file, 'r')
+    except IOError:
+        sys.exit('ERROR: Can\'t open ' + str(mp_tree_file) + '\n')
+    tree_string = ''
+
+    for line in input:
+        line = line.strip()
+        tree_string += line
+
+    input.close()
+    tree_string = re.sub('(', 'L', tree_string)
+    tree_string = re.sub(')', 'R', tree_string)
+    if not re.search(r',queryR;\Z', tree_string):
+        sys.exit('ERROR: The query is not at the root of ' + str(mp_tree_file) + '!\n')
+    else:
+        tree_string = re.sub(r',queryR;\Z', 'R;', tree_string)
+    tree_string = re.sub(r':\d+\.\d+', '', tree_string)
+    count = -2
+
+    while re.search('R', tree_string):
+        tree_string = re.sub('R', 'Q' + str(count), tree_string, 1)
+        count += -1
+
+    tree_string = re.sub(r'Q-\d+;', 'Q;', tree_string)
+    tree_string = re.sub('L', '(', tree_string)
+    tree_string = re.sub('R', ')', tree_string)
+    tree_symbols = list(tree_string)
+    bracket_diff = 0
+    comma_count = 0
+    substrings = ['', ',']
+
+    for tree_symbol in tree_symbols:
+        if comma_count < 1:
+            if tree_symbol == '(':
+                bracket_diff += 1
+            if tree_symbol == ')':
+                bracket_diff += -1
+            if tree_symbol == ',' and bracket_diff == 1:
+                comma_count += 1
+            substrings[0] += tree_symbol
+        else:
+            substrings[1] += tree_symbol
+
+    for substring in substrings:
+        terminal_children = Autovivify()
+
+        while re.search(r'(\D)(\d+)', substring):
+            if re.search(r'(\D)(\d+)', substring).group(1) == '-':
+                continue
+            terminal_children[re.search(r'(\D)(\d+)', substring).group(2)] = 1
+
+        potential_terminal_children_string = ''
+
+        for potential_terminal_child in sorted(terminal_children.keys()):
+            potential_terminal_children_string += str(potential_terminal_child) + ' '
+
+        potential_terminal_children_strings[assignment][potential_terminal_children_string] = 1
+
+    return potential_terminal_children_strings
+
+
+def split_tree_string(tree_string):
+    tree_symbols_raw = list(tree_string)
+    count = -1
+    previous_symbol = ''
+
+    for tree_symbol_raw in tree_symbols_raw:
+        if re.search(r'\d', tree_symbol_raw) and (re.search(r'\d', previous_symbol) or previous_symbol == '-'):
+            tree_elements[count] += tree_symbol_raw
+        else:
+            count += 1
+            tree_elements[count] = tree_symbol_raw
+        previous_symbol = tree_symbol_raw
+
+    return tree_elements
+
+
+def create_tree_info_hash():
+    tree_info = Autovivify()
+    tree_info['parent_of_node'] = None
+    tree_info['children_of_node'] = None
+    tree_info['subtree_of_node'] = None
+    tree_info['quartets'] = None
+    return tree_info
+
+
+def get_node_subtrees(tree_elements, tree_info):
+    bracket_l_count = 0
+    bracket_r_count = 0
+    parents_of_node = Autovivify()
+    tree_element_nr = -1
+
+    for tree_element in tree_elements.keys():
+        tree_element_nr += 1
+        if tree_element == '(':
+            bracket_l_count = 1
+            bracket_r_count = 0
+            tree_sub_element_nr = tree_element_nr
+            subtree_string = '('
+
+            while true:
+                tree_sub_element_nr += 1
+                tree_sub_element = tree_elements[tree_sub_element_nr]
+                if tree_sub_element == '(':
+                    bracket_l_count += 1
+                if tree_sub_element == ')':
+                    bracket_r_count += 1
+                if bracket_l_count == bracket_r_count:
+                    nodename = tree_elements[tree_sub_element_nr + 1]
+                    if nodename == ';':
+                        nodename = -1
+                    subtree_string += ')' + str(nodename)
+                    tree_info['subtree_of_node'][nodename] = subtree_string
+                    break
+                else:
+                    subtree_string += tree_sub_element
+
+    for tree_element in tree_elements.keys():
+        if not re.search(r'\d+', tree_element):
+            continue
+        if tree_element in tree_info['subtree_of_node'].keys():
+            continue
+        tree_info['subtree_of_node'][tree_element] = tree_element
+
+    return tree_info
+
+
+def assign_parents_and_children(tree_info):
+    for node in sorted(tree_info['subtree_of_node'].keys()):
+        if node == -1:
+            continue
+        subtree = tree_info['subtree_of_node'][node]
+        parent = None
+
+        for potential_parent in sorted(tree_info['subtree_of_node'].keys()):
+            if node == potential_parent:
+                continue
+            potential_parent_subtree = tree_info['subtree_of_node'][potential_parent]
+            subtree = re.sub('(', 'L', subtree)
+            subtree = re.sub(')', '#', subtree)
+            potential_parent_subtree = re.sub('(', 'L', potential_parent_subtree)
+            potential_parent_subtree = re.sub(')', '#', potential_parent_subtree)
+            if re.search(r'\AL'+subtree+',.+#'+potential_parent+'\Z', potential_parent_subtree) or \
+               re.search(r'\AL.+,'+subtree+'#'+potential_parent+'\Z', potential_parent_subtree):
+                break
+
+        tree_info['parent_of_node'][node] = parent
+        tree_info['children_of_node'][parent][node] = 1
+
+    return tree_info
+
+
+def build_tree_info_quartets(tree_info):
+    for node in sorted(tree_info['parent_of_node'].keys()):
+        parent = tree_info['parent_of_node'][node]
+        if parent == -1:
+
+            for roots_child in sorted(tree_info['children_of_node']['-1']:
+                if roots_child == node:
+                    continue
+                parent = roots_child
+
+        tree_info['quartets'][node][parent] = 1
+        if node in tree_info['children_of_node'].keys():
+            for child in sorted(tree_info['children_of_node'][node].keys()):
+                tree_info['quartets'][node][child] = 1
+
+    return tree_info
+
+
+def build_newly_rooted_trees(tree_info):
+    tree_number = 0
+    list_of_already_used_attachments = Autovivify()
+
+    for node in sorted(tree_info['quartets'].keys()):
+        if node in list_of_already_used_attachments:
+            continue
+        for attachment in sorted(tree_info['quartets'][node].keys()):
+            list_of_already_used_attachments[attachment] = 1
+            tree_string = ''
+            root = -1
+            node_infos = Autovivify()
+            node_infos['previous_node'] = ''
+            node_infos['node'] = ';'
+            node_infos['open_attachments'][node] = 1
+            node_infos['open_attachments'][attachment] = 1
+            new_tree = recursive_tree_builder(tree_info, node_infos, tree_string)
+            rooted_trees[tree_number] = new_tree
+            tree_number += 1
+
+    return rooted_trees
 
 
 def main(argv):
@@ -1533,7 +1864,7 @@ def main(argv):
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
     raxml_outfiles = start_RAxML(args, phy_files, cog_list)
-    #final_RAxML_output_files = parse_RAxML_output(args)
+    final_RAxML_output_files = parse_RAxML_output(args, raxml_outfiles)
 
 
 if __name__ == "__main__":
