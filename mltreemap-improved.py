@@ -2015,6 +2015,62 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
     return real_terminal_children_strings_of_assignments
 
 
+def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type):
+    output_directory_final = args.output_dir_final
+
+    for denominator in sorted(final_RAxML_output_files.keys()):
+        nr_of_files = 0
+        assignments = Autovivify()
+        description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
+        final_output_file_name = str(output_directory_final) + str(denominator) + '_concatenated_RAxML_outputs.txt'
+
+        for final_RAxML_output_file in sorted(final_RAxML_output_files[denominator].keys()):
+            nr_of_files += 1
+            try:
+                input = open(final_RAxML_output_file, 'r')
+            except IOError:
+                sys.exit('ERROR: Can\'t open ' + str(final_RAxML_output_file) + '!\n')
+
+            for line in input:
+                line = line.strip()
+                if re.search(r'Placement weight (\d+)%: (.+)\Z', line):
+                    weight = re.search(r'Placement weight (\d+)%: (.+)\Z', line).group(1)
+                    assignment = re.search(r'Placement weight (\d+)%: (.+)\Z', line).group(2)
+                    if assignment in assignments.keys():
+                        assignments[assignment] += weight
+                    else:
+                        assignments[assignment] = weight
+                else:
+                    continue
+
+            input.close()
+
+        assignments_with_relative_weights = Autovivify()
+
+        for assignment in sorted(assignments.keys(), reverse=True):
+            weight = assignments[assignment]
+            relative_weight = (int(((weight/nr_of_files)*10000)+0.5))/10000
+            assignments_with_relative_weights[relative_weight][assignment] = 1
+
+        try:
+            output = open(final_output_file_name, 'w')
+        except IOError:
+            sys.exit('ERROR: Can\'t create ' + str(final_output_file_name) + '!\n')
+        print str(denominator) + '_ results concatenated:\n'
+        output.write(str(description_text) + \n)
+        sum_of_relative_weights = 0
+
+        for relative_weight in sorted (assignments_with_relative_weights.keys(), reverse=True):
+
+            for assignment in sorted(assignments_with_relative_weights[relative_weight].keys(), reverse=True):
+                sum_of_relative_weights += relative_weight
+                print 'Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n'
+                output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n'
+
+        output.close()
+        print str(denominator) + '_ sum of placement weights (should be 100): sum_of_relative_weights\n'
+
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
@@ -2060,6 +2116,7 @@ def main(argv):
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
     raxml_outfiles = start_RAxML(args, phy_files, cog_list)
     final_RAxML_output_files = parse_RAxML_output(args, raxml_outfiles)
+    concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
 
 
 if __name__ == "__main__":
