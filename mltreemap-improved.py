@@ -1820,6 +1820,92 @@ def build_newly_rooted_trees(tree_info):
     return rooted_trees
 
 
+def recursive_tree_builder(tree_info, node_infos, tree_string):
+    node = node_infos['node']
+    count = 0
+
+    for attachment in sorted(node_infos['open_attachments'].keys()]):
+        count += 1
+        if count == 1:
+            tree_string += '('
+        node_infos2 = Autovivify()
+        node_infos2['previous_node'] = node
+        node_infos2['node'] = attachment
+        count2 = 0
+
+        for attachment_of_used attachment in sorted(tree_info['quartets'][attachment].keys()):
+            if attachment_of_used_attachment in node_infos['open_attachments']:
+                continue
+            if attachment_of_used_attachment == node:
+                continue
+            count2 += 1
+            node_infos2['open_attachments'][attachment_of_used_attachment] = 1
+
+        if count2 > 0:
+            tree_string = recursive_tree_builder(tree_info, node_infos2, tree_string)
+        else:
+            tree_string += str(attachment)
+        if count == 1:
+            tree_string += ','
+        if count == 2:
+            tree_string += ')' + str(node)
+
+    return tree_string
+
+
+def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point_node_hash, assignments):
+    terminal_children_strings_of_assignments = Autovivify()
+
+    for assignment in sorted (assignments.keys()):
+        internal_node_of_assignment = insertion_point_node_hash[assignment]
+
+        for rooted_tree in rooted_trees.keys():
+            rooted_tree_elements = split_tree_string(rooted_tree)
+            rooted_tree_info = create_tree_info_hash
+            get_node_subtrees(rooted_tree_elements, rooted_tree_info)
+            assignment_subtree = rooted_tree_info['subtree_of_node'][internal_node_of_assignment]
+            terminal_children = Autovivify()
+            if re.search(r'\A(\d+)\Z', assignment_subtree):
+                terminal_children[re.search(r'\A(\d+)\Z', assignment_subtree).group(1)] = 1
+            else:
+
+                while re.search(r'(\D)(\d+)', assignment_subtree):
+                    if re.search(r'(\D)(\d+)', assignment_subtree).group(1) == '-':
+                        continue
+                    terminal_children[re.search(r'(\D)(\d+)', assignment_subtree).group(2)] = 1
+
+            terminal_children_string_of_assignment = ''
+
+            for terminal_child_of_assignment in sorted(terminal_children.keys()):
+                terminal_children_string_of_assignment += str(terminal_child_of_assignment) + ' '
+
+            terminal_children_strings_of_assignments[assignment][terminal_children_string_of_reference] = 1
+
+    return terminal_children_strings_of_reference
+
+
+def compare_terminal_children_strings(terminal_children_strings_of_assignments, terminal_children_strings_of_reference):
+    real_terminal_children_strings_of_assignments = Autovivify()
+    there_was_a_hit = 0
+
+    for assignment in sorted(terminal_children_strings_of_assignments.keys()):
+        real_terminal_children_string = ''
+
+        for terminal_children_string_of_assignment in sorted(terminal_children_strings_of_assignments[assignment].keys()):
+            if terminal_children_string_of_assignment in terminal_children_strings_of_reference.keys():
+                real_terminal_children_string = terminal_children_string_of_assignment
+                real_terminal_children_strings_of_assignments[assignment] = real_terminal_children_string
+                there_was_a_hit = 1
+                break
+
+        if not real_terminal_children_string != '' and not assignment == 'mp_root':
+            sys.exit('ERROR: The RAxML output tree could not be rooted correctly!!!\n')
+
+    if there_was_a_hit <= 0:
+        sys.exit('ERROR: The RAxML output tree could not be rooted correctly!!!\n')
+    return real_terminal_children_strings_of_assignments
+
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
