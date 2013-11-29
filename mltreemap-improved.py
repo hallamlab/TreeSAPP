@@ -132,7 +132,7 @@ def removePreviousOutput(args):
     args.output_dir_var = args.output + PATHDELIM + 'various_outputs' + PATHDELIM
     args.output_dir_raxml = args.output + PATHDELIM + 'final_RAxML_outputs' + PATHDELIM
     args.output_dir_final = args.output + PATHDELIM + 'final_outputs' + PATHDELIM
-    return args
+    #return args
 
     while os.path.isdir(args.output):
         print('WARNING: Your output directory "' + args.output + '" already exists!')
@@ -284,7 +284,7 @@ def splitFastaInput(args):
     
     outputSplit = open(args.output + PATHDELIM + 'various_outputs' + PATHDELIM + inputFileName + '_0.txt', 'w')
     outputFormatted = open(args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt', 'w')
-    args.formatted_input_file = args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt' + PATHDELIM
+    args.formatted_input_file = args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt'
     args.output_directory_var = args.output + PATHDELIM + 'various_outputs' + PATHDELIM
     countFiles = 0
     countSequences = 0
@@ -1425,6 +1425,8 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
               'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n'
         args.bootstraps = 1
 
+    args2 = Autovivify()
+
     for f_contig in sorted(phy_files.keys()):
         reference_tree_file = 'data/tree_data/' + args.reference_tree
         phy_file = phy_files[f_contig]
@@ -1438,16 +1440,19 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
                 reference_tree_file = 'data/tree/' + cog + '_tree.txt'
                 break
 
-        args['reference_tree_file_of_denominator'][denominator] = reference_tree_file
+        args2['reference_tree_file_of_denominator'][denominator] = reference_tree_file
         raxml_files = [args.output_directory_var + 'RAxML_info.' + f_contig,\
                        args.output_directory_var + 'RAxML_labelledTree.' + f_contig,\
                        args.output_directory_var + 'RAxML_classification.' + f_contig]
         
         for raxml_file in raxml_files:
-            shutil.rmtree(file) 
+            try:
+                shutil.rmtree(raxml_file) 
+            except OSError:
+                pass
 
         model_to_be_used = models_to_be_used[f_contig]
-        if model_to_be_used not in models_to_be_used[f_contig].keys():
+        if model_to_be_used is None:
             sys.exit('ERROR: No best AA model could be detected for the ML step!\n')
         raxml_command = [ 'sub_binaries/raxmlHPC', '-m', model_to_be_used]
         if bootstrap_replicates > 1:
@@ -1483,10 +1488,10 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
             sys.exit('ERROR: The chosen RAxML mode is invalid. This should have been noticed earlier by MLTreeMap.' +\
                      'Please notify the authors\n')
 
-    return raxml_outfiles
+    return raxml_outfiles, args2
 
 
-def parse_RAxML_output(args, raxml_outfiles, tree_rerooter, tree_numbers_translation, raxml_outfiles, text_of_analysis_type):
+def parse_RAxML_output(args, args2, tree_rerooter, tree_numbers_translation, raxml_outfiles, text_of_analysis_type):
     raxml_option = args.phylogeny
     print 'finishing\n'
     output_directory_final_RAxML = args.output_dir_raxml
@@ -1494,7 +1499,7 @@ def parse_RAxML_output(args, raxml_outfiles, tree_rerooter, tree_numbers_transla
 
     for denominator in sorted(raxml_outfiles.keys()):
         description_text = '# ' + text_of_analysis_type[denominator] + '\n'
-        reference_tree_file = args['reference_tree_file_of_denominator'][denominator]
+        reference_tree_file = args2['reference_tree_file_of_denominator'][denominator]
         terminal_children_strings_of_reference = read_and_understand_the_reference_tree(reference_tree_file)
         content_of_previous_labelled_tree_file = ''
         rooted_labelled_trees = ''
@@ -1685,7 +1690,7 @@ def read_the_raxml_out_tree(labelled_tree_file):
     tree_string_neu = '('
     comma_count = 0
 
-    for tree_symbol_raw_1 in tree_symbols_raw_1
+    for tree_symbol_raw_1 in tree_symbols_raw_1:
         if comma_count < 2:
             if tree_symbol_raw_1 == '(':
                 bracket_diff += 1
@@ -1893,7 +1898,7 @@ def build_tree_info_quartets(tree_info):
         parent = tree_info['parent_of_node'][node]
         if parent == -1:
 
-            for roots_child in sorted(tree_info['children_of_node']['-1']:
+            for roots_child in sorted(tree_info['children_of_node']['-1'].keys()):
                 if roots_child == node:
                     continue
                 parent = roots_child
@@ -1933,7 +1938,7 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
     node = node_infos['node']
     count = 0
 
-    for attachment in sorted(node_infos['open_attachments'].keys()]):
+    for attachment in sorted(node_infos['open_attachments'].keys()):
         count += 1
         if count == 1:
             tree_string += '('
@@ -1942,7 +1947,7 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
         node_infos2['node'] = attachment
         count2 = 0
 
-        for attachment_of_used attachment in sorted(tree_info['quartets'][attachment].keys()):
+        for attachment_of_used_attachment in sorted(tree_info['quartets'][attachment].keys()):
             if attachment_of_used_attachment in node_infos['open_attachments']:
                 continue
             if attachment_of_used_attachment == node:
@@ -2057,7 +2062,7 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
         except IOError:
             sys.exit('ERROR: Can\'t create ' + str(final_output_file_name) + '!\n')
         print str(denominator) + '_ results concatenated:\n'
-        output.write(str(description_text) + \n)
+        output.write(str(description_text) + '\n')
         sum_of_relative_weights = 0
 
         for relative_weight in sorted (assignments_with_relative_weights.keys(), reverse=True):
@@ -2065,7 +2070,7 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
             for assignment in sorted(assignments_with_relative_weights[relative_weight].keys(), reverse=True):
                 sum_of_relative_weights += relative_weight
                 print 'Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n'
-                output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n'
+                output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n')
 
         output.close()
         print str(denominator) + '_ sum of placement weights (should be 100): sum_of_relative_weights\n'
@@ -2078,17 +2083,17 @@ def main(argv):
     args = removePreviousOutput(args)
     
     #this creates the list of the marker COGs 
-    (cog_list, textOfAnalysisType) = createCogList(args)
+    cog_list, text_of_analysis_type = createCogList(args)
     non_wag_cog_list = get_non_wag_cogs()
 
     #splits the input files to smaller files for blasting
     splitFiles = splitFastaInput(args)
 
     # get the appropriate type of blast DBS
-    (blastxDB, blastnDB) = createBlastDBList(args)
+    blastxDB, blastnDB = createBlastDBList(args)
 
     print('Run BLAST')
-#    runBlast(args, splitFiles, blastxDB, blastnDB)
+    runBlast(args, splitFiles, blastxDB, blastnDB)
 
     blastResults =  readBlastResults(args.output)
 
@@ -2114,9 +2119,9 @@ def main(argv):
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
-    raxml_outfiles = start_RAxML(args, phy_files, cog_list)
-    final_RAxML_output_files = parse_RAxML_output(args, raxml_outfiles)
-    concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
+    raxml_outfiles, args2 = start_RAxML(args, phy_files, cog_list, models_to_be_used)
+#    final_RAxML_output_files = parse_RAxML_output(args, args2, tree_rerooter, tree_numbers_translation, raxml_outfiles, text_of_analysis_type)
+#    concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
 
 
 if __name__ == "__main__":
