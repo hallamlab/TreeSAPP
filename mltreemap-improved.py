@@ -1486,7 +1486,7 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     return raxml_outfiles
 
 
-def parse_RAxML_output(args, raxml_outfiles):
+def parse_RAxML_output(args, raxml_outfiles, tree_rerooter, tree_numbers_translation, raxml_outfiles, text_of_analysis_type):
     raxml_option = args.phylogeny
     print 'finishing\n'
     output_directory_final_RAxML = args.output_dir_raxml
@@ -1495,7 +1495,116 @@ def parse_RAxML_output(args, raxml_outfiles):
     for denominator in sorted(raxml_outfiles.keys()):
         description_text = '# ' + text_of_analysis_type[denominator] + '\n'
         reference_tree_file = args['reference_tree_file_of_denominator'][denominator]
-        terminal_children_strings_of_reference = # TK
+        terminal_children_strings_of_reference = read_and_understand_the_reference_tree(reference_tree_file)
+        content_of_previous_labelled_tree_file = ''
+        rooted_labelled_trees = ''
+        insertion_point_node_hash = ''
+        final_assignment_target_strings = Autovivify()
+
+        for f_contig in sorted(raxml_outfiles[denominator].keys()):
+            denominator = ''
+            if re.search(r'\A(.)', f_contig):
+                denominator = re.search(r'\A(.)', f_contig).group(1)
+            content_of_labelled_tree_file = ''
+            assignments = Autovivify()
+            nr_of_assignments = 0
+
+            if raxml_option == 'v':
+                classification_file = raxml_outfiles[denominator][f_contig]['classification']
+                labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
+                try:
+                    input = open(labeled_tree_file, 'r')
+                except IOError:
+                    sys.exit('ERROR: Can\'t open ' + str(labelled_tree_file) + '!\n')
+
+                for line in input:
+                    line = line.strip()
+                    content_of_labelled_tree_file += str(line)
+
+                input.close()
+                if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
+                    rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(labelled_tree_file)
+                    final_assingment_target_strings = Autovivify()
+                new_assignments = Autovivify()
+                at_least_one_new_assignment = 0
+                try:
+                    input = open(classification_file, 'r')
+                except IOError:
+                    sys.exit('ERROR: Can\'t open ' + str(classification_file) + '!\n')
+
+                for line in input:
+                    line = line.strip()
+                    query, insertion_point_l, weight = line.split(' ')
+                    assignment = ''
+                    if re.search(r'I(\d+)', insertion_point_l):
+                        assignment = re.search(r'I(\d+)', insertion_point_l).group(1)
+                        nr_of_assignments += 1
+                    assignments[assignment] = weight
+                    if not assignment in final_assignment_target_strings.keys():
+                        new_assignments[assignment] = 1
+                        at_least_one_new_assignment = 1
+
+                input.close()
+                if at_least_one_new_assignment > 0:
+                    prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(\
+                                                         terminal_children_strings_of_reference, rooted_labelled_trees,\
+                                                         insertion_point_node_hash, new_assignments)
+
+                    for assignment in sorted(prae_assignment_target_strings.keys()):
+                        assignment_target_string = prae_assignment_target_strings[assignment]
+                        final_assignment_target_strings[assignment] = assignment_target_string
+
+            elif raxml_option == 'p':
+                mp_tree_file = raxml_outfiles[denominator][f_contig]
+                assignment = 'mp_root'
+                assignments[assignment] = 1
+                nr_of_assignments = 1
+                prae_assignment_target_strings = get_correct_mp_assignment(terminal_children_strings_of_reference,\
+                                                     mp_tree_file, assignments)
+                assignment_target_string = prae_assignment_target_strings[assignment]
+                final_assignment_target_strings[assignment] = assignment_target_string
+
+            final_RAxML_filename = str(args.output_dir_final) + str(f_contig) + '_RAxML_parsed.txt'
+            final_RAxML_output_files[denominator][final_RAxML_filename] = 1
+            try:
+                output = open(final_RAxML_filename, 'w')
+            except IOError:
+                sys.exit('ERROR: Can\'t create ' + str(final_RAxML_filename) + '!\n')
+            output.write(str(description_text) + '\n')
+
+            for assignment in sorted(assignments.keys()):
+                assignment_target_string = final_assignment_target_strings[assignment]
+                weight = assignments[assignment]
+                relative_weight = int(((weight / nr_of_assignments) * 100) + 0.5)
+                assignment_terminal_targets = assignment_target_string.split(' ')
+                nr_of_terminal_targets = len(assignment_terminal_targets)
+                output.write('Placement weight ' + str(relative_weight) + '%: Assignment of query to ')
+                if not nr_of_terminal_targets == 1:
+                    output.write('the lowest common ancestor of ')
+                count = 1
+
+                while count <= nr_of_terminal_targets:
+                    assignment_terminal_target = assignment_terminal_targets[count - 1]
+                    is_last_element = 0
+                    if count == nr_of_terminal_targets - 1:
+                        is_last_element = 1
+                    name_of_terminal_target = ''
+                    name_of_terminal_target = tree_numbers_translation[denominator][assignment_terminal_target]
+                    if not name_of_terminal_target in locals():
+                        sys.exit('ERROR: ' + str(assignment_terminal_target) + ' could not be located in the tree with the denominator ' +\
+                                 str(denominator) + '!\n')
+                    output.write(str(name_of_terminal_target) + ' (' + str(assignment_terminal_target) + ')')
+                    if count < nr_of_terminal_targets - 1:
+                        output.write(', ')
+                    if count == nr_of_terminal_targets - 1:
+                        output.write(' and ')
+                    if count == nr_of_terminal_targets:
+                        output.write('.')
+
+            output.close()
+            content_of_previous_labelled_tree_file = content_of_labelled_tree_file
+
+    return final_RAxML_output_files
 
 
 def read_and_understand_the_reference_tree(reference_tree_file):
