@@ -129,10 +129,9 @@ def checkParserArguments(parser):
 #
 
 def removePreviousOutput(args):
-    args.output_dir_var = args.output + PATHDELIM + 'various_outputs' + PATHDELIM
-    args.output_dir_raxml = args.output + PATHDELIM + 'final_RAxML_outputs' + PATHDELIM
-    args.output_dir_final = args.output + PATHDELIM + 'final_outputs' + PATHDELIM
-    #return args
+    while re.search(r'/\Z', args.output) or re.search(r'\\\Z', args.output):
+        args.output = args.output[:-1]
+    args.output += PATHDELIM
 
     while os.path.isdir(args.output):
         print('WARNING: Your output directory "' + args.output + '" already exists!')
@@ -160,9 +159,10 @@ def removePreviousOutput(args):
     #
     # Create the output directories
     #
-    
-    if (not re.search('/$', args.output)):
-        args.output = args.output + PATHDELIM
+    args.output_dir_var = args.output + 'various_outputs' + PATHDELIM
+    args.output_dir_raxml = args.output + 'final_RAxML_outputs' + PATHDELIM
+    args.output_dir_final = args.output + 'final_outputs' + PATHDELIM
+   
     os.makedirs(args.output)
     os.mkdir(args.output_dir_var)
     os.mkdir(args.output_dir_raxml)
@@ -285,7 +285,6 @@ def splitFastaInput(args):
     outputSplit = open(args.output + PATHDELIM + 'various_outputs' + PATHDELIM + inputFileName + '_0.txt', 'w')
     outputFormatted = open(args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt', 'w')
     args.formatted_input_file = args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt'
-    args.output_directory_var = args.output + PATHDELIM + 'various_outputs' + PATHDELIM
     countFiles = 0
     countSequences = 0
     
@@ -785,20 +784,20 @@ def produceGenewiseFiles(args, blast_hits_purified):
         
         
                 try:
-                    with open(args.output_directory_var + contig_name + "_sequence.txt", 'w') as f:
+                    with open(args.output_dir_var + contig_name + "_sequence.txt", 'w') as f:
                        fprintf(f, "%s\n", ">"+ contig_name + "\n" + sequence)
                     f.close()
                 except:
-                    print  "ERROR: Can't create " + args.output_directory_var + contig_name + "_sequence.txt!" 
+                    print  "ERROR: Can't create " + args.output_dir_var + contig_name + "_sequence.txt!" 
 
 
                 try:   
-                   with open(args.output_directory_var + contig_name + "_sequence_shortened.txt", 'w') as f:
+                   with open(args.output_dir_var + contig_name + "_sequence_shortened.txt", 'w') as f:
                       fprintf(f, "%s\n",">" + contig_name + "\n" + shortened_sequence)
                    f.close()
-                   shortened_sequence_files[args.output_directory_var +  contig_name + "_sequence_shortened.txt"]=contig_name
+                   shortened_sequence_files[args.output_dir_var +  contig_name + "_sequence_shortened.txt"]=contig_name
                 except:
-                   print "ERROR: Can't create " + args.output_directory_var +  contig_name +"_sequence_shortened.txt!" 
+                   print "ERROR: Can't create " + args.output_dir_var +  contig_name +"_sequence_shortened.txt!" 
 
             if searchmatch:
                contig_name = searchmatch.group(1)
@@ -1010,8 +1009,8 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
             continue
 
         # Write the summary file
-        genewise_summary_file = args.output_directory_var +  contig + '_genewise_result_summary.txt'
-        try:     
+        genewise_summary_file = args.output_dir_var +  contig + '_genewise_result_summary.txt'
+        try: 
             output = open(genewise_summary_file, 'w')
         except IOError:
             print 'ERROR: Cannot open Genewise summary file ' + genewise_summary_file + ' for writing'
@@ -1047,7 +1046,7 @@ def  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summar
             contig_rRNA_coordinates[contig][identifier]["end"] = end
             contig_rRNA_coordinates[contig][identifier]["cog"] = cog
             contig_rRNA_coordinates[contig][identifier]["direction"] = direction
-            outfile_name = args.output_directory_var +  contig + '_rRNA_result_summary.txt'   
+            outfile_name = args.output_dir_var +  contig + '_rRNA_result_summary.txt'   
             contig_rRNA_coordinates[contig][identifier]["outfile"] = outfile_name
             genewise_summary_files[contig][outfile_name] = 1     
             try:
@@ -1121,11 +1120,11 @@ def  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summar
                        sys.exit(0)
 
                 try:
-                   output_file = open(args.output_directory_var + contig_name + '_sequence.txt', 'w')
+                   output_file = open(args.output_dir_var + contig_name + '_sequence.txt', 'w')
                    fprintf(output_file, '>%s\n%s',contig_name, sequence)
                    output_file.close()
                 except IOError, e:
-                    print "ERROR: Can't create " + args.output_directory_var + contig_name + '_sequence.txt!\n'
+                    print "ERROR: Can't create " + args.output_dir_var + contig_name + '_sequence.txt!\n'
                     sys.exit(0)
 
             if searchmatch:
@@ -1158,7 +1157,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
 
                 denominator = cog_list["all_cogs"][cog]
                 f_contig = denominator + "_" + contig
-                genewise_singlehit_file = args.output_directory_var +PATHDELIM +f_contig+'_'+cog+"_"+str(start)+"_"+str(end)
+                genewise_singlehit_file = args.output_dir_var +PATHDELIM +f_contig+'_'+cog+"_"+str(start)+"_"+str(end)
                 hmmalign_singlehit_files[f_contig][genewise_singlehit_file + ".mfa"] = True 
                 genewise_singlehit_file_fa = genewise_singlehit_file + ".fa" 
                 try:
@@ -1194,15 +1193,15 @@ def get_non_wag_cogs():
         sys.exit('ERROR: Can\'t open data/tree_data/non_wag_cogs.txt!\n')
 
     for line in cogin:
-        line.strip()
-        if re.match(r'\A#(.+)', line):
-            denominator = re.match(r'\A#(.+)', line).group(0)
+        line = line.strip()
+        if re.search(r'\A#(.+)', line):
+            denominator = re.search(r'\A#(.+)', line).group(1)
         else:
             cog, model = line.split('\t')
             non_wag_cog_list[denominator][cog] = model
 
     cogin.close()
-
+    print non_wag_cog_list
     return non_wag_cog_list
 
 
@@ -1237,10 +1236,14 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
             else:
                 sys.exit('ERROR: The COG could not be parsed from ' + hmmalign_singlehit_file + '!\n')
 
+            print "1. " + str(denominator) + " ... " + str(cog) + " ... " + str(non_wag_cog_list[denominator][cog])
+
             if non_wag_cog_list[denominator][cog] and model_to_be_used != 'PROTGAMMAWAG':
                 model_to_be_used = non_wag_cog_list[denominator][cog]
+                print "2a. " + str(model_to_be_used)
             else:
                 model_to_be_used = 'PROTGAMMAWAG'
+                print "2b. " + str(model_to_be_used)
             # Get sequence from file
 
             for _line in input:
@@ -1269,14 +1272,14 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
             input.close()
 
         models_to_be_used[f_contig] = model_to_be_used
-        concatenated_mfa_files[f_contig] = args.output_directory_var +  f_contig + '.mfa'
+        concatenated_mfa_files[f_contig] = args.output_dir_var +  f_contig + '.mfa'
 
         # Write to the output file
 
         try:
-            output = open(args.output_directory_var + f_contig + '.mfa', 'w')
+            output = open(args.output_dir_var + f_contig + '.mfa', 'w')
         except IOError:
-            sys.exit('ERROR: Can\'t create ' + args.output_directory_var +  f_contig + '.mfa\n')
+            sys.exit('ERROR: Can\'t create ' + args.output_dir_var +  f_contig + '.mfa\n')
 
         output.write('>query\n' + query_sequence + '\n')
 
@@ -1363,7 +1366,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                 seq_dummy = re.sub('X', '', sequence)
                 if len(seq_dummy) < args.gblocks:
                     do_not_continue = 1
-                    exit_file_name = args.output_directory_var + f_contig + '_exit_after_Gblocks.txt'
+                    exit_file_name = args.output_dir_var + f_contig + '_exit_after_Gblocks.txt'
                     try:
                         output = open(exit_file_name, 'w')
                     except IOError:
@@ -1375,13 +1378,14 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
 
             sub_sequences = re.findall(r'.{1,50}', sequence)
             for sub_sequence in sub_sequences:
+                sub_sequence = re.sub('U', 'T', sub_sequence) # TK: This for debug; got error from RAxML when encountering Uracil
                 sequences_for_phy[f_contig][count][int(seq_name)] = sub_sequence
                 count += 1
 
         if do_not_continue == 1:
             continue
 
-        phy_file_name = args.output_directory_var + f_contig + '.phy'
+        phy_file_name = args.output_dir_var + f_contig + '.phy'
         phy_files[f_contig] = phy_file_name
         try:
             output = open(phy_file_name, 'w')
@@ -1425,6 +1429,8 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
               'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n'
         args.bootstraps = 1
 
+    bootstrap_replicates = args.bootstraps
+
     args2 = Autovivify()
 
     for f_contig in sorted(phy_files.keys()):
@@ -1437,13 +1443,13 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
             for cog in sorted(cog_list['all_cogs'].keys()):
                 if not cog_list['all_cogs'][cog] == denominator:
                     continue
-                reference_tree_file = 'data/tree/' + cog + '_tree.txt'
+                reference_tree_file = 'data/tree_data/' + cog + '_tree.txt'
                 break
 
         args2['reference_tree_file_of_denominator'][denominator] = reference_tree_file
-        raxml_files = [args.output_directory_var + 'RAxML_info.' + f_contig,\
-                       args.output_directory_var + 'RAxML_labelledTree.' + f_contig,\
-                       args.output_directory_var + 'RAxML_classification.' + f_contig]
+        raxml_files = [args.output_dir_var + 'RAxML_info.' + f_contig,\
+                       args.output_dir_var + 'RAxML_labelledTree.' + f_contig,\
+                       args.output_dir_var + 'RAxML_classification.' + f_contig]
         
         for raxml_file in raxml_files:
             try:
@@ -1451,37 +1457,44 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
             except OSError:
                 pass
 
+        raxml_option = args.phylogeny
         model_to_be_used = models_to_be_used[f_contig]
         if model_to_be_used is None:
             sys.exit('ERROR: No best AA model could be detected for the ML step!\n')
         raxml_command = [ 'sub_binaries/raxmlHPC', '-m', model_to_be_used]
         if bootstrap_replicates > 1:
             raxml_command += [ '-x', '12345', '-#', bootstrap_replicates]
-        raxml_command += [ '-s', phy_file, '-t', reference_tree_file, '-f', raxml_option, '-n', f_contig,\
-                           '-w', args.output_directory_var, '>', str(args.output_directory_var) + str(f_contig), '_RAxML.txt']
+        raxml_command += [ '-s', phy_file, '-t', reference_tree_file, '-f', str(raxml_option), '-n', f_contig,\
+                           '-w', str(args.output_dir_var), '>',\
+                           str(args.output_dir_var) + str(f_contig) + '_RAxML.txt']
         os.system(' '.join(raxml_command))
+        print ' '.join(raxml_command)
 
     for f_contig in sorted(phy_files.keys()):
         denominator = ''
         if re.match(r'\A(.)', f_contig):
             denominator = re.match(r'\A(.)', f_contig).group(1)
-        move_command = [ 'mv', str(args.output_directory_var), 'RAxML_info.' + str(f_contig), \
-                         str(args.output_directory_var) + str(f_contig) + '.RAxML_info.txt']
-        os.system(' '.join(move_command))
+        move_command = [ 'mv', str(args.output_dir_var) + 'RAxML_info.' + str(f_contig), \
+                         str(args.output_dir_var) + str(f_contig) + '.RAxML_info.txt']
+        if os.path.exists(str(args.output_dir_var) + 'RAxML_info.' + str(f_contig)):
+            os.system(' '.join(move_command))
         if raxml_option == 'v':
-            raxml_outfiles[denominator][f_contig]['classification'] = str(args.output_directory_var) + str(f_contig) + '.RAxML_classification.txt'
-            raxml_outfiles[denominator][f_contig]['labelled_tree'] = str(args.output_directory_var) + str(f_contig) + '.originalRAxML_labelledTree.txt'
-            move_command1 = [ 'mv', str(args.output_directory_var) + 'RAxML_classification.' + str(f_contig),\
+            raxml_outfiles[denominator][f_contig]['classification'] = str(args.output_dir_var) + str(f_contig) + '.RAxML_classification.txt'
+            raxml_outfiles[denominator][f_contig]['labelled_tree'] = str(args.output_dir_var) + str(f_contig) + '.originalRAxML_labelledTree.txt'
+            move_command1 = [ 'mv', str(args.output_dir_var) + 'RAxML_classification.' + str(f_contig),\
                               str(raxml_outfiles[denominator][f_contig]['classification'])]
-            move_command2 = [ 'mv', str(args.output_directory_var) + 'RAxML_originalLabelledTree.' + str(f_contig),\
+            move_command2 = [ 'mv', str(args.output_dir_var) + 'RAxML_originalLabelledTree.' + str(f_contig),\
                               str(raxml_outfiles[denominator][f_contig]['labelled_tree'])]
-            remove_command = [ 'rm', str(args.output_directory_var) + 'RAxML_labelledTree.' + str(f_contig)]
-            os.system(' '.join(move_command1))
-            os.system(' '.join(move_command2))
-            os.system(' '.join(remove_command))
+            remove_command = [ 'rm', str(args.output_dir_var) + 'RAxML_labelledTree.' + str(f_contig)]
+            if os.path.exists(str(args.output_dir_var) + 'RAxML_classification.' + str(f_contig)):
+                os.system(' '.join(move_command1))
+            if os.path.exists(str(args.output_dir_var) + 'RAxML_originalLabelledTree.' + str(f_contig)):
+                os.system(' '.join(move_command2))
+            if os.path.exists(str(args.output_dir_var) + 'RAxML_labelledTree.' + str(f_contig)):
+                os.system(' '.join(remove_command))
         elif raxml_option == 'p':
-            raxml_outfiles[denominator][f_contig] = str(args.output_directory_var) + str(f_contig) + '.RAxML_parsimonyTree.txt'
-            move_command1 = [ 'mv', str(args.output_directory_var) + 'RAxML_parsimonyTree.' + str(f_contig),\
+            raxml_outfiles[denominator][f_contig] = str(args.output_dir_var) + str(f_contig) + '.RAxML_parsimonyTree.txt'
+            move_command1 = [ 'mv', str(args.output_dir_var) + 'RAxML_parsimonyTree.' + str(f_contig),\
                               str(raxml_outfiles[denominator][f_contig])]
             os.system(' '.join(move_command1))
         else:
