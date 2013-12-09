@@ -1534,12 +1534,6 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                 input.close()
                 if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
                     rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(labelled_tree_file)
-                    out = open('tempnew.txt', 'w')
-                    for tmp in sorted(rooted_labelled_trees.keys()):
-                        out.write(str(tmp) + '[' + str(rooted_labelled_trees[tmp])  + ']\n')
-                    out.close()
-                    print rooted_labelled_trees
-                    sys.exit('1538')
                     final_assingment_target_strings = Autovivify()
                 new_assignments = Autovivify()
                 at_least_one_new_assignment = 0
@@ -1638,8 +1632,14 @@ def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
     labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
     labelled_tree_info = assign_parents_and_children(labelled_tree_info)
     labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
-    print labelled_tree_info
-    sys.exit('1642')
+#TK; Print Tree Info
+#    tempType = 'quartets'
+#    for temp in sorted(labelled_tree_info[tempType].keys(), key=int):
+#        if isinstance(labelled_tree_info[tempType][temp], dict):
+#            for temp2 in sorted(labelled_tree_info[tempType][temp].keys(), key=int):
+#                print str(temp) + ' => ' + str(temp2) + ' => ' + str(labelled_tree_info[tempType][temp][temp2])
+#        else:
+#            print str(temp) + ' => ' + str(labelled_tree_info[tempType][temp])
     rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
     return rooted_labelled_trees, insertion_point_node_hash
 
@@ -1901,18 +1901,18 @@ def assign_parents_and_children(tree_info):
 
 
 def build_tree_info_quartets(tree_info):
-    for node in sorted(tree_info['parent_of_node'].keys()):
+    for node in sorted(tree_info['parent_of_node'].keys(), key=int):
         parent = tree_info['parent_of_node'][node]
-        if parent == -1:
+        if int(parent) == -1:
 
-            for roots_child in sorted(tree_info['children_of_node']['-1'].keys()):
+            for roots_child in sorted(tree_info['children_of_node']['-1'].keys(), key=int):
                 if roots_child == node:
                     continue
                 parent = roots_child
 
         tree_info['quartets'][node][parent] = 1
         if node in tree_info['children_of_node']:
-            for child in sorted(tree_info['children_of_node'][node].keys()):
+            for child in sorted(tree_info['children_of_node'][node].keys(), key=int):
                 tree_info['quartets'][node][child] = 1
 
     return tree_info
@@ -1922,11 +1922,10 @@ def build_newly_rooted_trees(tree_info):
     tree_number = 0
     list_of_already_used_attachments = Autovivify()
     rooted_trees = Autovivify()
-
-    for node in sorted(tree_info['quartets'].keys()):
+    for node in sorted(tree_info['quartets'].keys(), key=int):
         if node in list_of_already_used_attachments:
             continue
-        for attachment in sorted(tree_info['quartets'][node].keys()):
+        for attachment in sorted(tree_info['quartets'][node].keys(), key=int):
             list_of_already_used_attachments[attachment] = 1
             tree_string = ''
             root = -1
@@ -1946,7 +1945,7 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
     node = node_infos['node']
     count = 0
 
-    for attachment in sorted(node_infos['open_attachments'].keys()):
+    for attachment in sorted(node_infos['open_attachments'].keys(), key=int):
         count += 1
         if count == 1:
             tree_string += '('
@@ -1977,7 +1976,7 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
 
 def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point_node_hash, assignments):
     terminal_children_strings_of_assignments = Autovivify()
-
+    sys.exit('Start here from 1979. Nothing has been checked here yet.')
     for assignment in sorted (assignments.keys()):
         internal_node_of_assignment = insertion_point_node_hash[assignment]
 
@@ -2035,13 +2034,16 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
     there_was_a_hit = 0
     print 'terminal_children_strings_of_assignments:'
     print terminal_children_strings_of_assignments
-    print '\n\n\nterminal_children_strings_of_reference:'
-    print terminal_children_strings_of_reference
+    sys.exit('2037')
+    print '\n\n\n'
+    for tmp in sorted(terminal_children_strings_of_reference.keys()):
+        print str(tmp)
+    print '\n\n\n'
     for assignment in sorted(terminal_children_strings_of_assignments.keys()):
         real_terminal_children_string = ''
 
         for terminal_children_string_of_assignment in sorted(terminal_children_strings_of_assignments[assignment].keys()):
-            if terminal_children_string_of_assignment in terminal_children_strings_of_reference.keys():
+            if terminal_children_string_of_assignment in terminal_children_strings_of_reference:
                 real_terminal_children_string = terminal_children_string_of_assignment
                 real_terminal_children_strings_of_assignments[assignment] = real_terminal_children_string
                 there_was_a_hit = 1
