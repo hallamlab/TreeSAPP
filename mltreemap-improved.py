@@ -133,28 +133,28 @@ def removePreviousOutput(args):
         args.output = args.output[:-1]
     args.output += PATHDELIM
 
-    while os.path.isdir(args.output):
-        print('WARNING: Your output directory "' + args.output + '" already exists!')
-        print('Overwrite [1], quit [2], or change directory [3]?')
-        answer = raw_input()
-        answer = int(answer)
-        while not answer == 1 and not answer == 2 and not answer == 3:
-            answer = raw_input('Invalid input. Please choose 1, 2, or 3.\n')
-            answer = int(answer)
-        if answer == 1:
-            print('Do you really want to overwrite the old output directory?')
-            print('All data in it will be lost!')
-            answer2 = raw_input('Yes [y] or no [n]?\n')
-            while not answer2 == 'y' and not answer2 == 'n':
-                answer2 = raw_input('Invalid input. Please choose y or n.\n')
-            if answer2 == 'y':
-                shutil.rmtree(args.output)
-            else:
-                sys.exit('Exit MLTreeMap\n')
-        elif answer == 2:
-            sys.exit('Exit MLTreeMap\n')
-        else:
-            args.output = raw_input('Please enter the path to the new directory.\n')
+#    while os.path.isdir(args.output):
+#        print('WARNING: Your output directory "' + args.output + '" already exists!')
+#        print('Overwrite [1], quit [2], or change directory [3]?')
+#        answer = raw_input()
+#        answer = int(answer)
+#        while not answer == 1 and not answer == 2 and not answer == 3:
+#            answer = raw_input('Invalid input. Please choose 1, 2, or 3.\n')
+#            answer = int(answer)
+#        if answer == 1:
+#            print('Do you really want to overwrite the old output directory?')
+#            print('All data in it will be lost!')
+#            answer2 = raw_input('Yes [y] or no [n]?\n')
+#            while not answer2 == 'y' and not answer2 == 'n':
+#                answer2 = raw_input('Invalid input. Please choose y or n.\n')
+#            if answer2 == 'y':
+#                shutil.rmtree(args.output)
+#            else:
+#                sys.exit('Exit MLTreeMap\n')
+#        elif answer == 2:
+#            sys.exit('Exit MLTreeMap\n')
+#        else:
+#            args.output = raw_input('Please enter the path to the new directory.\n')
     
     #
     # Create the output directories
@@ -163,10 +163,10 @@ def removePreviousOutput(args):
     args.output_dir_raxml = args.output + 'final_RAxML_outputs' + PATHDELIM
     args.output_dir_final = args.output + 'final_outputs' + PATHDELIM
    
-    os.makedirs(args.output)
-    os.mkdir(args.output_dir_var)
-    os.mkdir(args.output_dir_raxml)
-    os.mkdir(args.output_dir_final)
+#    os.makedirs(args.output)
+#    os.mkdir(args.output_dir_var)
+#    os.mkdir(args.output_dir_raxml)
+#    os.mkdir(args.output_dir_final)
 
     return args
 
@@ -448,7 +448,7 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
              command += db + ' '
         command += '" -e 0.01 -v 20000 -b 20000 -z 1000000 -m 8 '
         command += '> ' + args.output + 'various_outputs/' + blastInputFileName + '.BLAST_results_raw.txt'
-        os.system(command)
+        #TK!os.system(command)
         
         #
         # BLAST splitFile against each blastn DB
@@ -459,7 +459,7 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
             command += db + ' '
         command += '" -e 0.01 -v 20000 -b 20000 -z 1000000 -m 8 '
         command += '> ' + args.output + 'various_outputs/' + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
-        os.system(command)
+        #TK!os.system(command)
         
         #
         # Remove the BLAST input file
@@ -561,7 +561,6 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
             identifier = 0
             #
             # For each blast result for that contig...
-            print contig + '------------------------>'
             for base_blast_result_raw_identifier in sorted(contigs[contig].keys()):
                 base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
                 base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
@@ -631,8 +630,6 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                     # Save purified hits for valid base hits
                     
                 if contigs[contig][base_blast_result_raw_identifier]['validity']:
-                     print contig + ' ' + str(base_blast_result_raw_identifier) + '  ' + str(base_bitscore)
-
                      purifiedBlastHits[contig][identifier]['bitscore'] = base_bitscore
                      purifiedBlastHits[contig][identifier]['cog'] = base_cog
                      purifiedBlastHits[contig][identifier]['start'] = base_start
@@ -644,8 +641,6 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
     #
     # Print the BLAST results for each contig
     #
-    print "purified list " + str(len(purifiedBlastHits.keys()))
-    print '\n'.join(sorted(purifiedBlastHits.keys()))
     for contig in sorted(purifiedBlastHits.keys()):
         outfile = args.output + PATHDELIM + 'various_outputs' +  PATHDELIM + contig + '_blast_result_purified.txt'
         out = open(outfile, 'w')
@@ -843,7 +838,7 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
                                PATHDELIM + 'genewise_support_files' + PATHDELIM + 'codon.table -hmmer -subs' + \
                                ' 0.01 -indel 0.01 -gap 11 -ext 1 -both -pep -sum > ' + genewise_outputfile
 
-            os.system(genewise_command)
+            #TK!os.system(genewise_command)
 
     # Return the list of output files for each contig
 
@@ -1141,7 +1136,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
     reference_data_prefix = args.reference_data_prefix
     hmmalign_singlehit_files = Autovivify();
     
-    print "run hmmalign\n";
+    print 'Run hmmalign'
     for contig in sorted(genewise_summary_files.keys()) :
         for genewise_summary_file in sorted(genewise_summary_files[contig].keys()) :
             try:
@@ -1174,7 +1169,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                                       'data' + PATHDELIM + reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm',\
                                       genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ] 
 
-                os.system(' '.join(hmmalign_command))
+                #TK!os.system(' '.join(hmmalign_command))
                 line= input.readline()
                 line =  line.strip()
 
@@ -1201,7 +1196,6 @@ def get_non_wag_cogs():
             non_wag_cog_list[denominator][cog] = model
 
     cogin.close()
-    print non_wag_cog_list
     return non_wag_cog_list
 
 
@@ -1236,14 +1230,10 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
             else:
                 sys.exit('ERROR: The COG could not be parsed from ' + hmmalign_singlehit_file + '!\n')
 
-            print "1. " + str(denominator) + " ... " + str(cog) + " ... " + str(non_wag_cog_list[denominator][cog])
-
             if non_wag_cog_list[denominator][cog] and model_to_be_used != 'PROTGAMMAWAG':
                 model_to_be_used = non_wag_cog_list[denominator][cog]
-                print "2a. " + str(model_to_be_used)
             else:
                 model_to_be_used = 'PROTGAMMAWAG'
-                print "2b. " + str(model_to_be_used)
             # Get sequence from file
 
             for _line in input:
@@ -1298,7 +1288,7 @@ def  start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
     gblocks_files = {}
     sun_grid_jobs = {}
     
-    print "run Gblocks\n"
+    print 'Run Gblocks'
     
     for f_contig  in sorted(concatenated_mfa_files.keys()) :
         concatenated_mfa_file = concatenated_mfa_files[f_contig]
@@ -1312,7 +1302,7 @@ def  start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
                                  '-b4=3', '-b5=h', '-b2='+str(min_flank_pos),\
                                  '>', '/dev/null']
 
-        os.system(' '.join(gblocks_command))
+        #TK!os.system(' '.join(gblocks_command))
     
     return gblocks_files
 
@@ -1350,6 +1340,8 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                     sequences_raw[seq_name] += line
                 else:
                     sequences_raw[seq_name] = line
+
+        input.close()
 
         for seq_name in sorted(sequences_raw.keys()):
             if do_not_continue == 1:
@@ -1422,7 +1414,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
 def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     expected_raxml_outfiles = Autovivify()
     raxml_outfiles = Autovivify()
-    print 'run RAxML\n'
+    print 'Run RAxML'
 
     if args.bootstraps > 1 and args.phylogeny == 'p':
         print 'ATTENTION: You intended to do ' + str(args.bootstraps) + ' bootstrap replications. Unfortunately, bootstrapping is ' +\
@@ -1467,8 +1459,7 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
         raxml_command += [ '-s', phy_file, '-t', reference_tree_file, '-f', str(raxml_option), '-n', f_contig,\
                            '-w', str(args.output_dir_var), '>',\
                            str(args.output_dir_var) + str(f_contig) + '_RAxML.txt']
-        os.system(' '.join(raxml_command))
-        print ' '.join(raxml_command)
+        #TK!os.system(' '.join(raxml_command))
 
     for f_contig in sorted(phy_files.keys()):
         denominator = ''
@@ -1504,15 +1495,16 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     return raxml_outfiles, args2
 
 
-def parse_RAxML_output(args, args2, tree_rerooter, tree_numbers_translation, raxml_outfiles, text_of_analysis_type):
+def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, text_of_analysis_type):
     raxml_option = args.phylogeny
-    print 'finishing\n'
+    print 'Finishing'
     output_directory_final_RAxML = args.output_dir_raxml
     final_RAxML_output_files = Autovivify()
 
     for denominator in sorted(raxml_outfiles.keys()):
         description_text = '# ' + text_of_analysis_type[denominator] + '\n'
         reference_tree_file = args2['reference_tree_file_of_denominator'][denominator]
+        print '1507'
         terminal_children_strings_of_reference = read_and_understand_the_reference_tree(reference_tree_file)
         content_of_previous_labelled_tree_file = ''
         rooted_labelled_trees = ''
@@ -1531,7 +1523,7 @@ def parse_RAxML_output(args, args2, tree_rerooter, tree_numbers_translation, rax
                 classification_file = raxml_outfiles[denominator][f_contig]['classification']
                 labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
                 try:
-                    input = open(labeled_tree_file, 'r')
+                    input = open(labelled_tree_file, 'r')
                 except IOError:
                     sys.exit('ERROR: Can\'t open ' + str(labelled_tree_file) + '!\n')
 
@@ -1542,6 +1534,12 @@ def parse_RAxML_output(args, args2, tree_rerooter, tree_numbers_translation, rax
                 input.close()
                 if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
                     rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(labelled_tree_file)
+                    out = open('tempnew.txt', 'w')
+                    for tmp in sorted(rooted_labelled_trees.keys()):
+                        out.write(str(tmp) + '[' + str(rooted_labelled_trees[tmp])  + ']\n')
+                    out.close()
+                    print rooted_labelled_trees
+                    sys.exit('1538')
                     final_assingment_target_strings = Autovivify()
                 new_assignments = Autovivify()
                 at_least_one_new_assignment = 0
@@ -1628,8 +1626,8 @@ def parse_RAxML_output(args, args2, tree_rerooter, tree_numbers_translation, rax
 def read_and_understand_the_reference_tree(reference_tree_file):
     reference_tree_elements = read_the_reference_tree(reference_tree_file)
     reference_tree_info = create_tree_info_hash()
-    get_node_subtrees(reference_tree_elements, reference_tree_info)
-    assign_parents_and_children(reference_tree_info)
+    reference_tree_info = get_node_subtrees(reference_tree_elements, reference_tree_info)
+    reference_tree_info = assign_parents_and_children(reference_tree_info)
     terminal_children_strings_of_reference = build_terminal_children_strings_of_reference_nodes(reference_tree_info)
     return terminal_children_strings_of_reference
 
@@ -1637,21 +1635,25 @@ def read_and_understand_the_reference_tree(reference_tree_file):
 def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
     labelled_tree_elements, insertion_point_node_hash = read_the_raxml_out_tree(labelled_tree_file)
     labelled_tree_info = create_tree_info_hash()
-    get_node_subtrees(labelled_tree_elements, labelled_tree_info)
-    assign_parents_and_children(labelled_tree_info)
-    build_tree_info_quartets(labelled_tree_info)
+    labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
+    labelled_tree_info = assign_parents_and_children(labelled_tree_info)
+    labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
+    print labelled_tree_info
+    sys.exit('1642')
     rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
     return rooted_labelled_trees, insertion_point_node_hash
 
 
 def identify_the_correct_terminal_children_of_each_assignment(terminal_children_strings_of_reference, rooted_labelled_trees, insertion_point_node_hash, assignments):
     terminal_children_strings_of_assignments = build_terminal_children_strings_of_assignments(rooted_labelled_trees, insertion_point_node_hash, assignments)
+    print 'identify'
     real_terminal_children_strings_of_assignments = compare_terminal_children_strings(terminal_children_strings_of_assignments, terminal_children_strings_of_reference)
     return real_terminal_children_strings_of_assignments
 
 
 def get_correct_mp_assignment(terminal_children_strings_of_reference, mp_tree_file, assignments):
     potential_terminal_children_strings = read_the_raxml_mp_out_tree(mp_tree_file, assignments)
+    print 'get'
     real_terminal_children_strings_of_assignments = compare_terminal_children_strings(potential_terminal_children_strings, terminal_children_strings_of_reference)
     return real_terminal_children_strings_of_assignments
 
@@ -1669,13 +1671,13 @@ def read_the_reference_tree(reference_tree_file):
 
     input.close()
 
-    tree_string = re.sub('(', 'L', tree_string)
-    tree_string = re.sub(')', 'R', tree_string)
+    tree_string = re.sub('\(', 'L', tree_string)
+    tree_string = re.sub('\)', 'R', tree_string)
     tree_string = re.sub(r':\d+\.\d+', '', tree_string)
     count = -2
 
-    while re.search(r'R'):
-        tree_string = re.sub('R', 'Q' + count, tree_string, 1)
+    while re.search('R', tree_string):
+        tree_string = re.sub('R', 'Q' + str(count), tree_string, 1)
         count += -1
 
     tree_string = re.sub(r'Q-\d+;', 'Q;', tree_string)
@@ -1716,11 +1718,10 @@ def read_the_raxml_out_tree(labelled_tree_file):
         tree_string_neu += tree_symbol_raw_1
 
     tree_string = tree_string_neu
-    tree_string = re.sub('(', 'L', tree_string)
-    tree_string = re.sub(')', 'R', tree_string)
-    tree_string = re.sub('[', 'Q', tree_string)
-    tree_string = re.sub(':1.0', '', tree_string)
-
+    tree_string = re.sub('\(', 'L', tree_string)
+    tree_string = re.sub('\)', 'R', tree_string)
+    tree_string = re.sub('\[', 'Q', tree_string)
+    tree_string = re.sub(':1\.0', '', tree_string)
     while re.search(r'((\D(\d+))QI(\d+)])', tree_string):
         to_be_replaced = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(1)
         replacement = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(2)
@@ -1730,14 +1731,12 @@ def read_the_raxml_out_tree(labelled_tree_file):
             sys.exit('ERROR: Your tree has terminal leaves with numbers <= 0. Please change them to positive values!\n')
         insertion_point_node_hash[insertion_point] = terminal_leaf
         tree_string = re.sub(to_be_replaced, replacement, tree_string)
-
     count = -2
 
-    while re.search(r'QI(\d+)', tree_string):
-        tree_string = re.sub(r'QI(\d+)', count, tree_string, 1)
-        insertion_point_node_hash[re.search(r'QI(\d+)', tree_string).group(1)] = count
+    while re.search(r'QI(\d+)]', tree_string):
+        insertion_point_node_hash[re.search(r'QI(\d+)]', tree_string).group(1)] = count
+        tree_string = re.sub(r'QI(\d+)]', str(count), tree_string, 1)
         count += -1
-
     tree_string = re.sub('L', '(', tree_string)
     tree_string = re.sub('R', ')', tree_string)
     tree_string = re.sub('Q', '[', tree_string)
@@ -1764,8 +1763,8 @@ def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
         tree_string += line
 
     input.close()
-    tree_string = re.sub('(', 'L', tree_string)
-    tree_string = re.sub(')', 'R', tree_string)
+    tree_string = re.sub('\(', 'L', tree_string)
+    tree_string = re.sub('\)', 'R', tree_string)
     if not re.search(r',queryR;\Z', tree_string):
         sys.exit('ERROR: The query is not at the root of ' + str(mp_tree_file) + '!\n')
     else:
@@ -1816,10 +1815,10 @@ def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
 
 
 def split_tree_string(tree_string):
-    tree_symbols_raw = list(tree_string)
+    tree_symbols_raw = list(str(tree_string))
     count = -1
     previous_symbol = ''
-
+    tree_elements = Autovivify()
     for tree_symbol_raw in tree_symbols_raw:
         if re.search(r'\d', tree_symbol_raw) and (re.search(r'\d', previous_symbol) or previous_symbol == '-'):
             tree_elements[count] += tree_symbol_raw
@@ -1827,16 +1826,15 @@ def split_tree_string(tree_string):
             count += 1
             tree_elements[count] = tree_symbol_raw
         previous_symbol = tree_symbol_raw
-
     return tree_elements
 
 
 def create_tree_info_hash():
     tree_info = Autovivify()
-    tree_info['parent_of_node'] = None
-    tree_info['children_of_node'] = None
-    tree_info['subtree_of_node'] = None
-    tree_info['quartets'] = None
+#    tree_info['parent_of_node'] = {} 
+#    tree_info['children_of_node'] = {}
+#    tree_info['subtree_of_node'] = {}
+#    tree_info['quartets'] = {}
     return tree_info
 
 
@@ -1845,39 +1843,35 @@ def get_node_subtrees(tree_elements, tree_info):
     bracket_r_count = 0
     parents_of_node = Autovivify()
     tree_element_nr = -1
-
-    for tree_element in tree_elements.keys():
+    for tree_element in tree_elements.values():
         tree_element_nr += 1
-        if tree_element == '(':
+        if str(tree_element) == '(':
             bracket_l_count = 1
             bracket_r_count = 0
             tree_sub_element_nr = tree_element_nr
             subtree_string = '('
-
-            while true:
+            while True:
                 tree_sub_element_nr += 1
                 tree_sub_element = tree_elements[tree_sub_element_nr]
-                if tree_sub_element == '(':
+                if str(tree_sub_element) == '(':
                     bracket_l_count += 1
-                if tree_sub_element == ')':
+                if str(tree_sub_element) == ')':
                     bracket_r_count += 1
                 if bracket_l_count == bracket_r_count:
                     nodename = tree_elements[tree_sub_element_nr + 1]
-                    if nodename == ';':
+                    if str(nodename) == ';':
                         nodename = -1
                     subtree_string += ')' + str(nodename)
                     tree_info['subtree_of_node'][nodename] = subtree_string
                     break
                 else:
-                    subtree_string += tree_sub_element
-
-    for tree_element in tree_elements.keys():
-        if not re.search(r'\d+', tree_element):
+                    subtree_string += str(tree_sub_element)
+    for tree_element in tree_elements.values():
+        if not re.search(r'\d+', str(tree_element)):
             continue
         if tree_element in tree_info['subtree_of_node'].keys():
             continue
         tree_info['subtree_of_node'][tree_element] = tree_element
-
     return tree_info
 
 
@@ -1885,21 +1879,21 @@ def assign_parents_and_children(tree_info):
     for node in sorted(tree_info['subtree_of_node'].keys()):
         if node == -1:
             continue
-        subtree = tree_info['subtree_of_node'][node]
+        subtree = str(tree_info['subtree_of_node'][node])
         parent = None
-
         for potential_parent in sorted(tree_info['subtree_of_node'].keys()):
             if node == potential_parent:
                 continue
-            potential_parent_subtree = tree_info['subtree_of_node'][potential_parent]
-            subtree = re.sub('(', 'L', subtree)
-            subtree = re.sub(')', '#', subtree)
-            potential_parent_subtree = re.sub('(', 'L', potential_parent_subtree)
-            potential_parent_subtree = re.sub(')', '#', potential_parent_subtree)
-            if re.search(r'\AL'+subtree+',.+#'+potential_parent+'\Z', potential_parent_subtree) or \
-               re.search(r'\AL.+,'+subtree+'#'+potential_parent+'\Z', potential_parent_subtree):
+            potential_parent_subtree = str(tree_info['subtree_of_node'][potential_parent])
+            subtree = re.sub('\(', 'L', subtree)
+            subtree = re.sub('\)', '#', subtree)
+            potential_parent_subtree = re.sub('\(', 'L', potential_parent_subtree)
+            potential_parent_subtree = re.sub('\)', '#', potential_parent_subtree)
+            potential_parent = str(potential_parent)
+            if re.search(r'\AL'+re.escape(subtree)+r',.+#'+re.escape(potential_parent)+r'\Z', potential_parent_subtree) or \
+               re.search(r'\AL.+,'+re.escape(subtree)+r'#'+re.escape(potential_parent)+r'\Z', potential_parent_subtree):
+                parent = potential_parent
                 break
-
         tree_info['parent_of_node'][node] = parent
         tree_info['children_of_node'][parent][node] = 1
 
@@ -1917,7 +1911,7 @@ def build_tree_info_quartets(tree_info):
                 parent = roots_child
 
         tree_info['quartets'][node][parent] = 1
-        if node in tree_info['children_of_node'].keys():
+        if node in tree_info['children_of_node']:
             for child in sorted(tree_info['children_of_node'][node].keys()):
                 tree_info['quartets'][node][child] = 1
 
@@ -1927,6 +1921,7 @@ def build_tree_info_quartets(tree_info):
 def build_newly_rooted_trees(tree_info):
     tree_number = 0
     list_of_already_used_attachments = Autovivify()
+    rooted_trees = Autovivify()
 
     for node in sorted(tree_info['quartets'].keys()):
         if node in list_of_already_used_attachments:
@@ -1988,9 +1983,9 @@ def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point
 
         for rooted_tree in rooted_trees.keys():
             rooted_tree_elements = split_tree_string(rooted_tree)
-            rooted_tree_info = create_tree_info_hash
-            get_node_subtrees(rooted_tree_elements, rooted_tree_info)
-            assignment_subtree = rooted_tree_info['subtree_of_node'][internal_node_of_assignment]
+            rooted_tree_info = create_tree_info_hash()
+            rooted_tree_info = get_node_subtrees(rooted_tree_elements, rooted_tree_info)
+            assignment_subtree = str(rooted_tree_info['subtree_of_node'][internal_node_of_assignment])
             terminal_children = Autovivify()
             if re.search(r'\A(\d+)\Z', assignment_subtree):
                 terminal_children[re.search(r'\A(\d+)\Z', assignment_subtree).group(1)] = 1
@@ -2006,7 +2001,31 @@ def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point
             for terminal_child_of_assignment in sorted(terminal_children.keys()):
                 terminal_children_string_of_assignment += str(terminal_child_of_assignment) + ' '
 
-            terminal_children_strings_of_assignments[assignment][terminal_children_string_of_reference] = 1
+            terminal_children_strings_of_assignments[assignment][terminal_children_string_of_assignment] = 1
+
+    return terminal_children_strings_of_assignments
+
+
+def build_terminal_children_strings_of_reference_nodes(reference_tree_info):
+    terminal_children_strings_of_reference = Autovivify()
+    for node in sorted(reference_tree_info['subtree_of_node'].keys()):
+        reference_subtree = reference_tree_info['subtree_of_node'][node]
+        terminal_children = Autovivify()
+        if re.search(r'\A(\d+)\Z', str(reference_subtree)):
+            terminal_children[re.search(r'\A(\d+)\Z', str(reference_subtree)).group(1)] = 1
+        else:
+
+            for each_hit in re.findall(r'(.)(\d+)', str(reference_subtree)):
+                if each_hit[0] == '-':
+                    continue
+                terminal_children[each_hit[1]] = 1
+
+        terminal_children_string_of_reference = ''
+
+        for terminal_child_of_reference in sorted(terminal_children.keys(), key=int):
+            terminal_children_string_of_reference += str(terminal_child_of_reference) + ' '
+
+        terminal_children_strings_of_reference[terminal_children_string_of_reference] = 1
 
     return terminal_children_strings_of_reference
 
@@ -2014,7 +2033,10 @@ def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point
 def compare_terminal_children_strings(terminal_children_strings_of_assignments, terminal_children_strings_of_reference):
     real_terminal_children_strings_of_assignments = Autovivify()
     there_was_a_hit = 0
-
+    print 'terminal_children_strings_of_assignments:'
+    print terminal_children_strings_of_assignments
+    print '\n\n\nterminal_children_strings_of_reference:'
+    print terminal_children_strings_of_reference
     for assignment in sorted(terminal_children_strings_of_assignments.keys()):
         real_terminal_children_string = ''
 
@@ -2025,8 +2047,13 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
                 there_was_a_hit = 1
                 break
 
-        if not real_terminal_children_string != '' and not assignment == 'mp_root':
+        print 'real_terminal_children_string: ' + str(real_terminal_children_string)
+        print 'assignment: ' + str(assignment)
+
+        if not real_terminal_children_string == '' and not assignment == 'mp_root':
             sys.exit('ERROR: The RAxML output tree could not be rooted correctly!!!\n')
+
+    print 'there_was_a_hit: ' + str(there_was_a_hit)
 
     if there_was_a_hit <= 0:
         sys.exit('ERROR: The RAxML output tree could not be rooted correctly!!!\n')
@@ -2089,6 +2116,44 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
         print str(denominator) + '_ sum of placement weights (should be 100): sum_of_relative_weights\n'
 
 
+def read_species_translation_files(args, cog_list):
+    tree_numbers_translation = Autovivify()
+    translation_files = Autovivify()
+    phylogenetic_denominator = args.reftree
+    if phylogenetic_denominator == 'g':
+        translation_files[phylogenetic_denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'tax_ids_geba_tree.txt'
+    elif phylogenetic_denominator == 'i':
+        translation_files[phylogenetic_denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'tax_ids_fungitr.txt'
+    else:
+        translation_files[phylogenetic_denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'tax_ids_nr.txt'
+
+    for functional_cog in sorted(cog_list['functional_cogs'].keys()):
+        denominator = cog_list['functional_cogs'][functional_cog]
+        filename = 'tax_ids_' + str(functional_cog) + '.txt'
+        translation_files[denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + filename
+
+    for phylogenetic_rRNA_cog in sorted(cog_list['phylogenetic_rRNA_cogs'].keys()):
+        denominator = cog_list['phylogenetic_rRNA_cogs'][phylogenetic_rRNA_cog]
+        filename = 'tax_ids_' + str(phylogenetic_rRNA_cog) + '.txt'
+        translation_files[denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + filename
+
+    for denominator in sorted(translation_files.keys()):
+        filename = translation_files[denominator]
+        try:
+            input = open(filename, 'r')
+        except IOError:
+            sys.exit('ERROR: Can\'t open ' + str(filename) + '!\n')
+
+        for line in input:
+            line = line.strip()
+            number, translation = line.split('\t')
+            tree_numbers_translation[denominator][number] = translation
+
+        input.close()
+
+    return tree_numbers_translation
+
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
@@ -2110,16 +2175,6 @@ def main(argv):
 
     blastResults =  readBlastResults(args.output)
 
-    print blastResults
-    print 'types of cogs'
-    print cog_list.keys()
-    print 'all_cogs ' + str(len(cog_list['all_cogs'] ))
-    print 'functional_cogs ' + str(len(cog_list['functional_cogs'] ))
-    print 'functional_cogs ', cog_list['functional_cogs'] 
-
-    print 'phylogenetic_rRNA_cogs ' + str( len(cog_list['phylogenetic_rRNA_cogs']))
-    print 'phylogenetic_rRNA_cogs ',cog_list['phylogenetic_rRNA_cogs']
-
     blast_hits_purified = parseBlastResults(args, blastResults, cog_list)
 
     contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
@@ -2133,7 +2188,8 @@ def main(argv):
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
     raxml_outfiles, args2 = start_RAxML(args, phy_files, cog_list, models_to_be_used)
-#    final_RAxML_output_files = parse_RAxML_output(args, args2, tree_rerooter, tree_numbers_translation, raxml_outfiles, text_of_analysis_type)
+    tree_numbers_translation = read_species_translation_files(args, cog_list)
+    final_RAxML_output_files = parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, text_of_analysis_type)
 #    concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
 
 
