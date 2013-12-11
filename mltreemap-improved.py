@@ -1504,7 +1504,6 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
     for denominator in sorted(raxml_outfiles.keys()):
         description_text = '# ' + text_of_analysis_type[denominator] + '\n'
         reference_tree_file = args2['reference_tree_file_of_denominator'][denominator]
-        print '1507'
         terminal_children_strings_of_reference = read_and_understand_the_reference_tree(reference_tree_file)
         content_of_previous_labelled_tree_file = ''
         rooted_labelled_trees = ''
@@ -1574,7 +1573,7 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                 assignment_target_string = prae_assignment_target_strings[assignment]
                 final_assignment_target_strings[assignment] = assignment_target_string
 
-            final_RAxML_filename = str(args.output_dir_final) + str(f_contig) + '_RAxML_parsed.txt'
+            final_RAxML_filename = str(args.output_dir_raxml) + str(f_contig) + '_RAxML_parsed.txt'
             final_RAxML_output_files[denominator][final_RAxML_filename] = 1
             try:
                 output = open(final_RAxML_filename, 'w')
@@ -1584,8 +1583,9 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
 
             for assignment in sorted(assignments.keys()):
                 assignment_target_string = final_assignment_target_strings[assignment]
+                print assignment_target_string
                 weight = assignments[assignment]
-                relative_weight = int(((weight / nr_of_assignments) * 100) + 0.5)
+                relative_weight = int(((int(weight) / int(nr_of_assignments)) * 100) + 0.5)
                 assignment_terminal_targets = assignment_target_string.split(' ')
                 nr_of_terminal_targets = len(assignment_terminal_targets)
                 output.write('Placement weight ' + str(relative_weight) + '%: Assignment of query to ')
@@ -1600,7 +1600,9 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                         is_last_element = 1
                     name_of_terminal_target = ''
                     name_of_terminal_target = tree_numbers_translation[denominator][assignment_terminal_target]
-                    if not name_of_terminal_target in locals():
+                    try:
+                        name_of_terminal_target
+                    except NameError:
                         sys.exit('ERROR: ' + str(assignment_terminal_target) + ' could not be located in the tree with the denominator ' +\
                                  str(denominator) + '!\n')
                     output.write(str(name_of_terminal_target) + ' (' + str(assignment_terminal_target) + ')')
@@ -1610,6 +1612,7 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                         output.write(' and ')
                     if count == nr_of_terminal_targets:
                         output.write('.')
+                    count += 1
 
             output.close()
             content_of_previous_labelled_tree_file = content_of_labelled_tree_file
@@ -1646,14 +1649,12 @@ def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
 
 def identify_the_correct_terminal_children_of_each_assignment(terminal_children_strings_of_reference, rooted_labelled_trees, insertion_point_node_hash, assignments):
     terminal_children_strings_of_assignments = build_terminal_children_strings_of_assignments(rooted_labelled_trees, insertion_point_node_hash, assignments)
-    print 'identify'
     real_terminal_children_strings_of_assignments = compare_terminal_children_strings(terminal_children_strings_of_assignments, terminal_children_strings_of_reference)
     return real_terminal_children_strings_of_assignments
 
 
 def get_correct_mp_assignment(terminal_children_strings_of_reference, mp_tree_file, assignments):
     potential_terminal_children_strings = read_the_raxml_mp_out_tree(mp_tree_file, assignments)
-    print 'get'
     real_terminal_children_strings_of_assignments = compare_terminal_children_strings(potential_terminal_children_strings, terminal_children_strings_of_reference)
     return real_terminal_children_strings_of_assignments
 
@@ -1937,7 +1938,6 @@ def build_newly_rooted_trees(tree_info):
             new_tree = recursive_tree_builder(tree_info, node_infos, tree_string)
             rooted_trees[tree_number] = new_tree
             tree_number += 1
-
     return rooted_trees
 
 
@@ -1976,28 +1976,28 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
 
 def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point_node_hash, assignments):
     terminal_children_strings_of_assignments = Autovivify()
-    sys.exit('Start here from 1979. Nothing has been checked here yet.')
-    for assignment in sorted (assignments.keys()):
+
+    for assignment in sorted(assignments.keys()):
         internal_node_of_assignment = insertion_point_node_hash[assignment]
 
         for rooted_tree in rooted_trees.keys():
-            rooted_tree_elements = split_tree_string(rooted_tree)
+            rooted_tree_elements = split_tree_string(rooted_trees[rooted_tree])
             rooted_tree_info = create_tree_info_hash()
             rooted_tree_info = get_node_subtrees(rooted_tree_elements, rooted_tree_info)
-            assignment_subtree = str(rooted_tree_info['subtree_of_node'][internal_node_of_assignment])
+            assignment_subtree = str(rooted_tree_info['subtree_of_node'][str(internal_node_of_assignment)])
             terminal_children = Autovivify()
             if re.search(r'\A(\d+)\Z', assignment_subtree):
                 terminal_children[re.search(r'\A(\d+)\Z', assignment_subtree).group(1)] = 1
             else:
 
-                while re.search(r'(\D)(\d+)', assignment_subtree):
-                    if re.search(r'(\D)(\d+)', assignment_subtree).group(1) == '-':
+                for each_hit in re.findall(r'(\D)(\d+)', assignment_subtree):
+                    if each_hit[0] == '-':
                         continue
-                    terminal_children[re.search(r'(\D)(\d+)', assignment_subtree).group(2)] = 1
+                    terminal_children[each_hit[1]] = 1
 
             terminal_children_string_of_assignment = ''
 
-            for terminal_child_of_assignment in sorted(terminal_children.keys()):
+            for terminal_child_of_assignment in sorted(terminal_children.keys(), key=int):
                 terminal_children_string_of_assignment += str(terminal_child_of_assignment) + ' '
 
             terminal_children_strings_of_assignments[assignment][terminal_children_string_of_assignment] = 1
@@ -2007,6 +2007,7 @@ def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point
 
 def build_terminal_children_strings_of_reference_nodes(reference_tree_info):
     terminal_children_strings_of_reference = Autovivify()
+
     for node in sorted(reference_tree_info['subtree_of_node'].keys()):
         reference_subtree = reference_tree_info['subtree_of_node'][node]
         terminal_children = Autovivify()
@@ -2032,15 +2033,8 @@ def build_terminal_children_strings_of_reference_nodes(reference_tree_info):
 def compare_terminal_children_strings(terminal_children_strings_of_assignments, terminal_children_strings_of_reference):
     real_terminal_children_strings_of_assignments = Autovivify()
     there_was_a_hit = 0
-    print 'terminal_children_strings_of_assignments:'
-    print terminal_children_strings_of_assignments
-    sys.exit('2037')
-    print '\n\n\n'
-    for tmp in sorted(terminal_children_strings_of_reference.keys()):
-        print str(tmp)
-    print '\n\n\n'
+
     for assignment in sorted(terminal_children_strings_of_assignments.keys()):
-        real_terminal_children_string = ''
 
         for terminal_children_string_of_assignment in sorted(terminal_children_strings_of_assignments[assignment].keys()):
             if terminal_children_string_of_assignment in terminal_children_strings_of_reference:
@@ -2049,13 +2043,8 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
                 there_was_a_hit = 1
                 break
 
-        print 'real_terminal_children_string: ' + str(real_terminal_children_string)
-        print 'assignment: ' + str(assignment)
-
-        if not real_terminal_children_string == '' and not assignment == 'mp_root':
+        if str(real_terminal_children_string) == '' and not str(assignment) == 'mp_root':
             sys.exit('ERROR: The RAxML output tree could not be rooted correctly!!!\n')
-
-    print 'there_was_a_hit: ' + str(there_was_a_hit)
 
     if there_was_a_hit <= 0:
         sys.exit('ERROR: The RAxML output tree could not be rooted correctly!!!\n')
