@@ -1580,14 +1580,12 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
             except IOError:
                 sys.exit('ERROR: Can\'t create ' + str(final_RAxML_filename) + '!\n')
             output.write(str(description_text) + '\n')
-
             for assignment in sorted(assignments.keys()):
                 assignment_target_string = final_assignment_target_strings[assignment]
-                print assignment_target_string
                 weight = assignments[assignment]
                 relative_weight = int(((int(weight) / int(nr_of_assignments)) * 100) + 0.5)
                 assignment_terminal_targets = assignment_target_string.split(' ')
-                nr_of_terminal_targets = len(assignment_terminal_targets)
+                nr_of_terminal_targets = len(assignment_terminal_targets) - 1
                 output.write('Placement weight ' + str(relative_weight) + '%: Assignment of query to ')
                 if not nr_of_terminal_targets == 1:
                     output.write('the lowest common ancestor of ')
@@ -2073,9 +2071,9 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
                     weight = re.search(r'Placement weight (\d+)%: (.+)\Z', line).group(1)
                     assignment = re.search(r'Placement weight (\d+)%: (.+)\Z', line).group(2)
                     if assignment in assignments.keys():
-                        assignments[assignment] += weight
+                        assignments[assignment] += int(weight)
                     else:
-                        assignments[assignment] = weight
+                        assignments[assignment] = int(weight)
                 else:
                     continue
 
@@ -2085,14 +2083,14 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
 
         for assignment in sorted(assignments.keys(), reverse=True):
             weight = assignments[assignment]
-            relative_weight = (int(((weight/nr_of_files)*10000)+0.5))/10000
+            relative_weight = (int(((float(weight)/float(nr_of_files))*10000.0)+0.5))/10000.0
             assignments_with_relative_weights[relative_weight][assignment] = 1
 
         try:
             output = open(final_output_file_name, 'w')
         except IOError:
             sys.exit('ERROR: Can\'t create ' + str(final_output_file_name) + '!\n')
-        print str(denominator) + '_ results concatenated:\n'
+        print str(denominator) + '_ results concatenated:'
         output.write(str(description_text) + '\n')
         sum_of_relative_weights = 0
 
@@ -2100,11 +2098,11 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
 
             for assignment in sorted(assignments_with_relative_weights[relative_weight].keys(), reverse=True):
                 sum_of_relative_weights += relative_weight
-                print 'Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n'
+                print 'Placement weight ' + str(relative_weight) + '%: ' + str(assignment)
                 output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n')
 
         output.close()
-        print str(denominator) + '_ sum of placement weights (should be 100): sum_of_relative_weights\n'
+        print str(denominator) + '_ sum of placement weights (should be 100): ' + str(sum_of_relative_weights)
 
 
 def read_species_translation_files(args, cog_list):
@@ -2181,7 +2179,7 @@ def main(argv):
     raxml_outfiles, args2 = start_RAxML(args, phy_files, cog_list, models_to_be_used)
     tree_numbers_translation = read_species_translation_files(args, cog_list)
     final_RAxML_output_files = parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, text_of_analysis_type)
-#    concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
+    concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
 
 
 if __name__ == "__main__":
