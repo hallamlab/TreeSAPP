@@ -133,28 +133,28 @@ def removePreviousOutput(args):
         args.output = args.output[:-1]
     args.output += PATHDELIM
 
-#    while os.path.isdir(args.output):
-#        print('WARNING: Your output directory "' + args.output + '" already exists!')
-#        print('Overwrite [1], quit [2], or change directory [3]?')
-#        answer = raw_input()
-#        answer = int(answer)
-#        while not answer == 1 and not answer == 2 and not answer == 3:
-#            answer = raw_input('Invalid input. Please choose 1, 2, or 3.\n')
-#            answer = int(answer)
-#        if answer == 1:
-#            print('Do you really want to overwrite the old output directory?')
-#            print('All data in it will be lost!')
-#            answer2 = raw_input('Yes [y] or no [n]?\n')
-#            while not answer2 == 'y' and not answer2 == 'n':
-#                answer2 = raw_input('Invalid input. Please choose y or n.\n')
-#            if answer2 == 'y':
-#                shutil.rmtree(args.output)
-#            else:
-#                sys.exit('Exit MLTreeMap\n')
-#        elif answer == 2:
-#            sys.exit('Exit MLTreeMap\n')
-#        else:
-#            args.output = raw_input('Please enter the path to the new directory.\n')
+    while os.path.isdir(args.output):
+        print('WARNING: Your output directory "' + args.output + '" already exists!')
+        print('Overwrite [1], quit [2], or change directory [3]?')
+        answer = raw_input()
+        answer = int(answer)
+        while not answer == 1 and not answer == 2 and not answer == 3:
+            answer = raw_input('Invalid input. Please choose 1, 2, or 3.\n')
+            answer = int(answer)
+        if answer == 1:
+            print('Do you really want to overwrite the old output directory?')
+            print('All data in it will be lost!')
+            answer2 = raw_input('Yes [y] or no [n]?\n')
+            while not answer2 == 'y' and not answer2 == 'n':
+                answer2 = raw_input('Invalid input. Please choose y or n.\n')
+            if answer2 == 'y':
+                shutil.rmtree(args.output)
+            else:
+                sys.exit('Exit MLTreeMap\n')
+        elif answer == 2:
+            sys.exit('Exit MLTreeMap\n')
+        else:
+            args.output = raw_input('Please enter the path to the new directory.\n')
     
     #
     # Create the output directories
@@ -163,10 +163,10 @@ def removePreviousOutput(args):
     args.output_dir_raxml = args.output + 'final_RAxML_outputs' + PATHDELIM
     args.output_dir_final = args.output + 'final_outputs' + PATHDELIM
    
-#    os.makedirs(args.output)
-#    os.mkdir(args.output_dir_var)
-#    os.mkdir(args.output_dir_raxml)
-#    os.mkdir(args.output_dir_final)
+    os.makedirs(args.output)
+    os.mkdir(args.output_dir_var)
+    os.mkdir(args.output_dir_raxml)
+    os.mkdir(args.output_dir_final)
 
     return args
 
@@ -238,19 +238,19 @@ def calculate_overlap(info):
     check_end = info['check']['end']
 
     if base_start <= check_start and check_start <= base_end and base_end <= check_end:
-        overlap = base_end - check_start # TK Why not +1?
+        overlap = base_end - check_start
     elif base_start <= check_start and check_end <= base_end:
         # Base     --------
         # Check        --
-        overlap = check_end - check_start # TK Why not +1?
+        overlap = check_end - check_start
     elif check_start <= base_start and base_start <= check_end and check_end <= base_end:
         # Base         -----
         # Check    -----
-        overlap = check_end - base_start # TK Why not +1?
+        overlap = check_end - base_start
     elif check_start <= base_start and base_end <= check_end:
         # Base       --
         # Check    --------
-        overlap = base_end - base_start #TK Why not +1?
+        overlap = base_end - base_start
 
     return overlap 
 
@@ -421,7 +421,8 @@ def createBlastDBList(args):
     return (blastxDB, blastnDB)
 
 def runBlast(args, splitFiles, blastxDB, blastnDB):
-    
+    print 'Run BLAST'
+ 
     #
     # For each file containing a maximum of the specified number of sequences...
     #
@@ -448,7 +449,7 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
              command += db + ' '
         command += '" -e 0.01 -v 20000 -b 20000 -z 1000000 -m 8 '
         command += '> ' + args.output + 'various_outputs/' + blastInputFileName + '.BLAST_results_raw.txt'
-        #TK!os.system(command)
+        os.system(command)
         
         #
         # BLAST splitFile against each blastn DB
@@ -459,7 +460,7 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
             command += db + ' '
         command += '" -e 0.01 -v 20000 -b 20000 -z 1000000 -m 8 '
         command += '> ' + args.output + 'various_outputs/' + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
-        #TK!os.system(command)
+        os.system(command)
         
         #
         # Remove the BLAST input file
@@ -567,7 +568,7 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                 base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
                 base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
                 direction = contigs[contig][base_blast_result_raw_identifier]['direction']
-                base_length = base_end - base_start # TK Why not +1?
+                base_length = base_end - base_start
                 
                 # Skip if base_bitscore is less than user specified minimum bitscore
                 if (base_bitscore < args.bitscore):
@@ -590,7 +591,7 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                     check_cog = contigs[contig][check_blast_result_raw_identifier]['cog']
                     check_start = contigs[contig][check_blast_result_raw_identifier]['seq_start']
                     check_end = contigs[contig][check_blast_result_raw_identifier]['seq_end']
-                    check_length = check_end - check_start # TK Why not +1?
+                    check_length = check_end - check_start
                     
                     # Don't compare base hit against itself; skip to next iteration
                     if base_blast_result_raw_identifier == check_blast_result_raw_identifier:
@@ -809,7 +810,7 @@ def fprintf(file, fmt, *args):
 
 
 def startGenewise(args, shortened_sequence_files, blast_hits_purified):
-
+    print 'Run Genewise'
     genewise_outputfiles = Autovivify()
 
     # For each file which has been shortened by produceGenewiseFiles...
@@ -838,7 +839,7 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
                                PATHDELIM + 'genewise_support_files' + PATHDELIM + 'codon.table -hmmer -subs' + \
                                ' 0.01 -indel 0.01 -gap 11 -ext 1 -both -pep -sum > ' + genewise_outputfile
 
-            #TK!os.system(genewise_command)
+            os.system(genewise_command)
 
     # Return the list of output files for each contig
 
@@ -1134,9 +1135,9 @@ def  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summar
      
 def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
     reference_data_prefix = args.reference_data_prefix
-    hmmalign_singlehit_files = Autovivify();
-    
+    hmmalign_singlehit_files = Autovivify(); 
     print 'Run hmmalign'
+
     for contig in sorted(genewise_summary_files.keys()) :
         for genewise_summary_file in sorted(genewise_summary_files[contig].keys()) :
             try:
@@ -1169,7 +1170,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                                       'data' + PATHDELIM + reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm',\
                                       genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ] 
 
-                #TK!os.system(' '.join(hmmalign_command))
+                os.system(' '.join(hmmalign_command))
                 line= input.readline()
                 line =  line.strip()
 
@@ -1284,7 +1285,7 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
     return (concatenated_mfa_files, nrs_of_sequences, models_to_be_used)
 
 
-def  start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
+def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
     gblocks_files = {}
     sun_grid_jobs = {}
     
@@ -1302,7 +1303,7 @@ def  start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
                                  '-b4=3', '-b5=h', '-b2='+str(min_flank_pos),\
                                  '>', '/dev/null']
 
-        #TK!os.system(' '.join(gblocks_command))
+        os.system(' '.join(gblocks_command))
     
     return gblocks_files
 
@@ -1459,7 +1460,7 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
         raxml_command += [ '-s', phy_file, '-t', reference_tree_file, '-f', str(raxml_option), '-n', f_contig,\
                            '-w', str(args.output_dir_var), '>',\
                            str(args.output_dir_var) + str(f_contig) + '_RAxML.txt']
-        #TK!os.system(' '.join(raxml_command))
+        os.system(' '.join(raxml_command))
 
     for f_contig in sorted(phy_files.keys()):
         denominator = ''
@@ -1633,14 +1634,6 @@ def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
     labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
     labelled_tree_info = assign_parents_and_children(labelled_tree_info)
     labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
-#TK; Print Tree Info
-#    tempType = 'quartets'
-#    for temp in sorted(labelled_tree_info[tempType].keys(), key=int):
-#        if isinstance(labelled_tree_info[tempType][temp], dict):
-#            for temp2 in sorted(labelled_tree_info[tempType][temp].keys(), key=int):
-#                print str(temp) + ' => ' + str(temp2) + ' => ' + str(labelled_tree_info[tempType][temp][temp2])
-#        else:
-#            print str(temp) + ' => ' + str(labelled_tree_info[tempType][temp])
     rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
     return rooted_labelled_trees, insertion_point_node_hash
 
@@ -1830,10 +1823,6 @@ def split_tree_string(tree_string):
 
 def create_tree_info_hash():
     tree_info = Autovivify()
-#    tree_info['parent_of_node'] = {} 
-#    tree_info['children_of_node'] = {}
-#    tree_info['subtree_of_node'] = {}
-#    tree_info['quartets'] = {}
     return tree_info
 
 
@@ -2159,7 +2148,6 @@ def main(argv):
     # get the appropriate type of blast DBS
     blastxDB, blastnDB = createBlastDBList(args)
 
-    print('Run BLAST')
     runBlast(args, splitFiles, blastxDB, blastnDB)
 
     blastResults =  readBlastResults(args.output)
@@ -2180,6 +2168,7 @@ def main(argv):
     tree_numbers_translation = read_species_translation_files(args, cog_list)
     final_RAxML_output_files = parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, text_of_analysis_type)
     concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
+    print 'Done'
 
 
 if __name__ == "__main__":
