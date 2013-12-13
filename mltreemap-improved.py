@@ -1770,7 +1770,7 @@ def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
 
     tree_string = re.sub(r'Q-\d+;', 'Q;', tree_string)
     tree_string = re.sub('L', '(', tree_string)
-    tree_string = re.sub('R', ')', tree_string)
+    tree_string = re.sub('Q', ')', tree_string)
     tree_symbols = list(tree_string)
     bracket_diff = 0
     comma_count = 0
@@ -1791,14 +1791,14 @@ def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
     for substring in substrings:
         terminal_children = Autovivify()
 
-        while re.search(r'(\D)(\d+)', substring):
-            if re.search(r'(\D)(\d+)', substring).group(1) == '-':
+        for eachGroup in re.findall(r'(\D)(\d+)', str(substring)):
+            if eachGroup[0] == '-':
                 continue
-            terminal_children[re.search(r'(\D)(\d+)', substring).group(2)] = 1
+            terminal_children[eachGroup[1]] = 1
 
         potential_terminal_children_string = ''
 
-        for potential_terminal_child in sorted(terminal_children.keys()):
+        for potential_terminal_child in sorted(terminal_children.keys(), key=int):
             potential_terminal_children_string += str(potential_terminal_child) + ' '
 
         potential_terminal_children_strings[assignment][potential_terminal_children_string] = 1
@@ -2022,6 +2022,7 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
     there_was_a_hit = 0
 
     for assignment in sorted(terminal_children_strings_of_assignments.keys()):
+        real_terminal_children_string = ''
 
         for terminal_children_string_of_assignment in sorted(terminal_children_strings_of_assignments[assignment].keys()):
             if terminal_children_string_of_assignment in terminal_children_strings_of_reference:
