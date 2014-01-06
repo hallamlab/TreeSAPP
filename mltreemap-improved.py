@@ -96,6 +96,7 @@ def getParser():
     parser.add_argument('-o', '--output', default='output/', help='output directory')
     parser.add_argument('-s', '--bitscore', default=60, type=int, help='minimum bitscore for the blast hits')
     parser.add_argument('-t', '--reftree', default='p', choices=['p','g','i'], help='phylogenetic reference tree (p = MLTreeMap reference tree; g = GEBA reference tree; i = fungi tree)')
+    parser.add_argument('-r', '--reftype', default='n', choices=['a','n'], help='the type of input sequences (a = Amino Acid; n = Nucleotide)')
     return parser
 
 def checkParserArguments(parser):
@@ -348,12 +349,22 @@ def splitFastaInput(args):
             
             for character in characters:
                 countTotal += 1
-                if (re.match(r'[acgtACGT]', character)):
-                    countNucleotides += 1
-                elif (re.match(r'[xnXN]', character)):
-                    countXN += 1
-                else:
-                    countUndef += 1
+                # If input is nucleotides, count nucleotides
+                if args.reftype == 'n':
+                    if (re.match(r'[acgtACGT]', character)):
+                        countNucleotides += 1
+                    elif (re.match(r'[xnXN]', character)):
+                        countXN += 1
+                    else:
+                        countUndef += 1
+                # Else, if input is amino acids, count amino acids
+                elif args.reftype == 'a':
+                    if re.match(r'[abcdefghiklmnpqrstuvwyzABCDEFGHIKLMNPQRSTUVWYZ*]', character):
+                        countNucleotides += 1
+                    elif re.match(r'[xnXN]', character):
+                        countXN += 1
+                    else:
+                        countUndef += 1
         
         #
         # Write the lines to the appropriate files
@@ -397,7 +408,10 @@ def splitFastaInput(args):
     #
     
     elif (float(countNucleotides / (countTotal * 1.0)) < 0.5):
-        sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
+        if args.reftype == 'n':
+            sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
+        elif args.reftype == 'a':
+            sys.exit('ERROR: Your sequence(s) most likely contain no AA!\n')
 
     return splitFiles
 
@@ -444,7 +458,13 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
         # BLAST splitFile against each blastx DB
         #
 
-        command = 'sub_binaries/blastall -p blastx -i ' + splitFile + ' -M BLOSUM62 -d "'
+        command = 'sub_binaries/blastall -p '
+        # Change the BLAST program based on the type of input sequence
+        if args.reftype == 'n':
+            command += 'blastx'
+        elif args.reftype == 'a':
+            command += 'blastp'
+        command += ' -i ' + splitFile + ' -M BLOSUM62 -d "'
         for db in blastxDB:
              command += db + ' '
         command += '" -e 0.01 -v 20000 -b 20000 -z 1000000 -m 8 '
@@ -455,7 +475,12 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
         # BLAST splitFile against each blastn DB
         #
         
-        command = 'sub_binaries/blastall -p blastn -i ' + splitFile + ' -M BLOSUM62 -d "'
+        command = 'sub_binaries/blastall -p '
+        # Change the BLAST program based on the type of input sequence
+        if args.reftype == 'n':
+            command += 'blastn'
+        elif args.reftype == 'a':
+            command += ' -i ' + splitFile + ' -M BLOSUM62 -d "'
         for db in blastnDB:
             command += db + ' '
         command += '" -e 0.01 -v 20000 -b 20000 -z 1000000 -m 8 '
@@ -486,9 +511,9 @@ def readBlastResults(output):
     return rawBlastResultFiles
 
 def parseBlastResults(args, rawBlastResultFiles, cog_list):
+    counter = 0
+    purifiedBlastHits = Autovivify()
 
-    counter=0
-    purifiedBlastHits =Autovivify()
     for file in sorted(rawBlastResultFiles):
         try:     
             blastResults = open(file, 'r')
@@ -661,6 +686,43 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
         out.close()
     return purifiedBlastHits
 
+def blastpParser(args, shortened_sequence_files, blast_hits_purified):
+    blastpSummaryFiles = Autovivify()
+
+    for contig in sorted(blast_hits_purified.keys()): 
+        output_file = args.output_dir_var + contig + '_blast_result_summary.txt', 'w')
+        try:
+            output = open(output_file, 'w')
+        except IOError:
+            sys.exit('ERROR: Unable to open ' + output_file + '!\n')
+        blastpSummaryFiles[contig][output_file] = 1
+        shortened_sequence_file = args.output_dir_var + contig + '_sequence_shortened.txt'
+        try:
+            sequence_file = open(shortened_sequence_file, 'r')
+        except IOError:
+            sys.exit('ERROR: Could not open ' + shortened_sequence_file + '!\n')
+        flagSeq = 0
+        sequence = ''
+
+        for line in sequence_file:
+            if re.search('\A>', line):
+                if flagSeq == 1:
+                    sys.exit('ERROR: Unexpected multiple shortened sequences found!\n')
+                flagSeq = 1
+                continue
+            else:
+                line.strip()
+                sequence += line
+
+        for count in sorted(blast_hits_purified[contig].keys()):
+            output.write(blast_hits_purified[contig][count]['cog'] + '\t')
+            output.write(blast_hits_purified[contig][count]['start'] + '\t')
+            output.write(blast_hits_purified[contig][count]['end'] + '\t')
+            output.write(blast_hits_purified[contig][count]['direction'] + '\t')
+            output.write(sequence + '\n')
+
+    return blastpSummaryFiles
+ 
 def produceGenewiseFiles(args, blast_hits_purified):
     flanking_length = 1000 # Recommended: 1000
     prae_contig_coordinates = Autovivify()
@@ -973,7 +1035,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
                         # Purify the results
                         # If the size of the overlap is more than half the size of the hit...
-                        if overlap / float(base_length) > 0.5:
+                        if float(overlap) / float(base_length) > 0.5:
                             # And if the hit and check are the same COG...
                             if base_cog == check_cog:
                                 # Keep only the longer hit, since the major difference between the hits is the length 
@@ -2156,10 +2218,15 @@ def main(argv):
     blast_hits_purified = parseBlastResults(args, blastResults, cog_list)
 
     contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
-    genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
-    genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
+ 
+    # Only run Genewise if sequences are nucleotide sequences
+    if args.reftype == 'n':
+        genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
+        genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
+        contig_rRNA_coordinates, rRNA_hit_files =  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
+    elif args.reftype == 'a':
+        genewise_summary_files = blastpParser(args, shortened_sequence_files, blast_hits_purified)
 
-    contig_rRNA_coordinates, rRNA_hit_files =  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
     hmmalign_singlehit_files  = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list);
 
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
