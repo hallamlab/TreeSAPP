@@ -501,10 +501,10 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
 def readBlastResults(output):
     rawBlastResultFiles = []
     
-    for file in glob.glob(output + '/various_outputs/*BLAST_results_raw.txt'):
+    for file in glob.glob(output + 'various_outputs' + PATHDELIM + '*BLAST_results_raw.txt'):
         file.rstrip('\r\n')
         if path.getsize(file) <= 0:
-            shutil.rmtree(file)
+            os.remove(file)
         else:
             rawBlastResultFiles.append(file)
     
@@ -690,7 +690,7 @@ def blastpParser(args, shortened_sequence_files, blast_hits_purified):
     blastpSummaryFiles = Autovivify()
 
     for contig in sorted(blast_hits_purified.keys()): 
-        output_file = args.output_dir_var + contig + '_blast_result_summary.txt', 'w')
+        output_file = args.output_dir_var + contig + '_blast_result_summary.txt'
         try:
             output = open(output_file, 'w')
         except IOError:
@@ -715,11 +715,11 @@ def blastpParser(args, shortened_sequence_files, blast_hits_purified):
                 sequence += line
 
         for count in sorted(blast_hits_purified[contig].keys()):
-            output.write(blast_hits_purified[contig][count]['cog'] + '\t')
-            output.write(blast_hits_purified[contig][count]['start'] + '\t')
-            output.write(blast_hits_purified[contig][count]['end'] + '\t')
-            output.write(blast_hits_purified[contig][count]['direction'] + '\t')
-            output.write(sequence + '\n')
+            output.write(str(blast_hits_purified[contig][count]['cog']) + '\t')
+            output.write(str(blast_hits_purified[contig][count]['start']) + '\t')
+            output.write(str(blast_hits_purified[contig][count]['end']) + '\t')
+            output.write(str(blast_hits_purified[contig][count]['direction']) + '\t')
+            output.write(str(sequence) + '\n')
 
     return blastpSummaryFiles
  
