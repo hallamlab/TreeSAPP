@@ -1,4 +1,4 @@
-#!/sw/bin/python
+#!/usr/bin/python
 ##############################
 ##
 ## MLTreeMap TSN v. 0.0
@@ -97,6 +97,9 @@ def getParser():
     parser.add_argument('-s', '--bitscore', default=60, type=int, help='minimum bitscore for the blast hits')
     parser.add_argument('-t', '--reftree', default='p', choices=['p','g','i'], help='phylogenetic reference tree (p = MLTreeMap reference tree; g = GEBA reference tree; i = fungi tree)')
     parser.add_argument('-r', '--reftype', default='n', choices=['a','n'], help='the type of input sequences (a = Amino Acid; n = Nucleotide)')
+    parser.add_argument('-e', '--executables', default='None', help='locations of executables (e.g. blastx, Gblocks, etc.)')
+    parser.add_argument('-x', '--mltreemap', default = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) , help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
+    parser.add_argument('-T', '--num_threads', default = None , help='specifies the number of CPU threads to use in raxml and blast (default: 1)')
     return parser
 
 def checkParserArguments(parser):
@@ -108,6 +111,7 @@ def checkParserArguments(parser):
     args = parser.parse_args()
     if args.filelength <= 0:
         sys.exit('Input files require a positive number of sequences!')
+    
     
     #
     # Set the reference data file prefix and the reference tree name
@@ -186,7 +190,8 @@ def createCogList(args):
     # For each line in the COG list file...
     #
     
-    cogInputList = open('data/tree_data/cog_list.txt', 'r')
+    cogInputList = open( args.mltreemap + PATHDELIM +\
+                         'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'cog_list.txt', 'r')
      
     cogList = [ x.strip() for x in cogInputList.readlines() ] 
     for cogInput in cogList:
@@ -424,19 +429,23 @@ def createBlastDBList(args):
     blastxDB = []
     blastnDB = []
     
-    for file in glob.glob('data/' + args.reference_data_prefix + 'alignment_data/*.fa'):
+    alignment_data_dir = args.mltreemap + PATHDELIM +\
+                         'data' + PATHDELIM + \
+                         args.reference_data_prefix + 'alignment_data' + PATHDELIM + \
+                         '*.fa'
+    
+    for file in glob.glob(alignment_data_dir):
         file.rstrip('\r\n')
-        if (not re.match(r'\Adata/' + args.reference_data_prefix + 'alignment_data/\._', file)):
+        if (not re.match(r'\Adata' + PATHDELIM + args.reference_data_prefix + 'alignment_data' + PATHDELIM + '\._', file)):
             if (re.match(r'.*rRNA\.fa\Z', file)):
                 blastnDB.append(file)
             elif (re.match(r'.*\.fa\Z', file) and not re.match(r'rRNA', file)):
                 blastxDB.append(file)
-
+    
     return (blastxDB, blastnDB)
 
 def runBlast(args, splitFiles, blastxDB, blastnDB):
     print 'Run BLAST'
- 
     #
     # For each file containing a maximum of the specified number of sequences...
     #
@@ -453,39 +462,46 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
             sys.exit('ERROR: Something is wrong with the directory of the BLAST input file!\n')
         else:
             blastInputFileName = re.match(r'\A.+/(.+)\.txt\Z', splitFile).group(1)
-    
-        #
-        # BLAST splitFile against each blastx DB
-        #
-
-        command = 'sub_binaries/blastall -p '
-        # Change the BLAST program based on the type of input sequence
-        if args.reftype == 'n':
-            command += 'blastx'
-        elif args.reftype == 'a':
-            command += 'blastp'
-        command += ' -i ' + splitFile + ' -M BLOSUM62 -d "'
+        
         for db in blastxDB:
-             command += db + ' '
-        command += '" -e 0.01 -v 20000 -b 20000 -z 1000000 -m 8 '
-        command += '> ' + args.output + 'various_outputs/' + blastInputFileName + '.BLAST_results_raw.txt'
-        os.system(command)
+               command = args.executables + PATHDELIM
+               # Change the BLAST program based on the type of input sequence
+               if args.reftype == 'n':
+                   command += 'blastx'
+               elif args.reftype == 'a':
+                   command += 'blastp'
+               command += ' -query ' + splitFile + ' -matrix BLOSUM62 -db '
+               command += db
+               command += ' -evalue 0.01 -max_target_seqs 20000 -dbsize 1000000 -outfmt 6 '
+               if args.num_threads:
+                   if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
+                       command += ' -num_threads ' + str(int(args.num_threads))
+                   else:
+                       command += ' -num_threads ' + str(1)
+               command += ' >> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.BLAST_results_raw.txt'
+               os.system(command)
         
         #
         # BLAST splitFile against each blastn DB
         #
         
-        command = 'sub_binaries/blastall -p '
-        # Change the BLAST program based on the type of input sequence
-        if args.reftype == 'n':
-            command += 'blastn'
-        elif args.reftype == 'a':
-            command += ' -i ' + splitFile + ' -M BLOSUM62 -d "'
         for db in blastnDB:
-            command += db + ' '
-        command += '" -e 0.01 -v 20000 -b 20000 -z 1000000 -m 8 '
-        command += '> ' + args.output + 'various_outputs/' + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
-        os.system(command)
+            command = args.executables + PATHDELIM
+            # Change the BLAST program based on the type of input sequence
+            if args.reftype == 'n':
+                command += 'blastn'
+            elif args.reftype == 'a':
+                 command += 'blastp'
+            command += ' -query ' + splitFile + ' -db '
+            command += db
+            command += ' -evalue 0.01 -max_target_seqs 20000 -dbsize 1000000 -outfmt 6 '
+            if args.num_threads:
+                   if (args.num_threads >= 1) and (args.num_threads < available_cpu_count()):
+                       command += ' -num_threads ' + str(int(args.num_threads))
+                   else:
+                       command += ' -num_threads ' + str(1)
+            command += ' >> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
+            os.system(command)
         
         #
         # Remove the BLAST input file
@@ -513,7 +529,7 @@ def readBlastResults(output):
 def parseBlastResults(args, rawBlastResultFiles, cog_list):
     counter = 0
     purifiedBlastHits = Autovivify()
-
+    print "in parseBlastResults"
     for file in sorted(rawBlastResultFiles):
         try:     
             blastResults = open(file, 'r')
@@ -892,15 +908,17 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
             genewise_outputfiles[contig][genewise_outputfile] = 1
 
             # Prepare the Genewise command and run it
+            mltreemap_dir = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
+            genewise_support = mltreemap_dir + PATHDELIM + 'genewise_support_files' + PATHDELIM
+            hmm_dir = mltreemap_dir + "hmm_data" + PATHDELIM
 
-            genewise_command = 'sub_binaries' + PATHDELIM + 'genewise data' + PATHDELIM + \
-                               args.reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm ' + \
-                               shortened_sequence_file + ' -init local -quiet -gene data' + PATHDELIM + \
-                               'genewise_support_files' + PATHDELIM + 'human.gf -matrix data' + \
-                               PATHDELIM + 'genewise_support_files' + PATHDELIM + 'blosum62.bla -codon data' + \
-                               PATHDELIM + 'genewise_support_files' + PATHDELIM + 'codon.table -hmmer -subs' + \
+            genewise_command = args.executables + PATHDELIM + 'genewise ' + \
+                               hmm_dir + cog + '.hmm ' + \
+                               shortened_sequence_file + ' -init local -quiet -gene ' + \
+                               genewise_support + 'human.gf -matrix ' + \
+                               genewise_support + 'blosum62.bla -codon ' + \
+                               genewise_support + 'codon.table -hmmer -subs' + \
                                ' 0.01 -indel 0.01 -gap 11 -ext 1 -both -pep -sum > ' + genewise_outputfile
-
             os.system(genewise_command)
 
     # Return the list of output files for each contig
@@ -1194,7 +1212,6 @@ def  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summar
     return contig_rRNA_coordinates, rRNA_hit_files
 
 
-     
 def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
     reference_data_prefix = args.reference_data_prefix
     hmmalign_singlehit_files = Autovivify(); 
@@ -1208,8 +1225,8 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                print  "ERROR: Can't open " + genewise_summary_file + "!\n"
                sys.exit(0)
 
-            line= input.readline()
-            line =  line.strip()
+            line = input.readline()
+            line = line.strip()
             while line:
                 cog, start, end, _, sequence = line.split('\t')
 
@@ -1225,30 +1242,33 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                 except IOError:
                    print  'Can\'t create ' + genewise_singlehit_file_fa +'\n'
                    sys.exit(0)
-       
-                hmmalign_command = [ 'sub_binaries/hmmalign', '-m', '--mapali',\
-                                     'data' +PATHDELIM + reference_data_prefix + 'alignment_data' + PATHDELIM +  cog + '.fa',\
+                
+                mltreemap_resources = args.mltreemap + PATHDELIM + 'data' + PATHDELIM 
+                
+                hmmalign_command = [ args.executables + PATHDELIM + 'hmmalign', '-m', '--mapali',\
+                                     mltreemap_resources + reference_data_prefix + 'alignment_data' + PATHDELIM +  cog + '.fa',\
                                      '--outformat', 'Clustal',\
-                                      'data' + PATHDELIM + reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm',\
-                                      genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ] 
-
+                                     mltreemap_resources + reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm',\
+                                     genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ] 
                 os.system(' '.join(hmmalign_command))
-                line= input.readline()
-                line =  line.strip()
+                line = input.readline()
+                line = line.strip()
 
             input.close()
 
     return hmmalign_singlehit_files
                    
 
-def get_non_wag_cogs():
+def get_non_wag_cogs(args):
 
     non_wag_cog_list = Autovivify()
-
+    
     try:
-        cogin = open('data/tree_data/non_wag_cogs.txt', 'r')
+        non_wag_cogs_file = args.mltreemap + PATHDELIM + \
+                            'data' + PATHDELIM + 'tree_data' + PATHDELIM +'non_wag_cogs.txt'
+        cogin = open(non_wag_cogs_file, 'r')
     except IOError:
-        sys.exit('ERROR: Can\'t open data/tree_data/non_wag_cogs.txt!\n')
+        sys.exit('ERROR: Can\'t open ' + non_wag_cogs_file + '!\n')
 
     for line in cogin:
         line = line.strip()
@@ -1359,7 +1379,7 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
         min_flank_pos = int(nr_of_sequences * 0.55)
         gblocks_file = concatenated_mfa_file+ "-gb"
         gblocks_files[f_contig] = gblocks_file;
-        gblocks_command = [ "sub_binaries/Gblocks" ]
+        gblocks_command = [  args.executables + PATHDELIM + "Gblocks" ]
         gblocks_command.append(concatenated_mfa_file)
         gblocks_command += ['-t=p', '-s=y', '-u=n', '-p=t', '-b3=15',\
                                  '-b4=3', '-b5=h', '-b2='+str(min_flank_pos),\
@@ -1487,9 +1507,10 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     bootstrap_replicates = args.bootstraps
 
     args2 = Autovivify()
-
+    mltree_resources = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
+    
     for f_contig in sorted(phy_files.keys()):
-        reference_tree_file = 'data/tree_data/' + args.reference_tree
+        reference_tree_file = mltree_resources + 'tree_data' + PATHDELIM + args.reference_tree
         phy_file = phy_files[f_contig]
         if re.search(r'\A(.)', f_contig):
             denominator = re.search(r'\A(.)', f_contig).group(0)
@@ -1498,7 +1519,7 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
             for cog in sorted(cog_list['all_cogs'].keys()):
                 if not cog_list['all_cogs'][cog] == denominator:
                     continue
-                reference_tree_file = 'data/tree_data/' + cog + '_tree.txt'
+                reference_tree_file = mltree_resources + 'tree_data' + PATHDELIM + cog + '_tree.txt'
                 break
 
         args2['reference_tree_file_of_denominator'][denominator] = reference_tree_file
@@ -1516,12 +1537,17 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
         model_to_be_used = models_to_be_used[f_contig]
         if model_to_be_used is None:
             sys.exit('ERROR: No best AA model could be detected for the ML step!\n')
-        raxml_command = [ 'sub_binaries/raxmlHPC', '-m', model_to_be_used]
+        raxml_command = [ args.executables + PATHDELIM + 'raxmlHPC', '-m', model_to_be_used]
         if bootstrap_replicates > 1:
             raxml_command += [ '-x', '12345', '-#', bootstrap_replicates]
+        if args.num_threads:
+            if ( int(args.num_threads) >= 1 ) and ( int(args.num_threads) <= available_cpu_count() ): 
+                raxml_command += ['-T', str(int(args.num_threads))]
+        
         raxml_command += [ '-s', phy_file, '-t', reference_tree_file, '-f', str(raxml_option), '-n', f_contig,\
                            '-w', str(args.output_dir_var), '>',\
                            str(args.output_dir_var) + str(f_contig) + '_RAxML.txt']
+        print ' '.join(raxml_command)
         os.system(' '.join(raxml_command))
 
     for f_contig in sorted(phy_files.keys()):
@@ -1638,11 +1664,13 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
 
             final_RAxML_filename = str(args.output_dir_raxml) + str(f_contig) + '_RAxML_parsed.txt'
             final_RAxML_output_files[denominator][final_RAxML_filename] = 1
+            
             try:
                 output = open(final_RAxML_filename, 'w')
             except IOError:
                 sys.exit('ERROR: Can\'t create ' + str(final_RAxML_filename) + '!\n')
             output.write(str(description_text) + '\n')
+            
             for assignment in sorted(assignments.keys()):
                 assignment_target_string = final_assignment_target_strings[assignment]
                 weight = assignments[assignment]
@@ -1776,6 +1804,7 @@ def read_the_raxml_out_tree(labelled_tree_file):
     tree_string = re.sub('\)', 'R', tree_string)
     tree_string = re.sub('\[', 'Q', tree_string)
     tree_string = re.sub(':1\.0', '', tree_string)
+    
     while re.search(r'((\D(\d+))QI(\d+)])', tree_string):
         to_be_replaced = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(1)
         replacement = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(2)
@@ -1791,6 +1820,7 @@ def read_the_raxml_out_tree(labelled_tree_file):
         insertion_point_node_hash[re.search(r'QI(\d+)]', tree_string).group(1)] = count
         tree_string = re.sub(r'QI(\d+)]', str(count), tree_string, 1)
         count += -1
+    
     tree_string = re.sub('L', '(', tree_string)
     tree_string = re.sub('R', ')', tree_string)
     tree_string = re.sub('Q', '[', tree_string)
@@ -1873,6 +1903,7 @@ def split_tree_string(tree_string):
     count = -1
     previous_symbol = ''
     tree_elements = Autovivify()
+    
     for tree_symbol_raw in tree_symbols_raw:
         if re.search(r'\d', tree_symbol_raw) and (re.search(r'\d', previous_symbol) or previous_symbol == '-'):
             tree_elements[count] += tree_symbol_raw
@@ -1893,13 +1924,16 @@ def get_node_subtrees(tree_elements, tree_info):
     bracket_r_count = 0
     parents_of_node = Autovivify()
     tree_element_nr = -1
+    
     for tree_element in tree_elements.values():
         tree_element_nr += 1
+        
         if str(tree_element) == '(':
             bracket_l_count = 1
             bracket_r_count = 0
             tree_sub_element_nr = tree_element_nr
             subtree_string = '('
+            
             while True:
                 tree_sub_element_nr += 1
                 tree_sub_element = tree_elements[tree_sub_element_nr]
@@ -1916,21 +1950,25 @@ def get_node_subtrees(tree_elements, tree_info):
                     break
                 else:
                     subtree_string += str(tree_sub_element)
+    
     for tree_element in tree_elements.values():
         if not re.search(r'\d+', str(tree_element)):
             continue
         if tree_element in tree_info['subtree_of_node'].keys():
             continue
         tree_info['subtree_of_node'][tree_element] = tree_element
+    
     return tree_info
 
 
 def assign_parents_and_children(tree_info):
+    
     for node in sorted(tree_info['subtree_of_node'].keys()):
         if node == -1:
             continue
         subtree = str(tree_info['subtree_of_node'][node])
         parent = None
+        
         for potential_parent in sorted(tree_info['subtree_of_node'].keys()):
             if node == potential_parent:
                 continue
@@ -1954,7 +1992,6 @@ def build_tree_info_quartets(tree_info):
     for node in sorted(tree_info['parent_of_node'].keys(), key=int):
         parent = tree_info['parent_of_node'][node]
         if int(parent) == -1:
-
             for roots_child in sorted(tree_info['children_of_node']['-1'].keys(), key=int):
                 if roots_child == node:
                     continue
@@ -1972,6 +2009,7 @@ def build_newly_rooted_trees(tree_info):
     tree_number = 0
     list_of_already_used_attachments = Autovivify()
     rooted_trees = Autovivify()
+    
     for node in sorted(tree_info['quartets'].keys(), key=int):
         if node in list_of_already_used_attachments:
             continue
@@ -1987,6 +2025,7 @@ def build_newly_rooted_trees(tree_info):
             new_tree = recursive_tree_builder(tree_info, node_infos, tree_string)
             rooted_trees[tree_number] = new_tree
             tree_number += 1
+    
     return rooted_trees
 
 
@@ -2103,20 +2142,20 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
 
 def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type):
     output_directory_final = args.output_dir_final
-
+    
     for denominator in sorted(final_RAxML_output_files.keys()):
         nr_of_files = 0
         assignments = Autovivify()
         description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
         final_output_file_name = str(output_directory_final) + str(denominator) + '_concatenated_RAxML_outputs.txt'
-
+        
         for final_RAxML_output_file in sorted(final_RAxML_output_files[denominator].keys()):
             nr_of_files += 1
             try:
                 input = open(final_RAxML_output_file, 'r')
             except IOError:
                 sys.exit('ERROR: Can\'t open ' + str(final_RAxML_output_file) + '!\n')
-
+            
             for line in input:
                 line = line.strip()
                 if re.search(r'Placement weight (\d+)%: (.+)\Z', line):
@@ -2171,7 +2210,7 @@ def read_species_translation_files(args, cog_list):
     for functional_cog in sorted(cog_list['functional_cogs'].keys()):
         denominator = cog_list['functional_cogs'][functional_cog]
         filename = 'tax_ids_' + str(functional_cog) + '.txt'
-        translation_files[denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + filename
+        translation_files[denominator] = args.mltreemap + PATHDELIM + 'data' + PATHDELIM + 'tree_data' + PATHDELIM + filename
 
     for phylogenetic_rRNA_cog in sorted(cog_list['phylogenetic_rRNA_cogs'].keys()):
         denominator = cog_list['phylogenetic_rRNA_cogs'][phylogenetic_rRNA_cog]
@@ -2195,40 +2234,154 @@ def read_species_translation_files(args, cog_list):
     return tree_numbers_translation
 
 
+def available_cpu_count():
+    """ Number of available virtual or physical CPUs on this system, i.e.
+    user/real as output by time(1) when called with an optimally scaling
+    userspace-only program"""
+
+    # cpuset
+    # cpuset may restrict the number of *available* processors
+    try:
+        m = re.search(r'(?m)^Cpus_allowed:\s*(.*)$',
+                      open('/proc/self/status').read())
+        if m:
+            res = bin(int(m.group(1).replace(',', ''), 16)).count('1')
+            if res > 0:
+                return res
+    except IOError:
+        pass
+
+    # Python 2.6+
+    try:
+        import multiprocessing
+        return multiprocessing.cpu_count()
+    except (ImportError, NotImplementedError):
+        pass
+
+    # http://code.google.com/p/psutil/
+    try:
+        import psutil
+        return psutil.NUM_CPUS
+    except (ImportError, AttributeError):
+        pass
+
+    # POSIX
+    try:
+        res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
+
+        if res > 0:
+            return res
+    except (AttributeError, ValueError):
+        pass
+
+    # Windows
+    try:
+        res = int(os.environ['NUMBER_OF_PROCESSORS'])
+
+        if res > 0:
+            return res
+    except (KeyError, ValueError):
+        pass
+
+    # jython
+    try:
+        from java.lang import Runtime
+        runtime = Runtime.getRuntime()
+        res = runtime.availableProcessors()
+        if res > 0:
+            return res
+    except ImportError:
+        pass
+
+    # BSD
+    try:
+        sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'],
+                                  stdout=subprocess.PIPE)
+        scStdout = sysctl.communicate()[0]
+        res = int(scStdout)
+
+        if res > 0:
+            return res
+    except (OSError, ValueError):
+        pass
+
+    # Linux
+    try:
+        res = open('/proc/cpuinfo').read().count('processor\t:')
+
+        if res > 0:
+            return res
+    except IOError:
+        pass
+
+    # Solaris
+    try:
+        pseudoDevices = os.listdir('/devices/pseudo/')
+        res = 0
+        for pd in pseudoDevices:
+            if re.match(r'^cpuid@[0-9]+$', pd):
+                res += 1
+
+        if res > 0:
+            return res
+    except OSError:
+        pass
+
+    # Other UNIXes (heuristic)
+    try:
+        try:
+            dmesg = open('/var/run/dmesg.boot').read()
+        except IOError:
+            dmesgProcess = subprocess.Popen(['dmesg'], stdout=subprocess.PIPE)
+            dmesg = dmesgProcess.communicate()[0]
+
+        res = 0
+        while '\ncpu' + str(res) + ':' in dmesg:
+            res += 1
+
+        if res > 0:
+            return res
+    except OSError:
+        pass
+
+    raise Exception('Can not determine number of CPUs on this system')
+
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
-
     args = removePreviousOutput(args)
     
-    #this creates the list of the marker COGs 
+    # this creates the list of the marker COGs 
     cog_list, text_of_analysis_type = createCogList(args)
-    non_wag_cog_list = get_non_wag_cogs()
-
-    #splits the input files to smaller files for blasting
+    non_wag_cog_list = get_non_wag_cogs(args)
+    
+    # splits the input files to smaller files for blasting
     splitFiles = splitFastaInput(args)
-
+    
     # get the appropriate type of blast DBS
     blastxDB, blastnDB = createBlastDBList(args)
-
     runBlast(args, splitFiles, blastxDB, blastnDB)
-
     blastResults =  readBlastResults(args.output)
-
+    print "readBlastResults"
     blast_hits_purified = parseBlastResults(args, blastResults, cog_list)
-
+    print "blast_hits_purified"
     contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
- 
+    print "produceGenewiseFiles"
+    
     # Only run Genewise if sequences are nucleotide sequences
     if args.reftype == 'n':
         genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
+        print "startGenewise"
         genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
+        print "genewise_summary_files"
         contig_rRNA_coordinates, rRNA_hit_files =  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
     elif args.reftype == 'a':
         genewise_summary_files = blastpParser(args, shortened_sequence_files, blast_hits_purified)
-
+    
     hmmalign_singlehit_files  = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list);
-
+    print "hmmalign_singlehit_files"
+    
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
