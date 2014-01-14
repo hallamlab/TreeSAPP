@@ -3,21 +3,6 @@
 ##
 ## MLTreeMap TSN v. 0.0
 ##
-## To Do List
-##        BLAST
-##            Auto detect AA vs Nt
-##        GeneWise
-##            Extracts marker genes
-##            1000 bp flanking
-##        hmmalign
-##            Align marker genes vs reference
-##        Gblocks
-##            Remove minor gaps
-##        RAxML
-##        
-##        How to deal with AA vs DNA vs rRNA
-##        Visualization
-##
 ##############################
 
 try:
@@ -97,7 +82,7 @@ def getParser():
     parser.add_argument('-s', '--bitscore', default=60, type=int, help='minimum bitscore for the blast hits')
     parser.add_argument('-t', '--reftree', default='p', choices=['p','g','i'], help='phylogenetic reference tree (p = MLTreeMap reference tree; g = GEBA reference tree; i = fungi tree)')
     parser.add_argument('-r', '--reftype', default='n', choices=['a','n'], help='the type of input sequences (a = Amino Acid; n = Nucleotide)')
-    parser.add_argument('-e', '--executables', default='None', help='locations of executables (e.g. blastx, Gblocks, etc.)')
+    parser.add_argument('-e', '--executables', default='sub_binaries', help='locations of executables (e.g. blastx, Gblocks, etc.)')
     parser.add_argument('-x', '--mltreemap', default = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) , help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
     parser.add_argument('-T', '--num_threads', default = None , help='specifies the number of CPU threads to use in raxml and blast (default: 1)')
     return parser
@@ -190,7 +175,7 @@ def createCogList(args):
     # For each line in the COG list file...
     #
     
-    cogInputList = open( args.mltreemap + PATHDELIM +\
+    cogInputList = open( args.mltreemap + PATHDELIM + \
                          'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'cog_list.txt', 'r')
      
     cogList = [ x.strip() for x in cogInputList.readlines() ] 
@@ -391,7 +376,7 @@ def splitFastaInput(args):
     #
     
     if not splitFiles:
-        splitFiles.append(args.output + 'various_outputs/' + inputFileName + '_%d.txt' %(countFiles))
+        splitFiles.append(args.output + 'various_outputs' + PATHDELIM + inputFileName + '_%d.txt' %(countFiles))
     
     #
     # Exit the program if character count is 0
@@ -420,37 +405,54 @@ def splitFastaInput(args):
 
     return splitFiles
 
-def createBlastDBList(args):
+#def createBlastDBList(args):
+#
+#    #
+#    # Create list of databases for each blastx and blastn
+#    #
+#
+#    blastxDB = []
+#    blastnDB = []
+#    
+#    alignment_data_dir = args.mltreemap + PATHDELIM +\
+#                         'data' + PATHDELIM + \
+#                         args.reference_data_prefix + 'alignment_data' + PATHDELIM + \
+#                         '*.fa'
+#    
+#    for file in glob.glob(alignment_data_dir):
+#        file.rstrip('\r\n')
+#        if (not re.match(r'\Adata' + PATHDELIM + args.reference_data_prefix + 'alignment_data' + PATHDELIM + '\._', file)):
+#            if (re.match(r'.*rRNA\.fa\Z', file)):
+#                blastnDB.append(file)
+#            elif (re.match(r'.*\.fa\Z', file) and not re.match(r'rRNA', file)):
+#                blastxDB.append(file)
+#    
+#    return (blastxDB, blastnDB)
 
-    #
-    # Create list of databases for each blastx and blastn
-    #
-
-    blastxDB = []
-    blastnDB = []
-    
-    alignment_data_dir = args.mltreemap + PATHDELIM +\
-                         'data' + PATHDELIM + \
-                         args.reference_data_prefix + 'alignment_data' + PATHDELIM + \
-                         '*.fa'
-    
-    for file in glob.glob(alignment_data_dir):
-        file.rstrip('\r\n')
-        if (not re.match(r'\Adata' + PATHDELIM + args.reference_data_prefix + 'alignment_data' + PATHDELIM + '\._', file)):
-            if (re.match(r'.*rRNA\.fa\Z', file)):
-                blastnDB.append(file)
-            elif (re.match(r'.*\.fa\Z', file) and not re.match(r'rRNA', file)):
-                blastxDB.append(file)
-    
-    return (blastxDB, blastnDB)
-
-def runBlast(args, splitFiles, blastxDB, blastnDB):
+def runBlast(args, splitFiles):#, blastxDB, blastnDB):
     print 'Run BLAST'
     #
     # For each file containing a maximum of the specified number of sequences...
     #
 
-    for splitFile in splitFiles:
+    alignment_data_dir = args.mltreemap + PATHDELIM + \
+                         'data' + PATHDELIM + \
+                         args.reference_data_prefix + 'alignment_data' + PATHDELIM + \
+                         '*.fa'
+
+    db_nt = '-db "'
+    db_aa = '-db "'
+
+    for file in glob.glob(alignment_data_dir):
+        if re.match(r'.*rRNA\.fa\Z', file):
+            db_nt += file + ' '
+        else:
+            db_aa += file + ' '
+
+    db_nt += '"'
+    db_aa += '"'
+
+    for splitFile in sorted(splitFiles):
         
         #
         # Ensure splitFile is a .txt file; save file name if so, die otherwise
@@ -463,45 +465,81 @@ def runBlast(args, splitFiles, blastxDB, blastnDB):
         else:
             blastInputFileName = re.match(r'\A.+/(.+)\.txt\Z', splitFile).group(1)
         
-        for db in blastxDB:
-               command = args.executables + PATHDELIM
-               # Change the BLAST program based on the type of input sequence
-               if args.reftype == 'n':
-                   command += 'blastx'
-               elif args.reftype == 'a':
-                   command += 'blastp'
-               command += ' -query ' + splitFile + ' -matrix BLOSUM62 -db '
-               command += db
-               command += ' -evalue 0.01 -max_target_seqs 20000 -dbsize 1000000 -outfmt 6 '
-               if args.num_threads:
-                   if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
-                       command += ' -num_threads ' + str(int(args.num_threads))
-                   else:
-                       command += ' -num_threads ' + str(1)
-               command += ' >> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.BLAST_results_raw.txt'
-               os.system(command)
-        
-        #
-        # BLAST splitFile against each blastn DB
-        #
-        
-        for db in blastnDB:
-            command = args.executables + PATHDELIM
-            # Change the BLAST program based on the type of input sequence
-            if args.reftype == 'n':
-                command += 'blastn'
-            elif args.reftype == 'a':
-                 command += 'blastp'
-            command += ' -query ' + splitFile + ' -db '
-            command += db
-            command += ' -evalue 0.01 -max_target_seqs 20000 -dbsize 1000000 -outfmt 6 '
+        if args.reftype == 'n':
+            command = args.executables + PATHDELIM + 'blastx ' + \
+                      '-query ' + splitFile + ' ' + db_aa + ' ' + \
+                      '-evalue 0.01 -max_target_seqs 20000 ' + \
+                      '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                   if (args.num_threads >= 1) and (args.num_threads < available_cpu_count()):
-                       command += ' -num_threads ' + str(int(args.num_threads))
-                   else:
-                       command += ' -num_threads ' + str(1)
-            command += ' >> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
+                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cput_count())):
+                    command += '-num_threads ' + str(int(args.num_threads)) + ' '
+                else:
+                    command += '-num_threads ' + str(1) + ' '
+            command += '>> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.BLAST_results_raw.txt'
             os.system(command)
+            command = args.executables + PATHDELIM + 'blastn ' + \
+                      '-query ' + splitFile + ' ' + db_nt + ' ' + \
+                      '-evalue 0.01 -max_target_seqs 20000 ' + \
+                      '-dbsize 1000000 -outfmt 6 '
+            if args.num_threads:
+                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cput_count())):
+                    command += '-num_threads ' + str(int(args.num_threads)) + ' '
+                else:
+                    command += '-num_threads ' + str(1) + ' '
+            command += '>> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
+            os.system(command)
+        elif args.reftype == 'a':
+            command = args.executables + PATHDELIM + 'blastp ' + \
+                      '-query ' + splitFile + ' ' + db_aa + ' ' + \
+                      '-evalue 0.01 -max_target_seqs 20000 ' + \
+                      '-dbsize 1000000 -outfmt 6 '
+            if args.num_threads:
+                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cput_count())):
+                    command += '-num_threads ' + str(int(args.num_threads)) + ' '
+                else:
+                    command += '-num_threads ' + str(1) + ' '
+            command += '>> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.BLAST_results_raw.txt'
+            os.system(command)
+
+#        for db in blastxDB:
+#               command = args.executables + PATHDELIM
+#               # Change the BLAST program based on the type of input sequence
+#               if args.reftype == 'n':
+#                   command += 'blastx'
+#               elif args.reftype == 'a':
+#                   command += 'blastp'
+#               command += ' -query ' + splitFile + ' -matrix BLOSUM62 -db '
+#               command += db
+#               command += ' -evalue 0.01 -max_target_seqs 20000 -num_alignments 20000 -dbsize 1000000 -outfmt 6 '
+#               if args.num_threads:
+#                   if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
+#                       command += ' -num_threads ' + str(int(args.num_threads))
+#                   else:
+#                       command += ' -num_threads ' + str(1)
+#               command += ' >> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.BLAST_results_raw.txt'
+#               os.system(command)
+#        
+#        #
+#        # BLAST splitFile against each blastn DB
+#        #
+#        
+#        for db in blastnDB:
+#            command = args.executables + PATHDELIM
+#            # Change the BLAST program based on the type of input sequence
+#            if args.reftype == 'n':
+#                command += 'blastn'
+#            elif args.reftype == 'a':
+#                 command += 'blastp'
+#            command += ' -query ' + splitFile + ' -db '
+#            command += db
+#            command += ' -evalue 0.01 -max_target_seqs 20000 -num_alignments 20000 -dbsize 1000000 -outfmt 6 '
+#            if args.num_threads:
+#                   if (args.num_threads >= 1) and (args.num_threads < available_cpu_count()):
+#                       command += ' -num_threads ' + str(int(args.num_threads))
+#                   else:
+#                       command += ' -num_threads ' + str(1)
+#            command += ' >> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
+#            os.system(command)
         
         #
         # Remove the BLAST input file
@@ -744,7 +782,7 @@ def produceGenewiseFiles(args, blast_hits_purified):
     prae_contig_coordinates = Autovivify()
     contig_coordinates = Autovivify()
     shortened_sequence_files = {}
-
+`
     for contig in sorted(blast_hits_purified.keys()):
         for base_identifier in sorted(blast_hits_purified[contig].keys()):
             #
@@ -2201,21 +2239,31 @@ def read_species_translation_files(args, cog_list):
     translation_files = Autovivify()
     phylogenetic_denominator = args.reftree
     if phylogenetic_denominator == 'g':
-        translation_files[phylogenetic_denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'tax_ids_geba_tree.txt'
+        translation_files[phylogenetic_denominator] = args.mltreemap + PATHDELIM + \
+                                                      'data' + PATHDELIM + 'tree_data' + \
+                                                      PATHDELIM + 'tax_ids_geba_tree.txt'
     elif phylogenetic_denominator == 'i':
-        translation_files[phylogenetic_denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'tax_ids_fungitr.txt'
+        translation_files[phylogenetic_denominator] = args.mltreemap + PATHDELIM + \
+                                                      'data' + PATHDELIM + 'tree_data' + \
+                                                      PATHDELIM + 'tax_ids_fungitr.txt'
     else:
-        translation_files[phylogenetic_denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'tax_ids_nr.txt'
+        translation_files[phylogenetic_denominator] = args.mltreemap + PATHDELIM + \
+                                                      'data' + PATHDELIM + 'tree_data' + \
+                                                      PATHDELIM + 'tax_ids_nr.txt'
 
     for functional_cog in sorted(cog_list['functional_cogs'].keys()):
         denominator = cog_list['functional_cogs'][functional_cog]
         filename = 'tax_ids_' + str(functional_cog) + '.txt'
-        translation_files[denominator] = args.mltreemap + PATHDELIM + 'data' + PATHDELIM + 'tree_data' + PATHDELIM + filename
+        translation_files[denominator] = args.mltreemap + PATHDELIM + \
+                                         'data' + PATHDELIM + 'tree_data' + \
+                                         PATHDELIM + filename
 
     for phylogenetic_rRNA_cog in sorted(cog_list['phylogenetic_rRNA_cogs'].keys()):
         denominator = cog_list['phylogenetic_rRNA_cogs'][phylogenetic_rRNA_cog]
         filename = 'tax_ids_' + str(phylogenetic_rRNA_cog) + '.txt'
-        translation_files[denominator] = 'data' + PATHDELIM + 'tree_data' + PATHDELIM + filename
+        translation_files[denominator] = args.mltreemap + PATHDELIM + \
+                                         'data' + PATHDELIM + 'tree_data' + \
+                                         PATHDELIM + filename
 
     for denominator in sorted(translation_files.keys()):
         filename = translation_files[denominator]
@@ -2360,8 +2408,8 @@ def main(argv):
     splitFiles = splitFastaInput(args)
     
     # get the appropriate type of blast DBS
-    blastxDB, blastnDB = createBlastDBList(args)
-    runBlast(args, splitFiles, blastxDB, blastnDB)
+#    blastxDB, blastnDB = createBlastDBList(args)
+    runBlast(args, splitFiles)#, blastxDB, blastnDB)
     blastResults =  readBlastResults(args.output)
     print "readBlastResults"
     blast_hits_purified = parseBlastResults(args, blastResults, cog_list)
