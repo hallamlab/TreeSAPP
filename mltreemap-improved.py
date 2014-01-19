@@ -149,9 +149,9 @@ def removePreviousOutput(args):
     #
     # Create the output directories
     #
-    args.output_dir_var = args.output + 'various_outputs' + PATHDELIM
-    args.output_dir_raxml = args.output + 'final_RAxML_outputs' + PATHDELIM
-    args.output_dir_final = args.output + 'final_outputs' + PATHDELIM
+    args.output_dir_var = args.mltreemap + PATHDELIM + args.output + 'various_outputs' + PATHDELIM
+    args.output_dir_raxml = args.mltreemap + PATHDELIM + args.output + 'final_RAxML_outputs' + PATHDELIM
+    args.output_dir_final = args.mltreemap + PATHDELIM + args.output + 'final_outputs' + PATHDELIM
    
     os.makedirs(args.output)
     os.mkdir(args.output_dir_var)
@@ -273,9 +273,9 @@ def splitFastaInput(args):
     else:
         inputFileName = args.input
     
-    outputSplit = open(args.output + PATHDELIM + 'various_outputs' + PATHDELIM + inputFileName + '_0.txt', 'w')
-    outputFormatted = open(args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt', 'w')
-    args.formatted_input_file = args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_formatted.txt'
+    outputSplit = open(args.output_dir_var + inputFileName + '_0.txt', 'w')
+    outputFormatted = open(args.output_dir_var + inputFileName + '_formatted.txt', 'w')
+    args.formatted_input_file = args.output_dir_var + inputFileName + '_formatted.txt'
     countFiles = 0
     countSequences = 0
     
@@ -318,10 +318,10 @@ def splitFastaInput(args):
             
             if (countSequences >= args.filelength):
                countSequences = 0
-               splitFiles.append(args.output + PATHDELIM + 'various_outputs' + PATHDELIM + inputFileName + '_%d.txt' %(countFiles))
+               splitFiles.append(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles))
                countFiles += 1
                outputSplit.close()
-               outputSplit = open(args.output + PATHDELIM +  'various_outputs' + PATHDELIM + inputFileName + '_%d.txt' %(countFiles), 'w')
+               outputSplit = open(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles), 'w')
         else:
         
             #
@@ -376,7 +376,7 @@ def splitFastaInput(args):
     #
     
     if not splitFiles:
-        splitFiles.append(args.output + 'various_outputs' + PATHDELIM + inputFileName + '_%d.txt' %(countFiles))
+        splitFiles.append(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles))
     
     #
     # Exit the program if character count is 0
@@ -475,7 +475,7 @@ def runBlast(args, splitFiles):#, blastxDB, blastnDB):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '
-            command += '>> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.BLAST_results_raw.txt'
+            command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
             os.system(command)
             command = args.executables + PATHDELIM + 'blastn ' + \
                       '-query ' + splitFile + ' ' + db_nt + ' ' + \
@@ -486,7 +486,7 @@ def runBlast(args, splitFiles):#, blastxDB, blastnDB):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '
-            command += '>> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
+            command += '>> ' + args.output_dir_var + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
             os.system(command)
         elif args.reftype == 'a':
             command = args.executables + PATHDELIM + 'blastp ' + \
@@ -498,7 +498,7 @@ def runBlast(args, splitFiles):#, blastxDB, blastnDB):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '
-            command += '>> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.BLAST_results_raw.txt'
+            command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
             os.system(command)
 
 #        for db in blastxDB:
@@ -516,7 +516,7 @@ def runBlast(args, splitFiles):#, blastxDB, blastnDB):
 #                       command += ' -num_threads ' + str(int(args.num_threads))
 #                   else:
 #                       command += ' -num_threads ' + str(1)
-#               command += ' >> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.BLAST_results_raw.txt'
+#               command += ' >> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
 #               os.system(command)
 #        
 #        #
@@ -538,7 +538,7 @@ def runBlast(args, splitFiles):#, blastxDB, blastnDB):
 #                       command += ' -num_threads ' + str(int(args.num_threads))
 #                   else:
 #                       command += ' -num_threads ' + str(1)
-#            command += ' >> ' + args.output + 'various_outputs' + PATHDELIM + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
+#            command += ' >> ' + args.output_dir_var + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
 #            os.system(command)
         
         #
@@ -552,10 +552,10 @@ def runBlast(args, splitFiles):#, blastxDB, blastnDB):
     # Remove empty BLAST result raw files; store non-empty files in a list
     #
     
-def readBlastResults(output):
+def readBlastResults(args):
     rawBlastResultFiles = []
     
-    for file in glob.glob(output + 'various_outputs' + PATHDELIM + '*BLAST_results_raw.txt'):
+    for file in glob.glob(args.output_dir_var + '*BLAST_results_raw.txt'):
         file.rstrip('\r\n')
         if path.getsize(file) <= 0:
             os.remove(file)
@@ -722,7 +722,7 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
     # Print the BLAST results for each contig
     #
     for contig in sorted(purifiedBlastHits.keys()):
-        outfile = args.output + PATHDELIM + 'various_outputs' +  PATHDELIM + contig + '_blast_result_purified.txt'
+        outfile = args.output_dir_var + contig + '_blast_result_purified.txt'
         out = open(outfile, 'w')
         sorting_hash = {}
 
@@ -2410,25 +2410,19 @@ def main(argv):
     # get the appropriate type of blast DBS
 #    blastxDB, blastnDB = createBlastDBList(args)
     runBlast(args, splitFiles)#, blastxDB, blastnDB)
-    blastResults =  readBlastResults(args.output)
-    print "readBlastResults"
+    blastResults =  readBlastResults(args)
     blast_hits_purified = parseBlastResults(args, blastResults, cog_list)
-    print "blast_hits_purified"
     contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
-    print "produceGenewiseFiles"
     
     # Only run Genewise if sequences are nucleotide sequences
     if args.reftype == 'n':
         genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
-        print "startGenewise"
         genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
-        print "genewise_summary_files"
         contig_rRNA_coordinates, rRNA_hit_files =  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
     elif args.reftype == 'a':
         genewise_summary_files = blastpParser(args, shortened_sequence_files, blast_hits_purified)
     
     hmmalign_singlehit_files  = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list);
-    print "hmmalign_singlehit_files"
     
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
