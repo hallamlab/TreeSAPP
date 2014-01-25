@@ -85,6 +85,7 @@ def getParser():
     parser.add_argument('-e', '--executables', default='sub_binaries', help='locations of executables (e.g. blastx, Gblocks, etc.)')
     parser.add_argument('-x', '--mltreemap', default = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) , help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
     parser.add_argument('-T', '--num_threads', default = None , help='specifies the number of CPU threads to use in raxml and blast (default: 1)')
+    parser.add_argument('-d', '--delete', default = None, help='the sections of files to be deleted, as separated by colons (1 = Sequence Files; 2 = BLAST Results; 3 = Genewise Results; 4 = Gblocks Results; 5 = Alignment Results; 6 = Unparsed RAxML Results')
     return parser
 
 def checkParserArguments(parser):
@@ -567,7 +568,6 @@ def readBlastResults(args):
 def parseBlastResults(args, rawBlastResultFiles, cog_list):
     counter = 0
     purifiedBlastHits = Autovivify()
-    print "in parseBlastResults"
     for file in sorted(rawBlastResultFiles):
         try:     
             blastResults = open(file, 'r')
@@ -782,7 +782,7 @@ def produceGenewiseFiles(args, blast_hits_purified):
     prae_contig_coordinates = Autovivify()
     contig_coordinates = Autovivify()
     shortened_sequence_files = {}
-`
+
     for contig in sorted(blast_hits_purified.keys()):
         for base_identifier in sorted(blast_hits_purified[contig].keys()):
             #
@@ -1585,7 +1585,6 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
         raxml_command += [ '-s', phy_file, '-t', reference_tree_file, '-f', str(raxml_option), '-n', f_contig,\
                            '-w', str(args.output_dir_var), '>',\
                            str(args.output_dir_var) + str(f_contig) + '_RAxML.txt']
-        print ' '.join(raxml_command)
         os.system(' '.join(raxml_command))
 
     for f_contig in sorted(phy_files.keys()):
@@ -2395,6 +2394,42 @@ def available_cpu_count():
     raise Exception('Can not determine number of CPUs on this system')
 
 
+def deleteFiles(args):
+    print 'Deleting files as requested'
+    sectionsToBeDeleted = []
+    if args.delete:
+        sectionsToBeDeleted = args.delete.split(':')
+
+    filesToBeDeleted = []
+
+    for section in sectionsToBeDeleted:
+        if section == '1':
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*.fa')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*sequence.txt')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*sequence_shortened.txt')
+        if section == '2':
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*BLAST_results*')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*blast_result_purified.txt')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*rRNA_result_summary.txt')
+        if section == '3':
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*genewise.txt')
+        if section == '4':
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*_exit_after_Gblocks.txt')
+        if section == '5':
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*.mfa')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*.mfa-gb')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*.mfa-gb.txt')
+        if section == '6':
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*RAxML_classification.txt')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*RAxML_info.txt')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*RAxML_labelledTree.txt')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*.phy')
+
+    for file in filesToBeDeleted:
+        if path.exists(file):
+            os.remove(file) 
+
+
 def main(argv):
     parser = getParser()
     args = checkParserArguments(parser)
@@ -2431,6 +2466,7 @@ def main(argv):
     tree_numbers_translation = read_species_translation_files(args, cog_list)
     final_RAxML_output_files = parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, text_of_analysis_type)
     concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
+    deleteFiles(args)
     print 'Done'
 
 
