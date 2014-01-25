@@ -85,7 +85,7 @@ def getParser():
     parser.add_argument('-e', '--executables', default='sub_binaries', help='locations of executables (e.g. blastx, Gblocks, etc.)')
     parser.add_argument('-x', '--mltreemap', default = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) , help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
     parser.add_argument('-T', '--num_threads', default = None , help='specifies the number of CPU threads to use in raxml and blast (default: 1)')
-    parser.add_argument('-d', '--delete', default = None, help='the sections of files to be deleted, as separated by colons (1 = Sequence Files; 2 = BLAST Results; 3 = Genewise Results; 4 = Gblocks Results; 5 = Alignment Results; 6 = Unparsed RAxML Results')
+    parser.add_argument('-d', '--delete', default = None, help='the sections of files to be deleted, as separated by colons (1 = Sequence Files; 2 = BLAST Results; 3 = Genewise Results; 4 = hmmalign Results; 5 = Gblocks Results; 6 = Unparsed RAxML Results')
     return parser
 
 def checkParserArguments(parser):
@@ -2407,23 +2407,27 @@ def deleteFiles(args):
             filesToBeDeleted += glob.glob(args.output_dir_var + '*.fa')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*sequence.txt')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*sequence_shortened.txt')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*.fasta_formatted.txt')
         if section == '2':
             filesToBeDeleted += glob.glob(args.output_dir_var + '*BLAST_results*')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*blast_result_purified.txt')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*rRNA_result_summary.txt')
         if section == '3':
             filesToBeDeleted += glob.glob(args.output_dir_var + '*genewise.txt')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*genewise_result_summary.txt')
         if section == '4':
-            filesToBeDeleted += glob.glob(args.output_dir_var + '*_exit_after_Gblocks.txt')
-        if section == '5':
             filesToBeDeleted += glob.glob(args.output_dir_var + '*.mfa')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*.mfa-gb')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*.mfa-gb.txt')
+        if section == '5':
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*_exit_after_Gblocks.txt')
         if section == '6':
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*_RAxML.txt')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*RAxML_classification.txt')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*RAxML_info.txt')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*RAxML_labelledTree.txt')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*.phy')
+            filesToBeDeleted += glob.glob(args.output_dir_var + '*.phy.reduced')
 
     for file in filesToBeDeleted:
         if path.exists(file):
