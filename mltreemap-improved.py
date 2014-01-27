@@ -23,6 +23,7 @@ except:
 
 
 def os_type():
+    """Return the operating system of the user."""
     x = sys.platform
     if x:
 
@@ -37,10 +38,10 @@ def os_type():
         hits = re.search(r'linux', x, re.I)
         if hits:
           return 'linux'
-#
-# Copy Perl's ability to autovivify
-#
+
+
 def pathDelim():
+     """Return the path deliminator based on the operating system of the user."""
      ostype = os_type()
      if ostype == 'win':
          return "\\"
@@ -51,6 +52,7 @@ def pathDelim():
 PATHDELIM =  str(pathDelim())
 
 class Autovivify(dict):
+    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables) without explicitly declaring those variables beforehand."""
     def __getitem__(self, item):
         try:
             return dict.__getitem__(self, item)
@@ -59,17 +61,11 @@ class Autovivify(dict):
             return value
 
 
-#class BookKeeping:
-    #we will implement a singleton class for bookkeeping
-
+# TK class BookKeeping: we will implement a singleton class for bookkeeping
      
 
 def getParser(): 
-
-    #
-    # Collect options from user
-    #
-
+    """Returns the parser to interpret user options."""
     parser = argparse.ArgumentParser(description='TK Takes a sequence(s) and, using a Maximum Likelihood algorithm, attempts to place it in an appropriate reference tree.')
     parser.add_argument('-i', '--input', required=True, help='your sequence input file')
     parser.add_argument('-b', '--bootstraps', default=0, type=int, help='the number of Bootstrap replicates')
@@ -89,20 +85,14 @@ def getParser():
     return parser
 
 def checkParserArguments(parser):
+    """Returns 'args', a summary of MLTreeMap settings."""
 
-    #
     # Ensure files contain more than 0 sequences
-    #
-
     args = parser.parse_args()
     if args.filelength <= 0:
         sys.exit('Input files require a positive number of sequences!')
-    
-    
-    #
+
     # Set the reference data file prefix and the reference tree name
-    #
-    
     if args.reftree == 'g':
         args.reference_data_prefix = 'geba_'
         args.reference_tree = 'geba.tree'
@@ -115,15 +105,20 @@ def checkParserArguments(parser):
 
     return args
 
-#
-# Prompt the user how to deal with the output directory if it already exists
-#
 
 def removePreviousOutput(args):
+    """
+    Prompts the user to determine how to deal with a pre-existing output directory.
+
+    Returns an updated version of 'args', a summary of MLTreeMap settings.
+    """
+
+    # Add (or replace a trailing (back)slash with) the PATHDELIM to the end of the output directory
     while re.search(r'/\Z', args.output) or re.search(r'\\\Z', args.output):
         args.output = args.output[:-1]
     args.output += PATHDELIM
 
+    # Prompt the user to deal with the pre-existing output directory
     while os.path.isdir(args.output):
         print('WARNING: Your output directory "' + args.output + '" already exists!')
         print('Overwrite [1], quit [2], or change directory [3]?')
@@ -147,13 +142,10 @@ def removePreviousOutput(args):
         else:
             args.output = raw_input('Please enter the path to the new directory.\n')
     
-    #
     # Create the output directories
-    #
     args.output_dir_var = args.mltreemap + PATHDELIM + args.output + 'various_outputs' + PATHDELIM
     args.output_dir_raxml = args.mltreemap + PATHDELIM + args.output + 'final_RAxML_outputs' + PATHDELIM
     args.output_dir_final = args.mltreemap + PATHDELIM + args.output + 'final_outputs' + PATHDELIM
-   
     os.makedirs(args.output)
     os.mkdir(args.output_dir_var)
     os.mkdir(args.output_dir_raxml)
@@ -161,39 +153,27 @@ def removePreviousOutput(args):
 
     return args
 
+
 def createCogList(args):
-    
-    #
-    # Create list of MLTreeMap COGs
-    #
+    """Returns an Autovivification of the COGs in the MLTreeMap COG list file, and a list of output text precursors based on the analysis type."""
     
     cog_list = Autovivify()
     text_of_analysis_type = Autovivify()
     alignment_set = args.reftree
     kind_of_cog = ''
-    
-    #
-    # For each line in the COG list file...
-    #
-    
+
+    # For each line in the COG list file...    
     cogInputList = open( args.mltreemap + PATHDELIM + \
                          'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'cog_list.txt', 'r')
-     
     cogList = [ x.strip() for x in cogInputList.readlines() ] 
     for cogInput in cogList:
-        
-        #
-        # Get the kind of COG if cogInput is a header line
-        #
-        
+
+        # Get the kind of COG if cogInput is a header line        
         if (re.match(r'\A#(.*)', cogInput)):
             kind_of_cog = re.match(r'\A#(.*)', cogInput).group(1)
             continue
-        
-        #
+
         # Add data to COG list based on the kind of COG it is
-        #
-        
         if (kind_of_cog == 'phylogenetic_cogs'):
             cog_list[kind_of_cog][cogInput] = alignment_set
             cog_list['all_cogs'][cogInput] = alignment_set
@@ -213,23 +193,25 @@ def createCogList(args):
             cog_list[kind_of_cog][cog] = denominator
             cog_list['all_cogs'][cog] = denominator
             text_of_analysis_type[denominator] = 'Functional analysis, ' + text + ':'
-            
-    #
+
     # Close the COG list file
-    #
-    
     cogInputList.close()
 
     return (cog_list, text_of_analysis_type)
 
 def calculate_overlap(info):
+    """Returns the overlap length of the base and the check sequences."""
+
     overlap = 0
     base_start = info['base']['start']
     base_end = info['base']['end']
     check_start = info['check']['start']
     check_end = info['check']['end']
 
+    # Calculate the overlap based on the relative positioning of the base and check sequences
     if base_start <= check_start and check_start <= base_end and base_end <= check_end:
+        # Base     ----
+        # Check      -------
         overlap = base_end - check_start
     elif base_start <= check_start and check_end <= base_end:
         # Base     --------
@@ -248,93 +230,69 @@ def calculate_overlap(info):
 
 
 def splitFastaInput(args):
+    """
+    Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
 
-    #
+    Ensures each sequence and sequence name is valid.
+
+    Returns a list of the files produced from the input file.
+    """
+
     # Confirm input file is a fasta file
-    #
-
     input = open(args.input, 'r')
-    
     if (not input.read(1) == '>'):
         sys.exit('ERROR: Your file does not appear to be a proper FASTA file!\n')
-    
-    #
+
     # Unread the '>' to prevent problems later
-    #
-    
     input.seek(-1,1)
-    
-    #
-    # Determine the output file names
-    # Open the output files
-    #
-    
+
+    # Determine the output file names and open the output files
     if (re.match(r'\A.*\/(.*)', args.input)):
         inputFileName = re.match(r'\A.*\/(.*)', args.input).group(1)
     else:
         inputFileName = args.input
-    
     outputSplit = open(args.output_dir_var + inputFileName + '_0.txt', 'w')
     outputFormatted = open(args.output_dir_var + inputFileName + '_formatted.txt', 'w')
     args.formatted_input_file = args.output_dir_var + inputFileName + '_formatted.txt'
     countFiles = 0
     countSequences = 0
-    
-    #
+
     # Iterate through the input file...
-    #
-    
     countTotal = 0
     countNucleotides = 0
     countXN = 0
     countUndef = 0
     splitFiles = []
-    
+
     for line in input:
-    
+        # If the line is a sequence name...
         if (re.search('\A>', line)):
-        
             countSequences += 1
-        
-            #
+
             # Replace all non a-z, A-Z, 0-9, or . characters with a _
             # Then replace the initial _ with a >
-            #
-        
             line = re.sub(r'[^a-zA-Z0-9.\r\n]', '_', line)
             line = re.sub(r'\A_', '>', line)
             
-            #
-            # RAxML can only work with file names having length <= 125
-            # Check that the sequence name length is <= 100
-            # If sequence name length is > 100, limit the file name length to 100
-            #
-            
+            # Because RAxML can only work with file names having length <= 125,
+            # Ensure that the sequence name length is <= 100
             if (line.__len__() > 100):
                 line = line[0:100]
-        
-            #
+
             # Split the file if countSequences > the number of sequences per file specified by the user
-            #
-            
             if (countSequences >= args.filelength):
                countSequences = 0
                splitFiles.append(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles))
                countFiles += 1
                outputSplit.close()
                outputSplit = open(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles), 'w')
+        # Else, if the line is a sequence...
         else:
-        
-            #
+
             # Remove all non-characters from the sequence
-            #
-            
             re.sub(r'[^a-zA-Z]','', line)
-            
-            #
+
             # Count the number of {atcg} and {xn} in all the sequences
-            #
-    
             characters = []
             characters = list(line)
             
@@ -356,49 +314,30 @@ def splitFastaInput(args):
                         countXN += 1
                     else:
                         countUndef += 1
-        
-        #
+
         # Write the lines to the appropriate files
-        #
-        
         outputSplit.write(line)
         outputFormatted.write(line)
-    
-    #
+
     # Close the files
-    #
-    
     input.close()
     outputSplit.close()
     outputFormatted.close()
-        
-    #
-    # If splitFiles is empty, add the only file to splitFiles
-    #
-    
+
+    # If there's only one input file, add it to the list of split input files
     if not splitFiles:
         splitFiles.append(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles))
-    
-    #
+
     # Exit the program if character count is 0
-    #
-    
     if (countTotal == 0):
         sys.exit('ERROR: Your input file appears to be corrupted. No sequences were found!\n')
-    
-    #
+
     # Exit the program if all sequences are composed only of X or N
-    #
-    
     elif (countXN == countTotal):
         sys.exit('ERROR: Your sequence(s) contain only X or N!\n')
-    
-    #
+
     # Exit the program if less than half of the characters are nucleotides
-    # The 1.0 is to cast it as a float
-    #
-    
-    elif (float(countNucleotides / (countTotal * 1.0)) < 0.5):
+    elif (float(countNucleotides / float(countTotal)) < 0.5):
         if args.reftype == 'n':
             sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
         elif args.reftype == 'a':
@@ -406,41 +345,17 @@ def splitFastaInput(args):
 
     return splitFiles
 
-#def createBlastDBList(args):
-#
-#    #
-#    # Create list of databases for each blastx and blastn
-#    #
-#
-#    blastxDB = []
-#    blastnDB = []
-#    
-#    alignment_data_dir = args.mltreemap + PATHDELIM +\
-#                         'data' + PATHDELIM + \
-#                         args.reference_data_prefix + 'alignment_data' + PATHDELIM + \
-#                         '*.fa'
-#    
-#    for file in glob.glob(alignment_data_dir):
-#        file.rstrip('\r\n')
-#        if (not re.match(r'\Adata' + PATHDELIM + args.reference_data_prefix + 'alignment_data' + PATHDELIM + '\._', file)):
-#            if (re.match(r'.*rRNA\.fa\Z', file)):
-#                blastnDB.append(file)
-#            elif (re.match(r'.*\.fa\Z', file) and not re.match(r'rRNA', file)):
-#                blastxDB.append(file)
-#    
-#    return (blastxDB, blastnDB)
 
-def runBlast(args, splitFiles):#, blastxDB, blastnDB):
+def runBlast(args, splitFiles):
+    """Runs the BLAST algorithm on each of the split input files."""
+
     print 'Run BLAST'
-    #
-    # For each file containing a maximum of the specified number of sequences...
-    #
 
+    # For each file containing a maximum of the specified number of sequences...
     alignment_data_dir = args.mltreemap + PATHDELIM + \
                          'data' + PATHDELIM + \
                          args.reference_data_prefix + 'alignment_data' + PATHDELIM + \
                          '*.fa'
-
     db_nt = '-db "'
     db_aa = '-db "'
 
@@ -454,18 +369,15 @@ def runBlast(args, splitFiles):#, blastxDB, blastnDB):
     db_aa += '"'
 
     for splitFile in sorted(splitFiles):
-        
-        #
+
         # Ensure splitFile is a .txt file; save file name if so, die otherwise
-        #
-        
         blastInputFileName = ''
-        
         if (not re.match(r'\A.+/(.+)\.txt\Z', splitFile)):
             sys.exit('ERROR: Something is wrong with the directory of the BLAST input file!\n')
         else:
             blastInputFileName = re.match(r'\A.+/(.+)\.txt\Z', splitFile).group(1)
-        
+
+        # Run the appropriate BLAST command(s) based on the input sequence type
         if args.reftype == 'n':
             command = args.executables + PATHDELIM + 'blastx ' + \
                       '-query ' + splitFile + ' ' + db_aa + ' ' + \
@@ -502,60 +414,22 @@ def runBlast(args, splitFiles):#, blastxDB, blastnDB):
             command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
             os.system(command)
 
-#        for db in blastxDB:
-#               command = args.executables + PATHDELIM
-#               # Change the BLAST program based on the type of input sequence
-#               if args.reftype == 'n':
-#                   command += 'blastx'
-#               elif args.reftype == 'a':
-#                   command += 'blastp'
-#               command += ' -query ' + splitFile + ' -matrix BLOSUM62 -db '
-#               command += db
-#               command += ' -evalue 0.01 -max_target_seqs 20000 -num_alignments 20000 -dbsize 1000000 -outfmt 6 '
-#               if args.num_threads:
-#                   if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
-#                       command += ' -num_threads ' + str(int(args.num_threads))
-#                   else:
-#                       command += ' -num_threads ' + str(1)
-#               command += ' >> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
-#               os.system(command)
-#        
-#        #
-#        # BLAST splitFile against each blastn DB
-#        #
-#        
-#        for db in blastnDB:
-#            command = args.executables + PATHDELIM
-#            # Change the BLAST program based on the type of input sequence
-#            if args.reftype == 'n':
-#                command += 'blastn'
-#            elif args.reftype == 'a':
-#                 command += 'blastp'
-#            command += ' -query ' + splitFile + ' -db '
-#            command += db
-#            command += ' -evalue 0.01 -max_target_seqs 20000 -num_alignments 20000 -dbsize 1000000 -outfmt 6 '
-#            if args.num_threads:
-#                   if (args.num_threads >= 1) and (args.num_threads < available_cpu_count()):
-#                       command += ' -num_threads ' + str(int(args.num_threads))
-#                   else:
-#                       command += ' -num_threads ' + str(1)
-#            command += ' >> ' + args.output_dir_var + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
-#            os.system(command)
-        
-        #
         # Remove the BLAST input file
-        #
-        
         if path.exists(splitFile):
            os.remove(splitFile)
-        
-    #
-    # Remove empty BLAST result raw files; store non-empty files in a list
-    #
-    
+
+    # TK? Remove empty BLAST result raw files; store non-empty files in a list
+
+ 
 def readBlastResults(args):
+    """
+    Deletes empty BLAST results files.
+
+    Returns a list of non-empty BLAST results files.
+    """
+
     rawBlastResultFiles = []
-    
+
     for file in glob.glob(args.output_dir_var + '*BLAST_results_raw.txt'):
         file.rstrip('\r\n')
         if path.getsize(file) <= 0:
@@ -565,7 +439,10 @@ def readBlastResults(args):
     
     return rawBlastResultFiles
 
+
 def parseBlastResults(args, rawBlastResultFiles, cog_list):
+    """Returns an Autovivification of purified (eg. non-redundant) BLAST hits."""
+
     counter = 0
     purifiedBlastHits = Autovivify()
     for file in sorted(rawBlastResultFiles):
@@ -590,8 +467,8 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
             # Skip to next BLAST hit if bit score is less than user-defined minimum
             if (tempBitScore <= args.bitscore):
                 continue
+
             # Determine the direction of the hit relative to the reference
-            #
             direction = 'forward'
             if tempRStart > tempREnd:
                 temp = tempRStart
@@ -603,21 +480,18 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                 tempQStart = tempQEnd
                 tempQEnd = temp
                 if (direction == 'reverse'):
-                    sys.exit('ERROR: Parsing error with the BLAST results. Please notify the authors about ' + tempContig + ' at ' + tempDetailedCOG + 'q('+tempQEnd+'..'+tempQStart+'),r('+tempREnd+'..'+tempRStart+')')
+                    sys.exit('ERROR: Parsing error with the BLAST results. Please notify the authors about ' + tempContig + ' at ' +\
+                              tempDetailedCOG + 'q('+tempQEnd+'..'+tempQStart+'),r('+tempREnd+'..'+tempRStart+')')
                 direction = 'reverse'
-            
+
             # Trim COG name to last 7 characters of detailed COG name
             # TK - This will be important to note in the user's manual, especially if we enable people to add their own COGs later
-            #
             if re.match(r'.*(.{7})\Z', tempDetailedCOG):
                 tempCOG = re.match(r'.*(.{7})\Z', tempDetailedCOG).group(1)
             else:
                 sys.exit('ERROR: Could not detect the COG of sequence ' + tempDetailedCOG)
-            
 
-            #
             # Save contig details to the list
-            #
             contigs[tempContig][identifier]['bitscore'] = tempBitScore
             contigs[tempContig][identifier]['cog'] = tempCOG
             contigs[tempContig][identifier]['seq_start'] = tempQStart
@@ -625,21 +499,16 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
             contigs[tempContig][identifier]['direction'] = direction
             contigs[tempContig][identifier]['validity'] = True
             identifier += 1
-        #
+
         # Close the file
-        #
         blastResults.close()
-        
-        #
+
         # Purify the BLAST hits
-        #
- 
-        #
+
         # For each contig sorted by their stringwise comparison...
-        #
         for contig in sorted(contigs.keys()):
             identifier = 0
-            #
+
             # For each blast result for that contig...
             for base_blast_result_raw_identifier in sorted(contigs[contig].keys()):
                 base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
@@ -648,52 +517,42 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                 base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
                 direction = contigs[contig][base_blast_result_raw_identifier]['direction']
                 base_length = base_end - base_start
-                
+
                 # Skip if base_bitscore is less than user specified minimum bitscore
                 if (base_bitscore < args.bitscore):
                     continue
-                #
+
                 # Set validity to 0 if COG is not in list of MLTreeMap COGs
                 if not base_cog in cog_list['all_cogs']:
                     contigs[contig][base_blast_result_raw_identifier]['validity'] = False
-                
-                #
+
                 # Compare the BLAST hit (base) against all others
                 # There may be several opinions about how to do this. This way is based on the original MLTreeMap
                 # ----A----  --C--
                 #        ---B---
                 # A kills B, B kills C. (Another approach would be to let C live, but the original MLTreeMap authors don't expect C to be useful)
-                #
-                
+
                 for check_blast_result_raw_identifier in sorted(contigs[contig]):
                     check_bitscore = contigs[contig][check_blast_result_raw_identifier]['bitscore']
                     check_cog = contigs[contig][check_blast_result_raw_identifier]['cog']
                     check_start = contigs[contig][check_blast_result_raw_identifier]['seq_start']
                     check_end = contigs[contig][check_blast_result_raw_identifier]['seq_end']
                     check_length = check_end - check_start
-                    
+
                     # Don't compare base hit against itself; skip to next iteration
                     if base_blast_result_raw_identifier == check_blast_result_raw_identifier:
                         continue
-                    
-                    #
+
                     # Compare the base and check BLAST hits
-                    #
-
                     info = Autovivify()
-
                     info['base']['start'] = base_start
                     info['base']['end'] = base_end
                     info['check']['start'] = check_start
                     info['check']['end'] = check_end
-
                     overlap = calculate_overlap(info)
-
                     counter +=1
 
-                    #
                     # Check for validity for hits with overlap
-                    #
                     if overlap > 0:
                         if overlap  > 0.5*base_length and base_bitscore < check_bitscore:
                             contigs[contig][base_blast_result_raw_identifier]['validity'] = False
@@ -705,10 +564,8 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                                 contigs[contig][check_blast_result_raw_identifier]['validity'] = False
                            else:
                                 contigs[contig][base_blast_result_raw_identifier]['validity'] = False
-                    
-                    #
-                    # Save purified hits for valid base hits
-                    
+
+                # Save purified hits for valid base hits
                 if contigs[contig][base_blast_result_raw_identifier]['validity']:
                      purifiedBlastHits[contig][identifier]['bitscore'] = base_bitscore
                      purifiedBlastHits[contig][identifier]['cog'] = base_cog
@@ -717,10 +574,8 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                      purifiedBlastHits[contig][identifier]['direction'] = direction
                      purifiedBlastHits[contig][identifier]['is_already_placed'] = False
                      identifier += 1
-    
-    #
+
     # Print the BLAST results for each contig
-    #
     for contig in sorted(purifiedBlastHits.keys()):
         outfile = args.output_dir_var + contig + '_blast_result_purified.txt'
         out = open(outfile, 'w')
@@ -732,15 +587,25 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
             sorting_hash[purifiedBlastHits[contig][identifier]['bitscore']][identifier] = 1
 
         for bitscore in sorted(sorting_hash.keys(), reverse=True):
+
             for identifier in sorted(sorting_hash[bitscore]):
                 out.write(contig + '\t' + str(purifiedBlastHits[contig][identifier]['start']) + '\t' +\
                 str(purifiedBlastHits[contig][identifier]['end']) + '\t' +\
                 str(purifiedBlastHits[contig][identifier]['direction']) + '\t' +\
                 purifiedBlastHits[contig][identifier]['cog'] + '\t' + str( bitscore) + '\n')
+
         out.close()
+
     return purifiedBlastHits
 
+
 def blastpParser(args, shortened_sequence_files, blast_hits_purified):
+    """
+    For each contig, produces a file similar to the Genewise output file (this is in cases where Genewise is unnecessary because it is already an AA sequence.
+
+    Returns an Autovivification of the output file for each contig.
+    """
+
     blastpSummaryFiles = Autovivify()
 
     for contig in sorted(blast_hits_purified.keys()): 
@@ -758,6 +623,7 @@ def blastpParser(args, shortened_sequence_files, blast_hits_purified):
         flagSeq = 0
         sequence = ''
 
+        # Get the sequence from the shortened sequence file
         for line in sequence_file:
             if re.search('\A>', line):
                 if flagSeq == 1:
@@ -768,6 +634,7 @@ def blastpParser(args, shortened_sequence_files, blast_hits_purified):
                 line.strip()
                 sequence += line
 
+        # Write the output file to imitate the Genewise results
         for count in sorted(blast_hits_purified[contig].keys()):
             output.write(str(blast_hits_purified[contig][count]['cog']) + '\t')
             output.write(str(blast_hits_purified[contig][count]['start']) + '\t')
@@ -775,8 +642,11 @@ def blastpParser(args, shortened_sequence_files, blast_hits_purified):
             output.write(str(blast_hits_purified[contig][count]['direction']) + '\t')
             output.write(str(sequence) + '\n')
 
+        output.close()
+
     return blastpSummaryFiles
- 
+
+
 def produceGenewiseFiles(args, blast_hits_purified):
     flanking_length = 1000 # Recommended: 1000
     prae_contig_coordinates = Autovivify()
