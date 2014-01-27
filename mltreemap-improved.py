@@ -85,7 +85,7 @@ def getParser():
     parser.add_argument('-e', '--executables', default='sub_binaries', help='locations of executables (e.g. blastx, Gblocks, etc.)')
     parser.add_argument('-x', '--mltreemap', default = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) , help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
     parser.add_argument('-T', '--num_threads', default = None , help='specifies the number of CPU threads to use in raxml and blast (default: 1)')
-    parser.add_argument('-d', '--delete', default = None, help='the sections of files to be deleted, as separated by colons (1 = Sequence Files; 2 = BLAST Results; 3 = Genewise Results; 4 = hmmalign Results; 5 = Gblocks Results; 6 = Unparsed RAxML Results')
+    parser.add_argument('-d', '--delete', default = None, help='the sections of files to be deleted, as separated by colons (1 = Sequence Files; 2 = BLAST Results; 3 = Genewise Results; 4 = hmmalign and Gblocks Results; 5 = Unparsed RAxML Results')
     return parser
 
 def checkParserArguments(parser):
@@ -2421,7 +2421,6 @@ def deleteFiles(args):
             filesToBeDeleted += glob.glob(args.output_dir_var + '*.mfa-gb.txt')
         if section == '5':
             filesToBeDeleted += glob.glob(args.output_dir_var + '*_exit_after_Gblocks.txt')
-        if section == '6':
             filesToBeDeleted += glob.glob(args.output_dir_var + '*_RAxML.txt')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*RAxML_classification.txt')
             filesToBeDeleted += glob.glob(args.output_dir_var + '*RAxML_info.txt')
@@ -2435,41 +2434,41 @@ def deleteFiles(args):
 
 
 def main(argv):
+    # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = getParser()
     args = checkParserArguments(parser)
     args = removePreviousOutput(args)
-    
-    # this creates the list of the marker COGs 
     cog_list, text_of_analysis_type = createCogList(args)
     non_wag_cog_list = get_non_wag_cogs(args)
-    
-    # splits the input files to smaller files for blasting
     splitFiles = splitFastaInput(args)
-    
-    # get the appropriate type of blast DBS
-#    blastxDB, blastnDB = createBlastDBList(args)
-    runBlast(args, splitFiles)#, blastxDB, blastnDB)
+
+    # STAGE 2: Run BLAST to determine which COGs are present in the input sequence(s)
+    runBlast(args, splitFiles)
     blastResults =  readBlastResults(args)
     blast_hits_purified = parseBlastResults(args, blastResults, cog_list)
+
+    # STAGE 3: Run Genewise (or not) to produce amino acid sequences based on the COGs found in the input sequence(s)
     contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
-    
-    # Only run Genewise if sequences are nucleotide sequences
     if args.reftype == 'n':
         genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
         genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
         contig_rRNA_coordinates, rRNA_hit_files =  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
     elif args.reftype == 'a':
         genewise_summary_files = blastpParser(args, shortened_sequence_files, blast_hits_purified)
-    
+
+    # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
     hmmalign_singlehit_files  = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list);
-    
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
     gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
+
+    # STAGE 5: Run RAxML to compute the ML/MP estimations
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
     raxml_outfiles, args2 = start_RAxML(args, phy_files, cog_list, models_to_be_used)
     tree_numbers_translation = read_species_translation_files(args, cog_list)
     final_RAxML_output_files = parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, text_of_analysis_type)
     concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
+
+    # STAGE 6: Delete files as determined by the user
     deleteFiles(args)
     print 'Done'
 
