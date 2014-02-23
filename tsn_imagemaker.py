@@ -141,8 +141,68 @@ def read_user_input(parser):
     os.makedirs(args.output)
     return args
 
+
+def get_input_files(args):
+    input_files = new Autovivify()
+    input = args.input
+    rRNA_display_option = args.rRNA
+    input2 = args.input
+
+    # Ensure input file name is precursed by the path delim
+    while re.search(r'\A/', input2) \
+          or re.search(r'\A\\', input2):
+        input2 = input2[:1]
+
+    input2 = PATHDELIM + input2
+
+    # If input is an individual file, get file name
+    if re.search(r'.*/((.)_.*RAxML_.+.txt)\Z', input2):
+        try:
+            in = open(input2, 'read')
+        except: #TK check for exception type
+            sys.exit('ERROR: Unable to open ' + str(input2) + '!\n')
+        temp = re.search(r'.*/((.)_.*RAxML_.+.txt)\Z', input2)
+        filename = temp.group(1)
+        denominator = temp.group(2)
+        if denominator in ['b','a'] and rRNA_display_option == 1:
+            denominator = 'A'
+        input_files[denominator][input] = filename
+
+    # Else, if input is a directory, get file names of contents
+    else:
+        try:
+            files = [f for f in os.listdir(input2) \
+                     if os.path.isfile(join(input2,f))]
+        except: # TK
+            sys.exit('ERROR: Your input directory ' + str(input2) + \
+                     'does not exist!\n')
+
+        for filename in files:
+            if re.search(r'\A(.)_.*RAxML_.+.txt\Z', filename):
+                temp = re.search(r'\A(.)_.*RAxML_.+.txt\Z', filename)
+                denominator = temp.group(1)
+                filename_long = str(input) + str(filename)
+                if denominator in ['b','a'] and rRNA_display_option == 1:
+                    denominator = 'A'
+                input_files[denominator][filename_long] = filename
+
+    return input_files
+
+
+def concatenate_files(args, input_files):
+    """TK"""
+    output_dir = args.output
+    rRNA_display_option = args.rRNA
+    concatenated_input_files = new Autovivify()
+    text_of_denominator = new Autovivify()
+    colors = []
+    used_colors = new Autovivify()
+
+
+
 def main(argv):
     print 'Start MLTreeMap Imagemaker TSN v. 0.0'
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
