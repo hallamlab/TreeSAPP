@@ -143,7 +143,7 @@ def read_user_input(parser):
 
 
 def get_input_files(args):
-    input_files = new Autovivify()
+    input_files = Autovivify()
     input = args.input
     rRNA_display_option = args.rRNA
     input2 = args.input
@@ -193,11 +193,112 @@ def concatenate_files(args, input_files):
     """TK"""
     output_dir = args.output
     rRNA_display_option = args.rRNA
-    concatenated_input_files = new Autovivify()
-    text_of_denominator = new Autovivify()
+    concatenated_input_files = Autovivify()
+    text_of_denominator = Autovivify()
     colors = []
-    used_colors = new Autovivify()
+    used_colors = Autovivify()
+    try:
+        input = open('tree_data/available_dataset_colors.txt', 'r')
+    except: # TK
+        sys.exit('ERROR: tree_data/available_dataset_colors.txt does not exist!\n')
+    count = 0
+    flag = 0
 
+    for line in input:
+        if flag == 0:
+            flag = 1
+            continue
+        line = line.strip()
+        red, green, blue = line.split(' ')
+        try:
+            blue
+        except NameError:
+            continue
+        color_tag = 'rgb(' + str(red) + ', ' + str(green) + ', ' + str(blue) + ')'
+        colors[count] = color_tag
+        count += 1
+
+    nr_of_colors = len(colors)
+
+    for denominator in sorted(input_files):
+        output_filename = str(denominator) + '_concatenated_RAxML_outputs.txt'
+        output_filename_long = str(output_dir) + str(output_filename)
+        try:
+            output = open(output_filename_long, 'w')
+        except: # TK
+            sys.exit('ERROR: Can\'t create ' + str(output_filename_long) + '\n')
+        if args.colors > 0:
+            try:
+                output2 = open(str(output_dir) + str(denominator) + '_color_legend.txt', 'w')
+            except: # TK
+                sys.exit('ERROR: Can\'t create the color legend file\n')
+        concatenated_input_files[denominator][output_filename_long] = output_filename
+        percentages_of_texts = Autovivify()
+        nr_of_files = 0
+
+        for filename_long in sorted(input_files[denominator]):
+            nr_of_files += 1
+            if nr_of_files > nr_of_colors and args.colors > 0:
+                sys.exit('ERROR: This directory contains more datasets than can be displayed with \
+                         different colors!\n')
+            attachment = 'colorcode_' + str(colors[0])
+            used_colors[colors[0]] = 1
+            if args.colors > 0:
+                attachment = 'colorcode_' + str(colors[nr_of_files-1])
+                used_colors[colors[nr_of_files-1]] = 1
+                output2.write(str(colors[nr_of_files-1]) + '\t' + str(filename_long) + '\n')
+            try:
+                file = open(filename_long, 'w')
+            except: # TK
+                sys.exit('ERROR: Can\'t open ' + str(filename_long))
+
+            for fileLine in file:
+                fileLine = fileLine.strip()
+                weight = ''
+                text = ''
+                if re.search('\APlacement weight (.+)%:(.+)', fileLine):
+                    weight = re.search('\APlacement weight (.+)%:(.+)', fileLine).group(1)
+                    text = re.search('\APlacement weight (.+)%:(.+)', fileLine).group(2)
+                    text += attachment
+                elif re.search('\A# .+ analysis, (.+):', fileLine):
+                    text_of_denominator[denominator] = re.search('\A# .+ analysis, (.+):', \
+                                                       fileLine).group(1)
+                    if re.search('rRNA', re.search('\A# .+ analysis, (.+):', fileLine).group(1)) and \
+                       rRNA_display_option == 1:
+                        text_of_denominator[denominator] = '16s rRNA & 18s rRNA'
+                    continue
+                elif re.search('\A# Phylogenetic analysis(.*)', fileLine):
+                    text_of_denominator[denominator] = 'MLTreeMap tree of life'
+                    if re.search('GEBA', re.search('\A# Phylogenetic analysis(.*)', fileLine)):
+                        text_of_denominator[denominator] = 'GEBA tree of life'
+                    if re.search('fungi', re.search('\A# Phylogenetic analysis(.*)', fileLine)):
+                        text_of_denominator[denominator] = 'Fungi'
+                    continue
+                else:
+                    continue
+                try:
+                    percentages_of_texts[text]
+                except NameError:
+                    percentages_of_texts[text] = weight
+                else:
+                    percentages_of_texts[text] += weight
+            file.close()
+
+        if args.colors > 0:
+            output2.close()
+        check = 0
+
+        for text in sorted(percentages_of_texts):
+            weight = percentages_of_texts[text]
+            relative_weight = weight / nr_of_files
+            relative_weight = (int(relative_weight * 10000 + 0.5)) / 10000
+            output.write('Placement weight ' + str(relative_weight) + '%:' + str(text) + '\n')
+            check += relative_weight
+
+        print str(denominator) + ' files: sum of percentages = ' + str(check) + '\n'
+        output.close()
+
+    return concatenated_input_files, text_of_denominator, used_colors
 
 
 def main(argv):
