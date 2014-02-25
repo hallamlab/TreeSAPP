@@ -4,8 +4,17 @@
 
 # Include the necessary libraries
 try:
-
+    # TK
 except:
+    # TK
+
+class Autovivify(dict):
+    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables) without explicitly declaring those variables beforehand."""    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            value = self[item] = type(self)()
+            return value
 
 
 def os_type():
@@ -292,13 +301,194 @@ def concatenate_files(args, input_files):
             weight = percentages_of_texts[text]
             relative_weight = weight / nr_of_files
             relative_weight = (int(relative_weight * 10000 + 0.5)) / 10000
-            output.write('Placement weight ' + str(relative_weight) + '%:' + str(text) + '\n')
+            output.write('Placement weight ' + str(relative_weight) + '%:' \
+                         + str(text) + '\n')
             check += relative_weight
 
-        print str(denominator) + ' files: sum of percentages = ' + str(check) + '\n'
+        print str(denominator) + ' files: sum of percentages = ' + \
+              str(check) + '\n'
         output.close()
 
     return concatenated_input_files, text_of_denominator, used_colors
+
+
+def run_the_imagemaker(args, concatenated_input_files, text_of_denominator, \
+                      used_colors):
+    """TK"""
+    param_scale_bubble = args.bubble_size
+    output_dir = args.output
+    bubble_type = args.hq_bubbles
+    color_mode = args.colors
+    text_mode = args.text
+
+    for denominator in sorted(concatenated_input_files):
+
+        for input_filename_long in \
+          sorted(concatenated_input_files[denominator]):
+            input_filename = \
+              concatenated_input_files[denominator][input_filename_long]
+            message = run_visualization(input_filename, input_filename_long,\
+                      output_dir, denominator, param_scale_bubble, \
+                      text_of_denominator, bubble_type, used_colors, \
+                      color_mode, text_mode)
+            print str(message) + '\n'
+
+
+class NEWICK_tree():
+    def __init__(self):
+        # TK lines 14-18?
+        self.node_id_counter = -1
+        self.parent_of_node = Autovivify()
+        self.children_of_node = Autovivify()
+        self.terminal_children_of_node = Autovivify()
+        self.branch_length_of_node = Autovivify()
+        return self
+
+    def read_tree_topology_from_file(self, filename):
+        """This reads the topology of the species tree from a flat-file"""
+        input_concatenated = ''
+        try:
+            input = open(filename, 'r')
+        except: # TK
+            sys.exit('ERROR: Cannot open inputfile ' + str(filename) + '\n')
+
+        for line in input:
+            line = line.strip()
+            line = line.replace('\s+', '')
+            input_concatenated += line
+
+        input.close()
+        self.parse_tree_topology_from_string(input_concatenation)
+
+
+    def parse_tree_topology_from_string(self, tree_string):
+        """TK"""
+        tree_input_symbols = list(str(tree_string))
+        self.species_tree_parse_node(tree_input_symbols)
+        self.connect_terminal_children_to_node(-1)
+        self.assign_cumulative_branchlength_to_node(-1,0)
+        self.computer_average_cumulative_branch_length()
+
+    def species_tree_parse_node(self, inputarray):
+        """
+        This is a recursive routine to parse the species-tree topology out 
+        of an array of input symbols. The input symbols are brackets, 
+        letters, and numbers. The routine was initially written by Daniel, 
+        and is quite clever.
+        """
+        this_node = self.node_id_counter
+        this_node -= 1
+        nr = 0
+        children_of_this_node = []
+
+        # First symbol must be an open bracket
+        next_item = inputarray.pop(0)
+        if not next_item == '(':
+            sys.exit('ERROR: #1 error parsing species tree\n')
+
+        # Loop over all subnodes of this node
+        while True:
+            # Next symbol must be either an open bracket or species_name
+            try:
+                next_item = inputarray.pop(0)
+            except IndexError:
+                sys.exit('ERROR: #2 error parsing species tree\n')
+
+            # If the next item is an open bracket, call yourself recursively
+            if next_item == '(':
+                inputarray = ['('] + inputarray
+                sub_node = self.species_tree_parse_node(inputarray)
+                self.parent_of_node[sub_node] = this_node
+                children_of_this_node.append(sub_node)
+
+            # If the next item is a word character, this is 
+            # a terminal node (a leaf is a species)
+            elif re.search('\w+', next_item):
+                node_summary = next_item
+
+                next_item = inputarray.pop(0)
+                while re.search('[\w\.\:]+', next_item):
+                    node_summary += next_item
+                    next_item = inputarray.pop(0)
+
+                species = None
+                branch_length = None
+
+                # If there are branch-lengths, note them
+                if re.search('\A(\w+)\:([\d\.]+\Z', node_summary):
+                    temp = re.search('\A(\w+)\:([\d\.]+\Z', node_summary)
+                    species = temp.group(1)
+                    branch_length = temp.group(2)
+                else:
+                    species = node_summary
+
+                try:
+                    species
+                except NameError:
+                    sys.exit('ERROR: #4a error parsing species tree\n')
+                children_of_this_node.append(species)
+                self.parent_of_node[species] = this_node
+                try:
+                    branch_length
+                except NameError:
+                    pass
+                else:
+                    self.branch_length_of_node[species] = branch_length
+                self.terminal_nodes[species] = 1
+                try:
+                    next_item
+                except NameError:
+                    sys.exit('ERROR: #3 error parsing species tree\n')
+                inputarray.append(next_item)
+
+            # If anything else happens, it's illegal
+            else:
+                sys.exit('ERROR: #4 error parsing species tree\n')
+
+            # One subnode has been parsed. Next symbol must be either a comma
+            # (in which case we loop to the next subnode) or a closing 
+            # bracket (in which case we are done).
+            try:
+                next_item = inputarray.pop(0)
+            except IndexError:
+                sys.exit('ERROR: #5 error parsing species tree\n')
+            if next_item == ',':
+                continue
+            if next_item == ':':
+                continue
+            if next_item == ')':
+                # Get the branch_length
+                branch_summary = ''
+                next_item = inputarray.pop(0)
+
+                while inputarray and re.search('[\d\.\:]+', next_item):
+                    branch_summary += next_item
+
+                temp = re.search('\A(\d*)\:([\d\.]+\Z', branch_summary)
+                bootstrap_support = temp.group(1)
+                branch_length = temp.group(2)
+                try:
+                    branch_length
+                except NameError:
+                    pass
+                else:
+                    self.branch_length_of_node[this_node] = branch_length
+                try:
+                    bootstrap_support
+                except NameError:
+                    pass
+                else:
+                    self.bootstrap_support_of_node[this_node] = \
+                      bootstrap_support
+                inputarray.append(next_item)
+                last
+
+            sys.exit('ERROR: #6 error parsing species tree\n')
+
+        for child in children_of_this_node:
+            self.children_of_node[this_node][child] = 1
+
+        return this_node
 
 
 def main(argv):
