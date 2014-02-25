@@ -733,6 +733,115 @@ class NEWICK_tree():
         return 0
 
 
+class TREEMAP_ml_svg_visualizer:
+
+
+    def run_visualization(input_filename, input_filename_long, output_dir, \
+      denominator, param_scale_bubble, text_of_denominator, bubble_type, \
+      used_colors, color_mode, text_mode):
+        text_of_denominator = text_of_denominator[denominator]
+        print str(text_of_denominator) + '\n'
+        mltreemap_results = get_analysis_info(denominator)
+        mltreemap_results = get_picture_dimensions(mltreemap_results, \
+          text_mode)
+        tree = read_tree_topology(mltreemap_results)
+        mltreemap_results = \
+          produce_terminal_children_of_strings_of_reference(tree, \
+          mltreemap_results, used_colors)
+        mltreemap_results = get_support_data(tree, mltreemap_results)
+        mltreemap_results = read_RAxML_out(tree, mltreemap_results, \
+          input_filename_long)
+        if color_mode > 0:
+            draw_the_color_legend(denominator, output_dir, color_mode) 
+        do_the_drawing(tree, mltreemap_results, param_scale_bubble, \
+          input_filename, output_dir, text_of_denominator, bubble_type, \
+          used_colors, color_mode, text_mode)
+        do_the_drawing_circular(tree, mltreemap_results, param_scale_bubble,\
+          input_filename, output_dir, text_of_denominator, bubble_type, \
+          used_colors, color_mode, text_mode)
+        return 'success'
+
+    def get_analysis_info(denominator):
+        """TK"""
+        mltreemap_results = Autovivify()
+        tree_name = ''
+        try:
+            input = open('tree_data/drawing_info.txt', 'r')
+        except: # TK
+            sys.exit('ERROR: Can\'t open drawing_info.txt!\n')
+        flag = 0
+
+        for line in input:
+            if flag < 3:
+                flag += 1
+                continue
+            line = line.strip()
+            dn, tn = line.split('\t')
+            if dn is denominator:
+                tree_name = tn
+
+        input.close()
+        if denominator is 'p':
+            mltreemap_results['tree_file'] = 'MLTreeMap_reference.tree'
+            mltreemap_results['tax_ids_file'] = 'tax_ids_tree_of_life.txt'
+            mltreemap_results['descriptions_file'] = \
+              'domain_and_color_descriptions.txt'
+        elif denominator is 'g':
+            mltreemap_results['tree_file'] = 'geba.tree'
+            mltreemap_results['tax_ids_file'] = 'tax_ids_geba_tree.txt'
+            mltreemap_results['descriptions_file'] = \
+              'domain_and_color_descriptions_geba_tree.txt'
+        else:
+            if not tree_name:
+                sys.exit('ERROR: ' + str(denominator) + ' is not ' + \
+                  'recognized!\n')
+            mltreemap_results['tree_file'] = str(tree_name) + '_tree.txt'
+            mltreemap_results['tax_ids_file'] = 'tax_ids_' + str(tree_name) \
+              + '.txt'
+            mltreemap_results['descriptions_file'] = \
+              'domain_and_color_descriptions_' + str(tree_name) + '.txt'
+        return mltreemap_results
+
+
+    def get_picture_dimensions(mltreemap_results, text_mode):
+        """TK"""
+        tree_file = mltreemap_results['tree_file']
+        try:
+            input = open('tree_data/' + str(tree_file), 'r')
+        except: # TK
+            sys.exit('ERROR: Can\'t open ' + str(tree_file) + '!\n')
+        species_count = 0
+
+        for line in input:
+            line = line.strip()
+            species_count += len(re.findall('\d+:', line)
+
+        input.close()
+        # Relations are as follows:
+        # 267 species equal 3000 height,
+        # while width remains constant at 1000
+        image_width = 1000
+        tree_height = (species_count * (image_width * 3)) / 267
+        y_offset = image_width / 20
+        image_height = tree_height + y_offset * 2
+        mltreemap_results['image']['width'] = image_width
+        mltreemap_results['image']['tree_height'] = tree_height
+        mltreemap_results['image']['iamge_height'] = image_height
+        mltreemap_results['image']['y_offset'] = y_offset
+        # Define tree and label margins
+        mltreemap_results['x_coordinate_of_label_start'] = 0.6 * image_width
+        mltreemap_results['x_coordinate_of_label_end'] = 0.9 * image_width
+        mltreemap_results['x_coordinate_of_tree_end'] = 0.7 * image_width
+        if not text_mode:
+            # If we don't want the whole text to be displayed,
+            # we have to reset some values
+            mltreemap_results['x_coordinate_of_label_start'] = 0.7 * \
+              image_width
+            mltreemap_results['x_coordinate_of_label_end'] = 0.73 * \
+              image_width
+        return mltreemap_results
+
+
 def main(argv):
     print 'Start MLTreeMap Imagemaker TSN v. 0.0'
 
