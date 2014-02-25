@@ -652,6 +652,87 @@ class NEWICK_tree():
         return cumulative_tree_distance
 
 
+    def optimize_species_display_order(self):
+        """
+        This makes the tree optically nicer by swapping subtrees such that 
+        the internal nodes are maximally 'staggered'. This only affects the 
+        displaying of the tree, not its typology or biological meaning. If 
+        necessary, manual intervention into the display order is also 
+        possible in the code below (note: this will fuck up if the 
+        underlying tree is changed!!)
+        """
+        self.optimized_display_order_counter = 1
+        self.optimize_node_recursively(-1)
+
+
+    def optimize_node_recursively_sort_helper(a, b):
+        """
+        The original optimize_node_recursively uses a complex sort.
+        To imitate its function, I chose to make this helper method.
+        """
+        sort_value_a = nr_terminal_children_per_child[a]
+        sort_value_b = nr_terminal_children_per_child[b]
+        if sort_value_a == sort_value_b:
+            sort_value_a = a
+            sort_value_b = b
+        return cmp(sort_value_a,sort_value_b)
+
+
+    def optimize_node_recursively(self, node):
+        """TK"""
+        if not (re.search('\A[\-\d]+\Z', node) and node < 0):
+            self.species_display_order[node] = \
+              self.optimized_display_order_counter
+            self.optimized_display_order_counter += 1
+            return
+        # This node is an internal node, so sort its children 
+        # by 'terminal_size' and recurse down into them
+        children_this_node = self.children_of_node[node]
+        nr_terminal_children_per_child = Autovivify()
+
+        for child in children_this_node:
+            nr_children = len(self.terminal_children_of_node[child])
+            nr_terminal_children_per_child[child] = nr_children
+
+        for child in sorted(children_this_node, \
+          cmp=optimize_node_recursively_sort_helper):
+            self.optimize_node_recursively(child)
+
+
+    def find_last_common_ancestor(self, node1, node2):
+        if node1 == node2:
+            return node1
+        if self.is_in_parental_line(node1, node2):
+            return node1
+        if self.is_in_parental_line(node2, node1):
+            return node2
+
+        while True:
+            try:
+                self.parent_of_node[node1]
+            except NameError:
+                return -1
+            node1 = self.parent_of_node[node1]
+            if self.is_in_parental_line(node1, node2):
+                return node1
+            if node1 == -1:
+                return -1
+
+
+    def is_in_parental_line(self, putative_parent_node, query_node):
+        if putative_parent_node == query_node:
+            return 1
+
+        while True:
+            query_node = self.parent_of_node[query_node]
+            if putative_parent_node == query_node:
+                return 1
+            if query_node == -1:
+                break
+
+        return 0
+
+
 def main(argv):
     print 'Start MLTreeMap Imagemaker TSN v. 0.0'
 
