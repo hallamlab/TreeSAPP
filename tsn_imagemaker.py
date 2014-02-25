@@ -481,7 +481,7 @@ class NEWICK_tree():
                     self.bootstrap_support_of_node[this_node] = \
                       bootstrap_support
                 inputarray.append(next_item)
-                last
+                break
 
             sys.exit('ERROR: #6 error parsing species tree\n')
 
@@ -489,6 +489,167 @@ class NEWICK_tree():
             self.children_of_node[this_node][child] = 1
 
         return this_node
+
+
+    def connect_terminal_children_to_node(self, node):
+        """TK"""
+        if re.search('\A[\-\d]+\Z', node) and node < 0:
+
+            for child in self.children_of_node[node]:
+                if re.search('\A[\-\d]+\z', child) and child < 0:
+                    self.connect_terminal_children_to_node(child)
+
+                    for subchild in self.terminal_children_of_node[child]:
+                        self.terminal_children_of_node[node][subchild] = 1
+
+                else:
+                    self.terminal_children_of_node[node][child] = 1
+                    self.terminal_children_of_node[child][child] = 1
+
+        else:
+            self.terminal_children_of_node[node][node] = 1
+            self.terminal_children_of_node[node][node] = 1
+
+
+    def assign_cumulative_branchlength_to_node(self, node, \
+      previous_cumulative_length):
+        """TK"""
+        branch_length_this_node = 0
+        try:
+            self.branch_length_of_node[node]
+        except NameError:
+            pass
+        else:
+            branch_length_this_node = self.branch_length_of_node[node]
+        new_cumulative_length = branch_length_this_node + \
+          previous_cumulative_length
+        self.cumulative_branch_length_of_node[node] = new_cumulative_length
+        if re.search('\A[\-\d]+\Z', node) and node < 0:
+
+            for child in self.children_of_node[node]:
+                self.assign_cumulative_branchlength_to_node(child, \
+                  new_cumulative_length)
+
+
+    def compute_average_cumulative_branch_length(self):
+        """TK"""
+        valid_node_counter = 0
+        branch_length_sum = 0
+
+        for node in self.cumulative_branch_length_of_node:
+            # Internal nodes aren't considered here
+            if re.search('\A[\-\d]+\Z', node) and node < 0:
+                continue
+            valid_node_counter += 1
+            branch_length_sum += self.cumulative_branch_length_of_node[node]
+
+        self.average_cumulative_branch_length = branch_length_sum / \
+          valid_node_counter
+
+
+    def print_as_verbose_text(self):
+        """TK"""
+
+        for node in sorted(self.children_of_node):
+            branch_length = 'undefined'
+            try:
+                self.branch_length_of_node[node]
+            except NameError:
+                pass
+            else:
+                branch_length = self.branch_length_of_node[node]
+            children = sorted(self.children_of_node[node])
+            nr_children = len(children)
+            terminal_children = sorted(self.terminal_children_of_node[node])
+            nr_terminal_children = len(terminal_children)
+            message = 'node ' + str(node) + ' has branch-length ' + \
+              str(branch_length) + ', ' + str(nr_children) + ' children ['
+            message += '.'.join(children)
+            message += '], and ' + str(nr_terminal_children) + ' terminal' \
+              + ' children: ['
+            message += '.'.join(terminal_children)
+            message += ']\n'
+            print message
+
+        for node in sorted(self.parent_of_node):
+            if node <= 0:
+                continue
+            branch_length = 'undefined'
+            try:
+                self.branch_length_of_node[node]
+            except NameError:
+                pass
+            else:
+                branch_length = self.branch_length_of_node[node]
+            print 'node ' + str(node) + ' has branch-length ' + \
+              str(branch_length) + '\n'
+
+
+    def get_species_to_species_tree_distance(self, species1, species2):
+        """
+        Given two species, the cumulative branch-length needed to traverse 
+        from one to the other is computed and provided by this routine. The 
+        routine will return -1 in case of errors.
+        """
+        try:
+            species1
+            species2
+        except NameError:
+            return -1
+        if species1 == species2:
+            return 0
+        try:
+            self.parent_of_node[species1]
+            self.parent_of_node[species2]
+        except NameError:
+            continue
+        parent_traversion_count = Autovivify()
+        node1 = species1
+        parent_traversion_count[node1] = 1
+        try:
+            node1
+        except NameError:
+            pass
+        else:
+
+            while node1 is not '-1':
+                node1 = self.parent_of_node[node1]
+                parent_traversion_count[node1] += 1
+                try:
+                    node1
+                except NameError:
+                    break
+
+        node2 = species2
+        parent_traversion_count[node2] = 1
+        try:
+            node2
+        except NameError:
+            pass
+        else:
+
+            while node2 is not '-1':
+                node2 = self.parent_of_node[node2]
+                parent_traversion_count[node2] += 1
+                try:
+                    node2
+                except NameError:
+                    break
+
+        cumulative_tree_distance = 0
+        node1 = species1
+
+        while parent_traversion_count[node1] < 2:
+            cumulative_tree_distance += self.branch_length_of_node[node1]
+            node1 = self.parent_of_node[node1]
+
+        node2 = species2
+
+        while parent_traversion_count[node2] < 2:
+            cumulative_tree_distance += self.branch_length_of_node[node2]
+            node2 = self.parent_of_node[node2]
+
+        return cumulative_tree_distance
 
 
 def main(argv):
