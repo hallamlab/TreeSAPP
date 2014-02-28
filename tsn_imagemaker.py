@@ -1310,6 +1310,75 @@ class TREEMAP_ml_svg_visualizer:
         return image
 
 
+    def draw_edges_circular(self, image, tree, mltreemap_results):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        image_diameter_circular = mltreemap_results['image_circular']['diameter']
+        allready_drawn_connector = Autovivify()
+        # TK line 650
+        stroke_width = image_width / 1000
+
+        for node in sorted(tree.y_coord_of_node):
+            edge_color = 'rgb(100,100,100)'
+            if node != -1:
+                # First get all the necessary information
+                x_coord_of_node = tree.x_coord_of_node_circular[node]
+                y_coord_of_node = tree.y_coord_of_node_circular[node]
+                x_coord_of_node_connector = tree.x_coord_of_node_connector_circular[node]
+                y_coord_of_node_connector = tree.y_coord_of_node_connector_circular[node]
+                # Second, we draw the line from the node to 
+                # the connection position of its parent
+                # TK line 669
+            # Third, we draw the line between the connecting 
+            # points (if not already done)
+            try:
+                allready_drawn_connector[node]
+            except NameError:
+                pass
+            else:
+                continue
+            allready_drawn_connector[node] = 1
+            sweep_flag = 1
+            large_arc_flag = 0
+            x1_coordinate_of_connector = ''
+            y1_coordinate_of_connector = ''
+            x2_coordinate_of_connector = ''
+            y2_coordinate_of_connector = ''
+            count = 0
+
+            for child in sorted(tree.connecting_points[node], reverse=True):
+                if count == 0:
+                    x1_coordinate_of_connector = tree.connecting_points[node][child]['x_coordinate_of_connector']
+                    y1_coordinate_of_connector = tree.connecting_points[node][child]['y_coordinate_of_connector']
+                else:
+                    x2_coordinate_of_connector = tree.connecting_points[node][child]['x_coordinate_of_connector']
+                    y2_coordinate_of_connector = tree.connecting_points[node][child]['y_coordinate_of_connector']
+                count += 1
+
+            # The points (x1/y1) (x2/y2) have to be sorted otherwise 
+            # the arc function won't work properly
+            try:
+                x1_coordinate_of_connector
+            except NameError:
+                continue
+            if y1_coordinate_of_connector > y2_coordinate_of_connector:
+                temp_coordinate = y1_coordinate_of_connector
+                y1_coordinate_of_connector = y2_coordinate_of_connector
+                y2_coordinate_of_connector = temp_coordinate
+                temp_coordinate = x1_coordinate_of_connector
+                x1_coordinate_of_connector = x2_coordinate_of_connector
+                x2_coordinate_of_connector = temp
+            if x1_coordinate_of_connector < (image_diameter_circular / 2):
+                sweep_flag = 0
+            # Sorting done
+            radius_of_node = tree.x_coord_of_node[node]
+            # TK line 712
+
+        return image
+
+
 class svgHelper:
 
 
