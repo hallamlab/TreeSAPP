@@ -4,6 +4,7 @@
 
 # Include the necessary libraries
 try:
+    import math
     # TK
 except:
     # TK
@@ -1142,13 +1143,171 @@ class TREEMAP_ml_svg_visualizer:
           mltreemap_results)
         image = draw_group_colors_circular(image, tree, mltreemap_results)
         image = draw_edges_circular(image, tree, mltreemap_results)
-        image = draw_guide_lines_and_leaf_names_circular(image, tree, mltreemap_results, bubble_type, text_mode)
-        image, placements = draw_placement_bubbles(image, tree, mltreemap_results, param_scale_bubble, bubble_type, 1)
+        image = draw_guide_lines_and_leaf_names_circular(image, tree, \
+          mltreemap_results, bubble_type, text_mode)
+        image, placements = draw_placement_bubbles(image, tree, \
+          mltreemap_results, param_scale_bubble, bubble_type, 1)
         image = draw_percents_and_placement_bars_circular(image, \
           placements, tree, mltreemap_results, bubble_type, used_colors, \
           color_mode, text_mode)
         output.write(image.xmlify())
         output.close()
+
+
+    def prepare_coordinates_circular(self, tree, mltreemap_results):
+
+        for node in sorted(tree.y_coord_of_node):
+            y_coord_of_node = tree.y_coord_of_node[node]
+            x_coord_of_node = tree.x_coord_of_node[node]
+            branch_length = tree.branch_length_of_node[node]
+            x_coord_of_parent_node = x_coord_of_node - branch_length
+            # Transform the coordinates of the node itself
+            px, py = calculate_coordinates_circular(mltreemap_results, \
+              x_coord_of_parent_node, y_coord_of_node)
+            tree.x_coord_of_node_connector_circular[node] = px
+            tree.y_coord_of_node_connector_circular[node] = py
+            # Transform the coordinates of the connecting point 
+            # of the node to the parent
+            px, py = calculate_coordinates_circular(mltreemap_results, \
+              x_coord_of_parent_node, y_coord_of_node)
+            tree.x_coord_of_node_connector_circular[node] = px
+            tree.y_coord_of_node_connector_circular[node] = py
+            # Save the connecting point information with parent information
+            if node != -1:
+                parent_of_node = tree.parent_of_node[node]
+                tree.connecting_points[parent_of_node][node]\
+                  ['x_coordinate_of_connector'] = px
+                tree.connecting_points[parent_of_node][node]\
+                  ['y_coordinate_of_connector'] = py
+            # Done
+            if node > 0:
+                y_coord_of_node_min = tree.y_coord_of_node_min[node]
+                y_coord_of_node_max = tree.y_coord_of_node_max[node]
+                px, py = calculate_coordinates_circular(mltreemap_results, \
+                  x_coord_of_node, y_coord_of_node_min)
+                tree.x_coord_of_node_min_circular[node] = px
+                tree.y_coord_of_node_min_circular[node] = py
+                px, py = calculate_coordinates_circular(mltreemap_results, \
+                  x_coord_of_node, y_coord_of_node_max)
+                tree.x_coord_of_node_max_circular[node] = px
+                tree.y_coord_of_node_max_circular[node] = py
+
+        return tree, mltreemap_results
+
+
+    def calculate_coordinates_circular(self, mltreemap_results, \
+      x_coord_of_point, y_coord_of_point):
+        """
+        TK
+        Note: Some re-programming could merge this process with 
+              the one that draws the pie-chart bubbles
+        """
+        image_diameter_circular = \
+          mltreemap_results['image_circular']['diameter']
+        tree_height = mltreemap_results['image']['tree_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        pi = math.pi
+
+        #      la
+        #  ----------P(px|py)
+        #  |        /
+        #  |alpha /
+        #  |    /
+        #lb|  /x-pos
+        #  |/
+        #  M
+
+        # Proportion: tree_height equals 2 pi * 0.95
+        alpha = ((y_coord_of_point - y_offset) * 2 * pi * 0.95) / \
+          tree_height
+        center_x = image_diameter_circular / 2
+        center_y = image_diameter_circular / 2
+        lb = math.cos(alpha) * x_coord_of_point
+        la = math.sin(alpha) * x_coord_of_point
+        px = center_x + la
+        py = center_y - lb
+        return px, py
+
+
+    def draw_group_colors_circular(self, image, tree, mltreemap_results):
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        image_height = mltreemap_results['image']['image_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        y_scaling_factor = tree_height # Note: This works because 
+                                       # y values range from 0 to 1.
+        x_coordinate_of_label_start = mltreemap_results['x_coordinate_of_label_start']
+        x_coordinate_of_label_end = mltreemap_results['x_coordinate_of_label_end']
+        # TK Line 573
+        fontsize = image_width / 60
+        pi = math.pi
+
+        # The group color band looks somewhat as follows:
+        #
+        #  C-----------D
+        #   \         /
+        #    \       /
+        #     \     /
+        #      A---B
+        #
+        # A(xa,ya), B(xb,yb), C(xc,yc), D(xd,yd)
+
+        is_first_label = 1
+        text_y = y_offset / 2
+        x_pos_of_text = image_width * 2 - (image_width / 4)
+
+        for y_coord_of_node_min in sorted(mltreemap_results['group_info']):
+
+            for start_taxon in sorted(mltreemap_results['group_info']\
+              [y_coord_of_node_min]:
+
+                for end_taxon in sorted(mltreemap_results['group_info']\
+                  [y_coord_of_node_min][start_taxon]):
+                    color = mltreemap_results['group_info']\
+                      [y_coord_of_node_min][start_taxon][end_taxon]['color']
+                    name = mltreemap_results['group_info']\
+                      [y_coord_of_node_min][start_taxon][end_taxon]['name']
+                    if name is '#':
+                        name = ''
+                    ya_linear = y_coord_of_node_min # == yc_linear
+                    yb_linear = tree.y_coord_of_node_max['end_taxon']
+                      # == yd_linear
+                    xa_linear = x_coordinate_of_label_start # == xb_linear
+                    xc_linear = x_coordinate_of_label_end # == xd_linear
+                    draw_trapezoid(mltreemap_results, groups, color, \
+                      xa_linear, xc_linear, ya_linear, yb_linear)
+                    # Prepare and write the group labels
+                    try:
+                        name
+                    except NameError:
+                        continue
+                    if is_first_label == 1:
+                        text = 'Group names (clockwise):'
+                        # TK line 610
+                        is_first_label = 0
+                    name = name.replace('_', ' ')
+                    if re.search('rgb\((.+),(.+),(.+)\)', color):
+                        temp = re.search('rgb\((.+),(.+),(.+)\)', color)
+                        red = temp.group(1) - 80
+                        green = temp.group(2) - 80
+                        blue = temp.group(3) - 80
+                        if red < 0:
+                            red = 0
+                        if green < 0:
+                            green = 0
+                        if blue < 0:
+                            blue = 0
+                        color = 'rgb(' + str(red) + ',' + str(green) + ',' \
+                          + str(blue) + ')' # Make the colors darker...
+                                            # Otherwise, the writing is 
+                                            # almost invisible
+                    else:
+                        sys.exit('ERRROR: Parsing error with ' + \
+                          str(color) + '\n')
+                    text_y += fontsize * 1.2
+                    # TK line 627
+
+        return image
 
 
 class svgHelper:
@@ -1157,6 +1316,7 @@ class svgHelper:
     def __init__(self):
         self.width = '100px' # Some arbitrary starting width
         self.height = '100px' # Some arbitrary starting height
+        self.groups = Autovivify()
         self.components = '' # Image components will be concatenated here
         return self
 
@@ -1166,7 +1326,8 @@ class svgHelper:
 
 
     def xmlify(self):
-        return '<svg width="' + str(self.width) + '" height="' + str(self.height) + '>\n' + str(self.components) + '</svg>'
+        return '<svg width="' + str(self.width) + '" height="' + \
+          str(self.height) + '>\n' + str(self.components) + '</svg>'
 
 
     def addRectangle(self, properties):
@@ -1187,6 +1348,26 @@ class svgHelper:
               '"'
 
         self.components += '>' + str(content) + '</text>\n'
+
+
+    def group(self, properties):
+        temp = '<g'
+
+        for _ in properties:
+            self.groups[properties['id']]['header'] += ' ' + str(_) + '="' \
+              + str(properties[_]) + '"'
+
+        self.groups[properties['id']
+
+
+class svgGroupHelper(svgHelper):
+
+
+    def __init__(self, _):
+        self.header = _
+        self.contents = ''
+        self.footer = '</g>\n'
+        return self
 
 
 def main(argv):
