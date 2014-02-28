@@ -445,9 +445,9 @@ class NEWICK_tree():
             else:
                 sys.exit('ERROR: #4 error parsing species tree\n')
 
-            # One subnode has been parsed. Next symbol must be either a comma
-            # (in which case we loop to the next subnode) or a closing 
-            # bracket (in which case we are done).
+            # One subnode has been parsed. Next symbol must be either a
+            # comma (in which case we loop to the next subnode) or a 
+            # closing bracket (in which case we are done).
             try:
                 next_item = inputarray.pop(0)
             except IndexError:
@@ -756,9 +756,10 @@ class TREEMAP_ml_svg_visualizer:
         do_the_drawing(tree, mltreemap_results, param_scale_bubble, \
           input_filename, output_dir, text_of_denominator, bubble_type, \
           used_colors, color_mode, text_mode)
-        do_the_drawing_circular(tree, mltreemap_results, param_scale_bubble,\
-          input_filename, output_dir, text_of_denominator, bubble_type, \
-          used_colors, color_mode, text_mode)
+        do_the_drawing_circular(tree, mltreemap_results, \
+          param_scale_bubble, input_filename, output_dir, \
+          text_of_denominator, bubble_type, used_colors, color_mode, \
+          text_mode)
         return 'success'
 
     def get_analysis_info(denominator):
@@ -796,8 +797,8 @@ class TREEMAP_ml_svg_visualizer:
                 sys.exit('ERROR: ' + str(denominator) + ' is not ' + \
                   'recognized!\n')
             mltreemap_results['tree_file'] = str(tree_name) + '_tree.txt'
-            mltreemap_results['tax_ids_file'] = 'tax_ids_' + str(tree_name) \
-              + '.txt'
+            mltreemap_results['tax_ids_file'] = 'tax_ids_' + \
+              str(tree_name) + '.txt'
             mltreemap_results['descriptions_file'] = \
               'domain_and_color_descriptions_' + str(tree_name) + '.txt'
         return mltreemap_results
@@ -839,6 +840,183 @@ class TREEMAP_ml_svg_visualizer:
               image_width
             mltreemap_results['x_coordinate_of_label_end'] = 0.73 * \
               image_width
+        return mltreemap_results
+
+
+    def produce_terminal_children_of_strings_of_reference(self, tree, \
+      mltreemap_results, used_colors):
+        """TK"""
+        species_count = 0
+
+        for n in sorted(tree.terminal_children_of_node):
+
+            for color in sorted(used_colors)
+                # Set all counts to 0
+                mltreemap_results['counts_per_species'][n][color] = 0
+
+            if n > 0:
+                species_count += 1
+            terminal_children_string = ""
+
+            for term_child in sorted(tree.terminal_children_of_node[n]):
+                terminal_children_string += "@" + str(term_child)
+
+            mltreemap_results\
+              ['nodes_of_terminal_children_string_reference']\
+              [terminal_children_string] = n
+
+        mltreemap_results[species_count] = species_count
+        return mltreemap_results
+
+
+    def read_RAxML_out(self, tree, mltreemap_results, input_filename_long):
+        """TK"""
+        nodes = Autovivify()
+        input_filename = input_filename_long
+        print 'input file: ' + str(input_filename) + '\n'
+        try:
+            input = open(input_filename, 'r')
+        except: # TK
+            sys.exit('ERROR: Can\'t open ' + str(input_filename) + '\n')
+        placements = Autovivify()
+        terminal_children_of_placements = Autovivify()
+        mltreemap_results['highest_count_per_species'] = 0
+        placement = 0
+
+        for line in input:
+            line = line.strip()
+            placement += 1
+            color = 0
+            if re.search('colorcode_(.+)\Z', line):
+                color = re.search('colorcode_(.+)\Z', line).group(1)
+            if color == 0:
+                sys.exit('ERROR: Color info could not be read!!!!\n')
+            try:
+                color
+            except NameError:
+                sys.exit('ERROR: Color info could not be read!!!!\n')
+            temp = re.findall('\((\d+)\)', line)
+            for _ in temp:
+                terminal_children_of_placements[placement][_.group(1)] = 1
+
+            terminal_children_string_of_placement = ''
+
+            for terminal_child_of_placement in \
+              sorted(terminal_children_of_placements[placement]):
+                terminal_children_string_of_placement += '@' + \
+                  terminal_child_of_placement
+
+            try:
+                mltreemap_results\
+                  ['nodes_of_terminal_children_string_reference']\
+                  [terminal_children_string_of_placement]
+            except NameError:
+                # Attention! This circumvents a problem with the unrooted 
+                # RAxML tree!
+#               continue
+#               sys.exit('ERROR: A subtree\n(' + \
+#                 str(terminal_children_string_of_placement) + ')\n, as' + \
+#                 ' written in the parsed RAxML file, does not exist in' + \
+#                 ' the reference tree...\n')
+            else:
+                node = mltreemap_results\
+                  ['nodes_of_terminal_children_string_reference']\
+                  [terminal_children_string_of_placement]
+                _pw = re.search('Placement weight (.+)%', line):
+                if _pw:
+                    bootstrap = _pw.group(1)
+                    nodes[node][color] = bootstrap
+                    node_weight = bootstrap / 100
+                    mltreemap_results = \
+                      distribute_node_weight_by_topology(tree, node, \
+                      node_weight, mltreemap_results, color)
+
+        input.close()
+
+        for node in sorted(nodes):
+            is_first_color = 1
+
+            for color in sorted(nodes[node]):
+                mltreemap_results['counts_per_node'][node]['colors']\
+                  [color] = nodes[node][color] / 100
+                if is_first_color == 1:
+                    mltreemap_results['counts_per_node'][node]\
+                      ['total_weight'] = 0
+                is_first_color = 0
+                mltreemap_results['counts_per_node'][node]['total_weight'] \
+                  += nodes[node][color] / 100
+
+        return mltreemap_results
+
+
+    def distribute_node_weight_by_topology(tree, node, node_weight, \
+      mltreemap_results, color):
+        """TK"""
+        terminal_children = tree.terminal_children_of_node[node]
+        nr_of_children = len(terminal_children)
+        fractional_weight = node_weight / nr_of_children
+
+        for child in terminal_children:
+            mltreemap_results['counts_per_species'][child][color] += \
+              fractional_weight
+            total_weight_of_child = 0
+
+            for color in \
+              sorted(mltreemap_results[counts_per_species][color]):
+                color_weight = \
+                  mltreemap_results['counts_per_species'][child][color]
+                total_weight_of_child += color_weight
+
+            if total_weight_of_child > \
+              mltreemap_results['highest_count_per_species']:
+                mltreemap_results['highest_count_per_species'] = \
+                  total_weight_of_child
+
+        return mltreemap_results
+
+
+    def get_support_data(self, tree, mltreemap_results):
+        """TK"""
+        # Get species names
+        try:
+            input = open('tree_data/' + \
+              str(mltreemap_results['tax_ids_file']), 'r')
+        except: # TK
+            sys.exit('ERROR: Cannot read \'tree_data/' + \
+              str(mltreemap_results['tax_ids_file']) + '\'!\n')
+
+        for line in input:
+            line = line.strip()
+            if re.search('\A\#', line):
+                continue
+            species, _rest = line.split(None, 1)
+            rest = _rest.split(None)
+            name = join(' ', rest)
+            mltreemap_results['name_of_species'][species] = name
+
+        input.close()
+        try:
+            input = open('tree_data/' + \
+              str(mltreemap_results['descriptions_file']), 'r')
+        except: # TK
+            sys.exit('ERROR: Can\'t read tree_data/' + \
+              str(mltreemap_results['descriptions_file']) + '\n')
+
+        for line in input:
+            line = line.strip()
+            start_taxon, end_taxon, background_red, background_green, \
+              background_blue, subtree_name = line.split()
+            if not start_taxon or re.search('\A\#', line):
+                continue
+            group_color = 'rgb(' + str(background_red) + ',' + \
+              str(background_green) + ',' + str(background_blue) + ')'
+            y_coord_of_node_min = tree.y_coord_of_node_min['start_taxon']
+            mltreemap_results['group_info'][y_coord_of_node_min]\
+              [start_taxon][end_taxon]['color'] = group_color
+            mltreemap_results['group_info'][y_coord_of_node_min]\
+              [start_taxon][end_taxon]['name'] = subtree_name
+
+        input.close()
         return mltreemap_results
 
 
