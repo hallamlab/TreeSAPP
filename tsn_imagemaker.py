@@ -10,7 +10,7 @@ except:
     # TK
 
 class Autovivify(dict):
-    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables) without explicitly declaring those variables beforehand."""    def __getitem__(self, item):
+    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables) without explicitly declaring those variables beforehand.""" def __getitem__(self, item):
         try:
             return dict.__getitem__(self, item)
         except KeyError:
@@ -48,56 +48,56 @@ PATHDELIM = str(pathDelim())
 def getParser():
     """TK"""
     parser = argparse.ArgumentParser(description='example input:\n\
-                      python tsn_imagemaker.py -i example_input/\n\n\
-                      mandatory input option:\n\
-                      -i: either a) a path to a directory with input files \
-                      or b) to a specific input file.\n\
-                      note that in case a) all input files of the same type \
-                      (i.e. p, g, n, h, r, m, d) will be concatenated.\n\n\
-                      optional input options:\n\
-                      -o: output directory (default: output/)\n\
-                      -d: use different colors for different datasets \
-                      (0: don\'t use this mode (default),\
-                       1: use this mode,\
-                       11: use this mode but concatenate percent values \
-                      over datasets). \
-                      See the user guide for a more detailed description.\n\
-                      -t: display trees inclusive text and labels \
-                      (1, default) \
-                      or without text (0)\n\
-                      -b: parameter for the size of the placement bubbles \
-                      (default: 1)\n\
-                      -r: display 16s and 18s rRNA hits in different trees \
-                      (2, default) \
-                      or one tree of life (1)\n\
-                      -h: high quality placement bubbles (1, default) or \
-                      low quality bubbles (0). \
-                      High quality bubbles work perfectly with inkscape \
-                      but can cause trouble with Adobe Illustrator.')
+python tsn_imagemaker.py -i example_input/\n\n\
+mandatory input option:\n\
+-i: either a) a path to a directory with input files \
+or b) to a specific input file.\n\
+note that in case a) all input files of the same type \
+(i.e. p, g, n, h, r, m, d) will be concatenated.\n\n\
+optional input options:\n\
+-o: output directory (default: output/)\n\
+-d: use different colors for different datasets \
+(0: don\'t use this mode (default),\
+1: use this mode,\
+11: use this mode but concatenate percent values \
+over datasets). \
+See the user guide for a more detailed description.\n\
+-t: display trees inclusive text and labels \
+(1, default) \
+or without text (0)\n\
+-b: parameter for the size of the placement bubbles \
+(default: 1)\n\
+-r: display 16s and 18s rRNA hits in different trees \
+(2, default) \
+or one tree of life (1)\n\
+-h: high quality placement bubbles (1, default) or \
+low quality bubbles (0). \
+High quality bubbles work perfectly with inkscape \
+but can cause trouble with Adobe Illustrator.')
     parser.add_argument('-i', '--input', required=True, help='either \
-                        a) a path to a directory with input files or \
-                        b) to a specific input file')
+a) a path to a directory with input files or \
+b) to a specific input file')
     parser.add_argument('-o', '--output', default='output', help='output \
-                        directory (default: output/)')
+directory (default: output/)')
     parser.add_argument('-d', '--colors', default=0, choices=[0,1,11], \
                         help='use different colors for different datasets \
-                        (0: don\'t use this mode (default),\
-                         1: use this mode,\
-                         11: use this mode but concatenate percent values \
-                             over datasets)')
+(0: don\'t use this mode (default),\
+1: use this mode,\
+11: use this mode but concatenate percent values \
+over datasets)')
     parser.add_argument('-t', '--text', default=1, choices=[0,1], \
                         help='display trees inclusive text and labels \
-                        (1, default) or without text(0)')
+(1, default) or without text(0)')
     parser.add_argument('-b', '--bubble_size', default=1, type=int, \
                         help='parameter for the size of the placement \
-                        bubbles (default: 1)')
+bubbles (default: 1)')
     parser.add_argument('-r', '--rRNA', default=2, choices=[1,2], \
                         help='display 16s and 18s rRNA hits in different \
-                        trees (2, default) or one tree of life (1)')
+trees (2, default) or one tree of life (1)')
     parser.add_argument('-h', '--hq_bubbles', default=1, choices=[0,1], \
                         help='high quality bubbles work perfectly with \
-                        inkscape but can cause trouble with Adobe \
-                        Illustrator')
+inkscape but can cause trouble with Adobe \
+Illustrator')
     parser.add_argument('-i', '--input', required=True, default=0, type=int, choices=[0, 's'], help='')
    return parser
 
@@ -112,17 +112,17 @@ def read_user_input(parser):
     # Add the path delim to the output directory
     args.output += PATHDELIM
 
-    # Check to see if output directory already exists; 
+    # Check to see if output directory already exists;
     # if not, create output directory
     while os.path.isdir(args.output):
         print 'WARNING: Your output directory ' + str(args.output) + \
               'already exists! Overwrite [1], quit [2], or \
-              change directory [3]?'
+change directory [3]?'
         answer = int(raw_input())
 
         while not answer in [1,2,3]:
             answer = int(raw_input('Invalid input. Please choose \
-                     1, 2, or 3.\n'))
+1, 2, or 3.\n'))
 
         if answer == 1:
             print 'Do you really want to overwrite the old output directory?'
@@ -140,7 +140,7 @@ def read_user_input(parser):
             sys.exit('Exit MLTreeMap Imagemaker\n')
         else:
             args.output = raw_input('Please enter the path to the new \
-                          directory.\n')
+directory.\n')
 
             while re.search(r'/\Z', args.output) \
                   or re.search(r'\\\Z', args.output):
@@ -250,7 +250,7 @@ def concatenate_files(args, input_files):
             nr_of_files += 1
             if nr_of_files > nr_of_colors and args.colors > 0:
                 sys.exit('ERROR: This directory contains more datasets than can be displayed with \
-                         different colors!\n')
+different colors!\n')
             attachment = 'colorcode_' + str(colors[0])
             used_colors[colors[0]] = 1
             if args.colors > 0:
@@ -372,11 +372,11 @@ class NEWICK_tree():
 
     def species_tree_parse_node(self, inputarray):
         """
-        This is a recursive routine to parse the species-tree topology out 
-        of an array of input symbols. The input symbols are brackets, 
-        letters, and numbers. The routine was initially written by Daniel, 
-        and is quite clever.
-        """
+This is a recursive routine to parse the species-tree topology out
+of an array of input symbols. The input symbols are brackets,
+letters, and numbers. The routine was initially written by Daniel,
+and is quite clever.
+"""
         this_node = self.node_id_counter
         this_node -= 1
         nr = 0
@@ -402,7 +402,7 @@ class NEWICK_tree():
                 self.parent_of_node[sub_node] = this_node
                 children_of_this_node.append(sub_node)
 
-            # If the next item is a word character, this is 
+            # If the next item is a word character, this is
             # a terminal node (a leaf is a species)
             elif re.search('\w+', next_item):
                 node_summary = next_item
@@ -447,7 +447,7 @@ class NEWICK_tree():
                 sys.exit('ERROR: #4 error parsing species tree\n')
 
             # One subnode has been parsed. Next symbol must be either a
-            # comma (in which case we loop to the next subnode) or a 
+            # comma (in which case we loop to the next subnode) or a
             # closing bracket (in which case we are done).
             try:
                 next_item = inputarray.pop(0)
@@ -588,10 +588,10 @@ class NEWICK_tree():
 
     def get_species_to_species_tree_distance(self, species1, species2):
         """
-        Given two species, the cumulative branch-length needed to traverse 
-        from one to the other is computed and provided by this routine. The 
-        routine will return -1 in case of errors.
-        """
+Given two species, the cumulative branch-length needed to traverse
+from one to the other is computed and provided by this routine. The
+routine will return -1 in case of errors.
+"""
         try:
             species1
             species2
@@ -655,22 +655,22 @@ class NEWICK_tree():
 
     def optimize_species_display_order(self):
         """
-        This makes the tree optically nicer by swapping subtrees such that 
-        the internal nodes are maximally 'staggered'. This only affects the 
-        displaying of the tree, not its typology or biological meaning. If 
-        necessary, manual intervention into the display order is also 
-        possible in the code below (note: this will fuck up if the 
-        underlying tree is changed!!)
-        """
+This makes the tree optically nicer by swapping subtrees such that
+the internal nodes are maximally 'staggered'. This only affects the
+displaying of the tree, not its typology or biological meaning. If
+necessary, manual intervention into the display order is also
+possible in the code below (note: this will fuck up if the
+underlying tree is changed!!)
+"""
         self.optimized_display_order_counter = 1
         self.optimize_node_recursively(-1)
 
 
     def optimize_node_recursively_sort_helper(a, b):
         """
-        The original optimize_node_recursively uses a complex sort.
-        To imitate its function, I chose to make this helper method.
-        """
+The original optimize_node_recursively uses a complex sort.
+To imitate its function, I chose to make this helper method.
+"""
         sort_value_a = nr_terminal_children_per_child[a]
         sort_value_b = nr_terminal_children_per_child[b]
         if sort_value_a == sort_value_b:
@@ -686,7 +686,7 @@ class NEWICK_tree():
               self.optimized_display_order_counter
             self.optimized_display_order_counter += 1
             return
-        # This node is an internal node, so sort its children 
+        # This node is an internal node, so sort its children
         # by 'terminal_size' and recurse down into them
         children_this_node = self.children_of_node[node]
         nr_terminal_children_per_child = Autovivify()
@@ -753,7 +753,7 @@ class TREEMAP_ml_svg_visualizer:
         mltreemap_results = read_RAxML_out(tree, mltreemap_results, \
           input_filename_long)
         if color_mode > 0:
-            draw_the_color_legend(denominator, output_dir, color_mode) 
+            draw_the_color_legend(denominator, output_dir, color_mode)
         do_the_drawing(tree, mltreemap_results, param_scale_bubble, \
           input_filename, output_dir, text_of_denominator, bubble_type, \
           used_colors, color_mode, text_mode)
@@ -912,13 +912,13 @@ class TREEMAP_ml_svg_visualizer:
                   ['nodes_of_terminal_children_string_reference']\
                   [terminal_children_string_of_placement]
             except NameError:
-                # Attention! This circumvents a problem with the unrooted 
+                # Attention! This circumvents a problem with the unrooted
                 # RAxML tree!
-#               continue
-#               sys.exit('ERROR: A subtree\n(' + \
-#                 str(terminal_children_string_of_placement) + ')\n, as' + \
-#                 ' written in the parsed RAxML file, does not exist in' + \
-#                 ' the reference tree...\n')
+# continue
+# sys.exit('ERROR: A subtree\n(' + \
+# str(terminal_children_string_of_placement) + ')\n, as' + \
+# ' written in the parsed RAxML file, does not exist in' + \
+# ' the reference tree...\n')
             else:
                 node = mltreemap_results\
                   ['nodes_of_terminal_children_string_reference']\
@@ -1166,7 +1166,7 @@ class TREEMAP_ml_svg_visualizer:
               x_coord_of_parent_node, y_coord_of_node)
             tree.x_coord_of_node_connector_circular[node] = px
             tree.y_coord_of_node_connector_circular[node] = py
-            # Transform the coordinates of the connecting point 
+            # Transform the coordinates of the connecting point
             # of the node to the parent
             px, py = calculate_coordinates_circular(mltreemap_results, \
               x_coord_of_parent_node, y_coord_of_node)
@@ -1198,24 +1198,24 @@ class TREEMAP_ml_svg_visualizer:
     def calculate_coordinates_circular(self, mltreemap_results, \
       x_coord_of_point, y_coord_of_point):
         """
-        TK
-        Note: Some re-programming could merge this process with 
-              the one that draws the pie-chart bubbles
-        """
+TK
+Note: Some re-programming could merge this process with
+the one that draws the pie-chart bubbles
+"""
         image_diameter_circular = \
           mltreemap_results['image_circular']['diameter']
         tree_height = mltreemap_results['image']['tree_height']
         y_offset = mltreemap_results['image']['y_offset']
         pi = math.pi
 
-        #      la
-        #  ----------P(px|py)
-        #  |        /
-        #  |alpha /
-        #  |    /
-        #lb|  /x-pos
-        #  |/
-        #  M
+        # la
+        # ----------P(px|py)
+        # | /
+        # |alpha /
+        # | /
+        #lb| /x-pos
+        # |/
+        # M
 
         # Proportion: tree_height equals 2 pi * 0.95
         alpha = ((y_coord_of_point - y_offset) * 2 * pi * 0.95) / \
@@ -1234,7 +1234,7 @@ class TREEMAP_ml_svg_visualizer:
         tree_height = mltreemap_results['image']['tree_height']
         image_height = mltreemap_results['image']['image_height']
         y_offset = mltreemap_results['image']['y_offset']
-        y_scaling_factor = tree_height # Note: This works because 
+        y_scaling_factor = tree_height # Note: This works because
                                        # y values range from 0 to 1.
         x_coordinate_of_label_start = mltreemap_results['x_coordinate_of_label_start']
         x_coordinate_of_label_end = mltreemap_results['x_coordinate_of_label_end']
@@ -1244,11 +1244,11 @@ class TREEMAP_ml_svg_visualizer:
 
         # The group color band looks somewhat as follows:
         #
-        #  C-----------D
-        #   \         /
-        #    \       /
-        #     \     /
-        #      A---B
+        # C-----------D
+        # \ /
+        # \ /
+        # \ /
+        # A---B
         #
         # A(xa,ya), B(xb,yb), C(xc,yc), D(xd,yd)
 
@@ -1299,7 +1299,7 @@ class TREEMAP_ml_svg_visualizer:
                             blue = 0
                         color = 'rgb(' + str(red) + ',' + str(green) + ',' \
                           + str(blue) + ')' # Make the colors darker...
-                                            # Otherwise, the writing is 
+                                            # Otherwise, the writing is
                                             # almost invisible
                     else:
                         sys.exit('ERRROR: Parsing error with ' + \
@@ -1328,10 +1328,10 @@ class TREEMAP_ml_svg_visualizer:
                 y_coord_of_node = tree.y_coord_of_node_circular[node]
                 x_coord_of_node_connector = tree.x_coord_of_node_connector_circular[node]
                 y_coord_of_node_connector = tree.y_coord_of_node_connector_circular[node]
-                # Second, we draw the line from the node to 
+                # Second, we draw the line from the node to
                 # the connection position of its parent
                 # TK line 669
-            # Third, we draw the line between the connecting 
+            # Third, we draw the line between the connecting
             # points (if not already done)
             try:
                 allready_drawn_connector[node]
@@ -1357,7 +1357,7 @@ class TREEMAP_ml_svg_visualizer:
                     y2_coordinate_of_connector = tree.connecting_points[node][child]['y_coordinate_of_connector']
                 count += 1
 
-            # The points (x1/y1) (x2/y2) have to be sorted otherwise 
+            # The points (x1/y1) (x2/y2) have to be sorted otherwise
             # the arc function won't work properly
             try:
                 x1_coordinate_of_connector
@@ -1375,66 +1375,6 @@ class TREEMAP_ml_svg_visualizer:
             # Sorting done
             radius_of_node = tree.x_coord_of_node[node]
             # TK line 712
-
-        return image
-
-
-    def draw_guide_lines_and_leaf_names_circular(image, tree, \
-      mltreemap_results, bubble_type, text_mode):
-        """TK"""
-        image_width = mltreemap_results['image']['width']
-        tree_height = mltreemap_results['image']['tree_height']
-        y_offset = mltreemap_results['image']['y_offset']
-        species_count = mltreemap_results['species_count']
-        x_coordinate_of_label_start = mltreemap_results\
-          ['x_coordinate_of_label_start']
-        # TK line 736
-        edge_color = 'rgb(220,220,220)'
-        stroke_width = image_width / 1000
-        fontsize = image_width / 100
-        # The picture has been optimized for 267 species. 
-        # If we have more, downsize the font.
-        if species_count > 267:
-            fontsize *= 267 / species_count
-        x_gap = image_width / 100
-
-        for node in sorted(tree.y_coord_of_node):
-            if node <= 0:
-                continue
-            x_coord_of_node = tree.x_coord_of_node[node]
-            y_coord_of_node = tree.y_coord_of_node[node]
-            x_coord_of_text = x_coordinate_of_label_start + x_gap
-            y_coord_of_text = y_coord_of_node
-            max_text_length = 37
-            if x_coord_of_node + x_gap < x_coordinate_of_label_start:
-                x1_pos_linear = x_coord_of_node + x_gap / 2
-                x2_pos_linear = x_coordinate_of_label_start - x_gap / 2
-                x1, y1 = calculate_coordinates_circular(mltreemap_results, x1_pos_linear, y_coord_of_node)
-                x2, y2 = calculate_coordinates_circular(mltreemap_results, x2_pos_linear, y_coord_of_node)
-                # TK line 756
-            else:
-                if x_coord_of_text < x_coord_of_node + x_gap:
-                    x_coord_of_text = x_coord_of_node + x_gap
-                max_text_length = 32
-            node_name = mltreemap_results['name_of_species'][node]
-            temp = re.compile('\A(.%s).'%str(max_text_length))
-            if temp.search(node_name):
-                node_name = str(temp.search(node_name).group(1)) + '...'
-            rot_angle = (((y_coord_of_text - y_offset) * 360 * 0.95) / \
-              tree_height) - 90 # Proportion: tree_height == 360 * 0.95
-            x_text, y_text = calculate_coordinates_circular(\
-              mltreemap_results, x_coord_of_text, y_coord_of_text)
-            try:
-                node_name
-            except NameError:
-                sys.exit('ERROR: ' + str(node) + ' has no name!\n')
-            if rot_angle + 90 <= 180:
-                if text_mode:
-                    # TK line 772
-            else:
-                rot_angle += 180
-                if text_mode:
-                    # TK line 775
 
         return image
 
