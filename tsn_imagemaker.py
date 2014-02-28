@@ -1020,6 +1020,175 @@ class TREEMAP_ml_svg_visualizer:
         return mltreemap_results
 
 
+    def draw_the_color_legend(self, denominator, output_dir, color_mode):
+        """TK"""
+        try:
+            input = open(str(output_dir) + str(denominator) + \
+              '_color_legend.txt', 'r')
+        except: # TK
+            sys.exit('ERROR: Can\'t open ' + str(output_dir) + \
+              str(denominator) + '_color_legend.txt\n')
+        nr_of_datasets = 0
+        color_info = Autovivify()
+        namelength_max = 0
+
+        for line in input:
+            line = line.strip()
+            color, filename = line.split('\t')
+            try:
+                color
+                filename
+            except NameError:
+                sys.exit('ERROR: Something is wrong with ' + \
+                  'color_legend.txt!\n')
+            color_info[color] = filename
+            if len(filename) > namelength_max:
+                namelength_max = len(filename)
+            nr_of_datasets += 1
+
+        input.close()
+        output_file_name = str(output_dir) + str(denominator) + \
+          '_color_legend.svg'
+        try:
+            input = open(output_file_name, 'w')
+        except: # TK
+            sys.exit('ERROR: Can\'t create ' + output_file_name + '!\n')
+        legend_width = 7 * namelength_max
+        y_offset = 12
+        legend_height = y_offset + y_offset * nr_of_datasets
+        legend = svgHelper()
+        legend.width = str(legend_width) + 'px'
+        legend.height = str(legend_height) + 'px'
+        y_pos = y_offset
+
+        for color in sorted(color_info):
+            filename = color_info[color]
+            legend.addRectangle({'x' : 10, 'y' : y_pos - y_offset, \
+              'width' : y_offset, 'height' : y_offset, 'fill' : color})
+            legend.addText({'x' : y_offset + 10, 'y' : y_pos, \
+              'style' : 'font-family: Verdana; font-size: 10'}, \
+              cdata(filename))
+            y_pos += y_offset
+
+        output.write(legend.xmlify())
+        output.close()
+
+
+    def do_the_drawing(self, tree, mltreemap_results, param_scale_bubble, \
+      input_file_name, output_dir, text_of_denominator, bubble_type, \
+      used_colors, color_mode, text_mode):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        image_height = mltreemap_results['image']['image_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        species_count = mltreemap_results['species_count']
+        print 'Creating the picture...\n'
+        output_file_name = str(output_dir) + str(input_file_name) + \
+          '_image_straight.svg'
+        try:
+            output = open(output_file_name, 'w')
+        except: # TK
+            sys.exit('ERROR: Can\'t create ' + str(output_file_name) + \
+              '!\n')
+        image = svgHelper()
+        image.width = str(image_width) + 'px'
+        image.height = str(image_height) + 'px'
+        image.addText({'x' : image_width * 0.01, 'y' : y_offset / 2, \
+          'style' : 'font-family: Verdana; font-size: ' + \
+          str(image_width / 50)}, cdata(text_f_denominator))
+        placements = ''
+        image = draw_group_colors(image, tree, mltreemap_results)
+        image = draw_edges(image, tree, mltreemap_results)
+        image = draw_guide_lines_and_leaf_names(image, tree, \
+          mltreemap_results, text_mode)
+        image, placements = draw_placement_bubbles(image, tree, \
+          mltreemap_results, param_scale_bubble, bubble_type, 0)
+        image = draw_percents_and_placement_bars(image, placements, tree, \
+          mltreemap_results, used_colors, color_mode, text_mode)
+        output.write(image.xmlify())
+        output.close()
+
+
+    def do_the_drawing_circular(self, tree, mltreemap_results, \
+      param_scale_bubble, input_file_name, output_dir, \
+      text_of_denominator, bubble_type, used_colors, color_mode, text_mode):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        image_height = mltreemap_results['image']['image_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        species_count = mltreemap_results['species_count']
+        # For large trees, the image_diameter_circular needs to be adjusted
+        image_diameter_circular = 2 * image_width
+        mltreemap_results['image_circular']['diameter'] = \
+          image_diameter_circular
+        print 'Creating the picture...\n'
+        output_file_name = str(output_dir) + str(input_file_name) + \
+          '_image_circular.svg'
+        try:
+            output = open(output_file_name, 'w')
+        except: # TK
+            sys.exit('ERROR: Can\'t create ' + str(output_file_name) + \
+              '!\n')
+        image = svgHelper()
+        image.width = str(image_diameter_circular) + 'px'
+        image.height = str(image_diameter_circular) + 'px'
+        image.addText({'x' : image_width * 0.01, 'y' : y_offset / 2, \
+          'style' : 'font-family: Verdana, font-size: ' + \
+          str(image_width/50)}, cdata(text_of_denominator))
+        placements = ''
+        tree, mltreemap_results = prepare_coordinates_circular(tree, \
+          mltreemap_results)
+        image = draw_group_colors_circular(image, tree, mltreemap_results)
+        image = draw_edges_circular(image, tree, mltreemap_results)
+        image = draw_guide_lines_and_leaf_names_circular(image, tree, mltreemap_results, bubble_type, text_mode)
+        image, placements = draw_placement_bubbles(image, tree, mltreemap_results, param_scale_bubble, bubble_type, 1)
+        image = draw_percents_and_placement_bars_circular(image, \
+          placements, tree, mltreemap_results, bubble_type, used_colors, \
+          color_mode, text_mode)
+        output.write(image.xmlify())
+        output.close()
+
+
+class svgHelper:
+
+
+    def __init__(self):
+        self.width = '100px' # Some arbitrary starting width
+        self.height = '100px' # Some arbitrary starting height
+        self.components = '' # Image components will be concatenated here
+        return self
+
+
+    def cdata(self, content):
+        return '\n<![CDATA[\n' + str(content) + '\n]]>\n'
+
+
+    def xmlify(self):
+        return '<svg width="' + str(self.width) + '" height="' + str(self.height) + '>\n' + str(self.components) + '</svg>'
+
+
+    def addRectangle(self, properties):
+        self.components += '<rect'
+
+        for _ in properties:
+            self.components += ' ' + str(_) + '="' + str(properties[_]) + \
+              '"'
+
+        self.components += '/>\n'
+
+
+    def addText(self, properties, content):
+        self.components += '<text'
+
+        for _ in properties:
+            self.components += ' ' + str(_) + '="' + str(properties[_]) + \
+              '"'
+
+        self.components += '>' + str(content) + '</text>\n'
+
+
 def main(argv):
     print 'Start MLTreeMap Imagemaker TSN v. 0.0'
 
