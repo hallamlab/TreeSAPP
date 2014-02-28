@@ -10,7 +10,14 @@ except:
     # TK
 
 class Autovivify(dict):
-    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables) without explicitly declaring those variables beforehand.""" def __getitem__(self, item):
+    """
+    In cases of Autovivify objects, enable the referencing of variables 
+    (and sub-variables) without explicitly declaring those variables 
+    beforehand.
+    """
+
+
+    def __getitem__(self, item):
         try:
             return dict.__getitem__(self, item)
         except KeyError:
@@ -1236,8 +1243,10 @@ the one that draws the pie-chart bubbles
         y_offset = mltreemap_results['image']['y_offset']
         y_scaling_factor = tree_height # Note: This works because
                                        # y values range from 0 to 1.
-        x_coordinate_of_label_start = mltreemap_results['x_coordinate_of_label_start']
-        x_coordinate_of_label_end = mltreemap_results['x_coordinate_of_label_end']
+        x_coordinate_of_label_start = mltreemap_results\
+          ['x_coordinate_of_label_start']
+        x_coordinate_of_label_end = mltreemap_results\
+          ['x_coordinate_of_label_end']
         # TK Line 573
         fontsize = image_width / 60
         pi = math.pi
@@ -1315,7 +1324,8 @@ the one that draws the pie-chart bubbles
         image_width = mltreemap_results['image']['width']
         tree_height = mltreemap_results['image']['tree_height']
         y_offset = mltreemap_results['image']['y_offset']
-        image_diameter_circular = mltreemap_results['image_circular']['diameter']
+        image_diameter_circular = mltreemap_results['image_circular']\
+          ['diameter']
         allready_drawn_connector = Autovivify()
         # TK line 650
         stroke_width = image_width / 1000
@@ -1326,8 +1336,10 @@ the one that draws the pie-chart bubbles
                 # First get all the necessary information
                 x_coord_of_node = tree.x_coord_of_node_circular[node]
                 y_coord_of_node = tree.y_coord_of_node_circular[node]
-                x_coord_of_node_connector = tree.x_coord_of_node_connector_circular[node]
-                y_coord_of_node_connector = tree.y_coord_of_node_connector_circular[node]
+                x_coord_of_node_connector = \
+                  tree.x_coord_of_node_connector_circular[node]
+                y_coord_of_node_connector = \
+                  tree.y_coord_of_node_connector_circular[node]
                 # Second, we draw the line from the node to
                 # the connection position of its parent
                 # TK line 669
@@ -1350,11 +1362,15 @@ the one that draws the pie-chart bubbles
 
             for child in sorted(tree.connecting_points[node], reverse=True):
                 if count == 0:
-                    x1_coordinate_of_connector = tree.connecting_points[node][child]['x_coordinate_of_connector']
-                    y1_coordinate_of_connector = tree.connecting_points[node][child]['y_coordinate_of_connector']
+                    x1_coordinate_of_connector = tree.connecting_points\
+                      [node][child]['x_coordinate_of_connector']
+                    y1_coordinate_of_connector = tree.connecting_points\
+                      [node][child]['y_coordinate_of_connector']
                 else:
-                    x2_coordinate_of_connector = tree.connecting_points[node][child]['x_coordinate_of_connector']
-                    y2_coordinate_of_connector = tree.connecting_points[node][child]['y_coordinate_of_connector']
+                    x2_coordinate_of_connector = tree.connecting_points\
+                      [node][child]['x_coordinate_of_connector']
+                    y2_coordinate_of_connector = tree.connecting_points\
+                      [node][child]['y_coordinate_of_connector']
                 count += 1
 
             # The points (x1/y1) (x2/y2) have to be sorted otherwise
@@ -1375,6 +1391,68 @@ the one that draws the pie-chart bubbles
             # Sorting done
             radius_of_node = tree.x_coord_of_node[node]
             # TK line 712
+
+        return image
+
+
+    def draw_guide_lines_and_leaf_names_circular(image, tree, \
+      mltreemap_results, bubble_type, text_mode):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        species_count = mltreemap_results['species_count']
+        x_coordinate_of_label_start = mltreemap_results\
+          ['x_coordinate_of_label_start']
+        # TK line 736
+        edge_color = 'rgb(220,220,220)'
+        stroke_width = image_width / 1000
+        fontsize = image_width / 100
+        # The picture has been optimized for 267 species.
+        # If we have more, downsize the font.
+        if species_count > 267:
+            fontsize *= 267 / species_count
+        x_gap = image_width / 100
+
+        for node in sorted(tree.y_coord_of_node):
+            if node <= 0:
+                continue
+            x_coord_of_node = tree.x_coord_of_node[node]
+            y_coord_of_node = tree.y_coord_of_node[node]
+            x_coord_of_text = x_coordinate_of_label_start + x_gap
+            y_coord_of_text = y_coord_of_node
+            max_text_length = 37
+            if x_coord_of_node + x_gap < x_coordinate_of_label_start:
+                x1_pos_linear = x_coord_of_node + x_gap / 2
+                x2_pos_linear = x_coordinate_of_label_start - x_gap / 2
+                x1, y1 = calculate_coordinates_circular(mltreemap_results, \
+                  x1_pos_linear, y_coord_of_node)
+                x2, y2 = calculate_coordinates_circular(mltreemap_results, \
+                  x2_pos_linear, y_coord_of_node)
+                # TK line 756
+            else:
+                if x_coord_of_text < x_coord_of_node + x_gap:
+                    x_coord_of_text = x_coord_of_node + x_gap
+                max_text_length = 32
+            node_name = mltreemap_results['name_of_species'][node]
+            temp = re.compile('\A(.%s).'%str(max_text_length))
+            if temp.search(str(node_name)):
+                node_name = str(temp.search(str(node_name)).group(1) + '...'
+            rot_angle = (((y_coord_of_text - y_offset) * 360 * 0.95) / \
+              tree_height) - 90 # Proportion: tree_height == 360 * 0.95
+            x_text, y_text = calculate_coordinates_circular(\
+              mltreemap_results, x_coord_of_text, y_coord_of_text)
+            try:
+                node_name
+            except NameError:
+                sys.exit('ERROR: ' + str(node) + ' has no name!\n')
+            if rot_angle + 90 <= 180:
+                if text_mode:
+                    # TK line 772
+            else:
+                rot_angle += 180
+                if text_mode:
+                    # TK line 775
 
         return image
 
