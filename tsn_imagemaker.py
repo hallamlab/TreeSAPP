@@ -1379,6 +1379,66 @@ class TREEMAP_ml_svg_visualizer:
         return image
 
 
+    def draw_guide_lines_and_leaf_names_circular(image, tree, \
+      mltreemap_results, bubble_type, text_mode):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        species_count = mltreemap_results['species_count']
+        x_coordinate_of_label_start = mltreemap_results\
+          ['x_coordinate_of_label_start']
+        # TK line 736
+        edge_color = 'rgb(220,220,220)'
+        stroke_width = image_width / 1000
+        fontsize = image_width / 100
+        # The picture has been optimized for 267 species. 
+        # If we have more, downsize the font.
+        if species_count > 267:
+            fontsize *= 267 / species_count
+        x_gap = image_width / 100
+
+        for node in sorted(tree.y_coord_of_node):
+            if node <= 0:
+                continue
+            x_coord_of_node = tree.x_coord_of_node[node]
+            y_coord_of_node = tree.y_coord_of_node[node]
+            x_coord_of_text = x_coordinate_of_label_start + x_gap
+            y_coord_of_text = y_coord_of_node
+            max_text_length = 37
+            if x_coord_of_node + x_gap < x_coordinate_of_label_start:
+                x1_pos_linear = x_coord_of_node + x_gap / 2
+                x2_pos_linear = x_coordinate_of_label_start - x_gap / 2
+                x1, y1 = calculate_coordinates_circular(mltreemap_results, x1_pos_linear, y_coord_of_node)
+                x2, y2 = calculate_coordinates_circular(mltreemap_results, x2_pos_linear, y_coord_of_node)
+                # TK line 756
+            else:
+                if x_coord_of_text < x_coord_of_node + x_gap:
+                    x_coord_of_text = x_coord_of_node + x_gap
+                max_text_length = 32
+            node_name = mltreemap_results['name_of_species'][node]
+            temp = re.compile('\A(.%s).'%str(max_text_length))
+            if temp.search(node_name):
+                node_name = str(temp.search(node_name).group(1)) + '...'
+            rot_angle = (((y_coord_of_text - y_offset) * 360 * 0.95) / \
+              tree_height) - 90 # Proportion: tree_height == 360 * 0.95
+            x_text, y_text = calculate_coordinates_circular(\
+              mltreemap_results, x_coord_of_text, y_coord_of_text)
+            try:
+                node_name
+            except NameError:
+                sys.exit('ERROR: ' + str(node) + ' has no name!\n')
+            if rot_angle + 90 <= 180:
+                if text_mode:
+                    # TK line 772
+            else:
+                rot_angle += 180
+                if text_mode:
+                    # TK line 775
+
+        return image
+
+
 class svgHelper:
 
 
