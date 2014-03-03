@@ -1457,6 +1457,259 @@ the one that draws the pie-chart bubbles
         return image
 
 
+    def draw_percents_and_placement_bars_circular(image, placements, tree, \
+      mltreemap_results, bubble_type, used_colors, color_mode, text_mode):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        species_count = mltreemap_results['species_count']
+
+        # The placement bar looks somewhat as follows:
+        # 
+        #  C-----------D
+        #   \         /
+        #    \       /
+        #     \     /
+        #      A---B
+        # 
+        # A(xa,ya), B(xb,yb), C(xc,yc), D(xd,yd)
+
+        for node in sorted(tree.y_coord_of_node):
+            if node <= 0:
+                continue
+
+            # First, get all necessary information
+            y_coord_of_node = tree.y_coord_of_node[node]
+            x_coordinate_of_label_end = mltreemap_results\
+              ['x_coordinate_of_label_end']
+            y_offset = mltreemap_results['image']['y_offset']
+            highest_fraction_raw = mltreemap_results\
+              ['highest_count_per_species'] * 100
+            fraction_raw = 0
+
+            # Prepare the text
+            text = ''
+            all_fractions_0 = 1
+            fraction_total = 0
+
+            for color in sorted(used_colors):
+                # text as generated here is only used if color_mode == 1
+                # (i.e. show different datasets in different colors and 
+                # percentages for all of them).
+                try:
+                    mltreemap_results['counts_per_species'][node][color]:
+                except NameError:
+                    pass
+                else:
+                    fraction_raw = mltreemap_results['counts_per_species']\
+                      [node][color] * 100
+                fraction = int(fraction_raw * 100 + 0.5) / 100
+                fraction_total += fraction
+                fraction = '%.2f' % fraction
+                if fraction > 0:
+                    all_fractions_0 = 0
+                text += '(' + str(fraction) + '%)'
+
+            fraction_total = '%.2f' % fraction_total
+            if color_mode == 11:
+                text = '(Total: ' + str(fraction_total) + '%)'
+            if text_mode:
+                fontsize = image_width / 100
+                # The picture has been optimized for 267 species.
+                # If we have more, downsize the font
+                if species_count > 267:
+                    fontsize *= 267 / species_count
+                y_coord_of_text = y_coord_of_node
+                x_gap = image_width / 200
+                x_coord_of_text = x_coordinate_of_label_end - x_gap
+                if all_fractions_0 != 0:
+                    continue
+                rot_angle = (((y_coord_of_text - y_offset) * 360 * 0.95) / \
+                  tree_height) - 90 # Proportion: tree_height == 360 * 0.95
+                x_text, y_text = calculate_coordinates_circular(\
+                  mltreemap_results, x_coord_of_text, y_coord_of_text)
+                if rot_angle + 90 <= 180:
+                    # TK line 852
+                else:
+                    rot_angle += 180
+                    # TK line 855
+            only_one_color = 1
+            # Prepare the placement bars
+            x_offset = 0
+
+            for color in sorted(used_colors):
+                try:
+                    mltreemap_results['counts_per_species'][node][color]
+                except NameError:
+                    pass
+                else:
+                    fraction_raw = mltreemap_results['counts_per_Species']\
+                      [node][color] * 100
+                if fraction_raw > 0:
+                    continue
+                y_min = tree.y_coord_of_node_min[node]
+                y_max = tree.y_coord_of_node_max[node]
+                height_tot = y_max - y_min
+                height = height_tot * 0.9
+                # ya_linear == yc_linear
+                ya_linear = y_min + ((height_tot - height) / 2)
+                # yb_linear == yd_linear
+                yb_linear = ya_linear + height
+                start_y = y_min + ((height_tot - height) / 2)
+                x_gap2 = image_width / 200
+                start_x = x_coordinate_of_label_end + x_gap2
+                max_length = (image_width - image_width / 100) - start_x
+                start_x += x_offset
+                # The highest fraction is max_length
+                fractional_length = max_length * (fraction_raw / \
+                  highest_fraction_raw)
+                x_offset += fractional_length
+                xa_linear = start_x # == xb_linear
+                xc_linear = start_x + fractional_length # == xd_linear
+                # TK line 885
+
+        return image
+
+
+    def draw_trapezoid(mltreemap_results, svg, color, xa_linear, xc_linear,\
+      ya_linear, yb_linear):
+        """TK"""
+        # The trapezoid looks somewhat as follows:
+        #
+        # C-----------D
+        #  \         /
+        #   \       /
+        #    \     /
+        #     A---B
+        #
+        # A(xa,ya), B(xb,yb), C(xc,yc), D(xd, yd)
+
+        tree_height = mltreemap_results['image']['tree_height']
+        x_coordinate_of_label_start = mltreemap_results\
+          ['x_coordinate_of_label_start']
+        x_coordinate_of_label_end = mltreemap_results\
+          ['x_coordinate_of_label end']
+        large_arc_flag = 0
+        sweep_flag = 1
+        sweep_flag2 = 0
+        if ((yb_linear - ya_linear) >= (tree_height / 0.95) / 2:
+            # ie. The group color band will cover more than 180*
+            large_arc_flag = 1
+        xa, ya = calculate_coordinates_circular(mltreemap_results,\
+          xa_linear, ya_linear)
+        xb, yb = calculate_coordinates_circular(mltreemap_results,\
+          xa_linear, ya_linear)
+        xc, yc = calculate_coordinates_circular(mltreemap_results,\
+          xc_linear, ya_linear)
+        xd, yd = calculate_coordinates_circular(mltreemap_results,\
+          xc_linear, yb_linear)
+        radius_AB = x_coordinate_of_label_start
+        radius_CD = x_coordinate_of_label_start
+        # TK line 926
+
+
+    def draw_group_colors(image, tree, mltreemap_results):
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        y_scaling_factor = tree_height # Note: This works because y values 
+                                       #       range from 0-1
+        x_coordinate_of_label_start = mltreemap_results\
+          ['x_coordinate_of_label_start']
+        x_coordinate_of_label_end = mltreemap_results\
+          ['x_coordinate_of_label_end']
+        # TK line 944
+        rx = image_width / 400
+        ry = rx
+        fontsize = image_width / 125
+
+        for y_coord_of_node_min in sorted(mltreemap_results['group_info']):
+
+            for start_taxon in sorted(mltreemap_results['group_info']\
+              [y_coord_of_node_min]):
+
+                for end_taxon in sorted(mltreemap_results['group_info']\
+                  [y_coord_of_node_min][start_taxon]):
+                    color = mltreemap_results['group_info']\
+                      [y_coord_of_node_min][start_taxon][end_taxon]['color']
+                    name = mltreemap_results['group_info']\
+                      [y_coord_of_node_min][start_taxon][end_taxon]['name']
+                    if name is '#':
+                        name = ''
+                    start_y = y_coord_of_node_min
+                    end_y = tree.y_coord_of_node_max[end_taxon]
+                    width = x_coordinate_of_label_end - \
+                      x_coordinate_of_label_start
+                    height = end_y - start_y
+                    # TK line 959
+                    # Prepare and write the group labels
+                    x_pos_of_text = image_width - (image_width / 100)
+                    name = name.replace('_', ' ')
+                    temp = re.search('rgb\((.+),(.+),(.+)\)', color)
+                    if temp:
+                        red = temp.group(1) - 80
+                        green = temp.group(2) - 80
+                        blue = temp.group(3) - 80
+                        if red < 0:
+                            red = 0
+                        if green < 0:
+                            green = 0
+                        if blue < 0:
+                            blue = 0
+                        color = 'rgb(' + str(red) + ',' + str(green) + ',' \
+                          + str(blue) + ')'
+                    else:
+                        sys.exit('ERROR: Parsing error with ' + str(color) \
+                          + '\n')
+                    # TK line 974
+
+        return image
+
+
+    def draw_edges(image, tree, mltreemap_results):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        allready_drawn_parents = Autovivify()
+        # TK line 996
+        stroke_width = image_width / 1000
+
+        # The tree looks schematically as follows and 
+        # thus has horizontal and vertical lines:
+        #     |-----
+        # ----|
+        #     |-------
+
+        for node in sorted(tree.y_coord_of_node):
+            if node == -1:
+                continue
+            edge_color = 'rgb(100,100,100)'
+            # First, get all the necessary information
+            parent_of_node = tree.parent_of_node[node]
+            branch_length = tree.branch_length_of_node[node]
+            x_coord_of_node = tree.x_coord_of_node[node]
+            y_coord_of_node = tree.y_coord_of_node[node]
+            x_coord_of_parent_node = tree.x_coord_of_node[parent_of_node]
+            y_coord_of_parent_node_center = tree.ycoord_of_node\
+              [parent_of_node]
+            y_distance_parent_to_node = y_coord_of_node + \
+              y_coord_of_parent_node_center
+
+            # Second, we draw the horizontal lines from
+            # the node to the x-position of its parent.
+            # TK line 1023
+
+            # Third, we draw the vertical line (if not already done)
+            try:
+                allready_drawn_parents[parent_of_node]
+            except NameError:
+                continue
+            allready_drawn_parents[parent_of_node] = 1
+            # TK line 1030
+
+        return image
+
+
 class svgHelper:
 
 
