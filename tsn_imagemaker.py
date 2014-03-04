@@ -1710,6 +1710,156 @@ the one that draws the pie-chart bubbles
         return image
 
 
+    def draw_guide_lines_and_leaf_names(image, tree, mltreemap_results, \
+      text_mode):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        x_coordinate_of_label_start = mltreemap_results\
+          ['x_coordinate_of_label_start']
+        # TK line 1051
+        edge_color = 'rgb(220,220,220)'
+        stroke_width = image_width / 1000
+        fontsize = image_width / 125
+        y_offset2 = 0.3 * fontsize
+        x_gap = image_width / 100
+
+        for node in sorted(tree.y_coord_of_node):
+            if node <= 0:
+                continue
+            x_coord_of_node = tree.x_coord_of_node[node]
+            y_coord_of_node = tree.y_coord_of_node[node]
+            x_coord_of_text = x_coordinate_of_label_start + x_gap
+            max_text_length = 47
+            if x_coord_of_node + x_gap < x_coordinate_of_label_start:
+                # TK line 1064
+            else:
+                if x_coord_of_text < x_coord_of_node + x_gap:
+                    x_coord_of_text = x_coord_of_node + x_gap
+                    max_text_length = 42
+            node_name = mltreemap_results['name_of_species'][node]
+            temp = re.compile('\A(.%s).' % max_text_length)
+            if temp.search(node_name):
+                node_name = str(temp.search(node_name).group(1)) + '...'
+            try:
+                node_name
+            except NameError:
+                sys.exit('ERROR: ' + str(node) + ' has no name!\n')
+            if text_mode:
+                # TK line 1074
+
+         return image
+
+
+    def draw_placement_bubbles(image, tree, mltreemap_results, \
+      param_scale_bubble, bubble_type, is_circular_image):
+        """
+        Note: This subroutine could easily be merged into 'draw_edges'. The 
+        only reason why it exists is that I want the tree drawing to be 
+        separated from 'results drawing'
+        """
+        pi = math.pi
+        # TK line 1095
+
+        # Prepare the code for the placement bubble, initial diameter 40, 
+        # do not change, the bubble size is adjusted later
+        radius = 20
+        placements = create_aquabubblebody(placements, radius)
+        placements = create_aquabubblebrilliance(placements, radius)
+        # Done
+
+        # TK line 1102
+
+        # We want to print the big bubbles first so that they cannot 
+        # completely cover smaller ones
+        total_weights = Autovivify()
+
+        for node in sorted(tree.y_coord_of_node):
+            if node == -1:
+                continue
+            total_node_weight = mltreemap_results['counts_per_node'][node]\
+              ['total_weight']
+            try:
+                total_node_weight
+            except NameError:
+                continue
+            total_weights[total_node_weight][node] = 1
+
+        # Okay, now draw the bubble
+
+        for total_node_weight in sorted(total_weights, reverse=True):
+
+            for node in sorted(total_weights[total_node_weight]):
+                # If total_node_weight == 1, 
+                # radius_real == 20 * param_scale_bubble
+                radius_real = math.sqrt(total_node_weight * 400) * \
+                  param_scale_bubble
+                transform_factor = radius_real / radius
+
+                # To print empty trees, uncomment below code
+                # if transform_factor == 0:
+                #     transform_factor = 1
+
+                branch_length_of_node = tree.branch_length_of_node[node]
+                x_coord_of_node_placement_center = tree.x_coord_of_node\
+                  [node] - branch_length_of_node / 2
+                y_coord_of_node = tree.y_coord_of_node[node]
+
+                # Transform the coordinates if we do the circular image
+                if is_circular_image:
+                    x_coord_of_node_placement_center, y_coord_of_node = \
+                      calculate_coordinates_circular(mltreemap_results, \
+                      x_coord_of_node_placement_center, y_coord_of_node)
+                # Done
+
+                if not transform_factor:
+                    transform_factor = 1
+                x_coord_of_node_placement = \
+                  (x_coord_of_node_placement_center - radius_real) * \
+                  (1 / transform_factor)
+                y_coord_of_node_placement = \
+                  (y_coord_of_node - radius_real) * \
+                  (1 / transform_factor)
+
+                # Color the bubble
+                previous_end_angle = pi / 2
+
+                for color in sorted(mltreemap_results['counts_per_node']\
+                  [node]['colors']:
+                    try:
+                        mltreemap_results['counts_per_node'][node]\
+                          ['colors'][color]
+                    except NameError:
+                        pass
+                    else:
+                        fraction = mltreemap_results['counts_per_node']\
+                          [node]['colors'][color]
+                    if fraction < 0:
+                        continue
+                    if total_node_weight <= 0:
+                        continue
+                    only_one_hit = 0
+                    if fraction == total_node_weight:
+                        only_one_hit = 1
+                    fract_of_bubble = fraction / total_node_weight
+                    start_angle = previous_end_angle
+                    if only_one_hit:
+                        # TK line 1152
+                    else:
+                        placement_bubbles, previous_end_angle = \
+                          draw_pie_chart(placement_bubbles, \
+                          x_coord_of_node_placement_center, \
+                          y_coord_of_node, radius_real, start_angle, \
+                          fract_of_bubble, color)
+
+                if bubble_type:
+                    # Draw the bubble
+                    # TK line 1159
+                    # TK line 1160
+
+        return image, placements
+
+
 class svgHelper:
 
 
