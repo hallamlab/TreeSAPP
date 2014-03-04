@@ -1860,6 +1860,162 @@ the one that draws the pie-chart bubbles
         return image, placements
 
 
+    def draw_pie_chart(placement_bubbles, center_x, center_y, radius, \
+      alpha_r, fract_of_bubble, color):
+        """TK"""
+        # Get the coordinates
+
+        # C (center_x|center_y) = center of circle; P (end_x|end_y), 
+        # Q (start_x|start_y); alphatot = alpha_r + alpha
+        # 
+        # P---------Q
+        # |alpha  / |
+        # |     /   |
+        # |alp/hatot|
+        # | /alpha_r|
+        # C----------
+        # 
+
+        pi = math.pi
+        alpha = fract_of_bubble * 2 * pi
+        alphatot = alpha + alpha_r
+        x_start = center_x + math.cos(alpha_r) * radius
+        y_start = center_y - math.sin(alpha_r) * radius
+        x_end = center_x + math.cos(alphatot) * radius
+        y_end = center_y - math.sin(alphatot) * radius
+
+        # Next get the large_arc_flag
+        large_arc_flag = 0
+        if alpha > pi:
+            large_arc_flag = 1
+
+        # Draw the pie
+        # TK line 1212
+
+        return placement_bubbles, alphatot
+
+
+    def draw_percents_and_placement_bars(image, placements, tree, \
+      mltreemap_results, used_colors, color_mode, text_mode):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+
+        for node in sorted(tree.y_coord_of_node):
+            if node <= 0:
+                continue
+
+            # First, get all the necessary information
+            y_coord_of_node = tree.y_coord_of_node['node']
+            x_coordinate_of_label_end = mltreemap_results\
+              ['x_coordinate_of_label_end']
+            highest_fraction_raw = mltreemap_results\
+              ['highest_count_per_species'] * 100
+            fraction_raw = 0
+
+            # Prepare the text
+            text = ''
+            all_fractions_0 = 1
+            fraction_total = 0
+
+            for color in sorted(used_colors):
+                # text as generated here is only used if color_mode == 1
+                # (ie. show different datasets in different colors and
+                # percentages for all of them)
+                try:
+                    mltreemap_results['counts_per_species'][node][color]
+                except NameError:
+                    pass
+                else:
+                    fraction_raw = mltreemap_results['counts_per_species']\
+                      [node][color] * 100
+                fraction = (int(fraction_raw * 100 + 0.5)) / 100
+                fraction_total += fraction
+                fraction = int(fraction * 100 + 0.5) / 100.0 # Round to 2dec
+                if fraction > 0:
+                    all_fractions_0 = 0
+                text += '(' + str(fraction) + '\%)'
+
+            fraction_total = int(fraction_total * 100 + 0.5) / 100.0
+            if color_mode == 1:
+                text = '(Total: ' + str(fraction_total) + '\%)'
+            if text_mode:
+                fontsize = image_width / 125
+                y_offset2 = 0.3 * fontsize
+                x_gap = image_width / 400
+                if all_fractions_0 != 0:
+                    continue
+                # TK line 1269
+
+            only_one_color = 1
+
+            # Prepare the placement bars
+
+            x_offset = 0
+
+            for color in sorted(mltreemap_results['counts_per_species']\
+              [node]):
+                try:
+                    mltreemap_results['counts_per_species'][node][color]
+                except NameError:
+                    pass
+                else:
+                    fraction_raw = mltreemap_results['counts_per_species']\
+                      [node][color] * 100
+                if fraction_raw <= 0:
+                    continue
+                y_min = tree.y_coord_of_node_min[node]
+                y_max = tree.y_coord_of_node_max[node]
+                height_tot = y_max - y_min
+                height = height_tot * 0.9
+                start_y = y_min + ((height_tot - height) / 2)
+                x_gap2 = image_width / 200
+                start_x = x_coordinate_of_label_end + x_gap2
+                max_length = (image_width - image_width / 100) - start_x
+                start_x += x_offset
+                fractional_length = max_length * (fraction_raw / \
+                  highest_fraction_raw) # The highest fraction is max_length
+                x_offset += fractional_length
+                # TK line 1292
+
+        return image
+
+
+    def create_aquabubblebody(placements, radius):
+        """TK"""
+        # TK line 1306
+
+        # Now the aquabubble body:
+
+        # Part I
+        # TK lines 1312-1323
+        # Part I done
+
+        # Part II
+        # TK lines 1329-1348
+        # Part II done
+
+        # aquabubblebody done
+
+        return placements
+
+
+    def create_aquabubblebrilliance(placements, radius):
+        """TK"""
+        # TK line 1364
+
+        cy = radius / 2.5
+        rx = radius / 2
+        ry = radius / 4
+
+        # Now the brilliance effect
+        # This way of generating a opacity gradient generates valid SVG code
+        # but cannot be interpreted by Adobe Illustrator CS3
+        # TK lines 1373-1381
+
+        return placements
+
+
 class svgHelper:
 
 
