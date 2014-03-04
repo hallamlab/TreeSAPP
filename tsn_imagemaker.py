@@ -2016,6 +2016,166 @@ the one that draws the pie-chart bubbles
         return placements
 
 
+   def read_tree_topology(mltreemap_results):
+       """TK"""
+       print 'reading tree topology...\n'
+       tree_file = 'tree_data/' + str(mltreemap_results['tree_file']
+       tree = NEWICK_tree()
+       tree.read_tree_topology_from_file(tree_file)
+       tree.optimize_species_display_order
+
+       # Do some hard coded manipulation
+       tree.branch_length_of_node[-1] = 0.01
+       # Done
+
+       compute_node_positions(tree)
+       tree, mltreemap_results = scale_node_positions(tree, \
+         mltreemap_results)
+
+       return tree
+
+
+    def scale_node_positions(tree, mltreemap_results):
+        """TK"""
+        image_width = mltreemap_results['image']['width']
+        tree_height = mltreemap_results['image']['tree_height']
+        y_offset = mltreemap_results['image']['y_offset']
+        y_scaling_factor = tree_height # Note: This works because y values 
+                                       #       range from 0 - 1
+
+        # Assign the highest possible tree x coordinate 
+        # and calculate the x_scaling_factor
+        x_scaling_factor = 0
+
+        for x_val in sorted(tree.nodes_of_x_coords, reverse=True):
+            x_scaling_factor = mltreemap_results\
+              ['x_coordinate_of_tree_end'] / x_val
+            try:
+                x_scaling_factor
+            except NameError:
+                sys.exit('ERROR: x scaling factor could ' + \
+                  'not be calculated!\n')
+            continue
+
+        if not x_scaling_factor:
+            sys.exit('ERROR: x scaling factor could not be determined!\n')
+
+        for node in sorted(tree.y_coord_of_node):
+            y_coord_of_node = tree.y_coord_of_node[node] * \
+              y_scaling_factor + y_offset
+            x_coord_of_node = tree.x_coord_of_node[node] * \
+              x_scaling_factor
+            branch_length_of_node = tree.branch_length_of_node[node] * \
+              x_scaling_factor
+            tree.y_coord_of_node[node] = y_coord_of_node
+            tree.x_coord_of_node[node] = x_coord_of_node
+            tree.branch_length_of_node[node] = branch_length_of_node
+            if node > 0:
+                y_coord_of_node_min = tree.y_coord_of_node_min[node] * \
+                  y_scaling_factor + y_offset
+                y_coord_of_node_max = tree.y_coord_of_node_max[node] * \
+                  y_scaling_factor + y_offset
+                tree.y_coord_of_node_min[node] = y_coord_of_node_min
+                tree.y_coord_of_node_max[node] = y_coord_of_node_max
+
+        return tree
+
+
+    def compute_node_positions_sort_helper(a, b):
+        a_sort = 1
+        try:
+            tree.species_display_order[a]
+        except NameError:
+            pass
+        else:
+            a_sort = tree.species_display_order[a]
+        b_sort = 1
+        try:
+            tree.species_display_order[b]
+        except NameError:
+            pass
+        else:
+            b_sort = tree.species_display_order[b]
+        return cmp(a_sort, b_sort)
+
+
+    def compute_node_positions(tree):
+        """
+        This routine performs the actual placement of the tree (branches, 
+        leaves) in terms of x,y-coordinate with which they will later be 
+        put on the canvas. This routine does not perform the actual drawing.
+        """
+        y_position = 0
+
+        for node in sorted(tree.parent_of_node, \
+          cmp=compute_node_positions_sort_helper):
+            if node <= 0:
+                continue
+            fraction = 1 / len(tree.terminal_nodes)
+            tree.y_coord_of_node_min[node] = y_position
+            tree.y_coord_of_node[node] = y_position + (fraction * 0.5)
+            tree.y_coord_of_node_max[node] = y_position + fraction
+            y_position += fraction
+
+        assign_y_coord_internal_node(tree, -1)
+        assign_x_coord_to_node(tree, -1, 0.01) # Note: 0.01 is the hardcoded
+                                               # branch length of node -1
+
+        # CVM WATCH: The vertical position of node -2 is meddled with here 
+        # in order to avoid the 'kink' at the root
+
+
+    def assign_y_coord_internal_node(tree, this_node):
+        """
+        This recursive routine assigns the Y-position for all internal 
+        nodes. It also assigns positions needed for the 'taxon-illustration'
+        bit. Call this routine only after you have already assigned 
+        Y-positions to the terminal (leaf) nodes.
+        """
+        try:
+            tree.y_coord_of_node[this_node]
+        except NameError:
+            pass
+        else:
+            position = tree.y_coord_of_node[this_node]
+            return position
+        if this_node > 0: # For security. Should never happen.
+            return 0
+        min_position = 100000
+        max_position = 0
+
+        for child in tree.children_of_node[this_node]:
+            position = assign_y_coord_internal_node(tree, child)
+            if position < min_position:
+                min_position = position
+            if position > max_position and child < 1000000:
+                max_position = position
+
+        this_position = (min_position + max_position) / 2
+        tree.y_coord_of_node[this_node] = this_position
+
+        return this_position
+
+
+    def assign_x_coord_to_node(tree, this_node, current_x_position):
+        """TK"""
+        tree.x_coord_of_node[this_node] = current_x_position
+        tree.nodes_of_x_coords[current_x_position] = this_node
+        if this_node < 0:
+
+            for child in tree.children_of_node[this_node]:
+                branch_length = 0.02
+                try:
+                    tree.branch_length_of_node[child]
+                except NameError:
+                    print 'WARNING: No branch-length for node ' + \
+                      str(this_node) + '!\n'
+                else:
+                    branch_length = tree.branch_length_of_node[child]
+                assign_x_coord_to_node(tree, child, \
+                  current_x_position + branch_length)
+
+
 class svgHelper:
 
 
