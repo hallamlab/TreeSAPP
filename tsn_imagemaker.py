@@ -5,6 +5,7 @@
 # Include the necessary libraries
 try:
     import math
+    import svgwrite
     # TK
 except:
     # TK
@@ -1064,21 +1065,22 @@ class TREEMAP_ml_svg_visualizer:
         legend_width = 7 * namelength_max
         y_offset = 12
         legend_height = y_offset + y_offset * nr_of_datasets
-        legend = svgHelper()
-        legend.width = str(legend_width) + 'px'
-        legend.height = str(legend_height) + 'px'
+        legend = svgwrite.Drawing(filename=str(output_dir) + \
+          str(denominator) + '_color_legend_.svg', size = \
+          (str(legend_width) + 'px',str(legend_height) + 'px'))
         y_pos = y_offset
 
         for color in sorted(color_info):
             filename = color_info[color]
-            legend.addRectangle({'x' : 10, 'y' : y_pos - y_offset, \
-              'width' : y_offset, 'height' : y_offset, 'fill' : color})
-            legend.addText({'x' : y_offset + 10, 'y' : y_pos, \
-              'style' : 'font-family: Verdana; font-size: 10'}, \
-              cdata(filename))
+            legend.add(legend.rect(insert = (10, y_pos - y_offset), \
+              size = (str(y_offset), str(y_offset)), rx = None, ry = None, \
+              fill = str(color)))
+            legend.add(legend.text(str(filename), (y_offset + 10, y_pos), \
+              style = 'font-family:Verdana; font-size:10'))
             y_pos += y_offset
 
-        output.write(legend.xmlify())
+        legend.save()
+        output.write(legend.tostring())
         output.close()
 
 
@@ -1099,12 +1101,12 @@ class TREEMAP_ml_svg_visualizer:
         except: # TK
             sys.exit('ERROR: Can\'t create ' + str(output_file_name) + \
               '!\n')
-        image = svgHelper()
-        image.width = str(image_width) + 'px'
-        image.height = str(image_height) + 'px'
-        image.addText({'x' : image_width * 0.01, 'y' : y_offset / 2, \
-          'style' : 'font-family: Verdana; font-size: ' + \
-          str(image_width / 50)}, cdata(text_f_denominator))
+        image = svgwrite.Drawing(filename = str(output_dir) + \
+          str(input_file_name) + '_image_straight_.svg', \
+          size = (str(image_width) + 'px', str(image_height) + 'px'))
+        image.add(image.text(str(text_of_denominator), \
+          (image_width * 0.01, y_offset / 2), style = \
+          'font-family:Verdana; font-size:' + str(image_width / 50)))
         placements = ''
         image = draw_group_colors(image, tree, mltreemap_results)
         image = draw_edges(image, tree, mltreemap_results)
@@ -1114,7 +1116,8 @@ class TREEMAP_ml_svg_visualizer:
           mltreemap_results, param_scale_bubble, bubble_type, 0)
         image = draw_percents_and_placement_bars(image, placements, tree, \
           mltreemap_results, used_colors, color_mode, text_mode)
-        output.write(image.xmlify())
+        image.save()
+        output.write(image.tostring())
         output.close()
 
 
@@ -1139,12 +1142,13 @@ class TREEMAP_ml_svg_visualizer:
         except: # TK
             sys.exit('ERROR: Can\'t create ' + str(output_file_name) + \
               '!\n')
-        image = svgHelper()
-        image.width = str(image_diameter_circular) + 'px'
-        image.height = str(image_diameter_circular) + 'px'
-        image.addText({'x' : image_width * 0.01, 'y' : y_offset / 2, \
-          'style' : 'font-family: Verdana, font-size: ' + \
-          str(image_width/50)}, cdata(text_of_denominator))
+        image = svgwrite.Drawing(filename = str(output_dir) + \
+          str(input_file_name) + '_image_circular_.svg', size = \
+          (str(image_diameter_circular) + 'px', \
+          str(image_diameter_circular) + 'px'))
+        image.add(image.text(str(text_of_denominator), \
+          (image_width * 0.01, y_offset / 2), style = \
+          'font-family:Verdana; font-size:' + str(image_width / 50)))
         placements = ''
         tree, mltreemap_results = prepare_coordinates_circular(tree, \
           mltreemap_results)
@@ -1157,7 +1161,8 @@ class TREEMAP_ml_svg_visualizer:
         image = draw_percents_and_placement_bars_circular(image, \
           placements, tree, mltreemap_results, bubble_type, used_colors, \
           color_mode, text_mode)
-        output.write(image.xmlify())
+        image.save()
+        output.write(image.tostring())
         output.close()
 
 
@@ -1247,7 +1252,7 @@ the one that draws the pie-chart bubbles
           ['x_coordinate_of_label_start']
         x_coordinate_of_label_end = mltreemap_results\
           ['x_coordinate_of_label_end']
-        # TK Line 573
+        groups = image.defs.add(image.g(id='groups'))
         fontsize = image_width / 60
         pi = math.pi
 
@@ -1292,7 +1297,10 @@ the one that draws the pie-chart bubbles
                         continue
                     if is_first_label == 1:
                         text = 'Group names (clockwise):'
-                        # TK line 610
+                        groups.add(image.text(str(text), (x_pos_of_text, \
+                          text_y), style = \
+                          'font-family:Verdana; font-size:' + \
+                          str(fontsize) + '; fill: rgb(0,0,0)'))
                         is_first_label = 0
                     name = name.replace('_', ' ')
                     if re.search('rgb\((.+),(.+),(.+)\)', color):
@@ -1314,7 +1322,9 @@ the one that draws the pie-chart bubbles
                         sys.exit('ERRROR: Parsing error with ' + \
                           str(color) + '\n')
                     text_y += fontsize * 1.2
-                    # TK line 627
+                    groups.add(image.text(str(name), (x_pos_of_text, \
+                      text_y), style = 'font-family:Verdana; font-size:' + \
+                      str(fontsize) + '; fill:' + str(color)))
 
         return image
 
@@ -1327,7 +1337,7 @@ the one that draws the pie-chart bubbles
         image_diameter_circular = mltreemap_results['image_circular']\
           ['diameter']
         allready_drawn_connector = Autovivify()
-        # TK line 650
+        edges = image.defs.add(image.g(id = 'edges'))
         stroke_width = image_width / 1000
 
         for node in sorted(tree.y_coord_of_node):
@@ -1342,7 +1352,10 @@ the one that draws the pie-chart bubbles
                   tree.y_coord_of_node_connector_circular[node]
                 # Second, we draw the line from the node to
                 # the connection position of its parent
-                # TK line 669
+                edges.add(image.line((x_coord_of_node, y_coord_of_node), \
+                  (x_coord_of_node_connector, y_coord_of_node_connector), \
+                  stroke_linecap = 'round', stroke = str(edge_color), \
+                  stroke_width = str(stroke_width), stroke_opacity = 1))
             # Third, we draw the line between the connecting
             # points (if not already done)
             try:
@@ -1390,7 +1403,14 @@ the one that draws the pie-chart bubbles
                 sweep_flag = 0
             # Sorting done
             radius_of_node = tree.x_coord_of_node[node]
-            # TK line 712
+            edges.add(image.path(d = 'M ' + \
+              str(x1_coordinate_of_connector) + ',' + \
+              str(y1_coordinate_of_connector) + ' A ' + \
+              str(radius_of_node) + ',' + str(radius_of_node) + ' 0 ' + \
+              str(large_arc_flag) + ', ' + str(sweep_flag) + ' ' + \
+              str(x2_coordinate_of_connector) + ',' + \
+              str(y2_coordinate_of_connector), opacity = 1, stroke_width = \
+              stroke_width, stroke = edge_color, fill = None))
 
         return image
 
@@ -1404,7 +1424,8 @@ the one that draws the pie-chart bubbles
         species_count = mltreemap_results['species_count']
         x_coordinate_of_label_start = mltreemap_results\
           ['x_coordinate_of_label_start']
-        # TK line 736
+        guide_lines_and_labels = image.defs.add(image.g(id = \
+          'guide_lines_and_labels')
         edge_color = 'rgb(220,220,220)'
         stroke_width = image_width / 1000
         fontsize = image_width / 100
@@ -1429,7 +1450,11 @@ the one that draws the pie-chart bubbles
                   x1_pos_linear, y_coord_of_node)
                 x2, y2 = calculate_coordinates_circular(mltreemap_results, \
                   x2_pos_linear, y_coord_of_node)
-                # TK line 756
+                if text_mode:
+                    guide_lines_and_labels.add(image.line((x1, y1), \
+                      (x2, y2), stroke_linecap = 'round', stroke = \
+                      str(edge_color), stroke_width = str(stroke_width), \
+                      stroke_opacity = 1))
             else:
                 if x_coord_of_text < x_coord_of_node + x_gap:
                     x_coord_of_text = x_coord_of_node + x_gap
@@ -1448,11 +1473,21 @@ the one that draws the pie-chart bubbles
                 sys.exit('ERROR: ' + str(node) + ' has no name!\n')
             if rot_angle + 90 <= 180:
                 if text_mode:
-                    # TK line 772
+                    guide_lines_and_labels.add(image.text(str(node_name), \
+                      (x_text, y_text), transform = 'rotate(' + \
+                      str(rot_angle) + ' ' + str(x_text) + ',' + \
+                      str(y_text) + ')', style = \
+                      'font-family:Verdana; font-size:' + str(fontsize)))
             else:
                 rot_angle += 180
                 if text_mode:
-                    # TK line 775
+                    # TK line 775 best translation guess below. DEBUG?
+                    guide_lines_and_labels.add(image.text(str(node_name), \
+                      (x_text, ytext), transform = 'rotate(' + \
+                      str(rot_angle) + ' ' + str(x_text) + ',' + \
+                      str(y_text) + ')', style = \
+                      'font-family:Verdana; font-size:' + str(fontsize) + \
+                      '; text-anchor:end'))
 
         return image
 
@@ -1529,10 +1564,18 @@ the one that draws the pie-chart bubbles
                 x_text, y_text = calculate_coordinates_circular(\
                   mltreemap_results, x_coord_of_text, y_coord_of_text)
                 if rot_angle + 90 <= 180:
-                    # TK line 852
+                    placements.add(image.text(str(text), (x_text, y_text), \
+                      transform = 'rotate(' + str(rot_angle) + ' ' + \
+                      str(x_text) + ',' + str(y_text) + ')', style = \
+                      'font-family:Verdana; font-size:' + str(fontsize) + \
+                      '; text-anchor:end'))
                 else:
                     rot_angle += 180
-                    # TK line 855
+                    # TK line 855 this is my best guess; DEBUG
+                    placements.add(image.text(str(text), (x_text, y_text), \
+                      transform = 'rotate(' + str(rotate_angle) + ' ' + \
+                      str(x_text) + ',' + str(y_text) + ')', style = \
+                      'font-family:Verdana; font-size:' + str(fontsize)))
             only_one_color = 1
             # Prepare the placement bars
             x_offset = 0
@@ -1566,7 +1609,8 @@ the one that draws the pie-chart bubbles
                 x_offset += fractional_length
                 xa_linear = start_x # == xb_linear
                 xc_linear = start_x + fractional_length # == xd_linear
-                # TK line 885
+                draw_trapezoid(mltreemap_results, placements, color, \
+                  xa_linear, xc_linear, ya_linear, yb_linear)
 
         return image
 
@@ -1605,7 +1649,13 @@ the one that draws the pie-chart bubbles
           xc_linear, yb_linear)
         radius_AB = x_coordinate_of_label_start
         radius_CD = x_coordinate_of_label_start
-        # TK line 926
+        svg.add(image.path(d = 'M ' + str(xa) + ',' + str(ya) + ' A ' + \
+          str(radius_AB) + ',' + str(radius_AB) + ' 0 ' + \
+          str(large_arc_flag) + ', ' + str(sweep_flag) + ' ' + str(xb) + \
+          ',' + str(yb) + ' L ' + str(xd) + ',' + str(yd) + ' A ' + \
+          str(radius_CD) + ',' + str(radius_CD) + ' 0 ' + \
+          str(large_arc_flag) + ', ' + str(sweep_flag2) + ', ' + str(xc) + \
+          ',' + str(yc) + ' z', opacity = 1, fill = str(color)))
 
 
     def draw_group_colors(image, tree, mltreemap_results):
@@ -1617,7 +1667,7 @@ the one that draws the pie-chart bubbles
           ['x_coordinate_of_label_start']
         x_coordinate_of_label_end = mltreemap_results\
           ['x_coordinate_of_label_end']
-        # TK line 944
+        groups = image.defs.add(image.g(id = 'groups'))
         rx = image_width / 400
         ry = rx
         fontsize = image_width / 125
@@ -1640,7 +1690,10 @@ the one that draws the pie-chart bubbles
                     width = x_coordinate_of_label_end - \
                       x_coordinate_of_label_start
                     height = end_y - start_y
-                    # TK line 959
+                    groups.add(image.rect(insert = \
+                      (x_coordinate_of_label_start, start_y), size = \
+                      (str(width), str(height)), rx = rx, ry = ry, fill = \
+                      str(color)))
                     # Prepare and write the group labels
                     x_pos_of_text = image_width - (image_width / 100)
                     name = name.replace('_', ' ')
@@ -1660,7 +1713,11 @@ the one that draws the pie-chart bubbles
                     else:
                         sys.exit('ERROR: Parsing error with ' + str(color) \
                           + '\n')
-                    # TK line 974
+                    groups.add(image.text(str(name), (x_pos_of_text, \
+                      start_y), transform = 'rotate(90 ' + \
+                      str(x_pos_of_text) + ',' + str(start_y) + ')', \
+                      style = 'font-family:Verdana; font-size:' + \
+                      str(fontsize) + '; fill:' + str(color)))
 
         return image
 
@@ -1671,7 +1728,7 @@ the one that draws the pie-chart bubbles
         tree_height = mltreemap_results['image']['tree_height']
         y_offset = mltreemap_results['image']['y_offset']
         allready_drawn_parents = Autovivify()
-        # TK line 996
+        edges = image.defs.add(image.g(id = 'edges'))
         stroke_width = image_width / 1000
 
         # The tree looks schematically as follows and 
@@ -1697,7 +1754,11 @@ the one that draws the pie-chart bubbles
 
             # Second, we draw the horizontal lines from
             # the node to the x-position of its parent.
-            # TK line 1023
+            edges.add(image.line(start = (x_coord_of_node, \
+              y_coord_of_node), end = (x_coord_of_parent_node, \
+              y_coord_of_node), stroke_linecape = 'round', stroke = \
+              str(edge_color), stroke_width = str(stroke_width) + \
+              stroke_opacity = 1))
 
             # Third, we draw the vertical line (if not already done)
             try:
@@ -1705,7 +1766,11 @@ the one that draws the pie-chart bubbles
             except NameError:
                 continue
             allready_drawn_parents[parent_of_node] = 1
-            # TK line 1030
+            edges.add(image.line(start = (x_coord_of_parent_node, \
+              y_coord_of_node), end = (x_coord_of_parent_node, \
+              y_coord_of_node - 2 * y_distance_parent_to_node), \
+              stroke_linecap = 'round', stroke = str(edge_color), \
+              stroke_width = str(stroke_width), stroke_opacity = 1))
 
         return image
 
@@ -1717,7 +1782,8 @@ the one that draws the pie-chart bubbles
         tree_height = mltreemap_results['image']['tree_height']
         x_coordinate_of_label_start = mltreemap_results\
           ['x_coordinate_of_label_start']
-        # TK line 1051
+        guide_lines_and_labels = image.defs.add(image.g(\
+          id = 'guide_lines_and_labels'))
         edge_color = 'rgb(220,220,220)'
         stroke_width = image_width / 1000
         fontsize = image_width / 125
@@ -1732,7 +1798,13 @@ the one that draws the pie-chart bubbles
             x_coord_of_text = x_coordinate_of_label_start + x_gap
             max_text_length = 47
             if x_coord_of_node + x_gap < x_coordinate_of_label_start:
-                # TK line 1064
+                if text_mode:
+                    guide_lines_and_labels.add(image.line(start = \
+                      (x_coord_of_node + x_gap / 2, y_coord_of_node), \
+                      end = (x_coordinate_of_label_start - x_gap / 2, \
+                      y_coord_of_node), stroke_linecap = 'round', stroke = \
+                      str(edge_color), stroke_width = str(stroke_width), \
+                      stroke_opacity = 1)
             else:
                 if x_coord_of_text < x_coord_of_node + x_gap:
                     x_coord_of_text = x_coord_of_node + x_gap
@@ -1746,7 +1818,9 @@ the one that draws the pie-chart bubbles
             except NameError:
                 sys.exit('ERROR: ' + str(node) + ' has no name!\n')
             if text_mode:
-                # TK line 1074
+                guide_lines_and_labels.add(image.text(str(node_name), \
+                  (x_coord_of_text, y_coord_of_node + y_offset2), style = \
+                  'font-family:Verdana; font-size:' + str(fontsize)))
 
          return image
 
@@ -1759,7 +1833,7 @@ the one that draws the pie-chart bubbles
         separated from 'results drawing'
         """
         pi = math.pi
-        # TK line 1095
+        placements = image.defs.add(image.g(id = 'placements'))
 
         # Prepare the code for the placement bubble, initial diameter 40, 
         # do not change, the bubble size is adjusted later
@@ -1768,7 +1842,8 @@ the one that draws the pie-chart bubbles
         placements = create_aquabubblebrilliance(placements, radius)
         # Done
 
-        # TK line 1102
+        placement_bubbles = placements.defs.add(placements.g(\
+          id = 'placement_bubbles'))
 
         # We want to print the big bubbles first so that they cannot 
         # completely cover smaller ones
@@ -1844,7 +1919,10 @@ the one that draws the pie-chart bubbles
                     fract_of_bubble = fraction / total_node_weight
                     start_angle = previous_end_angle
                     if only_one_hit:
-                        # TK line 1152
+                        placement_bubbles.add(image.circle(center = \
+                          (x_coord_of_node_placement_center, \
+                          y_coord_of_node), r = radius_real, opacity = 1, \
+                          fill = str(color)))
                     else:
                         placement_bubbles, previous_end_angle = \
                           draw_pie_chart(placement_bubbles, \
@@ -1854,8 +1932,14 @@ the one that draws the pie-chart bubbles
 
                 if bubble_type:
                     # Draw the bubble
-                    # TK line 1159
-                    # TK line 1160
+                    placement_bubbles.add(image.use('body', insert = \
+                      (x_coord_of_node_placement, \
+                      y_coord_of_node_placement), transform = 'scale(' + \
+                      str(transform_factor) + ')'))
+                    placement_bubbles.add(image.use('brilliance', insert = \
+                      (x_coord_of_node_placement, \
+                      y_coord_of_node_placement), transform = 'scale(' + \
+                      str(transform_factor) + ')'))
 
         return image, placements
 
@@ -1890,7 +1974,11 @@ the one that draws the pie-chart bubbles
             large_arc_flag = 1
 
         # Draw the pie
-        # TK line 1212
+        placement_bubbles.add(image.path(d = 'M ' + str(center_x) + ',' + \
+          str(center_y) + ' L ' + str(x_start) + ',' + str(y_start) + \
+          ' A ' + str(radius) + ',' + str(radius) + ' 0 ' + \
+          str(large_arc_flag) + ', 0 ' + str(x_end) + ',' + str(y_end) + \
+          ' z', opacity = 1, fill = str(color)))
 
         return placement_bubbles, alphatot
 
@@ -1945,7 +2033,10 @@ the one that draws the pie-chart bubbles
                 x_gap = image_width / 400
                 if all_fractions_0 != 0:
                     continue
-                # TK line 1269
+                placements.add(image.text(str(text), insert = \
+                  (x_coordinate_of_label_end - x_gap, y_coord_of_node + \
+                  y_offset2), style = 'font-family:Verdana; font-size:' + \
+                  str(fontsize) + '; text-anchor:end'))
 
             only_one_color = 1
 
@@ -1976,23 +2067,57 @@ the one that draws the pie-chart bubbles
                 fractional_length = max_length * (fraction_raw / \
                   highest_fraction_raw) # The highest fraction is max_length
                 x_offset += fractional_length
-                # TK line 1292
+                placements.add(image.rect(insert = (start_x, start_y), \
+                  size = (fractional_length, height), fill = str(color)))
 
         return image
 
 
     def create_aquabubblebody(placements, radius):
         """TK"""
-        # TK line 1306
+        svg = placements.defs
 
         # Now the aquabubble body:
 
         # Part I
-        # TK lines 1312-1323
+        bubble_gradient1 = image.linearGradient(start = ('50%', '100%'), \
+          end = ('50%', '0%'), id = 'bubble_gradient1')
+        svg.add(bubble_gradient1)
+        bubble_gradient1.add_stop_color(offset = 0.2472, color = '#FAFAFA')
+        bubble_gradient1.add_stop_color(offset = 0.3381, color = '#D0D0D0')
+        bubble_gradient1.add_stop_color(offset = 0.4517, color = '#A2A2A2')
+        bubble_gradient1.add_stop_color(offset = 0.5658, color = '#7C7C7C')
+        bubble_gradient1.add_stop_color(offset = 0.6785, color = '#5E5E5E')
+        bubble_gradient1.add_stop_color(offset = 0.7893, color = '#494949')
+        bubble_gradient1.add_stop_color(offset = 0.8975, color = '#3C3C3C')
+        bubble_gradient1.add_stop_color(offset = 1, color = '#383838')
+        svg.add(image.circle(center = (radius, radius), r = radius, id = \
+          'bubble_part1', opacity = 0.4, fill = 'url(#bubble_gradient1)'))
         # Part I done
 
         # Part II
-        # TK lines 1329-1348
+        bubble_gradient2 = image.radialGradient(center = ('50%', '50%'), \
+          r = '50%', id = 'bubble_gradient2')
+        svg.add(bubble_gradient2)
+        bubble_gradient2.add_stop_color(offset = 0, color = '#FFFFFF')
+        bubble_gradient2.add_stop_color(offset = 0.3726, color = '#FDFDFD')
+        bubble_gradient2.add_stop_color(offset = 0.5069, color = '#F6F6F6')
+        bubble_gradient2.add_stop_color(offset = 0.6026, color = '#EBEBEB')
+        bubble_gradient2.add_stop_color(offset = 0.68, color = '#DADADA')
+        bubble_gradient2.add_stop_color(offset = 0.7463, color = '#C4C4C4')
+        bubble_gradient2.add_stop_color(offset = 0.805, color = '#A8A8A8')
+        bubble_gradient2.add_stop_color(offset = 0.8581, color = '#888888')
+        bubble_gradient2.add_stop_color(offset = 0.9069, color = '#626262')
+        bubble_gradient2.add_stop_color(offset = 0.9523, color = '#373737')
+        bubble_gradient2.add_stop_color(offset = 0.9926, color = '#090909')
+        bubble_gradient2.add_stop_color(offset = 1, color = '#000000')
+
+        svg.add(image.circle(center = (radius, radius), r = radius, id = \
+          'bubble_part2', opacity = 0.1, fill = 'url(#bubble_gradient2)'))
+        group1_svg = placements.g(id = 'body')
+        svg.add(group1_svg)
+        group1_svg.defs.add(placements.use('bubble_part1'))
+        group1_svg.defs.add(placements.use('bubble_part2'))
         # Part II done
 
         # aquabubblebody done
@@ -2002,7 +2127,7 @@ the one that draws the pie-chart bubbles
 
     def create_aquabubblebrilliance(placements, radius):
         """TK"""
-        # TK line 1364
+        svg = placements.defs
 
         cy = radius / 2.5
         rx = radius / 2
@@ -2011,7 +2136,22 @@ the one that draws the pie-chart bubbles
         # Now the brilliance effect
         # This way of generating a opacity gradient generates valid SVG code
         # but cannot be interpreted by Adobe Illustrator CS3
-        # TK lines 1373-1381
+        brilliance_gradient = placements.linearGradient(start = ('50%', '0%'), end = ('50%', '100%'), id = 'brilliance_gradient')
+        svg.add(brilliance_gradient)
+        brilliance_gradient.add_stop_color(offset = 0, color = '#FFFFFF', \
+          opacity = 1)
+        brilliance_gradient.add_stop_color(offset = 0.1, color = '#FFFFFF',\
+          opacity = 0.99)
+        brilliance_gradient.add_stop_color(offset = 1, color = '#FFFFFF', \
+          opacity = 0)
+
+        svg.add(image.ellipse(center = (radius, cy), radius = (rx, ry), \
+          id = 'bubble_brilliance', opacity = 0.9, \
+          fill = 'url(#brilliance_gradient)'))
+
+        group1_svg = placements.g(id = 'brilliance')
+        svg.add(group1_svg)
+        group1_svg.add(placements.use('bubble_brilliance'))
 
         return placements
 
@@ -2174,66 +2314,6 @@ the one that draws the pie-chart bubbles
                     branch_length = tree.branch_length_of_node[child]
                 assign_x_coord_to_node(tree, child, \
                   current_x_position + branch_length)
-
-
-class svgHelper:
-
-
-    def __init__(self):
-        self.width = '100px' # Some arbitrary starting width
-        self.height = '100px' # Some arbitrary starting height
-        self.groups = Autovivify()
-        self.components = '' # Image components will be concatenated here
-        return self
-
-
-    def cdata(self, content):
-        return '\n<![CDATA[\n' + str(content) + '\n]]>\n'
-
-
-    def xmlify(self):
-        return '<svg width="' + str(self.width) + '" height="' + \
-          str(self.height) + '>\n' + str(self.components) + '</svg>'
-
-
-    def addRectangle(self, properties):
-        self.components += '<rect'
-
-        for _ in properties:
-            self.components += ' ' + str(_) + '="' + str(properties[_]) + \
-              '"'
-
-        self.components += '/>\n'
-
-
-    def addText(self, properties, content):
-        self.components += '<text'
-
-        for _ in properties:
-            self.components += ' ' + str(_) + '="' + str(properties[_]) + \
-              '"'
-
-        self.components += '>' + str(content) + '</text>\n'
-
-
-    def group(self, properties):
-        temp = '<g'
-
-        for _ in properties:
-            self.groups[properties['id']]['header'] += ' ' + str(_) + '="' \
-              + str(properties[_]) + '"'
-
-        self.groups[properties['id']
-
-
-class svgGroupHelper(svgHelper):
-
-
-    def __init__(self, _):
-        self.header = _
-        self.contents = ''
-        self.footer = '</g>\n'
-        return self
 
 
 def main(argv):
