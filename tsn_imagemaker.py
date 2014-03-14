@@ -1,14 +1,17 @@
-#/usr/bin/python
+#!/usr/bin/python
 
 # MLTreeMap Imagemaker TSN v. 0.0
 
 # Include the necessary libraries
 try:
+    import sys
     import math
     import svgwrite
-    # TK
+    import argparse
+    import os
+    import re
 except:
-    # TK
+    sys.exit('Could not load some user defined module functions')
 
 class Autovivify(dict):
     """
@@ -107,7 +110,7 @@ trees (2, default) or one tree of life (1)')
 inkscape but can cause trouble with Adobe \
 Illustrator')
     parser.add_argument('-i', '--input', required=True, default=0, type=int, choices=[0, 's'], help='')
-   return parser
+    return parser
 
 def read_user_input(parser):
     """TK"""
@@ -175,10 +178,8 @@ def get_input_files(args):
 
     # If input is an individual file, get file name
     if re.search(r'.*/((.)_.*RAxML_.+.txt)\Z', input2):
-        try:
-            in = open(input2, 'read')
-        except: #TK check for exception type
-            sys.exit('ERROR: Unable to open ' + str(input2) + '!\n')
+        if os.path.isfile(input2):
+            sys.exit('ERROR: You entered a file as input (' + str(input2) + '), but it does not exist!!\n')
         temp = re.search(r'.*/((.)_.*RAxML_.+.txt)\Z', input2)
         filename = temp.group(1)
         denominator = temp.group(2)
@@ -611,7 +612,7 @@ routine will return -1 in case of errors.
             self.parent_of_node[species1]
             self.parent_of_node[species2]
         except NameError:
-            continue
+            pass # TK
         parent_traversion_count = Autovivify()
         node1 = species1
         parent_traversion_count[node1] = 1
@@ -824,7 +825,7 @@ class TREEMAP_ml_svg_visualizer:
 
         for line in input:
             line = line.strip()
-            species_count += len(re.findall('\d+:', line)
+            species_count += len(re.findall('\d+:', line))
 
         input.close()
         # Relations are as follows:
@@ -859,7 +860,7 @@ class TREEMAP_ml_svg_visualizer:
 
         for n in sorted(tree.terminal_children_of_node):
 
-            for color in sorted(used_colors)
+            for color in sorted(used_colors):
                 # Set all counts to 0
                 mltreemap_results['counts_per_species'][n][color] = 0
 
@@ -920,6 +921,7 @@ class TREEMAP_ml_svg_visualizer:
                   ['nodes_of_terminal_children_string_reference']\
                   [terminal_children_string_of_placement]
             except NameError:
+                pass
                 # Attention! This circumvents a problem with the unrooted
                 # RAxML tree!
 # continue
@@ -931,7 +933,7 @@ class TREEMAP_ml_svg_visualizer:
                 node = mltreemap_results\
                   ['nodes_of_terminal_children_string_reference']\
                   [terminal_children_string_of_placement]
-                _pw = re.search('Placement weight (.+)%', line):
+                _pw = re.search('Placement weight (.+)%', line)
                 if _pw:
                     bootstrap = _pw.group(1)
                     nodes[node][color] = bootstrap
@@ -1273,7 +1275,7 @@ the one that draws the pie-chart bubbles
         for y_coord_of_node_min in sorted(mltreemap_results['group_info']):
 
             for start_taxon in sorted(mltreemap_results['group_info']\
-              [y_coord_of_node_min]:
+              [y_coord_of_node_min]):
 
                 for end_taxon in sorted(mltreemap_results['group_info']\
                   [y_coord_of_node_min][start_taxon]):
@@ -1425,7 +1427,7 @@ the one that draws the pie-chart bubbles
         x_coordinate_of_label_start = mltreemap_results\
           ['x_coordinate_of_label_start']
         guide_lines_and_labels = image.defs.add(image.g(id = \
-          'guide_lines_and_labels')
+          'guide_lines_and_labels'))
         edge_color = 'rgb(220,220,220)'
         stroke_width = image_width / 1000
         fontsize = image_width / 100
@@ -1462,7 +1464,7 @@ the one that draws the pie-chart bubbles
             node_name = mltreemap_results['name_of_species'][node]
             temp = re.compile('\A(.%s).'%str(max_text_length))
             if temp.search(str(node_name)):
-                node_name = str(temp.search(str(node_name)).group(1) + '...'
+                node_name = str(temp.search(str(node_name)).group(1)) + '...'
             rot_angle = (((y_coord_of_text - y_offset) * 360 * 0.95) / \
               tree_height) - 90 # Proportion: tree_height == 360 * 0.95
             x_text, y_text = calculate_coordinates_circular(\
@@ -1532,7 +1534,7 @@ the one that draws the pie-chart bubbles
                 # (i.e. show different datasets in different colors and 
                 # percentages for all of them).
                 try:
-                    mltreemap_results['counts_per_species'][node][color]:
+                    mltreemap_results['counts_per_species'][node][color]
                 except NameError:
                     pass
                 else:
@@ -1636,7 +1638,7 @@ the one that draws the pie-chart bubbles
         large_arc_flag = 0
         sweep_flag = 1
         sweep_flag2 = 0
-        if ((yb_linear - ya_linear) >= (tree_height / 0.95) / 2:
+        if (yb_linear - ya_linear) >= (tree_height / 0.95) / 2:
             # ie. The group color band will cover more than 180*
             large_arc_flag = 1
         xa, ya = calculate_coordinates_circular(mltreemap_results,\
@@ -1757,7 +1759,7 @@ the one that draws the pie-chart bubbles
             edges.add(image.line(start = (x_coord_of_node, \
               y_coord_of_node), end = (x_coord_of_parent_node, \
               y_coord_of_node), stroke_linecape = 'round', stroke = \
-              str(edge_color), stroke_width = str(stroke_width) + \
+              str(edge_color), stroke_width = str(stroke_width), \
               stroke_opacity = 1))
 
             # Third, we draw the vertical line (if not already done)
@@ -1804,7 +1806,7 @@ the one that draws the pie-chart bubbles
                       end = (x_coordinate_of_label_start - x_gap / 2, \
                       y_coord_of_node), stroke_linecap = 'round', stroke = \
                       str(edge_color), stroke_width = str(stroke_width), \
-                      stroke_opacity = 1)
+                      stroke_opacity = 1))
             else:
                 if x_coord_of_text < x_coord_of_node + x_gap:
                     x_coord_of_text = x_coord_of_node + x_gap
@@ -1822,7 +1824,7 @@ the one that draws the pie-chart bubbles
                   (x_coord_of_text, y_coord_of_node + y_offset2), style = \
                   'font-family:Verdana; font-size:' + str(fontsize)))
 
-         return image
+        return image
 
 
     def draw_placement_bubbles(image, tree, mltreemap_results, \
@@ -1900,7 +1902,7 @@ the one that draws the pie-chart bubbles
                 previous_end_angle = pi / 2
 
                 for color in sorted(mltreemap_results['counts_per_node']\
-                  [node]['colors']:
+                  [node]['colors']):
                     try:
                         mltreemap_results['counts_per_node'][node]\
                           ['colors'][color]
@@ -2156,23 +2158,23 @@ the one that draws the pie-chart bubbles
         return placements
 
 
-   def read_tree_topology(mltreemap_results):
-       """TK"""
-       print 'reading tree topology...\n'
-       tree_file = 'tree_data/' + str(mltreemap_results['tree_file']
-       tree = NEWICK_tree()
-       tree.read_tree_topology_from_file(tree_file)
-       tree.optimize_species_display_order
+    def read_tree_topology(mltreemap_results):
+        """TK"""
+        print 'reading tree topology...\n'
+        tree_file = 'tree_data/' + str(mltreemap_results['tree_file'])
+        tree = NEWICK_tree()
+        tree.read_tree_topology_from_file(tree_file)
+        tree.optimize_species_display_order
 
-       # Do some hard coded manipulation
-       tree.branch_length_of_node[-1] = 0.01
-       # Done
+        # Do some hard coded manipulation
+        tree.branch_length_of_node[-1] = 0.01
+        # Done
 
-       compute_node_positions(tree)
-       tree, mltreemap_results = scale_node_positions(tree, \
-         mltreemap_results)
+        compute_node_positions(tree)
+        tree, mltreemap_results = scale_node_positions(tree, \
+          mltreemap_results)
 
-       return tree
+        return tree
 
 
     def scale_node_positions(tree, mltreemap_results):
@@ -2318,6 +2320,12 @@ the one that draws the pie-chart bubbles
 
 def main(argv):
     print 'Start MLTreeMap Imagemaker TSN v. 0.0'
+    #mltreemap_imagemaker = mltreemap_imagemaker()
+    user_options = read_user_input(argv)
+    input_files = get_input_files(user_options)
+    concatenated_input_files, text_of_denominator, used_colors = concatenate_files(user_options, input_files)
+    run_the_imagemaker(user_options, concatenated_input_files, text_of_denominator, used_colors)
+    print 'Done.\n'
 
 
 if __name__ == "__main__":
