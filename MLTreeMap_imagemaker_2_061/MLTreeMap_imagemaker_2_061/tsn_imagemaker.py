@@ -57,6 +57,39 @@ def pathDelim():
 PATHDELIM = str(pathDelim())
 
 
+def cmp_to_key(mycmp, num_children):
+    """In case of Python before version 2.7"""
+    class K(object):
+        def __init__(self, obj, *args):
+            self.obj = obj
+        def __lt__(self, other):
+            return mycmp(self.obj, other.obj, num_children) < 0
+        def __gt__(self, other):
+            return mycmp(self.obj, other.obj, num_children) > 0
+        def __eq__(self, other):
+            return mycmp(self.obj, other.obj, num_children) == 0
+        def __le__(self, other):
+            return mycmp(self.obj, other.obj, num_children) <= 0
+        def __ge__(self, other):
+            return mycmp(self.obj, other.obj, num_children) >= 0
+        def __ne__(self, other):
+            return mycmp(self.obj, other.obj, num_children) != 0
+    return K
+
+
+def optimize_node_recursively_sort_helper(a, b, nr_terminal_children_per_child):
+    """
+    The original optimize_node_recursively uses a complex sort.
+    To imitate its function, I chose to make this helper method.
+    """
+    sort_value_a = int(nr_terminal_children_per_child[a])
+    sort_value_b = int(nr_terminal_children_per_child[b])
+    if sort_value_a == sort_value_b:
+        sort_value_a = int(a)
+        sort_value_b = int(b)
+    return cmp(sort_value_a,sort_value_b)
+
+
 def getParser():
     """TK"""
     parser = argparse.ArgumentParser(description='example input:\n' + \
@@ -356,6 +389,13 @@ class NEWICK_tree():
         self.branch_length_of_node = Autovivify()
         self.terminal_nodes = Autovivify()
         self.bootstrap_support_of_node = Autovivify()
+        self.cumulative_branch_length_of_node = Autovivify()
+        self.y_coord_of_node = Autovivify()
+        self.y_coord_of_node_min = Autovivify()
+        self.y_coord_of_node_max = Autovivify()
+        self.x_coord_of_node = Autovivify()
+        self.nodes_of_x_coords = Autovivify()
+        self.species_display_order = Autovivify()
 
 
     def read_tree_topology_from_file(self, filename):
@@ -374,7 +414,6 @@ class NEWICK_tree():
         input.close()
         # TK Verified input_concatenated
         self.parse_tree_topology_from_string(input_concatenated)
-        sys.exit(self) # TK  DEBUG
 
 
     def parse_tree_topology_from_string(self, tree_string):
@@ -384,8 +423,10 @@ class NEWICK_tree():
         self.species_tree_parse_node(tree_input_symbols)
         # TK Verified self
         self.connect_terminal_children_to_node(-1)
+        # TK Verified self
         self.assign_cumulative_branchlength_to_node(-1,0)
-        self.computer_average_cumulative_branch_length()
+        self.compute_average_cumulative_branch_length()
+        # TK Verified self
 
 
     def species_tree_parse_node(self, inputarray):
@@ -521,10 +562,10 @@ class NEWICK_tree():
 
     def connect_terminal_children_to_node(self, node):
         """TK"""
-        if re.search('\A[\-\d]+\Z', node) and node < 0:
+        if re.search('\A[\-\d]+\Z', str(node)) and float(node) < 0:
 
             for child in self.children_of_node[node]:
-                if re.search('\A[\-\d]+\z', child) and child < 0:
+                if re.search('\A[\-\d]+\Z', str(child)) and float(child) < 0:
                     self.connect_terminal_children_to_node(child)
 
                     for subchild in self.terminal_children_of_node[child]:
@@ -545,10 +586,10 @@ class NEWICK_tree():
         branch_length_this_node = 0
         if self.branch_length_of_node[node]:
             branch_length_this_node = self.branch_length_of_node[node]
-        new_cumulative_length = branch_length_this_node + \
-          previous_cumulative_length
+        new_cumulative_length = float(branch_length_this_node) + \
+          float(previous_cumulative_length)
         self.cumulative_branch_length_of_node[node] = new_cumulative_length
-        if re.search('\A[\-\d]+\Z', node) and node < 0:
+        if re.search('\A[\-\d]+\Z', str(node)) and float(node) < 0:
 
             for child in self.children_of_node[node]:
                 self.assign_cumulative_branchlength_to_node(child, \
@@ -562,7 +603,7 @@ class NEWICK_tree():
 
         for node in self.cumulative_branch_length_of_node:
             # Internal nodes aren't considered here
-            if re.search('\A[\-\d]+\Z', node) and node < 0:
+            if re.search('\A[\-\d]+\Z', str(node)) and float(node) < 0:
                 continue
             valid_node_counter += 1
             branch_length_sum += self.cumulative_branch_length_of_node[node]
@@ -603,10 +644,10 @@ class NEWICK_tree():
 
     def get_species_to_species_tree_distance(self, species1, species2):
         """
-Given two species, the cumulative branch-length needed to traverse
-from one to the other is computed and provided by this routine. The
-routine will return -1 in case of errors.
-"""
+        Given two species, the cumulative branch-length needed to traverse
+        from one to the other is computed and provided by this routine. The
+        routine will return -1 in case of errors.
+        """
         try:
             species1
             species2
@@ -668,33 +709,20 @@ routine will return -1 in case of errors.
 
     def optimize_species_display_order(self):
         """
-This makes the tree optically nicer by swapping subtrees such that
-the internal nodes are maximally 'staggered'. This only affects the
-displaying of the tree, not its typology or biological meaning. If
-necessary, manual intervention into the display order is also
-possible in the code below (note: this will fuck up if the
-underlying tree is changed!!)
-"""
+        This makes the tree optically nicer by swapping subtrees such that
+        the internal nodes are maximally 'staggered'. This only affects the
+        displaying of the tree, not its typology or biological meaning. If
+        necessary, manual intervention into the display order is also
+        possible in the code below (note: this will fuck up if the
+        underlying tree is changed!!)
+        """
         self.optimized_display_order_counter = 1
         self.optimize_node_recursively(-1)
 
 
-    def optimize_node_recursively_sort_helper(a, b):
-        """
-The original optimize_node_recursively uses a complex sort.
-To imitate its function, I chose to make this helper method.
-"""
-        sort_value_a = nr_terminal_children_per_child[a]
-        sort_value_b = nr_terminal_children_per_child[b]
-        if sort_value_a == sort_value_b:
-            sort_value_a = a
-            sort_value_b = b
-        return cmp(sort_value_a,sort_value_b)
-
-
     def optimize_node_recursively(self, node):
         """TK"""
-        if not (re.search('\A[\-\d]+\Z', node) and node < 0):
+        if not (re.search('\A[\-\d]+\Z', str(node)) and float(node) < 0):
             self.species_display_order[node] = \
               self.optimized_display_order_counter
             self.optimized_display_order_counter += 1
@@ -702,14 +730,15 @@ To imitate its function, I chose to make this helper method.
         # This node is an internal node, so sort its children
         # by 'terminal_size' and recurse down into them
         children_this_node = self.children_of_node[node]
-        nr_terminal_children_per_child = Autovivify()
+        nr_terminal_children_per_child = {}
 
         for child in children_this_node:
             nr_children = len(self.terminal_children_of_node[child])
             nr_terminal_children_per_child[child] = nr_children
 
         for child in sorted(children_this_node, \
-          cmp=optimize_node_recursively_sort_helper):
+          key = cmp_to_key(optimize_node_recursively_sort_helper, \
+          nr_terminal_children_per_child)):
             self.optimize_node_recursively(child)
 
 
@@ -2168,14 +2197,27 @@ def read_tree_topology(mltreemap_results):
     tree_file = 'tree_data/' + str(mltreemap_results['tree_file'])
     tree = NEWICK_tree()
     tree.read_tree_topology_from_file(tree_file)
-    sys.exit(tree) # TK  DEBUG
-    tree.optimize_species_display_order
+    # TK Verified tree
+    tree.optimize_species_display_order()
 
     # Do some hard coded manipulation
     tree.branch_length_of_node[-1] = 0.01
     # Done
 
     compute_node_positions(tree)
+#    sys.exit(str(tree.node_id_counter))
+#    sys.exit(tree.parent_of_node)
+#    sys.exit(tree.children_of_node)
+#    sys.exit(tree.terminal_children_of_node)
+#    sys.exit(tree.branch_length_of_node)
+#    sys.exit(tree.terminal_nodes)
+#    sys.exit(tree.bootstrap_support_of_node)
+#    sys.exit(tree.x_coord_of_node)
+#    sys.exit(tree.nodes_of_x_coords)
+#    sys.exit(tree.y_coord_of_node)
+#    sys.exit(tree.y_coord_of_node_min)
+#    sys.exit(tree.y_coord_of_node_max)
+#    sys.exit(tree.species_display_order)
     tree, mltreemap_results = scale_node_positions(tree, \
       mltreemap_results)
 
@@ -2207,13 +2249,16 @@ def scale_node_positions(tree, mltreemap_results):
     if not x_scaling_factor:
         sys.exit('ERROR: x scaling factor could not be determined!\n')
 
+    print tree.y_coord_of_node
     for node in sorted(tree.y_coord_of_node):
-        y_coord_of_node = tree.y_coord_of_node[node] * \
-          y_scaling_factor + y_offset
-        x_coord_of_node = tree.x_coord_of_node[node] * \
-          x_scaling_factor
-        branch_length_of_node = tree.branch_length_of_node[node] * \
-          x_scaling_factor
+        print node
+        sys.exit(tree.y_coord_of_node[node]) # TK  DEBUG
+        y_coord_of_node = float(tree.y_coord_of_node[node]) * \
+          float(y_scaling_factor) + float(y_offset)
+        x_coord_of_node = float(tree.x_coord_of_node[node]) * \
+          float(x_scaling_factor)
+        branch_length_of_node = float(tree.branch_length_of_node[node]) * \
+          float(x_scaling_factor)
         tree.y_coord_of_node[node] = y_coord_of_node
         tree.x_coord_of_node[node] = x_coord_of_node
         tree.branch_length_of_node[node] = branch_length_of_node
@@ -2230,18 +2275,10 @@ def scale_node_positions(tree, mltreemap_results):
 
 def compute_node_positions_sort_helper(a, b):
     a_sort = 1
-    try:
-        tree.species_display_order[a]
-    except NameError:
-        pass
-    else:
+    if tree.species_display_order[a]:
         a_sort = tree.species_display_order[a]
     b_sort = 1
-    try:
-        tree.species_display_order[b]
-    except NameError:
-        pass
-    else:
+    if tree.species_display_order[b]:
         b_sort = tree.species_display_order[b]
     return cmp(a_sort, b_sort)
 
@@ -2252,13 +2289,15 @@ def compute_node_positions(tree):
     leaves) in terms of x,y-coordinate with which they will later be 
     put on the canvas. This routine does not perform the actual drawing.
     """
-    y_position = 0
+    y_position = 0.0
 
     for node in sorted(tree.parent_of_node, \
-      cmp=compute_node_positions_sort_helper):
+      key = lambda cmpNode:tree.species_display_order[cmpNode] if \
+      cmpNode in tree.species_display_order else 1):
         if node <= 0:
             continue
-        fraction = 1 / len(tree.terminal_nodes)
+        fraction = 1.0 / len(tree.terminal_nodes)
+        # TK Verified fraction
         tree.y_coord_of_node_min[node] = y_position
         tree.y_coord_of_node[node] = y_position + (fraction * 0.5)
         tree.y_coord_of_node_max[node] = y_position + fraction
@@ -2279,11 +2318,7 @@ def assign_y_coord_internal_node(tree, this_node):
     bit. Call this routine only after you have already assigned 
     Y-positions to the terminal (leaf) nodes.
     """
-    try:
-        tree.y_coord_of_node[this_node]
-    except NameError:
-        pass
-    else:
+    if tree.y_coord_of_node[this_node]:
         position = tree.y_coord_of_node[this_node]
         return position
     if this_node > 0: # For security. Should never happen.
@@ -2291,13 +2326,18 @@ def assign_y_coord_internal_node(tree, this_node):
     min_position = 100000
     max_position = 0
 
+    # TK Verified children_of_node[this_node]
     for child in tree.children_of_node[this_node]:
         position = assign_y_coord_internal_node(tree, child)
+        print position
         if position < min_position:
             min_position = position
         if position > max_position and child < 1000000:
             max_position = position
 
+    if this_node == -1:
+        sys.exit(min_position)
+        sys.exit(max_position)
     this_position = (min_position + max_position) / 2
     tree.y_coord_of_node[this_node] = this_position
 
@@ -2320,7 +2360,7 @@ def assign_x_coord_to_node(tree, this_node, current_x_position):
             else:
                 branch_length = tree.branch_length_of_node[child]
             assign_x_coord_to_node(tree, child, \
-              current_x_position + branch_length)
+              float(current_x_position) + float(branch_length))
 
 
 def main(argv):
