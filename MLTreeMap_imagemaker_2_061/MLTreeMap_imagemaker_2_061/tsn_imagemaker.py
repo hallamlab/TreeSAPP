@@ -347,7 +347,7 @@ different colors!\n')
             check += relative_weight
 
         print str(denominator) + ' files: sum of percentages = ' + \
-              str(check) + '\n'
+              str(check)
         output.close()
 
     return concatenated_input_files, text_of_denominator, used_colors
@@ -373,8 +373,7 @@ def run_the_imagemaker(args, concatenated_input_files, text_of_denominator, \
               input_filename_long, output_dir, denominator, \
               param_scale_bubble, text_of_denominator, bubble_type, \
               used_colors, color_mode, text_mode)
-            sys.exit(message) # TK  DEBUG
-            print str(message) + '\n'
+            print str(message)
 
 
 class NEWICK_tree():
@@ -396,6 +395,15 @@ class NEWICK_tree():
         self.x_coord_of_node = Autovivify()
         self.nodes_of_x_coords = Autovivify()
         self.species_display_order = Autovivify()
+        self.x_coord_of_node_connector_circular = Autovivify()
+        self.y_coord_of_node_connector_circular = Autovivify()
+        self.connecting_points = Autovivify()
+        self.x_coord_of_node_min_circular = Autovivify()
+        self.y_coord_of_node_min_circular = Autovivify()
+        self.x_coord_of_node_max_circular = Autovivify()
+        self.y_coord_of_node_max_circular = Autovivify()
+        self.x_coord_of_node_circular = Autovivify()
+        self.y_coord_of_node_circular = Autovivify()
 
 
     def read_tree_topology_from_file(self, filename):
@@ -780,20 +788,37 @@ def run_visualization(input_filename, input_filename_long, output_dir, \
   denominator, param_scale_bubble, text_of_denominator, bubble_type, \
   used_colors, color_mode, text_mode):
     text_of_denominator = text_of_denominator[denominator]
-    print str(text_of_denominator) + '\n'
+    print str(text_of_denominator)
     mltreemap_results = get_analysis_info(denominator)
     # TK Verified mltreemap_results
     mltreemap_results = get_picture_dimensions(mltreemap_results, \
       text_mode)
     # TK Verified mltreemap_results
     tree = read_tree_topology(mltreemap_results)
-    sys.exit(tree) # TK  DEBUG
+    # TK Verified tree
     mltreemap_results = \
       produce_terminal_children_of_strings_of_reference(tree, \
       mltreemap_results, used_colors)
     mltreemap_results = get_support_data(tree, mltreemap_results)
     mltreemap_results = read_RAxML_out(tree, mltreemap_results, \
       input_filename_long)
+    # TK Verified mltreemap_results
+#    sys.exit(mltreemap_results)
+#    sys.exit(str(mltreemap_results['x_coordinate_of_tree_start']))
+#    sys.exit(mltreemap_results['name_of_species'])
+#    sys.exit(mltreemap_results['group_info'])
+#    sys.exit(mltreemap_results['counts_per_species'])
+#    sys.exit(mltreemap_results['image'])
+#    sys.exit(str(mltreemap_results['x_coordinate_of_tree_end']))
+#    sys.exit(mltreemap_results['tax_ids_file'])
+#    sys.exit(mltreemap_results['nodes_of_terminal_children_string_reference'])
+#    sys.exit(mltreemap_results['counts_per_node'])
+#    sys.exit(str(mltreemap_results['x_coordinate_of_label_end']))
+#    sys.exit(mltreemap_results['highest_count_per_species'])
+#    sys.exit(mltreemap_results['tree_file'])
+#    sys.exit(mltreemap_results['descriptions_file'])
+#    sys.exit(str(mltreemap_results['species_count']))
+    # TK DEBUG draw_the_color_legend--never tested before
     if color_mode > 0:
         draw_the_color_legend(denominator, output_dir, color_mode)
     do_the_drawing(tree, mltreemap_results, param_scale_bubble, \
@@ -886,7 +911,7 @@ def get_picture_dimensions(mltreemap_results, text_mode):
     return mltreemap_results
 
 
-def produce_terminal_children_of_strings_of_reference(self, tree, \
+def produce_terminal_children_of_strings_of_reference(tree, \
   mltreemap_results, used_colors):
     """TK"""
     species_count = 0
@@ -908,15 +933,15 @@ def produce_terminal_children_of_strings_of_reference(self, tree, \
           ['nodes_of_terminal_children_string_reference']\
           [terminal_children_string] = n
 
-    mltreemap_results[species_count] = species_count
+    mltreemap_results['species_count'] = species_count
     return mltreemap_results
 
 
-def read_RAxML_out(self, tree, mltreemap_results, input_filename_long):
+def read_RAxML_out(tree, mltreemap_results, input_filename_long):
     """TK"""
     nodes = Autovivify()
     input_filename = input_filename_long
-    print 'input file: ' + str(input_filename) + '\n'
+    print 'input file: ' + str(input_filename)
     try:
         input = open(input_filename, 'r')
     except IOError:
@@ -940,7 +965,7 @@ def read_RAxML_out(self, tree, mltreemap_results, input_filename_long):
             sys.exit('ERROR: Color info could not be read!!!!\n')
         temp = re.findall('\((\d+)\)', line)
         for _ in temp:
-            terminal_children_of_placements[placement][_.group(1)] = 1
+            terminal_children_of_placements[placement][_] = 1
 
         terminal_children_string_of_placement = ''
 
@@ -970,7 +995,7 @@ def read_RAxML_out(self, tree, mltreemap_results, input_filename_long):
             if _pw:
                 bootstrap = _pw.group(1)
                 nodes[node][color] = bootstrap
-                node_weight = bootstrap / 100
+                node_weight = float(bootstrap) / 100
                 mltreemap_results = \
                   distribute_node_weight_by_topology(tree, node, \
                   node_weight, mltreemap_results, color)
@@ -982,13 +1007,13 @@ def read_RAxML_out(self, tree, mltreemap_results, input_filename_long):
 
         for color in sorted(nodes[node]):
             mltreemap_results['counts_per_node'][node]['colors']\
-              [color] = nodes[node][color] / 100
+              [color] = float(nodes[node][color]) / 100
             if is_first_color == 1:
                 mltreemap_results['counts_per_node'][node]\
                   ['total_weight'] = 0
             is_first_color = 0
             mltreemap_results['counts_per_node'][node]['total_weight'] \
-              += nodes[node][color] / 100
+              += float(nodes[node][color]) / 100
 
     return mltreemap_results
 
@@ -1006,7 +1031,7 @@ def distribute_node_weight_by_topology(tree, node, node_weight, \
         total_weight_of_child = 0
 
         for color in \
-          sorted(mltreemap_results[counts_per_species][color]):
+          sorted(mltreemap_results['counts_per_species'][child]):
             color_weight = \
               mltreemap_results['counts_per_species'][child][color]
             total_weight_of_child += color_weight
@@ -1019,7 +1044,7 @@ def distribute_node_weight_by_topology(tree, node, node_weight, \
     return mltreemap_results
 
 
-def get_support_data(self, tree, mltreemap_results):
+def get_support_data(tree, mltreemap_results):
     """TK"""
     # Get species names
     try:
@@ -1035,7 +1060,7 @@ def get_support_data(self, tree, mltreemap_results):
             continue
         species, _rest = line.split(None, 1)
         rest = _rest.split(None)
-        name = join(' ', rest)
+        name = ' '.join(rest)
         mltreemap_results['name_of_species'][species] = name
 
     input.close()
@@ -1048,17 +1073,19 @@ def get_support_data(self, tree, mltreemap_results):
 
     for line in input:
         line = line.strip()
+        if re.search('\A\#', line) or line is '':
+            continue
         start_taxon, end_taxon, background_red, background_green, \
           background_blue, subtree_name = line.split()
-        if not start_taxon or re.search('\A\#', line):
+        if not start_taxon:
             continue
         group_color = 'rgb(' + str(background_red) + ',' + \
           str(background_green) + ',' + str(background_blue) + ')'
-        y_coord_of_node_min = tree.y_coord_of_node_min['start_taxon']
+        y_coord_of_node_min = tree.y_coord_of_node_min[start_taxon]
         mltreemap_results['group_info'][y_coord_of_node_min]\
-          [start_taxon][end_taxon]['color'] = group_color
+          [start_taxon][end_taxon]['color'] = str(group_color)
         mltreemap_results['group_info'][y_coord_of_node_min]\
-          [start_taxon][end_taxon]['name'] = subtree_name
+          [start_taxon][end_taxon]['name'] = str(subtree_name)
 
     input.close()
     return mltreemap_results
@@ -1119,7 +1146,7 @@ def draw_the_color_legend(self, denominator, output_dir, color_mode):
     output.close()
 
 
-def do_the_drawing(self, tree, mltreemap_results, param_scale_bubble, \
+def do_the_drawing(tree, mltreemap_results, param_scale_bubble, \
   input_file_name, output_dir, text_of_denominator, bubble_type, \
   used_colors, color_mode, text_mode):
     """TK"""
@@ -1128,35 +1155,33 @@ def do_the_drawing(self, tree, mltreemap_results, param_scale_bubble, \
     image_height = mltreemap_results['image']['image_height']
     y_offset = mltreemap_results['image']['y_offset']
     species_count = mltreemap_results['species_count']
-    print 'Creating the picture...\n'
+    print 'Creating the picture...'
     output_file_name = str(output_dir) + str(input_file_name) + \
       '_image_straight.svg'
-    try:
-        output = open(output_file_name, 'w')
-    except IOError:
-        sys.exit('ERROR: Can\'t create ' + str(output_file_name) + \
-          '!\n')
     image = svgwrite.Drawing(filename = str(output_dir) + \
-      str(input_file_name) + '_image_straight_.svg', \
+      str(input_file_name) + '_image_straight.svg', \
       size = (str(image_width) + 'px', str(image_height) + 'px'))
     image.add(image.text(str(text_of_denominator), \
-      (image_width * 0.01, y_offset / 2), style = \
+      (int(image_width * 0.01), y_offset / 2), style = \
       'font-family:Verdana; font-size:' + str(image_width / 50)))
     placements = ''
     image = draw_group_colors(image, tree, mltreemap_results)
+    # TK Verified Visually, looks fine here
     image = draw_edges(image, tree, mltreemap_results)
+    # TK Verified Visually, looks fine here
     image = draw_guide_lines_and_leaf_names(image, tree, \
       mltreemap_results, text_mode)
+    # TK Verified Visually, looks fine here
     image, placements = draw_placement_bubbles(image, tree, \
       mltreemap_results, param_scale_bubble, bubble_type, 0)
+    # TK Verified Visually, looks fine here
     image = draw_percents_and_placement_bars(image, placements, tree, \
       mltreemap_results, used_colors, color_mode, text_mode)
+    # TK Verified Visually, looks fine here
     image.save()
-    output.write(image.tostring())
-    output.close()
 
 
-def do_the_drawing_circular(self, tree, mltreemap_results, \
+def do_the_drawing_circular(tree, mltreemap_results, \
   param_scale_bubble, input_file_name, output_dir, \
   text_of_denominator, bubble_type, used_colors, color_mode, text_mode):
     """TK"""
@@ -1169,16 +1194,11 @@ def do_the_drawing_circular(self, tree, mltreemap_results, \
     image_diameter_circular = 2 * image_width
     mltreemap_results['image_circular']['diameter'] = \
       image_diameter_circular
-    print 'Creating the picture...\n'
+    print 'Creating the picture...'
     output_file_name = str(output_dir) + str(input_file_name) + \
       '_image_circular.svg'
-    try:
-        output = open(output_file_name, 'w')
-    except IOError:
-        sys.exit('ERROR: Can\'t create ' + str(output_file_name) + \
-          '!\n')
     image = svgwrite.Drawing(filename = str(output_dir) + \
-      str(input_file_name) + '_image_circular_.svg', size = \
+      str(input_file_name) + '_image_circular.svg', size = \
       (str(image_diameter_circular) + 'px', \
       str(image_diameter_circular) + 'px'))
     image.add(image.text(str(text_of_denominator), \
@@ -1188,20 +1208,23 @@ def do_the_drawing_circular(self, tree, mltreemap_results, \
     tree, mltreemap_results = prepare_coordinates_circular(tree, \
       mltreemap_results)
     image = draw_group_colors_circular(image, tree, mltreemap_results)
+    # TK Verified Viusally, looks fine here
     image = draw_edges_circular(image, tree, mltreemap_results)
+    # TK Verified Visually, looks fine here
     image = draw_guide_lines_and_leaf_names_circular(image, tree, \
       mltreemap_results, bubble_type, text_mode)
+    # TK Verified Visually, looks fine here
     image, placements = draw_placement_bubbles(image, tree, \
       mltreemap_results, param_scale_bubble, bubble_type, 1)
+    # TK Verified Visually, looks fine here
     image = draw_percents_and_placement_bars_circular(image, \
       placements, tree, mltreemap_results, bubble_type, used_colors, \
       color_mode, text_mode)
+    # TK Verified Visually, looks fine here
     image.save()
-    output.write(image.tostring())
-    output.close()
 
 
-def prepare_coordinates_circular(self, tree, mltreemap_results):
+def prepare_coordinates_circular(tree, mltreemap_results):
 
     for node in sorted(tree.y_coord_of_node):
         y_coord_of_node = tree.y_coord_of_node[node]
@@ -1210,9 +1233,9 @@ def prepare_coordinates_circular(self, tree, mltreemap_results):
         x_coord_of_parent_node = x_coord_of_node - branch_length
         # Transform the coordinates of the node itself
         px, py = calculate_coordinates_circular(mltreemap_results, \
-          x_coord_of_parent_node, y_coord_of_node)
-        tree.x_coord_of_node_connector_circular[node] = px
-        tree.y_coord_of_node_connector_circular[node] = py
+          x_coord_of_node, y_coord_of_node)
+        tree.x_coord_of_node_circular[node] = px
+        tree.y_coord_of_node_circular[node] = py
         # Transform the coordinates of the connecting point
         # of the node to the parent
         px, py = calculate_coordinates_circular(mltreemap_results, \
@@ -1242,7 +1265,7 @@ def prepare_coordinates_circular(self, tree, mltreemap_results):
     return tree, mltreemap_results
 
 
-def calculate_coordinates_circular(self, mltreemap_results, \
+def calculate_coordinates_circular(mltreemap_results, \
   x_coord_of_point, y_coord_of_point):
     """
     TK
@@ -1276,7 +1299,7 @@ def calculate_coordinates_circular(self, mltreemap_results, \
     return px, py
 
 
-def draw_group_colors_circular(self, image, tree, mltreemap_results):
+def draw_group_colors_circular(image, tree, mltreemap_results):
     image_width = mltreemap_results['image']['width']
     tree_height = mltreemap_results['image']['tree_height']
     image_height = mltreemap_results['image']['image_height']
@@ -1287,8 +1310,8 @@ def draw_group_colors_circular(self, image, tree, mltreemap_results):
       ['x_coordinate_of_label_start']
     x_coordinate_of_label_end = mltreemap_results\
       ['x_coordinate_of_label_end']
-    groups = image.defs.add(image.g(id='groups'))
-    fontsize = image_width / 60
+    groups = image.add(image.g(id='groups'))
+    fontsize = image_width / 60.0
     pi = math.pi
 
     # The group color band looks somewhat as follows:
@@ -1319,18 +1342,16 @@ def draw_group_colors_circular(self, image, tree, mltreemap_results):
                 if name is '#':
                     name = ''
                 ya_linear = y_coord_of_node_min # == yc_linear
-                yb_linear = tree.y_coord_of_node_max['end_taxon']
+                yb_linear = tree.y_coord_of_node_max[end_taxon]
                   # == yd_linear
                 xa_linear = x_coordinate_of_label_start # == xb_linear
                 xc_linear = x_coordinate_of_label_end # == xd_linear
-                draw_trapezoid(mltreemap_results, groups, color, \
+                draw_trapezoid(mltreemap_results, groups, image, color, \
                   xa_linear, xc_linear, ya_linear, yb_linear)
                 # Prepare and write the group labels
-                try:
-                    name
-                except NameError:
+                if not name:
                     continue
-                if is_first_label == 1:
+                if is_first_label:
                     text = 'Group names (clockwise):'
                     groups.add(image.text(str(text), (x_pos_of_text, \
                       text_y), style = \
@@ -1340,9 +1361,9 @@ def draw_group_colors_circular(self, image, tree, mltreemap_results):
                 name = name.replace('_', ' ')
                 if re.search('rgb\((.+),(.+),(.+)\)', color):
                     temp = re.search('rgb\((.+),(.+),(.+)\)', color)
-                    red = temp.group(1) - 80
-                    green = temp.group(2) - 80
-                    blue = temp.group(3) - 80
+                    red = int(temp.group(1)) - 80
+                    green = int(temp.group(2)) - 80
+                    blue = int(temp.group(3)) - 80
                     if red < 0:
                         red = 0
                     if green < 0:
@@ -1358,13 +1379,14 @@ def draw_group_colors_circular(self, image, tree, mltreemap_results):
                       str(color) + '\n')
                 text_y += fontsize * 1.2
                 groups.add(image.text(str(name), (x_pos_of_text, \
-                  text_y), style = 'font-family:Verdana; font-size:' + \
-                  str(fontsize) + '; fill:' + str(color)))
+                  int(text_y)), style = 'font-family: Verdana; ' + \
+                  'font-size: ' + str(fontsize) + '; fill:' + \
+                  str(color)))
 
     return image
 
 
-def draw_edges_circular(self, image, tree, mltreemap_results):
+def draw_edges_circular(image, tree, mltreemap_results):
     """TK"""
     image_width = mltreemap_results['image']['width']
     tree_height = mltreemap_results['image']['tree_height']
@@ -1372,7 +1394,7 @@ def draw_edges_circular(self, image, tree, mltreemap_results):
     image_diameter_circular = mltreemap_results['image_circular']\
       ['diameter']
     allready_drawn_connector = Autovivify()
-    edges = image.defs.add(image.g(id = 'edges'))
+    edges = image.add(image.g(id = 'edges'))
     stroke_width = image_width / 1000
 
     for node in sorted(tree.y_coord_of_node):
@@ -1393,11 +1415,7 @@ def draw_edges_circular(self, image, tree, mltreemap_results):
               stroke_width = str(stroke_width), stroke_opacity = 1))
         # Third, we draw the line between the connecting
         # points (if not already done)
-        try:
-            allready_drawn_connector[node]
-        except NameError:
-            pass
-        else:
+        if allready_drawn_connector[node]:
             continue
         allready_drawn_connector[node] = 1
         sweep_flag = 1
@@ -1423,9 +1441,7 @@ def draw_edges_circular(self, image, tree, mltreemap_results):
 
         # The points (x1/y1) (x2/y2) have to be sorted otherwise
         # the arc function won't work properly
-        try:
-            x1_coordinate_of_connector
-        except NameError:
+        if not x1_coordinate_of_connector:
             continue
         if y1_coordinate_of_connector > y2_coordinate_of_connector:
             temp_coordinate = y1_coordinate_of_connector
@@ -1433,7 +1449,7 @@ def draw_edges_circular(self, image, tree, mltreemap_results):
             y2_coordinate_of_connector = temp_coordinate
             temp_coordinate = x1_coordinate_of_connector
             x1_coordinate_of_connector = x2_coordinate_of_connector
-            x2_coordinate_of_connector = temp
+            x2_coordinate_of_connector = temp_coordinate
         if x1_coordinate_of_connector < (image_diameter_circular / 2):
             sweep_flag = 0
         # Sorting done
@@ -1442,10 +1458,10 @@ def draw_edges_circular(self, image, tree, mltreemap_results):
           str(x1_coordinate_of_connector) + ',' + \
           str(y1_coordinate_of_connector) + ' A ' + \
           str(radius_of_node) + ',' + str(radius_of_node) + ' 0 ' + \
-          str(large_arc_flag) + ', ' + str(sweep_flag) + ' ' + \
+          str(large_arc_flag) + ',' + str(sweep_flag) + ' ' + \
           str(x2_coordinate_of_connector) + ',' + \
           str(y2_coordinate_of_connector), opacity = 1, stroke_width = \
-          stroke_width, stroke = edge_color, fill = None))
+          str(stroke_width), stroke = str(edge_color), fill = 'none'))
 
     return image
 
@@ -1459,7 +1475,7 @@ def draw_guide_lines_and_leaf_names_circular(image, tree, \
     species_count = mltreemap_results['species_count']
     x_coordinate_of_label_start = mltreemap_results\
       ['x_coordinate_of_label_start']
-    guide_lines_and_labels = image.defs.add(image.g(id = \
+    guide_lines_and_labels = image.add(image.g(id = \
       'guide_lines_and_labels'))
     edge_color = 'rgb(220,220,220)'
     stroke_width = image_width / 1000
@@ -1495,7 +1511,7 @@ def draw_guide_lines_and_leaf_names_circular(image, tree, \
                 x_coord_of_text = x_coord_of_node + x_gap
             max_text_length = 32
         node_name = mltreemap_results['name_of_species'][node]
-        temp = re.compile('\A(.%s).'%str(max_text_length))
+        temp = re.compile('\A(.{%s}).'%str(max_text_length))
         if temp.search(str(node_name)):
             node_name = str(temp.search(str(node_name)).group(1)) + '...'
         rot_angle = (((y_coord_of_text - y_offset) * 360 * 0.95) / \
@@ -1518,7 +1534,7 @@ def draw_guide_lines_and_leaf_names_circular(image, tree, \
             if text_mode:
                 # TK line 775 best translation guess below. DEBUG?
                 guide_lines_and_labels.add(image.text(str(node_name), \
-                  (x_text, ytext), transform = 'rotate(' + \
+                  (x_text, y_text), transform = 'rotate(' + \
                   str(rot_angle) + ' ' + str(x_text) + ',' + \
                   str(y_text) + ')', style = \
                   'font-family:Verdana; font-size:' + str(fontsize) + \
@@ -1566,31 +1582,26 @@ def draw_percents_and_placement_bars_circular(image, placements, tree, \
             # text as generated here is only used if color_mode == 1
             # (i.e. show different datasets in different colors and 
             # percentages for all of them).
-            try:
-                mltreemap_results['counts_per_species'][node][color]
-            except NameError:
-                pass
-            else:
+            if mltreemap_results['counts_per_species'][node][color]:
                 fraction_raw = mltreemap_results['counts_per_species']\
                   [node][color] * 100
-            fraction = int(fraction_raw * 100 + 0.5) / 100
+            fraction = int(fraction_raw * 100 + 0.5) / 100.0
             fraction_total += fraction
-            fraction = '%.2f' % fraction
             if fraction > 0:
                 all_fractions_0 = 0
-            text += '(' + str(fraction) + '%)'
+            text += '(' + str('{0:.2f}'.format(fraction)) + '%)'
 
         fraction_total = '%.2f' % fraction_total
         if color_mode == 11:
             text = '(Total: ' + str(fraction_total) + '%)'
         if text_mode:
-            fontsize = image_width / 100
+            fontsize = image_width / 100.0
             # The picture has been optimized for 267 species.
             # If we have more, downsize the font
             if species_count > 267:
                 fontsize *= 267 / species_count
             y_coord_of_text = y_coord_of_node
-            x_gap = image_width / 200
+            x_gap = image_width / 200.0
             x_coord_of_text = x_coordinate_of_label_end - x_gap
             if all_fractions_0 != 0:
                 continue
@@ -1599,31 +1610,28 @@ def draw_percents_and_placement_bars_circular(image, placements, tree, \
             x_text, y_text = calculate_coordinates_circular(\
               mltreemap_results, x_coord_of_text, y_coord_of_text)
             if rot_angle + 90 <= 180:
-                placements.add(image.text(str(text), (x_text, y_text), \
-                  transform = 'rotate(' + str(rot_angle) + ' ' + \
-                  str(x_text) + ',' + str(y_text) + ')', style = \
-                  'font-family:Verdana; font-size:' + str(fontsize) + \
-                  '; text-anchor:end'))
+                placements.add(image.text(str(text), (x_text, \
+                  y_text), transform = 'rotate(' + str(rot_angle) + \
+                  ' ' + str(x_text) + ',' + str(y_text) + ')', \
+                  style = 'font-family:Verdana; font-size:' + \
+                  str(fontsize) + '; text-anchor:end'))
             else:
                 rot_angle += 180
                 # TK line 855 this is my best guess; DEBUG
-                placements.add(image.text(str(text), (x_text, y_text), \
-                  transform = 'rotate(' + str(rotate_angle) + ' ' + \
-                  str(x_text) + ',' + str(y_text) + ')', style = \
-                  'font-family:Verdana; font-size:' + str(fontsize)))
+                placements.add(image.text(str(text), (x_text, \
+                  y_text), transform = 'rotate(' + str(rot_angle) + \
+                  ' ' + str(x_text) + ',' + str(y_text) + ')', \
+                  style = 'font-family:Verdana; font-size:' + \
+                  str(fontsize)))
         only_one_color = 1
         # Prepare the placement bars
         x_offset = 0
 
         for color in sorted(used_colors):
-            try:
-                mltreemap_results['counts_per_species'][node][color]
-            except NameError:
-                pass
-            else:
-                fraction_raw = mltreemap_results['counts_per_Species']\
+            if mltreemap_results['counts_per_species'][node][color]:
+                fraction_raw = mltreemap_results['counts_per_species']\
                   [node][color] * 100
-            if fraction_raw > 0:
+            if fraction_raw <= 0:
                 continue
             y_min = tree.y_coord_of_node_min[node]
             y_max = tree.y_coord_of_node_max[node]
@@ -1644,14 +1652,14 @@ def draw_percents_and_placement_bars_circular(image, placements, tree, \
             x_offset += fractional_length
             xa_linear = start_x # == xb_linear
             xc_linear = start_x + fractional_length # == xd_linear
-            draw_trapezoid(mltreemap_results, placements, color, \
+            draw_trapezoid(mltreemap_results, placements, image, color, \
               xa_linear, xc_linear, ya_linear, yb_linear)
 
     return image
 
 
-def draw_trapezoid(mltreemap_results, svg, color, xa_linear, xc_linear,\
-  ya_linear, yb_linear):
+def draw_trapezoid(mltreemap_results, svg, image, color, xa_linear, \
+  xc_linear, ya_linear, yb_linear):
     """TK"""
     # The trapezoid looks somewhat as follows:
     #
@@ -1667,7 +1675,7 @@ def draw_trapezoid(mltreemap_results, svg, color, xa_linear, xc_linear,\
     x_coordinate_of_label_start = mltreemap_results\
       ['x_coordinate_of_label_start']
     x_coordinate_of_label_end = mltreemap_results\
-      ['x_coordinate_of_label end']
+      ['x_coordinate_of_label_end']
     large_arc_flag = 0
     sweep_flag = 1
     sweep_flag2 = 0
@@ -1677,13 +1685,14 @@ def draw_trapezoid(mltreemap_results, svg, color, xa_linear, xc_linear,\
     xa, ya = calculate_coordinates_circular(mltreemap_results,\
       xa_linear, ya_linear)
     xb, yb = calculate_coordinates_circular(mltreemap_results,\
-      xa_linear, ya_linear)
+      xa_linear, yb_linear)
     xc, yc = calculate_coordinates_circular(mltreemap_results,\
       xc_linear, ya_linear)
     xd, yd = calculate_coordinates_circular(mltreemap_results,\
       xc_linear, yb_linear)
     radius_AB = x_coordinate_of_label_start
-    radius_CD = x_coordinate_of_label_start
+    radius_CD = x_coordinate_of_label_end
+    # TK Verified xb yb radius_CD
     svg.add(image.path(d = 'M ' + str(xa) + ',' + str(ya) + ' A ' + \
       str(radius_AB) + ',' + str(radius_AB) + ' 0 ' + \
       str(large_arc_flag) + ', ' + str(sweep_flag) + ' ' + str(xb) + \
@@ -1702,7 +1711,7 @@ def draw_group_colors(image, tree, mltreemap_results):
       ['x_coordinate_of_label_start']
     x_coordinate_of_label_end = mltreemap_results\
       ['x_coordinate_of_label_end']
-    groups = image.defs.add(image.g(id = 'groups'))
+    groups = image.add(image.g(id = 'groups'))
     rx = image_width / 400
     ry = rx
     fontsize = image_width / 125
@@ -1734,9 +1743,9 @@ def draw_group_colors(image, tree, mltreemap_results):
                 name = name.replace('_', ' ')
                 temp = re.search('rgb\((.+),(.+),(.+)\)', color)
                 if temp:
-                    red = temp.group(1) - 80
-                    green = temp.group(2) - 80
-                    blue = temp.group(3) - 80
+                    red = int(temp.group(1)) - 80
+                    green = int(temp.group(2)) - 80
+                    blue = int(temp.group(3)) - 80
                     if red < 0:
                         red = 0
                     if green < 0:
@@ -1763,7 +1772,7 @@ def draw_edges(image, tree, mltreemap_results):
     tree_height = mltreemap_results['image']['tree_height']
     y_offset = mltreemap_results['image']['y_offset']
     allready_drawn_parents = Autovivify()
-    edges = image.defs.add(image.g(id = 'edges'))
+    edges = image.add(image.g(id = 'edges'))
     stroke_width = image_width / 1000
 
     # The tree looks schematically as follows and 
@@ -1782,23 +1791,21 @@ def draw_edges(image, tree, mltreemap_results):
         x_coord_of_node = tree.x_coord_of_node[node]
         y_coord_of_node = tree.y_coord_of_node[node]
         x_coord_of_parent_node = tree.x_coord_of_node[parent_of_node]
-        y_coord_of_parent_node_center = tree.ycoord_of_node\
+        y_coord_of_parent_node_center = tree.y_coord_of_node\
           [parent_of_node]
-        y_distance_parent_to_node = y_coord_of_node + \
+        y_distance_parent_to_node = y_coord_of_node - \
           y_coord_of_parent_node_center
 
         # Second, we draw the horizontal lines from
         # the node to the x-position of its parent.
         edges.add(image.line(start = (x_coord_of_node, \
           y_coord_of_node), end = (x_coord_of_parent_node, \
-          y_coord_of_node), stroke_linecape = 'round', stroke = \
+          y_coord_of_node), stroke_linecap = 'round', stroke = \
           str(edge_color), stroke_width = str(stroke_width), \
           stroke_opacity = 1))
 
         # Third, we draw the vertical line (if not already done)
-        try:
-            allready_drawn_parents[parent_of_node]
-        except NameError:
+        if allready_drawn_parents[parent_of_node]:
             continue
         allready_drawn_parents[parent_of_node] = 1
         edges.add(image.line(start = (x_coord_of_parent_node, \
@@ -1817,7 +1824,7 @@ def draw_guide_lines_and_leaf_names(image, tree, mltreemap_results, \
     tree_height = mltreemap_results['image']['tree_height']
     x_coordinate_of_label_start = mltreemap_results\
       ['x_coordinate_of_label_start']
-    guide_lines_and_labels = image.defs.add(image.g(\
+    guide_lines_and_labels = image.add(image.g(\
       id = 'guide_lines_and_labels'))
     edge_color = 'rgb(220,220,220)'
     stroke_width = image_width / 1000
@@ -1845,7 +1852,7 @@ def draw_guide_lines_and_leaf_names(image, tree, mltreemap_results, \
                 x_coord_of_text = x_coord_of_node + x_gap
                 max_text_length = 42
         node_name = mltreemap_results['name_of_species'][node]
-        temp = re.compile('\A(.%s).' % max_text_length)
+        temp = re.compile('\A(.{%s}).' % max_text_length)
         if temp.search(node_name):
             node_name = str(temp.search(node_name).group(1)) + '...'
         try:
@@ -1868,17 +1875,16 @@ def draw_placement_bubbles(image, tree, mltreemap_results, \
     separated from 'results drawing'
     """
     pi = math.pi
-    placements = image.defs.add(image.g(id = 'placements'))
+    placements = image.add(image.g(id = 'placements'))
 
     # Prepare the code for the placement bubble, initial diameter 40, 
     # do not change, the bubble size is adjusted later
     radius = 20
-    placements = create_aquabubblebody(placements, radius)
-    placements = create_aquabubblebrilliance(placements, radius)
+    placements = create_aquabubblebody(placements, image, radius)
+    placements = create_aquabubblebrilliance(placements, image, radius)
     # Done
 
-    placement_bubbles = placements.defs.add(placements.g(\
-      id = 'placement_bubbles'))
+    placement_bubbles = placements.add(image.g(id = 'placement_bubbles'))
 
     # We want to print the big bubbles first so that they cannot 
     # completely cover smaller ones
@@ -1887,12 +1893,10 @@ def draw_placement_bubbles(image, tree, mltreemap_results, \
     for node in sorted(tree.y_coord_of_node):
         if node == -1:
             continue
+        if not mltreemap_results['counts_per_node'][node]['total_weight']:
+            continue
         total_node_weight = mltreemap_results['counts_per_node'][node]\
           ['total_weight']
-        try:
-            total_node_weight
-        except NameError:
-            continue
         total_weights[total_node_weight][node] = 1
 
     # Okay, now draw the bubble
@@ -1936,12 +1940,8 @@ def draw_placement_bubbles(image, tree, mltreemap_results, \
 
             for color in sorted(mltreemap_results['counts_per_node']\
               [node]['colors']):
-                try:
-                    mltreemap_results['counts_per_node'][node]\
-                      ['colors'][color]
-                except NameError:
-                    pass
-                else:
+                if mltreemap_results['counts_per_node'][node]['colors']\
+                  [color]:
                     fraction = mltreemap_results['counts_per_node']\
                       [node]['colors'][color]
                 if fraction < 0:
@@ -1967,11 +1967,11 @@ def draw_placement_bubbles(image, tree, mltreemap_results, \
 
             if bubble_type:
                 # Draw the bubble
-                placement_bubbles.add(image.use('body', insert = \
+                placement_bubbles.add(image.use('#body', insert = \
                   (x_coord_of_node_placement, \
                   y_coord_of_node_placement), transform = 'scale(' + \
                   str(transform_factor) + ')'))
-                placement_bubbles.add(image.use('brilliance', insert = \
+                placement_bubbles.add(image.use('#brilliance', insert = \
                   (x_coord_of_node_placement, \
                   y_coord_of_node_placement), transform = 'scale(' + \
                   str(transform_factor) + ')'))
@@ -2029,7 +2029,7 @@ def draw_percents_and_placement_bars(image, placements, tree, \
             continue
 
         # First, get all the necessary information
-        y_coord_of_node = tree.y_coord_of_node['node']
+        y_coord_of_node = tree.y_coord_of_node[node]
         x_coordinate_of_label_end = mltreemap_results\
           ['x_coordinate_of_label_end']
         highest_fraction_raw = mltreemap_results\
@@ -2039,7 +2039,7 @@ def draw_percents_and_placement_bars(image, placements, tree, \
         # Prepare the text
         text = ''
         all_fractions_0 = 1
-        fraction_total = 0
+        fraction_total = 0.0
 
         for color in sorted(used_colors):
             # text as generated here is only used if color_mode == 1
@@ -2052,20 +2052,19 @@ def draw_percents_and_placement_bars(image, placements, tree, \
             else:
                 fraction_raw = mltreemap_results['counts_per_species']\
                   [node][color] * 100
-            fraction = (int(fraction_raw * 100 + 0.5)) / 100
+            fraction = (int(fraction_raw * 100 + 0.5)) / 100.0
             fraction_total += fraction
-            fraction = int(fraction * 100 + 0.5) / 100.0 # Round to 2dec
             if fraction > 0:
                 all_fractions_0 = 0
-            text += '(' + str(fraction) + '\%)'
+            text += '(' + str('{0:.2f}'.format(fraction)) + '%)'
 
         fraction_total = int(fraction_total * 100 + 0.5) / 100.0
         if color_mode == 1:
-            text = '(Total: ' + str(fraction_total) + '\%)'
+            text = '(Total: ' + str(fraction_total) + '%)'
         if text_mode:
             fontsize = image_width / 125
             y_offset2 = 0.3 * fontsize
-            x_gap = image_width / 400
+            x_gap = image_width / 400.0
             if all_fractions_0 != 0:
                 continue
             placements.add(image.text(str(text), insert = \
@@ -2108,15 +2107,15 @@ def draw_percents_and_placement_bars(image, placements, tree, \
     return image
 
 
-def create_aquabubblebody(placements, radius):
+def create_aquabubblebody(placements, image, radius):
     """TK"""
-    svg = placements.defs
+    svg = placements
 
     # Now the aquabubble body:
 
     # Part I
-    bubble_gradient1 = image.linearGradient(start = ('50%', '100%'), \
-      end = ('50%', '0%'), id = 'bubble_gradient1')
+    bubble_gradient1 = image.defs.add(image.linearGradient(start = \
+      ('50%', '100%'), end = ('50%', '0%'), id = 'bubble_gradient1'))
     svg.add(bubble_gradient1)
     bubble_gradient1.add_stop_color(offset = 0.2472, color = '#FAFAFA')
     bubble_gradient1.add_stop_color(offset = 0.3381, color = '#D0D0D0')
@@ -2126,13 +2125,13 @@ def create_aquabubblebody(placements, radius):
     bubble_gradient1.add_stop_color(offset = 0.7893, color = '#494949')
     bubble_gradient1.add_stop_color(offset = 0.8975, color = '#3C3C3C')
     bubble_gradient1.add_stop_color(offset = 1, color = '#383838')
-    svg.add(image.circle(center = (radius, radius), r = radius, id = \
-      'bubble_part1', opacity = 0.4, fill = 'url(#bubble_gradient1)'))
+    image.defs.add(image.circle(center = (radius, radius), r = radius, \
+      id = 'bubble_part1', opacity = 0.4, fill = 'url(#bubble_gradient1)'))
     # Part I done
 
     # Part II
-    bubble_gradient2 = image.radialGradient(center = ('50%', '50%'), \
-      r = '50%', id = 'bubble_gradient2')
+    bubble_gradient2 = image.defs.add(image.radialGradient(center = \
+      ('50%', '50%'), r = '50%', id = 'bubble_gradient2'))
     svg.add(bubble_gradient2)
     bubble_gradient2.add_stop_color(offset = 0, color = '#FFFFFF')
     bubble_gradient2.add_stop_color(offset = 0.3726, color = '#FDFDFD')
@@ -2147,12 +2146,11 @@ def create_aquabubblebody(placements, radius):
     bubble_gradient2.add_stop_color(offset = 0.9926, color = '#090909')
     bubble_gradient2.add_stop_color(offset = 1, color = '#000000')
 
-    svg.add(image.circle(center = (radius, radius), r = radius, id = \
-      'bubble_part2', opacity = 0.1, fill = 'url(#bubble_gradient2)'))
-    group1_svg = placements.g(id = 'body')
-    svg.add(group1_svg)
-    group1_svg.defs.add(placements.use('bubble_part1'))
-    group1_svg.defs.add(placements.use('bubble_part2'))
+    image.defs.add(image.circle(center = (radius, radius), r = radius, \
+      id ='bubble_part2', opacity = 0.1, fill = 'url(#bubble_gradient2)'))
+    group1_svg = image.defs.add(image.g(id = 'body'))
+    group1_svg.add(image.use('#bubble_part1'))
+    group1_svg.add(image.use('#bubble_part2'))
     # Part II done
 
     # aquabubblebody done
@@ -2160,9 +2158,9 @@ def create_aquabubblebody(placements, radius):
     return placements
 
 
-def create_aquabubblebrilliance(placements, radius):
+def create_aquabubblebrilliance(placements, image, radius):
     """TK"""
-    svg = placements.defs
+    svg = placements
 
     cy = radius / 2.5
     rx = radius / 2
@@ -2171,7 +2169,7 @@ def create_aquabubblebrilliance(placements, radius):
     # Now the brilliance effect
     # This way of generating a opacity gradient generates valid SVG code
     # but cannot be interpreted by Adobe Illustrator CS3
-    brilliance_gradient = placements.linearGradient(start = ('50%', '0%'), end = ('50%', '100%'), id = 'brilliance_gradient')
+    brilliance_gradient = image.defs.add(image.linearGradient(start = ('50%', '0%'), end = ('50%', '100%'), id = 'brilliance_gradient'))
     svg.add(brilliance_gradient)
     brilliance_gradient.add_stop_color(offset = 0, color = '#FFFFFF', \
       opacity = 1)
@@ -2180,20 +2178,20 @@ def create_aquabubblebrilliance(placements, radius):
     brilliance_gradient.add_stop_color(offset = 1, color = '#FFFFFF', \
       opacity = 0)
 
-    svg.add(image.ellipse(center = (radius, cy), radius = (rx, ry), \
+    image.defs.add(image.ellipse(center = (radius, cy), r = (rx, ry), \
       id = 'bubble_brilliance', opacity = 0.9, \
       fill = 'url(#brilliance_gradient)'))
 
-    group1_svg = placements.g(id = 'brilliance')
+    group1_svg = image.defs.add(image.g(id = 'brilliance'))
     svg.add(group1_svg)
-    group1_svg.add(placements.use('bubble_brilliance'))
+    group1_svg.add(image.use('#bubble_brilliance'))
 
     return placements
 
 
 def read_tree_topology(mltreemap_results):
     """TK"""
-    print 'reading tree topology...\n'
+    print 'reading tree topology...'
     tree_file = 'tree_data/' + str(mltreemap_results['tree_file'])
     tree = NEWICK_tree()
     tree.read_tree_topology_from_file(tree_file)
@@ -2205,6 +2203,12 @@ def read_tree_topology(mltreemap_results):
     # Done
 
     compute_node_positions(tree)
+    # TK Verified all tree attributes
+    tree = scale_node_positions(tree, mltreemap_results)
+    # TK Verified tree.branch_length_of_node, tree.x_coord_of_node,
+    #             tree.y_coord_of_node, tree.y_coord_of_node_min,
+    #             tree.y_coord_of_node_max
+
 #    sys.exit(str(tree.node_id_counter))
 #    sys.exit(tree.parent_of_node)
 #    sys.exit(tree.children_of_node)
@@ -2218,8 +2222,7 @@ def read_tree_topology(mltreemap_results):
 #    sys.exit(tree.y_coord_of_node_min)
 #    sys.exit(tree.y_coord_of_node_max)
 #    sys.exit(tree.species_display_order)
-    tree, mltreemap_results = scale_node_positions(tree, \
-      mltreemap_results)
+ 
 
     return tree
 
@@ -2232,27 +2235,26 @@ def scale_node_positions(tree, mltreemap_results):
     y_scaling_factor = tree_height # Note: This works because y values 
                                    #       range from 0 - 1
 
+    # TK Verified image_width, tree_height, y_offset, y_scaling_factor
+
     # Assign the highest possible tree x coordinate 
     # and calculate the x_scaling_factor
-    x_scaling_factor = 0
+    x_scaling_factor = 0.0
 
     for x_val in sorted(tree.nodes_of_x_coords, reverse=True):
-        x_scaling_factor = mltreemap_results\
-          ['x_coordinate_of_tree_end'] / x_val
+        x_scaling_factor = float(mltreemap_results\
+          ['x_coordinate_of_tree_end']) / float(x_val)
         try:
             x_scaling_factor
         except NameError:
             sys.exit('ERROR: x scaling factor could ' + \
               'not be calculated!\n')
-        continue
+        break
 
     if not x_scaling_factor:
         sys.exit('ERROR: x scaling factor could not be determined!\n')
 
-    print tree.y_coord_of_node
     for node in sorted(tree.y_coord_of_node):
-        print node
-        sys.exit(tree.y_coord_of_node[node]) # TK  DEBUG
         y_coord_of_node = float(tree.y_coord_of_node[node]) * \
           float(y_scaling_factor) + float(y_offset)
         x_coord_of_node = float(tree.x_coord_of_node[node]) * \
@@ -2303,9 +2305,17 @@ def compute_node_positions(tree):
         tree.y_coord_of_node_max[node] = y_position + fraction
         y_position += fraction
 
+    # TK Verified tree.y_coord_of_node
+    # TK Verified tree.y_coord_of_node_min
+    # TK Verified tree.y_coord_of_node_max
     assign_y_coord_internal_node(tree, -1)
+    # TK Verified tree.y_coord_of_node
+    # TK Verified tree.y_coord_of_node_min
+    # TK Verified tree.y_coord_of_node_max
     assign_x_coord_to_node(tree, -1, 0.01) # Note: 0.01 is the hardcoded
                                            # branch length of node -1
+    # TK Verified tree.x_coord_of_node
+    # TK Verified tree.nodes_of_x_coords
 
     # CVM WATCH: The vertical position of node -2 is meddled with here 
     # in order to avoid the 'kink' at the root
@@ -2329,15 +2339,15 @@ def assign_y_coord_internal_node(tree, this_node):
     # TK Verified children_of_node[this_node]
     for child in tree.children_of_node[this_node]:
         position = assign_y_coord_internal_node(tree, child)
-        print position
         if position < min_position:
             min_position = position
-        if position > max_position and child < 1000000:
+        if position > max_position and int(child) < 1000000:
             max_position = position
 
-    if this_node == -1:
-        sys.exit(min_position)
-        sys.exit(max_position)
+#    if this_node == -1:
+#        print 'DEBUG'
+#        sys.exit('min: ' + str(min_position))
+#        sys.exit('max: ' + str(max_position))
     this_position = (min_position + max_position) / 2
     tree.y_coord_of_node[this_node] = this_position
 
@@ -2375,7 +2385,7 @@ def main(argv):
     # TK Verified text_of_denominator
     # TK Verified text_of_denominator
     run_the_imagemaker(user_options, concatenated_input_files, text_of_denominator, used_colors)
-    print 'Done.\n'
+    print 'Done.'
 
 
 if __name__ == "__main__":
