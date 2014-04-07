@@ -2208,9 +2208,14 @@ def read_species_translation_files(args, cog_list):
         except IOError:
             sys.exit('ERROR: Can\'t open ' + str(filename) + '!\n')
 
+        print 'opened ' + str(filename) # TK
+
         for line in input:
             line = line.strip()
-            number, translation = line.split('\t')
+            try:
+                number, translation = line.split('\t')
+            except ValueError:
+                sys.exit('ValueError: .split(\'\\t\') on ' + str(line))
             tree_numbers_translation[denominator][number] = translation
 
         input.close()
