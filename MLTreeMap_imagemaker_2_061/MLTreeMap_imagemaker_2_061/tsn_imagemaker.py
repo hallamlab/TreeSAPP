@@ -329,9 +329,9 @@ different colors!\n')
                 else:
                     continue
                 if percentages_of_texts[text]:
-                    percentages_of_texts[text] += int(weight)
+                    percentages_of_texts[text] += float(weight)
                 else:
-                    percentages_of_texts[text] = int(weight)
+                    percentages_of_texts[text] = float(weight)
             file.close()
 
         if args.colors > 0:
@@ -340,8 +340,8 @@ different colors!\n')
 
         for text in sorted(percentages_of_texts):
             weight = percentages_of_texts[text]
-            relative_weight = weight / nr_of_files
-            relative_weight = (int(relative_weight * 10000 + 0.5)) / 10000
+            relative_weight = float(weight) / nr_of_files
+            relative_weight = (int(relative_weight * 10000 + 0.5)) / 10000.0
             output.write('Placement weight ' + str(relative_weight) + '%:' \
                          + str(text) + '\n')
             check += relative_weight
@@ -974,12 +974,9 @@ def read_RAxML_out(tree, mltreemap_results, input_filename_long):
             terminal_children_string_of_placement += '@' + \
               terminal_child_of_placement
 
-        try:
-            mltreemap_results\
+        if mltreemap_results\
               ['nodes_of_terminal_children_string_reference']\
-              [terminal_children_string_of_placement]
-        except NameError:
-            pass
+              [terminal_children_string_of_placement]:
             # Attention! This circumvents a problem with the unrooted
             # RAxML tree!
             # continue
@@ -987,7 +984,6 @@ def read_RAxML_out(tree, mltreemap_results, input_filename_long):
             # str(terminal_children_string_of_placement) + ')\n, as' + \
             # ' written in the parsed RAxML file, does not exist in' + \
             # ' the reference tree...\n')
-        else:
             node = mltreemap_results\
               ['nodes_of_terminal_children_string_reference']\
               [terminal_children_string_of_placement]
@@ -1023,18 +1019,18 @@ def distribute_node_weight_by_topology(tree, node, node_weight, \
     """TK"""
     terminal_children = tree.terminal_children_of_node[node]
     nr_of_children = len(terminal_children)
-    fractional_weight = node_weight / nr_of_children
+    fractional_weight = float(node_weight) / float(nr_of_children)
 
     for child in terminal_children:
         mltreemap_results['counts_per_species'][child][color] += \
           fractional_weight
-        total_weight_of_child = 0
+        total_weight_of_child = 0.0
 
         for color in \
           sorted(mltreemap_results['counts_per_species'][child]):
             color_weight = \
               mltreemap_results['counts_per_species'][child][color]
-            total_weight_of_child += color_weight
+            total_weight_of_child += float(color_weight)
 
         if total_weight_of_child > \
           mltreemap_results['highest_count_per_species']:
@@ -2045,11 +2041,7 @@ def draw_percents_and_placement_bars(image, placements, tree, \
             # text as generated here is only used if color_mode == 1
             # (ie. show different datasets in different colors and
             # percentages for all of them)
-            try:
-                mltreemap_results['counts_per_species'][node][color]
-            except NameError:
-                pass
-            else:
+            if mltreemap_results['counts_per_species'][node][color]:
                 fraction_raw = mltreemap_results['counts_per_species']\
                   [node][color] * 100
             fraction = (int(fraction_raw * 100 + 0.5)) / 100.0
@@ -2080,11 +2072,7 @@ def draw_percents_and_placement_bars(image, placements, tree, \
 
         for color in sorted(mltreemap_results['counts_per_species']\
           [node]):
-            try:
-                mltreemap_results['counts_per_species'][node][color]
-            except NameError:
-                pass
-            else:
+            if mltreemap_results['counts_per_species'][node][color]:
                 fraction_raw = mltreemap_results['counts_per_species']\
                   [node][color] * 100
             if fraction_raw <= 0:
