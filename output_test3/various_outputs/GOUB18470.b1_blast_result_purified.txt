@@ -1,1 +1,0 @@
-GOUB18470.b1	86	345	forward	18srRNA	359.0

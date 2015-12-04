@@ -1,3 +1,0 @@
-# Phylogenetic analysis, 16s rRNA:
-
-Placement weight 100%: Assignment of query to the lowest common ancestor of Nostoc piscinale CENA21 (16S rRNA) (224013), Synechococcus sp. CR_L13 (16S rRNA) (459398), Synechocystis sp. Helwan1 (16S rRNA) (563784) and Anabaena crassa CENA202 (16S rRNA) (630634).

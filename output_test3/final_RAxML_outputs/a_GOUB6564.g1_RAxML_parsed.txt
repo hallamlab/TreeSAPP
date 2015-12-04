@@ -1,3 +1,0 @@
-# Phylogenetic analysis, 16s rRNA:
-
-Placement weight 100%: Assignment of query to the lowest common ancestor of Nitrosomonas nitrosa (16S rRNA) (52442) and Nitrosospira sp. Nsp12 (16S rRNA) (136545).

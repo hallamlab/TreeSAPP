@@ -1,15 +1,17 @@
 #!/usr/bin/python
-##############################
-##
-## MLTreeMap TSN v. 0.0
-##
-##############################
+
+__author__ = "Kishori Konwar, Young Song and Connor Morgan-Lang"
+__maintainer__ = "Connor Morgan-Lang"
+__license__ = "GPL"
+__version__ = "0.2"
 
 try:
     import argparse
     import sys
     import os
     from os import path
+    from os import listdir
+    from os.path import isfile, join
     import shutil
     import re
     import glob
@@ -17,8 +19,7 @@ try:
     import time
     import traceback
 except:
-    print """ Could not load some user defined  module functions"""
-    print """ """
+    print """ Could not load some user defined module functions\n"""
     print traceback.print_exc(10)
     sys.exit(3)
 
@@ -42,47 +43,67 @@ def os_type():
 
 
 def pathDelim():
-     """Return the path deliminator based on the operating system of the user."""
-     ostype = os_type()
-     if ostype == 'win':
-         return "\\"
- 
-     if ostype in ['linux', 'mac']:
-         return "/"
+    """Return the path deliminator based on the operating system of the user."""
+    ostype = os_type()
+    if ostype == 'win':
+        return "\\"
+    if ostype in ['linux', 'mac']:
+        return "/"
 
-PATHDELIM =  str(pathDelim())
+PATHDELIM = str(pathDelim())
 
 class Autovivify(dict):
-    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables) without explicitly declaring those variables beforehand."""
+    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables)
+    without explicitly declaring those variables beforehand."""
     def __getitem__(self, item):
         try:
             return dict.__getitem__(self, item)
         except KeyError:
             value = self[item] = type(self)()
             return value
-
-
-# TK class BookKeeping: we will implement a singleton class for bookkeeping
      
 
 def getParser(): 
     """Returns the parser to interpret user options."""
-    parser = argparse.ArgumentParser(description='TK Takes a sequence(s) and, using a Maximum Likelihood algorithm, attempts to place it in an appropriate reference tree.')
-    parser.add_argument('-i', '--input', required=True, help='your sequence input file')
-    parser.add_argument('-b', '--bootstraps', default=0, type=int, help='the number of Bootstrap replicates')
-    parser.add_argument('-c', '--cluster', default=0, choices=[0,'s'], help='use a computer cluster? (0 = no cluster; s = sun grid)')
-    parser.add_argument('-f', '--phylogeny', default='v', choices=['v','p'], help='RAxML algorithm (v = Maximum Likelihood; p = Maximum Parsimony)')
-    parser.add_argument('-g', '--gblocks', default=50, type=int, help='minimal sequence length after Gblocks')
-    parser.add_argument('-l', '--filelength', default=2000, type=int, help='long input files will be splint into files containing L sequences each')
-    parser.add_argument('-m', '--memory', default=0, type=int, help='minimum memory on a sungrid_cluster in GB')
-    parser.add_argument('-o', '--output', default='output/', help='output directory')
-    parser.add_argument('-s', '--bitscore', default=60, type=int, help='minimum bitscore for the blast hits')
-    parser.add_argument('-t', '--reftree', default='p', choices=['p','g','i'], help='phylogenetic reference tree (p = MLTreeMap reference tree; g = GEBA reference tree; i = fungi tree)')
-    parser.add_argument('-r', '--reftype', default='n', choices=['a','n'], help='the type of input sequences (a = Amino Acid; n = Nucleotide)')
-    parser.add_argument('-e', '--executables', default='sub_binaries', help='locations of executables (e.g. blastx, Gblocks, etc.)')
-    parser.add_argument('-x', '--mltreemap', default = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) , help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
-    parser.add_argument('-T', '--num_threads', default = None , help='specifies the number of CPU threads to use in raxml and blast (default: 1)')
-    parser.add_argument('-d', '--delete', default = None, help='the sections of files to be deleted, as separated by colons (1 = Sequence Files; 2 = BLAST Results; 3 = Genewise Results; 4 = hmmalign and Gblocks Results; 5 = Unparsed RAxML Results')
+    parser = argparse.ArgumentParser(description='Phylogenetically informed insertion of sequence into a reference tree'
+                                                 ' using a Maximum Likelihood algorithm.')
+    parser.add_argument('-i', '--input', required=True,
+                        help='Your sequence input file in FASTA format')
+    parser.add_argument('-o', '--output', default='output/',
+                        help='output directory [DEFAULT = ./output/]')
+    parser.add_argument('-b', '--bootstraps', default=0, type=int,
+                        help='the number of Bootstrap replicates [DEFAULT = 0]')
+    parser.add_argument('-f', '--phylogeny', default='v', choices=['v', 'p'],
+                        help='RAxML algorithm (v = Maximum Likelihood [DEFAULT]; p = Maximum Parsimony)')
+    parser.add_argument('-g', '--gblocks', default=50, type=int,
+                        help='minimal sequence length after Gblocks [DEFAULT = 50]')
+    parser.add_argument('-l', '--filelength', default=2000, type=int,
+                        help='long input files will be split into files containing L sequences each [DEFAULT L = 2000]')
+    parser.add_argument('-s', '--bitscore', default=60, type=int,
+                        help='minimum bitscore for the blast hits [DEFAULT = 60]')
+    parser.add_argument('-t', '--reftree', default='p', choices=['p', 'g', 'i'],
+                        help='reference tree (p = MLTreeMap reference tree [DEFAULT]; '
+                             'g = GEBA reference tree; i = fungi tree)')
+    parser.add_argument('-r', '--reftype', default='n', choices=['a', 'n'],
+                        help='the type of input sequences (a = Amino Acid; n = Nucleotide [DEFAULT])')
+    parser.add_argument('-e', '--executables', default='sub_binaries',
+                        help='locations of executables (e.g. blastx, Gblocks, etc.)')
+    parser.add_argument('-x', '--mltreemap', default=os.path.abspath(os.path.dirname(os.path.realpath(__file__))),
+                        help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
+    parser.add_argument('-T', '--num_threads', default=None,
+                        help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 1]')
+    parser.add_argument('-d', '--delete', default=None,
+                        help='the sections of files to be deleted, as separated by colons '
+                             '(1 = Sequence Files; '
+                             '2 = BLAST Results; '
+                             '3 = Genewise Results; '
+                             '4 = hmmalign and Gblocks Results; '
+                             '5 = Unparsed RAxML Results)')
+    parser.add_argument('--overwrite', action='store_true', default=False,
+                        help='overwrites previously processed output folders')
+    parser.add_argument('-v', '--verbose', action='store_true',  default=False,
+                        help='maintains intermediate files in `various_outputs` and `final_RaXML_outputs` directories'
+                             ', and prints a more verbose runtime log')
     return parser
 
 def checkParserArguments(parser):
@@ -104,6 +125,13 @@ def checkParserArguments(parser):
         args.reference_data_prefix = ''
         args.reference_tree = 'MLTreeMap_reference.tree'
 
+    # Notify the user that bootstraps cannot be used with the Maximum Parsimony settings of RAxML.
+    if args.bootstraps > 1 and args.phylogeny == 'p':
+        print 'ATTENTION: You intended to do ' + str(args.bootstraps) + \
+              ' bootstrap replications. Unfortunately, bootstrapping is ' +\
+              'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n'
+        args.bootstraps = 1
+
     return args
 
 
@@ -119,12 +147,18 @@ def removePreviousOutput(args):
         args.output = args.output[:-1]
     args.output += PATHDELIM
 
+    # delete previous output folders by force
+    if args.overwrite:
+       if path.exists(args.output):
+          shutil.rmtree(args.output)
+
     # Prompt the user to deal with the pre-existing output directory
     while os.path.isdir(args.output):
         print('WARNING: Your output directory "' + args.output + '" already exists!')
         print('Overwrite [1], quit [2], or change directory [3]?')
         answer = raw_input()
         answer = int(answer)
+
         while not answer == 1 and not answer == 2 and not answer == 3:
             answer = raw_input('Invalid input. Please choose 1, 2, or 3.\n')
             answer = int(answer)
@@ -147,16 +181,24 @@ def removePreviousOutput(args):
     args.output_dir_var = args.output + 'various_outputs' + PATHDELIM
     args.output_dir_raxml = args.output + 'final_RAxML_outputs' + PATHDELIM
     args.output_dir_final = args.output + 'final_outputs' + PATHDELIM
-    os.makedirs(args.output)
-    os.mkdir(args.output_dir_var)
-    os.mkdir(args.output_dir_raxml)
-    os.mkdir(args.output_dir_final)
+
+    if not os.path.isdir(args.output):
+        os.makedirs(args.output)
+        os.mkdir(args.output_dir_var)
+        os.mkdir(args.output_dir_raxml)
+        os.mkdir(args.output_dir_final)
 
     return args
 
 
 def createCogList(args):
-    """Returns an Autovivification of the COGs in the MLTreeMap COG list file, and a list of output text precursors based on the analysis type."""
+    """
+    Loads the MLTreeMap COG list file
+    :param args: The command-line and default arguments object
+    :return: An autovivification of the COGs in cog_list.txt. This also includes their short-form name (termed
+    denominator e.g. mcrA, mcrB, a, b, cdhA, etc.) and a list of output text precursors based on the analysis type.
+    The denominator is equal to the command-line reference tree specifier argument (p, g, or i) if phylogenetic COGs
+    """
     
     cog_list = Autovivify()
     text_of_analysis_type = Autovivify()
@@ -240,12 +282,12 @@ def splitFastaInput(args):
     """
 
     # Confirm input file is a fasta file
-    input = open(args.input, 'r')
-    if (not input.read(1) == '>'):
+    fasta = open(args.input, 'r')
+    if not fasta.read(1) == '>':
         sys.exit('ERROR: Your file does not appear to be a proper FASTA file!\n')
 
     # Unread the '>' to prevent problems later
-    input.seek(-1,1)
+    fasta.seek(-1, 1)
 
     # Determine the output file names and open the output files
     if (re.match(r'\A.*\/(.*)', args.input)):
@@ -259,15 +301,19 @@ def splitFastaInput(args):
     countSequences = 0
 
     # Iterate through the input file...
+    regATCG = re.compile(r'[acgtACGT]')
+    regAMBIG = re.compile(r'[xnXN]')
+    regAMINO = re.compile(r'[abcdefghiklmnpqrstuvwyzABCDEFGHIKLMNPQRSTUVWYZ*]')
     countTotal = 0
     countNucleotides = 0
     countXN = 0
     countUndef = 0
     splitFiles = []
 
-    for line in input:
+    count = 0
+    for line in fasta:
         # If the line is a sequence name...
-        if (re.search('\A>', line)):
+        if line[0] == '>':
             countSequences += 1
 
             # Replace all non a-z, A-Z, 0-9, or . characters with a _
@@ -291,27 +337,27 @@ def splitFastaInput(args):
         else:
 
             # Remove all non-characters from the sequence
-            re.sub(r'[^a-zA-Z]','', line)
+            re.sub(r'[^a-zA-Z]', '', line)
 
             # Count the number of {atcg} and {xn} in all the sequences
-            characters = []
             characters = list(line)
             
             for character in characters:
                 countTotal += 1
-                # If input is nucleotides, count nucleotides
+                # If fasta is nucleotides, count nucleotides
                 if args.reftype == 'n':
-                    if (re.match(r'[acgtACGT]', character)):
+
+                    if regATCG.match(character):
                         countNucleotides += 1
-                    elif (re.match(r'[xnXN]', character)):
+                    elif regAMBIG.match(character):
                         countXN += 1
                     else:
                         countUndef += 1
-                # Else, if input is amino acids, count amino acids
+                # Else, if fasta is amino acids, count amino acids
                 elif args.reftype == 'a':
-                    if re.match(r'[abcdefghiklmnpqrstuvwyzABCDEFGHIKLMNPQRSTUVWYZ*]', character):
+                    if regAMINO.match(character):
                         countNucleotides += 1
-                    elif re.match(r'[xnXN]', character):
+                    elif regAMBIG.match(character):
                         countXN += 1
                     else:
                         countUndef += 1
@@ -321,24 +367,24 @@ def splitFastaInput(args):
         outputFormatted.write(line)
 
     # Close the files
-    input.close()
+    fasta.close()
     outputSplit.close()
     outputFormatted.close()
 
     # If there's only one input file, add it to the list of split input files
     if not splitFiles:
-        splitFiles.append(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles))
+        splitFiles.append(args.output_dir_var + inputFileName + '_%d.txt' % countFiles)
 
     # Exit the program if character count is 0
-    if (countTotal == 0):
+    if countTotal == 0:
         sys.exit('ERROR: Your input file appears to be corrupted. No sequences were found!\n')
 
     # Exit the program if all sequences are composed only of X or N
-    elif (countXN == countTotal):
+    elif countXN == countTotal:
         sys.exit('ERROR: Your sequence(s) contain only X or N!\n')
 
     # Exit the program if less than half of the characters are nucleotides
-    elif (float(countNucleotides / float(countTotal)) < 0.5):
+    elif float(countNucleotides / float(countTotal)) < 0.5:
         if args.reftype == 'n':
             sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
         elif args.reftype == 'a':
@@ -350,7 +396,7 @@ def splitFastaInput(args):
 def runBlast(args, splitFiles):
     """Runs the BLAST algorithm on each of the split input files."""
 
-    print 'Run BLAST'
+    print "Running BLAST... this may take a while."
 
     # For each file containing a maximum of the specified number of sequences...
     alignment_data_dir = args.mltreemap + PATHDELIM + \
@@ -381,9 +427,9 @@ def runBlast(args, splitFiles):
         # Run the appropriate BLAST command(s) based on the input sequence type
         if args.reftype == 'n':
             command = args.executables + PATHDELIM + 'blastx ' + \
-                      '-query ' + splitFile + ' ' + db_aa + ' ' + \
-                      '-evalue 0.01 -max_target_seqs 20000 ' + \
-                      '-dbsize 1000000 -outfmt 6 '
+                '-query ' + splitFile + ' ' + db_aa + ' ' + \
+                '-evalue 0.01 -max_target_seqs 20000 ' + \
+                '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
                 if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
@@ -392,9 +438,9 @@ def runBlast(args, splitFiles):
             command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
             os.system(command)
             command = args.executables + PATHDELIM + 'blastn ' + \
-                      '-query ' + splitFile + ' ' + db_nt + ' ' + \
-                      '-evalue 0.01 -max_target_seqs 20000 ' + \
-                      '-dbsize 1000000 -outfmt 6 '
+                '-query ' + splitFile + ' ' + db_nt + ' ' + \
+                '-evalue 0.01 -max_target_seqs 20000 ' + \
+                '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
                 if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
@@ -402,6 +448,7 @@ def runBlast(args, splitFiles):
                     command += '-num_threads ' + str(1) + ' '
             command += '>> ' + args.output_dir_var + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
             os.system(command)
+
         elif args.reftype == 'a':
             command = args.executables + PATHDELIM + 'blastp ' + \
                       '-query ' + splitFile + ' ' + db_aa + ' ' + \
@@ -417,7 +464,7 @@ def runBlast(args, splitFiles):
 
         # Remove the BLAST input file
         if path.exists(splitFile):
-           os.remove(splitFile)
+            os.remove(splitFile)
 
     # TK? Remove empty BLAST result raw files; store non-empty files in a list
 
@@ -428,7 +475,6 @@ def readBlastResults(args):
 
     Returns a list of non-empty BLAST results files.
     """
-
     rawBlastResultFiles = []
 
     for file in glob.glob(args.output_dir_var + '*BLAST_results_raw.txt'):
@@ -444,18 +490,24 @@ def readBlastResults(args):
 def parseBlastResults(args, rawBlastResultFiles, cog_list):
     """Returns an Autovivification of purified (eg. non-redundant) BLAST hits."""
 
+    if args.verbose:
+        print "Parsing BLAST results...",
+
+    regCOGID = re.compile(r'.*(.{7})\Z')
     counter = 0
     purifiedBlastHits = Autovivify()
+
     for file in sorted(rawBlastResultFiles):
         try:     
-            blastResults = open(file, 'r')
+            blast_results = open(file, 'r')
         except IOError:
             print "ERROR: Cannot open BLAST outputfile " + file
             continue
 
-        contigs = Autovivify()
+        ##contigs = Autovivify()
+        contigs = {}
         identifier = 0
-        for line in blastResults:
+        for line in blast_results:
             # Clear the variables referencing the contig, COG, query start, query end, reference start, reference end, and bitscore
             # Interpret the BLAST hit, and assign the details accordingly
             tempContig, tempDetailedCOG, _, _, _, _, tempQStart, tempQEnd, tempRStart, tempREnd, _, tempBitScore = line.split('\t')
@@ -487,12 +539,19 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
 
             # Trim COG name to last 7 characters of detailed COG name
             # TK - This will be important to note in the user's manual, especially if we enable people to add their own COGs later
-            if re.match(r'.*(.{7})\Z', tempDetailedCOG):
-                tempCOG = re.match(r'.*(.{7})\Z', tempDetailedCOG).group(1)
+            result = regCOGID.match(tempDetailedCOG)
+            if result:
+                tempCOG = result.group(1)
             else:
                 sys.exit('ERROR: Could not detect the COG of sequence ' + tempDetailedCOG)
 
             # Save contig details to the list
+            if tempContig not in contigs:
+                contigs[tempContig] = {}
+
+            if identifier not in contigs[tempContig]:
+                contigs[tempContig][identifier] = {}
+
             contigs[tempContig][identifier]['bitscore'] = tempBitScore
             contigs[tempContig][identifier]['cog'] = tempCOG
             contigs[tempContig][identifier]['seq_start'] = tempQStart
@@ -502,79 +561,97 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
             identifier += 1
 
         # Close the file
-        blastResults.close()
+        blast_results.close()
 
         # Purify the BLAST hits
-
         # For each contig sorted by their stringwise comparison...
         for contig in sorted(contigs.keys()):
             identifier = 0
 
-            # For each blast result for that contig...
-            for base_blast_result_raw_identifier in sorted(contigs[contig].keys()):
+            # create tuple array to sort
+            IDs = []
+            for raw_identifier in sorted(contigs[contig].keys()):
+                base_start = contigs[contig][raw_identifier]['seq_start']
+                IDs.append((raw_identifier, base_start))
+            _IDs = sorted(IDs, key=lambda x: x[1])
+            IDs = [x[0] for x in _IDs]
+
+            base_blast_result_raw_identifier = IDs.pop()
+            contigs[contig][base_blast_result_raw_identifier]['validity'] = True
+            base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
+            base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
+            base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
+            base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
+            direction = contigs[contig][base_blast_result_raw_identifier]['direction']
+            base_length = base_end - base_start
+
+            # Compare the BLAST hit (base) against all others
+            # There may be several opinions about how to do this. This way is based on the original MLTreeMap
+            # ----A----  --C--
+            #        ---B---
+            # A kills B, B kills C. (Another approach would be to let C live, but the original MLTreeMap authors don't expect C to be useful)
+            for check_blast_result_raw_identifier in IDs:
+                check_bitscore = contigs[contig][check_blast_result_raw_identifier]['bitscore']
+                check_cog = contigs[contig][check_blast_result_raw_identifier]['cog']
+                check_start = contigs[contig][check_blast_result_raw_identifier]['seq_start']
+                check_end = contigs[contig][check_blast_result_raw_identifier]['seq_end']
+                check_length = check_end - check_start
+
+                # Compare the base and check BLAST hits
+                info = Autovivify()
+                info['base']['start'] = base_start
+                info['base']['end'] = base_end
+                info['check']['start'] = check_start
+                info['check']['end'] = check_end
+                overlap = calculate_overlap(info)
+                counter += 1
+
+                # Check for validity for hits with overlap
+                if overlap == 0:
+                    base_blast_result_raw_identifier = check_blast_result_raw_identifier
+                    base_bitscore = check_bitscore
+                    base_cog = check_cog
+                    base_start = check_start
+                    base_end = check_end
+                    base_length = check_length
+                    contigs[contig][base_blast_result_raw_identifier]['validity'] = True
+                else:
+                    if overlap > 0.5*base_length and base_bitscore < check_bitscore:
+                        contigs[contig][base_blast_result_raw_identifier]['validity'] = False
+                        base_blast_result_raw_identifier = check_blast_result_raw_identifier
+                        base_bitscore = check_bitscore
+                        base_cog = check_cog
+                        base_start = check_start
+                        base_end = check_end
+                        base_length = check_length
+                        contigs[contig][base_blast_result_raw_identifier]['validity'] = True
+                    elif overlap > 0.5*check_length and check_bitscore < base_bitscore:
+                        contigs[contig][check_blast_result_raw_identifier]['validity'] = False
+                    elif base_start == check_start and base_end == check_end:
+                        # If both are the same, keep only the one with the smaller identifier
+                        if check_blast_result_raw_identifier > base_blast_result_raw_identifier:
+                            contigs[contig][check_blast_result_raw_identifier]['validity'] = False
+
+            # Set validity to 0 if COG is not in list of MLTreeMap COGs
+            if base_cog not in cog_list['all_cogs']:  # CML - this needs to work
+                # print "COG not in all_cogs:", base_cog
+                contigs[contig][base_blast_result_raw_identifier]['validity'] = False
+
+            # Save purified hits for valid base hits
+            for base_blast_result_raw_identifier in IDs:
                 base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
                 base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
                 base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
                 base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
                 direction = contigs[contig][base_blast_result_raw_identifier]['direction']
-                base_length = base_end - base_start
-
-                # Skip if base_bitscore is less than user specified minimum bitscore
-                if (base_bitscore < args.bitscore):
-                    continue
-
-                # Set validity to 0 if COG is not in list of MLTreeMap COGs
-                if not base_cog in cog_list['all_cogs']:
-                    contigs[contig][base_blast_result_raw_identifier]['validity'] = False
-
-                # Compare the BLAST hit (base) against all others
-                # There may be several opinions about how to do this. This way is based on the original MLTreeMap
-                # ----A----  --C--
-                #        ---B---
-                # A kills B, B kills C. (Another approach would be to let C live, but the original MLTreeMap authors don't expect C to be useful)
-
-                for check_blast_result_raw_identifier in sorted(contigs[contig]):
-                    check_bitscore = contigs[contig][check_blast_result_raw_identifier]['bitscore']
-                    check_cog = contigs[contig][check_blast_result_raw_identifier]['cog']
-                    check_start = contigs[contig][check_blast_result_raw_identifier]['seq_start']
-                    check_end = contigs[contig][check_blast_result_raw_identifier]['seq_end']
-                    check_length = check_end - check_start
-
-                    # Don't compare base hit against itself; skip to next iteration
-                    if base_blast_result_raw_identifier == check_blast_result_raw_identifier:
-                        continue
-
-                    # Compare the base and check BLAST hits
-                    info = Autovivify()
-                    info['base']['start'] = base_start
-                    info['base']['end'] = base_end
-                    info['check']['start'] = check_start
-                    info['check']['end'] = check_end
-                    overlap = calculate_overlap(info)
-                    counter +=1
-
-                    # Check for validity for hits with overlap
-                    if overlap > 0:
-                        if overlap  > 0.5*base_length and base_bitscore < check_bitscore:
-                            contigs[contig][base_blast_result_raw_identifier]['validity'] = False
-                        elif overlap > 0.5*check_length and check_bitscore < base_bitscore:
-                            contigs[contig][check_blast_result_raw_identifier]['validity'] = False
-                        elif base_start == check_start and base_end == check_end:
-                            # If both are the same, keep only the one with the smaller identifier
-                           if check_blast_result_raw_identifier > base_blast_result_raw_identifier:
-                                contigs[contig][check_blast_result_raw_identifier]['validity'] = False
-                           else:
-                                contigs[contig][base_blast_result_raw_identifier]['validity'] = False
-
-                # Save purified hits for valid base hits
                 if contigs[contig][base_blast_result_raw_identifier]['validity']:
-                     purifiedBlastHits[contig][identifier]['bitscore'] = base_bitscore
-                     purifiedBlastHits[contig][identifier]['cog'] = base_cog
-                     purifiedBlastHits[contig][identifier]['start'] = base_start
-                     purifiedBlastHits[contig][identifier]['end'] = base_end
-                     purifiedBlastHits[contig][identifier]['direction'] = direction
-                     purifiedBlastHits[contig][identifier]['is_already_placed'] = False
-                     identifier += 1
+                    purifiedBlastHits[contig][identifier]['bitscore'] = base_bitscore
+                    purifiedBlastHits[contig][identifier]['cog'] = base_cog
+                    purifiedBlastHits[contig][identifier]['start'] = base_start
+                    purifiedBlastHits[contig][identifier]['end'] = base_end
+                    purifiedBlastHits[contig][identifier]['direction'] = direction
+                    purifiedBlastHits[contig][identifier]['is_already_placed'] = False
+                    identifier += 1
 
     # Print the BLAST results for each contig
     for contig in sorted(purifiedBlastHits.keys()):
@@ -585,20 +662,20 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
         # Identify the first instance of each bitscore
         for identifier in sorted(purifiedBlastHits[contig].keys()):
             if not purifiedBlastHits[contig][identifier]['bitscore'] in sorting_hash:
-               sorting_hash[purifiedBlastHits[contig][identifier]['bitscore']] = {}
+                sorting_hash[purifiedBlastHits[contig][identifier]['bitscore']] = {}
             sorting_hash[purifiedBlastHits[contig][identifier]['bitscore']][identifier] = 1
 
         # Print the (potentially reduced set of) BLAST results ordered by decreasing bitscore
         for bitscore in sorted(sorting_hash.keys(), reverse=True):
-
             for identifier in sorted(sorting_hash[bitscore]):
-                out.write(contig + '\t' + str(purifiedBlastHits[contig][identifier]['start']) + '\t' +\
-                str(purifiedBlastHits[contig][identifier]['end']) + '\t' +\
-                str(purifiedBlastHits[contig][identifier]['direction']) + '\t' +\
-                purifiedBlastHits[contig][identifier]['cog'] + '\t' + str( bitscore) + '\n')
+                out.write(contig + '\t' + str(purifiedBlastHits[contig][identifier]['start']) + '\t' +
+                          str(purifiedBlastHits[contig][identifier]['end']) + '\t' +
+                          str(purifiedBlastHits[contig][identifier]['direction']) + '\t' +
+                          purifiedBlastHits[contig][identifier]['cog'] + '\t' + str(bitscore) + '\n')
 
         out.close()
-
+    if args.verbose:
+        print "done."
     return purifiedBlastHits
 
 
@@ -611,7 +688,9 @@ def blastpParser(args, shortened_sequence_files, blast_hits_purified):
 
     blastpSummaryFiles = Autovivify()
 
-    for contig in sorted(blast_hits_purified.keys()): 
+    regHEADER = re.compile(r'\A>')
+
+    for contig in sorted(blast_hits_purified.keys()):
         output_file = args.output_dir_var + contig + '_blast_result_summary.txt'
         try:
             output = open(output_file, 'w')
@@ -628,7 +707,7 @@ def blastpParser(args, shortened_sequence_files, blast_hits_purified):
 
         # Get the sequence from the shortened sequence file
         for line in sequence_file:
-            if re.search('\A>', line):
+            if regHEADER.search(line):
                 if flagSeq == 1:
                     sys.exit('ERROR: Unexpected multiple shortened sequences found!\n')
                 flagSeq = 1
@@ -657,8 +736,9 @@ def produceGenewiseFiles(args, blast_hits_purified):
     Returns an Autovivification mapping the contig to its sequence's start and end positions for Genewise.
     Returns a list of files to be run through Genewise.
     """
-
-    flanking_length = 1000 # Recommended: 1000
+    if args.verbose:
+        print "Producing Genewise input files...",
+    flanking_length = 1000  # Recommended: 1000
     prae_contig_coordinates = Autovivify()
     contig_coordinates = Autovivify()
     shortened_sequence_files = {}
@@ -677,16 +757,16 @@ def produceGenewiseFiles(args, blast_hits_purified):
             base_start = blast_hits_purified[contig][base_identifier]['start'] - flanking_length
             base_end = blast_hits_purified[contig][base_identifier]['end'] + flanking_length
             nr_of_blast_hits = len(blast_hits_purified[contig].keys())
-            check_identifier =0
+            check_identifier = 0
             while check_identifier < nr_of_blast_hits:
                 # Skip rRNA hits for now (we work with them later)
                 if re.search(r'rRNA', blast_hits_purified[contig][check_identifier]['cog']):
-                    check_identifier +=1
+                    check_identifier += 1
                     continue
 
                 # Skip hits which have already been placed; otherwise, mark them as placed
                 if blast_hits_purified[contig][check_identifier]['is_already_placed']:
-                    check_identifier +=1
+                    check_identifier += 1
                     continue
 
                 check_start = blast_hits_purified[contig][check_identifier]['start'] - flanking_length
@@ -742,20 +822,21 @@ def produceGenewiseFiles(args, blast_hits_purified):
                sequence += line
             if contig_name in prae_contig_coordinates:
                 sequence_length = len(sequence)
-                shortened_sequence="" 
+                shortened_sequence = ""
 
                 # Start searching for the information to shorten the file.
-                for start_B in sorted(prae_contig_coordinates[contig_name].keys()) :
-                    for end_B in sorted(prae_contig_coordinates[contig_name][start_B].keys()) :
+                for start_B in sorted(prae_contig_coordinates[contig_name].keys()):
+                    for end_B in sorted(prae_contig_coordinates[contig_name][start_B].keys()):
 
                         # Ok, now we have all information about the hit. Correct start and end if needed: 
                         if start_B < 0:
                            start_B = 0 
 
                         if end_B >= sequence_length:
-                           end_B = sequence_length -1 
+                           end_B = sequence_length - 1
       
-                        # Note: Genewise (GW) positions start with 1, Blast (B) positions with 0 -> thus differenciate between start_B and start_GW
+                        # Note: Genewise (GW) positions start with 1, Blast (B) positions with 0 ->
+                        # thus differentiate between start_B and start_GW
                         shortened_start_GW = len(shortened_sequence) + 1 
                         count = -1
                         for nucleotide in sequence: 
@@ -765,23 +846,23 @@ def produceGenewiseFiles(args, blast_hits_purified):
                             shortened_sequence += nucleotide
 
                         shortened_end_GW = len(shortened_sequence)
-                        addition_factor = (start_B + 1) - shortened_start_GW #$start_B + 1 == $start_GW
+                        addition_factor = (start_B + 1) - shortened_start_GW # $start_B + 1 == $start_GW
                         contig_coordinates[contig_name][shortened_start_GW][shortened_end_GW] = addition_factor
 
                 try:
                     with open(args.output_dir_var + contig_name + "_sequence.txt", 'w') as f:
-                       fprintf(f, "%s\n", ">"+ contig_name + "\n" + sequence)
+                        fprintf(f, "%s\n", ">" + contig_name + "\n" + sequence)
                     f.close()
                 except:
-                    print  "ERROR: Can't create " + args.output_dir_var + contig_name + "_sequence.txt!" 
+                    print "ERROR: Can't create " + args.output_dir_var + contig_name + "_sequence.txt!"
 
                 try:   
-                   with open(args.output_dir_var + contig_name + "_sequence_shortened.txt", 'w') as f:
-                      fprintf(f, "%s\n",">" + contig_name + "\n" + shortened_sequence)
-                   f.close()
-                   shortened_sequence_files[args.output_dir_var +  contig_name + "_sequence_shortened.txt"]=contig_name
+                    with open(args.output_dir_var + contig_name + "_sequence_shortened.txt", 'w') as f:
+                        fprintf(f, "%s\n", ">" + contig_name + "\n" + shortened_sequence)
+                    f.close()
+                    shortened_sequence_files[args.output_dir_var + contig_name + "_sequence_shortened.txt"] = contig_name
                 except:
-                   print "ERROR: Can't create " + args.output_dir_var +  contig_name +"_sequence_shortened.txt!" 
+                    print "ERROR: Can't create " + args.output_dir_var + contig_name + "_sequence_shortened.txt!"
 
             if searchmatch:
                contig_name = searchmatch.group(1)
@@ -791,14 +872,16 @@ def produceGenewiseFiles(args, blast_hits_purified):
             sequence += line
 
     input.close()
+    if args.verbose:
+        print "done."
     return contig_coordinates, shortened_sequence_files
 
 
-def fprintf(file, fmt, *args): 
-   """A helper function used to print to a specified file."""
-
-   file.write(fmt % args)
-
+def fprintf(file, fmt, *args):
+    """
+    A helper function used to print to a specified file.
+    """
+    file.write(fmt % args)
 
 def startGenewise(args, shortened_sequence_files, blast_hits_purified):
     """
@@ -807,27 +890,38 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
 
     Returns an Autovivification mapping the Genewise output files to each contig.
     """
+# CML: re-ordered some items in the for loop, and filtered the input to genewise
+    if args.verbose:
+        print "Running Genewise...",
 
-    print 'Run Genewise'
+    mltreemap_dir = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
+    genewise_support = mltreemap_dir + PATHDELIM + 'genewise_support_files' + PATHDELIM
+    hmm_dir = mltreemap_dir + "hmm_data" + PATHDELIM
+
     genewise_outputfiles = Autovivify()
 
-    # For each file which has been shortened by produceGenewiseFiles...
+    if os.getenv("WISECONFIGDIR") is None:
+        os.putenv("WISECONFIGDIR", genewise_support + PATHDELIM + "wisecfg")
 
+    hmm_dir_files = [ f for f in os.listdir(hmm_dir) if os.path.isfile(join(hmm_dir, f)) ]
+
+    COG_HMMs = [ '.'.join(hmmF.split('.')[:-1]) for hmmF in hmm_dir_files ]
+
+    # For each file which has been shortened by produceGenewiseFiles...
     for shortened_sequence_file in sorted(shortened_sequence_files.keys()):
         contig = shortened_sequence_files[shortened_sequence_file]
-
+    
         # For each identifier associated with this contig in the output of parseBlastResults
         for identifier in sorted(blast_hits_purified[contig].keys()):
             cog = blast_hits_purified[contig][identifier]['cog']
+            if not cog in COG_HMMs:
+                continue
 
             # Prepare the output file name, and store it
             genewise_outputfile = args.output_dir_var + contig + '_' + cog + '_genewise.txt'
             genewise_outputfiles[contig][genewise_outputfile] = 1
 
             # Prepare the Genewise command and run it
-            mltreemap_dir = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
-            genewise_support = mltreemap_dir + PATHDELIM + 'genewise_support_files' + PATHDELIM
-            hmm_dir = mltreemap_dir + "hmm_data" + PATHDELIM
             genewise_command = args.executables + PATHDELIM + 'genewise ' + \
                                hmm_dir + cog + '.hmm ' + \
                                shortened_sequence_file + ' -init local -quiet -gene ' + \
@@ -838,6 +932,8 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
             os.system(genewise_command)
 
     # Return the list of output files for each contig
+    if args.verbose:
+        print "done."
     return genewise_outputfiles
 
 def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
@@ -853,6 +949,8 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
     # For each contig analyzed by Genewise...
     for contig in sorted(genewise_outputfiles.keys()):
+        if args.verbose:
+            print "Parsing genewise results for", contig + "...",
         genewise_results_raw = Autovivify()
         genewise_results = Autovivify()
         at_least_one_hit = 0
@@ -890,10 +988,9 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                     if start > end:
                         temp = start
                         start = end
-                        end = start
+                        end = temp
                         direction = 'reverse'
 
-                    # Correct the positions
                     # Genewise is run on a shortened sequence, so the true positions must be calculated
                     for coords_start in sorted(contig_coordinates[contig].keys()):
                         if start >= coords_start:
@@ -922,13 +1019,13 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                     genewise_results_raw[contig][genewise_outputfile][sequence_count]['sequence'] += line.strip()
 
             input.close()
+            if args.verbose:
+                print "done."
 
         # Skip to next contig if there isn't at least 1 hit
         if at_least_one_hit != 1:
             continue
 
-        # Purify the parsed results
-        # For each genewise_outputfile for the contig...
         for base_genewise_outputfile in sorted(genewise_results_raw[contig].keys()):
 
             # For each count of the genewise_outputfile...
@@ -946,9 +1043,9 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                                    'Please contact the authors about it. As a quick solution to the problem, ' +\
                                    'try to remove the sequence which produced this hit from your input file.\n'
                     sys.exit(error_string)
+                is_valid = 1
 
                 base_length = base_end - base_start
-                is_valid = 1
 
                 # Check against all other genewise_outputfiles for that contig
                 # For each genewise_outputfile for the contig...
@@ -990,7 +1087,8 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                                 if base_length < check_length:
                                     is_valid = 0
 
-                            # The COGs are different, so only skip the hit if it is less than half the length of the check
+                            # The COGs are different,
+                            # so only skip the hit if it is less than half the length of the check
                             elif base_length < check_length / 2:
                                 is_valid = 0
 
@@ -1012,6 +1110,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
         # Skip to next hit if there are no valid hits
         if count <= 0:
+            print "Number of valid hits for", contig, "=", str(count)
             continue
 
         # Write the summary file
@@ -1024,14 +1123,16 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
         genewise_summary_files[contig][genewise_summary_file] = 1
         for count in sorted(genewise_results[contig].keys()):
-            output.write(genewise_results[contig][count]['cog'] + '\t' +\
-                         str(genewise_results[contig][count]['start']) + '\t' +\
-                         str(genewise_results[contig][count]['end']) + '\t' +\
-                         genewise_results[contig][count]['direction'] + '\t' +\
+            output.write(genewise_results[contig][count]['cog'] + '\t' +
+                         str(genewise_results[contig][count]['start']) + '\t' +
+                         str(genewise_results[contig][count]['end']) + '\t' +
+                         genewise_results[contig][count]['direction'] + '\t' +
                          genewise_results[contig][count]['sequence'] + '\n')
 
         output.close()
 
+    if args.verbose:
+        print "Finished parsing Genewise outputs"
     return genewise_summary_files
 
 def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files):
@@ -1046,11 +1147,12 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
     """
 
 # TK: ...the list of rRNA hit files is empty.
+    print "Retrieving rRNA hits...",
 
     contig_rRNA_coordinates = Autovivify()
     rRNA_hit_files = {}
     
-    for contig in sorted(blast_hits_purified.keys()) :
+    for contig in sorted(blast_hits_purified.keys()):
         # note: We skipped the Genewise step (we are dealing with rRNA) but we bring the rRNA files in the
         # same structure as the Genewise summary files and bring them back into the ordinary pipeline.
         for identifier in sorted(blast_hits_purified[contig].keys()):
@@ -1065,30 +1167,30 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
             contig_rRNA_coordinates[contig][identifier]["end"] = end
             contig_rRNA_coordinates[contig][identifier]["cog"] = cog
             contig_rRNA_coordinates[contig][identifier]["direction"] = direction
-            outfile_name = args.output_dir_var +  contig + '_rRNA_result_summary.txt'   
+            outfile_name = args.output_dir_var + contig + '_rRNA_result_summary.txt'
             contig_rRNA_coordinates[contig][identifier]["outfile"] = outfile_name
             genewise_summary_files[contig][outfile_name] = 1     
             try:
-               outfile = open(outfile_name, 'w')
-               outfile.close() 
+                outfile = open(outfile_name, 'w')
+                outfile.close()
             except IOError, e:
-               print "ERROR: Can't create " + outfile_name + '!\n' 
-               sys.exit(0)
+                print "ERROR: Can't create " + outfile_name + '!\n'
+                sys.exit(0)
 
     try:
-       input = open(args.input, 'r')
+        input = open(args.input, 'r')
     except IOError, e:
-       print "ERROR: Can't create " + args.input +'!\n' 
-       sys.exit(0)
+        print "ERROR: Can't create " + args.input + '!\n'
+        sys.exit(0)
     contig_name = ''
     sequence = ''
 
     line = 'x'
     while line:
-        line= input.readline()
-        line =  line.strip()
+        line = input.readline()
+        line = line.strip()
         line = re.sub(r'\s', '_', line)
-        searchmatch =re.search(r'\A>(.+)', line)
+        searchmatch = re.search(r'\A>(.+)', line)
 
         if searchmatch or not line:
             if not line:
@@ -1096,7 +1198,7 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
 
             if contig_name in contig_rRNA_coordinates:
                 sequence_length = len(sequence)
-                shortened_sequence="" 
+                shortened_sequence = ""
                 #start searching for the information to shorten the file.
                 for identifier in sorted(contig_rRNA_coordinates[contig_name].keys()) :
                     start = contig_rRNA_coordinates[contig_name][identifier]["start"]
@@ -1108,9 +1210,9 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
                     count = -1
                     shortened_sequence = ""
                     for nucleotide in sequence: 
-                        count+=1
+                        count += 1
                         if not (count >= start and count <= end):
-                           continue
+                            continue
                         shortened_sequence += nucleotide
 
                     if direction == 'reverse':
@@ -1122,7 +1224,7 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
                         for nucleotide in  nucleotides2:
                             if nucleotide == 't':
                                 nucleotide = 'a'
-                            elif nucleotide == 'a' :
+                            elif nucleotide == 'a':
                                 nucleotide = 't'
                             elif nucleotide == 'c':
                                 nucleotide = 'g'
@@ -1131,12 +1233,12 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
 
                             shortened_sequence += nucleotide
                     try:
-                       out = open(outfile, 'a')
-                       fprintf(out,'%s\t%s\t%s\t%s\t%s\n', cog, start, end,'n/a', shortened_sequence)
-                       out.close()
+                        out = open(outfile, 'a')
+                        fprintf(out, '%s\t%s\t%s\t%s\t%s\n', cog, start, end, 'n/a', shortened_sequence)
+                        out.close()
                     except IOError, e:
-                       print "ERROR: Can't create " + outfile + '!\n' 
-                       sys.exit(0)
+                        print "ERROR: Can't create " + outfile + '!\n'
+                        sys.exit(0)
 
                 try:
                    output_file = open(args.output_dir_var + contig_name + '_sequence.txt', 'w')
@@ -1152,6 +1254,7 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
         else:
            sequence += line
     input.close()
+    print "done."
     return contig_rRNA_coordinates, rRNA_hit_files
 
 
@@ -1163,18 +1266,19 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
     """
 
     reference_data_prefix = args.reference_data_prefix
-    hmmalign_singlehit_files = Autovivify(); 
-    print 'Run hmmalign'
+    hmmalign_singlehit_files = Autovivify()
+    if args.verbose:
+        print "Running hmmalign...",
 
     # Run hmmalign on each Genewise summary file
     for contig in sorted(genewise_summary_files.keys()):
 
         for genewise_summary_file in sorted(genewise_summary_files[contig].keys()):
             try:
-               input = open(genewise_summary_file, 'r')
+                input = open(genewise_summary_file, 'r')
             except IOError:  
-               print  "ERROR: Can't open " + genewise_summary_file + "!\n"
-               sys.exit(0)
+                print "ERROR: Can't open " + genewise_summary_file + "!\n"
+                sys.exit(0)
 
             line = input.readline()
             line = line.strip()
@@ -1195,16 +1299,17 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                    sys.exit(0)                
                 mltreemap_resources = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
                 hmmalign_command = [ args.executables + PATHDELIM + 'hmmalign', '-m', '--mapali',\
-                                     mltreemap_resources + reference_data_prefix + 'alignment_data' + PATHDELIM +  cog + '.fa',\
+                                     mltreemap_resources + reference_data_prefix + 'alignment_data' + PATHDELIM + cog + '.fa',\
                                      '--outformat', 'Clustal',\
                                      mltreemap_resources + reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm',\
-                                     genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ] 
+                                     genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ]
                 os.system(' '.join(hmmalign_command))
                 line = input.readline()
                 line = line.strip()
 
             input.close()
-
+    if args.verbose:
+        print "done."
     return hmmalign_singlehit_files
                    
 
@@ -1283,7 +1388,7 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
                     reached_data_part = True
                 if not reached_data_part:
                     continue
-                searchResult =  re.search(r'\A(.+) (\S+)\Z', line)
+                searchResult = re.search(r'\A(.+) (\S+)\Z', line)
                 if searchResult:
                     name_long = searchResult.group(1)
                     sequence_part = searchResult.group(2)
@@ -1300,12 +1405,12 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
             input.close()
 
         models_to_be_used[f_contig] = model_to_be_used
-        concatenated_mfa_files[f_contig] = args.output_dir_var +  f_contig + '.mfa'
+        concatenated_mfa_files[f_contig] = args.output_dir_var + f_contig + '.mfa'
         # Write to the output file
         try:
             output = open(args.output_dir_var + f_contig + '.mfa', 'w')
         except IOError:
-            sys.exit('ERROR: Can\'t create ' + args.output_dir_var +  f_contig + '.mfa\n')
+            sys.exit('ERROR: Can\'t create ' + args.output_dir_var + f_contig + '.mfa\n')
         output.write('>query\n' + query_sequence + '\n')
         nrs_of_sequences[f_contig] = 1
 
@@ -1326,21 +1431,23 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
     """
 
     gblocks_files = {}
-    print 'Run Gblocks'
+    if args.verbose:
+        print "Running Gblocks...",
     
-    for f_contig  in sorted(concatenated_mfa_files.keys()) :
+    for f_contig in sorted(concatenated_mfa_files.keys()) :
         concatenated_mfa_file = concatenated_mfa_files[f_contig]
         nr_of_sequences = nrs_of_sequences[f_contig]
         min_flank_pos = int(nr_of_sequences * 0.55)
-        gblocks_file = concatenated_mfa_file+ "-gb"
-        gblocks_files[f_contig] = gblocks_file;
-        gblocks_command = [  args.executables + PATHDELIM + "Gblocks" ]
+        gblocks_file = concatenated_mfa_file + "-gb"
+        gblocks_files[f_contig] = gblocks_file
+        gblocks_command = [ args.executables + PATHDELIM + "Gblocks" ]
         gblocks_command.append(concatenated_mfa_file)
-        gblocks_command += ['-t=p', '-s=y', '-u=n', '-p=t', '-b3=15',\
-                                 '-b4=3', '-b5=h', '-b2='+str(min_flank_pos),\
-                                 '>', '/dev/null']
+        gblocks_command += ['-t=p', '-s=y', '-u=n', '-p=t', '-b3=15',
+                            '-b4=3', '-b5=h', '-b2=' + str(min_flank_pos),
+                            '-e=-gb', '>', "/dev/null"]
         os.system(' '.join(gblocks_command))
-    
+    if args.verbose:
+        print "done."
     return gblocks_files
 
 
@@ -1360,6 +1467,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
         do_not_continue = 0
         sequences_raw = Autovivify()
         gblocks_file = gblocks_files[f_contig]
+
         try:
             input = open(gblocks_file, 'r')
         except IOError:
@@ -1367,7 +1475,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
 
         for line in input:
             line = line.strip()
-            seq_name_search =  re.search(r'\A>(.+)', line)
+            seq_name_search = re.search(r'\A>(.+)', line)
             if seq_name_search:
                 seq_name = seq_name_search.group(1)
                 # Flag the user if the reference alignment contains the number -666, which is needed later in the code
@@ -1378,6 +1486,10 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                    seq_name = -666
             else:
                 line = re.sub(r' ', '', line)
+                if seq_name == "":
+                    print "ERROR: The Gblocks output", gblocks_file, "is not in the required format."
+                    print "Please make sure that your versions of hmmalign and gblocks are compatible with MLTreeMap."
+                    sys.exit()
                 if seq_name in sequences_raw:
                     sequences_raw[seq_name] += line
                 else:
@@ -1406,14 +1518,14 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                         output = open(exit_file_name, 'w')
                     except IOError:
                         sys.exit('ERROR: Can\'t open ' + exit_file_name + '!\n')
-                    output.write('final alignment after gblocks is too short (<' + str(args.gblocks) + 'AAs) ' +\
+                    output.write('final alignment after gblocks is too short (<' + str(args.gblocks) + 'AAs) ' +
                                  '-  insufficient number of marker gene residues in query sequence.\n')
                     output.close()
                     continue
             sub_sequences = re.findall(r'.{1,50}', sequence)
 
             for sub_sequence in sub_sequences:
-                sub_sequence = re.sub('U', 'T', sub_sequence) # TK: This for debug; got error from RAxML when encountering Uracil
+                sub_sequence = re.sub('U', 'T', sub_sequence)  # TK: This for debug; got error from RAxML when encountering Uracil
                 sequences_for_phy[f_contig][count][int(seq_name)] = sub_sequence
                 count += 1
 
@@ -1433,7 +1545,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
         for count in sorted(sequences_for_phy[f_contig].keys()):
             for seq_name in sorted(sequences_for_phy[f_contig][count].keys()):
                 sequence_part = sequences_for_phy[f_contig][count][seq_name]
-                if count== 0:
+                if count == 0:
                     print_seqname = seq_name
                     if seq_name == -666:
                         print_seqname = 'query'
@@ -1451,9 +1563,6 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
     return phy_files
 
 
-#TK undef_hashes on genewise_summary_files, hmmalign_singlehit_files, concatenated_mfa_files, nrs_of_sequences, gblocks_files
-
-
 def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     """
     Run RAxML using the provided Autovivifications of phy files and COGs, as well as the list of models used for each COG.
@@ -1461,20 +1570,14 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     Returns an Autovivification listing the output files of RAxML.
     Returns an Autovivification containing the reference tree file associated with each functional or rRNA COG.
     """
+    print 'Running RAxML... coffee?'
 
-    expected_raxml_outfiles = Autovivify()
     raxml_outfiles = Autovivify()
-    print 'Run RAxML'
-    # Notify the user, if they've indicated otherwise, that bootstraps cannot be used with the Maximum Parsimony settings of RAxML.
-    # TK: Should this be moved to the beginning of the program when the user first specifies their options?
-    if args.bootstraps > 1 and args.phylogeny == 'p':
-        print 'ATTENTION: You intended to do ' + str(args.bootstraps) + ' bootstrap replications. Unfortunately, bootstrapping is ' +\
-              'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n'
-        args.bootstraps = 1
+
     bootstrap_replicates = args.bootstraps
     args2 = Autovivify()
     mltree_resources = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
-
+    output_dir = os.getcwd() + PATHDELIM + args.output_dir_var
     for f_contig in sorted(phy_files.keys()):
         # Establish the reference tree file to be used for this contig
         reference_tree_file = mltree_resources + 'tree_data' + PATHDELIM + args.reference_tree
@@ -1491,9 +1594,9 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
 
         # Determine the output file names, and remove any pre-existing output files
         args2['reference_tree_file_of_denominator'][denominator] = reference_tree_file
-        raxml_files = [args.output_dir_var + 'RAxML_info.' + f_contig,\
-                       args.output_dir_var + 'RAxML_labelledTree.' + f_contig,\
-                       args.output_dir_var + 'RAxML_classification.' + f_contig]
+        raxml_files = [output_dir + 'RAxML_info.' + f_contig,
+                       output_dir + 'RAxML_labelledTree.' + f_contig,
+                       output_dir + 'RAxML_classification.' + f_contig]
 
         for raxml_file in raxml_files:
             try:
@@ -1508,46 +1611,58 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
         # Set up the command to run RAxML
         raxml_command = [ args.executables + PATHDELIM + 'raxmlHPC', '-m', model_to_be_used]
         if bootstrap_replicates > 1:
-            raxml_command += [ '-x', '12345', '-#', bootstrap_replicates]
+            raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
         # Run RAxML using multiple threads, if CPUs available
         if args.num_threads:
-            if ( int(args.num_threads) >= 1 ) and ( int(args.num_threads) <= available_cpu_count() ): 
+            if (int(args.num_threads) >= 1) and (int(args.num_threads) <= available_cpu_count()):
                 raxml_command += ['-T', str(int(args.num_threads))]
-        raxml_command += [ '-s', phy_file, '-t', reference_tree_file, '-f', str(raxml_option), '-n', f_contig,\
-                           '-w', str(args.output_dir_var), '>',\
-                           str(args.output_dir_var) + str(f_contig) + '_RAxML.txt']
+            else:
+                raxml_command += ['-T', '2']
+        else:
+            raxml_command += ['-T', '2']
+        raxml_command += ['-s', phy_file,
+                          '-t', reference_tree_file,
+                          '-f', str(raxml_option),
+                          '-n', str(f_contig),
+                          '-w', str(output_dir),
+                          '>', str(output_dir) + str(f_contig) + '_RAxML.txt']
         os.system(' '.join(raxml_command))
 
     # Rename the RAxML output files
+
     for f_contig in sorted(phy_files.keys()):
         denominator = ''
         if re.match(r'\A(.)', f_contig):
             denominator = re.match(r'\A(.)', f_contig).group(1)
-        move_command = [ 'mv', str(args.output_dir_var) + 'RAxML_info.' + str(f_contig), \
-                         str(args.output_dir_var) + str(f_contig) + '.RAxML_info.txt']
-        if os.path.exists(str(args.output_dir_var) + 'RAxML_info.' + str(f_contig)):
+        move_command = ['mv', str(output_dir) + 'RAxML_info.' + str(f_contig),
+                        str(output_dir) + str(f_contig) + '.RAxML_info.txt']
+        if os.path.exists(str(output_dir) + 'RAxML_info.' + str(f_contig)):
             os.system(' '.join(move_command))
         if raxml_option == 'v':
-            raxml_outfiles[denominator][f_contig]['classification'] = str(args.output_dir_var) + str(f_contig) + '.RAxML_classification.txt'
-            raxml_outfiles[denominator][f_contig]['labelled_tree'] = str(args.output_dir_var) + str(f_contig) + '.originalRAxML_labelledTree.txt'
-            move_command1 = [ 'mv', str(args.output_dir_var) + 'RAxML_classification.' + str(f_contig),\
-                              str(raxml_outfiles[denominator][f_contig]['classification'])]
-            move_command2 = [ 'mv', str(args.output_dir_var) + 'RAxML_originalLabelledTree.' + str(f_contig),\
-                              str(raxml_outfiles[denominator][f_contig]['labelled_tree'])]
-            remove_command = [ 'rm', str(args.output_dir_var) + 'RAxML_labelledTree.' + str(f_contig)]
-            if os.path.exists(str(args.output_dir_var) + 'RAxML_classification.' + str(f_contig)):
+            raxml_outfiles[denominator][f_contig]['classification'] = str(output_dir) + str(f_contig) + '.RAxML_classification.txt'
+            raxml_outfiles[denominator][f_contig]['labelled_tree'] = str(output_dir) + str(f_contig) + '.originalRAxML_labelledTree.txt'
+            move_command1 = ['mv', str(output_dir) + 'RAxML_classification.' + str(f_contig),
+                             str(raxml_outfiles[denominator][f_contig]['classification'])]
+            move_command2 = ['mv', str(output_dir) + 'RAxML_originalLabelledTree.' + str(f_contig),
+                             str(raxml_outfiles[denominator][f_contig]['labelled_tree'])]
+            remove_command = ['rm', str(output_dir) + 'RAxML_labelledTree.' + str(f_contig)]
+            if os.path.exists(str(output_dir) + 'RAxML_classification.' + str(f_contig)):
                 os.system(' '.join(move_command1))
-            if os.path.exists(str(args.output_dir_var) + 'RAxML_originalLabelledTree.' + str(f_contig)):
+            if os.path.exists(str(output_dir) + 'RAxML_originalLabelledTree.' + str(f_contig)):
                 os.system(' '.join(move_command2))
-            if os.path.exists(str(args.output_dir_var) + 'RAxML_labelledTree.' + str(f_contig)):
+            if os.path.exists(str(output_dir) + 'RAxML_labelledTree.' + str(f_contig)):
                 os.system(' '.join(remove_command))
+            else:
+                print "Some files were not successfully created for", str(f_contig)
+                print "Check " + str(output_dir) + str(f_contig) + "_RAxML.txt for an error!"
+                sys.exit("Bailing out!")
         elif raxml_option == 'p':
-            raxml_outfiles[denominator][f_contig] = str(args.output_dir_var) + str(f_contig) + '.RAxML_parsimonyTree.txt'
-            move_command1 = [ 'mv', str(args.output_dir_var) + 'RAxML_parsimonyTree.' + str(f_contig),\
-                              str(raxml_outfiles[denominator][f_contig])]
+            raxml_outfiles[denominator][f_contig] = str(output_dir) + str(f_contig) + '.RAxML_parsimonyTree.txt'
+            move_command1 = ['mv', str(output_dir) + 'RAxML_parsimonyTree.' + str(f_contig),
+                             str(raxml_outfiles[denominator][f_contig])]
             os.system(' '.join(move_command1))
         else:
-            sys.exit('ERROR: The chosen RAxML mode is invalid. This should have been noticed earlier by MLTreeMap.' +\
+            sys.exit('ERROR: The chosen RAxML mode is invalid. This should have been noticed earlier by MLTreeMap.' +
                      'Please notify the authors\n')
 
     return raxml_outfiles, args2
@@ -1561,12 +1676,13 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
     """
 
     raxml_option = args.phylogeny
-    print 'Finishing'
-    output_directory_final_RAxML = args.output_dir_raxml
+    print 'Parsing the RAxML outputs...'
+    #output_directory_final_RAxML = args.output_dir_raxml
+    # TODO: find if output_directory_final_RAxML is needed
     final_RAxML_output_files = Autovivify()
 
     for denominator in sorted(raxml_outfiles.keys()):
-        description_text = '# ' + text_of_analysis_type[denominator] + '\n'
+        description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
         reference_tree_file = args2['reference_tree_file_of_denominator'][denominator]
         terminal_children_strings_of_reference = read_and_understand_the_reference_tree(reference_tree_file)
         content_of_previous_labelled_tree_file = ''
@@ -1586,41 +1702,43 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                 classification_file = raxml_outfiles[denominator][f_contig]['classification']
                 labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
                 try:
-                    input = open(labelled_tree_file, 'r')
+                    RAxML_labelled_tree = open(labelled_tree_file, 'r')
                 except IOError:
                     sys.exit('ERROR: Can\'t open ' + str(labelled_tree_file) + '!\n')
 
-                for line in input:
+                for line in RAxML_labelled_tree:
                     line = line.strip()
                     content_of_labelled_tree_file += str(line)
 
-                input.close()
+                RAxML_labelled_tree.close()
                 if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
+                    if args.verbose:
+                        print "Reading the labelled tree", labelled_tree_file
                     rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(labelled_tree_file)
-                    final_assingment_target_strings = Autovivify()
+                    final_assignment_target_strings = Autovivify()
                 new_assignments = Autovivify()
                 at_least_one_new_assignment = 0
                 try:
-                    input = open(classification_file, 'r')
+                    RAxML_classification = open(classification_file, 'r')
                 except IOError:
                     sys.exit('ERROR: Can\'t open ' + str(classification_file) + '!\n')
 
-                for line in input:
+                for line in RAxML_classification:
                     line = line.strip()
-                    query, insertion_point_l, weight = line.split(' ')
+                    query, insertion_point_l, weight = line.split(' ')[0:3]
                     assignment = ''
                     if re.search(r'I(\d+)', insertion_point_l):
                         assignment = re.search(r'I(\d+)', insertion_point_l).group(1)
                         nr_of_assignments += 1
                     assignments[assignment] = weight
-                    if not assignment in final_assignment_target_strings.keys():
+                    if assignment not in final_assignment_target_strings.keys():
                         new_assignments[assignment] = 1
                         at_least_one_new_assignment = 1
 
-                input.close()
+                RAxML_classification.close()
                 if at_least_one_new_assignment > 0:
-                    prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(\
-                                                         terminal_children_strings_of_reference, rooted_labelled_trees,\
+                    prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(
+                                                         terminal_children_strings_of_reference, rooted_labelled_trees,
                                                          insertion_point_node_hash, new_assignments)
 
                     for assignment in sorted(prae_assignment_target_strings.keys()):
@@ -1632,8 +1750,8 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                 assignment = 'mp_root'
                 assignments[assignment] = 1
                 nr_of_assignments = 1
-                prae_assignment_target_strings = get_correct_mp_assignment(terminal_children_strings_of_reference,\
-                                                     mp_tree_file, assignments)
+                prae_assignment_target_strings = get_correct_mp_assignment(terminal_children_strings_of_reference,
+                                                                           mp_tree_file, assignments)
                 assignment_target_string = prae_assignment_target_strings[assignment]
                 final_assignment_target_strings[assignment] = assignment_target_string
 
@@ -1659,10 +1777,6 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
 
                 while count <= nr_of_terminal_targets:
                     assignment_terminal_target = assignment_terminal_targets[count - 1]
-                    is_last_element = 0
-                    if count == nr_of_terminal_targets - 1:
-                        is_last_element = 1
-                    name_of_terminal_target = ''
                     name_of_terminal_target = tree_numbers_translation[denominator][assignment_terminal_target]
                     try:
                         name_of_terminal_target
@@ -1680,7 +1794,7 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
 
             output.close()
             content_of_previous_labelled_tree_file = content_of_labelled_tree_file
-
+    print "Finished parsing RAxML outputs."
     return final_RAxML_output_files
 
 
@@ -1703,9 +1817,15 @@ def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
     return rooted_labelled_trees, insertion_point_node_hash
 
 
-def identify_the_correct_terminal_children_of_each_assignment(terminal_children_strings_of_reference, rooted_labelled_trees, insertion_point_node_hash, assignments):
-    terminal_children_strings_of_assignments = build_terminal_children_strings_of_assignments(rooted_labelled_trees, insertion_point_node_hash, assignments)
-    real_terminal_children_strings_of_assignments = compare_terminal_children_strings(terminal_children_strings_of_assignments, terminal_children_strings_of_reference)
+def identify_the_correct_terminal_children_of_each_assignment(terminal_children_strings_of_reference,
+                                                              rooted_labelled_trees,
+                                                              insertion_point_node_hash,
+                                                              assignments):
+    terminal_children_strings_of_assignments = build_terminal_children_strings_of_assignments(rooted_labelled_trees,
+                                                                                              insertion_point_node_hash,
+                                                                                              assignments)
+    real_terminal_children_strings_of_assignments = compare_terminal_children_strings(terminal_children_strings_of_assignments,
+                                                                                      terminal_children_strings_of_reference)
     return real_terminal_children_strings_of_assignments
 
 
@@ -1745,18 +1865,24 @@ def read_the_reference_tree(reference_tree_file):
 
 
 def read_the_raxml_out_tree(labelled_tree_file):
+    """
+    Reads the labelled_tree_file and reformats it for downstream interpretation
+    :param labelled_tree_file: RAxML output f_contig.originalRAxML_labelledTree.txt file in various_outputs directory
+    :return: An easily interpretable labelled tree
+    """
+
     insertion_point_node_hash = Autovivify()
     try:
-        input = open(labelled_tree_file, 'r')
+        raxml_tree = open(labelled_tree_file, 'r')
     except IOError:
         sys.exit('ERROR: Could not open ' + labelled_tree_file + '!\n')
     tree_string = ''
 
-    for line in input:
+    for line in raxml_tree:
         line = line.strip()
         tree_string += line
 
-    input.close()
+    raxml_tree.close()
     tree_symbols_raw_1 = list(tree_string)
     bracket_diff = 0
     tree_string_neu = '('
@@ -1767,7 +1893,7 @@ def read_the_raxml_out_tree(labelled_tree_file):
             if tree_symbol_raw_1 == '(':
                 bracket_diff += 1
             if tree_symbol_raw_1 == ')':
-                bracket_diff += -1
+                bracket_diff -= 1
             if tree_symbol_raw_1 == ',' and bracket_diff == 1:
                 comma_count += 1
             if comma_count == 2:
@@ -1778,8 +1904,10 @@ def read_the_raxml_out_tree(labelled_tree_file):
     tree_string = re.sub('\(', 'L', tree_string)
     tree_string = re.sub('\)', 'R', tree_string)
     tree_string = re.sub('\[', 'Q', tree_string)
-    tree_string = re.sub(':1\.0', '', tree_string)
-    
+
+    # Remove the branch lengths
+    tree_string = re.sub(":[.0-9]+Q", 'Q', tree_string)
+
     while re.search(r'((\D(\d+))QI(\d+)])', tree_string):
         to_be_replaced = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(1)
         replacement = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(2)
@@ -1804,24 +1932,31 @@ def read_the_raxml_out_tree(labelled_tree_file):
 
 
 def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
+    """
+
+    :param mp_tree_file:
+    :param assignments:
+    :return:
+    """
     potential_terminal_children_strings = Autovivify()
     assignment = ''
 
     for assig in sorted(assignments.keys()):
         assignment = assig
+        print assig
         break
 
     try:
-        input = open(mp_tree_file, 'r')
+        mp_tree = open(mp_tree_file, 'r')
     except IOError:
         sys.exit('ERROR: Can\'t open ' + str(mp_tree_file) + '\n')
     tree_string = ''
 
-    for line in input:
+    for line in mp_tree:
         line = line.strip()
         tree_string += line
 
-    input.close()
+    mp_tree.close()
     tree_string = re.sub('\(', 'L', tree_string)
     tree_string = re.sub('\)', 'R', tree_string)
     if not re.search(r',queryR;\Z', tree_string):
@@ -1886,8 +2021,9 @@ def split_tree_string(tree_string):
             count += 1
             tree_elements[count] = tree_symbol_raw
         previous_symbol = tree_symbol_raw
+    #for count in tree_elements: ###CML: debugging
+    #   print count, tree_elements[count]
     return tree_elements
-
 
 def create_tree_info_hash():
     tree_info = Autovivify()
@@ -1918,10 +2054,11 @@ def get_node_subtrees(tree_elements, tree_info):
                     bracket_r_count += 1
                 if bracket_l_count == bracket_r_count:
                     nodename = tree_elements[tree_sub_element_nr + 1]
-                    if str(nodename) == ';':
+                    if str(nodename) == ';': ###CML: some nodenames are also ':' and this may be an issue
                         nodename = -1
                     subtree_string += ')' + str(nodename)
                     tree_info['subtree_of_node'][nodename] = subtree_string
+                    #print nodename, subtree_string
                     break
                 else:
                     subtree_string += str(tree_sub_element)
@@ -1937,7 +2074,10 @@ def get_node_subtrees(tree_elements, tree_info):
 
 
 def assign_parents_and_children(tree_info):
-    
+    """
+    :param tree_info:
+    :return:
+    """
     for node in sorted(tree_info['subtree_of_node'].keys()):
         if node == -1:
             continue
@@ -1957,14 +2097,19 @@ def assign_parents_and_children(tree_info):
                re.search(r'\AL.+,'+re.escape(subtree)+r'#'+re.escape(potential_parent)+r'\Z', potential_parent_subtree):
                 parent = potential_parent
                 break
-        tree_info['parent_of_node'][node] = parent
-        tree_info['children_of_node'][parent][node] = 1
+        if parent is None:
+            print "No parent assigned for", node
+            sys.exit("This is probably due to an incompatibility with your RAxML version and will cause problems."
+                     "Please post an issue on the github page!\n")
+        else:
+            tree_info['parent_of_node'][node] = parent
+            tree_info['children_of_node'][parent][node] = 1
 
     return tree_info
 
 
 def build_tree_info_quartets(tree_info):
-    for node in sorted(tree_info['parent_of_node'].keys(), key=int):
+    for node in sorted(tree_info['parent_of_node'].keys()):  # , key=int): #CML commented out for debugging
         parent = tree_info['parent_of_node'][node]
         if int(parent) == -1:
             for roots_child in sorted(tree_info['children_of_node']['-1'].keys(), key=int):
@@ -2209,8 +2354,6 @@ def read_species_translation_files(args, cog_list):
         except IOError:
             sys.exit('ERROR: Can\'t open ' + str(filename) + '!\n')
 
-        print 'opened ' + str(filename) # TK
-
         for line in input:
             line = line.strip()
             try:
@@ -2373,7 +2516,15 @@ def deleteFiles(args):
 
     for file in filesToBeDeleted:
         if path.exists(file):
-            os.remove(file) 
+            os.remove(file)
+    
+    if not args.verbose:
+        dirsToBeDeleted = [args.output_dir_var, args.output_dir_raxml]
+        for dir in dirsToBeDeleted:
+            if path.exists(dir):
+                shutil.rmtree(dir)
+            else:
+                pass
 
 
 def main(argv):
@@ -2387,22 +2538,23 @@ def main(argv):
 
     # STAGE 2: Run BLAST to determine which COGs are present in the input sequence(s)
     runBlast(args, splitFiles)
-    blastResults =  readBlastResults(args)
-    blast_hits_purified = parseBlastResults(args, blastResults, cog_list)
+    blast_results = readBlastResults(args)
+    blast_hits_purified = parseBlastResults(args, blast_results, cog_list)
 
     # STAGE 3: Run Genewise (or not) to produce amino acid sequences based on the COGs found in the input sequence(s)
+    # TODO: Exchange genewise for exonerate since it is faster and better maintained
     contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
     if args.reftype == 'n':
         genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
         genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
-        contig_rRNA_coordinates, rRNA_hit_files =  get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
+        get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
     elif args.reftype == 'a':
         genewise_summary_files = blastpParser(args, shortened_sequence_files, blast_hits_purified)
 
     # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
-    hmmalign_singlehit_files  = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list);
+    hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
-    gblocks_files  = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
+    gblocks_files = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
 
     # STAGE 5: Run RAxML to compute the ML/MP estimations
     phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
@@ -2413,7 +2565,7 @@ def main(argv):
 
     # STAGE 6: Delete files as determined by the user
     deleteFiles(args)
-    print 'Done'
+    print 'MLTreeMap has finished successfully.'
 
 
 if __name__ == "__main__":

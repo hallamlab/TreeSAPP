@@ -1,3 +1,0 @@
-# Phylogenetic analysis, 16s rRNA:
-
-Placement weight 100%: Assignment of query to Alcanivorax sp. ANT-2400 S4 (16S rRNA) (652793).

@@ -1,7 +1,0 @@
-# Phylogenetic analysis, 16s rRNA:
-
-Placement weight 20.0%: Assignment of query to the lowest common ancestor of Ralstonia pickettii (16S rRNA) (329), Janthinobacterium lividum (16S rRNA) (29581), Nitrosomonas nitrosa (16S rRNA) (52442), Acidovorax cattleyae (16S rRNA) (80868), Burkholderia cenocepacia (16S rRNA) (95486), Dechloromonas sp. CL24 (16S rRNA) (135295), Nitrosospira sp. Nsp12 (16S rRNA) (136545), Bordetella sp. 10d (16S rRNA) (170622), Chromobacterium sp. 69 (16S rRNA) (201169), Herminiimonas arsenicoxydans (16S rRNA) (204773), Azoarcus sp. b303 (16S rRNA) (503933) and Neisseria flavescens SK114 (16S rRNA) (596320).
-Placement weight 20.0%: Assignment of query to the lowest common ancestor of Nostoc piscinale CENA21 (16S rRNA) (224013), Synechococcus sp. CR_L13 (16S rRNA) (459398), Synechocystis sp. Helwan1 (16S rRNA) (563784) and Anabaena crassa CENA202 (16S rRNA) (630634).
-Placement weight 20.0%: Assignment of query to the lowest common ancestor of Nitrosomonas nitrosa (16S rRNA) (52442) and Nitrosospira sp. Nsp12 (16S rRNA) (136545).
-Placement weight 20.0%: Assignment of query to Gloeobacter violaceus PCC 7421 (16S rRNA) (251221).
-Placement weight 20.0%: Assignment of query to Alcanivorax sp. ANT-2400 S4 (16S rRNA) (652793).

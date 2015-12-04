@@ -1,3 +1,0 @@
-# Phylogenetic analysis, 16s rRNA:
-
-Placement weight 100%: Assignment of query to the lowest common ancestor of Ralstonia pickettii (16S rRNA) (329), Janthinobacterium lividum (16S rRNA) (29581), Nitrosomonas nitrosa (16S rRNA) (52442), Acidovorax cattleyae (16S rRNA) (80868), Burkholderia cenocepacia (16S rRNA) (95486), Dechloromonas sp. CL24 (16S rRNA) (135295), Nitrosospira sp. Nsp12 (16S rRNA) (136545), Bordetella sp. 10d (16S rRNA) (170622), Chromobacterium sp. 69 (16S rRNA) (201169), Herminiimonas arsenicoxydans (16S rRNA) (204773), Azoarcus sp. b303 (16S rRNA) (503933) and Neisseria flavescens SK114 (16S rRNA) (596320).
