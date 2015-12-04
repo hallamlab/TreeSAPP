@@ -23,34 +23,22 @@ except:
     print traceback.print_exc(10)
     sys.exit(3)
 
-
 def os_type():
     """Return the operating system of the user."""
     x = sys.platform
     if x:
 
         hits = re.search(r'darwin', x, re.I)
-        if hits :
-          return 'mac'
+        if hits:
+            return 'mac'
      
         hits = re.search(r'win', x, re.I)
-        if hits :
-          return 'win'
+        if hits:
+            return 'win'
 
         hits = re.search(r'linux', x, re.I)
         if hits:
-          return 'linux'
-
-
-def pathDelim():
-    """Return the path deliminator based on the operating system of the user."""
-    ostype = os_type()
-    if ostype == 'win':
-        return "\\"
-    if ostype in ['linux', 'mac']:
-        return "/"
-
-PATHDELIM = str(pathDelim())
+            return 'linux'
 
 class Autovivify(dict):
     """In cases of Autovivify objects, enable the referencing of variables (and sub-variables)
@@ -106,6 +94,41 @@ def getParser():
                              ', and prints a more verbose runtime log')
     return parser
 
+def find_executables(args):
+    """
+    Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
+    :param args: command-line arguments objects
+    :return: exec_paths beings the absolute path to each executable
+    """
+    exec_paths = dict()
+    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign"]
+    for dep in dependencies:
+        if is_exe(args.executables + os.sep + dep):
+            exec_paths[dep] = str(args.executables + os.sep + dep)
+        elif which(dep):
+            exec_paths[dep] = which(dep)
+        else:
+            sys.exit("Could not find a valid executable for", dep, ". Bailing out.")
+
+    args.executables = exec_paths
+    return args
+
+def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+def which(program):
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+    return None
+
 def checkParserArguments(parser):
     """Returns 'args', a summary of MLTreeMap settings."""
 
@@ -132,6 +155,8 @@ def checkParserArguments(parser):
               'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n'
         args.bootstraps = 1
 
+    args = find_executables(args)
+
     return args
 
 
@@ -142,10 +167,10 @@ def removePreviousOutput(args):
     Returns an updated version of 'args', a summary of MLTreeMap settings.
     """
 
-    # Add (or replace a trailing (back)slash with) the PATHDELIM to the end of the output directory
+    # Add (or replace a trailing (back)slash with) the os.sep to the end of the output directory
     while re.search(r'/\Z', args.output) or re.search(r'\\\Z', args.output):
         args.output = args.output[:-1]
-    args.output += PATHDELIM
+    args.output += os.sep
 
     # delete previous output folders by force
     if args.overwrite:
@@ -178,9 +203,9 @@ def removePreviousOutput(args):
             args.output = raw_input('Please enter the path to the new directory.\n')
     
     # Create the output directories
-    args.output_dir_var = args.output + 'various_outputs' + PATHDELIM
-    args.output_dir_raxml = args.output + 'final_RAxML_outputs' + PATHDELIM
-    args.output_dir_final = args.output + 'final_outputs' + PATHDELIM
+    args.output_dir_var = args.output + 'various_outputs' + os.sep
+    args.output_dir_raxml = args.output + 'final_RAxML_outputs' + os.sep
+    args.output_dir_final = args.output + 'final_outputs' + os.sep
 
     if not os.path.isdir(args.output):
         os.makedirs(args.output)
@@ -206,8 +231,8 @@ def createCogList(args):
     kind_of_cog = ''
 
     # For each line in the COG list file...    
-    cogInputList = open( args.mltreemap + PATHDELIM + \
-                         'data' + PATHDELIM + 'tree_data' + PATHDELIM + 'cog_list.txt', 'r')
+    cogInputList = open( args.mltreemap + os.sep + \
+                         'data' + os.sep + 'tree_data' + os.sep + 'cog_list.txt', 'r')
     cogList = [ x.strip() for x in cogInputList.readlines() ] 
     for cogInput in cogList:
 
@@ -399,9 +424,9 @@ def runBlast(args, splitFiles):
     print "Running BLAST... this may take a while."
 
     # For each file containing a maximum of the specified number of sequences...
-    alignment_data_dir = args.mltreemap + PATHDELIM + \
-                         'data' + PATHDELIM + \
-                         args.reference_data_prefix + 'alignment_data' + PATHDELIM + \
+    alignment_data_dir = args.mltreemap + os.sep + \
+                         'data' + os.sep + \
+                         args.reference_data_prefix + 'alignment_data' + os.sep + \
                          '*.fa'
     db_nt = '-db "'
     db_aa = '-db "'
@@ -426,7 +451,7 @@ def runBlast(args, splitFiles):
 
         # Run the appropriate BLAST command(s) based on the input sequence type
         if args.reftype == 'n':
-            command = args.executables + PATHDELIM + 'blastx ' + \
+            command = args.executables["blastx"] + " " + \
                 '-query ' + splitFile + ' ' + db_aa + ' ' + \
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
                 '-dbsize 1000000 -outfmt 6 '
@@ -437,7 +462,7 @@ def runBlast(args, splitFiles):
                     command += '-num_threads ' + str(1) + ' '
             command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
             os.system(command)
-            command = args.executables + PATHDELIM + 'blastn ' + \
+            command = args.executables["blastn"] + " " + \
                 '-query ' + splitFile + ' ' + db_nt + ' ' + \
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
                 '-dbsize 1000000 -outfmt 6 '
@@ -450,7 +475,7 @@ def runBlast(args, splitFiles):
             os.system(command)
 
         elif args.reftype == 'a':
-            command = args.executables + PATHDELIM + 'blastp ' + \
+            command = args.executables["blastp"] + " " + \
                       '-query ' + splitFile + ' ' + db_aa + ' ' + \
                       '-evalue 0.01 -max_target_seqs 20000 ' + \
                       '-dbsize 1000000 -outfmt 6 '
@@ -894,14 +919,14 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
     if args.verbose:
         print "Running Genewise...",
 
-    mltreemap_dir = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
-    genewise_support = mltreemap_dir + PATHDELIM + 'genewise_support_files' + PATHDELIM
-    hmm_dir = mltreemap_dir + "hmm_data" + PATHDELIM
+    mltreemap_dir = args.mltreemap + os.sep + 'data' + os.sep
+    genewise_support = mltreemap_dir + os.sep + 'genewise_support_files' + os.sep
+    hmm_dir = mltreemap_dir + "hmm_data" + os.sep
 
     genewise_outputfiles = Autovivify()
 
     if os.getenv("WISECONFIGDIR") is None:
-        os.putenv("WISECONFIGDIR", genewise_support + PATHDELIM + "wisecfg")
+        os.putenv("WISECONFIGDIR", genewise_support + os.sep + "wisecfg")
 
     hmm_dir_files = [ f for f in os.listdir(hmm_dir) if os.path.isfile(join(hmm_dir, f)) ]
 
@@ -922,7 +947,7 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
             genewise_outputfiles[contig][genewise_outputfile] = 1
 
             # Prepare the Genewise command and run it
-            genewise_command = args.executables + PATHDELIM + 'genewise ' + \
+            genewise_command = args.executables["genewise"] + " " +\
                                hmm_dir + cog + '.hmm ' + \
                                shortened_sequence_file + ' -init local -quiet -gene ' + \
                                genewise_support + 'human.gf -matrix ' + \
@@ -1287,7 +1312,8 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                 cog, start, end, _, sequence = line.split('\t')
                 denominator = cog_list["all_cogs"][cog]
                 f_contig = denominator + "_" + contig
-                genewise_singlehit_file = args.output_dir_var +PATHDELIM +f_contig+'_'+cog+"_"+str(start)+"_"+str(end)
+                genewise_singlehit_file = args.output_dir_var + os.sep + \
+                                          f_contig + '_' + cog + "_" + str(start) + "_" + str(end)
                 hmmalign_singlehit_files[f_contig][genewise_singlehit_file + ".mfa"] = True 
                 genewise_singlehit_file_fa = genewise_singlehit_file + ".fa" 
                 try:
@@ -1295,14 +1321,15 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                    fprintf(outfile, '>query\n%s', sequence)
                    outfile.close()
                 except IOError:
-                   print  'Can\'t create ' + genewise_singlehit_file_fa +'\n'
+                   print 'Can\'t create ' + genewise_singlehit_file_fa + '\n'
                    sys.exit(0)                
-                mltreemap_resources = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
-                hmmalign_command = [ args.executables + PATHDELIM + 'hmmalign', '-m', '--mapali',\
-                                     mltreemap_resources + reference_data_prefix + 'alignment_data' + PATHDELIM + cog + '.fa',\
-                                     '--outformat', 'Clustal',\
-                                     mltreemap_resources + reference_data_prefix + 'hmm_data' + PATHDELIM + cog + '.hmm',\
-                                     genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa' ]
+                mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
+                hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
+                                    mltreemap_resources + reference_data_prefix + 'alignment_data' +
+                                    os.sep + cog + '.fa',
+                                    '--outformat', 'Clustal',
+                                    mltreemap_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
+                                    genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
                 os.system(' '.join(hmmalign_command))
                 line = input.readline()
                 line = line.strip()
@@ -1320,8 +1347,8 @@ def get_non_wag_cogs(args):
 
     non_wag_cog_list = Autovivify()
     try:
-        non_wag_cogs_file = args.mltreemap + PATHDELIM + \
-                            'data' + PATHDELIM + 'tree_data' + PATHDELIM +'non_wag_cogs.txt'
+        non_wag_cogs_file = args.mltreemap + os.sep + \
+                            'data' + os.sep + 'tree_data' + os.sep + 'non_wag_cogs.txt'
         cogin = open(non_wag_cogs_file, 'r')
     except IOError:
         sys.exit('ERROR: Can\'t open ' + non_wag_cogs_file + '!\n')
@@ -1440,7 +1467,7 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
         min_flank_pos = int(nr_of_sequences * 0.55)
         gblocks_file = concatenated_mfa_file + "-gb"
         gblocks_files[f_contig] = gblocks_file
-        gblocks_command = [ args.executables + PATHDELIM + "Gblocks" ]
+        gblocks_command = [args.executables["Gblocks"]]
         gblocks_command.append(concatenated_mfa_file)
         gblocks_command += ['-t=p', '-s=y', '-u=n', '-p=t', '-b3=15',
                             '-b4=3', '-b5=h', '-b2=' + str(min_flank_pos),
@@ -1576,11 +1603,11 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
 
     bootstrap_replicates = args.bootstraps
     args2 = Autovivify()
-    mltree_resources = args.mltreemap + PATHDELIM + 'data' + PATHDELIM
-    output_dir = os.getcwd() + PATHDELIM + args.output_dir_var
+    mltree_resources = args.mltreemap + os.sep + 'data' + os.sep
+    output_dir = os.getcwd() + os.sep + args.output_dir_var
     for f_contig in sorted(phy_files.keys()):
         # Establish the reference tree file to be used for this contig
-        reference_tree_file = mltree_resources + 'tree_data' + PATHDELIM + args.reference_tree
+        reference_tree_file = mltree_resources + 'tree_data' + os.sep + args.reference_tree
         phy_file = phy_files[f_contig]
         if re.search(r'\A(.)', f_contig):
             denominator = re.search(r'\A(.)', f_contig).group(0)
@@ -1589,7 +1616,7 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
             for cog in sorted(cog_list['all_cogs'].keys()):
                 if not cog_list['all_cogs'][cog] == denominator:
                     continue
-                reference_tree_file = mltree_resources + 'tree_data' + PATHDELIM + cog + '_tree.txt'
+                reference_tree_file = mltree_resources + 'tree_data' + os.sep + cog + '_tree.txt'
                 break
 
         # Determine the output file names, and remove any pre-existing output files
@@ -1609,7 +1636,7 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
         if model_to_be_used is None:
             sys.exit('ERROR: No best AA model could be detected for the ML step!\n')
         # Set up the command to run RAxML
-        raxml_command = [ args.executables + PATHDELIM + 'raxmlHPC', '-m', model_to_be_used]
+        raxml_command = [args.executables["raxmlHPC"], '-m', model_to_be_used]
         if bootstrap_replicates > 1:
             raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
         # Run RAxML using multiple threads, if CPUs available
@@ -1677,8 +1704,6 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
 
     raxml_option = args.phylogeny
     print 'Parsing the RAxML outputs...'
-    #output_directory_final_RAxML = args.output_dir_raxml
-    # TODO: find if output_directory_final_RAxML is needed
     final_RAxML_output_files = Autovivify()
 
     for denominator in sorted(raxml_outfiles.keys()):
@@ -2321,31 +2346,31 @@ def read_species_translation_files(args, cog_list):
     translation_files = Autovivify()
     phylogenetic_denominator = args.reftree
     if phylogenetic_denominator == 'g':
-        translation_files[phylogenetic_denominator] = args.mltreemap + PATHDELIM + \
-                                                      'data' + PATHDELIM + 'tree_data' + \
-                                                      PATHDELIM + 'tax_ids_geba_tree.txt'
+        translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
+                                                      'data' + os.sep + 'tree_data' + \
+                                                      os.sep + 'tax_ids_geba_tree.txt'
     elif phylogenetic_denominator == 'i':
-        translation_files[phylogenetic_denominator] = args.mltreemap + PATHDELIM + \
-                                                      'data' + PATHDELIM + 'tree_data' + \
-                                                      PATHDELIM + 'tax_ids_fungitr.txt'
+        translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
+                                                      'data' + os.sep + 'tree_data' + \
+                                                      os.sep + 'tax_ids_fungitr.txt'
     else:
-        translation_files[phylogenetic_denominator] = args.mltreemap + PATHDELIM + \
-                                                      'data' + PATHDELIM + 'tree_data' + \
-                                                      PATHDELIM + 'tax_ids_nr.txt'
+        translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
+                                                      'data' + os.sep + 'tree_data' + \
+                                                      os.sep + 'tax_ids_nr.txt'
 
     for functional_cog in sorted(cog_list['functional_cogs'].keys()):
         denominator = cog_list['functional_cogs'][functional_cog]
         filename = 'tax_ids_' + str(functional_cog) + '.txt'
-        translation_files[denominator] = args.mltreemap + PATHDELIM + \
-                                         'data' + PATHDELIM + 'tree_data' + \
-                                         PATHDELIM + filename
+        translation_files[denominator] = args.mltreemap + os.sep + \
+                                         'data' + os.sep + 'tree_data' + \
+                                         os.sep + filename
 
     for phylogenetic_rRNA_cog in sorted(cog_list['phylogenetic_rRNA_cogs'].keys()):
         denominator = cog_list['phylogenetic_rRNA_cogs'][phylogenetic_rRNA_cog]
         filename = 'tax_ids_' + str(phylogenetic_rRNA_cog) + '.txt'
-        translation_files[denominator] = args.mltreemap + PATHDELIM + \
-                                         'data' + PATHDELIM + 'tree_data' + \
-                                         PATHDELIM + filename
+        translation_files[denominator] = args.mltreemap + os.sep + \
+                                         'data' + os.sep + 'tree_data' + \
+                                         os.sep + filename
 
     for denominator in sorted(translation_files.keys()):
         filename = translation_files[denominator]

@@ -2,485 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a88da795-8b99-4ab5-b16d-a838c96ecb1e" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/mltreemap-improved_CML.py" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/a_GOUB3081.b1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/a_GOUB4564.g1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/a_GOUB5051.b1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/a_GOUB6436.b1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/a_GOUB6564.g1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/b_GOUB1707.b1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/b_GOUB18470.b1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/b_GOUB18471.b1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/b_GOUB18479.b1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/b_GOUB7063.b1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/c_GOUB13802.g1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_RAxML_outputs/c_GOUB1402.g1_RAxML_parsed.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_outputs/a_concatenated_RAxML_outputs.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_outputs/b_concatenated_RAxML_outputs.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/final_outputs/c_concatenated_RAxML_outputs.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1327.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1327.b1_genewise_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1327.b1_phocryp_genewise.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1327.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1327.b1_sequence_shortened.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB13802.g1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB13802.g1_genewise_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB13802.g1_phocryp_genewise.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB13802.g1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB13802.g1_sequence_shortened.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1402.g1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1402.g1_genewise_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1402.g1_phocryp_genewise.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1402.g1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1402.g1_sequence_shortened.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1707.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1707.b1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB1707.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18470.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18470.b1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18470.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18471.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18471.b1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18471.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18479.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18479.b1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB18479.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB3081.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB3081.b1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB3081.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB4564.g1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB4564.g1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB4564.g1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB5051.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB5051.b1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB5051.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB5394.g1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB5394.g1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB5394.g1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB6436.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB6436.b1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB6436.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB6564.g1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB6564.g1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB6564.g1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB7063.b1_blast_result_purified.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB7063.b1_rRNA_result_summary.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/GOUB7063.b1_sequence.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1_16srRNA_1_446.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1_16srRNA_1_446.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB3081.b1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1_16srRNA_12_550.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1_16srRNA_12_550.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB4564.g1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1_16srRNA_49_705.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1_16srRNA_49_705.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5051.b1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5394.g1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5394.g1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5394.g1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5394.g1_16srRNA_46_128.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5394.g1_16srRNA_46_128.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB5394.g1_exit_after_Gblocks.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1_16srRNA_61_435.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1_16srRNA_61_435.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6436.b1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1_16srRNA_195_837.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1_16srRNA_195_837.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/a_GOUB6564.g1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1_18srRNA_282_740.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1_18srRNA_282_740.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB1707.b1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1_18srRNA_86_345.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1_18srRNA_86_345.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18470.b1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1_18srRNA_67_339.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1_18srRNA_67_339.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18471.b1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1_18srRNA_24_475.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1_18srRNA_24_475.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB18479.b1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1_18srRNA_131_407.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1_18srRNA_131_407.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/b_GOUB7063.b1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1327.b1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1327.b1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1327.b1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1327.b1_exit_after_Gblocks.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1327.b1_phocryp_47_475.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1327.b1_phocryp_47_475.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1.phy.reduced" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1_phocryp_84_860.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB13802.g1_phocryp_84_860.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1.RAxML_classification.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1.RAxML_info.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1.mfa-gb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1.mfa-gb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1.originalRAxML_labelledTree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1.phy" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1.phy.reduced" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1_RAxML.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1_phocryp_37_777.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/c_GOUB1402.g1_phocryp_37_777.mfa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/test3.fasta_0.BLAST_results_raw.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/test3.fasta_0.rRNA_BLAST_results_raw.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/output_test3/various_outputs/test3.fasta_formatted.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/exonerate-2.2.0-x86_64/share/man/man1/exonerate-server.1" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/exonerate-2.2.0-x86_64/share/man/man1/exonerate.1" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/exonerate-2.2.0-x86_64/share/man/man1/fastautils.1" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/exonerate-2.2.0-x86_64/share/man/man1/ipcress.1" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/COPYING.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/ChangeLog.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/README.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/.htaccess" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/FAQ.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/FAQ.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/Makefile" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/bisulfite.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/bisulfite.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-doc.css" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-evalues.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-evalues.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-map-probs.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-map-probs.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-pair-probs.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-pair-probs.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-papers.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-papers.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-postmask.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-postmask.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-scripts.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-split.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-split.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-train.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-train.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-tutorial.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last-tutorial.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/last.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/lastal.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/lastdb.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/maf-convert.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/maf-convert.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/maf-cull.html" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/maf-cull.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/doc/tag-seeds.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/chickenMito.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/fuguMito.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/hoxd70.mat" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/humanMito.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/last-bisulfite-paired.sh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/last-bisulfite.sh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/mouseMito.fa" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/multiMito.maf" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/multiMito.sh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/myalns.maf" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/titv212.mat" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/vertebrateMito.gc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/examples/yass.seed" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/makefile" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/fastq-interleave" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/last-dotplot" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/last-map-probs" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/last-postmask" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/last-train" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/maf-convert" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/maf-cull" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/maf-join" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/maf-sort" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/maf-swap" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/parallel-fasta" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/scripts/parallel-fastq" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Alignment.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Alignment.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Alignment.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/AlignmentPot.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/AlignmentPot.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/AlignmentPot.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/AlignmentWrite.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/AlignmentWrite.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Alphabet.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Alphabet.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Alphabet.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Centroid.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Centroid.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Centroid.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/CyclicSubsetSeed.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/CyclicSubsetSeed.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/CyclicSubsetSeed.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/DiagonalTable.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/DiagonalTable.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/DiagonalTable.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAligner.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAligner.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAligner.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAligner2qual.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAligner2qual.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAligner3frame.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAligner3frame.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAligner3framePssm.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAlignerInl.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAlignerPssm.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GappedXdropAlignerPssm.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GeneralizedAffineGapCosts.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GeneralizedAffineGapCosts.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GeneralizedAffineGapCosts.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GeneticCode.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GeneticCode.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/GeneticCode.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LambdaCalculator.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LambdaCalculator.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LambdaCalculator.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastEvaluer.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastEvaluer.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastEvaluer.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastalArguments.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastalArguments.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastalArguments.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastdbArguments.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastdbArguments.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/LastdbArguments.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/Mmap.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/MultiSequence.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/MultiSequence.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/MultiSequence.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/MultiSequenceQual.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/MultiSequenceQual.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/OneQualityScoreMatrix.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/OneQualityScoreMatrix.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/OneQualityScoreMatrix.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/QualityPssmMaker.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/QualityPssmMaker.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/QualityPssmMaker.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/ScoreMatrix.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/ScoreMatrix.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/ScoreMatrix.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/ScoreMatrixRow.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SegmentPair.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SegmentPair.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SegmentPair.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SegmentPairPot.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SegmentPairPot.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SegmentPairPot.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SequenceFormat.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SubsetSuffixArray.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SubsetSuffixArray.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SubsetSuffixArray.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SubsetSuffixArraySearch.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SubsetSuffixArraySearch.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SubsetSuffixArraySort.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/SubsetSuffixArraySort.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/TantanMasker.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/TantanMasker.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/TantanMasker.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/TwoQualityScoreMatrix.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/TwoQualityScoreMatrix.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/TwoQualityScoreMatrix.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/VectorOrMmap.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_approx.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_doubletype.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogprob.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogprob.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogprob.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogproblim.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogproblim.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogproblim.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogprobproto.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogprobproto.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_dynprogprobproto.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_function.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_integer.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_ioutil.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_ioutil.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_ioutil.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstat.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstat.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstat.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstatmatrix.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstatmatrix.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstatmatrix.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstatutil.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstatutil.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_localmaxstatutil.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_matrix.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_memutil.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_random.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_random.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_random.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_root.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_uniform.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/njn_vector.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alignment_evaluer.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alignment_evaluer.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alignment_evaluer.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_data.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_data.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_data.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_regression.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_regression.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_regression.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_sim.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_sim.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_alp_sim.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_basic.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_basic.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_basic.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_falp_alignment_evaluer.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_falp_alignment_evaluer.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_falp_alignment_evaluer.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_parameters.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_parameters.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_parameters.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_pvalues.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_pvalues.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_pvalues.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_utils.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_utils.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_fsa1_utils.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_normal_distr_array.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_pvalues.cpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_pvalues.hpp" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/alp/sls_pvalues.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/fileMap.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/fileMap.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/fileMap.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessPssmXdrop.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessPssmXdrop.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessPssmXdrop.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessTwoQualityXdrop.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessTwoQualityXdrop.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessTwoQualityXdrop.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessXdrop.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessXdrop.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/gaplessXdrop.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/io.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/io.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/io.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-merge-batches" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-merge-batches.c" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-merge-batches.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-pair-probs" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-pair-probs-main.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-pair-probs-main.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-pair-probs.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-pair-probs.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-pair-probs.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/last-split" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/lastal" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/lastal.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/lastal.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/lastdb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/lastdb.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/lastdb.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/makefile" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/qualityScoreUtil.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_int_exponentiator.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_linalg.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_linalg.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_linalg.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_split_aligner.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_split_aligner.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_split_aligner.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_unsplit_alignment.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_unsplit_alignment.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/cbrc_unsplit_alignment.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/last-split-main.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/last-split-main.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/last-split.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/last-split.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/split/last-split.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/stringify.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/tantan.cc" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/tantan.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/tantan.o" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/last-588/src/version.hh" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/lastal" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/lastdb" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/tbl2asns" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/blastn" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/blastp" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/sub_binaries/blastx" afterPath="" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/README.md" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/mltreemap-improved.py" afterPath="$PROJECT_DIR$/mltreemap-improved.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
@@ -503,31 +28,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="FileHolder.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/FileHolder.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0">
-              <caret line="9" column="0" selection-start-line="9" selection-start-column="0" selection-end-line="9" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="mltreemap-improved.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/mltreemap-improved.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.23047376">
-              <caret line="1346" column="4" selection-start-line="1346" selection-start-column="4" selection-end-line="1346" selection-end-column="4" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="tsn_imagemaker.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/tsn_imagemaker.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0">
-              <caret line="2330" column="22" selection-start-line="2330" selection-start-column="22" selection-end-line="2330" selection-end-column="22" />
+            <state vertical-scroll-proportion="0.43790013">
+              <caret line="130" column="0" selection-start-line="130" selection-start-column="0" selection-end-line="130" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -550,9 +55,9 @@
       <list>
         <option value="$PROJECT_DIR$/Pfam_hmm_parser.py" />
         <option value="$PROJECT_DIR$/../Hydrocarbon/Marker_genes/Meyerdierks_2010/Pfam_hmm_parser.py" />
-        <option value="$PROJECT_DIR$/mltreemap-improved.py" />
         <option value="$PROJECT_DIR$/tsn_imagemaker.py" />
         <option value="$PROJECT_DIR$/mltreemap-improved_CML.py" />
+        <option value="$PROJECT_DIR$/mltreemap-improved.py" />
       </list>
     </option>
   </component>
@@ -588,8 +93,8 @@
       <sortByType />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="Scratches" />
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -801,7 +306,7 @@
     <frame x="65" y="24" width="1535" height="876" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.24885994" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.24885994" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32920793" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Application Servers" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -842,6 +347,14 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/mltreemap-improved.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/mltreemap-improved.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
@@ -892,22 +405,20 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
           <caret line="2330" column="22" selection-start-line="2330" selection-start-column="22" selection-end-line="2330" selection-end-column="22" />
-          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/FileHolder.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
+        <state vertical-scroll-proportion="0.20742637">
           <caret line="9" column="0" selection-start-line="9" selection-start-column="0" selection-end-line="9" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/mltreemap-improved.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.23047376">
-          <caret line="1346" column="4" selection-start-line="1346" selection-start-column="4" selection-end-line="1346" selection-end-column="4" />
+        <state vertical-scroll-proportion="0.43790013">
+          <caret line="130" column="0" selection-start-line="130" selection-start-column="0" selection-end-line="130" selection-end-column="0" />
           <folding />
         </state>
       </provider>

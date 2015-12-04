@@ -1,6 +1,6 @@
 # MLTreeMap: A python implementation accompanied by algorithmic improvements
 
-Kishori M. Konwar, Tyler S. Nelson, Connor Morgan-Lang, Niels W. Hanson, and Steven J. Hallam
+Kishori M. Konwar, Young C. Song, Connor Morgan-Lang, and Steven J. Hallam
 
 ## Overview:
 

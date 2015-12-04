@@ -36,3 +36,6 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# Binaries
+sub_binaries/*RAxML*
