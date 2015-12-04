@@ -1,0 +1,363 @@
+/*  Last edited: Jan  3 15:57 1997 (birney) */
+
+
+
+%{
+#include "sequence.h"
+#include "probability.h" /* should move this to wisestring */
+
+
+#define ComplexSequenceEvalSetLISTLENGTH 16
+
+#define next_ComplexSequence_data(cs_struct,pointer) (pointer + cs_struct->depth)
+#define ComplexSequence_data(cs,position,number)     (cs->data[cs->depth*position + number])
+
+typedef enum CseScoreType {
+  CseScoreType_Index = 673,
+  CseScoreType_Bits
+} CseScoreType;
+
+%}
+
+
+struct ComplexSequenceEval
+int type
+int sequence_type
+int left_window
+int right_window
+int left_lookback
+int outside_score;
+void * data   !link
+int data_type //optional, to be used by eval_func to check things if it wants to
+int (*eval_func)(int,void * ,char *); !func
+CseScoreType score_type !default="CseScoreType_Index"
+%info 
+This object is best left alone (!)
+
+It represents a single way of mapping
+a sequence to some sort of number, eg
+amino acids to 0-25, bases to 0-4 or
+splice sites to log(Prob(splice))
+
+This is handled by a reasonably scary
+pointer-to-function method
+
+You'll use collections of them in 
+complexsequenceevalset's
+%%
+
+struct ComplexSequenceEvalSet
+int type;
+boolean has_been_prepared !def="FALSE"
+int left_window    // overall sequence eval 
+int right_window   // overall sequence eval
+int left_lookback  // overall sequence eval
+ComplexSequenceEval ** cse !list !hidden
+%info
+This object holds a collection of 
+ComplexSequenceEvals. Its role is to
+define the sequence specific parts of a
+dynamic programming algorithm as computable
+functions. 
+
+Ideally you should use pre-made ComplexSequenceEvalSets
+as it will save you alot of grief
+%%
+
+struct ComplexSequence
+int type;
+Sequence * seq
+int * data !link !hidden
+int * datastore !hidden
+int depth !hidden
+int length
+ComplexSequenceEvalSet * creator // what made it
+%info
+A ComplexSequence is an abstraction of a 
+Sequence which can be handily made using
+ComplexSequenceEval functions and is efficiently
+laid out in memory.
+%%
+
+
+api 
+object ComplexSequence
+des free_ComplexSequence
+endobject
+object ComplexSequenceEvalSet
+des free_ComplexSequenceEvalSet
+endobject
+endapi
+
+%{
+#include "complexsequence.h"
+
+
+%func
+
+Builds a reversed complex sequence where position i has all the
+correct numbers for this position reading from the opposite strand
+
+%%
+ComplexSequence * reversed_ComplexSequence(Sequence * forward,ComplexSequenceEvalSet * cses) 
+{
+  ComplexSequence * out;
+  register int i;
+  register int j;
+  register int * poi;
+  Sequence * rev;
+  int seqlen;
+
+  if( forward == NULL ) {
+    warn("Trying to make a complex sequence from a NULL sequence - impossible!");
+    return NULL;
+  }
+
+  if( can_evaluate_this_Sequence(cses,forward) == FALSE ) {
+    warn("Could not evaluate these sequences Sequence type [%d][%s] Evaluation type [%d][%s]",forward->type,Sequence_type_to_string(forward->type),cses->type,Sequence_type_to_string(cses->type));
+    return NULL;
+  }
+
+  if( cses->has_been_prepared == FALSE) {
+    warn("Trappable error: you have not prepared this ComplexSequenceEvalSet before using. Please do so in the future");
+    prepare_ComplexSequenceEvalSet(cses);
+  }
+
+  rev = reverse_complement_Sequence(forward);
+
+  out = ComplexSequence_alloc();
+  if( out == NULL )
+    return NULL;
+
+  out->creator = hard_link_ComplexSequenceEvalSet(cses);
+
+  out->datastore = (int *) ckcalloc((forward->len+cses->left_lookback)*cses->len,sizeof(int));
+
+  if( out->datastore == NULL ) {
+    warn("Could not allocate data pointer of length %d for ComplexSequence",forward->len*cses->len);
+    free_ComplexSequence(out);
+    return NULL;
+  }
+
+  out->data  = out->datastore + (cses->left_lookback * cses->len);
+
+  for(i=0;i<cses->left_lookback;i++) {
+    for(j=0;j<cses->len;j++) 
+      out->datastore[(i*cses->len)+j] = cses->cse[j]->outside_score;
+      }
+
+  out->depth = cses->len;
+  seqlen = forward->len;
+
+  for(i=0,poi = out->data;i<forward->len;i++,poi = next_ComplexSequence_data(out,poi)) {
+    for(j=0;j<cses->len;j++) {
+      /*      fprintf(stderr,"Calling with i at %d vs %d\n",i,cses->cse[j]->left_window); */
+      if( i < cses->cse[j]->right_window || (i + cses->cse[j]->left_window) >= seqlen)
+	poi[j] = cses->cse[j]->outside_score;
+      else poi[j] = (*cses->cse[j]->eval_func)(cses->cse[j]->data_type,cses->cse[j]->data,rev->seq+seqlen-i);
+    }
+  }
+
+  
+  return out;
+
+}
+
+%func
+The basic way to make a ComplexSequence. Requires that
+you have already built a ComplexSequenceEvalSet (such as
+/default_aminoacid_ComplexSequenceEvalSet).
+
+%arg
+seq Sequence that the ComplexSequence is based on
+cses EvalSet that defines the functions used on the sequence
+%%
+ComplexSequence * new_ComplexSequence(Sequence * seq,ComplexSequenceEvalSet * cses)
+{
+  ComplexSequence * out;
+  register int i;
+  register int j;
+  register int * poi;
+  
+  if( seq == NULL ) {
+    warn("Trying to make a complex sequence from a NULL sequence - impossible!");
+    return NULL;
+  }
+
+  if( can_evaluate_this_Sequence(cses,seq) == FALSE ) {
+    warn("Could not evaluate these sequences Sequence type [%d][%s] Evaluation type [%d][%s]",seq->type,Sequence_type_to_string(seq->type),cses->type,Sequence_type_to_string(cses->type));
+    return NULL;
+  }
+
+  if( cses->has_been_prepared == FALSE) {
+    warn("Trappable error: you have not prepared this ComplexSequenceEvalSet before using. Please do so in the future");
+    prepare_ComplexSequenceEvalSet(cses);
+  }
+
+
+  out = ComplexSequence_alloc();
+  if( out == NULL )
+    return NULL;
+
+  out->creator = hard_link_ComplexSequenceEvalSet(cses);
+
+  out->datastore = (int *) ckcalloc((seq->len+cses->left_lookback)*cses->len,sizeof(int));
+
+  if( out->datastore == NULL ) {
+    warn("Could not allocate data pointer of length %d for ComplexSequence",seq->len*cses->len);
+    free_ComplexSequence(out);
+    return NULL;
+  }
+
+  out->data  = out->datastore + (cses->left_lookback * cses->len);
+
+  for(i=0;i<cses->left_lookback;i++) {
+    for(j=0;j<cses->len;j++) 
+      out->datastore[(i*cses->len)+j] = cses->cse[j]->outside_score;
+  }
+
+  out->depth = cses->len;
+
+  for(i=0,poi = out->data;i<seq->len;i++,poi = next_ComplexSequence_data(out,poi)) {
+    for(j=0;j<cses->len;j++) {
+      /*      fprintf(stderr,"Calling with i at %d vs %d\n",i,cses->cse[j]->left_window); */
+      if( i < cses->cse[j]->left_window || (i + cses->cse[j]->right_window) >= seq->len)
+	poi[j] = cses->cse[j]->outside_score;
+      else poi[j] = (*cses->cse[j]->eval_func)(cses->cse[j]->data_type,cses->cse[j]->data,seq->seq+i);
+    }
+  }
+  
+  out->seq    = hard_link_Sequence(seq);
+
+  out->length = seq->len;
+
+  return out;
+
+}
+
+%func
+shows complex sequence in a vaguely
+human form
+%arg
+%%
+void show_ComplexSequence(ComplexSequence * cs,FILE * ofp)
+{
+  register int i;
+	
+  assert(cs);
+  assert(ofp);
+  assert(cs->seq);
+  fprintf(ofp,"ComplexSequence %s\n",cs->seq->name);
+  for(i=0;i<cs->length;i++) {
+    show_one_position_ComplexSequence(cs,i,ofp);
+  }
+
+}
+
+%func
+shows one position of a complex sequence
+%type internal
+%arg
+%%
+void show_one_position_ComplexSequence(ComplexSequence * cs,int pos,FILE * ofp)
+{
+  int i;
+
+  assert(cs);
+  assert(ofp);
+
+  fprintf(ofp,"%4d  %c [",pos,cs->seq->seq[pos]);
+
+  for(i=0;i<cs->depth;i++) {
+    if( cs->creator != NULL ) {
+      if( cs->creator->cse[i]->score_type == CseScoreType_Index ) {
+	fprintf(ofp,"%4d%c",ComplexSequence_data(cs,pos,i),i == cs->depth-1 ? ']' : ',');
+      } else {
+	fprintf(ofp,"% 6d (%0+2.2f)%c",ComplexSequence_data(cs,pos,i),Score2Bits(ComplexSequence_data(cs,pos,i)), i == cs->depth-1 ? ']' : ',');
+      }
+    } else {
+      fprintf(ofp,"%4d%c",ComplexSequence_data(cs,pos,i),i == cs->depth-1 ? ']' : ',');
+    }
+  }
+  fprintf(ofp,"\n");
+}
+
+
+  /********************************/
+  /* Making complex sequences     */
+  /********************************/
+
+%func
+Calculates all the necessary offset for an EvalSet.
+This is necessary before using it in a /new_ComplexSequence
+place
+%arg
+%%
+boolean prepare_ComplexSequenceEvalSet(ComplexSequenceEvalSet * cses)
+{
+  register int i;
+  int left_window = 0;
+  int right_window = 0;
+  int left_lookback = 0;
+
+  for(i=0;i<cses->len;i++) {
+    if( cses->cse[i]->right_window > right_window )
+      right_window = cses->cse[i]->right_window;
+    if( cses->cse[i]->left_window > left_window ) 
+      left_window = cses->cse[i]->left_window;
+    if( cses->cse[i]->left_lookback > left_lookback ) 
+      left_lookback = cses->cse[i]->left_lookback;
+  }
+
+  cses->right_window  = right_window;
+  cses->left_window   = left_window;
+  cses->left_lookback = left_lookback;
+  cses->has_been_prepared = TRUE;
+
+  return TRUE;
+}
+
+
+%func
+Checks that this ComplexSequenceEvalSet can be used with
+this Sequence. This is probably going to go defunct.
+
+%arg
+%%
+boolean can_evaluate_this_Sequence(ComplexSequenceEvalSet * cses,Sequence * s)
+{
+  return can_evaluate_this_type(cses,s->type);
+}
+
+
+%func
+Pretty much an internal for /can_evaluate_this_Sequence
+%type internal
+%arg
+%%
+boolean can_evaluate_this_type(ComplexSequenceEvalSet * cses,int type)
+{
+  switch (type) {
+  case SEQUENCE_UNKNOWN : return FALSE;
+  case SEQUENCE_DNA :
+    if( cses->type == SEQUENCE_DNA || cses->type == SEQUENCE_CDNA || cses->type == SEQUENCE_EST || cses->type == SEQUENCE_GENOMIC)
+      return TRUE;
+    else return FALSE;
+  default :
+    if( cses->type == type) 
+      return TRUE;
+    else return FALSE;
+  }
+}
+
+
+    
+
+%}
+
+
+
+
+
+
+

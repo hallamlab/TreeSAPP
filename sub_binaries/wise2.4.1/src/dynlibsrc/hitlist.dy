@@ -1,0 +1,600 @@
+
+%{
+#include "sequence.h"
+#include "hsp.h"
+#include "aln.h"
+#include "compmat.h"
+#include "btcanvas.h"
+#include "asciibtcanvas.h"
+#include "searchstatinterface.h"
+
+
+#define HitListLISTLENGTH 256
+#define HitPairLISTLENGTH 16
+
+typedef enum HitListOutputFormat {
+  HitListOutputFormatPseudoBlast = 34,
+  HitListOutputFormatXML,
+  HitListOutputFormatTab,
+  HitListAlnCumlative,
+  HitListOutputFormatUnknown
+} HitListOutputFormat;
+
+%}
+
+
+struct HitAln
+int raw_score
+double bit_score
+double evalue
+AlnBlock * alb
+
+
+struct HitPair
+Sequence * query
+Sequence * target
+int raw_score
+double bit_score
+double evalue
+HitAln ** aln !list
+boolean target_reversed !def="FALSE"
+
+
+struct HitList
+HitPair ** pair !list
+CompMat * mat
+boolean (*write_btc_func)(AlnBlock *,Sequence *,Sequence *,btCanvas * btc) !func
+char * stat_attrib
+
+struct HitListOutputImpl
+HitListOutputFormat type !def="HitListOutputFormatPseudoBlast"
+
+
+%{
+#include "hitlist.h"
+
+%func
+Sorts by score
+%%
+void sort_HitList_by_score(HitList * hl)
+{
+  sort_HitList(hl,compare_HitPair_score);
+}
+
+
+%func
+internal function to sort by score
+%%
+int compare_HitPair_score(HitPair * one,HitPair * two) 
+{
+  return two->raw_score - one->raw_score;
+}
+
+
+%func
+Applies statistics across a hitlist
+%%
+void apply_SearchStat_to_HitList(HitList * hspm,SearchStatInterface * ssi,int database_size)
+{
+  int i;
+  int j;
+
+  hspm->stat_attrib = stringalloc((*ssi->attribution)(ssi->data));
+
+  for(i=0;i<hspm->len;i++) {
+    hspm->pair[i]->bit_score = (*ssi->calc_bits)(ssi->data,hspm->pair[i]->query->len,hspm->pair[i]->target->len,hspm->pair[i]->raw_score);
+    hspm->pair[i]->evalue = (*ssi->calc_evalue)(ssi->data,hspm->pair[i]->query,hspm->pair[i]->target,hspm->pair[i]->raw_score,database_size);
+    
+    for(j=0;j<hspm->pair[i]->len;j++ ) {
+      hspm->pair[i]->aln[j]->bit_score = (*ssi->calc_bits)(ssi->data,hspm->pair[i]->query->len,hspm->pair[i]->target->len,hspm->pair[i]->aln[j]->raw_score);
+      hspm->pair[i]->aln[j]->evalue = (*ssi->calc_evalue)(ssi->data,hspm->pair[i]->query,hspm->pair[i]->target,hspm->pair[i]->aln[j]->raw_score,database_size); 
+    }
+  }
+
+}
+
+
+%func 
+Converts a LinearHSPmanager into a HitList
+%%
+HitList * HitList_from_LinearHSPmanager(LinearHSPmanager * lm)
+{
+  HitList * out;
+  HitPair * pair;
+  int i;
+
+
+  out = HitList_alloc_std();
+  if( lm->mat != NULL ) 
+    out->mat = hard_link_CompMat(lm->mat);
+
+  for(i=0;i<lm->len;i++) {
+    pair = HitPair_from_HSPset(lm->set[i],lm->mat);
+    add_HitList(out,pair);
+  }
+  
+  return out;
+}
+
+
+
+%func
+Builds a Hitpair from an HSP, not doing 
+alignment
+%%
+HitPair * HitPair_from_HSPset(HSPset * set,CompMat * mat)
+{
+  HitPair * out;
+  HitAln * aln;
+  int i;
+
+  out = HitPair_alloc_std();
+  out->query  = hard_link_Sequence(set->hsp[0]->query);
+  out->target = hard_link_Sequence(set->hsp[0]->target);
+
+  out->raw_score = 0.0;
+
+  for(i=0;i<set->len;i++) {
+    aln = HitAln_alloc();
+    aln->raw_score = set->hsp[i]->score;
+    aln->bit_score = aln->raw_score/2.0;
+    
+
+    aln->alb = ungapped_AlnBlock_from_HSP(set->hsp[i],out->query,out->target,mat);
+    add_HitPair(out,aln);
+    out->raw_score += set->hsp[i]->score;
+  }
+
+
+  return out;
+}
+
+%func
+Builds an expanded AlnBlock with one AlnColumn 
+per residue for an ungapped HSP
+%%
+AlnBlock * ungapped_AlnBlock_from_HSP(HSP * hsp,Sequence * q,Sequence * t,CompMat * mat)
+{
+  AlnBlock * alb;
+  AlnColumn * alc;
+  AlnColumn * prev = NULL;
+  int i;
+
+  alb = AlnBlock_alloc_len(2);
+  
+  add_AlnBlock(alb,AlnSequence_alloc());
+  add_AlnBlock(alb,AlnSequence_alloc());
+  
+  for(i=0;i<hsp->length && hsp->query_start+i < q->len && hsp->target_start+i < t->len;i++) {
+    alc = new_pairwise_AlnColumn();
+
+    alc->alu[0]->start = hsp->query_start+i-1;
+    alc->alu[0]->end   = hsp->query_start+i;
+    alc->alu[0]->text_label = "SEQUENCE";
+
+    alc->alu[1]->start = hsp->target_start+i-1;
+    alc->alu[1]->end   = hsp->target_start+i;
+    alc->alu[1]->text_label = "SEQUENCE";
+
+    if( mat != NULL ) {
+      alc->alu[0]->score[0] = alc->alu[1]->score[0] = mat->comp[toupper(q->seq[hsp->query_start+i])-'A'][toupper(t->seq[hsp->target_start+i])-'A'];
+    }
+
+
+    if( prev == NULL ) {
+      alb->start = alc;
+      prev = alc;
+    } else {
+      prev->next = alc;
+      prev = alc;
+    }
+  }
+
+  return alb;
+}
+
+%func
+Builds a new HitListOutputFormat from commandline
+%%
+HitListOutputImpl * new_HitListOutputImpl_from_argv(int * argc,char ** argv)
+{
+  HitListOutputImpl * out;
+  char * temp;
+
+  out = HitListOutputImpl_alloc();
+
+  if( strip_out_boolean_argument(argc,argv,"hithelp") == TRUE ) {
+    fprintf(stdout,"Hitlist help\npseudoblast gives a format similar to BLAST output\nTab gives a tab delimited format one line foreach ungapped block with columns\n<bit_score> <query-id> <query-start> <query-end> <query-strand> <query-len> <target-id> <target_start> <target_end> <target_strand> <target-len> <alignment-group-id>\n");
+    fprintf(stdout,"aln gives cumlative score align label dumping, good for debugging\n");
+    exit(0);
+  }
+
+  if( (temp = strip_out_assigned_argument(argc,argv,"hitoutput")) != NULL ) {
+    if( strcmp(temp,"pseudoblast") == 0 ) {
+      out->type = HitListOutputFormatPseudoBlast;
+    } 
+    if( strcmp(temp,"xml") == 0 ) {
+      out->type = HitListOutputFormatXML;
+    } 
+    if( strcmp(temp,"aln") == 0 ) {
+      out->type = HitListAlnCumlative;
+    }
+    if( strcmp(temp,"tab") == 0 ) {
+      out->type = HitListOutputFormatTab;
+    }
+  }
+  return out;
+}
+
+%func
+Shows help for HitList output
+%%
+void show_help_HitListOutputImpl(FILE * ofp)
+{
+  fprintf(ofp,"Hit list output options\n");
+  fprintf(ofp,"   -hitoutput [pseudoblast/xml/tab] pseudoblast by default\n");
+  fprintf(ofp,"   -hithelp   more detailed help on hitlist formats\n");
+}
+
+
+%func
+Shows a hitlist wrt to output impl
+%%
+void show_HitList_HitListOutputImpl(HitListOutputImpl * hloi,HitList * hl,FILE * ofp)
+{
+  switch(hloi->type) {
+    
+  case HitListOutputFormatPseudoBlast :
+    write_pseudoblast_HitList(hl,ofp);
+    break;
+  case HitListOutputFormatXML :
+    write_XML_HitList(hl,ofp);
+    break;
+  case HitListOutputFormatTab :
+    write_tab_HitList(hl,ofp);
+    break;
+  case HitListAlnCumlative :
+    write_alb_HitList(hl,ofp);
+    break;
+  default :
+    error("No valid HitListOutputFormat!");
+  }
+
+}
+
+%func
+Writes Alb output
+%%
+void write_alb_HitList(HitList * hl,FILE * ofp)
+{
+  int i,j;
+  for(i=0;i<hl->len;i++) {
+    fprintf(stdout,"%s %s\n",hl->pair[i]->query->name,hl->pair[i]->target->name);
+    
+    for(j=0;j<hl->pair[i]->len;j++) {
+      fprintf(ofp,"Alignment %d\n",j);
+      if( hl->pair[i]->aln[j]->alb != NULL ) 
+	mapped_ascii_AlnBlock(hl->pair[i]->aln[j]->alb,Score2Bits,1,ofp);
+    }
+  }
+}
+
+
+%func
+Writes XML output
+%%
+void write_XML_HitList(HitList * hl,FILE * ofp)
+{
+  int i,j;
+  btCanvas * btc;
+  
+
+  fprintf(ofp,"<?xml version=\"1.0\"?>\n");
+  fprintf(ofp,"<!DOCTYPE SequenceHitList PUBLIC \"-//EBI//SequenceHitList\" \"SequenceHitList.dtd\">\n");
+  fprintf(ofp,"<sequencehitlist>\n");
+  for(i=0;i<hl->len;i++) {
+    fprintf(ofp," <sequencehit>\n");
+    fprintf(ofp,"   <hitrank>%d</hitrank>\n",i);
+    fprintf(ofp,"   <sequence>\n");
+    fprintf(ofp,"     <id>%s</id>\n",hl->pair[i]->target->name);
+    if( hl->pair[i]->target->desc != NULL ) {
+      fprintf(ofp,"     <desc>%s</desc>\n",hl->pair[i]->target->desc);
+    }
+    fprintf(ofp,"     <residues>%s</residues>\n",hl->pair[i]->target->seq);
+    fprintf(ofp,"   </sequence>\n");
+    fprintf(ofp,"   <similaritymeasure>\n");
+    fprintf(ofp,"     <raw_score>%d</raw_score>\n",hl->pair[i]->raw_score);
+    fprintf(ofp,"     <bits_score>%.2f</bits_score>\n",hl->pair[i]->bit_score);
+    fprintf(ofp,"     <evalue>%g</evalue>\n",hl->pair[i]->evalue);
+    fprintf(ofp,"   </similaritymeasure>\n");
+    for(j=0;j<hl->pair[i]->len;j++) {
+      auto HitAln * haln = hl->pair[i]->aln[j];
+
+      fprintf(ofp,"   <hitalignment>\n");
+      fprintf(ofp,"   <similaritymeasure>\n");
+      fprintf(ofp,"     <raw_score>%d</raw_score>\n",haln->raw_score);
+      fprintf(ofp,"     <bits_score>%.2f</bits_score>\n",haln->bit_score);
+      fprintf(ofp,"     <evalue>%g</evalue>\n",haln->evalue);
+      fprintf(ofp,"   </similaritymeasure>\n");
+      fprintf(ofp,"   <formatted_alignment>\n");
+
+      btc = new_Ascii_btCanvas(stdout,20,50,7,3);  
+      write_pretty_str_blast_align_btc(hl->pair[i]->aln[j]->alb,"Query:",hl->pair[i]->query->seq,"Sbjct:",hl->pair[i]->target->seq,btc);
+      free_btCanvas(btc);
+      fprintf(ofp,"\n");
+      
+      fprintf(ofp,"   </formatted_alignment>\n");
+      fprintf(ofp,"   </hitalignment>\n");
+    }
+    fprintf(ofp,"</sequencehit>\n");
+  } 
+  fprintf(ofp,"</sequencehitlist>\n");
+  
+}
+
+%func
+Writes tab delimited tab like output
+%%
+void write_tab_HitList(HitList * hl,FILE * ofp)
+{
+  int i;
+  int j;
+  AlnColumn * alc;
+  int qstart;
+  int qend = 0;
+  int tstart;
+  int tend = 0;
+  int strand;
+  int tempt;
+
+  for(i=0;i<hl->len;i++) {
+    for(j=0;j<hl->pair[i]->len;j++) {
+      for(alc = hl->pair[i]->aln[j]->alb->start;alc != NULL && strcmp(alc->alu[1]->text_label,"END") != 0 ;) {
+	/* start of a block - remember start coordinates */
+	qstart = alc->alu[0]->start+1+1;
+	tstart = alc->alu[1]->start+1+1;
+	/* progress any number of cases where the progression is the same */
+	for(;alc != NULL;alc = alc->next ) {
+	  if( (alc->alu[0]->end - alc->alu[0]->start) != (alc->alu[1]->end - alc->alu[1]->start) ) {
+	    break;
+	  }
+	  /* otherwise set end points */
+
+	  qend = alc->alu[0]->end+1;
+	  tend = alc->alu[1]->end+1;
+	}
+
+	if( hl->pair[i]->target_reversed == 1 ) {
+	  strand = -1;
+	  tempt = tstart;
+	  tstart = hl->pair[i]->target->len - tend+1;
+	  tend   = hl->pair[i]->target->len - tempt+1;
+	} else {
+	  strand = 1;
+	}
+
+	/* end of a block. Print line */
+	fprintf(ofp,"%.2f\t%s\t%d\t%d\t%d\t%d\t%s\t%d\t%d\t%d\t%d\tgroup_%d_%d\n",hl->pair[i]->bit_score,hl->pair[i]->query->name,qstart,qend,1,hl->pair[i]->query->len,hl->pair[i]->target->name,tstart,tend,strand,hl->pair[i]->target->len,i,j);
+	
+	/* find start of next block */
+	for(;alc != NULL && strcmp(alc->alu[1]->text_label,"END") != 0;alc = alc->next ) {
+	  if( alc->alu[0]->end - alc->alu[0]->start == alc->alu[1]->end - alc->alu[1]->start ) {
+	    break;
+	  } 
+	}
+	/* top loop will break at alc == NULL */
+      }
+    }
+  }
+  
+}
+
+
+%func
+Writes pseudoblast output
+%%
+void write_pseudoblast_HitList(HitList * hl,FILE * ofp)
+{
+  int i,j;
+  btCanvas * btc;
+  char buffer[MAXLINE];
+
+  fprintf(ofp,"BLASTP 2.1.2\n");
+  fprintf(ofp,"\n\nReference: Wise2 Package, Ewan Birney\n");
+  fprintf(ofp,"BLAST like format to play well with existing parsers. Other options are available\nSee help on the program that generated this for other options\n");
+  if( hl->stat_attrib != NULL ) {
+    fprintf(ofp,"  Statistics from : %s\n",hl->stat_attrib);
+  }
+
+  fprintf(ofp,"\n\n");
+  fprintf(ofp,"Query= Not specified\n");
+  fprintf(ofp,"\n\nSearch.................................done\n\n");
+  fprintf(ofp,"                                                                   Score     E\n");
+  fprintf(ofp,"Sequences producing significant alignments:                        (bits)  Value\n");
+
+  for(i=0;i<hl->len;i++) {
+    if( hl->pair[i]->target->desc != NULL ) {
+      strcpy(buffer,hl->pair[i]->target->desc);	
+    } else {
+      strcpy(buffer," ");
+    }
+
+    buffer[50] = '\0';
+    fprintf(ofp,"%15s %50s %-.2f    %.2g\n",hl->pair[i]->target->name,buffer,hl->pair[i]->bit_score,hl->pair[i]->evalue);
+  }
+
+  fprintf(ofp,"\n");
+
+  for(i=0;i<hl->len;i++) {
+    fprintf(ofp,">%s %s\n          Length = %d Reversed %d\n\n",hl->pair[i]->target->name,(hl->pair[i]->target->desc != NULL ? hl->pair[i]->target->desc : " "),hl->pair[i]->target->len,hl->pair[i]->target_reversed);
+    for(j=0;j<hl->pair[i]->len;j++) {
+      
+      fprintf(ofp," Score = %.1f bits (%d), Expect = %g\n",
+	      hl->pair[i]->aln[j]->bit_score,hl->pair[i]->aln[j]->raw_score,hl->pair[i]->aln[j]->evalue);
+      fprintf(ofp,"\n");
+
+      btc = new_Ascii_btCanvas(stdout,20,50,5,3);
+      if( hl->write_btc_func == NULL ) {	  
+	write_pretty_str_blast_align_btc(hl->pair[i]->aln[j]->alb,"Query:",hl->pair[i]->query->seq,"Sbjct:",hl->pair[i]->target->seq,btc);
+      } else {
+	(*hl->write_btc_func)(hl->pair[i]->aln[j]->alb,hl->pair[i]->query,hl->pair[i]->target,btc);
+      }
+      free_btCanvas(btc);
+      fprintf(ofp,"\n");
+    }
+  }
+      
+}
+
+
+%func
+Chains up to char* level alignment writer
+%%
+boolean write_pretty_Seq_blast_align_btc(AlnBlock * alb,Sequence * one,Sequence * two,btCanvas * btc)
+{
+  return write_pretty_str_blast_align_btc(alb,one->name,one->seq,two->name,two->seq,btc);
+}
+
+%func
+This function writes precisely
+what you expect for a a simple alignment.
+
+We can reuse this routine all over the place because 
+we dont use any hard coded structure for the
+query or the target sequence letters. ... but crap
+type checking it has to be said!
+
+Also we use a generic btCanvas that could have
+any implementation underneath (eg, ASCII, postscript etc).
+%%
+boolean write_pretty_str_blast_align_btc(AlnBlock * alb,char * qname,char * query,char * tname,char * target,btCanvas * btc)
+{
+  int finished = 0;
+  AlnColumn * alc;
+  AlnColumn * prev = NULL;
+  AlnUnit * q;
+  AlnUnit * t;
+  char buffer[14];
+
+  btPasteArea * btp;
+
+  for(alc=alb->start;alc != NULL && finished == 0;) {
+
+    /** put names in **/
+
+    btp = get_reserved_left_btCanvas(btc);
+    paste_string_btPasteArea(btp,0,0,qname,BC_RIGHT,0);
+    paste_string_btPasteArea(btp,0,2,tname,BC_RIGHT,0);
+    
+    sprintf(buffer,"%d",alc->alu[0]->start+1+1);
+
+    paste_string_btPasteArea(btp,12,0,buffer,BC_RIGHT,0);
+
+    sprintf(buffer,"%d",alc->alu[1]->start+1+1);
+
+    paste_string_btPasteArea(btp,12,2,buffer,BC_RIGHT,0);
+    
+    free_btPasteArea(btp);
+    /** now loop over this block **/
+
+    for(;finished == 0 && alc != NULL &&  can_get_paste_area_btCanvas(btc,1) == TRUE;prev=alc,alc=alc->next) {
+      
+      q = alc->alu[0];
+      t = alc->alu[1];
+
+      /*
+       * at the end, break
+       */
+      if( strcmp(q->text_label,"END") == 0 ) {
+	finished = 1;
+	break;
+      }
+
+      /*
+       * Get the paste area, length 1, depth will be 3
+       */
+
+      btp = get_paste_area_btCanvas(btc,1);
+
+      /*
+       * Write in the query sequence
+       *
+       */
+
+      if( strcmp(q->text_label,"SEQUENCE") == 0 || strstr(q->text_label,"BOUND") != NULL ) {
+	paste_char_btPasteArea(btp,0,0,toupper((int)query[q->start+1]),0);
+      } else if( strcmp(q->text_label,"UNMATCHED_SEQUENCE") == 0 ) {
+	paste_char_btPasteArea(btp,0,0,tolower((int)query[q->start+1]),0);
+      } else {
+	/** is insert- we could check **/
+	if( strcmp(q->text_label,"INSERT") != 0 ) {
+	  warn("Got an uninterpretable label, %s",q->text_label);
+	  paste_char_btPasteArea(btp,0,0,'?',0);
+	} else {
+	  paste_char_btPasteArea(btp,0,0,'-',0);
+	}
+      }
+
+      /*
+       * Write in the target sequence
+       *
+       */
+
+      if( strcmp(t->text_label,"SEQUENCE") == 0 ) {
+	paste_char_btPasteArea(btp,0,2,toupper((int)target[t->start+1]),0);
+      } else if( strcmp(t->text_label,"UNMATCHED_SEQUENCE") == 0 ) {
+	paste_char_btPasteArea(btp,0,2,tolower((int)target[t->start+1]),0);
+      } else {
+	/** is insert- we could check **/
+	if( strcmp(t->text_label,"INSERT") != 0 ) {
+	  warn("Got an uninterpretable label, %s",t->text_label);
+	  paste_char_btPasteArea(btp,0,2,'?',0);
+	} else {
+	  paste_char_btPasteArea(btp,0,2,'-',0);
+	}
+      }
+
+      /*
+       * Match line
+       */
+
+
+
+      if( strcmp(q->text_label,"SEQUENCE") == 0 && strcmp(t->text_label,"SEQUENCE") == 0 ) {
+	if( q->score[0] > 0 ) {
+	  if( query[q->start+1] == target[t->start+1] ) {
+	    paste_char_btPasteArea(btp,0,1,target[t->start+1],0);
+	  } else {	   
+	    paste_char_btPasteArea(btp,0,1,'+',0);
+	  }
+	}
+      } else 
+	paste_char_btPasteArea(btp,0,1,' ',0);
+      
+      free_btPasteArea(btp);
+
+    } /* end of for this block */
+
+
+    if( prev != NULL ) {
+      btp = get_reserved_right_btCanvas(btc);
+      
+      sprintf(buffer,"%d",prev->alu[0]->end+1);
+      
+      paste_string_btPasteArea(btp,0,0,buffer,BC_RIGHT,0);
+      
+      sprintf(buffer,"%d",prev->alu[1]->end+1);
+      
+      paste_string_btPasteArea(btp,0,2,buffer,BC_RIGHT,0);
+      
+      free_btPasteArea(btp);
+    }
+
+    advance_line_btCanvas(btc);
+    if( alc->next != NULL && strcmp(alc->next->alu[1]->text_label,"END") == 0 ) {
+      break;
+    }
+  } /* end of for the alignment */
+
+  return TRUE; /* we never returned false. Ooops! */
+}

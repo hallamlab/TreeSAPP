@@ -1,0 +1,424 @@
+
+
+%{
+#include "sequencedb.h"
+#include "genomic.h"
+#include "hscore.h"
+#include "complexsequence.h"
+#include "complexevalset.h"
+
+typedef enum GenDBErrorType {
+  GENDB_READ_THROUGH = 0,
+  GENDB_FAIL_ON_ERROR = 1
+} GenDBErrorType;
+
+%}
+
+
+struct  GenomicDB
+boolean is_single_seq !def="FALSE"
+boolean done_forward  !def="FALSE"
+ComplexSequence * forw
+ComplexSequence * rev
+SequenceDB * sdb
+Genomic * current
+ComplexSequenceEvalSet * cses
+GenDBErrorType error_handling !def="GENDB_READ_THROUGH" !hidden
+Genomic * single // for single sequence cases, so we can 'index' on it 
+Genomic * revsingle
+int length_of_N !def="10"
+int repeat_in_cds_score !def="-1000000"
+%info
+This object hold a database of
+genomic sequences.
+
+You will probably use it in one of
+two ways
+
+1 A sequence formatted database, which
+is provided by a /SequenceDB object
+is used to provide the raw sequences 
+
+2 A single Genomic sequence is used.
+
+In each case this database provides
+both the forward and reverse strands
+into the system.
+
+Notice that what is exported are
+/ComplexSequence objects, not genomic dna,
+as this is what is generally needed. 
+These are things with splice sites calculated
+etc. This is why for initialisation this needs
+a /ComplexSequenceEvalSet of the correct type.
+%%
+
+api
+object GenomicDB
+des free_GenomicDB
+func get_Genomic_from_GenomicDB
+endobject
+func new_GenomicDB_from_single_seq
+func new_GenomicDB
+endapi
+
+%{
+#include "genomicdb.h"
+
+
+%func 
+shows the Hscore by the GenomicDB information
+
+%arg
+hs  High Score structure
+ofp output file
+%%
+void show_Hscore_GenomicDB(Hscore * hs,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<hs->len;i++)
+    fprintf(ofp,"Query [%20s] Target [%20s] %d\n",hs->ds[i]->query->name,hs->ds[i]->target->name,hs->ds[i]->score);
+}
+
+%func
+Gets Genomic sequence out from
+the GenomicDB using the information stored in
+dataentry
+%%
+Genomic * get_Genomic_from_GenomicDB(GenomicDB * gendb,DataEntry * de)
+{
+  Sequence * seq;
+  Sequence * temp;
+  /* we need to get out the Sequence from seqdb */
+
+  if( gendb == NULL || de == NULL ) {
+    warn("Cannot get a genomic sequence from NULL objects. Ugh!");
+    return NULL;
+  }
+
+
+  if( gendb->is_single_seq) {
+    if( de->is_reversed == TRUE ) 
+      return hard_link_Genomic(gendb->revsingle);
+    else
+      return hard_link_Genomic(gendb->single);
+  }
+
+  seq = get_Sequence_from_SequenceDB(gendb->sdb,de);
+
+
+  if( seq == NULL ) {
+    warn("Cannot get entry for %s from Genomic db",de->name);
+  }
+
+  /* check dna status. We assumme someone knows what he is doing when he makes a genomic db!*/
+  if( seq->type != SEQUENCE_DNA) {
+    warn("Sequence from %s data entry doesn't look like DNA. Forcing it to",de->name);
+  }
+
+  force_to_dna_Sequence(seq,1.0,NULL);
+
+  if( de->is_reversed == TRUE ) {
+    temp = reverse_complement_Sequence(seq);
+    free_Sequence(seq);
+    seq = temp;
+  }
+
+  return Genomic_from_Sequence_Nheuristic(seq,gendb->length_of_N);
+}
+
+
+
+%func
+adds information to dataentry from GenomicDB
+
+will eventually add file offset and format information
+%%
+boolean dataentry_add_GenomicDB(DataEntry * de,ComplexSequence * cs,GenomicDB * gendb)
+{
+  de->name = stringalloc(cs->seq->name);
+  de->is_reversed = is_reversed_Sequence(cs->seq);
+
+  if( gendb->is_single_seq ) {
+    return TRUE;
+  }
+
+  add_SequenceDB_info_DataEntry(gendb->sdb,de);
+  return TRUE;
+}
+
+
+%func 
+top level function which opens the Genomic database
+%arg
+gendb protein database
+return_status w the status of the open from database.h
+%%
+ComplexSequence * init_GenomicDB(GenomicDB * gendb,int * return_status)
+{
+  ComplexSequence * cs;
+  Sequence * seq;
+
+  if( gendb->is_single_seq == TRUE) {
+    *return_status = DB_RETURN_OK;
+    gendb->done_forward = TRUE;
+    return hard_link_ComplexSequence(gendb->forw);
+  }
+
+  /* is a seq db */
+
+  seq = init_SequenceDB(gendb->sdb,return_status);
+
+  if( seq == NULL || *return_status == DB_RETURN_ERROR || *return_status == DB_RETURN_END ) {
+    warn("On initiation of the genomicdb, immedaitely got an end scenario");
+    return NULL; 
+  }
+
+  /* check dna status. We assumme someone knows what he is doing when he makes a genomic db!*/
+  if( seq->type != SEQUENCE_DNA) {
+    warn("Sequence from %s data entry doesn't look like DNA. Forcing it to",seq->name);
+  }
+
+  force_to_dna_Sequence(seq,1.0,NULL);
+
+  /* map to Genomic on length of N buiness */
+
+  gendb->current = Genomic_from_Sequence_Nheuristic(seq,gendb->length_of_N);
+  gendb->done_forward = TRUE;
+  cs = evaluate_ComplexSequence_Genomic(gendb->current,gendb->cses,0,gendb->repeat_in_cds_score);
+  if( cs == NULL ) {
+    warn("Cannot make initial ComplexSequence. Unable to error catch this. Failing!");
+    *return_status = DB_RETURN_ERROR;
+    return NULL;
+  }
+
+
+  return cs;
+}
+
+%func
+function which reloads the database
+%arg
+last previous complex sequence, will be freed
+return_status w return_status of the load
+%%
+ComplexSequence * reload_GenomicDB(ComplexSequence * last,GenomicDB * gendb,int * return_status)
+{
+  ComplexSequence * cs;
+  Sequence * seq;
+  Genomic *temp;
+  Genomic * gen;
+  
+
+  
+  /** NB - notice that we don't do silly things with free's. Maybe we should **/
+
+  if( gendb->is_single_seq == TRUE ) {
+    if( gendb->done_forward == TRUE ) {
+      *return_status = DB_RETURN_OK;
+      gendb->done_forward = FALSE;
+      return hard_link_ComplexSequence(gendb->rev);
+    } else {
+      *return_status = DB_RETURN_END;
+      return NULL;
+    }
+  }
+
+  /** standard database **/
+
+  /** free Complex Sequence **/
+
+  if ( last != NULL ) {
+    free_ComplexSequence(last);
+  }
+
+  if( gendb->done_forward == TRUE ) {
+    if( gendb->current == NULL ) {
+      warn("A bad internal genomic db error - unable to find current sequence in db reload");
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+
+    temp = reverse_complement_Genomic(gendb->current);
+
+
+    if( temp == NULL ) {
+      warn("A bad internal genomic db error - unable to reverse complements current");
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+
+    cs = evaluate_ComplexSequence_Genomic(temp,gendb->cses,0,gendb->repeat_in_cds_score);
+
+    if( cs == NULL ) {
+      warn("A bad internal genomic db error - unable to make complex sequence in db reload");
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+
+    free_Genomic(temp);
+    gendb->done_forward = FALSE;
+    return cs;
+  }
+
+
+  /* otherwise we have to get a new sequence */
+
+  seq = reload_SequenceDB(NULL,gendb->sdb,return_status);
+
+  if( seq == NULL || *return_status == DB_RETURN_ERROR || *return_status == DB_RETURN_END ) {
+    return NULL; /** error already reported **/
+  }
+
+  uppercase_Sequence(seq);
+
+  /* check dna status. We assumme someone knows what he is doing when he makes a genomic db!*/
+  if( seq->type != SEQUENCE_DNA) {
+    warn("Sequence from %s data entry doesn't look like DNA. Forcing it to",seq->name);
+  }
+
+  force_to_dna_Sequence(seq,1.0,NULL);
+
+
+  if( force_to_dna_Sequence(seq,0.1,NULL) == FALSE ) {
+    if( gendb->error_handling == GENDB_READ_THROUGH ) {
+      warn("Unable to map %s sequence to a genomic sequence, but ignoring that for the moment...",seq->name);
+      free_Sequence(seq);
+      return reload_GenomicDB(NULL,gendb,return_status);
+    } else {
+      warn("Unable to map %s sequence to a genomic sequence. Failing",seq->name);
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+  }
+
+  gen = Genomic_from_Sequence_Nheuristic(seq,gendb->length_of_N);
+  cs = evaluate_ComplexSequence_Genomic(gen,gendb->cses,0,gendb->repeat_in_cds_score);
+  if( cs == NULL ) {
+    if( gendb->error_handling == GENDB_READ_THROUGH ) {
+      warn("Unable to map %s sequence to a genomic sequence, but ignoring that for the moment...",seq->name);
+      free_Sequence(seq);
+      return reload_GenomicDB(NULL,gendb,return_status);
+    } else {
+      warn("Unable to map %s sequence to a genomic sequence. Failing",seq->name);
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+  }
+
+  gendb->current = free_Genomic(gendb->current);
+  gendb->current = gen;
+  gendb->done_forward= TRUE;
+
+  return cs;
+}
+  
+
+
+%func
+top level function which closes the genomic database
+%arg
+cs last complex sequence 
+gendb protein database
+%%
+boolean close_GenomicDB(ComplexSequence * cs,GenomicDB * gendb) 
+{
+  if( gendb->is_single_seq == TRUE ) {
+    return TRUE;
+  }
+
+  if( cs != NULL)
+    free_ComplexSequence(cs);
+
+  if( gendb->current != NULL)
+    gendb->current = free_Genomic(gendb->current);
+
+  return close_SequenceDB(NULL,gendb->sdb);
+}
+
+%func 
+To make a new genomic database
+from a single Genomic Sequence with a eval system
+%arg
+gen sequence which as placed into GenomicDB structure.
+%%
+GenomicDB * new_GenomicDB_from_single_seq(Genomic * gen,ComplexSequenceEvalSet * cses,int score_in_repeat_coding)
+{
+  ComplexSequence * cs,*cs_rev;
+  GenomicDB * out;
+  Genomic * temp;
+  
+  
+  cs = evaluate_ComplexSequence_Genomic(gen,cses,0,score_in_repeat_coding);
+  temp = reverse_complement_Genomic(gen);
+  cs_rev = evaluate_ComplexSequence_Genomic(temp,cses,0,score_in_repeat_coding);
+
+  out = new_GenomicDB_from_forrev_cseq(cs,cs_rev);
+  out->single = hard_link_Genomic(gen);
+  out->revsingle = temp;
+  return out;
+}
+  
+
+%func
+To make a new genomic database
+from a single ComplexSequence
+%arg
+cs complex sequence which is held.
+%%
+GenomicDB * new_GenomicDB_from_forrev_cseq(ComplexSequence * cs,ComplexSequence * cs_rev)
+{
+  GenomicDB * out;
+
+
+  out = GenomicDB_alloc();
+  out->is_single_seq = TRUE;
+  out->forw = cs;
+  out->rev = cs_rev;
+  
+  return out;
+}
+
+
+  
+%func
+To make a new genomic database
+%arg
+seqdb sequence database
+cses  protein evaluation set
+%%
+GenomicDB * new_GenomicDB(SequenceDB * seqdb,ComplexSequenceEvalSet * cses,int length_of_N,int repeat_in_cds_score)
+{
+  GenomicDB * out;
+
+  if( seqdb == NULL || cses == NULL ) {
+    warn("Attempting to make GenomicDB from some NULL objects.");
+    return NULL;
+  }
+
+  /** should check sequence database **/
+
+  if( cses->type != SEQUENCE_GENOMIC ) {
+    warn("You can't make a genomic database with a non SEQUENCE_GENOMIC cses type [%d]",cses->type);
+    return NULL;
+  }
+
+
+  out = GenomicDB_alloc();
+
+  out->is_single_seq = FALSE;
+  out->sdb  = hard_link_SequenceDB(seqdb);
+  out->cses = hard_link_ComplexSequenceEvalSet(cses);
+  out->length_of_N = length_of_N;
+  out->repeat_in_cds_score = repeat_in_cds_score;
+
+  return out;
+}
+
+ 
+%} 
+
+
+
+

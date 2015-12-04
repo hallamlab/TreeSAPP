@@ -1,0 +1,68 @@
+
+%{
+#include "searchstatinterface.h"
+#include "probability.h"
+#include "histogram.h"
+
+%}
+
+
+
+struct EVDLookup
+double mu
+double lambda
+
+
+
+%{
+#include "searchstatlookup.h"
+
+
+%func
+Internal function for bit conversion
+%%
+double bit_halfbit_lookup_ssi(void * data,int query_len,int target_len,int raw_score)
+{
+  return raw_score / 2.0;
+}
+
+%func
+Internal function for evalue conversion. uses externally
+defined parameters for evd estimation
+%%
+double evalue_halfbit_lookup_ssi(void * data,Sequence * a,Sequence * b,int raw_score,int database_size)
+{
+  EVDLookup * l = (EVDLookup *)data;
+  return database_size * ExtremeValueP((float)raw_score,l->mu,l->lambda);
+}
+
+%func
+Internal function for free...
+%%
+void free_evdlookup_void (void * data)
+{
+  EVDLookup * l = (EVDLookup *)data;
+  free_EVDLookup(l);
+}
+
+%func
+Builds an external lookup statistics package
+%%
+SearchStatInterface * new_lookup_SearchStatInterface(double mu,double lambda)
+{
+  SearchStatInterface * ssi;
+  EVDLookup * el;
+
+  ssi = SearchStatInterface_alloc();
+  el = EVDLookup_alloc();
+  el->mu = mu;
+  el->lambda = lambda;
+  
+  ssi->data = (void *) el;
+
+  ssi->calc_evalue = evalue_halfbit_lookup_ssi;
+  ssi->calc_bits   = bit_halfbit_lookup_ssi;
+  ssi->free_data   = free_evdlookup_void;
+
+  return ssi;
+}

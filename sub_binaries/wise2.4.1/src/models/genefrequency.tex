@@ -1,0 +1,107 @@
+\section{genefrequency}
+\label{module_genefrequency}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_GeneFrequency21} GeneFrequency21
+
+\item \ref{object_GeneConsensus} GeneConsensus
+
+\item \ref{object_GeneSingleCons} GeneSingleCons
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{genefrequency factory methods}
+\subsubsection{read_GeneFrequency21_file}
+\begin{description}
+\item[External C] {\tt Wise2_read_GeneFrequency21_file (filename)}
+\item[Perl] {\tt &Wise2::read_GeneFrequency21_file (filename)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[filename] [UNKN ] will open from WISECONFIGDIR etc via openfile [char *]
+\item[returns] [UNKN ] a newly allocated structure [GeneFrequency21 *]
+\end{description}
+Opens the file with /openfile
+
+
+Reads in a GeneFrequency (Mor-Ewan style)
+
+
+
+
+\subsubsection{read_GeneFrequency21}
+\begin{description}
+\item[External C] {\tt Wise2_read_GeneFrequency21 (ifp)}
+\item[Perl] {\tt &Wise2::read_GeneFrequency21 (ifp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ifp] [UNKN ] file pointer [FILE *]
+\item[returns] [UNKN ] a newly allocated structure [GeneFrequency21 *]
+\end{description}
+Reads in a GeneFrequency (Mor-Ewan style)
+file from ifp
+
+
+
+
+\subsection{Object GeneFrequency21}
+
+\label{object_GeneFrequency21}
+
+The GeneFrequency21 object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{ss5} Type [GeneConsensus * : Scalar] No documentation
+
+\item{ss3} Type [GeneConsensus * : Scalar] No documentation
+
+\item{codon[64]} Type [double : Scalar] No documentation
+
+\item{central[4]} Type [double : Scalar] No documentation
+
+\item{py[4]} Type [double : Scalar] No documentation
+
+\item{spacer[4]} Type [double : Scalar] No documentation
+
+\item{transition[GENEFREQUENCY21_TRANSITION_LEN]} Type [double : Scalar] No documentation
+
+\item{cds_triplet[64]} Type [double : Scalar]  phase 0
+
+\end{description}
+No documentation for GeneFrequency21
+
+Member functions of GeneFrequency21
+
+\subsection{Object GeneConsensus}
+
+\label{object_GeneConsensus}
+
+The GeneConsensus object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{center} Type [int : Scalar] No documentation
+
+\item{gsc} Type [GeneSingleCons ** : List] No documentation
+
+\end{description}
+No documentation for GeneConsensus
+
+Member functions of GeneConsensus
+
+\subsection{Object GeneSingleCons}
+
+\label{object_GeneSingleCons}
+
+The GeneSingleCons object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{string} Type [char * : Scalar] No documentation
+
+\item{number} Type [double : Scalar] No documentation
+
+\end{description}
+No documentation for GeneSingleCons
+
+Member functions of GeneSingleCons
+

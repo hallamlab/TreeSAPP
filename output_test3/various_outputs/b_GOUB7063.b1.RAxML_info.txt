@@ -1,0 +1,50 @@
+
+
+You are using RAxML version 7.1.0 released by Alexandros Stamatakis in March 2009
+
+Alignment has 408 distinct alignment patterns
+
+Proportion of gaps and completely undetermined characters in this alignment: 0.028869
+
+RAxML classification algorithm
+
+Using 1 distinct models/data partitions with joint branch length optimization
+
+
+All free model parameters will be estimated by RAxML
+GAMMA model of rate heteorgeneity, ML estimate of alpha-parameter
+
+Partition: 0
+Alignment Patterns: 408
+Name: No Name Provided
+DataType: DNA
+Substitution Matrix: GTR
+
+
+
+
+RAxML was called as follows:
+
+sub_binaries/raxmlHPC -m GTRGAMMA -T 4 -s output_test3/various_outputs/b_GOUB7063.b1.phy -t /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/data/tree_data/18srRNA_tree.txt -f v -n b_GOUB7063.b1 -w /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/ 
+
+
+
+RAxML Classification Algorithm search parameters:
+Insertion using dynamic Alignment: NO
+Thorough  Insertion Method with branch length optimization: YES
+Bootstrap insertions with heuristics: NO
+
+GAMMA based Likelihood score of reference tree: -6314.378690
+
+RAxML will classify 1 Query Sequences into the 61 branches of the reference tree with 32 taxa
+
+Overall Classification time: 1.446610
+
+
+
+Labelled reference tree including branch labels and query sequences written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_labelledTree.b_GOUB7063.b1
+
+Labelled reference tree with branch labels (without query sequences) written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_originalLabelledTree.b_GOUB7063.b1
+
+Classification result file written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_classification.b_GOUB7063.b1
+

@@ -1,0 +1,271 @@
+
+%{
+#include "assembly_stream_interface.h"
+#include "basegraph.h"
+#include "singleseqspace.h"
+#include "assembly.h"
+#include "depthmanager.h"
+
+
+
+%}
+
+
+struct AssemblyGraph
+BaseGraph * bg
+SinglePosSpace * sp
+
+
+%{
+#include "assemblygraph.h"
+
+  
+
+AssemblyGraph * new_AssemblyGraph(KmerIndexInterface * kii,int max_read_len)
+{
+  AssemblyGraph * out;
+
+  out = AssemblyGraph_alloc();
+
+  out->bg = new_BaseGraph(kii);
+  out->sp = new_SinglePosSpace(1,max_read_len);
+
+  return out;
+}
+
+
+long int load_AssemblyGraph(AssemblyGraph * ag,AssemblySequenceStream * ass,int readmax)
+{
+  char buffer[256];
+  char c;
+  int i;
+  AssemblySequence * aseq;
+  struct lexical_kmer l;
+  struct lexical_kmer prev;
+  char twist;
+  int first;
+  long seq_offset;
+  long seq_load = 0;
+  int warning_for_n = 0;
+  int count = 0;
+
+  while( (aseq = (*ass->next_AssemblySequence)(ass->handle)) != NULL ) {
+    first = 0;
+
+    if( readmax != 0 && readmax < count ) {
+      break;
+    }
+    count++;
+    if( count % 100 == 0 ) {
+      fprintf(stderr,"Reading read %d\n",count);
+    }
+
+    seq_offset = add_Sequence_SinglePosSpace(ag->sp,aseq->seq->len,(void*)aseq);
+    for(i=0;i<aseq->seq->len - ag->bg->kii->kmer_size;i++) {
+      l = lexical_dna_number_from_string(aseq->seq->seq+i,ag->bg->kii->kmer_size);
+      if( l.lexical_forward == 3 ) {
+	/* N at this position, have to skip */
+	if( warning_for_n == 0 ) {
+	  fprintf(stderr,"Ewan has not figured out how to handle N containing sequences\n");
+	  warning_for_n = 1;
+	}
+
+	continue;
+      }
+      
+      /* if this is the first kmer, store it as previous and continue */
+      if( first == 0 ) {
+	prev = l;
+	first = 1;
+	continue;
+      }
+
+      if( prev.lexical_forward == l.lexical_forward ) {
+	twist = 0;
+      } else {
+	twist = 1;
+      }
+
+      /*
+      if( i > 1 && i < 12 ) {
+	fprintf(stderr,"Inserting at position %d in sequence with %ld %ld to %ld\n",i,seq_offset+i,prev.kmer,
+		l.kmer);
+
+	reverse_map_dna_number(l.kmer,ag->bg->kii->kmer_size,buffer);
+	c = lexical_last_base_from_kmer(l.kmer,ag->bg->kii->kmer_size,l.lexical_forward);
+	buffer[ag->bg->kii->kmer_size] = '\0';
+
+	fprintf(stderr,"Kmer %s last %c %d\n",buffer,c,l.lexical_forward);
+
+      }
+      */
+
+
+      insert_seqpos_BaseGraph(ag->bg,prev.kmer,l.kmer,twist,seq_offset+i);
+      prev = l;
+      seq_load++;
+    }
+
+  }
+  
+  return seq_load;
+
+}
+
+Assembly * Assembly_from_AssemblyGraph(AssemblyGraph * ag,DepthPara * dp)
+{
+  BaseNode * bn;
+  Assembly * out;
+  AssemblyContig * contig;
+  int i;
+
+  out = Assembly_alloc_std();
+
+  bn = ag->bg->start;
+  
+  while( bn != NULL ) {
+    if( bn->link_len == 1 && ((bn->link[0]->state & BaseLink_USED) != BaseLink_USED) ) {
+      /* edge node */
+      fprintf(stderr,"Using link %d with state %d\n",(int)bn->link,bn->link[0]->state);
+      
+      bn->link[0]->state |= BaseLink_USED;
+      contig = AssemblyContig_from_start_link(ag,bn->link[0],bn);
+      add_Assembly(out,contig);
+    } else if ( bn->link_len > 2 ) {
+      for(i=0;i<bn->link_len;i++) {
+	if( bn->link[i]->sequence_label_len < dp->max_depth &&
+	    !(bn->link[i]->state & (BaseLink_USED | BaseLink_IS_ERROR | BaseLink_IS_CYCLE)   )
+	    ) {
+	  contig = AssemblyContig_from_start_link(ag,bn->link[i],bn);
+	  add_Assembly(out,contig);
+	}
+      }
+    }
+
+    bn = bn->next_node;
+  }
+
+  return out;
+}
+
+AssemblyContig * AssemblyContig_from_start_link(AssemblyGraph * ag,BaseLink * link,BaseNode * prev_node)
+{
+  int no;
+  char buffer[512];
+  AssemblyContig * out;
+  BaseNode * next_node;
+  int lexical = 0;
+
+  char * seqstr;
+  int seq_len;
+  int curr_pos;
+  int max_depth = 0;
+  int clean_end = 0;
+  int clean_start = 0;
+
+  Sequence * seq;
+
+
+
+  assert(link != NULL);
+  assert(prev_node != NULL);
+
+  seqstr = malloc(1024*sizeof(char));
+  curr_pos = 0;
+  seq_len = 1024;
+
+  out = AssemblyContig_alloc_std();
+
+  if( prev_node->link_len == 1 ) {
+    clean_start = 1;
+  } else {
+    clean_start = 0;
+  }
+
+  sprintf(buffer,"Contig_%d",(int)link);
+
+  while( 1 ) {
+    if( link->sequence_label_len > max_depth ) {
+      max_depth = link->sequence_label_len;
+    }
+
+    if( link->left == prev_node ) {
+      next_node = link->right;
+    } else {
+      next_node = link->left;
+    }
+
+    /*    fprintf(stdout,"Link at %d has next node %d with %d links\n",(int)link,(int) next_node,next_node->link_len);  */
+
+    assert(next_node != NULL);
+
+    /* use next node to give us the base */
+
+    if( curr_pos >= seq_len ) {
+      seq_len = seq_len * 2;
+      seqstr = realloc(seqstr,seq_len*sizeof(char));
+      if( seqstr == NULL ) {
+	fatal("Out of memory in assembly contig reconstruction, trying to allocate string of %d",seq_len);
+      }
+    }
+     
+    if( link->twist == 1 ) {
+      if( lexical == 0 ) {
+	lexical = 1;
+      } else {
+	lexical = 0;
+      }
+    }
+
+    seqstr[curr_pos++] = lexical_last_base_from_kmer(next_node->dna_number,
+						     ag->bg->kii->kmer_size,
+						     lexical);
+      
+    /* mark link as used */
+    link->state |= BaseLink_USED;
+    /* fprintf(stdout,"Set link %d state to: %d\n",link,link->state); */
+
+    /* travel to next link */
+
+    no = next_link_if_error_or_cycle_unique_BaseLink(link,next_node,&link);
+
+    if( no == 0 ) {
+      /* no next link --> end */
+      break;
+    }
+    if( no > 1 ) {
+      /* no unique link --> end */
+      break;
+    }
+
+    prev_node = next_node;
+    /* return for next base */
+  }
+
+  
+  if( next_node->link_len > 1 ) {
+    clean_end = 0;
+  } else {
+    clean_end = 1;
+  }
+
+
+  seqstr[curr_pos] = '\0';
+
+  seq = Sequence_from_static_memory(buffer,seqstr);
+
+
+  out->consensus = seq;
+  out->clean_start = clean_start;
+  out->clean_end   = clean_end;
+  out->max_depth   = max_depth;
+
+
+  return out;
+
+}
+
+
+
+
+%}

@@ -1,0 +1,30 @@
+
+%{
+#include "wisebase.h"
+
+#define LocusSetLISTLENGTH 1024
+
+%}
+
+struct Locus
+int allele_number
+long int position
+
+struct LocusSet
+Locus ** locus !list
+
+
+%{
+#include "markerframework.h"
+
+
+
+
+
+
+
+
+
+
+
+%}

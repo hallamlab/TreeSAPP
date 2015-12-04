@@ -1,0 +1,189 @@
+
+%{
+#include "net_hspscan.h"
+
+#define MultiHSPScanClientLISTLENGTH 32
+
+#define MAX_CLIENT_HSP_THREADS 128
+
+%}
+
+
+struct HSPScanClient
+char * host
+int port
+HSPScanInterface * hspi !def="NULL"
+LinearHSPmanager * lm  !def="NULL"
+Sequence * seq !link
+HSPScanInterfacePara * p !link
+
+
+struct MultiHSPScanClient
+HSPScanClient ** client !list
+
+
+%{
+#include "client_multihspscan.h"
+
+
+LinearHSPmanager * scan_MultiHSPScanClient(void * data,Sequence * seq,HSPScanInterfacePara * para)
+{
+  LinearHSPmanager * out;
+  MultiHSPScanClient * mhsc;
+  pthread_attr_t pat;
+  pthread_t thread_pool[MAX_CLIENT_HSP_THREADS];
+  int i;
+  int j;
+  int total_len;
+  int err;
+
+  mhsc = (MultiHSPScanClient *) data;
+  assert(mhsc != NULL);
+  assert(seq != NULL);
+  assert(mhsc->len < MAX_CLIENT_HSP_THREADS);
+
+  pthread_attr_init(&pat);     
+
+#ifdef  HAS_PTHREAD_SETSCOPE 
+  pthread_attr_setscope(&pat, PTHREAD_SCOPE_SYSTEM);   
+#endif /* set scope */   
+  /* Give thread libraries a hint that there are num of threads to run */ 
+#ifdef HAS_PTHREAD_SETCONCURRENCY    
+  pthread_setconcurrency(mhsc->len+1);    
+#endif /* set concurrency */ 
+
+  for(i=0,total_len = 0;i<mhsc->len;i++) {
+    mhsc->client[i]->seq = seq;
+    mhsc->client[i]->p   = para;
+    if( (err = pthread_create(&(thread_pool[i]),&pat,client_hsp_thread_worker,(void*)mhsc->client[i])) ) {
+      fatal("Unable to make thread %d with error %d",i,err);
+    }
+  }
+
+  for(i=0;i<mhsc->len;i++) {
+    if( pthread_join(thread_pool[i],NULL) != 0 ) {
+      fatal("Unable to join thread in client hsp");
+    }
+    total_len += mhsc->client[i]->lm->len;
+  }
+
+  out = LinearHSPmanager_alloc_len(total_len);
+
+  for(i=0;i<mhsc->len;i++) {
+    for(j=0;j<mhsc->client[i]->lm->len;j++) {
+      add_LinearHSPmanager(out,hard_link_HSPset(mhsc->client[i]->lm->set[j]));
+    }
+  }
+
+  qsort(out->set,out->len,sizeof(HSPset*),compare_HSPset_score_qsort);
+
+  return out;
+}
+
+void * client_hsp_thread_worker(void * d)
+{
+  HSPScanClient * cl;
+
+  cl = (HSPScanClient *) d;
+
+  assert(cl != NULL);
+
+  if( cl->p->verbosity > 4 ) {
+    info("Client side thread starting for %s %d",cl->host,cl->port);
+  }
+
+
+  cl->lm = (*cl->hspi->scan_query)(cl->hspi->data,cl->seq,cl->p);
+
+  if( cl->p->verbosity > 4 ) {
+    info("Client side thread ending for %s %d",cl->host,cl->port);
+  }
+
+  return 0;
+}
+
+
+
+HSPScanInterface * new_multiclient_HSPScanInterface(char * filename)
+{
+  HSPScanInterface * out;
+  FILE * ifp;
+  MultiHSPScanClient * mhsc;
+
+  if( (ifp = openfile(filename,"r")) == NULL ) {
+    warn("Unable to open %s as file for multi scan client",filename);
+    return NULL;
+  }
+
+  mhsc = new_MultiHSPScanClient_from_file(ifp);
+
+  assert(mhsc != NULL);
+
+  out             = HSPScanInterface_alloc();
+  out->data       = (void *) mhsc;
+  out->scan_query = scan_MultiHSPScanClient;
+  out->free_data  = free_multihspscanclient;
+  
+
+}
+
+void free_multihspscanclient(void * data)
+{
+  MultiHSPScanClient * d;
+
+  d = (MultiHSPScanClient *) data;
+
+  free_MultiHSPScanClient(d);
+
+}
+
+MultiHSPScanClient * new_MultiHSPScanClient_from_file(FILE * ifp)
+{
+  MultiHSPScanClient * out;
+  HSPScanClient * cl;
+  char buffer[MAXLINE];
+  char * name;
+  char * port;
+  char * r;
+
+  out = MultiHSPScanClient_alloc_std();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"//") == 0 ) {
+      break;
+    }
+    name = buffer;
+    for(r = buffer;*r && !isspace(*r);r++) {
+      ;
+    }
+    *r = '\0';
+    r++;
+    for(;*r && isspace(*r);r++) {
+      ;
+    }
+    port = r;
+    for(;*r && !isspace(*r);r++) {
+      ;
+    }
+    *r = '\0';
+
+    cl = HSPScanClient_alloc();
+    cl->host = stringalloc(name);
+    cl->port = strtol(port,NULL,0);
+
+    cl->hspi = new_wise_transfer_HSPScanInterface(cl->host,cl->port);
+    if( cl->hspi == NULL ) {
+      warn("Unable to make client with %s host, %d port",cl->host,cl->port);
+      free_MultiHSPScanClient(out);
+      return NULL;
+    }
+
+    add_MultiHSPScanClient(out,cl);
+
+  }
+  
+  return out;
+}
+
+
+%}

@@ -1,0 +1,90 @@
+
+%{
+#include "threestatemodel.h"
+
+
+%}
+
+
+matrix ThreeStateLoop
+query  type="ThreeStateScore*" name="query"
+target type="PROTEIN" name="target"
+state MATCH offi="1" offj="1"
+	calc="query->unit[i]->match[AMINOACID(target,j)]"
+	source MATCH
+	    calc="query->unit[i]->trans[TSM_MATCH2MATCH]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->trans[TSM_INSERT2MATCH]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->trans[TSM_DELETE2MATCH]"
+	endsource
+	source LOOP
+	    calc="query->unit[i]->trans[TSM_START2MATCH]"
+	endsource
+	query_label  SEQUENCE
+	target_label SEQUENCE
+endstate
+state INSERT offi="0" offj="1"
+	calc="query->unit[i]->insert[AMINOACID(target,j)]"
+	source MATCH
+	    calc="query->unit[i]->trans[TSM_MATCH2INSERT]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->trans[TSM_INSERT2INSERT]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->trans[TSM_DELETE2INSERT]"
+	endsource
+	source LOOP
+	    calc="query->unit[i]->trans[TSM_START2INSERT]"
+	endsource
+	query_label  INSERT
+	target_label SEQUENCE
+endstate
+state DELETE offi="1" offj="0"
+	source MATCH
+	    calc="query->unit[i]->trans[TSM_MATCH2DELETE]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->trans[TSM_INSERT2DELETE]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->trans[TSM_DELETE2DELETE]"
+	endsource
+	source START
+	    calc="query->unit[i]->trans[TSM_START2DELETE]"
+	endsource
+	query_label  SEQUENCE
+	target_label INSERT
+endstate
+state START !special !start
+endstate
+state LOOP !special 
+	source MATCH
+	    calc="query->unit[i]->trans[TSM_MATCH2END]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->trans[TSM_INSERT2END]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->trans[TSM_DELETE2END]"
+	endsource
+        source LOOP offj="1"
+            calc="0"
+        endsource
+        source START offj="1"
+            calc="0"
+        endsource 
+	query_label  LOOP
+	target_label LOOP
+endstate
+state END !end !special
+        source LOOP offj="1"
+          calc="0"
+          endsource
+        query_label END
+        target_label END
+endstate
+endmatrix

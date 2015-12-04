@@ -1,0 +1,33 @@
+
+TYPEMAP
+Wise2_DnaSequenceHitList *    T_Wise2_DnaSequenceHitList
+
+INPUT
+T_Wise2_DnaSequenceHitList
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_DnaSequenceHitList *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_DnaSequenceHitList
+	sv_setref_pv($arg, "Wise2::DnaSequenceHitList", (void*) $var);
+
+TYPEMAP
+Wise2_SegmentHitList *    T_Wise2_SegmentHitList
+
+INPUT
+T_Wise2_SegmentHitList
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_SegmentHitList *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_SegmentHitList
+	sv_setref_pv($arg, "Wise2::SegmentHitList", (void*) $var);
+
+TYPEMAP
+Wise2_SegmentHit *    T_Wise2_SegmentHit
+
+INPUT
+T_Wise2_SegmentHit
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_SegmentHit *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_SegmentHit
+	sv_setref_pv($arg, "Wise2::SegmentHit", (void*) $var);

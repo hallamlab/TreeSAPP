@@ -1,0 +1,133 @@
+
+%{
+#include "assemblygraph.h"
+
+#define AssemblyPathLISTLENGTH 64
+
+
+#define PathSeq_START_OF_TANGLE 1
+#define PathSeq_END_OF_TANGLE   2
+#define PathSeq_START_INTERNAL  4
+#define PathSeq_END_INTERNAL    8
+
+
+%}
+
+
+struct PathStep
+BaseLink * link !link
+
+struct PathSeq
+int state
+long start
+long base_zero
+int start_depth
+AssemblySequence * aseq !link
+
+friend AssemblyPath
+
+struct AssemblyPath
+PathStep ** path !list
+PathSeq  ** seq !list !len="seq_"
+AssemblyPath ** branch !list !len="branch_"
+int buried_end !def=0
+
+
+%{
+#include "assemblypath.h"
+
+
+
+PathStep * new_PathStep(BaseLink * l )
+{
+  PathStep * out;
+  out = PathStep_alloc();
+  out->link = l;
+
+  return out;
+}
+
+boolean BaseLink_in_AssemblyPath(BaseLink * l,AssemblyPath * p)
+{
+  int i;
+
+  assert(l != NULL);
+  assert(p != NULL);
+  for(i=0;i<p->len;i++) {
+    if( p->path[i]->link == l ) {
+      return TRUE;
+    }
+  }
+  for(i=0;i<p->branch_len;i++) {
+    if( BaseLink_in_AssemblyPath(l,p->branch[i]) == TRUE ) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+PathSeq * new_PathSeq(long start,int start_depth,long base_zero,AssemblySequence * aseq)
+{
+  PathSeq * out;
+  out = PathSeq_alloc();
+
+  out->state = 0;
+  out->start = start;
+  out->aseq  = aseq;
+  out->base_zero = base_zero;
+  out->start_depth = start_depth;
+
+  return out;
+
+}
+
+void show_AssemblyPath(AssemblyPath * asp,int kmer_size,FILE * ofp)
+{
+  int i;
+  int lexical = 0;
+  char base;
+  BaseNode * next_node;
+  BaseNode * prev_node;
+
+  assert(asp != NULL);
+
+  for(i=0;i<asp->len-1;i++) {
+
+    if( asp->path[i]->link->twist == 1 ) {
+      if( lexical == 0 ) {
+	lexical = 1;
+      } else {
+	lexical = 0;
+      }
+    }
+   
+    if( asp->path[i+1]->link->left == asp->path[i]->link->left ||
+	asp->path[i+1]->link->right == asp->path[i]->link->left ) {
+      next_node = asp->path[i]->link->left;
+      prev_node = asp->path[i]->link->right;
+    } else {
+      next_node = asp->path[i]->link->right;
+      prev_node = asp->path[i]->link->left;
+    }
+
+	
+
+    base = lexical_last_base_from_kmer(next_node->dna_number,
+				       kmer_size,
+				       lexical);
+      
+    fprintf(ofp,"%d %d from %d to %d, Base %c\n",i,
+	    asp->path[i]->link,
+	    (int)prev_node,
+	    (int)next_node,
+	    base);
+  }
+	    
+
+}
+
+
+
+
+%}

@@ -1,0 +1,54 @@
+Option -T does not have any effect with the sequential or parallel MPI version.
+It is used to specify the number of threads for the Pthreads-based parallelization
+
+
+You are using RAxML version 7.1.0 released by Alexandros Stamatakis in March 2009
+
+Alignment has 1129 distinct alignment patterns
+
+Proportion of gaps and completely undetermined characters in this alignment: 0.079596
+
+RAxML classification algorithm
+
+Using 1 distinct models/data partitions with joint branch length optimization
+
+
+All free model parameters will be estimated by RAxML
+GAMMA model of rate heteorgeneity, ML estimate of alpha-parameter
+
+Partition: 0
+Alignment Patterns: 1129
+Name: No Name Provided
+DataType: DNA
+Substitution Matrix: GTR
+
+
+
+
+RAxML was called as follows:
+
+sub_binaries/raxmlHPC -m GTRGAMMA -T 4 -s output_test3/various_outputs/a_GOUB6564.g1.phy -t /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/data/tree_data/16srRNA_tree.txt -f v -n a_GOUB6564.g1 -w /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/ 
+
+
+RAxML classifier Algo: You provided a reference tree with 176 taxa; alignmnet has 177 taxa
+1 query taxa will be classifed under ML
+
+RAxML Classification Algorithm search parameters:
+Insertion using dynamic Alignment: NO
+Thorough  Insertion Method with branch length optimization: YES
+Bootstrap insertions with heuristics: NO
+
+GAMMA based Likelihood score of reference tree: -58910.054002
+
+RAxML will classify 1 Query Sequences into the 349 branches of the reference tree with 176 taxa
+
+Overall Classification time: 22.818950
+
+
+
+Labelled reference tree including branch labels and query sequences written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_labelledTree.a_GOUB6564.g1
+
+Labelled reference tree with branch labels (without query sequences) written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_originalLabelledTree.a_GOUB6564.g1
+
+Classification result file written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_classification.a_GOUB6564.g1
+

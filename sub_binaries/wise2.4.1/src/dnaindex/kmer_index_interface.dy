@@ -1,0 +1,41 @@
+
+%{
+#include "dyna.h"
+
+  /* this brings in kmer_t */
+#include "dnamapping.h"
+
+
+
+typedef struct KmerIndexInterface {
+  void*   (*retrieve_by_kmer)(void *,kmer_t); 
+  boolean (*insert_by_kmer)(void*,kmer_t,void*); 
+  void    (*free_handle)(void*); 
+  kmer_t  (*next_filled_kmer)(void *,kmer_t);
+  void * handle;
+  int kmer_size;
+} KmerIndexInterface;
+
+
+%}
+
+
+%{
+#include "kmer_index_interface.h"
+
+void free_KmerIndexInterface(KmerIndexInterface * kii)
+{
+  assert(kii);
+
+  (*kii->free_handle)(kii->handle);
+
+  free(kii);
+
+}
+
+
+
+
+
+
+%}

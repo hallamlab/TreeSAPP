@@ -1,0 +1,93 @@
+=head1 NAME
+
+probability module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains helper functions for the Wise2 package
+
+=head1 DESCRIPTION
+
+=over
+
+=item Probability_from_average_state_occupancy
+
+&Wise2::Probability_from_average_state_occupancy(length)
+
+  for single state (exponetial decays) takes an average length
+  and converts that to a probability that will produce that
+  length (on average) for the state. NB... this *assumes* that
+  you want a single state exp decay.
+
+
+
+  Argument length       [UNKN ] average length of state [double]
+  Return [UNKN ] Undocumented return value [Probability]
+
+
+=item state_occupancy_from_Probability
+
+&Wise2::state_occupancy_from_Probability(p)
+
+  If you have a single state then this will tak
+  the probability for the state->state transition and
+  give you back the average length in the state
+
+
+
+  Argument p            [UNKN ] probability of staying in the state [double]
+  Return [UNKN ] Undocumented return value [double]
+
+
+=item Probability2Score
+
+&Wise2::Probability2Score(p)
+
+  maps probabilities to scores. Deals
+  sensibly with 0's.
+
+
+
+  Argument p            [UNKN ] Undocumented argument [Probability]
+  Return [UNKN ] Undocumented return value [Score]
+
+
+=item Score2Probability
+
+&Wise2::Score2Probability(s)
+
+  maps scores to probabilities
+
+
+
+  Argument s            [UNKN ] Undocumented argument [Score]
+  Return [UNKN ] Undocumented return value [Probability]
+
+
+=item Score2Bits
+
+&Wise2::Score2Bits(s)
+
+  maps scores to bits
+
+
+
+  Argument s            [UNKN ] Undocumented argument [Score]
+  Return [UNKN ] Undocumented return value [Bits]
+
+
+=item halfbit2Probability
+
+&Wise2::halfbit2Probability(half_bit)
+
+  maps halfbits (log2(prob*2) to
+  probabilities
+
+
+
+  Argument half_bit     [UNKN ] Undocumented argument [double]
+  Return [UNKN ] Undocumented return value [Probability]
+
+
+=back
+

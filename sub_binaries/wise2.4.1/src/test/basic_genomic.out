@@ -1,0 +1,354 @@
+genewise $Name: wise2-4-1 $ (unreleased release)
+This program is freely distributed under a GPL. See source directory
+Copyright (c) GRL limited: portions of the code are from separate copyright
+
+Query protein:       roa1_drome
+Comp Matrix:         BLOSUM62.bla
+Gap open:            12
+Gap extension:       2
+Start/End            default
+Target Sequence      HSHNCPA1
+Strand:              forward
+Start/End (protein)  default
+Gene Parameter file: gene.stat
+Splice site model:   GT/AG only
+GT/AG bits penalty   -9.96
+Codon Table:         codon.table
+Subs error:          1e-06
+Indel error:         1e-06
+Null model           syn
+Algorithm            623
+
+genewise output
+Score 108.92 bits over entire alignment
+Scores as bits over a synchronous coding model
+
+Warning: The bits scores is not probablistically correct for single seqs
+See WWW help for more info
+
+roa1_drome        23 KLFVGALKDDHDEQSIRDYFQHFGNIVDINIVIDKETGKKRGFAFVEFD 
+                     K+FVG +K+D +E  +RDYF+ +G I  I I+ D+ +GKKRGFA V FD 
+                     KIFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKKRGFAxVTFD 
+HSHNCPA1          14 aatgggaaggaggcccagttgctgaaggagaaagcgagaaagtgtgatg 
+                     atttggtaaacaaaatgaataaagatattattcaggggaaggtcttcta 
+                     gatttctaactaatcaatttagtaatagtacgtcactcgagctcNactc 
+
+
+roa1_drome        72 DYDPVDKVVLQKQHQLNGKMVDVKKALPKQNDQQGGGGGRGGPG-GRAG 
+                     D+D VDK+V+QK H +NG   +V+KAL KQ         RG  G G  G 
+                     DHDSVDKIVIQKYHTVNGHNCEVRKALSKQEMASASSSQRGRSGSGNFG 
+HSHNCPA1         161 gcgtggaagacatcagagcatggaagctacgagagttacagcagtgatg 
+                     aaactaatttaaaactagaagatgactcaaatcgcccgagggggcgatg 
+                     ctccgtgtctgacttgtccctataacgagaggtttaccaatatttactt 
+
+
+roa1_drome       120 GNRGNMGGGNYGNQNGGGNWNNGGNNWGNNR                   
+                     G RG   GGN  N   GGN++  G   G +R                   
+                     GGRGGGFGGN-DNFGRGGNFSGRGx-FGGSR                   
+HSHNCPA1         308 ggcgggtgga gatgcggatagcgN tggac                   
+                     ggggggtgga aatggggatggggg tgggg                   
+                     tttattctgt cccttaaccttttc ttcct                   
+
+
+//
+Bits   Query         start end Target      start end   idels introns
+108.92 roa1_drome     23  150 HSHNCPA1       14  394    0    0
+//
+Gene 1
+Gene 14 394 
+  Exon 14 394 phase 0
+//
+>HSHNCPA1.[14:394].sp.tr
+KIFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKKRGFAxVTFDDHDSVDKIVIQ
+KYHTVNGHNCEVRKALSKQEMASASSSQRGRSGSGNFGGGRGGGFGGNDNFGRGGNFSGR
+GxFGGSR
+//
+>HSHNCPA1.[14:394].sp
+AAGATATTTGTTGGTGGCATTAAAGAAGACACTGAAGAACATCACCTAAGAGATTATTTT
+GAACAGTATGGAAAAATTGAAGTGATTGAAATCATGACTGACCGAGGCAGTGGCAAGAAA
+AGGGGCTTTGCCTTNGTAACCTTTGACGACCATGACTCCGTGGATAAGATTGTCATTCAG
+AAATACCATACTGTGAATGGCCACAACTGTGAAGTTAGAAAAGCCCTGTCAAAGCAAGAG
+ATGGCTAGTGCTTCATCCAGCCAAAGAGGTCGAAGTGGTTCTGGAAACTTTGGTGGTGGT
+CGTGGAGGTGGTTTCGGTGGGAATGACAACTTCGGTCGTGGAGGAAACTTCAGTGGTCGT
+GGTNGCTTTGGTGGCAGCCGT
+//
+Sequence HSHNCPA1
+subsequence HSHNCPA1.1 14 394
+
+Sequence HSHNCPA1.1
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 108.92
+source_Exons 1 381
+
+//
+Gene 0
+Gene 13 - 394
+Transcript 0
+Exon 0-381
+Translation 0 - 381
+
+//
+-5.21 [21:22 "MATCH_STATE" -1805],[12:15 "CODON" -1805]
+1.00 [22:23 "MATCH_STATE" 345],[15:18 "CODON" 345]
+3.06 [23:24 "MATCH_STATE" 1061],[18:21 "CODON" 1061]
+1.96 [24:25 "MATCH_STATE" 681],[21:24 "CODON" 681]
+2.63 [25:26 "MATCH_STATE" 910],[24:27 "CODON" 910]
+-0.19 [26:27 "MATCH_STATE" -66],[27:30 "CODON" -66]
+1.00 [27:28 "MATCH_STATE" 345],[30:33 "CODON" 345]
+2.20 [28:29 "MATCH_STATE" 762],[33:36 "CODON" 762]
+0.87 [29:30 "MATCH_STATE" 302],[36:39 "CODON" 302]
+2.87 [30:31 "MATCH_STATE" 995],[39:42 "CODON" 995]
+-1.34 [31:32 "MATCH_STATE" -463],[42:45 "CODON" -463]
+0.87 [32:33 "MATCH_STATE" 302],[45:48 "CODON" 302]
+2.33 [33:34 "MATCH_STATE" 807],[48:51 "CODON" 807]
+-0.11 [34:35 "MATCH_STATE" -39],[51:54 "CODON" -39]
+-0.73 [35:36 "MATCH_STATE" -252],[54:57 "CODON" -252]
+1.05 [36:37 "MATCH_STATE" 364],[57:60 "CODON" 364]
+2.48 [37:38 "MATCH_STATE" 860],[60:63 "CODON" 860]
+2.87 [38:39 "MATCH_STATE" 995],[63:66 "CODON" 995]
+3.40 [39:40 "MATCH_STATE" 1178],[66:69 "CODON" 1178]
+3.06 [40:41 "MATCH_STATE" 1061],[69:72 "CODON" 1061]
+0.88 [41:42 "MATCH_STATE" 306],[72:75 "CODON" 306]
+-0.33 [42:43 "MATCH_STATE" -116],[75:78 "CODON" -116]
+1.56 [43:44 "MATCH_STATE" 542],[78:81 "CODON" 542]
+2.63 [44:45 "MATCH_STATE" 910],[81:84 "CODON" 910]
+-0.20 [45:46 "MATCH_STATE" -69],[84:87 "CODON" -69]
+2.05 [46:47 "MATCH_STATE" 711],[87:90 "CODON" 711]
+-1.03 [47:48 "MATCH_STATE" -358],[90:93 "CODON" -358]
+-1.63 [48:49 "MATCH_STATE" -564],[93:96 "CODON" -564]
+2.05 [49:50 "MATCH_STATE" 711],[96:99 "CODON" 711]
+-0.20 [50:51 "MATCH_STATE" -69],[99:102 "CODON" -69]
+2.05 [51:52 "MATCH_STATE" 711],[102:105 "CODON" 711]
+0.46 [52:53 "MATCH_STATE" 161],[105:108 "CODON" 161]
+-0.45 [53:54 "MATCH_STATE" -155],[108:111 "CODON" -155]
+2.87 [54:55 "MATCH_STATE" 995],[111:114 "CODON" 995]
+0.70 [55:56 "MATCH_STATE" 242],[114:117 "CODON" 242]
+-1.17 [56:57 "MATCH_STATE" -405],[117:120 "CODON" -405]
+0.32 [57:58 "MATCH_STATE" 111],[120:123 "CODON" 111]
+2.63 [58:59 "MATCH_STATE" 910],[123:126 "CODON" 910]
+2.20 [59:60 "MATCH_STATE" 762],[126:129 "CODON" 762]
+2.20 [60:61 "MATCH_STATE" 762],[129:132 "CODON" 762]
+2.48 [61:62 "MATCH_STATE" 860],[132:135 "CODON" 860]
+2.63 [62:63 "MATCH_STATE" 910],[135:138 "CODON" 910]
+3.06 [63:64 "MATCH_STATE" 1061],[138:141 "CODON" 1061]
+1.81 [64:65 "MATCH_STATE" 626],[141:144 "CODON" 626]
+-3.96 [65:66 "MATCH_STATE" -1372],[144:147 "CODON" -1372]
+1.96 [66:67 "MATCH_STATE" 681],[147:150 "CODON" 681]
+-0.67 [67:68 "MATCH_STATE" -232],[150:153 "CODON" -232]
+3.06 [68:69 "MATCH_STATE" 1061],[153:156 "CODON" 1061]
+2.87 [69:70 "MATCH_STATE" 995],[156:159 "CODON" 995]
+2.87 [70:71 "MATCH_STATE" 995],[159:162 "CODON" 995]
+0.90 [71:72 "MATCH_STATE" 312],[162:165 "CODON" 312]
+2.87 [72:73 "MATCH_STATE" 995],[165:168 "CODON" 995]
+-0.72 [73:74 "MATCH_STATE" -251],[168:171 "CODON" -251]
+1.96 [74:75 "MATCH_STATE" 681],[171:174 "CODON" 681]
+2.87 [75:76 "MATCH_STATE" 995],[174:177 "CODON" 995]
+2.20 [76:77 "MATCH_STATE" 762],[177:180 "CODON" 762]
+1.47 [77:78 "MATCH_STATE" 508],[180:183 "CODON" 508]
+1.96 [78:79 "MATCH_STATE" 681],[183:186 "CODON" 681]
+1.00 [79:80 "MATCH_STATE" 345],[186:189 "CODON" 345]
+2.38 [80:81 "MATCH_STATE" 826],[189:192 "CODON" 826]
+2.20 [81:82 "MATCH_STATE" 762],[192:195 "CODON" 762]
+-0.61 [82:83 "MATCH_STATE" -213],[195:198 "CODON" -213]
+3.66 [83:84 "MATCH_STATE" 1269],[198:201 "CODON" 1269]
+-0.61 [84:85 "MATCH_STATE" -213],[201:204 "CODON" -213]
+0.50 [85:86 "MATCH_STATE" 172],[204:207 "CODON" 172]
+2.80 [86:87 "MATCH_STATE" 970],[207:210 "CODON" 970]
+2.63 [87:88 "MATCH_STATE" 910],[210:213 "CODON" 910]
+-0.80 [88:89 "MATCH_STATE" -277],[213:216 "CODON" -277]
+-0.94 [89:90 "MATCH_STATE" -326],[216:219 "CODON" -326]
+-0.53 [90:91 "MATCH_STATE" -184],[219:222 "CODON" -184]
+0.87 [91:92 "MATCH_STATE" 302],[222:225 "CODON" 302]
+1.96 [92:93 "MATCH_STATE" 681],[225:228 "CODON" 681]
+0.70 [93:94 "MATCH_STATE" 242],[228:231 "CODON" 242]
+2.20 [94:95 "MATCH_STATE" 762],[231:234 "CODON" 762]
+1.81 [95:96 "MATCH_STATE" 626],[234:237 "CODON" 626]
+2.00 [96:97 "MATCH_STATE" 692],[237:240 "CODON" 692]
+-0.72 [97:98 "MATCH_STATE" -251],[240:243 "CODON" -251]
+2.20 [98:99 "MATCH_STATE" 762],[243:246 "CODON" 762]
+2.38 [99:100 "MATCH_STATE" 826],[246:249 "CODON" 826]
+-0.20 [100:101 "MATCH_STATE" -69],[249:252 "CODON" -69]
+-1.63 [101:102 "MATCH_STATE" -564],[252:255 "CODON" -564]
+-0.61 [102:103 "MATCH_STATE" -213],[255:258 "CODON" -213]
+-0.11 [103:104 "MATCH_STATE" -39],[258:261 "CODON" -39]
+-0.37 [104:105 "MATCH_STATE" -129],[261:264 "CODON" -129]
+-0.37 [105:106 "MATCH_STATE" -129],[264:267 "CODON" -129]
+-0.37 [106:107 "MATCH_STATE" -129],[267:270 "CODON" -129]
+-0.37 [107:108 "MATCH_STATE" -129],[270:273 "CODON" -129]
+-1.37 [108:109 "MATCH_STATE" -476],[273:276 "CODON" -476]
+2.48 [109:110 "MATCH_STATE" 860],[276:279 "CODON" 860]
+2.63 [110:111 "MATCH_STATE" 910],[279:282 "CODON" 910]
+-1.37 [111:112 "MATCH_STATE" -476],[282:285 "CODON" -476]
+-0.72 [112:113 "MATCH_STATE" -251],[285:288 "CODON" -251]
+2.63 [113:114 "MATCH_STATE" 910],[288:291 "CODON" 910]
+-5.00 [114:114 "INSERT_STATE" -1732],[291:294 "CODON" -1732]
+1.72 [114:115 "MATCH_STATE" 596],[294:297 "CODON" 596]
+-0.02 [115:116 "MATCH_STATE" -6],[297:300 "CODON" -6]
+-1.19 [116:117 "MATCH_STATE" -413],[300:303 "CODON" -413]
+2.63 [117:118 "MATCH_STATE" 910],[303:306 "CODON" 910]
+2.63 [118:119 "MATCH_STATE" 910],[306:309 "CODON" 910]
+-0.20 [119:120 "MATCH_STATE" -69],[309:312 "CODON" -69]
+2.48 [120:121 "MATCH_STATE" 860],[312:315 "CODON" 860]
+2.63 [121:122 "MATCH_STATE" 910],[315:318 "CODON" 910]
+-0.20 [122:123 "MATCH_STATE" -69],[318:321 "CODON" -69]
+-1.44 [123:124 "MATCH_STATE" -499],[321:324 "CODON" -499]
+-1.87 [124:125 "MATCH_STATE" -649],[324:327 "CODON" -649]
+2.63 [125:126 "MATCH_STATE" 910],[327:330 "CODON" 910]
+2.63 [126:127 "MATCH_STATE" 910],[330:333 "CODON" 910]
+2.80 [127:128 "MATCH_STATE" 970],[333:336 "CODON" 970]
+-5.00 [128:129 "DELETE_STATE" -1732],[336:336 "INSERT" -1732]
+-1.78 [129:130 "MATCH_STATE" -616],[336:339 "CODON" -616]
+2.80 [130:131 "MATCH_STATE" 970],[339:342 "CODON" 970]
+-1.61 [131:132 "MATCH_STATE" -559],[342:345 "CODON" -559]
+-0.20 [132:133 "MATCH_STATE" -69],[345:348 "CODON" -69]
+-1.37 [133:134 "MATCH_STATE" -476],[348:351 "CODON" -476]
+2.63 [134:135 "MATCH_STATE" 910],[351:354 "CODON" 910]
+2.63 [135:136 "MATCH_STATE" 910],[354:357 "CODON" 910]
+2.80 [136:137 "MATCH_STATE" 970],[357:360 "CODON" 970]
+0.47 [137:138 "MATCH_STATE" 163],[360:363 "CODON" 163]
+0.30 [138:139 "MATCH_STATE" 103],[363:366 "CODON" 103]
+-0.20 [139:140 "MATCH_STATE" -69],[366:369 "CODON" -69]
+-1.37 [140:141 "MATCH_STATE" -476],[369:372 "CODON" -476]
+2.63 [141:142 "MATCH_STATE" 910],[372:375 "CODON" 910]
+-0.34 [142:143 "MATCH_STATE" -117],[375:378 "CODON" -117]
+-5.00 [143:144 "DELETE_STATE" -1732],[378:378 "INSERT" -1732]
+-0.44 [144:145 "MATCH_STATE" -151],[378:381 "CODON" -151]
+2.63 [145:146 "MATCH_STATE" 910],[381:384 "CODON" 910]
+-0.20 [146:147 "MATCH_STATE" -69],[384:387 "CODON" -69]
+0.30 [147:148 "MATCH_STATE" 103],[387:390 "CODON" 103]
+2.48 [148:149 "MATCH_STATE" 860],[390:393 "CODON" 860]
+//
+Score 37750
+Position i:[21] j:[12] State:[6] Score: 0
+Position i:[22] j:[15] State:[0] Score: -1805
+Position i:[23] j:[18] State:[0] Score: 345
+Position i:[24] j:[21] State:[0] Score: 1061
+Position i:[25] j:[24] State:[0] Score: 681
+Position i:[26] j:[27] State:[0] Score: 910
+Position i:[27] j:[30] State:[0] Score: -66
+Position i:[28] j:[33] State:[0] Score: 345
+Position i:[29] j:[36] State:[0] Score: 762
+Position i:[30] j:[39] State:[0] Score: 302
+Position i:[31] j:[42] State:[0] Score: 995
+Position i:[32] j:[45] State:[0] Score: -463
+Position i:[33] j:[48] State:[0] Score: 302
+Position i:[34] j:[51] State:[0] Score: 807
+Position i:[35] j:[54] State:[0] Score: -39
+Position i:[36] j:[57] State:[0] Score: -252
+Position i:[37] j:[60] State:[0] Score: 364
+Position i:[38] j:[63] State:[0] Score: 860
+Position i:[39] j:[66] State:[0] Score: 995
+Position i:[40] j:[69] State:[0] Score: 1178
+Position i:[41] j:[72] State:[0] Score: 1061
+Position i:[42] j:[75] State:[0] Score: 306
+Position i:[43] j:[78] State:[0] Score: -116
+Position i:[44] j:[81] State:[0] Score: 542
+Position i:[45] j:[84] State:[0] Score: 910
+Position i:[46] j:[87] State:[0] Score: -69
+Position i:[47] j:[90] State:[0] Score: 711
+Position i:[48] j:[93] State:[0] Score: -358
+Position i:[49] j:[96] State:[0] Score: -564
+Position i:[50] j:[99] State:[0] Score: 711
+Position i:[51] j:[102] State:[0] Score: -69
+Position i:[52] j:[105] State:[0] Score: 711
+Position i:[53] j:[108] State:[0] Score: 161
+Position i:[54] j:[111] State:[0] Score: -155
+Position i:[55] j:[114] State:[0] Score: 995
+Position i:[56] j:[117] State:[0] Score: 242
+Position i:[57] j:[120] State:[0] Score: -405
+Position i:[58] j:[123] State:[0] Score: 111
+Position i:[59] j:[126] State:[0] Score: 910
+Position i:[60] j:[129] State:[0] Score: 762
+Position i:[61] j:[132] State:[0] Score: 762
+Position i:[62] j:[135] State:[0] Score: 860
+Position i:[63] j:[138] State:[0] Score: 910
+Position i:[64] j:[141] State:[0] Score: 1061
+Position i:[65] j:[144] State:[0] Score: 626
+Position i:[66] j:[147] State:[0] Score: -1372
+Position i:[67] j:[150] State:[0] Score: 681
+Position i:[68] j:[153] State:[0] Score: -232
+Position i:[69] j:[156] State:[0] Score: 1061
+Position i:[70] j:[159] State:[0] Score: 995
+Position i:[71] j:[162] State:[0] Score: 995
+Position i:[72] j:[165] State:[0] Score: 312
+Position i:[73] j:[168] State:[0] Score: 995
+Position i:[74] j:[171] State:[0] Score: -251
+Position i:[75] j:[174] State:[0] Score: 681
+Position i:[76] j:[177] State:[0] Score: 995
+Position i:[77] j:[180] State:[0] Score: 762
+Position i:[78] j:[183] State:[0] Score: 508
+Position i:[79] j:[186] State:[0] Score: 681
+Position i:[80] j:[189] State:[0] Score: 345
+Position i:[81] j:[192] State:[0] Score: 826
+Position i:[82] j:[195] State:[0] Score: 762
+Position i:[83] j:[198] State:[0] Score: -213
+Position i:[84] j:[201] State:[0] Score: 1269
+Position i:[85] j:[204] State:[0] Score: -213
+Position i:[86] j:[207] State:[0] Score: 172
+Position i:[87] j:[210] State:[0] Score: 970
+Position i:[88] j:[213] State:[0] Score: 910
+Position i:[89] j:[216] State:[0] Score: -277
+Position i:[90] j:[219] State:[0] Score: -326
+Position i:[91] j:[222] State:[0] Score: -184
+Position i:[92] j:[225] State:[0] Score: 302
+Position i:[93] j:[228] State:[0] Score: 681
+Position i:[94] j:[231] State:[0] Score: 242
+Position i:[95] j:[234] State:[0] Score: 762
+Position i:[96] j:[237] State:[0] Score: 626
+Position i:[97] j:[240] State:[0] Score: 692
+Position i:[98] j:[243] State:[0] Score: -251
+Position i:[99] j:[246] State:[0] Score: 762
+Position i:[100] j:[249] State:[0] Score: 826
+Position i:[101] j:[252] State:[0] Score: -69
+Position i:[102] j:[255] State:[0] Score: -564
+Position i:[103] j:[258] State:[0] Score: -213
+Position i:[104] j:[261] State:[0] Score: -39
+Position i:[105] j:[264] State:[0] Score: -129
+Position i:[106] j:[267] State:[0] Score: -129
+Position i:[107] j:[270] State:[0] Score: -129
+Position i:[108] j:[273] State:[0] Score: -129
+Position i:[109] j:[276] State:[0] Score: -476
+Position i:[110] j:[279] State:[0] Score: 860
+Position i:[111] j:[282] State:[0] Score: 910
+Position i:[112] j:[285] State:[0] Score: -476
+Position i:[113] j:[288] State:[0] Score: -251
+Position i:[114] j:[291] State:[0] Score: 910
+Position i:[114] j:[294] State:[1] Score: -1732
+Position i:[115] j:[297] State:[0] Score: 596
+Position i:[116] j:[300] State:[0] Score: -6
+Position i:[117] j:[303] State:[0] Score: -413
+Position i:[118] j:[306] State:[0] Score: 910
+Position i:[119] j:[309] State:[0] Score: 910
+Position i:[120] j:[312] State:[0] Score: -69
+Position i:[121] j:[315] State:[0] Score: 860
+Position i:[122] j:[318] State:[0] Score: 910
+Position i:[123] j:[321] State:[0] Score: -69
+Position i:[124] j:[324] State:[0] Score: -499
+Position i:[125] j:[327] State:[0] Score: -649
+Position i:[126] j:[330] State:[0] Score: 910
+Position i:[127] j:[333] State:[0] Score: 910
+Position i:[128] j:[336] State:[0] Score: 970
+Position i:[129] j:[336] State:[2] Score: -1732
+Position i:[130] j:[339] State:[0] Score: -616
+Position i:[131] j:[342] State:[0] Score: 970
+Position i:[132] j:[345] State:[0] Score: -559
+Position i:[133] j:[348] State:[0] Score: -69
+Position i:[134] j:[351] State:[0] Score: -476
+Position i:[135] j:[354] State:[0] Score: 910
+Position i:[136] j:[357] State:[0] Score: 910
+Position i:[137] j:[360] State:[0] Score: 970
+Position i:[138] j:[363] State:[0] Score: 163
+Position i:[139] j:[366] State:[0] Score: 103
+Position i:[140] j:[369] State:[0] Score: -69
+Position i:[141] j:[372] State:[0] Score: -476
+Position i:[142] j:[375] State:[0] Score: 910
+Position i:[143] j:[378] State:[0] Score: -117
+Position i:[144] j:[378] State:[2] Score: -1732
+Position i:[145] j:[381] State:[0] Score: -151
+Position i:[146] j:[384] State:[0] Score: 910
+Position i:[147] j:[387] State:[0] Score: -69
+Position i:[148] j:[390] State:[0] Score: 103
+Position i:[149] j:[393] State:[0] Score: 860
+//

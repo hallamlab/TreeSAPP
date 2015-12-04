@@ -1,0 +1,288 @@
+
+%{
+#include "wisebase.h"
+
+enum DBSearchImpl_Type {
+  DBSearchImpl_Serial,
+  DBSearchImpl_Pthreads,
+  DBSearchImpl_MPI,
+  DBSearchImpl_PVM
+ };
+
+/* lifted from HMMer2 for this sort of work. So thanks to
+ * Sean Eddy and seems like warren gish as well 
+ */
+
+/* Our problem here is that POSIX apparently doesn't specify
+ * a standard for how to get sysconf() to report the number of
+ * processors on-line. _SC_NPROCESSORS_ONLN is specified
+ * by SVR4.0MP. Thanks to W. Gish for help here.
+ */
+#ifdef  _SC_NPROCESSORS_ONLN    /* Sun Solaris, Digital UNIX */
+#define DBSEARCH_NPROC  sysconf(_SC_NPROCESSORS_ONLN)
+#else
+#ifdef _SC_NPROC_ONLN		/* Silicon Graphics IRIX */
+#define DBSEARCH_NPROC  sysconf(_SC_NPROC_ONLN)
+#else   /* FreeBSD, Linux don't support getting ncpu via sysconf() */
+#define DBSEARCH_NPROC  -1
+#endif
+#endif
+
+enum DBSearchImpl_Routine {
+  DBSearchImplRoutine_Exact = 0,
+  DBSearchImplRoutine_Kbest,
+  DBSearchImplRoutine_Forward};
+
+%}
+
+
+
+struct DBSearchImpl
+int type              !def="DBSearchImpl_Serial"
+int trace_level       !def="0" // how much debugging information to print
+FILE * trace_file     !def="stderr" !link // for writing out trace of db stuff
+int suggest_thread_no !def="(-1)" // default, -1, means the use a call to _SC_NPROC
+int search_routine    !def="DBSearchImplRoutine_Exact" // routine used for the calculation, exact/kbest
+%info
+
+DBSearchImpl contains the information about
+the database search implementation used in
+a dynamite call. This is the only object which
+needs to specify say threads vs serial code
+
+The construction of this object is from its own
+stripping of the command line. This way programs
+which do database searching need not know anything
+about the implementation that is being used by 
+the dynamite compiler
+
+From the API you should be looking to make it from
+one of the handy constructors.
+
+For the threads code, if you leave the suggest_thread_no
+at (-1) - what it usually comes as for the constructors.
+The system then figures out the number of processors available
+on the machine and sets it to that.
+%%
+
+api
+object DBSearchImpl
+des free_DBSearchImpl
+func impl_string_DBSearchImpl
+endobject
+func new_pthread_DBSearchImpl
+func new_serial_DBSearchImpl
+endapi
+
+
+%{
+#include "dbsearchimpl.h"
+
+
+%func
+Gets a static text string out of the
+search implementation 
+%simple string
+%arg
+return s string of the search implementation
+%%
+char * impl_string_DBSearchImpl(DBSearchImpl * dbsi)
+{
+  switch(dbsi->type) {
+  case DBSearchImpl_Serial : 
+    return "Single Threaded processor (serial)";
+  case DBSearchImpl_Pthreads :
+    return "Pthreaded multiple processor";
+  case DBSearchImpl_MPI :
+    return "MPI distributed memory multiple processor";
+  case DBSearchImpl_PVM :
+    return "Parallel Virtual Machine implementation";
+  default :
+    return "Unknown implementation";
+  }
+}
+
+%func
+Gets a static text string out of the
+search routine implementation 
+%simple routine
+%arg
+return s string of the search implementation
+%%
+char * impl_string_routine_DBSearchImpl(DBSearchImpl * dbsi)
+{
+  switch(dbsi->search_routine) {
+  case DBSearchImplRoutine_Exact : 
+    return "Exact calculation";
+  case DBSearchImplRoutine_Kbest :
+    return "Kbest heuristic";
+  case DBSearchImplRoutine_Forward :
+    return "Forward score";
+  default :
+    return "Unknown routine implementation";
+  }
+}
+
+%func
+This gets out the recommended number of
+threads for a dbsi
+%%
+int number_of_threads_DBSearchImpl(DBSearchImpl * dbsi) 
+{
+  int num;
+
+  if( dbsi->type != DBSearchImpl_Pthreads ) {
+    warn("Asking a database implementation how many threads when it is not pthreads but [%s]",impl_string_DBSearchImpl(dbsi));
+  }
+
+  if( dbsi->suggest_thread_no == -1) {
+    num = DBSEARCH_NPROC;
+    if (num == -1) 
+      num = 2;    
+
+    return num;
+  }
+
+  return dbsi->suggest_thread_no;
+}
+	 
+
+%func
+Makes a new MPI DBSearchImpl
+
+For use mainly for api's who don't want
+to initalize the object from the command
+line
+%%
+DBSearchImpl * new_MPI_DBSearchImpl(void)
+{
+  DBSearchImpl * out;
+
+  out = DBSearchImpl_alloc();
+  out->type = DBSearchImpl_MPI;
+  return out;
+}
+
+%func
+Makes a new pthreaded DBSearchImpl
+
+For use mainly for api's who don't want
+to initalize the object from the command
+line
+%%
+DBSearchImpl * new_pthread_DBSearchImpl(void)
+{
+  DBSearchImpl * out;
+
+  out = DBSearchImpl_alloc();
+  out->type = DBSearchImpl_Pthreads;
+  return out;
+}
+
+%func
+Makes a new serial DBSearchImpl
+
+For use mainly for api's who don't want
+to initalize the object from the command
+line
+%%
+DBSearchImpl * new_serial_DBSearchImpl(void)
+{
+  DBSearchImpl * out;
+
+  out = DBSearchImpl_alloc();
+  out->type = DBSearchImpl_Serial;
+  return out;
+}
+
+%func
+This shows the help for the search implementation
+system. 
+
+It prints out lines like
+  -pthreads  use pthreaded code
+%%
+void show_help_DBSearchImpl(FILE * ofp)
+{
+  fprintf(ofp,"Database search implementation\n");
+  fprintf(ofp,"  -serial       use serial code (single processor)\n");
+  fprintf(ofp,"  -pthread      use pthread code (SMP box)\n");
+  fprintf(ofp,"  -pthr_no <no> Number of threads to use\n");
+  fprintf(ofp,"  -mpi          use MPI code (distributed memory system)\n");
+  fprintf(ofp,"  -pvm          use parallel virtual machine search system\n");
+  fprintf(ofp,"  -dbtrace <no> Trace level of the database code (for debugging only)\n");
+  fprintf(ofp,"  -sroutine <type> Search type routine [exact/kbest/forward]\n");
+}
+
+
+%func
+This process command line arguments to
+make a new DBSearchImpl. This way the
+search implementation is relatively
+flexible from the program which calls it.
+%%
+DBSearchImpl * new_DBSearchImpl_from_argv(int * argc,char ** argv)
+{
+  DBSearchImpl * out;
+  char * temp;
+
+  out = DBSearchImpl_alloc();
+  out->trace_file = stderr;
+  if( (strip_out_boolean_argument(argc,argv,"mpi")) == TRUE ) {
+    out->type = DBSearchImpl_MPI;
+  }
+
+  if( (strip_out_boolean_argument(argc,argv,"pthread")) == TRUE ) {
+    out->type = DBSearchImpl_Pthreads;
+  }
+
+  if( (strip_out_boolean_argument(argc,argv,"pvm")) == TRUE ) {
+    out->type = DBSearchImpl_PVM;
+  }
+
+  if( (strip_out_boolean_argument(argc,argv,"serial")) == TRUE ) {
+    out->type = DBSearchImpl_Serial;
+  }
+  
+  if( (temp = strip_out_assigned_argument(argc,argv,"pthr_no")) != NULL ) {
+    if( is_integer_string(temp,&out->suggest_thread_no) == FALSE ) {
+      warn("String [%s] for pthr_no is not an integer!",temp);
+      free_DBSearchImpl(out);
+      return NULL;
+    }
+  }
+
+  if( (temp = strip_out_assigned_argument(argc,argv,"dbtrace")) != NULL ) {
+    if( is_integer_string(temp,&out->trace_level) == FALSE ) {
+      warn("String [%s] for dbtrace is not an integer!",temp);
+      free_DBSearchImpl(out);
+      return NULL;
+    }
+  }
+
+  if( (temp = strip_out_assigned_argument(argc,argv,"sroutine")) != NULL ) {
+    if( strcmp(temp,"exact") == 0) {
+      out->search_routine = DBSearchImplRoutine_Exact;
+    } else if( strcmp(temp,"kbest") == 0 ) {
+      out->search_routine = DBSearchImplRoutine_Kbest;
+    } else if( strcmp(temp,"forward") == 0 ) {
+      out->search_routine = DBSearchImplRoutine_Forward;
+    } else {
+      warn("String [%s] for search routine is not recognised",temp);
+      free_DBSearchImpl(out);
+      return NULL;
+    }
+  }
+
+
+  return out;
+}
+  
+  
+
+
+
+
+
+
+

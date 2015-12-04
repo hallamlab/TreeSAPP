@@ -1,0 +1,188 @@
+
+
+%{
+#include "sequence.h"
+
+
+
+%}
+
+api
+object Protein
+des free_Protein
+func Protein_from_Sequence
+endobject
+endapi
+
+struct Protein
+Sequence * baseseq;
+%info
+The protein object is a typed
+example of a sequence object.
+
+It does nothing more than a sequence
+object but is typed
+%%
+
+# SequenceErrorList * se // list of the sequence errors
+
+
+
+%{
+#include "protein.h"
+
+
+
+%func
+Truncates a protein sequence. Basically uses
+the /trunc_Sequence function (of course!)
+
+It does not alter pro, rather it returns a new
+sequence with that truncation
+%arg
+pro r Protein that is truncated
+%%
+Protein * truncate_Protein(Protein * pro,int start,int stop)
+{
+  return Protein_from_Sequence(trunc_Sequence(pro->baseseq,start,stop));
+}
+
+%func
+Reads a fasta file assumming that it is protein. 
+Will complain if it is not, and return NULL.
+%arg
+filename filename to be opened and read
+%%
+Protein * read_fasta_file_Protein (char * filename)
+{
+  Protein * out;
+  Sequence * seq;
+
+  seq = read_fasta_file_Sequence(filename);
+  if( seq == NULL ) {
+    return NULL;
+  }
+  
+  out =  Protein_from_Sequence(seq);
+
+  return out;
+}
+
+
+%func
+Reads a fasta file assumming that it is protein. 
+Will complain if it is not, and return NULL.
+%arg
+ifp file point to be read from
+%%
+Protein * read_fasta_Protein (FILE * ifp)
+{
+  Sequence * seq;
+
+  seq = read_fasta_Sequence(ifp);
+  if( seq == NULL ) {
+    return NULL;
+  }
+
+  return Protein_from_Sequence(seq);
+}
+
+%func
+Reads a efetch specified query
+Uses, of course /read_efetch_Sequence
+%arg
+estr r efetch string which is read
+%%
+Protein * read_efetch_Protein(char * estr)
+{
+  return Protein_from_Sequence(read_efetch_Sequence(estr));
+}
+
+%func
+Reads a SRS sequence using srs4 syntax.
+Uses, of course, /read_SRS_Sequence
+
+%arg
+srsquery r string query representing SRS name
+%%
+Protein * read_SRS_Protein(char * srsquery)
+{
+  return Protein_from_Sequence(read_SRS_Sequence(srsquery));
+}
+
+
+%func
+Returns the name of the protein
+%arg
+%%
+char * Protein_name (Protein * pr)
+{
+  return pr->baseseq->name;
+}
+
+%func
+Returns the length of the protein
+%arg
+%%
+int Protein_length (Protein * pr)
+{
+  return pr->baseseq->len;
+}
+
+%func
+Returns sequence character at this position.
+%arg
+pr Protein
+pos position in protein to get char
+%%
+char Protein_seqchar(Protein * pr,int pos)
+{
+  return pr->baseseq->seq[pos];
+}
+
+
+%func
+makes a new protein from a Sequence. It 
+owns the Sequence memory, ie will attempt a /free_Sequence
+on the structure when /free_Protein is called
+
+If you want to give this protein this Sequence and
+forget about it, then just hand it this sequence and set
+seq to NULL (no need to free it). If you intend to use 
+the sequecne object elsewhere outside of the Protein datastructure
+then use Protein_from_Sequence(/hard_link_Sequence(seq))
+
+%arg
+seq o Sequence to make protein from
+%%
+Protein * Protein_from_Sequence(Sequence * seq)
+{
+  Protein * out;
+
+
+  if( seq == NULL ) {
+    warn("Attempting to make a protein from a NULL sequence");
+    return NULL;
+  }
+
+  if( is_protein_Sequence(seq) == FALSE ) {
+    warn("Trying to make a protein sequence from a non protein base sequence [%s].",seq->name);
+    return NULL;
+  }
+
+  out = Protein_alloc();
+  
+  out->baseseq = seq;
+
+  return out;
+}
+
+
+
+
+%}
+
+
+
+
+

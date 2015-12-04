@@ -1,0 +1,320 @@
+
+
+%{
+#include "sequence.h"
+
+#define GenomicLISTLENGTH 128
+
+%}
+
+
+api
+object Genomic
+des free_Genomic
+func truncate_Genomic
+func Genomic_name
+func Genomic_length
+func Genomic_seqchar
+func show_Genomic
+endobject
+object GenomicRepeat
+des free_GenomicRepeat
+endobject
+func read_fasta_file_Genomic
+func read_fasta_Genomic
+func Genomic_from_Sequence_Nheuristic
+func Genomic_from_Sequence
+endapi
+
+struct GenomicRepeat
+int start
+int end
+char * type
+
+struct Genomic
+Sequence * baseseq;
+GenomicRepeat ** repeat !list
+
+
+
+# SequenceErrorList * se // list of the sequence errors
+
+
+
+%{
+#include "genomic.h"
+
+
+
+%func
+Truncates a Genomic sequence. Basically uses
+the /magic_trunc_Sequence function (of course!)
+
+It does not alter gen, rather it returns a new
+sequence with that truncation
+
+Handles repeat information correctly.
+%arg
+gen r Genomic that is truncated
+%%
+Genomic * truncate_Genomic(Genomic * gen,int start,int stop)
+{
+  Genomic * out;
+  GenomicRepeat * tempr;
+  int tst,tend;
+  int i;
+
+
+  out = Genomic_from_Sequence(magic_trunc_Sequence(gen->baseseq,start,stop));
+  assert(out);
+
+  for(i=0;i<gen->len;i++) {
+    if( start < stop ) {
+      /* then we have to figure out if this repeat overlaps, and if so, put it in */
+      if( gen->repeat[i]->start > stop || gen->repeat[i]->end < start ) {
+	continue;
+      }
+
+      /* overlaps in some way */
+      tst = gen->repeat[i]->start - start;
+      tend = gen->repeat[i]->end - start;
+
+      if( tst < 0 ) {
+	tst =0;
+      }
+      if( tend > (stop-start) ) {
+	tend = (stop-start);
+      }
+    } else {
+      /* then we have to figure out if this repeat overlaps, and if so, put it in */
+      if( gen->repeat[i]->start > start || gen->repeat[i]->end < stop ) {
+	continue;
+      }
+
+      /* overlaps in some way */
+      tend =  start - gen->repeat[i]->start;
+      tst  = start - gen->repeat[i]->end;
+
+      if( tst < 0 ) {
+	tst =0;
+      }
+      if( tend > (start-stop) ) {
+	tend = (start-stop);
+      }
+    }
+
+    tempr = GenomicRepeat_alloc();
+    tempr->start = tst;
+    tempr->end = tend;
+    add_Genomic(out,tempr);
+    
+  }
+
+  return out;
+    
+}
+
+
+%func
+Reverse Complements s Genomic sequence. 
+
+Handles repeat information correctly
+%arg
+gen r Genomic that is revomcp
+%%
+Genomic * reverse_complement_Genomic(Genomic * gen)
+{
+  return truncate_Genomic(gen,gen->baseseq->len,0);
+}
+
+
+%func
+Reads a fasta file assumming that it is Genomic. 
+Will complain if it is not, and return NULL.
+%arg
+filename filename to be opened and read
+length_of_N length of N to be considered repeat. -1 means none
+%%
+Genomic * read_fasta_file_Genomic(char * filename,int length_of_N)
+{
+  Sequence * seq;
+
+  seq = read_fasta_file_Sequence(filename);
+  if( seq == NULL ) {
+    warn("Unable to read sequence from %s [%d], so no genomic",filename,seq);
+    return NULL;
+  }
+
+
+  if( length_of_N < 0 ) 
+    return Genomic_from_Sequence(seq);
+  else 
+    return Genomic_from_Sequence_Nheuristic(seq,length_of_N);
+ 
+}
+
+
+%func
+Reads a fasta file assumming that it is Genomic. 
+Will complain if it is not, and return NULL.
+%arg
+ifp file point to be read from
+length_of_N length of N to be considered repeat. -1 means none
+%%
+Genomic * read_fasta_Genomic(FILE * ifp,int length_of_N)
+{
+  Sequence * seq;
+
+  seq = read_fasta_Sequence(ifp);
+  if( seq == NULL ) {
+    return NULL;
+  }
+
+  if( length_of_N < 0 ) 
+    return Genomic_from_Sequence(seq);
+  else 
+    return Genomic_from_Sequence_Nheuristic(seq,length_of_N);
+
+}
+
+
+%func
+Returns the name of the Genomic
+%arg
+%%
+char * Genomic_name(Genomic * gen)
+{
+  return gen->baseseq->name;
+}
+
+%func
+Returns the length of the Genomic
+%arg
+%%
+int Genomic_length(Genomic * gen)
+{
+  return gen->baseseq->len;
+}
+
+%func
+Returns sequence character at this position.
+%arg
+gen Genomic
+pos position in Genomic to get char
+%%
+char Genomic_seqchar(Genomic * gen,int pos)
+{
+  return gen->baseseq->seq[pos];
+}
+
+
+%func
+makes a new genomic from a Sequence, but
+assummes that all the N runs greater than
+a certain level are actually repeats.
+%%
+Genomic * Genomic_from_Sequence_Nheuristic(Sequence * seq,int length_of_N)
+{
+  Genomic * out;
+  GenomicRepeat * temp;
+  char * run, *run2;
+  
+  out = Genomic_from_Sequence(seq);
+  if( out == NULL ) {
+    warn("Could not make a new Genomic Sequence from Sequence in Nheuristic");
+    return NULL;
+  }
+
+  for(run=strchr(seq->seq,'N');run != NULL;) {
+    for(run2 = run; *run2 && *run2 == 'N';run2++)
+      ;
+    if( run2 - run > length_of_N) {
+      temp = GenomicRepeat_alloc();
+      add_Genomic(out,temp);
+      temp->start = run - seq->seq;
+      temp->end   = run2 - seq->seq;
+    } 
+    run = strchr(run2,'N');
+  }
+
+  return out;
+}
+  
+
+%func
+makes a new genomic from a Sequence. It 
+owns the Sequence memory, ie will attempt a /free_Sequence
+on the structure when /free_Genomic is called
+
+If you want to give this genomic this Sequence and
+forget about it, then just hand it this sequence and set
+seq to NULL (no need to free it). If you intend to use 
+the sequence object elsewhere outside of the Genomic datastructure
+then use Genomic_from_Sequence(/hard_link_Sequence(seq))
+
+This is part of a strict typing system, and therefore
+is going to convert all non ATGCNs to Ns. You will lose
+information here.
+%arg
+seq o Sequence to make genomic from
+%%
+Genomic * Genomic_from_Sequence(Sequence * seq)
+{
+  Genomic * out;
+  int conv;
+
+  if( seq == NULL ) {
+    warn("Cannot make a genomic sequence from a NULL sequence");
+    return NULL;
+  }
+
+
+  if( is_dna_Sequence(seq) == FALSE ) {
+    warn("Trying to make a genomic sequence from a non genomic base sequence [%s] Type is %d.",seq->name,seq->type);
+    return NULL;
+  }
+
+  uppercase_Sequence(seq);
+
+  force_to_dna_Sequence(seq,1.0,&conv);
+ 
+  if( conv != 0 ) {
+    log_full_error(INFO,0,"In making %s a genomic sequence, converted %d bases (%2.1f%%) to N's from non ATGCN",seq->name,conv,(double)conv*100/(double)seq->len);
+  }
+
+  out = Genomic_alloc_std();
+
+  out->baseseq = seq;
+
+  return out;
+}
+
+
+%func
+For debugging
+%simple show
+%%
+void show_Genomic(Genomic * gen,FILE * ofp)
+{
+  int i;
+  assert(gen);
+  write_fasta_Sequence(gen->baseseq,ofp);
+  fprintf(ofp,"%d repeats\n",gen->len);
+  for(i=0;i<gen->len;i++) {
+    if( gen->baseseq->offset < gen->baseseq->end ) 
+      fprintf(ofp,"Repeat from %d - %d  Biologically: %d - %d \n",gen->repeat[i]->start,gen->repeat[i]->end,gen->baseseq->offset+gen->repeat[i]->start,gen->baseseq->offset -1 + gen->repeat[i]->end);
+    else 
+      fprintf(ofp,"Repeat from %d - %d  Biologically: %d - %d \n",gen->repeat[i]->start,gen->repeat[i]->end,gen->baseseq->offset - gen->repeat[i]->start,gen->baseseq->offset - gen->repeat[i]->end +1);
+  }
+  
+  
+}
+
+%}
+
+
+
+
+
+
+

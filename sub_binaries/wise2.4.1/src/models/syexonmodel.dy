@@ -1,0 +1,120 @@
+
+%{
+#include "dyna.h"
+
+#define SyExonModelLISTLENGTH 128
+#define SyExonScoreLISTLENGTH 128
+
+%}
+
+struct SyExon
+Probability exit_prob
+Probability stay_prob
+Probability prev_prob
+
+struct SyExonScoreUnit
+Score exit_score
+Score stay_score
+
+struct SyExonModel
+SyExon ** exon !list
+
+struct SyExonScore 
+SyExonScoreUnit ** exon !list
+
+
+
+%{
+
+#include "syexonmodel.h"
+
+SyExonScore * SyExonScore_flat_model(int start,int end,Probability exit,Probability final_stay)
+{
+  SyExonScore * out;
+  SyExonModel * m;
+
+  m = SyExonModel_flat_model(start,end,exit,final_stay);
+
+  out = SyExonScore_from_SyExonModel(m);
+
+  free_SyExonModel(m);
+
+  return out;
+}
+
+
+SyExonModel * SyExonModel_flat_model(int start,int end,Probability exit,Probability final_stay)
+{
+  int i;
+  SyExon * e;
+  SyExonModel * out;
+  Probability prev;
+
+  out = SyExonModel_alloc_len(end);
+  prev = 0.0;
+
+  for(i=0;i<end;i++) {
+    e = SyExon_alloc();
+    add_SyExonModel(out,e);
+    if( i < start ) {
+      e->exit_prob = 0.0;
+      e->stay_prob = 0.0;
+      e->prev_prob = prev;
+      prev = 1.0;
+    } else {
+      e->exit_prob = exit;
+      e->stay_prob = 0.0;
+      e->prev_prob = prev;
+      prev = 1.0-exit;
+    }
+
+    if( i+3 > end ) {
+      e->stay_prob = final_stay;
+    }
+  }
+
+  return out;
+}
+    
+ 
+SyExonScore * SyExonScore_from_SyExonModel(SyExonModel * sym)
+{
+  int i;
+
+  SyExonScore * out;
+
+  out = SyExonScore_alloc_len(sym->len);
+
+  for(i=0;i<sym->len;i++) {
+    add_SyExonScore(out,SyExonScoreUnit_from_SyExon(sym->exon[i]));
+  }
+
+  return out;
+}
+
+
+SyExonScoreUnit * SyExonScoreUnit_from_SyExon(SyExon * sye)
+{
+  SyExonScoreUnit * out;
+
+  out = SyExonScoreUnit_alloc();
+
+  out->exit_score = Probability2Score(sye->exit_prob);
+  out->stay_score = Probability2Score(sye->stay_prob);
+  
+  return out;
+}
+
+
+void dump_SyExonScore(SyExonScore * sc,FILE *ofp)
+{
+  int i;
+
+  for(i=0;i<sc->len;i++) {
+    fprintf(ofp,"%d exit %d stay %d\n",i,sc->exon[i]->exit_score,sc->exon[i]->stay_score);
+  }
+
+}
+
+
+

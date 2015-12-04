@@ -1,0 +1,1428 @@
+/*  Last edited: Apr  1 10:19 1997 (birney) */
+
+
+
+%{
+
+#include "dyna.h"
+#include "randommodel.h"
+
+#define ThreeStateModelLISTLENGTH 128
+#define ThreeStateScoreLISTLENGTH 128
+
+enum tsm_trans_type {
+  TSM_MATCH2MATCH  = 0,
+  TSM_MATCH2INSERT,  
+  TSM_MATCH2DELETE,
+  TSM_INSERT2MATCH,
+  TSM_INSERT2INSERT,  
+  TSM_INSERT2DELETE,
+  TSM_DELETE2MATCH,
+  TSM_DELETE2INSERT,  
+  TSM_DELETE2DELETE,  
+  TSM_START2MATCH,    
+  TSM_START2INSERT,   
+  TSM_START2DELETE,   
+  TSM_MATCH2END,      
+  TSM_INSERT2END,     
+  TSM_DELETE2END };
+
+#define TRANSITION_LEN 15
+
+#define BLANK_SCORE  (-10000000)
+
+extern char * std_alphabet;
+#define ALPHABET_SIZE 26
+
+typedef enum TSM_StartEndMode {
+  TSM_unknown = 26,
+  TSM_default,
+  TSM_local,
+  TSM_global,
+  TSM_wing,
+  TSM_endbiased
+} TSM_StartEndMode;
+
+
+%}
+
+
+
+struct ThreeStateUnit
+Probability match_emission[ALPHABET_SIZE];
+Probability insert_emission[ALPHABET_SIZE];
+Probability transition[TRANSITION_LEN];
+char display_char; !def="'u'"
+%info
+This object is the probability version
+of hte common unit to profile HMMs, ie
+the match,insert,delete triple
+%%
+
+struct ThreeStateModel
+char * name   // name of the model
+ThreeStateUnit ** unit !list // the actuall three state probs and emissions
+char * alphabet // alphabet used 
+char * accession // accession number
+double threshold // bits threshold (if sensible)
+RandomModel * rm // Random model for the model: maybe NULL!
+%info
+This is profile-HMM object, similar to the
+SAM and HMMer plan9 architecture. 
+%%
+
+struct ThreeStateScoreUnit
+Score  match[ALPHABET_SIZE]
+Score  insert[ALPHABET_SIZE]
+Score  trans[TRANSITION_LEN]
+%info
+This is the Score (ie , log-odded)
+version of the ThreeStateUnit
+%%
+
+struct ThreeStateScore
+ThreeStateScoreUnit ** unit !list
+char * name
+char * accession
+%info
+This is hte score version of the
+ThreeStateModel, ie this has its
+emissions and transitions log-odded
+%%
+
+api
+object ThreeStateModel
+des free_ThreeStateModel
+func force_global_model
+func force_weighted_local_model
+func ThreeStateModel_from_half_bit_Sequence
+func write_HMMer_1_7_ascii_ThreeStateModel
+endobject
+object ThreeStateUnit
+des    free_ThreeStateUnit
+endobject
+func read_HMMer_1_7_ascii_file
+func read_HMMer_1_7_ascii
+endapi
+
+%{
+#include "threestatemodel.h"
+
+ char * std_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+
+%func
+ Gets the information content (K-L divergence) vs a background for a position
+%%
+double information_from_ThreeStateUnit(ThreeStateUnit * tsu,RandomModel * rm)
+{
+  int i;
+  double info = 0.0;
+  double p;
+
+  for(i=0;i<ALPHABET_SIZE;i++) {
+    if( rm->aminoacid[i] < 1.0 ) {
+      p = rm->aminoacid[i]*Probability2Bits(rm->aminoacid[i]/tsu->match_emission[i]);
+      info += p;
+      /*  fprintf(stderr,"For amino acid %d, adding %f %f\n",i,p,rm->aminoacid[i]); */
+    }
+  }
+  
+  return info;
+}
+
+%func
+gets out the mode from a string
+%%
+int threestatemodel_mode_from_string(char * mode)
+{
+  int t;
+
+  t = get_number_from_slashed_string(mode,"default/global/local/wing/endbias");
+
+  switch (t) {
+  case 0 : return TSM_default;
+  case 1 : return TSM_global;
+  case 2 : return TSM_local;
+  case 3 : return TSM_wing;
+  case 4 : return TSM_endbiased;
+  default : warn("%s is not a valid TSM mode!",mode); return TSM_unknown;
+  }
+
+  return TSM_unknown;
+}
+
+%func
+Sets the start/end policy on the basis of the mode
+%%
+void set_startend_policy_ThreeStateModel(ThreeStateModel * tsm,TSM_StartEndMode mode,int wing_length,Probability internal_bias)
+{
+
+  switch(mode) {
+  case TSM_default   : return;
+  case TSM_global    : force_weighted_local_model(tsm,1.0,1.0,1.0); return;
+  case TSM_local     : force_hmmfs_ThreeStateModel(tsm); return;
+  case TSM_wing      : force_wing_local_model(tsm,0.75,wing_length); return;
+  case TSM_endbiased : force_endbias_model(tsm,1.0,internal_bias); return; 
+  case TSM_unknown   :
+  default :
+    warn("No valid mode passed into set_startend_policy");
+  }
+
+}
+
+%func
+Makes start/end on probability and
+internal another
+
+not probabilistically correct
+%%
+void force_endbias_model(ThreeStateModel * tsm,double startend,double internal)
+{
+  int i;
+
+  if( tsm == NULL ) {
+    warn("In force_endbias_model, got a NULL threestate model! Problem!");
+    return;
+  }
+
+  for(i=0;i<tsm->len;i++) {
+    tsm->unit[i]->transition[TSM_START2MATCH]  = internal;
+    tsm->unit[i]->transition[TSM_START2DELETE] = internal;
+    tsm->unit[i]->transition[TSM_START2INSERT] = internal;
+    tsm->unit[i]->transition[TSM_MATCH2END]    = internal;
+    tsm->unit[i]->transition[TSM_INSERT2END]   = internal;
+    tsm->unit[i]->transition[TSM_DELETE2END]   = internal;
+  }
+
+  tsm->unit[0]->transition[TSM_START2MATCH] = startend;
+  tsm->unit[0]->transition[TSM_START2DELETE] = startend;
+
+  tsm->unit[tsm->len-1]->transition[TSM_MATCH2END] = startend;
+  tsm->unit[tsm->len-1]->transition[TSM_DELETE2END] = startend;
+} 
+
+
+%func
+Makes start at position 0 and end at position end,
+no other positions being valid
+
+%arg
+tsm ThreeStateModel to be 'forced'
+prob_into_model Probability to start the model: for true global will be 1.0
+%%
+void force_global_model(ThreeStateModel * tsm,double prob_into_model) 
+{
+  force_weighted_local_model(tsm,prob_into_model,1.0,1.0);
+}
+
+%func
+Places the balanace of the start probability
+at the start and then the rest spread evenly
+descending over the wing stretch of sequences
+
+Same with the end probability
+%arg
+terminus_prob the amount of probability to put on the real start and end
+wing_length   the rest of the probability spread over this distance into the wing
+%%
+void force_wing_local_model(ThreeStateModel * tsm,double terminus_prob,int wing_length)
+{
+  int i;
+  double k;
+  
+
+  /*
+   * k is the amount to take off for each step along the wing
+   * 
+   * it comes from solving sum_(terminus_prob - nk) = 1.0 
+   * with n going from 0 to wing_length
+   *
+   * I make this k = 2(terminus_prob)/wing_length - 2/(wing_length+1)wing_length
+   *
+   */
+
+  k = (2.0 * terminus_prob / wing_length) - 2.0 / ((wing_length + 1)*wing_length);
+
+  if( k < 0.0 ) {
+    warn("Weird - got k less than zero in force wing model");
+    return;
+  }
+
+
+  if( tsm == NULL ) {
+    warn("In force_wing_local_model, got a NULL threestate model! Problem!");
+    return;
+  }
+
+  
+  
+
+  for(i=0;i<tsm->len && i < wing_length ;i++) {
+    tsm->unit[i]->transition[TSM_START2MATCH] = (terminus_prob) - (i * k) ;
+    tsm->unit[i]->transition[TSM_START2DELETE] = (terminus_prob) - (i * k) ;
+    tsm->unit[i]->transition[TSM_START2INSERT] = (terminus_prob) - ( i * k) ;
+
+    tsm->unit[tsm->len-1-i]->transition[TSM_MATCH2END] = (terminus_prob) - (i * k) ;
+    tsm->unit[tsm->len-1-i]->transition[TSM_INSERT2END] = (terminus_prob) - ( i * k) ;
+    tsm->unit[tsm->len-1-i]->transition[TSM_DELETE2END] = (terminus_prob) - (i * k)  ;
+
+  }
+} 
+
+
+%func
+places the ratio of probability to start/end,
+and then distributes the rest over the start/end
+
+%arg
+tsm ThreeStateModel to be 'forced'
+prob_into_model Probability to start the model: for true global will be 1.0
+ratio_start ratio of prob to unit 0 to the rest (1.0 means all goes to start)
+ratio_end ratio of prob to unit (last) to the rest (1.0 means all goes to the end)
+%%
+void force_weighted_local_model(ThreeStateModel * tsm,double prob_into_model,double ratio_start,double ratio_end) 
+{
+  int i;
+
+  if( tsm == NULL ) {
+    warn("In force_weighted_local_model, got a NULL threestate model! Problem!");
+    return;
+  }
+
+  for(i=0;i<tsm->len;i++) {
+    tsm->unit[i]->transition[TSM_START2MATCH] = prob_into_model * (1.0 - ratio_start) / (tsm->len-1) ;
+    tsm->unit[i]->transition[TSM_START2DELETE] = prob_into_model * (1.0 - ratio_start) / (tsm->len-1);
+    tsm->unit[i]->transition[TSM_START2INSERT] = prob_into_model * (1.0 - ratio_start)/ (tsm->len-1) ;
+    tsm->unit[i]->transition[TSM_MATCH2END] =  (1.0 - ratio_end) / (tsm->len-1);
+    tsm->unit[i]->transition[TSM_INSERT2END] = (1.0 - ratio_end) / (tsm->len-1);
+    tsm->unit[i]->transition[TSM_DELETE2END] = (1.0 - ratio_end)/ (tsm->len-1);
+  }
+
+  tsm->unit[0]->transition[TSM_START2MATCH] = prob_into_model * (ratio_start);
+  tsm->unit[0]->transition[TSM_START2DELETE] = prob_into_model * (ratio_start);
+  /*  tsm->unit[0]->transition[TSM_START2INSERT] = prob_into_model * (ratio_start); */
+  tsm->unit[tsm->len-1]->transition[TSM_MATCH2END] = (ratio_end);
+  tsm->unit[tsm->len-1]->transition[TSM_DELETE2END] = (ratio_end);
+} 
+
+%func
+places the probability at start end to precisely match
+hmmfs code.
+
+%arg
+tsm ThreeStateModel to be 'forced'
+%%
+void force_hmmfs_ThreeStateModel(ThreeStateModel * tsm)
+{
+  int i;
+  double prob;
+  
+  prob = 1.0 - (1000. / 1001. );
+
+  for(i=0;i<tsm->len;i++) {
+    tsm->unit[i]->transition[TSM_START2MATCH] =  prob*0.5/(2.0 * (tsm->len-1)) ;
+    tsm->unit[i]->transition[TSM_START2DELETE] = 0.0;
+    tsm->unit[i]->transition[TSM_START2INSERT] = 0.0;
+    tsm->unit[i]->transition[TSM_MATCH2END] =  1.0 / (tsm->len-1); 
+    tsm->unit[i]->transition[TSM_INSERT2END] = 0.0;
+    tsm->unit[i]->transition[TSM_DELETE2END] = 0.0;
+  }
+
+  tsm->unit[0]->transition[TSM_START2MATCH] = prob*0.5/2.0;
+  tsm->unit[tsm->len-1]->transition[TSM_MATCH2END] = 1.0;
+} 
+
+
+%func
+Converts the three probability form to the score form.
+
+There is real complications to this due to the fact that the prob
+model is a "push" model, that is MATCH2MATCH[i] means the match from i
+to i+1, whereas the DP routines rely on a "pull" model, ie
+MATCH2MATCH[i] is i-1 to i.
+
+This routines does the conversion from push to pull, essentially offsetting
+the Match2 and Delete2 movements.
+%arg
+tsm r ThreeStateModel probability form
+%%
+ThreeStateScore     * ThreeStateScore_from_ThreeStateModel(ThreeStateModel * tsm)
+{
+  register int i;
+  ThreeStateScore * tss;
+
+  tss = ThreeStateScore_alloc_len(tsm->len);
+
+  add_ThreeStateScore(tss,ThreeStateScoreUnit_from_ThreeStateUnit(NULL,tsm->unit[0]));
+  for(i=1;i<tsm->len;i++) 
+    add_ThreeStateScore(tss,ThreeStateScoreUnit_from_ThreeStateUnit(tsm->unit[i-1],tsm->unit[i]));
+
+  tss->name = stringalloc(tsm->name);
+  if( tsm->accession != NULL )
+    tss->accession = stringalloc(tsm->accession);
+
+  return tss;
+}
+
+%func
+Converts a three state model unit to a score unit
+
+becuase of the push to  pull conversion needed, it needs the previous
+unit. for the first unit this is NULL and 0s are placed in the correct
+places in the transitions
+%type internal
+%%
+ThreeStateScoreUnit * ThreeStateScoreUnit_from_ThreeStateUnit(ThreeStateUnit * prev,ThreeStateUnit * tsu)
+{
+  ThreeStateScoreUnit * out;
+
+  out = ThreeStateScoreUnit_alloc();
+  if( out == NULL )
+    return NULL;
+
+  Probability2Score_move(tsu->match_emission,out->match,ALPHABET_SIZE);
+  Probability2Score_move(tsu->insert_emission,out->insert,ALPHABET_SIZE);
+
+
+  if( prev != NULL ) {
+    out->trans[TSM_MATCH2MATCH] = Probability2Score(prev->transition[TSM_MATCH2MATCH]);
+    out->trans[TSM_INSERT2MATCH] = Probability2Score(prev->transition[TSM_INSERT2MATCH]);
+    out->trans[TSM_DELETE2MATCH] = Probability2Score(prev->transition[TSM_DELETE2MATCH]);
+
+    out->trans[TSM_MATCH2DELETE] = Probability2Score(prev->transition[TSM_MATCH2DELETE]);
+    out->trans[TSM_INSERT2DELETE] = Probability2Score(prev->transition[TSM_INSERT2DELETE]);
+    out->trans[TSM_DELETE2DELETE] = Probability2Score(prev->transition[TSM_DELETE2DELETE]);
+  } else {
+
+    out->trans[TSM_MATCH2MATCH] = NEGI;
+    out->trans[TSM_INSERT2MATCH] = NEGI;
+    out->trans[TSM_DELETE2MATCH] = NEGI;
+
+    out->trans[TSM_MATCH2DELETE] = NEGI;
+    out->trans[TSM_INSERT2DELETE] = NEGI;
+    out->trans[TSM_DELETE2DELETE] = NEGI;
+  }
+
+  out->trans[TSM_MATCH2INSERT] = Probability2Score(tsu->transition[TSM_MATCH2INSERT]);
+  out->trans[TSM_INSERT2INSERT] = Probability2Score(tsu->transition[TSM_INSERT2INSERT]);
+  out->trans[TSM_DELETE2INSERT] = Probability2Score(tsu->transition[TSM_DELETE2INSERT]);
+  
+  out->trans[TSM_START2MATCH] = Probability2Score(tsu->transition[TSM_START2MATCH]);
+  out->trans[TSM_START2INSERT] = Probability2Score(tsu->transition[TSM_START2INSERT]);
+  out->trans[TSM_START2DELETE] = Probability2Score(tsu->transition[TSM_START2DELETE]);
+  
+  out->trans[TSM_MATCH2END] = Probability2Score(tsu->transition[TSM_MATCH2END]);
+  out->trans[TSM_INSERT2END] = Probability2Score(tsu->transition[TSM_INSERT2END]);
+  out->trans[TSM_DELETE2END] = Probability2Score(tsu->transition[TSM_DELETE2END]);
+
+  return out;
+}
+
+
+%func
+shows pretty ugly debugging type format.
+
+Pretty useless
+%%
+void show_ThreeStateModel(ThreeStateModel * tsm,FILE * ofp)
+{
+  register int i;
+
+  for(i=0;i<tsm->len;i++) {
+    fprintf(ofp,"Position %d %c\n",i,tsm->unit[i]->display_char);
+    show_ThreeStateUnit(tsm->unit[i],ofp);
+  }
+}
+
+%func
+for debugging problems
+%type internal
+%%
+void show_ThreeStateUnit(ThreeStateUnit * tsu,FILE * ofp)
+{
+  fprintf(ofp,"Match ");
+  show_Probability_array(tsu->match_emission,26,ofp);
+  fprintf(ofp,"\nInsert ");
+  show_Probability_array(tsu->insert_emission,26,ofp);
+  fprintf(ofp,"\nTransition ");
+  show_Probability_array(tsu->transition,TRANSITION_LEN,ofp);
+  fprintf(ofp,"\n");
+  
+}
+
+%func
+Makes a protein sequence out of the display characters.
+Not very useful!
+
+%%
+Protein * pseudo_Protein_from_ThreeStateModel(ThreeStateModel * tsm)
+{
+  int i;
+
+  Sequence * seq;
+
+  seq = Sequence_alloc();
+  seq->name = stringalloc(tsm->name);
+  seq->seq = ckcalloc(tsm->len+1,sizeof(char));
+
+  for(i=0;i<tsm->len;i++) {
+    seq->seq[i] = tsm->unit[i]->display_char;
+  }
+  seq->seq[i]='\0';
+  make_len_type_Sequence(seq);
+  seq->type = SEQUENCE_PROTEIN;
+
+  return Protein_from_Sequence(seq);
+}
+
+
+
+%func 
+Makes a local three-state-model from a sequence.  this is scary
+hackery, assumming that the matrix is half-bits and normalising in a
+*very* wrong way to get "probabilities" out.
+
+Works though
+%arg
+pro r protein sequence
+mat r comparison matrix to use
+rm  r random model which you assumme the matrix was built with
+gap r gap open penalty
+ext r gap ext penalty
+%%
+ThreeStateModel * ThreeStateModel_from_half_bit_Sequence(Protein * pro,CompMat * mat,RandomModel * rm,int gap,int ext)
+{
+  Sequence * seq;
+  register int i;
+  ThreeStateModel * out;
+
+
+  
+  if( pro == NULL || mat == NULL || rm == NULL ) {
+    warn("you have passed through NULL objects in trying to make TSM from sequence");
+    return NULL;
+  }
+
+  if( gap > 0 || ext > 0 ) {
+    warn("You have passed in gap and extension penalties of > 0 Gap %d Ext %d. Expecting them to be negated. Giving you back an error!",gap,ext);
+    return NULL;
+  }
+
+
+  seq = pro->baseseq;
+
+  out = ThreeStateModel_alloc_len(seq->len);
+
+  if( seq->name != NULL )
+    out->name = stringalloc(seq->name);
+  else out->name = stringalloc("NoName");
+  
+
+  out->rm = hard_link_RandomModel(rm);
+
+  for(i=0;i<seq->len;i++) { 
+
+    add_ThreeStateModel(out,ThreeStateUnit_from_half_bit_aminoacid(seq->seq[i],mat,rm,gap,ext));
+  }
+		       
+  return out;
+}
+
+%func
+The internal protein->hmm conversion routine.
+%type internal
+%%
+ThreeStateUnit *  ThreeStateUnit_from_half_bit_aminoacid(char aa,CompMat * mat,RandomModel * rm,int gap,int ext)
+{
+  ThreeStateUnit * tsu;
+  register int i;
+  Probability go;
+  Probability ge;
+  Probability rnd_error;
+
+  tsu = ThreeStateUnit_alloc();
+  aa = toupper((int)aa);
+  /* maybe do more checking on aa? */
+
+
+  for(i=0;i<26;i++) {
+    tsu->match_emission[i]  = halfbit2Probability(fail_safe_CompMat_access(mat,aa-'A',i)) * rm->aminoacid[i];
+    tsu->insert_emission[i] = rm->aminoacid[i];
+  }
+
+  rnd_error = renormalise_Probability_array(tsu->match_emission,26);
+
+  if( fabs(rnd_error) > 0.5 ) {
+    warn("Very bad problem - got a stupid error %.2f after renormalisation from the null model with the match state on aa %c\n",rnd_error,aa);
+  }
+
+  rnd_error = renormalise_Probability_array(tsu->insert_emission,26);
+  if( fabs(rnd_error) > 0.5 ) {
+    warn("Very bad problem - got a stupid error %.2f after renormalisation from the null model\n",rnd_error);
+  }
+
+
+  ge = halfbit2Probability(ext);
+
+  go = halfbit2Probability(gap);
+
+  /** 1-ge is the gap closing penalty. So we have to remove that from the go **/
+
+  go = go / (1-ge);
+
+  tsu->transition[TSM_MATCH2INSERT] = tsu->transition[TSM_MATCH2DELETE] = go;
+  tsu->transition[TSM_INSERT2MATCH] = tsu->transition[TSM_DELETE2MATCH] = 1-ge;
+  tsu->transition[TSM_INSERT2INSERT] = tsu->transition[TSM_DELETE2DELETE] = ge;
+  tsu->transition[TSM_INSERT2DELETE] = tsu->transition[TSM_DELETE2INSERT] = 0.0;
+  tsu->transition[TSM_MATCH2MATCH]  = 1-(2*go);
+  tsu->transition[TSM_START2MATCH]  = 1.0;
+  tsu->transition[TSM_MATCH2END] = 1.0;
+
+  tsu->display_char = aa;
+
+  return tsu;
+}
+    
+
+%func
+Makes a global three-state-model from a sequence.
+Like the local version, this is scary hackery, assumming
+that the matrix is half-bits and normalising in a *very*
+wrong way to get "probabilities" out.
+
+Works though
+%arg
+pro r protein sequence
+mat r comparison matrix to use
+rm  r random model which you assumme the matrix was built with
+gap r gap open penalty
+ext r gap ext penalty
+%%
+ThreeStateModel * global_ThreeStateModel_from_half_bit_Sequence(Protein * pro,CompMat * mat,RandomModel * rm,int gap,int ext)
+{
+
+  register int i;
+  ThreeStateModel * out;
+  ThreeStateUnit * temp;
+  Sequence * seq;
+
+  if( pro == NULL || mat == NULL || rm == NULL ) {
+    warn("you have passed through NULL objects in trying to make TSM from sequence");
+    return NULL;
+  }
+
+  seq = pro->baseseq;
+
+
+  out = ThreeStateModel_alloc_len(seq->len);
+
+  if( seq->name != NULL )
+    out->name = stringalloc(seq->name);
+  else out->name = stringalloc("NoName");
+
+  for(i=0;i<seq->len;i++) { 
+    temp = ThreeStateUnit_from_half_bit_aminoacid(seq->seq[i],mat,rm,gap,ext);
+    temp->transition[TSM_START2MATCH] = 0.0;
+    temp->transition[TSM_MATCH2END] = 0.0;
+    add_ThreeStateModel(out,temp);
+  }
+  
+  out->unit[0]->transition[TSM_START2MATCH] = 1.0;
+  out->unit[out->len-1]->transition[TSM_MATCH2END] = 1.0;
+  out->rm = hard_link_RandomModel(rm);
+
+		       
+  return out;
+}
+
+
+%func
+Makes a display character for
+this threestateunit by finding the
+most probable match emission
+%type internal
+%%
+char display_char_for_ThreeStateUnit(ThreeStateUnit * tsu) 
+{
+  register int i;
+  Probability p;
+  int c;
+
+  p = tsu->match_emission[0];
+  c = 0;
+
+  for(i=1;i<ALPHABET_SIZE;i++)
+    if( tsu->match_emission[i] > p ) {
+      p =  tsu->match_emission[i];
+      c = i;
+    }
+
+  return c + 'A';
+}
+
+%func
+Makes the display chars in the tsm come from
+the most likely amino acid in the match position
+%%
+void display_char_in_ThreeStateModel(ThreeStateModel * tsm)
+{
+  register int i;
+
+  for(i=0;i<tsm->len;i++)
+    tsm->unit[i]->display_char = display_char_for_ThreeStateUnit(tsm->unit[i]);
+}
+
+%func
+divides the emission and insertion scores
+by the random model for use in log-odd
+implementations
+%%
+void fold_RandomModel_into_ThreeStateModel(ThreeStateModel * tsm,RandomModel * rm)
+{
+  register int i;
+  register int j;
+
+  assert(tsm);
+  assert(rm);
+  for(i=0;i<tsm->len;i++) {
+    auto ThreeStateUnit * tsu;
+    tsu = tsm->unit[i];
+
+    for(j=0;j<26;j++) {
+      if( rm->aminoacid[j] < 0.00000001 ) {
+	warn("While trying to fold in random model, amino acid %d [%c] was below zero, ignoring",j,'A'+j);
+	continue;
+      }
+      
+      tsu->match_emission[j]  = tsu->match_emission[j] / rm->aminoacid[j];
+      tsu->insert_emission[j] = tsu->insert_emission[j] / rm->aminoacid[j];
+    }
+  }
+}
+
+%func
+added start 0.5, 0.25,0.25 for hmmls type
+
+Deprecated
+%%
+void add_sensible_start_end_global_for_HMMer(ThreeStateModel * tsm)
+{
+  ThreeStateUnit * end;
+  
+  tsm->unit[0]->transition[TSM_START2MATCH] = 0.5;
+  tsm->unit[0]->transition[TSM_START2INSERT] = 0.25;
+  tsm->unit[0]->transition[TSM_START2DELETE] = 0.25;
+  
+  /*** these should not add to one due to sum in states ***/
+
+  end = tsm->unit[tsm->len-1];
+
+  end->transition[TSM_MATCH2END] =  (1 - end->transition[TSM_MATCH2INSERT]) ;
+  end->transition[TSM_DELETE2END] = (1 - end->transition[TSM_DELETE2INSERT]) ;
+  end->transition[TSM_INSERT2END] = (1 - end->transition[TSM_INSERT2INSERT]);
+    
+
+}
+
+%func
+adds start/end for loop probabilities coming
+in
+
+Deprecated
+%%
+void add_sensible_start_end_looping_for_HMMer(ThreeStateModel * tsm,Probability loop)
+{
+  tsm->unit[0]->transition[TSM_START2MATCH] = loop * 0.5;
+  tsm->unit[0]->transition[TSM_START2INSERT] = loop * 0.25;
+  tsm->unit[0]->transition[TSM_START2DELETE] = loop * 0.25;
+  
+  /*** these should not add to one due to sum in states ***/
+
+  tsm->unit[tsm->len-1]->transition[TSM_MATCH2END] = 0.5;
+  tsm->unit[tsm->len-1]->transition[TSM_DELETE2END] = 0.25;
+  tsm->unit[tsm->len-1]->transition[TSM_INSERT2END] = 0.25;
+    
+}
+
+
+
+  /**** I/O *****/
+
+
+
+%func
+writes the HMF format
+%%
+void write_HMF_ThreeStateModel(ThreeStateModel * tsm,FILE * ofp)
+{
+  int i;
+
+  fprintf(ofp,"ID %s\n",tsm->name != NULL ? tsm->name : "NoName");
+  fprintf(ofp,"TR %4.2f\n",tsm->threshold);
+  fprintf(ofp,"CC HMF format for HMM, each three state block starts UN after MO line\n");
+  fprintf(ofp,"CC Alphabet A-Z\n");
+  fprintf(ofp,"MO\n");
+
+  for(i=0;i<tsm->len;i++) 
+    write_HMF_ThreeStateUnit(tsm->unit[i],ofp);
+
+  fprintf(ofp,"//\n");
+}
+
+
+%func
+writes each Unit line
+%type internal
+%%
+void write_HMF_ThreeStateUnit(ThreeStateUnit * tsu,FILE * ofp)
+{
+  fprintf(ofp,"UN %c\n",tsu->display_char);
+  fprintf(ofp,"MA ");
+  show_Probability_array_exp(tsu->match_emission,ALPHABET_SIZE,ofp);
+  fprintf(ofp,"\nIN ");
+  show_Probability_array_exp(tsu->insert_emission,ALPHABET_SIZE,ofp);
+  fprintf(ofp,"\nTR ");
+  show_Probability_array_exp(tsu->transition,TRANSITION_LEN,ofp);
+  fprintf(ofp,"\n");
+}
+
+%func
+reads the HMF format. Leaves the file ready
+to read the next format
+%%
+ThreeStateModel * read_HMF_ThreeStateModel(FILE * ifp)
+{
+  ThreeStateUnit * temp;
+  ThreeStateModel * out;
+  char buffer[MAXLINE];
+  char * name = NULL;
+  char * runner;
+
+  if( feof(ifp) || ferror(ifp) )
+    return NULL;
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    chop_newline(buffer);
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+    if( strstartcmp(buffer,"ID") == 0 ) {
+      name = stringalloc(strtok(buffer+3,spacestr));
+      break;
+    }
+    warn("In reading HMF format, before ID line, ignoring [%s]",buffer);
+  }
+
+  if( feof(ifp) || ferror(ifp) || name == NULL)
+    return NULL;
+
+  
+  
+  out = ThreeStateModel_alloc_std();
+  out->name = name;
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    chop_newline(buffer);
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+    if( strstartcmp(buffer,"MO") == 0 )
+      break;
+    else if( strstartcmp(buffer,"CC") == 0 )
+      continue;
+    else if( strstartcmp(buffer,"TR") == 0 ) {
+      runner = strtok(buffer+2,spacestr);
+      if( is_double_string(runner,&out->threshold) == FALSE) {
+	warn("Could not interpret [%s] as a threshold",runner);
+      }
+    }
+    else if( strstartcmp(buffer,"ID") == 0 ) {
+      warn("Already got a name for [%s], ignoring [%s]",out->name,buffer);
+    } else {
+      warn("Did not understand %s",buffer);
+    }
+  }
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"UN") == 0 )
+      break;
+    chop_newline(buffer);
+    warn("You have a problem here: [%s] between MO and UN lines",buffer);
+  }
+
+  while( (temp = read_HMF_ThreeStateUnit(buffer,ifp)) != NULL ) {
+    add_ThreeStateModel(out,temp);
+    if( strstartcmp(buffer,"//") == 0 )
+      break;
+  }
+
+  display_char_in_ThreeStateModel(out);
+
+  return out;
+}
+  
+
+%func
+reads a unit set of lines: 
+
+Line is used as the buffer, so should be MAXLINE length. At the
+end, it will have a different characters (probably the next unit
+line) in the line buffer, so you should test that
+%type internal
+%arg  
+line w pointer to a MAXLINE length buffer.
+ifp  input file
+%%
+ThreeStateUnit * read_HMF_ThreeStateUnit(char * line,FILE * ifp)
+{
+  ThreeStateUnit * out;
+  char * runner;
+
+  if( strstartcmp(line,"UN") != 0 ) {
+    warn("Attempting to read a ThreeStateUnit with a non UN line: [%s]",line);
+    return NULL;
+  }
+
+  out = blank_ThreeStateUnit();
+  /* display char */
+
+  runner = strtok(line+2,spacestr);
+  if( runner != NULL ) {
+    out->display_char = *runner;
+  }
+
+  while ( fgets(line,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(line,"//") == 0 )
+      break;
+    if( strstartcmp(line,"UN") == 0 )
+      break;
+    if( strstartcmp(line,"MA") == 0 ) {
+      if( read_Probability_array(out->match_emission,ALPHABET_SIZE,line+3) == FALSE ) {
+	warn("Unable to read Match emission line");
+      }
+    } else if ( strstartcmp(line,"IN") == 0) {
+      if( read_Probability_array(out->insert_emission,ALPHABET_SIZE,line+3) == FALSE ) {
+	warn("Unable to read Insert emission line");
+      }
+    } else if ( strstartcmp(line,"TR") == 0 ) {
+      if( read_Probability_array(out->transition,TRANSITION_LEN,line+3) == FALSE ) {
+	warn("Unable to read Insert emission line");
+      }
+    } else {
+      chop_newline(line);
+      warn("Could not understand line [%s] in reading threestateunit",line);
+    }
+
+  }
+
+  return out;
+}
+
+%func
+writes a HMMer version 1.7 (also ok with 1.8) file
+%%
+void write_HMMer_1_7_ascii_ThreeStateModel(ThreeStateModel * tsm,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"# HMM v1.7\n");
+  fprintf(ofp,"%d     # Length of model\n",tsm->len);
+  fprintf(ofp,"%d     # length of alphabet\n",26);
+  fprintf(ofp,"3      # alphabet type\n");
+  fprintf(ofp,"%s     # alphabet\n",std_alphabet);
+  fprintf(ofp,"no     # optional\nno      # optional \n");
+  for(i=0;i<tsm->len;i++) 
+    write_HMMer_1_7_ascii_ThreeStateUnit(tsm->unit[i],i,ofp);
+
+}
+
+%func
+the internal for the ThreeStateModel write
+%type internal
+%%
+void write_HMMer_1_7_ascii_ThreeStateUnit(ThreeStateUnit * tsu,int no,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"###MATCH_STATE %d ( ) ( )\n",no);
+  fprintf(ofp,"%f\t# t_m%d\n",tsu->transition[TSM_MATCH2MATCH],no+1);
+  fprintf(ofp,"%f\t# t_d%d\n",tsu->transition[TSM_MATCH2DELETE],no+1);
+  fprintf(ofp,"%f\t# t_i%d\n",tsu->transition[TSM_MATCH2INSERT],no);
+  for(i=0;i<26;i++) {
+    fprintf(ofp,"%f\t# Symbol %c probability\n",tsu->match_emission[i],'A'+i);
+  }
+
+  fprintf(ofp,"###DELETE_STATE %d\n",no);
+  fprintf(ofp,"%f\t# t_m%d\n",tsu->transition[TSM_DELETE2MATCH],no+1);
+  fprintf(ofp,"%f\t# t_d%d\n",tsu->transition[TSM_DELETE2DELETE],no+1);
+  fprintf(ofp,"%f\t# t_i%d\n",tsu->transition[TSM_DELETE2INSERT],no);
+
+  fprintf(ofp,"###INSERT_STATE %d\n",no);
+  fprintf(ofp,"%f\t# t_m%d\n",tsu->transition[TSM_INSERT2MATCH],no+1);
+  fprintf(ofp,"%f\t# t_d%d\n",tsu->transition[TSM_INSERT2DELETE],no+1);
+  fprintf(ofp,"%f\t# t_i%d\n",tsu->transition[TSM_INSERT2INSERT],no);
+  for(i=0;i<26;i++) {
+    fprintf(ofp,"%f\t# Symbol %c probability\n",tsu->insert_emission[i],'A'+i);
+  }
+
+}
+
+%func
+reads a HMMer ascii version 1.7 (1.8) file from filename.
+
+%arg
+filename the name fo the hmmer file
+%%
+ThreeStateModel * read_HMMer_1_7_ascii_file(char * filename)
+{
+  FILE * ifp;
+  ThreeStateModel * out;
+
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open file %s for read HMMer 17 ",filename);
+    return NULL;
+  }
+
+  out = read_HMMer_1_7_ascii(ifp);
+
+  ckfree(out->name);
+  if( strcmp(filename,"-") == 0 ) {
+    /* comes from stdin, we're fucked to find the name */
+    out->name = stringalloc("HMMerModel");
+  } else {
+    if( strchr(filename,'/') != NULL) {
+      filename = filename + strlen(filename) -1;
+      for(;*filename != '/';filename--)
+	;
+      filename++;
+    }
+    out->name = stringalloc(filename);
+  }
+
+  fclose(ifp);
+
+  return out;
+}
+
+
+%func
+Not sure if this is needed now, as score model will be pull, and
+probability model will be push.
+
+%type internal
+%%
+ThreeStateModel * convert_push_model_to_pull_model(ThreeStateModel * tsm)
+{
+  register int i;
+  ThreeStateModel * out;
+
+
+  out = ThreeStateModel_alloc_len(tsm->len-1);
+
+  for(i=1;i<tsm->len;i++) 
+    add_ThreeStateModel(out,convert_push_unit_to_pull_unit(tsm->unit[i-1],tsm->unit[i]));
+
+  if( tsm->name != NULL)
+    out->name = stringalloc(tsm->name);
+
+  return out;
+}
+
+%func
+Not sure if this is needed now, as score model will be pull, and
+probability model will be push.
+
+%type internal
+%%
+ThreeStateUnit  * convert_push_unit_to_pull_unit(ThreeStateUnit * prev,ThreeStateUnit * this)
+{
+  ThreeStateUnit * out;
+
+
+  out = ThreeStateUnit_alloc();
+
+  
+  Probability_move(this->match_emission ,out->match_emission ,ALPHABET_SIZE);
+  Probability_move(this->insert_emission,out->insert_emission,ALPHABET_SIZE);
+
+  set_Probability_array(out->transition,0.0,TRANSITION_LEN);
+
+  out->transition[TSM_MATCH2MATCH]   = prev->transition[TSM_MATCH2MATCH];
+  out->transition[TSM_DELETE2MATCH]  = prev->transition[TSM_DELETE2MATCH];
+  out->transition[TSM_INSERT2MATCH]  = prev->transition[TSM_INSERT2MATCH];
+  out->transition[TSM_MATCH2INSERT]  = this->transition[TSM_MATCH2INSERT];
+  out->transition[TSM_INSERT2INSERT] = this->transition[TSM_INSERT2INSERT];
+  out->transition[TSM_DELETE2INSERT] = this->transition[TSM_DELETE2INSERT];
+  out->transition[TSM_MATCH2DELETE]  = prev->transition[TSM_MATCH2DELETE];
+  out->transition[TSM_INSERT2DELETE] = prev->transition[TSM_INSERT2DELETE];
+  out->transition[TSM_DELETE2DELETE] = prev->transition[TSM_DELETE2DELETE];
+
+  /*** not dealing with start/end things here ***/
+
+  return out;
+}
+ 
+
+%func
+Basic function to read HMMer version 1.7(1.8) files.
+%%
+ThreeStateModel * read_HMMer_1_7_ascii(FILE * ifp) 
+{
+  char buffer[MAXLINE];
+  char * runner;
+  char * alphabet;
+  int length;
+  int count;
+  ThreeStateModel * out;
+  ThreeStateUnit  * temp;
+  
+  /*** read top of model   ***/
+  /*** then we will loop   ***/
+  /*** over all the states ***/
+
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("Trying to read HMMer ascii file, but no first line!");
+    return NULL;
+  }
+
+  if( strstartcmp(buffer,"# HMM") != 0 ) {
+    warn("In reading HMMer ascii file, expecting first line to start [# HMM], starts as [%s]... can't handle",buffer);
+    return NULL;
+  }
+
+  if( strstartcmp(buffer,"# HMM v1.7") != 0)  {
+    warn("In reading HMMer ascii file, expecting a version 1.7 file, got a version [%s] file... trying to read",buffer);
+  }
+
+  /*** length next ***/
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("Trying to read HMMer ascii file, length line (2nd line) not there");
+    return NULL;
+  }
+
+  if( (runner=strtok(buffer,spacestr)) == NULL ) {
+    warn("Trying to read HMMer ascii file, length line (2nd line) has no length!");
+    return NULL;
+  }
+
+  length = atoi(runner);
+  if( length <= 0 || length > 4000 ) {
+    warn("Picked up length [%s] which was interpreted as the number [%d], which seems unfeasible. S'ok... can work without the length",runner,length);
+    length = 100;
+  }
+
+  /*** get the alphabet length... no point in checking ***/
+
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("Trying to read HMMer ascii file, length of alphabet (3rd line) not there");
+    return NULL;
+  }
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("Trying to read HMMer ascii file, type of alphabet (4th line) not there");
+    return NULL;
+  }
+     
+  
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("Trying to read HMMer ascii file, alphabet (5th line) not there");
+    return NULL;
+  }
+
+  if( (runner=strtok(buffer,spacestr)) == NULL ) {
+    warn("HMMer ascii read, alphabet line (5th line) has no alphabet!");
+    return NULL;
+  }
+
+  alphabet = stringalloc(runner);
+
+  
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("Trying to read HMMer ascii file, reference (6th line) not there");
+    return NULL;
+  }
+  
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("Trying to read HMMer ascii file, reference (7th line) not there");
+    return NULL;
+  }
+  
+
+  /*** ok, ready to rock, we have the length and alphabet, ***/
+  /*** now loop over the states ...                        ***/
+
+  out = ThreeStateModel_alloc_len(length);
+
+  for(count=0;count < length+1 && !feof(ifp) && !(ferror(ifp));count++ ) {
+    temp = read_HMMer_1_7_ThreeStateUnit(alphabet,ifp);
+    if( temp == NULL ) {
+      warn("In HMMer read, On unit number [%d], unable to get unit...",count);
+      break;
+    }
+    if( count == 0 )
+      continue; /** skip first "dummy" state **/
+
+    else add_ThreeStateModel(out,temp);
+  }
+
+  
+
+  out->name = stringalloc("HMMer Model");
+  out->alphabet = alphabet;
+
+  /*** by default, make it a global model ***/
+
+  force_global_model(out,1.0);
+
+  return out;
+}
+
+%func
+Function to read a single unit from a 1.7(1.8) file
+
+%type internal
+%%
+ThreeStateUnit * read_HMMer_1_7_ThreeStateUnit(char * alphabet,FILE * ifp) 
+{
+  char buffer[MAXLINE];
+  char * runner;
+  char * al;
+  ThreeStateUnit * out;
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    /*** could be the end of the model. Return silently for the next stage ***/
+    return NULL;
+  }
+
+  if( strstartcmp(buffer,"###MATCH_STATE") != 0 ) {
+    warn("Start of ThreeStateUnit HMMr read... does not match [###MATCH_STATE], instead... [%s]",buffer);
+    return NULL;
+  }
+
+  out = blank_ThreeStateUnit();
+  if( out == NULL )
+    return NULL; /** warning already issued **/
+
+  /*** ok read in the first three transitions ***/
+  /*** transitions for MATCH                  ***/
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no m2m line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got m2m line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_MATCH2MATCH] = atof(runner);
+  
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no m2d line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got m2d line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_MATCH2DELETE] = atof(runner);
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no m2i line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got m2i line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_MATCH2INSERT] = atof(runner);
+  
+  /*** match emission probs  ***/
+
+  for(al=alphabet;*al;al++) {
+    if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+      warn("In reading HMMr threestateunit, the file ended on the match emission of %c",*al);
+      free_ThreeStateUnit(out);
+      return NULL;
+    }
+    runner = strtok(buffer,spacestr);
+    /**** ASSUMMING a 26 alphabet now... Aaaaah ****/
+    out->match_emission[ toupper((int)*al)-'A'] = atof(runner);
+  }
+
+
+  /*** now to delete probabilities ***/
+  
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no start line!");
+    return NULL;
+  }
+
+  if( strstartcmp(buffer,"###DELETE_STATE") != 0 ) {
+    warn("Start of delete ThreeStateUnit HMMr read... does not match [###DELETE_STATE], instead... [%s]",buffer);
+    return NULL;
+  }
+
+
+  /*** ok read in the first three transitions ***/
+  /*** transitions for DELETE                  ***/
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no d2m line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got d2m line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_DELETE2MATCH] = atof(runner);
+  
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no d2d line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got d2d line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_DELETE2DELETE] = atof(runner);
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no d2i line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got d2i line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_DELETE2INSERT] = atof(runner);
+
+
+
+  /***** now insert probs *****/
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no start line!");
+    return NULL;
+  }
+
+  if( strstartcmp(buffer,"###INSERT_STATE") != 0 ) {
+    warn("Start of ThreeStateUnit HMMr read... does not match [###INSERT_STATE], instead... [%s]",buffer);
+    return NULL;
+  }
+
+  /*** ok read in the first three transitions ***/
+  /*** transitions for INSERT                 ***/
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no i2m line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got i2m line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_INSERT2MATCH] = atof(runner);
+  
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no i2d line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got i2d line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_INSERT2DELETE] = atof(runner);
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got no i2i line");
+    free_ThreeStateUnit(out);
+    return NULL;
+  }
+
+  if( (runner = strtok(buffer,spacestr)) == NULL ) {
+    warn("In reading HMMr ThreeStateUnit, got i2i line, but no transition worked out");
+    return NULL;
+  }
+
+  out->transition[TSM_INSERT2INSERT] = atof(runner);
+  
+  /*** insert emission probs  ***/
+
+  for(al=alphabet;*al;al++) {
+    if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+      warn("In reading HMMr threestateunit, the file ended on the insert emission of %c",*al);
+      free_ThreeStateUnit(out);
+      return NULL;
+    }
+    runner = strtok(buffer,spacestr);
+    /**** ASSUMMING a 26 alphabet now... Aaaaah ****/
+    out->insert_emission[ toupper((int)*al)-'A'] = atof(runner);
+  }
+
+
+  return out;
+}
+
+
+%func
+Makes a set to 0.0 unit
+%type internal
+%%
+ThreeStateUnit * blank_ThreeStateUnit(void)
+{
+  ThreeStateUnit * out;
+  register int i;
+
+  out = ThreeStateUnit_alloc();
+  if(out == NULL ) 
+    return NULL;
+
+  for(i=0;i<26;i++) 
+    out->match_emission[i] = out->insert_emission[i] = 0.0;
+  
+  for(i=0;i<TRANSITION_LEN;i++)
+    out->transition[i] = 0.0;
+
+  return out;
+}
+
+
+%}
+
+
+
+
+

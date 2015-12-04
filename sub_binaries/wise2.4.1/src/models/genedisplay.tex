@@ -1,0 +1,52 @@
+\section{genedisplay}
+\label{module_genedisplay}
+This module only contains factory methods
+
+\subsection{genedisplay factory methods}
+\subsubsection{protein2genomic_ascii_display}
+\begin{description}
+\item[External C] {\tt Wise2_protein2genomic_ascii_display (alb,p,gen,ct,name,main,ofp)}
+\item[Perl] {\tt &Wise2::protein2genomic_ascii_display (alb,p,gen,ct,name,main,ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alb] [UNKN ] logical alignment [AlnBlock *]
+\item[p] [UNKN ] protein sequence [Protein *]
+\item[gen] [UNKN ] genomic dna to do the comparison [Genomic *]
+\item[ct] [UNKN ] codon table for translation [CodonTable *]
+\item[name] [UNKN ] length of name block [int]
+\item[main] [UNKN ] length of main block [int]
+\item[ofp] [UNKN ] output file [FILE *]
+\item[returns] [UNKN ] Undocumented return value [boolean]
+\end{description}
+shows the alignment in alb between protsequence and protname
+with genomic into ofp with pretty formatting
+
+
+\subsubsection{protcdna_ascii_display}
+\begin{description}
+\item[External C] {\tt Wise2_protcdna_ascii_display (alb,protsequence,protname,protoff,cdna,ct,name,main,mult,ofp)}
+\item[Perl] {\tt &Wise2::protcdna_ascii_display (alb,protsequence,protname,protoff,cdna,ct,name,main,mult,ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alb] [UNKN ] logical alignment [AlnBlock *]
+\item[protsequence] [UNKN ] protein sequence - either real or an artifical consensus [char *]
+\item[protname] [UNKN ] name of the protein [char *]
+\item[protoff] [UNKN ] offset of the alb from the protein [int]
+\item[cdna] [UNKN ] cdna of the match [cDNA *]
+\item[ct] [UNKN ] codon table for translation [CodonTable *]
+\item[name] [UNKN ] length of name block [int]
+\item[main] [UNKN ] length of main block [int]
+\item[mult] [UNKN ] is multi-match [boolean]
+\item[ofp] [UNKN ] output file [FILE *]
+\item[returns] [UNKN ] Undocumented return value [boolean]
+\end{description}
+shows the alignment in alb between protsequence and protname
+with cdna into ofp with pretty formatting
+
+
+
+

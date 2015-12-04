@@ -1,0 +1,354 @@
+=head1 NAME
+
+complexsequence module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item ComplexSequence
+
+=item ComplexSequenceEvalSet
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object ComplexSequence
+
+=over
+
+=item type
+
+ Type [int] Scalar No documentation
+
+=item seq
+
+ Type [Sequence *] Scalar No documentation
+
+=item data
+
+ Type [int *] Scalar No documentation
+
+=item datastore
+
+ Type [int *] Scalar No documentation
+
+=item depth
+
+ Type [int] Scalar No documentation
+
+=item length
+
+ Type [int] Scalar No documentation
+
+=item creator
+
+ Type [ComplexSequenceEvalSet *] Scalar  what made it
+
+
+
+=back
+
+A ComplexSequence is an abstraction of a 
+Sequence which can be handily made using
+ComplexSequenceEval functions and is efficiently
+laid out in memory.
+
+
+
+=head2 Member functions of ComplexSequence
+
+=over
+
+=item hard_link_ComplexSequence
+
+&Wise2::ComplexSequence::hard_link_ComplexSequence(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [ComplexSequence *]
+  Return [UNKN ] Undocumented return value [ComplexSequence *]
+
+
+=item alloc
+
+&Wise2::ComplexSequence::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [ComplexSequence *]
+
+
+=item set_type
+
+&Wise2::ComplexSequence::set_type(obj,type)
+
+  Replace member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequence *]
+  Argument type         [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable type [boolean]
+
+
+=item type
+
+&Wise2::ComplexSequence::type(obj)
+
+  Access member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequence *]
+  Return [SOFT ] member variable type [int]
+
+
+=item set_seq
+
+&Wise2::ComplexSequence::set_seq(obj,seq)
+
+  Replace member variable seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequence *]
+  Argument seq          [OWNER] New value of the variable [Sequence *]
+  Return [SOFT ] member variable seq [boolean]
+
+
+=item seq
+
+&Wise2::ComplexSequence::seq(obj)
+
+  Access member variable seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequence *]
+  Return [SOFT ] member variable seq [Sequence *]
+
+
+=back
+
+=head2 Object ComplexSequenceEvalSet
+
+=over
+
+=item type
+
+ Type [int] Scalar No documentation
+
+=item has_been_prepared
+
+ Type [boolean] Scalar No documentation
+
+=item left_window
+
+ Type [int] Scalar  overall sequence eval 
+
+=item right_window
+
+ Type [int] Scalar  overall sequence eval
+
+=item left_lookback
+
+ Type [int] Scalar  overall sequence eval
+
+=item cse
+
+ Type [ComplexSequenceEval **] List No documentation
+
+
+
+=back
+
+This object holds a collection of 
+ComplexSequenceEvals. Its role is to
+define the sequence specific parts of a
+dynamic programming algorithm as computable
+functions. 
+
+Ideally you should use pre-made ComplexSequenceEvalSets
+as it will save you alot of grief
+
+
+
+=head2 Member functions of ComplexSequenceEvalSet
+
+=over
+
+=item hard_link_ComplexSequenceEvalSet
+
+&Wise2::ComplexSequenceEvalSet::hard_link_ComplexSequenceEvalSet(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [ComplexSequenceEvalSet *]
+  Return [UNKN ] Undocumented return value [ComplexSequenceEvalSet *]
+
+
+=item ComplexSequenceEvalSet_alloc_std
+
+&Wise2::ComplexSequenceEvalSet::ComplexSequenceEvalSet_alloc_std(void)
+
+  Equivalent to ComplexSequenceEvalSet_alloc_len(ComplexSequenceEvalSetLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [ComplexSequenceEvalSet *]
+
+
+=item set_type
+
+&Wise2::ComplexSequenceEvalSet::set_type(obj,type)
+
+  Replace member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Argument type         [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable type [boolean]
+
+
+=item type
+
+&Wise2::ComplexSequenceEvalSet::type(obj)
+
+  Access member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Return [SOFT ] member variable type [int]
+
+
+=item set_has_been_prepared
+
+&Wise2::ComplexSequenceEvalSet::set_has_been_prepared(obj,has_been_prepared)
+
+  Replace member variable has_been_prepared
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Argument has_been_prepared [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable has_been_prepared [boolean]
+
+
+=item has_been_prepared
+
+&Wise2::ComplexSequenceEvalSet::has_been_prepared(obj)
+
+  Access member variable has_been_prepared
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Return [SOFT ] member variable has_been_prepared [boolean]
+
+
+=item set_left_window
+
+&Wise2::ComplexSequenceEvalSet::set_left_window(obj,left_window)
+
+  Replace member variable left_window
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Argument left_window  [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable left_window [boolean]
+
+
+=item left_window
+
+&Wise2::ComplexSequenceEvalSet::left_window(obj)
+
+  Access member variable left_window
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Return [SOFT ] member variable left_window [int]
+
+
+=item set_right_window
+
+&Wise2::ComplexSequenceEvalSet::set_right_window(obj,right_window)
+
+  Replace member variable right_window
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Argument right_window [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable right_window [boolean]
+
+
+=item right_window
+
+&Wise2::ComplexSequenceEvalSet::right_window(obj)
+
+  Access member variable right_window
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Return [SOFT ] member variable right_window [int]
+
+
+=item set_left_lookback
+
+&Wise2::ComplexSequenceEvalSet::set_left_lookback(obj,left_lookback)
+
+  Replace member variable left_lookback
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Argument left_lookback [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable left_lookback [boolean]
+
+
+=item left_lookback
+
+&Wise2::ComplexSequenceEvalSet::left_lookback(obj)
+
+  Access member variable left_lookback
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ComplexSequenceEvalSet *]
+  Return [SOFT ] member variable left_lookback [int]
+
+
+=back
+

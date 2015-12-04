@@ -1,0 +1,144 @@
+BLASTP 2.1.2
+
+
+Reference: Wise2 Package, Ewan Birney
+BLAST like format to play well with existing parsers. Other options are available
+See help on the program that generated this for other options
+  Statistics from : Mott R (2000) Accurate Formula for P-values of gapped local sequence
+ and profile alignments  J. Mol Biol. 300:649-659
+
+
+Query= Not specified
+
+
+Search.................................done
+
+                                                                   Score     E
+Sequences producing significant alignments:                        (bits)  Value
+     ROA1_HUMAN                                               416.50    1.9e-53
+  SW:ROA1_XENLA                                               364.50    2e-46
+         Q22037                                               287.00    1.1e-37
+
+>ROA1_HUMAN
+          Length = 371 Reversed 0
+
+ Score = 416.5 bits (833), Expect = 1.85161e-53
+
+Query:      22      DSITEPEHMRKLFIGGLDYRTTDENLKAHFEKWGNIVDVVVMKDPRTKR      
+                    +S  EPE +RKLFIGGL + TTDE+L++HFE+WG + D VVM+DP TKR      
+Sbjct:      4       ESPKEPEQLRKLFIGGLSFETTDESLRSHFEQWGTLTDCVVMRDPNTKR      
+
+
+Query:      71      SRGFGFITYSHSSMIDEAQKSRPHKIDGRVVEPKRAVPRQDIDSPNAGA      
+                    SRGFGF+TY+    +D A  +RPHK+DGRVVEPKRAV R+D   P A        
+Sbjct:      53      SRGFGFVTYATVEEVDAAMNARPHKVDGRVVEPKRAVSREDSQRPGAHL      
+
+
+Query:      120     TVKKLFVGALKDDHDEQSIRDYFQHFGNIVDINIVIDKETGKKRGFAFV      
+                    TVKK+FVG +K+D +E  +RDYF+ +G I  I I+ D+ +GKKRGFAFV      
+Sbjct:      102     TVKKIFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKKRGFAFV      
+
+
+Query:      169     EFDDYDPVDKVVLQKQHQLNGKMVDVKKALPKQ------NDQQGGGGGR      
+                     FDD+D VDK+V+QK H +NG   +V+KAL KQ      + Q+G  G        
+Sbjct:      151     TFDDHDSVDKIVIQKYHTVNGHNCEVRKALSKQEMASASSSQRGRSGSG      
+
+
+Query:      212     GGPGGRAGGNRGNMGGGNYGNQNGGGNW--NNGGNNWGNNRGGNDNWGN      
+                       GGR GG  GN   G  GN +G G +  + GG  +G +  G + +GN      
+Sbjct:      200     NFGGGRGGGFGGNDNFGRGGNFSGRGGFGGSRGGGGYGGSGDGYNGFGN      
+
+
+Query:      259     NS-FGGGG----GGGGGYGGGNNSWGNN----------NPWDNGNGGGN      
+                    +  +GGGG    GG  GYG G   +GN           + ++NG G G       
+Sbjct:      249     DGGYGGGGPGYSGGSRGYGSGGQGYGNQGSGYGGSGSYDSYNNGGGRGF      
+
+
+Query:      293     FGGGGNNWNNGG--NDFGGYQ-QNYGGGPQRGGGNFNNNRMQPYQGGGG      
+                     GG G+N+  GG  NDFG Y  Q+   GP +GG NF      PY GGG       
+Sbjct:      298     GGGSGSNFGGGGSYNDFGNYNNQSSNFGPMKGG-NFGGRSSGPYGGGGQ      
+
+
+Query:      339     FKAGGGNQGNYGGNNQGFNNGGNNR                              
+                    + A   NQG YGG++   + G   R                              
+Sbjct:      346     YFAKPRNQGGYGGSSSSSSYGSGRR                              
+
+
+
+>SW:ROA1_XENLA
+          Length = 365 Reversed 0
+
+ Score = 364.5 bits (729), Expect = 1.95513e-46
+
+Query:      26      EPEHMRKLFIGGLDYRTTDENLKAHFEKWGNIVDVVVMKDPRTKRSRGF      
+                    EPE +RKLFIGGL + TTDE+L+ HFE+WG + D VVM+DP +KRSRGF      
+Sbjct:      9       EPEQLRKLFIGGLSFETTDESLREHFEQWGTLTDCVVMRDPNSKRSRGF      
+
+
+Query:      75      GFITYSHSSMIDEAQKSRPHKIDGRVVEPKRAVPRQDIDSPNAGATVKK      
+                    GF+TY  +  +D A  +RPHK+DGRVVEPKRAV R+D   P A  TVKK      
+Sbjct:      58      GFVTYLSTDEVDAAMTARPHKVDGRVVEPKRAVSREDSSRPGAHLTVKK      
+
+
+Query:      124     LFVGALKDDHDEQSIRDYFQHFGNIVDINIVIDKETGKKRGFAFVEFDD      
+                    +FVG +K+D +E  +R+YF+ +G I  I I+ D+ +GKKRGFAFV F+D      
+Sbjct:      107     IFVGGIKEDTEEDHLREYFEQYGKIEVIEIMTDRGSGKKRGFAFVTFED      
+
+
+Query:      173     YDPVDKVVLQKQHQLNGKMVDVKKALPKQ-------NDQQGGGGGR---      
+                    +D VDK+V+QK H +N     V+KAL KQ       + ++ GG G          
+Sbjct:      156     HDSVDKIVIQKYHTVNNHNSQVRKALSKQEMASVSGSQRERGGSGNYGS      
+
+
+Query:      212     ---------GGPGGRAGGNRGNMGGGNYGNQNGGGNWNNG-GNNWGNNR      
+                             GG GG  GGNRG  GGG +GN+  GG+  NG G  W          
+Sbjct:      205     RGGFGNDNFGGRGGNFGGNRG--GGGGFGNRGYGGDGYNGDGQLWWQPS      
+
+
+Query:      251     --GGNDNWGNNSFGG-GGGGGGGYGGGNNS--WGNNNPWDNGNGGGN-F      
+                      G N  +G    GG G G GGGYGGG     +G N  +D  NGGG+ F      
+Sbjct:      252     LLGWNRGYGAGQGGGYGAGQGGGYGGGGQGGGYGGNGGYDGYNGGGSGF      
+
+
+Query:      294     GGGGNNWNNGG--NDFGGYQQ                                  
+                     G G N+ + G  NDFG Y                                    
+Sbjct:      301     SGSGGNFGSSGGYNDFGNYNS                                  
+
+
+
+>Q22037
+          Length = 346 Reversed 0
+
+ Score = 287.0 bits (574), Expect = 1.10211e-37
+
+Query:      22      DSITEPEHMRKLFIGGLDYRTTDENLKAHFEKWGNIVDVVVMKDPRTKR      
+                    D+  EPE++RK+F+GGL   TTD+ ++  + ++G I D++VM+DP TKR      
+Sbjct:      14      DASLEPENLRKIFVGGLTSNTTDDLMREFYSQFGEITDIIVMRDPTTKR      
+
+
+Query:      71      SRGFGFITYSHSSMIDEAQKSRPHKIDGRVVEPKRAVPRQDIDSPNAGA      
+                    SRGFGF+T+S  + +D A K RPH IDG+ V+PKRAVPR D +   +        
+Sbjct:      63      SRGFGFVTFSGKTEVDAAMKQRPHIIDGKTVDPKRAVPRDDKNRSESNV      
+
+
+Query:      120     TVKKLFVGALKDDHDEQSIRDYFQHFGNIVDINIVIDKETGKKRGFAFV      
+                    + K+L+V  +++DH E  + +YF  +G +    I++DK T K RGF FV      
+Sbjct:      112     STKRLYVSGVREDHTEDMLTEYFTKYGTVTKSEIILDKATQKPRGFGFV      
+
+
+Query:      169     EFDDYDPVDKVVLQKQHQLNGKMVDVKKALPKQNDQQGGGGGRGGPGGR      
+                     FDD+D VD+ VLQK H +NG   DV+K L K  D+            R      
+Sbjct:      161     TFDDHDSVDQCVLQKSHMVNGHRCDVRKGLSK--DEMSKAQMNRDRETR      
+
+
+Query:      218     AGGNRGNMGGGNYGNQNGGGNWNNGGNNWGNNRGGNDNWGNNSFGGGGG      
+                     G +R    GG  G   GGG W          RGG   +G    GG GG      
+Sbjct:      208     GGRSRDGQRGGYNGGGGGGGGWGGPAQ-----RGGPGAYGGPGGGGQGG      
+
+
+Query:      267     GGGGYGGG                                               
+                     GG YGGG                                               
+Sbjct:      252     YGGDYGGG                                               
+
+
+

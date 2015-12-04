@@ -1,0 +1,314 @@
+
+%{
+#include "dyna.h"
+#include "transfactor.h"
+
+typedef enum DnaProfileTransition {
+  DnaProfile_M2M = 0,
+  DnaProfile_M2I,
+  DnaProfile_I2I,
+  DnaProfile_I2M,
+  DnaProfile_M2D,
+  DnaProfile_D2D,
+  DnaProfile_D2M,
+  DnaProfile_TRANS_LENGTH
+} DnaProfileTransition;
+
+#define DnaProfileScoreLISTLENGTH 128
+#define DnaProfileLISTLENGTH 128
+
+%}
+
+struct DnaProfileCol
+Probability emit[5]
+Probability trans[DnaProfile_TRANS_LENGTH]
+int seqalign_col
+
+struct DnaProfileColScore
+Score emit[5]
+Score trans[DnaProfile_TRANS_LENGTH]
+
+struct DnaProfileScore
+DnaProfileColScore ** col !list 
+
+struct DnaProfile
+DnaProfileCol ** col !list
+SeqAlign * sa
+boolean folded_random !def="FALSE"
+
+
+
+%{
+#include "dnaprofile.h"
+
+
+
+TransFactor * new_TransFactor_from_DnaProfile(DnaProfile * dp,char * name)
+{
+  TransFactor * out;
+  assert(dp != NULL);
+  
+  out = TransFactor_alloc();
+  out->name = stringalloc(name);
+  out->seed = hard_link_SeqAlign(dp->sa);
+  
+  return out;
+}
+
+double bits_entropy_DnaProfile(DnaProfile * dnap,RandomModelDNA * background)
+{
+  double entropy = 0.0;
+  double prob = 0;
+  int i;
+  int j;
+
+  
+  for(i=0;i<dnap->len;i++) {
+    for(j=0;j<4;j++) {
+      prob = dnap->col[i]->emit[j] * background->base[j];
+      entropy +=  prob * (-(log(prob)/log(2.0)));
+    }
+  }
+  
+  return entropy;
+}
+
+SeqAlign * merged_SeqAlign(DnaProfile * one,DnaProfile * two,AlnBlock * alb)
+{
+  SeqAlign * out;
+  Sequence * temp;
+  int i;
+  int j;
+  int len = 0;
+  AlnColumn * alc;
+  char * temp_seq;
+  out = SeqAlign_alloc_std();
+
+  for(alc=alb->start,len = 0;alc != NULL;alc = alc->next ) {
+    len++;
+  }
+
+  temp_seq = calloc(len+1,sizeof(char));
+  /* loop along the top sequence */
+  
+  for(i=0;i<one->sa->len;i++) {
+    j = 0;
+    for(alc=alb->start;alc!=NULL;alc=alc->next) {
+      if( strcmp(alc->alu[1]->text_label,"END") == 0 ) {
+	break;
+      }
+      if( strcmp(alc->alu[0]->text_label,"MATCH") == 0 ||
+	  strcmp(alc->alu[0]->text_label,"INSERT") == 0 ) {
+	temp_seq[j++] = one->sa->seq[i]->seq[alc->alu[0]->end];
+      } else if( strcmp(alc->alu[0]->text_label,"SEQ_UNMATCHED") == 0) {
+	temp_seq[j++] = tolower(one->sa->seq[i]->seq[alc->alu[0]->end]);
+      } else {
+	temp_seq[j++] = '-';
+      }
+    }
+    temp_seq[j] = '\0';
+    temp = Sequence_from_static_memory(one->sa->seq[i]->name,temp_seq);
+    add_SeqAlign(out,temp);
+  }
+
+  for(i=0;i<two->sa->len;i++) {
+    j = 0;
+    for(alc=alb->start;alc!=NULL;alc=alc->next) {
+      if( strcmp(alc->alu[1]->text_label,"END") == 0 ) {
+	break;
+      }
+      if( strcmp(alc->alu[1]->text_label,"MATCH") == 0 ||
+	  strcmp(alc->alu[1]->text_label,"INSERT") == 0 ) {
+	temp_seq[j++] = two->sa->seq[i]->seq[alc->alu[1]->end];
+      } else if( strcmp(alc->alu[1]->text_label,"SEQ_UNMATCHED") == 0) {
+	temp_seq[j++] = tolower(two->sa->seq[i]->seq[alc->alu[1]->end]);
+      } else {
+	temp_seq[j++] = '-';
+      }
+    }
+    temp_seq[j] = '\0';
+    temp = Sequence_from_static_memory(two->sa->seq[i]->name,temp_seq);
+    add_SeqAlign(out,temp);
+  }
+      
+ 
+  return out;
+}
+
+DnaProfileScore * DnaProfileScore_from_DnaProfile(DnaProfile * dp)
+{
+  int i,k;
+  DnaProfileColScore * col;
+  DnaProfileScore * out;
+
+  out = DnaProfileScore_alloc_len(dp->len);
+
+
+  for(i=0;i<dp->len;i++) {
+    col = DnaProfileColScore_alloc();
+    Probability2Score_move(dp->col[i]->emit,col->emit,4);
+
+    Probability2Score_move(dp->col[i]->trans,col->trans,DnaProfile_TRANS_LENGTH);
+
+    add_DnaProfileScore(out,col);
+  }
+
+  return out;
+}
+
+void fold_RandomModel_DnaProfile(DnaProfile * dp,RandomModelDNA * rm)
+{
+  int i,k;
+  for(i=0;i<dp->len;i++) {
+    for(k=0;k<4;k++) {
+      dp->col[i]->emit[k] /= rm->base[k];
+    }
+  }
+
+  dp->folded_random = TRUE;
+}
+
+DnaProfile * naive_DnaProfile_from_Sequence(Sequence * seq,double id,double m2i,double m2d,double i2i,double d2d)
+{
+  DnaProfile * out;
+  DnaProfileCol * col;
+  int i,k;
+  SeqAlign * sa;
+
+  sa = SeqAlign_alloc_len(1);
+  add_SeqAlign(sa,hard_link_Sequence(seq));
+
+  
+  out= DnaProfile_alloc_len(seq->len);
+  out->sa = sa;
+
+  for(i=0;i<seq->len;i++) {
+    col = DnaProfileCol_alloc();
+
+    for(k=0;k<4;k++) {
+      col->emit[k]= (1.0-id)/3.0;
+    }
+
+    if( base_from_char(seq->seq[i]) != BASE_N ) {
+      col->emit[base_from_char(seq->seq[i])] = id;
+    }
+
+
+    col->trans[DnaProfile_M2I] = m2i;
+    col->trans[DnaProfile_M2D] = m2d;
+    col->trans[DnaProfile_I2I] = i2i;
+    col->trans[DnaProfile_D2D] = d2d;
+    col->trans[DnaProfile_M2M] = (1.0 - m2i - m2d);
+    col->trans[DnaProfile_D2M] = (1.0 - d2d);
+    col->trans[DnaProfile_I2M] = (1.0 - i2i);
+    
+    add_DnaProfile(out,col);
+  }
+
+
+  return out;
+}
+
+
+DnaProfile * naive_DnaProfile_from_SeqAlign(SeqAlign * sa,double simple_pseudo,double m2i,double m2d,double i2i,double d2d)
+{
+  int i;
+  int j;
+  int k;
+  DnaProfile * out;
+  DnaProfileCol * col;
+  int base_n;
+  double count[4];
+  double total;
+
+  assert(sa != NULL);
+  assert(sa->len > 1);
+  assert(sa->seq[0]->len > 1);
+
+  out = DnaProfile_alloc_len(sa->seq[0]->len);
+  out->sa = hard_link_SeqAlign(sa);
+
+  total = (4*simple_pseudo)+sa->len;
+
+  for(i=0;i<sa->seq[0]->len;i++) {
+
+    for(k=0;k<4;k++) {
+      count[k] = simple_pseudo;
+    }
+    for(j=0;j<sa->len;j++) {
+      assert(sa->seq[j]->len > i);
+      base_n = base_from_char(sa->seq[j]->seq[i]);
+      if( base_n < 4 ) {
+	count[base_n]++;
+      } else {
+	for(k=0;k<4;k++) {
+	  count[base_n] += 0.25;
+	}
+      }
+    }
+
+    col = DnaProfileCol_alloc();
+    col->seqalign_col = i;
+
+    for(k=0;k<4;k++) {
+      col->emit[k] = count[k] / total;
+    }
+
+    col->trans[DnaProfile_M2I] = m2i;
+    col->trans[DnaProfile_M2D] = m2d;
+    col->trans[DnaProfile_I2I] = i2i;
+    col->trans[DnaProfile_D2D] = d2d;
+    col->trans[DnaProfile_M2M] = (1.0 - m2i - m2d);
+    col->trans[DnaProfile_D2M] = (1.0 - d2d);
+    col->trans[DnaProfile_I2M] = (1.0 - i2i);
+
+
+ 
+    add_DnaProfile(out,col);
+
+    
+	
+  }
+
+  return out;
+}
+
+
+void show_DnaProfile(DnaProfile * dnap,RandomModelDNA * rm,FILE * ofp)
+{
+  int i;
+  int k;
+  double max;
+  double max_base;
+  double ent;
+
+  ent = bits_entropy_DnaProfile(dnap,rm);
+  
+  fprintf(ofp,"Entropy %.4f (%.4f per column)\n",ent,ent/dnap->len);
+
+  for(i=0;i<dnap->len;i++) {
+    max = dnap->col[i]->emit[0];
+    max_base =0;
+
+    for(k=1;k<4;k++) {
+      if( dnap->col[i]->emit[k] > max ) {
+	max = dnap->col[i]->emit[k];
+	max_base =k;
+      }
+    }
+    
+    fprintf(ofp,"%5d %c ",i,char_from_base(max_base));
+    for(k=0;k<4;k++) {
+      fprintf(ofp," %c:%.3f ",char_from_base(k),dnap->col[i]->emit[k]);
+    }
+      
+    fprintf(ofp,"\n");
+  }
+
+  write_selex_SeqAlign(dnap->sa,15,50,ofp);
+
+  fprintf(ofp,"//\n");
+
+}
+
+%}

@@ -1,0 +1,78 @@
+
+%{
+#include "dyna.h"
+
+
+
+%}
+
+
+
+matrix abc 
+query  type="PROTEIN"  name="query"  
+target type="PROTEIN"  name="target"
+resource type="COMPMAT" name="comp"
+resource type="int"    name="a"
+resource type="int"    name="b"
+resource type="int"    name="c"
+state MATCH offi="1" offj="1" 
+	calc="AAMATCH(comp,AMINOACID(query,i),AMINOACID(target,j))"
+	source MATCH
+		calc="0"
+		endsource
+	source INSERT
+		calc="0"
+		endsource
+	source START
+		calc="0"
+		endsource
+	query_label  SEQUENCE
+	target_label SEQUENCE
+endstate
+state INSERT 
+	source MATCH offi="1" offj="0"
+		calc="a + b"
+		target_label INSERT
+		endsource
+	source MATCH offi="0" offj="1"
+		calc="a + b"
+		query_label INSERT
+		endsource
+	source MATCH offi="1" offj="1"
+		calc="a + c"
+		endsource
+	source INSERT offi="1" offj="0"
+		calc="b"
+		target_label INSERT
+		endsource
+	source INSERT offi="0" offj="1"
+		calc="b"
+		query_label INSERT
+		endsource
+	source INSERT offi="1" offj="1"
+		calc="c"
+		endsource
+	query_label  UNMATCHED_SEQUENCE
+	target_label UNMATCHED_SEQUENCE
+endstate
+state START !special !start
+	query_label  START
+	target_label START
+endstate
+state END !special !end
+	source MATCH 
+		calc="0"
+		endsource
+	query_label  END
+	target_label END
+endstate
+endmatrix
+
+
+%{
+#include "abc.h"
+
+%}
+
+
+

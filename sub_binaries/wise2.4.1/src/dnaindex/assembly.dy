@@ -1,0 +1,245 @@
+
+
+%{
+#include "sequence.h"
+#include "largeseqreader.h"
+
+#define AssemblySequenceLISTLENGTH 8
+#define AssemblyContigLISTLENGTH 512
+#define AssemblyLISTLENGTH 1024
+
+#define AssemblyOpaqueTypeSetLISTLENGTH 16
+
+%}
+
+
+struct AssemblySequenceEdit 
+char type
+char base
+
+friend AssemblySequence
+
+struct AssemblyOpaqueType
+int  int_type
+char base
+
+struct AssemblyOpaqueTypeSet
+AssemblyOpaqueType ** type !list
+
+struct AssemblyOpaqueFeature
+int start
+int length
+AssemblyOpaqueType * type !link
+
+
+
+struct AssemblySequence
+Sequence * seq
+double * quality
+AssemblySequenceEdit ** edit !list
+char state
+AssemblySequence * mirror !link
+AssemblySequence * pair !link
+char mirror_seq !def="0"
+AssemblyOpaqueFeature ** opaque !list !len="opq_"
+Sequence * orig
+int * abrev_repeat
+
+
+struct AssemblySequencePlacement
+AssemblySequence * aseq;
+long int contig_start
+long int contig_end
+int seq_start
+int seq_end
+boolean ungapped
+
+
+struct AssemblyContig
+Sequence * consensus
+AssemblySequencePlacement ** reads !list
+boolean clean_start
+boolean clean_end
+int max_depth
+
+
+struct Assembly
+AssemblyContig ** contig !list
+AssemblySequence ** chaff !list !len="chaff_"
+
+
+struct AssemblyOutputPara
+int min_size
+
+
+%{
+#include "assembly.h"
+
+
+
+void show_help_AssemblyOutputPara(FILE * ofp)
+{
+  fprintf(ofp,"Assembly Output options\n");
+  fprintf(ofp,"  -as_min_size [500] min size of contig to show\n");
+
+}
+
+AssemblyOutputPara * new_AssemblyOutputPara_from_argv(int * argc,char ** argv)
+{
+  AssemblyOutputPara * out;
+
+  out = AssemblyOutputPara_alloc();
+
+  out->min_size = 500;
+
+  strip_out_integer_argument(argc,argv,"as_min_size",&out->min_size);
+
+  return out;
+}
+
+AssemblyOpaqueTypeSet * homopolymer_AssemblyOpaqueTypeSet(void)
+{
+  AssemblyOpaqueTypeSet * out;
+  AssemblyOpaqueType * t;
+  char * base = "ATGC";
+  int i;
+
+  out = AssemblyOpaqueTypeSet_alloc_std();
+
+  for(i=0;i<4;i++) {
+    t = new_homopolymer_AssemblyOpaqueType(i,base[i]);
+    add_AssemblyOpaqueTypeSet(out,t);
+  }
+
+  return out;
+}
+
+
+int annotate_AssemblyOpaqueFeatures(AssemblyOpaqueTypeSet * aots,AssemblySequence * aseq,int kmer_size)
+{
+  int count = 0;
+  int i,j;
+  int k;
+  AssemblyOpaqueFeature * aof;
+  AssemblyOpaqueFeature * prev;
+
+  for(i=0;i<aots->len;i++) {
+    prev = NULL;
+    for(j=0;j<aseq->len;) {
+      if( aseq->seq->seq[j] == aots->type[i]->base ) {
+	for(k=0;k<kmer_size;k++) {
+	  if( aseq->seq->seq[j+k] != aots->type[i]->base ) {
+	    break;
+	  }
+	}
+
+	if( k < kmer_size ) {
+	  j += k;
+	  continue;
+	}
+
+	/* else, is a good position, extend to the end of this run */
+	for(;k+j<aseq->len;k++) {
+	  if( aseq->seq->seq[j+k] != aots->type[i]->base ) {
+	    break;
+	  }
+	}
+
+	/* if the start is within kmer of prev, then simply extend prev */
+
+	if( prev != NULL && prev->start+prev->length+kmer_size >= j ) {
+	  prev->length = j+k - prev->start;
+	} else {
+	  /* new feature */
+	  aof = AssemblyOpaqueFeature_alloc();
+	  aof->start = j;
+	  aof->length = k;
+	  aof->type = aots->type[i];
+	  add_opq_AssemblySequence(aseq,aof);
+	  prev = aof;
+	  count++;
+	}
+      } else {
+	j++;
+      }
+    }
+  }
+
+  return count;
+}
+
+
+void show_AssemblySequence(AssemblySequence * aseq,FILE * ofp)
+{
+  int i;
+  assert(aseq!=NULL);
+
+  for(i=0;i<aseq->opq_len;i++) {
+    fprintf(ofp,"Opaque type %c from %d to %d\n",aseq->opaque[i]->type->base,aseq->opaque[i]->start,aseq->opaque[i]->start+aseq->opaque[i]->length);
+  }
+  write_fasta_Sequence(aseq->seq,ofp);
+  fprintf(ofp,"//\n");
+
+}
+
+AssemblyOpaqueType * new_homopolymer_AssemblyOpaqueType(int int_type,char base)
+{
+  AssemblyOpaqueType * out;
+
+  out = AssemblyOpaqueType_alloc();
+  out->base = base;
+  out->int_type = int_type;
+
+  return out;
+}
+
+AssemblySequence * read_plain_fasta_AssemblySequence(FILE * ifp,int report_log,FILE * report)
+{
+  AssemblySequence * out;
+  Sequence * seq;
+
+  seq = read_large_dna_Sequence(ifp,report_log,report);
+
+  if( seq == NULL ) {
+    return NULL;
+  }
+
+  out = AssemblySequence_alloc_std();
+
+  out->seq = seq;
+
+  return out;
+}
+
+AssemblySequence * mirrored_AssemblySequence(AssemblySequence * aseq)
+{
+  AssemblySequence * out;
+
+  out = AssemblySequence_alloc();
+  out->seq = reverse_complement_Sequence(aseq->seq);
+  out->mirror_seq = 1;
+
+  out->mirror   = aseq;
+  aseq->mirror  = out;
+  
+  return out;
+}
+
+void dump_contigs_as_fasta_Assembly(Assembly * assembly,AssemblyOutputPara * aop,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<assembly->len;i++) {
+    AssemblyContig * c = assembly->contig[i];
+    if( aop->min_size > c->consensus->len ) {
+      continue;
+    }
+
+    fprintf(ofp,">%s max_depth=%d clean_start=%d clean_end=%d\n",c->consensus->name,c->max_depth,c->clean_start,c->clean_end);
+    show_line(c->consensus->seq,60,ofp);
+  }
+
+}
+
+
+%}

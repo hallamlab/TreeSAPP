@@ -1,0 +1,370 @@
+
+%{
+#include "genewisemodel.h"
+
+
+#define GenePhaseModelLISTLENGTH 128
+#define GenePhaseScoreLISTLENGTH 128
+
+#define ProteinIntronListLISTLENGTH 30
+
+%}
+
+struct ProteinIntron
+int position
+int phase
+
+struct ProteinIntronList
+ProteinIntron ** intron !list
+
+struct PhasedProtein
+Sequence * protein
+ProteinIntronList * list
+
+struct PhasedProteinPara
+Probability marked_intron   !def="0.95"
+Probability unmarked_intron !def="0.000001"
+int gap !def="-12"
+int ext !def="-2"
+boolean use_phase
+char * intron_file
+
+struct PhasedHMM
+ThreeStateModel * tsm
+ProteinIntronList * list
+
+struct GenePhaseSeg
+Probability intron_0
+Probability intron_1
+Probability intron_2
+Probability insert_intron
+
+struct GenePhaseModel
+GenePhaseSeg ** phase !list
+GeneWise * gw
+
+struct GenePhaseSegScore
+Score intron_0
+Score intron_1
+Score intron_2
+Score insert_intron
+
+struct GenePhaseScore
+GenePhaseSegScore ** phase !list
+GeneWiseScore * gws
+
+%{
+#include "phasemodel.h"
+
+ProteinIntronList * read_ProteinIntronList(FILE * ifp)
+{
+  ProteinIntronList * out;
+  ProteinIntron * in;
+  char line[MAXLINE];
+  char * run1;
+  char * run2;
+  int pos;
+  int phase;
+
+  out = ProteinIntronList_alloc_std();
+
+  while( fgets(line,MAXLINE,ifp) != NULL ) {
+    if( line[0] == '#' ) {
+      continue;
+    }
+    if( !isnumber(line[0]) ) {
+      warn("Bad looking line in intron file, %s",line);
+      continue;
+    }
+    if( sscanf(line,"%d %d",&pos,&phase) != 2 ) {
+      warn("Unable to parse line in intron file %s",line);
+      continue;
+    }
+    if( phase > 2 || phase < 0 ) {
+      warn("Got phase of %d, when must be between 0 and 2",phase);
+      continue;
+    }
+
+    in = ProteinIntron_alloc();
+    pos--;
+    in->position = pos;
+    in->phase = phase;
+    add_ProteinIntronList(out,in);
+  }
+
+  return out;
+}
+
+ProteinIntronList * read_ProteinIntronList_from_filename(char * f)
+{
+  ProteinIntronList * pl;
+  FILE * ifp;
+
+  ifp = openfile(f,"r");
+  if( ifp == NULL ) {
+    warn("Cannot open file %s",f);
+    return NULL;
+  }
+
+  pl = read_ProteinIntronList(ifp);
+
+  fclose(ifp);
+
+  return pl;
+}
+
+
+PhasedProteinPara * new_PhasedProteinPara_from_argv(int * argc,char ** argv)
+{
+  PhasedProteinPara * out;
+  char * temp;
+
+  out = PhasedProteinPara_alloc();
+  out->marked_intron   = 0.95;
+  out->unmarked_intron = 0.00001;
+  out->use_phase = 0;
+
+  strip_out_float_argument(argc,argv,"phase_marked",&out->marked_intron);
+  strip_out_float_argument(argc,argv,"phase_unmarked",&out->unmarked_intron);
+  /*  strip_out_boolean_def_argument(argc,argv,"phase_model",&out->use_phase); */
+  if( (temp = strip_out_assigned_argument(argc,argv,"phase_file")) != NULL ) {
+    out->intron_file = stringalloc(temp);
+  }
+
+  if( strip_out_boolean_argument(argc,argv,"phase_help") == TRUE ) {
+    fprintf(stdout,"Phased marks provide the ability to restrict the position of introns\n");
+    fprintf(stdout,"relative to the protein sequence; ie, assuming conserved introns. This\n");
+    fprintf(stdout,"is most useful for fast evolving genes inside of relatively consistent\n");
+    fprintf(stdout,"clades, eg for fast evolving genes, such as cytokines, in vertebrates\n");
+    fprintf(stdout,"As moving between clades - say between Human and Drosophila - the intron\n");
+    fprintf(stdout,"positions change, using these options would actively hinder good gene prediction\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"This option can be used for either HMMs or proteins, although it is harder\n");
+    fprintf(stdout,"to coordinate the HMM intron position than the protein positions.\n");
+    fprintf(stdout,"Two things need to occur to use the phase information\n");
+    fprintf(stdout,"    provide a phase mark file as -phase_file <xxxxxx>\n");
+    fprintf(stdout,"    use the algorithm type 623P (6 states, 23 transitions, phased introns)\n");
+    fprintf(stdout,"\n");
+    fprintf(stdout,"The phase model attempts to make a ATG to STOP gene, even if the protein match\n");
+    fprintf(stdout,"is not present across the entire gene. One major headache in this are introns in first\n");
+    fprintf(stdout,"ATG, which is not handled at the moment\n\n");
+    fprintf(stdout,"Genewise uses the protein position, in 1 coordinates, (first amino acid is 1)\n");
+    fprintf(stdout,"for the definition of the intron. For phase 0 introns, it should be labeled as\n");
+    fprintf(stdout,"the amino acid before the intron. For phase 1 and 2 introns, this is on the intron\n\n");
+    fprintf(stdout,"We suggest using a small spread of positions to cope with intron positioning errors\n");
+    fprintf(stdout,"  eg, defining an intron at position 4, phase 0, make postions 3,4 and 5 with position 0\n\n");
+    fprintf(stdout,"The phase file format is\n");
+    fprintf(stdout,"# lines starting with hash are comments\n");
+    fprintf(stdout,"# three tab delimited columns\n");
+    fprintf(stdout,"# <protein-position>  <phase>\n");
+    fprintf(stdout,"# eg\n");
+    fprintf(stdout,"4 0\n");
+    exit(0);
+  }
+
+  return out;
+
+}
+
+
+void show_help_PhasedProteinPara(FILE * ofp)
+{
+  fprintf(ofp,"Phased Protein/HMM parameters (separate from other options)\n");
+  fprintf(ofp,"  -phase_marked    [0.95]        Probability of marked introns\n");
+  fprintf(ofp,"  -phase_unmarked  [0.00001]     Probability of unmarked introns\n");
+  fprintf(ofp,"  -phase_file      [filename]    Intron positions and phases\n");
+  fprintf(ofp,"  -phase_help      prints longer help on phase file and exits\n");
+}
+
+
+void write_fasta_PhasedProtein(PhasedProtein * pp,FILE * ofp)
+{
+  int i;
+  int j;
+  int line;
+  assert(pp != NULL);
+  
+  write_fasta_Sequence(pp->protein,ofp);
+
+  fprintf(ofp,">%s\n",pp->protein->name);
+
+  for(i=0,j=0,line = 0;i<pp->protein->len;i++) {
+
+
+    if( line != 0 && line % 50 == 0 ) {
+      fputc('\n',ofp);
+    }
+
+
+
+    fputc(pp->protein->seq[i],ofp);
+    line++;
+
+    if( j < pp->list->len && pp->list->intron[j]->position == i ) {
+      fputc('0'+pp->list->intron[j]->phase,ofp);
+      line++;
+      j++;
+    }
+  }
+}
+
+
+PhasedProtein * read_fasta_PhasedProtein_file(char * file)
+{
+  PhasedProtein * pp;
+  FILE * ifp;
+
+  ifp = openfile(file,"r");
+
+  pp = read_fasta_PhasedProtein(ifp);
+
+  fclose(ifp);
+
+  return pp;
+
+}
+
+PhasedProtein * read_fasta_PhasedProtein(FILE * ifp)
+{
+  PhasedProtein * pp;
+  ProteinIntron * intron;
+  Sequence * input;
+  int i;
+  int j;
+  char seqbuffer[10000];
+  char name[2000];
+  char c;
+
+  pp = PhasedProtein_alloc();
+  pp->list = ProteinIntronList_alloc_std();
+
+  fgets(name,10000,ifp);
+  assert(name[0] == '>');
+  for(i=1; !isspace(name[i]);i++) {
+    ;
+  }
+  name[i] = '\0';
+
+  i = 0;
+
+  while( (c = fgetc(ifp)) != EOF ) {
+    if( c == '>' ) {
+      ungetc('>',ifp);
+      break;
+    }
+    
+    if( isalpha(c) ) {
+      seqbuffer[i++] = c;
+    } else if( c == '0' || c == '1' || c == '2' ) {
+      intron = ProteinIntron_alloc();
+      intron->position = i-1;
+      intron->phase    = c - '0';
+      add_ProteinIntronList(pp->list,intron);
+    } 
+  }
+
+  seqbuffer[i] = '\0';
+
+  pp->protein = Sequence_from_static_memory(name+1,seqbuffer);
+
+  return pp;
+}
+
+
+
+GenePhaseModel * GenePhaseModel_from_ThreeStateModel(ThreeStateModel * tsm,CodonMapper * cm,RandomModel * rm,CompMat * mat,PhasedProteinPara * ppp)
+{
+  GenePhaseModel * out;
+  ProteinIntronList * pl;
+  int i;
+  int j;
+
+  assert(ppp != NULL);
+  assert(tsm != NULL);
+  assert(rm != NULL);
+  assert(mat != NULL);
+  
+
+  pl = read_ProteinIntronList_from_filename(ppp->intron_file);
+  assert(pl != NULL);
+
+
+  out = GenePhaseModel_alloc_std();
+
+
+  /* current set this at global */
+
+  for(i=0;i<tsm->len;i++) {
+    tsm->unit[i]->transition[TSM_START2MATCH] = 0.0;
+    tsm->unit[i]->transition[TSM_MATCH2END]   = 0.0;
+  }
+
+  tsm->unit[0]->transition[TSM_START2MATCH] = 1.0;
+  tsm->unit[tsm->len-1]->transition[TSM_MATCH2END] = 1.0;
+
+  
+  out->gw = GeneWise_from_ThreeStateModel_setfactor(tsm,0.95,cm,0.1);
+
+
+  for(i=0,j=0;i<tsm->len;i++) {
+    /* set to default first */
+    add_GenePhaseModel(out,GenePhaseSeg_alloc());
+ 
+    out->phase[i]->intron_0 = ppp->unmarked_intron;
+    out->phase[i]->intron_1 = ppp->unmarked_intron;
+    out->phase[i]->intron_2 = ppp->unmarked_intron;
+    out->phase[i]->insert_intron = ppp->unmarked_intron;
+
+    if( j < pl->len && i == pl->intron[j]->position ) {
+      if( pl->intron[j]->phase == 0 ) {
+	out->phase[i]->intron_0 = ppp->marked_intron;
+      } 
+      if( pl->intron[j]->phase == 1 ) {
+	out->phase[i]->intron_1 = ppp->marked_intron;
+      } 
+      if( pl->intron[j]->phase == 2 ) {
+	out->phase[i]->intron_2 = ppp->marked_intron;
+      } 
+
+      out->gw->seg[i]->transition[GW_MATCH2MATCH]   = (1.0 - ppp->marked_intron)*out->gw->seg[i]->transition[GW_MATCH2MATCH];
+      out->gw->seg[i]->transition[GW_MATCH2INSERT]  = (1.0 - ppp->marked_intron)*out->gw->seg[i]->transition[GW_MATCH2INSERT];
+      out->gw->seg[i]->transition[GW_MATCH2DELETE]  = (1.0 - ppp->marked_intron)*out->gw->seg[i]->transition[GW_MATCH2DELETE];
+      out->gw->seg[i]->transition[GW_DELETE2DELETE] = (1.0 - ppp->marked_intron)*out->gw->seg[i]->transition[GW_DELETE2DELETE];
+      out->gw->seg[i]->transition[GW_DELETE2MATCH]  = (1.0 - ppp->marked_intron)*out->gw->seg[i]->transition[GW_DELETE2MATCH];
+
+      j++;
+    }
+  }
+
+  return out;
+}
+
+
+
+
+GenePhaseScore * GenePhaseScore_from_GenePhaseModel(GenePhaseModel * gpm)
+{
+  int i;
+  GenePhaseScore * out;
+
+  assert(gpm != NULL);
+  assert(gpm->gw != NULL);
+  assert(gpm->gw->len == gpm->len);
+
+  out = GenePhaseScore_alloc_len(gpm->len);
+  out->gws = GeneWiseScore_from_GeneWise(gpm->gw);
+
+  for(i=0;i<gpm->len;i++) {
+    add_GenePhaseScore(out,GenePhaseSegScore_alloc());
+    out->phase[i]->intron_0  = Probability2Score(gpm->phase[i]->intron_0);
+    out->phase[i]->intron_1  = Probability2Score(gpm->phase[i]->intron_1);
+    out->phase[i]->intron_2  = Probability2Score(gpm->phase[i]->intron_2);
+  }
+
+  return out;
+
+}
+
+
+
+%}

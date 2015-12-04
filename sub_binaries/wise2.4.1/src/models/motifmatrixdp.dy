@@ -1,0 +1,90 @@
+
+%{
+#include "motifmatrix.h"
+
+#define MOTIF_MATRIX_IN(motif,i,j,score) (motif->mat[i][j] == 0 ? 0 : (score))
+
+%}
+
+
+matrix LocalMotifMatrix
+query type="DNA" name="query"
+target type="DNA" name="target"
+resource type="MotifConsMatrix*" name="motif"
+resource type="MotifMatrixScore*" name="ms"
+state SPACER_MATCH
+  source SPACER_MATCH offi="1" offj="1"
+    calc="ms->comp_spacer->score[DNA_BASE(query,i)][DNA_BASE(target,j)] + ms->spacer_duration"
+    endsource
+  source SPACER_MATCH offi="1" offj="0"
+    calc="ms->spacer_indel"
+    query_label SPACER_INSERT
+    endsource
+  source SPACER_MATCH offi="0" offj="1"
+    calc="ms->spacer_indel"
+    target_label SPACER_INSERT
+    endsource
+  source MOTIF_MATCH offi="1" offj="1"
+    calc="ms->comp_spacer->score[DNA_BASE(query,i)][DNA_BASE(target,j)]"
+    endsource
+  source CONS_MATCH offi="1" offj="1"
+    calc="ms->comp_spacer->score[DNA_BASE(query,i)][DNA_BASE(target,j)]"
+    endsource
+  source START offi="1" offj="1"
+    calc="ms->comp_spacer->score[DNA_BASE(query,i)][DNA_BASE(target,j)]"
+    endsource
+  query_label SPACER_MATCH
+  target_label SPACER_MATCH
+endstate
+state MOTIF_MATCH
+  source MOTIF_MATCH offi="1" offj="1"
+    calc="MOTIF_MATRIX_IN(motif,i,j,ms->comp_in_motif->score[DNA_BASE(query,i)][DNA_BASE(target,j)]) + ms->motif_duration"
+    endsource
+  source MOTIF_MATCH offi="1" offj="0"
+    calc="ms->motif_indel"
+    query_label MOTIF_INSERT
+    endsource
+  source MOTIF_MATCH offi="0" offj="1"
+    calc="ms->motif_indel"
+    target_label MOTIF_INSERT
+    endsource
+  source SPACER_MATCH offi="1" offj="1"
+    calc="MOTIF_MATRIX_IN(motif,i,j,ms->comp_in_motif->score[DNA_BASE(query,i)][DNA_BASE(target,j)]) + ms->spacer_to_motif"
+    endsource
+  query_label MOTIF_MATCH
+  target_label MOTIF_MATCH
+endstate
+state CONS_MATCH
+  source CONS_MATCH offi="1" offj="1"
+    calc="ms->comp_out_motif->score[DNA_BASE(query,i)][DNA_BASE(target,j)] + ms->cons_duration"
+    endsource
+  source CONS_MATCH offi="1" offj="0"
+    calc="ms->cons_indel"
+    query_label CONS_INSERT
+    endsource
+  source CONS_MATCH offi="0" offj="1"
+    calc="ms->cons_indel"
+    target_label CONS_INSERT
+    endsource
+  source SPACER_MATCH offi="1" offj="1"
+    calc="ms->comp_out_motif->score[DNA_BASE(query,i)][DNA_BASE(target,j)] + ms->spacer_to_cons"
+    endsource
+  query_label CONS_MATCH
+  target_label CONS_MATCH
+endstate
+state START !special !start
+endstate
+state END !special !end
+  source SPACER_MATCH
+    calc="0"
+  endsource
+query_label END
+target_label END
+endstate
+endmatrix
+
+%{
+#include "motifmatrixdp.h"
+
+
+%}

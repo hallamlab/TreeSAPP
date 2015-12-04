@@ -1,0 +1,346 @@
+
+%{
+#include "seqlookup.h"
+
+
+#define ARRAYSEQL_BASIC  8
+#define ARRAYSEQL_LINEAR 500
+
+%}
+
+
+struct ArraySeqLookup
+ArraySeqHead ** array
+int len
+long numb_level
+
+
+struct ArraySeqHeadResults
+int ipos
+ArraySeqHead * head !link
+SeqLookupResultStruct str !link
+
+
+
+
+%{
+#include "arrayseqlookup.h"
+
+
+  typedef struct ArraySeqClient_struct {
+    ArraySeqHeadResults      result;
+    SeqLookupResultInterface interface;
+    ArraySeqLookup * array;
+  } ArraySeqClient;
+
+ static ArraySeqClient * ArraySeqClient_alloc(void)
+ {
+  ArraySeqClient * out;
+
+  out = malloc(sizeof(ArraySeqClient));
+
+  return out;
+ }
+
+
+%func
+Exported function - makes a new seqlookupinterface in array mode
+%%
+SeqLookupInterface * new_ArraySeq_SeqLookupInterface(int len,long numb_level)
+{
+  SeqLookupInterface * out;
+  
+  out = SeqLookupInterface_alloc_std();
+
+  out->data = (void*) new_ArraySeqLookup(len,numb_level);
+
+  out->get_client    = get_client_arraylookup;
+  out->add_seq       = add_seq_arraylookup;
+  out->free_data     = free_data_arraylookup;
+  out->lookup_array_head = arrayhead_direct_lookup;
+
+  return out;
+}
+
+
+
+%func
+Prints out summary statistcis to a file
+%%
+void print_array_occuypancy_ArraySeq(ArraySeqLookup * asl,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<asl->len;i++) {
+    if( asl->array[i] == NULL ) {
+      fprintf(ofp,"%d EMPTY\n",i);
+    } else {
+      fprintf(ofp,"%d full %d\n",i,asl->array[i]->current_pos);
+    }
+  }
+
+}
+
+%func
+Builds a new client from Array
+%%
+SeqLookupClientInterface * get_client_arraylookup(void *data)
+{
+  ArraySeqLookup * array = (ArraySeqLookup *) data;
+  ArraySeqClient * cli;
+  SeqLookupClientInterface * slci;
+ 
+  cli = ArraySeqClient_alloc();
+
+  cli->interface.next         =  next_arrayhead_search_results;
+  cli->interface.is_more      =  is_more_arrayhead_search_results;
+  cli->interface.free_data    =  free_arrayhead_results;
+   
+  cli->interface.data = (void *) &(cli->result);
+  cli->result.ipos = 0;
+  cli->array = array;
+
+
+  slci = SeqLookupClientInterface_alloc();
+  slci->lookup       =  lookup_array_client;
+  slci->is_populated = is_populated_array_client;
+  slci->free_data    = free_array_client;
+  slci->data = (void*) cli;
+
+  return slci;
+}
+
+%func
+Internal function for results interface
+%%
+SeqLookupResultStruct * next_arrayhead_search_results(void * data,SeqLookupResultStruct * prev)
+{
+  ArraySeqHeadResults * a = (ArraySeqHeadResults *) data;
+
+  if( a->ipos >= a->head->current_pos ) {
+    fatal("Overran array!");
+  }
+
+  a->str.seq = a->head->units[a->ipos].seq;
+  a->str.pos = a->head->units[a->ipos].pos;
+
+  a->ipos++;
+
+  return &(a->str);
+
+}
+
+%func
+Internal function for results interface
+%%
+boolean is_more_arrayhead_search_results(void * data)
+{
+  ArraySeqHeadResults * a = (ArraySeqHeadResults *) data;
+
+  if( a->ipos >= a->head->current_pos ) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
+
+
+%func
+Internal function for results interface, which is a no-op
+%%
+void free_arrayhead_results(void * data)
+{
+
+  return;
+}
+
+
+%func
+Internal function for client interface, which frees client specific memory
+%%
+void free_array_client(void * data)
+{
+  ArraySeqClient * cli = (ArraySeqClient*) data;
+  free(cli);
+}
+
+  
+
+%func
+makes a new ArraySeqLookup taking up
+to len positions
+%%
+ArraySeqLookup * new_ArraySeqLookup(int len,long numb_level)
+{
+  int i;
+  ArraySeqLookup * out;
+
+  out = ArraySeqLookup_alloc();
+  out->array = calloc(len,sizeof(ArraySeqHead*));
+  assert(out->array);
+  
+  for(i=0;i<len;i++) {
+    out->array[i] = NULL;
+  }
+
+  out->len = len;
+  out->numb_level = numb_level;
+
+
+  return out;
+}
+
+
+%func
+tells whether this is populated or not
+%%
+boolean is_populated_array_client(void * data, int seq_number)
+{
+  ArraySeqClient * cli = (ArraySeqClient *)data;
+
+  if( cli->array->array[seq_number] == NULL ) {
+    return FALSE;
+  } else {
+    return TRUE;
+  }
+
+}
+
+%func
+Retrieves a SeqLookup position 
+%%
+SeqLookupResultInterface * lookup_array_client(void * data, int seq_number)
+{
+  ArraySeqClient * cli = (ArraySeqClient *)data;
+
+  if( cli->array->array[seq_number] == NULL ) {
+    return NULL;
+  }
+
+  cli->result.ipos = 0;
+  cli->result.head = cli->array->array[seq_number];
+
+  return &(cli->interface);
+}
+
+%func
+For array optimised lookup hash, provides direct memory access
+%%
+ArraySeqHead * arrayhead_direct_lookup(void * data,int seq_number)
+{
+  ArraySeqLookup * look = (ArraySeqLookup *)data;
+
+/*  fprintf(stderr,"In arrayhead direct lookup with %d\n",seq_number);*/
+
+  return look->array[seq_number];
+}
+
+
+%func
+Adds a sequence/pos pair to the hash
+%%
+boolean add_seq_arraylookup(void * data,Sequence * seq,SeqLookupLoadPara * para)
+{
+  int i;
+  ArraySeqLookup * look = (ArraySeqLookup *)data;
+  int seq_number;
+
+  assert(data != NULL);
+  assert(seq != NULL);
+  assert(para != NULL);
+
+  for(i=0;i<seq->len-5;i = i+para->tile_freq) {
+    seq_number = seq_number_aa_5mer(seq->seq+i);
+
+    if( look->array[seq_number] == NULL ) {
+      look->array[seq_number] =  new_ArraySeqHead();
+      if( para->mark_low_complexity ) {
+	look->array[seq_number]->flags = flags_from_5aa_sequence(seq->seq+i);
+      }
+    }
+
+    add_ArraySeqHead(look->array[seq_number],seq,i,look->numb_level);
+  }
+
+  return TRUE;
+}
+
+
+%func
+Frees data
+%%
+void free_data_arraylookup(void * data)
+{
+  ArraySeqLookup * look = (ArraySeqLookup *)data;
+  int i;
+
+  for(i=0;i<look->len;i++) {
+    if( look->array[i] == NULL ) {
+      continue;
+    }
+    ckfree(look->array[i]->units);
+    ckfree(look->array[i]);
+  }
+  
+  free_ArraySeqLookup(look);
+}
+
+
+%func
+Adds a sequence/pos pair to an ArrayHead
+%%
+boolean add_ArraySeqHead(ArraySeqHead * h,Sequence * seq,int pos,long numb_level)
+{
+  ArraySeqLookupUnit * temp;
+
+  if( numb_level  > 0 && h->current_pos > numb_level ) {
+    return TRUE;
+  }
+
+  /*  fprintf(stderr,"adding new sequence position with %d max pos %d\n",h->current_pos,h->max);
+   */
+  if( h->current_pos >= h->max ) {
+    temp = h->units;
+    if( h->max < ARRAYSEQL_LINEAR ) {
+      h->units = realloc(h->units,(h->max*2)*sizeof(ArraySeqLookupUnit));
+      h->max = h->max*2;
+    } else {
+      h->units = realloc(h->units,(h->max + ARRAYSEQL_LINEAR)*sizeof(ArraySeqLookupUnit));
+      h->max = h->max + ARRAYSEQL_LINEAR;
+    }
+
+    if( h->units == NULL ) {
+      fatal("ArraySeqLookup realloc failed trying for %d positions\n",h->max);
+    }
+
+    
+/*    fprintf(stderr,"... extended to %d\n",h->max); */
+  }
+
+  h->units[h->current_pos].seq = seq;
+  h->units[h->current_pos].pos = pos;
+
+  h->current_pos++;
+
+  return TRUE;
+}
+
+
+%func 
+Builds a new ArraySeqHead structure
+%%
+ArraySeqHead * new_ArraySeqHead(void)
+{
+  ArraySeqHead * out;
+
+  out = malloc(sizeof(ArraySeqHead));
+
+  out->units = calloc(ARRAYSEQL_BASIC,sizeof(ArraySeqLookupUnit));
+  out->max = ARRAYSEQL_BASIC;
+  out->current_pos = 0;
+  
+  return out;
+}
+	       
+
+

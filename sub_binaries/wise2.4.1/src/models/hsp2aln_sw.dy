@@ -1,0 +1,328 @@
+
+%{
+#include "sw_wrap.h"
+#include "hitlist.h"
+#include "hsp.h"
+
+
+
+
+#define Hsp2AlnHelperLISTLENGTH 20
+
+#ifdef PTHREAD
+#include "pthread.h"
+
+
+struct hsp2aln_thread_manager {
+  pthread_mutex_t input_lock;
+  pthread_mutex_t output_lock;
+  pthread_t * pool;
+  int thread_size;
+  int current_pos;
+  LinearHSPmanager * input;
+  HitList * output;
+  DPRunImpl * dpri;
+  struct Wise2_HSPset2HitPairPara * para;
+  int topscore;
+};
+#endif
+
+%}
+
+struct HSPset2HitPairPara
+int hsp_width !def="40"
+int hsp_length !def="90"
+int no_subalns !def="0"
+int no_hitalns !def="0"
+boolean best_hit !def="FALSE"
+double perc_hit_dropoff   !def="10.0"
+boolean debug !def="FALSE"
+int poor_score_factor !def="2"
+int poor_score        !def="100"
+
+struct Hsp2AlnHelper
+DPEnvelope ** dpenv !list
+
+struct Hsp2AlnPara
+int align_size
+
+
+%{
+#include "hsp2aln_sw.h"
+
+
+#ifdef PTHREAD
+
+HitList * HitList_from_LinearHSPmanager_heuristic_threaded(LinearHSPmanager * lm,DPRunImpl * dpri,int thr_no,HSPset2HitPairPara * para)
+{
+  struct hsp2aln_thread_manager tm;
+  pthread_attr_t pat;
+  int i;
+
+  pthread_attr_init(&pat);     
+
+#ifndef __sgi /* SGI can't set system scope ... */   
+#ifdef  HAS_PTHREAD_SETSCOPE 
+  pthread_attr_setscope(&pat, PTHREAD_SCOPE_SYSTEM);   
+#endif /* set scope */   
+#endif /* sgi */ 
+  /* Give thread libraries a hint that there are num of threads to run */ 
+#ifdef HAS_PTHREAD_SETCONCURRENCY    
+  pthread_setconcurrency(thr_no+1);    
+#endif /* set concurrency */ 
+
+  tm.input = lm;
+  tm.current_pos = 0;
+  tm.output = HitList_alloc_std();
+  tm.dpri = dpri;
+  tm.para = para;
+  tm.topscore = lm->set[0]->score;
+
+  if( pthread_mutex_init(&(tm.input_lock),NULL) != 0 ) {
+    fatal("Unable to make input mutex");
+  }
+  if( pthread_mutex_init(&(tm.output_lock),NULL) != 0 ) {
+    fatal("Unable to make output mutex");
+  }
+  tm.pool = ckcalloc(thr_no,sizeof(pthread_t));
+
+  for(i=0;i<thr_no;i++)    {  
+    if( pthread_create(tm.pool+i,&pat,worker_thread_LM2HitList,(void *)&tm) ) 
+      fatal("Unable to create a thread [thread %d]!",i); 
+  }  
+  
+  /* Now - wait for all the threads to exit */ 
+  for(i=0;i<thr_no;i++)    {  
+    if( pthread_join(tm.pool[i],NULL) != 0 )  
+      fatal("Unable to join a thread!");   
+  }  
+
+  ckfree(tm.pool);
+
+  return tm.output;
+}
+
+void * worker_thread_LM2HitList(void * p)
+{
+  struct hsp2aln_thread_manager * tm = (struct hsp2aln_thread_manager *)p;
+  HSPset * set;
+  HitPair * pair;
+  DPRunImpl * thread_dpri;
+
+  thread_dpri = clone_DPRunImpl(tm->dpri);
+
+  while(1) {
+    /* get input lock, die if at end */
+    if( pthread_mutex_lock(&(tm->input_lock)) != 0 )
+      fatal("bad error getting input lock");
+    
+    if( tm->current_pos >= tm->input->len || tm->para->no_hitalns > 0 && tm->current_pos > tm->para->no_hitalns ||
+	(tm->para->best_hit == TRUE && (((double)(tm->topscore - tm->input->set[tm->current_pos]->score))*100.0/tm->topscore) > tm->para->perc_hit_dropoff)
+	) {
+      /* end of this thread */
+
+      if( pthread_mutex_unlock(&(tm->input_lock))!= 0 )    
+	fatal("Error in releasing input lock for ProteinSW");  
+      break;
+    } else {
+      /* get a HSPset */
+      set= tm->input->set[tm->current_pos++];
+      /* release the lock */
+      if( pthread_mutex_unlock(&(tm->input_lock))!= 0 )    
+	fatal("Error in releasing input lock for ProteinSW");  
+    }
+
+    /* now got a set in HSPset */
+
+    pair = HitPair_from_HSPset_heuristic(set,thread_dpri,tm->input->mat,tm->para);
+    
+    if( pthread_mutex_lock(&(tm->output_lock))!= 0 )   
+      fatal("Error on getting output lock");
+
+    add_HitList(tm->output,pair);
+
+    if( pthread_mutex_unlock(&(tm->output_lock))!= 0 )   
+      fatal("Error on getting output lock");
+    
+  }
+
+  free_DPRunImpl(thread_dpri);
+
+  return NULL;
+}
+
+#else
+HitList * HitList_from_LinearHSPmanager_heuristic_threaded(LinearHSPmanager * lm,DPRunImpl * dpri,int thr_no,HSPset2HitPairPara * para)
+{
+  fatal("Not compiled with pthreads");
+  return NULL;
+}
+#endif
+
+ 
+HitList * HitList_from_LinearHSPmanager_heuristic(LinearHSPmanager * lm,DPRunImpl * dpri,HSPset2HitPairPara * para)
+{
+  HitList * out;
+  int i;
+  int topscore;
+  
+  out = HitList_alloc_std();
+  out->mat = hard_link_CompMat(lm->mat);
+
+  if( lm->len <= 0 ) {
+    return out;
+  }
+ 
+  topscore = lm->set[0]->score;
+
+  for(i=0;i<lm->len;i++) {
+
+
+    if( para->no_hitalns > 0 && i > para->no_hitalns ) {
+      break;
+    }
+    if(  para->best_hit == TRUE && (((double)(topscore - lm->set[i]->score))*100.0/topscore) > para->perc_hit_dropoff ) {
+      break;
+    }
+    add_HitList(out,HitPair_from_HSPset_heuristic(lm->set[i],dpri,lm->mat,para));
+  }
+
+  return out;
+}
+
+
+HitPair * HitPair_from_HSPset_heuristic(HSPset * set,DPRunImpl * dpri,CompMat * mat,HSPset2HitPairPara *p)
+{
+  HitPair * out;
+  HitAln * aln;
+  int i;
+  int total_score = 0;
+  Hsp2AlnHelper * helper;
+
+  out = HitPair_alloc_std();
+  out->query  = hard_link_Sequence(set->hsp[0]->query);
+  out->target = hard_link_Sequence(set->hsp[0]->target);
+
+  out->query->type = SEQUENCE_PROTEIN;
+  out->target->type = SEQUENCE_PROTEIN;
+
+
+  helper = build_HSP2AlnHelper(set,p->hsp_width,p->hsp_length,p->poor_score,p->poor_score_factor);
+  
+  
+  for(i=0;i<helper->len;i++) {
+    if( p->no_subalns != 0 && i > p->no_subalns ) {
+      break;
+    }
+
+    aln = HitAln_alloc();
+  
+    if( p->debug == TRUE ) {
+      fprintf(stdout,"For %s to %s, DPENV is\n",out->query->name,out->target->name);
+      show_DPEnvelope(helper->dpenv[i],stdout);
+      fprintf(stdout,"\n-----------\n");
+    }
+
+    aln->alb = Align_Sequences_ProteinSmithWaterman(out->query,out->target,mat,-12,-2,helper->dpenv[i],dpri);
+    aln->raw_score = aln->alb->score;
+    total_score += aln->raw_score;
+    add_HitPair(out,aln);
+    break;
+  }
+
+  free_Hsp2AlnHelper(helper);
+  out->raw_score = total_score;
+  return out;
+}
+
+
+Hsp2AlnHelper * build_HSP2AlnHelper(HSPset * set,int width,int tail,int min_score,int small_factor)
+{
+  Hsp2AlnHelper * out;
+  DPEnvelope * dpenv;
+  DPUnit * dpunit;
+  int i;
+  int j;
+  int k;
+  int eaten;
+  int factor = 1;
+
+
+  out = Hsp2AlnHelper_alloc_std();
+
+  sort_HSPset_by_score(set);
+
+
+  for(i=0;i<set->len;i++) {
+    dpunit = DPUnit_alloc();
+
+    
+
+    dpunit->starti = set->hsp[i]->query_start - (tail*factor);
+    dpunit->startj = set->hsp[i]->target_start - (tail*factor);
+    dpunit->type = DPENV_DIAG;
+    dpunit->height = (width*factor);
+    dpunit->length = set->hsp[i]->length + 2*(tail*factor);
+    
+
+    eaten = 0;
+
+    for(j=0;j<out->len;j++) {
+      for(k=0;k<out->dpenv[j]->len;k++) {
+	if( overlap_DPUnit(out->dpenv[j]->dpu[k],dpunit) == TRUE ) {
+	  add_DPEnvelope(out->dpenv[j],dpunit);
+	  eaten = 1;
+	  break;
+	}
+      }
+      if( eaten == 1 ) {
+	break;
+      }
+    }
+
+    if( eaten == 0 ) {
+      dpenv = DPEnvelope_alloc_std();
+      add_DPEnvelope(dpenv,dpunit);
+      add_Hsp2AlnHelper(out,dpenv);
+    }
+
+  }
+
+  return out;
+}
+
+
+void show_help_HSPset2HitPairPara(FILE * ofp)
+{
+  fprintf(ofp,"Converting HSP sets to HitPair heuristic parameters\n");
+  fprintf(ofp,"  -hsp2hit_width  [no] width around each HSP to consider\n");
+  fprintf(ofp,"  -hsp2hit_length [no] length around each HSP to consider\n");
+  fprintf(ofp,"  -hsp2hit_subaln [no] number of HSP subalignments to consider (disabled)\n");
+  fprintf(ofp,"  -hsp2hit_hitaln [no] number of hitpairs to assess\n");
+  fprintf(ofp,"  -[no]hsp2hit_best    use best-in-search truncation (default no)\n");
+  fprintf(ofp,"  -hsp2hit_best_perc [10] percentage off best score taken in best-in-search truncation\n");
+  fprintf(ofp,"  -[no]hsp2hit_debug   print debugging features on stdout (default no)\n");
+}
+
+HSPset2HitPairPara * new_HSPset2HitPairPara_from_argv(int * argc,char ** argv)
+{
+  HSPset2HitPairPara * out;
+
+  out = HSPset2HitPairPara_alloc();
+
+  strip_out_integer_argument(argc,argv,"hsp2hit_width",&out->hsp_width);
+  strip_out_integer_argument(argc,argv,"hsp2hit_length",&out->hsp_length);
+  strip_out_integer_argument(argc,argv,"hsp2hit_subaln",&out->no_subalns);
+  strip_out_integer_argument(argc,argv,"hsp2hit_hitaln",&out->no_hitalns);
+
+  strip_out_boolean_def_argument(argc,argv,"hsp2hit_best",&out->best_hit);
+  strip_out_boolean_def_argument(argc,argv,"hsp2hit_debug",&out->debug);
+  
+  strip_out_float_argument(argc,argv,"hsp2hit_best_perc",&out->perc_hit_dropoff);
+  return out;
+}
+
+
+
+%}
+

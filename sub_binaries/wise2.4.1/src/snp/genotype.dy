@@ -1,0 +1,483 @@
+
+%{
+#include "locus_framework.h"
+#include "person.h"
+
+
+#define BiGenotypeSetLISTLENGTH     128
+#define BiGenotypeLocusLISTLENGTH  128
+
+#define MAX_HAPMAP_LINE 10000
+
+typedef struct BiGenotype {
+  BiGenotypeType type;
+  Person * person;
+} BiGenotype;
+
+#define MAX_GENOTYPE_ALLOC 1000000
+#define GENOTYPE_ALLOC_LINE 4096
+
+typedef struct BiGenotypeAllocSlab {
+  BiGenotype * alloc_array[MAX_GENOTYPE_ALLOC];
+  int array_pos;
+  int array_y;
+} BiGenotypeAllocSlab;
+
+
+
+%}
+
+
+
+struct BiGenotypeLocus
+BiGenotype ** big !list
+BiLocus * locus      !link
+
+struct BiGenotypeSet 
+BiGenotypeLocus ** locus !list
+BiLocusFramework * framework
+PopulationSet * ps
+BiGenotypeAllocSlab * slab
+
+
+%{
+#include "genotype.h"
+
+BiGenotype * BiGenotype_alloc_slab(BiGenotypeAllocSlab * slab)
+{
+  if( slab->array_y < GENOTYPE_ALLOC_LINE ) {
+    return &(slab->alloc_array[slab->array_pos][slab->array_y++]);
+  }
+
+  if( slab->array_pos >= MAX_GENOTYPE_ALLOC ) {
+    fatal("Asking for more genotypes than the product of MAX_GENOTYPE_ALLOC and GENOTYPE_ALLOC_LINE. Not feasible");
+  }
+
+  slab->array_pos++;
+  slab->alloc_array[slab->array_pos] = calloc(GENOTYPE_ALLOC_LINE,sizeof(BiGenotype));
+  slab->array_y = 0;
+
+  return &(slab->alloc_array[slab->array_pos][slab->array_y++]);
+}
+
+
+BiGenotypeAllocSlab * new_BiGenotypeAllocSlab(void)
+{
+  BiGenotypeAllocSlab * out;
+
+
+
+  out = malloc(sizeof(BiGenotypeAllocSlab));
+  out->array_pos = 0;
+  out->array_y = 0;
+  out->alloc_array[0] = calloc(GENOTYPE_ALLOC_LINE,sizeof(BiGenotype));
+
+  return out;
+}
+
+BiGenotypeAllocSlab * free_BiGenotypeAllocSlab(BiGenotypeAllocSlab * s)
+{
+  int i;
+  for(i=0;i<= s->array_pos;i++) {
+    free(s->alloc_array[i]);
+  }
+
+  free(s);
+  return NULL;
+}
+
+BiGenotype * BiGenotype_alloc(void)
+{
+  BiGenotype * out;
+
+  warn("You should be using a SLAB allocation now!");
+
+  out = malloc(sizeof(BiGenotype));
+  
+  return out;
+}
+
+BiGenotype * free_BiGenotype(BiGenotype * bi)
+{
+  if( bi == NULL ){
+    return NULL;
+  }
+  free(bi);
+  return NULL;
+}
+
+
+void write_simple_genotype(BiGenotypeSet * bgs,FILE * ofp)
+{
+  int i;
+  int j;
+
+   
+  for(i=0;i<bgs->len;i++) {
+    fprintf(ofp,"# Locus %s\n",bgs->locus[i]->locus->locus_id);
+    for(j=0;j<bgs->locus[i]->len;j++) {
+      fprintf(ofp,"%s\t%s\t%s\t",bgs->locus[i]->locus->locus_id,
+	      bgs->locus[i]->big[j]->person->person_id,
+	      bgs->locus[i]->big[j]->person->pop->pop_name);
+      if( bgs->locus[i]->big[j]->type == BiGenotypeHomozygousFirst ) {
+	fprintf(ofp,"%c\t%c\n",bgs->locus[i]->locus->first_allele_char,
+		bgs->locus[i]->locus->first_allele_char
+		);
+      } else if ( bgs->locus[i]->big[j]->type == BiGenotypeHomozygousSecond ) {
+	fprintf(ofp,"%c\t%c\n",bgs->locus[i]->locus->second_allele_char,
+		bgs->locus[i]->locus->second_allele_char
+		);
+      } else if ( bgs->locus[i]->big[j]->type == BiGenotypeHetrozygous ) {
+	fprintf(ofp,"%c\t%c\n",bgs->locus[i]->locus->first_allele_char,
+		bgs->locus[i]->locus->second_allele_char
+		);
+      } else {
+	fprintf(ofp,"N\tN\n");
+      }
+    }
+  }
+
+}
+
+
+boolean read_hapmap_genotype_file(BiGenotypeSet * bgs,char * pop_name,FILE * ifp)
+{
+  BiLocus * bi;
+  BiGenotypeLocus * bgl;
+  BiGenotype * big;
+  Population * pop;
+  Person * p;
+
+  int report_number = 2000;
+  int count = 0;
+
+  int people_flag[1028];
+  Person * people[1028];
+
+
+  int people_total;
+
+  char buffer[MAX_HAPMAP_LINE];
+  char * runner;
+  char * allele;
+  
+  char * old_locus = NULL;
+
+  int i;
+
+
+
+  /* first line is description of columns */
+  fgets(buffer,MAX_HAPMAP_LINE,ifp);
+
+  runner = strtok(buffer,spacestr);
+  i = 1;
+  for(;runner != NULL && i < 11;runner = strtok(NULL,spacestr)) {
+    i++;
+  }
+
+  /* runner should be "QC_code" */
+  if( strcmp(runner,"QC_code") != 0 ) {
+    warn("HapMap file - first line, column 11 is not QC_code!");
+    return FALSE;
+  }
+
+
+  pop = Population_alloc_std();
+  pop->pop_name = stringalloc(pop_name);
+  add_PopulationSet(bgs->ps,pop);
+
+
+  /* count people */
+  people_total = 0;
+  while( (runner = strtok(NULL,spacestr)) != NULL ) {
+
+    if( strstr(runner,".dup") != NULL ) {
+      people_flag[people_total] = 0;
+    } else {
+      people_flag[people_total] = 1;
+      people[people_total] = Person_alloc();
+      people[people_total]->person_id = stringalloc(runner);
+      people[people_total]->pop = pop;
+      add_Population(pop,people[people_total]);
+    }
+
+    people_total++;
+  }
+
+  /* loop over locus lines */
+
+  while( fgets(buffer,MAX_HAPMAP_LINE,ifp) != NULL ) {
+    runner = strtok(buffer,spacestr);
+
+    if( old_locus != NULL && strcmp(old_locus,runner) == 0 ) {
+      /* only read a locus in once! Duplications for error checking */
+      continue;
+    }
+
+    if( count%report_number == 0 ) {
+      fprintf(stderr,"Handled %d loci, %s\n",count,runner);
+    }
+    count++;
+
+    allele = strtok(NULL,spacestr);
+
+    if( allele[1] != '/' ) {
+      warn("Allele string looks all wrong %s",allele);
+    }
+
+    bi  = find_or_new_BiLocus_from_BiLocusFramework(bgs->framework,runner,allele[0],allele[2]);
+    /* this way we don't need to track old_locus memory */
+    old_locus = bi->locus_id;
+
+    bgl = find_or_new_BiGenotypeLocus_from_BiGenotypeSet(bgs,bi);
+
+    i = 2;
+
+    for(;runner != NULL && i < 11;runner = strtok(NULL,spacestr)) {
+      i++;
+    }
+
+    /* this should have QC as first two letters */
+    if( runner[0] != 'Q' || runner[1] != 'C' ) {
+      warn("Column 11 does not have QC ... %s",runner);
+    }
+    
+    
+    
+    /* now we have the people genotypes */
+    
+    i = 0;
+    for(runner = strtok(NULL,spacestr);runner != NULL; runner = strtok(NULL,spacestr)) {
+      if( people_flag[i] == 1 ) {
+	big = BiGenotype_alloc_slab(bgs->slab);
+	big->type = type_from_hapmap_string_BiLocus(bi,runner);
+	big->person = people[i];
+	add_BiGenotypeLocus(bgl,big);
+      }
+      i++;
+    }
+
+    
+  }
+    
+
+  return TRUE;
+    
+}
+
+
+BiGenotypeLocus * find_or_new_BiGenotypeLocus_from_BiGenotypeSet(BiGenotypeSet * bgs,BiLocus * bi)
+{
+  BiGenotypeLocus * bgl;
+  int i;
+  
+  for(i=0;i<bgs->len;i++) {
+    if( bgs->locus[i]->locus == bi ) {
+      return bgs->locus[i];
+    }
+  }
+  
+  bgl = BiGenotypeLocus_alloc_std();
+  bgl->locus = bi;
+  
+  add_BiGenotypeSet(bgs,bgl);
+
+  return bgl;
+}
+
+
+BiGenotypeSet * read_simple_genotype_file(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  BiGenotypeSet * out;
+  BiLocus * bi;
+  BiGenotypeLocus * bgl;
+
+  BiGenotype * bg;
+  
+  Population * pop;
+  Person * p;
+  
+
+
+  char * runner;
+  char * locus;
+  char * person_id;
+  char * population_id;
+  char * oldlocus = NULL;
+  char * allele1;
+  char * allele2;
+
+  int no_alleles = 0;
+
+  BiGenotypeType gt;
+
+  char first;
+  char second;
+
+
+  out = new_BiGenotypeSet();
+
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+    
+    runner = strtok(buffer,spacestr);
+    locus = runner;
+    runner = strtok(NULL,spacestr);
+    person_id = runner;
+    runner = strtok(NULL,spacestr);
+    population_id = runner;
+    runner = strtok(NULL,spacestr);
+    allele1 = runner;
+    runner = strtok(NULL,spacestr);
+    allele2 = runner;
+
+
+    fprintf(stderr,"Got locus %s person %s with old %s\n",locus,person_id,oldlocus);
+
+    if ( allele2 == NULL ) {
+      continue;
+    }
+
+
+    /*
+     * locus-id
+     * person-id
+     * allele-1
+     * allele-2
+     */
+    
+    fprintf(stderr,"comparing %s vs %s  with %s - %s\n",oldlocus,locus,allele1,allele2);
+
+    if( oldlocus == NULL || strcmp(locus,oldlocus) != 0 ) {
+      fprintf(stderr,"new locus, %s\n",locus);
+      if( oldlocus != NULL ) {
+	fprintf(stderr,"switching locus\n");
+
+	if( no_alleles != 2 ) {
+	  warn("Not good. not 2 allele locus but a %d locus with %c %c\n",no_alleles,first,second);
+	} else {
+	  bi->first_allele_char  = first;
+	  bi->second_allele_char = second;
+	  /* add this bgl */
+	  add_BiGenotypeSet(out,bgl);
+	}
+      } else {
+	fprintf(stderr,"No switch\n");
+      }
+
+
+      /* make new locus data */
+
+       
+      bgl = BiGenotypeLocus_alloc_std();
+      bi  = BiLocus_alloc();
+      bi->locus_id = stringalloc(locus);
+      bgl->locus = bi;
+      
+      add_BiLocusFramework(out->framework,bi);
+
+      oldlocus = bi->locus_id;
+      no_alleles = 0;
+      first = 'U';
+      second = 'U';
+       
+    }
+
+    
+    /* check if we've seen these alleles yet */
+
+    if( no_alleles == 0 ) {
+
+      first = allele1[0];
+      fprintf(stderr,"Assigning from 0 alleles %c %s\n",first,allele2);
+
+      if( allele2[0] != first ) {
+	fprintf(stderr,"Assigning second allele\n");
+	second = allele2[0];
+	no_alleles = 2;
+      } else {
+	no_alleles = 1;
+      }
+    } else if ( no_alleles == 1 ) {
+      if( first != allele1[0] ) {
+	second = allele1[0];
+	no_alleles = 2;
+	if( allele2[0] != first && allele2[0] != second ) {
+	  warn("Mismatched alleles %s,%s with %c,%c",allele1,allele2,first,second);
+	  continue;
+	} else {
+	  /* this is fine, allele2 is either first or second allele */
+	}
+      } else if( first != allele2[0] ) {
+	second = allele2[0];
+	no_alleles = 2;
+      }
+    } else if ( (allele1[0] != first && allele1[0] != second) || 
+		(allele2[0] != first && allele2[0] != second) ) {
+      warn("More alleles than 2 for locus %s, allele %s,%s\n",locus,allele1,allele2);
+      continue;
+    }
+
+
+    fprintf(stderr,"Currently got %d alleles, %c %c\n",no_alleles,first,second);
+
+    /* now figure out what genotype we have */
+    
+    if( allele1[0] == first && allele2[0] == first ) {
+      gt = BiGenotypeHomozygousFirst;
+    } else if ( allele1[0] == second && allele2[0] == second ) {
+      gt = BiGenotypeHomozygousSecond;
+    } else {
+      /* as we have checked above that it is either first or second, must
+	 be a Het */
+      gt = BiGenotypeHetrozygous;
+    }
+
+    bg = BiGenotype_alloc_slab(out->slab);
+    
+    /* check we have this population */
+
+    pop = find_or_new_Population_in_PopulationSet(out->ps,population_id);
+
+    bg->person = find_or_new_Person_in_Population(pop,person_id);
+    bg->type = gt;
+
+    add_BiGenotypeLocus(bgl,bg);
+  }
+
+  if( no_alleles != 2 ) {
+    warn("Not good. not 2 allele locus");
+  } else {
+    bi->first_allele_char  = first;
+    bi->second_allele_char = second;
+    /* add this bgl */
+    add_BiGenotypeSet(out,bgl);
+  }
+
+  fprintf(stderr,"Returning with %d loci\n",out->len);
+
+  return out;
+
+}
+
+
+BiGenotypeSet * new_BiGenotypeSet(void)
+{
+  BiGenotypeSet * out;
+
+  out = BiGenotypeSet_alloc_std();
+  out->framework = new_BiLocusFramework();
+  out->ps = PopulationSet_alloc_std();
+  out->slab = new_BiGenotypeAllocSlab();
+
+  return out;
+
+
+}
+
+%}

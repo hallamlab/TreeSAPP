@@ -1,0 +1,108 @@
+BLASTP 2.1.2
+
+
+Reference: Wise2 Package, Ewan Birney
+BLAST like format to play well with existing parsers. Other options are available
+See help on the program that generated this for other options
+
+
+Query= Not specified
+
+
+Search.................................done
+
+                                                                   Score     E
+Sequences producing significant alignments:                        (bits)  Value
+    EM:MMENDOBA                                                    9.59    0
+    EM:MMENDOBA [2729-3525] M22832 Mus musculus cytokeratin (endoB 15.07    0
+    EM:MMENDOBA                                                    12.70    0
+    EM:MMENDOBA [2729-3525] M22832 Mus musculus cytokeratin (endoB 76.75    0
+    EM:MMENDOBA                                                    11.37    0
+    EM:MMENDOBA [2729-3525] M22832 Mus musculus cytokeratin (endoB 32.05    0
+
+>EM:MMENDOBA  
+          Length = 797 Reversed 1
+
+ Score = 9.6 bits (3322), Expect = 0
+
+Query:      165     AAGAGCAGC                                         173  
+                 D  AAGAGCAGC                                              
+Sbjct:      -551    AAGAGCAGC                                         -542 
+
+
+
+>EM:MMENDOBA [2729-3525] M22832 Mus musculus cytokeratin (endoB) gene, complete cds.
+          Length = 797 Reversed 0
+
+ Score = 15.1 bits (5223), Expect = 0
+
+Query:      187     GGGAGGGCTCTTTCCCAGGAGAGAGGGGGAAGGGGACAGGGTT       229  
+                 B  GGG GGGC C T CCCAGGA  G GGGGG  GGGG   GGGTT            
+Sbjct:      447     GGGGGGGCGCGT-CCCAGGACGGGGGGGGGGGGGGGGGGGGTT       488  
+
+
+
+>EM:MMENDOBA  
+          Length = 797 Reversed 1
+
+ Score = 12.7 bits (4400), Expect = 0
+
+Query:      245     GAA-GTGGACAGCATGGAGGGAG                           266  
+                 C  GAA GTGGA AG  TGGAGGGAG                                
+Sbjct:      -133    GAATGTGGAAAGAGTGGAGGGAG                           -110 
+
+
+
+>EM:MMENDOBA [2729-3525] M22832 Mus musculus cytokeratin (endoB) gene, complete cds.
+          Length = 797 Reversed 0
+
+ Score = 76.8 bits (26601), Expect = 0
+
+Query:      322     TTGGAGGGTTAAGCGGATGTGGCTAAGGCTGAGTCATCTAGGAGTAAAC 370  
+                 C  TT GAGGGTTAAGCGGATGTGGCTAAGG TGAGTCATCTAGGAGTAAAC      
+Sbjct:      359     TTAGAGGGTTAAGCGGATGTGGCTAAGGGTGAGTCATCTAGGAGTAAAC 407  
+
+
+Query:      371     AAGAGGCCTTCCTTTGGGAGGAGCCA                        396  
+                 C  A GAG C T CCT T GGAGG GCCA                             
+Sbjct:      408     AGGAG-CTTACCTGTAGGAGGGGCCA                        432  
+
+
+
+>EM:MMENDOBA  
+          Length = 797 Reversed 1
+
+ Score = 11.4 bits (3941), Expect = 0
+
+Query:      424     CCAGGTGCAC                                        433  
+                 D  CCAGGTGCAC                                             
+Sbjct:      -503    CCAGGTGCAC                                        -493 
+
+
+
+>EM:MMENDOBA [2729-3525] M22832 Mus musculus cytokeratin (endoB) gene, complete cds.
+          Length = 797 Reversed 0
+
+ Score = 32.0 bits (11107), Expect = 0
+
+Query:      561     GGAATCCAGGAAAGGAG-GGA                             580  
+                 D  GGAATCCAGGAA GGAG GGA                                  
+Sbjct:      594     GGAATCCAGGAAGGGAGAGGA                             614  
+
+
+                                                                           
+>-----------<                                                              
+                                                                           
+
+
+Query:      623     GCCTCTGGCTATTCCTGGGACCAGGAAGTTTTCACTAGGATACATAACA 671  
+                 B  GCCTCTG CT TTCCTGGGAC  GGA G  TTCACT G A ACA AA A      
+Sbjct:      647     GCCTCTGACTGTTCCTGGGACTGGGATGGATTCACT-GAA-ACACAAGA 693  
+
+
+Query:      672     CTT-TTTACACACTCACCCCAC                            692  
+                 B  C T TTT C CA TC CCCCAC                                 
+Sbjct:      694     CGTGTTTTCTCA-TC-CCCCAC                            713  
+
+
+

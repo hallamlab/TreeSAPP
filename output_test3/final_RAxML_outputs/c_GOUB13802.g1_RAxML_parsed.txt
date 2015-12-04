@@ -1,0 +1,3 @@
+# Functional analysis, Photolyase/Cryptochrome:
+
+Placement weight 100%: Assignment of query to the lowest common ancestor of BCE_3184 (Bacillus cereus 10987) (17) and SAR11_1318 (Pelagibacter ubique) (113).

@@ -1,0 +1,389 @@
+
+
+
+%{
+#include "genome_evidence.h"
+#include "aln.h"
+
+#define EstEvidenceLISTLENGTH 24
+
+%}
+
+struct EstExon
+int start
+int end
+boolean is_coding !def="FALSE"
+int phase
+int used !def="0"
+int intron_3_score !def="0"
+
+struct EstIndel
+int start
+int end
+
+struct EstEvidence
+EstExon    ** exon  !list
+EstIndel   ** indel !list !len="indel_"
+CodonTable * ct
+int in_smell !default="8"
+
+%{
+#include "est_evidence.h"
+
+int indicate_intron_used(GenomeEvidenceSet * set,AlnBlock * alb)
+{
+  AlnColumn * alc;
+  int i;
+  int j;
+  int has_used = 0;
+
+  for(alc=alb->start;alc!=NULL;alc=alc->next ) {
+    if( strstartcmp(alc->alu[1]->text_label,"5SS") == 0 ) {
+      for(i=0;i<set->len;i++) {
+	auto EstEvidence * evi;
+	evi = (EstEvidence*) set->geu[i]->data;
+	for(j=0;j<evi->len;j++) {
+	  if( abs(evi->exon[i]->end - alc->alu[1]->start) < 4 ) {
+	    /* this is used */
+	    if( evi->exon[i]->used != 1 ) {
+	      evi->exon[i]->used = 1;
+	      has_used = 1;
+	    }
+	  }
+	}
+      }
+    }
+  }
+
+  return has_used;
+}
+      
+  
+GenomeEvidenceSet * read_est_evidence(FILE * ifp,CodonTable * ct)
+{
+  char buffer[MAXLINE];
+  GenomeEvidenceUnit * geu;
+  EstEvidence * evi;
+  EstExon * exon;
+  GenomeEvidenceSet * ges;
+  EstIndel * indel;
+
+  assert(ct);
+  assert(ifp);
+  ges = GenomeEvidenceSet_alloc_std();
+  evi = EstEvidence_alloc_std();
+  evi->ct = hard_link_CodonTable(ct);
+  
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+    if( strstartcmp(buffer,"//") == 0 ) {
+      geu = new_est_GenomeEvidenceUnit(evi);
+      add_GenomeEvidenceSet(ges,geu);
+      evi = EstEvidence_alloc_std();
+      evi->ct = hard_link_CodonTable(ct);
+      continue;
+    } 
+    if( strstartcmp(buffer,"exon") == 0 ) {
+      exon = EstExon_alloc();
+      exon->intron_3_score = 0;
+      if( sscanf(buffer,"exon %d %d %d",&exon->start,&exon->end,&exon->intron_3_score) < 2 ) {
+	fatal("Unable to read exon line as evidence [%s]");
+      }
+
+      exon->start--;
+      exon->end--;
+      add_EstEvidence(evi,exon);
+    } else if( strstartcmp(buffer,"cds") == 0 ) {
+      exon = EstExon_alloc();
+      sscanf(buffer,"cds %d %d %d",&exon->start,&exon->end,&exon->phase);
+      exon->start--;
+      exon->end--;
+      if( exon->phase > 2 || exon->phase < 0 ) {
+	fprintf(stderr,"Exon has a non clear phase - %d\n",exon->phase);
+	return NULL;
+      }
+      exon->is_coding = TRUE;
+      add_EstEvidence(evi,exon);
+    } else if ( strstartcmp(buffer,"indel") == 0 ) {
+      indel = EstIndel_alloc();
+      sscanf(buffer,"indel %d %d",&indel->start,&indel->end);
+      indel->start--;
+      indel->end--;
+      add_indel_EstEvidence(evi,indel);
+    } else {
+      fprintf(stderr,"Unable to read as est evidence - %s",buffer);
+    }
+
+  }
+  if( evi->len > 0 ) {
+    geu = new_est_GenomeEvidenceUnit(evi);
+    add_GenomeEvidenceSet(ges,geu);
+  }
+  return ges;
+}
+
+
+GenomeEvidenceUnit * new_est_GenomeEvidenceUnit(EstEvidence * evi)
+{
+  GenomeEvidenceUnit * in;
+
+  in = GenomeEvidenceUnit_alloc();
+
+  in->cds_3SS = est_cds_3SS;
+  in->cds_5SS = est_cds_5SS;
+  in->utr_3SS = est_3ss;
+  in->utr_5SS = est_5ss;
+  in->cds_pot = est_cds_pot;
+  in->utr_pot = est_utr_pot;
+  in->cds_intron_pot = est_intron_pot;
+  in->utr_intron_pot = est_intron_pot;
+  in->geu_free = free_EstEvidence;
+  in->frameshift_cds = est_cds_frameshift;
+  in->stop_pot = est_stop_pot;
+  in->start_pot = est_start_pot;
+  in->utr3_end = est_utr3_end;
+  in->utr5_start = est_utr5_start;
+  in->data = (void*) evi;
+
+  return in;
+}
+
+
+int est_utr5_start(void * data,ComplexSequence *seq,int jposition)
+{
+  EstEvidence * est;
+
+  est = (EstEvidence *)data;
+  if( est->exon[0]->start == jposition ) {
+    return 0;
+  } else {
+    return -80000;
+  }
+
+}
+
+int est_utr3_end(void * data,ComplexSequence *seq,int jposition)
+{
+  EstEvidence * est;
+
+  est = (EstEvidence *)data;
+  if( est->exon[est->len-1]->end == jposition ) {
+    return 0;
+  } else {
+    return -80000;
+  }
+
+}
+
+int est_start_pot(void * data,ComplexSequence *seq,int jposition)
+{
+  EstEvidence * est;
+  int i;
+  int codon;
+  int atg = (BASE_A*25+BASE_T*5+BASE_G);
+
+  est = (EstEvidence *)data;
+
+  codon = CSEQ_GENOMIC_CODON(seq,jposition);
+  if( is_stop_codon(codon,est->ct) ) {
+    return -10000;
+  } else if( codon == atg ) {
+    return 1200;
+  } else {
+    return 0;
+  }
+}
+
+
+int est_stop_pot(void * data,ComplexSequence *seq,int jposition)
+{
+  EstEvidence * est;
+  int i;
+  est = (EstEvidence *)data;
+
+  if( is_stop_codon(CSEQ_GENOMIC_CODON(seq,jposition),est->ct) ) {
+    return 100;
+  } else {
+    return -1000;
+  }
+}
+
+
+int est_cds_frameshift(void * data,ComplexSequence * seq,int jposition,int jump)
+{
+  EstEvidence * est;
+  int i;
+  est = (EstEvidence *)data;
+
+
+  for(i=1;i<est->indel_len;i++) {
+    if( jposition >= est->indel[i]->start && jposition <= est->indel[i]->end ) {
+      return 0;
+    }
+  }
+
+  return -10000;
+}
+
+
+int est_cds_3SS(void * data,ComplexSequence *seq,int jposition,int phase)
+{
+  switch(phase) {
+  case 0 : return est_3ss(data,seq,jposition);
+  case 1 : return est_3ss(data,seq,jposition);
+  case 2 : return est_3ss(data,seq,jposition);
+  default : return -100000;
+  }
+}
+
+int est_cds_5SS(void * data,ComplexSequence *seq,int jposition,int phase)
+{
+  switch(phase) {
+  case 0 : return est_5ss(data,seq,jposition);
+  case 1 : return est_5ss(data,seq,jposition);
+  case 2 : return est_5ss(data,seq,jposition);
+  default : return -100000;
+  }
+}
+
+
+int est_intron_pot(void * data,ComplexSequence *seq,int jposition)
+{
+  EstEvidence * est;
+  int i;
+  est = (EstEvidence *)data;
+
+
+  for(i=1;i<est->len;i++) {
+    if( (est->exon[i-1]->end <= jposition) && (jposition <= est->exon[i]->start) ) {
+      return 0;
+    }
+    if( (est->exon[i]->start < jposition) && (jposition < est->exon[i]->end) ) {
+      return -1000;
+    }
+  }
+
+  return -10;
+}
+
+
+int est_cds_pot(void * data,ComplexSequence *seq,int jposition)
+{
+  int i;
+  EstEvidence * est;
+  int relative_frame;
+
+  est = (EstEvidence *)data;
+
+
+  for(i=0;i<est->len;i++) {
+    if( est->exon[i]->start <= jposition && jposition <= est->exon[i]->end ) {
+      if( is_stop_codon(CSEQ_GENOMIC_CODON(seq,jposition),est->ct) ) {
+	return -1000000;
+      } else {
+	if( est->exon[i]->is_coding == TRUE ) {
+	  /* phase calculation. difference between start and position */
+
+	  /* more complex than it looks due to convention of where a 
+	     codon lies and the phase convention */
+
+	  relative_frame = (jposition-est->exon[i]->start)%3;
+	  if( relative_frame == 2 && est->exon[i]->phase == 0 ) {
+	    return 125;
+	  } else if ( relative_frame == 1 && est->exon[i]->phase == 1 ) {
+	    return 125;
+	  } else if ( relative_frame == 0 && est->exon[i]->phase == 2) {
+	    return 125;
+	  }
+	} else {
+	  /* not coding exon - return 45 */
+	  return 80;
+	}
+      }
+    }
+  }
+
+  /* we have to return same as stop codon penalty, otherwise
+     we can just dodge stop codons using evidence lines */
+
+  return -1000000;
+}
+
+int est_3ss(void * data,ComplexSequence *seq,int jposition)
+{
+  int i;
+  EstEvidence * est;
+  est = (EstEvidence *)data;
+
+  if( jposition == 0 ) {
+    return -10000;
+  }
+  
+	
+  for(i=0;i<est->len;i++) {
+    if( jposition+1 == est->exon[i]->start ) {
+      return 50;
+    }
+
+    if( abs(jposition+1 - est->exon[i]->start) < est->in_smell && seq->seq->seq[jposition] == 'G' && seq->seq->seq[jposition-1] == 'A' ) {
+      return -400;
+    }
+    
+
+  }
+  
+  return -10000;
+}
+
+
+int est_5ss(void * data,ComplexSequence * seq,int jposition)
+{
+  int i;
+  EstEvidence * est;
+  est = (EstEvidence *)data;
+
+  if( jposition == 0 || jposition >= seq->seq->len+2 ) {
+    return -10000;
+  }
+  
+  for(i=0;i<est->len;i++) {
+    if( jposition-1 == est->exon[i]->end ) {
+      if( est->exon[i]->used == 0 ) {
+	return 500+est->exon[i]->intron_3_score;
+      } else {
+	return 10+est->exon[i]->intron_3_score;
+      }
+    }
+    
+    if( abs(jposition-1 - est->exon[i]->end) < est->in_smell && seq->seq->seq[jposition] == 'G' && seq->seq->seq[jposition+1] == 'T' ) {
+      return -400;
+    }
+    
+  }
+  
+  return -10000;
+}
+ 
+
+int est_utr_pot(void * data,ComplexSequence *seq,int jposition)
+{
+  int i;
+  EstEvidence * est;
+  est = (EstEvidence *)data;
+
+  for(i=0;i<est->len;i++) {
+    if( est->exon[i]->start <= jposition && jposition <= est->exon[i]->end ) {
+      return +10;
+    }
+  }
+
+  return -10;
+}
+
+
+
+
+
+

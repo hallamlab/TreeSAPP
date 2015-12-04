@@ -1,0 +1,370 @@
+
+%{
+#include "hsplookupscan.h"
+
+
+#define SeedHitSetLISTLENGTH 200
+#define SeedHitManagerLISTLENGTH 500
+
+%}
+
+
+struct SeedHit
+int diagonal
+int posi
+int posj
+int used !def="0"
+
+struct SeedHitSet
+SeedHit ** sh !list
+Sequence * target !link
+int score !def="0"
+
+
+struct SeedHitManager
+GHashTable * hash !link 
+SeedHitSet ** set !list
+
+
+
+%{
+#include "hsp2hitscan.h"
+
+#include <sys/time.h>
+#include <sys/resource.h>
+
+
+%func
+Makes a new SeedHit
+%%
+SeedHit * new_SeedHit(int posi,int posj)
+{
+  SeedHit * out;
+
+  out = SeedHit_alloc();
+  out->diagonal = posi - posj;
+  out->posi = posi;
+  out->posj = posj;
+  out->used = 0;
+
+  return out;
+}
+
+%func
+Adds a new position to the manger, allocating any
+new datastructures
+%%
+boolean add_SeedHit_SeedHitManager(SeedHitManager * shm,Sequence * t,int posi,int posj,int score)
+{
+  SeedHitSet * sh = NULL;
+
+  if( (sh = g_hash_table_lookup(shm->hash,(gpointer)t)) == NULL ) {
+    sh = SeedHitSet_alloc_std();
+    sh->target = t;
+    g_hash_table_insert(shm->hash,(gpointer)t,sh);
+    add_SeedHitManager(shm,sh);
+  }
+
+  sh->score += score;
+
+  add_SeedHitSet(sh,new_SeedHit(posi,posj));
+
+  return TRUE;
+}
+
+
+
+%func
+Chooses which Seeds to use for HSPs. If there are more than factor x max_results
+cases, restricted it to factor x max_results scored by seed hits. Then askes
+for two diagonal seeds within a wobble factor to start the HSP process
+%%
+HSPmanager * populate_HSP_from_SeedHitManager(Sequence * query,SeedHitManager * shm,HSPScanInterfacePara * para,HSPScanPara * p)
+{
+  HSPmanager * out;
+  int max_depth;
+  int i,j,k;
+
+  assert(shm);
+
+
+  out = new_HSPmanager(query,p->mat,p->drop_off);
+  
+  if( p->seed_factor * para->max_results > shm->len ) {
+    max_depth = shm->len;
+  } else {
+    sort_SeedHitManager_by_score(shm);
+    max_depth = p->seed_factor * para->max_results;
+  }
+
+  fprintf(stderr,"Looking at %d seend hits from %d\n",max_depth,shm->len);
+
+  for(i=0;i<max_depth;i++) {
+    sort_SeedHitSet_by_diagonal(shm->set[i]);
+    for(j=0;j<shm->set[i]->len;j++) {
+      if( shm->set[i]->sh[j]->used == 1 ) {
+	continue;
+      }
+      for(k=j+1;k<shm->set[i]->len;k++) {
+	if( shm->set[i]->sh[j]->diagonal + p->twohit_wobble < shm->set[i]->sh[k]->diagonal ) {
+	  break;
+	}
+	/* else - we have two potential seeds */
+
+	if( shm->set[i]->sh[j]->used != 1 ) { 
+	  add_pair_HSPmanager(out,shm->set[i]->target,shm->set[i]->sh[j]->posi,shm->set[i]->sh[j]->posj);
+	}
+	if( shm->set[i]->sh[k]->used != 1 ) { 
+	  add_pair_HSPmanager(out,shm->set[i]->target,shm->set[i]->sh[k]->posi,shm->set[i]->sh[k]->posj);
+	}
+
+	shm->set[i]->sh[j]->used = 1;
+	shm->set[i]->sh[k]->used = 1;
+
+      }
+    }
+  }
+
+
+  return out;
+}
+
+
+
+%func
+Builds a 2 hit search model for protein searches
+%%
+HSPScanInterface * new_twohit_HSPScanInterface(SeqLookupInterface * sli,CompMat * mat,int drop_off,int score_cutoff)
+{
+  HSPScanInterface * out;
+  HSPScanPara * p;
+
+  assert(sli);
+  assert(mat);
+  
+  out = HSPScanInterface_alloc();
+
+  p = HSPScanPara_alloc();
+  p->sli = hard_link_SeqLookupInterface(sli);
+  p->mat = hard_link_CompMat(mat);
+  p->drop_off = drop_off;
+  p->score_cutoff = score_cutoff;
+
+  out->data = (void*)p;
+  out->free_data = simple_HSPScan_free;
+
+
+  out->scan_query = one_off_two_hit_HSPscan_query_direct;
+
+
+  return out;
+}
+
+
+
+
+%func
+two hit approach HSPscan 
+%%
+LinearHSPmanager * one_off_two_hit_HSPscan_query_direct(void * data,Sequence * seq,HSPScanInterfacePara * para)
+{
+  HSPmanager * hspm;
+  LinearHSPmanager * out;
+  HSPScanPara * p = (HSPScanPara *)data;
+  char * std_aa = "ACDEFGHIKLMNPQRSTVWY";
+
+  SeedHitManager * shm;
+
+  char newseq[5];
+  int seqno[5];
+  int base[5];
+  int start_base;
+  ArraySeqHead * head;
+  int no;
+  int aa;
+  int score;
+
+  SeqLookupResultInterface * slri;
+  SeqLookupClientInterface * slci;
+  SeqLookupResultStruct * res = NULL;
+
+  static struct rusage use;
+  int i,k,j;
+
+
+  fprintf(stderr,"Got into two hit system!\n");
+
+  shm = new_SeedHitManager();
+
+  assert(seq != NULL);
+  assert(p   != NULL);
+  assert(para != NULL);
+
+  slci = (*p->sli->get_client)(p->sli->data);
+
+
+  getrusage(RUSAGE_SELF,&use);
+
+
+  fprintf(stderr,"START %d.%03du %d.%03ds \n",
+	  use.ru_utime.tv_sec,
+	  use.ru_utime.tv_sec/1000,
+	  use.ru_stime.tv_sec,
+	  use.ru_stime.tv_sec/1000
+	  );
+
+
+  for(i=0;i<seq->len-5;i++) {
+
+    
+    if( (*slci->is_populated)(slci->data,seq_number_aa_5mer(seq->seq+i)) ) {
+
+      slri = (*slci->lookup)(slci->data,seq_number_aa_5mer(seq->seq+i));
+
+      res = NULL;
+      for(;(*slri->is_more)(slri->data);) {    
+	res = (*slri->next)(slri->data,res);
+	add_SeedHit_SeedHitManager(shm,res->seq,i,res->pos,5);
+
+      }
+      free_SeqLookupResultInterface(slri);
+    }
+
+    
+    for(score=0,j=0;j<5;j++) {
+
+      seqno[j] = base[j]*(toupper(seq->seq[i+j]-'A'));
+
+    }
+
+    for(j=0;j<5;j++) {
+      for(aa=0;aa<20;aa++) {
+	if( seq->seq[i+j] == std_aa[aa] ) {
+	  continue;
+	}
+
+	seqno[j] = base[j]*(std_aa[aa]-'A');
+
+	no= seqno[0]+seqno[1]+seqno[2]+seqno[3]+seqno[4];
+
+
+	  if( (*slci->is_populated)(slci->data,seq_number_aa_5mer(newseq)) ) {
+
+	    slri = (*slci->lookup)(slci->data,seq_number_aa_5mer(newseq));
+	    res = NULL;
+	    for(;(*slri->is_more)(slri->data);) {
+	      res = (*slri->next)(slri->data,res);
+	      add_SeedHit_SeedHitManager(shm,res->seq,i,res->pos,1);
+
+	    }
+	    free_SeqLookupResultInterface(slri);
+	  }
+
+
+	seqno[j]  = base[j]*(toupper(seq->seq[i+j]-'A'));
+	newseq[j] = seq->seq[i+j];
+      }
+      
+    }  
+  }
+
+  getrusage(RUSAGE_SELF,&use);
+
+  fprintf(stderr,"END OF SEED %d.%03du %d.%03ds \n",
+	  use.ru_utime.tv_sec,
+	  use.ru_utime.tv_sec/1000,
+	  use.ru_stime.tv_sec,
+	  use.ru_stime.tv_sec/1000
+	  );
+
+
+
+  hspm = populate_HSP_from_SeedHitManager(seq,shm,para,p);
+
+  getrusage(RUSAGE_SELF,&use);
+
+  fprintf(stderr,"POPULATION %d.%03du %d.%03ds \n",
+	  use.ru_utime.tv_sec,
+	  use.ru_utime.tv_sec/1000,
+	  use.ru_stime.tv_sec,
+	  use.ru_stime.tv_sec/1000
+	  );
+
+
+  delete_SeedHitManager(shm);
+
+  if( para->use_protein_heuristic == TRUE ) {
+    out = new_LinearHSPmanager_heuristic_max(hspm,para->max_results);
+  } else {
+    out = new_LinearHSPmanager_flat(hspm);
+  }
+
+  fprintf(stdout,"LINEARISED %d.%03du %d.%03ds \n",
+	  use.ru_utime.tv_sec,
+	  use.ru_utime.tv_sec/1000,
+	  use.ru_stime.tv_sec,
+	  use.ru_stime.tv_sec/1000
+	  );
+
+  
+  return out;
+
+}
+
+%func
+internal for score sorting
+%%
+int compare_SeedHitSet_score(SeedHitSet * one,SeedHitSet * two)
+{
+  return two->score - one->score;
+}
+
+%func
+internal for diagonal sorting
+%%
+int compare_SeedHit_diagonal(SeedHit * one,SeedHit * two)
+{
+  return one->diagonal - two->diagonal;
+}
+
+%func
+Sorts hit managers by score (highest first)
+%%
+void sort_SeedHitManager_by_score(SeedHitManager * shm)
+{
+  sort_SeedHitManager(shm,compare_SeedHitSet_score);
+}
+
+%func
+Sorts SeedHit by diagonal (lowest first)
+%%
+void sort_SeedHitSet_by_diagonal(SeedHitSet * sh)
+{
+  sort_SeedHitSet(sh,compare_SeedHit_diagonal);
+}
+
+
+%func
+Makes an empty SeedHit Manager
+%%
+SeedHitManager * new_SeedHitManager(void)
+{
+  SeedHitManager * out;
+
+  out = SeedHitManager_alloc_std();
+  out->hash =  g_hash_table_new(g_direct_hash,g_direct_equal);
+
+  return out;
+}
+
+
+%func
+Free SeedHitManager
+
+%%
+SeedHitManager * delete_SeedHitManager(SeedHitManager * shm)
+{
+  g_hash_table_destroy(shm->hash);
+
+  return free_SeedHitManager(shm);
+}

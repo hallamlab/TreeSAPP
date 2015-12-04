@@ -1,0 +1,101 @@
+
+%{
+#include "dyna.h"
+
+
+%}
+
+
+matrix LargeBlockAligner
+query type="DNA" name="q"
+target type="DNA" name="t"
+resource type="DNACOMPMAT" name="dm"
+resource type="Score" name="real_ext"
+resource type="Score" name="block_open"
+resource type="Score" name="un_dual"
+resource type="Score" name="un_single"
+resource type="Score" name="gap_open"
+resource type="Score" name="gap_ext"
+state MATCH offi="1" offj="1"
+  source MATCH 
+    calc="0"
+    endsource
+  source INSERT
+    calc="0"
+    endsource
+  source DELETE
+    calc="0"
+    endsource
+  source UNMATCHED
+    calc="block_open"
+    endsource
+  source START
+    calc="block_open"
+    endsource
+  calc="DNABASEMATCH(dm,DNA_BASE(q,i),DNA_BASE(t,j))+real_ext"
+  query_label  SEQUENCE
+  target_label SEQUENCE
+endstate
+state INSERT offi="0" offj="1"
+   source MATCH
+     calc="gap_open"
+     endsource
+   source INSERT
+     calc="gap_ext"
+     endsource
+   query_label INSERT
+   target_label SEQUENCE
+endstate
+state DELETE offi="1" offj="0"
+   source MATCH
+     calc="gap_open"
+     endsource
+   source DELETE
+     calc="gap_ext"
+     endsource
+   query_label  SEQUENCE
+   target_label INSERT
+endstate
+state UNMATCHED 
+   source MATCH offi="1" offj="1"
+     calc="un_dual"
+     endsource
+   source START offi="1" offj="1"
+     calc="un_dual"
+     endsource
+   source UNMATCHED offi="1" offj="1"
+     calc="un_dual"
+     endsource
+   source UNMATCHED offi="0" offj="1"
+     calc="un_single"
+     query_label INSERT
+     endsource
+   source UNMATCHED offi="1" offj="0"
+     calc="un_single"
+     target_label INSERT
+     endsource
+   query_label UNMATCHED_SEQUENCE
+   target_label UNMATCHED_SEQUENCE
+endstate
+state START !special !start 
+endstate
+state END !special !end
+   source MATCH 
+     calc="0"
+     endsource
+  query_label END
+  target_label END
+  source UNMATCHED 
+     calc="0"
+     endsource
+  query_label END
+  target_label END
+endstate
+endmatrix
+
+
+%{
+#include "largeblockdp.h"
+
+
+%}

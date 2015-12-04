@@ -19,6 +19,7 @@ lib
 lib64
 new/*
 old/*
+test_data/
 
 # Installer logs
 pip-log.txt

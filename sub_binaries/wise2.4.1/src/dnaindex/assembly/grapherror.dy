@@ -1,0 +1,296 @@
+
+%{
+#include "basegraph.h"
+#include "assemblypath.h"
+
+#define ReadPatchLISTLENGTH 50
+#define PathEndPointsLISTLENGTH 16
+
+#define PathEndSetLISTLENGTH 16
+
+%}
+
+struct NodeHolder
+BaseNode * node !link
+
+struct ReadPatch
+NodeHolder ** nodes !list
+
+
+struct PathEndPoints
+ReadPatch ** patches !list
+BaseLink * start !link
+
+struct PathEndSet
+PathEndPoints ** ends !list
+
+struct GraphErrorPara
+int search_depth !def=30
+int patch_len  !def=5
+int min_real   !def=2
+int max_error  !def=2
+
+
+%{
+#include "grapherror.h"
+
+GraphErrorPara * new_GraphErrorPara_from_argv(int * argc,char ** argv)
+{
+  GraphErrorPara * out;
+
+  assert(argc != NULL);
+  assert(argv != NULL);
+
+  out = GraphErrorPara_alloc();
+  assert(out != NULL);
+
+  out->search_depth = 30;
+  out->patch_len = 5;
+  out->min_real  = 2;
+  out->max_error = 2;
+
+  strip_out_integer_argument(argc,argv,"er_length",&out->search_depth);
+  strip_out_integer_argument(argc,argv,"er_indel",&out->patch_len);
+  strip_out_integer_argument(argc,argv,"er_real_depth",&out->min_real);
+  strip_out_integer_argument(argc,argv,"er_error_depth",&out->max_error);
+
+  return out;
+
+}
+
+void show_help_GraphErrorPara(FILE * ofp)
+{
+  fprintf(ofp,"Sequencing Error model\n");
+  fprintf(ofp,"  -er_length [30] maximum sequence search for errors\n");
+  fprintf(ofp,"  -er_indel  [5]  maximum indel size\n");
+  fprintf(ofp,"  -er_real_depth [2] minimum depth for real coverage\n");
+  fprintf(ofp,"  -er_error_depth [2] maximum depth for error\n");
+  
+}
+
+
+boolean find_error_and_mark_BaseNode(BaseNode * bn,GraphErrorPara * gep)
+{
+  int i,j;
+  PathEndSet * pes;
+
+
+  assert(bn != NULL);
+  assert(gep != NULL);
+  assert(bn->link_len > 2);
+
+  pes = PathEndSet_from_BaseNode(bn,gep->search_depth,gep->patch_len);
+
+  for(i=0;i<pes->len;i++) {
+    if( (pes->ends[i]->start->state & BaseLink_IS_ERROR) == BaseLink_IS_ERROR ) {
+      continue;
+    }
+
+    if( pes->ends[i]->start->sequence_label_len > gep->min_real ) {
+      for(j=0;j<pes->len;j++) {
+	if( j == i || ((pes->ends[j]->start->state & BaseLink_IS_ERROR) == BaseLink_IS_ERROR) 
+	    || pes->ends[j]->start->sequence_label_len > gep->max_error ) {
+	  continue;
+	}
+	if( PathEndPoints_agree(pes->ends[i],pes->ends[j]) ) {
+	  pes->ends[j]->start->state |= BaseLink_IS_ERROR;
+	}
+      }
+    }
+  }
+
+  return TRUE;
+
+}
+
+PathEndSet * PathEndSet_from_BaseNode(BaseNode * bn,int target_depth,int patch_len)
+{
+  int i;
+  PathEndSet * out;
+
+
+  assert(bn != NULL);
+
+  out = PathEndSet_alloc_std();
+
+  for(i=0;i<bn->link_len;i++) {
+    fprintf(stderr,"  ... making path around %d\n",bn->link[i]);
+    add_PathEndSet(out,PathEndPoints_from_link(bn->link[i],bn,target_depth,patch_len));
+  }
+
+  return out;
+
+}
+
+
+boolean PathEndPoints_agree(PathEndPoints * a,PathEndPoints * b)
+{
+  int i;
+  int j;
+
+  int ii;
+  int jj;
+
+  for(i=0;i<a->len;i++) {
+    for(j=0;j<b->len;j++) {
+      for(ii=0; ii<a->patches[i]->len ;ii++) {
+	for(jj=0; jj<b->patches[j]->len ;jj++) {
+	  if( a->patches[i]->nodes[ii]->node == b->patches[j]->nodes[jj]->node ) {
+	    return TRUE;
+	  }
+	}
+      }
+    }
+  }
+  
+  return FALSE;
+  
+}
+  
+
+boolean extend_ReadPatch(PathEndPoints * out,int target_depth,int patch_len,int curr_depth,BaseLink * link,BaseNode * node,AssemblyPath * upstream,int recurse)
+{
+  ReadPatch * rp;
+  BaseNode * next_node;
+  int no;
+  int i;
+
+  assert(link != NULL);
+
+  if( BaseLink_in_AssemblyPath(link,upstream) == TRUE ) {
+    return FALSE;
+  }
+
+  if( recurse > 3 ) {
+    return FALSE;
+  }
+
+/*  fprintf(stderr,"Looking at potential error around link %d %d (%d)\n",(int)link,node,node->link_len); */
+  if( (link->state & BaseLink_IS_CYCLE) == BaseLink_IS_CYCLE ) {
+    return FALSE;
+  }
+
+
+  add_AssemblyPath(upstream,new_PathStep(link));
+
+  while( curr_depth < target_depth ) {
+    no = next_link_if_unique_BaseLink(link,node,&link);
+    if( no == 1 ) {
+      if( BaseLink_in_AssemblyPath(link,upstream) == TRUE ) {
+	/* cannot work through loops at the moment */
+	return TRUE;
+      }
+      
+      add_AssemblyPath(upstream,new_PathStep(link));
+      curr_depth++;
+      if( link->left == node ) {
+	node = link->right;
+      } else {
+	assert(link->right == node);
+	node = link->left;
+      }
+      continue;
+    }
+
+    if( no == 0 ) {
+      /* end of read before patch length */
+      return TRUE;
+    }
+    /* multiple links - recurse into all of these */
+    
+    
+    curr_depth++;
+    for(i=0;i<node->link_len;i++) {
+      if( link != node->link[i] ) {
+	if( node->link[i]->left == node ) {
+	  next_node = node->link[i]->right;
+	} else {
+	  assert(node->link[i]->right == node);
+	  next_node = node->link[i]->left;
+	}
+	
+/*	fprintf(stderr,"  ..Recurse call\n");*/
+	extend_ReadPatch(out,target_depth,patch_len,curr_depth,node->link[i],next_node,upstream,++recurse);
+      }
+    }
+    
+    /* end of recursion in, so return */
+    return TRUE;
+  }
+  
+  /* hit target depth - put in nodes */
+  
+  rp = ReadPatch_alloc_std();
+  add_PathEndPoints(out,rp);
+
+  while( curr_depth < target_depth+patch_len ) {
+    no = next_link_if_unique_BaseLink(link,node,&link);
+    if( no == 1 ) {
+      curr_depth++;
+      if( link->left == node ) {
+	node = link->right;
+      } else {
+	assert(link->right == node);
+	node = link->left;
+      }
+      
+      add_ReadPatch(rp,new_NodeHolder(node));
+      continue;
+
+      
+    } else {
+      return TRUE;
+    }
+  }
+    
+
+  return TRUE;
+}
+
+
+PathEndPoints * PathEndPoints_from_link(BaseLink * l,BaseNode * prev_node,int target_depth,int patch_len)
+{
+  BaseNode * curr;
+  PathEndPoints * out;
+  AssemblyPath * p;
+
+
+  out = PathEndPoints_alloc_std();
+  out->start = l;
+
+  
+  if( l->left == prev_node ) {
+    curr = l->right;
+  } else {
+    assert(l->right == prev_node);
+    curr = l->left;
+  }
+
+  p = AssemblyPath_alloc_std();
+
+  fprintf(stderr,"First call to extend\n");
+  extend_ReadPatch(out,target_depth,patch_len,0,l,curr,p,0);
+  
+  free_AssemblyPath(p);
+
+  return out;
+
+}
+
+
+NodeHolder * new_NodeHolder(BaseNode * n) 
+{
+  NodeHolder * out;
+
+  out = NodeHolder_alloc();
+  out->node = n;
+
+  return out;
+}
+
+
+
+
+%}
+
+

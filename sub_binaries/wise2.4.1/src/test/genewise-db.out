@@ -1,0 +1,515 @@
+Wise2 - database searching mode
+Program: genewisedb version: $Name: wise2-4-1 $ released: unreleased
+This program is freely distributed under a Gnu Public License.
+   See -version for more info on copyright
+Bugs and credits to Ewan Birney <birney@sanger.ac.uk>
+-----------------------------------------------------
+
+Algorithm type:        GeneWise
+Search algorithm used: 623
+Implementation:        Single Threaded processor (serial)
+Search mode:           Single protein vs genomic db
+Protein info from:     rrm.HMM
+Dna info from:         dna.db
+Start/End (protein)    global
+Gene Paras:            human.gf
+Codon Table:           codon.table
+Subs error:            1e-05
+Indel error:           1e-05
+Model splice?          model
+Model codon bias?      flat
+Model intron bias?     tied
+Null model             syn
+Alignment Alg          623L
+[Warning: Can't fit histogram to a db smaller than 1,000]
+
+
+#
+#WARNING!
+#
+# Your alignment algorithm is different from your search algorithm.
+# This is probably quite sensible but will lead to differing scores.
+# Use the search score as an indicator of the significance of the match
+# Read the docs for more information
+#
+
+
+#High Score list
+#Protein ID                 DNA Str  ID                        Bits Evalue
+--------------------------------------------------------------------------
+Protein SEED                DNA [+] MMD728                   101.74
+Protein SEED                DNA [+] MMD729                   101.74
+Protein SEED                DNA [+] MMFLI2X                  101.74
+Protein SEED                DNA [+] SAHNRNPH                 86.11
+
+
+#Alignments
+-----------------------------------------------------------------------
+
+>Results for SEED vs MMD728 (forward) [0]
+
+genewisedb output
+Score 179.66 bits over entire alignment.
+This will be different from per-alignment scores. See manual for details
+For computer parsable output, try genewisedb -help or read the manual
+Scores as bits over a synchronous coding model
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 1 Score 86.15 (Bits)                    
+
+
+SEED               1 LFVGNLPPDVTEEDLKDLFSKFGPIVSIKIVRDIIEKPKETGKSKGFAF 
+                     LF+G+L++++T+E L+ +F++ G  +++ ++RD     ++T++S+GF+F 
+                     LFIGGLSFETTDESLRSHFEQWGTLTDCVVMRD-----PNTKRSRGFGF 
+MMD728            70 ctaggcatgaaggacaactgctgacagtggaag     caaaatagtgt 
+                     tttggtgtaccaagtggataaggctcagtttga     cacagcggtgt 
+                     cccaggccaaccgtggcttgagaaaactgagat     accgacgctgt 
+
+
+SEED              50 VEFESEEDAEKALEALNGKELGGRKLRV                      
+                     V+++++E++++A++    ++++GR+++                       
+                     VTYATVEEVDAAMN-ARPHKVDGRVVEP                      
+MMD728           202 gatgagggggggaa gaccagggagggc                      
+                     tcacctaataccta cgcaataggttac                      
+                     catctgaagttcgt aaacggtaatgat                      
+
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 2 Score 93.51 (Bits)                    
+
+
+SEED               1 LFVGNLPPDVTEEDLKDLFSKFGPIVSIKIVRDIIEKPKETGKSKGFAF 
+                      FVG++ +D+ E+ L+D+F+++G+I+ I+I++D     +  GK +GFAF 
+                     IFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTD-----RGSGKKRGFAF 
+MMD728           343 atgggaaggaggccccgttgctgaaggagaaag     agagaaagtgt 
+                     tttggtaaacaaaatgaataaagatattattca     ggggaaggtct 
+                     ctttttaactaatcaatttggtggtagaatgtc     actgaggcttt 
+
+
+SEED              50 VEFESEEDAEKALEALNGKELGGRKLRV                      
+                     V+F+++++++K +     ++++G++++V                      
+                     VTFDDHDSVDKIVI-QKYHTVNGHNCEV                      
+MMD728           475 gatggcgtggaaga catcagagcatgg                      
+                     tctaaaactaattt aaaactagaagat                      
+                     tcttctctgtgttt gacttgtccctaa                      
+
+
+//
+Gene 1
+Gene 70 282 
+  Exon 70 282 phase 0
+Gene 2
+Gene 343 555 
+  Exon 343 555 phase 0
+//
+>MMD728.[70:282].sp.tr
+LFIGGLSFETTDESLRSHFEQWGTLTDCVVMRDPNTKRSRGFGFVTYATVEEVDAAMNAR
+PHKVDGRVVEP
+>MMD728.[343:555].sp.tr
+IFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKKRGFAFVTFDDHDSVDKIVIQK
+YHTVNGHNCEV
+//
+>MMD728.[70:282].sp
+CTCTTCATCGGAGGGCTGAGCTTCGAAACAACCGACGAGAGTCTGAGGAGCCATTTTGAG
+CAATGGGGAACACTAACAGACTGTGTGGTAATGAGAGATCCAAACACCAAGAGATCCAGG
+GGCTTTGGGTTTGTCACATATGCCACTGTGGAAGAAGTGGATGCTGCCATGAATGCAAGA
+CCACACAAGGTGGATGGAAGAGTTGTGGAACCT
+>MMD728.[343:555].sp
+ATCTTTGTTGGTGGTATTAAAGAAGACACTGAAGAACATCACCTACGAGATTATTTTGAG
+CAGTATGGGAAGATTGAAGTGATAGAAATTATGACTGACAGAGGCAGTGGGAAAAAGAGG
+GGCTTTGCTTTTGTTACCTTTGATGACCATGACTCTGTGGATAAGATTGTTATTCAGAAA
+TACCATACTGTGAATGGCCACAACTGTGAAGTA
+//
+Sequence MMD728
+subsequence MMD728.1 70 282
+
+Sequence MMD728.1
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 86.15
+source_Exons 1 213
+
+Sequence MMD728
+subsequence MMD728.2 343 555
+
+Sequence MMD728.2
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 93.51
+source_Exons 1 213
+
+//
+Gene 0
+Gene 69 - 282
+Transcript 0
+Exon 0-213
+Translation 0 - 213
+
+Gene 1
+Gene 342 - 555
+Transcript 0
+Exon 0-213
+Translation 0 - 213
+
+//
+
+>Results for SEED vs MMD729 (forward) [1]
+
+genewisedb output
+Score 179.66 bits over entire alignment.
+This will be different from per-alignment scores. See manual for details
+For computer parsable output, try genewisedb -help or read the manual
+Scores as bits over a synchronous coding model
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 1 Score 86.15 (Bits)                    
+
+
+SEED               1 LFVGNLPPDVTEEDLKDLFSKFGPIVSIKIVRDIIEKPKETGKSKGFAF 
+                     LF+G+L++++T+E L+ +F++ G  +++ ++RD     ++T++S+GF+F 
+                     LFIGGLSFETTDESLRSHFEQWGTLTDCVVMRD-----PNTKRSRGFGF 
+MMD729            70 ctaggcatgaaggacaactgctgacagtggaag     caaaatagtgt 
+                     tttggtgtaccaagtggataaggctcagtttga     cacagcggtgt 
+                     cccaggccaaccgtggcttgagaaaactgagat     accgacgctgt 
+
+
+SEED              50 VEFESEEDAEKALEALNGKELGGRKLRV                      
+                     V+++++E++++A++    ++++GR+++                       
+                     VTYATVEEVDAAMN-ARPHKVDGRVVEP                      
+MMD729           202 gatgagggggggaa gaccagggagggc                      
+                     tcacctaataccta cgcaataggttac                      
+                     catctgaagttcgt aaacggtaatgat                      
+
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 2 Score 93.51 (Bits)                    
+
+
+SEED               1 LFVGNLPPDVTEEDLKDLFSKFGPIVSIKIVRDIIEKPKETGKSKGFAF 
+                      FVG++ +D+ E+ L+D+F+++G+I+ I+I++D     +  GK +GFAF 
+                     IFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTD-----RGSGKKRGFAF 
+MMD729           343 atgggaaggaggccccgttgctgaaggagaaag     agagaaagtgt 
+                     tttggtaaacaaaatgaataaagatattattca     ggggaaggtct 
+                     ctttttaactaatcaatttggtggtagaatgtc     actgaggcttt 
+
+
+SEED              50 VEFESEEDAEKALEALNGKELGGRKLRV                      
+                     V+F+++++++K +     ++++G++++V                      
+                     VTFDDHDSVDKIVI-QKYHTVNGHNCEV                      
+MMD729           475 gatggcgtggaaga catcagagcatgg                      
+                     tctaaaactaattt aaaactagaagat                      
+                     tcttctctgtgttt gacttgtccctaa                      
+
+
+//
+Gene 1
+Gene 70 282 
+  Exon 70 282 phase 0
+Gene 2
+Gene 343 555 
+  Exon 343 555 phase 0
+//
+>MMD729.[70:282].sp.tr
+LFIGGLSFETTDESLRSHFEQWGTLTDCVVMRDPNTKRSRGFGFVTYATVEEVDAAMNAR
+PHKVDGRVVEP
+>MMD729.[343:555].sp.tr
+IFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKKRGFAFVTFDDHDSVDKIVIQK
+YHTVNGHNCEV
+//
+>MMD729.[70:282].sp
+CTCTTCATCGGAGGGCTGAGCTTCGAAACAACCGACGAGAGTCTGAGGAGCCATTTTGAG
+CAATGGGGAACACTAACAGACTGTGTGGTAATGAGAGATCCAAACACCAAGAGATCCAGG
+GGCTTTGGGTTTGTCACATATGCCACTGTGGAAGAAGTGGATGCTGCCATGAATGCAAGA
+CCACACAAGGTGGATGGAAGAGTTGTGGAACCT
+>MMD729.[343:555].sp
+ATCTTTGTTGGTGGTATTAAAGAAGACACTGAAGAACATCACCTACGAGATTATTTTGAG
+CAGTATGGGAAGATTGAAGTGATAGAAATTATGACTGACAGAGGCAGTGGGAAAAAGAGG
+GGCTTTGCTTTTGTTACCTTTGATGACCATGACTCTGTGGATAAGATTGTTATTCAGAAA
+TACCATACTGTGAATGGCCACAACTGTGAAGTA
+//
+Sequence MMD729
+subsequence MMD729.1 70 282
+
+Sequence MMD729.1
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 86.15
+source_Exons 1 213
+
+Sequence MMD729
+subsequence MMD729.2 343 555
+
+Sequence MMD729.2
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 93.51
+source_Exons 1 213
+
+//
+Gene 0
+Gene 69 - 282
+Transcript 0
+Exon 0-213
+Translation 0 - 213
+
+Gene 1
+Gene 342 - 555
+Transcript 0
+Exon 0-213
+Translation 0 - 213
+
+//
+
+>Results for SEED vs MMFLI2X (forward) [2]
+
+genewisedb output
+Score 179.66 bits over entire alignment.
+This will be different from per-alignment scores. See manual for details
+For computer parsable output, try genewisedb -help or read the manual
+Scores as bits over a synchronous coding model
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 1 Score 86.15 (Bits)                    
+
+
+SEED               1 LFVGNLPPDVTEEDLKDLFSKFGPIVSIKIVRDIIEKPKETGKSKGFAF 
+                     LF+G+L++++T+E L+ +F++ G  +++ ++RD     ++T++S+GF+F 
+                     LFIGGLSFETTDESLRSHFEQWGTLTDCVVMRD-----PNTKRSRGFGF 
+MMFLI2X          105 ctaggcatgaaggacaactgctgacagtggaag     caaaatagtgt 
+                     tttggtgtaccaagtggataaggctcagtttga     cacagcggtgt 
+                     cccaggccaaccgtggcttgagaaaactgagat     accgacgctgt 
+
+
+SEED              50 VEFESEEDAEKALEALNGKELGGRKLRV                      
+                     V+++++E++++A++    ++++GR+++                       
+                     VTYATVEEVDAAMN-ARPHKVDGRVVEP                      
+MMFLI2X          237 gatgagggggggaa gaccagggagggc                      
+                     tcacctaataccta cgcaataggttac                      
+                     catctgaagttcgt aaacggtaatgat                      
+
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 2 Score 93.51 (Bits)                    
+
+
+SEED               1 LFVGNLPPDVTEEDLKDLFSKFGPIVSIKIVRDIIEKPKETGKSKGFAF 
+                      FVG++ +D+ E+ L+D+F+++G+I+ I+I++D     +  GK +GFAF 
+                     IFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTD-----RGSGKKRGFAF 
+MMFLI2X          378 atgggaaggaggccccgttgctgaaggagaaag     agagaaagtgt 
+                     tttggtaaacaaaatgaataaagatattattca     ggggaaggtct 
+                     ctttttaactaatcaatttggtggtagaatgtc     actgaggcttt 
+
+
+SEED              50 VEFESEEDAEKALEALNGKELGGRKLRV                      
+                     V+F+++++++K +     ++++G++++V                      
+                     VTFDDHDSVDKIVI-QKYHTVNGHNCEV                      
+MMFLI2X          510 gatggcgtggaaga catcagagcatgg                      
+                     tctaaaactaattt aaaactagaagat                      
+                     tcttctctgtgttt gacttgtccctaa                      
+
+
+//
+Gene 1
+Gene 105 317 
+  Exon 105 317 phase 0
+Gene 2
+Gene 378 590 
+  Exon 378 590 phase 0
+//
+>MMFLI2X.[105:317].sp.tr
+LFIGGLSFETTDESLRSHFEQWGTLTDCVVMRDPNTKRSRGFGFVTYATVEEVDAAMNAR
+PHKVDGRVVEP
+>MMFLI2X.[378:590].sp.tr
+IFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKKRGFAFVTFDDHDSVDKIVIQK
+YHTVNGHNCEV
+//
+>MMFLI2X.[105:317].sp
+CTCTTCATCGGAGGGCTGAGCTTCGAAACAACCGACGAGAGTCTGAGGAGCCATTTTGAG
+CAATGGGGAACACTAACAGACTGTGTGGTAATGAGAGATCCAAACACCAAGAGATCCAGG
+GGCTTTGGGTTTGTCACATATGCCACTGTGGAAGAAGTGGATGCTGCCATGAATGCAAGA
+CCACACAAGGTGGATGGAAGAGTTGTGGAACCT
+>MMFLI2X.[378:590].sp
+ATCTTTGTTGGTGGTATTAAAGAAGACACTGAAGAACATCACCTACGAGATTATTTTGAG
+CAGTATGGGAAGATTGAAGTGATAGAAATTATGACTGACAGAGGCAGTGGGAAAAAGAGG
+GGCTTTGCTTTTGTTACCTTTGATGACCATGACTCTGTGGATAAGATTGTTATTCAGAAA
+TACCATACTGTGAATGGCCACAACTGTGAAGTA
+//
+Sequence MMFLI2X
+subsequence MMFLI2X.1 105 317
+
+Sequence MMFLI2X.1
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 86.15
+source_Exons 1 213
+
+Sequence MMFLI2X
+subsequence MMFLI2X.2 378 590
+
+Sequence MMFLI2X.2
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 93.51
+source_Exons 1 213
+
+//
+Gene 0
+Gene 104 - 317
+Transcript 0
+Exon 0-213
+Translation 0 - 213
+
+Gene 1
+Gene 377 - 590
+Transcript 0
+Exon 0-213
+Translation 0 - 213
+
+//
+
+>Results for SEED vs SAHNRNPH (forward) [3]
+
+genewisedb output
+Score 150.47 bits over entire alignment.
+This will be different from per-alignment scores. See manual for details
+For computer parsable output, try genewisedb -help or read the manual
+Scores as bits over a synchronous coding model
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 1 Score 77.89 (Bits)                    
+
+
+SEED               1 LFVGNLPPDVTEEDLKDLFSKFGPIVSIKIVRDIIEKPKETGKSKGFAF 
+                     LF+G+L + +T+E LK++F++ G+IV++ +++D     ++T++S+GF+F 
+                     LFIGGLDYRTTDESLKQHFEQWGEIVDVVVMKD-----PKTKRSRGFGF 
+SAHNRNPH         148 ctaggtgtaaaggtcacctgctggagggggaag     caaaatagtgt 
+                     tttggtaagccaactaaataaggattattttaa     cacagcggtgt 
+                     atttagctaatcgcagattaagtaattggtggc     taggggagtgc 
+
+
+SEED              50 VEFESEEDAEKALEALNGKELGGRKLRV                      
+                     +++     +++A +    ++++GR+++                       
+                     ITYSRAHMVDDAQN-ARPHKVDGRVVEP                      
+SAHNRNPH         280 aattagcaggggca gcccagggcgggc                      
+                     tcacgcattaacaa cgcaataggttac                      
+                     atccaatggtttgt tcacatttttggg                      
+
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 2 Score 72.58 (Bits)                    
+
+
+SEED               1 LFVGNLPPDVTEEDLKDLFSKFGPIVSIKIVRDIIEKPKETGKSKGFAF 
+                     LFVG++ +++ E DL+D+F+++G +VS+ IV D     KET K +GFAF 
+                     LFVGGIKEEMEENDLRDYFKQYGTVVSAAIVVD-----KETRKKRGFAF 
+SAHNRNPH         421 ctgggaaggaggagccgttactgaggtggaggg     agacaacgtgt 
+                     tttggtaaataaaatgaataaagcttcccttta     aacgaaggtct 
+                     atttatgaggaactgcttcagtctccttacctc     ggtcggtcctc 
+
+
+SEED              50 VEFESEEDAEKALEALNGKELGGRKLRV                      
+                     VEF++ + ++K      +++++G+ + V                      
+                     VEFDDYDPVDKICL-SRNHQIRGKHIDV                      
+SAHNRNPH         553 ggtggtgcggaatt acaccacgacagg                      
+                     tataaaactaatgt ggaaatggaatat                      
+                     aatctttatcaatg tctcgctggtatc                      
+
+
+//
+Gene 1
+Gene 148 360 
+  Exon 148 360 phase 0
+Gene 2
+Gene 421 633 
+  Exon 421 633 phase 0
+//
+>SAHNRNPH.[148:360].sp.tr
+LFIGGLDYRTTDESLKQHFEQWGEIVDVVVMKDPKTKRSRGFGFITYSRAHMVDDAQNAR
+PHKVDGRVVEP
+>SAHNRNPH.[421:633].sp.tr
+LFVGGIKEEMEENDLRDYFKQYGTVVSAAIVVDKETRKKRGFAFVEFDDYDPVDKICLSR
+NHQIRGKHIDV
+//
+>SAHNRNPH.[148:360].sp
+CTATTTATTGGTGGATTGGACTATAGAACAACTGACGAGTCCCTAAAGCAACATTTTGAA
+CAATGGGGTGAAATAGTTGATGTGGTGGTTATGAAGGACCCTAAAACGAAGAGGTCGAGA
+GGGTTTGGGTTCATAACTTACTCCAGAGCACATATGGTGGATGATGCTCAGAATGCTCGC
+CCACACAAAGTTGATGGTCGTGTTGTGGAGCCG
+>SAHNRNPH.[421:633].sp
+CTATTTGTTGGTGGAATTAAGGAAGAGATGGAAGAAAACGATCTGCGCGATTATTTCAAA
+CAGTATGGCACTGTCGTCTCTGCTGCAATCGTCGTTGACAAGGAGACTCGCAAGAAGCGT
+GGCTTCGCTTTCGTAGAATTTGACGATTATGATCCAGTTGACAAAATATGTTTGAGTCGC
+AATCACCAGATCCGTGGGAAGCATATAGATGTC
+//
+Sequence SAHNRNPH
+subsequence SAHNRNPH.1 148 360
+
+Sequence SAHNRNPH.1
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 77.89
+source_Exons 1 213
+
+Sequence SAHNRNPH
+subsequence SAHNRNPH.2 421 633
+
+Sequence SAHNRNPH.2
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 72.58
+source_Exons 1 213
+
+//
+Gene 0
+Gene 147 - 360
+Transcript 0
+Exon 0-213
+Translation 0 - 213
+
+Gene 1
+Gene 420 - 633
+Transcript 0
+Exon 0-213
+Translation 0 - 213
+
+//

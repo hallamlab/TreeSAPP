@@ -1,0 +1,40 @@
+=head1 NAME
+
+basematrix module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains helper functions for the Wise2 package
+
+=head1 DESCRIPTION
+
+=over
+
+=item change_max_BaseMatrix_kbytes
+
+&Wise2::change_max_BaseMatrix_kbytes(new_kilo_number)
+
+  This is to change, at run-time the maximum level of bytes basematrix *thinks*
+  it can use. This number is *not* used for any actual calls to basematrix
+  allocation: it is only used with /get_max_BaseMatrix_kbytes
+
+
+
+  Argument new_kilo_number [UNKN ] max kilobytes allowed [int]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item get_max_BaseMatrix_kbytes
+
+&Wise2::get_max_BaseMatrix_kbytes(void)
+
+  returns the max. number of kilobytes suggested as a limited
+  to BaseMatrix. 
+
+
+
+  Return [UNKN ] Undocumented return value [int]
+
+
+=back
+

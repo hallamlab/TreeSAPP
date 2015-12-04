@@ -1,0 +1,130 @@
+
+%{
+#include "wisebase.h"
+#include "codon.h"
+#include "sequence.h"
+
+typedef struct {
+  int number;
+  char flipped;
+} DnaNumber;
+
+%}
+
+struct DnaNumberSequence
+DnaNumber * seq
+int len;
+Sequence * orig
+
+
+%{
+#include "dnanumber.h"
+
+DnaNumberSequence * new_DnaNumberSequence(Sequence * seq,int nmer_size)
+{
+  int i;
+  DnaNumberSequence * out;
+
+  assert(seq);
+  out = DnaNumberSequence_alloc();
+  out->seq = malloc(sizeof(DnaNumber)*seq->len);
+  
+  for(i=0;i<seq->len;i++) 
+    out->seq[i] = dna_number_from_string(seq->seq+i,nmer_size);
+  
+  out->orig = hard_link_Sequence(seq);
+  out->len = seq->len-nmer_size-1;
+
+  return out;
+}
+
+char first_char_from_dnanumber(int dnanumber,int nmer_size,int flipped)
+{
+  int base = 1;
+  int basepair;
+  int power;
+  int i;
+
+  if( flipped == 1 ) {
+    /* first number is therefore lowest bit */
+    basepair = dnanumber % 4;
+    /*    fprintf(stderr,"Going to use %d as number\n",basepair);*/
+    basepair = complement_base(basepair);
+
+    return char_from_base(basepair);
+  } else {
+    for(i=0;i<nmer_size-1;i++) 
+      base *= 4;
+    
+    basepair = (int) (dnanumber / base);
+    
+    return char_from_base(basepair);
+  }
+
+}
+
+DnaNumber dna_number_from_string(char * str,int nmer_size)
+{
+  int i;
+  int base = 1;
+  DnaNumber out;
+  int forward;
+  int backward;
+
+  out.flipped = 2;
+  out.number  = 0;
+
+  for(i=0;i<nmer_size-1;i++) 
+    base *= 4;
+
+  for(i=0;i<nmer_size;i++) {
+    forward = base_from_char(str[i]);
+    backward = complement_base(base_from_char(str[nmer_size-1-i]));
+    
+    if( forward == BASE_N || backward == BASE_N ) {
+      return out; 
+    }
+
+    if( forward > backward ) {
+      out.flipped = 0;
+      break;
+    } 
+    if( backward > forward ) {
+      out.flipped = 1;
+      break;
+    }
+    
+  }
+
+  assert(out.flipped != 2);
+
+  if( out.flipped == 0 ) {
+    for(i=0;i<nmer_size;i++) {
+      out.number += base * base_from_char(str[i]);
+      base = base / 4;
+    }
+  } else {
+    for(i=0;i<nmer_size;i++) {
+      /*      fprintf(stderr,"For position %d, [%d], using %d [%c]as complemented base\n",i,base,complement_base(base_from_char(str[nmer_size-1-i])),str[nmer_size-1-i]); */
+
+      out.number += base * complement_base(base_from_char(str[nmer_size-1-i]));
+      base = base / 4;
+    }
+  }
+
+  return out;
+
+}
+
+%func
+dummy free
+%%
+DnaNumber * free_DnaNumber(DnaNumber * dn)
+{
+  free(dn);
+}
+
+
+%}
+
+

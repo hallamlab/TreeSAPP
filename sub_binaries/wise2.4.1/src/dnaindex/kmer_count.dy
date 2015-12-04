@@ -1,0 +1,49 @@
+
+%{
+#include "dyna.h"
+
+#define KMER_COUNT_BLOCKSIZE 400
+#define KmerCountAllocatorLISTLENGTH 128
+
+%}
+
+
+struct KmerCount
+int long count
+
+struct KmerCountBlock
+KmerCount count[KMER_COUNT_BLOCKSIZE]
+
+struct KmerCountAllocator
+KmerCountBlock ** block !list
+int current_count 
+
+%{
+#include "kmer_count.h"
+
+KmerCount * new_KmerCount_KmerCountAllocator(KmerCountAllocator * kca)
+{
+
+  if( kca->current_count >= KMER_COUNT_BLOCKSIZE ) {
+    add_KmerCountAllocator(kca,KmerCountBlock_alloc());
+    kca->current_count = 0;
+  }
+
+  return &(kca->block[kca->len-1]->count[kca->current_count++]);
+}
+
+
+KmerCountAllocator * new_KmerCountAllocator(void)
+{
+  KmerCountAllocator * out;
+
+  out = KmerCountAllocator_alloc_std();
+  add_KmerCountAllocator(out,KmerCountBlock_alloc());
+  out->current_count = 0;
+
+  return out;
+}
+  
+
+
+%}

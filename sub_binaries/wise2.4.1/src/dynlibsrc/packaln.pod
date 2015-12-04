@@ -1,0 +1,357 @@
+=head1 NAME
+
+packaln module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item PackAln
+
+=item PackAlnUnit
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object PackAln
+
+=over
+
+=item pau
+
+ Type [PackAlnUnit **] List  list of PackAlnUnits from start to end
+
+=item score
+
+ Type [int] Scalar  score over the entire alignment
+
+
+
+=back
+
+This is the lowest-level of representation
+of a DP alignment, being the list of 
+(i,j,state) triples taken through the
+DP matrix. The score for the transition to
+this point is held as well.
+
+This object is very low level and often a
+much better choice for representation is
+in /AlnBlock objects 
+
+
+
+=head2 Member functions of PackAln
+
+=over
+
+=item show_simple_PackAln
+
+&Wise2::PackAln::show_simple_PackAln(pal,ofp)
+
+  shows packaln with a pretty verbose debugging 
+  format
+
+
+
+  Argument pal          [UNKN ] Undocumented argument [PackAln *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item show_bits_and_cumlative_PackAln
+
+&Wise2::PackAln::show_bits_and_cumlative_PackAln(pal,ofp)
+
+  Shows packaln as: 
+
+  i,j,state,score,bits,cumlative-score,cumlative-bits
+
+  cumlative score and cumlative bits are useful sometimes
+
+
+
+  Argument pal          [UNKN ] Undocumented argument [PackAln *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_PackAln
+
+&Wise2::PackAln::hard_link_PackAln(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [PackAln *]
+  Return [UNKN ] Undocumented return value [PackAln *]
+
+
+=item PackAln_alloc_std
+
+&Wise2::PackAln::PackAln_alloc_std(void)
+
+  Equivalent to PackAln_alloc_len(PackAlnLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [PackAln *]
+
+
+=item pau
+
+&Wise2::PackAln::pau(obj,i)
+
+  Access members stored in the pau list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [PackAln *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [PackAlnUnit *]
+
+
+=item length_pau
+
+&Wise2::PackAln::length_pau(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [PackAln *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_pau
+
+&Wise2::PackAln::flush_pau(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [PackAln *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_pau
+
+&Wise2::PackAln::add_pau(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [PackAln *]
+  Argument add          [OWNER] Object to add to the list [PackAlnUnit *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_score
+
+&Wise2::PackAln::set_score(obj,score)
+
+  Replace member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAln *]
+  Argument score        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable score [boolean]
+
+
+=item score
+
+&Wise2::PackAln::score(obj)
+
+  Access member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAln *]
+  Return [SOFT ] member variable score [int]
+
+
+=back
+
+=head2 Object PackAlnUnit
+
+=over
+
+=item i
+
+ Type [int] Scalar  position in query 
+
+=item j
+
+ Type [int] Scalar  position in target
+
+=item state
+
+ Type [int] Scalar  state in FSM
+
+=item score
+
+ Type [int] Scalar  score of the transition that reached this state
+
+
+
+=back
+
+Internal object for /PackAln:
+A single position of an alignment
+as the (i,j,state) triple
+
+
+
+=head2 Member functions of PackAlnUnit
+
+=over
+
+=item hard_link_PackAlnUnit
+
+&Wise2::PackAlnUnit::hard_link_PackAlnUnit(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [PackAlnUnit *]
+  Return [UNKN ] Undocumented return value [PackAlnUnit *]
+
+
+=item alloc
+
+&Wise2::PackAlnUnit::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [PackAlnUnit *]
+
+
+=item set_i
+
+&Wise2::PackAlnUnit::set_i(obj,i)
+
+  Replace member variable i
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAlnUnit *]
+  Argument i            [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable i [boolean]
+
+
+=item i
+
+&Wise2::PackAlnUnit::i(obj)
+
+  Access member variable i
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAlnUnit *]
+  Return [SOFT ] member variable i [int]
+
+
+=item set_j
+
+&Wise2::PackAlnUnit::set_j(obj,j)
+
+  Replace member variable j
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAlnUnit *]
+  Argument j            [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable j [boolean]
+
+
+=item j
+
+&Wise2::PackAlnUnit::j(obj)
+
+  Access member variable j
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAlnUnit *]
+  Return [SOFT ] member variable j [int]
+
+
+=item set_state
+
+&Wise2::PackAlnUnit::set_state(obj,state)
+
+  Replace member variable state
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAlnUnit *]
+  Argument state        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable state [boolean]
+
+
+=item state
+
+&Wise2::PackAlnUnit::state(obj)
+
+  Access member variable state
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAlnUnit *]
+  Return [SOFT ] member variable state [int]
+
+
+=item set_score
+
+&Wise2::PackAlnUnit::set_score(obj,score)
+
+  Replace member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAlnUnit *]
+  Argument score        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable score [boolean]
+
+
+=item score
+
+&Wise2::PackAlnUnit::score(obj)
+
+  Access member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PackAlnUnit *]
+  Return [SOFT ] member variable score [int]
+
+
+=back
+

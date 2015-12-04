@@ -1,0 +1,237 @@
+
+%{
+#include "subseqhash.h"
+#include "hsp.h"
+#include "hsphandler.h"
+#include "dnamatrix.h"
+
+typedef enum {
+  DnaIndexConstructor_subseq = 438,
+} DnaIndexConstructorType;
+
+%}
+
+
+struct DnaIndexConstructor
+int type !def="DnaIndexConstructor_subseq"
+int index_word_length !def="7"
+Probability match_prob !def="0.8"
+int drop_off !def="30"
+
+struct DnaIndex
+int index_word_length
+SeqLookupInterface * sli
+CompMat * cm;
+int drop_off !def="30"
+
+%{
+#include "dnaindexcons.h"
+
+%func 
+Shows help for a DnaIndexConstructor
+%%
+void show_help_DnaIndexConstructor(FILE * ofp)
+{
+  fprintf(ofp,"DnaIndex Constructor options\n");
+  fprintf(ofp,"  -dic_type [hash] type of DnaIndex\n");
+  fprintf(ofp,"  -dic_word [7] index word length\n");
+  fprintf(ofp,"  -dic_prob [0.85] match probabilty in extension\n");
+  fprintf(ofp,"  -dic_drop_off [30] drop off in HSP extension\n");
+
+}
+
+%func
+Builds new DnaIndexConstructor off Command line
+%%
+DnaIndexConstructor * new_DnaIndexConstructor(int * argc,char ** argv)
+{
+  DnaIndexConstructor * out;
+  char * name;
+  
+  out = DnaIndexConstructor_alloc();
+
+  if( (name = strip_out_assigned_argument(argc,argv,"dic_type")) != NULL ) {
+    if( strcmp(name,"hash") == 0 ) {
+      out->type = DnaIndexConstructor_subseq;
+    } else {
+      fatal("Cannot recognise %s as a potential dna index type",name);
+    }
+  }
+
+  strip_out_integer_argument(argc,argv,"dic_word",&out->index_word_length);
+  strip_out_float_argument(argc,argv,"dic_prob",&out->match_prob);
+  strip_out_integer_argument(argc,argv,"dic_drop_off",&out->drop_off);
+
+  
+  return out;
+
+}
+
+%func
+Makes a DnaIndex from a DnaIndexConstructore
+%%
+DnaIndex * DnaIndex_from_DnaIndexConstructor(DnaIndexConstructor * dic)
+{
+  DnaIndex * out;
+  DnaProbMatrix * dmp;
+  DnaMatrix * dm;
+
+  assert(dic);
+
+  out = DnaIndex_alloc();
+
+  switch(dic->type) {
+  case DnaIndexConstructor_subseq :
+    out->sli = new_ghash_SeqLookupInterface();
+    break;
+  default :
+    warn("Unable to make DnaIndex from type %d",dic->type);
+    return NULL;
+  }
+
+  out->index_word_length = dic->index_word_length;
+
+
+  dmp = DnaProbMatrix_from_match(dic->match_prob,NMaskType_BANNED);  
+  assert(dmp);
+  flat_null_DnaProbMatrix(dmp);  
+
+  dm = DnaMatrix_from_DnaProbMatrix(dmp);
+
+  out->cm = new_CompMat_from_DnaMatrix_flat(dm);
+  out->drop_off = dic->drop_off;
+
+  free_DnaMatrix(dm);
+  free_DnaProbMatrix(dmp);
+  
+  return out;
+}
+
+
+%func
+provides a LinearManager for a DNA sequence 
+%%
+LinearHSPmanager * LinearHSPManager_scan_DnaIndex(DnaIndex * di,Sequence * query)
+{
+  LinearHSPmanager * out;
+  HSPmanager * hspm;
+
+  hspm = HSPmanager_scan_DnaIndex(di,query);
+
+  out = new_LinearHSPmanager_flat(hspm);
+
+  free_HSPmanager(hspm);
+
+  return out;
+}
+
+%func
+Provides a HSPmanager from a scan
+%%
+HSPmanager * HSPmanager_scan_DnaIndex(DnaIndex * di,Sequence * seq)
+{
+  HSPmanager * out;
+  SeqLookupClientInterface * slci;
+  SeqLookupResultInterface * slri;
+  SeqLookupResultStruct * res = NULL;
+
+  int i;
+  int no;
+
+  assert(seq);
+  assert(di);
+
+  out = new_HSPmanager(seq,di->cm,di->drop_off);
+  slci = (*di->sli->get_client)(di->sli->data);
+
+  for(i=0;i<seq->len-di->index_word_length;i++) {
+    no = seq_number_dna_Nmer_noN(seq->seq+i,di->index_word_length);
+    if( (*slci->is_populated)(slci->data,no) ) {
+      slri = (*slci->lookup)(slci->data,no);
+      for(;(*slri->is_more)(slri->data);) {
+	res = (*slri->next)(slri->data,res);
+	add_pair_HSPmanager(out,res->seq,i,res->pos);
+      }
+
+      free_SeqLookupResultInterface(slri);
+    }
+  }
+
+  return out;
+}
+
+
+%func
+processes DNA based HSPs
+%%
+boolean process_dna_HSP(HSPset * set,Sequence * query,int query_pos,Sequence * tseq,SeqLookupResultStruct * res_struct,CompMat * mat)
+{
+  int k;
+
+  for(k=0;k<set->len;k++) {
+    if( on_HSP(set->hsp[k],query_pos,res_struct->pos) == TRUE ) {
+      return FALSE;
+    }
+  }
+
+  /* new HSP - extend and add */
+
+  add_HSPset(set,new_HSP(NULL,query,tseq,query_pos,res_struct->pos,mat,5*Probability2Score(0.8/0.25)));
+
+  return TRUE;
+}
+
+
+%func
+Loads a sequence into a DnaIndex
+%%
+boolean load_Sequence_DnaIndex(DnaIndex * di,Sequence * seq,SeqLookupLoadPara * sllp)
+{
+  int i;
+  int no;
+
+  assert(di);
+  assert(seq);
+  assert(di->sli);
+  assert(sllp);
+
+
+  for(i=0;i<seq->len - di->index_word_length;i = i+sllp->tile_freq) {
+    no = seq_number_dna_Nmer_noN(seq->seq+i,di->index_word_length);
+    if( no != -1 ) {
+      (*di->sli->add_direct_number)(di->sli->data,no,seq,i);
+    }
+  }
+  
+
+  return TRUE;
+}
+
+
+%func
+General DNA index number generation
+%%
+int seq_number_dna_Nmer_noN(char * seq,int index_length)
+{
+  int i;
+  int ret = 0;
+  int base = 1;
+  int no = 0;
+
+  for(i=0;i<index_length;i++) {
+    no = base_from_char(seq[i]);
+    if( no == BASE_N ) {
+      return -1;
+    }
+    
+    ret += base * no;
+    base = base * 4;
+  }
+
+  return ret;
+    
+}
+
+
+
+%}

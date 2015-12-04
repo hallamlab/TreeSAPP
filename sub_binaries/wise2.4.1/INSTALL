@@ -1,0 +1,59 @@
+
+
+This README tells you how to install the wise2 on your
+own system.
+
+
+You have picked up the source distribution all you need to do cd into
+src and type 'make all'. This should only fail if
+
+a) You don't have a ANSI C compiler installed as cc.  In which case
+see if you have gcc installated, and if so, edit the makefile in this
+directory to say CC = gcc rather than CC = cc
+
+b) You don't have a make program that allows recursion into
+directories (some old Sun systems did this). Install gnu make.
+
+c) If your copy of wise2 was downloaded via CVS, all the models
+are written in dynamite and need to be compiled. To do that you need to
+make dyc from an existing dynamite compiled system (ie, a tar ball from
+the ftp site)
+
+
+In the existing tar ball go:
+
+-make all in src directory
+
+-cd into dyc go make dyc
+
+-on linux this will fail. Then go make linux
+
+
+Now go:
+
+-copy dyc somewhere on your path; setenv WISECONFIGDIR 
+to $wise-cvs-home/wisecfg/
+
+-cd into src in cvs sources
+
+-go "make init"
+
+-now you can go make all.
+ 
+--------------------------------------------------------------
+
+Installing with Pthreads support
+
+
+To install with Pthreads, you need to edit the top of the makefile
+in this directory. Basically you need to comment out the areas
+it says (by adding a # at the start of hte line) and uncomment
+the areas it says to uncomment. Then 'make all' should make it
+fine.
+
+--------------------------------------------------------------
+	
+
+
+
+

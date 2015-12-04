@@ -1,0 +1,99 @@
+
+
+%{
+#include "dyna.h"
+
+
+#define DnaMatrix_Score(dnamat,base1,base2) (dnamat->score[base1][base2])
+
+%}
+
+type DNAMAT
+real    DnaMatrix*
+endtype
+
+method DNA_MAT_SCORE
+map    DnaMatrix_Score
+arg    DNAMAT
+arg    base
+arg    base
+return int
+endmethod
+
+matrix   cDNA2Gen
+query    type="CDNA" name="query"
+target   type="GENOMIC" name="target"
+resource type="DNAMAT" name="dm"
+resource type="Score" name="cdna_open"
+resource type="Score" name="cdna_ext"
+resource type="Score" name="gen_open"
+resource type="Score" name="gen_ext"
+resource type="Score" name="intron_open"
+state MATCH offi="1" offj="1"
+	calc="DNA_MAT_SCORE(dm,CDNA_BASE(query,i),GENOMIC_BASE(target,j))"
+	source MATCH
+		calc="0"
+		endsource
+	source CDNA_INSERT
+		calc="0"
+		endsource
+	source START
+		calc="0"
+		endsource
+	source GENOMIC_INSERT
+		calc="0"
+		endsource
+	source GENOMIC_INTRON
+		calc="GENOMIC_3SS(target,j-1)"
+		target_label 3SS
+		endsource		
+	query_label SEQUENCE
+	target_label SEQUENCE
+endstate
+state CDNA_INSERT offi="1" offj="0"
+	source MATCH
+		calc="cdna_open"
+		endsource
+	source CDNA_INSERT
+		calc="cdna_ext"
+		endsource
+	query_label  SEQUENCE
+	target_label INSERT
+endstate
+state GENOMIC_INSERT offi="0" offj="1"
+	source MATCH
+		calc="gen_open"
+		endsource
+	source GENOMIC_INSERT
+		calc="gen_ext"
+		endsource
+	query_label INSERT
+	target_label SEQUENCE
+endstate
+state GENOMIC_INTRON offi="0" offj="1"
+	source MATCH offj="1"
+		calc="GENOMIC_5SS(target,j) + intron_open"
+		target_label 5SS
+		endsource
+	source GENOMIC_INTRON
+		calc="0"
+		endsource
+	query_label INSERT
+	target_label CENTRAL_INTRON
+endstate
+state START !special !start
+endstate
+state END !special !end
+	source MATCH 
+		calc="0"
+		endsource
+	query_label END
+	target_label END
+endstate
+collapse INSERT CENTRAL_INTRON
+endmatrix
+		
+
+
+
+

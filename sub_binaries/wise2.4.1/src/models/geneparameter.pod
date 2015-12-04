@@ -1,0 +1,105 @@
+=head1 NAME
+
+geneparameter module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item GeneParameter21
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object GeneParameter21
+
+=over
+
+=item gp
+
+ Type [GeneParser21 *] Scalar No documentation
+
+=item cm
+
+ Type [CodonMapper  *] Scalar No documentation
+
+=item cses
+
+ Type [ComplexSequenceEvalSet *] Scalar No documentation
+
+=item ss
+
+ Type [SpliceSiteModel **] List  held only to be free'd when GeneParser21Set is free'd
+
+=item rc
+
+ Type [RandomCodon  *] Scalar  needed to soak up the odd-and-sods of genes
+
+=item gwcm
+
+ Type [GeneWiseCodonModel *] Scalar No documentation
+
+=item ct
+
+ Type [CodonTable   *] Scalar No documentation
+
+=item modelled_splice
+
+ Type [boolean] Scalar  so we can alter balance scores.
+
+=item gms
+
+ Type [GeneModel    *] Scalar No documentation
+
+
+
+=back
+
+
+GeneParameter21 keeps all the parameters
+for genewise algorithms in one tidy unit.
+
+This is also the switch between the old (compugen handled)
+and new statistics. This object can be made from
+either the old or the new statistics
+
+I have made the object complete opaque to 
+scripting apis because the contents have to
+be coordinated quite well
+
+
+
+=head2 Member functions of GeneParameter21
+
+=over
+
+=item hard_link_GeneParameter21
+
+&Wise2::GeneParameter21::hard_link_GeneParameter21(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [GeneParameter21 *]
+  Return [UNKN ] Undocumented return value [GeneParameter21 *]
+
+
+=item GeneParameter21_alloc_std
+
+&Wise2::GeneParameter21::GeneParameter21_alloc_std(void)
+
+  Equivalent to GeneParameter21_alloc_len(GeneParameter21LISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [GeneParameter21 *]
+
+
+=back
+

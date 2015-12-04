@@ -1,0 +1,28 @@
+
+%{
+#include "wisebase.h"
+#include "sequence.h"
+
+
+%}
+
+
+
+struct SearchStatInterface
+double (*calc_evalue)(void *,Sequence*,Sequence*,int,int) !func
+double (*calc_bits)(void *,int,int,int) !func
+char* (*attribution)(void *) !func
+void (*free_data)(void *) !func
+void * data !link
+%info
+SearchStatInterface converts raw scores into both
+bit score and evalues. Both must be supplied. The 
+function signatures are query_length,target_length,raw_score
+%%
+
+
+%{
+#include "searchstatinterface.h"
+
+
+%}

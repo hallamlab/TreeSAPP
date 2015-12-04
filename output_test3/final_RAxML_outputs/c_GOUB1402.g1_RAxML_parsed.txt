@@ -1,0 +1,3 @@
+# Functional analysis, Photolyase/Cryptochrome:
+
+Placement weight 100%: Assignment of query to SAR11_1318 (Pelagibacter ubique) (113).

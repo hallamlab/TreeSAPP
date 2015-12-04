@@ -1,0 +1,589 @@
+
+%{
+#include "dnanumber.h"
+
+
+#define LinkNumberLISTLENGTH 32
+#define LinkStreamLISTLENGTH 32
+
+#define LinkNumberArrayLISTLENGTH 1024
+
+%}
+
+
+friend LinkNumber
+friend LinkStream
+friend LinkEdge
+
+struct LinkEdge
+LinkStream * x !link
+LinkStream * y !link
+char twist
+
+
+struct LinkStream
+LinkEdge * a !link
+LinkEdge * b !link
+int  number
+char depth
+char starting_flip
+char have_seen
+
+
+struct LinkNumber
+LinkStream ** stream !list
+int number
+
+struct LinkNumberArray
+LinkNumber ** array
+int array_len
+int nmer_size
+LinkEdge ** edge_set !list
+
+
+struct LinkNumberArrayDebug
+char placement_stream
+char add_stream
+char extraction
+FILE * ofp !link
+
+%{
+#include "linkindex.h"
+
+%func
+Reverse builds a DNA sequence stream from LinkStream
+%%
+Sequence * extract_dna_LinkStream(LinkStream * ln,LinkNumberArrayDebug * lnad,int nmer_size)
+{
+  LinkStream * runner;
+  LinkStream * prev;
+  LinkStream * next;
+  int i = 0;
+  Sequence * out;
+  int flipped = 0; 
+  
+  assert(ln);
+  i++;
+  
+  if( lnad->extraction != 0 ) {
+    fprintf(lnad->ofp,"Extracting DNA from linkstream %d\n",ln);
+  }
+
+  ln->have_seen = 1;
+
+  if( ln->a == NULL ) {
+    if( ln->b->x == ln ) {
+      runner = ln->b->y;
+    } else {
+      runner = ln->b->x;
+    }
+  } else {
+    if( ln->a->x == ln ) {
+      runner = ln->a->y;
+    } else {
+      runner = ln->a->x;
+    }
+  }
+
+  prev = ln;
+
+  while( runner != NULL ) {
+    /* to find the outgoing link from here, test neither a nor b
+       is not NULL and figure out the right way to go from the
+       fact that the link is back to ourselves */
+
+    if( runner->a == NULL || runner->b == NULL ) {
+      /* other end of stream */
+      break;
+    }
+    runner->have_seen = 1;
+    i++;
+    if( lnad->extraction > 2 ) {
+      fprintf(lnad->ofp,"Extracting DNA from linkstream %d, runner %d, position count %d\n",ln,runner,i);
+    }
+    
+    if( runner->a->x == runner && runner->a->y != prev) {
+      next = runner->a->y;
+    } else if ( runner->a->y == runner && runner->a->x != prev ) {
+      next = runner->a->x;
+    } else if( runner->b->x == runner && runner->b->y != prev) {
+      next = runner->b->y;
+    } else if ( runner->b->y == runner && runner->b->x != prev ) {
+      next = runner->b->x;
+    } else {
+      fatal("Unable to move off edge!");
+    }
+
+    prev = runner;
+    runner = next;
+  }
+
+
+  out = Sequence_alloc();
+  out->seq = calloc(i+1,sizeof(char));
+
+  i = 0;
+  flipped = ln->starting_flip;
+  if( ln->a == NULL ) {
+    out->seq[0] = first_char_from_dnanumber(ln->number,nmer_size,flipped);
+  } else {
+    /* b is NULL, indicating a 3' end of a sequence, so flip the flip*/
+    out->seq[0] = first_char_from_dnanumber(ln->number,nmer_size,!flipped);
+  }
+
+  if( ln->a == NULL ) {
+    if( ln->b->x == ln ) {
+      runner = ln->b->y;
+    } else {
+      runner = ln->b->x;
+    }
+
+    if( ln->b->twist == 1 ) {
+      flipped = !flipped;
+    }
+
+  } else {
+    if( ln->a->x == ln ) {
+      runner = ln->a->y;
+    } else {
+      runner = ln->a->x;
+    }
+
+    /* as b is always on the reverse strand, invert the flipped sense as we read down it*/
+    if( ln->a->twist == 0 ) {
+      flipped = !flipped;
+    }
+
+  }
+
+
+
+  prev = ln;
+
+  i++;
+
+  while( runner != NULL ) {
+    /* to find the outgoing link from here, test neither a nor b
+       is not NULL and figure out the right way to go from the
+       fact that the link is back to ourselves */
+
+    if( runner->a == NULL || runner->b == NULL ) {
+      /* other end of stream */
+      break;
+    }
+    out->seq[i] = first_char_from_dnanumber(runner->number,nmer_size,flipped);
+    i++;
+
+    if( runner->a->x == runner && runner->a->y != prev) {
+      next = runner->a->y;
+      if( runner->a->twist == 1 ) {
+	flipped = !flipped;
+      }
+    } else if ( runner->a->y == runner && runner->a->x != prev ) {
+      next = runner->a->x;
+      if( runner->a->twist == 1 ) {
+	flipped = !flipped;
+      }
+    } else if( runner->b->x == runner && runner->b->y != prev) {
+      next = runner->b->y;
+      if( runner->b->twist == 1 ) {
+	flipped = !flipped;
+      }
+    } else if ( runner->b->y == runner && runner->b->x != prev ) {
+      next = runner->b->x;
+      if( runner->b->twist == 1 ) {
+	flipped = !flipped;
+      }
+    } else {
+      fatal("Unable to move off edge!");
+    }
+
+    prev = runner;
+    runner = next;
+  }
+
+  runner->have_seen = 1;
+  return out;
+
+}
+
+
+
+%func
+Writes in read to existing streams
+%%
+boolean write_existing_LinkStream(LinkNumberArray * lna,LinkNumberArrayDebug * lnad,DnaNumberSequence * dns)
+{
+  int i;
+  int j;
+  LinkStream * stream;
+  LinkStream * prev = NULL;
+  LinkEdge * edge = NULL;
+  int is_new = 0;
+  int is_old = 0;
+
+  if( lnad->add_stream != 0 ) {
+    fprintf(lnad->ofp,"Adding %s as an existing stream\n",dns->orig->name);
+  }
+  
+  fprintf(stderr,"Adding... on existing...\n");
+
+  for(i=0;i<dns->len;i++) {
+    if( lna->array[dns->seq[i].number] == NULL ) {
+      lna->array[dns->seq[i].number] = LinkNumber_alloc_std();
+      /* now add */
+      stream = LinkStream_alloc();
+      stream->number = dns->seq[i].number;
+      stream->depth = 1;
+      stream->have_seen = 0;
+
+      stream->starting_flip = dns->seq[i].flipped;
+      add_LinkNumber( lna->array[dns->seq[i].number],stream );
+      if( lnad->add_stream > 2 ) {
+	fprintf(lnad->ofp,"Adding new position %s, on %d [%d,%c]\n",dns->orig->name,dns->seq[i].number,i,dns->orig->seq[i]);
+      }
+      is_new = 1;
+      if( prev != NULL ) {
+	edge = new_LinkEdge(lna);
+	edge->x = prev;
+	edge->y = stream;
+
+	if( dns->seq[i].flipped == dns->seq[i-1].flipped ) {
+	  edge->twist = 0;
+	} else {
+	  edge->twist = 1;
+	}
+	
+
+	if( is_old != 1 ) {
+	  /* set up arbitary situation */
+	  prev->b = edge;
+	  stream->a = edge;
+	  stream->b = NULL; /* terminating */
+	} else {
+	  if( prev->a == NULL ) {
+	    prev->a = edge;
+	  } else {
+	    prev->b = edge;
+	  }
+	  stream->a = edge;
+	  stream->b = NULL; /* terminating */
+	  is_old = 0;
+	}
+      } else {
+	/* first position, assign a to NULL */
+	stream->a = NULL;
+	stream->b = NULL;
+      }
+
+      fprintf(stderr,"Leaving with position %d with %d on a and %d on b\n",dns->seq[i].number,
+	      lna->array[dns->seq[i].number]->stream[0]->a,
+	      lna->array[dns->seq[i].number]->stream[0]->b);
+
+	      
+      prev = stream;
+
+      continue;
+    } else {
+      /* as this number has a stream, and we are adding, one of the streams have to be right*/
+
+      /* if this is first, then we know this must be unambiguous */
+      if( i == 0 ) {
+	if( lna->array[dns->seq[0].number]->len > 1 ) {
+	  fatal("Cannot deal with ambiguous first arrays");
+	}
+	lna->array[dns->seq[0].number]->stream[0]->depth++;
+	prev = lna->array[dns->seq[0].number]->stream[0];
+	continue;
+      }
+      
+      /* otherwise, one of these streams should make sense, if not die! */
+
+      for(j=0;j<lna->array[dns->seq[i].number]->len;j++) {
+	auto LinkStream * stream = lna->array[dns->seq[i].number]->stream[j];
+	if( lnad->add_stream != 0 ) {
+	  fprintf(lnad->ofp,"Adding %s as an existing stream, testing %d [%d]\n",dns->orig->name,j,lna->array[dns->seq[i].number]);
+	}
+
+	if( stream->a == NULL || stream->b == NULL) {
+	  /* joining to existing stream from adding things in? Or leaving stream? */
+	  stream->depth++;
+	  if( is_new == 1 ) {
+	    /* we are entering the existing stream here */
+	    edge = new_LinkEdge(lna);
+	    edge->x = prev;
+	    edge->y = stream;
+	    if( dns->seq[i].flipped == dns->seq[i-1].flipped ) {
+	      edge->twist = 0;
+	    } else {
+	      edge->twist = 1;
+	    }
+	    /* assumptions that we make as we are entering here */
+	    assert(prev);
+	    assert(prev->a != NULL);
+	    assert(prev->b == NULL);
+	      
+	    prev->b = edge;
+	    if( stream->a == NULL ) {
+	      stream->a = edge;
+	    } else {
+	      stream->b = edge;
+	    }
+	    is_new = 0;
+	    prev = stream;
+	  } else {
+	    /* we are leaving the existing stream here
+	       have to set up the situtation so that the next link
+	       works ok 
+	    */
+	    is_old = 1;
+	    prev = stream;
+	  }
+	  break; /* out of over all streams */
+	}
+
+	
+
+	if( is_linked_LinkStream(prev,lna->array[dns->seq[i].number]->stream[j],dns->seq[i-1].flipped == dns->seq[i].flipped? 0 : 1) != NULL ) {
+	  lna->array[dns->seq[i].number]->stream[j]->depth++;
+	  prev = lna->array[dns->seq[i].number]->stream[j];
+	  break;
+	}
+      }
+      /* this means we have no stream position that made sense */
+      if( j >= lna->array[dns->seq[i].number]->len ) {
+	fatal("We have a problem. No valid stream, despite adding to existing stream");
+      }
+
+      
+    } /* end of else is filled */
+
+  } /* end of final position */
+
+
+}
+
+%func
+Writes in read as a new stream
+%%
+boolean write_new_LinkStream(LinkNumberArray * lna,LinkNumberArrayDebug * lnad,DnaNumberSequence * dns)
+{
+  LinkStream * stream;
+  LinkStream * prev;
+  LinkEdge * edge;
+  
+  int i;
+
+  /* First position is odd */
+
+  if( lna->array[dns->seq[0].number] == NULL ) {
+    lna->array[dns->seq[0].number] = LinkNumber_alloc_std();
+  }
+  stream = LinkStream_alloc();
+  stream->number = dns->seq[0].number;
+  stream->starting_flip = dns->seq[0].flipped;
+  stream->depth = 1;
+  add_LinkNumber( lna->array[dns->seq[0].number],stream );
+  if( lnad->add_stream > 2 ) {
+    fprintf(lnad->ofp,"Adding %s, on %d\n",dns->orig->name,dns->seq[0].number);
+  }
+  
+  stream->a = NULL;
+  prev = stream;
+
+
+  for(i=1;i<dns->len;i++) {
+    if( lna->array[dns->seq[i].number] == NULL ) {
+      lna->array[dns->seq[i].number] = LinkNumber_alloc_std();
+    }
+    stream = LinkStream_alloc();
+    stream->number = dns->seq[i].number;
+    stream->starting_flip = dns->seq[i].flipped;
+    stream->depth = 1;
+    add_LinkNumber( lna->array[dns->seq[i].number],stream );
+
+    if( lnad->add_stream > 2 ) {
+      fprintf(lnad->ofp,"Adding %s, on %d\n",dns->orig->name,dns->seq[i].number);
+    }
+    
+    edge = new_LinkEdge(lna);
+    edge->x = prev;
+    edge->y = stream;
+    if( dns->seq[i].flipped == dns->seq[i-1].flipped ) {
+      edge->twist = 0;
+    } else {
+      edge->twist = 1;
+    }
+
+    prev->b = edge;
+    stream->a = edge;
+
+    prev = stream;
+  }
+
+  /* final guy, finish off */
+  prev->b = NULL;
+    
+
+}
+
+%func
+Returns the right edge which potentially links these two link streams
+%%
+LinkEdge * is_linked_LinkStream(LinkStream * l_one,LinkStream * l_two,char twist)
+{
+  if( l_one->a != NULL && l_one->b != NULL ) {
+    fprintf(stderr,"Testing Link %d with Edges %d,%d and links %d,%d [%d] and %d,%d [%d] to %d [%d]\n",l_one,l_one->a,l_one->b,l_one->a->x,l_one->a->y,l_one->a->twist,l_one->b->x,l_one->b->y,l_one->b->twist,l_two,twist);
+  }
+  
+  if( l_one->a != NULL && l_one->a->x == l_one && l_one->a->y == l_two && l_one->a->twist == twist ) {
+    return l_one->a;
+  }
+
+  if( l_one->a != NULL && l_one->a->y == l_one && l_one->a->x == l_two && l_one->a->twist == twist ) {
+    return l_one->a;
+  }
+
+  if( l_one->b != NULL && l_one->b->x == l_one && l_one->b->y == l_two && l_one->b->twist == twist ) {
+    return l_one->b;
+  }
+
+  if( l_one->b != NULL && l_one->b->y == l_one && l_one->b->x == l_two && l_one->b->twist == twist ) {
+    return l_one->b;
+  }
+
+  fprintf(stderr,"Going to return NULL\n");
+
+  return NULL;
+}
+
+%func
+Determines whether this DnaNumberSequence should be newly
+streamed or not
+%%
+boolean is_new_stream_LinkNumberArray(LinkNumberArray * lna,LinkNumberArrayDebug * lnad,DnaNumberSequence * dns)
+{
+  int i,j,k;
+  boolean seen_end = 0;
+  LinkStream * prev;
+
+  assert(lna);
+  assert(dns);
+
+  /* find starting position */
+  for(i=0;i<dns->len;i++) {
+    if( lnad->placement_stream > 2 ) {
+      fprintf(lnad->ofp,"Read %s is unique testing position %d with %d [%d]\n",dns->orig->name,i,dns->seq[i].number,lna->array[dns->seq[i].number]);
+    }
+    if( lna->array[dns->seq[i].number] != NULL ) 
+      break;
+  }
+   
+  if( i >= dns->len ) {
+    /* virgin - return TRUE */
+    if( lnad->placement_stream != 0 ) {
+      fprintf(lnad->ofp,"Read %s is unique, starting new stream\n",dns->orig->name);
+    }
+    return TRUE;
+  }
+
+  if( lna->array[dns->seq[i].number]->len > 1 ) {
+    if( lnad->placement_stream != 0 ) {
+      fprintf(lnad->ofp,"Read %s starts on ambiguous position, can't cope\n",dns->orig->name);
+    }
+    return TRUE;
+  }
+
+  prev = lna->array[dns->seq[i].number]->stream[0];
+
+  for(i++;i<dns->len;i++) {
+    if( lna->array[dns->seq[i].number] == NULL ) 
+      break;
+
+    for(j=0;j<lna->array[dns->seq[i].number]->len;j++) {
+      auto LinkStream * stream = lna->array[dns->seq[i].number]->stream[j];
+      auto LinkEdge * edge = is_linked_LinkStream(stream,prev,dns->seq[i-1].flipped == dns->seq[i].flipped ? 0 : 1);
+
+      if( edge == NULL ) {
+	if( lnad->placement_stream != 0 ) {
+	  fprintf(lnad->ofp,"Read %s, edge failure at position %d\n",dns->orig->name,i);
+	}
+	return TRUE;
+      }
+
+      if( lnad->placement_stream > 2 ) {
+	fprintf(lnad->ofp,"Read %s, successfully found stream for position %d\n",dns->orig->name,i);
+      }
+      prev = stream;
+    }
+  }
+
+  if( i < dns->len ) {
+    /* reached end, on a stream! return FALSE */
+    if( lnad->placement_stream != 0 ) {
+      fprintf(lnad->ofp,"Read %s is streamable to end\n",dns->orig->name);
+    }
+    return FALSE;
+  }
+
+  /* still could be valid if NULL to end of seq */
+  for(;i<dns->len;i++) {
+    if( lna->array[dns->seq[i].number] == NULL ) {
+      if( lnad->placement_stream != 0 ) {
+	fprintf(lnad->ofp,"Read %s was streamable to end, but has a re-entry\n",dns->orig->name);
+      }
+      return TRUE;
+    }
+  }
+
+  if( lnad->placement_stream != 0 ) {
+    fprintf(lnad->ofp,"Read %s is streamable to end, but does have unique tail\n",dns->orig->name);
+  }
+
+  return FALSE;
+}
+
+
+
+%func
+Returns a LinkNumberArray with the appropiate
+array size for this size of Nmer
+%%
+LinkNumberArray * new_LinkNumberArray(int nmer_size)
+{
+  int size = 1;
+  int i;
+  LinkNumberArray * out;
+
+  for(i=0;i<nmer_size;i++) {
+    size *= 4;
+  }
+
+  out = LinkNumberArray_alloc_std();
+
+  out->array = calloc(size,sizeof(LinkNumber*));
+  out->nmer_size = nmer_size;
+  out->array_len = size;
+
+  return out;
+
+}
+
+
+%func
+makes a new link edge added into the memory management
+%%
+LinkEdge * new_LinkEdge(LinkNumberArray * lna)
+{
+  LinkEdge * new;
+
+  assert(lna);
+  new = LinkEdge_alloc();
+  add_LinkNumberArray(lna,new);
+
+  return new;
+
+}
+
+
+%}

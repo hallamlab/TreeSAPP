@@ -1,0 +1,729 @@
+
+%{
+#include "dyna.h"
+
+#define OrthoLinkLISTLENGTH 50
+#define OrthoNodeLISTLENGTH 50
+#define OrthoNode_consLISTLENGTH 50
+#define OrthoSpeciesLISTLENGTH 50
+
+#define OrthoGraphLISTLENGTH 50
+#define OrthoGraph_speciesLISTLENGTH 20
+#define OrthoWrapperListLISTLENGTH 400
+#define OrthoNodePathLISTLENGTH 40
+
+%}
+
+friend OrthoSeqPos
+
+struct OrthoSpecies
+char * name
+OrthoSeqPos ** cons !list
+
+struct OrthoSeqPos
+OrthoSpecies * species !link
+char * seq_name
+int start
+int end
+int strand
+int score
+OrthoSeqPos * prev !link
+OrthoSeqPos * next !link
+
+friend OrthoNode
+
+struct OrthoLink
+OrthoSeqPos ** seq !list
+OrthoNode * left
+OrthoNode * right
+int is_consistent !def="0"
+int is_accounted !def="0"
+
+
+struct OrthoNode
+OrthoSeqPos ** cons !list !len="cons_"
+OrthoLink ** link !list 
+int is_dead !def="0"
+int is_consistent !def="0"
+int is_break !def="0"
+
+struct OrthoNodeWrapper
+OrthoNode * node !link
+OrthoSeqPos * seqpos !link
+
+struct OrthoWrapperList
+OrthoNodeWrapper ** w !list
+
+struct OrthoGraph
+OrthoNode ** node !list
+OrthoSpecies ** species !list !len="species_"
+
+struct OrthoGraphLinkPara
+int max_internode_size !def="200000"
+
+
+struct OrthoNodePath 
+OrthoNodeWrapper ** path !list
+int is_complex !def="0";
+
+
+%{
+#include "orthoset.h"
+
+
+OrthoNodePath * new_OrthoNodePath_from_break(OrthoNode * start,OrthoLink * first)
+{
+  int i;
+  int j;
+  OrthoLink * curr;
+  OrthoLink * next;
+  OrthoNode * curr_n;
+  OrthoNodePath * path;
+  OrthoNodeWrapper * w;
+
+  path = OrthoNodePath_alloc_std();
+
+  w = OrthoNodeWrapper_alloc();
+  w->node = start;
+  add_OrthoNodePath(path,w);
+
+  curr = first;
+  curr->is_accounted = 1;
+  curr_n = start;
+
+  while( 1 ) {
+    /* find next node from curr and curr_n */
+    if( curr->left == curr_n ) {
+      curr_n = curr->right;
+    } else {
+      curr_n = curr->left;
+    }
+
+    /* add this node into list */
+
+    w = OrthoNodeWrapper_alloc();
+    w->node = curr_n;
+    add_OrthoNodePath(path,w);
+
+    /* if this is a break node, stop */
+
+    if( curr_n->is_break == 1 ) {
+      break;
+    }
+
+    /* if this node has only one link, stop. End of chromosome! */
+
+    if( curr_n->len < 2 ) {
+      break;
+    }
+
+
+    /* else, find next link by finding outbound
+       link with highest number of species */
+
+    /* if we have more than 2 links, then this
+       path is complex and will need additional processing */
+
+    if( curr_n->len > 2 ) {
+      path->is_complex = 1;
+    }
+
+    next = NULL;
+    for(i=0;i<curr_n->len;i++) {
+      if( curr_n->link[i] == curr ) {
+	continue;
+      }
+      if( next == NULL ) {
+	next = curr_n->link[i];
+      } else if ( next->len < curr_n->link[i]->len ) {
+	next = curr_n->link[i];
+      }
+    }
+
+    fatal("Actually we have to be careful here to not tread on already accounted for links!");
+    
+    if( next == NULL ) {
+      warn("This should be impossible! Node with 2 or more links but not a next findable link!");
+      break;
+    }
+
+    next->is_accounted = 1;
+    curr = next;
+      
+  }
+  
+
+  return path;
+}
+
+void classify_definite_break_OrthoNodes(OrthoGraph * g)
+{
+  int i;
+  int j;
+  int k;
+
+  int link;
+
+  /* definite breaks have > 3 links, each link with >1 species */
+
+  for(i=0;i<g->len;i++) {
+    if( g->node[i]->len < 3 ) {
+      continue;
+    }
+    link = 0;
+    for(j=0;j<g->node[i]->len;j++) {
+      if( g->node[i]->link[j]->len > 1 ) {
+	link++;
+	if( link > 2 ) {
+	  break;
+	}
+      }
+    }
+
+    if( link > 2 ) {
+      g->node[i]->is_break = 1;
+    }
+
+  }
+}
+
+void classify_consistent_OrthoNodes(OrthoGraph * g)
+{
+  int i;
+  int j;
+  int k;
+
+  int spflag;
+  int foundsp;
+
+  for(i=0;i<g->len;i++) {
+    if( g->node[i]->len != 2 ) {
+      continue;
+    }
+    
+    spflag = 0;
+    for(j=0;j<g->node[i]->link[0]->len;j++) {
+      foundsp = 0;
+      for(k=0;k<g->node[i]->link[1]->len;k++) {
+	if( g->node[i]->link[0]->seq[j]->species == g->node[i]->link[1]->seq[k]->species ) {
+	  foundsp = 1;
+	  break;
+	}
+      }
+      if( foundsp == 0 ) {
+	spflag = 1;
+	break;
+      }
+    }
+
+    if( spflag == 0 ) {
+      g->node[i]->is_consistent = 1;
+      g->node[i]->link[0]->is_consistent = 1;
+      g->node[i]->link[1]->is_consistent = 1;
+    }
+    
+  }
+
+}
+
+OrthoLink * find_connecting_OrthoLink(OrthoNode * a,OrthoNode * b)
+{
+  int i;
+  OrthoNode * t;
+
+  /* make sure a > b in memory */
+  if( b > a ) {
+    t = a;
+    a = b;
+    b = t;
+  }
+
+  for(i=0;i<a->len;i++) {
+    if( a->link[i]->left == a && a->link[i]->right == b ) {
+      return a->link[i];
+    }
+  }
+
+  return NULL;
+}
+
+
+OrthoNode * next_OrthoNode_considering_species(OrthoNode * curr,OrthoLink * prev)
+{
+  int found;
+  OrthoLink * l;
+  int i,j;
+
+  assert(curr != NULL);
+  assert(prev != NULL);
+
+  if( curr->len != 2 ) {
+    return NULL;
+  }
+
+  if( curr->link[0] == prev ) {
+    l = curr->link[1];
+  } else {
+    if( curr->link[1] != prev ) {
+      warn("Suggesting a link which doesn't lead to this node!");
+      return NULL;
+    }
+    l = curr->link[0];
+  }
+
+  for(i=0;i<prev->len;i++) {
+    found = 0;
+    for(j=0;j<l->len;j++) {
+      if( prev->seq[i]->species == l->seq[i]->species ) {
+	found = 1;
+	break;
+      }
+    }
+    if( found == 0 ) {
+      return NULL;
+    }
+  }
+
+  if( l->left == curr ) {
+    return l->right;
+  } else {
+    return l->left;
+  }
+
+}
+  
+
+
+void add_OrthoLinks_to_OrthoGraph(OrthoGraph * g,OrthoGraphLinkPara * p)
+{
+  int i,j,k;
+  OrthoWrapperList * owl;
+  OrthoSeqPos * seqpos;
+  OrthoLink * link;
+  int strand;
+
+  /* 
+   * basic algorithm - for each species, pull
+   * out an OrthoNodeWrapper, which has all active nodes
+   * with this species represented. Sort this by
+   * chr and start position. Put in the links along
+   * this set of OrthoNodes. If there is an existing link
+   * between two nodes then just add to this link
+   */
+
+  for(i=0;i<g->species_len;i++) {
+    owl = new_OrthoWrapperList_from_OrthoGraph(g,g->species[i]);
+    sort_by_chr_start_OrthoWrapperList(owl);
+    for(j=1;j<owl->len;j++) {
+      if( strcmp(owl->w[j]->seqpos->seq_name,owl->w[j-1]->seqpos->seq_name) != 0 ) {
+	continue; /* no link */
+      }
+      if( owl->w[j-1]->seqpos->end + p->max_internode_size < owl->w[j]->seqpos->start ) {
+	continue; /* no link */
+      }
+      
+      /* make a link; first off check if we already have a link */
+
+      link = NULL;
+
+      
+      for(k=0;k<owl->w[j-1]->node->len;k++) {
+	/* convention is for links always to have the higher node position
+	 * on the right link and the lower on the left link */
+	
+	if( owl->w[j-1]->node > owl->w[j]->node ) {
+	  if( owl->w[j-1]->node->link[k]->left == owl->w[j]->node ) {
+	    link = owl->w[j-1]->node->link[k];
+	    strand = -1;
+	    break;
+	  }
+	} else {
+	  if( owl->w[j-1]->node->link[k]->right == owl->w[j]->node ) {
+	    link = owl->w[j-1]->node->link[k];
+	    strand = 1;
+	    break;
+	  }
+	}
+      }
+
+      if( link == NULL ) {
+	/* we did not find this link, make a new one */
+
+	/* convention is that the memory-higher node
+	 * is to the right 
+	 */
+
+	link = OrthoLink_alloc_std();
+	if( owl->w[j-1]->node > owl->w[j]->node ) {
+	  link->left  = owl->w[j]->node;
+	  link->right = owl->w[j-1]->node; 
+	  strand = -1;
+	} else {
+	  link->right  = owl->w[j]->node;
+	  link->left = owl->w[j-1]->node; 
+	  strand = 1;
+	}
+
+	add_OrthoNode(owl->w[j-1]->node,link);
+	add_OrthoNode(owl->w[j]->node,link);
+
+      }
+
+      /* now put in seqpos at this link */
+
+      seqpos = OrthoSeqPos_alloc();
+      seqpos->species = g->species[i];
+      seqpos->seq_name = stringalloc(owl->w[j-1]->seqpos->seq_name);
+      seqpos->start   = owl->w[j-1]->seqpos->end;
+      seqpos->end     = owl->w[j]->seqpos->start;
+      seqpos->strand  = strand;
+
+      add_OrthoLink(link,seqpos);
+    }
+
+    free_OrthoWrapperList(owl);
+  }
+
+  
+}
+
+
+void sort_by_chr_start_OrthoWrapperList(OrthoWrapperList * owl)
+{
+  sort_OrthoWrapperList(owl,compare_OrthoNodeWrapper);
+}
+
+int compare_OrthoNodeWrapper(OrthoNodeWrapper * one,OrthoNodeWrapper * two)
+{
+  int t;
+
+  t = strcmp(one->seqpos->seq_name,two->seqpos->seq_name);
+  
+  if( t != 0 ) {
+    return t;
+  }
+
+  return (one->seqpos->start - two->seqpos->start);
+
+}
+
+OrthoWrapperList * new_OrthoWrapperList_from_OrthoGraph(OrthoGraph * g,OrthoSpecies * sp)
+{
+  int i;
+  int j;
+  OrthoNodeWrapper * w;
+  OrthoWrapperList * out;
+
+  assert(g != NULL);
+  assert(sp != NULL);
+
+  out = OrthoWrapperList_alloc_std();
+  
+  for(i=0;i<g->len;i++) {
+    if( g->node[i]->is_dead == 1 ) {
+      continue;
+    }
+
+    for(j=0;j<g->node[i]->cons_len;j++) {
+      if( g->node[i]->cons[j]->species == sp ) {
+	w = OrthoNodeWrapper_alloc();
+	w->node = g->node[i];
+	w->seqpos = g->node[i]->cons[j];
+	add_OrthoWrapperList(out,w);
+      }
+    }
+  }
+
+  return out;
+}
+
+OrthoGraph * merged_OrthoGraph_from_pairwise(OrthoGraph * pair)
+{
+  int i,j,k,l;
+  boolean been_seen;
+  OrthoGraph * g;
+  OrthoNode * current;
+
+  g = OrthoGraph_alloc_std();
+
+  for(i=0;i<pair->species_len;i++) {
+    add_species_OrthoGraph(g,hard_link_OrthoSpecies(pair->species[i]));
+  }
+  
+  /* for each node in the pairwise set, loop over
+     all existing nodes. If they can merge, add them into.
+
+     Watch out for a pairwise node bridging between two
+     new nodes - will need merging of nodes followed by
+     deleting one of the new nodes 
+  */
+
+  for(i=0;i<pair->len;i++) {
+    current = NULL;
+    for(j=0;j<g->len;j++) {
+      
+      fprintf(stderr,"Considering pair %d with new %d (%d)\n",i,j,g->node[j]->is_dead);
+
+      if( g->node[j]->is_dead == 0 && overlap_OrthoNode(g->node[j],pair->node[i]) == TRUE ) {
+	current = g->node[j];
+	for(k=0;k<pair->node[i]->cons_len;k++) {
+
+	  /* we need to check that this new SeqPos is not overlapping with one already;
+	   * if so, we want to just extend that SeqPos. We can have more than one SeqPos
+	   * per node, but _not_ more than one overlapping SeqPos 
+	   */
+
+	  been_seen = 0;
+	  for(l=0;l<current->cons_len;l++) {
+	    if( overlap_OrthoSeqPos(current->cons[l],pair->node[i]->cons[k]) == TRUE ) {
+	      been_seen = 1;
+	      if( current->cons[l]->start > pair->node[i]->cons[k]->start ) {
+		current->cons[l]->start = pair->node[i]->cons[k]->start;
+	      }
+	      if( current->cons[l]->end < pair->node[i]->cons[k]->end ) {
+		current->cons[l]->end = pair->node[i]->cons[k]->end;
+	      }
+	      break;
+	    }
+	  }
+
+	  if( been_seen == 0 ) {
+	    add_cons_OrthoNode(g->node[j],hard_link_OrthoSeqPos(pair->node[i]->cons[k]));
+	  }
+
+	}
+
+
+	break;
+      }
+    }
+
+    /* need to think about meeting new nodes */
+
+    /* if we hit another node in the merged set, (g) then 
+     * we add this to current, which is the new merged node in
+     * here. When we do this we flag that node as dead in the
+     * merged set */
+
+    for(j++;j<g->len;j++) {
+      if( g->node[j]->is_dead == 0 && overlap_OrthoNode(g->node[j],pair->node[i]) == TRUE ) {
+	for(k=0;k<g->node[j]->cons_len;k++) {
+	  add_cons_OrthoNode(current,hard_link_OrthoSeqPos(g->node[j]->cons[k]));
+	}
+	g->node[j]->is_dead = 1;
+      }
+    }
+
+    /* if current still is NULL here, then this is
+       a currently orphaned node */
+
+    if( current == NULL ) {
+      add_OrthoGraph(g,hard_link_OrthoNode(pair->node[i]));
+    }
+  }
+
+  return g;
+
+}
+
+
+
+boolean overlap_OrthoNode(OrthoNode * rec,OrthoNode * donor)
+{
+  int i;
+
+  assert(rec != NULL);
+  assert(donor != NULL);
+  
+  assert(donor->cons_len == 2);
+
+
+  for(i=0;i<rec->cons_len;i++) {
+    fprintf(stderr,"Looking at species %s %s vs %s\n",
+	    donor->cons[0]->species->name,
+	    donor->cons[1]->species->name,
+	    rec->cons[i]->species->name);
+
+    if( rec->cons[i]->species == donor->cons[0]->species )
+      if( overlap_OrthoSeqPos(rec->cons[i],donor->cons[0]) == TRUE ) {
+	return TRUE;
+      }
+
+    if( rec->cons[i]->species == donor->cons[1]->species )
+      if( overlap_OrthoSeqPos(rec->cons[i],donor->cons[1]) == TRUE ) {
+	return TRUE;
+      }
+  }
+
+  return FALSE;
+}
+
+
+boolean overlap_OrthoSeqPos(OrthoSeqPos * one,OrthoSeqPos * two)
+{
+  assert(one != NULL);
+  assert(two != NULL);
+  if( one->species != two->species ) {
+    return FALSE;
+  }
+  if( strcmp(one->seq_name,two->seq_name) != 0 ) {
+    return FALSE;
+  }
+
+  if( ! ( ( one->start > two->end) || (one->end < two->start)) ) {
+    return TRUE;
+  } 
+
+  return FALSE;
+}
+
+void read_pairwise_OrthoSeqPos(OrthoGraph * g,FILE * ifp)
+{
+  char buffer[MAXLINE];
+  char species1[MAXLINE];
+  char species2[MAXLINE];
+  char chr1[MAXLINE];
+  char chr2[MAXLINE];
+  int start1,end1,strand1,start2,end2,strand2,score;
+
+  OrthoSeqPos * one;
+  OrthoSeqPos * two;
+  OrthoSpecies * sp_one = NULL;
+  OrthoSpecies * sp_two = NULL;
+  OrthoNode * n;
+
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"//") == 0 ) {
+      return;
+    }
+
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+
+    /* species chr start end strand species chr start end strand score */
+
+    if( sscanf(buffer,"%s %s %d %d %d %s %s %d %d %d %d",
+	   species1,
+	   chr1,
+	   &start1,
+	   &end1,
+	   &strand1,
+	   species2,
+	   chr2,
+	   &start2,
+	   &end2,
+	   &strand2,
+	       &score ) != 11 ) {
+      warn("Unable to parse %s as species line");
+      continue;
+    }
+    
+    if( sp_one == NULL || strcmp(sp_one->name,species1) != 0 ) {
+      sp_one = OrthoSpecies_from_name(g,species1);
+      if( sp_one == NULL ) {
+	sp_one = OrthoSpecies_alloc_std();
+	sp_one->name = stringalloc(species1);
+	add_species_OrthoGraph(g,sp_one);
+      }
+    }
+
+    if( sp_two == NULL || strcmp(sp_two->name,species2) != 0 ) {
+      sp_two = OrthoSpecies_from_name(g,species2);
+      if( sp_two == NULL ) {
+	sp_two = OrthoSpecies_alloc_std();
+	sp_two->name = stringalloc(species2);
+	add_species_OrthoGraph(g,sp_two);
+      }
+    }
+
+    one = OrthoSeqPos_alloc();
+    two = OrthoSeqPos_alloc();
+
+    one->species = sp_one;
+    one->seq_name = stringalloc(chr1);
+    one->start = start1;
+    one->end = end1;
+    one->strand = strand1;
+
+    two->species = sp_two;
+    two->seq_name = stringalloc(chr2);
+    two->start = start2;
+    two->end = end2;
+    two->strand = strand2;
+
+    n = OrthoNode_alloc_len(2);
+    
+    add_cons_OrthoNode(n,one);
+    add_cons_OrthoNode(n,two);
+
+    add_OrthoGraph(g,n);
+
+  }
+
+  return;
+}
+
+
+void * dump_simple_OrthoGraph(OrthoGraph * g,FILE * ofp)
+{
+  int i,j,k;
+
+  assert(g != NULL);
+  assert(ofp != NULL);
+
+
+  for(i=0;i<g->len;i++) {
+    fprintf(ofp,"Node %d (id %d) with %d anchors consistent %d\n",i,(int)g->node[i],g->node[i]->cons_len,g->node[i]->is_consistent);
+    for(j=0;j<g->node[i]->cons_len;j++) {
+      fprintf(ofp,"  Anchor %s %s %d %d %d %d\n",
+	      g->node[i]->cons[j]->species->name,
+	      g->node[i]->cons[j]->seq_name,
+	      g->node[i]->cons[j]->start,
+	      g->node[i]->cons[j]->end,
+	      g->node[i]->cons[j]->strand,
+	      g->node[i]->cons[j]->score);
+    }
+    for(j=0;j<g->node[i]->len;j++) {
+      fprintf(ofp,"  Link to ");
+      if( g->node[i]->link[j]->left == g->node[i] ) {
+	fprintf(ofp," %d\n",g->node[i]->link[j]->right);
+      } else {
+	fprintf(ofp," %d\n",g->node[i]->link[j]->left);
+      }
+      for(k=0;k<g->node[i]->link[j]->len;k++) {
+	fprintf(ofp,"  span %s %s %d %d %d %d\n",
+	      g->node[i]->link[j]->seq[k]->species->name,
+	      g->node[i]->link[j]->seq[k]->seq_name,
+	      g->node[i]->link[j]->seq[k]->start,
+	      g->node[i]->link[j]->seq[k]->end,
+	      g->node[i]->link[j]->seq[k]->strand,
+	      g->node[i]->link[j]->seq[k]->score);
+      }
+    }
+
+  }
+
+}
+
+
+OrthoSpecies * OrthoSpecies_from_name(OrthoGraph * g,char * name)
+{
+  int i;
+  
+  assert(g != NULL);
+
+  for(i=0;i<g->species_len;i++) {
+    if( strcmp(g->species[i]->name,name) == 0 ) {
+      return g->species[i];
+    }
+  }
+
+  return NULL;
+}
+
+
+
+
+%}

@@ -1,0 +1,61 @@
+
+%{
+#include "wisebase.h"
+#include <time.h>
+#include <limits.h>
+
+
+%}
+
+
+%{
+#include "wiserandom.h"
+
+static boolean isinit = FALSE;
+
+%func
+initates the random generator to
+time byte...
+%%
+void init_random(void)
+{
+  srandom((long) time(NULL));
+  isinit = TRUE;
+}
+
+%func
+returns an integer between 0 and l
+though I don't think we will get 0
+very often. Hmmm.
+%%
+int random_integer(int l)
+{
+  double rand;
+  
+  rand = random_0_to_1();
+  
+  return (int) (l*rand);
+}
+
+%func
+returns a random number between
+0 and 1
+%%
+double random_0_to_1(void)
+{
+  double ret;
+  long rnd;
+
+  if( isinit == FALSE)
+    init_random();
+  isinit = TRUE;
+
+  rnd = random();
+
+  ret = (double)rnd / (double)LONG_MAX;
+
+/*  fprintf(stderr," got... %D %f\n",rnd,ret);*/
+
+  return ret;
+}
+	

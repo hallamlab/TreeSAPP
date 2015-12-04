@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_Gene *    T_Wise2_Gene
+
+INPUT
+T_Wise2_Gene
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Gene *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Gene
+	sv_setref_pv($arg, "Wise2::Gene", (void*) $var);

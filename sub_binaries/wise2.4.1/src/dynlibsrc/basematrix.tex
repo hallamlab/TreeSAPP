@@ -1,0 +1,37 @@
+\section{basematrix}
+\label{module_basematrix}
+This module only contains factory methods
+
+\subsection{basematrix factory methods}
+\subsubsection{change_max_BaseMatrix_kbytes}
+\begin{description}
+\item[External C] {\tt Wise2_change_max_BaseMatrix_kbytes (new_kilo_number)}
+\item[Perl] {\tt &Wise2::change_max_BaseMatrix_kbytes (new_kilo_number)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[new_kilo_number] [UNKN ] max kilobytes allowed [int]
+\item[returns] Nothing - no return value
+\end{description}
+This is to change, at run-time the maximum level of bytes basematrix *thinks*
+it can use. This number is *not* used for any actual calls to basematrix
+allocation: it is only used with /get_max_BaseMatrix_kbytes
+
+
+\subsubsection{get_max_BaseMatrix_kbytes}
+\begin{description}
+\item[External C] {\tt Wise2_get_max_BaseMatrix_kbytes (void)}
+\item[Perl] {\tt &Wise2::get_max_BaseMatrix_kbytes ()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+returns the max. number of kilobytes suggested as a limited
+to BaseMatrix. 
+
+
+
+

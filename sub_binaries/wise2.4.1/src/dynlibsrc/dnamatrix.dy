@@ -1,0 +1,265 @@
+
+%{
+#include "dyna.h"
+
+typedef enum NMaskType {
+  NMaskType_BASE,
+  NMaskType_VARIABLE,
+  NMaskType_EXCLUDED,
+  NMaskType_BANNED
+} NMaskType;
+
+#define DnaMatrix_MATCH(mat,one,two) (mat->score[one][two])
+
+%}
+
+struct DnaProbMatrix
+Probability prob[5][5]
+
+struct DnaMatrix 
+Score score[5][5]
+
+api
+object DnaMatrix
+des free_DnaMatrix
+endobject
+object DnaProbMatrix
+des free_DnaProbMatrix
+func flat_null_DnaProbMatrix
+endobject
+func identity_DnaMatrix
+func DnaProbMatrix_from_match
+func DnaMatrix_from_DnaProbMatrix
+endapi
+
+
+%{
+#include "dnamatrix.h"
+
+
+
+%func
+Builds a CompMat mapping of a DnaMatrix
+%%
+CompMat * new_CompMat_from_DnaMatrix_flat(DnaMatrix * dm)
+{
+  int i,j;
+
+  CompMat * mat;
+
+  mat = CompMat_alloc();
+
+  for(i=0;i<26;i++) {
+    for(j=0;j<26;j++) {
+      mat->comp[i][j] = NEGI;
+    }
+  }
+
+  for(i=0;i<5;i++) {
+    for(j=0;j<5;j++) {
+	mat->comp[char_from_base(i)-'A'][char_from_base(j)-'A'] = dm->score[i][j];
+    }
+  }
+
+  return mat;
+}
+
+
+%func
+Makes a probability matrix from simple match/mismatch 
+probabilities.
+
+%%
+DnaProbMatrix * DnaProbMatrix_from_match(Probability match,int nmask_type)
+{
+  int i,j;
+  DnaProbMatrix * out;
+  Probability factor;
+
+  switch (nmask_type ) {
+  case NMaskType_BASE :
+    factor = ((1.0 - match)/4.0);
+    break;
+  case NMaskType_VARIABLE :
+  case NMaskType_EXCLUDED :
+  case NMaskType_BANNED :
+    factor = ((1.0 - match)/3.0);
+    break;
+  default :
+    warn("No valid mask type. Ugh!");
+    return NULL;
+  }
+
+    
+
+  out = DnaProbMatrix_alloc();
+  
+  for(i=0;i<4;i++) {
+    for(j=0;j<4;j++) {
+      if( i == j ) {
+	out->prob[i][j]  = match;
+      } else {
+	out->prob[i][j] = factor;
+      }
+    }
+  }
+
+  for(i=0;i<5;i++) {
+    switch (nmask_type ) {
+    case NMaskType_BASE :
+      if( i == BASE_N ) {
+	out->prob[i][i]  = match;
+      } else {
+	out->prob[BASE_N][i] = out->prob[i][BASE_N] = factor;
+      }
+      break;
+    case NMaskType_VARIABLE :
+      if( i == BASE_N ) {
+	out->prob[i][i]  = 0.25;
+      } else {
+	out->prob[BASE_N][i] = out->prob[i][BASE_N] = 0.25;
+      }
+      break;
+
+    case NMaskType_EXCLUDED :
+      if( i == BASE_N ) {
+	out->prob[i][i]  = 1.0;
+      } else {
+	out->prob[BASE_N][i] = out->prob[i][BASE_N] = 0.0;
+      }
+      break;
+    case NMaskType_BANNED :
+      out->prob[BASE_N][i] = out->prob[i][BASE_N] = 0.0;      
+      break;
+    default :
+      warn("No valid mask type. Ugh! Shouldn't be here. A BAD  BAD bug!!!");
+    }
+
+  }
+
+  return out;
+
+}
+
+%func
+makes a odds of dpm via a 0.25 factor 
+into each base.
+%%
+void flat_null_DnaProbMatrix(DnaProbMatrix * dpm)
+{
+  int i,j;
+
+  for(i=0;i<4;i++) {
+    for(j=0;j<4;j++) {
+      dpm->prob[i][j] = dpm->prob[i][j]/0.25;
+    }
+  }
+
+  return;
+}
+  
+    
+%func
+Maps probabilities to scores
+%%
+DnaMatrix * DnaMatrix_from_DnaProbMatrix(DnaProbMatrix * dpm)
+{
+  int i,j;
+  DnaMatrix * out;
+  
+  out = DnaMatrix_alloc();
+  for(i=0;i<5;i++) 
+    for(j=0;j<5;j++) 
+      out->score[i][j] = Probability2Score(dpm->prob[i][j]);
+
+  return out;
+}
+
+%func
+Simple view of DnaMatrix
+%%
+void show_DnaMatrix(DnaMatrix * dcm,FILE * ofp)
+{
+  int i,j;
+
+  for(i=0;i<5;i++) {
+    for(j=0;j<5;j++) {
+      fprintf(ofp,"%c %c - %d\n",char_from_base(i),char_from_base(j),dcm->score[i][j]);
+    }
+  }
+}
+
+%func
+Simple view of DnaProbMatrix
+%%
+void show_DnaProbMatrix(DnaProbMatrix * dpm,FILE * ofp)
+{
+  int i,j;
+
+  for(i=0;i<5;i++) {
+    for(j=0;j<5;j++) {
+      fprintf(ofp,"%c %c - %g\n",char_from_base(i),char_from_base(j),dpm->prob[i][j]);
+    }
+  }
+}
+
+
+%func
+Run-time checked that one and two are ok to pass
+into dm as bases
+
+%arg
+dm DnaMatrix to get score from
+one base of one sequence
+two base of the other sequence
+%%
+Score fail_safe_DnaMatrix_access(DnaMatrix * dm,base one,base two)
+{
+  if( dm == NULL) {
+    warn("Passing in a NULL dna matrix into fail_safe_DnaMatrix_access, can't get a score therefore");
+    return 0;
+  }
+
+  if( one < 0 || one > 4 || two < 0 || two > 4 ) {
+    warn("In fail safe DnaMatrix access, trying to access a position [%d][%d] where this is meant to be 0-4",one,two);
+    return 0;
+  }
+
+  return dm->score[one][two];
+}
+
+%func 
+makes an idenity matrix wth id_score on the leading
+diagonal and mismatch elsewhere.
+
+%arg
+id_score score of idenities
+mismatch score of mistmatches
+%%
+DnaMatrix * identity_DnaMatrix(Score id_score,Score mismatch)
+{
+  DnaMatrix * out;
+  int i;
+  int j;
+
+  out = DnaMatrix_alloc();
+
+  for(i=0;i<4;i++)
+    for(j=i;j<4;j++) {
+      if( i == j ) 
+	out->score[i][j] = id_score;
+      else 
+	out->score[i][j] = out->score[j][i] = mismatch;
+    }
+  
+  for(i=0;i<4;i++) {
+    out->score[i][4] = out->score[4][i] = 0;
+  }
+  out->score[4][4] = 0;
+
+  return out;
+}
+
+%}
+
+

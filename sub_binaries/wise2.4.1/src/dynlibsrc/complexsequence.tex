@@ -1,0 +1,75 @@
+\section{complexsequence}
+\label{module_complexsequence}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_ComplexSequence} ComplexSequence
+
+\item \ref{object_ComplexSequenceEvalSet} ComplexSequenceEvalSet
+
+\end{itemize}
+\subsection{Object ComplexSequence}
+
+\label{object_ComplexSequence}
+
+The ComplexSequence object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{type} Type [int : Scalar] No documentation
+
+\item{seq} Type [Sequence * : Scalar] No documentation
+
+\item{data} Type [int * : Scalar] No documentation
+
+\item{datastore} Type [int * : Scalar] No documentation
+
+\item{depth} Type [int : Scalar] No documentation
+
+\item{length} Type [int : Scalar] No documentation
+
+\item{creator} Type [ComplexSequenceEvalSet * : Scalar]  what made it
+
+\end{description}
+A ComplexSequence is an abstraction of a 
+Sequence which can be handily made using
+ComplexSequenceEval functions and is efficiently
+laid out in memory.
+
+
+
+
+Member functions of ComplexSequence
+
+\subsection{Object ComplexSequenceEvalSet}
+
+\label{object_ComplexSequenceEvalSet}
+
+The ComplexSequenceEvalSet object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{type} Type [int : Scalar] No documentation
+
+\item{has_been_prepared} Type [boolean : Scalar] No documentation
+
+\item{left_window} Type [int : Scalar]  overall sequence eval 
+
+\item{right_window} Type [int : Scalar]  overall sequence eval
+
+\item{left_lookback} Type [int : Scalar]  overall sequence eval
+
+\item{cse} Type [ComplexSequenceEval ** : List] No documentation
+
+\end{description}
+This object holds a collection of 
+ComplexSequenceEvals. Its role is to
+define the sequence specific parts of a
+dynamic programming algorithm as computable
+functions. 
+
+
+Ideally you should use pre-made ComplexSequenceEvalSets
+as it will save you alot of grief
+
+
+
+
+Member functions of ComplexSequenceEvalSet
+

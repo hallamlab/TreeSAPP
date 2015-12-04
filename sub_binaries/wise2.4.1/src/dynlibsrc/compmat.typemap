@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_CompMat *    T_Wise2_CompMat
+
+INPUT
+T_Wise2_CompMat
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_CompMat *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_CompMat
+	sv_setref_pv($arg, "Wise2::CompMat", (void*) $var);

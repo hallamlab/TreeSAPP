@@ -1,0 +1,41 @@
+
+%{
+#include "assembly_stream_interface.h"
+
+
+
+%}
+
+
+
+
+
+%{
+#include "assembly_stream_fasta.h"
+
+
+AssemblySequenceStream * plain_fasta_AssemblySequenceStream(FILE * ifp)
+{
+  AssemblySequenceStream * out;
+
+  out = AssemblySequenceStream_alloc();
+
+  out->handle = (void*) ifp;
+
+  out->next_AssemblySequence = next_AssemblySequence_fasta_impl;
+  out->free_handle = NULL; /* it is a no-op */
+
+  return out;
+}
+
+
+AssemblySequence * next_AssemblySequence_fasta_impl(void * h)
+{
+  FILE * ifp = (FILE *) h;
+
+  return read_plain_fasta_AssemblySequence(ifp,0,NULL);
+  
+}
+
+
+%}

@@ -1,0 +1,58 @@
+
+%{
+#include "wisebase.h"
+
+#define AnonymousObjectListLISTLENGTH 16
+
+
+%}
+
+struct AnonymousObject
+void * obj  !link
+char * type 
+void (*free_object)(void *) !func
+
+struct AnonymousObjectList
+AnonymousObject ** anon !list
+
+%{
+#include "anonobj.h"
+
+
+%func
+frees an anonymous object
+%%
+!deconstructor
+AnonymousObject * free_AnonymousObject(AnonymousObject * ao)
+{
+  int return_early = 0;
+
+#ifdef PTHREAD   
+    assert(pthread_mutex_lock(&(ao->dynamite_mutex)) == 0); 
+#endif   
+    if( ao->dynamite_hard_link > 1)     {  
+      return_early = 1;  
+      ao->dynamite_hard_link--; 
+      }  
+#ifdef PTHREAD   
+    assert(pthread_mutex_unlock(&(ao->dynamite_mutex)) == 0);   
+#endif   
+    if( return_early == 1)   
+      return NULL;   
+
+  if( ao->obj != NULL ) {
+    if( ao->free_object == NULL ) {
+      warn("With object of %s, no registered free function, but with a present object. Likely to be leaking memory now",ao->type);
+    } else {
+      (*ao->free_object)(ao->obj);
+    }
+  }
+
+  free(ao);
+
+  return NULL;
+
+}
+
+
+%}

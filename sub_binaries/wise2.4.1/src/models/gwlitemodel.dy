@@ -1,0 +1,208 @@
+
+%{
+#include "dyna.h"
+#include "genewisemodel.h"
+
+#define GwLiteScoreLISTLENGTH 128
+#define GwLiteLISTLENGTH 128
+
+
+enum GwLiteTransition {
+  GWL_MATCH2MATCH,
+  GWL_MATCH2INSERT,
+  GWL_MATCH2DELETE,
+  GWL_MATCH2END,
+  GWL_INSERT2MATCH,
+  GWL_INSERT2INSERT,
+  GWL_INSERT2DELETE,
+  GWL_INSERT2END,
+  GWL_DELETE2MATCH,
+  GWL_DELETE2INSERT,
+  GWL_DELETE2DELETE,
+  GWL_DELETE2END,
+  GWL_START2MATCH,
+  GWL_START2INSERT,
+  GWL_START2DELETE,
+  GWL_TRANSITION_LEN
+};
+
+#define GWL_EMISSION_LEN 65
+
+%}
+
+
+struct GwLiteSegment
+Probability match[GWL_EMISSION_LEN]
+Probability insert[GWL_EMISSION_LEN]
+Probability transition[GWL_TRANSITION_LEN]
+%info
+This is a particular HMM node, with
+match and insert emissions in the codon space
+and the transitions for the genewise light model
+%%
+
+struct GwLite
+GwLiteSegment ** seg !list
+char * name
+%info
+This is the lightweight version 
+of GeneWise designed for faster executation
+and better portability to hardware environments
+%%
+
+struct GwLiteSegmentScore
+Score match[GWL_EMISSION_LEN]
+Score insert[GWL_EMISSION_LEN]
+Score transition[GWL_TRANSITION_LEN]
+%info
+This is the genewise lite scoring
+data structure
+%%
+
+struct GwLiteScore
+GwLiteSegmentScore ** seg !list
+char * name
+%info
+This is the lightweight version 
+of GeneWise designed for faster executation
+and better portability to hardware environments
+%%
+
+
+%{
+#include "gwlitemodel.h"
+
+
+%func
+A pretty weird function. Takes an AlnBlock made by GwLite and
+performs the necessary surgery at the 3SS to make it look like
+the AlnBlocks produced by the other genewise models. This means
+it has to eat into the intron by 3 residues 
+%% 
+void GwLite_AlnBlock_surgery(AlnBlock * alb)
+{
+  AlnColumn * alc;
+  
+  for(alc = alb->start;alc != NULL;alc = alc->next ) {
+    if( strstartcmp(alc->alu[1]->text_label,"3SS") == 0 ) {
+      alc->alu[1]->start -= 3;
+    }
+  }
+}
+
+
+%func
+Builds a GwLite model from the GeneWise model
+%%
+GwLite * GwLite_from_GeneWise(GeneWise * gwm)
+{
+  GwLite * out;
+  GwLiteSegment * seg;
+  int i,c,codon125;
+  
+  out = GwLite_alloc_len(gwm->len);
+  for(i=0;i<gwm->len;i++) {
+    seg = GwLiteSegment_alloc();
+    for(c=0;c<64;c++) {
+      codon125 = codon_from_base4_codon(c);
+      seg->match[c]= gwm->seg[i]->match[codon125];
+      seg->insert[c]= gwm->seg[i]->insert[codon125];
+    }
+    
+    seg->transition[GWL_MATCH2MATCH] = gwm->seg[i]->transition[GW_MATCH2MATCH];
+    seg->transition[GWL_MATCH2INSERT] = gwm->seg[i]->transition[GW_MATCH2INSERT];
+    seg->transition[GWL_MATCH2DELETE] = gwm->seg[i]->transition[GW_MATCH2DELETE];
+    seg->transition[GWL_MATCH2END] = gwm->seg[i]->transition[GW_MATCH2END];
+
+    seg->transition[GWL_INSERT2MATCH] = gwm->seg[i]->transition[GW_INSERT2MATCH];
+    seg->transition[GWL_INSERT2INSERT] = gwm->seg[i]->transition[GW_INSERT2INSERT];
+    seg->transition[GWL_INSERT2DELETE] = gwm->seg[i]->transition[GW_INSERT2DELETE];
+    seg->transition[GWL_INSERT2END] = gwm->seg[i]->transition[GW_INSERT2END];
+
+    seg->transition[GWL_DELETE2MATCH] = gwm->seg[i]->transition[GW_DELETE2MATCH];
+    seg->transition[GWL_DELETE2INSERT] = gwm->seg[i]->transition[GW_DELETE2INSERT];
+    seg->transition[GWL_DELETE2DELETE] = gwm->seg[i]->transition[GW_DELETE2DELETE];
+    seg->transition[GWL_DELETE2END] = gwm->seg[i]->transition[GW_DELETE2END];
+
+    seg->transition[GWL_START2MATCH] = gwm->seg[i]->transition[GW_START2MATCH];
+    seg->transition[GWL_START2INSERT] = gwm->seg[i]->transition[GW_START2INSERT];
+    seg->transition[GWL_START2DELETE] = gwm->seg[i]->transition[GW_START2DELETE];
+
+    add_GwLite(out,seg);
+  }
+
+  out->name = stringalloc(gwm->name);
+  return out;
+}
+
+
+    
+%func
+Makes a lite score from a lite probability basis
+%%
+GwLiteScore * GwLiteScore_from_GwLite(GwLite * gwl)
+{
+  GwLiteScore * out;
+  GwLiteSegment * prev;
+  int i;
+
+  out = GwLiteScore_alloc_len(gwl->len);
+  for(i=0,prev=NULL;i<gwl->len;i++) {
+    add_GwLiteScore(out,GwLiteSegmentScore_from_GwLiteSegment(prev,gwl->seg[i]));
+    prev = gwl->seg[i];
+  }
+
+  out->name = stringalloc(gwl->name);
+  return out;
+}
+      
+
+GwLiteSegmentScore * GwLiteSegmentScore_from_GwLiteSegment(GwLiteSegment *prev,GwLiteSegment * seg)
+{
+  GwLiteSegmentScore * out;
+  
+  out = GwLiteSegmentScore_alloc();
+
+  Probability2Score_move(seg->match,out->match,GWL_EMISSION_LEN);
+  Probability2Score_move(seg->insert,out->insert,GWL_EMISSION_LEN);
+
+  if( prev != NULL ) {
+    out->transition[GWL_MATCH2MATCH] = Probability2Score(prev->transition[GWL_MATCH2MATCH]);
+    out->transition[GWL_INSERT2MATCH] = Probability2Score(prev->transition[GWL_INSERT2MATCH]);
+    out->transition[GWL_DELETE2MATCH] = Probability2Score(prev->transition[GWL_DELETE2MATCH]);
+
+    out->transition[GWL_MATCH2DELETE] = Probability2Score(prev->transition[GWL_MATCH2DELETE]);
+    out->transition[GWL_INSERT2DELETE] = Probability2Score(prev->transition[GWL_INSERT2DELETE]);
+    out->transition[GWL_DELETE2DELETE] = Probability2Score(prev->transition[GWL_DELETE2DELETE]);
+  } else {
+
+    out->transition[GWL_MATCH2MATCH] = NEGI;
+    out->transition[GWL_INSERT2MATCH] = NEGI;
+    out->transition[GWL_DELETE2MATCH] = NEGI;
+
+    out->transition[GWL_MATCH2DELETE] = NEGI;
+    out->transition[GWL_INSERT2DELETE] = NEGI;
+    out->transition[GWL_DELETE2DELETE] = NEGI;
+  }
+
+  out->transition[GWL_MATCH2INSERT] = Probability2Score(seg->transition[GWL_MATCH2INSERT]);
+  out->transition[GWL_INSERT2INSERT] = Probability2Score(seg->transition[GWL_INSERT2INSERT]);
+  out->transition[GWL_DELETE2INSERT] = Probability2Score(seg->transition[GWL_DELETE2INSERT]);
+  
+  out->transition[GWL_START2MATCH] = Probability2Score(seg->transition[GWL_START2MATCH]);
+  out->transition[GWL_START2INSERT] = Probability2Score(seg->transition[GWL_START2INSERT]);
+  out->transition[GWL_START2DELETE] = Probability2Score(seg->transition[GWL_START2DELETE]);
+  
+  out->transition[GWL_MATCH2END] = Probability2Score(seg->transition[GWL_MATCH2END]);
+  out->transition[GWL_INSERT2END] = Probability2Score(seg->transition[GWL_INSERT2END]);
+  out->transition[GWL_DELETE2END] = Probability2Score(seg->transition[GWL_DELETE2END]);
+
+  return out;
+}
+
+
+%}
+
+
+
+

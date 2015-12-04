@@ -1,0 +1,367 @@
+
+
+%{
+#include "dyna.h"
+#include "subseqhash.h"
+#include "hsplookupscan.h"
+
+
+#define GeneWiseHSPmanagerLISTLENGTH 1024
+
+%}
+
+
+struct GeneWiseRunPara
+boolean use_hsp !def="TRUE"
+int edge_query  !def="10"
+int edge_target !def="3000"
+int splice_spread !def="4"
+boolean debug   !def="FALSE"
+
+
+struct GeneWiseHSP
+int query_start
+int query_end
+int target_start
+int target_end
+int score
+int frame
+
+struct GeneWiseHSPmanager
+GeneWiseHSP ** hsp !list
+
+%{
+#include "genewisehsp.h"
+
+GeneWiseRunPara * new_GeneWiseRunPara_from_argv(int * argc,char ** argv)
+{
+  GeneWiseRunPara * out;
+
+  out = GeneWiseRunPara_alloc();
+  out->use_hsp = FALSE;
+  out->edge_query = 10;
+  out->edge_target = 3000;
+  out->splice_spread = 5;
+
+  strip_out_boolean_def_argument(argc,argv,"gwhsp",&out->use_hsp);
+  strip_out_boolean_def_argument(argc,argv,"gwdebug",&out->debug);
+  strip_out_integer_argument(argc,argv,"gw_edgequery",&out->edge_query);
+  strip_out_integer_argument(argc,argv,"gw_edgetarget",&out->edge_target);
+  strip_out_integer_argument(argc,argv,"gw_splicespread",&out->splice_spread);
+
+  return out;
+}
+
+void show_help_GeneWiseRunPara(FILE * ofp)
+{
+  fprintf(ofp,"Genewise protein running heuristics\n");
+  fprintf(ofp,"   -[no]gwhsp        use heuristics for proteins [FALSE currently]\n");
+  fprintf(ofp,"   -gw_edgequery     at start/end, amount of protein area to expand [10]\n");
+  fprintf(ofp,"   -gw_edgetarget    at start/end, amount of DNA area to expand [3000]\n");
+  fprintf(ofp,"   -gw_splicespread  spread around splice sites in codons [5]\n");
+  fprintf(ofp,"   -gwdebug          print out debugging of heuristics on stdout\n");
+
+}
+    
+
+
+DPEnvelope * DPEnvelope_from_protein_gen(Sequence * prot,Sequence * dna,CompMat * mat,CodonTable * ct,GeneWiseRunPara *p)
+{
+  SeqLookupInterface * sli;
+  HSPScanInterface * hsi;
+  HSPScanInterfacePara para;
+  Sequence * trans;
+  int i;
+  int j;
+  int frame;
+  char * temp_seq;
+  int can_use = 0;
+  
+  LinearHSPmanager * lm;
+  GeneWiseHSPmanager * gwh;
+  GeneWiseHSPmanager * final;
+
+  DPEnvelope * out;
+  DPUnit * dpunit;
+
+  int prev_query;
+  int prev_target;
+
+  SeqLookupLoadPara loadpara;
+
+
+  info("Using HSP based heuristic for bounds calculation. Result may not be accurate (in particular for low similarity)");
+
+  loadpara.tile_freq = 1;
+
+  sli = new_ghash_SeqLookupInterface();
+  (*sli->add_seq)(sli->data,prot,&loadpara);
+
+  hsi = new_one_off_HSPScanInterface(sli,mat,15,5);
+
+  para.min_score= 10;
+  para.max_results = 750;
+  para.use_protein_heuristic = FALSE;
+ 
+
+  gwh = GeneWiseHSPmanager_alloc_std();
+
+  for(frame=0;frame<3;frame++) {
+    temp_seq = calloc(1+dna->len/3,sizeof(char));
+    for(j=0,i=frame;i+3 < dna->len;i+=3,j++) {
+      temp_seq[j] = aminoacid_from_seq(ct,dna->seq+i);
+    }
+    temp_seq[j]= '\0';
+    trans = Sequence_alloc();
+    trans->name = stringalloc("temp_seq");
+    trans->seq  = temp_seq;
+    trans->len  = strlen(temp_seq);
+
+    if( p->debug ) {
+      info("starting scan in frame %d\n",frame);
+    }
+    
+    lm = (*hsi->scan_query)(hsi->data,trans,&para);
+    if( p->debug ) {
+      info("Retrieved %d hits in frame %d\n",lm->len,frame);
+    }
+
+    if( lm->len > 0 ) {
+      add_GeneWiseHSPmanager_HSPset(gwh,lm->set[0],frame);
+    }
+
+    free_LinearHSPmanager(lm);
+  }
+
+  /* if this is empty, do something! */
+
+  if( gwh->len == 0 ) {
+    info("For genewise %s vs %s, no HSPs generated, heuristic failed",prot->name,dna->name);
+    return NULL;
+  }
+
+
+ 
+  /* sort by score, descend list */
+
+  sort_GeneWiseHSPmanager(gwh,compare_GeneWiseHSP_score);
+  
+  if( p->debug == TRUE ) {
+    for(i=0;i<gwh->len;i++) {
+      fprintf(stdout,"GWHSP [Before] %d,%d to %d,%d %d\n",
+	      gwh->hsp[i]->query_start,
+	      gwh->hsp[i]->query_end,
+	      gwh->hsp[i]->target_start,
+	      gwh->hsp[i]->target_end,
+	      gwh->hsp[i]->score);
+    }
+  }
+  
+  final = GeneWiseHSPmanager_alloc_std();
+
+  for(i=0;i<gwh->len;i++) {
+    can_use = 1;
+    for(j=0;j<final->len;j++) {
+      if( consistent_GeneWiseHSP(final->hsp[j],gwh->hsp[i]) == 0 ) {
+	can_use = 0;
+	break;
+      }
+    }
+
+    if( can_use == 1 ) {
+      if( p->debug == TRUE ) {
+	fprintf(stdout,"GWHSP accepting %d,%d to %d,%d\n",
+	      gwh->hsp[i]->query_start,
+	      gwh->hsp[i]->query_end,
+	      gwh->hsp[i]->target_start,
+	      gwh->hsp[i]->target_end
+		);
+      }
+      add_GeneWiseHSPmanager(final,hard_link_GeneWiseHSP(gwh->hsp[i]));
+    } else {
+      if( p->debug == TRUE ) {
+	fprintf(stdout,"GWHSP rejecting %d,%d to %d,%d\n",
+	      gwh->hsp[i]->query_start,
+	      gwh->hsp[i]->query_end,
+	      gwh->hsp[i]->target_start,
+	      gwh->hsp[i]->target_end
+		);
+      }
+    }
+  }
+
+
+  out = DPEnvelope_alloc_std();
+
+  sort_GeneWiseHSPmanager(final,compare_GeneWiseHSP_start);
+  
+  prev_query = final->hsp[0]->query_start - p->edge_query;
+  prev_target = final->hsp[0]->target_start - p->edge_target;
+
+  if( prev_query < 0 ) {
+    prev_query = 0;
+  }
+  
+  if( prev_target < 0 ) {
+    prev_target = 0;
+  }
+
+  for(i=0;i<final->len;i++) {
+    /* rectangle from previous exon to this one */
+    dpunit = DPUnit_alloc();
+    dpunit->type = DPENV_RECT;
+    dpunit->starti = prev_query;
+    dpunit->startj = prev_target;
+    dpunit->height = final->hsp[i]->query_start - dpunit->starti + p->splice_spread;
+    dpunit->length = final->hsp[i]->target_start - dpunit->startj + p->splice_spread*3;
+    
+    if( dpunit->height <= 0 || dpunit->length <= 0 ) {
+      if( p->debug ) {
+	fprintf(stdout,"On position %d , error with the jigging %d plays %d vs %d plays %d",i,
+	      final->hsp[i]->query_start,dpunit->starti,final->hsp[i]->target_start,dpunit->startj);
+      }
+      if( dpunit->height <= 0 ) {
+	dpunit->height = 1;
+      } 
+      if( dpunit->length <= 0 ) {
+	dpunit->length = 1;
+      }
+      
+    }
+
+    if( p->debug ) {
+      fprintf(stdout,"GWHSP Bridging to %d,%d to %d,%d from %dth element with %d,%d coordinate\n",
+	      dpunit->starti,
+	      dpunit->startj,
+	      dpunit->height,
+	      dpunit->length,i,final->hsp[i]->query_start,
+	      final->hsp[i]->target_start
+	      );
+    }
+
+    add_DPEnvelope(out,dpunit);
+
+    /* rectange for this exon */
+
+    dpunit = DPUnit_alloc();
+    dpunit->type = DPENV_RECT;
+
+    dpunit->starti = final->hsp[i]->query_start  - p->splice_spread;
+    dpunit->startj = final->hsp[i]->target_start - p->splice_spread*3;;
+    dpunit->height = final->hsp[i]->query_end - dpunit->starti + p->splice_spread;
+    dpunit->length = final->hsp[i]->target_end - dpunit->startj + p->splice_spread*3;
+
+    if( dpunit->height <= 0 || dpunit->length <= 0 ) {
+      fatal("On exon position %d, error with the jigging of the positions",i);
+    }
+
+    if( p->debug ) {
+      fprintf(stdout,"GWHSP Exon: %d,%d to %d,%d from %dth element with %d,%d coordinate\n",
+	      dpunit->starti,
+	      dpunit->startj,
+	      dpunit->height,
+	      dpunit->length,i,final->hsp[i]->query_start,
+	      final->hsp[i]->target_start
+	      );
+    }
+   
+    add_DPEnvelope(out,dpunit);
+    
+    prev_query = final->hsp[i]->query_end - p->splice_spread;
+    prev_target = final->hsp[i]->target_end - p->splice_spread*3;
+  }
+
+  free_GeneWiseHSPmanager(gwh);
+  free_GeneWiseHSPmanager(final);
+  free_HSPScanInterface(hsi);
+
+
+  if( p->debug ) {
+    fprintf(stdout,"GWHSP - exited with %d DP units\n",out->len);
+    fflush(stdout);
+  }
+
+  
+
+  return out;
+}
+
+
+
+int consistent_GeneWiseHSP(GeneWiseHSP * true,GeneWiseHSP * proposed)
+{
+  int query_centre;
+  int target_centre;
+
+  assert(true);
+  assert(proposed);
+  /* is this left or right of the true HSP */
+  query_centre = (proposed->query_start + proposed->query_end) / 2;
+  target_centre = (proposed->target_start + proposed->target_end) / 2;
+  
+  /* overlap criteria first */
+  if( query_centre >= true->query_start && query_centre <= true->query_end ) {
+    return 0;
+  }
+  
+  /* left or right */
+  if( query_centre > true->query_end ) {
+    if( target_centre < true->target_end ) {
+      /* no - inconsistent */
+      return 0;
+    }
+  } else {
+    if( target_centre > true->target_start ) {
+      return 0;
+    }
+  }
+
+
+  /* overlap */
+
+  if( target_centre >= true->target_start && target_centre <= true->target_end ) {
+    return 0;
+  }
+
+
+  return 1;
+
+}
+
+int compare_GeneWiseHSP_start(GeneWiseHSP * one,GeneWiseHSP * two)
+{
+  return one->query_start - two->query_start;
+}
+
+%func
+internal for sort by score
+%type internal
+%%
+int compare_GeneWiseHSP_score(GeneWiseHSP * one,GeneWiseHSP * two)
+{
+  return two->score - one->score;
+}
+
+
+void add_GeneWiseHSPmanager_HSPset(GeneWiseHSPmanager * gwh,HSPset * set,int frame)
+{
+  int i;
+  GeneWiseHSP * h;
+
+
+  for(i=0;i<set->len;i++) {
+    h = GeneWiseHSP_alloc();
+    h->query_start = set->hsp[i]->target_start;
+    h->query_end   = set->hsp[i]->target_start+set->hsp[i]->length;
+    h->target_start = set->hsp[i]->query_start*3 + frame;
+    h->target_end  = (set->hsp[i]->query_start+set->hsp[i]->length)*3 + frame;
+    h->score = set->hsp[i]->score;
+    add_GeneWiseHSPmanager(gwh,h);
+  }
+}
+
+%}
+
+
+
+

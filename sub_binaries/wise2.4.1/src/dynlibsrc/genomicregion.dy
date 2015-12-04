@@ -1,0 +1,1095 @@
+
+
+%{
+#include "dyna.h"
+
+#define GenomicRegionLISTLENGTH 16
+#define GenomicOverlapResultsLISTLENGTH 16
+
+%}
+
+api
+object GenomicRegion
+des free_GenomicRegion
+func new_GenomicRegion
+func read_EMBL_GenomicRegion_file 
+func read_EMBL_GenomicRegion
+func add_Gene_to_GenomicRegion
+func show_ace_GenomicRegion
+func show_pretty_GenomicRegion
+func write_Diana_FT_GenomicRegion
+func write_Embl_FT_GenomicRegion
+endobject
+endapi
+
+
+friend Gene
+
+struct GenomicRegion
+Gene ** gene !list
+Genomic * genomic // NB, may not be here. Be careful!
+%info 
+GenomicRegion is structure which represents
+information on a region of genomic DNA. It
+*may not* have the actual DNA sequence in there,
+and it is important to realise that.
+
+The numbering scheme of many other things (eg,
+genes) are going to be represented in this 
+guys coordinates
+%%
+
+struct GenomicOverlapGene
+int exon_perfect         !def="0"
+int exon_truncated       !def="0"
+int exon_partial         !def="0"
+int exon_missed_internal !def="0"
+int exon_missed_external !def="0"
+int exon_mispredicted    !def="0"
+Gene * truth // NB hard-linked
+Gene * test 
+
+struct GenomicOverlapResults
+int gene_overlap
+GenomicOverlapGene ** gog !list
+
+struct ShowGenomicRegionOptions
+boolean show_trans  !def="0"
+boolean show_raw    !def="0"
+boolean show_cdna   !def="0"
+boolean show_ace    !def="0"
+boolean show_ace_halfwise !def="0"
+boolean show_GFF          !def="0"
+boolean show_gene_str     !def="0"
+boolean show_gene_supp    !def="0"
+
+
+
+%{
+#include "genomicregion.h"
+
+%func
+Makes a new genomic region with genes
+greater than XXX length going through
+%%
+GenomicRegion * new_GenomicRegion_discard_short(GenomicRegion * gr,int multiexon,int singleexon)
+{
+  GenomicRegion * out;
+  int i;
+
+  assert(gr);
+  assert(gr->genomic);
+
+  out = GenomicRegion_alloc_std();
+  assert(out);
+
+  if( gr->genomic != NULL ) {
+    out->genomic = hard_link_Genomic(gr->genomic);
+  }
+
+  for(i=0;i<gr->len;i++) {
+    if( gr->gene[i]->len == 0 ) {
+      continue;
+    }
+
+    assert(gr->gene[i]->transcript[0]);
+
+    if( gr->gene[i]->transcript[0]->ex_len > 1 ) {
+      if( length_Transcript(gr->gene[i]->transcript[0]) > multiexon ) {
+	add_GenomicRegion(out,hard_link_Gene(gr->gene[i]));
+      }
+    } else {
+      if( length_Transcript(gr->gene[i]->transcript[0]) > singleexon ) {
+	add_GenomicRegion(out,hard_link_Gene(gr->gene[i]));
+      }
+    }
+
+  }
+
+  return out;
+
+}
+
+%func
+Actually shows a genomic region wrt to the options
+%%
+void show_GenomicRegionOptions(ShowGenomicRegionOptions * sgro,GenomicRegion * gr,CodonTable * ct,char * dividestr,FILE * ofp)
+{
+  if( sgro->show_raw == TRUE ) {
+    show_GenomicRegion(gr,ofp);
+    fprintf(ofp,"%s\n",dividestr);
+  }
+
+  if( sgro->show_trans == TRUE ) {
+    dump_translations_GenomicRegion(gr,ct,ofp);
+    fprintf(ofp,"%s\n",dividestr);
+  }
+
+  if( sgro->show_gene_str == TRUE ) {
+    show_pretty_GenomicRegion(gr,0,ofp);
+    fprintf(ofp,"%s\n",dividestr);
+  }
+
+  if( sgro->show_gene_supp == TRUE ) {
+    show_pretty_GenomicRegion(gr,1,ofp);
+    fprintf(ofp,"%s\n",dividestr);
+  }
+    
+}
+
+%func
+Help for ShowGenomicRegionOptions
+%%
+void show_help_ShowGenomicRegionOptions(FILE * ofp)
+{
+  fprintf(ofp,"Gene Structure Output options\n");
+  fprintf(ofp,"   -trans        show translation\n");
+  fprintf(ofp,"   -cdna         show virtual cdna\n");
+  fprintf(ofp,"   -genes        show gene structure\n");
+  fprintf(ofp,"   -genesf       show gene structure with supporting evidence\n");
+  fprintf(ofp,"   -gener        show raw (offset) gene structure\n");
+  fprintf(ofp,"   -ace          show ace file\n");
+  
+}
+
+
+%func
+Makes a ShowGenomicRegionOptions from command line
+%%
+ShowGenomicRegionOptions * new_ShowGenomicRegionOptions_from_argv(int * argc,char ** argv)
+{
+  ShowGenomicRegionOptions * out;
+
+  out = ShowGenomicRegionOptions_alloc();
+
+  out->show_trans    = strip_out_boolean_argument(argc,argv,"trans");
+  out->show_raw      = strip_out_boolean_argument(argc,argv,"gener");
+  out->show_gene_str = strip_out_boolean_argument(argc,argv,"genes");
+  out->show_gene_supp = strip_out_boolean_argument(argc,argv,"genesf");
+  out->show_cdna     = strip_out_boolean_argument(argc,argv,"cdna");
+  out->show_ace     = strip_out_boolean_argument(argc,argv,"ace");
+  out->show_ace     = strip_out_boolean_argument(argc,argv,"aceh");
+
+
+  return out;
+}
+
+%func
+read genes output
+%%
+GenomicRegion * read_genes_GenomicRegion(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  GenomicRegion * out;
+  Gene * g;
+  Transcript * t;
+  Translation * ts;
+  Exon * e;
+  int is_start = 1;
+
+
+  out = GenomicRegion_alloc_std();
+
+  
+  while( fgets(buffer,MAXLINE,ifp) ) {
+    if( strstartcmp(buffer,"//") == 0 ) {
+      break;
+    }
+    
+    if( strstartcmp(buffer,"Gene") == 0 ) {
+      if( is_start == 1 ) {
+	is_start =0;
+	continue; /* next gene triggered */
+      }
+
+      /* Line is Gene xxx yyy here */
+      
+      g = Gene_alloc_std();
+
+      add_GenomicRegion(out,g);
+
+      sscanf(buffer,"Gene %d %d",&g->start,&g->end);
+      g->start = g->start -1;
+      t = Transcript_alloc_std();
+      add_Gene(g,t);
+      g->parent = out;
+
+      while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+	if( strstartcmp(buffer,"Gene") == 0 ) {
+	  break;
+	}
+	if( strstartcmp(buffer,"//") == 0 ) {
+	  break;
+	}
+	e = Exon_alloc_std();
+	add_ex_Transcript(t,e);
+
+	sscanf(buffer," Exon %d %d",&e->start,&e->end);
+	e->start = e->start - g->start -1;
+	e->end   = e->end   - g->start;
+      }
+
+      ts = Translation_alloc();
+      ts->start = 0;
+      ts->end = length_Transcript(t);
+      ts->parent = t;
+      add_Transcript(t,ts);
+      t->parent = g;
+      
+      if( strstartcmp(buffer,"//") == 0 ) {
+	break;
+      }
+    }
+  }
+      
+  
+    return out;
+}
+
+
+%func
+shows overlap resuls vaguely humanely
+%%
+void show_GenomicOverlapResults(GenomicOverlapResults * gor,FILE * ofp)
+{
+  int i;
+  
+  fprintf(ofp,"%d genes overlapped\n",gor->gene_overlap);
+  for(i=0;i<gor->len;i++)
+    show_GenomicOverlapGene(gor->gog[i],ofp);
+}
+
+%func
+shows overlap genes
+%type internal
+%%
+void show_GenomicOverlapGene(GenomicOverlapGene * gog,FILE * ofp)
+{
+  fprintf(ofp,"Perfect      exons %d\n",gog->exon_perfect);
+  fprintf(ofp,"Truncated    exons %d\n",gog->exon_truncated);
+  fprintf(ofp,"Partial      exons %d\n",gog->exon_partial);
+  fprintf(ofp,"Mispredicted exons %d\n",gog->exon_mispredicted);
+  fprintf(ofp,"Missed(int)  exons %d\n",gog->exon_missed_internal);
+  fprintf(ofp,"Missed(ext)  exons %d\n",gog->exon_missed_external);
+}
+
+%func
+Gives the overlap of query in target. It is reported
+back in the GenomicOverlapResults structure
+%%
+GenomicOverlapResults * Genomic_overlap(GenomicRegion * query,GenomicRegion * truth)
+{
+  GenomicOverlapResults * out;
+  int i;
+  int j;
+
+  out = GenomicOverlapResults_alloc_std();
+
+  for(i=0;i<query->len;i++) {
+    auto Gene * gene;
+
+    gene = query->gene[i];
+
+    if( gene->start > gene->end ) {
+      /* backward strand */
+      for(j=0;j<truth->len;j++) {
+	if( truth->gene[j]->start < truth->gene[j]->end )
+	  continue; /* in forward strand - don't care */
+	if( (gene->start < truth->gene[j]->start && gene->start > truth->gene[j]->end) || (gene->end > truth->gene[j]->end && gene->end < truth->gene[j]->start) ) {
+	  out->gene_overlap++;
+	  add_GenomicOverlapResults(out,Gene_overlap_backward(gene,truth->gene[j]));
+	}
+      }
+    } else {
+      for(j=0;j<truth->len;j++) {
+	if( truth->gene[j]->start > truth->gene[j]->end )
+	  continue; /* in backward strand - don't care */
+	if( (gene->start > truth->gene[j]->start && gene->start < truth->gene[j]->end) || (gene->end < truth->gene[j]->end && gene->end > truth->gene[j]->start) ) {
+	  out->gene_overlap++;
+	  add_GenomicOverlapResults(out,Gene_overlap_forward(gene,truth->gene[j]));
+	}
+      }
+    }
+
+  }
+
+  return out;
+}
+
+
+%func				      
+Works out a gene overlap for two forward genes
+%%
+GenomicOverlapGene * Gene_overlap_forward(Gene * test,Gene * truth)
+{
+  int i;
+  int j;
+  Transcript * tr;
+  Transcript * te;
+  int start_te;
+  int end_te;
+  int count;
+  
+
+  GenomicOverlapGene * out;
+
+
+  out = GenomicOverlapGene_alloc();
+
+  out->test = hard_link_Gene(test);
+  out->truth = hard_link_Gene(truth);
+  
+  tr = truth->transcript[0];
+  te = test->transcript[0];
+
+  for(i=0;i<te->ex_len;i++) 
+    te->exon[i]->used = FALSE;
+
+  start_te = te->exon[0]->start + test->start;
+  end_te = te->exon[te->ex_len-1]->end + test->start;
+
+  for(i=0;i<tr->ex_len;i++) {
+    /** exon is to the left of start_te **/
+    if( tr->exon[i]->end + truth->start < start_te ) 
+      out->exon_missed_external++;
+    else if( tr->exon[i]->start + truth->start > end_te)
+      out->exon_missed_external++;
+    else {
+      for(j=0;j<te->ex_len;j++) {
+	if( (tr->exon[i]->start + truth->start == te->exon[j]->start + test->start) ) {
+	  if( tr->exon[i]->end + truth->start == te->exon[j]->end + test->start) {
+	    out->exon_perfect++;
+	    te->exon[j]->used = TRUE;
+	  }
+	  else {
+	    out->exon_truncated++;
+	    te->exon[j]->used = TRUE;
+	  }
+	  break;
+	}
+	if( tr->exon[i]->end + truth->start == te->exon[j]->end + test->start ) {
+	  out->exon_truncated++;
+	  te->exon[j]->used = TRUE;
+	  break;
+	}
+	
+	if( ((tr->exon[i]->start + truth->start) > te->exon[j]->start + test->start) && ((tr->exon[i]->start + truth->start) < te->exon[j]->end + test->start) ) { 
+	  out->exon_partial++;
+	  te->exon[j]->used = TRUE;
+	  break;
+	}
+
+	if( ((tr->exon[i]->end + truth->start) > te->exon[j]->start + test->start) && ((tr->exon[i]->end + truth->start) < te->exon[j]->end + test->start) ) { 
+	  out->exon_partial++;
+	  te->exon[j]->used = TRUE;
+	  break;
+
+	}
+
+
+	if( ((test->start + te->exon[j]->start) > (truth->start + tr->exon[i]->start)) && (test->start + te->exon[j]->end) < (truth->start + tr->exon[i]->end)) {
+	  if( j == 0 && j+1 == test->len ) {
+	    /* single exon prediction */
+	    out->exon_truncated++;
+	    te->exon[j]->used = TRUE;
+	  } else
+	    out->exon_partial++;
+	    te->exon[j]->used = TRUE;
+	  break;
+	}
+
+      }
+      if( j == te->ex_len ) {
+	out->exon_missed_internal++;
+      }
+    }
+  }
+
+  for(i=0,count=0;i<te->ex_len;i++) {
+    if( te->exon[i]->used != TRUE ) {
+      count++;
+    }
+  }
+
+  out->exon_mispredicted = count;
+  
+  return out;
+}
+
+%func				      
+Works out a gene overlap for two backward genes
+%%
+GenomicOverlapGene * Gene_overlap_backward(Gene * test,Gene * truth)
+{
+  int i;
+  int j;
+  Transcript * tr;
+  Transcript * te;
+  int start_te;
+  int end_te;
+  int count;
+
+  GenomicOverlapGene * out;
+
+  out = GenomicOverlapGene_alloc();
+
+
+  out->test = hard_link_Gene(test);
+  out->truth = hard_link_Gene(truth);
+  
+  tr = truth->transcript[0];
+  te = test->transcript[0];
+
+  for(i=0;i<te->ex_len;i++) 
+    te->exon[i]->used = FALSE;
+
+  start_te = test->start - te->exon[0]->start;
+  end_te = test->start - te->exon[te->ex_len-1]->end;
+
+  for(i=0;i<tr->ex_len;i++) {
+    /** exon is to the left of start_te **/
+
+    if( truth->start - tr->exon[i]->end < start_te ) 
+      out->exon_missed_external++;
+    else if( truth->start - tr->exon[i]->start  > end_te)
+      out->exon_missed_external++;
+    else {
+      for(j=0;j<te->ex_len;j++) {
+	if( (truth->start - tr->exon[i]->start) == (test->start - te->exon[j]->start) ) {
+	  if( (truth->start - tr->exon[i]->end) == (test->start - te->exon[j]->end) ) {
+	    out->exon_perfect++;
+	    te->exon[j]->used = TRUE;
+	  } 
+	  else {
+	    out->exon_truncated++;
+	    te->exon[j]->used = TRUE;
+	  }
+	  break;
+	}
+	if( (truth->start-tr->exon[i]->end) == (test->start - te->exon[j]->end)) {
+	  out->exon_truncated++;
+	  te->exon[j]->used = TRUE;
+	  break;
+	}
+	
+	if( ((truth->start - tr->exon[i]->start) < test->start - te->exon[j]->start) && ((truth->start-tr->exon[i]->start) > test->start - te->exon[j]->end) ) { 
+	  out->exon_partial++;
+	  te->exon[j]->used = TRUE;
+	  break;
+	}
+
+	if( ((truth->start - tr->exon[i]->end) < (test->start - te->exon[j]->start)) && ((truth->start - tr->exon[i]->end) > test->start - te->exon[j]->end) ) { 
+	  out->exon_partial++;
+	  te->exon[j]->used = TRUE;
+	  break;
+	}
+
+	if( ((test->start - te->exon[j]->start) < (truth->start - tr->exon[i]->start)) && (test->start - te->exon[j]->end) > (truth->start - tr->exon[i]->end)) {
+	  if( j == 0 && j+1 == test->len ) {
+	    /* single exon prediction */
+	    out->exon_truncated++;
+	    te->exon[j]->used = TRUE;
+	  } else
+	    out->exon_partial++;
+	    te->exon[j]->used = TRUE;
+	  break;
+	}
+
+
+      }
+      if( j == te->ex_len ) {
+	out->exon_missed_internal++;
+      }
+    }
+  }
+
+  for(i=0,count=0;i<te->ex_len;i++) {
+    if( te->exon[i]->used != TRUE ) {
+      count++;
+    }
+  }
+
+  out->exon_mispredicted = count;
+
+  return out;
+}
+      
+%func
+Makes a new genomic region from the given
+genomic region, trying to merge close
+gene predictions that can be made by
+extending open reading frames
+%%
+GenomicRegion * simple_merged_GenomicRegion(GenomicRegion * gr,double bits_cutoff,int max_ext)
+{
+  GenomicRegion * out;
+  int i,j;
+  Gene * gene;
+
+  for(i=0;i<gr->len;i++) {
+    if( is_simple_prediction_Gene(gr->gene[i]) == FALSE ) {
+      warn("Sorry - can only merge simple predictions of genes");
+      return FALSE;
+    }
+  }
+
+  sort_GenomicRegion_absolute(gr);
+
+  out = new_GenomicRegion(gr->genomic);
+
+  /* start with a new gene from the same position 
+     as the first gene in the list */
+
+  for(i=0;i<gr->len;i++)
+    if( gr->gene[i]->bits > bits_cutoff ) 
+      break;
+
+  if( i == gr->len )
+    return out;
+
+  while( i < gr->len ) {
+
+    /* copy this gene, and add it */
+    gene = copy_Gene(gr->gene[i]);
+    add_GenomicRegion(out,gene);
+
+    /* look at the next genes over the cutoff */
+
+    for(j=i+1;j<gr->len;j++) {
+      if( gr->gene[j]->bits < bits_cutoff ) 
+	continue; /* look at the next gene */
+
+      /* if it is on the other strand - we can forget it */
+
+      if( reversed_Gene(gene) != reversed_Gene(gr->gene[j]) )
+	break; 
+
+      /* ok - see if we can merge it */
+
+      
+    }
+  }
+
+
+  return out;
+}	
+	
+
+%func
+sorts the genomicregion by absolute start points.
+%%
+void sort_GenomicRegion_absolute(GenomicRegion * gr)
+{
+  sort_GenomicRegion(gr,compare_Gene_absolute);
+}
+
+%func
+internal sort function
+%%
+int compare_Gene_absolute(Gene * one,Gene * two)
+{
+  int startone;
+  int starttwo;
+
+  if( reversed_Gene(one) == TRUE ) 
+    startone = one->end;
+  else
+    startone = one->start;
+
+
+  if( reversed_Gene(two) == TRUE ) 
+    starttwo = two->end;
+  else
+    starttwo = two->start;
+
+  return (startone-starttwo);
+}
+
+
+%func
+gives back genomic sequence from a genomic region. This is *soft
+linked* - ie, dont free it and use /hard_link_Genomic if you do want to...
+%arg
+gr genomic region input
+return s a Genomic sequence
+%%
+Genomic * get_Genomic_from_GenomicRegion(GenomicRegion * gr)
+{
+  return gr->genomic;
+}
+
+%func
+Reads both feature table and sequence
+%%
+GenomicRegion * read_EMBL_GenomicRegion_efetch(char * efetch) 
+{
+  FILE * ifp;
+  char buffer[MAXLINE];
+  GenomicRegion * out;
+
+  sprintf(buffer,"efetch -a  %s",efetch);
+
+  ifp = popen(buffer,"r");
+
+  out = GenomicRegion_alloc_std();
+
+  read_EMBL_FT_into_GenomicRegion(buffer,MAXLINE,out,ifp);
+
+  pclose(ifp);
+
+  sprintf(buffer,"efetch -a  -f %s",efetch);
+
+  ifp = popen(buffer,"r");
+
+  out->genomic = read_fasta_Genomic(ifp,-1);
+
+  pclose(ifp);
+
+  return out;
+}
+
+
+%func
+Reads both feature table and sequence
+%%
+GenomicRegion * read_EMBL_GenomicRegion_SRS(char * srsquery) 
+{
+  FILE * ifp;
+  char buffer[MAXLINE];
+  GenomicRegion * out;
+
+  sprintf(buffer,"getz -td '[%s]'",srsquery);
+
+  ifp = popen(buffer,"r");
+
+  out = GenomicRegion_alloc_std();
+
+  read_EMBL_FT_into_GenomicRegion(buffer,MAXLINE,out,ifp);
+
+  out->genomic = read_fasta_Genomic(ifp,-1);
+
+  pclose(ifp);
+
+  return out;
+}
+
+%func 
+Reads in both EMBL sequence and features 
+%%
+GenomicRegion * read_EMBL_GenomicRegion_file(char * filename)
+{
+  FILE * ifp;
+  GenomicRegion * out;
+
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open %s for EMBL reading",filename);
+    return NULL;
+  }
+
+  out = read_EMBL_GenomicRegion(ifp);
+
+  fclose(ifp);
+
+  return out;
+}
+
+%func 
+Reads in both EMBL sequence and features 
+%%
+GenomicRegion * read_EMBL_GenomicRegion(FILE * ifp)
+{
+  GenomicRegion * out;
+  Sequence * seq;
+  char buffer[MAXLINE];
+  char * name = NULL;
+  char * runner;
+
+  out = GenomicRegion_alloc_std();
+  
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"ID") == 0 ) {
+      if( (runner=strtok(buffer+3,spacestr)) == NULL ) {
+	warn("Very weird. Got an EMBL ID line with no name...");
+      } else {
+	name = stringalloc(runner);
+      }
+    } else if ( strstartcmp(buffer,"FH") == 0 ) {
+      break;
+    }
+  }
+
+
+  if( read_EMBL_FT_into_GenomicRegion(buffer,MAXLINE,out,ifp) == FALSE ) {
+    warn("Could not read EMBL feature table into GenomicRegion");
+    return free_GenomicRegion(out);
+  }
+
+  seq = read_Sequence_EMBL_seq(buffer,MAXLINE,ifp);
+
+  if( name != NULL ) {
+    ckfree(seq->name);
+    seq->name = name;
+  }
+
+  if( seq == NULL ) {
+    warn("In reading EMBL file %s, could not read sequence",name == NULL ? "Null" : name);
+    return free_GenomicRegion(out);
+  }
+
+  if( (out->genomic = Genomic_from_Sequence(seq)) == NULL ) {
+    warn("In reading EMBL file %s, sequence was not DNA",name == NULL ? "Null" : name);
+    return free_GenomicRegion(out);
+  }
+
+  return out;
+}
+  
+
+%func
+Reads in EMBL *features*, not sequence.
+%%
+boolean read_EMBL_FT_into_GenomicRegion(char * buffer,int maxlen,GenomicRegion * gr,FILE * ifp)
+{
+  Gene * gene;
+
+  fgets(buffer,maxlen,ifp);
+ 
+  for(;;)  {
+    if( strstartcmp(buffer,"FT") == 0 && strstr(buffer," CDS ") ) {
+      gene = read_EMBL_feature_Gene(buffer,maxlen,ifp);
+      if( gene != NULL ) {
+	gene->parent = gr;
+	add_GenomicRegion(gr,gene);
+      }
+    } else if ( strstartcmp(buffer,"SQ") == 0 ) {
+      break;
+    } else {
+      if( fgets(buffer,maxlen,ifp) == NULL ) {
+	break;
+      }
+    }
+  }
+  return TRUE;
+}
+
+%func
+dumps genomic region in vaguely human form
+%%
+void show_GenomicRegion(GenomicRegion * gr,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<gr->len;i++) {
+    fprintf(ofp,"Gene %d\n",i);
+    show_Gene(gr->gene[i],ofp);
+    fprintf(ofp,"\n");
+  }
+
+}
+
+%func
+shows all the translations in this genomic region
+%%
+void dump_translations_GenomicRegion(GenomicRegion * gr,CodonTable * ct,FILE * ofp)
+{
+  int i,j,k;
+  Protein * trans;
+
+  for(i=0;i<gr->len;i++) 
+    for(j=0;j<gr->gene[i]->len;j++)
+      for(k=0;k<gr->gene[i]->transcript[j]->len;k++) {
+	trans = get_Protein_from_Translation(gr->gene[i]->transcript[j]->translation[k],ct);
+ 	write_fasta_Sequence(trans->baseseq,ofp);
+      } 
+}
+
+%func
+shows all the transcripts in this genomic region
+%%
+void dump_transcripts_GenomicRegion(GenomicRegion * gr,FILE * ofp)
+{
+  int i,j;
+  cDNA * cd;
+
+  for(i=0;i<gr->len;i++) 
+    for(j=0;j<gr->gene[i]->len;j++) {
+	cd = get_cDNA_from_Transcript(gr->gene[i]->transcript[j]);
+ 	write_fasta_Sequence(cd->baseseq,ofp);
+      } 
+}
+
+
+%func
+makes a genomicregion from a genomic sequence
+%%
+GenomicRegion * new_GenomicRegion(Genomic * gen)
+{
+  GenomicRegion * out;
+
+  out = GenomicRegion_alloc_std();
+  out->genomic = hard_link_Genomic(gen);
+  
+  return out;
+}
+
+%func
+adds a Gene to this GenomicRegion, making
+sure that it parent/son relationship is ok
+%arg
+gr GenomicRegion to be added to
+gene Gene to be added
+%%
+boolean add_Gene_to_GenomicRegion(GenomicRegion * gr,Gene * gene)
+{
+  gene->parent = gr;
+  return add_GenomicRegion(gr,gene);
+}
+
+%func
+Writes Embl feature table. Does assumme that
+there is only one transcript per gene and only
+cds exons are used
+
+Output like
+
+   FT   CDS          join(100..200)
+%%
+void write_Embl_FT_GenomicRegion(GenomicRegion * gr,FILE * ofp)
+{
+  int i;
+  
+  for(i=0;i<gr->len;i++) {
+    write_Embl_FT_Gene(gr->gene[i],"CDS",ofp);
+    if( gr->gene[i]->seqname == NULL) {
+      fprintf(ofp,"FT                   /note=\"Wise2 gene object\"\n");
+    } else {
+      fprintf(ofp,"FT                   /note=\"Match to %s\"\n",gr->gene[i]->seqname);
+    }
+    if( gr->gene[i]->ispseudo == TRUE ) {
+      fprintf(ofp,"FT                   /note=Pseudogene\n");
+    }
+  }
+}
+
+%func
+Writes Embl feature table for diana use. Does assumme that
+there is only one transcript per gene and only
+cds exons are used
+
+Output like
+
+   FT   misc_feature       join(100..200)
+%%
+void write_Diana_FT_GenomicRegion(GenomicRegion * gr,FILE * ofp)
+{
+  int i;
+  
+  for(i=0;i<gr->len;i++) {
+    write_Embl_FT_Gene(gr->gene[i],"misc_feature",ofp);
+    if( gr->gene[i]->seqname == NULL) {
+      fprintf(ofp,"FT                   /note=\"Wise2 gene object\"\n");
+    } else {
+      fprintf(ofp,"FT                   /note=\"Match to %s Score %.2f\"\n",gr->gene[i]->seqname,gr->gene[i]->bits);
+    }
+    if( gr->gene[i]->ispseudo == TRUE ) {
+      fprintf(ofp,"FT                   /note=Pseudogene\n");
+    }
+  }
+}
+  
+
+
+%func
+shows ACeDB subsequence source.
+
+Assummes
+  a only one transcript per gene
+  b only cds exons are used
+%%
+void show_ace_GenomicRegion(GenomicRegion * gr,char * seq_name,FILE * ofp)
+{
+  int i,j;
+  char buffer[64];
+  
+  for(i=0;i<gr->len;i++) {
+    fprintf(ofp,"Sequence %s\n",seq_name);
+    if ( gr->gene[i]->name != NULL ) {
+      strcpy(buffer,gr->gene[i]->name);
+    } else {
+      sprintf(buffer,"%s.%d",seq_name,i+1);
+    }
+
+    if( gr->gene[i]->start < gr->gene[i]->end )  
+      fprintf(ofp,"subsequence %s %d %d\n\n",buffer,gr->gene[i]->start+1,gr->gene[i]->end);
+    else 
+      fprintf(ofp,"subsequence %s %d %d\n\n",buffer,gr->gene[i]->start+1,gr->gene[i]->end+2);
+    
+    fprintf(ofp,"Sequence %s\n",buffer);
+    if( gr->gene[i]->ispseudo == FALSE ) 
+      fprintf(ofp,"CDS\n");
+    else 
+      fprintf(ofp,"Pseudogene\n");
+    fprintf(ofp,"Start_not_found\n");
+    fprintf(ofp,"End_not_found\n");
+    fprintf(ofp,"CDS_predicted_by genewise %.2f\n",gr->gene[i]->bits);
+    for(j=0;j<gr->gene[i]->transcript[0]->ex_len;j++)
+      fprintf(ofp,"source_Exons %d %d\n",gr->gene[i]->transcript[0]->exon[j]->start+1,gr->gene[i]->transcript[0]->exon[j]->end);
+    fprintf(ofp,"\n");
+  
+  }
+}
+
+%func
+shows ACeDB subsequence source for halfwise
+method.
+
+Assummes
+  a only one transcript per gene
+  b only cds exons are used
+%%
+void show_halfwise_GenomicRegion(GenomicRegion * gr,char * seq_name,char * method,char * db,boolean doweb,char * weblocation,FILE * ofp)
+{
+  int i,j;
+  char buffer[64];
+  
+  for(i=0;i<gr->len;i++) {
+    fprintf(ofp,"Sequence %s\n",seq_name);
+    
+    sprintf(buffer,"%s.%s.%d",seq_name,gr->gene[i]->seqname,i+1);
+
+    if( gr->gene[i]->start < gr->gene[i]->end )  
+      fprintf(ofp,"subsequence %s %d %d\n\n",buffer,gr->gene[i]->start+1,gr->gene[i]->end);
+    else 
+      fprintf(ofp,"subsequence %s %d %d\n\n",buffer,gr->gene[i]->start+1,gr->gene[i]->end+2);
+    
+    fprintf(ofp,"Sequence %s\n",buffer);
+    fprintf(ofp,"Method %s\n",method);
+    fprintf(ofp,"Database %s %s\n",db,gr->gene[i]->seqname);
+    if( doweb) {
+      fprintf(ofp,"Web_Location %s\n",weblocation);
+    }
+
+    if( gr->gene[i]->ispseudo == FALSE ) 
+      fprintf(ofp,"CDS\n");
+    else 
+      fprintf(ofp,"Pseudogene\n");
+    fprintf(ofp,"Start_not_found\n");
+    fprintf(ofp,"End_not_found\n");
+    fprintf(ofp,"CDS_predicted_by genewise %.2f\n",gr->gene[i]->bits);
+    for(j=0;j<gr->gene[i]->transcript[0]->ex_len;j++)
+      fprintf(ofp,"Source_Exons %d %d\n",gr->gene[i]->transcript[0]->exon[j]->start+1,gr->gene[i]->transcript[0]->exon[j]->end);
+    fprintf(ofp,"\n");
+  
+  }
+}
+
+%func
+shows GFF output
+
+Assummes
+  a only cds exons are used
+%%
+void show_GFF_GenomicRegion(GenomicRegion * gr,char * seq_name,char * source,FILE * ofp)
+{
+  int i,j,k,phase,len;
+  char pname[64];
+  int count;
+  
+  if( seq_name == NULL ) {
+    seq_name = "SEQ";
+  }
+  if( source == NULL ) {
+    source = "Wise-Generated";
+  }
+
+  count=0;
+  for(i=0;i<gr->len;i++) {
+    auto Gene * ge;
+    count++;
+    ge = gr->gene[i];
+
+    sprintf(pname,"%s-genewise-prediction-%d",seq_name == NULL ? "seq" : seq_name,count);
+
+    if( ge->start < ge->end ) {
+      fprintf(ofp,"%s\t%s\tmatch\t%d\t%d\t%.2f\t+\t.\t%s\n",seq_name,source,ge->start+1,ge->end,ge->bits,pname);
+    } else {
+      fprintf(ofp,"%s\t%s\tmatch\t%d\t%d\t%.2f\t-\t.\t%s\n",seq_name,source,ge->start+1,ge->end+2,ge->bits,pname);
+    }
+    
+    for(j=0;j<ge->len;j++) {
+      auto Transcript * tr;
+
+      phase = 0;
+      len = 0;
+      tr = ge->transcript[j];
+
+      if( ge->start < ge->end ) {
+	for(k=0;k<tr->ex_len;k++) {
+	  fprintf(ofp,"%s\t%s\tcds\t%d\t%d\t%.2f\t+\t%d\t%s\n",seq_name,source,ge->start+tr->exon[k]->start+1,ge->start+tr->exon[k]->end,tr->exon[k]->score,phase,pname);
+
+	  if( k < tr->ex_len-1 )
+	    fprintf(ofp,"%s\t%s\tintron\t%d\t%d\t%.2f\t+\t.\t%s\n",seq_name,source,ge->start+tr->exon[k]->end+1,ge->start+tr->exon[k+1]->start,0.0,pname);
+
+	  len = len + (tr->exon[k]->end - tr->exon[k]->start);
+	  phase = len%3;
+	  if( phase == 2 ) 
+	    phase = 1;
+	  else if( phase == 1 )
+	    phase = 2;
+	  /* else 0 */
+	  
+	}
+      } else {
+	/* reverse strand */
+	for(k=0;k<tr->ex_len;k++) {
+	  fprintf(ofp,"%s\t%s\tcds\t%d\t%d\t%.2f\t-\t%d\t%s\n",seq_name,source,(ge->start+1 - tr->exon[k]->start),ge->start - tr->exon[k]->end+2,tr->exon[k]->score,phase,pname);
+
+	  if( k < tr->ex_len-1 )
+	    fprintf(ofp,"%s\t%s\tintron\t%d\t%d\t%.2f\t-\t.\t%s\n",seq_name,source,ge->start+1 - tr->exon[k]->end,(ge->start - tr->exon[k+1]->start)+2,0.0,pname);
+
+	  len += (tr->exon[k]->end - tr->exon[k]->start);
+	  phase = len%3;
+	  if( phase == 2 ) 
+	    phase = 1;
+	  else if( phase == 1 )
+	    phase = 2;
+	  /* else 0 */
+	  
+	}
+      } /* end of else */
+    } /* end of over transcripts */
+  }
+}
+
+%func
+
+shows 'pretty' bio type gene
+%%
+void show_pretty_GenomicRegion(GenomicRegion * gr,boolean show_supporting,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<gr->len;i++) {
+    fprintf(ofp,"Gene %d\n",i+1);
+    show_pretty_Gene(gr->gene[i],show_supporting,ofp);
+  }
+}
+
+
+
+%}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

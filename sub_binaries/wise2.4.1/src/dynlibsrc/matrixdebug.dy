@@ -1,0 +1,342 @@
+
+
+%{
+#include "basematrix.h"
+#include "packaln.h"
+
+#define DebugStateLISTLENGTH    40
+#define DebugMatrixLISTLENGTH  40
+
+typedef enum MatrixDebugBreakPoint {
+	MDBP_Cursor = 321,
+	MDBP_Overflow,
+	MDBP_Underflow,
+	MDBP_NoBreakPoint
+} MatrixDebugBreakPoint_type;
+
+
+%}
+
+
+struct DebugTransition
+char * fromstate !link
+int from_state_num;
+void (*show_transition)(void * matrix,int i,int j,FILE * ofp) !func
+
+struct DebugState
+char * statename !link
+int state_num
+DebugTransition ** trans !list
+void (*show_state)(void * matrix,int i,int j,FILE *ofp) !func
+
+struct DebugBreakPoint
+MatrixDebugBreakPoint_type type !def="MDBP_Cursor"
+int posi
+int posj
+int overflow
+int underflow
+
+
+struct DebugMatrix
+void * matrix !link
+int currenti    !def="-1"
+int currentj    !def="-1"
+int max_score   !def="0"
+int min_score   !def="100000"
+int max_score_i !def="-1"
+int max_score_j !def="-1"
+int max_score_cell
+DebugState ** state !list
+DebugBreakPoint ** point !list !len="bp_"
+boolean reset !def="FALSE";
+FILE * in !link
+FILE * out !link
+void (*show_cell)(void * matrix,int i,int j,FILE *ofp) !func
+
+
+%{
+#include "matrixdebug.h"
+
+%func
+Shows PackAln in debug context
+%%
+void show_PackAln_Debug(DebugMatrix * de,PackAln * pal,FILE * ofp)
+{
+  int i;
+  int j,k;
+  int cum;
+  PackAlnUnit * prev = pal->pau[0];
+  PackAlnUnit * c;
+  DebugState * state;
+  DebugTransition * trans;
+ 
+  for(i=1;i<pal->len;i++) {
+    c= pal->pau[i];
+    /* have to find the correct state_num */
+    if( c->state >= de->len ) {
+      /* special state - can't handle */
+      fprintf(ofp,"Special state\n");
+      prev = c;
+      continue;
+    }
+    if( prev->state >= de->len ) {
+      /* special state - can't handle */
+      fprintf(ofp,"From Special state\n");
+      prev = c;
+      continue;
+    }
+    
+    state = de->state[pal->pau[i]->state];
+    trans = NULL;
+    for(k=0;k<state->len;k++) {
+      if( state->trans[k]->from_state_num == prev->state ) {
+	trans = state->trans[k];
+      }
+    }
+
+    fprintf(ofp,"SCORE: %5d %5d %5d %s\n",c->score,c->i,c->j,state->statename);
+
+    if( trans != NULL ) {
+      (*trans->show_transition)(de->matrix,c->i,c->j,ofp);
+    }
+    prev = c;
+  }
+}
+
+%func
+Show function cell state transition
+%%
+void show_DebugMatrix(DebugMatrix * de,char * buffer)
+{
+  char ** base;
+  char ** brk;
+  DebugState * ds;
+  DebugTransition * tr;
+
+  base = brk = breakstring(buffer,spacestr);
+
+  brk++;
+
+  if( *brk == NULL ) {
+    (*de->show_cell)(de->matrix,de->currenti,de->currentj,de->out);
+  } else {
+    ds = find_DebugState(de,*brk);
+    if( ds == NULL ) {
+      fprintf(de->out,"No state called %s\n",*brk);
+    } else {
+      brk++;
+      if( *brk != NULL ) {
+	tr = find_DebugTransition(ds,*brk);
+	if( tr == NULL ) {
+	  fprintf(de->out,"In state %s, no transition from %s\n",ds->statename,*brk);
+	} else {
+	  (*tr->show_transition)(de->matrix,de->currenti,de->currentj,de->out);
+	}
+      } else {
+	/* show state */
+	(*ds->show_state)(de->matrix,de->currenti,de->currentj,de->out);
+      }
+    }
+  }
+
+  ckfree(base);
+
+}
+
+
+%func 
+Finds a DebugState 
+%%
+DebugState * find_DebugState(DebugMatrix * de,char * name)
+{
+  int i;
+  
+  for(i=0;i<de->len;i++) {
+    if( strcmp(de->state[i]->statename,name) == 0 ) {
+      return de->state[i];
+    } 
+  }
+
+  return NULL;
+}
+ 
+%func
+Finds a DebugTransition
+%%
+DebugTransition * find_DebugTransition(DebugState * state,char * name)
+{
+  int i;
+
+  for(i=0;i<state->len;i++) {
+    if( strcmp(state->trans[i]->fromstate,name) == 0 ) {
+      return state->trans[i];
+    }
+  }
+
+  return NULL;
+}
+
+
+%func
+Main function to talk to user
+%%
+boolean user_DebugMatrix(DebugMatrix * de)
+{
+  char buffer[MAXLINE];
+  char ** base;
+  char ** brk;
+  FILE * in;
+  FILE * out;
+
+  DebugBreakPoint * bp;
+
+  assert(de);
+  assert(de->in);
+  assert(de->out);
+
+  in  = de->in;
+  out = de->out;
+
+  /* set reset to FALSE */
+  de->reset = 0;
+
+  fprintf(out,"Entering dynamite debugger. Type help for help\n");
+
+  while(1) {
+    fprintf(out,"Dy %5d:%5d max: %d >",de->currenti,de->currentj,de->max_score);
+    
+    fgets(buffer,MAXLINE,in);
+    
+    if( strstartcmp(buffer,"quit") == 0 ) {
+      exit(1);
+    }
+
+    if( strstartcmp(buffer,"show") == 0 ) {
+      show_DebugMatrix(de,buffer);
+      continue;
+    }
+    
+    if( strstartcmp(buffer,"run") == 0 ) {
+      /* return to calling function */
+      return 0;
+    }
+
+    if( strstartcmp(buffer,"break") == 0 ) {
+      base = brk = breakstring(buffer,spacestr);
+      brk++;
+      
+      if( *brk == NULL || *(brk+1) == NULL ) {
+	fprintf(out,">>>> break must have i j positions\n");
+	continue;
+      } else {
+	bp = DebugBreakPoint_alloc();
+	bp->type = MDBP_Cursor;
+	/* reset cursor positions */
+	if( is_integer_string(*brk,&bp->posi) == FALSE ) {
+	  fprintf(out,">>>> i position not an integer.\n");
+	} 
+	brk++;
+	if( is_integer_string(*brk,&bp->posj) == FALSE ) {
+	  fprintf(out,">>>> j position not an integer.\n");
+	} 	
+	fprintf(out,"Adding cursor break point %d,%d\n",bp->posi,bp->posj);
+	add_bp_DebugMatrix(de,bp);
+      }
+      ckfree(base);
+      continue;
+    }
+
+    if( strstartcmp(buffer,"set") == 0 ) {
+      base = brk = breakstring(buffer,spacestr);
+      brk++;
+      if( *brk == NULL || *(brk+1) == NULL ) {
+	fprintf(out,">>>> set must have i j positions\n");
+      } else {
+	/* reset cursor positions */
+	if( is_integer_string(*brk,&de->currenti) == FALSE ) {
+	  fprintf(out,">>>> i position not an integer.\n");
+	} 
+	if( is_integer_string(*brk,&de->currenti) == FALSE ) {
+	  fprintf(out,">>>> j position not an integer.\n");
+	} 	
+      }
+      de->reset = 1;
+      ckfree(base);
+      continue;
+    }
+
+  }
+
+}
+
+
+%func
+Indicates whether we should break at this point. Assummes
+the de datastructure has been updated correctly
+%%
+MatrixDebugBreakPoint_type should_break_DebugMatrix(DebugMatrix * de)
+{
+  int i;
+
+  for(i=0;i<de->bp_len;i++) {
+    auto DebugBreakPoint * p;
+    p = de->point[i];
+
+    switch(p->type) {
+    case MDBP_Cursor :
+      if( de->currenti == p->posi && de->currentj == p->posj ) {
+	return MDBP_Cursor;
+      } 
+      break;
+    case MDBP_Overflow :
+      if( de->max_score > p->overflow ) {
+	return MDBP_Overflow;
+      }
+      break;
+    case MDBP_Underflow :
+      if( de->min_score < p->overflow ) {
+	return MDBP_Overflow;
+      }
+      break;
+    default :
+      warn("Weird break point type %d",p->type);
+    }
+
+  }
+
+  return MDBP_NoBreakPoint;
+      
+}
+
+
+%func
+Builds a "standard" Debug matrix
+%%
+DebugMatrix * std_DebugMatrix(void)
+{
+  DebugMatrix * out;
+  DebugBreakPoint * bp;
+
+  out = DebugMatrix_alloc_std();
+
+  bp = DebugBreakPoint_alloc();
+
+  bp->type = MDBP_Cursor;
+  bp->posi = -1;
+  bp->posj = -1;
+
+  add_bp_DebugMatrix(out,bp);
+
+  bp = DebugBreakPoint_alloc();
+
+  bp->type = MDBP_Overflow;
+  bp->overflow = 1000000;
+
+  add_bp_DebugMatrix(out,bp);
+
+  out->in = stdin;
+  out->out = stderr;
+  return out;
+}
+
+%}

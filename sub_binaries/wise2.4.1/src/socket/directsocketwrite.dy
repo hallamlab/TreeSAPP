@@ -1,0 +1,95 @@
+
+%{
+#include "wisebase.h"
+
+
+%}
+
+
+struct DirectSocketWrite
+int socket
+
+
+%{
+#include "directsocketwrite.h"
+
+
+void write_buffer_direct_socket_server_impl(void * handle,char * string)
+{
+  DirectSocketWrite * dsw = (DirectSocketWrite*) handle;
+
+  write_DirectSocketWrite(dsw,string);
+}
+
+void write_bufferf_direct_socket_server_impl(void * handle,char * format,...)
+{
+  DirectSocketWrite * dsw = (DirectSocketWrite*) handle;
+  char buffer[1024];
+  va_list ap;
+
+
+  va_start(ap,format);
+  vsprintf(buffer,format,ap);	
+
+  write_DirectSocketWrite(dsw,buffer);
+
+  return;
+}
+
+void close_and_free_direct_socket_server(void * handle)
+{
+  DirectSocketWrite * dsw = (DirectSocketWrite*) handle;
+
+  free_DirectSocketWrite(dsw);
+  return;
+}
+
+
+Wise2WriteStreamInterface * WriteStream_from_socket(int socket)
+{
+  Wise2WriteStreamInterface * out;
+  DirectSocketWrite * dsw;
+
+  dsw = DirectSocketWrite_alloc();
+  dsw->socket = socket;
+
+  out = malloc(sizeof(Wise2WriteStreamInterface));
+
+  out->write_buffer  = write_buffer_direct_socket_server_impl;
+  out->write_bufferf = write_bufferf_direct_socket_server_impl;
+  out->close_and_free_handle = close_and_free_direct_socket_server;
+
+  out->handle = (void *) dsw;
+
+  return out;
+}
+
+
+
+boolean write_DirectSocketWrite(DirectSocketWrite * dsw,char * string)
+{
+  int curr;
+  int length;
+  int ret;
+
+  length = strlen(string);
+
+  curr = 0;
+
+  while( curr < length ) {
+    ret = write(dsw->socket,string+curr,length-curr);
+    if( ret == -1 ) {
+      /* warn("Error sending with %d\n",errno); */
+      break;
+    }
+    if( ret+curr >= length ) {
+      break;
+    }
+    curr += ret;
+  }
+  
+  return TRUE;
+}
+
+
+%}

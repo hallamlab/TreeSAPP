@@ -1,0 +1,241 @@
+
+%{
+#include "graphtangle.h"
+#include "grapherror.h"
+#include "depthmanager.h"
+#include "supertangle.h"
+
+%}
+
+
+
+
+
+
+%{
+#include "graphmanager.h"
+
+int find_di_cycles_AssemblyGraph(AssemblyGraph * ag)
+{
+  BaseNode * bn;
+  int i,j,k;
+  int count = 0;
+  int is_cyc = 0;
+  assert(ag != NULL);
+
+
+  for(bn=ag->bg->start;bn != NULL;bn = bn->next_node ) {
+    for(i=0;i<bn->link_len;i++) {
+      is_cyc = 0;
+      for(j=0;j<bn->link[i]->sequence_label_len && is_cyc == 0;j++) {
+	for(k=j+1;k<bn->link[i]->sequence_label_len && is_cyc == 0;k++) {
+	  if( abs(bn->link[i]->sequence_label[j] - bn->link[i]->sequence_label[k]) == 1 ) {
+	    bn->link[i]->state |= BaseLink_IS_DICYCLE;
+	    count++;
+	    is_cyc = 1;
+	    break;
+	  }
+	}
+      }
+    }
+  }
+	
+  return count;
+}
+
+
+
+int find_single_cycles_AssemblyGraph(AssemblyGraph * ag)
+{
+  BaseNode * bn;
+  int i;
+  int count = 0;
+
+  assert(ag != NULL);
+
+
+  for(bn=ag->bg->start;bn != NULL;bn = bn->next_node ) {
+    for(i=0;i<bn->link_len;i++) {
+      if( bn == bn->link[i]->left && bn == bn->link[i]->right ) {
+	bn->link[i]->state |= BaseLink_IS_CYCLE;
+	count++;
+      }
+    }
+  }
+	
+  return count;
+}
+
+
+int find_and_jump_supertangles_AssemblyGraph(AssemblyGraph * ag)
+{
+  SuperTangle * st;
+  SuperTangleDistanceSet * stds;
+  BaseNode * bn;
+  int i;
+  int count = 0;
+
+  assert(ag != NULL);
+
+
+  for(bn=ag->bg->start;bn != NULL;bn = bn->next_node ) {
+    for(i=0;i<bn->link_len;i++) {
+
+      if( bn == bn->link[i]->left && (bn->link[i]->state & (BaseLink_IS_CYCLE | BaseLink_IS_DICYCLE)) &&
+	  !(bn->link[i]->state & BaseLink_SUPERTANGLE) ) {
+	fprintf(stderr,"Found potential supertangle %d\n",bn);
+	st = new_seeded_SuperTangle(bn,50);
+
+	
+	show_SuperTangle(ag->bg,st,stderr);
+
+	
+	stds = new_SuperTangleDistanceSet(ag,st);
+
+	sort_dis_SuperTangleDistanceSet(stds);
+	show_SuperTangleDistanceSet(stds,stderr);
+
+
+	count++;
+
+
+	free_SuperTangle(st);
+      }
+    }
+  }
+	
+  return count;
+
+
+
+}
+
+
+int find_and_resolve_tangles_AssemblyGraph(AssemblyGraph * ag)
+{
+  return find_and_resolve_tangles_AssemblyGraph_Para(ag,NULL,0);
+}
+
+
+int find_and_resolve_tangles_AssemblyGraph_Para(AssemblyGraph * ag,DepthPara * dp,boolean use_depth)
+{
+  BaseNode * bn;
+  BaseLink * baselink;
+  AssemblyPath * path;
+  int no;
+  int i;
+  int count = 0;
+
+  bn = ag->bg->start;
+
+  while( bn != NULL ) {
+
+    if( use_depth == FALSE && bn->link_len > 1 ) {
+      bn = bn->next_node;
+      continue;
+    }
+
+    if( use_depth == TRUE && bn->link_len == 2 ) {
+      bn = bn->next_node;
+      continue;
+    }
+
+    for(i=0;i<bn->link_len;i++) {
+      if( bn->link[i]->state & BaseLink_TANGLE_TOUCH ) {
+	continue;
+      }
+      if( use_depth == TRUE && bn->link[i]->sequence_label_len > dp->max_depth ) {
+	continue;
+      }
+    
+
+      bn->link[i]->state |= BaseLink_TANGLE_TOUCH;
+      baselink = bn->link[i];
+
+      if(baselink->left == bn ) {
+	bn = baselink->right;
+      } else {
+	bn = baselink->left;
+      }
+      
+      /* walk along until we hit a tangle */
+      
+      while( bn != NULL ) {
+	no = next_link_if_error_or_cycle_unique_BaseLink(baselink,bn,&baselink);
+
+	if( no > 1 ) {
+	  /*
+	  reverse_map_dna_number(bn->dna_number,ag->bg->kii->kmer_size,buffer);
+	  buffer[ag->bg->kii->kmer_size] = '\0';
+	  fprintf(stderr,"Investigating tangle around %d [%s] with %d baselinks\n",bn,buffer,bn->link_len);
+	  */
+
+	  path = find_sequence_label_tangle_path(ag,baselink,bn);
+	  if( path == NULL ) {
+	    /* can't handle this - move on! */
+	    fprintf(stderr,"Failure!\n");
+	    break;
+	  }
+
+	  count++;
+
+	  /*
+	  fprintf(stderr," Handling a path %d from link %d\n",use_depth,baselink);
+	  show_AssemblyPath(path,ag->bg->kii->kmer_size,stderr);
+	  */
+
+	  bn = lift_tangled_AssemblyPath(ag,path);
+	  fprintf(stderr,"Success!\n");
+	  /* need to find the new node now */
+	  free_AssemblyPath(path);
+
+	  fprintf(stderr,"handled tangle, new node %d\n",bn);
+	} else if( no == 0 ) {
+	  break;
+	} else {
+	  if(baselink->left == bn ) {
+	    bn = baselink->right;
+	  } else {
+	    bn = baselink->left;
+	  }
+	  
+	  /* fprintf(stderr,"Progressing! with link %d %ld\n",baselink,baselink->sequence_label[0]); */
+	}
+      }
+    }
+
+    bn = bn->next_node;
+
+  }
+
+  return count;
+
+}
+
+
+boolean find_simple_errors_AssemblyGraph(AssemblyGraph * ag,GraphErrorPara * gep)
+{
+  BaseNode * bn;
+  int i;
+
+  assert(ag != NULL);
+  assert(gep != NULL);
+
+  for(bn=ag->bg->start;bn != NULL;bn = bn->next_node ) {
+    if( bn->link_len > 2 ) {
+      for(i=0;i<bn->link_len;i++) { 
+	if( bn->link[i]->sequence_label_len <= gep->max_error ) {
+	  fprintf(stderr,"Node %d has a potential error\n",bn);
+	  find_error_and_mark_BaseNode(bn,gep);
+	  break;
+	}
+      }
+    }
+  }
+
+  return TRUE;
+}
+
+
+
+%}

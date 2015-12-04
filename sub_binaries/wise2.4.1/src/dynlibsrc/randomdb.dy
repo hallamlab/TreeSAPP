@@ -1,0 +1,136 @@
+
+
+%{
+#include "wisebase.h"
+#include "histogram.h"
+#include "randommodel.h"
+
+
+
+%}
+
+
+struct RandomProteinDB
+boolean use_flat_length !def="TRUE"
+int length
+Histogram * length_dist
+RandomModel * emission
+int num
+
+struct RandomDNADB
+boolean use_flat_length !def="TRUE"
+int length
+Histogram * length_dist
+RandomModelDNA * emission
+int num
+
+
+api
+object RandomProteinDB
+des free_RandomProteinDB
+endobject
+object RandomDNADB
+des free_RandomDNADB
+endobject
+endapi
+
+%{
+#include "randomdb.h"
+
+%func
+Makes a new random sequence from a
+RandomProteinDB
+%%
+Sequence * Sequence_from_RandomProteinDB(RandomProteinDB * rndp)
+{
+  int i;
+  Sequence * out;
+  char * name = "RandomSequence";
+  char buffer[512];
+  char * seq;
+
+  if( rndp->use_flat_length == FALSE ) {
+    warn("Ooops have not implemented gaussian lengths yet. Yikes!");
+    return NULL;
+  }
+
+
+  seq = ckcalloc(rndp->length+1,sizeof(char));
+  for(i=0;i<rndp->length+1;i++) {
+    seq[i] = draw_random_aa_RandomModel(rndp->emission);
+  }
+
+  sprintf(buffer,"%s%d",name,rndp->num++);
+  out = new_Sequence_from_strings(name,seq);
+  ckfree(seq);
+  return out;
+}
+
+%func
+Makes a new flat RandomProteinDB
+%arg
+rm s RandomModel
+length length of protein to produce
+%%
+RandomProteinDB * new_flat_RandomProteinDB(RandomModel * rm,int length)
+{
+  RandomProteinDB * out;
+  
+  out = RandomProteinDB_alloc();
+  out->use_flat_length = TRUE;
+  out->emission = hard_link_RandomModel(rm);
+  out->length = length;
+
+  return out;
+}
+
+
+%func
+Makes a new random sequence from a
+RandomDNADB
+%%
+Sequence * Sequence_from_RandomDNADB(RandomDNADB * rndp)
+{
+  int i;
+  Sequence * out;
+  char * name = "RandomSequence";
+  char buffer[512];
+  char * seq;
+
+  if( rndp->use_flat_length == FALSE ) {
+    warn("Ooops have not implemented gaussian lengths yet. Yikes!");
+    return NULL;
+  }
+
+
+  seq = ckcalloc(rndp->length+1,sizeof(char));
+  for(i=0;i<rndp->length+1;i++) {
+    seq[i] = draw_random_base_RandomModelDNA(rndp->emission);
+  }
+
+  sprintf(buffer,"%s%d",name,rndp->num++);
+  out = new_Sequence_from_strings(buffer,seq);
+  ckfree(seq);
+  return out;
+}
+
+%func
+Makes a new flat RandomDNADB
+%arg
+rm s RandomModel emission
+length length of DNA to produce
+%%
+RandomDNADB * new_flat_RandomDNADB(RandomModelDNA * rm,int length)
+{
+  RandomDNADB * out;
+  
+  out = RandomDNADB_alloc();
+  out->use_flat_length = TRUE;
+  out->emission = hard_link_RandomModelDNA(rm);
+  out->length = length;
+  out->num = 1;
+
+  return out;
+}
+
+%}

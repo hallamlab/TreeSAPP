@@ -1,0 +1,180 @@
+\section{threestatedb}
+\label{module_threestatedb}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_ThreeStateDB} ThreeStateDB
+
+\end{itemize}
+\subsection{Object ThreeStateDB}
+
+\label{object_ThreeStateDB}
+
+The ThreeStateDB object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{dbtype} Type [int : Scalar] No documentation
+
+\item{filename} Type [char * : Scalar] No documentation
+
+\item{type} Type [int : Scalar] No documentation
+
+\item{current_file} Type [FILE * : Scalar] No documentation
+
+\item{rm} Type [RandomModel * : Scalar]  NB, this is hard-linked... 
+
+\item{byte_position} Type [long : Scalar]  this is the file position for the current model
+
+\item{single} Type [ThreeStateModel * : Scalar]  for single db cases
+
+\item{phdb} Type [PfamHmmer1DB * : Scalar]  for Pfam Hmmer1 style databases.
+
+\item{sdb} Type [SequenceDB   * : Scalar]  for protein databases
+
+\item{comp} Type [CompMat      * : Scalar]  for protein databases
+
+\item{gap} Type [int : Scalar]  for protein databases
+
+\item{ext} Type [int : Scalar]  for protein databases
+
+\item{seq_cache} Type [Sequence *  : Scalar]  needed for a bit of inter-function communication 
+
+\item{reload_generic} Type [ThreeStateModel * (*reload_generic)(ThreeStateDB * tdb,int * return_status) : Scalar]  for generic parsing applications...
+
+
+\item{open_generic} Type [boolean (*open_generic)(ThreeStateDB * tdb) : Scalar] No documentation
+
+\item{close_generic} Type [boolean (*close_generic)(ThreeStateDB * tdb) : Scalar] No documentation
+
+\item{dataentry_add} Type [boolean (*dataentry_add)(ThreeStateDB * tdb,DataEntry * en) : Scalar] No documentation
+
+\item{open_index_generic} Type [boolean (*open_index_generic)(ThreeStateDB *tdb) : Scalar] No documentation
+
+\item{index_generic} Type [ThreeStateModel * (*index_generic)(ThreeStateDB *tdb,DataEntry *de) : Scalar] No documentation
+
+\item{close_index_generic} Type [boolean (*close_index_generic)(ThreeStateDB *tdb) : Scalar] No documentation
+
+\item{data} Type [void * : Scalar]  whatever else the damn system wants to carry around with it! 
+
+\item{hmm_model_start} Type [int  : Scalar] No documentation
+
+\item{hmm_model_end} Type [int  : Scalar] No documentation
+
+\item{current_no} Type [int  : Scalar] No documentation
+
+\end{description}
+ThreeStateDB is the object that represents
+a database of profile-HMMs. 
+
+
+The object hold a variety of fields on some of which are
+occupied depending on the type.
+
+
+Realistically we need a more abstract class idea, which is
+implemented here anyway via the generic stuff, in hacky
+C-style pointers to function plus a void pointer. This object
+therefore houses a switch system around the different types
+including the generic system... but as the generic function
+stuff was bolted on later, some things are handled with
+explicit datastructures. It is quite messy ;). Apologies.
+To be cleaned up.
+
+
+The generic stuff was principly added in to allow a decoupling of this module
+from the HMMer2.o interface code which is held in wise2xhmmer.dy
+
+
+The old static datastructure code can be 
+made via protein sequences which are then converted or a 
+Pfam 2.0 style directory + HMMs file.
+
+
+
+
+Member functions of ThreeStateDB
+
+\subsubsection{indexed_ThreeStateModel_ThreeStateDB}
+
+\begin{description}
+\item[External C] {\tt Wise2_indexed_ThreeStateModel_ThreeStateDB (mdb,en)}
+\item[Perl] {\tt &Wise2::ThreeStateDB::indexed_model (mdb,en)}
+
+\item[Perl-OOP call] {\tt $obj->indexed_model(en)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[mdb] [UNKN ] database where this is indexed [ThreeStateDB *]
+\item[en] [UNKN ] dataentry to pull the model from [DataEntry *]
+\item[returns] [UNKN ] Undocumented return value [ThreeStateModel *]
+\end{description}
+Retrieves a model from a database which has been opened
+for indexing by /open_for_indexing_ThreeStateDB
+
+
+The index information comes from the dataentry which should 
+have been from a search of the ThreeStateDB.
+
+
+\subsubsection{new_proteindb_ThreeStateDB}
+
+\begin{description}
+\item[External C] {\tt Wise2_new_proteindb_ThreeStateDB (sdb,comp,gap,ext)}
+\item[Perl] {\tt &Wise2::ThreeStateDB::new_proteindb_ThreeStateDB (sdb,comp,gap,ext)}
+
+\item[Perl-OOP call] {\tt $obj->new_proteindb_ThreeStateDB(comp,gap,ext)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[sdb] [READ ] sequence database to use [SequenceDB *]
+\item[comp] [READ ] comparison matrix to use [CompMat *]
+\item[gap] [READ ] gap open penalty [int]
+\item[ext] [READ ] gap extensions penalty [int]
+\item[returns] [UNKN ] Undocumented return value [ThreeStateDB *]
+\end{description}
+makes a new ThreeStateDB from a
+sequencedb (better be protein!)
+
+
+
+
+\subsubsection{new_PfamHmmer1DB_ThreeStateDB}
+
+\begin{description}
+\item[External C] {\tt Wise2_new_PfamHmmer1DB_ThreeStateDB (dirname)}
+\item[Perl] {\tt &Wise2::ThreeStateDB::new_PfamHmmer1DB_ThreeStateDB (dirname)}
+
+\item[Perl-OOP call] {\tt $obj->new_PfamHmmer1DB_ThreeStateDB()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[dirname] [UNKN ] Undocumented argument [char *]
+\item[returns] [UNKN ] Undocumented return value [ThreeStateDB *]
+\end{description}
+Makes a new PfamHmmer1DB from a filename
+indicating the directory
+
+
+\subsubsection{new_single_ThreeStateDB}
+
+\begin{description}
+\item[External C] {\tt Wise2_new_single_ThreeStateDB (tsm,rm)}
+\item[Perl] {\tt &Wise2::ThreeStateDB::new_single_ThreeStateDB (tsm,rm)}
+
+\item[Perl-OOP call] {\tt $obj->new_single_ThreeStateDB(rm)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[tsm] [READ ] a single ThreeStateModel [ThreeStateModel *]
+\item[rm] [READ ] random model to be used in comparisons.. [RandomModel *]
+\item[returns] [UNKN ] Undocumented return value [ThreeStateDB *]
+\end{description}
+Making a new ThreeStateDB from a single
+model
+
+
+
+

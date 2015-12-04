@@ -1471,7 +1471,7 @@ sub start_RAxML {
         if ($f_contig =~ /\A(.)/) {
             $denominator = $1;    
         }
-        #check if it's a functional hit. If yes, change the reference tree.    
+        #check if it''s a functional hit. If yes, change the reference tree.    
         unless (($denominator eq "p") || ($denominator eq "g") || ($denominator eq "i")) {
             foreach my $cog (sort {$a cmp $b} keys %{$$cog_list{"all_cogs"}}) {
                 next unless ($$cog_list{"all_cogs"}{$cog} eq $denominator);

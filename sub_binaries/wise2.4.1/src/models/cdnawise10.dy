@@ -1,0 +1,229 @@
+
+
+%{
+#include "dyna.h"
+#include "geneparser4.h"
+
+
+%}
+
+
+matrix CdnaWise10
+query    type="CDNA"      name="query" 
+target   type="GENOMIC"   name="target"
+resource type="GeneParser4Score *" name="gp"
+resource type="CodonMatrixScore *" name="sc"
+resource type="RandomCodonScore *"   name="rndcodon"
+resource name="utr" type="DNACOMPMAT"
+resource type="Score" name="gap_open"
+resource type="Score" name="gap_ext"
+resource type="Score" name="utr_gap"
+resource type="Score" name="intron_gap"
+extern name="GP4_*" type="int"
+state  UTR5  offi="1" offj="1"
+  source UTR5
+    calc="DNABASEMATCH(utr,CDNA_BASE(query,i),GENOMIC_BASE(target,j))"
+    endsource
+  source START
+    calc="DNABASEMATCH(utr,CDNA_BASE(query,i),GENOMIC_BASE(target,j))"
+    endsource
+  source UTR5_INTRON
+    calc="DNABASEMATCH(utr,CDNA_BASE(query,i),GENOMIC_BASE(target,j))"
+    endsource
+  source UTR5 offi="0"
+    calc="utr_gap"
+    query_label UTR5_GAP
+    endsource
+  source UTR5 offj="0"
+    calc="utr_gap"
+    target_label UTR5_GAP
+    endsource
+  query_label  UTR5
+  target_label UTR5
+endstate
+state UTR5_INTRON offj="1"
+  source UTR5_INTRON
+    calc="0"
+    endsource
+  source UTR5
+    calc="GENOMIC_5SS(target,j) + intron_gap"
+    endsource
+  query_label  UTR5
+  target_label UTR5_INTRON
+endstate
+state  MATCH offi="3" offj="3"
+  source MATCH
+    calc="sc->score[CDNA_CODON(query,i)][GENOMIC_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="sc->score[CDNA_CODON(query,i)][GENOMIC_CODON(target,j)]"
+    endsource 
+  source DELETE
+    calc="sc->score[CDNA_CODON(query,i)][GENOMIC_CODON(target,j)]"
+    endsource 
+  source START
+    calc="sc->score[CDNA_CODON(query,i)][GENOMIC_CODON(target,j)]"
+    endsource 
+  source UTR5
+    calc="sc->score[CDNA_CODON(query,i)][GENOMIC_CODON(target,j)]"
+    endsource 
+  source INTRON_0 offi="0" offj="6"
+    calc="GENOMIC_3SS(target,j-3)"
+    target_label 3SS_PHASE_0
+    endsource
+  source INTRON_1 offi="0" offj="5"
+    calc="GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source INTRON_2 offi="0" offj="4"
+    calc="GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+  query_label MATCH_STATE
+  target_label CODON
+endstate
+#
+# Insert state: does not move along model, produces DNA sequence...
+#
+state  INSERT offi="0" offj="3"
+  source MATCH
+    calc="rndcodon->codon[GENOMIC_CODON(target,j)] + gap_open"
+    endsource
+  source INSERT
+    calc="rndcodon->codon[GENOMIC_CODON(target,j)] + gap_ext"
+    endsource 
+#
+# phase 0,1,2 introns can calculate whole amino acid for 0.
+#
+  source INTRON_0 offi="0" offj="6"
+    calc="GENOMIC_3SS(target,j-3)"
+    target_label 3SS_PHASE_0
+    endsource
+  source INTRON_1 offi="0" offj="5"
+    calc="GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source INTRON_2 offi="0" offj="4"
+    calc="GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+  query_label  INSERT_STATE
+  target_label CODON
+endstate
+state DELETE offi="1" offj="0"
+  source MATCH
+    calc="rndcodon->codon[CDNA_CODON(query,i)] + gap_open"
+    endsource
+  source INSERT
+    calc="rndcodon->codon[CDNA_CODON(query,i)] + gap_ext"
+    endsource 
+  query_label DELETE_STATE
+  target_label INSERT
+  endstate
+#
+# Intron state: 3 separate phases, and merge INSERT/MATCH information
+#
+state INTRON_0 offi="0" offj="1"
+  source MATCH offj="8" offi="3"
+    calc="GENOMIC_5SS(target,j-7) + intron_gap"
+    target_label 5SS_PHASE_0
+    endsource
+  source INSERT offj="8" offi="0"
+    calc="GENOMIC_5SS(target,j-7) + intron_gap"
+    target_label 5SS_PHASE_0
+    endsource
+  source INTRON_0 offj="1"
+    calc="0"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label INTRON_STATE
+  endstate
+state INTRON_1 offi="0" offj="1"
+  source MATCH offj="9" offi="3"
+    calc="GENOMIC_5SS(target,j-7) + intron_gap"
+    target_label 5SS_PHASE_1
+    endsource
+  source INSERT offj="9" offi="0"
+    calc="GENOMIC_5SS(target,j-7) + intron_gap"
+    target_label 5SS_PHASE_1
+    endsource
+  source INTRON_1 offj="1"
+    calc="0"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label INTRON_STATE
+  endstate
+state INTRON_2 offi="0" offj="1"
+  source MATCH offj="10" offi="3"
+    calc="GENOMIC_5SS(target,j-7) + intron_gap"
+    target_label 5SS_PHASE_2
+    endsource
+  source INSERT offj="10" offi="0"
+    calc="GENOMIC_5SS(target,j-7) + intron_gap"
+    target_label 5SS_PHASE_2
+    endsource
+  source INTRON_2 offj="1"
+    calc="0"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label INTRON_STATE
+  endstate
+state  UTR3  offi="1" offj="1"
+  source UTR3
+    calc="DNABASEMATCH(utr,CDNA_BASE(query,i),GENOMIC_BASE(target,j))"
+    endsource
+  source UTR3_INTRON
+    calc="DNABASEMATCH(utr,CDNA_BASE(query,i),GENOMIC_BASE(target,j))"
+    endsource
+  source UTR3 offi="0"
+    calc="utr_gap"
+    query_label UTR3_GAP
+    endsource
+  source UTR3 offj="0"
+    calc="utr_gap"
+    target_label UTR3_GAP
+    endsource
+  query_label  UTR3
+  target_label UTR3
+endstate
+state UTR3_INTRON offj="1"
+  source UTR3_INTRON
+    calc="0"
+    endsource
+  source UTR3
+    calc="GENOMIC_5SS(target,j) + intron_gap"
+    endsource
+  query_label  UTR3
+  target_label UTR3_INTRON
+endstate
+state START !start !special
+  endstate
+state END !end !special
+  source MATCH 
+    calc="0"
+    endsource
+  source UTR3
+    calc="0"
+    endsource
+  target_label END
+  query_label END
+endstate
+#
+# collapse Intron labels!
+#
+collapse UTR5 UTR5
+collapse UTR3 UTR3
+collapse UTR5 UTR5_INTRON
+collapse UTR3 UTR3_INTRON
+collapse INTRON_STATE CENTRAL_INTRON
+endmatrix
+
+
+
+
+%{
+#include "cdnawise10.h"
+
+
+
+%}

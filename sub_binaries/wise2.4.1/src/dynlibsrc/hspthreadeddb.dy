@@ -1,0 +1,308 @@
+
+%{
+#include "hsplookupscan.h"
+#include "arrayseqlookup.h"
+
+#define HSPThreadedDatabaseLISTLENGTH 32
+#define DBTHREAD_MAX_SIZE 64
+
+%}
+
+
+struct HSPDatabaseSegment
+HSPScanInterface * hspi
+SeqLookupInterface * sli
+Sequence * query !link // for running
+HSPScanInterfacePara * run_para !link // for running
+LinearHSPmanager * lm !link // for retrieving results
+SeqLookupLoadPara * load_para  !link // for loading
+SequenceDB * loaddb !link // for loading
+pthread_mutex_t * dblock !link // for loading
+long int * count !link // for loading
+boolean * is_first !link // for loading
+
+
+struct HSPThreadedDatabase
+HSPDatabaseSegment ** seg !list
+
+
+
+%{
+#include "hspthreadeddb.h"
+
+#define HAS_PTHREAD_SETSCOPE
+#define HAS_PTHREAD_SETCONCURRENCY
+
+%func
+Makes a HSPScanInterface from a loaded threaded database
+%%
+HSPScanInterface * new_HSPScanInterface_from_HSPThreadedDatabase(HSPThreadedDatabase * tdb)
+{
+  HSPScanInterface * out;
+
+  assert(tdb != NULL);
+  assert(tdb->seg[0] != NULL);
+  assert(tdb->seg[0]->sli != NULL);
+
+  out = HSPScanInterface_alloc();
+
+  out->data = tdb;
+  out->scan_query = scan_query_hspthreadeddb;
+  out->free_data  = free_data_hspthreadeddb;
+
+  return out;
+}
+
+
+
+
+%func
+frees data 
+%%
+void free_data_hspthreadeddb(void * d)
+{
+  HSPThreadedDatabase * tdb = (HSPThreadedDatabase *) d;
+
+  free_HSPThreadedDatabase(tdb);
+}
+
+
+
+%func
+Does the scan query for the HSPThreadedDatabase
+%% 
+LinearHSPmanager * scan_query_hspthreadeddb(void * d,Sequence * query,HSPScanInterfacePara * para)
+{
+  HSPThreadedDatabase * tdb;
+  pthread_t thread_pool[DBTHREAD_MAX_SIZE];
+  pthread_attr_t pat;
+  int i,j;
+  int err;
+  LinearHSPmanager * out;
+  LinearHSPmanager * real_out;
+
+
+  tdb = (HSPThreadedDatabase *) d;
+  pthread_attr_init(&pat);     
+
+#ifdef  HAS_PTHREAD_SETSCOPE 
+  pthread_attr_setscope(&pat, PTHREAD_SCOPE_SYSTEM);   
+#endif /* set scope */   
+  /* Give thread libraries a hint that there are num of threads to run */ 
+#ifdef HAS_PTHREAD_SETCONCURRENCY    
+  /*  pthread_setconcurrency(tdb->len+1);*/
+#endif /* set concurrency */ 
+
+  for(i=0;i<tdb->len;i++) {
+    tdb->seg[i]->query = query;
+    tdb->seg[i]->run_para = para;
+    tdb->seg[i]->lm = NULL;
+    if( (err = pthread_create(&(thread_pool[i]),&pat,threadeddb_scan_worker,(void*)tdb->seg[i])) != 0 ) {
+      fatal("Unable to make thread %d with error %d",i,err);
+    }
+  }
+
+  for(i=0;i<tdb->len;i++) {
+    pthread_join(thread_pool[i],NULL);
+  }
+
+  fprintf(stderr,"All threads have run\n");
+  if( VERBOSITY_CHECK(4,para->verbosity) ) {
+    info("All threads have run");
+  }
+
+  out = LinearHSPmanager_alloc_std();
+
+  for(i=0;i<tdb->len;i++) {
+    assert(tdb->seg[i]->lm != NULL);
+    for(j=0;j<tdb->seg[i]->lm->len;j++) {
+      add_LinearHSPmanager(out,hard_link_HSPset(tdb->seg[i]->lm->set[j]));
+    }
+  }
+
+  qsort(out->set,out->len,sizeof(HSPset*),compare_HSPset_score_qsort);
+
+  /* this is a bit evil */
+
+  real_out = LinearHSPmanager_alloc_len(para->max_results);
+  for(i=0;i<para->max_results && i<out->len;i++) {
+    add_LinearHSPmanager(real_out,out->set[i]);
+  }
+
+  /*  out->len = para->max_results;*/
+
+  if( VERBOSITY_CHECK(4,para->verbosity) ) {
+    info("Finish combine/sort with %d elements",real_out->len);
+  }
+
+
+  return out;
+}
+
+
+%func
+internal scan function
+%%
+void * threadeddb_scan_worker(void * d)
+{
+  HSPDatabaseSegment * seg;
+
+  seg = (HSPDatabaseSegment *) d;
+
+  seg->lm = (*seg->hspi->scan_query)(seg->hspi->data,seg->query,seg->run_para);
+
+  fprintf(stderr,"For segment %d, finished query with %d (%d) linear\n",seg,(int)seg->lm,seg->lm->len);
+
+  return NULL;
+}
+
+
+%func
+Makes a new segmented database suitable for
+threading
+%%
+HSPThreadedDatabase * new_HSPThreadedDatabase(int segments,int array_numb_level)
+{
+  HSPThreadedDatabase * out;
+  int i;
+  HSPDatabaseSegment * seg;
+
+  out = HSPThreadedDatabase_alloc_len(segments);
+  
+  for(i=0;i<segments;i++) {
+    seg = HSPDatabaseSegment_alloc();
+    seg->hspi = NULL;
+    seg->sli  = new_ArraySeq_SeqLookupInterface(26*26*26*26*26,array_numb_level);
+                
+    add_HSPThreadedDatabase(out,seg);
+  }
+
+  return out;
+
+}
+
+%func
+Loades a segmented database
+%%
+void load_HSPThreadedDatabase(HSPThreadedDatabase * db,SequenceDB * sdb,SeqLookupLoadPara * para,CompMat * mat,int drop_off,int score_cutoff)
+{
+  pthread_mutex_t dblock;
+  pthread_t thread_pool[DBTHREAD_MAX_SIZE];
+  pthread_attr_t pat;
+  int i;
+  int err;
+
+  long int count = 0;
+  boolean is_first = 1;
+
+  pthread_attr_init(&pat);     
+
+#ifdef  HAS_PTHREAD_SETSCOPE 
+  pthread_attr_setscope(&pat, PTHREAD_SCOPE_SYSTEM);   
+#endif /* set scope */   
+
+#ifdef HAS_PTHREAD_SETCONCURRENCY    
+  /* needed to make sure one thread doesn't dominate the IO */
+  pthread_attr_setschedpolicy(&pat,SCHED_RR);    
+#endif /* set concurrency */ 
+
+  if( pthread_mutex_init(&dblock,NULL) != 0 ) {
+    fatal("Unable to make mutex for db lock");
+  }
+
+  for(i=0;i<db->len;i++) {
+    db->seg[i]->load_para = para;
+    db->seg[i]->loaddb = sdb;
+    db->seg[i]->dblock = &dblock;
+    db->seg[i]->count  = &count;
+    db->seg[i]->is_first = &is_first;
+  }
+
+
+
+  for(i=0;i<db->len;i++) {
+    if( (err = pthread_create(&(thread_pool[i]),&pat,threaddb_load_worker,(void*)db->seg[i])) != 0 ) {
+      fatal("Unable to make thread %d with error %d",i,err);
+    }
+  }
+
+  for(i=0;i<db->len;i++) {
+    pthread_join(thread_pool[i],NULL);
+  }
+
+  /* attach scan interfaces to the databases */
+
+  for(i=0;i<db->len;i++) {
+    db->seg[i]->hspi = new_one_off_HSPScanInterface(db->seg[i]->sli,mat,drop_off,score_cutoff);
+  }
+
+  return;
+}
+
+%func
+load threaddb 
+%%
+void * threaddb_load_worker(void * d)
+{
+  HSPDatabaseSegment * seg = (HSPDatabaseSegment *) d;
+  Sequence * seq = NULL;
+  long int temp_count;
+  int ret;
+  long load_count = 0;
+
+  
+  while( 1 ) {
+    /* try to get lock */
+    if( pthread_mutex_lock(seg->dblock) != 0 ) {
+      fatal("Unable to get mutex lock");
+    }
+    
+    /* try to get this sequence */
+    if( *seg->is_first == 1 ) {
+      seq = init_SequenceDB(seg->loaddb,&ret);
+      *seg->is_first = 0;
+    }  else {
+      seq = get_next_SequenceDB(seg->loaddb);
+    }
+
+    /* if seq is NULL, or count > truncate end db */
+    if( seq == NULL || (seg->load_para->truncate> 0 && *seg->count > seg->load_para->truncate) ) {
+      info("Thread loaded %d entries",load_count);
+
+      pthread_mutex_unlock(seg->dblock);
+      return NULL;
+    }
+
+    /* if not, up count, check if we need to report */
+    (*seg->count)++;
+
+    temp_count = *seg->count;
+
+    /* can now remove lock */
+
+    pthread_mutex_unlock(seg->dblock);
+
+    if( seg->load_para->report_stagger > 0 && (temp_count % seg->load_para->report_stagger == 0) ) {
+      info("Threaded db load %d sequences for sli %d at %s",temp_count,seg->sli,seq->name);
+    }
+
+    /* now we need to add this sequence */
+
+    add_SeqLookupInterface(seg->sli,seq);
+
+    load_count++;
+
+    (*seg->sli->add_seq)(seg->sli->data,seq,seg->load_para);
+
+  }
+
+    
+  return NULL;
+}
+
+
+
+
+
+
+%}

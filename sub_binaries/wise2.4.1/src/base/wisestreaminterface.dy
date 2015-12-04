@@ -1,0 +1,192 @@
+
+%{
+#include "wisebase.h"
+
+
+typedef struct Wise2_Stream_Read_Interface {
+  char* (*read_buffer)(void *,char*,int);
+  boolean (*is_end)(void*);
+  void  (*close_and_free_handle)(void *);
+  void * handle;
+} Wise2ReadStreamInterface;
+
+
+typedef struct Wise2_Stream_Write_Interface {
+  void (*write_buffer)(void *,char*);
+  void (*write_bufferf)(void *,char*,...);
+  void (*close_and_free_handle)(void *);
+  void * handle;
+} Wise2WriteStreamInterface;
+
+
+#define WISE2_READ_BUFFER(buffer,length,ri) ((*ri->read_buffer)(ri->handle,buffer,length))
+#define WISE2_WRITE_STRING(string,wi) ((*wi->write_buffer)(wi->handle,string))
+
+
+%}
+
+
+
+
+
+%{
+#include "wisestreaminterface.h"
+
+
+
+%func
+Implementation function for normal files for reading
+%%
+char * read_buffer_FILE_impl(void * handle,char * input_buffer,int maxsize)
+{
+  char * ret;
+  FILE * ifp = (FILE *)handle;
+
+  ret = fgets(input_buffer,maxsize,ifp);
+
+  return ret;
+}
+
+%func
+Implementation function for normal files for end flag
+%%
+boolean is_end_FILE_impl(void * handle)
+{
+  FILE * ifp = (FILE *)handle;
+
+  if( feof(ifp) ) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
+%func
+Implementation function for normal files for closing. Works for both
+reading and writing
+%%
+void close_and_free_FILE_impl(void * handle)
+{
+  FILE * ifp = (FILE *)handle;
+
+  fclose(ifp);
+}
+
+%func
+Makes a Wise2ReadStream interface from a normal C filehandle
+%%
+Wise2ReadStreamInterface * ReadStream_from_FILE(FILE * ifp)
+{
+  Wise2ReadStreamInterface * out;
+
+  out = malloc(sizeof(Wise2ReadStreamInterface));
+  out->read_buffer = read_buffer_FILE_impl;
+  out->is_end      = is_end_FILE_impl;
+  out->close_and_free_handle = close_and_free_FILE_impl;
+  out->handle = (void*) ifp;
+
+  return out;
+}
+
+%func
+opens a file from filename and gives back a ReadStream,
+NULL if unable to return
+%%
+Wise2ReadStreamInterface * ReadStream_openfile(char * filename)
+{
+  FILE * ifp;
+  assert(filename != NULL);
+
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Unable to open file %s",filename);
+    return NULL;
+  }
+  
+  return ReadStream_from_FILE(ifp);
+}
+
+
+%func
+implementation for normal C files for string writing
+%%
+void write_buffer_FILE_impl(void * handle,char * string)
+{
+  FILE * ifp = (FILE *)handle;
+
+  fputs(string,ifp);
+  
+  return;
+}
+
+%func
+implementation for normal C files for formatted writing
+%%
+void write_bufferf_FILE_impl(void * handle,char * format,...)
+{
+  FILE * ifp = (FILE *)handle;
+  char buffer[1024];
+  va_list ap;
+
+
+  va_start(ap,format);
+  vsprintf(buffer,format,ap);	
+
+  fputs(buffer,ifp);
+
+  return;
+}
+
+%func
+makes a WriteStream from a normal C FILE structure
+%%
+Wise2WriteStreamInterface * WriteStream_from_FILE(FILE * ofp)
+{
+  Wise2WriteStreamInterface * out;
+
+  out = malloc(sizeof(Wise2WriteStreamInterface));
+  out->write_buffer = write_buffer_FILE_impl;
+  out->write_bufferf = write_bufferf_FILE_impl;
+  out->close_and_free_handle = close_and_free_FILE_impl;
+  out->handle = (void*) ofp;
+
+  return out;
+}
+
+%func
+opens a file from filename and gives back a WriteStream,
+NULL if unable to return
+%%
+Wise2WriteStreamInterface * WriteStream_openfile(char * filename)
+{
+  FILE * ofp;
+  assert(filename != NULL);
+
+  ofp = openfile(filename,"w");
+  if( ofp == NULL ) {
+    warn("Unable to open file %s",filename);
+    return NULL;
+  }
+  
+  return WriteStream_from_FILE(ofp);
+}
+
+%func
+helper function - cats one stream into another
+%%
+void cat_ReadStream_into_WriteStream(Wise2ReadStreamInterface * rs,Wise2WriteStreamInterface * ws)
+{
+  char str[1024];
+
+  while( (*rs->is_end)(rs->handle) != TRUE ) {
+    if( (*rs->read_buffer)(rs->handle,str,1024) == NULL ) {
+	return;
+    }	
+    (*ws->write_buffer)(ws->handle,str);
+  }
+
+  
+}
+
+
+%}

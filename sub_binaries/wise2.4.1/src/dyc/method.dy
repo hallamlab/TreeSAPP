@@ -1,0 +1,524 @@
+
+%{
+#include "wisebase.h"
+#include "input.h"
+#include "wisec.h"
+
+#define MethodLISTLENGTH 16
+#define MethodTypeSetLISTLENGTH 16
+
+
+enum COMPUGEN_METHOD_MAP {
+	CUGEN_METHOD_UNKNOWN = 78,
+	CUGEN_METHOD_TSEQ,
+	CUGEN_METHOD_WINDEX };
+
+%}
+
+struct MethodArg
+char * type
+
+struct Method
+char * logical
+char * real
+char * retstr;
+MethodArg ** ma !list
+char * cugen_map
+int cugen_type !def="CUGEN_METHOD_UNKNOWN"
+
+struct Type
+boolean is_database !def="FALSE"
+boolean is_thread_safe !def="FALSE"
+char * logical;
+char * real;
+char * database_type;
+char * get_id_func;
+char * init_func;
+char * reload_func;
+char * close_func;
+char * dataentry_add;
+char * maxlen;
+char * hard_link_func;
+char * free_func;
+Input * in;
+
+struct MethodTypeSet
+Method ** me !list !len="me_"
+Type   ** ty !list !len="ty_"
+Input  ** in !list !len="in_"
+
+
+%{
+#include "method.h"
+
+
+
+
+%func
+gets a type by its name
+%type internal
+%%
+Type * Type_from_name(MethodTypeSet * mts,char * name)
+{
+  int i;
+  Type * out = NULL;
+
+  if( mts == NULL ) {
+    warn("Attempting to get a type name from a null mts. Nope!");
+    return NULL;
+  }
+
+  for(i=0;i<mts->ty_len;i++) {
+    if( strcmp(mts->ty[i]->logical,name) == 0 ) {
+      if( out == NULL ) {
+	out = mts->ty[i];
+      } else {
+	warn("Multiple definitions for %s - taking the last one\n",name);
+	out = mts->ty[i];
+      }
+    }
+  }
+
+  return out;
+}
+
+
+
+%func
+Essentially compares two strings, disregarding white space
+
+Not ideal!!!
+%type internal
+%%
+boolean compare_type(char * s,char * t)
+{
+  for(;*s && isspace(*s);s++)
+    ;
+  for(;*t && isspace(*t);t++) 
+    ;
+
+  for(;*s && *t && *s == *t;) {
+    for(s++;*s && isspace(*s);s++)
+      ;
+    for(t++;*t && isspace(*t);t++)
+      ;
+  }
+
+  if( *s == '\0' && *t == '\0' )
+    return TRUE;
+
+  return FALSE;
+}
+
+%func
+gets a Method by its name
+%type internal
+%%
+Method * Method_from_name(MethodTypeSet * mts,char * name)
+{
+  int i;
+
+  if( mts == NULL) {
+    warn("Attempting to get a method name from a null mts. Nope!");
+    return NULL;
+  }
+
+  for(i=0;i<mts->me_len;i++) {
+    if( strcmp(mts->me[i]->logical,name) == 0 )
+      return mts->me[i];
+  }
+
+  return NULL;
+}
+
+
+/*** I/O on methods/types ***/
+
+void show_MethodTypeSet(MethodTypeSet * mts,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<mts->me_len;i++)
+    show_Method(mts->me[i],ofp);
+
+  for(i=0;i<mts->ty_len;i++)
+    show_Type(mts->ty[i],ofp);
+
+}
+  
+void show_Method(Method * m,FILE * ofp)
+{
+  int i;
+
+  fprintf(ofp,"Method [%s] map [%s]\n",m->logical,m->real);
+  for(i=0;i<m->len;i++)
+    show_MethodArg(m->ma[i],ofp);
+}
+
+void show_MethodArg(MethodArg * ma,FILE * ofp)
+{
+  fprintf(ofp,"Argument: %s\n",ma->type);
+}
+
+void show_Type(Type * ty,FILE * ofp)
+{
+  fprintf(ofp,"Type: Logial %s Real %s\n",ty->logical,ty->real);
+}
+
+%func
+function which handles the logical->real mapping
+
+At the moment "unmappable" types get assummed to be C types,
+trigger a warning and return the correct thing.
+%%
+StructElement * StructElement_from_MethodTypeSet(char * name,char * type,MethodTypeSet * mts)
+{
+  Type * ty;
+
+  if( (ty = Type_from_name(mts,type)) == NULL ) {
+    warn("Type [%s] is not recognised as a logical Dynamite type. Assumming it is a real C type",type);
+    return StructElement_from_nameandtype(name,type);
+  }
+
+  return StructElement_from_nameandtype(name,ty->real);
+
+}
+
+%func
+an internal for StructElement_from_MethodTypeSet. don't use otherwise please!
+%type internal
+%%
+StructElement * StructElement_from_nameandtype(char * name,char * type)
+{
+  StructElement * out;
+
+  out = StructElement_alloc();
+
+  out->name = stringalloc(name);
+  out->element_type = stringalloc(type);
+
+  out->islinked = TRUE;
+
+  return out;
+}
+  
+
+
+MethodTypeSet * read_MethodTypeSet_filename(char * filename)
+{
+  FILE * ifp;
+  MethodTypeSet * mts;
+
+  ifp=openfile(filename,"r");
+
+  if( ifp == NULL ) {
+    warn("Could not open [%s] for MethodTypeSet reading",filename);
+    return FALSE;
+  }
+
+  mts = read_MethodTypeSet(ifp);
+
+  fclose(ifp);
+
+  return mts;
+}
+
+boolean read_into_MethodTypeSet_filename(MethodTypeSet * mts,char * filename)
+{
+  FILE * ifp;
+  boolean ret;
+
+  ifp=openfile(filename,"r");
+
+  if( ifp == NULL ) {
+    warn("Could not open [%s] for MethodTypeSet reading",filename);
+    return FALSE;
+  }
+
+  ret = read_into_MethodTypeSet(mts,ifp);
+
+  fclose(ifp);
+
+  return ret;
+}
+
+MethodTypeSet * standard_dynamite_MethodTypeSet(void)
+{
+  MethodTypeSet * mts;
+  Type * temp;
+
+  mts = empty_MethodTypeSet();
+
+  temp = Type_alloc();
+  temp->logical=stringalloc("int");
+  temp->real=stringalloc("int");
+  add_ty_MethodTypeSet(mts,temp);
+
+  temp = Type_alloc();
+  temp->logical=stringalloc("double");
+  temp->real=stringalloc("double");
+  add_ty_MethodTypeSet(mts,temp);
+
+  temp = Type_alloc();
+  temp->logical=stringalloc("Score");
+  temp->real=stringalloc("Score");
+  add_ty_MethodTypeSet(mts,temp);
+
+
+  return mts;
+}
+
+
+MethodTypeSet * empty_MethodTypeSet(void)
+{
+  return MethodTypeSet_alloc_std();
+}
+
+MethodTypeSet * read_MethodTypeSet(FILE * ifp)
+{
+  MethodTypeSet * mts;
+
+  mts = empty_MethodTypeSet();
+
+  read_into_MethodTypeSet(mts,ifp);
+   
+  return mts;
+}
+
+boolean read_into_MethodTypeSet(MethodTypeSet * mts,FILE * ifp)
+{
+  char buffer[MAXLINE];
+  Method * me;
+  Type * ty;
+  Input * in;
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL) {
+    chop_newline(buffer);
+    
+    if( buffer[0] == '#' || strwhitestartcmp(buffer,"#",spacestr) == 0 )
+      continue;
+
+    if( only_whitespace(buffer,spacestr) == TRUE) 
+      continue;
+
+    if( strstartcmp(buffer,"method") == 0 ) {
+      if( (me=read_Method_line(buffer,ifp)) == NULL ) {
+	warn("Unable to read method in line [%s] ",buffer);
+      } else {
+	add_me_MethodTypeSet(mts,me);
+      }
+    } else if ( strstartcmp(buffer,"type") == 0 ) {
+      if( (ty=read_Type_line(buffer,ifp)) == NULL ) {
+	warn("Unable to read type in line [%s] ",buffer);
+      } else {
+	add_ty_MethodTypeSet(mts,ty);
+      }
+    } else if ( strstartcmp(buffer,"input") == 0 ) {
+      if( (in = read_Input_line(buffer,ifp)) == NULL ) {
+	warn("Unable to read type in line [%s]",buffer);
+      } else {
+	add_in_MethodTypeSet(mts,in);
+      }
+    } else {
+      warn("In reading only method/types got an impossible line [%s]",buffer);
+    }
+  }
+
+  return TRUE;
+}
+
+
+boolean is_database_type(Type * ty)
+{
+  if( ty->database_type == NULL ||  ty->reload_func == NULL || ty->init_func == NULL || ty->close_func == NULL)
+    return FALSE;
+
+  return TRUE;
+}
+
+
+%func
+reads in a type structure from a line starting
+
+type
+etc
+%arg
+line first line with type
+ifp read file
+%%
+Type * read_Type_line(char * line,FILE * ifp)
+{
+  Type * out;
+  char * temp;
+  char buffer[MAXLINE];
+
+  if( strstartcmp(line,"type") != 0 ) {
+    warn("Attempting to read a method with no method line!");
+    return NULL;
+  }
+
+
+  out = Type_alloc();
+  out->logical = second_word_alloc(line,spacestr);
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    chop_newline(buffer);
+    if( strstartcmp(buffer,"end") == 0 ) 
+      break;
+    else if( strstartcmp(buffer,"real") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->real != NULL ) { 
+	warn("For type [%s], second real replacing [%s] with [%s]",out->logical,out->real,temp);
+	ckfree(out->real);
+      } 
+      out->real = temp;
+    } else if( strstartcmp(buffer,"threadsafe") == 0 ) {
+      out->is_thread_safe = TRUE;
+    } else if ( strstartcmp(buffer,"dbtype") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->database_type != NULL ) { 
+	warn("For type [%s], second database type replacing [%s] with [%s]",out->logical,out->database_type,temp);
+	ckfree(out->database_type);
+      } 
+      out->database_type = temp;
+    } else if ( strstartcmp(buffer,"init") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->init_func != NULL ) { 
+	warn("For type [%s], second init replacing [%s] with [%s]",out->logical,out->init_func,temp);
+	ckfree(out->init_func);
+      } 
+      out->init_func = temp;
+    } else if ( strstartcmp(buffer,"maxlen") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->maxlen != NULL ) { 
+	warn("For type [%s], second maxlen replacing [%s] with [%s]",out->logical,out->maxlen,temp);
+	ckfree(out->maxlen);
+      } 
+      out->maxlen = temp;
+    } else if ( strstartcmp(buffer,"reload") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->reload_func != NULL ) { 
+	warn("For type [%s], second reload function replacing [%s] with [%s]",out->logical,out->reload_func,temp);
+	ckfree(out->reload_func);
+      } 
+      out->reload_func = temp;
+    } else if ( strstartcmp(buffer,"addentry") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->dataentry_add != NULL ) { 
+	warn("For type [%s], second dataentry_add function replacing [%s] with [%s]",out->logical,out->dataentry_add,temp);
+	ckfree(out->dataentry_add);
+      } 
+      out->dataentry_add = temp;
+    } else if ( strstartcmp(buffer,"close") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->close_func != NULL ) { 
+	warn("For type [%s], second close func replacing [%s] with [%s]",out->logical,out->close_func,temp);
+	ckfree(out->close_func);
+      } 
+      out->close_func = temp;
+    } else if ( strstartcmp(buffer,"hardlink") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->hard_link_func != NULL ) { 
+	warn("For type [%s], second hard_link func replacing [%s] with [%s]",out->logical,out->hard_link_func,temp);
+	ckfree(out->hard_link_func);
+      } 
+      out->hard_link_func = temp;
+    } else if ( strstartcmp(buffer,"free") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->free_func != NULL ) { 
+	warn("For type [%s], second free func replacing [%s] with [%s]",out->logical,out->free_func,temp);
+	ckfree(out->free_func);
+      } 
+      out->free_func = temp;
+    } else if ( strstartcmp(buffer,"name") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->get_id_func != NULL ) { 
+	warn("For type [%s], second get name func replacing [%s] with [%s]",out->logical,out->get_id_func,temp);
+	ckfree(out->get_id_func);
+      } 
+      out->get_id_func = temp;
+    } else {
+      warn("In reading type [%s] did not understand [%s]",out->logical,buffer);
+    }
+  }
+  if( out->is_thread_safe == TRUE ) {
+    if( out->hard_link_func == NULL || out->free_func == NULL ) {
+      warn("Trying to make type %s threadsafe but have not supplied hardlink and free functions",out->logical);
+      out->is_thread_safe = FALSE;
+    }
+  }
+
+  out->is_database = is_database_type(out);
+  return out;
+}
+  
+Method * read_Method_line(char * line,FILE * ifp)
+{
+  Method * out;
+  char buffer[MAXLINE];
+  char * temp;
+  MethodArg * m;
+
+  if( strstartcmp(line,"method") != 0 ) {
+    warn("Attempting to read a method with no method line!");
+    return NULL;
+  }
+  
+  out = Method_alloc_std();
+  out->logical = second_word_alloc(line,spacestr);
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    chop_newline(buffer);
+    if( strstartcmp(buffer,"end") == 0 ) 
+      break;
+    else if( strstartcmp(buffer,"map") == 0 ) {
+      temp = second_word_alloc(buffer,spacestr);
+      if( out->real != NULL ) { 
+	warn("For method [%s], second map replacing [%s] with [%s]",out->logical,out->real,temp);
+	ckfree(out->real);
+      } 
+      out->real = temp;
+    } else if ( strstartcmp(buffer,"arg") == 0 ) {
+      m = MethodArg_from_line(buffer);
+      if( m == NULL ) {
+	warn("Got a NULL method arg. Yikes!");
+      } else {
+	add_Method(out,m);
+      }
+    } else if ( strstartcmp(buffer,"return") == 0 ) {
+      out->retstr = second_word_alloc(buffer,spacestr);
+    } else {
+      warn("In method [%s] did not understand %s",out->logical,buffer);
+    }
+  }
+
+  return out;
+}
+  
+
+  
+%func
+reads in from line like
+
+arg PROTEIN
+%arg
+line pointer to buffer
+%%
+MethodArg * MethodArg_from_line(char * line)
+{
+  MethodArg * out;
+
+  if( strstartcmp(line,"arg") != 0 ) {
+    warn("Attempting to read a method argument with no arg line!");
+    return NULL;
+  }
+
+  out = MethodArg_alloc();
+
+  out->type = second_word_alloc(line,spacestr);
+
+  return out;
+}
+
+
+%}

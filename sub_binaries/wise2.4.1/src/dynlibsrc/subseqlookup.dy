@@ -1,0 +1,146 @@
+
+%{
+#include "sequence.h"
+#include "seqlookup.h"
+#include "linkedlist_lookpos.h"
+
+#define LOOKUP_BLOCK_SIZE 1024*1024
+#define SeqLookupPosBlockAllocatorLISTLENGTH 2048
+
+%}
+
+struct SeqLookupPosBlock
+SeqLookupPos block[LOOKUP_BLOCK_SIZE]
+
+
+struct SeqLookupPosBlockAllocator
+SeqLookupPosBlock ** block !list
+int pos;
+
+struct SubSeqLookup
+SeqLookupPos ** array;
+int array_max 
+SeqLookupPosBlockAllocator * block
+
+%{
+#include "subseqlookup.h"
+
+
+%func
+Makes a new array Lookup system
+%%
+SeqLookupInterface * new_array_SeqLookupInterface(int array_max_size)
+{
+  SeqLookupInterface * out;
+  SubSeqLookup * a;
+  int i;
+
+  out = SeqLookupInterface_alloc_std();
+  a = SubSeqLookup_alloc();
+  a->array = calloc(array_max_size,sizeof(SeqLookupPos *));
+  for(i=0;i<array_max_size;i++) {
+    a->array[i] = NULL;
+  }
+
+  a->array_max = array_max_size;
+  a->block = new_SeqLookupPosBlockAllocator();
+
+  out->data = (void*) a;
+  out->lookup = lookup_subseqlookup;
+  out->add = add_subseqlookup;
+  out->is_populated = is_populated_subseqlookup;
+  out->free_data = free_subseqlookup;
+  
+  return out;
+}
+
+
+%func
+free function for the hash
+%%
+void free_subseqlookup(void * data)
+{
+  SubSeqLookup * look = (SubSeqLookup *)data;
+ 
+  free_SubSeqLookup(look);
+}
+
+%func
+tells whether this is populated or not
+%%
+boolean is_populated_subseqlookup(void * data, int seq_number)
+{
+  SubSeqLookup * look = (SubSeqLookup *)data;
+
+  if( look->array[seq_number] == NULL ) {
+    return FALSE;
+  } else {
+    return TRUE;
+  }
+
+}
+
+%func
+Retrieves a SeqLookup position 
+%%
+SeqLookupResultInterface * lookup_subseqlookup(void * data, int seq_number)
+{
+  SubSeqLookup * look = (SubSeqLookup *)data;
+
+  return new_linkedl_SeqLookupResultInterface(look->array[seq_number]);
+}
+
+%func
+Adds a sequence/pos pair to the hash
+%%
+boolean add_subseqlookup(void * data,int seq_number,Sequence * seq,int pos)
+{
+  SubSeqLookup * look = (SubSeqLookup *)data;
+
+  SeqLookupPos * p;
+
+  p = new_SeqLookupPos_BlockAllocator(look->block);
+  p->seq = seq;
+  p->pos = pos;
+  p->next = NULL;
+
+  if( look->array[seq_number] == NULL ) {
+    look->array[seq_number] = p;
+  } else {
+    p->next = look->array[seq_number];
+    look->array[seq_number] = p;
+  }
+
+  return TRUE;
+}
+
+%func
+Makes a new SeqPosLookup Block Allocator
+%%
+SeqLookupPosBlockAllocator * new_SeqLookupPosBlockAllocator(void)
+{
+  SeqLookupPosBlockAllocator * out;
+  
+  out = SeqLookupPosBlockAllocator_alloc_std();
+
+  add_SeqLookupPosBlockAllocator(out,SeqLookupPosBlock_alloc());
+  out->pos = 0;
+ 
+  return out;
+}
+%func
+Returns a new SeqPosLookup
+%%
+SeqLookupPos * new_SeqLookupPos_BlockAllocator(SeqLookupPosBlockAllocator *bla)
+{
+  if( bla->pos+1 > LOOKUP_BLOCK_SIZE ) {
+    add_SeqLookupPosBlockAllocator(bla,SeqLookupPosBlock_alloc());
+    bla->pos = 0;
+    fprintf(stderr,"Increasing block...\n");
+  }
+
+  bla->block[bla->len-1]->block[bla->pos].dynamite_hard_link = 1;
+
+  bla->pos++;
+  return &(bla->block[bla->len-1]->block[bla->pos-1]);
+}

@@ -1,0 +1,71 @@
+\section{sequence_codon}
+\label{module_sequence_codon}
+This module only contains factory methods
+
+\subsection{sequence_codon factory methods}
+\subsubsection{reverse_complement_Sequence}
+\begin{description}
+\item[External C] {\tt Wise2_reverse_complement_Sequence (seq)}
+\item[Perl] {\tt &Wise2::reverse_complement_Sequence (seq)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[seq] [READ ] Sequence to that is used to reverse (makes a new Sequence) [Sequence *]
+\item[returns] [OWNER] new Sequence which is reversed [Sequence *]
+\end{description}
+This both complements and reverses a sequence,
+- a common wish!
+
+
+The start/end are correct with respect to the start/end
+of the sequence (ie start = end, end = start).
+
+
+\subsubsection{magic_trunc_Sequence}
+\begin{description}
+\item[External C] {\tt Wise2_magic_trunc_Sequence (seq,start,end)}
+\item[Perl] {\tt &Wise2::magic_trunc_Sequence (seq,start,end)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[seq] [READ ] sequence that is the source to be truncated [Sequence *]
+\item[start] [READ ] start point [int]
+\item[end] [READ ] end point [int]
+\item[returns] [OWNER] new Sequence which is truncated/reversed [Sequence *]
+\end{description}
+Clever function for dna sequences.
+
+
+When start < end, truncates normally
+
+
+when start > end, truncates end,start and then
+reverse complements.
+
+
+ie. If you have a coordinate system where reverse 
+sequences are labelled in reverse start/end way,
+then this routine produces the correct sequence.
+
+
+\subsubsection{translate_Sequence}
+\begin{description}
+\item[External C] {\tt Wise2_translate_Sequence (dna,ct)}
+\item[Perl] {\tt &Wise2::translate (dna,ct)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[dna] [READ ] DNA sequence to be translated [Sequence *]
+\item[ct] [READ ] Codon table to do codon->aa mapping [CodonTable *]
+\item[returns] [OWNER] new protein sequence [Sequence *]
+\end{description}
+This translates a DNA sequence to a protein.
+It assummes that it starts at first residue
+(use trunc_Sequence to chop a sequence up).
+
+
+
+

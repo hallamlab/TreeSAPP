@@ -1,0 +1,363 @@
+
+%{
+#include "wisebase.h"
+#include "seqalign.h"
+#include "randommodel.h"
+#include "probability.h"
+
+#define pwmDNALISTLENGTH 64
+#define pwmDNAScoreLISTLENGTH 64
+%}
+
+struct pwmColScore
+Score  emit[5]
+%info 
+Actual Scores for a
+position in a Score
+representation of a PWM
+%%
+
+struct pwmColProb
+Probability emit[5]
+%info
+Actual probabilities for
+a position in a PWM
+%%
+
+struct pwmDNA
+pwmColProb ** pos !list
+SeqAlign * ref_align;
+%info
+This structure holds a position
+weight matrix as probabilities.
+
+Generally you want to use the Score
+based system for the actual scoring,
+but this for manipulation of the probabilities
+
+You can build this data structure from a
+simple sequence alignment plus a pseudocount
+%%
+
+struct pwmDNAScore
+pwmColScore ** pos !list
+SeqAlign * ref_align;
+%info
+This structure holds a position
+weight matrix as Scores, generally
+log-odded to a random model
+
+This is the structure used for scoring.
+You make it from a pwmDNA
+%%
+
+
+
+
+%{
+#include "pwmdna.h"
+
+
+%func
+maximum prob of pwmDNA
+%%
+double max_prob_pwmDNA(pwmDNA * in)
+{
+  int i,k;
+  double temp_max;
+  double score = 0.0;
+
+  for(i=0;i<in->len;i++) {
+    temp_max = in->pos[i]->emit[0];
+    for(k=1;k<4;k++) {
+      if( temp_max < in->pos[i]->emit[k] ) {
+	temp_max = in->pos[i]->emit[k];
+      }
+    }
+    score *= temp_max;
+  }
+
+  return score;
+}
+
+
+%func
+minimum prob of pwmDNA
+%%
+double min_prob_pwmDNA(pwmDNA * in)
+{
+  int i,k;
+  double temp_min;
+  double score = 0.0;
+
+  for(i=0;i<in->len;i++) {
+    temp_min = in->pos[i]->emit[0];
+    for(k=1;k<4;k++) {
+      if( temp_min > in->pos[i]->emit[k] ) {
+	temp_min = in->pos[i]->emit[k];
+      }
+    }
+    score *= temp_min;
+  }
+
+  return score;
+}
+
+%func
+Provides a rotated pwm for randomisation
+%%
+pwmDNA * circular_permuted_pwmDNA(pwmDNA * in,int rotate_number)
+{
+  int i;
+  pwmDNA * out;
+  pwmColProb * col;
+  int j;
+  int pos;
+
+  assert(in != NULL);
+
+  out = pwmDNA_alloc_len(in->len);
+  for(i=0;i<in->len;i++) {
+    pos = (i+rotate_number) % in->len;
+    col = pwmColProb_alloc();
+    add_pwmDNA(out,col);
+    for(j=0;j<5;j++) {
+      col->emit[j] = in->pos[pos]->emit[j];
+    }
+  }
+
+  return out;
+
+}
+
+%func
+This gives back a Score from a particular sequence and
+position
+%%
+Score score_pwmDNAScore_Sequence(pwmDNAScore * pds,Sequence * s,int pos)
+{
+  int score;
+
+  if( pds->len + pos > s->len ) {
+    warn("For sequence %s, position %d is unable to be matched to pwmDNA of length %d",s->name,pos,pds->len);
+  }
+
+  score = score_pwmDNAScore_string(pds,s->seq+pos);
+  fprintf(stderr,"Making score %d for %d\n",score,pos);
+  return score;
+}
+
+%func
+This gives back a Score from a particular string
+%%
+Score score_pwmDNAScore_string(pwmDNAScore * pds,char * str)
+{
+  int i;
+  Score total = 0.0;
+
+  /*
+  if( strlen(str) < pds->len ) {
+    warn("String [%s] is shorter than the length of the pds. Should not be using it!",str);
+    return NEGI;
+  }
+  */
+
+  for(i=0;i<pds->len;i++)
+    total += pds->pos[i]->emit[base_from_char(str[i])];
+
+/*  printf("Score %c%c%c to score with %s  [%d]\n",str[0],str[1],str[2],pds->ref_align->seq[0]->seq,total);*/
+ 
+  return total;
+}
+
+%func
+This gives back a Probability from a particular string
+%%
+Probability prob_pwmDNA_string(pwmDNA * pds,char * str)
+{
+  int i;
+  Probability total = 1.0;
+
+
+  for(i=0;i<pds->len;i++) {
+    if( str[i] == '\0' ) {
+      return 0.0;
+    } else {
+      total *= pds->pos[i]->emit[base_from_char(str[i])];
+      /*      fprintf(stdout,"As %d, total %.6f with %c\n",i,total,str[i]);*/
+    }
+  }
+
+  return total;
+}
+
+%func
+This folds in a randommodel into pwmDNA
+%%
+void fold_randommodel_pwmDNA(pwmDNA * pd,RandomModelDNA * rmd)
+{
+  int i;
+  int j;
+
+  assert(pd);
+  assert(rmd);
+  for(i=0;i<pd->len;i++)
+    for(j=0;j<5;j++)
+      if( rmd->base[j] < 0.00000000000000001 ) {
+	warn("Zero base %d, skipping",j);
+      } else {
+	pd->pos[i]->emit[j] /= rmd->base[j];
+      }
+
+}
+
+%func
+This function makes a single pwmDNA from
+a SeqAlign
+
+FIXME: This DOES NOT handle ambiguity codes well
+%%
+pwmDNA * pwmDNA_from_SeqAlign(SeqAlign * sa,double simple_pseudocount)
+{
+  pwmDNA * out;
+  pwmColProb * col;
+  ColumnCount * cc;
+  int i;
+
+  assert(sa);
+
+  out = pwmDNA_alloc_std();
+  out->ref_align = hard_link_SeqAlign(sa);
+
+  for(i=0;i<sa->seq[0]->len;i++) {
+    cc = ColumnCount_from_SeqAlign(sa,i);
+    col = pwmColProb_from_ColumnCount(cc,simple_pseudocount);
+    add_pwmDNA(out,col);
+    free_ColumnCount(cc);
+  }
+
+  return out;
+}
+
+
+%func
+Shows a columns along the page
+%%
+void show_pwmDNA_col(pwmDNA * pd,FILE * ofp)
+{
+  char base[] = "ATGC";
+  int i;
+  int j;
+
+  for(j=0;j<4;j++) {
+    fprintf(ofp," %c ",base[j]);
+    for(i=0;i<pd->len;i++) {
+      fprintf(ofp," %.4f ",pd->pos[i]->emit[base_from_char(base[j])]);
+    }
+    fprintf(ofp,"\n");
+  }
+}
+
+  
+
+%func
+This function makes a single pwmColProb from
+a ColumnCount, applying a simple pseudocount
+method
+
+FIXME: This DOES NOT handle ambiguity codes well
+%type internal
+%%
+pwmColProb * pwmColProb_from_ColumnCount(ColumnCount * cc,double simple_pseudocount)
+{
+  pwmColProb * out;
+  double total;
+  char base[] = "ATGC";
+  int i;
+  out = pwmColProb_alloc();
+  
+  for(i=0,total = 0.0;i<4;i++)
+    total += (cc->count[base[i]-'A'] + simple_pseudocount);
+  
+  for(i=0;i<4;i++)
+    out->emit[base_from_char(base[i])] = (cc->count[base[i]-'A'] + simple_pseudocount) / total;
+  out->emit[4] = 1.0;
+
+  return out;
+}
+  
+%func
+This function makes score represention of a
+position weight matrix from a probability, 
+with a random model folded in on-the-fly
+%%
+pwmDNAScore * pwmDNAScore_from_pwmDNA_RandomModelDNA(pwmDNA * pwm,RandomModelDNA * rmd)
+{
+  int i;
+  pwmDNAScore * out;
+
+  out = pwmDNAScore_alloc_std();
+  out->ref_align = hard_link_SeqAlign(pwm->ref_align);
+  for(i=0;i<pwm->len;i++) {
+    add_pwmDNAScore(out,pwmColScore_from_pwmColProb_rmd(pwm->pos[i],rmd));
+  }
+
+  return out;
+}
+
+%func
+This function makes score represention of a
+position weight matrix from a probability
+%%
+pwmDNAScore * pwmDNAScore_from_pwmDNA(pwmDNA * pwm)
+{
+  int i;
+  pwmDNAScore * out;
+
+  out = pwmDNAScore_alloc_std();
+  out->ref_align = hard_link_SeqAlign(pwm->ref_align);
+
+  for(i=0;i<pwm->len;i++) {
+    add_pwmDNAScore(out,pwmColScore_from_pwmColProb(pwm->pos[i]));
+  }
+
+  return out;
+}
+
+%func
+This function makes a score representation of a
+position weight matrix from a column representation
+%type internal
+%%
+pwmColScore * pwmColScore_from_pwmColProb(pwmColProb * p)
+{
+  pwmColScore * out;
+
+  out = pwmColScore_alloc();
+  Probability2Score_move(p->emit,out->emit,5);
+
+  return out;
+}
+
+%func
+This function makes a score representation of a
+position weight matrix from a column representation,
+with a RandomModel factored in
+%type internal
+%%
+pwmColScore * pwmColScore_from_pwmColProb_rmd(pwmColProb * p,RandomModelDNA  * rmd)
+{
+  pwmColScore * out;
+  int i;
+
+  out = pwmColScore_alloc();
+  for(i=0;i<5;i++)
+    out->emit[i] = Probability2Score(p->emit[i] / rmd->base[i]);
+
+  return out;
+}
+
+%}
+
+
+

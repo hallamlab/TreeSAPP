@@ -1,0 +1,201 @@
+\section{aln}
+\label{module_aln}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_AlnBlock} AlnBlock
+
+\item \ref{object_AlnColumn} AlnColumn
+
+\item \ref{object_AlnUnit} AlnUnit
+
+\item \ref{object_AlnSequence} AlnSequence
+
+\end{itemize}
+\subsection{Object AlnBlock}
+
+\label{object_AlnBlock}
+
+The AlnBlock object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{start} Type [AlnColumn * : Scalar]  the first AlnColumn in the alignment
+
+\item{seq} Type [AlnSequence ** : List]  a list of AlnSequences in the alignment
+
+\item{length} Type [int : Scalar]  not used 
+
+\item{score} Type [int : Scalar]  not used
+
+\end{description}
+AlnBlock is the main representation of alignments from Dynamite. Each
+AlnBlock represents any number of 'sequences', of any type, which share
+things in common. The alignment is represented by a series of /AlnColumns 
+(linked list) in which each AlnColumn has a series of AlnUnits, each 
+Unit being a start/end/text_label triple. Alternatively, one can see
+each sequence in isolation, and not ask what it is aligned to, but rather
+what labels it has on it. 
+
+
+
+
+Member functions of AlnBlock
+
+\subsubsection{dump_ascii_AlnBlock}
+
+\begin{description}
+\item[External C] {\tt Wise2_dump_ascii_AlnBlock (alb,ofp)}
+\item[Perl] {\tt &Wise2::AlnBlock::dump_ascii_AlnBlock (alb,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->dump_ascii_AlnBlock(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alb] [UNKN ] AlnBlock to dump [AlnBlock *]
+\item[ofp] [UNKN ] File stream to dump to [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+Dumps the alignment in rereadable ascii form.
+
+
+Not really for human consumption
+
+
+\subsection{Object AlnColumn}
+
+\label{object_AlnColumn}
+
+The AlnColumn object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{alu} Type [AlnUnit ** : List]  list of the AlnUnits in this column
+
+\item{next} Type [AlnColumn * : Scalar]  the next AlnColumn in this block
+
+\end{description}
+This is a coupling of AlnUnits from different sequences.
+Each AlnUnit is meant to represent *the equivalent* piece
+of biological information in some sense (ie, they are
+alignmed), even though quite possibly they are very 
+different types of information
+
+
+
+
+Member functions of AlnColumn
+
+\subsubsection{at_end_AlnColumn}
+
+\begin{description}
+\item[External C] {\tt Wise2_at_end_AlnColumn (alc)}
+\item[Perl] {\tt &Wise2::AlnColumn::at_end (alc)}
+
+\item[Perl-OOP call] {\tt $obj->at_end()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alc] [READ ] AlnColumn [AlnColumn *]
+\item[returns] [UNKN ] Undocumented return value [boolean]
+\end{description}
+This tells you whether the AlnColumn is at the
+end without passing NULL's around
+
+
+
+
+\subsection{Object AlnUnit}
+
+\label{object_AlnUnit}
+
+The AlnUnit object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{start} Type [int : Scalar]  start position in the sequence
+
+\item{end} Type [int : Scalar]  end position in the sequence
+
+\item{label} Type [int : Scalar]  not used
+
+\item{text_label} Type [char * : Scalar]  text label of this position
+
+\item{next} Type [AlnUnit * : Scalar]  next AlnUnit in this sequence
+
+\item{score[AlnUnitSCORENUMBER]} Type [int : Scalar]  a series of scores for this position.
+
+\item{in_column} Type [boolean : Scalar]  not used 
+
+\item{seq} Type [AlnSequence * : Scalar] No documentation
+
+\end{description}
+This is the basic unit of the label alignment.
+It describes a single mark-up over one sequence:
+being a start, an end and a text_label.
+
+
+
+
+Member functions of AlnUnit
+
+\subsubsection{bio_start_AlnUnit}
+
+\begin{description}
+\item[External C] {\tt Wise2_bio_start_AlnUnit (alu)}
+\item[Perl] {\tt &Wise2::AlnUnit::bio_start (alu)}
+
+\item[Perl-OOP call] {\tt $obj->bio_start()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alu] [UNKN ] Undocumented argument [AlnUnit *]
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+Tells the bio-coordinate of the
+start point of this alnunit
+
+
+\subsubsection{bio_end_AlnUnit}
+
+\begin{description}
+\item[External C] {\tt Wise2_bio_end_AlnUnit (alu)}
+\item[Perl] {\tt &Wise2::AlnUnit::bio_end (alu)}
+
+\item[Perl-OOP call] {\tt $obj->bio_end()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alu] [UNKN ] Undocumented argument [AlnUnit *]
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+Tells the bio-coordinate of the
+end point of this alnunit
+
+
+\subsection{Object AlnSequence}
+
+\label{object_AlnSequence}
+
+The AlnSequence object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{start} Type [AlnUnit * : Scalar]  the first AlnUnit of this sequence
+
+\item{data_type} Type [int : Scalar]  not used
+
+\item{data} Type [void * : Scalar]  not used - don't use!
+
+\item{bio_start} Type [int : Scalar]  start of this sequence in its 'bio' coordinates
+
+\item{bio_end} Type [int : Scalar]  end of this sequence in its 'bio' coordinates
+
+\end{description}
+Each Sequence in an AlnBlock is represented by one of these, and
+in many ways this is an orthogonal way of looking at the alignment
+than the AlnColumns. If you look at the alignment from one 
+AlnSequence you will just see the individual labels on this 
+sequence
+
+
+
+
+Member functions of AlnSequence
+

@@ -1,0 +1,175 @@
+
+%{
+#include "sequence.h"
+
+#define SinglePosSpaceLISTLENGTH 1024
+
+%}
+
+
+
+
+struct SinglePosSequence
+long start
+long end
+void * data !link
+
+
+struct SinglePosSpace
+long current_end
+SinglePosSequence ** sns !list
+SinglePosSequence * last_accessed !link
+int average_len
+int is_static !def="0"
+int max_length !def="1000"
+
+
+
+%{
+#include "singleseqspace.h"
+
+
+
+%func
+New return using binary choping
+%%
+SinglePosSequence * lookup_Sequence_SinglePosSpace(SinglePosSpace * space,long pos)
+{
+  int index_pos;
+
+  assert(pos < space->current_end);
+  assert(pos >= 0);
+
+  if( space->is_static != 0 ) {
+    /* can make explicit calculation for position */
+
+    index_pos = (int) (pos / space->average_len);
+    if( space->sns[index_pos]->start == -1 ) {
+      /* was a padding position */
+      for(index_pos--;index_pos >= 0 && space->sns[index_pos]->start == -1;index_pos--) {
+	/*fprintf(stderr,"Regressed %d with %d [pos %d]\n",index_pos,space->sns[index_pos]->start,pos);*/
+      }
+      assert(index_pos >= 0 );
+    }
+	
+    if( space->sns[index_pos] == NULL ) {
+        fatal("Going to return %d for %d with %d - max %d\n",index_pos,pos,space->average_len,space->current_end);
+    }
+
+    return space->sns[index_pos];
+  }
+
+  
+  assert(pos < space->current_end);
+  
+  index_pos = find_position_SinglePosSpace(space,0,space->len-1,pos);
+
+  
+  return space->sns[index_pos];
+}
+
+
+%func
+Recursive function for finding position
+%%
+int find_position_SinglePosSpace(SinglePosSpace * space,int lower,int higher,int position)
+{
+  int mid;
+  /*
+  fprintf(stderr,"To find position %d Entering with.... %d to %d\n",position,lower,higher);
+  */
+
+  if( lower+2 >= higher ) {
+    if( position >= space->sns[lower]->start && position < space->sns[lower]->end ) 
+      return lower;
+    if( position >= space->sns[higher]->start && position < space->sns[higher]->end ) 
+      return higher;
+  }
+
+  mid = (lower + (int)((higher-lower)/2));
+
+  if( position >= space->sns[mid]->start && position < space->sns[mid]->end ) 
+    return mid;
+  
+
+  if( position >= space->sns[mid]->end ) {
+    /* top half */
+    return find_position_SinglePosSpace(space,mid,higher,position);
+  } else {
+    return find_position_SinglePosSpace(space,lower,mid,position);
+  }
+
+}
+
+
+%func
+Adds a sequence to a single number space, giving out the start
+position for this sequence
+%%
+long int add_Sequence_SinglePosSpace(SinglePosSpace * space,long int length,void * data)
+{
+  int seq_size = 1;
+  int i;
+  SinglePosSequence * a;
+  SinglePosSequence * dummy;
+
+
+ 
+  assert(space);
+  assert(data);
+  assert(length >= 0);
+
+  a = SinglePosSequence_alloc();
+  a->start = space->current_end;
+  
+  if( space->is_static != 0 ) {
+    if( length > space->max_length ) {
+      seq_size = (length / space->max_length) +1;
+    } else {
+      seq_size = 1;
+    }
+
+    a->end   = space->current_end + (space->max_length*seq_size);
+    space->average_len = space->max_length;
+  } else {
+    a->end   = space->current_end + length;
+    space->average_len = a->end / length;
+  }
+
+  a->data = data;
+
+  add_SinglePosSpace(space,a);
+
+  /* pad for long sequences */
+  if( seq_size > 1 ) {
+    for(i=1;i<seq_size;i++) {
+      dummy = SinglePosSequence_alloc();
+      dummy->start = -1;
+      dummy->end = -1;
+      dummy->data = NULL;
+      add_SinglePosSpace(space,dummy);
+    }
+  }
+
+  space->current_end = a->end;
+
+
+  return a->start;
+}
+
+%func
+Provides a new single number space
+%%
+SinglePosSpace * new_SinglePosSpace(int has_maxlen,int max_length)
+{
+  SinglePosSpace * out;
+
+  out = SinglePosSpace_alloc_std();
+
+  out->is_static = has_maxlen;
+  out->max_length = max_length;
+
+  return out;
+  
+}
+

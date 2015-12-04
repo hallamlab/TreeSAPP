@@ -1,0 +1,381 @@
+
+
+%{
+#include "btcanvas.h"
+
+
+%}
+
+
+
+
+
+struct Ascii_btc_Data
+FILE * ofp      // file to write to
+int current_x   // position in main line 
+int paint_x     // painting cursor on the line
+int res_left    // amount reserved on left
+int main        // main block amount
+int res_right   // amount reserved on right
+char ** scratch // scratch pad lines 
+int  depth_scratch // depth of scratch pad for memory
+boolean in_use    !def="FALSE" 
+btPasteArea * bpa // this is what we recycle..
+
+
+%{
+#include "asciibtcanvas.h"
+
+%func
+  prints out usage for
+
+  ascii_btCanvas_from_commandline
+%%
+void ascii_btCanvas_usage(FILE * ofp)
+{
+  fprintf(ofp,"Options for ascii canvas\n");
+  fprintf(ofp,"  -acleft  [integer]    size of left hand panel\n");
+  fprintf(ofp,"  -acmain  [integer]    size of main panel\n");
+  fprintf(ofp,"  -acright [integer]    size of right hand panel\n");
+}
+
+%func
+Makes a ascii btCanvas from the command line,
+swallowing up options for
+   -acleft
+   -acright
+   -acmain
+
+If there are no options, builds with 15,50,5
+%%
+btCanvas * ascii_btCanvas_from_commandline(int * argc,char ** argv,int default_left,int default_main,int default_right,FILE * ofp,int height)
+{
+  int left = default_left;
+  int main_length = default_main;
+  int right = default_right;
+
+  strip_out_integer_argument(argc,argv,"acleft",&left);
+  strip_out_integer_argument(argc,argv,"acright",&right);
+  strip_out_integer_argument(argc,argv,"acmain",&main_length);
+
+  return new_Ascii_btCanvas(ofp,left,main_length,right,height);
+}
+
+
+%func
+The only function specifically for Ascii bt Canvases.
+
+Use this to make a new btCanvas. Then use functions like
+/get_paste_area_btCanvas to actually use it. Everything
+else is handled by data structures and pointer-to-functions
+which are hidden to you (and be thankful for that!)
+
+The standard /free_btCanvas will free the hidden data structures
+as well
+%arg
+ofp FILE stream to write the ascii to
+left amount of text to reserve on the left
+right amount of text to reserve on the right
+height height of block
+%%
+btCanvas * new_Ascii_btCanvas(FILE * ofp,int left,int main,int right,int height)
+{
+  btCanvas * out;
+  Ascii_btc_Data * d;
+
+  out = btCanvas_alloc();
+
+  d = new_Ascii_btc_Data(ofp,left,main,right,height);
+
+  out->canvas_data = (void *) d;
+
+  out->decons = free_Ascii_btc;
+
+  /* now need to put in correct pointers to functions for
+   * canvas implementation
+   */
+  out->can_get_paste_area = can_get_bt_Ascii;
+  out->advance_line = ascii_next_line_btPasteArea;
+  out->get_paste_area = next_Ascii_btpa;
+  out->get_reserved_right = get_ascii_right_btPasteArea;
+  out->get_reserved_left = get_ascii_left_btPasteArea;
+
+
+  return out;
+
+}
+
+
+
+  
+%func
+gets the next btPasteArea. Here we con
+people by simply passing out the 'bpa'
+held in canvas and never reallocating it
+(see /free_Ascii_btpa which is already attached to
+the bpa).
+%type internal
+%%
+btPasteArea * next_Ascii_btpa(btCanvas * btc,int length)
+{
+  Ascii_btc_Data * abd = NULL;
+  
+  abd = (Ascii_btc_Data*) btc->canvas_data;
+
+  if( abd->in_use == TRUE ) { 
+    warn("You are already using a btPasteArea on this canvas. Only one at a time! Probably you have not freed the btPasteArea before hand");
+    return NULL;
+  }
+  
+  if( abd->current_x + length > abd->main + abd->res_left ) {
+    warn("Asking for more block than I can give you. You have not tested with can_get_paste_area. Bad boy!");
+    return NULL;
+  }
+
+  abd->in_use = TRUE;
+  abd->paint_x  = abd->current_x;
+  abd->current_x += length;
+  abd->bpa->length = length;
+  return abd->bpa;
+}
+
+
+%func
+The paste function. Going to get at all the info
+(obviously) through data
+%type internal
+%%
+boolean paste_char_bt_Ascii(btPasteArea * bpa,int x,int y,char c,int format)
+{
+  Ascii_btc_Data * abd = NULL;
+
+  abd = (Ascii_btc_Data*) bpa->canvas_data;
+  
+/*  fprintf(stderr,"Printing at %d %d %c\n",x,y,c); */
+  abd->scratch[y][abd->paint_x + x] = c;
+  return TRUE;
+}
+
+%func
+Can get function
+%type internal
+%%
+boolean can_get_bt_Ascii(btCanvas * btc,int length)
+{
+  Ascii_btc_Data * abd = NULL;
+
+  abd = (Ascii_btc_Data*) btc->canvas_data;
+
+/*  fprintf(stderr,"Current is %d to %d\n",abd->current_x,length); */
+
+  if( abd->current_x + length >= abd->main + abd->res_left )
+    return FALSE;
+
+
+/*  fprintf(stderr,"Returning TRUE\n"); */
+
+  return TRUE;
+}
+
+%func
+The get left area function.
+Again, con people into thinking that we are
+passing a 'live' bpa
+%type internal
+%%
+btPasteArea * get_ascii_left_btPasteArea(btCanvas * btc)
+{
+  Ascii_btc_Data * abd = NULL;
+  int length;
+ 
+  abd = (Ascii_btc_Data*) btc->canvas_data;
+
+  length = abd->res_left;
+
+  if( abd->in_use == TRUE ) { 
+    warn("You are already using a btPasteArea on this canvas. Only one at a time! Probably you have not freed the btPasteArea before hand");
+    return NULL;
+  }
+  
+  abd->in_use = TRUE;
+  abd->paint_x  = 0;
+  abd->bpa->length = length;
+  return abd->bpa;
+}
+
+%func
+The get right area function.
+Again, con people into thinking that we are
+passing a 'live' bpa
+%type internal
+%%
+btPasteArea * get_ascii_right_btPasteArea(btCanvas * btc)
+{
+  Ascii_btc_Data * abd = NULL;
+  int length;
+ 
+  abd = (Ascii_btc_Data*) btc->canvas_data;
+
+  length = abd->res_left + abd->main;
+
+  if( abd->in_use == TRUE ) { 
+    warn("You are already using a btPasteArea on this canvas. Only one at a time! Probably you have not freed the btPasteArea before hand");
+    return NULL;
+  }
+  
+  abd->in_use = TRUE;
+  abd->paint_x  = length;
+  abd->bpa->length = length;
+  return abd->bpa;
+}
+
+%func
+Advancement function.
+%type internal
+%%
+boolean ascii_next_line_btPasteArea(btCanvas * btc)
+{
+  Ascii_btc_Data * abd = NULL;
+  int i,len;
+ 
+/*  fprintf(stderr,"Going to advance\n"); */
+  abd = (Ascii_btc_Data*) btc->canvas_data;
+
+  if( abd->in_use == TRUE ) { 
+    warn("You are already using a btPasteArea on this canvas, and now you are asking to advance a line. Ouch");
+    return FALSE;
+  }
+  len = abd->res_left + abd->main + abd->res_right;
+
+  for(i=0;i<abd->depth_scratch;i++) {
+/*    fprintf(stderr,"About to print %s\n",abd->scratch[i]);*/
+    fputs(abd->scratch[i],abd->ofp);
+  }
+  fputs("\n\n",abd->ofp);
+
+  for(i=0;i<abd->depth_scratch;i++) {
+    memset(abd->scratch[i],' ',len);
+  }
+  
+  abd->current_x = abd->res_left;
+
+  return TRUE;
+  
+}
+
+
+%func
+Deconstructor for a btPasteArea we are
+going to make. Will be attached on construction
+%type internal
+%%
+btPasteArea * free_Ascii_btpa(btPasteArea * obj)
+{
+  Ascii_btc_Data * abd;
+
+  /* all we have to do is set to FALSE the Ascii_btc_Data pointed to
+     by canvas_data
+     */
+
+  abd = (Ascii_btc_Data*) obj->canvas_data;
+
+  abd->in_use = FALSE;
+
+  return NULL;
+}
+  
+
+
+%func
+makes new ascii data. NB. Notice allocation of
+'dummy' btPasteArea and of the scratch pad.
+%type internal
+%%
+Ascii_btc_Data * new_Ascii_btc_Data(FILE * ofp,int left,int main,int right,int height)
+{
+  Ascii_btc_Data * out;
+  int tot;
+  int i;
+
+  tot = left + main + right +2;
+
+  out = Ascii_btc_Data_alloc();
+
+  out->ofp = ofp;
+  out->res_left = left;
+  out->main = main;
+  out->res_right = right;
+  out->current_x= left;
+  out->paint_x = left;
+
+  
+  out->scratch = (char **) ckcalloc(height,sizeof(char *));
+  for(i=0;i<height;i++) {
+    out->scratch[i] = (char *) ckcalloc(tot,sizeof(char));
+    memset(out->scratch[i],' ',tot-2);
+    out->scratch[i][tot-1] = '\0';
+    out->scratch[i][tot-2] = '\n';
+  }
+  
+  out->depth_scratch = height;
+  out->in_use = FALSE;
+  out->bpa = btPasteArea_alloc();
+  out->bpa->height = height;
+  out->bpa->canvas_data = (void *) out;
+  out->bpa->decons = free_Ascii_btpa;
+  out->bpa->paste_char = paste_char_bt_Ascii;
+
+  
+  
+  return out;
+}
+
+  
+%func
+Deconstructor for the btcanvas we are going
+to make. This function will be attached to
+the btcanvas on construction
+%type internal
+%%
+btCanvas * free_Ascii_btc(btCanvas * btc)
+{
+  btc->canvas_data = (void *) free_Ascii_btc_Data((Ascii_btc_Data *)(btc->canvas_data));
+  ckfree(btc);
+  return NULL;
+}
+
+
+%func
+Specialist deconstructor really for scratch pad
+%type internal
+%arg
+obj w Ascii_btc_Data to be zapped
+%%
+!deconstructor
+Ascii_btc_Data * free_Ascii_btc_Data(Ascii_btc_Data * obj)
+{
+  int i;
+
+  for(i=0;i<obj->depth_scratch;i++) {
+    ckfree(obj->scratch[i]);
+  }
+
+  ckfree(obj->scratch);
+  ckfree(obj->bpa); /* very subtle. bpa actually is a complete dummy obj
+		     * calling free_btPasteArea would be **really** bad
+		     */
+  ckfree(obj);
+
+  return NULL;
+}
+
+
+
+
+%}
+
+
+
+
+
+

@@ -1,0 +1,107 @@
+\section{compmat}
+\label{module_compmat}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_CompMat} CompMat
+
+\end{itemize}
+\subsection{Object CompMat}
+
+\label{object_CompMat}
+
+The CompMat object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{comp[26][26]} Type [Score : Scalar] No documentation
+
+\item{name} Type [char * : Scalar]  if any, could be NULL
+
+\end{description}
+This object stores BLOSUM and PAM 
+comparison matrices. It stores them as
+scores: NB - this means probabilistically
+we are talking about some arbitary base of
+log which is really annoying.
+
+
+
+
+Member functions of CompMat
+
+\subsubsection{fail_safe_CompMat_access}
+
+\begin{description}
+\item[External C] {\tt Wise2_fail_safe_CompMat_access (cm,aa1,aa2)}
+\item[Perl] {\tt &Wise2::CompMat::fail_safe_CompMat_access (cm,aa1,aa2)}
+
+\item[Perl-OOP call] {\tt $obj->fail_safe_CompMat_access(aa1,aa2)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[cm] [UNKN ] compmat object [CompMat *]
+\item[aa1] [UNKN ] first amino acid [int]
+\item[aa2] [UNKN ] second amino acid [int]
+\item[returns] [UNKN ] Undocumented return value [Score]
+\end{description}
+gives the fail form of the macro CompMat_AAMATCH which 
+checks that aa1 and a2 are sensible and that cm is not NULL.
+
+
+\subsubsection{write_Blast_CompMat}
+
+\begin{description}
+\item[External C] {\tt Wise2_write_Blast_CompMat (cm,ofp)}
+\item[Perl] {\tt &Wise2::CompMat::write_Blast_CompMat (cm,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->write_Blast_CompMat(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[cm] [UNKN ] CompMat object [CompMat *]
+\item[ofp] [UNKN ] file to output [FILE *]
+\item[returns] [UNKN ] Undocumented return value [boolean]
+\end{description}
+writes a protien CompMat with a standard
+alphabet.
+
+
+\subsubsection{read_Blast_file_CompMat}
+
+\begin{description}
+\item[External C] {\tt Wise2_read_Blast_file_CompMat (filename)}
+\item[Perl] {\tt &Wise2::CompMat::read_Blast_file_CompMat (filename)}
+
+\item[Perl-OOP call] {\tt $obj->read_Blast_file_CompMat()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[filename] [UNKN ] Undocumented argument [char *]
+\item[returns] [UNKN ] Undocumented return value [CompMat *]
+\end{description}
+Opens file, reads matrix, closes file.
+calls /read_Blast_CompMat for the actual format
+reading. Uses /openfile to open the file,
+so will open from config files.
+
+
+\subsubsection{read_Blast_CompMat}
+
+\begin{description}
+\item[External C] {\tt Wise2_read_Blast_CompMat (ifp)}
+\item[Perl] {\tt &Wise2::CompMat::read_Blast_CompMat (ifp)}
+
+\item[Perl-OOP call] {\tt $obj->read_Blast_CompMat()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ifp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] [UNKN ] Undocumented return value [CompMat *]
+\end{description}
+reads a BLAST format matrix and
+allocates a new ComMat structure.
+
+

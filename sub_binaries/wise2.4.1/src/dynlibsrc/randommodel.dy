@@ -1,0 +1,495 @@
+/*  Last edited: Apr 23 14:01 1997 (birney) */
+
+
+%{
+
+#include "wisebase.h"
+#include "probability.h"
+#include "codon.h"
+#include "sequence.h"
+
+
+%}
+
+
+struct RandomModel
+Probability aminoacid[26];
+char * name
+
+struct RandomModelScoreaa
+Score aminoacid[26];
+char * name
+
+struct RandomCodonScore
+Score  codon[126];
+char * name
+
+struct RandomCodon
+Probability  codon[126];
+char * name
+
+struct RandomModelDNA
+Probability base[5];
+char * name;
+
+struct RandomModelDNAScore
+Score  base[5]
+char * name;
+
+api
+object RandomModelDNA
+des free_RandomModelDNA
+endobject
+object RandomModel
+des free_RandomModel
+endobject
+func RandomModelDNA_std
+func default_RandomModel
+endapi
+
+%{
+#include "randommodel.h"
+
+%func
+Draws an amino acid from the random distribution
+%%
+char draw_random_aa_RandomModel(RandomModel * rm)
+{
+  double draw,tot;
+  int i;
+
+  draw = random_0_to_1();
+  for(tot=rm->aminoacid[0],i=0;draw > tot && i<26;tot += rm->aminoacid[++i]) 
+    ;
+  if( i >= 26 ) {
+    warn("Weird - got a draw %f which outside of random model total %f\n",draw,tot);
+    return '?';
+  }
+  return 'A'+i;
+}
+
+%func
+Draws a base from the random distribution
+%%
+char draw_random_base_RandomModelDNA(RandomModelDNA * rm)
+{
+  double draw,tot;
+  int i;
+
+  draw = random_0_to_1();
+  for(tot=rm->base[0],i=0;draw > tot && i<4;tot += rm->base[++i]) 
+    ;
+  if( i >= 26 ) {
+    warn("Weird - got a draw %f which outside of random model total %f\n",draw,tot);
+    return '?';
+  }
+  return char_from_base(i);
+}
+
+
+%func
+Makes a score RandomCodon (log space)
+from a probability based random codon
+%%
+RandomCodonScore * RandomCodonScore_from_RandomCodon(RandomCodon * rc)
+{
+  RandomCodonScore  * out;
+
+  out = RandomCodonScore_alloc();
+
+  Probability2Score_move(rc->codon,out->codon,126);
+
+  if( rc-> name != NULL)
+    out->name = stringalloc(rc->name);
+
+  return out;
+}
+
+
+%func
+Sets all probabilities to 1.0 - ie,
+odds them to themselves.
+
+This is equivalent to saying that the randomcodon
+is being odd-ratioed to itself
+
+Also equivalent of saying all the scores (in log
+space) will be 0
+%%
+void flatten_RandomCodon(RandomCodon * rc)
+{
+  int i;
+
+  for(i=0;i<125;i++)
+    rc->codon[i] = 1.0;
+
+}
+
+%func
+Makes the randomcodon numbers become the odds ratio
+between their probabilitys and flat dna random model
+(0th order markov)
+%%
+void fold_in_RandomModelDNA_into_RandomCodon(RandomCodon * rc,RandomModelDNA * rmd)
+{
+  register int one;
+  register int two;
+  register int three;
+
+  if( rc == NULL || rmd == NULL ) {
+    warn("Passed in NULL objects to fold_in_RandomModelDNA_into_RandomCodon");
+  }
+
+  for(one=0;one < 5;one++)
+    for(two =0;two<5;two ++)
+      for(three=0;three<5;three++)
+	rc->codon[(one*25)+(two*5)+(three)] /= (rmd->base[one]*rmd->base[two]*rmd->base[three]);
+
+
+}
+
+%func
+shows RandomCodonScore
+
+for debugging
+%%
+void show_RandomCodonScore(RandomCodonScore * rcs,FILE * ofp)
+{
+  register int i;
+
+  for(i=0;i<125;i++) {
+    fprintf(ofp,"Score %3d is %d\n",i,rcs->codon[i]);
+
+  }
+}
+
+%func
+shows RandomModelsDNAScore
+
+for debugging
+%%
+void show_RandomModelDNAScore(RandomModelDNAScore * rds,FILE * ofp)
+{
+  register int i;
+
+  for(i=0;i<5;i++) {
+    fprintf(ofp,"Base %d[%c], Score %d [prob %.2f]\n",i,char_from_base(i),rds->base[i],Score2Probability(rds->base[i]));
+  }
+}
+
+%func
+gives a odds ratio between two random models
+%%
+RandomModelDNAScore * folded_RandomModelDNAScore_from_2RMD(RandomModelDNA * dis,RandomModelDNA * rnd)
+{
+  int i;
+  RandomModelDNAScore * out;
+
+  out = RandomModelDNAScore_alloc();
+
+  for(i=0;i<5;i++)
+    out->base[i]= Probability2Score(dis->base[i]/rnd->base[i]);
+
+  return out;
+}
+
+
+
+%func
+From raw counts (no adjustment to amino acids) of codons
+gives you a RandomCodon model
+
+No prior is used (? perhaps should have a flat prior)
+
+N's are handled correctly
+%%
+RandomCodon  * RandomCodon_from_raw_CodonFrequency(double codon[64],CodonTable *ct)
+{
+
+  RandomCodon * out;
+  register int i;
+  double total = 0.0;
+  base one;
+  base two;
+  base three;
+  int o,t,r;
+
+
+
+  /** codon frequencies here *do* include protein amino acid freq...
+    ie, they are raw frequencies, not adjusted for a codon table **/
+
+
+  /** the only thing is that we have to figure out how to
+    deal with N'd codons, which will just be summed over... **/
+
+
+  out= RandomCodon_alloc();
+
+
+  for(i=0;i<64;i++) {
+    total += codon[i];
+  }
+
+  for(i=0;i<125;i++) {
+
+    if( has_random_bases(i) == FALSE ) {
+
+      out->codon[i] = codon[base4_codon_from_codon(i)]/total;
+    }
+    
+    else {
+      all_bases_from_codon(i,&one,&two,&three);
+      
+      if( one == BASE_N && two != BASE_N && three != BASE_N ) {
+	for(o=0;o<4;o++)
+	  out->codon[i] += (codon[o*16+two*4+three]/total);
+      }
+      else if( one == BASE_N && two == BASE_N && three != BASE_N) {
+	for(o=0;o<4;o++)
+	  for(t=0;t<4;t++)
+	    out->codon[i] += (codon[o*16+t*4+three]/total);
+      }
+      else if( one == BASE_N && two == BASE_N && three == BASE_N) {
+	for(o=0;o<4;o++)
+	  for(t=0;t<4;t++)
+	    for(r=0;r<4;r++)
+	      out->codon[i] += (codon[o*16+t*4+r]/total);
+      }
+      else if( one != BASE_N && two == BASE_N && three != BASE_N) {
+	for(t=0;t<4;t++)
+	  out->codon[i] += (codon[one*16+t*4+three]/total);
+      }
+      else if( one != BASE_N && two == BASE_N && three == BASE_N) {
+	for(t=0;t<4;t++)
+	  for(r=0;r<4;r++)
+	    out->codon[i] += (codon[one*16+t*4+r]/total);
+      }
+      else if( one != BASE_N && two != BASE_N && three == BASE_N) {
+	for(r=0;r<4;r++)
+	  out->codon[i] += (codon[one*16+two*4+r]/total);
+      }
+    }
+  }
+
+  out->codon[125] = 0.0;
+
+
+  return out;
+} 
+
+
+%func
+Makes a flat RandomCodon from CodonTable
+%%
+RandomCodon * flat_RandomCodon(CodonTable * ct)
+{
+  int i;
+
+  RandomCodon * rc;
+
+  rc = RandomCodon_alloc();
+
+  for(i=0;i<125;i++) {
+    if( is_stop_codon(i,ct) ) {
+      rc->codon[i] = 0.0;
+    } else {
+      rc->codon[i] = 1.0 / 61.0;
+    }
+  }
+
+  return rc;
+}
+  
+
+%func
+Gives you a log space RandomModelDNAScore
+from a probability space one
+%%
+RandomModelDNAScore * RandomModelDNAScore_from_RandomModelDNA(RandomModelDNA * rmd)
+{
+  RandomModelDNAScore * out;
+  register int i;
+
+  out = RandomModelDNAScore_alloc();
+  if( out == NULL )
+    return NULL;
+
+  for(i=0;i<5;i++) {
+    out->base[i] = Probability2Score(rmd->base[i]);
+  }
+
+
+  return out;
+}
+
+%func
+Returns a structure with 0.25 set in each place
+%%
+RandomModelDNA * RandomModelDNA_std(void)
+{
+  register int i;
+  RandomModelDNA * out;
+
+  out = RandomModelDNA_alloc();
+  if( out == NULL )
+    return NULL;
+
+  for(i=0;i<4;i++)
+    out->base[i] = (1.0) / 4.0;
+
+  out->base[4] = 1.0;
+
+  return out;
+}
+
+%func
+Set human random model (slightly G/C)
+
+Not sure where I got the numbers now. Ooops
+%%
+RandomModelDNA * RandomModelDNA_std_human(void)
+{
+  RandomModelDNA * out;
+
+  out = RandomModelDNA_alloc();
+  if( out == NULL )
+    return NULL;
+
+  out->base[BASE_A]= 0.245;
+  out->base[BASE_G]= 0.251;
+  out->base[BASE_C]= 0.253;
+  out->base[BASE_T]= 0.248;
+
+  out->base[BASE_N]= 1.0;
+
+  return out;
+}
+
+%func
+Gives the score of a Sequence vs a random model
+%%
+Score     Score_Sequence_is_random(Sequence * s,RandomModelScoreaa * rms)
+{
+  register int i;
+  Score sc = 0;
+
+  for(i=0;i<s->len;i++)
+    sc += rms->aminoacid[s->seq[i]-'A'];
+
+  return sc;
+}
+
+%func
+Gives the probability of a Sequence vs a random model
+%%
+Probability Prob_Sequence_is_random(Sequence * s,RandomModel * rm)
+{
+  register int i;
+  Probability p = 1.0;
+  
+
+  for(i=0;i<s->len;i++) {
+    p *= rm->aminoacid[s->seq[i]-'A'];
+  }
+
+  return p;
+}
+  
+
+%func
+Gives a score based RandomModel from a probability based one
+%%
+RandomModelScoreaa * RandomModelScoreaa_from_RandomModel(RandomModel * rm)
+{
+  register int i;
+  RandomModelScoreaa * out;
+
+  out = RandomModelScoreaa_alloc();
+  if( out == NULL )
+    return NULL;
+
+  for(i=0;i<26;i++) 
+    out->aminoacid[i] = Probability2Score(rm->aminoacid[i]);
+
+  return out;
+}
+
+%func
+Gives a default random model numbers from
+swissprot34- via the HMMEr1 package
+%%
+RandomModel * default_RandomModel(void)
+{
+  RandomModel * out;
+  int i;
+
+  out = RandomModel_alloc();
+
+  for(i=0;i<26;i++)
+    out->aminoacid[i] = 0.00000001;
+  
+  out->aminoacid['A' -'A'] = 0.08713;
+  out->aminoacid['C' -'A'] = 0.03347;
+  out->aminoacid['D' -'A'] = 0.04687;
+  out->aminoacid['E' -'A'] = 0.04953;
+  out->aminoacid['F' -'A'] = 0.03977;
+  out->aminoacid['G' -'A'] = 0.08861;
+  out->aminoacid['H' -'A'] = 0.03362;
+  out->aminoacid['I' -'A'] = 0.03689;
+  out->aminoacid['K' -'A'] = 0.08048;
+  out->aminoacid['L' -'A'] = 0.08536;
+  out->aminoacid['M' -'A'] = 0.01475;
+  out->aminoacid['N' -'A'] = 0.04043;
+  out->aminoacid['P' -'A'] = 0.05068;
+  out->aminoacid['Q' -'A'] = 0.03826;
+  out->aminoacid['R' -'A'] = 0.04090;
+  out->aminoacid['S' -'A'] = 0.06958;
+  out->aminoacid['T' -'A'] = 0.05854;
+  out->aminoacid['V' -'A'] = 0.06472;
+  out->aminoacid['W' -'A'] = 0.01049;
+  out->aminoacid['Y' -'A'] = 0.02992;
+
+  return out;
+}
+
+%func
+Reads a simplistic RandomModel file of
+
+C 0.0123
+
+etc type of format
+%%
+RandomModel * read_RandomModel(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  char c;
+  float f;
+  RandomModel * out;
+  register int i;
+
+  out = RandomModel_alloc();
+
+  if( out == NULL ) 
+    return NULL;
+  
+  for(i=0;i<26;i++)
+    out->aminoacid[i] = 0.000001;
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( buffer[0] == '!' )
+      continue;
+    sscanf(buffer,"%c %f",&c,&f);
+    c = toupper((int)c);
+
+    if( c-'A' < 0 || c-'A' > 26 ) {
+      warn("Have picked up an awfully dodgy character [%c] in reading random model",c);
+    }
+
+    out->aminoacid[c-'A'] = f;
+  }
+
+  return out;
+}
+
+%}

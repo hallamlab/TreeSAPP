@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_ComplexSequence *    T_Wise2_ComplexSequence
+
+INPUT
+T_Wise2_ComplexSequence
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_ComplexSequence *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_ComplexSequence
+	sv_setref_pv($arg, "Wise2::ComplexSequence", (void*) $var);
+
+TYPEMAP
+Wise2_ComplexSequenceEvalSet *    T_Wise2_ComplexSequenceEvalSet
+
+INPUT
+T_Wise2_ComplexSequenceEvalSet
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_ComplexSequenceEvalSet *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_ComplexSequenceEvalSet
+	sv_setref_pv($arg, "Wise2::ComplexSequenceEvalSet", (void*) $var);

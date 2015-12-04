@@ -1,0 +1,25 @@
+
+This directory contains examples to use the Dynamite compiler
+with. For better documentation about these examples, read the
+documentation in docs
+
+
+To make go
+
+make psw
+
+and then 
+
+
+psw roac.pep road.pep
+
+
+and
+
+make est2gen
+
+and then
+
+est2gen est.dna genomic.dna
+
+

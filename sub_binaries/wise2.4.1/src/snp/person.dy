@@ -1,0 +1,95 @@
+
+%{
+#include "dyna.h"
+
+#define PopulationLISTLENGTH 128
+#define PopulationSetLISTLENGTH 128
+
+%}
+
+friend Population
+
+struct Person
+char * person_id
+Population * pop !link
+
+struct Population
+char * pop_name
+Person ** person !list
+
+struct PopulationSet
+Population ** pop !list
+
+
+
+%{
+#include "person.h"
+
+boolean is_in_Population(Population * p,char * person_id)
+{
+  int i;
+
+  for(i=0;i<p->len;i++) {
+    if( strcmp(p->person[i]->person_id,person_id) == 0 ) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+Population * find_or_new_Population_in_PopulationSet(PopulationSet * ps,char * pop_name)
+{
+  int i;
+  Population * pe = NULL;
+  
+  assert(ps != NULL);
+
+  for(i=0;i<ps->len;i++) {
+    if( strcmp(ps->pop[i]->pop_name,pop_name) == 0 ) {
+      pe = ps->pop[i];
+      break;
+    }
+  }
+
+  if( pe != NULL ) {
+    return pe;
+  }
+
+  pe = Population_alloc_std();
+  pe->pop_name = stringalloc(pop_name);
+
+  add_PopulationSet(ps,pe);
+  
+  return pe;
+
+}
+
+Person * find_or_new_Person_in_Population(Population * p,char * person_id)
+{
+  int i;
+  Person * pe = NULL;
+  
+  assert(p != NULL);
+
+  for(i=0;i<p->len;i++) {
+    if( strcmp(p->person[i]->person_id,person_id) == 0 ) {
+      pe = p->person[i];
+      break;
+    }
+  }
+
+  if( pe != NULL ) {
+    return pe;
+  }
+
+  pe = Person_alloc();
+  pe->person_id = stringalloc(person_id);
+  pe->pop = p;
+
+  add_Population(p,pe);
+  
+  return pe;
+}
+
+%}

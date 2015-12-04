@@ -1,0 +1,207 @@
+\section{genomicregion}
+\label{module_genomicregion}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_GenomicRegion} GenomicRegion
+
+\end{itemize}
+\subsection{Object GenomicRegion}
+
+\label{object_GenomicRegion}
+
+The GenomicRegion object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{gene} Type [Gene ** : List] No documentation
+
+\item{genomic} Type [Genomic * : Scalar]  NB, may not be here. Be careful!
+
+\end{description}
+GenomicRegion is structure which represents
+information on a region of genomic DNA. It
+*may not* have the actual DNA sequence in there,
+and it is important to realise that.
+
+
+The numbering scheme of many other things (eg,
+genes) are going to be represented in this 
+guys coordinates
+
+
+
+
+Member functions of GenomicRegion
+
+\subsubsection{new_GenomicRegion}
+
+\begin{description}
+\item[External C] {\tt Wise2_new_GenomicRegion (gen)}
+\item[Perl] {\tt &Wise2::GenomicRegion::new_GenomicRegion (gen)}
+
+\item[Perl-OOP call] {\tt $obj->new_GenomicRegion()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gen] [UNKN ] Undocumented argument [Genomic *]
+\item[returns] [UNKN ] Undocumented return value [GenomicRegion *]
+\end{description}
+makes a genomicregion from a genomic sequence
+
+
+\subsubsection{read_EMBL_GenomicRegion_file}
+
+\begin{description}
+\item[External C] {\tt Wise2_read_EMBL_GenomicRegion_file (filename)}
+\item[Perl] {\tt &Wise2::GenomicRegion::read_EMBL_GenomicRegion_file (filename)}
+
+\item[Perl-OOP call] {\tt $obj->read_EMBL_GenomicRegion_file()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[filename] [UNKN ] Undocumented argument [char *]
+\item[returns] [UNKN ] Undocumented return value [GenomicRegion *]
+\end{description}
+Reads in both EMBL sequence and features 
+
+
+\subsubsection{read_EMBL_GenomicRegion}
+
+\begin{description}
+\item[External C] {\tt Wise2_read_EMBL_GenomicRegion (ifp)}
+\item[Perl] {\tt &Wise2::GenomicRegion::read_EMBL_GenomicRegion (ifp)}
+
+\item[Perl-OOP call] {\tt $obj->read_EMBL_GenomicRegion()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ifp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] [UNKN ] Undocumented return value [GenomicRegion *]
+\end{description}
+Reads in both EMBL sequence and features 
+
+
+\subsubsection{add_Gene_to_GenomicRegion}
+
+\begin{description}
+\item[External C] {\tt Wise2_add_Gene_to_GenomicRegion (gr,gene)}
+\item[Perl] {\tt &Wise2::GenomicRegion::add_Gene_to_GenomicRegion (gr,gene)}
+
+\item[Perl-OOP call] {\tt $obj->add_Gene_to_GenomicRegion(gene)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gr] [UNKN ] GenomicRegion to be added to [GenomicRegion *]
+\item[gene] [UNKN ] Gene to be added [Gene *]
+\item[returns] [UNKN ] Undocumented return value [boolean]
+\end{description}
+adds a Gene to this GenomicRegion, making
+sure that it parent/son relationship is ok
+
+
+\subsubsection{show_ace_GenomicRegion}
+
+\begin{description}
+\item[External C] {\tt Wise2_show_ace_GenomicRegion (gr,seq_name,ofp)}
+\item[Perl] {\tt &Wise2::GenomicRegion::show_ace_GenomicRegion (gr,seq_name,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->show_ace_GenomicRegion(seq_name,ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gr] [UNKN ] Undocumented argument [GenomicRegion *]
+\item[seq_name] [UNKN ] Undocumented argument [char *]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+shows ACeDB subsequence source.
+
+
+Assummes
+\begin{verbatim}
+  a only one transcript per gene
+  b only cds exons are used
+
+
+\end{verbatim}
+\subsubsection{show_pretty_GenomicRegion}
+
+\begin{description}
+\item[External C] {\tt Wise2_show_pretty_GenomicRegion (gr,show_supporting,ofp)}
+\item[Perl] {\tt &Wise2::GenomicRegion::show_pretty_GenomicRegion (gr,show_supporting,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->show_pretty_GenomicRegion(show_supporting,ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gr] [UNKN ] Undocumented argument [GenomicRegion *]
+\item[show_supporting] [UNKN ] Undocumented argument [boolean]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+
+
+shows 'pretty' bio type gene
+
+
+\subsubsection{write_Diana_FT_GenomicRegion}
+
+\begin{description}
+\item[External C] {\tt Wise2_write_Diana_FT_GenomicRegion (gr,ofp)}
+\item[Perl] {\tt &Wise2::GenomicRegion::write_Diana_FT_GenomicRegion (gr,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->write_Diana_FT_GenomicRegion(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gr] [UNKN ] Undocumented argument [GenomicRegion *]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+Writes Embl feature table for diana use. Does assumme that
+there is only one transcript per gene and only
+cds exons are used
+
+
+Output like
+
+
+\begin{verbatim}
+   FT   misc_feature       join(100..200)
+
+
+\end{verbatim}
+\subsubsection{write_Embl_FT_GenomicRegion}
+
+\begin{description}
+\item[External C] {\tt Wise2_write_Embl_FT_GenomicRegion (gr,ofp)}
+\item[Perl] {\tt &Wise2::GenomicRegion::write_Embl_FT_GenomicRegion (gr,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->write_Embl_FT_GenomicRegion(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gr] [UNKN ] Undocumented argument [GenomicRegion *]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+Writes Embl feature table. Does assumme that
+there is only one transcript per gene and only
+cds exons are used
+
+
+Output like
+
+
+\begin{verbatim}
+   FT   CDS          join(100..200)
+
+
+\end{verbatim}

@@ -1,0 +1,341 @@
+#ifdef _cplusplus
+extern "C" {
+#endif
+#include "dbadisplay.h"
+
+/* Function:  show_pretty_dba_align(alb,one,two,ofp)
+ *
+ * Descrip:    Shows an alignment of from the dba algorithm in
+ *             pretty formatted ascii text
+ *
+ *
+ * Arg:        alb [UNKN ] Undocumented argument [AlnBlock *]
+ * Arg:        one [UNKN ] Undocumented argument [Sequence *]
+ * Arg:        two [UNKN ] Undocumented argument [Sequence *]
+ * Arg:        ofp [UNKN ] Undocumented argument [FILE *]
+ *
+ * Return [UNKN ]  Undocumented return value [boolean]
+ *
+ */
+# line 15 "dbadisplay.dy"
+boolean show_pretty_dba_align(AlnBlock * alb,Sequence * one,Sequence * two,FILE * ofp)
+{
+  boolean ret;
+  btCanvas * btc;
+
+  btc = new_Ascii_btCanvas(ofp,20,50,5,3); /*+6 in case we want to put in numbers */
+
+  ret = show_pretty_dba_align_btcanvas(btc,alb,one,two,0);
+
+  free_btCanvas(btc);
+
+  return ret;
+}
+
+/* Function:  is_unmatched_block(alc)
+ *
+ * Descrip:    tests whether this is a dba unmatched block
+ *
+ *
+ * Arg:        alc [UNKN ] Undocumented argument [AlnColumn *]
+ *
+ * Return [UNKN ]  Undocumented return value [boolean]
+ *
+ */
+# line 33 "dbadisplay.dy"
+boolean is_unmatched_block(AlnColumn * alc)
+{
+  if( strcmp(alc->alu[0]->text_label,"UM") == 0 ) 
+    return TRUE;
+  if( strcmp(alc->alu[0]->text_label,"UI") == 0 ) 
+    return TRUE;
+
+  if( strcmp(alc->alu[1]->text_label,"UM") == 0 ) 
+    return TRUE;
+  if( strcmp(alc->alu[1]->text_label,"UI") == 0 ) 
+    return TRUE;
+
+  return FALSE;
+}
+
+/* Function:  show_pretty_Seq_dba_align_btcanvas(alb,one,two,btc)
+ *
+ * Descrip:    Different func signature for show_pretty
+ *
+ *
+ * Arg:        alb [UNKN ] Undocumented argument [AlnBlock *]
+ * Arg:        one [UNKN ] Undocumented argument [Sequence *]
+ * Arg:        two [UNKN ] Undocumented argument [Sequence *]
+ * Arg:        btc [UNKN ] Undocumented argument [btCanvas *]
+ *
+ * Return [UNKN ]  Undocumented return value [boolean]
+ *
+ */
+# line 51 "dbadisplay.dy"
+boolean show_pretty_Seq_dba_align_btcanvas(AlnBlock * alb,Sequence * one,Sequence * two,btCanvas * btc)
+{
+  return show_pretty_dba_align_btcanvas(btc,alb,one,two,1);
+}
+
+/* Function:  show_pretty_dba_align_btcanvas(btc,alb,one,two,blast_compatible)
+ *
+ * Descrip:    Shows the dba alignment on the block text
+ *             canvas
+ *
+ *
+ * Arg:                     btc [UNKN ] Undocumented argument [btCanvas *]
+ * Arg:                     alb [UNKN ] Undocumented argument [AlnBlock *]
+ * Arg:                     one [UNKN ] Undocumented argument [Sequence *]
+ * Arg:                     two [UNKN ] Undocumented argument [Sequence *]
+ * Arg:        blast_compatible [UNKN ] Undocumented argument [boolean]
+ *
+ * Return [UNKN ]  Undocumented return value [boolean]
+ *
+ */
+# line 61 "dbadisplay.dy"
+boolean show_pretty_dba_align_btcanvas(btCanvas * btc,AlnBlock * alb,Sequence * one,Sequence * two,boolean blast_compatible)
+{
+  AlnColumn * alc;
+  AlnColumn * end_alc;
+  AlnUnit * q;
+  AlnUnit * t;
+  char buffer[14];
+  boolean at_start = TRUE;
+  boolean new_block;
+  boolean added_hyphen; /* Added NJ020724 */
+  boolean is_reversed;
+
+  btPasteArea * btp;
+
+
+  if( two->offset > two->end ) {
+    is_reversed = TRUE;
+  }
+
+  for(alc=alb->start;alc != NULL;) {
+
+    /** loop over unmatched portions **/
+    new_block = FALSE;
+    for(; alc != NULL && is_unmatched_block(alc) == TRUE;alc = alc->next)
+      new_block = TRUE;
+    if( alc == NULL )
+      break;
+    if( strcmp(alc->alu[0]->text_label,"END") == 0 ) {
+      end_alc = alc;
+      alc = NULL;
+      break;
+    }
+    
+    if( new_block == TRUE && at_start == FALSE ) {
+      /* add in block separator */
+      btp = get_reserved_left_btCanvas(btc);
+      paste_string_btPasteArea(btp,0,1,">-----------<",BC_RIGHT,0);
+      free_btPasteArea(btp);
+      advance_line_btCanvas(btc);
+    }
+
+    at_start = FALSE;
+
+    /** put names in **/
+
+    btp = get_reserved_left_btCanvas(btc);
+
+    if( blast_compatible ) {
+      paste_string_btPasteArea(btp,0,0,"Query:",BC_RIGHT,0);
+      paste_string_btPasteArea(btp,0,2,"Sbjct:",BC_RIGHT,0);  
+    } else {
+      paste_string_btPasteArea(btp,0,0,one->name,BC_RIGHT,0);
+      paste_string_btPasteArea(btp,0,2,two->name,BC_RIGHT,0);
+    }
+
+    sprintf(buffer,"%d",alc->alu[0]->start+1+1);
+
+    paste_string_btPasteArea(btp,12,0,buffer,BC_RIGHT,0);
+
+    if( two->offset < two->end ) {
+      sprintf(buffer,"%d",alc->alu[1]->start+1+1);
+    } else {
+      sprintf(buffer,"-%d",two->offset - (alc->alu[1]->start+1));
+    }
+
+    paste_string_btPasteArea(btp,12,2,buffer,BC_RIGHT,0);
+ 
+    if( strcmp(alc->alu[0]->text_label,"MM65") == 0 ) {
+      paste_string_btPasteArea(btp,17,1,"A",BC_RIGHT,0);
+    } else if ( strcmp(alc->alu[0]->text_label,"MM75") == 0 ) {
+      paste_string_btPasteArea(btp,17,1,"B",BC_RIGHT,0);
+    } else if ( strcmp(alc->alu[0]->text_label,"MM85") == 0 ) {
+      paste_string_btPasteArea(btp,17,1,"C",BC_RIGHT,0);
+    } else if ( strcmp(alc->alu[0]->text_label,"MM95") == 0 ) {
+      paste_string_btPasteArea(btp,17,1,"D",BC_RIGHT,0);
+    } else if ( strcmp(alc->alu[0]->text_label,"MM55") == 0 ) {
+      paste_string_btPasteArea(btp,17,1,"a",BC_RIGHT,0);
+    } else if ( strstr(alc->alu[0]->text_label,"MATCH") != NULL ) {
+      paste_string_btPasteArea(btp,17,1,"M",BC_RIGHT,0);
+    } else {
+      warn("Weird label in dba match block at start of block %s",alc->alu[0]->text_label);
+      paste_string_btPasteArea(btp,17,1,"??",BC_RIGHT,0);
+    }
+
+    free_btPasteArea(btp);
+    /** now loop over this block **/
+
+    for(;alc != NULL &&  can_get_paste_area_btCanvas(btc,1) == TRUE;alc=alc->next) {
+      
+      q = alc->alu[0];
+      t = alc->alu[1];
+
+      /*
+       * at the end, break
+       */
+      if( strcmp(q->text_label,"END") == 0 ) {
+	end_alc = alc;
+	alc = NULL;
+	break;
+      }
+
+      /* Unmatched and break */
+
+      if( q->text_label[0] == 'U' ) {
+	break;
+      }
+
+      /*
+       * Get the paste area, length 1, depth will be 3
+       */
+
+      btp = get_paste_area_btCanvas(btc,1);
+
+
+/*
+ * Change NJ020724
+ * Hack to fix indel bug.
+ * PROBLEM: Inserts were added to the wrong strand, and nucleotides doubled on the other strand.
+ * SOLUTION: When an MI label is found, a hyphen is added to the OTHER strand. A boolean (hyphen_added)
+ * was introduced to avoid overwriting hyphens added to the target strand.
+ * This is probably not the most elegant solution, but what's a poor sod like me to do?
+ */
+
+      added_hyphen = FALSE;
+      
+      if( strstartcmp(q->text_label,"MM") == 0 || strstr(q->text_label,"MATCH") != NULL ) {
+	if( strstr(q->text_label,"SPACER") != NULL ) 
+	  paste_char_btPasteArea(btp,0,0,tolower((int)one->seq[q->start+1]),0);
+	else 
+	  paste_char_btPasteArea(btp,0,0,toupper((int)one->seq[q->start+1]),0);
+      } else {
+	/** is insert- we could check **/
+	if( strstartcmp(q->text_label,"MI") != 0 && strstr(q->text_label,"INSERT") == NULL ) { 
+	  warn("Got an uninterpretable label, %s",q->text_label);
+	  paste_char_btPasteArea(btp,0,0,'?',0);
+	} else {
+	  if( strstr(q->text_label,"SPACER") != NULL ) 
+	    paste_char_btPasteArea(btp,0,0,tolower((int)one->seq[q->start+1]),0); /* Still got to add the nucleotide to this sequence */
+	  else 
+	    paste_char_btPasteArea(btp,0,0,toupper((int)one->seq[q->start+1]),0); 
+
+	  paste_char_btPasteArea(btp,0,2,'-',0); /* Add a - to the OTHER sequence.  */
+          added_hyphen = TRUE; /* Set flag to avoid overwriting the hyphen when checking the target sequence below */
+	}
+      }
+
+      /*
+       * Write in the target sequence
+       *
+       */
+
+
+      if( strstartcmp(t->text_label,"MM") == 0 || strstr(t->text_label,"MATCH") != NULL ) {
+	/* Check if a hyphen has already been added */
+        if (added_hyphen == FALSE) {
+	  if( strstr(t->text_label,"SPACER") != NULL ) 
+	    paste_char_btPasteArea(btp,0,2,tolower((int)two->seq[t->start+1]),0);
+	  else 
+	    paste_char_btPasteArea(btp,0,2,toupper((int)two->seq[t->start+1]),0);
+        }
+      } else {
+	/** is insert- we could check **/
+	if( strstartcmp(t->text_label,"MI") != 0 && strstr(t->text_label,"INSERT") == NULL) { 
+	  warn("Got an uninterpretable label, %s",t->text_label);
+	  paste_char_btPasteArea(btp,0,2,'?',0);
+	} else {
+	  if( strstr(t->text_label,"SPACER") != NULL ) 
+	    paste_char_btPasteArea(btp,0,2,tolower((int)two->seq[t->start+1]),0); /* Still got to add the nucleotide to this sequence */
+	  else 
+	    paste_char_btPasteArea(btp,0,2,toupper((int)two->seq[t->start+1]),0);
+
+          paste_char_btPasteArea(btp,0,0,'-',0); /* Add a - to the OTHER sequence. This overwrites what was pasted above */
+	}
+      }
+
+/*
+ * END change NJ020724
+ */
+      
+      /*
+       * Match line
+       */
+
+
+
+      if( (strstartcmp(q->text_label,"MM") == 0 && strstartcmp(t->text_label,"MM") == 0) || 
+	(strstr(q->text_label,"MATCH") != NULL && strstr(t->text_label,"MATCH") != NULL && strstr(q->text_label,"SPACER") == NULL) ) {
+	if( strstr(q->text_label,"MOTIF") != NULL ) {
+	  paste_char_btPasteArea(btp,0,1,'*',0);
+	} else if( one->seq[q->start+1] == two->seq[t->start+1] ) {
+	  paste_char_btPasteArea(btp,0,1,two->seq[t->start+1],0);
+	} else {	   
+	  paste_char_btPasteArea(btp,0,1,' ',0);
+	}
+      } else 
+	paste_char_btPasteArea(btp,0,1,' ',0);
+      
+      free_btPasteArea(btp);
+
+    } /* end of for this block */
+
+
+    /*
+     * BEGIN added by Chuah Aaron <aaron@tll.org.sg> to make it comply with SearchIO parsing
+     */
+
+    if( blast_compatible ) {
+      btp = get_reserved_right_btCanvas(btc);
+      
+      if( alc != NULL ) {
+	end_alc = alc;
+      }
+      assert(end_alc);
+
+      //    buffer[0]='0'; buffer[1]=0; //hack to get it to work within 70 columns
+      //Remove the line above and uncomment the 2slash-commented lines below to print meaningful numbers
+      
+      sprintf(buffer,"%d",end_alc->alu[0]->start+1);
+      
+      paste_string_btPasteArea(btp,0,0,buffer,BC_RIGHT,0);
+      
+      if( two->offset < two->end ) {
+	sprintf(buffer,"%d",end_alc->alu[1]->start+1);
+      } else {
+	sprintf(buffer,"-%d",two->offset - (end_alc->alu[1]->start+1));
+      }
+      
+      paste_string_btPasteArea(btp,0,2,buffer,BC_RIGHT,0);
+      
+      free_btPasteArea(btp);
+      /*
+       * END added by Chuah Aaron
+       */
+    }
+    advance_line_btCanvas(btc);
+  } /* end of for the alignment */
+
+  return TRUE; /* we never returned false. Ooops! */
+}
+
+  
+# line 328 "dbadisplay.c"
+
+#ifdef _cplusplus
+}
+#endif

@@ -1,0 +1,564 @@
+
+
+%{
+#include "threestatemodel.h"
+
+enum fsm_trans_type {
+  FSM_MATCH2MATCH  = 0,
+  FSM_MATCH2INSERT,  
+  FSM_MATCH2DELETE,
+  FSM_MATCH2INBOUND,
+  FSM_MATCH2OUTBOUND,
+  FSM_INSERT2MATCH,
+  FSM_INSERT2INSERT,  
+  FSM_INSERT2DELETE,
+  FSM_INSERT2INBOUND,
+  FSM_INSERT2OUTBOUND,
+  FSM_DELETE2MATCH,
+  FSM_DELETE2INSERT,  
+  FSM_DELETE2DELETE, 
+  FSM_DELETE2INBOUND,
+  FSM_DELETE2OUTBOUND,
+  FSM_START2MATCH,    
+  FSM_START2INSERT,   
+  FSM_START2DELETE,   
+  FSM_START2INBOUND,   
+  FSM_MATCH2END,      
+  FSM_INSERT2END,     
+  FSM_DELETE2END,
+  FSM_INBOUND2MATCH,
+  FSM_INBOUND2INSERT,
+  FSM_INBOUND2DELETE,
+  FSM_INBOUND2END,
+  FSM_INBOUND2INBOUND,
+  FSM_OUTBOUND2MATCH,
+  FSM_OUTBOUND2INSERT,
+  FSM_OUTBOUND2DELETE,
+  FSM_OUTBOUND2OUTBOUND,
+  FSM_OUTBOUND2INBOUND,
+  FSM_OUTBOUND2END,
+  FSM_TRANSITION_LENGTH
+};
+
+#define FiveStateModelLISTLENGTH 128
+#define FiveStateScoreLISTLENGTH 128
+
+#define FiveStateFrameLISTLENGTH 32
+#define FiveStateFrameSetLISTLENGTH 32
+
+/*
+ * Cheeky declaration to get around #include mess.
+ */
+ThreeStateModel * Wise2_HMMer2_read_ThreeStateModel(char * filename);
+
+%}
+
+struct FiveStateFrame
+ThreeStateModel ** stack !list
+
+struct FiveStateFrameSet
+FiveStateFrame ** set !list
+
+struct FiveStateUnit
+Probability match[ALPHABET_SIZE];
+Probability insert[ALPHABET_SIZE];
+Probability transition[FSM_TRANSITION_LENGTH];
+char display_char; !def="'u'"
+
+struct FiveStateFrameIndicator
+ThreeStateModel * tsm
+int start
+int end
+
+struct FiveStateModel
+char * name   // name of the model
+FiveStateUnit ** unit !list
+FiveStateFrameIndicator ** frame !list !len="tsm_"
+
+
+struct FiveStateScoreUnit
+Score match[ALPHABET_SIZE];
+Score insert[ALPHABET_SIZE];
+Score transition[FSM_TRANSITION_LENGTH];
+char display_char; !def="'u'"
+
+
+struct FiveStateScore
+char * name   // name of the model
+FiveStateScoreUnit ** unit !list 
+
+
+%{
+#include "fivestatemodel.h"
+
+
+void dump_FiveStateModel(FiveStateModel * five,FILE * ofp)
+{
+  int i;
+
+  assert(five);
+  assert(ofp);
+
+  for(i=0;i<five->len;i++) {
+    fprintf(ofp,"Position %d %f %f\n",i,five->unit[i]->transition[FSM_OUTBOUND2INBOUND],
+	    five->unit[i]->transition[FSM_OUTBOUND2END]);
+  }
+
+}
+
+void dump_FiveStateScore(FiveStateScore * five,FILE * ofp)
+{
+  int i;
+
+  assert(five);
+  assert(ofp);
+
+  for(i=0;i<five->len;i++) {
+    fprintf(ofp,"Position %d %c %d %d %d %d\n",i,five->unit[i]->display_char,five->unit[i]->transition[FSM_OUTBOUND2INBOUND],
+	    five->unit[i]->transition[FSM_OUTBOUND2END],five->unit[i]->transition[FSM_INBOUND2MATCH],five->unit[i]->transition[FSM_MATCH2OUTBOUND]);
+  }
+
+}
+
+FiveStateFrameSet * read_FiveStateFrameSet_file(char * context,char * block_str)
+{
+  FiveStateFrameSet * out;
+  char filename[MAXLINE];
+  FILE * ifp;
+
+  assert(context);
+  assert(block_str);
+  sprintf(filename,"%s/%s",context,block_str);
+
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open %s as filename for block structure file",filename);
+    return NULL;
+  }
+  
+  out = read_FiveStateFrameSet(context,ifp);
+
+  fclose(ifp);
+  return out;
+
+}
+
+
+FiveStateFrameSet * read_FiveStateFrameSet(char * context,FILE * ifp)
+{
+  char buffer[MAXLINE];
+  FiveStateFrameSet * out;
+  FiveStateFrame * temp;
+  ThreeStateModel * tsm;
+  char * file;
+  char filename[MAXLINE];
+
+  out = FiveStateFrameSet_alloc_std();
+  temp = FiveStateFrame_alloc_std();
+  
+  add_FiveStateFrameSet(out,temp);
+  
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"//") == 0 ) {
+	
+      temp = FiveStateFrame_alloc_std();
+      add_FiveStateFrameSet(out,temp);
+    } else {
+      file = strtok(buffer,spacestr);
+      sprintf(filename,"%s/%s",context,file);
+
+      tsm = Wise2_HMMer2_read_ThreeStateModel(filename);
+      if( tsm == NULL ) 
+	fatal("Could not read %s as a HMMer2 file - die horribly!",tsm);
+      add_FiveStateFrame(temp,tsm);
+    }
+      
+  }
+  return out;
+}
+
+void blank_FiveStateUnit(FiveStateUnit * u)
+{
+  int i;
+
+  for(i=0;i<ALPHABET_SIZE;i++) {
+    u->match[i] = 1.0;
+    u->insert[i] = 1.0;
+  } 
+
+  for(i=0;i<FSM_TRANSITION_LENGTH;i++) {
+    u->transition[i] = 0.0;
+  } 
+
+}
+
+
+FiveStateModel * FiveStateModel_from_FiveStateFrameSet(FiveStateFrameSet * frame)
+{
+  FiveStateModel * out;
+  FiveStateUnit *  u;
+  int len;
+  int max;
+  int i,j,k,l;
+  int f;
+  FiveStateFrameIndicator * fsfi;
+  ThreeStateModel * tsm;
+  ThreeStateUnit * donor;
+
+  len = 0;
+  for(i=0;i<frame->len;i++) {
+    for(j=0;j<frame->set[i]->len;j++) {
+      len += frame->set[i]->stack[j]->len;
+    }
+  }
+  
+  assert(len > 0);
+
+  out = FiveStateModel_alloc_len(len);
+
+  /* the first state is a dummy state to get
+     probability to get to INBOUND */
+  u = FiveStateUnit_alloc();
+  blank_FiveStateUnit(u);
+  u->display_char = '*';
+  u->transition[FSM_START2INBOUND] = 1.0;
+  u->transition[FSM_INBOUND2MATCH] = 1.0/frame->set[0]->len;
+  u->transition[FSM_INBOUND2INBOUND] = 1.0 - u->transition[FSM_INBOUND2MATCH]; 
+
+  fsfi = FiveStateFrameIndicator_alloc();
+  fsfi->start = 1;
+  fsfi->tsm = hard_link_ThreeStateModel(frame->set[0]->stack[0]);
+  add_tsm_FiveStateModel(out,fsfi);
+
+  add_FiveStateModel(out,u);
+
+
+  f = 0;
+  for(i=0;i<frame->len;i++) {
+    for(j=0;j<frame->set[i]->len;j++) {
+      for(k=0;k<frame->set[i]->stack[j]->len;k++){
+	u = FiveStateUnit_alloc();
+	blank_FiveStateUnit(u);
+
+	if( fsfi->tsm == NULL ) {
+	  fsfi->tsm = hard_link_ThreeStateModel(frame->set[i]->stack[j]);
+	}
+
+	donor = frame->set[i]->stack[j]->unit[k];
+
+	for(l=0;l<ALPHABET_SIZE;l++) {
+	  u->match[l] = donor->match_emission[l];
+	  u->insert[l] = donor->insert_emission[l];
+	}
+
+	u->display_char = donor->display_char;
+	add_FiveStateModel(out,u);
+
+	u->transition[FSM_START2MATCH]   = 0.0;
+	u->transition[FSM_START2INSERT]  = 0.0;
+	u->transition[FSM_START2DELETE]  = 0.0;
+
+	u->transition[FSM_MATCH2MATCH]   = donor->transition[TSM_MATCH2MATCH];
+	u->transition[FSM_MATCH2INSERT]  = donor->transition[TSM_MATCH2INSERT];
+	u->transition[FSM_MATCH2DELETE]  = donor->transition[TSM_MATCH2DELETE];
+	u->transition[FSM_MATCH2END]     = 0.0;
+
+	u->transition[FSM_DELETE2MATCH]  = donor->transition[TSM_DELETE2MATCH];
+	u->transition[FSM_DELETE2INSERT] = donor->transition[TSM_DELETE2INSERT];
+	u->transition[FSM_DELETE2DELETE] = donor->transition[TSM_DELETE2DELETE];
+	u->transition[FSM_DELETE2END]    = 0.0;
+
+	u->transition[FSM_INSERT2MATCH]  = donor->transition[TSM_INSERT2MATCH];
+	u->transition[FSM_INSERT2INSERT] = donor->transition[TSM_INSERT2INSERT];
+	u->transition[FSM_INSERT2DELETE] = donor->transition[TSM_INSERT2DELETE];
+	u->transition[FSM_INSERT2END]    = 0.0;
+
+	/* by default, set inbound and outbound to transition on at 1.0 */
+	u->transition[FSM_OUTBOUND2OUTBOUND] = 1.0;
+	u->transition[FSM_INBOUND2INBOUND]   = 1.0;
+
+
+	/* all the interesting stuff happens at the end of HMM */
+	if( k == frame->set[i]->stack[j]->len-1 ) {
+	  /* end of this stack. transition out to outbound */
+	  u->transition[FSM_MATCH2OUTBOUND] = 1.0;
+
+	  /* set fsfi end point here */
+	  fsfi->end = out->len;
+
+	  
+	  /* if this is also end of the stack, handle the switch from out to in */
+	  if( j == frame->set[i]->len-1 ) {
+	    u->transition[FSM_INBOUND2INBOUND] = 0.0;
+
+	    if( i == frame->len-1 ) {
+	      u->transition[FSM_MATCH2END] = 1.0;
+	    }
+
+
+	    /* because Dynamite has to have an offset in the model, need one
+	       extra units to flip to inbound */
+
+	    u = FiveStateUnit_alloc();
+	    blank_FiveStateUnit(u);
+	    u->display_char = '*';
+
+	    u->transition[FSM_OUTBOUND2INBOUND] = 1.0;
+
+
+
+	    add_FiveStateModel(out,u);
+
+
+	    u = FiveStateUnit_alloc();
+	    blank_FiveStateUnit(u);
+	    u->display_char = '*';
+
+
+	    /* if the end of the model */
+
+	    if( i == frame->len-1 ) {
+	      u->transition[FSM_OUTBOUND2END] = 1.0;
+	      u->transition[FSM_INBOUND2END] = 1.0;
+	    } else {
+	      u->transition[FSM_INBOUND2MATCH] = 1.0/frame->set[i+1]->len;
+	      u->transition[FSM_INBOUND2INBOUND] = 1.0 - u->transition[FSM_INBOUND2MATCH]; 
+	    }
+	    
+	    add_FiveStateModel(out,u);
+	    
+	  } else {
+	    /* the stack continues - adjust inbound to next point */
+	    u->transition[FSM_INBOUND2MATCH]   = 1.0 / frame->set[i]->len;
+	    u->transition[FSM_INBOUND2INBOUND] = 1.0 - u->transition[FSM_INBOUND2MATCH]; 
+	  } 
+
+	  /* allocate and add next fsfi */
+
+	  fsfi = FiveStateFrameIndicator_alloc();
+	  fsfi->start = out->len;
+	  add_tsm_FiveStateModel(out,fsfi);
+
+	}
+
+
+      } /* end of the component hmm */
+    } /* end of the stack */
+  } /* end of the frame */
+  
+  return out;
+}
+  
+
+void fold_RandomModel_into_FiveStateModel(FiveStateModel * fsm,RandomModel * rm)
+{
+  register int i;
+  register int j;
+
+  assert(fsm);
+  assert(rm);
+  for(i=0;i<fsm->len;i++) {
+    auto FiveStateUnit * tsu;
+    tsu = fsm->unit[i];
+
+    for(j=0;j<26;j++) {
+      if( rm->aminoacid[j] < 0.00000001 ) {
+	warn("While trying to fold in random model, amino acid %d [%c] was below zero, ignoring",j,'A'+j);
+	continue;
+      }
+      
+      tsu->match[j]  = tsu->match[j] / rm->aminoacid[j];
+      tsu->insert[j] = tsu->insert[j] / rm->aminoacid[j];
+    }
+  }
+}
+
+
+
+FiveStateModel * FiveStateModel_from_flat_ThreeStateModel(ThreeStateModel * tsm)
+{
+  FiveStateModel * out;
+  FiveStateUnit * u;
+  ThreeStateUnit * donor;
+  int i,j;
+
+  out = FiveStateModel_alloc_len(tsm->len);
+
+  for(i=0;i<tsm->len;i++) {
+    donor = tsm->unit[i];
+    u = FiveStateUnit_alloc();
+    for(j=0;j<ALPHABET_SIZE;j++) {
+      u->match[j] = donor->match_emission[j];
+      u->insert[j] = donor->insert_emission[j];
+    }
+    u->transition[FSM_START2MATCH]   = donor->transition[TSM_START2MATCH];
+    u->transition[FSM_START2INSERT]  = donor->transition[TSM_START2INSERT];
+    u->transition[FSM_START2DELETE]  = donor->transition[TSM_START2DELETE];
+
+    u->transition[FSM_MATCH2MATCH]   = donor->transition[TSM_MATCH2MATCH];
+    u->transition[FSM_MATCH2INSERT]  = donor->transition[TSM_MATCH2INSERT];
+    u->transition[FSM_MATCH2DELETE]  = donor->transition[TSM_MATCH2DELETE];
+    u->transition[FSM_MATCH2END]     = donor->transition[TSM_MATCH2END];
+
+    u->transition[FSM_DELETE2MATCH]  = donor->transition[TSM_DELETE2MATCH];
+    u->transition[FSM_DELETE2INSERT] = donor->transition[TSM_DELETE2INSERT];
+    u->transition[FSM_DELETE2DELETE] = donor->transition[TSM_DELETE2DELETE];
+    u->transition[FSM_DELETE2END]    = donor->transition[TSM_DELETE2END];
+
+    u->transition[FSM_INSERT2MATCH]  = donor->transition[TSM_INSERT2MATCH];
+    u->transition[FSM_INSERT2INSERT] = donor->transition[TSM_INSERT2INSERT];
+    u->transition[FSM_INSERT2DELETE] = donor->transition[TSM_INSERT2DELETE];
+    u->transition[FSM_INSERT2END]    = donor->transition[TSM_INSERT2END];
+
+    u->transition[FSM_MATCH2INBOUND] = 0.0;
+    u->transition[FSM_DELETE2INBOUND] = 0.0;
+    u->transition[FSM_INSERT2INBOUND] = 0.0;
+
+    u->transition[FSM_MATCH2INBOUND] = 0.0;
+    u->transition[FSM_DELETE2INBOUND] = 0.0;
+    u->transition[FSM_INSERT2INBOUND] = 0.0;
+
+    u->display_char = donor->display_char;
+    add_FiveStateModel(out,u);
+  }
+   
+  return out;
+
+}
+
+%func
+Makes a protein sequence out of the display characters.
+Not very useful!
+
+%%
+Protein * pseudo_Protein_from_FiveStateModel(FiveStateModel * tsm)
+{
+  int i;
+
+  Sequence * seq;
+
+  seq = Sequence_alloc();
+  seq->name = stringalloc(tsm->name);
+  seq->seq = ckcalloc(tsm->len+1,sizeof(char));
+
+  for(i=0;i<tsm->len;i++) {
+    seq->seq[i] = tsm->unit[i]->display_char;
+  }
+  seq->seq[i]='\0';
+  make_len_type_Sequence(seq);
+  seq->type = SEQUENCE_PROTEIN;
+
+  return Protein_from_Sequence(seq);
+}
+
+FiveStateScore * FiveStateScore_from_FiveStateModel(FiveStateModel * fsm)
+{
+  FiveStateScore * out;
+  int i;
+
+  out = FiveStateScore_alloc_len(fsm->len);
+  
+  add_FiveStateScore(out,FiveStateScoreUnit_from_FiveStateUnit(NULL,fsm->unit[0]));
+
+  for(i=1;i<fsm->len;i++) {
+    add_FiveStateScore(out,FiveStateScoreUnit_from_FiveStateUnit(fsm->unit[i-1],fsm->unit[i]));
+  }
+
+  return out;
+}
+
+FiveStateScoreUnit * FiveStateScoreUnit_from_FiveStateUnit(FiveStateUnit * prev,FiveStateUnit * u)
+{
+  FiveStateScoreUnit * out;
+
+  out = FiveStateScoreUnit_alloc();
+
+  Probability2Score_move(u->match,out->match,ALPHABET_SIZE);
+  Probability2Score_move(u->insert,out->insert,ALPHABET_SIZE);
+
+  out->display_char = u->display_char;
+
+  if( prev != NULL ) {
+ 
+    out->transition[FSM_MATCH2MATCH]     = Probability2Score(prev->transition[FSM_MATCH2MATCH]);
+    out->transition[FSM_INSERT2MATCH]    = Probability2Score(prev->transition[FSM_INSERT2MATCH]);
+    out->transition[FSM_DELETE2MATCH]    = Probability2Score(prev->transition[FSM_DELETE2MATCH]);
+    out->transition[FSM_INBOUND2MATCH]   = Probability2Score(prev->transition[FSM_INBOUND2MATCH]);
+    out->transition[FSM_OUTBOUND2MATCH]  = Probability2Score(prev->transition[FSM_OUTBOUND2MATCH]);
+
+    out->transition[FSM_MATCH2DELETE]    = Probability2Score(prev->transition[FSM_MATCH2DELETE]);
+    out->transition[FSM_INSERT2DELETE]   = Probability2Score(prev->transition[FSM_INSERT2DELETE]);
+    out->transition[FSM_DELETE2DELETE]   = Probability2Score(prev->transition[FSM_DELETE2DELETE]);
+    out->transition[FSM_INBOUND2DELETE]  = Probability2Score(prev->transition[FSM_INBOUND2DELETE]);
+    out->transition[FSM_OUTBOUND2DELETE] = Probability2Score(prev->transition[FSM_OUTBOUND2DELETE]);
+
+    out->transition[FSM_MATCH2INBOUND]    = Probability2Score(prev->transition[FSM_MATCH2INBOUND]);
+    out->transition[FSM_INSERT2INBOUND]   = Probability2Score(prev->transition[FSM_INSERT2INBOUND]);
+    out->transition[FSM_DELETE2INBOUND]   = Probability2Score(prev->transition[FSM_DELETE2INBOUND]);
+    out->transition[FSM_INBOUND2INBOUND]  = Probability2Score(prev->transition[FSM_INBOUND2INBOUND]);
+    out->transition[FSM_OUTBOUND2INBOUND]  = Probability2Score(prev->transition[FSM_OUTBOUND2INBOUND]);
+
+    out->transition[FSM_MATCH2OUTBOUND]    = Probability2Score(prev->transition[FSM_MATCH2OUTBOUND]);
+    out->transition[FSM_INSERT2OUTBOUND]   = Probability2Score(prev->transition[FSM_INSERT2OUTBOUND]);
+    out->transition[FSM_DELETE2OUTBOUND]   = Probability2Score(prev->transition[FSM_DELETE2OUTBOUND]);
+    out->transition[FSM_OUTBOUND2OUTBOUND]  = Probability2Score(prev->transition[FSM_OUTBOUND2OUTBOUND]);
+
+    out->transition[FSM_INBOUND2END] = Probability2Score(prev->transition[FSM_INBOUND2END]);
+    out->transition[FSM_OUTBOUND2END] = Probability2Score(prev->transition[FSM_OUTBOUND2END]);
+    out->transition[FSM_OUTBOUND2INBOUND] = Probability2Score(prev->transition[FSM_OUTBOUND2INBOUND]);
+
+
+  } else {
+
+    out->transition[FSM_MATCH2MATCH]     = NEGI;
+    out->transition[FSM_INSERT2MATCH]    = NEGI;
+    out->transition[FSM_DELETE2MATCH]    = NEGI;
+    out->transition[FSM_INBOUND2MATCH]   = NEGI;
+    out->transition[FSM_OUTBOUND2MATCH]  = NEGI;
+
+    out->transition[FSM_MATCH2DELETE]    = NEGI;
+    out->transition[FSM_INSERT2DELETE]   = NEGI;
+    out->transition[FSM_DELETE2DELETE]   = NEGI;
+    out->transition[FSM_INBOUND2DELETE]  = NEGI;
+    out->transition[FSM_OUTBOUND2DELETE] = NEGI;
+
+    out->transition[FSM_MATCH2INBOUND]    = NEGI;
+    out->transition[FSM_INSERT2INBOUND]   = NEGI;
+    out->transition[FSM_DELETE2INBOUND]   = NEGI;
+    out->transition[FSM_INBOUND2INBOUND]  = NEGI;
+
+
+    out->transition[FSM_MATCH2OUTBOUND]    = NEGI;
+    out->transition[FSM_INSERT2OUTBOUND]   = NEGI;
+    out->transition[FSM_DELETE2OUTBOUND]   = NEGI;
+    out->transition[FSM_OUTBOUND2OUTBOUND] = NEGI;
+
+    out->transition[FSM_INBOUND2END] = NEGI;
+    out->transition[FSM_OUTBOUND2END] = NEGI;
+    out->transition[FSM_OUTBOUND2INBOUND] = NEGI;
+
+  }
+
+  out->transition[FSM_MATCH2INSERT] = Probability2Score(u->transition[FSM_MATCH2INSERT]);
+  out->transition[FSM_INSERT2INSERT] = Probability2Score(u->transition[FSM_INSERT2INSERT]);
+  out->transition[FSM_DELETE2INSERT] = Probability2Score(u->transition[FSM_DELETE2INSERT]);
+  out->transition[FSM_INBOUND2INSERT] = Probability2Score(u->transition[FSM_INBOUND2INSERT]);
+  out->transition[FSM_OUTBOUND2INSERT] = Probability2Score(u->transition[FSM_OUTBOUND2INSERT]);
+  
+  out->transition[FSM_START2MATCH] = Probability2Score(u->transition[FSM_START2MATCH]);
+  out->transition[FSM_START2INSERT] = Probability2Score(u->transition[FSM_START2INSERT]);
+  out->transition[FSM_START2DELETE] = Probability2Score(u->transition[FSM_START2DELETE]);
+  out->transition[FSM_START2INBOUND] = Probability2Score(u->transition[FSM_START2INBOUND]);
+  
+  out->transition[FSM_MATCH2END] = Probability2Score(u->transition[FSM_MATCH2END]);
+  out->transition[FSM_INSERT2END] = Probability2Score(u->transition[FSM_INSERT2END]);
+  out->transition[FSM_DELETE2END] = Probability2Score(u->transition[FSM_DELETE2END]);
+
+  return out;
+}
+
+
+
+
+
+%}

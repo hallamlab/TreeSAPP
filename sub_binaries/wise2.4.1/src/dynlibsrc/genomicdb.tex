@@ -1,0 +1,130 @@
+\section{genomicdb}
+\label{module_genomicdb}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_GenomicDB} GenomicDB
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{genomicdb factory methods}
+\subsubsection{new_GenomicDB_from_single_seq}
+\begin{description}
+\item[External C] {\tt Wise2_new_GenomicDB_from_single_seq (gen,cses,score_in_repeat_coding)}
+\item[Perl] {\tt &Wise2::new_GenomicDB_from_single_seq (gen,cses,score_in_repeat_coding)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gen] [UNKN ] sequence which as placed into GenomicDB structure. [Genomic *]
+\item[cses] [UNKN ] Undocumented argument [ComplexSequenceEvalSet *]
+\item[score_in_repeat_coding] [UNKN ] Undocumented argument [int]
+\item[returns] [UNKN ] Undocumented return value [GenomicDB *]
+\end{description}
+To make a new genomic database
+from a single Genomic Sequence with a eval system
+
+
+\subsubsection{new_GenomicDB}
+\begin{description}
+\item[External C] {\tt Wise2_new_GenomicDB (seqdb,cses,length_of_N,repeat_in_cds_score)}
+\item[Perl] {\tt &Wise2::new_GenomicDB (seqdb,cses,length_of_N,repeat_in_cds_score)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[seqdb] [UNKN ] sequence database [SequenceDB *]
+\item[cses] [UNKN ] protein evaluation set [ComplexSequenceEvalSet *]
+\item[length_of_N] [UNKN ] Undocumented argument [int]
+\item[repeat_in_cds_score] [UNKN ] Undocumented argument [int]
+\item[returns] [UNKN ] Undocumented return value [GenomicDB *]
+\end{description}
+To make a new genomic database
+
+
+
+
+\subsection{Object GenomicDB}
+
+\label{object_GenomicDB}
+
+The GenomicDB object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{is_single_seq} Type [boolean : Scalar] No documentation
+
+\item{done_forward} Type [boolean : Scalar] No documentation
+
+\item{forw} Type [ComplexSequence * : Scalar] No documentation
+
+\item{rev} Type [ComplexSequence * : Scalar] No documentation
+
+\item{sdb} Type [SequenceDB * : Scalar] No documentation
+
+\item{current} Type [Genomic * : Scalar] No documentation
+
+\item{cses} Type [ComplexSequenceEvalSet * : Scalar] No documentation
+
+\item{error_handling} Type [GenDBErrorType : Scalar] No documentation
+
+\item{single} Type [Genomic * : Scalar]  for single sequence cases, so we can 'index' on it 
+
+\item{revsingle} Type [Genomic * : Scalar] No documentation
+
+\item{length_of_N} Type [int : Scalar] No documentation
+
+\item{repeat_in_cds_score} Type [int : Scalar] No documentation
+
+\end{description}
+This object hold a database of
+genomic sequences.
+
+
+You will probably use it in one of
+two ways
+
+
+1 A sequence formatted database, which
+is provided by a /SequenceDB object
+is used to provide the raw sequences 
+
+
+2 A single Genomic sequence is used.
+
+
+In each case this database provides
+both the forward and reverse strands
+into the system.
+
+
+Notice that what is exported are
+/ComplexSequence objects, not genomic dna,
+as this is what is generally needed. 
+These are things with splice sites calculated
+etc. This is why for initialisation this needs
+a /ComplexSequenceEvalSet of the correct type.
+
+
+
+
+Member functions of GenomicDB
+
+\subsubsection{get_Genomic_from_GenomicDB}
+
+\begin{description}
+\item[External C] {\tt Wise2_get_Genomic_from_GenomicDB (gendb,de)}
+\item[Perl] {\tt &Wise2::GenomicDB::get_Genomic_from_GenomicDB (gendb,de)}
+
+\item[Perl-OOP call] {\tt $obj->get_Genomic_from_GenomicDB(de)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gendb] [UNKN ] Undocumented argument [GenomicDB *]
+\item[de] [UNKN ] Undocumented argument [DataEntry *]
+\item[returns] [UNKN ] Undocumented return value [Genomic *]
+\end{description}
+Gets Genomic sequence out from
+the GenomicDB using the information stored in
+dataentry
+
+

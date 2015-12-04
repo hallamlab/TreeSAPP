@@ -1,0 +1,909 @@
+
+%{
+#include "pwmdna.h"
+#include "hitlist.h"
+
+
+#define TransFactorSetLISTLENGTH 64
+
+#define TransFactorMatchSetLISTLENGTH 64
+#define TransFactorMatchSetComparaLISTLENGTH 8
+
+#define TFCOMPARA_OVERLAP_PRECISE 37
+#define TFCOMPARA_OVERLAP_OVERLAP 38
+#define TFCOMPARA_OVERLAP_REGION  39
+
+#define TFM_ABSOLUTE 84
+#define TFM_RELATIVE 85
+#define TFM_RELATIVE_MIXED 86
+
+
+%}
+
+
+struct TransFactor
+char * name
+SeqAlign * seed
+pwmDNA * pwm
+SeqAlign * full
+double max_prob
+double min_prob
+
+struct TransFactorSet
+TransFactor ** factor !list
+
+
+struct TransFactorMatch
+int start
+int end
+char strand !def="1"
+double bit_score
+TransFactor * factor
+
+
+struct TransFactorMatchSet
+TransFactorMatch ** match !list
+Sequence * target
+
+
+struct TransFactorMatchSetCompara
+SeqAlign * sa;
+TransFactorMatchSet ** tfms !list
+TransFactorMatchSet *  overall
+
+struct TransFactorComparaPara
+int overlap_type !def="TFCOMPARA_OVERLAP_PRECISE"
+int overlap_len  !def=20
+int missing_seq  !def=0
+
+struct TransFactorBuildPara
+RandomModelDNA * rnd_dna
+double pseudo_count !def="0.3"
+boolean warn_on_small_seq !def="TRUE"
+
+struct TransFactorMatchPara
+double min_bits !def="11.0"
+double min_relative !def="11.0"
+double relative_prob       !def=0.95
+double relative_prob_bits  !def=0.9
+char type !def="TFM_RELATIVE_MIXED"
+int allow_N !def="0"
+
+
+
+%{
+#include "transfactor.h"
+
+
+void show_context_match_TransFactorMatchSetCompara(TransFactorMatchSetCompara * tfmsc,int context,FILE *ofp)
+{
+  int i;
+  int j;
+  int k;
+  int p;
+  char buffer[MAXLINE];
+
+  assert(tfmsc != NULL);
+  assert(tfmsc->overall != NULL);
+  
+  for(i=0;i<tfmsc->overall->len;i++) {
+    fprintf(ofp,"Match %d Factor %s %s %d %d %d %.2f %.2f\n",i,tfmsc->overall->match[i]->factor->name,tfmsc->overall->target->name,
+	    tfmsc->overall->match[i]->start,
+	    tfmsc->overall->match[i]->end,
+	    tfmsc->overall->match[i]->strand,
+	    tfmsc->overall->match[i]->bit_score,
+	    Probability2Bits(tfmsc->overall->match[i]->factor->max_prob)
+	);
+    for(j=0;j<tfmsc->sa->len;j++) {
+      k = tfmsc->overall->match[i]->start - context;
+      if( k <= 0 ) {
+	k = 0;
+      }
+      for(p=0;k<tfmsc->overall->match[i]->start;k++,p++) {
+	buffer[p] = tolower(tfmsc->sa->seq[j]->seq[k]);
+      }
+      for(;k<tfmsc->overall->match[i]->end;k++,p++) {
+	buffer[p] = toupper(tfmsc->sa->seq[j]->seq[k]);
+      }
+      for(;k<tfmsc->overall->match[i]->end+context;k++,p++) {
+	buffer[p] = tolower(tfmsc->sa->seq[j]->seq[k]);
+      }
+      buffer[p] = '\0';
+      fprintf(ofp,"%40s %s\n",tfmsc->sa->seq[j]->name,buffer);
+    }
+    fprintf(ofp,"EndMatch\n");
+  }
+  
+
+}
+
+
+
+TransFactorSet * circular_permuted_TransFactorSet(TransFactorSet * in,int rotate_number)
+{
+  TransFactorSet * out;
+  int i;
+  TransFactor * f;
+
+  assert(in != NULL);
+
+  out = TransFactorSet_alloc_len(in->len);
+
+  for(i=0;i<in->len;i++) {
+    f = TransFactor_alloc();
+    f->name = stringalloc(in->factor[i]->name);
+    f->pwm  = circular_permuted_pwmDNA(in->factor[i]->pwm,rotate_number);
+    f->seed = hard_link_SeqAlign(in->factor[i]->seed);
+    add_TransFactorSet(out,f);
+  }
+
+  return out;
+}
+  
+
+
+void show_TransFactorMatchSet(TransFactorMatchSet * tfms,FILE * ofp)
+{
+  int i;
+  
+
+  assert(tfms != NULL);
+  assert(ofp != NULL);
+  assert(tfms->target != NULL);
+
+  for(i=0;i<tfms->len;i++) {
+    
+    fprintf(ofp,"Motif\t%s\t%d\t%d\t%d\t%s\t%.2f\t%.*s\n",tfms->target->name,tfms->match[i]->start+1,tfms->match[i]->start+tfms->match[i]->factor->seed->seq[0]->len,tfms->match[i]->strand,tfms->match[i]->factor->name,tfms->match[i]->bit_score,tfms->match[i]->factor->seed->seq[0]->len,tfms->target->seq+tfms->match[i]->start);
+  }
+
+}
+
+void show_help_TransFactorMatchPara(FILE * ofp)
+{
+  fprintf(ofp,"TransFactor Match Parameters\n");
+  fprintf(ofp,"  -tfm_type [abs/rel/relmix] type of cutoff: absolute, relative, relative mixed\n");
+  fprintf(ofp,"  -tfm_cutoff  (abs) bits cutoff for absolute matches, default 11.0\n");
+  fprintf(ofp,"  -tfm_rel     [0.95] (rel/relmix) Relative to best possible score, accept if above irregardless of score\nn");
+  fprintf(ofp,"  -tfm_relsoft [0.9] (relmix) Relative to best possible score, accept if above this relative and bit score\n");
+  fprintf(ofp,"  -tfm_relbits [11.0] (relmix) If above relsoft and above this bits score, accept\n");
+}
+
+void show_help_TransFactorComparaPara(FILE * ofp)
+{
+  fprintf(ofp,"TransFactor comparative filter parameters\n");
+  fprintf(ofp,"  -tfc_type [precise/overlap/region] overlap criteria\n");
+  fprintf(ofp,"  -tfc_region  [20] region length\n");
+  fprintf(ofp,"  -tfc_missing [0]  number of sequences motif can be missing in\n");
+}
+
+TransFactorComparaPara * new_TransFactorComparaPara_from_argv(int * argc,char ** argv)
+{
+  char * temp;
+  TransFactorComparaPara * out;
+
+  out = TransFactorComparaPara_alloc();
+  
+  temp = strip_out_assigned_argument(argc,argv,"tfc_type");
+  if( temp != NULL ) {
+    if( strcmp(temp,"precise") == 0 ) {
+      out->overlap_type = TFCOMPARA_OVERLAP_PRECISE;
+    } else if ( strcmp(temp,"overlap") == 0 ) {
+      out->overlap_type = TFCOMPARA_OVERLAP_OVERLAP;
+    } else if( strcmp(temp,"region") == 0 ) {
+      out->overlap_type = TFCOMPARA_OVERLAP_REGION;
+    } else {
+      warn("string %s is not a valid tf_compara overlap type",temp);
+      return NULL;
+    }
+  }
+
+  strip_out_integer_argument(argc,argv,"tfc_region",&out->overlap_len);
+  strip_out_integer_argument(argc,argv,"tfc_missing",&out->missing_seq);
+
+  return out;
+}
+
+TransFactorMatchSetCompara * calculate_TransFactorMatchSetCompara(SeqAlign * sa,TransFactorSet * tfs,TransFactorMatchPara * match_para,TransFactorComparaPara * para)
+{
+  int i;
+  int j;
+  int k;
+  int count;
+  int found;
+  TransFactorMatchSetCompara * out;
+
+  out = TransFactorMatchSetCompara_alloc_len(sa->len);
+  out->sa = hard_link_SeqAlign(sa);
+  
+  for(i=0;i<sa->len;i++) {
+    add_TransFactorMatchSetCompara(out,calculate_TransFactorMatchSet(sa->seq[i],tfs,match_para));
+  }
+
+  out->overall = TransFactorMatchSet_alloc_std();
+  out->overall->target = hard_link_Sequence(out->tfms[0]->target);
+
+  for(i=0;i<out->tfms[0]->len;i++) {
+    count = 0;
+    
+    for(k=1;k<out->len;k++) {
+      found = 0;
+      for(j=0;j<out->tfms[k]->len;j++) {
+	if( out->tfms[0]->match[i]->factor == out->tfms[k]->match[j]->factor ) {
+	  if( para->overlap_type == TFCOMPARA_OVERLAP_PRECISE ) {
+	    if( out->tfms[0]->match[i]->start == out->tfms[k]->match[j]->start ) {
+	      found = 1;
+	      break;
+	    }
+	  } else if ( para->overlap_type == TFCOMPARA_OVERLAP_OVERLAP ) {
+	    if( !(out->tfms[0]->match[i]->end < out->tfms[k]->match[j]->start ||
+		  out->tfms[0]->match[i]->start > out->tfms[k]->match[j]->end ) ) {
+	      found = 1;
+	      break;
+	    }
+	  } else if ( para->overlap_type == TFCOMPARA_OVERLAP_REGION ) {
+	    if( !(out->tfms[0]->match[i]->end - para->overlap_len < out->tfms[k]->match[j]->start ||
+		  out->tfms[0]->match[i]->start + para->overlap_len > out->tfms[k]->match[j]->end ) ) {
+	      found = 1;
+	      break;
+	    }
+	  } else {
+	    fatal("Bad overlap type in compara tf matching");
+	  }
+	}
+      }
+      if( found == 0 ) {
+	count++;
+      } 
+    }
+
+
+    if( count <= para->missing_seq ) {
+      add_TransFactorMatchSet(out->overall,hard_link_TransFactorMatch(out->tfms[0]->match[i]));
+    }
+  }
+
+  return out;
+								      
+}
+
+void show_help_TransFactorBuildPara(FILE * ofp)
+{
+  fprintf(ofp,"TransFactor Build Parameters\n");
+  fprintf(ofp,"  -tfb_pseudo   simple pseudo count, default 0.3\n");
+  fprintf(ofp,"  -[no]tfb_warn warn on small sequence number [default yes]\n");
+}
+
+TransFactorBuildPara * new_TransFactorBuildPara_from_argv(int * argc,char ** argv)
+{
+  TransFactorBuildPara * out;
+
+  out = TransFactorBuildPara_alloc();
+
+  out->pseudo_count = 0.3;
+  out->rnd_dna = RandomModelDNA_std();
+
+  strip_out_float_argument(argc,argv,"tfb_pseudo",&out->pseudo_count);
+
+  return out;
+}
+
+TransFactorMatchPara * new_TransFactorMatchPara_from_argv(int * argc,char ** argv)
+{
+  char * temp;
+  TransFactorMatchPara * out;
+
+  out = TransFactorMatchPara_alloc();
+  out->type = TFM_RELATIVE_MIXED;
+  out->relative_prob = 0.95;
+  out->relative_prob_bits = 0.9;
+  out->min_bits = 11.0;
+  out->min_relative = 11.0;
+  out->allow_N = 0;
+
+  temp = strip_out_assigned_argument(argc,argv,"tfm_type");
+  if( temp != NULL ) {
+    if( strcmp(temp,"abs") == 0 ) {
+      out->type = TFM_ABSOLUTE;
+    } else if ( strcmp(temp,"rel") == 0 ) {
+      out->type = TFM_RELATIVE;
+    } else if ( strcmp(temp,"relmix") == 0 ) {
+      out->type = TFM_RELATIVE_MIXED;
+    } else {
+      warn("Could not understand %s as a match para type",temp);
+      return NULL;
+    }
+  }
+
+  strip_out_float_argument(argc,argv,"tfm_cutoff",&out->min_bits);
+  strip_out_float_argument(argc,argv,"tfm_rel",&out->relative_prob);
+  strip_out_float_argument(argc,argv,"tfm_relsoft",&out->relative_prob_bits);
+  strip_out_float_argument(argc,argv,"tfm_relbits",&out->min_relative);
+
+  assert(out->relative_prob <= 1.0 );
+  assert(out->relative_prob_bits <= 1.0 );
+
+  return out;
+}
+
+boolean build_TransFactorSet(TransFactorSet * tfs,TransFactorBuildPara * p)
+{
+  int i;
+
+  assert(tfs);
+  assert(p);
+
+  for(i=0;i<tfs->len;i++) {
+    build_pwm_TransFactor(tfs->factor[i],p);
+  }
+
+}
+
+
+boolean build_pwm_TransFactor(TransFactor * tf,TransFactorBuildPara * p)
+{
+  assert(tf);
+  assert(tf->seed);
+  assert(p);
+
+  tf->pwm = pwmDNA_from_SeqAlign(tf->seed,p->pseudo_count);
+
+  fold_randommodel_pwmDNA(tf->pwm,p->rnd_dna);
+
+  tf->max_prob = max_prob_TransFactor(tf);
+  tf->min_prob = min_prob_TransFactor(tf); 
+
+  return TRUE;
+}
+
+TransFactorMatchSet * calculate_TransFactorMatchSet(Sequence * seq,TransFactorSet * tfs,TransFactorMatchPara * p)
+{
+  int i;
+  int j;
+  int k;
+  int len;
+  double prob;
+  double rev_prob;
+  double cutoff;
+  double t;
+  TransFactorMatchSet * out;
+  TransFactorMatch * m;
+
+  Sequence * comp;
+
+  assert(seq);
+  assert(tfs);
+  assert(p);
+
+
+  comp = reverse_complement_Sequence(seq);
+
+  assert(comp);
+
+
+  out = TransFactorMatchSet_alloc_std();
+  out->target = hard_link_Sequence(seq);
+
+  for(i=0;i<tfs->len;i++) {
+    len = seq->len - tfs->factor[i]->pwm->len;
+    
+    /* adjust cutoff on a per motif basis */
+    switch(p->type ) {
+    case TFM_ABSOLUTE :
+      cutoff = Bits2Probability(p->min_bits);
+      break;
+    case TFM_RELATIVE :
+      cutoff = Bits2Probability(Probability2Bits(tfs->factor[i]->max_prob)*p->relative_prob);
+      break;
+    case TFM_RELATIVE_MIXED :
+      cutoff = Bits2Probability(Probability2Bits(tfs->factor[i]->max_prob)*p->relative_prob);
+      t = Bits2Probability(Probability2Bits(tfs->factor[i]->max_prob)*p->relative_prob_bits);
+      if( t > p->min_relative && t < cutoff) {
+	cutoff = t;
+      }
+      break;
+    default :
+      fatal("Impossible - bad match parameter passed in");
+    }
+
+    /*   fprintf(stderr,"Cutoff is %.2f for factor %d (%.2f) vs %.2f (bits) and %.2f cutoff %.2f\n",cutoff,i,tfs->factor[i]->max_prob,Probability2Bits(tfs->factor[i]->max_prob),Probability2Bits(tfs->factor[i]->max_prob)*p->relative_prob,p->relative_prob); */
+
+    for(j=0;j<len;j++) {
+      prob = 1.0;
+      rev_prob = 1.0;
+      for(k=0;k<tfs->factor[i]->pwm->len;k++) {
+	/*	fprintf(stderr,"position is %d, chr %c base %d\n",j+k,seq->seq[j+k],base_from_char(seq->seq[j+k])); */
+
+	if( p->allow_N == 0 && base_from_char(seq->seq[j+k]) == BASE_N ) {
+	  prob *= 0.0;
+	}
+	if( p->allow_N == 0 && base_from_char(comp->seq[j+k]) == BASE_N ) {
+	  rev_prob *= 0.0;
+	}
+
+	prob *= tfs->factor[i]->pwm->pos[k]->emit[base_from_char(seq->seq[j+k])];
+	rev_prob *= tfs->factor[i]->pwm->pos[k]->emit[base_from_char(comp->seq[j+k])];
+      }
+
+      if( prob > cutoff ) {
+	m = TransFactorMatch_alloc();
+	m->start = j;
+	m->end   = j+tfs->factor[i]->seed->seq[0]->len;
+	m->strand = 1;
+	m->bit_score = Score2Bits(Probability2Score(prob));
+	m->factor = hard_link_TransFactor(tfs->factor[i]);
+	add_TransFactorMatchSet(out,m);
+      }
+
+      if( rev_prob > cutoff ) {
+	m = TransFactorMatch_alloc();
+	m->start = seq->len - j - tfs->factor[i]->seed->seq[0]->len;;
+	m->end   = seq->len - j;
+	m->strand = -1;
+	m->bit_score = Score2Bits(Probability2Score(rev_prob));
+	m->factor = hard_link_TransFactor(tfs->factor[i]);
+	add_TransFactorMatchSet(out,m);
+      }
+
+
+    }
+  }
+
+  free_Sequence(comp);
+
+
+  return out;
+
+}
+
+
+double min_prob_TransFactor(TransFactor * tf)
+{
+  double sc;
+  int i,j;
+  double min;
+  assert(tf != NULL);
+  assert(tf->pwm != NULL);
+
+  sc = 1.0;
+
+  for(i=0;i<tf->pwm->len;i++) {
+    min = tf->pwm->pos[i]->emit[0];
+    for(j=1;j<4;j++) {
+      if( min > tf->pwm->pos[i]->emit[j] ) {
+	min = tf->pwm->pos[i]->emit[j];
+      }
+    }
+    sc *= min;
+  }
+
+  return sc;
+}
+
+
+double max_prob_TransFactor(TransFactor * tf)
+{
+  double sc;
+  int i,j;
+  int maxj;
+  double max;
+  assert(tf != NULL);
+  assert(tf->pwm != NULL);
+
+  sc = 1.0;
+
+  for(i=0;i<tf->pwm->len;i++) {
+    max = tf->pwm->pos[i]->emit[0];
+    maxj = 0;
+    for(j=1;j<4;j++) {
+      /*      fprintf(stderr,"%d, comparing %.2f with %.2f\n",i,max,tf->pwm->pos[i]->emit[j]); */
+      if( max < tf->pwm->pos[i]->emit[j] ) {
+	max = tf->pwm->pos[i]->emit[j];
+	maxj = j;
+      }
+    }
+    /*fprintf(stderr,"At position %d, so far %.2f with %.2f (%d)\n",i,sc,max,maxj);*/
+    sc *= max;
+  }
+
+  /*fprintf(stderr,"Returning %.2f as max\n",sc);*/
+  return sc;
+}
+
+
+
+void write_TransFactorSet(TransFactorSet * tfs,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<tfs->len;i++) {
+    write_TransFactor(tfs->factor[i],ofp);
+  }
+
+}
+
+void write_TransFactor(TransFactor * tf,FILE * ofp)
+{
+  double sc = 0.0;
+  int i;
+  int j;
+
+  assert(tf);
+  assert(tf->seed);
+  
+  if( tf->pwm != NULL ) {
+    for(i=0;i<tf->seed->seq[0]->len;i++) {
+      for(j=0;j<4;j++) {
+	sc += 0.25 * tf->pwm->pos[i]->emit[j];
+      }
+    }
+  } else {
+    sc = 0.0;
+  }
+
+  fprintf(ofp,"factor %s\n",tf->name);
+  fprintf(ofp,"seed\n");
+  fprintf(ofp,"expected %.2f\n",sc);
+  write_selex_SeqAlign(tf->seed,15,100,ofp);
+  fprintf(ofp,"//\n");
+  fprintf(ofp,"end factor\n");
+}
+
+TransFactorSet * read_TransFactorSet_file(char * filename)
+{
+  TransFactorSet * tfs;
+  FILE * ifp;
+
+  assert(filename);
+  
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open %s for TransFactorSet reading",filename);
+    return NULL;
+  }
+
+  tfs = read_TransFactorSet(ifp);
+
+  fclose(ifp);
+
+  return tfs;
+
+}
+
+
+TransFactorSet * read_ben_IUPAC_TransFactorSet_file(char * filename)
+{
+  TransFactorSet * tfs;
+  FILE * ifp;
+
+  assert(filename);
+  
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open %s for TransFactorSet reading",filename);
+    return NULL;
+  }
+
+  tfs = read_ben_IUPAC_TransFactorSet(ifp);
+
+  fclose(ifp);
+
+  return tfs;
+
+}
+
+
+ static char iupac_map[17][5] = { {'A','A','.','.','.'},
+				 {'C','C','.','.','.'}, 
+				 {'G','G','.','.','.'}, 
+				 {'T','T','.','.','.'}, 
+				 {'M','A','C','.','.'}, 
+				 {'R','A','G','.','.'}, 
+				 {'W','A','T','.','.'}, 
+				 {'S','C','G','.','.'}, 
+				 {'Y','C','T','.','.'}, 
+				 {'K','G','T','.','.'}, 
+				 {'V','A','C','G','.'}, 
+				 {'H','A','C','T','.'}, 
+				 {'D','A','G','T','.'}, 
+				 {'B','C','G','T','.'}, 
+				 {'X','A','G','T','C'}, 
+				 {'N','A','G','T','C'}, 
+    };
+
+TransFactorSet * read_ben_IUPAC_TransFactorSet(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  TransFactorSet * out;
+  TransFactor * temp;
+  SeqAlign * align;
+  Sequence * line;
+
+  char lines [12][40];
+
+  char sbuffer[MAXLINE];
+  int motif_no = 1;
+  int seq_no = 1;
+  int i;
+  int j;
+  int k;
+  int l;
+
+  out = TransFactorSet_alloc_std();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+
+    if( buffer[0] == ' ' || buffer[0] == '#' ) {
+      continue;
+    }
+
+    for(i=0;!isspace(buffer[i]);i++) {
+      for(l=0;l<17;l++) {
+	if( iupac_map[l][0] == buffer[i] ) {
+	  break;
+	}
+      }
+
+      if( l == 17 ) {
+	warn("Weird non IUPAC code [%c] in %s",buffer[i],buffer);
+	break;
+      }
+
+      /* we make 12 fake sequences, using the IUPAC map, 
+	 moving the k, the index in the possible nuc in the map
+	 when we hit . - this means A becomes 12 A's, Y becomes
+	 6 C's and 6 T's etc */
+      for(j=0,k=1;j<12;j++,k++) {
+	for(;iupac_map[l][k] == '.' && k < 5;k++) 
+	  ;
+	if( k == 5 ) {
+	  k = 1;
+	}
+	if( buffer[i] == 'N' ) {
+	  lines[j][i] = 'N';
+	} else {
+	  lines[j][i] = iupac_map[l][k];
+	}
+      }
+    }
+
+
+    if( !isspace(buffer[i]) ) {
+      continue; /* error scenario */
+    } else {
+      buffer[i] = '\0';
+    }
+
+    for(j=0;j<12;j++) {
+      lines[j][i] = '\0';
+    }
+
+    sprintf(sbuffer,"motif_%d_%s",motif_no,buffer);
+    temp = TransFactor_alloc();
+    temp->name = stringalloc(sbuffer);
+    
+
+    align = SeqAlign_alloc_std();      
+    for(j=0;j<12;j++) {
+      sprintf(sbuffer,"fake_%d_%d",motif_no,j);
+      line = Sequence_from_static_memory(sbuffer,lines[j]);
+      add_SeqAlign(align,line);
+    }
+
+
+    temp->seed = trim_from_N_SeqAlign(align);
+    free_SeqAlign(align);
+
+
+    add_TransFactorSet(out,temp);
+    motif_no++;
+  }
+  
+
+  return out;
+
+}
+
+TransFactorSet * read_laurence_TransFactorSet_file(char * filename)
+{
+  TransFactorSet * tfs;
+  FILE * ifp;
+
+  assert(filename);
+  
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open %s for TransFactorSet reading",filename);
+    return NULL;
+  }
+
+  tfs = read_laurence_TransFactorSet(ifp);
+
+  fclose(ifp);
+
+  return tfs;
+
+}
+
+TransFactorSet * read_laurence_TransFactorSet(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  TransFactorSet * out;
+  TransFactor * temp;
+  SeqAlign * align;
+  Sequence * line;
+
+  char sbuffer[MAXLINE];
+  int motif_no = 1;
+  int seq_no = 1;
+  int i;
+
+  out = TransFactorSet_alloc_std();
+  
+  sprintf(sbuffer,"motif_%d",motif_no);
+
+  temp = TransFactor_alloc();
+  temp->name = stringalloc(sbuffer);
+  align = SeqAlign_alloc_std();
+
+
+  while( fgets(buffer,MAXLINE,ifp) ) {
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+    if( strstr(buffer,"degenerate") != NULL ) {
+
+      temp->seed = trim_from_N_SeqAlign(align);
+      free_SeqAlign(align);
+
+      add_TransFactorSet(out,temp);
+      seq_no = 1;
+      motif_no++;
+
+      sprintf(sbuffer,"motif_%d",motif_no);
+      
+      temp = TransFactor_alloc();
+      temp->name = stringalloc(sbuffer);
+      align = SeqAlign_alloc_std();      
+      continue;
+    }
+    if( buffer[0] == '=' ) {
+      continue;
+    }
+
+    for(i=0;buffer[i] != '\0';i++) {
+      if( buffer[i] != 'A' && buffer[i] != 'T' && buffer[i] != 'G' && buffer[i] != 'C' ) {
+	buffer[i] = 'N';
+      }
+    }
+
+    line = Sequence_alloc();
+    sprintf(sbuffer,"motif_%d_seq_%d",motif_no,seq_no);
+    seq_no++;
+    line->name = stringalloc(sbuffer);
+    line->seq  = stringalloc(buffer);
+    line->type = SEQUENCE_DNA;
+    line->len  = strlen(buffer);
+    
+
+    add_SeqAlign(align,line);
+  }
+      
+  
+
+  return out;
+
+}
+
+
+TransFactorSet * read_TransFactorSet(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  TransFactorSet * out;
+  TransFactor * temp;
+
+  out = TransFactorSet_alloc_std();
+  
+  while( fgets(buffer,MAXLINE,ifp) ) {
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+    if( strstartcmp(buffer,"factor") == 0 ) {
+      temp = read_TransFactor(buffer,ifp);
+      if( temp == NULL ) {
+	warn("No transfactor; skipping; parsing may have fallen down");
+	continue;
+      } else {
+	add_TransFactorSet(out,temp);
+      }
+      continue;
+    }
+    if( isalpha(buffer[0]) ) {
+      warn("could not interpret in reading transfactorset %s",buffer);
+    }
+     
+  }
+
+  return out;
+
+
+}
+
+
+TransFactor * read_TransFactor(char * line,FILE * ifp)
+{
+  char buffer[MAXLINE];
+  char * name;
+  char * t;
+  TransFactor * out;
+  SeqAlign * temp;
+
+  if( strstartcmp(line,"factor") != 0 ) {
+    warn("Passed in a line [%s] which has no factor to the factor reader. Not good!",line);
+    return NULL;
+  }
+
+
+  name = line + strlen("factor")+1;
+  for(;isspace(*name);name++)
+    ;
+
+  if( *name == '\0' ) {
+    warn("No name in factor - which is bad! %s\n",line);
+    return NULL;
+  }
+  for(t=name;*t && !isspace(*t);t++)
+    ;
+  *t = '\0';
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+
+    if( strstartcmp(buffer,"seed") == 0 ) {
+      temp = read_selex_SeqAlign(ifp);
+
+      if( temp == NULL ) {
+	warn("No sequence alignment for this factor. Skipping");
+	return NULL;
+      }
+      continue;
+    }
+    if( strstartcmp(buffer,"end") == 0 ) {
+      break;
+    }
+    if( isalpha(buffer[0]) ) {
+      warn("Uninterpretable line in transfactor %s",buffer);
+    }
+
+    
+  }
+
+  if( temp == NULL ) {
+    warn("No seed alignment read. Impossible for %s",name);
+    return NULL;
+  }
+
+  out = TransFactor_alloc();
+  out->seed = temp;
+  out->name = stringalloc(name);
+  
+  return out;
+
+}
+
+
+int compare_start_TransFactorMatch(TransFactorMatch * a,TransFactorMatch * b)
+{
+  return a->start - b->start;
+}
+
+void sort_by_start_TransFactorMatchSet(TransFactorMatchSet * t)
+{
+
+  sort_TransFactorMatchSet(t,compare_start_TransFactorMatch);
+
+
+}
+%}
+

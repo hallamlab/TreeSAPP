@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_Genomic *    T_Wise2_Genomic
+
+INPUT
+T_Wise2_Genomic
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Genomic *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Genomic
+	sv_setref_pv($arg, "Wise2::Genomic", (void*) $var);
+
+TYPEMAP
+Wise2_GenomicRepeat *    T_Wise2_GenomicRepeat
+
+INPUT
+T_Wise2_GenomicRepeat
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_GenomicRepeat *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_GenomicRepeat
+	sv_setref_pv($arg, "Wise2::GenomicRepeat", (void*) $var);

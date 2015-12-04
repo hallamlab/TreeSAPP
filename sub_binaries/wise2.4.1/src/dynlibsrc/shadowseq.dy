@@ -1,0 +1,141 @@
+
+%{
+#include "sequence.h"
+
+#define SHADOW_SEQUENCE_REGION_BASIC 4
+
+#define ShadowSequenceLISTLENGTH 8
+
+%}
+
+struct ShadowSeqRegion
+int start_shadow
+int start_seq
+int len
+Sequence * seq
+
+struct ShadowSequence
+Sequence * seq !link
+char dirty
+ShadowSeqRegion ** region !list
+
+
+%{
+#include "shadowseq.h"
+
+
+
+%func
+Dumps shadow sequence out to file
+%%
+void dump_ShadowSequence(ShadowSequence * shadow,FILE * ofp)
+{
+  int i;
+  assert(shadow);
+  assert(ofp);
+
+  fprintf(ofp,"Sequence %s %d\n",shadow->seq->name,shadow->seq->len);
+  for(i=0;i<shadow->len;i++) {
+    fprintf(ofp,"  Shadow %s %d,%d %d\n",
+	    shadow->region[i]->seq->name,
+	    shadow->region[i]->start_shadow,
+	    shadow->region[i]->start_seq,
+	    shadow->region[i]->len);
+  }
+  
+}
+
+
+%func
+Looks as to whether there is a good extension to be made, if
+so, does it and adds it to the ShadowSeq. Returns 0 if extension
+fails, if succeeds returns end point
+%%
+int add_if_possible_ShadowSequence(ShadowSequence * shadow,Sequence * seq,int min_extension,int start_shadow,int start_seq,int shadow_rate)
+{
+  int i;
+  int j;
+  int error = 0;
+
+  assert(shadow);
+  assert(seq);
+
+  for(i=start_shadow,j=start_seq;i<shadow->seq->len && j<seq->len;i++,j++) {
+    if( shadow->seq->seq[i] != seq->seq[j] ) {
+      error++;
+      if( i > start_shadow && error > (int)((shadow_rate*100)/(start_shadow-i)) ) 
+	break;
+    }
+  }
+
+  if( i - start_shadow < min_extension ) {
+    return 0;
+  }
+
+  /* we have a region */
+
+  add_region_ShadowSequence(shadow,seq,start_shadow,start_seq,i-start_shadow);
+
+  return j;
+}
+
+
+%func
+Adds a region to a ShadowSequence, extending
+the array if necessary
+%%
+void add_region_ShadowSequence(ShadowSequence * shadow,Sequence * seq,int start_shadow,int start_seq,int len)
+{
+  ShadowSeqRegion * ssr;
+
+
+  assert(shadow);
+  assert(seq);
+
+  ssr = ShadowSeqRegion_alloc();
+  ssr->seq = seq;
+  ssr->start_shadow = start_shadow;
+  ssr->start_seq = start_seq;
+  ssr->len = len;
+
+
+  if( shadow->region == NULL ) {
+    if((shadow->region = (ShadowSeqRegion ** ) ckcalloc (ShadowSequenceLISTLENGTH,sizeof(ShadowSeqRegion *))) == NULL)   {  
+      warn("Warning, ckcalloc failed in ShadowSequence_alloc_len");  
+      return;   
+    }  
+    shadow->len = 0;    
+    shadow->maxlen = ShadowSequenceLISTLENGTH;   
+  }
+
+  add_ShadowSequence(shadow,ssr);
+
+  return;
+}
+
+
+
+%func
+Builds a new ShadowSequence from a Sequence
+doesnt hard link as memory should be handled
+outside of the shadowsystem
+%%
+ShadowSequence * new_ShadowSequence(Sequence * seq)
+{
+  ShadowSequence * out;
+  
+  assert(seq);
+
+  out = ShadowSequence_alloc();
+  assert(out);
+  out->seq = seq;
+  out->region = NULL;
+  out->dirty = 0;
+  return out;
+}
+
+
+
+%}
+
+

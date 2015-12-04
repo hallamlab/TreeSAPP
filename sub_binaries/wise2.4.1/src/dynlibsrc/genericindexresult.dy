@@ -1,0 +1,87 @@
+
+%{
+#include "seqlookup.h"
+
+
+%}
+
+
+struct GenericIndexResult
+SeqLookupResultStruct * result
+int len
+int max_len
+int current_pos
+
+
+%{
+#include "genericindexresult.h"
+
+
+%func
+For interface, returns next position in SeqLookup Results
+%%
+SeqLookupResultStruct * next_interface_GenericIndexResult(void * data,SeqLookupResultStruct * prev) 
+{
+  GenericIndexResult * gir = (GenericIndexResult*)data;
+
+  return &(gir->result[gir->current_pos++]);
+}
+
+%func
+For interface, indicates whether there is more stuff to find or not
+%%
+boolean is_more_interface_GenericIndexResult(void * data)
+{
+  GenericIndexResult * gir = (GenericIndexResult*)data;
+
+  if( gir->current_pos < gir->len ) {
+    return TRUE;
+  } 
+  return FALSE;
+}
+
+%func
+Frees the data
+%%
+void free_noop_GenericIndexResult(void * data)
+{
+  return;
+}
+
+%func
+Adds another result to a IndexResult
+%%
+void add_GenericIndexResult(GenericIndexResult * gir,Sequence * seq,int pos)
+{
+  assert(gir);
+  assert(seq);
+
+  if( gir->len >= gir->max_len ) {
+    gir->result = realloc(gir->result,2*gir->max_len*sizeof(SeqLookupResultStruct));
+    gir->max_len = 2* gir->max_len;
+  }
+  
+  gir->result[gir->len].seq = seq;
+  gir->result[gir->len].pos = pos;
+  
+  gir->len++;
+
+}
+
+
+%func
+Frees GenericIndexResults - overrides dynamite default
+%%
+!deconstructor
+GenericIndexResult * free_GenericIndexResult(GenericIndexResult * p)
+{
+  assert(p);
+  free(p->result);
+  free(p);
+
+  return NULL;
+}
+
+
+
+%}

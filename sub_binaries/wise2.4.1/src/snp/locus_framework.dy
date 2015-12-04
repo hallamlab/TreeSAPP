@@ -1,0 +1,98 @@
+
+
+%{
+#include "wisebase.h"
+#include "glib.h"
+
+typedef enum BiGenotypeType {
+	BiGenotypeHomozygousFirst = 0,
+	BiGenotypeHetrozygous,
+	BiGenotypeHomozygousSecond,
+	BiGenotypeUnknown,
+	BiGenotypeError,
+	BiGenotypeLength
+} BiGenotypeType;
+
+
+#define BiLocusFrameworkLISTLENGTH 128
+
+%}
+
+
+struct BiLocus
+char * locus_id
+char first_allele_char
+char second_allele_char
+
+
+struct BiLocusFramework
+BiLocus ** locus !list
+GHashTable * hash !link
+
+
+%{
+#include "locus_framework.h"
+
+BiGenotypeType type_from_hapmap_string_BiLocus(BiLocus * bi,char * g)
+{
+  if( g[0] == bi->first_allele_char && g[1] == bi->first_allele_char ) {
+    return BiGenotypeHomozygousFirst;
+  }
+
+  if( g[0] == bi->first_allele_char && g[1] == bi->second_allele_char ) {
+    return BiGenotypeHetrozygous;
+  }
+
+  if( g[1] == bi->first_allele_char && g[0] == bi->second_allele_char ) {
+    return BiGenotypeHetrozygous;
+  }
+
+  if( g[0] == bi->second_allele_char && g[1] == bi->second_allele_char ) {
+    return BiGenotypeHomozygousSecond;
+  }
+
+  if( g[0] == 'N' && g[1] == 'N' ) {
+    return BiGenotypeUnknown;
+  }
+
+  return BiGenotypeError;
+
+}
+
+BiLocusFramework * new_BiLocusFramework(void)
+{
+  BiLocusFramework * out;
+
+  out = BiLocusFramework_alloc_std();
+
+  out->hash = g_hash_table_new(g_str_hash,g_str_equal);
+
+  return out;
+}
+
+
+BiLocus * find_or_new_BiLocus_from_BiLocusFramework(BiLocusFramework * bgf,char * ref_id,char first,char second)
+{
+  BiLocus * out;
+  int i;
+
+
+  if( (out = (BiLocus*) g_hash_table_lookup(bgf->hash,(gconstpointer)ref_id)) != NULL ) {
+    return out;
+  }
+
+  out = BiLocus_alloc();
+  out->locus_id = stringalloc(ref_id);
+  out->first_allele_char = first;
+  out->second_allele_char = second;
+
+  add_BiLocusFramework(bgf,out);
+  
+  g_hash_table_insert(bgf->hash,(gpointer)out->locus_id,(void*)out);
+
+  return out;
+}
+
+
+
+%}

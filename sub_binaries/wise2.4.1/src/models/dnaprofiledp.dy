@@ -1,0 +1,171 @@
+
+
+%{
+#include "dnaprofile.h"
+
+
+%}
+
+struct DnaProfileMatchScore
+Score ** score !matrix
+
+
+matrix DnaProfileMat
+query  name="q" type="DnaProfileScore *"
+target name="t" type="DnaProfileScore *"
+resource name="m" type="DnaProfileMatchScore*"
+resource name="open_unmatched" type="Score"
+resource name="ext_unmatched" type="Score"
+resource name="gap_unmatched" type="Score"
+state MATCH
+  source MATCH offi="1" offj="1"
+    calc="0"
+    endsource
+  source UNMATCHED offi="1" offj="1"
+    calc="0"
+    endsource
+  source INSERT offi="1" offj="1"
+    calc="0"
+    endsource
+  source DELETE offi="1" offj="1"
+    calc="0"
+    endsource
+  source START offi="1" offj="1"
+    calc="0"
+    endsource
+ calc="m->score[i][j]"
+ query_label MATCH
+ target_label MATCH
+endstate
+state UNMATCHED offi="1" offj="1"
+  source MATCH 
+    calc="open_unmatched"
+    endsource
+  source UNMATCHED
+    calc="ext_unmatched"
+    endsource
+  source UNMATCHED offi="0" offj="1"
+    calc="ext_unmatched+gap_unmatched"
+    query_label PAUSED_UNMATCHED
+    endsource
+  source UNMATCHED offi="1" offj="0"
+    calc="ext_unmatched+gap_unmatched"
+    target_label PAUSED_UNMATCHED
+    endsource
+  query_label SEQ_UNMATCHED
+  target_label SEQ_UNMATCHED
+endstate
+state INSERT offi="0" offj="1"
+  source MATCH 
+    calc="q->col[i]->trans[DnaProfile_M2I] + t->col[j]->trans[DnaProfile_M2D]"
+    endsource
+  source INSERT
+    calc="q->col[i]->trans[DnaProfile_I2I] + t->col[j]->trans[DnaProfile_D2D]"
+    endsource
+  query_label  PAUSE
+  target_label INSERT
+endstate
+state DELETE offi="1" offj="0"
+  source MATCH 
+    calc="t->col[j]->trans[DnaProfile_M2I] + q->col[i]->trans[DnaProfile_M2D]"
+    endsource
+  source INSERT
+    calc="t->col[j]->trans[DnaProfile_I2I] + q->col[i]->trans[DnaProfile_D2D]"
+    endsource
+  target_label  PAUSE
+  query_label INSERT
+endstate
+state START !special !start
+endstate
+state END !special !end
+  source MATCH 
+    calc="0"
+  endsource
+  query_label END
+  target_label END
+endstate
+endmatrix
+
+
+%{
+#include "dnaprofiledp.h"
+
+
+DnaProfileMatchScore * new_ALLR_DnaProfileMatchScore(DnaProfile * q,DnaProfile * t)
+{
+  DnaProfileMatchScore * out;
+  int i;
+  int j;
+  int k;
+  int length_q;
+  int length_t;
+  double score;
+  double total;
+
+
+  assert(q != NULL);
+  assert(t != NULL);
+  assert(q->folded_random == TRUE);
+  assert(t->folded_random == TRUE);
+
+
+  length_q = q->sa->len;
+  length_t = t->sa->len;
+  out = DnaProfileMatchScore_alloc_matrix(q->len,t->len);
+
+  assert(out != NULL);
+
+  for(i=0;i<q->len;i++) {
+    for(j=0;j<t->len;j++) {      
+      /*
+	Sum_all_bases( count_bt.ln(fr_bq/rnd_b) + count_bq.ln(fr_bt/rnd_b) ) /
+	Sum_all_bases( count_bt + count_bq )
+      */
+      score = 0.0;
+      total = 0.0;
+      for(k=0;k<4;k++) {
+	score += (length_t * t->col[j]->emit[k]) * (log(q->col[i]->emit[k]));
+	score += (length_q * q->col[i]->emit[k]) * (log(t->col[j]->emit[k]));
+	total += (length_t * t->col[j]->emit[k]) + (length_q * q->col[i]->emit[k]);
+      }
+
+      score = score / total;
+      
+      out->score[i][j] = (int)(score * (double)INTEGER_FACTOR);
+      
+    }
+  }
+
+  return out;
+}
+
+DnaProfileMatchScore * new_DnaProfileMatchScore(DnaProfileScore * q,DnaProfileScore * t)
+{
+  int i,j;
+  int k;
+  DnaProfileMatchScore * out;
+  int score;
+
+  assert(q != NULL);
+  assert(t != NULL);
+
+  out = DnaProfileMatchScore_alloc_matrix(q->len,t->len);
+
+  
+  for(i=0;i<q->len;i++) {
+    for(j=0;j<t->len;j++) {
+      score  =0;
+      for(k=0;k<4;k++) {
+	if( q->col[i]->emit[k] > 0 || t->col[j]->emit[k] > 0 ) {
+	  score += ((q->col[i]->emit[k] + t->col[j]->emit[k]) / 4);
+	}
+      }
+      out->score[i][j] = score;
+    }
+  }
+
+  return out;
+}
+
+
+%}

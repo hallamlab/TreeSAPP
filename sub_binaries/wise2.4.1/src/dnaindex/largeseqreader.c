@@ -1,0 +1,117 @@
+#ifdef _cplusplus
+extern "C" {
+#endif
+#include "largeseqreader.h"
+#include <stdlib.h>
+
+# line 15 "largeseqreader.dy"
+Sequence * read_large_dna_Sequence_file(char * filename,int report,FILE * logfp)
+{
+  Sequence * out;
+  FILE * ifp;
+
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open %d as a filename",filename);
+    return NULL;
+  }
+
+  out = read_large_dna_Sequence(ifp,report,logfp);
+
+  fclose(ifp);
+
+  return out;
+}
+
+
+# line 34 "largeseqreader.dy"
+Sequence * read_large_dna_Sequence(FILE * ifp,int report,FILE * logfp)
+{
+  Sequence * out;
+  char * seqbuffer;
+  long maxlen;
+  long current;
+  char c;
+  char name[512];
+
+  c = fgetc(ifp);
+  if( c == EOF ) {
+    return NULL;
+  }
+
+  if( c != '>' ) {
+    warn("First character not >, %c, not FASTA",c);
+    return NULL;
+  }
+  
+  current =0;
+  while( (c=fgetc(ifp)) != EOF ) {
+    if( isspace(c) ) {
+      break;
+    }
+    name[current++] = c;
+  }
+  name[current] = '\0';
+  
+  if( c != '\n' ) {
+    while( (c=fgetc(ifp)) != EOF ) {
+      if( c == '\n' ) {
+	break;
+      }
+    }
+  }
+    
+  current = 0;
+  seqbuffer = calloc(4096,sizeof(char));
+  maxlen = 4096;
+
+  while( (c=fgetc(ifp)) != EOF ) {
+    if( c == '>' ) {
+      break;
+    }
+
+    if( !isalpha(c) ) {
+      continue;
+    }
+
+    if( logfp != NULL && report > 0 && current % report == 0) {
+      fprintf(logfp,"Loaded %ld positions into %s\n",current,name);
+      fflush(logfp);
+    }
+
+    if( current >= maxlen-1 ) {
+      if( maxlen < LINEAR_LARGEFASTA_READ ) {
+	seqbuffer = realloc(seqbuffer,maxlen*2*sizeof(char));
+	maxlen = maxlen * 2;
+      } else {
+	seqbuffer = realloc(seqbuffer,(maxlen+ LINEAR_LARGEFASTA_READ)*sizeof(char));
+	maxlen = maxlen + LINEAR_LARGEFASTA_READ;
+      }
+    }
+
+    seqbuffer[current++] = c;
+  }
+  seqbuffer[current] = '\0';
+
+  if( c == '>' ) {
+    ungetc(c,ifp);
+  }
+  
+  out = Sequence_alloc();
+  out->name = stringalloc(name);
+  out->seq = seqbuffer;
+  out->len = current;
+  out->maxlen = maxlen;
+  out->type = SEQUENCE_DNA;
+
+  return out;
+
+}
+
+
+
+# line 112 "largeseqreader.c"
+
+#ifdef _cplusplus
+}
+#endif

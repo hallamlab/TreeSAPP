@@ -1,0 +1,440 @@
+
+%{
+#include "seqlookup.h"
+#include "shadowseq.h"
+#include "genericindexresult.h"
+#include "singlenumberspace.h"
+#include "intallocator.h"
+#include "staticseq.h"
+
+#define SHADOW_ARRAYSEQL_BASIC  4
+#define SHADOW_ARRAYSEQL_LINEAR 16
+
+#define ShadowSequenceIndexLISTLENGTH 1024
+
+#define SHADOW_TYPE int
+
+typedef struct Wise2_ShadowArraySeqHead {
+  SHADOW_TYPE * seqdb_pos;
+  int current_pos;
+  int max;
+} ShadowArraySeqHead;
+
+%}
+
+
+struct ShadowSequenceIndex
+ShadowArraySeqHead ** array
+int array_len
+ShadowSequence ** shadow !list
+SingleNumberSpace * space
+int shadow_len
+int shadow_error
+IntAllocatorSet * ias
+StaticSeqHolder * ssh
+
+%{
+#include "shadowseqindex.h"
+
+
+  typedef struct ShadowSeqClient_struct {
+    GenericIndexResult result;
+    SeqLookupResultInterface   interface;
+    ShadowSequenceIndex * index;
+  } ShadowSequenceClient;
+
+ static ShadowSequenceClient * ShadowSequenceClient_alloc(void)
+ {
+   ShadowSequenceClient * out;
+
+  out = malloc(sizeof(ShadowSequenceClient));
+
+  return out;
+ }
+
+
+
+%func
+Provides a SeqLookupInterface, the common runtime plug-in for indexers
+using a ShadowSequenceIndex
+%%
+SeqLookupInterface * new_ShadowSequenceIndex_SeqLookupInterface(int shadow_len,int has_maxlen,int maxlen,int shadow_error)
+{
+  SeqLookupInterface * out;
+  ShadowSequenceIndex * in;
+
+  in = new_ShadowSequenceIndex(26*26*26*26*26,shadow_len,has_maxlen,maxlen,shadow_error);
+
+  out = SeqLookupInterface_alloc_std();
+
+  out->get_client  = get_client_interface_ShadowSequenceIndex;
+  out->add_seq     = add_seq_interface_ShadowSequenceIndex;
+  out->free_data   = free_interface_ShadowSequenceIndex;
+  out->lookup_array_head = NULL;
+  out->data = (void*) in;
+
+  return out;
+}
+
+
+%func
+gets client interface
+%%
+SeqLookupClientInterface * get_client_interface_ShadowSequenceIndex(void* data)
+{
+  ShadowSequenceIndex * index = (ShadowSequenceIndex*) data;
+  SeqLookupClientInterface * slci;
+  ShadowSequenceClient * pcl;
+
+  pcl = ShadowSequenceClient_alloc();
+
+  pcl->result.result = calloc(64,sizeof(SeqLookupResultStruct));
+  pcl->result.max_len = 64;
+  pcl->result.len = 0;
+
+
+  pcl->interface.next = next_interface_GenericIndexResult;
+  pcl->interface.is_more = is_more_interface_GenericIndexResult;
+  pcl->interface.free_data = free_noop_GenericIndexResult;
+  pcl->interface.data = (void*) &(pcl->result);
+
+  pcl->index = index;
+
+  slci = SeqLookupClientInterface_alloc();
+  slci->lookup       = lookup_interface_ShadowSequenceClient;
+  slci->is_populated = is_populated_interface_ShadowSequenceClient;
+  slci->free_data    = free_interface_ShadowSequenceClient;
+  slci->data = (void*) pcl;
+
+  return slci;
+}
+
+
+%func
+For lookup interface, provides a result
+%%
+SeqLookupResultInterface * lookup_interface_ShadowSequenceClient(void * data,int seq_number)
+{
+  ShadowSequenceClient * cli= (ShadowSequenceClient*) data;
+  ShadowSequenceIndex * in = cli->index;
+
+  /* reset pointers */
+  cli->result.current_pos = 0;
+  cli->result.len = 0;
+
+  if( lookup_result_ShadowSeq(&cli->result,in,seq_number) == FALSE ) {
+    return NULL;
+  }
+
+  return &cli->interface;
+}
+
+
+
+%func
+populated function for interface
+%%
+boolean is_populated_interface_ShadowSequenceClient(void * data,int seq_number)
+{
+  ShadowSequenceClient * client = (ShadowSequenceClient*) data;
+
+  if( client->index->array[seq_number] != NULL ) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
+
+%func
+add function for interface
+%%
+boolean add_seq_interface_ShadowSequenceIndex(void * data,Sequence * seq,SeqLookupLoadPara * para)
+{
+  ShadowSequenceIndex * in = (ShadowSequenceIndex*) data;
+
+  return add_Sequence_ShadowSequenceIndex(in,seq,in->shadow_len);
+}
+
+%func 
+for interface, frees index
+%%
+void free_interface_ShadowSequenceIndex(void * data)
+{
+  ShadowSequenceIndex * in = (ShadowSequenceIndex*) data;
+
+  free_ShadowSequenceIndex(in);
+}
+
+
+%func
+Frees the client data
+%%
+void free_interface_ShadowSequenceClient(void * data)
+{
+  ShadowSequenceClient * cli = (ShadowSequenceClient *)data;
+
+  free(cli->result.result);
+
+  free(cli);
+
+}
+
+
+
+%func
+handles the lookup and storage for a seq_no
+lookup
+%%
+boolean lookup_result_ShadowSeq(GenericIndexResult * res,ShadowSequenceIndex * in,int seq_no)
+{
+  int i;
+  SingleNumberSequence * sns;
+  int pos;
+
+  assert(res);
+  assert(in);
+  
+  if( in->array[seq_no] == NULL ) {
+    return FALSE;
+  }
+  
+  for(i=0;i<in->array[seq_no]->current_pos;i++) {
+    pos = in->array[seq_no]->seqdb_pos[i];
+    sns = lookup_ShadowSequence_SingleNumberSpace(in->space,pos);
+    add_result_GenericIndexResult_ShadowSeq(res,sns->seq,pos-sns->start);
+  }
+
+  return TRUE;
+}
+
+%func
+adds a particular shadow sequence position, unrolling
+shadowed sequences into the result
+%%
+void add_result_GenericIndexResult_ShadowSeq(GenericIndexResult * res,ShadowSequence * seq,int pos)
+{
+  int i;
+
+  assert(res);
+  assert(seq);
+  
+  add_GenericIndexResult(res,seq->seq,pos);
+
+  for(i=0;i<seq->len;i++) {
+    if( pos >= seq->region[i]->start_seq && pos < seq->region[i]->start_seq + seq->region[i]->len ) {
+      add_GenericIndexResult(res,seq->region[i]->seq,seq->region[i]->start_shadow + pos - seq->region[i]->start_seq);
+    }
+  }
+  
+}
+
+
+
+%func
+Dumps information about shadows
+%%
+void dump_shadow_ShadowSequenceIndex(ShadowSequenceIndex * in,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<in->len;i++) {
+    dump_ShadowSequence(in->shadow[i],ofp);
+  }
+
+}
+
+%func
+Dumps useful information out of shadow sequence array
+%%
+void dump_stats_ShadowSequenceIndex(ShadowSequenceIndex * in,FILE * ofp)
+{
+  int i;
+  int j;
+  int total_index = 0;
+  int total_shadow = 0;
+	
+  int total_array = 0;
+  int total_seq = 0;
+  int total_head = 0;
+
+  for(i=0;i<in->array_len;i++) {
+    if( in->array[i] != NULL ) {
+      total_index += in->array[i]->current_pos;
+      total_array += in->array[i]->max;
+      total_head++;
+    }
+  }
+
+  for(i=0;i<in->len;i++) {
+    total_seq += in->shadow[i]->seq->len;
+    for(j=0;j<in->shadow[i]->len;j++) {
+      total_shadow += in->shadow[i]->region[j]->len;
+    }
+  }
+
+  fprintf(ofp,"Arrayed %d, Shadowed %d (Compression ratio %.2f%%)\n",
+	  total_index,
+	  total_shadow,
+	  (double)(total_shadow)*100/(double)(total_shadow+total_index));
+  fprintf(ofp,"Occupied Array Memory %d [%.2f Mbytes]\n",
+	  total_index,((total_index/1000000.0)*sizeof(SHADOW_TYPE)));
+  fprintf(ofp,"Allocated Array memory %d [%.2fMbytes] [%d %%]\n",
+	  total_array,((total_array/1000000.0)*sizeof(SHADOW_TYPE)),
+	  total_index*100/total_array);
+  fprintf(ofp,"Head memory %d [%.2f Mbytes]\n",total_head,(total_head*sizeof(ShadowArraySeqHead))/100000);
+
+  fprintf(ofp,"Sequence Memory %d [%.2f Mbytes]\n",
+	  total_seq,(total_seq/1000000.0)*sizeof(char));
+
+  show_allocator_status_IntAllocatorSet(in->ias,ofp);
+
+}
+
+%func
+Adds a Sequence to a ShadowIndex, placing shadowed regions
+correctly away
+%%
+boolean add_Sequence_ShadowSequenceIndex(ShadowSequenceIndex * in,Sequence * seq,int min_ext)
+{
+  int i;
+  int j;
+  int no;
+  int temp;
+  ShadowSequence * shadow = NULL;
+  int is_dirty = 0;
+  int start_position;
+
+  SingleNumberSequence * sns;
+  
+
+  assert(in);
+  assert(seq);
+
+  /* reap memory into the static system */
+  seq = new_Sequence_StaticSeqHolder(in->ssh,seq);
+
+  shadow = new_ShadowSequence(seq);
+  add_ShadowSequenceIndex(in,shadow);
+  
+  start_position = add_ShadowSequence_SingleNumberSpace(in->space,shadow);
+  
+  for(i=0;i<seq->len-5;) {
+
+    no = seq_number_aa_5mer(seq->seq+i);
+
+    if( in->array[no] != NULL ) {
+      temp = 0;
+      for(j=0;j<in->array[no]->current_pos;j++) {
+
+	sns = lookup_ShadowSequence_SingleNumberSpace(in->space,in->array[no]->seqdb_pos[j]);
+
+	/* we can make a hard assumption that sns is not NULL, but just to
+	   catch errors a little more explicity... */
+
+	assert(sns);
+
+	if( sns->seq->dirty == 0 && sns->seq != shadow && (temp = add_if_possible_ShadowSequence(sns->seq,seq,min_ext,in->array[no]->seqdb_pos[j]-sns->start,i,in->shadow_error)) != 0 ) {
+	  i = temp;
+	  
+	  break;
+	}
+      }
+      if( temp != 0 ) {
+	is_dirty = 1;
+	continue;
+      }
+    }
+
+
+    if( in->array[no] == NULL ) {
+      in->array[no] = new_ShadowArraySeqHead(in->ias);
+    }
+    add_ShadowArraySeqHead(in->ias,in->array[no],start_position+i);
+    i++;
+  }
+
+
+  shadow->dirty = is_dirty;
+
+
+  return TRUE;
+    
+}
+
+
+
+%func
+New ShadowSequenceIndex
+%%
+ShadowSequenceIndex * new_ShadowSequenceIndex(int len,int shadow_len,int has_maxlen,int maxlen,int shadow_error)
+{
+  int i;
+  ShadowSequenceIndex * out;
+
+  out = ShadowSequenceIndex_alloc_std();
+  out->array = calloc(len,sizeof(ShadowArraySeqHead*));
+  assert(out->array);
+
+  for(i=0;i<len;i++) {
+    out->array[i] = NULL;
+  }
+
+  out->array_len = len;
+  out->shadow_len = len;
+  out->space = new_SingleNumberSpace(has_maxlen,maxlen);
+  out->shadow_error = shadow_error;
+  out->ias = new_IntAllocatorSet(65);
+  out->ssh = new_StaticSeqHolder();
+  return out;
+}
+
+
+%func
+Adds a sequence/pos pair to an ArrayHead
+%%
+boolean add_ShadowArraySeqHead(IntAllocatorSet * ias,ShadowArraySeqHead * h,int seqdb_pos)
+{
+
+  if( h->current_pos >= h->max ) {
+    if( h->max < SHADOW_ARRAYSEQL_LINEAR ) {
+      h->seqdb_pos = realloc_intarray_IntAllocatorSet(ias,h->seqdb_pos,h->max,(h->max*2));
+      h->max = h->max*2;
+    } else {
+      h->seqdb_pos = realloc_intarray_IntAllocatorSet(ias,h->seqdb_pos,h->max,h->max + SHADOW_ARRAYSEQL_LINEAR);
+      h->max = h->max + SHADOW_ARRAYSEQL_LINEAR;
+    }
+
+    if( h->seqdb_pos == NULL ) {
+      fatal("ArraySeqLookup realloc failed trying for %d positions\n",h->max);
+    }
+/*    fprintf(stderr,"... extended to %d\n",h->max); */
+  }
+
+  h->seqdb_pos[h->current_pos] = seqdb_pos;
+
+  h->current_pos++;
+
+  return TRUE;
+}
+
+
+%func 
+Builds a new ArraySeqHead structure
+%%
+ShadowArraySeqHead * new_ShadowArraySeqHead(IntAllocatorSet * ias)
+{
+  ShadowArraySeqHead * out;
+
+  out = malloc(sizeof(ShadowArraySeqHead));
+
+  out->seqdb_pos = alloc_intarray_IntAllocatorSet(ias,SHADOW_ARRAYSEQL_BASIC);
+  out->max = SHADOW_ARRAYSEQL_BASIC;
+  out->current_pos = 0;
+  
+  return out;
+}
+
+
+
+%}

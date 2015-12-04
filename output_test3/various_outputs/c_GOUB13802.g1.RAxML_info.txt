@@ -1,0 +1,73 @@
+
+
+IMPORTANT WARNING: Sequences 42 and 96 are exactly identical
+
+
+IMPORTANT WARNING: Sequences 42 and 129 are exactly identical
+
+
+IMPORTANT WARNING: Sequences 67 and 81 are exactly identical
+
+
+IMPORTANT WARNING: Sequences 67 and 98 are exactly identical
+
+
+IMPORTANT WARNING: Sequences 67 and 111 are exactly identical
+
+IMPORTANT WARNING
+Found 5 sequences that are exactly identical to other sequences in the alignment.
+Normally they should be excluded from the analysis.
+
+Just in case you might need it, an alignment file with 
+sequence duplicates removed is printed to file output_test3/various_outputs/c_GOUB13802.g1.phy.reduced
+
+
+You are using RAxML version 7.1.0 released by Alexandros Stamatakis in March 2009
+
+Alignment has 159 distinct alignment patterns
+
+Proportion of gaps and completely undetermined characters in this alignment: 0.035075
+
+RAxML classification algorithm
+
+Using 1 distinct models/data partitions with joint branch length optimization
+
+
+All free model parameters will be estimated by RAxML
+GAMMA model of rate heteorgeneity, ML estimate of alpha-parameter
+
+Partition: 0
+Alignment Patterns: 159
+Name: No Name Provided
+DataType: AA
+Substitution Matrix: WAG
+Fixed Base Frequencies:
+
+
+
+
+RAxML was called as follows:
+
+sub_binaries/raxmlHPC -m PROTGAMMAWAG -T 4 -s output_test3/various_outputs/c_GOUB13802.g1.phy -t /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/data/tree_data/phocryp_tree.txt -f v -n c_GOUB13802.g1 -w /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/ 
+
+
+
+RAxML Classification Algorithm search parameters:
+Insertion using dynamic Alignment: NO
+Thorough  Insertion Method with branch length optimization: YES
+Bootstrap insertions with heuristics: NO
+
+GAMMA based Likelihood score of reference tree: -39536.683609
+
+RAxML will classify 1 Query Sequences into the 463 branches of the reference tree with 233 taxa
+
+Overall Classification time: 19.749867
+
+
+
+Labelled reference tree including branch labels and query sequences written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_labelledTree.c_GOUB13802.g1
+
+Labelled reference tree with branch labels (without query sequences) written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_originalLabelledTree.c_GOUB13802.g1
+
+Classification result file written to file: /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/output_test3/various_outputs/RAxML_classification.c_GOUB13802.g1
+

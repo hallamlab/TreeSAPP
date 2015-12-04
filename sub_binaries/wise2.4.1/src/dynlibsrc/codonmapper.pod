@@ -1,0 +1,136 @@
+=head1 NAME
+
+codonmapper module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item CodonMapper
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object CodonMapper
+
+=over
+
+=item ct
+
+ Type [CodonTable *] Scalar  hard-linked!
+
+=item codon_map[125][26]
+
+ Type [double] Scalar No documentation
+
+
+
+=back
+
+CodonMapper holds a matrix of 125 by 26
+to provide a mapping between a probabilities
+calculated on amino acids to triplet codon
+probabilities. This mapping takes into account
+3 things
+  1) The CodonTable
+  2) The distribution of synonmous codons (codon bias)
+  3) substitution errors
+
+
+
+=head2 Member functions of CodonMapper
+
+=over
+
+=item sprinkle_errors_over_CodonMapper
+
+&Wise2::CodonMapper::sprinkle_errors_over_CodonMapper(cm,error)
+
+  Takes a codon mapper and assummes that the majority of errors
+  are due to a single base change in the codon at probability error.
+  Therefore, for each codon it adds error * prob(codon) * 0.25 to each 
+  other codon one base away, taking away therefore the result.
+
+
+
+
+  Argument cm           [READ ] CodonMapper to be sprinkled [CodonMapper *]
+  Argument error        [UNKN ] substitution error rate [double]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_CodonMapper
+
+&Wise2::CodonMapper::hard_link_CodonMapper(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [CodonMapper *]
+  Return [UNKN ] Undocumented return value [CodonMapper *]
+
+
+=item alloc
+
+&Wise2::CodonMapper::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [CodonMapper *]
+
+
+=item set_ct
+
+&Wise2::CodonMapper::set_ct(obj,ct)
+
+  Replace member variable ct
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [CodonMapper *]
+  Argument ct           [OWNER] New value of the variable [CodonTable *]
+  Return [SOFT ] member variable ct [boolean]
+
+
+=item ct
+
+&Wise2::CodonMapper::ct(obj)
+
+  Access member variable ct
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [CodonMapper *]
+  Return [SOFT ] member variable ct [CodonTable *]
+
+
+=back
+
+=over
+
+=item flat_CodonMapper
+
+&Wise2::flat_CodonMapper(ct)
+
+  Makes a CodonMapper with no codon bias
+  or error possiblities from codon table
+
+
+
+
+  Argument ct           [UNKN ] Codon Table giving codon->aa info [CodonTable *]
+  Return [UNKN ] Undocumented return value [CodonMapper *]
+
+
+=back
+

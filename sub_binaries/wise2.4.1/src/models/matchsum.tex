@@ -1,0 +1,117 @@
+\section{matchsum}
+\label{module_matchsum}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_MatchSummarySet} MatchSummarySet
+
+\item \ref{object_MatchSummary} MatchSummary
+
+\end{itemize}
+\subsection{Object MatchSummarySet}
+
+\label{object_MatchSummarySet}
+
+The MatchSummarySet object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{ms} Type [MatchSummary ** : List] No documentation
+
+\end{description}
+This holds a set of MatchSummaries,
+
+
+
+
+Member functions of MatchSummarySet
+
+\subsubsection{MatchSummarySet_from_AlnBlock_estwise}
+
+\begin{description}
+\item[External C] {\tt Wise2_MatchSummarySet_from_AlnBlock_estwise (alb,qname,offset,target)}
+\item[Perl] {\tt &Wise2::MatchSummarySet::MatchSummarySet_from_AlnBlock_estwise (alb,qname,offset,target)}
+
+\item[Perl-OOP call] {\tt $obj->MatchSummarySet_from_AlnBlock_estwise(qname,offset,target)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alb] [UNKN ] Undocumented argument [AlnBlock *]
+\item[qname] [UNKN ] Undocumented argument [char *]
+\item[offset] [UNKN ] Undocumented argument [int]
+\item[target] [UNKN ] Undocumented argument [Sequence *]
+\item[returns] [UNKN ] Undocumented return value [MatchSummarySet *]
+\end{description}
+Builds a MatchSummarySet from a
+EstWise alignment. this makes
+alot of assumptions about the labels
+setc in alb, so make sure it was a 
+estwise alignment  - however as you
+can notice this is exactly the same 
+labels as found in genewise set
+
+
+\subsubsection{MatchSummarySet_from_AlnBlock_genewise}
+
+\begin{description}
+\item[External C] {\tt Wise2_MatchSummarySet_from_AlnBlock_genewise (alb,qname,protoff,target)}
+\item[Perl] {\tt &Wise2::MatchSummarySet::MatchSummarySet_from_AlnBlock_genewise (alb,qname,protoff,target)}
+
+\item[Perl-OOP call] {\tt $obj->MatchSummarySet_from_AlnBlock_genewise(qname,protoff,target)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alb] [UNKN ] Undocumented argument [AlnBlock *]
+\item[qname] [UNKN ] Undocumented argument [char *]
+\item[protoff] [UNKN ] Undocumented argument [int]
+\item[target] [UNKN ] Undocumented argument [Sequence *]
+\item[returns] [UNKN ] Undocumented return value [MatchSummarySet *]
+\end{description}
+Builds a MatchSummarySet from a
+GeneWise alignment. this makes
+alot of assumptions about the labels
+setc in alb, so make sure it was a 
+genewise alignment 
+
+
+\subsection{Object MatchSummary}
+
+\label{object_MatchSummary}
+
+The MatchSummary object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{bits} Type [double : Scalar] No documentation
+
+\item{qname} Type [char * : Scalar] No documentation
+
+\item{tname} Type [char * : Scalar] No documentation
+
+\item{qstart} Type [int : Scalar] No documentation
+
+\item{qend} Type [int : Scalar] No documentation
+
+\item{tstart} Type [int : Scalar] No documentation
+
+\item{tend} Type [int : Scalar] No documentation
+
+\item{qintron} Type [int : Scalar] No documentation
+
+\item{qframeshift} Type [int : Scalar] No documentation
+
+\item{tintron} Type [int : Scalar] No documentation
+
+\item{tframeshift} Type [int : Scalar] No documentation
+
+\end{description}
+A Match Summary has summary statistics
+for a single alignment, with the
+two start/end ranges and the number of
+introns and frameshifts for each
+sequence (obviously, if one is a protein
+then neither are valid!)
+
+
+
+
+Member functions of MatchSummary
+

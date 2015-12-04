@@ -1,0 +1,104 @@
+\section{gene}
+\label{module_gene}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_Gene} Gene
+
+\end{itemize}
+\subsection{Object Gene}
+
+\label{object_Gene}
+
+The Gene object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{start} Type [int : Scalar] No documentation
+
+\item{end} Type [int : Scalar] No documentation
+
+\item{parent} Type [GenomicRegion * : Scalar]  may not be here
+
+\item{genomic} Type [Genomic * : Scalar]  may not be here!
+
+\item{transcript} Type [Transcript ** : List] No documentation
+
+\item{name} Type [char * : Scalar]  ugly . Need a better system
+
+\item{bits} Type [double : Scalar]  ditto...
+
+\item{seqname} Type [char * : Scalar]  very bad! this is for keeping track of what sequence was used to make the gene
+
+\item{ispseudo} Type [boolean : Scalar]  is a pseudogene or not
+
+\end{description}
+Gene is the datastructure which represents a single
+gene. At the moment this is considered to be a series
+of transcripts (the first transcript being "canonical")
+which are made from a certain start/stop region in
+genomic DNA.
+
+
+The gene datastructure does not necessarily contain
+any DNA sequence. When someone askes for the gene sequence,
+via get_Genomic_from_Gene(), it first sees if there
+is anything in the Genomic * 'cache'. If this is null,
+it then looks at parent (the genomic region), and if
+that is null, complains and returns null. Otherwise it
+truncates its parent's dna in the correct way, places
+the data structure into the genomic * cache, and returns
+it.
+
+
+The name, bits and seqname have put into this datastructure
+for convience of carrying around this information into some
+of the gene prediction output formats. Probabaly
+\begin{verbatim}
+  o they should be in transcript, not gene
+  o they shouldn't be here at all.
+
+
+\end{verbatim}
+<sigh>
+
+
+
+
+Member functions of Gene
+
+\subsubsection{get_Genomic_from_Gene}
+
+\begin{description}
+\item[External C] {\tt Wise2_get_Genomic_from_Gene (gene)}
+\item[Perl] {\tt &Wise2::Gene::get_Genomic_from_Gene (gene)}
+
+\item[Perl-OOP call] {\tt $obj->get_Genomic_from_Gene()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[gene] [READ ] gene to get Genomic from [Gene *]
+\item[returns] [SOFT ] Genomic DNA data structure [Genomic *]
+\end{description}
+Gives back a Genomic sequence type
+from a gene.
+
+
+\subsubsection{show_pretty_Gene}
+
+\begin{description}
+\item[External C] {\tt Wise2_show_pretty_Gene (ge,show_supporting,ofp)}
+\item[Perl] {\tt &Wise2::Gene::show_pretty_Gene (ge,show_supporting,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->show_pretty_Gene(show_supporting,ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ge] [UNKN ] Undocumented argument [Gene *]
+\item[show_supporting] [UNKN ] Undocumented argument [boolean]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+Shows a gene in the biologically accepted form
+
+

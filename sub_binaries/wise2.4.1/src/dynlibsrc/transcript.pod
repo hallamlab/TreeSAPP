@@ -1,0 +1,528 @@
+=head1 NAME
+
+transcript module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item Exon
+
+=item Transcript
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object Exon
+
+=over
+
+=item start
+
+ Type [int] Scalar No documentation
+
+=item end
+
+ Type [int] Scalar No documentation
+
+=item used
+
+ Type [boolean] Scalar  used by some prediction programs etc
+
+=item score
+
+ Type [double] Scalar No documentation
+
+=item sf
+
+ Type [SupportingFeature **] List No documentation
+
+=item phase
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+No documentation for Exon
+
+=head2 Member functions of Exon
+
+=over
+
+=item hard_link_Exon
+
+&Wise2::Exon::hard_link_Exon(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Exon *]
+  Return [UNKN ] Undocumented return value [Exon *]
+
+
+=item Exon_alloc_std
+
+&Wise2::Exon::Exon_alloc_std(void)
+
+  Equivalent to Exon_alloc_len(ExonLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [Exon *]
+
+
+=item set_start
+
+&Wise2::Exon::set_start(obj,start)
+
+  Replace member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Argument start        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable start [boolean]
+
+
+=item start
+
+&Wise2::Exon::start(obj)
+
+  Access member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Return [SOFT ] member variable start [int]
+
+
+=item set_end
+
+&Wise2::Exon::set_end(obj,end)
+
+  Replace member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Argument end          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable end [boolean]
+
+
+=item end
+
+&Wise2::Exon::end(obj)
+
+  Access member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Return [SOFT ] member variable end [int]
+
+
+=item set_used
+
+&Wise2::Exon::set_used(obj,used)
+
+  Replace member variable used
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Argument used         [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable used [boolean]
+
+
+=item used
+
+&Wise2::Exon::used(obj)
+
+  Access member variable used
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Return [SOFT ] member variable used [boolean]
+
+
+=item set_score
+
+&Wise2::Exon::set_score(obj,score)
+
+  Replace member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Argument score        [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable score [boolean]
+
+
+=item score
+
+&Wise2::Exon::score(obj)
+
+  Access member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Return [SOFT ] member variable score [double]
+
+
+=item sf
+
+&Wise2::Exon::sf(obj,i)
+
+  Access members stored in the sf list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Exon *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [SupportingFeature *]
+
+
+=item length_sf
+
+&Wise2::Exon::length_sf(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Exon *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_sf
+
+&Wise2::Exon::flush_sf(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [Exon *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_sf
+
+&Wise2::Exon::add_sf(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [Exon *]
+  Argument add          [OWNER] Object to add to the list [SupportingFeature *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_phase
+
+&Wise2::Exon::set_phase(obj,phase)
+
+  Replace member variable phase
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Argument phase        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable phase [boolean]
+
+
+=item phase
+
+&Wise2::Exon::phase(obj)
+
+  Access member variable phase
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Exon *]
+  Return [SOFT ] member variable phase [int]
+
+
+=back
+
+=head2 Object Transcript
+
+=over
+
+=item exon
+
+ Type [Exon **] List No documentation
+
+=item parent
+
+ Type [Gene *] Scalar No documentation
+
+=item translation
+
+ Type [Translation **] List No documentation
+
+=item cDNA
+
+ Type [cDNA *] Scalar  may not be here!
+
+
+
+=back
+
+
+Transcript represents a single spliced product from a gene. The
+transcript is considered to be a series of exons and it contains, in
+addition a series of translations. Most genes will only have one
+translation.
+
+Like gene before it, transcript does not necessarily contain
+DNA. When some DNA is asked from it, via get_cDNA_from_Transcript
+(notice the change from Genomic typed sequence in Gene to cDNA
+typed sequence in Transcript) it first checkes the 'cache'. 
+If it is not there, it asks for its parents genomic DNA, and
+then assemblies the cDNA using the exon coordinates. The exon
+coordinates are such that 0 means the start of the gene, not
+the start of the genomic region. (makes some outputs a pain).
+
+Supporting Features are added to exons, and, keeping in the spirit of
+this module, are relative to the exon start. The strand is inherieted
+from the exon
+
+
+
+
+=head2 Member functions of Transcript
+
+=over
+
+=item get_cDNA_from_Transcript
+
+&Wise2::Transcript::get_cDNA_from_Transcript(trs)
+
+  gets the cDNA associated with this transcript,
+  if necessary, building it from the exon information
+  provided.
+
+  returns a soft-linked object. If you want to ensure
+  that this cDNA object remains in memory use
+  /hard_link_cDNA on the object.
+
+
+
+  Argument trs          [READ ] transcript to get cDNA from [Transcript *]
+  Return [SOFT ] cDNA of the transcript [cDNA *]
+
+
+=item hard_link_Transcript
+
+&Wise2::Transcript::hard_link_Transcript(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Transcript *]
+  Return [UNKN ] Undocumented return value [Transcript *]
+
+
+=item Transcript_alloc_std
+
+&Wise2::Transcript::Transcript_alloc_std(void)
+
+  Equivalent to Transcript_alloc_len(TranscriptLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [Transcript *]
+
+
+=item exon
+
+&Wise2::Transcript::exon(obj,i)
+
+  Access members stored in the exon list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Transcript *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [Exon *]
+
+
+=item length_exon
+
+&Wise2::Transcript::length_exon(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Transcript *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_exon
+
+&Wise2::Transcript::flush_exon(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [Transcript *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_exon
+
+&Wise2::Transcript::add_exon(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [Transcript *]
+  Argument add          [OWNER] Object to add to the list [Exon *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_parent
+
+&Wise2::Transcript::set_parent(obj,parent)
+
+  Replace member variable parent
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Transcript *]
+  Argument parent       [OWNER] New value of the variable [Gene *]
+  Return [SOFT ] member variable parent [boolean]
+
+
+=item parent
+
+&Wise2::Transcript::parent(obj)
+
+  Access member variable parent
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Transcript *]
+  Return [SOFT ] member variable parent [Gene *]
+
+
+=item translation
+
+&Wise2::Transcript::translation(obj,i)
+
+  Access members stored in the translation list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Transcript *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [Translation *]
+
+
+=item length_translation
+
+&Wise2::Transcript::length_translation(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Transcript *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_translation
+
+&Wise2::Transcript::flush_translation(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [Transcript *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_translation
+
+&Wise2::Transcript::add_translation(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [Transcript *]
+  Argument add          [OWNER] Object to add to the list [Translation *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_cDNA
+
+&Wise2::Transcript::set_cDNA(obj,cDNA)
+
+  Replace member variable cDNA
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Transcript *]
+  Argument cDNA         [OWNER] New value of the variable [cDNA *]
+  Return [SOFT ] member variable cDNA [boolean]
+
+
+=item cDNA
+
+&Wise2::Transcript::cDNA(obj)
+
+  Access member variable cDNA
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Transcript *]
+  Return [SOFT ] member variable cDNA [cDNA *]
+
+
+=back
+

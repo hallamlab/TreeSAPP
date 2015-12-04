@@ -1,0 +1,109 @@
+\section{estwrap}
+\label{module_estwrap}
+This module only contains factory methods
+
+\subsection{estwrap factory methods}
+\subsubsection{Hscore_from_TSM_estwise}
+\begin{description}
+\item[External C] {\tt Wise2_Hscore_from_TSM_estwise (tdb,cdb,cp,cm,rmd,use_syn,alg,bits_cutoff,allN,flat_insert,report_level,die_on_error,dbsi)}
+\item[Perl] {\tt &Wise2::Hscore_from_TSM_estwise (tdb,cdb,cp,cm,rmd,use_syn,alg,bits_cutoff,allN,flat_insert,report_level,die_on_error,dbsi)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[tdb] [READ ] a three state model database [ThreeStateDB *]
+\item[cdb] [READ ] a dna sequence database [cDNADB *]
+\item[cp] [READ ] the codon parser for this comparison [cDNAParser *]
+\item[cm] [READ ] the codon mapper for this comparison [CodonMapper *]
+\item[rmd] [READ ] random model used for the dna sequence comparison [RandomModelDNA *]
+\item[use_syn] [UNKN ] whether a synchronous coding model should be used or not [boolean]
+\item[alg] [UNKN ] algorithm to use [int]
+\item[bits_cutoff] [UNKN ] Undocumented argument [double]
+\item[allN] [UNKN ] Undocumented argument [Probability]
+\item[flat_insert] [UNKN ] Undocumented argument [boolean]
+\item[report_level] [UNKN ] Undocumented argument [int]
+\item[die_on_error] [UNKN ] if true, dies if there is an error [boolean]
+\item[dbsi] [UNKN ] Undocumented argument [DBSearchImpl *]
+\item[returns] [OWNER] a newly allocated Hscore structure of the search [Hscore *]
+\end{description}
+Runs a database search for the estwise set
+of algorithms
+
+
+\subsubsection{AlnBlock_from_Protein_estwise_wrap}
+\begin{description}
+\item[External C] {\tt Wise2_AlnBlock_from_Protein_estwise_wrap (pro,cdna,cp,cm,ct,comp,gap,ext,is_global,rmd,alg,rm,use_syn,allN,dpri,palpoi)}
+\item[Perl] {\tt &Wise2::AlnBlock_from_Protein_estwise_wrap (pro,cdna,cp,cm,ct,comp,gap,ext,is_global,rmd,alg,rm,use_syn,allN,dpri)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[pro] [READ ] protein to be used in the comparison [Protein *]
+\item[cdna] [READ ] cdna to be compared to [cDNA *]
+\item[cp] [READ ] cdna parser indicating insertion deletion probabilities [cDNAParser *]
+\item[cm] [READ ] codon mapper indicating substitution errors etc [CodonMapper *]
+\item[ct] [READ ] codon table for the codon->amino acid mappings [CodonTable *]
+\item[comp] [READ ] comparison matrix to use [CompMat *]
+\item[gap] [UNKN ] gap penalty [int]
+\item[ext] [UNKN ] extension penalty [int]
+\item[is_global] [UNKN ] if true, global start-end in protein is used [boolean]
+\item[rmd] [UNKN ] random model of dna to use [RandomModelDNA *]
+\item[alg] [UNKN ] est algorithm type to use [int]
+\item[rm] [UNKN ] random protein model for use with compmat [RandomModel *]
+\item[use_syn] [UNKN ] if true, uses a synchronous coding model [boolean]
+\item[allN] [UNKN ] Undocumented argument [Probability]
+\item[dpri] [UNKN ] Undocumented argument [DPRunImpl *]
+\item[palpoi] \em{only for C api} [WRITE] the raw packed alignment output if wanted [PackAln **]
+\item[returns] [UNKN ] Undocumented return value [AlnBlock *]
+\end{description}
+This function is the guts for the est single alignment
+mode.
+
+
+It uses /AlnBlock_from_TSM_estwise_wrap for the
+heavy part of the call
+
+
+\subsubsection{AlnBlock_from_TSM_estwise_wrap}
+\begin{description}
+\item[External C] {\tt Wise2_AlnBlock_from_TSM_estwise_wrap (tsm,cdna,cp,cm,ct,rmd,alg,use_syn,force_flat_insert,allN,dpri,palpoi)}
+\item[Perl] {\tt &Wise2::AlnBlock_from_TSM_estwise_wrap (tsm,cdna,cp,cm,ct,rmd,alg,use_syn,force_flat_insert,allN,dpri)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[tsm] [READ ] threestatemodel to be compared to the dna [ThreeStateModel *]
+\item[cdna] [READ ] cdna to be compared to [cDNA *]
+\item[cp] [READ ] cdna parser indicating insertion deletion probabilities [cDNAParser *]
+\item[cm] [READ ] codon mapper indicating substitution errors etc [CodonMapper *]
+\item[ct] [READ ] codon table for the codon->amino acid mappings [CodonTable *]
+\item[rmd] [UNKN ] random model of dna to use [RandomModelDNA *]
+\item[alg] [UNKN ] est algorithm type to use [int]
+\item[use_syn] [UNKN ] if true, uses a synchronous coding model [boolean]
+\item[force_flat_insert] [UNKN ] Undocumented argument [boolean]
+\item[allN] [UNKN ] Undocumented argument [Probability]
+\item[dpri] [UNKN ] Undocumented argument [DPRunImpl *]
+\item[palpoi] \em{only for C api} [WRITE] the raw packed alignment output if wanted [PackAln **]
+\item[returns] [UNKN ] Undocumented return value [AlnBlock *]
+\end{description}
+This function is the basic wrap for Protein models
+vs cDNA sequences.
+
+
+\subsubsection{alg_estwrap_from_string}
+\begin{description}
+\item[External C] {\tt Wise2_alg_estwrap_from_string (str)}
+\item[Perl] {\tt &Wise2::alg_estwrap_from_string (str)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[str] [UNKN ] Undocumented argument [char *]
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+This function returns the algorithm type
+for an est search from the string
+
+
+
+

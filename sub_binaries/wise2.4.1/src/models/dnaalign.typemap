@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_DnaStartEnd *    T_Wise2_DnaStartEnd
+
+INPUT
+T_Wise2_DnaStartEnd
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_DnaStartEnd *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_DnaStartEnd
+	sv_setref_pv($arg, "Wise2::DnaStartEnd", (void*) $var);

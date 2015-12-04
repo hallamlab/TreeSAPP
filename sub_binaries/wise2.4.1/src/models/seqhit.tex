@@ -1,0 +1,103 @@
+\section{seqhit}
+\label{module_seqhit}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_DnaSequenceHitList} DnaSequenceHitList
+
+\item \ref{object_SegmentHitList} SegmentHitList
+
+\item \ref{object_SegmentHit} SegmentHit
+
+\end{itemize}
+\subsection{Object DnaSequenceHitList}
+
+\label{object_DnaSequenceHitList}
+
+The DnaSequenceHitList object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{forward} Type [SegmentHitList * : Scalar] No documentation
+
+\item{backward} Type [SegmentHitList * : Scalar] No documentation
+
+\end{description}
+No documentation for DnaSequenceHitList
+
+Member functions of DnaSequenceHitList
+
+\subsubsection{show_DnaSequenceHitList}
+
+\begin{description}
+\item[External C] {\tt Wise2_show_DnaSequenceHitList (dsl,ofp)}
+\item[Perl] {\tt &Wise2::DnaSequenceHitList::show_DnaSequenceHitList (dsl,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->show_DnaSequenceHitList(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[dsl] [UNKN ] Undocumented argument [DnaSequenceHitList *]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+shows a DnaSequenceHitsList -
+
+
+only really useful for debugging
+
+
+\subsubsection{read_MSPcrunch_DnaSequenceHitList}
+
+\begin{description}
+\item[External C] {\tt Wise2_read_MSPcrunch_DnaSequenceHitList (ifp)}
+\item[Perl] {\tt &Wise2::DnaSequenceHitList::read_MSPcrunch_DnaSequenceHitList (ifp)}
+
+\item[Perl-OOP call] {\tt $obj->read_MSPcrunch_DnaSequenceHitList()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ifp] [UNKN ] input file to read [FILE *]
+\item[returns] [UNKN ] newly allocated structure [DnaSequenceHitList *]
+\end{description}
+Reads a MSPcrunch -x output file 
+
+
+\subsection{Object SegmentHitList}
+
+\label{object_SegmentHitList}
+
+The SegmentHitList object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{seghit} Type [SegmentHit ** : List] No documentation
+
+\end{description}
+No documentation for SegmentHitList
+
+Member functions of SegmentHitList
+
+\subsection{Object SegmentHit}
+
+\label{object_SegmentHit}
+
+The SegmentHit object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{name} Type [char * : Scalar] No documentation
+
+\item{qstart} Type [int : Scalar] No documentation
+
+\item{qend} Type [int : Scalar] No documentation
+
+\item{tstart} Type [int : Scalar] No documentation
+
+\item{tend} Type [int : Scalar] No documentation
+
+\item{score} Type [double : Scalar] No documentation
+
+\item{next_hit} Type [SegmentHit * : Scalar]  for collecting hits together ;)
+
+\end{description}
+No documentation for SegmentHit
+
+Member functions of SegmentHit
+

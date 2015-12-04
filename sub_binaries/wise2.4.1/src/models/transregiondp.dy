@@ -1,0 +1,141 @@
+
+%{
+#include "transfactor.h"
+#include "dyna.h"
+
+#define TRANS_REGION_MODEL_SCORE(seq,j,model) (seq->coverage[j] == 0 ? model->region_notpresent : model->region_present)
+#define TRANS_NON_REGION_MODEL_SCORE(seq,j,model) (seq->coverage[j] == 0 ? model->nonregion_notpresent : model->nonregion_present)
+#define TRANS_REGION_GC_SCORE(seq,j,model) (seq->gc_points[j] == 1 ? model->gc_point : model->gc_non_point)
+
+%}
+
+
+
+struct SequenceBaseCoverage
+char * coverage
+char * gc_points
+int len
+Sequence * seq
+
+struct TransRegionModel
+int len
+Score  region_present
+Score  region_notpresent
+Score  nonregion_present
+Score  nonregion_notpresent
+Score  region_start
+Score  gc_point
+Score  gc_non_point
+
+
+matrix  TransRegionMatrix
+query   name="model" type="TransRegionModel*"
+target  name="seq" type="SequenceBaseCoverage*"
+state REGION
+  source REGION offi="0" offj="1"
+   calc="TRANS_REGION_MODEL_SCORE(seq,j,model) + TRANS_REGION_GC_SCORE(seq,j,model)"
+   endsource
+  source START offi="0" offj="1"
+   calc="TRANS_REGION_MODEL_SCORE(seq,j,model) + TRANS_REGION_GC_SCORE(seq,j,model)"
+   endsource
+  source NON_REGION offi="0" offj="1"
+   calc="model->region_start"
+   endsource
+  query_label REGION_STATE
+  target_label REGION
+endstate
+state NON_REGION
+  source NON_REGION offi="0" offj="1"
+   calc="TRANS_NON_REGION_MODEL_SCORE(seq,j,model)"
+   endsource
+  source START offi="0" offj="1"
+   calc="TRANS_NON_REGION_MODEL_SCORE(seq,j,model)"
+   endsource
+  source REGION offi="0" offj="1"
+   calc="0"
+   endsource
+  query_label  NON_REGION_STATE
+  target_label RANDOM
+endstate
+state START !special !start
+endstate
+state END !special !end
+  source NON_REGION 
+   calc="0"
+   endsource
+  source REGION 
+   calc="0"
+   endsource
+  query_label END
+  target_label END
+endstate
+collapse NON_REGION_STATE RANDOM
+collapse REGION_STATE REGION
+endmatrix
+
+
+%{
+#include "transregiondp.h"
+
+
+SequenceBaseCoverage * new_SequenceBaseCoverage(TransFactorMatchSet * tfms)
+{
+  int i;
+  int j;
+  int seqpos;
+  SequenceBaseCoverage * out;
+
+
+  out = SequenceBaseCoverage_alloc();
+  out->coverage = calloc(tfms->target->len,sizeof(char));
+  out->len = tfms->target->len;
+
+  out->gc_points = calloc(tfms->target->len,sizeof(char));
+  for(j=1;j<out->len;j++) {
+    if( toupper(tfms->target->seq[j-1]) == 'G' && toupper(tfms->target->seq[j]) == 'C') {
+      out->gc_points[j] = 1;
+    }
+  }
+
+  for(i=0;i<tfms->len;i++) {
+    for(j=tfms->match[i]->start;j<tfms->match[i]->end;j++) {
+      if(out->coverage[j] < 100 ) {
+	out->coverage[j]++;
+      }
+    }
+  }
+
+
+
+  return out;
+
+
+}
+
+
+TransRegionModel * new_logodds_TransRegionModel(double in_region_prob,double out_region_prob,double in_cost,double gc_region_ratio)
+{
+  TransRegionModel * out;
+
+
+  out = TransRegionModel_alloc();
+
+  out->region_present = Probability2Score(in_region_prob/out_region_prob);
+  out->region_notpresent = Probability2Score((1.0-in_region_prob)/(1.0 - out_region_prob));
+
+  out->nonregion_present =  Probability2Score(1.0);
+  out->nonregion_notpresent = Probability2Score(1.0);
+
+  out->region_start = Probability2Score(in_cost);
+
+  out->gc_point = Probability2Score(gc_region_ratio);
+  out->gc_non_point = 0;
+
+  out->len = 1;
+  fprintf(stderr,"... %d (%.2f) covered, %d (%.2f) not covered\n",out->region_present,Score2Bits(out->region_present),out->region_notpresent,Score2Bits(out->region_notpresent));
+
+  return out;
+}
+
+
+%}

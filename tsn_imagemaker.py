@@ -20,7 +20,6 @@ class Autovivify(dict):
     beforehand.
     """
 
-
     def __getitem__(self, item):
         try:
             return dict.__getitem__(self, item)

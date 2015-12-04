@@ -1,0 +1,204 @@
+/*  Last edited: Dec  5 19:45 1996 (birney) */
+
+
+%{
+
+#include "wisebase.h"
+#include "probability.h"
+
+
+#define PackAlnLISTLENGTH 64
+
+%}
+
+api
+object PackAln
+des  free_PackAln
+func show_simple_PackAln
+func show_bits_and_cumlative_PackAln
+endobject
+object PackAlnUnit
+des  free_PackAlnUnit
+endobject
+endapi
+
+struct PackAlnUnit
+int i // position in query 
+int j // position in target
+int state // state in FSM
+int score !def="0" // score of the transition that reached this state
+%info
+Internal object for /PackAln:
+A single position of an alignment
+as the (i,j,state) triple
+%%
+
+struct PackAln
+PackAlnUnit ** pau !list // list of PackAlnUnits from start to end
+int score; // score over the entire alignment
+%info
+This is the lowest-level of representation
+of a DP alignment, being the list of 
+(i,j,state) triples taken through the
+DP matrix. The score for the transition to
+this point is held as well.
+
+This object is very low level and often a
+much better choice for representation is
+in /AlnBlock objects 
+%%
+
+%{
+#include "packaln.h"
+
+%func
+Reads in a PackAln from a file in show_simple_PackAln
+%%
+PackAln * read_simple_PackAln_file(char * file)
+{
+  FILE * ifp;
+  PackAln * out;
+
+  if( (ifp=openfile(file,"r")) == NULL ) {
+    warn("Could not open %s for PackAln file reading",file);
+  }
+
+  out = read_simple_PackAln(ifp);
+
+  fclose(ifp);
+
+  return out;
+  
+}
+
+%func
+Reads in PackAln from file format in show_simple_PackAln
+%%
+PackAln * read_simple_PackAln(FILE * ifp)
+{
+  PackAln * out;
+  PackAlnUnit * unit;
+  char buffer[MAXLINE];
+
+  assert(ifp);
+
+  out = PackAln_alloc_std();
+
+  /* score line */
+  fgets(buffer,MAXLINE,ifp);
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"//") == 0 ) {
+      break;
+    }
+
+    unit = PackAlnUnit_alloc();
+    
+    sscanf(buffer,"Position i:[%d] j:[%d] State:[%d] Score: %d",&unit->i,&unit->j,&unit->state,&unit->score);
+
+    add_PackAln(out,unit);
+  }
+
+  return out;
+}
+
+
+%func
+shows packalnunit very simply ;)
+%type internal
+%%
+void show_simple_PackAlnUnit(PackAlnUnit * pau,FILE * ofp)
+{
+  fprintf(ofp,"Position i:[%d] j:[%d] State:[%d] Score: %d\n",pau->i,pau->j,pau->state,pau->score);
+}
+
+%func
+shows packalnunit with the text mapping
+%type internal
+%%
+void show_text_PackAlnUnit(PackAlnUnit * pau,char * (*state_to_char)(int),FILE * ofp)
+{
+  fprintf(ofp,"Position i:[%4d] j:[%4d] State:[%2d] Score:[%3d] [%s]\n",pau->i,pau->j,pau->state,pau->score,(*state_to_char)(pau->state));
+}
+
+%func
+Shows packaln as: 
+
+i,j,state,score,bits,cumlative-score,cumlative-bits
+
+cumlative score and cumlative bits are useful sometimes
+%%
+void show_bits_and_cumlative_PackAln(PackAln * pal,FILE * ofp)
+{
+  int i;
+  int cs = 0;
+  double cb = 0.0;
+
+
+  fprintf(ofp,"Score %d\n",pal->score);
+  for(i=0;i<pal->len;i++) {
+    auto PackAlnUnit * pau;
+    pau = pal->pau[i];
+
+    cs += pal->pau[i]->score;
+    cb += Score2Bits(pal->pau[i]->score);
+    fprintf(ofp,"i [%4d] j [%4d] state [%2d] score [%4d] bits [%2.2f] Score-CF [%6d] Bits-CF[%4.2f]\n",pau->i,pau->j,pau->state,pau->score,Score2Bits(pau->score),cs,cb);
+  }
+
+} 
+
+ 
+%func
+shows packaln with a pretty verbose debugging 
+format
+%%
+void show_simple_PackAln(PackAln * pal,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"Score %d\n",pal->score);
+  for(i=0;i<pal->len;i++)
+    show_simple_PackAlnUnit(pal->pau[i],ofp);
+}
+
+%func
+shows packaln with a pretty verbose debugging 
+format, but with a conversion function from state number to
+a string
+%%
+void show_text_PackAln(PackAln * pal,char * (*state_to_char)(int),FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"Score %d\n",pal->score);
+  for(i=0;i<pal->len;i++)
+    show_text_PackAlnUnit(pal->pau[i],state_to_char,ofp);
+}
+
+%func
+inverts the packaln so that the last unit is the first
+etc. Because most alignments are read backwards this
+is useful
+%arg
+pal PackAln to be inverted 
+%%
+void invert_PackAln(PackAln * pal) 
+{
+  PackAlnUnit ** temp;
+  register int i;
+
+  /*** there are better ways to do this! ***/
+
+  temp = (PackAlnUnit **) ckcalloc(pal->len,sizeof(PackAlnUnit *));
+  
+  for(i=0;i<pal->len;i++) 
+    temp[i] = pal->pau[pal->len-1-i];
+  for(i=0;i<pal->len;i++)
+    pal->pau[i] = temp[i];
+
+  ckfree(temp);
+}
+
+
+
+%}

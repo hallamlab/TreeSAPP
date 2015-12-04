@@ -1,0 +1,271 @@
+
+%{
+#include "wisebase.h"
+
+typedef enum dpenvelope_type {
+  DPENV_RECT = 0,
+  DPENV_DIAG
+} dpenv_type;
+
+
+
+#define DPEnvelopeLISTLENGTH 32
+%}
+
+
+struct DPUnit
+int type !def="DPENV_RECT"
+int starti
+int startj
+int height // for diagonal units
+int length // for diagonal units
+
+struct DPEnvelope
+DPUnit ** dpu !list
+DPUnit * bbox
+int starti
+int startj
+int endi
+int endj
+
+%{
+#include "dpenvelope.h"
+
+%func
+Helper function that checks whether things overlap or not
+%%
+boolean overlap_DPUnit(DPUnit * a,DPUnit * b)
+{
+  int diag_a;
+  int diag_b;
+
+  if( a->type == DPENV_DIAG && b->type == DPENV_DIAG ) {
+    diag_a = a->starti - a->startj;
+    diag_b = b->starti - b->startj;
+
+    if( diag_a - a->height > diag_b + b->height || diag_a + a->height < diag_b + b->height ) {
+      return FALSE;
+    }
+
+    diag_a = a->starti + a->startj;
+    diag_b = b->starti + b->startj;
+
+    if( diag_a + a->length < diag_b || diag_a > diag_b + b->length ) {
+      return FALSE;
+    }
+
+    return TRUE;
+
+  }
+
+  if( a->type == DPENV_RECT && b->type == DPENV_RECT ) {
+    fatal("Not implemented rectangle overlap!");
+  }
+
+
+  fatal("Not implemented rectangle - diag overlap!");
+
+}
+
+%func
+Helper function that also opens the filename
+%%
+DPEnvelope * read_DPEnvelope_file(char * filename)
+{
+  FILE * ifp;
+  DPEnvelope * dpenv;
+
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    error("Could not open file with %s",filename);
+    return NULL;
+  }
+
+  dpenv = read_DPEnvelope(ifp);
+
+  fclose(ifp);
+
+  return dpenv;
+}
+
+
+%func 
+Reads a DPEnvelope from a file
+%%
+DPEnvelope * read_DPEnvelope(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  char ** base;
+  char ** str;
+  DPEnvelope * out;
+  DPUnit * unit;
+
+  out = DPEnvelope_alloc_std();
+
+
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+
+    base = str = breakstring(buffer,spacestr);    
+    unit = DPUnit_alloc();
+    add_DPEnvelope(out,unit);
+
+    if( strcmp(*str,"rect") == 0 ) {
+      unit->type = DPENV_RECT;
+    } else if ( strcmp(*str,"diag") == 0 ) {
+      unit->type = DPENV_DIAG;
+    } else {
+      error("Cannot parse DPEnv file");
+      continue;
+    }
+
+    str++;
+    if( *str == NULL ) {
+      error("Cannot parse DPEnv file");
+      continue;
+    }
+    unit->starti = atoi(*str);
+    str++;
+    if( *str == NULL ) {
+      error("Cannot parse DPEnv file");
+      continue;
+    }
+    unit->startj = atoi(*str);
+    
+    str++;
+    if( *str == NULL ) {
+      error("Cannot parse DPEnv file");
+      continue;
+    }
+    unit->height = atoi(*str);
+    
+    str++;
+    if( *str == NULL ) {
+      error("Cannot parse DPEnv file");
+      continue;
+    }
+    unit->length = atoi(*str);
+  }
+
+  return out;
+}
+
+
+%func
+shows structure. useful for debugging
+%%
+void show_DPEnvelope(DPEnvelope * dpe,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<dpe->len;i++) {
+    fprintf(ofp,"Unit %d [%s] Start %d-%d Height: %d Length: %d\n",i,dpe->dpu[i]->type == DPENV_RECT ? "rect" : "diag",dpe->dpu[i]->starti,dpe->dpu[i]->startj,dpe->dpu[i]->height,dpe->dpu[i]->length);
+  }
+
+}
+
+%func
+Tests whether this i,j position is allowed in the
+DPEnvelope
+%%
+boolean is_in_DPEnvelope(DPEnvelope * dpe,int i,int j)
+{
+  int k;
+
+  for(k=0;k<dpe->len;k++) {
+    auto DPUnit * u;
+    u = dpe->dpu[k];
+
+    switch (u->type) {
+
+    case DPENV_RECT :
+      if( i >= u->starti && j >= u->startj && i <= (u->starti+u->height) && j <= (u->startj+u->length) ) 
+	return TRUE;
+      else 
+	break;
+    case DPENV_DIAG :
+      if( abs( (i-j) - (u->starti-u->startj)) <= u->height && 
+	i+j >= u->starti+u->startj && i+j+u->length >= u->starti+u->startj) 
+	return TRUE;
+      break;
+
+    default :
+      warn("Bad DPUnit type put in. Yuk. Bad error... %d",u->type);
+      return FALSE;
+    }
+  }
+
+
+  return FALSE;
+}
+
+%func
+Should run this before using the DPEnvelope
+%%
+boolean prepare_DPEnvelope(DPEnvelope * dpe)
+{
+  int i;
+  
+  dpe->starti = 1000000;
+  dpe->startj = 1000000;
+  dpe->endi   = 1;
+  dpe->endj   = 1;
+
+  sort_DPEnvelope_by_startj(dpe);
+
+  for(i=0;i<dpe->len;i++) {
+    if( dpe->dpu[i]->type == DPENV_RECT ) {
+      if( dpe->starti > dpe->dpu[i]->starti-1 ) {
+	dpe->starti = dpe->dpu[i]->starti-1;
+      }
+      if( dpe->startj > dpe->dpu[i]->startj-1 ) {
+	dpe->startj = dpe->dpu[i]->startj-1;
+      }
+      if( dpe->endi < dpe->dpu[i]->starti+ dpe->dpu[i]->height ) {
+	dpe->endi = dpe->dpu[i]->starti+ dpe->dpu[i]->height;
+      }
+      if( dpe->endj < dpe->dpu[i]->startj + dpe->dpu[i]->length ) {
+	dpe->endj = dpe->dpu[i]->startj + dpe->dpu[i]->length;
+      }
+    } else { /* DIAG */
+      if( dpe->starti > dpe->dpu[i]->starti-dpe->dpu[i]->height ) {
+	dpe->starti = dpe->dpu[i]->starti-dpe->dpu[i]->height;
+      }
+      if( dpe->startj > dpe->dpu[i]->startj-dpe->dpu[i]->height ) {
+	dpe->startj = dpe->dpu[i]->startj-dpe->dpu[i]->height;
+      }
+      if( dpe->endi < dpe->dpu[i]->starti+ dpe->dpu[i]->length+dpe->dpu[i]->height ) {
+	dpe->endi = dpe->dpu[i]->starti+ dpe->dpu[i]->length + dpe->dpu[i]->height;
+      }
+      if( dpe->endj < dpe->dpu[i]->startj + dpe->dpu[i]->length + dpe->dpu[i]->height ) {
+	dpe->endj = dpe->dpu[i]->startj + dpe->dpu[i]->length + dpe->dpu[i]->height;
+      }
+    }
+  }
+
+  return TRUE;
+}
+
+%func
+Sorts by startj
+%%
+void sort_DPEnvelope_by_startj(DPEnvelope * dpe)
+{
+  sort_DPEnvelope(dpe,compare_DPUnit_startj);
+}
+
+%func
+internal for sort by startj
+%type internal
+%%
+int compare_DPUnit_startj(DPUnit * one,DPUnit * two)
+{
+  return one->startj  - two->startj;
+}
+
+
+
+
+
+
+

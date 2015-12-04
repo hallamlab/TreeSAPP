@@ -1,0 +1,18 @@
+#!/bin/tcsh -f
+
+echo ""
+echo "Welcome to Wise2.4"
+echo ""
+echo "The executable programs are in the ./bin directory"
+echo ""
+echo "You must set your WISECONFIGDIR to the config directory"
+echo "before using the programs"
+echo ""
+echo "ie, type setenv WISECONFIGDIR `pwd`/../wisecfg/"
+echo ""
+echo "to try an example, try cd example and then"
+echo "../bin/genewise road.pep human.genomic"
+echo ""
+echo "to build perl, type make perl and follow the instructions"
+echo ""
+echo "to test the package, type make test"

@@ -1,0 +1,505 @@
+=head1 NAME
+
+seqhit module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item DnaSequenceHitList
+
+=item SegmentHitList
+
+=item SegmentHit
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object DnaSequenceHitList
+
+=over
+
+=item forward
+
+ Type [SegmentHitList *] Scalar No documentation
+
+=item backward
+
+ Type [SegmentHitList *] Scalar No documentation
+
+
+
+=back
+
+No documentation for DnaSequenceHitList
+
+=head2 Member functions of DnaSequenceHitList
+
+=over
+
+=item show_DnaSequenceHitList
+
+&Wise2::DnaSequenceHitList::show_DnaSequenceHitList(dsl,ofp)
+
+  shows a DnaSequenceHitsList -
+
+  only really useful for debugging
+
+
+
+  Argument dsl          [UNKN ] Undocumented argument [DnaSequenceHitList *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item read_MSPcrunch_DnaSequenceHitList
+
+&Wise2::DnaSequenceHitList::read_MSPcrunch_DnaSequenceHitList(ifp)
+
+  Reads a MSPcrunch -x output file 
+
+
+
+  Argument ifp          [UNKN ] input file to read [FILE *]
+  Return [UNKN ] newly allocated structure [DnaSequenceHitList *]
+
+
+=item hard_link_DnaSequenceHitList
+
+&Wise2::DnaSequenceHitList::hard_link_DnaSequenceHitList(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [DnaSequenceHitList *]
+  Return [UNKN ] Undocumented return value [DnaSequenceHitList *]
+
+
+=item alloc
+
+&Wise2::DnaSequenceHitList::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [DnaSequenceHitList *]
+
+
+=item set_forward
+
+&Wise2::DnaSequenceHitList::set_forward(obj,forward)
+
+  Replace member variable forward
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DnaSequenceHitList *]
+  Argument forward      [OWNER] New value of the variable [SegmentHitList *]
+  Return [SOFT ] member variable forward [boolean]
+
+
+=item forward
+
+&Wise2::DnaSequenceHitList::forward(obj)
+
+  Access member variable forward
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DnaSequenceHitList *]
+  Return [SOFT ] member variable forward [SegmentHitList *]
+
+
+=item set_backward
+
+&Wise2::DnaSequenceHitList::set_backward(obj,backward)
+
+  Replace member variable backward
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DnaSequenceHitList *]
+  Argument backward     [OWNER] New value of the variable [SegmentHitList *]
+  Return [SOFT ] member variable backward [boolean]
+
+
+=item backward
+
+&Wise2::DnaSequenceHitList::backward(obj)
+
+  Access member variable backward
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DnaSequenceHitList *]
+  Return [SOFT ] member variable backward [SegmentHitList *]
+
+
+=back
+
+=head2 Object SegmentHitList
+
+=over
+
+=item seghit
+
+ Type [SegmentHit **] List No documentation
+
+
+
+=back
+
+No documentation for SegmentHitList
+
+=head2 Member functions of SegmentHitList
+
+=over
+
+=item hard_link_SegmentHitList
+
+&Wise2::SegmentHitList::hard_link_SegmentHitList(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [SegmentHitList *]
+  Return [UNKN ] Undocumented return value [SegmentHitList *]
+
+
+=item SegmentHitList_alloc_std
+
+&Wise2::SegmentHitList::SegmentHitList_alloc_std(void)
+
+  Equivalent to SegmentHitList_alloc_len(SegmentHitListLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [SegmentHitList *]
+
+
+=item seghit
+
+&Wise2::SegmentHitList::seghit(obj,i)
+
+  Access members stored in the seghit list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [SegmentHitList *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [SegmentHit *]
+
+
+=item length_seghit
+
+&Wise2::SegmentHitList::length_seghit(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [SegmentHitList *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_seghit
+
+&Wise2::SegmentHitList::flush_seghit(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [SegmentHitList *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_seghit
+
+&Wise2::SegmentHitList::add_seghit(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [SegmentHitList *]
+  Argument add          [OWNER] Object to add to the list [SegmentHit *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=back
+
+=head2 Object SegmentHit
+
+=over
+
+=item name
+
+ Type [char *] Scalar No documentation
+
+=item qstart
+
+ Type [int] Scalar No documentation
+
+=item qend
+
+ Type [int] Scalar No documentation
+
+=item tstart
+
+ Type [int] Scalar No documentation
+
+=item tend
+
+ Type [int] Scalar No documentation
+
+=item score
+
+ Type [double] Scalar No documentation
+
+=item next_hit
+
+ Type [SegmentHit *] Scalar  for collecting hits together ;)
+
+
+
+=back
+
+No documentation for SegmentHit
+
+=head2 Member functions of SegmentHit
+
+=over
+
+=item hard_link_SegmentHit
+
+&Wise2::SegmentHit::hard_link_SegmentHit(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [SegmentHit *]
+  Return [UNKN ] Undocumented return value [SegmentHit *]
+
+
+=item alloc
+
+&Wise2::SegmentHit::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [SegmentHit *]
+
+
+=item set_name
+
+&Wise2::SegmentHit::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::SegmentHit::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Return [SOFT ] member variable name [char *]
+
+
+=item set_qstart
+
+&Wise2::SegmentHit::set_qstart(obj,qstart)
+
+  Replace member variable qstart
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Argument qstart       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable qstart [boolean]
+
+
+=item qstart
+
+&Wise2::SegmentHit::qstart(obj)
+
+  Access member variable qstart
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Return [SOFT ] member variable qstart [int]
+
+
+=item set_qend
+
+&Wise2::SegmentHit::set_qend(obj,qend)
+
+  Replace member variable qend
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Argument qend         [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable qend [boolean]
+
+
+=item qend
+
+&Wise2::SegmentHit::qend(obj)
+
+  Access member variable qend
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Return [SOFT ] member variable qend [int]
+
+
+=item set_tstart
+
+&Wise2::SegmentHit::set_tstart(obj,tstart)
+
+  Replace member variable tstart
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Argument tstart       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable tstart [boolean]
+
+
+=item tstart
+
+&Wise2::SegmentHit::tstart(obj)
+
+  Access member variable tstart
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Return [SOFT ] member variable tstart [int]
+
+
+=item set_tend
+
+&Wise2::SegmentHit::set_tend(obj,tend)
+
+  Replace member variable tend
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Argument tend         [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable tend [boolean]
+
+
+=item tend
+
+&Wise2::SegmentHit::tend(obj)
+
+  Access member variable tend
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Return [SOFT ] member variable tend [int]
+
+
+=item set_score
+
+&Wise2::SegmentHit::set_score(obj,score)
+
+  Replace member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Argument score        [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable score [boolean]
+
+
+=item score
+
+&Wise2::SegmentHit::score(obj)
+
+  Access member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Return [SOFT ] member variable score [double]
+
+
+=item set_next_hit
+
+&Wise2::SegmentHit::set_next_hit(obj,next_hit)
+
+  Replace member variable next_hit
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Argument next_hit     [OWNER] New value of the variable [SegmentHit *]
+  Return [SOFT ] member variable next_hit [boolean]
+
+
+=item next_hit
+
+&Wise2::SegmentHit::next_hit(obj)
+
+  Access member variable next_hit
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SegmentHit *]
+  Return [SOFT ] member variable next_hit [SegmentHit *]
+
+
+=back
+

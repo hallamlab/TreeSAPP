@@ -1,0 +1,508 @@
+/*  Last edited: Apr 24 15:02 1997 (birney) */
+
+
+
+%{
+#include "complexsequence.h"
+#include "genomic.h"
+
+
+
+/*** ok, some types to works with ***/
+
+#define AMINOACID CSEQ_PROTEIN_AMINOACID
+#define CSEQ_PROTEIN_AMINOACID(cseq,index) (cseq->data[index])
+
+
+/*** for genomic ***/
+
+#define CSEQ_G_LEN 6
+
+#define CSEQ_GENOMIC_BASE(cseq,index)      (cseq->data[(index)*CSEQ_G_LEN])
+#define CSEQ_GENOMIC_CODON(cseq,index)     (cseq->data[(index)*CSEQ_G_LEN +1])
+#define CSEQ_GENOMIC_5SS(cseq,index)       (cseq->data[(index)*CSEQ_G_LEN +2])
+#define CSEQ_GENOMIC_3SS(cseq,index)       (cseq->data[(index)*CSEQ_G_LEN +3])
+#define CSEQ_GENOMIC_REPEAT(cseq,index)    (cseq->data[(index)*CSEQ_G_LEN +4])
+#define CSEQ_GENOMIC_CDSPOT(cseq,index)    (cseq->data[(index)*CSEQ_G_LEN +5])
+
+
+/*** for cDNA  ***/
+
+#define CSEQ_C_LEN 2
+
+#define CSEQ_CDNA_BASE(cseq,index) (cseq->data[index*CSEQ_C_LEN])
+#define CSEQ_CDNA_CODON(cseq,index) (cseq->data[index*CSEQ_C_LEN +1])
+
+#define CSEQ_D_LEN 1
+
+#define CSEQ_DNA_BASE(cseq,index) (cseq->data[index])
+
+%}
+
+
+
+
+
+%{
+#include "complexevalset.h"
+
+
+%func
+makes a new ComplexSequence from a Genomic
+sequence, using the repeat information to
+structure the positives and negatives.
+%%
+ComplexSequence * evaluate_ComplexSequence_Genomic(Genomic * gen,ComplexSequenceEvalSet * cses,int score_for_repeat,int score_for_cds_in_repeat)
+{
+  int i,j;
+  ComplexSequence * out;
+
+  if( cses == NULL || cses->type != SEQUENCE_GENOMIC ) {
+    warn("ComplexSequenceEvalSet is not valid for genomic!");
+    return NULL;
+  }
+
+  assert(gen);
+  assert(gen->baseseq);
+  assert(gen->baseseq->seq);
+
+  out = new_ComplexSequence(gen->baseseq,cses);
+
+
+  if( out == NULL ) {
+    return NULL;
+  }
+  
+  for(i=0;i<gen->len;i++) {
+    for(j=gen->repeat[i]->start;j<gen->repeat[i]->end;j++) {
+      if( j >= gen->baseseq->len ) {
+	warn("Overran sequence - j position %d, sequence length %d on repeat %d",j,gen->baseseq->len,i);
+	break;
+      }
+
+      CSEQ_GENOMIC_REPEAT(out,j) = score_for_repeat;
+      CSEQ_GENOMIC_CDSPOT(out,j) = score_for_cds_in_repeat;
+    }
+  }
+  /*
+  for(i=0;i<gen->baseseq->len;i++) 
+    fprintf(stderr,"At position %6d %d\n",CSEQ_GENOMIC_CDSPOT(out,j));
+  */
+
+  return out;
+}
+
+
+%func
+Makes a reasonably sensible genomic sequence
+eval set. Has base and codon numbers (what
+every good genomic sequence should do) and then
+/stupid_5SS and /stupid_3SS. Finally the repeat/EST
+regions modelled with the /flat_zero
+%arg
+%%
+ComplexSequenceEvalSet * default_genomic_ComplexSequenceEvalSet(void)
+{
+  ComplexSequenceEvalSet * out;
+
+
+  out = ComplexSequenceEvalSet_alloc_len(11);
+
+  add_ComplexSequenceEvalSet(out,base_number_ComplexSequenceEval());
+  add_ComplexSequenceEvalSet(out,codon_number_ComplexSequenceEval());
+  add_ComplexSequenceEvalSet(out,stupid_5SS());
+  add_ComplexSequenceEvalSet(out,stupid_3SS());
+  add_ComplexSequenceEvalSet(out,flat_zero());
+  add_ComplexSequenceEvalSet(out,flat_zero());
+
+
+  out->type = SEQUENCE_GENOMIC;
+
+  prepare_ComplexSequenceEvalSet(out);
+
+  return out;
+}
+
+%func
+Makes a ComplexSequenceEval that puts NEGI everywhere
+%%
+ComplexSequenceEval * flat_negi(void)
+{
+  ComplexSequenceEval * out;
+  out= ComplexSequenceEval_alloc();
+
+  out->left_window   = 0;
+  out->right_window  = 0;
+  out->outside_score = NEGI;
+  out->eval_func     = flat_negi_eval;
+
+  return out;
+}
+
+%func
+used by flat negi
+%type internal
+%%
+int flat_negi_eval(int type,void *data,char * seq)
+{
+  return NEGI;
+}
+    
+
+%func
+Makes a ComplexSequenceEval that puts 0 everywhere
+%arg
+%%
+ComplexSequenceEval * flat_zero(void)
+{
+  ComplexSequenceEval * out;
+  
+  out= ComplexSequenceEval_alloc();
+
+  out->left_window   = 0;
+  out->right_window  = 0;
+  out->outside_score = NEGI;
+  out->eval_func     = flat_zero_eval;
+
+  return out;
+}
+
+%func
+Used by /flat_zero as function actually called
+%type internal
+%arg
+%%
+int flat_zero_eval(int type,void *data,char * seq)
+{
+  return 0;
+}
+
+
+%func
+Reasonably stupid 5'SS, of 0 at GT's
+and NEGI elsewhere. Pretends to have a longer
+footprint than it needs to satisify the lookbacks
+of more proper genomic models
+%arg
+%%
+ComplexSequenceEval * stupid_5SS(void)
+{
+  ComplexSequenceEval * out;
+  
+  out= ComplexSequenceEval_alloc();
+
+  out->left_window   = 3;
+  out->right_window  = 7;
+  out->left_lookback = 8;
+  out->outside_score = NEGI;
+  out->eval_func     = stupid_5SS_eval;
+
+  return out;
+}
+
+%func
+Function which actually does the evaluation for
+5'SS
+%type internal
+%arg
+%%
+int stupid_5SS_eval(int type,void *data,char * seq)
+{
+  if( *(seq) == 'G' && *(seq+1) == 'T' ) 
+    return 0;
+  else return NEGI;
+}
+
+
+%func
+Reasonably stupid 3'SS, of 0 at AG's
+and NEGI elsewhere. Pretends to have a longer
+footprint than it needs to satisify the lookbacks
+of more proper genomic models
+%arg
+%%
+ComplexSequenceEval * stupid_3SS(void)
+{
+  ComplexSequenceEval * out;
+  
+  out= ComplexSequenceEval_alloc();
+
+  out->left_window   = 3;
+  out->right_window  = 3;
+  out->left_lookback = 5;
+  out->outside_score = NEGI;
+  out->eval_func     = stupid_3SS_eval;
+
+  return out;
+}
+
+
+%func
+Function which actually does the evaluation for
+3'SS
+%type internal
+%arg
+%%
+int stupid_3SS_eval(int type,void *data,char * seq)
+{
+  if( *(seq-1) == 'A' && *(seq) == 'G' ) 
+    return 0;
+  else return NEGI;
+}
+
+
+
+   /********************************/
+   /* cDNA and base stuff          */
+   /********************************/
+
+%func
+Makes a very sensible DNA sequence
+eval set. You shouldn't need your own
+%arg
+%%
+ComplexSequenceEvalSet * default_DNA_ComplexSequenceEvalSet(void)
+{
+  ComplexSequenceEvalSet * out;
+
+
+  out = ComplexSequenceEvalSet_alloc_len(1);
+
+  add_ComplexSequenceEvalSet(out,base_number_ComplexSequenceEval());
+  out->type = SEQUENCE_DNA;
+
+  prepare_ComplexSequenceEvalSet(out);
+
+  return out;
+}
+
+
+%func
+Makes a very sensible cDNA sequence
+eval set. You shouldn't need your own
+%arg
+%%
+ComplexSequenceEvalSet * default_cDNA_ComplexSequenceEvalSet(void)
+{
+  ComplexSequenceEvalSet * out;
+
+
+  out = ComplexSequenceEvalSet_alloc_len(2);
+
+  add_ComplexSequenceEvalSet(out,base_number_ComplexSequenceEval());
+  add_ComplexSequenceEvalSet(out,codon_number_ComplexSequenceEval());
+  out->type = SEQUENCE_CDNA;
+
+  prepare_ComplexSequenceEvalSet(out);
+
+  return out;
+}
+
+
+
+
+%func
+ComplexSequenceEval that puts a codon
+number in there (0-125 inc, 125 = impossible codon).
+%arg
+%%
+ComplexSequenceEval * codon_number_ComplexSequenceEval(void)
+{
+  ComplexSequenceEval * out;
+
+
+  out = ComplexSequenceEval_alloc();
+
+  if (out == NULL ) {
+    return NULL;
+  }
+  
+  out->left_window = 2;
+  out->right_window = 0;
+  out->outside_score = 125;
+  out->eval_func = codon_number_func;
+
+
+  return out;
+}
+
+%func
+Function which actually does the codon evaluation
+%type internal
+%arg
+%%
+int codon_number_func(int type,void * data,char * seq)
+{
+  return codon_from_seq(seq-2);
+} 
+
+  
+%func
+Function which puts a 64 base codon...
+%%
+ComplexSequenceEval * codon64_number_ComplexSequenceEval(void)
+{
+  ComplexSequenceEval * out;
+
+
+  out = ComplexSequenceEval_alloc();
+
+  if (out == NULL ) {
+    return NULL;
+  }
+  
+  out->left_window = 2;
+  out->right_window = 0;
+  out->outside_score = 65;
+  out->eval_func = codon64_number_func;
+
+
+  return out;
+}
+
+%func
+Function which actually does the codon64 evaluation
+%type internal
+%arg
+%%
+int codon64_number_func(int type,void * data,char * seq)
+{
+  int codon;
+
+  if( !is_non_ambiguous_codon_seq(seq-2) ) {
+      	return 64;
+  }
+  codon = codon_from_seq(seq-2);
+
+  return base4_codon_from_codon(codon);
+} 
+
+
+
+%func
+ComplexSequenceEval that puts a base
+number (0-5 inc)
+%arg
+%%
+ComplexSequenceEval * base_number_ComplexSequenceEval(void)
+{
+  ComplexSequenceEval * out;
+
+
+  out = ComplexSequenceEval_alloc();
+
+  if (out == NULL ) {
+    return NULL;
+  }
+  
+  out->left_window = out->right_window = 0;
+  out->eval_func = base_number_func;
+
+  return out;
+}
+  
+
+%func
+Function which actually does the evaluation bases
+%type internal
+%arg
+%%
+int base_number_func(int type,void * data,char * seq)
+{
+  return base_from_char(*seq);
+} 
+
+
+
+  /***************************/
+  /* amino acid stuff        */
+  /***************************/
+
+
+%func
+Makes a very sensible protein sequence
+eval set. You shouldn't need your own
+%arg
+%%
+ComplexSequenceEvalSet * default_aminoacid_ComplexSequenceEvalSet(void)
+{
+  ComplexSequenceEvalSet * out;
+
+
+  out = ComplexSequenceEvalSet_alloc_len(1);
+
+  add_ComplexSequenceEvalSet(out,aminoacid_number_ComplexSequenceEval());
+
+  out->type = SEQUENCE_PROTEIN;
+
+  prepare_ComplexSequenceEvalSet(out);
+
+  return out;
+}
+
+
+
+%func
+ComplexSequenceEval that puts a amino acid
+number in there (0-26)
+%arg
+%%
+ComplexSequenceEval * aminoacid_number_ComplexSequenceEval(void)
+{
+  ComplexSequenceEval * out;
+
+
+  out = ComplexSequenceEval_alloc();
+
+  if (out == NULL ) {
+    return NULL;
+  }
+  
+  out->left_window = out->right_window = 0;
+  out->eval_func = aminoacid_number_func;
+
+  return out;
+}
+  
+
+%func
+Function which actually does the evaluation for aminoacids
+%type internal
+%arg
+%%
+int aminoacid_number_func(int type,void * data,char * seq)
+{
+  return (int)(toupper((int)*seq)-'A');
+} 
+
+
+  /***************************/
+  /* dna stuff               */
+  /***************************/
+
+
+%func
+Makes a very sensible dna sequence
+eval set. You shouldn't need your own
+%arg
+%%
+ComplexSequenceEvalSet * default_dna_ComplexSequenceEvalSet(void)
+{
+  ComplexSequenceEvalSet * out;
+
+  out = ComplexSequenceEvalSet_alloc_len(1);
+
+  add_ComplexSequenceEvalSet(out,base_number_ComplexSequenceEval());
+
+  out->type = SEQUENCE_DNA;
+
+  prepare_ComplexSequenceEvalSet(out);
+
+  return out;
+}
+
+%}
+
+
+
+

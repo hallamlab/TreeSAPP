@@ -1,0 +1,108 @@
+
+%{
+
+#include "arrayseqlookup.h"
+#include "subseqhash.h"
+#include "proteinstreamedindex.h"
+#include "shadowseqindex.h"
+
+typedef enum ProteinIndexConstructorType {
+  ProteinIndexConstructor_Array = 78,
+  ProteinIndexConstructor_Hash,
+  ProteinIndexConstructor_Stream,
+  ProteinIndexConstructor_Shadow
+} ProteinIndexConstructureType;
+
+
+%}
+
+
+struct ProteinIndexConstructor
+int type !def="ProteinIndexConstructor_Array";
+int waypost !def="3"
+int shadowlength !def="15"
+int has_maxlen !def="0"
+int max_seqlen !def="1000"
+int shadow_error !def="3"
+
+%{
+#include "proteinindexcons.h"
+
+%func
+Makes a new SeqLookupInterface from ProteinIndexConstructor
+%%
+SeqLookupInterface * new_SeqLookupInterface_from_ProteinIndexConstructor(ProteinIndexConstructor * pic)
+{
+  switch(pic->type) {
+
+    case ProteinIndexConstructor_Array  :
+    return new_ArraySeq_SeqLookupInterface(SEQLOOKUP_5AA_SIZE,1000);
+    
+    case  ProteinIndexConstructor_Hash :
+    return new_ghash_SeqLookupInterface();
+    
+    case ProteinIndexConstructor_Stream : 
+    return new_ProteinStreamedIndex_SeqLookupInterface(pic->waypost);
+    
+    case ProteinIndexConstructor_Shadow :
+    return new_ShadowSequenceIndex_SeqLookupInterface(pic->shadowlength,pic->has_maxlen,pic->max_seqlen,pic->shadow_error);
+    
+    default:
+    fatal("Cannot process type %d as protein index constructor",pic->type);
+  }
+  return NULL;
+}
+
+%func
+provides help for protein index constructor
+%%
+void show_help_ProteinIndexConstructor(FILE * ofp)
+{
+  fprintf(ofp,"Protein Index construction options\n");
+  fprintf(ofp,"   -pitype [array/hash/stream/shadow] - default array\n");
+  fprintf(ofp,"   -piwaypost [number]  - waypost for streamed cases, default 3\n");
+  fprintf(ofp,"   -pishadow [number]   - shadow length for shadow cases, default 15\n");
+  fprintf(ofp,"   -pishadow_err [number] - errors per 100 identities tolerated, 3\n");
+  fprintf(ofp,"   -piseqmax            - indexes can assumme maximum length of seq\n");
+  fprintf(ofp,"   -piseqmax_len [number] - assummed max sequnce length, default 1000\n"); 
+
+  return;
+}
+
+
+%func
+Provides a ProteinIndexConstructor argument from argv
+%%
+ProteinIndexConstructor * new_ProteinIndexConstructor_from_argv(int * argc,char ** argv)
+{
+  ProteinIndexConstructor * out;
+  char * temp;
+
+  out = ProteinIndexConstructor_alloc();
+
+  temp = strip_out_assigned_argument(argc,argv,"pitype");
+  if( temp != NULL ) {
+    if( strcmp(temp,"array") == 0 ) {
+      out->type = ProteinIndexConstructor_Array;
+    } else if ( strcmp(temp,"hash") == 0 ) {
+      out->type = ProteinIndexConstructor_Hash;
+    } else if ( strcmp(temp,"stream") == 0 ) {
+      out->type = ProteinIndexConstructor_Stream;
+    } else if ( strcmp(temp,"shadow") == 0 ) {
+      out->type = ProteinIndexConstructor_Shadow;
+    } else {
+      fatal("Could not interpret %s as a protein index type",temp);
+    }
+  }
+
+  strip_out_integer_argument(argc,argv,"piwaypost",&out->waypost);
+  strip_out_integer_argument(argc,argv,"pishadow",&out->shadowlength);
+
+  strip_out_boolean_def_argument(argc,argv,"piseqmax",&out->waypost);
+  strip_out_integer_argument(argc,argv,"piseqmax_len",&out->shadowlength);
+
+
+  return out;
+
+}
+

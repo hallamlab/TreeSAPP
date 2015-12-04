@@ -1,0 +1,115 @@
+=head1 NAME
+
+protein module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item Protein
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object Protein
+
+=over
+
+=item baseseq
+
+ Type [Sequence *] Scalar No documentation
+
+
+
+=back
+
+The protein object is a typed
+example of a sequence object.
+
+It does nothing more than a sequence
+object but is typed
+
+
+
+=head2 Member functions of Protein
+
+=over
+
+=item Protein_from_Sequence
+
+&Wise2::Protein::Protein_from_Sequence(seq)
+
+  makes a new protein from a Sequence. It 
+  owns the Sequence memory, ie will attempt a /free_Sequence
+  on the structure when /free_Protein is called
+
+  If you want to give this protein this Sequence and
+  forget about it, then just hand it this sequence and set
+  seq to NULL (no need to free it). If you intend to use 
+  the sequecne object elsewhere outside of the Protein datastructure
+  then use Protein_from_Sequence(/hard_link_Sequence(seq))
+
+
+
+
+  Argument seq          [OWNER] Sequence to make protein from [Sequence *]
+  Return [UNKN ] Undocumented return value [Protein *]
+
+
+=item hard_link_Protein
+
+&Wise2::Protein::hard_link_Protein(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Protein *]
+  Return [UNKN ] Undocumented return value [Protein *]
+
+
+=item alloc
+
+&Wise2::Protein::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [Protein *]
+
+
+=item set_baseseq
+
+&Wise2::Protein::set_baseseq(obj,baseseq)
+
+  Replace member variable baseseq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Protein *]
+  Argument baseseq      [OWNER] New value of the variable [Sequence *]
+  Return [SOFT ] member variable baseseq [boolean]
+
+
+=item baseseq
+
+&Wise2::Protein::baseseq(obj)
+
+  Access member variable baseseq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Protein *]
+  Return [SOFT ] member variable baseseq [Sequence *]
+
+
+=back
+

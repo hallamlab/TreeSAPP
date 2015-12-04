@@ -1,0 +1,422 @@
+=head1 NAME
+
+genomic module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item Genomic
+
+=item GenomicRepeat
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object Genomic
+
+=over
+
+=item baseseq
+
+ Type [Sequence *] Scalar No documentation
+
+=item repeat
+
+ Type [GenomicRepeat **] List No documentation
+
+
+
+=back
+
+No documentation for Genomic
+
+=head2 Member functions of Genomic
+
+=over
+
+=item truncate_Genomic
+
+&Wise2::Genomic::truncate_Genomic(gen,start,stop)
+
+  Truncates a Genomic sequence. Basically uses
+  the /magic_trunc_Sequence function (of course!)
+
+  It does not alter gen, rather it returns a new
+  sequence with that truncation
+
+  Handles repeat information correctly.
+
+
+
+  Argument gen          [READ ] Genomic that is truncated [Genomic *]
+  Argument start        [UNKN ] Undocumented argument [int]
+  Argument stop         [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [Genomic *]
+
+
+=item Genomic_name
+
+&Wise2::Genomic::Genomic_name(gen)
+
+  Returns the name of the Genomic
+
+
+
+  Argument gen          [UNKN ] Undocumented argument [Genomic *]
+  Return [UNKN ] Undocumented return value [char *]
+
+
+=item Genomic_length
+
+&Wise2::Genomic::Genomic_length(gen)
+
+  Returns the length of the Genomic
+
+
+
+  Argument gen          [UNKN ] Undocumented argument [Genomic *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item Genomic_seqchar
+
+&Wise2::Genomic::Genomic_seqchar(gen,pos)
+
+  Returns sequence character at this position.
+
+
+
+  Argument gen          [UNKN ] Genomic [Genomic *]
+  Argument pos          [UNKN ] position in Genomic to get char [int]
+  Return [UNKN ] Undocumented return value [char]
+
+
+=item show
+
+&Wise2::Genomic::show(gen,ofp)
+
+  For debugging
+
+
+
+  Argument gen          [UNKN ] Undocumented argument [Genomic *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_Genomic
+
+&Wise2::Genomic::hard_link_Genomic(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Genomic *]
+  Return [UNKN ] Undocumented return value [Genomic *]
+
+
+=item Genomic_alloc_std
+
+&Wise2::Genomic::Genomic_alloc_std(void)
+
+  Equivalent to Genomic_alloc_len(GenomicLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [Genomic *]
+
+
+=item set_baseseq
+
+&Wise2::Genomic::set_baseseq(obj,baseseq)
+
+  Replace member variable baseseq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Genomic *]
+  Argument baseseq      [OWNER] New value of the variable [Sequence *]
+  Return [SOFT ] member variable baseseq [boolean]
+
+
+=item baseseq
+
+&Wise2::Genomic::baseseq(obj)
+
+  Access member variable baseseq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Genomic *]
+  Return [SOFT ] member variable baseseq [Sequence *]
+
+
+=item repeat
+
+&Wise2::Genomic::repeat(obj,i)
+
+  Access members stored in the repeat list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Genomic *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [GenomicRepeat *]
+
+
+=item length_repeat
+
+&Wise2::Genomic::length_repeat(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Genomic *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_repeat
+
+&Wise2::Genomic::flush_repeat(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [Genomic *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_repeat
+
+&Wise2::Genomic::add_repeat(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [Genomic *]
+  Argument add          [OWNER] Object to add to the list [GenomicRepeat *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=back
+
+=head2 Object GenomicRepeat
+
+=over
+
+=item start
+
+ Type [int] Scalar No documentation
+
+=item end
+
+ Type [int] Scalar No documentation
+
+=item type
+
+ Type [char *] Scalar No documentation
+
+
+
+=back
+
+No documentation for GenomicRepeat
+
+=head2 Member functions of GenomicRepeat
+
+=over
+
+=item hard_link_GenomicRepeat
+
+&Wise2::GenomicRepeat::hard_link_GenomicRepeat(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [GenomicRepeat *]
+  Return [UNKN ] Undocumented return value [GenomicRepeat *]
+
+
+=item alloc
+
+&Wise2::GenomicRepeat::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [GenomicRepeat *]
+
+
+=item set_start
+
+&Wise2::GenomicRepeat::set_start(obj,start)
+
+  Replace member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicRepeat *]
+  Argument start        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable start [boolean]
+
+
+=item start
+
+&Wise2::GenomicRepeat::start(obj)
+
+  Access member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicRepeat *]
+  Return [SOFT ] member variable start [int]
+
+
+=item set_end
+
+&Wise2::GenomicRepeat::set_end(obj,end)
+
+  Replace member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicRepeat *]
+  Argument end          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable end [boolean]
+
+
+=item end
+
+&Wise2::GenomicRepeat::end(obj)
+
+  Access member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicRepeat *]
+  Return [SOFT ] member variable end [int]
+
+
+=item set_type
+
+&Wise2::GenomicRepeat::set_type(obj,type)
+
+  Replace member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicRepeat *]
+  Argument type         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable type [boolean]
+
+
+=item type
+
+&Wise2::GenomicRepeat::type(obj)
+
+  Access member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicRepeat *]
+  Return [SOFT ] member variable type [char *]
+
+
+=back
+
+=over
+
+=item read_fasta_file_Genomic
+
+&Wise2::read_fasta_file_Genomic(filename,length_of_N)
+
+  Reads a fasta file assumming that it is Genomic. 
+  Will complain if it is not, and return NULL.
+
+
+
+  Argument filename     [UNKN ] filename to be opened and read [char *]
+  Argument length_of_N  [UNKN ] length of N to be considered repeat. -1 means none [int]
+  Return [UNKN ] Undocumented return value [Genomic *]
+
+
+=item read_fasta_Genomic
+
+&Wise2::read_fasta_Genomic(ifp,length_of_N)
+
+  Reads a fasta file assumming that it is Genomic. 
+  Will complain if it is not, and return NULL.
+
+
+
+  Argument ifp          [UNKN ] file point to be read from [FILE *]
+  Argument length_of_N  [UNKN ] length of N to be considered repeat. -1 means none [int]
+  Return [UNKN ] Undocumented return value [Genomic *]
+
+
+=item Genomic_from_Sequence_Nheuristic
+
+&Wise2::Genomic_from_Sequence_Nheuristic(seq,length_of_N)
+
+  makes a new genomic from a Sequence, but
+  assummes that all the N runs greater than
+  a certain level are actually repeats.
+
+
+
+  Argument seq          [UNKN ] Undocumented argument [Sequence *]
+  Argument length_of_N  [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [Genomic *]
+
+
+=item Genomic_from_Sequence
+
+&Wise2::Genomic_from_Sequence(seq)
+
+  makes a new genomic from a Sequence. It 
+  owns the Sequence memory, ie will attempt a /free_Sequence
+  on the structure when /free_Genomic is called
+
+  If you want to give this genomic this Sequence and
+  forget about it, then just hand it this sequence and set
+  seq to NULL (no need to free it). If you intend to use 
+  the sequence object elsewhere outside of the Genomic datastructure
+  then use Genomic_from_Sequence(/hard_link_Sequence(seq))
+
+  This is part of a strict typing system, and therefore
+  is going to convert all non ATGCNs to Ns. You will lose
+  information here.
+
+
+
+  Argument seq          [OWNER] Sequence to make genomic from [Sequence *]
+  Return [UNKN ] Undocumented return value [Genomic *]
+
+
+=back
+

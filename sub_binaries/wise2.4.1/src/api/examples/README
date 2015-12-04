@@ -1,0 +1,25 @@
+
+
+README for api examples.
+
+The documentation is found in the /docs directory as
+wise2api.ps
+
+to make the examples go
+
+make all 
+
+in this directory, once you have done a make api
+in the root (../..) directory.
+
+To run revcomp go
+
+revcomp est.dna
+
+
+To run sw go
+
+sw road.pep roac.pep
+
+
+To see the source code, look at revcomp.c and sw.c

@@ -1,0 +1,613 @@
+/*  Last edited: Mar 23 18:29 1997 (birney) */
+
+
+
+%{
+#include "wisebase.h"
+
+
+#define BASE_A 0
+#define BASE_G 1
+#define BASE_C 2
+#define BASE_T 3
+#define BASE_N 4
+
+typedef short int base;
+typedef short int codon;
+typedef char aa;
+
+#define aminoacid_number(c) (c-'A')
+
+#define is_base(a) (a == 'A' || a == 'T' || a == 'C' || a == 'G' || a== 'N' || a == 'a' || a == 't' || a == 'c' || a == 'g' || a == 'n' ? 1 : 0)
+
+%}
+
+api
+object CodonTable
+des free_CodonTable
+func read_CodonTable_file
+func read_CodonTable
+func aminoacid_from_seq
+func aminoacid_from_codon
+func is_stop_codon
+func is_valid_aminoacid
+endobject
+func is_non_ambiguous_codon_seq
+func codon_from_base4_codon
+func base4_codon_from_codon
+func has_random_bases
+func permute_possible_random_bases
+func base_from_codon
+func codon_from_seq
+func base4_codon_from_seq
+func char_from_base
+func base_from_char
+func char_complement_base
+func complement_base
+endapi
+
+
+
+struct CodonTable
+aa codon_str[125];
+char * name;
+%info
+The codon table provides a mapping from the 64 codons to the 20 amino
+acids. The rest of the modules provides assorted codon<->base<->amino
+acid mappings.
+
+Probably the trickiest thing is that there are two different types of
+representations of codons. One in base 5 (N being the 5th base),
+providing 0-124 inclusive codon numbers.  These numbers are the ones
+going to be principly used in most calculations.
+
+However, it is often very useful to use 0-63 numbers, for example 
+in the precise definition of the codon table. 
+%%
+
+
+%{
+#include "codon.h"
+
+
+%func
+Opens filename, reads it as if a Ewan style
+codon table and closes.
+%arg
+file r   filename to open
+return o A codon-table, NULL if error
+%%
+CodonTable * read_CodonTable_file(char * file)
+{
+  FILE * ifp;
+  CodonTable * out;
+
+  ifp = openfile(file,"r");
+
+  if( ifp == NULL) {
+    warn("Could not open file %s as codon table file",file);
+    return NULL;
+  }
+
+  out = read_CodonTable(ifp);
+
+  fclose(ifp);
+
+  return out;
+}
+  
+%func
+reads a codon table from a filestream in Ewan
+format.
+
+As Ewan format is really bad and has no start/stop
+this will effectively read to the end of the file.
+Ooops.
+%arg
+ifp r file input
+%%
+CodonTable * read_CodonTable(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  CodonTable * out;
+  codon c;
+  char * runner;
+  char * run2;
+
+  out = CodonTable_alloc();
+  memset(out->codon_str,'x',125);
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL) {
+    if( buffer[0] == '#' || buffer[0] == '!')
+      continue;
+    runner = strtok(buffer,spacestr);
+    run2 = strtok(NULL,spacestr);
+    
+    if( runner == NULL || run2 == NULL ){
+      warn("Unable to read a line in codon table");
+    }
+
+    c = codon_from_seq(runner);
+
+    out->codon_str[c] = *run2;
+  }
+
+  return out;
+}
+  
+
+%func
+Not very useful function: allocates a single amino
+acid (ie, buffer length one) so it can be freed later.
+%type internal
+%arg
+ct r codon table
+seq r pointer to DNA Sequence chars
+%%
+char * alloc_aminoacid_from_seq(CodonTable * ct,char * seq)
+{
+  char buf[2];
+
+  buf[1] = '\0';
+
+  buf[0] = aminoacid_from_codon(ct,codon_from_seq(seq));
+
+  return stringalloc(buf);
+}
+
+%func
+Returns the amino acid for this position in the DNA sequence
+Takes the pointer +1 and +2 points.
+
+No error checks implemented. Probably a mistake ;)
+%arg 
+ct r codon table
+seq r pointer to DNA chars
+return an amino acid char (A-Z)
+%%
+aa aminoacid_from_seq(CodonTable * ct,char * seq)
+{
+  return aminoacid_from_codon(ct,codon_from_seq(seq));
+}
+
+%func
+returns amino acid for this codon number (NB codon numbers 0-125)
+%arg
+ct r codon table
+c  r codon number
+return r aminoacid that is this codon (X for ambiguous, * for stop)
+%%
+aa aminoacid_from_codon(CodonTable * ct,codon c)
+{
+  return ct->codon_str[c];
+}
+
+%func
+a sister function to aminoacid_from_codon:
+returns amino acid number (0-26) for this codon number (0-125)
+%arg
+ct r codon table
+c  r codon number
+return r aminoacid number [0-26] for this codon
+%%
+int aminoacid_no_from_codon(CodonTable * ct,codon c)
+{
+  return (ct->codon_str[c] - 'A');
+}
+
+%func
+tells you whether this codon number is really a stop
+in this translation table
+%arg
+ct r codon table
+c  r codon number
+return TRUE if is stop, FALSE otherwise
+%%
+boolean is_stop_codon(codon c,CodonTable * ct)
+{
+  aa a;
+
+  a = aminoacid_from_codon(ct,c);
+
+  if( a == 'X' || a == '*') {
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+%func
+Tells you if this codon is a real codon
+%arg
+seq r pointer to DNA sequence
+return TRUE if real codon, FALSE if contains N's
+%%
+boolean is_non_ambiguous_codon_seq(char * seq)
+{
+  if( *seq == '\0' || *(seq+1) == '\0' || *(seq+2) == '\0') {
+    warn("Attempting to find a codon number is something less than 3 bases long!");
+    return FALSE;
+  }
+
+  if( base_from_char(*(seq++)) == BASE_N)
+    return FALSE;
+  if( base_from_char(*(seq++)) == BASE_N)
+    return FALSE;
+  if( base_from_char(*(seq)) == BASE_N)
+    return FALSE;
+
+  return TRUE;
+}
+
+%func
+Tells you if this letter (c) is recognised as a valid amino acid
+in this codon table
+%arg
+ct r Codon Table
+c aminoacid
+return TRUE if valid, FALSE if not.
+%%
+boolean is_valid_aminoacid(CodonTable * ct,char c)
+{
+  if( strchr(ct->codon_str,c) != NULL )
+    return TRUE;
+  else return FALSE;
+}
+
+%func
+Tells you if the letter is A,T,C,G,N (NB, N is ok).
+%arg
+c r base
+return TRUE if (ATGCN) FALSE otherwise
+%%
+boolean is_valid_base_char(char c)
+{
+  if( c == 'A' || c == 'T' || c == 'G' || c == 'C' || c == 'N')
+    return TRUE;
+  return FALSE;
+}
+
+%func
+maps a 0-63 codon to a 0-123 codon. Suprisingly useful.
+%%
+codon codon_from_base4_codon(int c)
+{
+  base one;
+  base two;
+  base three;
+
+  one = c / 16;
+  c -= one*16;
+
+  two = c/4;
+  c -= 4*two;
+  three = c;
+
+  return 25*one+5*two+three;
+}
+
+%func
+maps a 0-125 codon to a 0-63 codon.
+
+If ambiguous then returns 64 having issued a warning.
+%arg
+c r codon 0-125
+return base 4 codon (0-63)
+%%
+int base4_codon_from_codon(codon c)
+{
+  base one;
+  base two;
+  base three;
+
+  all_bases_from_codon(c,&one,&two,&three);
+
+  if( one == BASE_N || two == BASE_N || three == BASE_N)  {
+    /* GSS 07:07:2000 DISABLED WARNING */
+    warn("Attempting to convert an ambiguous codon to base 64"
+         " returning 64");
+    return 64;
+  }
+
+  return one*16 + two*4 + three;
+}
+  
+%func
+Tests to see if this codon number has any N's in it
+%arg
+c r codon number 0-124
+return TRUE if has N's , FALSE otherwise
+%%
+boolean has_random_bases(codon c)
+{
+  base o;
+  base w;
+  base t;
+
+  o = base_from_codon(c,1);
+  w = base_from_codon(c,2);
+  t = base_from_codon(c,3);
+
+  if( o == BASE_N || w == BASE_N || t == BASE_N)
+    return TRUE;
+
+  return FALSE;
+}
+
+%func
+Bizarely useful function for calculating ambiguity scores.
+
+This takes the codon c, and for each possible base, 
+if it is N, replaces it with one, two or three.
+
+If the base is not N, it remains the same
+%arg
+c r codon number
+one r base to replace first position if N
+two r base to replace second position if N
+three r base to replace third position if N
+return codon number 
+%%
+codon permute_possible_random_bases(codon c,base one,base two,base three)
+{
+  base o;
+  base w;
+  base t;
+
+  o = base_from_codon(c,1);
+  w = base_from_codon(c,2);
+  t = base_from_codon(c,3);
+
+  if( o == BASE_N )
+    o = one;
+  if( w == BASE_N )
+    w = two;
+  if( t == BASE_N )
+    t = three;
+
+  return one*25+two*5+three;
+}
+
+
+%func
+Really an internal function, by useful enough to
+encourage outside use.
+
+Takes codon c and breaks it into 3 base-numbers
+%%
+void all_bases_from_codon(codon c,base * one,base * two,base * three)
+{
+  base o;
+  base t;
+  base r;
+
+  o = c/25;
+  c -= o*25;
+
+  t = c/5;
+  c -= t*5;
+
+  r = c;
+
+  if( one != NULL )
+    *one = o;
+  if( two != NULL )
+    *two = t;
+  if( three != NULL )
+    *three = r;
+
+}
+
+%func
+Reverses codon. Takes a forward codon number and
+builds the inverted codon number
+%%
+codon reverse_codon(codon c)
+{
+  base one;
+  base two;
+  base three;
+
+  all_bases_from_codon(c,&one,&two,&three);
+
+  one = complement_base(one);
+  two = complement_base(two);
+  three = complement_base(three);
+  
+  return three*125 + two * 25 + one;
+}
+
+
+%func
+Probably not the best function to use for this, but 
+useful. Takes a codon and with pos being 1,2,3 gives
+you the firt,second of third base
+%%
+base  base_from_codon(codon c,int pos)
+{
+  base one;
+  base two;
+  base three;
+
+  one = c/25;
+  c -= one*25;
+
+  two = c/5;
+  c -= two*5;
+
+  three = c;
+
+  switch(pos) {
+  case 1 : return one;
+  case 2: return two;
+  case 3: return three;
+  default :
+    warn("This is not good news: got a position asked which is not 1,2,3 [%d](BTW - first base is 1)",pos);
+    return BASE_N;
+  }
+
+}
+ 
+%func
+takes an ASCII coded pointer to a 3 base pair
+sequence (it could be the part of a sequence: it only
+assummes that the seq points with 3 chars at pos 0,1,2 
+in C coordinates from seq. No NULL is required). It 
+ives back the codon as made from standard mapping, ie,
+25*base_1+5*base_2 + base3 being a number from 0-124 inc.
+%arg
+seq pointer to sequence of at least 3 chrs long.
+%%
+codon codon_from_seq(char * seq)
+{
+  base one;
+  base two;
+  base three;
+
+  if( !is_base(*seq) || !is_base(*(seq+1)) || !is_base (*(seq+2)) ) {
+    warn("Attempting to translate bad base %c%c%c",seq[0],seq[1],seq[2]);
+    one = BASE_N;
+    two = BASE_N;
+    three = BASE_N;
+  } else {
+    one = base_from_char(*seq);
+    two = base_from_char(*(seq+1));
+    three = base_from_char(*(seq+2));
+  }
+
+  return one*25+two*5+three;
+}
+
+%func
+Sometimes it is more useful to work in base64, ie, 
+non N. this functions does the same thing as 
+/codon_from_seq but produces a seq being
+16*base1 + 4 *base2 + base3
+%arg
+seq pointer to sequence of at least 3 chrs long
+%%
+int base4_codon_from_seq(char * seq)
+{
+  base one;
+  base two;
+  base three;
+
+  one = base_from_char(*seq);
+  two = base_from_char(*(seq+1));
+  three = base_from_char(*(seq+2));
+
+  if( one == BASE_N || two == BASE_N || three == BASE_N)
+    return 64;
+
+  else return one*16+two*4+three;
+}
+
+%func
+maps a base number (-04 inc) to A,T,G,C,N
+%%
+char char_from_base(base b)
+{
+  switch(b) {
+  case BASE_A : return 'A';
+  case BASE_G : return 'G';
+  case BASE_C : return 'C';
+  case BASE_T : return 'T';
+  case BASE_N : return 'N';
+  default : return '?';
+  }
+
+}
+  
+%func
+maps a char (atcgn) to number, 
+case insensitive, returns BASE_N
+if not atcgn
+%%
+base base_from_char(char c)
+{
+  c = (char)toupper((int)c);
+
+  switch(c) {
+  case 'A' : return BASE_A;
+  case 'T' : return BASE_T;
+  case 'G' : return BASE_G;
+  case 'C' : return BASE_C;
+  case 'N' : return BASE_N;
+  default :  return BASE_N;
+  }
+}
+
+%func 
+the char equivalent of /complement_base.
+this gives the complement in char of a base
+in char. Does not check for non ATGCN
+%%
+char char_complement_base(char c)
+{
+  if( c == '-' || c == '.' || c == '~' ) {
+    return c;
+  }
+
+  return char_from_base(complement_base(base_from_char(c)));
+}
+
+%func
+gives back the complement as a number
+ofthe base (given as a number)
+%%
+base complement_base(base b)
+{
+  switch(b) {
+  case BASE_A : return BASE_T;
+  case BASE_G : return BASE_C;
+  case BASE_C : return BASE_G;
+  case BASE_T : return BASE_A;
+  case BASE_N : return BASE_N;
+  default : return BASE_N;
+  }
+
+}
+
+
+
+%func
+returns the number of four fold degenerate
+sites in this codon
+%%
+int four_fold_sites_CodonTable(CodonTable *ct,char * seq)
+{
+  int site_count;
+  int i;
+  int j;
+  char codon[3];
+  char aa;
+  
+
+  assert(ct);
+
+  codon[0] = seq[0];
+  codon[1] = seq[1];
+  codon[2] = seq[2];
+
+  aa = aminoacid_from_seq(ct,codon);
+  
+  site_count = 0;
+
+  for(i=0;i<3;i++) {
+    for( j=0;j<4;j++) {
+      codon[i] = char_from_base(j);
+      if( aa != aminoacid_from_seq(ct,codon) ) {
+	break;
+      }
+    }
+    if( j >= 4 ) {
+      site_count++;
+    }
+    codon[i] = seq[i];
+  }
+
+  return site_count;
+
+}
+
+

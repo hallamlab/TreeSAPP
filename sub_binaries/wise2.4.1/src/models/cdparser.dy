@@ -1,0 +1,105 @@
+/*  Last edited: Apr 24 14:51 1997 (birney) */
+
+
+%{
+#include "wisebase.h"
+#include "probability.h"
+
+
+enum cDNAParserTrans {
+  PCD_INSERT_2_BASE = 0,
+  PCD_INSERT_1_BASE,
+  PCD_DELETE_2_BASE,
+  PCD_DELETE_1_BASE,
+  PCD_PARSER_TRANS_LEN };
+
+%}
+
+
+struct cDNAParser
+Probability trans[PCD_PARSER_TRANS_LEN]
+%info
+This object holds the (very few) extra
+transition information needed for the
+estwise algorithm. It is sort of like
+the 'gene model' part of sequencing
+error (but very very simple)
+
+%%
+
+struct cDNAParserScore
+Score trans[PCD_PARSER_TRANS_LEN]
+%info
+This object is the score counter
+point to cDNAParser (which is
+in probabilities). 
+%%
+
+api
+object cDNAParser
+des free_cDNAParser
+endobject
+func flat_cDNAParser
+endapi
+
+%{
+#include "cdparser.h"
+
+%func
+Makes a convienient sum over all the transition
+probabilities
+%%
+Probability removed_probability_from_cds_cdna(cDNAParser * cdp)
+{
+  return cdp->trans[PCD_INSERT_2_BASE] +
+    cdp->trans[PCD_INSERT_1_BASE] +
+      cdp->trans[PCD_DELETE_2_BASE] +
+	cdp->trans[PCD_DELETE_1_BASE];
+}
+ 
+%func
+Makes a new Score object from its probability
+counterpart
+%%
+cDNAParserScore * cDNAParserScore_from_cDNAParser(cDNAParser * cdp)
+{
+  cDNAParserScore * out;
+
+  out = cDNAParserScore_alloc();
+
+  Probability2Score_move(cdp->trans,out->trans,PCD_PARSER_TRANS_LEN);
+
+  return out;
+}
+
+%func
+Makes a flat (ie, indels of 1 or 2 == p)
+cDNA parser. This means that insertions
+and deletions of both 1 or 2 bases are
+all parameterised at the same probability
+
+%arg
+p r probability of an indel
+%%
+cDNAParser * flat_cDNAParser(Probability p)
+{
+  cDNAParser * out;
+
+  out = cDNAParser_alloc();
+
+  out->trans[PCD_INSERT_2_BASE] = p;
+  out->trans[PCD_INSERT_1_BASE] = p;
+  out->trans[PCD_DELETE_2_BASE] = p;
+  out->trans[PCD_DELETE_1_BASE] = p;
+    
+  return out;
+}
+
+
+%}
+
+
+
+
+
+

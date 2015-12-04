@@ -1,0 +1,294 @@
+/*  Last edited: Apr 22 13:58 1997 (birney) */
+
+%{
+#include "geneparser21.h"
+#include "genefrequency.h"
+#include "splicesitemodeler.h"
+#include "complexevalset.h"
+#include "probability.h"
+
+#include "genestats.h"
+#define GeneParameter21LISTLENGTH 32
+
+
+
+%}
+
+
+struct GeneWiseCodonModel
+double in_donor[64]
+double in_acceptor[64]
+double in_cds[64]
+
+
+
+struct GeneParameter21
+GeneParser21 * gp; !hidden
+CodonMapper  * cm; !hidden
+ComplexSequenceEvalSet * cses; !hidden
+SpliceSiteModel ** ss; !list !hidden // held only to be free'd when GeneParser21Set is free'd
+RandomCodon  * rc; !hidden // needed to soak up the odd-and-sods of genes
+GeneWiseCodonModel * gwcm; !hidden
+CodonTable   * ct; !hidden
+boolean modelled_splice !hidden !def="TRUE" // so we can alter balance scores.
+GeneModel    * gms; !hidden
+%info
+
+GeneParameter21 keeps all the parameters
+for genewise algorithms in one tidy unit.
+
+This is also the switch between the old (compugen handled)
+and new statistics. This object can be made from
+either the old or the new statistics
+
+I have made the object complete opaque to 
+scripting apis because the contents have to
+be coordinated quite well
+%%
+
+api
+object GeneParameter21
+des free_GeneParameter21
+endobject
+endapi
+
+%{
+#include "geneparameter.h"
+
+GeneWiseCodonModel * GeneWiseCodonModel_from_GeneFrequencies(double * cds,GeneConsensus * donor,GeneConsensus * acceptor)
+{
+  int i;
+  int j,k,l;
+  int codon,perm;
+  int one,two,three;
+
+  GeneWiseCodonModel * out;
+
+  out = GeneWiseCodonModel_alloc();
+
+  for(i=0;i<64;i++) {
+    out->in_donor[i] = out->in_acceptor[i] = out->in_cds[i] = 0.0000001;
+
+    if( cds[i] < 0.00000001 ) {
+      out->in_cds[i] = 0.0000001;
+    } else {
+      out->in_cds[i] = cds[i];
+    }
+  }
+
+  /** done cds **/
+
+  /** for splice site, need to figure out if any entry matches, and add it to the total **/
+
+  
+  for(l=0;l<donor->len;l++) {
+    one   = base_from_char(donor->gsc[l]->string[0] == '-' ? 'N' : donor->gsc[l]->string[0]);
+    two   = base_from_char(donor->gsc[l]->string[1] == '-' ? 'N' : donor->gsc[l]->string[1]);
+    three = base_from_char(donor->gsc[l]->string[2] == '-' ? 'N' : donor->gsc[l]->string[2]);
+    codon = one*25 + two *5 + three;
+
+    for(i=0;i<4;i++) 
+      for(j=0;j<4;j++) 
+	for(k=0;k<4;k++) {
+	  perm = permute_possible_random_bases(codon,i,j,k);
+
+	  /** now add this number /64 to its list **/
+
+	  out->in_donor[perm] += donor->gsc[l]->number / 64.0;
+	}
+
+  }
+  
+  for(l=0;l<acceptor->len;l++) {
+    one   = base_from_char(acceptor->gsc[l]->string[3] == '-' ? 'N' : acceptor->gsc[l]->string[3]);
+    two   = base_from_char(acceptor->gsc[l]->string[4] == '-' ? 'N' : acceptor->gsc[l]->string[4]);
+    three = base_from_char(acceptor->gsc[l]->string[5] == '-' ? 'N' : acceptor->gsc[l]->string[5]);
+    codon = one*25 + two *5 + three;
+
+    for(i=0;i<4;i++) 
+      for(j=0;j<4;j++) 
+	for(k=0;k<4;k++) {
+	  perm = permute_possible_random_bases(codon,i,j,k);
+
+	  /** now add this number /64 to its list **/
+
+	  out->in_acceptor[perm] = acceptor->gsc[l]->number / 64.0;
+	}
+
+  }
+
+  return out;
+}
+
+%func
+This actually makes the GeneParameter21 stuff from the
+new statistics
+%%
+GeneParameter21 * GeneParameter21_from_GeneModel(GeneModel * gm,CodonTable * ct,Probability rnd_loop,Probability cds_loop,Probability rnd_to_model,Probability link_loop,Probability link_to_model,Probability subs_error,Probability indel_error)
+{
+  GeneParameter21 * out;
+  CodonFrequency  * cf;
+  RandomModelDNAScore * rmds;
+  ComplexSequenceEval * cse;
+  int i;
+
+  out = GeneParameter21_alloc_len(4);
+
+  cf = CodonFrequence_from_raw_counts(gm->codon,ct);
+  out->cm = new_CodonMapper(ct,cf);
+  free_CodonFrequency(cf);
+
+  out->ct = hard_link_CodonTable(ct);
+
+  out->gp = std_GeneParser21();
+	
+  for(i=0;i<5;i++) 
+    out->gp->central[i] = gm->rnd->base[i];
+
+
+  GeneParser21_fold_in_RandomModelDNA(out->gp,gm->rnd);
+
+  out->gp->transition[GP21_CDS2CDS] = cds_loop;
+  out->gp->transition[GP21_CDS2RND] = (1-cds_loop);
+  out->gp->transition[GP21_RND2RND] = rnd_loop;
+  /*  fprintf(stderr,"Score is %f\n",out->transition[GP21_RND2RND]); */
+  out->gp->transition[GP21_RND2CDS] = (1-rnd_loop-rnd_to_model);
+  out->gp->transition[GP21_RND2MODEL] = rnd_to_model;
+  out->gp->transition[GP21_LINK2MODEL] = link_to_model;
+  out->gp->transition[GP21_LINK2LINK] = link_loop;
+  out->gp->transition[GP21_LINK2RND] = (1- link_loop - link_to_model) ;
+
+
+
+  /** build random codon stuff, for soaking up "unused" cds **/
+
+  out->rc = RandomCodon_from_raw_CodonFrequency(gm->codon,ct);
+
+  out->cses = new_ComplexSequenceEvalSet_from_GeneModel(gm);
+
+
+  /*** errors ***/
+
+  sprinkle_errors_over_CodonMapper(out->cm,subs_error);
+
+  add_flat_error_probabilities_GeneParser21(out->gp,indel_error);
+
+
+  fold_in_RandomModelDNA_into_RandomCodon(out->rc,gm->rnd);
+
+
+  return out;
+}
+
+GeneParameter21 * GeneParameter21_from_GeneFrequency21(GeneFrequency21 * gf,CodonTable * ct,RandomModelDNA * rmd,Probability rnd_loop,Probability cds_loop,Probability rnd_to_model,Probability link_loop,Probability link_to_model)
+{
+  GeneParameter21 * out;
+  CodonFrequency  * cf;
+  SpliceSiteModel * ssm;
+  ComplexConsensi * cc;
+  RandomModelDNAScore * rmds;
+  ComplexSequenceEval * cse;
+
+  out = GeneParameter21_alloc_len(4);
+
+  out->gp = GeneParser21_from_GeneFrequency21_cds(gf,rnd_loop,cds_loop,rnd_to_model,link_loop,link_to_model);
+  
+  /** build a codon frequency, and then from that a codon mapper **/
+
+  cf = CodonFrequency_from_GeneFrequency21(gf,ct);
+
+  out->cm = new_CodonMapper(ct,cf);
+  out->ct = hard_link_CodonTable(ct);
+
+  free_CodonFrequency(cf);
+
+  out->gwcm = GeneWiseCodonModel_from_GeneFrequencies(gf->codon,gf->ss5,gf->ss3);
+
+  /** build random codon stuff, for soaking up "unused" cds **/
+
+  out->rc = RandomCodon_from_raw_CodonFrequency(gf->codon,ct);
+
+
+  /** make a new ComplexSequenceEvalSet **/
+
+  out->cses = ComplexSequenceEvalSet_alloc_len(6);
+  out->cses->type = SEQUENCE_GENOMIC;
+
+  /** put in the base/codon eval functions **/
+
+  add_ComplexSequenceEvalSet(out->cses,base_number_ComplexSequenceEval());
+  add_ComplexSequenceEvalSet(out->cses,codon_number_ComplexSequenceEval());
+
+
+  /** make a RandomModelDNAScore **/
+
+  rmds = RandomModelDNAScore_from_RandomModelDNA(rmd);
+
+  /** for each splice site, build a complex consensi  **/
+  /** model, then a splice site model for each offset **/
+  /** then both add it to the SpliceSite model list,  **/
+  /** and attach a ComplexSequenceEval to the set     **/
+
+  /** 5'SS **/
+
+  cc = ComplexConsensi_5SS_from_GeneFrequency(gf);
+
+  /** only one offset, at 7 **/
+
+  ssm = std_5SS_SpliceSiteModel(0,cc,rmds);
+
+  cse = ComplexSequenceEval_from_SpliceSiteModel(ssm);
+  cse->left_lookback = 10;
+
+  /** add to Set **/
+
+  add_GeneParameter21(out,ssm);
+
+  /** add complexeval to cses **/
+
+  add_ComplexSequenceEvalSet(out->cses,cse);
+  
+  /** ok, free ComplexConsensi. Remember has been hard linked in std_5SS_Splice etc **/
+
+  free_ComplexConsensi(cc);
+
+
+  /** 3'SS **/
+
+  cc = ComplexConsensi_3SS_from_GeneFrequency(gf);
+
+
+  ssm = std_3SS_SpliceSiteModel(0,cc,rmds);
+  cse = ComplexSequenceEval_from_SpliceSiteModel(ssm);
+  cse->left_lookback = 6;
+
+  add_GeneParameter21(out,ssm);
+  add_ComplexSequenceEvalSet(out->cses,cse);
+
+
+  /** ok, we can free the complex consensi for 3'SS **/
+
+  free_ComplexConsensi(cc);
+
+  /** and free the randommodel DNA score, as that gets hard-linked as well **/
+
+  free_RandomModelDNAScore(rmds);
+
+
+  /* 
+   * ok, here we would add the necessary repeat and coding info, 
+   * but for now... add flat zeros
+   */
+
+
+  add_ComplexSequenceEvalSet(out->cses,flat_zero());
+  add_ComplexSequenceEvalSet(out->cses,flat_zero());
+
+  /** c'est tout **/
+
+
+  return out;
+}
+
+
+%}

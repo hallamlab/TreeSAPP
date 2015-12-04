@@ -1,0 +1,126 @@
+
+%{
+#include "dyna.h"
+#include "geneutil.h"
+
+
+
+%}
+
+
+struct GeneOutputData
+AlnBlock * alb;
+PackAln  * pal;
+GenomicRegion * gr;
+Genomic * gen;
+CodonTable * ct;
+
+struct GeneOutputPara
+boolean show_genes !def="0"
+boolean show_gff   !def="0"
+boolean show_trans !def="0"
+boolean show_cdna  !def="0"
+boolean show_geneutr !def="0"
+boolean show_alb !def="0"
+boolean show_pal !def="0"
+boolean show_debug !def="0"
+char * divide_string
+
+
+
+%{
+#include "geneoutput.h"
+
+
+void show_GeneOutput(GeneOutputData * data,GeneOutputPara * para,FILE * ofp)
+{
+  Protein * trans;
+  cDNA * cdna;
+  int i;
+
+  assert(data);
+  assert(data->ct);
+  assert(data->gr);
+  assert(data->gen);
+
+
+  if( para->show_genes ) {
+    show_pretty_GenomicRegion(data->gr,0,ofp);
+    fprintf(stdout,"%s\n",para->divide_string);
+  }
+
+  if( para->show_gff ) {
+    show_GFF_GenomicRegion(data->gr,data->gen->baseseq->name,"genomwise",stdout);
+    fprintf(stdout,"%s\n",para->divide_string);
+  }
+
+  if( para->show_trans ) {
+    for(i=0;i<data->gr->len;i++) {
+      if( data->gr->gene[i]->ispseudo == TRUE ) {
+	fprintf(stdout,"#Gene %d is a pseudo gene - no translation possible\n",i);
+      } else {
+	trans = get_Protein_from_Translation(data->gr->gene[i]->transcript[0]->translation[0],data->ct);
+	write_fasta_Sequence(trans->baseseq,ofp);
+      }
+    } 
+    fprintf(stdout,"%s\n",para->divide_string);
+  }
+
+  if( para->show_cdna ) {
+    for(i=0;i<data->gr->len;i++) {
+      cdna = get_cDNA_from_Transcript(data->gr->gene[i]->transcript[0]);
+      write_fasta_Sequence(cdna->baseseq,ofp);
+    } 
+    fprintf(stdout,"%s\n",para->divide_string);
+  }
+
+  if( para->show_geneutr ) {
+    show_utr_exon_genomewise(data->alb,ofp);
+    fprintf(stdout,"%s\n",para->divide_string);
+  }
+
+
+
+}
+
+double id_map_func(int i)
+{
+  return (double)i;
+}
+
+GeneOutputPara * new_GeneOutputPara_from_argv(int * argc,char ** argv)
+{
+  GeneOutputPara * out;
+
+  out = GeneOutputPara_alloc();
+  out->show_genes = 1;
+  out->show_trans = 1;
+  out->divide_string = stringalloc("//");
+
+  strip_out_boolean_def_argument(argc,argv,"geneutr",&out->show_geneutr);
+  strip_out_boolean_def_argument(argc,argv,"genes",&out->show_genes);
+  strip_out_boolean_def_argument(argc,argv,"trans",&out->show_trans);
+  strip_out_boolean_def_argument(argc,argv,"gff",&out->show_gff);
+  strip_out_boolean_def_argument(argc,argv,"cdna",&out->show_cdna);
+  strip_out_boolean_def_argument(argc,argv,"genedebug",&out->show_debug);
+
+  return out;
+}
+
+
+void show_help_GeneOutputPara(FILE * ofp)
+{
+
+  fprintf(ofp,"Gene Output\n");
+  fprintf(ofp,"   -[no]genes       show gene structure (default yes)\n");
+  fprintf(ofp,"   -[no]geneutr     show gene structure with utrs (default no)\n");
+  fprintf(ofp,"   -[no]trans       show protein translation (default yes)\n");
+  fprintf(ofp,"   -[no]gff         show gff (default no)\n");
+  fprintf(ofp,"   -[no]genedebug   show gene debug\n");
+
+}
+
+
+
+
+

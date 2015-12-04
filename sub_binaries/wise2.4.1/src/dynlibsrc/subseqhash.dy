@@ -1,0 +1,203 @@
+
+%{
+#include "sequence.h"
+#include "seqlookup.h"
+#include "linkedlist_lookpos.h"
+#include "glib.h"
+
+#include "wisebase.h"
+
+
+%}
+
+
+
+
+%{
+#include "subseqhash.h"
+
+
+
+%func
+Makes a new Glib based SeqLookup system
+%%
+SeqLookupInterface * new_ghash_SeqLookupInterface(void)
+{
+  SeqLookupInterface * out;
+
+  out = SeqLookupInterface_alloc_std();
+
+  out->data = (void*) g_hash_table_new(g_direct_hash,g_direct_equal);
+  out->get_client = get_client_subseqhash_ghash;
+  out->add_seq = add_seq_subseqhash_ghash;
+  out->add_direct_number = add_direct_number_subseqhash_ghash;
+  out->free_data = free_subseqhash_ghash;
+
+  return out;
+}
+
+%func
+provides the interface defiition for get_client
+%%
+SeqLookupClientInterface * get_client_subseqhash_ghash(void * data)
+{
+  SeqLookupClientInterface * sci;
+
+  GHashTable * t = (GHashTable*) data;
+
+  sci = SeqLookupClientInterface_alloc();
+  sci->is_populated = is_populated_subseqhash_ghash;
+  sci->lookup = lookup_subseqhash_ghash;
+  sci->free_data = free_client_subseqhash_ghash;
+  sci->data = t;
+
+
+
+  return sci;
+}
+
+%func
+provides the interface definition for free_data on client, which is
+actually a no-op in this case
+%%
+void free_client_subseqhash_ghash(void * data)
+{
+  return;
+}
+  
+
+%func
+Internal function for freeing ghash
+%%
+void free_subseqhash_ghash(void * data)
+{
+  GHashTable * h;
+  
+  h = (GHashTable *) data;
+	
+  g_hash_table_foreach_remove(h,remove_subseq_SeqLookupPos,NULL);
+
+  g_hash_table_destroy(h);
+
+}
+
+%func
+Sub call of free
+%%
+gboolean remove_subseq_SeqLookupPos(gpointer key,gpointer value,gpointer user_data)
+{
+  SeqLookupPos * s;
+
+  s = (SeqLookupPos *) user_data;
+
+  if( s != NULL ) {
+    free_SeqLookupPos(s);
+  }
+
+  return TRUE;
+}
+
+%func
+Tells whether a position is populated or not
+%%
+boolean is_populated_subseqhash_ghash(void * data, int seq_number)
+{
+  GHashTable * h;
+  
+  h = (GHashTable *) data;
+
+  /*  fprintf(stdout,"Looking up with %d\n",h);*/
+
+  if( g_hash_table_lookup(h,(gconstpointer)seq_number) == NULL ) {
+    return FALSE;
+  } else {
+    return TRUE;
+  }
+}
+
+
+%func
+Retrieves a SeqLookupPos from the hash
+%%
+SeqLookupResultInterface * lookup_subseqhash_ghash(void * data,int seq_number)
+{
+  GHashTable * h;
+  
+  h = (GHashTable *) data;
+
+  return new_linkedl_SeqLookupResultInterface((SeqLookupPos *)g_hash_table_lookup(h,(gconstpointer)seq_number));
+
+}
+
+%func
+Adds a sequence/pos pair to the hash with this
+number
+%%
+boolean add_seq_subseqhash_ghash(void * data,Sequence * seq,SeqLookupLoadPara * para)
+{
+  GHashTable * h;
+  SeqLookupPos * p;
+  SeqLookupPos * ret;
+  int i;
+  int seq_number;
+
+  h = (GHashTable *) data;
+
+  assert(para->tile_freq > 0);
+  if( para->tile_freq > 100 ) {
+    info("Tile frequency load greater than 100. That's a little odd");
+  }
+
+
+  for(i=0;i<seq->len-5;i = i+para->tile_freq) {
+    seq_number = seq_number_aa_5mer(seq->seq+i);
+    
+    p = SeqLookupPos_alloc();
+    p->seq = seq;
+    p->pos = i;
+    p->next = NULL;
+    
+    if((ret = (SeqLookupPos *) g_hash_table_lookup(h,(gconstpointer)seq_number)) == NULL ) {
+      g_hash_table_insert(h,(gpointer)seq_number,p);
+    } else {
+      p->next = ret->next;
+      ret->next = p;
+    }
+  }
+
+  return TRUE;
+}
+
+%func
+Adds a direct no/seq pair to the system
+number
+%%
+boolean add_direct_number_subseqhash_ghash(void * data,int seq_number,Sequence * target,int pos)
+{
+  GHashTable * h;
+  SeqLookupPos * p;
+  SeqLookupPos * ret;
+
+  h = (GHashTable *) data;
+
+  p = SeqLookupPos_alloc();
+  p->seq = target;
+  p->pos = pos;
+  p->next = NULL;
+
+  if((ret = (SeqLookupPos *) g_hash_table_lookup(h,(gconstpointer)seq_number)) == NULL ) {
+    g_hash_table_insert(h,(gpointer)seq_number,p);
+  } else {
+    p->next = ret->next;
+    ret->next = p;
+  }
+
+  return TRUE;
+}
+
+
+
+%}
+
+
+

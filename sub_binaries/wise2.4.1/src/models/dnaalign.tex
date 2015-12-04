@@ -1,0 +1,67 @@
+\section{dnaalign}
+\label{module_dnaalign}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_DnaStartEnd} DnaStartEnd
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{dnaalign factory methods}
+\subsubsection{make_align_dnaalign}
+\begin{description}
+\item[External C] {\tt Wise2_make_align_dnaalign (one,two,mat,se,qgap,qext,tgap,text,dpri)}
+\item[Perl] {\tt &Wise2::make_align_dnaalign (one,two,mat,se,qgap,qext,tgap,text,dpri)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[one] [READ ] first sequence to align [Sequence *]
+\item[two] [READ ] second sequence to align [Sequence *]
+\item[mat] [READ ] DnaMatrix for the matching [DnaMatrix *]
+\item[se] [READ ] DnaStartEnd policy [DnaStartEnd *]
+\item[qgap] [READ ] gap open penalty in query (one) coordinate [int]
+\item[qext] [READ ] gap extension penalty in query (one) coordinate [int]
+\item[tgap] [READ ] gap open penalty in target (two) coordinate [int]
+\item[text] [READ ] gap extension penalty in target (two) coordinate [int]
+\item[dpri] [READ ] DPRunImpl structure [DPRunImpl *]
+\item[returns] [UNKN ] an alb structure of the alignment [AlnBlock *]
+\end{description}
+Makes an alignment out of two DNA sequences
+
+
+\subsubsection{DnaStartEnd_from_policy}
+\begin{description}
+\item[External C] {\tt Wise2_DnaStartEnd_from_policy (policy)}
+\item[Perl] {\tt &Wise2::DnaStartEnd_from_policy (policy)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[policy] [UNKN ] Undocumented argument [char *]
+\item[returns] [UNKN ] Undocumented return value [DnaStartEnd *]
+\end{description}
+Makes a DnaStartEnd from a particular string.
+Possible strings are:
+
+
+local - fully local
+global - fully global
+edge - aligns only to edges
+
+
+
+
+\subsection{Object DnaStartEnd}
+
+\label{object_DnaStartEnd}
+
+The DnaStartEnd object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{trans[DSE_NUMBER]} Type [int : Scalar]  start/end points possibilities
+
+\end{description}
+No documentation for DnaStartEnd
+
+Member functions of DnaStartEnd
+

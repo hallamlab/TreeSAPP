@@ -1,0 +1,126 @@
+
+%{
+#include "fivestatemodel.h"
+
+
+%}
+
+
+matrix FiveStateProtein
+query  type="FiveStateScore*" name="query"
+target type="PROTEIN" name="target"
+state MATCH offi="1" offj="1"
+	calc="query->unit[i]->match[AMINOACID(target,j)]"
+	source MATCH
+	    calc="query->unit[i]->transition[FSM_MATCH2MATCH]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->transition[FSM_INSERT2MATCH]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->transition[FSM_DELETE2MATCH]"
+	endsource
+	source START
+	    calc="query->unit[i]->transition[FSM_START2MATCH]"
+	endsource
+	source INBOUND
+	    calc="query->unit[i]->transition[FSM_INBOUND2MATCH]"
+	endsource
+	source OUTBOUND
+	    calc="query->unit[i]->transition[FSM_OUTBOUND2MATCH]"
+	endsource
+	query_label  SEQUENCE
+	target_label SEQUENCE
+endstate
+state INSERT offi="0" offj="1"
+	calc="query->unit[i]->insert[AMINOACID(target,j)]"
+	source MATCH
+	    calc="query->unit[i]->transition[FSM_MATCH2INSERT]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->transition[FSM_INSERT2INSERT]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->transition[FSM_DELETE2INSERT]"
+	endsource
+	source START
+	    calc="query->unit[i]->transition[FSM_START2INSERT]"
+	endsource
+	source OUTBOUND
+	    calc="query->unit[i]->transition[FSM_OUTBOUND2INSERT]"
+	endsource
+	query_label  INSERT
+	target_label SEQUENCE
+endstate
+state DELETE offi="1" offj="0"
+	source MATCH
+	    calc="query->unit[i]->transition[FSM_MATCH2DELETE]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->transition[FSM_INSERT2DELETE]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->transition[FSM_DELETE2DELETE]"
+	endsource
+	source START
+	    calc="query->unit[i]->transition[FSM_START2DELETE]"
+	endsource
+	source OUTBOUND
+	    calc="query->unit[i]->transition[FSM_OUTBOUND2DELETE]"
+	endsource
+	query_label  SEQUENCE
+	target_label INSERT
+endstate
+state OUTBOUND offi="1" offj="0"
+	source MATCH
+	    calc="query->unit[i]->transition[FSM_MATCH2OUTBOUND]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->transition[FSM_INSERT2OUTBOUND]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->transition[FSM_DELETE2OUTBOUND]"
+	endsource
+	source OUTBOUND
+	    calc="query->unit[i]->transition[FSM_OUTBOUND2OUTBOUND]"
+	endsource
+	query_label  OUTBOUND_STATE
+	target_label INSERT
+endstate
+state INBOUND offi="1" offj="0"
+	source INBOUND
+	    calc="query->unit[i]->transition[FSM_INBOUND2INBOUND]"
+	endsource
+	source OUTBOUND
+	    calc="query->unit[i]->transition[FSM_OUTBOUND2INBOUND]"
+	endsource
+	source START
+	    calc="query->unit[i]->transition[FSM_START2INBOUND]"
+	endsource
+	query_label  INBOUND_STATE
+	target_label INSERT
+endstate
+state START !special !start
+endstate
+state END !special !end
+	source MATCH
+	    calc="query->unit[i]->transition[FSM_MATCH2END]"
+	endsource
+	source INSERT
+	    calc="query->unit[i]->transition[FSM_INSERT2END]"
+	endsource
+	source DELETE
+	    calc="query->unit[i]->transition[FSM_DELETE2END]"
+	endsource
+        source INBOUND
+	    calc="query->unit[i]->transition[FSM_INBOUND2END]"
+	endsource
+        source OUTBOUND
+	    calc="query->unit[i]->transition[FSM_OUTBOUND2END]"
+	endsource
+	query_label END
+	target_label END
+endstate
+endmatrix
+
+

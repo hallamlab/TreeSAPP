@@ -1,0 +1,547 @@
+=head1 NAME
+
+matchsum module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item MatchSummarySet
+
+=item MatchSummary
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object MatchSummarySet
+
+=over
+
+=item ms
+
+ Type [MatchSummary **] List No documentation
+
+
+
+=back
+
+This holds a set of MatchSummaries,
+
+
+
+=head2 Member functions of MatchSummarySet
+
+=over
+
+=item MatchSummarySet_from_AlnBlock_estwise
+
+&Wise2::MatchSummarySet::MatchSummarySet_from_AlnBlock_estwise(alb,qname,offset,target)
+
+  Builds a MatchSummarySet from a
+  EstWise alignment. this makes
+  alot of assumptions about the labels
+  setc in alb, so make sure it was a 
+  estwise alignment  - however as you
+  can notice this is exactly the same 
+  labels as found in genewise set
+
+
+
+  Argument alb          [UNKN ] Undocumented argument [AlnBlock *]
+  Argument qname        [UNKN ] Undocumented argument [char *]
+  Argument offset       [UNKN ] Undocumented argument [int]
+  Argument target       [UNKN ] Undocumented argument [Sequence *]
+  Return [UNKN ] Undocumented return value [MatchSummarySet *]
+
+
+=item MatchSummarySet_from_AlnBlock_genewise
+
+&Wise2::MatchSummarySet::MatchSummarySet_from_AlnBlock_genewise(alb,qname,protoff,target)
+
+  Builds a MatchSummarySet from a
+  GeneWise alignment. this makes
+  alot of assumptions about the labels
+  setc in alb, so make sure it was a 
+  genewise alignment 
+
+
+
+  Argument alb          [UNKN ] Undocumented argument [AlnBlock *]
+  Argument qname        [UNKN ] Undocumented argument [char *]
+  Argument protoff      [UNKN ] Undocumented argument [int]
+  Argument target       [UNKN ] Undocumented argument [Sequence *]
+  Return [UNKN ] Undocumented return value [MatchSummarySet *]
+
+
+=item hard_link_MatchSummarySet
+
+&Wise2::MatchSummarySet::hard_link_MatchSummarySet(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [MatchSummarySet *]
+  Return [UNKN ] Undocumented return value [MatchSummarySet *]
+
+
+=item MatchSummarySet_alloc_std
+
+&Wise2::MatchSummarySet::MatchSummarySet_alloc_std(void)
+
+  Equivalent to MatchSummarySet_alloc_len(MatchSummarySetLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [MatchSummarySet *]
+
+
+=item ms
+
+&Wise2::MatchSummarySet::ms(obj,i)
+
+  Access members stored in the ms list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [MatchSummarySet *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [MatchSummary *]
+
+
+=item length_ms
+
+&Wise2::MatchSummarySet::length_ms(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [MatchSummarySet *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_ms
+
+&Wise2::MatchSummarySet::flush_ms(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [MatchSummarySet *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_ms
+
+&Wise2::MatchSummarySet::add_ms(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [MatchSummarySet *]
+  Argument add          [OWNER] Object to add to the list [MatchSummary *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=back
+
+=head2 Object MatchSummary
+
+=over
+
+=item bits
+
+ Type [double] Scalar No documentation
+
+=item qname
+
+ Type [char *] Scalar No documentation
+
+=item tname
+
+ Type [char *] Scalar No documentation
+
+=item qstart
+
+ Type [int] Scalar No documentation
+
+=item qend
+
+ Type [int] Scalar No documentation
+
+=item tstart
+
+ Type [int] Scalar No documentation
+
+=item tend
+
+ Type [int] Scalar No documentation
+
+=item qintron
+
+ Type [int] Scalar No documentation
+
+=item qframeshift
+
+ Type [int] Scalar No documentation
+
+=item tintron
+
+ Type [int] Scalar No documentation
+
+=item tframeshift
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+A Match Summary has summary statistics
+for a single alignment, with the
+two start/end ranges and the number of
+introns and frameshifts for each
+sequence (obviously, if one is a protein
+then neither are valid!)
+
+
+
+=head2 Member functions of MatchSummary
+
+=over
+
+=item hard_link_MatchSummary
+
+&Wise2::MatchSummary::hard_link_MatchSummary(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [MatchSummary *]
+  Return [UNKN ] Undocumented return value [MatchSummary *]
+
+
+=item alloc
+
+&Wise2::MatchSummary::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [MatchSummary *]
+
+
+=item set_bits
+
+&Wise2::MatchSummary::set_bits(obj,bits)
+
+  Replace member variable bits
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument bits         [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable bits [boolean]
+
+
+=item bits
+
+&Wise2::MatchSummary::bits(obj)
+
+  Access member variable bits
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable bits [double]
+
+
+=item set_qname
+
+&Wise2::MatchSummary::set_qname(obj,qname)
+
+  Replace member variable qname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument qname        [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable qname [boolean]
+
+
+=item qname
+
+&Wise2::MatchSummary::qname(obj)
+
+  Access member variable qname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable qname [char *]
+
+
+=item set_tname
+
+&Wise2::MatchSummary::set_tname(obj,tname)
+
+  Replace member variable tname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument tname        [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable tname [boolean]
+
+
+=item tname
+
+&Wise2::MatchSummary::tname(obj)
+
+  Access member variable tname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable tname [char *]
+
+
+=item set_qstart
+
+&Wise2::MatchSummary::set_qstart(obj,qstart)
+
+  Replace member variable qstart
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument qstart       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable qstart [boolean]
+
+
+=item qstart
+
+&Wise2::MatchSummary::qstart(obj)
+
+  Access member variable qstart
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable qstart [int]
+
+
+=item set_qend
+
+&Wise2::MatchSummary::set_qend(obj,qend)
+
+  Replace member variable qend
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument qend         [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable qend [boolean]
+
+
+=item qend
+
+&Wise2::MatchSummary::qend(obj)
+
+  Access member variable qend
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable qend [int]
+
+
+=item set_tstart
+
+&Wise2::MatchSummary::set_tstart(obj,tstart)
+
+  Replace member variable tstart
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument tstart       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable tstart [boolean]
+
+
+=item tstart
+
+&Wise2::MatchSummary::tstart(obj)
+
+  Access member variable tstart
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable tstart [int]
+
+
+=item set_tend
+
+&Wise2::MatchSummary::set_tend(obj,tend)
+
+  Replace member variable tend
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument tend         [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable tend [boolean]
+
+
+=item tend
+
+&Wise2::MatchSummary::tend(obj)
+
+  Access member variable tend
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable tend [int]
+
+
+=item set_qintron
+
+&Wise2::MatchSummary::set_qintron(obj,qintron)
+
+  Replace member variable qintron
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument qintron      [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable qintron [boolean]
+
+
+=item qintron
+
+&Wise2::MatchSummary::qintron(obj)
+
+  Access member variable qintron
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable qintron [int]
+
+
+=item set_qframeshift
+
+&Wise2::MatchSummary::set_qframeshift(obj,qframeshift)
+
+  Replace member variable qframeshift
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument qframeshift  [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable qframeshift [boolean]
+
+
+=item qframeshift
+
+&Wise2::MatchSummary::qframeshift(obj)
+
+  Access member variable qframeshift
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable qframeshift [int]
+
+
+=item set_tintron
+
+&Wise2::MatchSummary::set_tintron(obj,tintron)
+
+  Replace member variable tintron
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument tintron      [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable tintron [boolean]
+
+
+=item tintron
+
+&Wise2::MatchSummary::tintron(obj)
+
+  Access member variable tintron
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable tintron [int]
+
+
+=item set_tframeshift
+
+&Wise2::MatchSummary::set_tframeshift(obj,tframeshift)
+
+  Replace member variable tframeshift
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Argument tframeshift  [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable tframeshift [boolean]
+
+
+=item tframeshift
+
+&Wise2::MatchSummary::tframeshift(obj)
+
+  Access member variable tframeshift
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [MatchSummary *]
+  Return [SOFT ] member variable tframeshift [int]
+
+
+=back
+

@@ -1,0 +1,661 @@
+
+
+%{
+#include "dnaprofile.h"
+#include "dnaprofiledp.h"
+#include "localcishit.h"
+
+#include "pairwiseshortdna.h"
+
+#define DnaProfileNode_LEAF 67
+#define DnaProfileNode_SET  68
+#define DnaProfileNode_UNCALC 69
+
+#define DnaProfileSetLISTLENGTH 128
+
+#define DnaProfileMatchPairSetLISTLENGTH 128
+
+%}
+
+struct DnaProfileEnginePara
+DPRunImpl * dpri;
+RandomModelDNA * rm;
+LocalCisHitSetPara * setpara;
+LocalCisHitScore * lchs;
+Probability pseudo;
+Probability open_unmatched 
+Probability ext_unmatched
+Probability gap_unmatched
+Probability seq_id
+Probability m2i
+Probability m2d
+Probability i2i
+Probability d2d
+Score min_seq_prof
+
+
+struct DnaProfileSet
+DnaProfile ** dnap !list
+
+friend DnaProfileNode
+
+struct DnaProfileNode
+int type
+Sequence * leaf
+DnaProfileSet * set
+DnaProfileNode * left
+DnaProfileNode * right
+DnaProfileNode * parent !link
+
+
+struct DnaProfileMatchPair
+DnaProfile * query
+DnaProfile * target
+AlnBlock * alb
+int score
+int accepted
+
+struct DnaProfileMatchPairSet
+DnaProfileMatchPair ** pair !list
+
+
+%{
+#include "dnaprofileengine.h"
+
+
+TransFactorSet * TransFactorSet_from_DnaProfileSet(DnaProfileSet * in)
+{
+  int i;
+  char name_buf[512];
+  TransFactorSet * out;
+
+  out = TransFactorSet_alloc_len(in->len);
+
+  
+
+
+}
+
+DnaProfileNode * balanced_4_Sequence_fasta_stream(FILE * ifp)
+{
+  Sequence * one;
+  Sequence * two;
+  Sequence * three;
+  Sequence * four;
+
+  DnaProfileNode * leafone;
+  DnaProfileNode * leaftwo;
+  DnaProfileNode * leafthree;
+  DnaProfileNode * leaffour;
+
+  DnaProfileNode * midonetwo;
+  DnaProfileNode * midthreefour;
+
+  DnaProfileNode * root;
+
+  one = read_fasta_Sequence(ifp);
+  fprintf(stderr,"Got 1 %s\n",one->name);
+  two = read_fasta_Sequence(ifp);
+  fprintf(stderr,"Got 2 %s\n",two->name);
+  three = read_fasta_Sequence(ifp);
+  fprintf(stderr,"Got 3 %s\n",three->name);
+  four = read_fasta_Sequence(ifp);
+  fprintf(stderr,"Got 4 %s\n",four->name);
+
+  assert(four != NULL);
+
+  leafone   = new_leaf_DnaProfileNode(one);
+  leaftwo   = new_leaf_DnaProfileNode(two);
+  leafthree = new_leaf_DnaProfileNode(three);
+  leaffour  = new_leaf_DnaProfileNode(four);
+
+  midonetwo = DnaProfileNode_alloc();
+  midonetwo->type  = DnaProfileNode_SET;
+  midonetwo->left  = leafone;
+  midonetwo->right = leaftwo;
+
+  midthreefour = DnaProfileNode_alloc();
+  midthreefour->type  = DnaProfileNode_SET;
+  midthreefour->left  = leafthree;
+  midthreefour->right = leaffour;
+
+  root = DnaProfileNode_alloc();
+  root->type  = DnaProfileNode_SET;
+  root->left  = midonetwo;
+  root->right = midthreefour;
+
+  return root;
+}
+
+
+DnaProfileNode * simple_cascade_Sequence_fasta_stream(FILE * ifp)
+{
+  DnaProfileNode * head;
+  DnaProfileNode * leaf;
+  DnaProfileNode * first;
+  DnaProfileNode * temp;
+
+  Sequence * read;
+
+  read = read_fasta_Sequence(ifp);
+  uppercase_Sequence(read);
+
+  if( read == NULL ) {
+    fatal("Attempting to build a cascade with only no sequences! impossible!");
+  }
+  first = new_leaf_DnaProfileNode(read);
+
+  read = read_fasta_Sequence(ifp);
+  uppercase_Sequence(read);
+  if( read == NULL ) {
+    fatal("Attempting to build a cascade with only one sequence! impossible!");
+  }
+
+  leaf = new_leaf_DnaProfileNode(read);
+
+  head = DnaProfileNode_alloc();
+  head->type = DnaProfileNode_SET;
+  head->left = first;
+  head->right = leaf;
+
+
+  /* now loop over all remaining sequences */
+
+  while( (read = read_fasta_Sequence(ifp)) != NULL ) {
+    uppercase_Sequence(read);
+    leaf = new_leaf_DnaProfileNode(read);
+    temp = DnaProfileNode_alloc();
+    temp->type  = DnaProfileNode_SET;
+    temp->left  = head;
+    temp->right = leaf;
+    
+    head = temp;
+  }
+
+  return head;
+}
+
+
+DnaProfileNode * new_leaf_DnaProfileNode(Sequence * seq)
+{
+  DnaProfileNode * out;
+
+  assert(seq != NULL);
+
+  out = DnaProfileNode_alloc();
+  out->type = DnaProfileNode_LEAF;
+  out->leaf = seq;
+
+  return out;
+}
+
+
+
+
+
+void populate_DnaProfileNode_from_root(DnaProfileNode * root,DnaProfileEnginePara * dpep)
+{
+  assert(root != NULL);
+  if( root->left->type == DnaProfileNode_SET ) {
+    populate_DnaProfileNode_from_root(root->left,dpep);
+  }
+  if( root->right->type == DnaProfileNode_SET ) {
+    populate_DnaProfileNode_from_root(root->right,dpep);
+  }
+
+  /* left and right now populated */
+
+  root->set = join_two_DnaProfileNode(root->left,root->right,dpep);
+}
+
+DnaProfileSet * join_two_DnaProfileNode(DnaProfileNode * left,DnaProfileNode * right,DnaProfileEnginePara * dpep)
+{
+  /* big switch around the types of left and right */
+
+  fprintf(stderr,"Entering join with %d vs %d\n",left->type,right->type);
+
+  if( left->type == DnaProfileNode_LEAF && right->type == DnaProfileNode_LEAF ) {
+    assert(left->leaf);
+    assert(right->leaf);
+    return DnaProfileSet_from_leaf_leaf(left->leaf,right->leaf,dpep);
+  }
+
+  if( left->type == DnaProfileNode_SET && right->type == DnaProfileNode_LEAF ) {
+    assert(left->set);
+    assert(right->leaf);
+    return DnaProfileSet_from_leaf_node(right->leaf,left->set,dpep);
+  }
+
+  if( left->type == DnaProfileNode_LEAF && right->type == DnaProfileNode_SET ) {
+    assert(left->leaf);
+    assert(right->set);
+    return DnaProfileSet_from_leaf_node(left->leaf,right->set,dpep);
+  }
+
+  if( left->type == DnaProfileNode_SET && right->type == DnaProfileNode_SET ) {
+    assert(left->set);
+    assert(right->set);
+    return DnaProfileSet_from_node_node(left->set,right->set,dpep);
+  }
+
+
+  fatal("Should not get here. Weird no leaf/node case");
+
+  return NULL;
+
+}
+
+
+
+
+DnaProfileEnginePara * new_DnaProfileEnginePara_from_argv(int * argc,char ** argv)
+{
+  DnaProfileEnginePara * out;
+
+  out = DnaProfileEnginePara_alloc();
+
+  out->dpri = new_DPRunImpl_from_argv(argc,argv);
+
+  out->setpara = new_LocalCisHitSetPara_from_argv(argc,argv);
+  out->lchs    = standard_LocalCisHitScore(NMaskType_VARIABLE);
+
+  out->rm = RandomModelDNA_std();
+
+  out->pseudo = 0.5;
+  out->open_unmatched = 0.001;
+  out->ext_unmatched = 0.8;
+  out->gap_unmatched = 0.5;
+  out->seq_id = 0.8;
+  out->m2i = 0.1;
+  out->m2d = 0.1;
+  out->i2i = 0.8;
+  out->d2d = 0.8;
+  out->min_seq_prof = 400;
+
+  strip_out_float_argument(argc,argv,"dnap_pseudo",&out->pseudo);
+  strip_out_float_argument(argc,argv,"dnap_open_un",&out->open_unmatched);
+  strip_out_float_argument(argc,argv,"dnap_ext_un",&out->ext_unmatched);
+  strip_out_float_argument(argc,argv,"dnap_gap_un",&out->ext_unmatched);
+  strip_out_float_argument(argc,argv,"dnap_seq_self",&out->seq_id);
+  strip_out_float_argument(argc,argv,"dnap_m2i",&out->m2i);
+  strip_out_float_argument(argc,argv,"dnap_m2d",&out->m2d);
+  strip_out_float_argument(argc,argv,"dnap_i2i",&out->i2i);
+  strip_out_float_argument(argc,argv,"dnap_d2d",&out->d2d);
+  strip_out_integer_argument(argc,argv,"dnap_min_seq_prof",&out->min_seq_prof);
+  
+  return out;
+
+}
+
+void show_help_DnaProfileEnginePara(FILE * ofp)
+{
+  fprintf(ofp,"DnaProfile build/matching parameters\n");
+  fprintf(ofp,"  -dnap_pseudo   [0.1]  pseudo count used in profile construction\n");
+  fprintf(ofp,"  -dnap_open_un  [0.4]  unmatched probability open\n");
+  fprintf(ofp,"  -dnap_ext_un   [0.95] unmatched extend probability\n");
+  fprintf(ofp,"  -dnap_ext_un   [0.5]  unmatched gap    probability\n");
+  fprintf(ofp,"  -dnap_seq_self [0.8]  %% identity for pure sequence matching\n");
+  fprintf(ofp,"  -dnap_m2i      [0.1]  Match 2 insert transition in dnaprofiles\n");
+  fprintf(ofp,"  -dnap_m2d      [0.1]  Match 2 delete transitions in dnaprofiles\n");
+  fprintf(ofp,"  -dnap_i2i      [0.8]  Insert 2 Insert transition in dnaprofiles\n");
+  fprintf(ofp,"  -dnap_d2d      [0.8]  Delete 2 Delete transition in dnaprofiles\n");
+  fprintf(ofp,"  -dnap_min_seq_prof [400] minimum score for sequence profile matching\n");
+
+  fprintf(ofp,"Local CisHit para for sequence to sequnence matching\n");
+  show_help_LocalCisHitSetPara(ofp);
+
+  show_help_DPRunImpl(ofp);
+
+}
+
+DnaProfileSet * filter_DnaProfileSet(DnaProfileSet * in,int min_length,int min_score)
+{
+  int i;
+  DnaProfileSet * out;
+
+  out = DnaProfileSet_alloc_std();
+
+  for(i=0;i<in->len;i++) {
+    if( in->dnap[i]->sa->seq[0]->len <= min_length ) {
+      continue;
+    }
+
+    add_DnaProfileSet(out,hard_link_DnaProfile(in->dnap[i]));
+  }
+
+  return out;
+		      
+}
+
+DnaProfileSet * DnaProfileSet_from_leaf_leaf(Sequence * one,Sequence * two,DnaProfileEnginePara * dpep)
+{
+  DnaProfileSet * out;
+  DnaMatrix * dm;
+  DnaProbMatrix * dmp;
+  PairwiseShortDna * psd;
+  LocalCisHitSet * set;
+  Sequence * two_rev;
+  DnaProfile * dp;
+  SeqAlign * sa;
+
+  Sequence * temp1;
+  Sequence * temp2;
+
+  char * temp_seq1;
+  char * temp_seq2;
+  
+  int unmatched;
+  int seq1_i,seq2_i;
+
+  AlnColumn * alc;
+  int i;
+
+  two_rev = reverse_complement_Sequence(two);
+
+  
+  dmp = DnaProbMatrix_from_match(0.65,NMaskType_BANNED);  
+  assert(dmp);
+  flat_null_DnaProbMatrix(dmp);  
+
+  dm = DnaMatrix_from_DnaProbMatrix(dmp);
+
+  show_DnaMatrix(dm,stderr);
+
+  psd = query_to_reverse_target(one,two,dm,0,one->len,0,two->len);
+
+  
+  set = make_LocalCisHitSet(one,two,two_rev,psd->forward,psd->reverse,dpep->setpara,dpep->lchs,NULL,NULL,NULL,NULL,0,dpep->dpri);
+
+  temp_seq1 = calloc(one->len > two->len ? one->len : two->len,sizeof(char));
+  temp_seq2 = calloc(one->len > two->len ? one->len : two->len,sizeof(char));
+  
+  out = DnaProfileSet_alloc_std();
+
+  for(i=0;i<set->len;i++) {
+    unmatched = 1;
+    sa = NULL;
+
+    /*
+     * Main loop over DBA style alignment. We need to make one
+     * DnaProfile per matching block, which are separated by unmatched
+     * blocks. Could potentially be no blocks.
+     *
+     * Extra annoyance provided by the "wrong" convention being used in
+     * DBA alignments, meaning that "inserts" label the "sequence" containing
+     * strand, not the non-sequence containing strand. Stupid, but dbadisplay
+     * uses this convention, so if we changed, would have to fix lots of exisiting
+     * code. Not ideal.
+     *
+     */
+
+
+    for(alc=set->lch[i]->alb->start;alc != NULL;alc=alc->next) {
+      
+      /* hitting an unmatched block */
+      if( unmatched == 0 && (strcmp(alc->alu[0]->text_label,"UM") == 0 ||
+	  strcmp(alc->alu[0]->text_label,"UI") == 0 || strcmp(alc->alu[0]->text_label,"END") == 0) ) {
+	/* if we have an alignment, put it away now */
+	if( sa != NULL ) {
+	  temp_seq1[seq1_i] = '\0';
+	  temp_seq2[seq2_i] = '\0';
+
+	  temp1 = Sequence_from_static_memory(one->name,temp_seq1);
+	  temp2 = Sequence_from_static_memory(two->name,temp_seq2);
+	  
+	  add_SeqAlign(sa,temp1);
+	  add_SeqAlign(sa,temp2);
+	  
+	  dp = naive_DnaProfile_from_SeqAlign(sa,0.15,0.1,0.1,0.8,0.8);
+	  fold_RandomModel_DnaProfile(dp,dpep->rm);
+
+	  add_DnaProfileSet(out,dp);
+	  free_SeqAlign(sa); /* hard linked inside DP */
+	  sa = NULL;
+	}
+
+	continue;
+      } else if( unmatched == 1 && (strstartcmp(alc->alu[0]->text_label,"MM") == 0 ||
+				    strstartcmp(alc->alu[0]->text_label,"MI") == 0 ) ) {
+	unmatched = 0;
+	  
+	sa = SeqAlign_alloc_len(2);
+	seq1_i = 0;
+	seq2_i = 0;
+      }
+
+      /* only if we are in a matched block */
+      if( unmatched == 0 ) {
+	/* Bloody twisted DBA convention - Niclas has alot to answer for.
+	   Evil stuff -- MI is on the wrong strand! */
+	if( strstartcmp(alc->alu[0]->text_label,"MI") == 0 ) {
+	  /* means 0 has sequence, other has gap */
+	  temp_seq1[seq1_i++] = one->seq[alc->alu[0]->end];
+	  temp_seq2[seq2_i++] = '-';
+	} else if ( strstartcmp(alc->alu[1]->text_label,"MI") == 0 ) {
+	  temp_seq1[seq1_i++] = '-';
+	  temp_seq2[seq2_i++] = two->seq[alc->alu[1]->end];
+	} else if ( strstartcmp(alc->alu[0]->text_label,"MM") == 0 &&
+		    strstartcmp(alc->alu[1]->text_label,"MM") == 0 ) {
+	  temp_seq1[seq1_i++] = one->seq[alc->alu[0]->end];
+	  temp_seq2[seq2_i++] = two->seq[alc->alu[1]->end];
+	} else {
+	  warn("Impossible label pair reached in matched block local cis hit stuff, %s,%s",alc->alu[0]->text_label,alc->alu[1]->text_label);
+	}
+      }
+	  
+    }
+  }
+
+
+  free(temp_seq1);
+  free(temp_seq2);
+  free_PairwiseShortDna(psd);
+  free_LocalCisHitSet(set);
+  free_DnaMatrix(dm);
+  free_DnaProbMatrix(dmp);
+
+  return out;
+}
+
+
+
+DnaProfileSet * DnaProfileSet_from_node_node(DnaProfileSet * one,DnaProfileSet * two,DnaProfileEnginePara * dpep)
+{
+  DnaProfile * new_dnap;
+  DnaProfileSet * out;
+  DnaProfileMatchPairSet * dpmps;
+  SeqAlign * sa;
+  int i;
+  int j;
+
+  dpmps = DnaProfileMatchPairSet_alloc_std();
+
+  for(i=0;i<one->len;i++) {
+    for(j=0;j<two->len;j++) {
+	add_DnaProfileMatchPairSet(dpmps,DnaProfileMatchPair_from_DnaProfile(one->dnap[i],two->dnap[j],dpep));
+    }
+  }
+
+  sort_DnaProfileMatchPairSet_by_score(dpmps);
+
+
+  out = DnaProfileSet_alloc_std();
+
+  for(i=0;i<dpmps->len;i++) {
+    /* check this profile has not already been used */
+    /* not done yet */
+
+    if( dpmps->pair[i]->score < dpep->min_seq_prof ) {
+      fprintf(stderr,"Warning... rejecting match due to score %d vs %d\n",dpmps->pair[i]->score,dpep->min_seq_prof);
+      break;
+    }
+    
+
+    sa = merged_SeqAlign(dpmps->pair[i]->query,dpmps->pair[i]->target,dpmps->pair[i]->alb);
+
+    fprintf(stderr,"Node/Node Accepting score at %d length %d\n",dpmps->pair[i]->score,sa->seq[0]->len);
+
+    new_dnap = naive_DnaProfile_from_SeqAlign(sa,dpep->pseudo,dpep->m2i,dpep->m2d,dpep->i2i,dpep->d2d);
+
+    assert(new_dnap != NULL);
+    /* need to log-odds dnap here */
+
+    fold_RandomModel_DnaProfile(new_dnap,dpep->rm);
+
+
+    add_DnaProfileSet(out,new_dnap);
+  }
+
+    
+  fprintf(stderr,"Returing %d profiles\n",out->len);
+  return out;
+}
+
+DnaProfileSet * DnaProfileSet_from_leaf_node(Sequence * one,DnaProfileSet * two,DnaProfileEnginePara * dpep)
+{
+  DnaProfileSet * out;
+  DnaProfile * dnap;
+  DnaProfile * dnapr;
+  DnaProfileMatchPairSet * dpmps;
+  Sequence * rev;
+  SeqAlign * sa;
+  DnaProfile * new_dnap;
+  int i;
+  int j;
+
+  
+  dpmps = DnaProfileMatchPairSet_alloc_std();
+
+  out = DnaProfileSet_alloc_std();
+
+  rev = reverse_complement_Sequence(one);
+
+  dnap = naive_DnaProfile_from_Sequence(one,dpep->seq_id,dpep->m2i,dpep->m2d,dpep->i2i,dpep->d2d);
+  dnapr = naive_DnaProfile_from_Sequence(rev,dpep->seq_id,dpep->m2i,dpep->m2d,dpep->i2i,dpep->d2d);
+
+  fold_RandomModel_DnaProfile(dnap,dpep->rm);
+  fold_RandomModel_DnaProfile(dnapr,dpep->rm);
+
+
+  for(i=0;i<two->len;i++) {
+    fprintf(stderr,"Processing %d\n",i);
+    add_DnaProfileMatchPairSet(dpmps,DnaProfileMatchPair_from_DnaProfile(dnap,two->dnap[i],dpep));    
+    add_DnaProfileMatchPairSet(dpmps,DnaProfileMatchPair_from_DnaProfile(dnapr,two->dnap[i],dpep));    
+  }
+
+  fprintf(stderr,"Sorting....\n");
+
+  sort_DnaProfileMatchPairSet_by_score(dpmps);
+
+  for(i=0;i<dpmps->len;i++) {
+    /* check this profile has not already been used */
+    /* not done yet */
+    
+    if( dpmps->pair[i]->score < dpep->min_seq_prof ) {
+      fprintf(stderr,"Warning... rejecting match due to score %d vs %d\n",dpmps->pair[i]->score,dpep->min_seq_prof);
+      break;    }
+    
+    sa = merged_SeqAlign(dpmps->pair[i]->query,dpmps->pair[i]->target,dpmps->pair[i]->alb);
+    
+
+    new_dnap = naive_DnaProfile_from_SeqAlign(sa,dpep->pseudo,dpep->m2i,dpep->m2d,dpep->i2i,dpep->d2d);
+
+    /* need to log-odds dnap here */
+
+    fold_RandomModel_DnaProfile(new_dnap,dpep->rm);
+
+
+    add_DnaProfileSet(out,new_dnap);
+  }
+
+    
+  fprintf(stderr,"Freeing DNA profiles...\n");
+
+  free_DnaProfile(dnap);
+  free_DnaProfile(dnapr);
+
+  fprintf(stderr,"Freeing sequences\n");
+
+  free_Sequence(rev);
+  
+
+
+  return out;
+}
+
+
+DnaProfileMatchPair * DnaProfileMatchPair_from_DnaProfile(DnaProfile * query,DnaProfile * target,DnaProfileEnginePara * dpep)
+{
+  DnaProfileMatchPair * out;
+  DnaProfileScore * query_s;
+  DnaProfileScore * target_s;
+  DnaProfileMatchScore * match;
+
+  PackAln * pal;
+
+
+  assert(query != NULL);
+  assert(target != NULL);
+  /*
+  assert(query->len > 4 );
+  assert(target->len > 4);
+  */
+
+  out = DnaProfileMatchPair_alloc();
+  out->query = hard_link_DnaProfile(query);
+  out->target = hard_link_DnaProfile(target);
+
+
+  query_s  = DnaProfileScore_from_DnaProfile(query);
+  target_s = DnaProfileScore_from_DnaProfile(target);
+
+  fprintf(stderr,"Matching %d to %d\n",query->len,target->len);
+
+  match= new_ALLR_DnaProfileMatchScore(query,target);
+  
+
+
+  pal = PackAln_bestmemory_DnaProfileMat(query_s,target_s,match,Probability2Score(dpep->open_unmatched),Probability2Score(dpep->ext_unmatched),Probability2Score(dpep->gap_unmatched),NULL,dpep->dpri);
+  
+  fprintf(stderr,"...Made pal %d\n",pal);
+  out->alb = convert_PackAln_to_AlnBlock_DnaProfileMat(pal);
+  out->score = pal->score;
+
+  fprintf(stderr,"...freeing pal\n");
+  free_PackAln(pal);
+
+
+  fprintf(stderr,"...freeing match\n");
+  free_DnaProfileMatchScore(match);
+  fprintf(stderr,"...freeing query\n");
+  free_DnaProfileScore(query_s);
+  fprintf(stderr,"...freeing target\n");
+  free_DnaProfileScore(target_s);
+
+
+  return out;
+}
+
+
+void sort_DnaProfileMatchPairSet_by_score(DnaProfileMatchPairSet * set)
+{
+  sort_DnaProfileMatchPairSet(set,compare_DnaProfileMatchPair);
+}
+
+int compare_DnaProfileMatchPair(DnaProfileMatchPair * one,DnaProfileMatchPair * two)
+{
+  return two->score - one->score;
+}
+
+
+void show_DnaProfileSet(DnaProfileSet * dnaps,RandomModelDNA * rm,FILE * ofp)
+{
+  int i;
+  
+  for(i=0;i<dnaps->len;i++) {
+    show_DnaProfile(dnaps->dnap[i],rm,ofp);
+  }
+}
+
+
+%}

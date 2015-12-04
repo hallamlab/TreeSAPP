@@ -1,0 +1,615 @@
+
+%{
+#include "assemblygraph.h"
+#include "assemblypath.h"
+
+#define MAX_TANGLE_LINK_SIZE 2048
+
+typedef struct CycleBaseLink {
+  int possible;
+  BaseLink * next_link;
+  BaseNode * prev_node;
+  int new_depth;
+} CycleBaseLink;
+
+
+
+%}
+
+
+
+
+
+%{
+#include "graphtangle.h"
+
+
+
+
+
+BaseNode * lift_tangled_AssemblyPath(AssemblyGraph * ag,AssemblyPath * ap)
+{
+  int i,k,j;
+  BaseNode * new_node;
+  BaseNode * prev_node;
+  BaseNode * old_prev;
+  BaseNode * parent;
+  BaseLink * new_link;
+  BaseNode ** outgoing;
+  BaseNode * ret;
+  BaseNode * temp;
+  BaseNode * temp_new;
+  
+  assert(ap != NULL);
+  /* every tangled path must have two links - its first and last */
+  assert(ap->len > 1);
+  assert(ag != NULL);
+
+
+  /* first node we don't need to make a new link */
+
+  /* find the node going into the path */
+  if( ap->path[0]->link->left == ap->path[1]->link->left ||
+      ap->path[0]->link->left == ap->path[1]->link->right ) {
+    parent = ap->path[0]->link->left;
+    outgoing = &ap->path[0]->link->left;
+  } else {
+    assert((ap->path[0]->link->right == ap->path[1]->link->left ||
+	    ap->path[0]->link->right == ap->path[1]->link->right));
+    parent = ap->path[0]->link->right;
+    outgoing = &ap->path[0]->link->right;
+  }
+
+
+  new_node = new_BaseNode(&ag->bg->curr_end->next_node,parent->dna_number);
+  assert(new_node != NULL);
+  ag->bg->curr_end = new_node;
+  parent->peer_node = new_node;
+  ret = new_node;
+
+  /* fprintf(stderr,"First node is %d new node %d\n",parent,new_node);*/
+
+  prev_node = new_node;
+  old_prev  = parent;
+
+
+  add_BaseLink_BaseNode(new_node,ap->path[0]->link);
+
+
+  /* we have to also remove the first link, but
+     we need to delay it after the main loop; this
+     is because to be able to determine the order
+     of the links, we need to old_prev with the old
+     link in it
+
+     Set this to temp, and do it at the end.
+  */
+
+
+  temp = parent;
+  temp_new = new_node;
+
+  for(i=1;i<ap->len-1;i++) {
+    /* figure out which one is the old prev node,
+       and which one is the new node */
+
+    /*
+    fprintf(stderr,"adjusting links for %d (%d) to %d (%d): old %d\n",
+	    ap->path[i]->link->left,
+	    ap->path[i]->link->left->link_len,
+	    ap->path[i]->link->right,
+	    ap->path[i]->link->right->link_len,
+	    old_prev
+	    );
+    */
+
+    if( ap->path[i]->link->left == old_prev ) {
+      parent = ap->path[i]->link->right;
+    } else {
+      if( ap->path[i]->link->right != old_prev ) {
+	fprintf(stderr,"Error in path link %d, old is %d\n",i,(int)old_prev);
+	show_AssemblyPath(ap,ag->bg->kii->kmer_size,stderr);
+      }
+      assert(ap->path[i]->link->right == old_prev);
+      parent = ap->path[i]->link->left;
+    }
+
+    /* duplicate parent node */
+    new_node = new_BaseNode(&ag->bg->curr_end->next_node,parent->dna_number);
+    assert(new_node != NULL);
+    ag->bg->curr_end = new_node;
+    parent->peer_node = new_node;
+
+    /* make new link these two nodes */
+
+    new_link = new_BaseLink(prev_node,new_node,ap->path[i]->link->twist);
+
+    /* adjust prev */
+    prev_node = new_node;
+    old_prev  = parent;
+
+    /* transfer sequence labels across */
+    for(k=0;k<ap->path[i]->link->sequence_label_len;k++) {
+      for(j=0;j<ap->seq_len;j++) {
+	if( ap->path[i]->link->sequence_label[k] + (i - ap->seq[j]->start_depth) == ap->seq[j]->start  ||
+	    ap->path[i]->link->sequence_label[k] - (i - ap->seq[j]->start_depth) == ap->seq[j]->start ) {
+	  /* delete from current link, add to new link */
+	  assert(remove_Sequence_BaseLink(ap->path[i]->link,ap->path[i]->link->sequence_label[k]));
+	  assert(add_Sequence_BaseLink(new_link,ap->path[i]->link->sequence_label[k]));
+	}
+      }
+    }
+
+    /*    fprintf(stderr,"  ...left %d sequence labels\n",ap->path[i]->link->sequence_label_len); */
+  }
+
+	/*
+  fprintf(stderr,"Last node: adjusting links for %d (%d) to %d (%d) (old prev: %d)\n",
+	  ap->path[i]->link->left,
+	  ap->path[i]->link->left->link_len,
+	  ap->path[i]->link->right,
+	  ap->path[i]->link->right->link_len,old_prev
+	  );
+	*/
+
+  /* last link, don't need to make new link, just attach it 
+   the right end of the link to the prev_node */
+
+  if( ap->buried_end == 0 ) {
+    if( ap->path[i]->link->left == old_prev ) {
+      /* fprintf(stderr,"At last tangle, removing %d and adding %d\n",ap->path[i]->link->left,prev_node); */
+      assert(remove_BaseLink_BaseNode(ap->path[i]->link->left,ap->path[i]->link));
+      ap->path[i]->link->left = prev_node;
+    } else {
+      /* fprintf(stderr,"At last tangle, removing %d and adding %d\n",ap->path[i]->link->right,prev_node); */
+      assert(remove_BaseLink_BaseNode(ap->path[i]->link->right,ap->path[i]->link));
+      ap->path[i]->link->right = prev_node;
+    }
+  } else {
+    warn("EWAN HAS NOT DELT PROPERLEY WITH BURIED END LIFT");
+    /* leave the last node open */
+  }
+
+
+  /* connect up the old/new cases */
+  add_BaseLink_BaseNode(prev_node,ap->path[i]->link);
+
+
+  /* handle the first link */
+ /* fprintf(stderr,"handling %d as the first node\n",temp); */
+  remove_BaseLink_BaseNode(temp,ap->path[0]->link);
+  *outgoing = temp_new;
+
+  
+  /*fprintf(stderr,"Last new node was %d with %d links\n",prev_node,prev_node->link_len);*/
+
+  return ret;
+}
+
+
+
+
+AssemblyPath * find_sequence_label_tangle_path(AssemblyGraph * ag,BaseLink * first,BaseNode * next)
+{
+  BaseLink * link;
+  SinglePosSequence * sps;
+  AssemblyPath * out;
+  PathSeq * s;
+  int depth;
+  int i,k;
+  int non_error_cycle_link;
+  CycleBaseLink cycle;
+
+  assert(ag != NULL);
+  assert(first != NULL);
+  assert(next != NULL);
+  assert(next->link_len > 2 );
+
+  /*
+    Basic logic here is:
+
+    We should have been passed a node with more than two
+    links and one of them is an incoming link. We track
+    the sequence labels of the incoming link. 
+
+    When we get to > 2 link positions, *all* the incoming
+    links have to take one route.
+
+    After a > 2 link position, if the resulting link only
+    has are starting position labels and labels which 
+    originated during the tangle, then we have resolved
+    the tangle
+  */
+
+
+
+
+  /* store starting labels in AssemblyPath structure */
+  out = AssemblyPath_alloc_std();
+
+  for(i=0;i<first->sequence_label_len;i++) {
+    sps = lookup_Sequence_SinglePosSpace(ag->sp,first->sequence_label[i]);
+    assert(sps);
+    
+    s = new_PathSeq(first->sequence_label[i],0,sps->start,(AssemblySequence*)sps->data);
+   /* fprintf(stderr,"For label %d in first link %d, sequence label is %ld vs %ld\n",i,first,s->start,first->sequence_label[i]); */
+    s->state |= PathSeq_START_OF_TANGLE;
+    add_seq_AssemblyPath(out,s);
+  }
+  
+  /* now look at next set of links, seeing whether all START of tangle labels make
+     it into the next link */
+  depth = 1;
+  link = first;
+  while ( 1 ) {
+    /*
+    fprintf(stderr,"Looking into tangle, depth %d, link %d next %d\n",depth,link,next);
+    show_BaseLink(ag->bg,link,stderr);
+    */
+
+    add_AssemblyPath(out,new_PathStep(link));
+
+    non_error_cycle_link = non_error_link_BaseNode(next);
+
+    /* fprintf(stderr,"Non error number next is %d\n",non_error_or_cycle_link_BaseNode(next));*/
+
+    if( non_error_cycle_link > 2 ) {
+      if( 0 && (BaseNode_is_cyclical(ag->bg,next) == TRUE || (link->state & BaseLink_IS_DICYCLE)) ) {
+	fprintf(stderr,"CYCLE!\n");
+	cycle = get_next_tangled_link_through_cycle(out,depth,next,link);
+
+	if( cycle.possible == 0 && (link->state & BaseLink_IS_DICYCLE) ) {
+	  fprintf(stderr,"FLIP out DICYCLE\n");
+	  if( link->left == next ) {
+	    cycle = get_next_tangled_link_through_cycle(out,depth,link->right,link);
+	  } else {
+	    assert(link->right == next);
+	    cycle = get_next_tangled_link_through_cycle(out,depth,link->left,link);
+	  }
+
+	  if( cycle.possible == 1 ) {
+	    /* we've found an exit on the other end of the dicycle
+	       link. Put in this link into the assembly path now */
+
+	    add_AssemblyPath(out,new_PathStep(link));
+
+	  }
+	
+	}
+	
+	if( cycle.possible == 0 ) {
+	  fprintf(stderr," ... cannot resolve tangle through cycle\n");
+	  show_BaseNode(ag->bg,next,stderr);
+	  free_AssemblyPath(out);
+	  return NULL;
+	} else {
+	  fprintf(stderr,"... is possible, cycle %d, link %d\n",cycle.possible,cycle.next_link);
+	  assert(cycle.next_link);
+	  assert(cycle.new_depth >= depth);
+	  depth = cycle.new_depth;
+	  link  = cycle.next_link;
+
+	}
+      } else {	 
+	/*	fprintf(stderr,"Non cycle tangle!\n"); */
+	link = get_next_tangled_link(out,depth,next,link);
+	if( link == NULL ) {
+	  warn("Bad problem: can't resolve tangle");
+	  fprintf(stderr," ... cannot resolve tangle, no cycle\n");
+	  show_BaseNode(ag->bg,next,stderr);
+			
+	  free_AssemblyPath(out);
+	  return NULL;
+	}
+      }
+
+      if( is_end_tangle_link(out,link,depth) ) {
+	warn("EWAN HAS NOT DELT WITH FLAGGING THE CORRECT STARTING READS IN THE TANGLE");
+	add_AssemblyPath(out,new_PathStep(link));
+	fprintf(stderr," ... successful path\n");
+	return out;
+      } else {
+	/* move along */
+	if( link->left == next ) {
+	  next = link->right;
+	} else {
+	  next = link->left;
+	}
+
+	depth++;
+	continue;
+      }
+    } 
+
+    if( non_error_cycle_link < 2 ) {
+      /* ending at the end of a contig */
+      out->buried_end = 1;
+      return out;
+    }
+
+
+    assert( next_link_if_error_unique_BaseLink(link,next,&link) == 1);
+
+    /* look for ends of sequences */
+    for(i=0;i<out->seq_len;i++) {
+      if( (out->seq[i]->start & PathSeq_START_OF_TANGLE) != PathSeq_START_OF_TANGLE ) {
+	continue;
+      }
+
+      for(k=0;k<link->sequence_label_len;k++) {
+	if( out->seq[i]->start + depth == link->sequence_label[k] ||
+	    out->seq[i]->start - depth == link->sequence_label[k] ) {
+	  break;
+	  }
+	}
+      if( k >= link->sequence_label_len ) {
+	out->seq[i]->state |= PathSeq_END_INTERNAL;
+      }
+    }
+
+    /* look for potential starts of sequences */
+    for(k=0;k<link->sequence_label_len;k++) {
+      sps = lookup_Sequence_SinglePosSpace(ag->sp,link->sequence_label[k]);
+      if( link->sequence_label[k] == sps->start ||
+	  (link->sequence_label[k] == sps->start + ((AssemblySequence*)sps->data)->seq->len) ) {
+	/* potential internal start */
+	s = new_PathSeq(link->sequence_label[k],depth,sps->start,(AssemblySequence*)sps->data);
+	s->state |= PathSeq_START_INTERNAL;
+	add_seq_AssemblyPath(out,s);
+      }
+    }
+    
+    /* advance to next */
+    if( link->left == next ) {
+      next = link->right;
+    } else {
+      next = link->left;
+    }
+    depth++;
+
+  }
+
+  return out;
+}
+
+
+boolean is_end_tangle_link(AssemblyPath * ap,BaseLink * link,int depth)
+{
+  int i;
+  int j;
+
+  /* the question we are asking here is:
+     Are all the labels of the link *either* from the start
+     position or potentially created on route */
+
+  for(i=0;i<link->sequence_label_len;i++) {
+    for(j=0;j<ap->seq_len;j++) {
+      if( ap->seq[j]->start + (depth - ap->seq[j]->start_depth) == link->sequence_label[i] ||
+	  ap->seq[j]->start - (depth - ap->seq[j]->start_depth) == link->sequence_label[i] ) {
+	break;
+      }
+    }
+    
+    if( j >= ap->seq_len ) {
+      /* there is a label here which did not either start before the
+	 tangle nor did it start in the tangle - therefore it is a bad label! 
+      */
+      return FALSE;
+    }
+
+  }
+
+  return TRUE;
+}
+
+
+BaseLink * jump_move_tangle(AssemblyPath * ap,BaseLink * current,int jump)
+{
+  int i;
+  int j;
+  int max_dis;
+  
+  /* 
+   * Find jump-move across graph by finding the sequence with
+   * the longest remaining sequence, and then jump using this
+   * into a new space
+   */
+
+  for(i=0;i<ap->seq_len;i++) {
+
+  }
+
+  fatal("Ewan has not implemented jump moves!");
+  
+  return NULL;
+}
+
+
+boolean BaseNode_is_cyclical(BaseGraph * bg,BaseNode * bn)
+{
+  int i;
+  assert(bn);
+  char buffer_l[256];
+  char buffer_r[256];
+
+  for(i=0;i<bn->link_len;i++) {
+    reverse_map_dna_number(bn->link[i]->left->dna_number,bg->kii->kmer_size,buffer_l);
+    reverse_map_dna_number(bn->link[i]->right->dna_number,bg->kii->kmer_size,buffer_r);
+    buffer_l[bg->kii->kmer_size] = '\0';
+    buffer_r[bg->kii->kmer_size] = '\0';
+
+  /*  fprintf(stderr,"Testing link %d state %d  %d %s %s\n",i,bn->link[i]->state,bn->link[i],buffer_l,buffer_r); */
+    if( (bn->link[i]->state & BaseLink_IS_CYCLE) == BaseLink_IS_CYCLE ) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+CycleBaseLink get_next_tangled_link_through_cycle(AssemblyPath * ap,int depth,BaseNode * node,BaseLink * prev_link)
+{
+  int i,j,k;
+  CycleBaseLink out;
+  int found_seq = 0;
+  long int diff;
+
+  assert(ap != NULL);
+  assert(node != NULL);
+  assert(prev_link != NULL);
+
+  
+  /* 
+     Links here will be cyclical. Basically we need
+     to look at the links which fit the *sequences* that
+     we have, not their sequence positions.  Only 2 non-cyclical
+     links should exist; one should be prev_link. We take the
+     other one, and then adjust the depth to handle the number
+     of cycles we've been through
+  */
+
+  out.next_link = NULL;
+  out.possible = 0;
+
+  for(i=0;i<node->link_len;i++) {
+    fprintf(stderr,"... cycle testing %d... %d %d\n",i,out.possible,out.next_link);
+    if( (node->link[i]->state & BaseLink_IS_CYCLE) == BaseLink_IS_CYCLE ) {
+      continue;
+    }
+
+    /*
+    if( node->link[i] == prev_link ) {
+      continue;
+    }
+    */	
+    
+    fprintf(stderr,"investigating\n"); 
+
+    found_seq = 0;
+    for(j=0;j<node->link[i]->sequence_label_len;j++) {
+      for(k=0;k<ap->seq_len;k++) {
+	if( (ap->seq[k]->state & PathSeq_START_OF_TANGLE) != PathSeq_START_OF_TANGLE) {
+	  continue;
+	}
+
+	diff = (int)labs(node->link[i]->sequence_label[j] - ap->seq[k]->start);
+	
+	fprintf(stderr,"Looking at sequence %d, start %d, label %ld (%ld) vs %d Diff %d Depth %d\n",
+		k,
+		ap->seq[k]->start,
+		node->link[i]->sequence_label[j],
+		node->link[i]->sequence_label[j] - ap->seq[k]->base_zero,
+		ap->seq[k]->aseq->seq->len,
+		diff,
+		depth);
+		
+	if( diff < depth + 100 && diff >= depth ) {
+
+	  if( out.next_link != NULL ) {
+	    fprintf(stderr,"Found a second link\n");
+	    out.next_link = NULL;
+	    out.possible = 0;
+	    return out;
+	  }
+
+	  out.new_depth = (int)((labs(node->link[i]->sequence_label[j] - ap->seq[k]->start) - ap->seq[k]->start_depth));
+	  out.next_link = node->link[i];
+	  out.possible = 1;
+	  found_seq = 1;
+	  break;
+	}
+      }
+      if( found_seq == 1 ) {
+	break;
+      }
+    }
+
+  }
+
+  fprintf(stderr,"Going to return with %d %d\n",out.possible,out.next_link);
+
+  return out;
+
+}
+
+BaseLink * get_next_tangled_link(AssemblyPath * ap,int depth,BaseNode * node,BaseLink * prev_link)
+{
+  int i,k,j;
+  BaseLink * ret = NULL;
+  int link_no;
+
+  assert(ap != NULL);
+  assert(node != NULL);
+  assert(prev_link != NULL);
+
+  /* now look at each link, and see if one label 
+     goes into this position in the link. If so check
+     we have not seen a link already - if we have, then
+     return NULL (meaning there is no good path). 
+
+
+  */
+
+  fprintf(stderr," Attempting to untangle a node with %d links\n",node->link_len);
+
+  for(i=0;i<node->link_len;i++) {
+    /* start by setting to 0 */
+    if( node->link[i] == prev_link ) {
+      continue;
+    } 
+
+    for(k=0;k<node->link[i]->sequence_label_len;k++) {
+      for(j=0;j<ap->seq_len;j++) {
+	if( (ap->seq[j]->state & PathSeq_START_OF_TANGLE) != PathSeq_START_OF_TANGLE) {
+	  continue;
+	}
+	/*
+	fprintf(stderr,"For link %d -> %ld (%ld %ld), looking at label match %d,%d %ld vs %ld from %ld, depth %d\n",i,
+		node->dna_number,
+		node->link[i]->left->dna_number,
+		node->link[i]->right->dna_number,
+		k,j,
+		  node->link[i]->sequence_label[k],
+		  ap->seq[j]->start,
+		  node->link[i]->sequence_label[k]-
+		ap->seq[j]->start,depth
+		);
+	*/
+
+	if( node->link[i]->sequence_label[k] + depth == ap->seq[j]->start ||
+	    node->link[i]->sequence_label[k] - depth == ap->seq[j]->start ) {
+
+	  fprintf(stderr,"For link %d, got match on label %d %ld with depth %d vs %ld from %d\n",i,k,
+		  node->link[i]->sequence_label[k],
+		  depth,
+		  ap->seq[j]->start,j);
+
+	  if( ret != NULL ) {
+	    /* two outgoing links for the inputs */
+	    fprintf(stderr,"Two links: old %d new %d\n",link_no,i);
+	    return NULL;
+	  } else {
+	    link_no = i;
+	    ret = node->link[i];
+	  }
+	  break;
+	}
+      }
+      if( j < ap->seq_len ) {
+	break; /* no need to investigate more labels */
+      }
+    }
+
+
+  }
+
+  /*  fprintf(stderr,"all links have exhausted\n");*/
+
+  return ret;
+
+}
+
+
+
+%}

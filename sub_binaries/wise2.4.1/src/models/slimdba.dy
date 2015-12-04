@@ -1,0 +1,69 @@
+
+%{
+#include "dyna.h"
+
+%}
+
+matrix SlimDnaMatchBlock
+query type="DNA" name="query"
+target type="DNA" name="target"
+resource type="DnaMatrix*" name="comp65"
+resource type="Score" name="g" 
+resource type="Score" name="u"
+resource type="Score" name="v"
+resource type="Score" name="s"
+resource type="Score" name="b"
+state MATCH65
+  source MATCH65 offi="1" offj="1"
+    calc="comp65->score[DNA_BASE(query,i)][DNA_BASE(target,j)] + s"
+    endsource
+  source MATCH65 offi="0" offj="1"
+    calc="g"
+    target_label  MI65
+    endsource
+  source MATCH65 offi="1" offj="0"
+    calc="g"
+    query_label  MI65
+    endsource
+  source UNMATCHED_TARGET offi="1" offj="1"
+    calc="comp65->score[DNA_BASE(query,i)][DNA_BASE(target,j)] + v"
+    endsource
+  query_label  MM65
+  target_label MM65
+endstate
+state UNMATCHED_QUERY offi="1" offj="0"
+  source MATCH65
+    calc="b"
+    endsource
+  source UNMATCHED_QUERY 
+    calc="u"
+    endsource
+  source START !top !left
+    calc="0"
+    endsource
+  query_label  UM
+  target_label UI
+endstate
+state UNMATCHED_TARGET offi="0" offj="1"
+  source UNMATCHED_QUERY
+    calc="v"
+    endsource
+  source UNMATCHED_TARGET
+    calc="u"
+    endsource
+  target_label UM
+  query_label  UI
+endstate
+state START !special !start
+  query_label  START
+  target_label START
+endstate
+state END !special !end
+  source UNMATCHED_TARGET !right !bottom 
+    calc="0"
+    endsource
+  query_label  END
+  target_label END
+endstate
+endmatrix
+  

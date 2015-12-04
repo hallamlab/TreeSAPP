@@ -1,0 +1,267 @@
+/*  Last edited: Feb 11 20:42 1997 (birney) */
+
+
+
+
+%{
+
+
+/********************************************************/
+/* Wisetools version 3 file                             */
+/*                                                      */
+/* this file is copyright (c) Ewan Birney 1996          */
+/* this file is part of the wisetools sequence analysis */
+/* package                                              */
+/********************************************************/
+
+/********************************************************/
+/* BaseMatrix - structure to hold the memory of         */
+/* dynamite made matrices.                              */
+/* A dynamite support library                           */
+/*                                                      */
+/********************************************************/
+
+/***** RCS Info *****************************************/
+/*
+   $Id: basematrix.dy,v 1.3 2006/03/26 18:45:43 birney Exp $
+
+   $Log: basematrix.dy,v $
+   Revision 1.3  2006/03/26 18:45:43  birney
+   new basematrix memory layout
+
+   Revision 1.2  2006/02/27 09:32:23  birney
+   start of folding in steves fixes into dynamite
+
+   Revision 1.1.1.1  2001/06/18 13:59:59  birney
+   moved wise2 to ensembl cvs repository
+
+   Revision 1.2  1999/03/08 10:47:48  birney
+   added in fixes for a variety of things
+
+   Revision 1.1.1.1  1998/08/28 09:30:47  birney
+   Wise2
+
+ * Revision 1.9  1997/11/12  13:20:18  birney
+ * added documentation, cleaned up
+ *
+ * Revision 1.8  1997/07/24  15:34:45  birney
+ * changed matrix size, and made 'IMPOSSIBLY_HIGH_SCORE'
+ *
+ * Revision 1.7  1997/02/11  20:42:48  birney
+ * added max basematrix number and query size for it
+ *
+ * Revision 1.6  1997/02/03  16:04:48  birney
+ * forgot to set spec_len in _and_special function. Ooops!
+ *
+ * Revision 1.5  1997/02/03  16:01:30  birney
+ * added BaseMatrix_alloc_matrix_and_specials, but not tested.
+ *
+ * Revision 1.4  1996/11/12  16:41:54  birney
+ * deconstructor was trying to free NULL'd pointers. (bad boy!)
+ *
+ * Revision 1.3  1996/11/11  22:17:22  birney
+ * tweaked specials to allow clean linear memory. Hacky deconstructor
+ * though now...
+ *
+ * Revision 1.2  1996/10/15  13:00:52  birney
+ * changed memory behaviour for offsets: caught a memory leak
+ *
+ * Revision 1.1  1996/03/03  15:38:44  birney
+ * Initial revision
+ *
+
+*/
+/********************************************************/
+
+
+
+#include "wisebase.h"
+
+enum basematrix_types {
+  BASEMATRIX_TYPE_UNKNOWN  = 67,
+  BASEMATRIX_TYPE_EXPLICIT,
+  BASEMATRIX_TYPE_LINEAR,
+  BASEMATRIX_TYPE_SHADOW,
+  BASEMATRIX_TYPE_VERYSMALL
+};
+
+/* 20 MB assummed. Could break something? */
+#define COMPILE_BASEMATRIX_MAX_KB 20000
+
+
+#define IMPOSSIBLY_HIGH_SCORE 500000
+
+%}
+
+
+
+struct BaseMatrix
+int type      !def="BASEMATRIX_TYPE_UNKNOWN"
+int ** matrix !matrix !def="0" // NB i,j proper
+int cellsize;
+int queryoffset;
+int targetoffset;
+int spec_len   !def="0"
+int ** offsetmatrix  !link // complex - this points to an internal matrix of correct offsets (!)
+int ** specmatrix          // no longer linked: we have this memory specific...
+int ** offsetmem
+int ** setmem
+int *  optimised_shadow !def="NULL"
+
+
+api
+func change_max_BaseMatrix_kbytes
+func get_max_BaseMatrix_kbytes
+endapi
+
+%{
+#include "basematrix.h"
+
+
+static int max_matrix_bytes = COMPILE_BASEMATRIX_MAX_KB;
+
+%func
+This is to change, at run-time the maximum level of bytes basematrix *thinks*
+it can use. This number is *not* used for any actual calls to basematrix
+allocation: it is only used with /get_max_BaseMatrix_kbytes
+%arg
+new_kilo_number max kilobytes allowed
+%%
+void change_max_BaseMatrix_kbytes(int new_kilo_number)
+{
+  max_matrix_bytes = new_kilo_number;
+}
+
+%func
+returns the max. number of kilobytes suggested as a limited
+to BaseMatrix. 
+%%
+int get_max_BaseMatrix_kbytes(void)
+{
+  return max_matrix_bytes;
+}
+
+%func
+Just checkes that leni*lenj*statesize/1024 < max_matrix_bytes.
+returns TRUE if so, FALSE if not
+%%
+boolean can_make_explicit_matrix(int leni,int lenj,int statesize)
+{
+  if( leni*lenj*statesize/1024 > max_matrix_bytes)
+    return FALSE;
+  return TRUE;
+}
+
+
+%func
+turns a int type to a char string of 'printable'
+types.
+%%
+char * basematrix_type_to_string(int type)
+{
+  switch (type) {
+  case  BASEMATRIX_TYPE_UNKNOWN  : return "Unknown";
+  case  BASEMATRIX_TYPE_EXPLICIT : return "Explicit";
+  case  BASEMATRIX_TYPE_LINEAR   : return "Linear";
+  case  BASEMATRIX_TYPE_SHADOW   : return "Shadow";
+  default : return "Problem in converting type!";
+  }
+
+}
+
+%func
+This function allocates the two bits of
+matrix memory, of course returning a decent 
+NULL (with memory zapped) if it can't do it
+%arg
+len_point  length of pointers in main matrix
+len_array  length of array in main matrix
+len_spec_poin   length of pointers in special matrix
+len_spec_array  length of special array
+%%
+BaseMatrix * BaseMatrix_alloc_matrix_and_specials(int len_point,int len_array,int len_spec_point,int len_spec_array)
+{
+  register int i;
+  BaseMatrix *  out;
+
+  /* use dy matrix for main stuff */
+
+  if( (out = BaseMatrix_alloc_matrix(len_point,len_array)) == NULL ) {
+    warn("Unable to allocate %d by %d [%d] int positions in basematrix main matrix",len_point,len_array,len_point*len_array);
+    return NULL;
+  }
+
+  out->spec_len = 0;
+
+  if( (out->specmatrix = (int **) ckcalloc(len_spec_point,sizeof(int *))) == NULL ) {
+    warn("Unable to allocate %d special matrix pointers in basematrix",len_spec_point);
+    free_BaseMatrix(out);
+    return NULL;
+  }
+
+  if ((out->specmatrix[0] = (int *)ckcalloc(len_spec_point *  len_spec_array, sizeof(int))) == NULL)
+    return NULL;
+  for(i = 1; i < len_spec_point; i++)
+    out->specmatrix[i] = out->specmatrix[0] + (i * len_spec_array);
+
+  out->spec_len = len_spec_point;
+
+  return out;
+}
+
+%func
+this is the override deconstructor for basematrix. It will
+free both matrix and special memory
+%%
+!deconstructor
+BaseMatrix * free_BaseMatrix(BaseMatrix * obj)
+{
+  int i;
+
+  if( obj == NULL ) {
+    warn("Trying to free NULL basematrix object. Should be trappable");
+    return NULL;
+  }
+
+  if( obj->dynamite_hard_link > 1 ) {
+    obj->dynamite_hard_link--;
+    return NULL;
+  }
+ 
+  if(obj->matrix != NULL ) {
+    for(i=0;i<obj->leni;i++)
+      if( obj->matrix[i] != NULL ) {
+	ckfree(obj->matrix[i]);
+      }
+    free(obj->matrix);
+  }
+  
+
+  if( obj->spec_len > 0 ) {
+    if( obj->specmatrix == NULL ) {
+      warn("Bad karma. you have a special matrix of length %d, but a NULL specmatrix pointer. I'm not going to free it!",obj->spec_len);
+    } else {
+      free(obj->specmatrix[0]);
+      free(obj->specmatrix);
+    } /* end of else */
+  } /* end of if specials */
+
+  if( obj->offsetmem != NULL )
+    ckfree(obj->offsetmem);
+  if( obj->setmem != NULL )
+    ckfree(obj->setmem);
+
+
+  ckfree(obj);
+
+  return NULL;
+}
+
+
+%}
+
+
+
+
+
+

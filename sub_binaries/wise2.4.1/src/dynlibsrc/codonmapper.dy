@@ -1,0 +1,448 @@
+/*  Last edited: Mar 14 14:01 1997 (birney) */
+
+
+%{
+#include "codon.h"
+
+
+
+%}
+
+
+api
+object CodonMapper
+des free_CodonMapper
+func sprinkle_errors_over_CodonMapper
+endobject
+func flat_CodonMapper
+endapi
+
+
+struct CodonMapper 
+CodonTable * ct // hard-linked!
+double   codon_map[125][26]
+%info 
+CodonMapper holds a matrix of 125 by 26
+to provide a mapping between a probabilities
+calculated on amino acids to triplet codon
+probabilities. This mapping takes into account
+3 things
+  1) The CodonTable
+  2) The distribution of synonmous codons (codon bias)
+  3) substitution errors
+%%
+
+struct CodonFrequency
+double freq[64];
+%info
+CodonFrequency is a very much internal object for
+CodonMapper. It provides the frequency of synomous
+codons, ie, an amino acid with only one codon will
+have 1.0 in the frequency table
+
+Rarely used outside of CodonMapper construction
+%%
+
+
+
+
+%{
+#include "codonmapper.h"
+
+
+%func
+Builds a codon frequency from raw counts as just an array
+%%
+CodonFrequency * CodonFrequence_from_raw_counts(double * codon,CodonTable * ct)
+{
+  double total[26];
+  CodonFrequency * cf;
+  register int i;
+  int c;
+  register int j;
+
+  for(i=0;i<26;i++) {
+    total[i] = 0.0;
+    for(j=0;j<64;j++) {
+      c = codon_from_base4_codon(j);
+      if( ct->codon_str[c] == ('A' + i) ) {
+	total[i] += codon[j];
+      }
+    }
+  }
+
+  cf = CodonFrequency_alloc();
+
+  for(i=0;i<64;i++) {
+    c = codon_from_base4_codon(i);
+
+    if( is_stop_codon(c,ct)  )
+      continue;
+
+    
+    if( codon[i] < 0.0000000001)
+      cf->freq[i] = 0.0;
+    else {
+      if( total[ct->codon_str[c] -'A'] < 0.00000001 ) {
+	warn("For codon %d, amino acid %c, we have no frequency",i,ct->codon_str[i]);
+      }
+      else cf->freq[i] = codon[i] / total[ct->codon_str[c]-'A'];
+    }
+  }
+
+  return cf;
+}
+
+
+
+%func
+Shows codon mapper in vaguely human form
+%arg
+%%
+void show_CodonMapper(CodonMapper * cm,FILE * ofp)
+{
+  register int i;
+  register int j;
+
+  for(i=0;i<125;i++) { 
+    fprintf(ofp,"[%3d][%c] %.2f",i,aminoacid_from_codon(cm->ct,i),cm->codon_map[i][0]);
+    for(j=1;j<26;j++) 
+      fprintf(ofp,",%.2f",cm->codon_map[i][j]);
+    fprintf(ofp,"\n");
+  }
+
+}
+
+%func
+Shows codon frequency in vaguely human form
+%arg
+%%
+void show_CodonFrequency(CodonFrequency * cf,CodonTable * ct,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<64;i++)
+    fprintf(ofp,"[%3d][%c] %.2f\n",i,aminoacid_from_codon(ct,codon_from_base4_codon(i)),cf->freq[i]);
+
+}
+
+
+%func
+Makes a CodonMapper with no codon bias
+or error possiblities from codon table
+
+%arg
+ct Codon Table giving codon->aa info
+%%
+CodonMapper * flat_CodonMapper(CodonTable * ct)
+{
+  CodonFrequency * cf;
+  CodonMapper * out;
+
+  cf = flat_CodonFrequency(ct);
+
+  out = new_CodonMapper(ct,cf);
+
+  free_CodonFrequency(cf);
+
+  return out;
+}
+
+
+%func
+Makes a no-biased codon Frequency.
+Probabaly most used in /flat_CodonMapper
+
+%arg
+%%
+CodonFrequency * flat_CodonFrequency(CodonTable * ct)
+{
+  int number[26];
+  CodonFrequency * out;
+  register int i;
+
+
+  out = CodonFrequency_alloc();
+
+  for(i=0;i<26;i++)
+    number[i] = 0;
+
+  for(i=0;i<64;i++) 
+    out->freq[i]= 0.0;
+
+  for(i=0;i<125;i++)
+    if( has_random_bases(i) == FALSE && is_stop_codon(i,ct) == FALSE) 
+      number[aminoacid_no_from_codon(ct,i)]++;
+
+  for(i=0;i<64;i++) {
+    if( is_stop_codon(codon_from_base4_codon(i),ct) == FALSE && number[aminoacid_no_from_codon(ct,codon_from_base4_codon(i))] != 0) 
+      out->freq[i] = 1.0 / number[aminoacid_no_from_codon(ct,codon_from_base4_codon(i))];
+  }
+
+  return out;
+}
+  
+/***
+
+***/
+
+%func
+Assummes number is an int * of length 26
+
+Files up each position with the number of codons representing that aa
+
+%type internal
+%arg
+%%
+void construct_amino_number_array(int * number,CodonTable * ct)
+{
+  register int i;
+  register int j;
+
+  for(i=0;i<26;i++) {
+    number[i] = 0;
+    for(j=0;j<64;j++) {
+      if( ct->codon_str[j] == 'A' + i)
+	number[i]++;
+    }
+  }
+
+}
+  
+
+%func
+Now defunct.
+%type internal
+%arg
+%%
+void map_codon_array_CodonMapper(double * codon_array,double * protein_array,double stop,CodonMapper * cm)
+{
+  register int i;
+
+  for(i=0;i<125;i++) {
+    if( is_stop_codon(i,cm->ct)== TRUE ) 
+      codon_array[i] = stop;
+    else codon_array[i] = map_codon_CodonMapper(i,protein_array,cm);
+  }
+
+}
+
+%func
+Takes an array of probabilities from 0-26 in protein array
+and writes into codon_array the adjusted probability from the
+codon mapper. Ie, maps a protein emission line to a codon emission
+line. This is the main use of CodonMapper.
+
+%arg
+codon_array w array (0-124) for the codon probabilities to be placed
+protein_array r array (0-25) for the protein probabilities to be read from
+cm Codon Mapper that provides the protein->codon mapping
+%%
+void true_map_codon_array_CodonMapper(double * codon_array,const double * protein_array,CodonMapper * cm)
+{
+  int i;
+
+  for(i=0;i<125;i++) {
+    codon_array[i] = map_codon_CodonMapper(i,protein_array,cm);
+  }
+}
+
+%func
+Does the mapping for a single codon from a protein_array
+%type internal
+%arg
+%%
+double map_codon_CodonMapper(int codon,const double * protein_array,CodonMapper * cm)
+{
+  register int i;
+  double out = 0.0;
+
+ 
+  if( cm->codon_map[codon][0] < 0.0 ) {
+    warn("Attempting to map a codon with below zero prob in map_codon_CodonMapper. This is bad news....");
+    return 0.0;
+  }
+  
+  for(i=0;i<26;i++) {
+    out += protein_array[i] * cm->codon_map[codon][i];
+  }
+
+  return out;
+}
+
+%func
+Takes a codon mapper and assummes that the majority of errors
+are due to a single base change in the codon at probability error.
+Therefore, for each codon it adds error * prob(codon) * 0.25 to each 
+other codon one base away, taking away therefore the result.
+
+%arg
+cm r CodonMapper to be sprinkled
+error substitution error rate
+%%
+void sprinkle_errors_over_CodonMapper(CodonMapper * cm,double error)
+{
+  int i;
+  int j;
+  int k;
+  base one;
+  base two;
+  base three;
+  int new_codon;
+  double scratch[125][26];
+
+
+  /*
+   * put all the codons into scratch, but 
+   * subtracting 3*error which is the possibility
+   * of an error.
+   *
+   * The self->self errors (eg, G to G) will be
+   * added back later
+   */
+
+  for(i=0;i<125;i++) 
+    for(j=0;j<26;j++) 
+      scratch[i][j] = cm->codon_map[i][j] * (1-(3*error));
+
+
+  /*
+   * Now for each codon, find the single base change,
+   * and add the probability for each amino acid onto it
+   * factored by 0.25
+   *
+   */
+
+  for(i=0;i<125;i++) {
+    all_bases_from_codon(i,&one,&two,&three);
+
+    if( one != BASE_N) {
+      for(j=0;j<4;j++) {
+	new_codon = j*25 + two * 5 + three;
+
+	for(k=0;k<26;k++) 
+	  scratch[i][k] += (cm->codon_map[new_codon][k] * error * 0.25);
+      }
+    }
+    if( two != BASE_N) {
+      for(j=0;j<4;j++) {
+	
+	new_codon = one*25 + j * 5 + three;
+
+	for(k=0;k<26;k++) 
+	  scratch[i][k] += (cm->codon_map[new_codon][k] * error * 0.25);
+      }
+    }
+    if( three != BASE_N) {
+      for(j=0;j<4;j++) {
+	
+	new_codon = one*25 + two * 5 + j;
+
+	for(k=0;k<26;k++) 
+	  scratch[i][k] += (cm->codon_map[new_codon][k] * error * 0.25);
+      }
+    }  
+    
+  }
+
+
+  /*
+   * Now map back to original memory
+   */
+
+  for(i=0;i<125;i++) 
+    for(j=0;j<26;j++) 
+      cm->codon_map[i][j] = scratch[i][j];
+
+
+
+}
+	
+
+
+%func
+The only way you should make a CodonMapper!
+
+Makes a codon mapper from CodonTable and frequency
+%arg
+%%
+CodonMapper * new_CodonMapper(CodonTable * ct,CodonFrequency * cf)
+{
+  register int i;
+  register int j;
+  int k;
+  base one;
+  base two;
+  base three;
+  int base4;
+  int oi,ti,ri;
+  double total_freq;
+  CodonMapper * out;
+  
+
+  out = CodonMapper_alloc();
+
+
+
+  out->ct = hard_link_CodonTable(ct);
+
+  for(i=0;i<125;i++) {
+    for(j=0;j<26;j++) 
+      out->codon_map[i][j] =0.0;
+
+
+    if( has_random_bases(i) == FALSE ) {
+      if( is_stop_codon(i,ct) == TRUE ) {
+	for(k=0;k<26;k++)
+	out->codon_map[i][k] = (0.0);
+      }
+      else {
+	out->codon_map[i][aminoacid_no_from_codon(ct,i)] = cf->freq[base4_codon_from_codon(i)];
+      }
+    }
+    else { /*** is a random base ***/
+
+
+      /***
+	sneaky stuff. What we want to do is loop over all possible
+	codons, adding up their frequencies for the amino acids 
+	they represent. This is done by looping over all possible
+	bases for each position and then letting through ones 
+	which either have an N at this position or is the actual base.
+
+	***/
+
+
+
+      all_bases_from_codon(i,&one,&two,&three);
+
+      total_freq = 0.0;
+
+      for(oi=0;oi<4;oi++)
+	for(ti=0;ti<4;ti++) 
+	  for(ri=0;ri<4;ri++) {
+	    if( (one == BASE_N || one == oi) && (two == BASE_N || two == ti) && (three == BASE_N || three == ri) ) {
+
+	      base4 = codon_from_base4_codon(oi*16+ti*4+ri);
+	      if( !is_stop_codon(base4,ct) ) {
+		out->codon_map[i][aminoacid_no_from_codon(ct,base4)] += cf->freq[base4_codon_from_codon(base4)];
+	      }
+	    } /* end of if one == BASE_N ||  one == oi */
+	  }  /* end of for oi,ti,ri */
+
+      
+    } /* end of else */
+  }
+
+  return out;
+}
+
+
+%}
+      
+
+
+
+
+
+

@@ -1,0 +1,269 @@
+
+
+%{
+#include "dyna.h"
+#include "pairbaseseq.h"
+#include "pairbase.h"
+#include "syexonmodel.h"
+
+
+%}
+
+
+
+
+matrix SyWise20
+query    name="exonmodel" type="SyExonScore*"
+target   name="seq"    type="ComplexSequence*" field:len="length"
+resource name="codon"  type="PairBaseCodonModelScore*"
+resource name="nonc"   type="PairBaseModelScore*"
+resource name="start"  type="PairBaseCodonModelScore*"
+resource name="stop"   type="PairBaseCodonModelScore*"
+resource name="intron_open" type="Score"
+resource name="gene_open"   type="Score"
+resource name="nonc_cost" type="Score"
+state CODON offi="1" offj="3"
+  source CODON 
+   calc="codon->codon[CSEQ_PAIR_PAIRCODON(seq,j)]"
+   endsource
+  source CODON offi="0" offj="3"
+   calc="exonmodel->exon[i]->stay_score + codon->codon[CSEQ_PAIR_PAIRCODON(seq,j)]"
+   endsource
+  source NON_CDS_CONSERVED !top
+   calc="start->codon[CSEQ_PAIR_PAIRCODON(seq,j)]"
+   endsource
+  source INTRON_MATCH_0 offi="1" offj="3"
+   calc="CSEQ_PAIR_3SS(seq,j-3)"
+   target_label 3SS_PHASE_0
+   endsource
+  source INTRON_MATCH_1 offi="1" offj="2"
+   calc="CSEQ_PAIR_3SS(seq,j-2)"
+   target_label 3SS_PHASE_1
+   endsource
+  source INTRON_MATCH_2 offi="1" offj="1"
+   calc="CSEQ_PAIR_3SS(seq,j-1)"
+   target_label 3SS_PHASE_2
+   endsource
+  query_label EXON_STATE
+  target_label CODON
+endstate
+state INTRON_MATCH_0 offi="0" offj="1"
+  source CODON offj="1"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]+CSEQ_PAIR_5SS(seq,j)+intron_open"
+    target_label 5SS_PHASE_0
+    endsource
+  source INTRON_0 offj="1"
+    calc="nonc_cost+nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  source INTRON_MATCH_0 offj="1"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  query_label INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state INTRON_0 offi="0" offj="1"
+  source INTRON_MATCH_0
+    calc="0"
+    endsource
+  source INTRON_0
+    calc="0"
+    endsource
+  query_label INTRON_STATE
+  target_label CENTRAL_INTRON
+endstate
+state INTRON_MATCH_1 offi="0" offj="1"
+  source CODON offj="2"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]+CSEQ_PAIR_5SS(seq,j)+intron_open"
+    target_label 5SS_PHASE_1
+    endsource
+  source INTRON_1 offj="1"
+    calc="nonc_cost + nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  source INTRON_MATCH_1 offj="1"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  query_label INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state INTRON_1 offi="0" offj="1"
+  source INTRON_MATCH_1
+    calc="0"
+    endsource
+  source INTRON_1
+    calc="0"
+    endsource
+  query_label INTRON_STATE
+  target_label CENTRAL_INTRON
+endstate
+state INTRON_MATCH_2 offi="0" offj="1"
+  source CODON offj="3"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]+CSEQ_PAIR_5SS(seq,j)+intron_open"
+    target_label 5SS_PHASE_2
+    endsource
+  source INTRON_2 offj="1"
+    calc="nonc_cost+nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  source INTRON_MATCH_2 offj="1"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  query_label INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state INTRON_2 offi="0" offj="1"
+  source INTRON_MATCH_2
+    calc="0"
+    endsource
+  source INTRON_2
+    calc="0"
+    endsource
+  query_label INTRON_STATE
+  target_label CENTRAL_INTRON
+endstate
+state REV_CODON offi="1" offj="3"
+  source REV_CODON
+   calc="codon->codon[CSEQ_REV_PAIR_PAIRCODON(seq,j)]"
+   endsource
+  source REV_CODON offi="0"
+   calc="exonmodel->exon[i]->stay_score + codon->codon[CSEQ_REV_PAIR_PAIRCODON(seq,j)]"
+   endsource
+  source REV_INTRON_MATCH_0 offi="1" offj="3"
+   calc="CSEQ_REV_PAIR_5SS(seq,j-3)"
+   target_label REV_5SS_PHASE_0
+   endsource
+  source REV_INTRON_MATCH_1 offi="1" offj="1"
+   calc="CSEQ_REV_PAIR_5SS(seq,j-1)"
+   target_label REV_5SS_PHASE_1
+   endsource
+  source REV_INTRON_MATCH_2 offi="1" offj="2"
+   calc="CSEQ_PAIR_5SS(seq,j-2)"
+   target_label REV_5SS_PHASE_2
+   endsource
+  source NON_CDS_CONSERVED !top
+   calc="start->codon[CSEQ_REV_PAIR_PAIRCODON(seq,j)]"
+   endsource
+  query_label REV_EXON_STATE
+  target_label REV_CODON
+endstate
+state REV_INTRON_MATCH_0 offi="0" offj="1"
+  source REV_CODON offj="1"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]+CSEQ_REV_PAIR_3SS(seq,j)+intron_open"
+    target_label REV_3SS_PHASE_0
+    endsource
+  source REV_INTRON_0 offj="1"
+    calc="nonc_cost+nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  source REV_INTRON_MATCH_0 offj="1"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  query_label  REV_INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state REV_INTRON_0 offi="0" offj="1"
+  source REV_INTRON_0 offj="1"
+    calc="0"
+    endsource
+  source REV_INTRON_MATCH_0 offj="1"
+    calc="0"
+    endsource
+  query_label  REV_INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state REV_INTRON_MATCH_1 offi="0" offj="1"
+  source REV_CODON offj="3"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]+CSEQ_PAIR_3SS(seq,j)+intron_open"
+    target_label REV_3SS_PHASE_1
+    endsource
+  source REV_INTRON_1 offj="1"
+    calc="nonc_cost+nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  source REV_INTRON_MATCH_1 offj="1"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  query_label  REV_INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state REV_INTRON_1 offi="0" offj="1"
+  source REV_INTRON_1 offj="1"
+    calc="0"
+    endsource
+  source REV_INTRON_MATCH_1 offj="1"
+    calc="0"
+    endsource
+  query_label  REV_INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state REV_INTRON_MATCH_2 offi="0" offj="1"
+  source REV_CODON offj="2"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]+CSEQ_PAIR_3SS(seq,j)+intron_open"
+    target_label REV_3SS_PHASE_1
+    endsource
+  source REV_INTRON_2 offj="1"
+    calc="nonc_cost+nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  source REV_INTRON_MATCH_2 offj="1"
+    calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+    endsource
+  query_label  REV_INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state REV_INTRON_2 offi="0" offj="1"
+  source REV_INTRON_2 offj="1"
+    calc="0"
+    endsource
+  source REV_INTRON_MATCH_2 offj="1"
+    calc="0"
+    endsource
+  query_label  REV_INTRON_STATE
+  target_label NON_CDS_CONSERVED
+endstate
+state NON_CDS_CONSERVED !special
+  source CODON offj="0"
+   calc="exonmodel->exon[i]->exit_score+gene_open+stop->codon[CSEQ_PAIR_PAIRCODON(seq,j)]"
+   target_label GENE_EXIT
+   endsource
+  source REV_CODON offj="0"
+   calc="exonmodel->exon[i]->exit_score+gene_open+stop->codon[CSEQ_REV_PAIR_PAIRCODON(seq,j)]"
+   target_label GENE_EXIT
+   endsource
+  source NON_CDS_CONSERVED offj="1"
+   calc="nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+   endsource
+  source RND_SEQ offj="1"
+   calc="nonc_cost +nonc->base[CSEQ_PAIR_PAIRBASE(seq,j)]"
+   endsource
+  query_label NON_CDS_CONSERVED
+  target_label RANDOM_SEQUENCE
+endstate
+state RND_SEQ !special offj="1"
+  source NON_CDS_CONSERVED
+   calc="0"
+   endsource
+  source RND_SEQ
+   calc="0"
+   endsource
+  source START
+   calc="0"
+   endsource
+  query_label  LOOP_STATE
+  target_label RANDOM_SEQUENCE
+endstate
+state START !start !special defscore="0"
+endstate
+state END !end !special
+  source RND_SEQ offj="1" 
+    calc="0"
+    endsource
+  target_label END
+  query_label END
+endstate
+collapse LOOP_STATE RANDOM_SEQUENCE
+collapse NON_CDS_CONSERVED RANDOM_SEQUENCE
+collapse INTRON_STATE CENTRAL_INTRON
+collapse INTRON_STATE NON_CDS_CONSERVED
+collapse REV_INTRON_STATE NON_CDS_CONSERVED
+endmatrix
+  
+	
+  
+
+ 

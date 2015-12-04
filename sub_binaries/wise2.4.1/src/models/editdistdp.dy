@@ -1,0 +1,80 @@
+
+%{
+#include "dyna.h"
+
+
+
+#define EDITMATCH(string1c,string2c,match,mismatch) (string1c == string2c ? match : mismatch)
+
+%}
+
+
+struct EditString
+char * string
+int len
+
+
+matrix EditDistance
+query    name="q" type="EditString*"
+target   name="t" type="EditString*"
+resource name="match" type="int"
+resource name="mismatch"    type="int"
+resource name="gap"      type="int"
+state MATCH
+   source MATCH offi="1" offj="1"
+     calc="EDITMATCH(q->string[i],t->string[j],match,mismatch)"
+     query_label  SEQUENCE
+     target_label SEQUENCE
+     endsource
+   source MATCH offi="0" offj="1"
+     calc="gap"
+     query_label  INSERT
+     target_label SEQUENCE
+     endsource
+   source MATCH offi="1" offj="0"
+     calc="gap"
+     query_label  SEQUENCE
+     target_label INSERT
+     endsource
+   source START offi="1" offj="1" !top !left
+     calc="EDITMATCH(q->string[i],t->string[j],match,mismatch)"
+     query_label  SEQUENCE
+     target_label SEQUENCE
+     endsource
+   source START offi="0" offj="1" !top !left
+     calc="gap"
+     query_label  INSERT
+     target_label SEQUENCE
+     endsource
+   source START offi="1" offj="0" !top !left
+     calc="gap"
+     query_label  SEQUENCE
+     target_label INSERT
+     endsource
+endstate
+state START !special !start
+endstate
+state END !special !end
+   source MATCH offj="0" !bottom !right
+     calc="0"
+     endsource
+   query_label END
+   target_label END
+endstate   
+endmatrix
+
+%{
+#include "editdistdp.h"
+
+
+
+EditString * new_EditString(char * string)
+{
+   EditString * out;
+
+   out = EditString_alloc();
+   out->string = stringalloc(string);
+   out->len = strlen(string);
+
+   return out;
+}

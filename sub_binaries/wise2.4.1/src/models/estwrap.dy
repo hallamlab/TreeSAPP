@@ -1,0 +1,408 @@
+
+%{
+#include "estwise3.h"
+#include "estloop3.h"
+#include "estfrag3.h"
+#include "estslim3.h"
+#include "estquick3.h"
+#include "estslimloop.h"
+
+typedef enum est_alg_type {
+  ESTWISE_3,
+  ESTLOOP_3,
+  ESTSLIM_3,
+  ESTQUICK_3,
+  ESTFRAG_3,
+  ESTSLIM_L
+} est_alg_type;
+
+%}
+
+
+api
+func Hscore_from_TSM_estwise
+func AlnBlock_from_Protein_estwise_wrap
+func AlnBlock_from_TSM_estwise_wrap
+func alg_estwrap_from_string
+endapi
+
+%{
+#include "estwrap.h"
+
+
+%func 
+Returns the string form of the algorithm
+%%
+char * string_from_alg_estwrap(int alg_type)
+{
+  switch(alg_type) {
+  case ESTWISE_3 : return "333";
+  case ESTSLIM_3 : return "312";
+  case ESTLOOP_3 : return "333L";
+  case ESTQUICK_3 : return "312Q";
+  default : return "No algorithm type specd";
+  }
+}
+
+%func
+This function returns the algorithm type
+for an est search from the string
+%%
+int alg_estwrap_from_string(char * str)
+{
+  int t;
+
+  t = get_number_from_slashed_string(str,"333/333L/333F/312/312L/312Q");
+
+  switch (t) {
+  case 0 : return ESTWISE_3;
+  case 1 : return ESTLOOP_3;
+  case 2 : return ESTFRAG_3;
+  case 3 : return ESTSLIM_3;
+  case 4 : return ESTSLIM_L;
+  case 5 : return ESTQUICK_3;
+  default : warn("Cannot convert string %s into a valid estwise algorithm type\n",str);
+    return -1;
+  }
+}
+
+
+%func
+This function is the guts for the est single alignment
+mode.
+
+It uses /AlnBlock_from_TSM_estwise_wrap for the
+heavy part of the call
+%arg
+pro r protein to be used in the comparison
+cdna r cdna to be compared to
+cp r cdna parser indicating insertion deletion probabilities
+cm r codon mapper indicating substitution errors etc
+ct r codon table for the codon->amino acid mappings
+comp r comparison matrix to use
+gap gap penalty
+ext extension penalty
+is_global if true, global start-end in protein is used
+rmd random model of dna to use
+alg est algorithm type to use
+rm random protein model for use with compmat
+use_syn if true, uses a synchronous coding model
+palpoi wN the raw packed alignment output if wanted
+%%
+AlnBlock * AlnBlock_from_Protein_estwise_wrap(Protein * pro,cDNA * cdna,cDNAParser * cp,CodonMapper * cm,CodonTable * ct,CompMat * comp,int gap,int ext,boolean is_global,RandomModelDNA * rmd,int alg,RandomModel * rm,boolean use_syn,Probability allN,DPRunImpl * dpri,PackAln ** palpoi)
+{
+  ThreeStateModel * tsm;
+  AlnBlock * out;
+
+  if( pro == NULL || cdna == NULL || comp == NULL || rm == NULL || dpri == NULL){
+    warn("trappable error in PackAln from protein sequence vs cDNA, passed some NULL objects, Complain!");
+    return NULL;
+  }
+
+  rm = default_RandomModel();
+  
+  if( is_global == TRUE) 
+    tsm = global_ThreeStateModel_from_half_bit_Sequence(pro,comp,rm,gap,ext);
+  else
+    tsm = ThreeStateModel_from_half_bit_Sequence(pro,comp,rm,gap,ext);
+  
+  out = AlnBlock_from_TSM_estwise_wrap(tsm,cdna,cp,cm,ct,rmd,alg,use_syn,FALSE,allN,dpri,palpoi);
+
+  free_ThreeStateModel(tsm);
+  free_RandomModel(rm);
+
+  return out;
+
+}
+
+
+  
+
+
+%func
+This function is the basic wrap for Protein models
+vs cDNA sequences.
+%arg
+tsm r threestatemodel to be compared to the dna
+cdna r cdna to be compared to
+cp r cdna parser indicating insertion deletion probabilities
+cm r codon mapper indicating substitution errors etc
+ct r codon table for the codon->amino acid mappings
+rmd random model of dna to use
+alg est algorithm type to use
+use_syn if true, uses a synchronous coding model
+palpoi wN the raw packed alignment output if wanted
+%%
+AlnBlock * AlnBlock_from_TSM_estwise_wrap(ThreeStateModel * tsm,cDNA * cdna,cDNAParser * cp,CodonMapper * cm,CodonTable * ct,RandomModelDNA * rmd,int alg,boolean use_syn,boolean force_flat_insert,Probability allN,DPRunImpl * dpri,PackAln ** palpoi)
+{
+  AlnBlock * out;
+  PackAln * pal;
+
+  cDNAParserScore * cps = NULL ;
+  GeneWise * gw = NULL ;
+  GeneWiseScore * gws = NULL ;
+
+  ComplexSequence * cs = NULL ;
+  ComplexSequenceEvalSet * cses = NULL ;
+
+  
+
+  if( tsm == NULL || cdna == NULL || cp == NULL || rmd == NULL || dpri == NULL){
+    warn("trappable error in AlnBlock estwise wrap, passed some NULL objects, Complain!");
+    return NULL;
+  }
+
+  if( (gw=GeneWise_from_ThreeStateModel_cdna(tsm,cp,cm,allN)) == NULL) {
+    warn("Unable to make GeneWise model in estwise wrap");
+    goto exit;
+  }
+
+  if( use_syn == TRUE ) {
+    if( tsm->rm == NULL ) {
+      warn("A three state model with no random model! Ugh!");
+      goto exit;
+    }
+
+    GeneWise_fold_in_synchronised_RandomModel(gw,tsm->rm,cm,ct,0.5);
+    if( force_flat_insert == TRUE ) {
+      check_flat_insert(gw,TRUE,FALSE,ct);
+    }
+  } else {
+    GeneWise_fold_in_RandomModelDNA(gw,rmd);
+  }
+
+  if( (gws = GeneWiseScore_from_GeneWise(gw)) == NULL) {
+    warn("Unable to make GeneWiseScore model in estwise wrap");
+    goto exit;
+  }
+
+
+  if( (cps = cDNAParserScore_from_cDNAParser(cp)) == NULL ) {
+    warn("Unable to make cDNAParserScore in estwise wrap");
+    goto exit;
+  }
+
+  cses = default_cDNA_ComplexSequenceEvalSet();
+
+  cs = new_ComplexSequence(cdna->baseseq,cses);
+  
+  cses = free_ComplexSequenceEvalSet(cses);
+
+  switch(alg) {
+  case ESTWISE_3 :
+    pal = PackAln_bestmemory_EstWise3(gws,cs,cps,NULL,dpri);
+    out = convert_PackAln_to_AlnBlock_EstWise3(pal);
+    break;
+  case ESTLOOP_3 :
+    pal = PackAln_bestmemory_EstLoop3(gws,cs,cps,NULL,dpri);
+    out = convert_PackAln_to_AlnBlock_EstLoop3(pal);
+    break;
+  case ESTSLIM_3 :
+    pal = PackAln_bestmemory_EstSlim3(gws,cs,cps,NULL,dpri);
+    out = convert_PackAln_to_AlnBlock_EstLoop3(pal);
+    break;
+  case ESTSLIM_L :
+    pal = PackAln_bestmemory_EstSlimLoop3(gws,cs,cps,NULL,dpri);
+    out = convert_PackAln_to_AlnBlock_EstSlimLoop3(pal);
+    break;
+  case ESTFRAG_3 :
+    pal = PackAln_bestmemory_EstFrag3(gws,cs,cps,0,0,NULL,dpri);
+    out = convert_PackAln_to_AlnBlock_EstFrag3(pal);
+    break;
+  default :
+    warn("No algorithm type specified. Not good news!");
+    goto exit;
+  }
+
+
+  if( palpoi != NULL) {
+    *palpoi = pal;
+  } else {
+    free_PackAln(pal);
+  }
+  
+  goto exit;
+
+
+  exit :
+    
+  if( cps != NULL ) 
+    free_cDNAParserScore(cps);
+  
+  if( gw != NULL )
+    free_GeneWise(gw);
+  
+  if( gws != NULL)
+    free_GeneWiseScore(gws);
+  
+  if( cs != NULL)
+    free_ComplexSequence(cs);
+
+  if( cses != NULL)
+    free_ComplexSequenceEvalSet(cses);
+  
+  return out;
+}
+
+
+%func
+Runs a database search for the estwise set
+of algorithms
+%arg
+tdb r a three state model database
+cdb r a dna sequence database
+cp  r the codon parser for this comparison
+cm  r the codon mapper for this comparison
+rmd r random model used for the dna sequence comparison
+use_syn whether a synchronous coding model should be used or not
+alg algorithm to use
+die_on_error if true, dies if there is an error
+return o a newly allocated Hscore structure of the search
+%%
+Hscore * Hscore_from_TSM_estwise(ThreeStateDB * tdb,cDNADB * cdb,cDNAParser * cp,CodonMapper * cm,RandomModelDNA * rmd,boolean use_syn,int alg,double bits_cutoff,Probability allN,boolean flat_insert,int report_level,boolean die_on_error,DBSearchImpl * dbsi)
+{
+  Hscore * out = NULL;
+  GeneWiseDB * gwdb;
+  cDNAParserScore * cps = NULL ;
+  GeneWiseQuickDB * gwq;
+
+  Search_Return_Type ret;
+  
+  ret = SEARCH_ERROR;
+
+  if( alg == ESTQUICK_3 && tdb->type != TSMDB_SINGLE ) {
+    warn("Can only currently use estquick in a single mode search");
+    return NULL;
+  }
+
+
+  gwdb = new_GeneWiseDB_cdna(tdb,cp,cm,rmd,use_syn,allN,flat_insert);
+  if( gwdb == NULL ) {
+    warn("Could not build a new GeneWiseDB from the objects provided. Exiting without completing the search");
+    goto exit;
+  }
+
+
+  if( (cps = cDNAParserScore_from_cDNAParser(cp)) == NULL ) {
+    warn("Unable to make cDNAParserScore in estwise wrap");
+    goto exit;
+  }
+
+  /*** allocate Hscore structure ***/
+
+  out = std_bits_Hscore(bits_cutoff,report_level);
+
+  switch(alg) {
+
+  case ESTWISE_3 :
+    ret = search_EstWise3(dbsi,out,gwdb,cdb,cps);
+    break;
+  case ESTSLIM_3 :
+    ret = search_EstSlim3(dbsi,out,gwdb,cdb,cps);
+    break;
+
+  case ESTQUICK_3 :
+    gwq = GeneWiseQuickDB_from_GeneWiseDB(gwdb);
+    ret = search_EstQuick3(dbsi,out,gwq,cdb,cps);
+    free_GeneWiseQuickDB(gwq);
+    break;
+  default :
+    warn("A major problem. No valid algorithm type passed in");
+    goto exit;
+  }
+
+  goto exit;
+
+
+  exit :
+  
+    if( gwdb != NULL ) {
+      free_GeneWiseDB(gwdb);
+    }
+    
+  if( cps != NULL ) 
+    free_cDNAParserScore(cps);
+
+   
+
+  return out;
+}
+
+%func
+writes an mul format protein multiple
+alignment from an AlnBlock with the first
+sequence an HMM/protein and ignored, and
+the second and subsequent sequences cdna sequences
+which are then translated into proteins
+
+This relies considerably on the alb being made
+correctly, and if it is not, then god help you.
+
+the estwisedb programs makes the alb correctly
+%%
+void write_mul_estwise_AlnBlock(AlnBlock * alb,CodonTable * ct,FILE * ofp)
+{
+  char namebuffer[128];
+  AlnSequence * als;
+  AlnUnit *ale;
+  AlnColumn * alc;
+  Sequence * seq;
+  int i;
+
+
+  assert(alb);
+  assert(ct);
+
+  for(i=1;i<alb->len;i++) {
+    als = alb->seq[i];
+    if( als->data == NULL ) {
+      warn("For sequence %d in the estwise alnblock, no attached sequence, and so cannot write. Skipping",i);
+      continue;
+    }
+
+    seq = (Sequence *) als->data; /* scared? I am! */
+    for(alc = alb->start,ale=NULL;alc->next != NULL;alc = alc->next)
+      if( strstr(alc->alu[i]->text_label,"CODON") != NULL ) {
+	ale = alc->alu[i];
+      }
+
+    if( ale == NULL ) {
+      warn("Unable to find even a codon matching this. Exiting for sequence %s in mul output",seq->name);
+      continue;
+    }
+
+    
+    /* fprintf(stdout,"Ale is %d-%d %s\n",ale->start,ale->end,ale->text_label);*/
+
+    if( is_reversed_Sequence(seq) )
+      sprintf(namebuffer,"%s/%d-%d",seq->name,ale->end,als->start->start+1);
+    else
+      sprintf(namebuffer,"%s/%d-%d",seq->name,als->start->start+2,ale->end+1);
+
+    fprintf(ofp,"%-30s ",namebuffer);
+    for(alc = alb->start;alc != NULL;alc = alc->next ) {
+      if( strstr(alc->alu[i]->text_label,"CODON") != NULL ) {
+	fputc(aminoacid_from_seq(ct,seq->seq+alc->alu[i]->start+1),ofp);
+      } else if( strstr(alc->alu[i]->text_label,"INSERT") != NULL ) {
+	fputc('-',ofp);
+      } else {
+	fputc('X',ofp);
+      }
+    }
+
+
+    fputc('\n',ofp);
+  }
+}
+
+%}
+
+
+
+
+
+
+
+
+
+

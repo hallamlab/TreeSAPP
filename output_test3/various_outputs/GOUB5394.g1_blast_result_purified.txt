@@ -1,0 +1,1 @@
+GOUB5394.g1	46	128	forward	16srRNA	126.0

@@ -1,0 +1,495 @@
+=head1 NAME
+
+sequencedb module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item SequenceDB
+
+=item FileSource
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object SequenceDB
+
+=over
+
+=item name
+
+ Type [char *] Scalar No documentation
+
+=item fs
+
+ Type [FileSource **] List No documentation
+
+=item current_source
+
+ Type [int] Scalar No documentation
+
+=item current_file
+
+ Type [FILE *] Scalar No documentation
+
+=item sequence_no
+
+ Type [int] Scalar No documentation
+
+=item byte_position
+
+ Type [int] Scalar No documentation
+
+=item has_warned_single
+
+ Type [int] Scalar No documentation
+
+=item seq_start
+
+ Type [int] Scalar No documentation
+
+=item seq_end
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+This is the basic Sequence database
+wrapper - it handles all the formats
+and the on-the-fly indexing.
+
+Generally it wont be directly used by
+an algorithm, which will be using something
+specific to the sequence type produce complex 
+sequence type objects: ie you will be using
+proteindb or cdnadb which internally
+will be using this object
+
+
+
+=head2 Member functions of SequenceDB
+
+=over
+
+=item close_SequenceDB
+
+&Wise2::SequenceDB::close_SequenceDB(last,sdb)
+
+  top level function that closes the SequenceDB
+  after the last sequence is read.
+
+
+
+  Argument last         [WRITE] Sequence object to be freed  [Sequence *]
+  Argument sdb          [READ ] database to be closed [SequenceDB *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item hard_link_SequenceDB
+
+&Wise2::SequenceDB::hard_link_SequenceDB(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [SequenceDB *]
+  Return [UNKN ] Undocumented return value [SequenceDB *]
+
+
+=item SequenceDB_alloc_std
+
+&Wise2::SequenceDB::SequenceDB_alloc_std(void)
+
+  Equivalent to SequenceDB_alloc_len(SequenceDBLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [SequenceDB *]
+
+
+=item set_name
+
+&Wise2::SequenceDB::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::SequenceDB::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Return [SOFT ] member variable name [char *]
+
+
+=item fs
+
+&Wise2::SequenceDB::fs(obj,i)
+
+  Access members stored in the fs list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [SequenceDB *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [FileSource *]
+
+
+=item length_fs
+
+&Wise2::SequenceDB::length_fs(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [SequenceDB *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_fs
+
+&Wise2::SequenceDB::flush_fs(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [SequenceDB *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_fs
+
+&Wise2::SequenceDB::add_fs(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [SequenceDB *]
+  Argument add          [OWNER] Object to add to the list [FileSource *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_current_source
+
+&Wise2::SequenceDB::set_current_source(obj,current_source)
+
+  Replace member variable current_source
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Argument current_source [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable current_source [boolean]
+
+
+=item current_source
+
+&Wise2::SequenceDB::current_source(obj)
+
+  Access member variable current_source
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Return [SOFT ] member variable current_source [int]
+
+
+=item set_current_file
+
+&Wise2::SequenceDB::set_current_file(obj,current_file)
+
+  Replace member variable current_file
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Argument current_file [OWNER] New value of the variable [FILE *]
+  Return [SOFT ] member variable current_file [boolean]
+
+
+=item current_file
+
+&Wise2::SequenceDB::current_file(obj)
+
+  Access member variable current_file
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Return [SOFT ] member variable current_file [FILE *]
+
+
+=item set_sequence_no
+
+&Wise2::SequenceDB::set_sequence_no(obj,sequence_no)
+
+  Replace member variable sequence_no
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Argument sequence_no  [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable sequence_no [boolean]
+
+
+=item sequence_no
+
+&Wise2::SequenceDB::sequence_no(obj)
+
+  Access member variable sequence_no
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Return [SOFT ] member variable sequence_no [int]
+
+
+=item set_byte_position
+
+&Wise2::SequenceDB::set_byte_position(obj,byte_position)
+
+  Replace member variable byte_position
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Argument byte_position [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable byte_position [boolean]
+
+
+=item byte_position
+
+&Wise2::SequenceDB::byte_position(obj)
+
+  Access member variable byte_position
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [SequenceDB *]
+  Return [SOFT ] member variable byte_position [int]
+
+
+=back
+
+=head2 Object FileSource
+
+=over
+
+=item filename
+
+ Type [char *] Scalar No documentation
+
+=item input
+
+ Type [FILE *] Scalar  could be stdin! 
+
+=item format
+
+ Type [int] Scalar No documentation
+
+=item type
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+This object represents a single
+file source for a database. At
+the moment only multiple fasta
+files are catered for
+
+
+
+=head2 Member functions of FileSource
+
+=over
+
+=item hard_link_FileSource
+
+&Wise2::FileSource::hard_link_FileSource(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [FileSource *]
+  Return [UNKN ] Undocumented return value [FileSource *]
+
+
+=item alloc
+
+&Wise2::FileSource::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [FileSource *]
+
+
+=item set_filename
+
+&Wise2::FileSource::set_filename(obj,filename)
+
+  Replace member variable filename
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [FileSource *]
+  Argument filename     [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable filename [boolean]
+
+
+=item filename
+
+&Wise2::FileSource::filename(obj)
+
+  Access member variable filename
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [FileSource *]
+  Return [SOFT ] member variable filename [char *]
+
+
+=item set_input
+
+&Wise2::FileSource::set_input(obj,input)
+
+  Replace member variable input
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [FileSource *]
+  Argument input        [OWNER] New value of the variable [FILE *]
+  Return [SOFT ] member variable input [boolean]
+
+
+=item input
+
+&Wise2::FileSource::input(obj)
+
+  Access member variable input
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [FileSource *]
+  Return [SOFT ] member variable input [FILE *]
+
+
+=item set_format
+
+&Wise2::FileSource::set_format(obj,format)
+
+  Replace member variable format
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [FileSource *]
+  Argument format       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable format [boolean]
+
+
+=item format
+
+&Wise2::FileSource::format(obj)
+
+  Access member variable format
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [FileSource *]
+  Return [SOFT ] member variable format [int]
+
+
+=item set_type
+
+&Wise2::FileSource::set_type(obj,type)
+
+  Replace member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [FileSource *]
+  Argument type         [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable type [boolean]
+
+
+=item type
+
+&Wise2::FileSource::type(obj)
+
+  Access member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [FileSource *]
+  Return [SOFT ] member variable type [int]
+
+
+=back
+
+=over
+
+=item single_fasta_SequenceDB
+
+&Wise2::single_fasta_SequenceDB(filename)
+
+  pre-packed single fasta file db
+
+
+
+
+  Argument filename     [UNKN ] name of fastadb [char *]
+  Return [UNKN ] Undocumented return value [SequenceDB *]
+
+
+=back
+

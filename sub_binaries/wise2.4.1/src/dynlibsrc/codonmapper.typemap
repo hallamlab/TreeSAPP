@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_CodonMapper *    T_Wise2_CodonMapper
+
+INPUT
+T_Wise2_CodonMapper
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_CodonMapper *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_CodonMapper
+	sv_setref_pv($arg, "Wise2::CodonMapper", (void*) $var);

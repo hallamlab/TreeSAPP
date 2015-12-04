@@ -1,0 +1,491 @@
+
+
+
+
+%{
+#include "dyna.h"
+
+#define GeneLISTLENGTH 16
+
+%}
+
+api
+object Gene
+des free_Gene
+func get_Genomic_from_Gene
+func show_pretty_Gene
+endobject
+endapi
+
+friend GenomicRegion
+friend Transcript
+
+struct Gene
+int start
+int end
+GenomicRegion * parent !link // may not be here
+Genomic * genomic      // may not be here!
+Transcript ** transcript !list
+char * name    // ugly . Need a better system
+double bits    // ditto...
+char * seqname // very bad! this is for keeping track of what sequence was used to make the gene
+boolean ispseudo !def="FALSE" // is a pseudogene or not
+%info
+Gene is the datastructure which represents a single
+gene. At the moment this is considered to be a series
+of transcripts (the first transcript being "canonical")
+which are made from a certain start/stop region in
+genomic DNA.
+
+The gene datastructure does not necessarily contain
+any DNA sequence. When someone askes for the gene sequence,
+via get_Genomic_from_Gene(), it first sees if there
+is anything in the Genomic * 'cache'. If this is null,
+it then looks at parent (the genomic region), and if
+that is null, complains and returns null. Otherwise it
+truncates its parent's dna in the correct way, places
+the data structure into the genomic * cache, and returns
+it.
+
+The name, bits and seqname have put into this datastructure
+for convience of carrying around this information into some
+of the gene prediction output formats. Probabaly
+  o they should be in transcript, not gene
+  o they shouldn't be here at all.
+
+<sigh>
+%%
+
+%{
+#include "gene.h"
+
+
+%func
+is this gene reversed?
+%simple reversed
+%%
+boolean reversed_Gene(Gene * g)
+{
+  if( g->start < g->end ) 
+    return FALSE;
+  return TRUE;
+}
+
+%func
+Makes a completely fresh copy of a
+gene
+%%
+Gene * copy_Gene(Gene * g)
+{
+  int i;
+  Gene * out;
+
+  out = Gene_alloc();
+  for(i=0;i<g->len;i++)
+    add_Gene(out,copy_Transcript(g->transcript[i]));
+
+  return out;
+}
+
+%func
+Does this gene have 
+	a single transcript
+	that transcript with translation start/end 
+	at the ends
+%%
+boolean is_simple_prediction_Gene(Gene * g)
+{
+  if( g->len > 1 ) 
+    return FALSE;
+  if( g->transcript[0]->len > 1 ) 
+    return FALSE;
+  if( g->transcript[0]->translation[0]->start != 0 || g->transcript[0]->translation[0]->end != length_Transcript(g->transcript[0]) )
+    return FALSE;
+  
+  return TRUE;
+}
+
+
+      
+%func
+Gives back a Genomic sequence type
+from a gene.
+%arg
+gene r gene to get Genomic from
+return s Genomic DNA data structure
+%%
+Genomic * get_Genomic_from_Gene(Gene * gene)
+{
+  Genomic * gn;
+  char buffer[64];
+
+  /*  fprintf(stdout,"Getting genomic...\n"); */
+  if( gene->genomic != NULL )
+    return gene->genomic;
+
+  if( gene->parent == NULL ) {
+    warn("Cannot get Gene, as no parent genomic region!");
+    return NULL;
+  }
+
+
+  gn = get_Genomic_from_GenomicRegion(gene->parent);
+
+  if( gn == NULL) {
+    warn("Cannot get Gene, as no sequence in genomic region!");
+    return NULL;
+  }
+
+  if( gn->baseseq->offset < gn->baseseq->end) {
+    if( gene->start > gene->end ) 
+      gene->genomic = truncate_Genomic(gn,gene->start-gn->baseseq->offset+2,gene->end-gn->baseseq->offset+2);
+    else 
+      gene->genomic = truncate_Genomic(gn,gene->start-gn->baseseq->offset+1,gene->end-gn->baseseq->offset+1);
+  }
+  else {
+    gene->genomic = truncate_Genomic(gn,gn->baseseq->offset-1 - gene->start,gn->baseseq->offset-1 - gene->end);
+  }
+
+  sprintf(buffer,"%s.[%d:%d]",Genomic_name(gn),gene->start+1,gene->end);
+  ckfree(gene->genomic->baseseq->name);
+  gene->genomic->baseseq->name = stringalloc(buffer);
+
+
+  return gene->genomic;
+}
+
+#define MAX_EMBL_EXON_PARSE 128
+%func
+Reads in an EMBL feature table.
+
+It expects to be passed a buffer with 'FT   CDS'.
+or 'FT   mRNA' in it. It will then 
+use the buffer to read successive lines of the Feature table
+until it comes to the next 'meta' feature line (ie, 3 place point).
+
+It will use functions in /embl module for the reading.
+%arg
+buffer a string with FT  CDS line in it
+maxlen length of the buffer
+ifp file stream with the rest of the feature table in it
+%%
+Gene * read_EMBL_feature_Gene(char * buffer,int maxlen,FILE * ifp)
+{
+  Gene * gene;
+  Transcript * tr;
+  Translation * ts;
+  Exon * exon;
+
+  char * runner;
+  char * base;
+  char * next;
+  int i;
+  int exon_start[MAX_EMBL_EXON_PARSE];
+  int exon_end[MAX_EMBL_EXON_PARSE];
+  int number;
+  int exon_no = 0;
+  int isstart = 1;
+  int is_complement = 0;
+  int is_cds = 0;
+  int break_at_end = 0;
+
+  if( strstartcmp(buffer,"FT") != 0 ) {
+    warn("passed in a bad line [%s] to be used for feature table parsing",buffer);
+    return NULL;
+  }
+
+  if( (runner=strtok(buffer+2,spacestr)) == NULL ) {
+    warn("Bad embl feature line [%s]",buffer);
+    return NULL;
+  }
+
+  if( strcmp(runner,"CDS") != 0 && strcmp(runner,"mRNA") != 0 ) {
+    warn("passed in a feature line to read_EMBL_feature_Gene with a %s tag. This only handles CDS and mRNA tags",runner);
+    return NULL;
+  }
+
+  if( strcmp(runner,"CDS") == 0 ) {
+    is_cds = TRUE;
+  }
+
+  runner = strtok(NULL,spacestr);
+
+  if( runner == NULL ) {
+    warn("Bad embl feature line [%s]",buffer);
+    return NULL;
+  }
+
+  if( strstartcmp(runner,"complement") == 0 ) {
+    runner = strchr(runner,'(');
+    if( runner == NULL) {
+      warn("Could not find bracket on EMBL feature complement line");
+      return NULL;
+    }
+    is_complement = 1;
+    runner++;
+  }
+
+
+  if( strstartcmp(runner,"join") == 0 ) {
+    runner = strchr(runner,'(');
+    runner++;
+  } else if( isdigit((int)*runner)  || *runner == '<' ) {
+    /** ok - starts with the numbers. We'll cope!**/
+  } else {
+    warn("Expecting a join statement, got a [%s]",runner);
+    return NULL;
+  }
+
+  
+  /*** ok, now the major number loop ***/
+
+  for(;;) {
+    base= runner;
+    for(;*runner && *runner != ')' && *runner != '.' && *runner != ',' && *runner != '>' && !isspace((int)*runner);runner++) 
+      ;
+
+    /*fprintf(stderr,"Got a runner of %s\n ",runner); */
+    if( *runner == '\0' )
+      next = runner;
+    else next = runner+1;
+
+    if( *runner == ')' ) {
+      break_at_end = TRUE; /* out of reading exons */
+    }
+
+    
+    *runner='\0';
+    if( strstartcmp(base,"complement(") == 0 ) {
+      is_complement = TRUE;
+      for(;*base != '(';base++) 
+	;
+      base++;
+      break_at_end = FALSE; /* we found an bracket too early! */
+    }
+
+    if( is_integer_string(base,&number) == FALSE ) {
+      warn("Got a non integer [%s] in the middle of a join statement in EMBL parsing",runner);
+      return NULL;
+    }
+
+    /** put this number away **/
+
+    if( isstart ) {
+      exon_start[exon_no] = number;
+      isstart = 0;
+    } else {
+      exon_end[exon_no++] = number;
+      isstart = 1;
+    }
+    if( break_at_end == TRUE)
+      break;
+
+    for(runner=next;*runner && (*runner == '.' || isspace((int)*runner));runner++)
+      ;
+
+    if( *runner == '\0' ) {
+      if( next_feature_tab_line(buffer,maxlen,ifp) == FALSE) {
+	warn("In the middle of getting a join statement, got a [%s]. Yuk!",buffer);
+	return NULL;
+      }
+
+      if( !isdigit((int)buffer[0]) && buffer[0] != '.' && buffer[0] != ',') {
+	/*** ok - sometimes people very boring end things in here ***/
+	/* warn("In the middle of getting a join statement, got a [%s]. Ugh!",buffer); */
+	break;
+      }
+
+      runner = buffer;
+    }
+
+  }
+
+  if( isstart == 0 ) {
+    warn("I have read an uneven number of start-end points in the exon thing. Yuk!");
+    return NULL;
+  }
+
+  /** runner should now be on bracket **/
+
+  if( is_complement == 1 ) {
+    /** ok . should be another bracket. Do we care? **/
+  }
+
+  gene = Gene_alloc_len(1);
+  tr  = Transcript_alloc_len(exon_no);
+  add_Gene(gene,tr);
+  tr->parent = gene;
+
+  if( is_complement == 1 ) {
+    gene->start = exon_end[exon_no-1]-1;
+    gene->end = exon_start[0] -1;
+
+    for(i=exon_no -1;i >= 0;i--) {
+      exon = Exon_alloc();
+      exon->start = (gene->start+1) - exon_end[i];
+      exon->end = (gene->start+1) - exon_start[i] +1;
+      add_ex_Transcript(tr,exon);
+    }
+  } else {
+    gene->start = exon_start[0] -1;
+    gene->end = exon_end[exon_no-1] -1;
+
+    for(i=0;i<exon_no;i++) {
+      exon = Exon_alloc();
+      exon->start = exon_start[i] - (gene->start+1);
+      exon->end = exon_end[i] - (gene->start+1)+1;
+      add_ex_Transcript(tr,exon);
+    }
+  }
+
+  if( is_cds == TRUE ) {
+    ts = Translation_alloc();
+    ts->start = 0;
+    ts->end = length_Transcript(tr);
+    ts->parent = tr;
+    add_Transcript(tr,ts);
+  }
+
+  /*** read the rest of this feature ***/
+
+  while( next_feature_tab_line(buffer,maxlen,ifp) == TRUE)
+    ;
+
+  return gene;
+
+}
+
+%func
+shows a embl feature table part
+%%
+void write_Embl_FT_Gene(Gene * ge,char * key,FILE * ofp)
+{
+  int i;
+  Transcript * tr;
+  int j;
+
+
+  if( ge->start > ge->end ) {
+    for(i=0;i<ge->len;i++) {
+      tr = ge->transcript[i];
+      if( tr->ex_len > 1 ) {
+	fprintf(ofp,"FT   %10s    complement(join(",key);
+      } else {
+	fprintf(ofp,"FT   %10s    complement(",key);
+      }
+      for(j=0;j<tr->ex_len;j++) {
+	fprintf(ofp,"%d..%d%s",ge->start+1 - tr->exon[j]->start,ge->start - tr->exon[j]->end+2,j+1 == tr->ex_len ? "" : ",");
+	if( j != 0 && j+1 != tr->ex_len && (j%3) == 0 ) {
+	  fprintf(ofp,"\nFT                    ");
+	}
+	
+      } /* end of for over exons */
+      if( tr->ex_len > 1 ) {
+	fprintf(ofp,"))\n");
+      } else {
+	fprintf(ofp,")\n");
+      }
+    }
+  } else {
+    for(i=0;i<ge->len;i++) {
+      tr = ge->transcript[i];
+      if( tr->ex_len > 1 ) {
+	fprintf(ofp,"FT   %10s    join(",key);
+      } else {
+	fprintf(ofp,"FT   %10s    ",key);
+      }
+      for(j=0;j<tr->ex_len;j++) {
+	  fprintf(ofp,"%d..%d%s",tr->exon[j]->start+ge->start+1,tr->exon[j]->end+ge->start,j+1 == tr->ex_len ? "" : ",");
+	  if( j != 0 && j+1 != tr->ex_len && (j%3) == 0 ) {
+	    fprintf(ofp,"\nFT                   ");
+	  }
+      }
+    }
+    if( tr->ex_len > 1 ) {
+      fprintf(ofp,")\n");
+    } else {
+      fprintf(ofp,"\n");
+    }
+  }
+
+}
+  
+%func
+Shows a gene in the biologically accepted form
+%%
+void show_pretty_Gene(Gene * ge,boolean show_supporting,FILE * ofp)
+{
+  int i;
+  int j;
+  int k;
+
+  if( ge->start > ge->end ) {
+    fprintf(ofp,"Gene %d %d%s\n",ge->start+1,ge->end+2,ge->ispseudo == TRUE ? " [pseudogene]" : "");
+    for(i=0;i<ge->len;i++) {
+      auto Transcript * tr;
+      if( ge->len != 1 ) {
+	fprintf(ofp," Transcript %d\n",i);
+      }
+      tr = ge->transcript[i];
+      for(j=0;j<tr->ex_len;j++) {
+	fprintf(ofp,"  Exon %d %d phase %d\n",ge->start+1 - tr->exon[j]->start,ge->start - tr->exon[j]->end+2,tr->exon[j]->phase);
+	if( show_supporting ) {
+	  auto Exon * ex;
+	  ex = tr->exon[j];
+	  for(k=0;k<tr->exon[j]->len;k++) {
+	    fprintf(ofp,"     Supporting %d %d %d %d\n",ge->start+1 - ex->sf[k]->start,ge->start - ex->sf[k]->end+2,ex->sf[k]->hstart+1,ex->sf[k]->hend);
+	  }
+	}
+      }
+    }
+  } else {
+    fprintf(ofp,"Gene %d %d %s\n",ge->start+1,ge->end,ge->ispseudo == TRUE ? "[pseudogene]" : "");
+    for(i=0;i<ge->len;i++) {
+      auto Transcript * tr;
+      if( ge->len != 1 ) {
+	fprintf(ofp," Transcript %d\n",i);
+      }
+      tr = ge->transcript[i];
+      for(j=0;j<tr->ex_len;j++) {
+	fprintf(ofp,"  Exon %d %d phase %d\n",tr->exon[j]->start+ge->start+1,
+		tr->exon[j]->end+ge->start,tr->exon[j]->phase);
+
+	if( show_supporting ) {
+	  auto Exon * ex;
+	  ex = tr->exon[j];
+	  for(k=0;k<tr->exon[j]->len;k++) {
+	    fprintf(ofp,"     Supporting %d %d %d %d\n",ge->start+1+ex->sf[k]->start,ge->start+ex->sf[k]->end,ex->sf[k]->hstart+1,ex->sf[k]->hend);
+	  }
+	}
+      }
+    }
+  } 
+
+}
+
+%func
+shows a gene in a vaguely human readable form
+%%
+void show_Gene(Gene * ge,FILE * ofp)
+{
+  int i;
+
+  fprintf(ofp,"Gene %d - %d\n",ge->start,ge->end);
+  for(i=0;i<ge->len;i++) {
+    fprintf(ofp,"Transcript %d\n",i);
+    show_Transcript(ge->transcript[i],ofp);
+  }
+
+}
+
+%}
+
+
+
+
+
+
+
+
+
+

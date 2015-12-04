@@ -1,0 +1,409 @@
+=head1 NAME
+
+randomdb module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item RandomProteinDB
+
+=item RandomDNADB
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object RandomProteinDB
+
+=over
+
+=item use_flat_length
+
+ Type [boolean] Scalar No documentation
+
+=item length
+
+ Type [int] Scalar No documentation
+
+=item length_dist
+
+ Type [Histogram *] Scalar No documentation
+
+=item emission
+
+ Type [RandomModel *] Scalar No documentation
+
+=item num
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+No documentation for RandomProteinDB
+
+=head2 Member functions of RandomProteinDB
+
+=over
+
+=item hard_link_RandomProteinDB
+
+&Wise2::RandomProteinDB::hard_link_RandomProteinDB(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [RandomProteinDB *]
+  Return [UNKN ] Undocumented return value [RandomProteinDB *]
+
+
+=item alloc
+
+&Wise2::RandomProteinDB::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [RandomProteinDB *]
+
+
+=item set_use_flat_length
+
+&Wise2::RandomProteinDB::set_use_flat_length(obj,use_flat_length)
+
+  Replace member variable use_flat_length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Argument use_flat_length [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable use_flat_length [boolean]
+
+
+=item use_flat_length
+
+&Wise2::RandomProteinDB::use_flat_length(obj)
+
+  Access member variable use_flat_length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Return [SOFT ] member variable use_flat_length [boolean]
+
+
+=item set_length
+
+&Wise2::RandomProteinDB::set_length(obj,length)
+
+  Replace member variable length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Argument length       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable length [boolean]
+
+
+=item length
+
+&Wise2::RandomProteinDB::length(obj)
+
+  Access member variable length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Return [SOFT ] member variable length [int]
+
+
+=item set_length_dist
+
+&Wise2::RandomProteinDB::set_length_dist(obj,length_dist)
+
+  Replace member variable length_dist
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Argument length_dist  [OWNER] New value of the variable [Histogram *]
+  Return [SOFT ] member variable length_dist [boolean]
+
+
+=item length_dist
+
+&Wise2::RandomProteinDB::length_dist(obj)
+
+  Access member variable length_dist
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Return [SOFT ] member variable length_dist [Histogram *]
+
+
+=item set_emission
+
+&Wise2::RandomProteinDB::set_emission(obj,emission)
+
+  Replace member variable emission
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Argument emission     [OWNER] New value of the variable [RandomModel *]
+  Return [SOFT ] member variable emission [boolean]
+
+
+=item emission
+
+&Wise2::RandomProteinDB::emission(obj)
+
+  Access member variable emission
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Return [SOFT ] member variable emission [RandomModel *]
+
+
+=item set_num
+
+&Wise2::RandomProteinDB::set_num(obj,num)
+
+  Replace member variable num
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Argument num          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable num [boolean]
+
+
+=item num
+
+&Wise2::RandomProteinDB::num(obj)
+
+  Access member variable num
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomProteinDB *]
+  Return [SOFT ] member variable num [int]
+
+
+=back
+
+=head2 Object RandomDNADB
+
+=over
+
+=item use_flat_length
+
+ Type [boolean] Scalar No documentation
+
+=item length
+
+ Type [int] Scalar No documentation
+
+=item length_dist
+
+ Type [Histogram *] Scalar No documentation
+
+=item emission
+
+ Type [RandomModelDNA *] Scalar No documentation
+
+=item num
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+No documentation for RandomDNADB
+
+=head2 Member functions of RandomDNADB
+
+=over
+
+=item hard_link_RandomDNADB
+
+&Wise2::RandomDNADB::hard_link_RandomDNADB(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [RandomDNADB *]
+  Return [UNKN ] Undocumented return value [RandomDNADB *]
+
+
+=item alloc
+
+&Wise2::RandomDNADB::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [RandomDNADB *]
+
+
+=item set_use_flat_length
+
+&Wise2::RandomDNADB::set_use_flat_length(obj,use_flat_length)
+
+  Replace member variable use_flat_length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Argument use_flat_length [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable use_flat_length [boolean]
+
+
+=item use_flat_length
+
+&Wise2::RandomDNADB::use_flat_length(obj)
+
+  Access member variable use_flat_length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Return [SOFT ] member variable use_flat_length [boolean]
+
+
+=item set_length
+
+&Wise2::RandomDNADB::set_length(obj,length)
+
+  Replace member variable length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Argument length       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable length [boolean]
+
+
+=item length
+
+&Wise2::RandomDNADB::length(obj)
+
+  Access member variable length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Return [SOFT ] member variable length [int]
+
+
+=item set_length_dist
+
+&Wise2::RandomDNADB::set_length_dist(obj,length_dist)
+
+  Replace member variable length_dist
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Argument length_dist  [OWNER] New value of the variable [Histogram *]
+  Return [SOFT ] member variable length_dist [boolean]
+
+
+=item length_dist
+
+&Wise2::RandomDNADB::length_dist(obj)
+
+  Access member variable length_dist
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Return [SOFT ] member variable length_dist [Histogram *]
+
+
+=item set_emission
+
+&Wise2::RandomDNADB::set_emission(obj,emission)
+
+  Replace member variable emission
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Argument emission     [OWNER] New value of the variable [RandomModelDNA *]
+  Return [SOFT ] member variable emission [boolean]
+
+
+=item emission
+
+&Wise2::RandomDNADB::emission(obj)
+
+  Access member variable emission
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Return [SOFT ] member variable emission [RandomModelDNA *]
+
+
+=item set_num
+
+&Wise2::RandomDNADB::set_num(obj,num)
+
+  Replace member variable num
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Argument num          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable num [boolean]
+
+
+=item num
+
+&Wise2::RandomDNADB::num(obj)
+
+  Access member variable num
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomDNADB *]
+  Return [SOFT ] member variable num [int]
+
+
+=back
+

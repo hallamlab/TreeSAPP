@@ -1,0 +1,353 @@
+
+%{
+#include "wisebase.h"
+#include <glib.h>
+
+typedef union int_allocator_header {
+  struct  {
+    union int_allocator_header * next; /* when free */
+  }s ;
+  int dummy; /* to ensure alignment */
+} IntAllocatorHeader; 
+
+#define IntAllocator_BLOCKSIZE  512
+#define IntAllocator_MEMORY_BLOCK_SIZE 512
+
+/*
+ #define IntAllocator_PARANOIA 1
+*/
+
+%}
+
+
+struct IntAllocator
+int size
+IntAllocatorHeader * start_of_free !def="NULL" !link
+void ** allocated_blocks  !link
+int max_allocated_blocks 
+int current_allocated_block
+
+
+struct IntAllocatorSet
+IntAllocator ** allocator_set
+int max_size
+
+
+%{
+#include "intallocator.h"
+
+
+%func
+Makes a new IntAllocatorSet up to a certain size
+%%
+IntAllocatorSet * new_IntAllocatorSet(int max_size)
+{
+  IntAllocatorSet * out;
+
+
+  out = IntAllocatorSet_alloc();
+
+  out->allocator_set = calloc(max_size,sizeof(IntAllocator*));
+  out->max_size = max_size;
+  
+  return out;
+
+}
+
+%func
+reallocates a piece of memory
+%%
+int * realloc_intarray_IntAllocatorSet(IntAllocatorSet * ias,int * current,int old_size,int new_size)
+{
+  int i;
+  int * new_a;
+
+  assert(ias);
+  assert(new_size > old_size);
+
+  new_a = alloc_intarray_IntAllocatorSet(ias,new_size);
+  assert(new_a);
+
+  for(i=0;i<old_size;i++) 
+    new_a[i] = current[i];
+
+  free_intarray_IntAllocatorSet(ias,current,old_size);
+
+  return new_a;
+
+}
+
+%func
+Frees a piece of memory in a IntAllocatorSet
+%%
+void free_intarray_IntAllocatorSet(IntAllocatorSet * ias,int * array,int size)
+{
+  assert(ias);
+  assert(array);
+
+  if( size > ias->max_size ) {
+    return free(array);
+  }
+
+  assert(ias->allocator_set[size]);
+
+  return free_intarray_IntAllocator(ias->allocator_set[size],array);
+}
+
+
+%func
+Allocates a new piece of memory in a IntAllocatorSet
+%%
+int * alloc_intarray_IntAllocatorSet(IntAllocatorSet * ias,int size)
+{
+  assert(ias);
+  if( size > ias->max_size ) {
+    return (int*)calloc(size,sizeof(int));
+  }
+
+  if( ias->allocator_set[size] == NULL ) {
+    ias->allocator_set[size] = new_IntAllocator(size);
+  }
+
+  return alloc_intarray_IntAllocator(ias->allocator_set[size]);
+
+}
+
+
+%func
+Makes a new int allocator
+%%
+IntAllocator * new_IntAllocator(int size)
+{
+  IntAllocator * out;
+
+#ifdef IntAllocator_PARANOIA 
+  warn("IntAllocator in paranoia mode. Will perform horrendously slowly due to cycle checking");
+#endif
+
+  out = IntAllocator_alloc();
+  out->size = size;
+  out->start_of_free = NULL;
+  out->allocated_blocks = NULL;
+  out->max_allocated_blocks = 0;
+  out->current_allocated_block = 0;
+
+  return out;
+}
+
+#ifdef IntAllocator_PARANOIA
+
+%func
+Detect cycle
+%%
+boolean is_acyclic_IntAllocator(IntAllocator * ia)
+{
+  GHashTable * gh;
+  IntAllocatorHeader * h;
+  int count;
+
+  int dummy;
+
+  assert(ia);
+
+  gh = g_hash_table_new(g_direct_hash,g_direct_equal);
+
+  count = 0;
+  for(h = ia->start_of_free;h != NULL;h = h->s.next) {
+    if( g_hash_table_lookup(gh,(gconstpointer)h) != NULL ) {
+      warn("Found cycle at memory position %d, count %d",h,count);
+      return FALSE;
+    } else {
+      g_hash_table_insert(gh,(gpointer)h,&dummy);
+      count++;
+    }
+  }
+
+  g_hash_table_destroy(gh);
+
+  return TRUE;
+
+}
+
+#endif
+
+
+%func
+Show status of intallocator set
+%%
+void show_allocator_status_IntAllocatorSet(IntAllocatorSet * ias,FILE * ofp)
+{
+  int i;
+  int count;
+  IntAllocatorHeader * h;
+  IntAllocator * ia;
+  int mem;
+  long total = 0;
+
+
+
+  for(i=0;i<ias->max_size;i++) {
+    if( ias->allocator_set[i] == NULL ) {
+      fprintf(ofp,"[%4d] No allocator\n",i);
+    } else {
+      ia = ias->allocator_set[i];
+      for(h = ia->start_of_free,count =0;h != NULL;h = h->s.next) {
+	count++;
+      }
+      mem = ia->current_allocated_block * (sizeof(IntAllocatorHeader)+(sizeof(int)*ia->size)) * IntAllocator_BLOCKSIZE;
+      total += mem;
+      fprintf(ofp,"[%4d] %d allocated, %d free, total bytes %d\n",i,ia->current_allocated_block*IntAllocator_BLOCKSIZE,count,mem);
+      
+    }
+  }
+
+  fprintf(ofp,"In total, %ld bytes allocated\n",total);
+
+}
+
+%func
+Shows allocator status
+%%
+void show_allocator_status_IntAllocator(IntAllocator * ia,FILE * ofp)
+{
+  int count = 0;
+  IntAllocatorHeader * h;
+
+  fprintf(ofp,"%d blocks allocated, using %ld bytes\n",ia->current_allocated_block,ia->current_allocated_block * (sizeof(IntAllocatorHeader)+(sizeof(int)*ia->size)) * IntAllocator_BLOCKSIZE);
+
+  for(h = ia->start_of_free;h != NULL;h = h->s.next) {
+    count++;
+  }
+
+  fprintf(ofp,"%d units free, %.2f %% occupancy\n",count,(count*100.0)/(ia->current_allocated_block * IntAllocator_BLOCKSIZE));
+}
+
+%func
+returns an integer back to the pool. NOTE:
+This integer * must have come from the pool otherwise
+there is going to be a disaster...
+%%
+void free_intarray_IntAllocator(IntAllocator * ia,int * array)
+{
+  char * runner;
+  IntAllocatorHeader * h;
+
+  assert(ia);
+  assert(array);
+
+  runner = (char*) array;
+  runner = runner - sizeof(IntAllocatorHeader);
+
+  h = (IntAllocatorHeader*) runner;
+
+  h->s.next = ia->start_of_free;
+  ia->start_of_free = h;
+
+#ifdef IntAllocator_PARANOIA
+  if( is_acyclic_IntAllocator(ia) == FALSE ) {
+    fatal("cycle detected on freeing block for %d position",h);
+  }
+#endif
+
+  return;
+
+}
+
+%func
+returns an integer * from this allocator
+%%
+int * alloc_intarray_IntAllocator(IntAllocator * ia)
+{
+  IntAllocatorHeader * h;
+  char * runner;
+
+  assert(ia);
+
+  if( ia->start_of_free == NULL ) {
+    ia->start_of_free = allocate_new_block_IntAllocator(ia);
+  }
+
+#ifdef IntAllocator_PARANOIA
+  if( is_acyclic_IntAllocator(ia) == FALSE ) {
+    fatal("cycle detected on allocating new block");
+  }
+#endif
+
+
+  h = ia->start_of_free;
+  ia->start_of_free = h->s.next;
+
+#ifdef IntAllocator_PARANOIA
+  if( is_acyclic_IntAllocator(ia) == FALSE ) {
+    fatal("cycle detected on returning new block");
+  }
+#endif
+
+  runner = (char*) h;
+  runner = runner + sizeof(IntAllocatorHeader);
+
+  return (int*) runner;
+}
+
+%func
+internal function to allocate and segment
+a block read for use, storing the memory
+and segmenting it correctly. Returned pointer
+is the first header block
+%%
+IntAllocatorHeader * allocate_new_block_IntAllocator(IntAllocator * ia)
+{
+  int i;
+  int step_size;
+  char * new_block;
+  IntAllocatorHeader * h;
+  char * runner;
+
+  assert(ia);
+
+  step_size = sizeof(IntAllocatorHeader)+(sizeof(int)*ia->size);
+  new_block = calloc(IntAllocator_BLOCKSIZE,step_size);
+
+  add_new_block_to_memory_handlers_IA(ia,new_block);
+
+  for(i=0;i<IntAllocator_BLOCKSIZE;i++) {
+    runner = new_block+(i*step_size); /* in bytes first */
+    h = (IntAllocatorHeader*) runner;
+
+    if( i+1 < IntAllocator_BLOCKSIZE ) {
+      runner = new_block+((i+1)*step_size);
+      h->s.next = (IntAllocatorHeader*) runner;
+    } else {
+      /* last one */
+      h->s.next = NULL;
+    }
+  }
+
+
+  return (IntAllocatorHeader*) new_block;
+}
+
+%func
+internal function to ensure new block is added, with growth of block array
+if needed
+%%
+void add_new_block_to_memory_handlers_IA(IntAllocator * ia,void * new_block)
+{
+  assert(ia);
+  assert(new_block);
+
+  if( ia->allocated_blocks == NULL ) {
+    ia->allocated_blocks = calloc(IntAllocator_MEMORY_BLOCK_SIZE,sizeof(void*));
+    ia->max_allocated_blocks = IntAllocator_MEMORY_BLOCK_SIZE;
+    ia->current_allocated_block = 0;
+  } else if( ia->current_allocated_block >= ia->max_allocated_blocks ) {
+    ia->allocated_blocks = realloc(ia->allocated_blocks,(ia->max_allocated_blocks+IntAllocator_MEMORY_BLOCK_SIZE)*sizeof(void*));
+    ia->max_allocated_blocks = (ia->max_allocated_blocks+IntAllocator_MEMORY_BLOCK_SIZE);
+  }
+      
+  ia->allocated_blocks[ia->current_allocated_block++] = new_block;
+
+  return;
+}
+
+%}

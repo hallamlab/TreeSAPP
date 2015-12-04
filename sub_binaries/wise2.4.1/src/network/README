@@ -1,0 +1,9 @@
+
+The network directory contains the main functions
+and interfaces that can draw information across
+all of the socket, dynlibsrc and model code
+to produce network servers and client interfaces
+
+
+Low level socket and marshalling framework is 
+provided by the socket directory

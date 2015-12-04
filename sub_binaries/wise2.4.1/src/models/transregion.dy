@@ -1,0 +1,331 @@
+
+%{
+#include "transfactor.h"
+#include "transregiondp.h"
+
+#define TransFactorRegionLISTLENGTH 128
+#define TransFactorRegionSetLISTLENGTH 128
+
+#define TRANSREGION_PARA_DP 93
+#define TRANSREGION_PARA_WINDOW 94
+
+
+
+%}
+
+
+struct TransFactorRegion
+int start
+int end
+TransFactorMatch ** match !list
+double density
+double bits_score
+
+
+struct TransFactorRegionSet 
+TransFactorRegion ** region !list
+Sequence * target
+
+struct TransFactorRegionPara
+int type !def="TRANSREGION_PARA_DP"
+double min_density !def="0.3"
+int min_window !def="60"
+double in_region_prob !def="0.35"
+double out_region_prob !def="0.2"
+double in_cost !def="0.000001"
+int hmm_min_window !def="60"
+double gc_region_ratio !def="1.5"
+
+%{
+#include "transregion.h"
+
+void show_help_TransFactorRegionPara(FILE * ofp)
+{
+  fprintf(ofp,"TransFactor Region parameters\n");
+  fprintf(ofp,"  -tf_convert [hmm/window] use HMM or window for conversion, default HMM\n");
+  fprintf(ofp,"  -tf_density [0.2] minimum density of bases in a cluster for window\n");
+  fprintf(ofp,"  -tf_window  [60]  minimum window size of region\n");
+  fprintf(ofp,"  -tf_inprob  [0.35] probability of a covered base in a region for HMM\n");
+  fprintf(ofp,"  -tf_outprob [0.2]  probability of a covered base outside a region for HMM\n");
+  fprintf(ofp,"  -tf_entry   [0.000001] probablity of entering a region\n");
+  fprintf(ofp,"  -tf_hmm_window [60] minimum window for HMM\n");
+  fprintf(ofp,"  -tf_gc_region  [1.5] Expected ration of GC dinucleotides in regions vs out\n");
+
+  return;
+}
+
+TransFactorRegionPara * new_TransFactorRegionPara_from_argv(int * argc,char ** argv)
+{
+  TransFactorRegionPara * out;
+  char * temp;
+
+  out = TransFactorRegionPara_alloc();
+
+  temp = strip_out_assigned_argument(argc,argv,"tf_convert");
+  if( temp != NULL ) {
+    if( strcmp(temp,"window") == 0 ) {
+      out->type = TRANSREGION_PARA_WINDOW;
+    } else if ( strcmp(temp,"hmm") == 0 ) {
+      out->type = TRANSREGION_PARA_DP;
+    } else {
+      fatal("Could not interpret %s for tf_convert string",temp);
+    }
+  }
+
+  strip_out_float_argument(argc,argv,"tf_density",&out->min_density);
+  strip_out_integer_argument(argc,argv,"tf_window",&out->min_window);
+  strip_out_integer_argument(argc,argv,"tf_hmm_window",&out->hmm_min_window);
+  strip_out_float_argument(argc,argv,"tf_inprob",&out->in_region_prob);
+  strip_out_float_argument(argc,argv,"tf_outprob",&out->out_region_prob);
+  strip_out_float_argument(argc,argv,"tf_entry",&out->in_cost);
+  strip_out_float_argument(argc,argv,"tf_gc_region",&out->gc_region_ratio);
+
+  return out;
+}
+
+void show_TransFactorRegionSet(TransFactorRegionSet * tfrs,FILE * ofp)
+{
+  int i;
+  int j;
+  Sequence * temp;
+
+  for(i=0;i<tfrs->len;i++) {
+    fprintf(ofp,"Region\t%s\t%d\t%d\t%.2f\t%.2f\n",tfrs->target->name,tfrs->region[i]->start+1,tfrs->region[i]->end,tfrs->region[i]->density,tfrs->region[i]->bits_score);
+    fprintf(ofp,"motif\n");
+    for(j=0;j<tfrs->region[i]->len;j++) {
+      auto TransFactorMatch * tfm = tfrs->region[i]->match[j];
+      fprintf(ofp,"Motif\t%s\t%d\t%d\t%d\t%s\t%.2f\t%.*s\n",tfrs->target->name,tfm->start+1,tfm->end,tfm->strand,tfm->factor->name,tfm->bit_score,tfm->end-tfm->start,tfrs->target->seq+tfm->start);
+    }
+    fprintf(ofp,"end motif\n");
+    temp = trunc_Sequence(tfrs->target,tfrs->region[i]->start,tfrs->region[i]->end);
+    write_fasta_Sequence(temp,ofp);
+    free_Sequence(temp);
+    fprintf(ofp,"end region\n");
+  }
+
+
+}
+
+TransFactorRegionSet * new_TransFactorRegionSet(TransFactorMatchSet * tfms,TransFactorRegionPara * tfrp,DPRunImpl * dpri)
+{
+  switch(tfrp->type) {
+  case TRANSREGION_PARA_DP :
+    return new_dp_TransFactorRegionSet(tfms,tfrp,dpri);
+    break;
+  case TRANSREGION_PARA_WINDOW :
+    return new_window_TransFactorRegionSet(tfms,tfrp);
+    break;
+  default :
+    fatal("Very weird. Bad type for TransFactorRegionPara");
+  }
+ 
+  /* can't get here... but ... */
+  return NULL;
+}
+
+
+TransFactorRegionSet * new_dp_TransFactorRegionSet(TransFactorMatchSet * tfms,TransFactorRegionPara * tfrp,DPRunImpl * dpri)
+{
+  AlnBlock * alb;
+  PackAln * pal;
+  AlnColumn * alc;
+
+  SequenceBaseCoverage * sbc;
+  TransRegionModel * model;
+
+  TransFactorRegionSet * out;
+  TransFactorRegion * region;
+
+  int i;
+  int covered;
+  int uncovered;
+
+  assert(tfms);
+  assert(tfrp);
+  assert(dpri);
+
+  sbc = new_SequenceBaseCoverage(tfms);
+
+  fprintf(stderr,"Making model with %.2f vs %.2f\n",tfrp->in_region_prob,tfrp->out_region_prob);
+
+  model = new_logodds_TransRegionModel(tfrp->in_region_prob,tfrp->out_region_prob,tfrp->in_cost,tfrp->gc_region_ratio);
+
+  fprintf(stderr,"GC score is %d (%.2f)\n",model->gc_point,Score2Bits(model->gc_point));
+
+  pal = PackAln_bestmemory_TransRegionMatrix(model,sbc,NULL,dpri);
+
+  alb = convert_PackAln_to_AlnBlock_TransRegionMatrix(pal);
+
+  free_PackAln(pal);
+
+
+
+  out = TransFactorRegionSet_alloc_std();
+  out->target = hard_link_Sequence(tfms->target);
+
+  for(alc = alb->start;alc != NULL;alc = alc->next ) {
+    if( strstr(alc->alu[1]->text_label,"REGION") != NULL ) {
+      if( alc->alu[1]->end - alc->alu[1]->start < tfrp->hmm_min_window ) {
+	continue;
+      }
+
+      region = TransFactorRegion_alloc_std();
+      add_TransFactorRegionSet(out,region);
+
+      region->start = alc->alu[1]->start+1;
+      region->end   = alc->alu[1]->end;
+      region->bits_score = Score2Bits(alc->alu[0]->score[0]);
+
+      covered = 0;
+      uncovered = 0;
+      for(i=alc->alu[1]->start+1;i<alc->alu[1]->end;i++) {
+	if(sbc->coverage[i] == 0 ) {
+	  uncovered++;
+	} else {
+	  covered++;
+	}
+      }
+
+      region->density = (double) covered / (double)(covered+uncovered);
+
+      for(i=0;i<tfms->len;i++) {
+	if( tfms->match[i]->end < region->start ) {
+	  continue;
+	}
+	if( tfms->match[i]->start > region->end ) {
+	  break;
+	}
+
+	add_TransFactorRegion(region,hard_link_TransFactorMatch(tfms->match[i]));
+      }
+
+    }
+  }
+
+
+  free_SequenceBaseCoverage(sbc);
+  free_TransRegionModel(model);
+  free_AlnBlock(alb);
+
+  return out;
+    
+}
+
+
+TransFactorRegionSet * new_window_TransFactorRegionSet(TransFactorMatchSet * tfms,TransFactorRegionPara * tfrp)
+{
+  int seqpos;
+  int motifpos;
+  int seq_trial;
+  int motif_trial;
+
+  int end;
+
+  int covered_bases;
+  int i;
+  int temp_start;
+  int last_covered_base;
+
+  TransFactorRegionSet * out;
+  TransFactorRegion * region;
+
+  assert(tfms);
+  assert(tfrp);
+
+  out = TransFactorRegionSet_alloc_std();
+  out->target = hard_link_Sequence(tfms->target);
+
+  if( tfms->len == 0 ) {
+    /* not motifs... no regions! */
+    return out;
+  }
+
+
+  sort_by_start_TransFactorMatchSet(tfms);
+
+
+  end = tfms->match[tfms->len-1]->start;
+
+  for(seqpos = tfms->match[0]->start,motifpos = 0;seqpos < end && motifpos < tfms->len;) {
+    /* see whether there is a potential region here */
+    covered_bases =0;
+    last_covered_base = seqpos;
+    for(seq_trial = seqpos, motif_trial = motifpos; seq_trial < end && seq_trial - seqpos < tfrp->min_window;seq_trial++) {
+
+      for(;motif_trial < tfms->len;motif_trial++ ) {
+	if( seq_trial >= tfms->match[motif_trial]->start && seq_trial < tfms->match[motif_trial]->end) {
+	  covered_bases++;
+	  last_covered_base = seq_trial;
+	  break;
+	}
+
+	if( seq_trial < tfms->match[motif_trial]->start ) {
+	  break;
+	}
+      }
+
+
+    }
+
+    if( seq_trial - seqpos < tfrp->min_window ) {
+      break;
+    }
+
+
+    /* seq_trial is beyond window size... */
+
+    if( (double) covered_bases / (double) (seq_trial - seqpos) < tfrp->min_density ) {
+      motifpos++;
+      if( motifpos >= tfms->len ) {
+	break;
+      } else {
+	seqpos = tfms->match[motifpos]->start;
+	continue; /* next motif start point */
+      }
+    }
+
+    seq_trial = last_covered_base;
+
+    /* has ok density now. Extend until we have bad density */
+
+    /* this is not a great extension - each new motif must be providing
+       at least min_density bases */
+    for(motif_trial;motif_trial < tfms->len;motif_trial++) {
+      if( seq_trial >= tfms->match[motif_trial]->end ) {
+	continue;
+      }
+
+	
+      if( (tfms->match[motif_trial]->end - tfms->match[motif_trial]->start) / (double) (tfms->match[motif_trial]->end - seq_trial) < tfrp->min_density ) {
+	break;
+      } else {
+	temp_start = seq_trial > tfms->match[motif_trial]->start ? seq_trial : tfms->match[motif_trial]->start;
+
+	seq_trial = tfms->match[motif_trial]->end;
+	covered_bases += (tfms->match[motif_trial]->end - temp_start);
+      }
+    }
+  
+    /* we have a match! from seqpos to seq_trial and from motifpos to motiftrial */
+
+    region = TransFactorRegion_alloc_std();
+    region->start = seqpos;
+    region->end   = seq_trial;
+    region->density = (double) covered_bases / (double) (seq_trial - seqpos);
+    
+    for(i=0;motifpos+i < motif_trial;i++) {
+      add_TransFactorRegion(region,hard_link_TransFactorMatch(tfms->match[motifpos+i]));
+    }
+
+    add_TransFactorRegionSet(out,region);
+    motifpos = motif_trial++;
+    if( motifpos >= tfms->len ) {
+      break;
+    }
+    seqpos   = tfms->match[motifpos]->start;
+
+  }
+
+  return out;
+
+}

@@ -1,0 +1,434 @@
+
+
+%{
+#include "dyna.h"
+#include "genewisemodel.h"
+#include "threestatedb.h"
+#include "gwlitemodel.h"
+
+
+%}
+
+
+struct GeneWiseDB
+ThreeStateDB * tdb
+double cds_factor;
+CodonMapper * cm     // NB, hard linked.
+RandomModelDNA * rmd // NB hard linked
+GeneWiseScore * gws  // hardlinked, only if single.
+GeneParameter21 * gpara // if a genomic model - est models wont use this!
+boolean is_single !def="FALSE"
+boolean is_syn       !def="TRUE"
+Probability allN     !def="1.0"
+boolean flat_insert  !def=FALSE
+GwLiteScore * gwls   // only if single
+%info
+This is a database of genewisemodels
+for database searching versions of
+genewise and estwise type algorithms.
+
+The actual HMM database streaming
+happens via the ThreeStateDB (tdb).
+This object holds the necessary conversion
+system for the HMM database as it
+is mapped into the genewisemodel
+%%
+
+%{
+#include "genewisemodeldb.h"
+
+
+
+%func
+inits a genewise database. Remember this is used
+for both genomic and cdna searches
+
+%%
+GeneWiseScore * init_GeneWiseDB(GeneWiseDB * gdb,int * return_status)
+{
+  ThreeStateModel * tsm;
+  GeneWise * gw;
+  GeneWiseScore * gws;
+ 
+
+  *return_status = DB_RETURN_ERROR;
+
+  if( gdb->is_single == TRUE ) {
+    *return_status = DB_RETURN_OK;
+    return gdb->gws;
+  }
+
+  if( open_ThreeStateDB(gdb->tdb) == FALSE ) {
+    warn("Could not open three state db, so no genewisemodel possible!");
+    return NULL;
+  }
+
+  tsm = read_TSM_ThreeStateDB(gdb->tdb,return_status);
+
+  if( *return_status == DB_RETURN_ERROR) {
+    warn("Cannot read a ThreeStateModelDB for the GeneWiseDB. Problem!");
+    return NULL;
+  }
+
+  gw  =  GeneWise_from_ThreeStateModel_GDB(tsm,gdb);
+  gws =  GeneWiseScore_from_GeneWise(gw);
+
+  free_ThreeStateModel(tsm);
+  free_GeneWise(gw);
+
+
+  return gws;
+}
+
+%func
+Reloads a genewise database
+
+%%
+GeneWiseScore * reload_GeneWiseDB(GeneWiseScore * prev,GeneWiseDB * gdb,int * return_status)
+{
+  ThreeStateModel * tsm;
+  GeneWise * gw;
+  GeneWiseScore * gws;
+ 
+
+
+  if( gdb->is_single == TRUE ) {
+    *return_status = DB_RETURN_END;
+    return NULL;
+  }
+
+  if( prev != NULL)
+    free_GeneWiseScore(prev);
+
+
+  *return_status = DB_RETURN_ERROR;
+
+  tsm = read_TSM_ThreeStateDB(gdb->tdb,return_status);
+
+  if( *return_status != DB_RETURN_OK) {
+    if( *return_status == DB_RETURN_END) {
+      return NULL;
+    }
+
+    warn("Cannot read a ThreeStateModelDB for the GeneWiseDB. Problem!");
+    return NULL;
+  }
+
+  gw  =  GeneWise_from_ThreeStateModel_GDB(tsm,gdb);
+  gws =  GeneWiseScore_from_GeneWise(gw);
+
+
+
+  free_ThreeStateModel(tsm);
+  free_GeneWise(gw);
+
+  *return_status = DB_RETURN_OK;
+
+  return gws;
+}
+
+%func
+closes a GeneWiseDB
+%%
+boolean close_GeneWiseDB(GeneWiseScore * gws,GeneWiseDB * gdb)
+{
+  if( gdb->is_single == TRUE ) {
+    return TRUE;
+  }
+
+  if( gws != NULL)
+    free_GeneWiseScore(gws);
+
+  return close_ThreeStateDB(NULL,gdb->tdb);
+}
+
+%func
+adds dataentry stuff to a query. Relies completely
+on threestatedb
+%%
+boolean dataentry_add_GeneWiseDB(DataEntry * de,GeneWiseScore * gws,GeneWiseDB * gdb)
+{
+  if( gdb->is_single == TRUE) {
+    if ( gdb->gws->name == NULL ) {
+      warn("No name for a single GeneWiseDB unit.");
+      de->name = stringalloc("NoName");
+    } else {
+      de->name = stringalloc(gdb->gws->name);
+    }
+
+    return TRUE;
+  }
+
+  
+  /*de->name = stringalloc(gws->name);*/
+
+  /* otherwise, pass it on to tdb */
+  dataentry_add_ThreeStateDB(de,NULL,gdb->tdb);
+  if( de->name == NULL ) {
+    if( gws->name != NULL ) {
+      de->name = stringalloc(gws->name);
+    }
+  }
+  return TRUE;
+}
+
+%func
+Makes a genewise models from the threestatemodel
+and parameters held in the GeneWiseDB
+%type internal
+%%
+GeneWise * GeneWise_from_ThreeStateModel_GDB(ThreeStateModel * tsm,GeneWiseDB * gdb)
+{
+  int i;
+  GeneWise * out;
+
+
+  if( gdb->gpara != NULL ) {
+    out=GeneWise_from_ThreeStateModel(tsm,gdb->gpara->gp,gdb->gpara->cm,gdb->allN,gdb->gpara->gwcm);
+    if( out == NULL ) {
+      return NULL;
+    }
+
+    if( gdb->gpara->modelled_splice == FALSE)
+      flatten_balance_scores_GeneWise(out);
+  } else {
+    out = GeneWise_alloc_len(tsm->len);
+    out->name = stringalloc(tsm->name);
+
+    for(i=0;i<tsm->len;i++) {
+      add_GeneWise(out,GeneWiseSegment_from_ThreeStateUnit(tsm->unit[i],gdb->cds_factor,gdb->cm,NULL,gdb->allN));
+    }
+  }
+
+
+  if( gdb->is_syn == TRUE ) {
+    if( tsm->rm == NULL ) {
+      warn("Bad error. ThreeStateModel does not have a random model!");
+      return free_GeneWise(out);
+    }
+    GeneWise_fold_in_synchronised_RandomModel(out,tsm->rm,gdb->cm,gdb->cm->ct,0.5);
+  } else {
+    GeneWise_fold_in_RandomModelDNA(out,gdb->rmd);
+  }
+  
+  if( gdb->flat_insert == TRUE ) {
+    check_flat_insert(out,1,0,gdb->cm->ct);
+  }
+
+  return out;
+}
+
+%func
+makes a new GeneWiseDB from its component parts,
+assumming a cDNA db.
+
+All the objects are hard-linked internally, so you can, if you
+wish, free them once passing them into this function
+%arg
+tdb three state model db to use
+cp codon parser function to remove from match state
+rmd random model (dna)
+syn if ture, use a synchronous coding model vs internally stored tdb rm's
+%%
+GeneWiseDB * new_GeneWiseDB_cdna(ThreeStateDB * tdb,cDNAParser * cp,CodonMapper * cm,RandomModelDNA * rmd,boolean use_syn,boolean flat_insert,Probability allN) 
+{
+  GeneWiseDB * out;
+
+  out = GeneWiseDB_alloc();
+
+  out->tdb = hard_link_ThreeStateDB(tdb);
+  out->is_single = FALSE;
+  
+  out->rmd = hard_link_RandomModelDNA(rmd);
+  out->cm = hard_link_CodonMapper(cm);
+  out->cds_factor = (1.0 - removed_probability_from_cds_cdna(cp));
+  out->is_syn = use_syn;
+  out->allN = allN;
+  out->flat_insert = flat_insert;
+  return out;
+}
+
+%func
+makes a new GeneWiseDB from its component parts.
+All the objects are hard-linked internally, so you can, if you
+wish, free them once passing them into this function
+%%
+GeneWiseDB * new_GeneWiseDB(ThreeStateDB * tdb,GeneParameter21 * gp,RandomModelDNA * rmd,boolean use_syn,Probability allN)
+{
+  GeneWiseDB * out;
+
+  out = GeneWiseDB_alloc();
+
+  out->tdb = hard_link_ThreeStateDB(tdb);
+  out->is_single = FALSE;
+  
+  out->rmd = hard_link_RandomModelDNA(rmd);
+  out->gpara = hard_link_GeneParameter21(gp);
+  out->cm = hard_link_CodonMapper(gp->cm);
+  out->is_syn = use_syn;
+  out->allN   = allN;
+  return out;
+}
+
+%func
+makes a new GeneWiseDB from a single GeneWiseScore.
+It hard links it, so you should free it afterwards
+in its own scope.
+%%
+GeneWiseDB * new_single_GeneWiseDB(GeneWiseScore * gws)
+{
+  GeneWiseDB * out;
+
+  out = GeneWiseDB_alloc();
+  out->gws = hard_link_GeneWiseScore(gws);
+  out->is_single = TRUE;
+
+  return out;
+}
+
+
+%func
+inits a genewise database for gwlite models
+
+
+%%
+GwLiteScore * init_GwLite_GeneWiseDB(GeneWiseDB * gdb,int * return_status)
+{
+  ThreeStateModel * tsm;
+  GeneWise * gw;
+  GwLite * gl;
+  GwLiteScore * gws;
+ 
+
+  *return_status = DB_RETURN_ERROR;
+
+  if( gdb->is_single == TRUE ) {
+    *return_status = DB_RETURN_OK;
+    /* at the moment, die horribly */
+    fatal("Apologies. We don't handle single genewise model databases for gwlite yet");
+    return gdb->gwls;
+  }
+
+  if( open_ThreeStateDB(gdb->tdb) == FALSE ) {
+    warn("Could not open three state db, so no genewisemodel possible!");
+    return NULL;
+  }
+
+  tsm = read_TSM_ThreeStateDB(gdb->tdb,return_status);
+
+  if( *return_status == DB_RETURN_ERROR) {
+    warn("Cannot read a ThreeStateModelDB for the GeneWiseDB. Problem!");
+    return NULL;
+  }
+
+  gw  =  GeneWise_from_ThreeStateModel_GDB(tsm,gdb);
+  gl  =  GwLite_from_GeneWise(gw);
+  gws =  GwLiteScore_from_GwLite(gl);
+
+  free_ThreeStateModel(tsm);
+  free_GeneWise(gw);
+  free_GwLite(gl);
+
+  return gws;
+}
+
+%func
+Reloads a genewise database for a GwLite database
+
+%%
+GwLiteScore * reload_GwLite_GeneWiseDB(GwLiteScore * prev,GeneWiseDB * gdb,int * return_status)
+{
+  ThreeStateModel * tsm;
+  GeneWise * gw;
+  GwLite * gl;
+  GwLiteScore * gws;
+ 
+
+
+  if( gdb->is_single == TRUE ) {
+    *return_status = DB_RETURN_END;
+    return NULL;
+  }
+
+  if( prev != NULL)
+    free_GwLiteScore(prev);
+
+
+  *return_status = DB_RETURN_ERROR;
+
+  tsm = read_TSM_ThreeStateDB(gdb->tdb,return_status);
+
+  if( *return_status != DB_RETURN_OK) {
+    if( *return_status == DB_RETURN_END) {
+      return NULL;
+    }
+
+    warn("Cannot read a ThreeStateModelDB for the GeneWiseDB. Problem!");
+    return NULL;
+  }
+
+  gw  =  GeneWise_from_ThreeStateModel_GDB(tsm,gdb);
+  gl  =  GwLite_from_GeneWise(gw);
+  gws =  GwLiteScore_from_GwLite(gl);
+
+  free_ThreeStateModel(tsm);
+  free_GeneWise(gw);
+  free_GwLite(gl);
+
+  *return_status = DB_RETURN_OK;
+
+  return gws;
+}
+
+%func
+closes a GeneWiseDB
+%%
+boolean close_GwLite_GeneWiseDB(GwLiteScore * gws,GeneWiseDB * gdb)
+{
+  if( gdb->is_single == TRUE ) {
+    return TRUE;
+  }
+
+  if( gws != NULL)
+    free_GwLiteScore(gws);
+
+  return close_ThreeStateDB(NULL,gdb->tdb);
+}
+
+%func
+adds dataentry stuff to a query. Relies completely
+on threestatedb
+%%
+boolean dataentry_add_GwLite_GeneWiseDB(DataEntry * de,GwLiteScore * gws,GeneWiseDB * gdb)
+{
+  if( gdb->is_single == TRUE) {
+    if ( gdb->gws->name == NULL ) {
+      warn("No name for a single GeneWiseDB unit.");
+      de->name = stringalloc("NoName");
+    } else {
+      de->name = stringalloc(gdb->gws->name);
+    }
+
+    return TRUE;
+  }
+
+  
+  /*de->name = stringalloc(gws->name);*/
+
+  /* otherwise, pass it on to tdb */
+  dataentry_add_ThreeStateDB(de,NULL,gdb->tdb);
+  if( de->name == NULL ) {
+    if( gws->name != NULL ) {
+      de->name = stringalloc(gws->name);
+    }
+  }
+  return TRUE;
+}
+
+%}
+
+
+
+
+
+

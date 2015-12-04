@@ -1,0 +1,546 @@
+/*  Last edited: Feb 11 10:32 1997 (birney) */
+
+
+%{
+#include "wisebase.h"
+#include "probability.h"
+#include "randommodel.h"
+
+
+#define CompMat_AAMATCH(comp_mat,aa1,aa2) (comp_mat->comp[aa1][aa2])
+%}
+
+
+api
+object CompMat
+des free_CompMat
+func fail_safe_CompMat_access
+func write_Blast_CompMat
+func read_Blast_file_CompMat
+func read_Blast_CompMat
+endobject
+endapi
+
+struct CompProb
+Probability comp[26][26]
+char * name 
+%info
+The probabilistic form of CompMat
+%%
+
+
+struct CompMat
+Score  comp[26][26]
+char * name // if any, could be NULL
+%info
+This object stores BLOSUM and PAM 
+comparison matrices. It stores them as
+scores: NB - this means probabilistically
+we are talking about some arbitary base of
+log which is really annoying.
+%%
+
+%{
+#include "compmat.h"
+
+
+%func
+Makes a simple CompProb matrix 
+%%
+CompProb * simple_CompProb(Probability match,Probability rnd)
+{
+  CompProb * p;
+  Probability rem;
+  int i,j;
+
+  p = CompProb_alloc();
+  rem = (1.0-match)/20;
+
+  for(i=0;i<26;i++) {
+    for(j=i;j<26;j++) {
+      if( i == j ) {
+	p->comp[i][j] = match/rnd;
+      } else {
+	p->comp[i][j] = rem/rnd;
+	p->comp[j][i] = rem/rnd;
+      }
+    }
+  }
+
+  return p;
+}
+
+%func 
+Folds a random model in over the columns
+%%
+void fold_column_RandomModel_CompProb(CompProb * cp,RandomModel * rm)
+{
+  int i,j;
+
+  for(i=0;i<26;i++) {
+    for(j=0;j<26;j++) {
+      if( rm->aminoacid[j] < 0.00000000000001 ) {
+        continue;
+      }
+      cp->comp[i][j] = cp->comp[i][j] / rm->aminoacid[j];
+    }
+  }
+}
+
+
+%func
+Makes a simple CompProb with simple aa rules
+%%
+CompProb * simple_aa_CompProb(Probability match,Probability set,Probability rnd)
+{
+  CompProb * p;
+  Probability rem;
+  int i,j,k;
+  char * aa_set[] = { "FYW","LIV","RK","DE" };
+
+  p = CompProb_alloc();
+  rem = (1.0-match)/20;
+
+  for(i=0;i<26;i++) {
+    for(j=i;j<26;j++) {
+      if( i == j ) {
+	p->comp[i][j] = match/rnd;
+      } else {
+	for( k = 0;k<4;k++) {
+	  if( strchr(aa_set[k],'A'+i) != NULL && strchr(aa_set[k],'A'+j) != NULL ) {
+	    p->comp[i][j] = set/rnd;
+	    p->comp[j][i] = set/rnd;
+	    fprintf(stderr,"Setting %c,%c to %.2f\n",'A'+i,'A'+j,set/rnd);
+	  } else {
+	    p->comp[i][j] = rem/rnd;
+	    p->comp[j][i] = rem/rnd;
+	  }
+	}
+      }
+    }
+  }
+
+  return p;
+}
+
+%func
+Maps a CompProb to a CompMat going through
+Probability2Score
+%%
+CompMat * CompMat_from_CompProb(CompProb * cp)
+{
+  int i,j;
+  CompMat * cm;
+
+  cm = CompMat_alloc();
+
+  for(i=0;i<26;i++) {
+    for(j=0;j<26;j++) {
+      cm->comp[i][j] = Probability2Score(cp->comp[i][j]);
+    }
+  }
+
+
+  return cm;
+}
+
+%func
+Maps a halfbit matrix to a prob matrix by rebasing
+etc. 
+
+*Really* not sensible!
+%%
+CompProb * CompProb_from_halfbit(CompMat * cm)
+{
+  CompProb * out;
+  int i,j;
+
+  out = CompProb_alloc();
+  for(i=0;i<26;i++) 
+    for(j=0;j<26;j++)
+      out->comp[i][j] = halfbit2Probability(cm->comp[i][j]);
+
+  return out;
+}
+
+%func
+flips a halfbit based matrix (eg, blosum62) into a score
+based matrix just by rebasing the log etc. 
+
+Not a sensible function ...
+
+%%
+CompMat * CompMat_from_halfbit(CompMat * cm)
+{
+  CompMat * out;
+  int i,j;
+
+  out = CompMat_alloc();
+  for(i=0;i<26;i++) 
+    for(j=0;j<26;j++)
+      out->comp[i][j] = Probability2Score(halfbit2Probability(cm->comp[i][j]));
+
+  return out;
+}
+
+
+%func
+multiples all the scores by the amount
+%arg
+cm compmat object
+factor amount to multiple by
+%%
+void factor_CompMat(CompMat * cm,int factor)
+{
+  int i,j;
+
+  for(i=0;i<26;i++)
+    for(j=0;j<26;j++)
+      cm->comp[i][j] *= factor;
+
+}
+
+
+%func
+gives the fail form of the macro CompMat_AAMATCH which 
+checks that aa1 and a2 are sensible and that cm is not NULL.
+%arg
+cm compmat object
+aa1 first amino acid
+aa2 second amino acid
+%%
+Score fail_safe_CompMat_access(CompMat * cm,int aa1,int aa2)
+{
+  if( cm == NULL) {
+    warn("Attempting to access NULL CompMat.");
+    return 0;
+  }
+
+  if( aa1 < 0 || aa1 >= 26 || aa2 < 0 || aa2 > 26) {
+    warn("Attempting to access CompMat with aminoacid numbers %d:%d (they must be bound between 0:26, returning 0 here",aa1,aa2);
+    return 0;
+  }
+
+  else return cm->comp[aa1][aa2];
+}
+
+%func
+writes a protien CompMat with a standard
+alphabet.
+%arg
+cm CompMat object
+ofp file to output
+%%
+boolean write_Blast_CompMat(CompMat * cm,FILE * ofp)
+{
+  return write_Blast_CompMat_alphabet(cm,"ARNDCQEGHILKMFPSTWYVBZX",ofp);
+}
+
+%func
+checks that this string is ok for BLAST alphabet mappings.
+%type internal
+%%
+boolean bad_CompMat_alphabet(char * al)
+{
+  char * runner;
+  for(runner=al;*runner;runner++)
+    if( !isalpha((int)*runner) && toupper((int)*runner) != *runner )  {
+      warn("Attempting to use [%s] as a CompMat alphabet: needs all upper case, no spaced letters",al);
+      return TRUE;
+    }
+
+  return FALSE;
+}
+    
+%func
+actualy writes out the Blast CFormat. The alphabet is 
+what order you want the amino acids. If you want the 
+standard format use /write_Blast_CompMat
+%arg
+cm comp mat object
+alphabet string for alphabet to be used
+ofp fileoutput
+%%
+boolean write_Blast_CompMat_alphabet(CompMat * cm,char * alphabet,FILE * ofp)
+{
+  char * runner;
+  char * run2;
+  int minnumbers[26];
+  int len;
+  int i;
+  int min;
+
+  if( bad_CompMat_alphabet(alphabet) == TRUE )
+    return FALSE; /* warning already issued */
+
+  fprintf(ofp,"# File made by *Wise CompMat library module\n");
+  fprintf(ofp,"# Comparison matrix in BLAST format\n");
+  fprintf(ofp,"# Usually matrices are given in half-bit units\n");
+  fprintf(ofp,"# First line is alphabet, the * column is the lowest score\n");
+  fprintf(ofp,"#      File Created [%s]\n",now_string());
+  fprintf(ofp,"#      Matrix name  [%s]\n",cm->name == NULL ? "No Name" : cm->name);
+
+
+  /*** print out alphabet wit correct spacing ***/
+  fprintf(ofp," %c",alphabet[0]);
+  for(runner=alphabet+1;*runner;runner++)
+    fprintf(ofp,"  %c",*runner);
+  fprintf(ofp,"  *\n");
+
+  /*** print out each row: remember the minimum number for printing later **/
+
+  for(runner=alphabet,len=0;*runner;runner++) {
+    min = cm->comp[*runner-'A'][0];
+    fprintf(ofp,"%- d",cm->comp[*runner-'A'][0]);
+    for(run2=alphabet+1;*run2;run2++) {
+      fprintf(ofp," %- d",cm->comp[*runner-'A'][*run2-'A']);
+      if( cm->comp[*runner-'A'][*run2-'A'] < min )
+	min = cm->comp[*runner-'A'][*run2-'A'];
+    }
+
+    minnumbers[len++] = min;
+    fprintf(ofp," % d\n",min);
+  }
+
+  /*** final row... *  ***/
+
+  fprintf(ofp,"% d",minnumbers[0]);
+  for(i=1;i<len;i++)
+    fprintf(ofp," % d",minnumbers[i]);
+
+  fprintf(ofp,"  1\n");
+
+  /*** finished! ***/
+
+  return TRUE;
+}
+
+%func
+Opens file, reads matrix, closes file.
+calls /read_Blast_CompMat for the actual format
+reading. Uses /openfile to open the file,
+so will open from config files.
+%%
+CompMat * read_Blast_file_CompMat(char * filename)
+{
+  CompMat * out;
+  FILE * ifp;
+
+  ifp = openfile(filename,"r");
+
+  if( ifp == NULL ) {
+    warn("Could not open %s as a filename for read Blast matrix",filename);
+    return NULL;
+  }
+
+  out = read_Blast_CompMat(ifp);
+  if( out != NULL ) {
+    out->name = stringalloc(filename);
+  }
+
+  fclose(ifp);
+
+  return out;
+}
+
+%func
+reads a BLAST format matrix and
+allocates a new ComMat structure.
+%%
+CompMat * read_Blast_CompMat(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  int alphabet[MAXLINE];
+  char * runner;
+  int len;
+  int linenum;
+  int row;
+  CompMat * out;
+
+
+
+  /*** 
+    Skip over # lines...
+
+    read first line: is alphabet ie
+    A R T G .... *
+    ***/
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL)
+    if( buffer[0] != '#')
+      break;
+
+  /** loop over line, getting letters: warn if longer than one, or not a letter **/
+
+  for(len=0,runner=strtok(buffer,spacestr);runner != NULL;runner=strtok(NULL,spacestr)) {
+    if( *runner == '*' )
+      break; /* end column */
+
+    if( !isalpha((int)*runner) || strlen(runner) > 1 ) {
+      warn("In read Blast comp mat, probably an error: trying to interpret [%s] as an amino acid",runner);
+      return NULL;
+    }
+    
+    alphabet[len++] = toupper((int)*runner) -'A';
+  }
+
+
+  out = blank_CompMat();
+  linenum = 0;
+
+  /** get len lines, each line, get len numbers and put them away **/
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+
+    if( linenum >= len )
+      break;
+    
+    for(runner=strtok(buffer,spacestr),row = 0;runner != NULL && row < len;runner=strtok(NULL,spacestr),row++) {
+      if( is_integer_string(runner,&out->comp[alphabet[linenum]][alphabet[row]]) == FALSE ) {
+	warn("In read Blast comp mat, probably an error: trying to interpret [%s] as a number ... continuing",runner);
+      }
+    }
+    linenum++;
+  }
+
+  return out;
+
+}
+
+%func
+Reads a BLAST format comp prob from file
+%%
+CompProb * read_Blast_file_CompProb(char * filename)
+{
+  FILE * ifp;
+  CompProb * out;
+
+  ifp = openfile(filename,"r");
+
+  if( ifp == NULL ) {
+    warn("Could not open %s for compprob",filename);
+    return NULL;
+  }
+
+  out = read_Blast_CompProb(ifp);
+
+  fclose(ifp);
+
+  return out;
+}
+
+
+%func
+reads a BLAST format matrix and
+allocates a new CompProb structure.
+%arg
+ifp r file input
+return newly allocated CompProb
+%%
+CompProb * read_Blast_CompProb(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  int alphabet[MAXLINE];
+  char * runner;
+  int len;
+  int linenum;
+  int row;
+  CompProb * out;
+
+
+
+  /*** 
+    Skip over # lines...
+
+    read first line: is alphabet ie
+    A R T G .... *
+    ***/
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL)
+    if( buffer[0] != '#')
+      break;
+
+  /** loop over line, getting letters: warn if longer than one, or not a letter **/
+
+  for(len=0,runner=strtok(buffer,spacestr);runner != NULL;runner=strtok(NULL,spacestr)) {
+    if( *runner == '*' )
+      break; /* end column */
+
+    if( !isalpha((int)*runner) || strlen(runner) > 1 ) {
+      warn("In read Blast comp mat, probably an error: trying to interpret [%s] as an amino acid",runner);
+      return NULL;
+    }
+    
+    alphabet[len++] = toupper((int)*runner) -'A';
+  }
+
+
+  out = blank_CompProb();
+  linenum = 0;
+
+  /** get len lines, each line, get len numbers and put them away **/
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"//") == 0 )
+      break;
+    if( linenum >= len )
+      break;
+    
+    for(runner=strtok(buffer,spacestr),row = 0;runner != NULL && row < len;runner=strtok(NULL,spacestr),row++) {
+      if( is_double_string(runner,&out->comp[alphabet[linenum]][alphabet[row]]) == FALSE ) {
+	warn("In read Blast comp prob, probably an error: trying to interpret [%s] as a number ... continuing",runner);
+      }
+    }
+    linenum++;
+  }
+
+  return out;
+}
+
+%func
+makes a 0,0 matrix
+%%
+CompMat * blank_CompMat(void)
+{
+  register int i;
+  register int j;
+  CompMat * out;
+
+
+  out = CompMat_alloc();
+  if( out == NULL)
+    return NULL;
+
+  for(i=0;i<26;i++)
+    for(j=0;j<26;j++)
+      out->comp[i][j] = 0;
+
+  return out;
+}
+
+%func 
+makes a 1.0 prob matrix
+%%
+CompProb * blank_CompProb(void)
+{
+  register int i;
+  register int j;
+  CompProb * out;
+
+
+  out = CompProb_alloc();
+  if( out == NULL)
+    return NULL;
+
+  for(i=0;i<26;i++)
+    for(j=0;j<26;j++)
+      out->comp[i][j] = 1.0;
+
+  return out;
+}
+
+
+
+
+
+

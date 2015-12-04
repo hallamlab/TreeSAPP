@@ -1,0 +1,286 @@
+
+%{
+#include "kmer_assembly.h"
+#include "assembly.h"
+
+#define KmerAssemblyContigSetLISTLENGTH 256
+
+
+%}
+
+friend KmerAssemblyContig
+
+struct KmerAssemblyContig
+KmerAssemblyNode * start !link
+KmerAssemblyNode * end   !link
+int len;
+boolean clean_start 
+boolean clean_end
+int max_depth
+KmerAssemblyContig * mirror
+int is_mirror !def="0"
+
+struct KmerAssemblyContigSet
+KmerAssemblyContig ** contig !list
+KmerAssemblyIndex * kai !link
+
+struct KmerAssemblyContigPara
+int minimum_len !def="50"
+int minimum_depth !def="1"
+
+%{
+#include "kmer_assembly_contig.h"
+
+KmerAssemblyContig * find_strict_mirrored_KmerAssemblyContig(KmerAssemblyContigSet * kcs,KmerAssemblyContig * c)
+{
+  int i;
+  kmer_t start_rev;
+  kmer_t end_rev;
+
+  assert(kcs != NULL);
+  assert(kcs->kai != NULL);
+  assert(c != NULL);
+
+  start_rev = reverse_complement_dna_number(c->start->number,kcs->kai->kii->kmer_size);
+  end_rev   = reverse_complement_dna_number(c->end->number,kcs->kai->kii->kmer_size);
+
+  for(i=0;i < kcs->len;i++) {
+    if( kcs->contig[i]->mirror != NULL || kcs->contig[i]->is_mirror == 1) {
+      continue;
+    }
+    /*    fprintf(stderr,"Looking at %ld,%ld vs %ld,%ld\n",kcs->contig[i]->start->number,start_rev,kcs->contig[i]->end->number,end_rev);*/
+
+    if( kcs->contig[i]->start->number == end_rev && kcs->contig[i]->end->number == start_rev ) {
+      /* should check labels */
+      warn("Note to Ewan: Should check labels");
+      return kcs->contig[i];
+    }
+  }
+
+  return NULL;
+}
+
+KmerAssemblyContigSet * KmerAssemblyContigSet_from_KmerAssemblyIndex(KmerAssemblyIndex * kai)
+{
+  KmerAssemblyContigSet * out;
+  KmerAssemblyContigSet * final;
+  kmer_t kmer;
+  KmerAssemblyNode * node;
+  KmerAssemblyContig * contig;
+  boolean is_left_end;
+  int i;
+
+  assert(kai != NULL);
+  assert(kai->kii != NULL );
+  assert(kai->kii->next_filled_kmer != NULL);
+
+
+  out = KmerAssemblyContigSet_alloc_std();
+  out->kai = kai;
+
+  kmer = -1;
+  kmer = (*kai->kii->next_filled_kmer)(kai->kii->handle,kmer);
+
+  fprintf(stderr,"CONTIG BUILD\n");
+
+  for(;kmer != -1;  kmer = (*kai->kii->next_filled_kmer)(kai->kii->handle,kmer)) {
+    node = (*kai->kii->retrieve_by_kmer)(kai->kii->handle,kmer);
+    for(;node != NULL; node = node->node_chain ) {
+      if( node->next_len == 0 ) {
+	continue;
+      }
+
+
+      /* test to see if it is start; no back link or all TANGLED links */
+      is_left_end = 0;
+      if( node->prev_len == 0 ) {
+	is_left_end = 1;
+	/* this is the other main case, test before we do loop */
+      } else if( node->prev_len == 1 && !(node->prev[0]->state & KMER_ASSEMBLY_PREV_TANGLED) ) {
+	is_left_end = 0;
+      } else {
+	for(i=0;i<node->prev_len;i++) {
+	  fprintf(stderr,"Node position %d, state %d\n",i,node->prev[i]->state);
+	  if( !(node->prev[i]->state & KMER_ASSEMBLY_NEXT_TANGLED) ) {
+	    is_left_end = 0;
+	    break;
+	  }
+	}
+	if( i >= node->prev_len ) {
+	  is_left_end = 1;
+	}
+      }
+
+
+      if( is_left_end == 0 && node->prev_len > 1 ) {
+	fprintf(stderr,"Very weird: multi-prev but not left end, number is %d, state of 0 %d\n",node->prev_len,node->prev[0]->state);
+      }
+	     
+      if( is_left_end &&  node->next_len == 1) {
+	contig = new_KmerAssemblyContig(node);
+	add_KmerAssemblyContigSet(out,contig);
+      }
+    }
+  }
+
+  return out;
+}
+
+
+KmerAssemblyContig * new_KmerAssemblyContig(KmerAssemblyNode * node)
+{
+  KmerAssemblyContig * out;
+  KmerAssemblyLink * link;
+  int len;
+
+  assert(node != NULL);
+
+  if( node->next_len != 1 ) {
+    warn("Cannot build a KmerAssemblyContig from a node with %d out going links",node->next_len);
+  }
+
+  out = KmerAssemblyContig_alloc();
+  out->start = node;
+  out->max_depth = 0;
+
+  if( node->prev_len > 1 ) {
+    out->clean_start = 0;
+  } else {
+    out->clean_start = 1;
+  }
+
+  len  = 0;
+  for(link = node->next[0];link != NULL && link->next->next_len == 1; link = link->next->next[0],len++) {
+    if( link->state & KMER_ASSEMBLY_PREV_TANGLED ) {
+      break;
+    }
+
+    if( link->prev->prev_len > 1 ) {
+      fprintf(stderr,"Assembly is still tangled!");
+      break;
+      /* bad end found */
+    }
+
+    if( link->sequence_label_len > out->max_depth ) {
+      out->max_depth = link->sequence_label_len;
+    }
+  }
+
+  out->end = link->next;
+
+  if( link->next->next_len != 0 ) {
+    out->clean_end = 0;
+  } else {
+    out->clean_end = 1;
+  }
+
+  out->len = len;
+  
+  return out;
+}
+
+
+Assembly * Assembly_from_KmerAssemblyIndex(KmerAssemblyIndex * kai,KmerAssemblyContigPara * p)
+{
+  Assembly * out;
+  KmerAssemblyContigSet * kacs;
+  KmerAssemblyContigSet * final;
+
+  KmerAssemblyContig * mirror;
+  int i;
+
+  kacs = KmerAssemblyContigSet_from_KmerAssemblyIndex(kai);
+
+  final = KmerAssemblyContigSet_alloc_std();
+
+  for(i=0;i<kacs->len;i++) {
+    if( kacs->contig[i]->is_mirror == 1 ) {
+      continue;
+    }
+
+    if( kacs->contig[i]->mirror == NULL ) {
+      if( (mirror = find_strict_mirrored_KmerAssemblyContig(kacs,kacs->contig[i])) != NULL ) {
+	kacs->contig[i]->mirror = hard_link_KmerAssemblyContig(mirror);
+	mirror->is_mirror = 1;
+	add_KmerAssemblyContigSet(final,hard_link_KmerAssemblyContig(kacs->contig[i]));
+      } else {
+	warn("Unable to mirror contig, adding anyway");
+	add_KmerAssemblyContigSet(final,hard_link_KmerAssemblyContig(kacs->contig[i]));
+      }
+    }
+
+  }
+  out = Assembly_from_KmerAssemblyContigSet(final,p);
+
+  free_KmerAssemblyContigSet(kacs);
+  free_KmerAssemblyContigSet(final);
+
+  return out;
+}
+
+Assembly * Assembly_from_KmerAssemblyContigSet(KmerAssemblyContigSet * kacs,KmerAssemblyContigPara * p)
+{
+  Assembly * out;
+  AssemblyContig * ac;
+  int i;
+
+  assert(kacs != NULL);
+  assert(p != NULL);
+
+  out = Assembly_alloc_std();
+
+  for(i=0;i<kacs->len;i++) {
+    if( kacs->contig[i]->len > p->minimum_len && kacs->contig[i]->max_depth >= p->minimum_depth ) {
+      ac = AssemblyContig_from_KmerAssemblyContig(kacs->contig[i]);
+      add_Assembly(out,ac);
+    }
+  }
+
+  return out;
+}
+
+AssemblyContig * AssemblyContig_from_KmerAssemblyContig(KmerAssemblyContig * kac)
+{
+  AssemblyContig * out;
+  KmerAssemblyLink * link;
+  Sequence * con;
+  int i;
+  char buffer[512];
+
+
+  con = Sequence_alloc();
+  con->seq = calloc(kac->len+1,sizeof(char));
+  con->len = kac->len;
+  con->maxlen = con->len;
+  sprintf(buffer,"contig_%ld",(long int)kac);
+
+  con->name = stringalloc(buffer);
+
+  out = AssemblyContig_alloc_std();
+
+  fprintf(stderr,"Starting contig fetching...\n");
+
+  for(i=0,link = kac->start->next[0] ;link != NULL && link->next->next_len == 1;link = link->next->next[0],i++) {
+    con->seq[i] = link->base;
+    /* NOT DEALING WITH READ PLACEMENT YET */
+    if( link->next == kac->end ) {
+      break;
+    }
+  }
+
+  out->clean_start = kac->clean_start;
+  out->clean_end   = kac->clean_end;
+  out->max_depth   = kac->max_depth;
+  
+
+  con->seq[i] = '\0';
+  con->len = strlen(con->seq);
+  
+  out->consensus = con;
+
+  return out;
+}
+
+
+
+%}

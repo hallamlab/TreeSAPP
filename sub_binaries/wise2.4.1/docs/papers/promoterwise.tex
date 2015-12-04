@@ -1,0 +1,197 @@
+\documentclass{article} \usepackage{a4}
+\usepackage{epsfig}
+\usepackage{float}
+\usepackage{chicago}
+\bibliographystyle{chicago}
+%\bibliographystyle{plain}
+
+\renewcommand{\baselinestretch}{2}
+%\setcounter{secnumdepth}{0}
+
+% this is the preamble
+\title{Promoterwise: flexible alignment of promoters and its application to Mammalian vs Telost comparisons} 
+\author{L. Ettwiller, B. Paten and E. Birney}
+\begin{document}
+
+
+
+\maketitle
+ 
+\section{Abstract}
+
+..to be written..
+
+\section{Introduction}
+
+The alignment of DNA sequences is one of the earliest applications of
+bioinformatics \shortcite{gotoh,smithwaterman,needleman} and remains a
+core features of sequence analysis. The original alignment methods
+have focused principally on the alignment of coding sequences, either
+at the DNA level or at the protein level, mainly because the vast
+majority of available sequences were involved with protein coding
+genes. More recently there has been an interest in aligning non coding
+DNA driven by the availability of large genomes with considerable non
+coding extents, for example, 95\% of bases for mammalian species are
+thought to be non coding. A considerable amount of the complexity of
+large metozoan genomes is thought to be encoded in non-coding
+DNA. This currently poorly understood additional code in the genome
+should be revealed by the action of both negative and positive
+selection on specific sequences, giving rise in each case to specific
+patterns of alignments which deviate from an underlying supposed
+neutral model of base pair evolution (for a review, see
+\shortcite{UretaVidal}).
+
+Given such a widespread interest in non coding alignments, a number of
+groups have applied standard methods to the alignment of genome
+sequences \shortcite{?}, developed new methods to align genome
+sequences \shortcite{Jareborg}, or both \shortcite{blastz}. In many
+cases the alignment of non coding sequences is considered in the
+broader context of aligning two genome sequences, such as those
+detailed in the analysis of the mouse genome sequence
+\shortcite{Waterston} and much of the novel machinery has been focused
+on the pragmatic problems posed mainly by the length of the genome
+sequences.
+
+
+Given such activity, we have been surprised by the apparent
+disinterest in the specific underlying model of current alignment
+programs. We expect that when two protein structures have a common
+ancestor, there are a series of co-linear ``alignable'' residues,
+which are presumed to be homologous bases in each extant sequences
+with a smooth process of substitution explaining the differences which
+maintain the structure or function of the protein sequence. These
+alignable residues are separated by unalignable gaps in each
+sequence. If they do not share a common ancestor then there are no
+homologous base pairs and so no biologically valid alignment. In non
+coding alignments many of these assumptions are not true. Firstly
+there is ample evidence in non coding regions that either
+translocations and inversions both occur naturally and also often do
+not perturb the function of the sequence.  This observation means that
+resulting alignments of homologous base pairs may not be
+colinear. Secondly, rather than the relatively large colinear
+stretches of sequence of protein domains being the indivisible unit of
+protein sequences, far smaller motifs, being the binding site for
+particular DNA or RNA recognising factors are the indivisible units,
+which are often well modelled by small stretches of sequence with few
+if any gaps. Finally the combination of the small size of motifs and
+the functional tolerance of relative position and orientation allows
+for de-novo creation and removal of motifs to support a broader
+functional region. Effectively this process of de novo creation of
+functional regions is never considered in protein alignments, and has
+intriguing consequences for the alignment of sequences where
+equivalent functional sequences, which are still related by a smooth
+process of subsitution and selection across a small region of sequence
+are not necessarily a subset of the orthologous base pairs. Evidence
+of such birth-death process of motifs have been found in careful
+experimentally verified studies \shortcite{Manolis}
+
+
+Standard alignment programs therefore try find the maximal co-linear
+set of aligned residues under some scoring scheme which usually
+optimises for a mixture of small to mid-sized gaps. This is likely to
+be completely inappropiate for certain types non coding DNA. Such
+alignment programs cannot direct tolerate inversions or
+translocations, and it is only after post-processing the local
+processes (which may be optimised to an entirely inappropiate model)
+of finding long co-linear regions that such inversions or
+translocations are potentially visible. This prevents any observations
+of more interesting, potentially real cases of alignment that break
+co-linearity or score poorly under a mid-sized gap model. Previous
+studies have explored scoring schemes for non coding DNA
+\shortcite{Jareborg,Hardison}. This work reuses the DBA pair-HMM
+method presented in \shortcite{Jareborg} which has also been used in a
+number of other studies \shortcite{OtherDBAUsingPapers}. In this work
+we examine relaxing the need for strict co-linearity of the aligned
+regions, designing a new program, \emph{Promoterwise}. We show by
+simulation that this program can reliably find inverted and
+translocated sequences. We apply this to a number of genome-wide
+alignments of promoters and confirm the longstanding view that
+transcription factors are under tight transcriptional regulation; in
+particular in the vertebrate clade, many transcription factors have
+large portions of their promoters conserved between mammalia and
+telosts. In contrast other gene classes, including some well
+understood promoters do not seem to have such preserved alignable
+regions and we propose some explanations for this apparent divergence.
+
+
+\subsection{Methods}
+
+The alignment of two sequences allow both inversions and translocations
+is NP-complete \shortcite{Sankoff}. Therefore we took a greedy approach
+of proposing a large number of believable sub alignments and then reconciled
+them by accepting the higher scoring alignments and rejecting alignments
+with significant overlap. An outline of the method is given in pseudocode
+below:
+
+\begin{verbatim}
+
+  foreach stand in sequence-a
+    hsp-list = Generate-All-HSPs (sequencea,sequenceb)
+      Find all 6 out 7 base pair matches, extend to HSPs
+      using a +5,-4 scoring scheme. Reject HSPs with a
+      score < H
+
+   sub-alignment-list = align-HSPs (hsp-list) 
+     sort HSPs by score
+     foreach remaining hsp
+      initialise with top scoring HSP
+
+      descend the list of unaccount HSPs, and
+      merge if they are consistent with current
+      region within expansion parameter E 
+
+      once no more HSPs are mergable, align
+      the region with the DBA style pair HMM
+
+  sort all subalignments (both strands) by score
+    accept the first alignment
+    foreach remaining alignment
+      reject if alignment overlaps any already
+      accepted alignment in either sequence
+
+\end{verbatim}
+
+Although any potential alignment model can be used instead
+of the DBA pair HMM, an important feature of the DBA model is
+that it is conservatively parameterised, such that random sequence
+is rarely aligned. This ensures that the greedy-style rejection
+of alignments on the basis of overlap is unlikely to be due to a small
+additional extension of an alignment due to random matches. In contrast,
+more standard smith-waterman alignments can have extensive random
+extensions, in particular on the edges of real alignments.
+
+\subsection{Results}
+
+Ben's stuff - simulate evolution with allowing translocations and
+flips; score smith-waterman, DBA and promoterwise on these cases,
+produce sensitivity vs specificity style plots.
+ 
+
+Laurence's stuff Human/Fugu, Human/Zebra, Zebra/Fugu comparisons, Tables of 
+interpro obs vs expected chi2, also GO (with experimental evidence codes) in 
+human.
+
+How many times do we see non-colinear arrangements in these cases? Any
+time? (probably not!)
+
+
+\subsection{Discussion}
+     
+     
+Wax lyrical about inversions and translocations
+
+speculate wildly about the need for transcription factors to have
+transcription regulation.
+
+
+\section{Acknowledgements}
+
+L.E, B.P and E.B. are funded by EMBL. We used spare compute resource
+from the Ensembl project, funded by the Wellcome Trust.
+
+
+\bibliography{alignment}
+
+
+
+\end{document}

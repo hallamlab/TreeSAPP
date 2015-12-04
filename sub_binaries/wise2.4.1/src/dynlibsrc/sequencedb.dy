@@ -1,0 +1,573 @@
+
+
+%{
+#include "sequence.h"
+#include "database.h"
+#include "hscore.h"
+
+
+#define SequenceDBLISTLENGTH 128
+
+enum SequenceDBFormat {
+  SEQ_DB_UNKNOWN = 32,
+  SEQ_DB_FASTA };
+
+%}
+
+
+struct FileSource
+char * filename
+FILE * input !link // could be stdin! 
+int  format
+int  type
+%info
+This object represents a single
+file source for a database. At
+the moment only multiple fasta
+files are catered for
+%%
+
+struct SequenceDB
+char * name
+FileSource ** fs    !list 
+int current_source  !def="-1"
+FILE * current_file !def="NULL" !link
+int sequence_no;    !def="0"
+int byte_position;
+int has_warned_single !def="0"  !hidden 
+int seq_start  !def="-1"    
+int seq_end    !def="-1"
+%info
+This is the basic Sequence database
+wrapper - it handles all the formats
+and the on-the-fly indexing.
+
+Generally it wont be directly used by
+an algorithm, which will be using something
+specific to the sequence type produce complex 
+sequence type objects: ie you will be using
+proteindb or cdnadb which internally
+will be using this object
+%%
+
+api
+object SequenceDB
+func close_SequenceDB
+des  free_SequenceDB
+endobject
+object FileSource
+des free_FileSource
+endobject
+func single_fasta_SequenceDB
+endapi
+
+%{
+#include "sequencedb.h"
+
+
+
+%func
+Quite a mindless function which retrieves sequences
+via indexes
+
+Going to spend too much time in fopen if this is used
+too much
+%%
+Sequence * get_Sequence_from_SequenceDB(SequenceDB * sdb,DataEntry * de)
+{
+  FILE * ifp;
+  Sequence * ret;
+
+  if( de == NULL ) {
+    warn("Cannot get sequence database entry with a null dataentry!");
+    return NULL;
+  }
+
+  if( sdb == NULL ) {
+    warn("Cannot get sequence database entry with a null sequence db!");
+    return NULL;
+  }
+
+  if( de->filename == NULL ) {
+    warn("Cannot get sequence database entry with no attached filename");
+    return NULL;
+  }
+
+
+  /* actually, all our info is in dataentry */
+
+  ifp = openfile(de->filename,"r");
+  if( ifp == NULL ) {
+    warn("Bad error - could not open database file %s for reading indexed sequence",de->filename);
+    return NULL;
+  }
+
+  fseek(ifp,de->byte_position,SEEK_SET);
+
+  switch(de->data[1]) {
+  case SEQ_DB_FASTA : 
+    ret = read_fasta_Sequence(ifp);
+    break;
+  default :
+    warn("Unknown SequenceDB type [%d]",de->data[1]);
+    ret = NULL;
+  }
+
+  fclose(ifp);
+
+  return ret;
+}
+
+
+
+%func
+A function which places data into dataentry so we can
+be guarenteed to retrieve it sometime.
+
+It uses 0 and 1 points in the Data array.
+%%
+boolean add_SequenceDB_info_DataEntry(SequenceDB * sdb,DataEntry * de)
+{
+  if( sdb == NULL || de == NULL ) {
+    warn("Null objects being passed into add_SequenceDB_info_DataEntry. Can't be good!");
+    return FALSE;
+  }
+
+  de->filename = sdb->fs[sdb->current_source]->filename; /* if there... */
+  de->byte_position  = sdb->byte_position; /* of this sequence */
+  de->data[1]  = sdb->fs[sdb->current_source]->format;
+
+  return TRUE;
+}
+								      
+
+%func
+top level function that closes the SequenceDB
+after the last sequence is read.
+%arg
+last w Sequence object to be freed 
+sdb r database to be closed
+%%
+boolean close_SequenceDB(Sequence * last,SequenceDB * sdb)
+{
+  if( last != NULL )
+    free_Sequence(last);
+
+  if( sdb->sequence_no == 1 && sdb->has_warned_single == 0) {
+    info("Your sequence database has only sequence in it. It is quite likely there was a more efficient way to run this");
+    sdb->has_warned_single = 1;
+  }
+  /*** nothing else to do? ***/
+
+  sdb->current_source = (-1);
+  return TRUE;
+}
+
+
+%func
+top level function that starts a database read on
+SequenceDB
+
+%arg
+sdb r sequence database
+return_status w returns the database status as found in database.h
+%%
+Sequence * init_SequenceDB(SequenceDB * sdb,int * return_status)
+{
+  Sequence * temp = NULL;
+  int count;
+
+  sdb->current_source = 0;
+  sdb->sequence_no =0;
+  load_next_fs_SequenceDB(sdb);
+
+  if( sdb->seq_start != -1 && sdb->seq_end != -1 ) {
+    for(count=0;count <= sdb->seq_start;count++) {
+      temp = reload_SequenceDB(temp,sdb,return_status);
+    }
+    return temp;
+  }
+
+  return reload_SequenceDB(NULL,sdb,return_status);
+}
+
+%func
+top level function that reloads a sequence database
+
+%arg
+last w previous sequence to be used: will simply be freed at the moment
+sdb sequence database
+return_status w returns the database status as found in database.h
+%%
+Sequence * reload_SequenceDB(Sequence * last,SequenceDB * sdb,int * return_status)
+{
+  Sequence * out;
+  int count = 0;
+
+  /*
+   * free last Sequence: if we did something clever with
+   * memory, this is where we should do it 
+   */
+
+  if( last != NULL ) 
+    free_Sequence(last);
+
+
+  /* if there is a seq_end, then see whether this is the end */
+
+  if( sdb->seq_end != -1 && sdb->sequence_no == sdb->seq_end ) {
+    /* end */
+    sdb->current_source = -1;
+    *return_status = DB_RETURN_END;
+    return NULL;
+  }
+
+  /** see if we can read a Sequence now **/
+
+
+  if( (out = get_next_SequenceDB(sdb)) != NULL ) {
+    *return_status = DB_RETURN_OK;
+    sdb->sequence_no++;
+    return out;
+  }
+
+ 
+  if( SequenceDB_at_end(sdb) == TRUE ) {
+    if( close_last_fs_SequenceDB(sdb) == FALSE ) {
+      warn("On file source [%d] [%s] could not close",sdb->current_source,sdb->fs[sdb->current_source]->filename);
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+    *return_status = DB_RETURN_END;
+    return NULL;
+  }
+
+  /** ok, see if we can swap FileSources then **/
+
+  for(;;) {
+    if( close_last_fs_SequenceDB(sdb) == FALSE ) {
+      warn("On file source [%d] [%s] could not close",sdb->current_source,sdb->fs[sdb->current_source]->filename);
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+    
+    if( load_next_fs_SequenceDB(sdb) == FALSE ) {
+      warn("On file source [%d] [%s] could not open the file",sdb->current_source+1,sdb->fs[sdb->current_source+1]->filename);
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+    
+    
+    if( (out = get_next_SequenceDB(sdb)) != NULL ) {
+      *return_status = DB_RETURN_OK;
+      return out;
+    }
+    count++;
+    warn("Ok, don't like this, just loaded the next Filesource, and got no sequence. Nope!");
+
+    if( SequenceDB_at_end(sdb) == TRUE ) {
+      *return_status = DB_RETURN_END;
+      return NULL;
+    }
+
+    if( count > 10 ) {
+      /*** break out of infinite loop ***/
+
+      warn("Too many failed reloads of databases, going to fail");
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+
+
+  } /** back for for(;;) **/
+
+}
+    
+%func 
+Main switch around formats    
+%type internal
+%%
+Sequence * get_next_SequenceDB(SequenceDB * sdb)
+{
+  
+  /* remember the byte position now */
+
+  sdb->byte_position = ftell(sdb->current_file);
+
+  switch (sdb->fs[sdb->current_source]->format) {
+  case SEQ_DB_FASTA : 
+    return read_fasta_Sequence(sdb->current_file);
+  default :
+    warn("Unknown SequenceDB type [%d]",sdb->fs[sdb->current_source]->format);
+    return NULL;
+  }
+}
+
+
+%func
+Tells you if the SequenceDB is actually ended
+in terms of no more FileSources to eat through
+%type internal
+%% 
+boolean SequenceDB_at_end(SequenceDB * sdb)
+{
+  if( sdb->current_source == -1 ) {
+    warn("Bad bug: asking when it has finished when you have not init'd seqdb %s",sdb->name);
+    return TRUE;
+  }
+
+  if( sdb->current_source+1 < sdb->len ) {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
+%func
+Opens or attaches next FileSource stream
+
+Does not close anything - use /close_last_fs_SequenceDB
+%type internal
+%%
+boolean load_next_fs_SequenceDB(SequenceDB * sdb)
+{
+  FileSource * fs;
+
+  if( sdb->current_source == -1 ) {
+    warn("Bad bug: trying to close last source when you have not init'd seqdb %s",sdb->name);
+    return FALSE;
+  }
+
+  if( sdb->current_source >= sdb->len ) {
+    warn("Bad bug. Someone is trying to load the next fs file when there are none (has not tested with SequenceDB_at_end...). So. I will fail, but database is actually at the end");
+    return FALSE;
+  }
+  
+
+  fs = sdb->fs[sdb->current_source];
+
+  if( fs->filename != NULL ) {
+    if( (sdb->current_file = openfile(fs->filename,"r")) == NULL ) {
+      warn("Could not open file [%s] for database [%s]",fs->filename,sdb->name);
+      return FALSE;
+    }
+  } else {
+    sdb->current_file = fs->input;
+  }
+
+  return TRUE;
+}
+
+%func
+closes the last FileSource: checks if it was a straight stream
+(in which case does not close)
+%type internal
+%%
+boolean close_last_fs_SequenceDB(SequenceDB * sdb)
+{
+  FileSource * fs;
+
+  if( sdb->current_source == -1 ) {
+    warn("Bad bug: trying to close last source when you have not init'd seqdb %s",sdb->name);
+    return FALSE;
+  }
+
+  fs = sdb->fs[sdb->current_source];
+
+  if( fs->filename != NULL ) {
+    fclose(sdb->current_file);
+  } else if( fs->input != NULL ) {
+    warn("Can't handle closes on streams yet. Not sure what to do!");
+  }
+    
+  
+
+  sdb->current_source++;
+
+  return TRUE;
+}
+
+
+  /*** I/O ****/
+
+%func
+makes a SequencDB from a straight file stream.
+
+This means SequenceDB will *not* close it when
+the SequenceDB is closed.
+%arg
+input r filestream
+format format as defined by /word_to_format
+%%
+SequenceDB * SequenceDB_from_FILE_and_format(FILE * input,int format)
+{
+  SequenceDB * out;
+  FileSource * fs;
+  
+  out = SequenceDB_alloc_len(1);
+
+  fs = FileSource_from_FILE_and_format(input,format);
+
+  add_SequenceDB(out,fs);
+
+  return out;
+
+}
+
+%func
+Makes a file source from a straigth stream
+%type internal
+%%
+FileSource * FileSource_from_FILE_and_format(FILE * input,int format)
+{
+  FileSource * fs;
+
+  fs = FileSource_alloc();
+
+  fs->input = input;
+  fs->format = format;
+
+  return fs;
+}
+
+%func 
+pre-packed single fasta file db
+
+%arg
+filename name of fastadb
+%%
+SequenceDB * single_fasta_SequenceDB(char * filename)
+{
+  SequenceDB * out;
+  FileSource * fs;
+  
+  if( touchfile(filename) == FALSE) {
+    warn("Cannot make SequenceDB from an unopenable fileanme [%s]",filename);
+    return NULL;
+  }
+
+  fs = FileSource_alloc();
+  fs->filename = stringalloc(filename);
+  fs->format   = SEQ_DB_FASTA;
+
+  out = SequenceDB_alloc_len(1);
+  out->seq_start = -1;
+  out->seq_end   = -1;
+  add_SequenceDB(out,fs);
+
+  return out;
+}
+  
+  
+
+%func
+Reads a SequenceDB definition from
+
+seqdb <name>
+<filename> <format> <type>
+...
+endseqdb
+
+%arg
+line starting line (seqdb line)
+ifp file input
+%%
+SequenceDB * read_SequenceDB_line(char * line,FILE * ifp)
+{
+  SequenceDB * out = NULL;
+  FileSource * fs;
+  char buffer[MAXLINE];
+  char * runner;
+
+
+  if( strstartcmp(line,"seqdb") != 0 ) {
+    warn("Attempting to read a sequence line without a seqdb start");
+    return NULL;
+  }
+
+  runner = strtok(line,spacestr);
+  runner = strtok(line,spacestr);
+
+  if( runner == NULL ) {
+    out->name = stringalloc("UnNamedDatabase");
+  }
+  else out->name = stringalloc(runner);
+
+
+  out = SequenceDB_alloc_std();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL  ){
+    if( strstartcmp(buffer,"#") == 0 ) 
+      continue;
+    if( strstartcmp(buffer,"end") == 0 )
+      break;
+    fs = FileSource_from_line(buffer);
+    if( fs != NULL )
+      add_SequenceDB(out,fs);
+  }
+
+  return out;
+}
+
+%func
+converts char * to format for SequenceDB FileSources
+%%
+int word_to_format(char * word)
+{
+  if( strcmp(word,"fasta") == 0 ) {
+    return SEQ_DB_FASTA;
+  }
+
+  return SEQ_DB_UNKNOWN;
+}
+
+    
+%func 
+Reads line
+filename format type
+
+where format is determined by /word_to_format
+and type is protein/dna
+%type internal
+%%
+FileSource * FileSource_from_line(char * line)
+{
+  FileSource * out;
+  char * runner;
+  char * run2;
+  char * run3;
+
+  runner = strtok(line,spacestr);
+  run2 = strtok(line,spacestr);
+  run3 = strtok(line,spacestr);
+
+  if( runner == NULL || run2 == NULL || run3 == NULL ) {
+    warn("You have not provided a database source line");
+    return NULL;
+  }
+
+ 
+
+  out = FileSource_alloc();
+
+  out->filename = stringalloc(runner);
+
+  if( (out->format = word_to_format(run2)) == SEQ_DB_UNKNOWN) {
+    warn("For filename %s, the format [%s] is unknown to me",runner,run2);
+  }
+
+  return out;
+}
+
+
+
+
+%}
+
+
+
+
+
+
+

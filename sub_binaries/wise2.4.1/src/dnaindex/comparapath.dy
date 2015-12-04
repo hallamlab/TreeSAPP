@@ -1,0 +1,789 @@
+
+%{
+#include "sequence.h"
+#include "largeseqreader.h"
+#include "singleseqspace.h"
+#include "dnamapping.h"
+#include "kmer_index_interface.h"
+#include "kmer_direct.h"
+
+#include "hsp.h"
+
+
+#define COMPARALINK_START 8
+#define COMPARALINK_LINEAR 256
+
+#define COMPARA_NOTHING 0
+#define COMPARA_QUERY_UNIQUE    1
+#define COMPARA_QUERY_MULTIPLE  2
+#define COMPARA_TARGET_UNIQUE   4
+#define COMPARA_TARGET_MULTIPLE 8
+
+#define COMPARA_SPLINE_FLIPPED  16
+#define COMPARA_IS_REPEATED     32
+
+
+#define COMPARA_IS_JOINT_FORWARD(a) is_joint_forward(a)
+#define COMPARA_IS_JOINT_REVERSE(a) is_joint_reverse(a)
+
+#define COMPARA_IS_JOINT_FORWARD_MACRO(a) (((a->state&COMPARA_QUERY_UNIQUE) && (a->state&COMPARA_TARGET_UNIQUE) && a->spline != NULL) ? 1 : 0)
+
+#define COMPARA_IS_JOINT_REVERSE_MACRO(a) (((a->spline != NULL) && (((a->spline->state & COMPARA_QUERY_UNIQUE) && (a->state & COMPARA_TARGET_UNIQUE)) || ((a->spline->state & COMPARA_TARGET_UNIQUE) && (a->state & COMPARA_QUERY_UNIQUE)))) ? 1 : 0)
+
+typedef struct ComparaHead {
+  struct ComparaHead * next_query;
+  long int position[2];
+  struct ComparaHead * spline;
+  long int number;
+  char size;
+  char state;
+} ComparaHead;
+
+typedef struct ComparaLinkStart {
+  ComparaHead * start;
+  Sequence * seq;
+} ComparaLinkStart;
+
+typedef struct ComparaHeadBlockAllocator {
+  ComparaHead ** block;
+  int current_block;
+  int current_unit;
+  int unit_length;
+  int block_length;
+} ComparaHeadBlockAllocator;
+
+#define COMPARAHEAD_BA_BLOCK_LENGTH 10000
+#define COMPARAHEAD_BA_UNIT_LENGTH  10000
+
+typedef struct ComparaIndex {
+  KmerIndexInterface * kii;
+  ComparaLinkStart ** linkstart;
+  int current_link;
+  int link_len;
+  SinglePosSpace * sps;
+  ComparaHeadBlockAllocator * blockalloc;
+} ComparaIndex;
+
+
+#define COMPARAINDEX_LINK_START 16
+#define COMPARAINDEX_LINK_LINEAR 256
+
+#define ComparaLinkStartSetLISTLENGTH 256
+#define SetofHSPsetLISTLENGTH 256
+
+%}
+
+
+struct ComparaLinkStartSet
+ComparaLinkStart ** cls !list
+
+struct SetofHSPset 
+HSPset ** hspset !list
+
+
+%{
+#include "comparapath.h"
+
+
+ComparaLinkStart * free_ComparaLinkStart(ComparaLinkStart * cls)
+{
+  free(cls);
+  return NULL;
+}
+
+
+void show_SetofHSPset(SetofHSPset * set,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<set->len;i++) {
+    show_HSPset(set->hspset[i],ofp); 
+  }
+
+}
+
+
+SetofHSPset * SetofHSPset_from_ComparaIndex(ComparaIndex * ci,ComparaLinkStartSet * clss,FILE * logfp)
+{
+  int i;
+  HSPset * hsp;
+  SetofHSPset * out;
+
+  assert(ci != NULL);
+  assert(clss != NULL);
+
+  out = SetofHSPset_alloc_std();
+
+  for(i=0;i<clss->len;i++) {
+    if( clss->cls[i]->start != NULL ) {
+      fprintf(logfp,"Considering sequence %s\n",clss->cls[i]->seq->name);
+      fflush(logfp);
+
+      hsp = HSPset_from_ComparaIndex(ci,clss->cls[i],logfp);
+      add_SetofHSPset(out,hsp);
+    }
+  }
+
+  return out;
+}
+
+HSPset * HSPset_from_ComparaIndex(ComparaIndex * ci,ComparaLinkStart * cls,FILE * logfp)
+{
+  HSPset * out;
+  HSP * hsp;
+  ComparaHead * current;
+  long int target_pos;
+  ComparaHead * current_head;
+  ComparaHead * prev = NULL;
+
+  SinglePosSequence * query = NULL;
+  SinglePosSequence * target = NULL;
+
+  long int start_pos;
+  long int next_report_post;
+  long int last_pos;
+  long int unplaced = 0;
+
+  out = HSPset_alloc_std();
+
+  query = lookup_Sequence_SinglePosSpace(ci->sps,cls->start->position[0]);
+
+  start_pos = cls->start->position[0];
+  next_report_post = start_pos;
+
+  for(current = cls->start;current != NULL;) {
+    if( current->next_query == current ) {
+      fprintf(logfp,"Impossible; loop in next_query list, causing massive problems. have to abort");
+      fflush(logfp);
+
+      fatal("loop in next query, cannot contiue");
+    }
+
+    last_pos = current->position[0];
+
+    current_head = current;
+    if( current_head == prev || (prev != NULL &&  current_head->position[0] == prev->position[0]) ) {
+      fprintf(logfp,"Dangerous case of unmoving loop; artificalling moving on from position %ld\n",current->position[0]);
+      fflush(logfp);
+      current = current->next_query;
+      current_head = current;
+      if( current == NULL ) {
+	break;
+      }
+    }
+    
+    prev = current;
+      
+    if( current->position[0] >= next_report_post ) {
+      fprintf(logfp,"Seen %ld unplaced vs %ld positions\n",unplaced,current->position[0] - start_pos);
+
+      fprintf(logfp,"Considering positions %ld,%ld with size %d and spline %ld, (current %ld, prev %ld next %ld)\n",current->position[0],current->position[1],current->size,current->spline,current,prev,current->next_query);
+      next_report_post += 10000000;
+    }
+
+
+    if( COMPARA_IS_JOINT_FORWARD(current_head) ) {
+      /*
+      fprintf(logfp,"Found forward, with state %d (len %d)\n",current_head->state,current_head->size);
+      fflush(logfp);
+      */
+      target_pos  = current_head->position[1];
+
+
+      if( target == NULL || target->end > target_pos || target->start < target_pos ) {
+	target = lookup_Sequence_SinglePosSpace(ci->sps,target_pos);
+      }
+
+
+      assert(target);
+      assert(target->data);
+/*
+      fprintf(logfp,"  ...forward is %s %ld\n",((Sequence*)target->data)->name,target_pos - target->start);
+      fflush(logfp);
+*/
+
+      hsp = new_dna_identical_HSP((Sequence*)query->data,(Sequence*)target->data,current->position[0] - query->start,target_pos - target->start,0);
+      add_HSPset(out,hsp);
+
+
+      for(;current != NULL && (current->position[0] - query->start) < hsp->query_start + hsp->length;current = current->next_query)
+	;
+
+    } else if ( COMPARA_IS_JOINT_REVERSE(current_head) ) {
+      /*    
+	    fprintf(logfp,"Found reverse, with state %d (len %d)\n",current_head->state,current_head->size);
+	    fflush(logfp);
+      */  
+
+      target_pos = current_head->spline->position[0];
+
+      if( target == NULL || target->end > target_pos || target->start < target_pos ) {
+	target = lookup_Sequence_SinglePosSpace(ci->sps,target_pos);
+      }
+
+      /*
+      fprintf(logfp,"  ...reverse is %s %ld\n",((Sequence *)target->data)->name,target_pos - target->start);
+      fflush(logfp);
+      */
+
+      hsp = new_dna_identical_HSP((Sequence*)query->data,(Sequence*)target->data,current->position[0] - query->start,target_pos - target->start +  ci->kii->kmer_size -1,1);
+
+
+      add_HSPset(out,hsp);
+
+      
+      for(;current != NULL && (current->position[0] - query->start) < hsp->query_start + hsp->length;current = current->next_query)
+	;
+
+      
+    } else {
+      unplaced++;
+      current = current->next_query;
+    }
+  }
+
+
+  fprintf(logfp,"PLACED %s %ld unplaced positions vs %ld considered\n",cls->seq->name,unplaced,last_pos - start_pos);
+  fflush(logfp);
+  return out;
+  
+}
+
+
+
+boolean is_joint_forward(ComparaHead * h)
+{
+   if( h->spline != NULL ) {
+     return 0;
+   } 
+   if( (h->state & COMPARA_QUERY_UNIQUE) && (h->state & COMPARA_TARGET_UNIQUE) ) {
+     return 1;
+   }
+
+   return 0;
+}
+
+boolean is_joint_reverse(ComparaHead * h)
+{
+   if( h->spline == NULL ) {
+     return 0; 
+   } 
+   
+   if( (h->state & COMPARA_QUERY_UNIQUE) && (h->spline->state & COMPARA_TARGET_UNIQUE) && 
+       !(h->spline->state & COMPARA_QUERY_UNIQUE) &&
+       !(h->spline->state & COMPARA_QUERY_MULTIPLE) 
+       ) {
+     return 1;
+   }
+
+   /*
+   if( (h->spline->state & COMPARA_QUERY_UNIQUE) && (h->state & COMPARA_TARGET_UNIQUE) &&
+       !(h->spline->state & COMPARA_TARGET_UNIQUE) &&
+       !(h->spline->state & COMPARA_TARGET_MULTIPLE)
+       ) {
+     return 1;
+   }
+   */
+
+   return 0;
+}
+
+
+void show_distrib_ComparaIndex(ComparaIndex * ci,ComparaLinkStart * cls,FILE * ofp)
+{
+  long len = 0;
+  int count[4];
+  int i;
+  ComparaHead * current;
+  ComparaHead * chead;
+
+  for(i=0;i<4;i++) {
+    count[i] =0;
+  }
+
+  for(current = cls->start;current != NULL;current = current->next_query) {
+
+    chead = current;
+
+    if( chead == NULL ) {
+      continue;
+    }
+
+    count[(int)chead->size]++;
+    len++;
+  }
+
+  fprintf(ofp,"Seen %ld links...\n",len);
+
+  for(i=0;i<3;i++) {
+    fprintf(ofp,"%5d  %d\n",i,count[i]);
+  }
+
+  
+}
+
+void show_stats_ComparaIndex(ComparaIndex * ci,ComparaLinkStart * cls,FILE * ofp)
+{
+  int i;
+  int t_unique = 0;
+  int q_unique = 0;
+  int joint = 0;
+  int rev_joint  =0;
+
+  int t_multiple = 0;
+  int q_multiple = 0;
+  ComparaHead *chead;
+  
+  ComparaHead * current;
+
+
+  for(current = cls->start;current != NULL;current = current->next_query) {
+
+    i = current->number;
+
+    chead = current;
+
+    if( chead == NULL ) {
+      continue;
+    }
+
+
+    if( chead->state & COMPARA_TARGET_UNIQUE )
+      t_unique++;
+    if( chead->state & COMPARA_QUERY_UNIQUE )
+      q_unique++;
+
+    if( (chead->state & COMPARA_TARGET_UNIQUE) &&
+	(chead->state & COMPARA_QUERY_UNIQUE) ) 
+      joint++;
+
+
+
+
+    if( chead->spline != NULL ) {
+      /* currently only put in if spline is unique */
+      if( ((chead->state & COMPARA_TARGET_UNIQUE) &&
+	  (chead->spline->state & COMPARA_QUERY_UNIQUE)) ||
+	  ((chead->state & COMPARA_QUERY_UNIQUE) &&
+	   (chead->spline->state & COMPARA_TARGET_UNIQUE))
+	  )
+	
+	rev_joint++;
+    }
+
+    if( chead->state & COMPARA_TARGET_MULTIPLE )
+      t_multiple++;
+    if( chead->state & COMPARA_QUERY_MULTIPLE )
+      q_multiple++;
+  }
+
+  fprintf(ofp,"Target %d unique positions, %d (rev: %d) shared (%.2f %%)\n",t_unique,joint,rev_joint,((joint+rev_joint)*100.0)/(t_unique*1.0));
+  fprintf(ofp,"Query  %d unique positions, %d (rev: %d) shared (%.2f %%)\n",q_unique,joint,rev_joint,((joint+rev_joint)*100.0)/(q_unique*1.0));
+
+
+}
+
+
+long int insert_revcom_Splines_in_set(ComparaIndex * ci,ComparaLinkStartSet * clss,FILE * logfp)
+{
+  int i;
+  long int out = 0;
+
+  for(i=0;i<clss->len;i++) {
+    if( clss->cls[i]->start != NULL ) {
+      out += insert_revcom_Splines(ci,clss->cls[i],logfp);
+    }
+  }
+
+  return out;
+}
+
+
+long int insert_revcom_Splines(ComparaIndex * ci,ComparaLinkStart * cls,FILE * logfp)
+{
+  long int total = 0;
+  kmer_t rev;
+  ComparaHead *chead;
+  ComparaHead * revhead;
+  ComparaHead * current;
+  long int count = 0;
+
+
+  for(current = cls->start ; current != NULL ; current = current->next_query) {
+    chead = current;
+
+    if( chead == NULL ) {
+      continue;
+    }
+
+    if( count % 1000000 == 0 ) {
+      fprintf(logfp,"Splines for %s, considered %ld positions\n",cls->seq->name,count);
+      fflush(logfp);
+    }
+    count++;
+
+    rev = reverse_complement_dna_number(current->number,ci->kii->kmer_size);
+
+    revhead = (ComparaHead*) (*ci->kii->retrieve_by_kmer)(ci->kii->handle,rev);
+
+    if( revhead == NULL ) {
+      continue;
+    }
+
+    /*
+    reverse_map_dna_number(current->number,ci->kii->kmer_size,forward);
+    reverse_map_dna_number(rev,ci->kii->kmer_size,reverse);
+
+    forward[ci->kii->kmer_size] = reverse[ci->kii->kmer_size] = '\0';
+
+    fprintf(stderr,"Inserting spline at %ld with %s vs %s\n",current->position,forward,reverse);
+    */
+
+    chead->spline = revhead;
+    revhead->spline = chead;
+    total++;
+    
+  }
+
+  return total;
+
+}
+
+
+ComparaLinkStartSet * add_Sequence_stream_ComparaIndex(ComparaIndex * ci,FILE * ifp,boolean is_target,int lognumber,int test_rev,FILE * logfp,char * tag)
+{
+  Sequence * input;
+  ComparaLinkStartSet * clss;
+  ComparaLinkStart * cls;
+  char buffer[512];
+
+  /**
+101001010100101010010
+1001101
+  */
+
+
+  int skip_query[]  = {1,0,1,0,0,1,0};
+  int skip_target[] = {1,0,0,1,1,0,1};
+
+  clss = ComparaLinkStartSet_alloc_std();
+  
+  while( (input = read_large_dna_Sequence(ifp,lognumber,logfp)) != NULL ) {
+    if( tag != NULL ) {
+      sprintf(buffer,"%s_%s",tag,input->name);
+      free(input->name);
+      input->name = stringalloc(buffer);
+    }
+
+    if( is_target ) {
+      cls = add_Sequence_ComparaIndex(ci,input,is_target,lognumber,0,7,skip_target,test_rev,logfp);
+    } else {
+      cls = add_Sequence_ComparaIndex(ci,input,is_target,lognumber,0,7,skip_query,test_rev,logfp);
+    }
+    add_ComparaLinkStartSet(clss,cls);
+  }
+
+  return clss;
+}
+
+
+ComparaLinkStart * add_Sequence_ComparaIndex(ComparaIndex * ci,Sequence * seq,boolean is_target,int lognumber,long truncate,int skipsize,int * skipflag,int test_rev,FILE * logfp)
+{
+  int i;
+  ComparaLinkStart * cls;
+  long int pos_start;
+  kmer_t number;
+  ComparaHead * prev  = NULL;
+  ComparaHead *chead;
+  int j;
+  int s;
+  char base;
+
+  kmer_t rev_number;
+  ComparaHead * revhead;
+
+  char * base_numbers;
+  long int base_nos[100];
+  int k;
+  
+  kmer_t skipped = 0;
+  kmer_t repeated = 0;
+  kmer_t seen_repeats = 0;
+
+  assert(ci != NULL);
+  assert(seq != NULL);
+
+  assert(ci != NULL);
+  assert(ci->kii != NULL);
+
+  s = 1;
+  for(i=0;i<ci->kii->kmer_size;i++) {
+    base_nos[i] = s;
+    s = s*4;
+  }
+
+  cls= new_ComparaLinkStart(seq);
+  cls->start = NULL;
+
+  pos_start = add_Sequence_SinglePosSpace(ci->sps,seq->len,(void*)seq);
+
+  fprintf(logfp,"Loading position starting at %ld\n",pos_start);
+
+  base_numbers = map_to_basepair_numbers(seq->seq,seq->len);
+
+  for(i=0;i<seq->len - ci->kii->kmer_size;) {
+    for(s=0;s<skipsize && i < seq->len - ci->kii->kmer_size;s++,i++) {
+
+      if( lognumber != 0 && i % lognumber == 0 ) {
+	fprintf(logfp,"Loading position %d (%ld skipped, %ld repeated, %ld repeats) from %s\n",i,skipped,repeated,seen_repeats,seq->name);
+	fflush(logfp);
+      }
+  
+      if( skipsize > 1 ) {
+	if( skipflag[s] == 0 ) {
+	  continue;
+	}
+      }
+    
+      if( truncate != 0 && i > truncate ) {
+	break;
+      }
+      
+      
+      for(j=0;j<ci->kii->kmer_size;j++) {
+	/*      if( seq->seq[i+j] == 'N' || islower(seq->seq[i+j]) ) {*/
+	base = base_from_char(toupper(seq->seq[i+j]));
+	if( base >= 4  ) {
+	  break;
+	}
+      }
+      if( j < ci->kii->kmer_size ) {
+	skipped++;
+	continue;
+      }
+      
+      
+      /*      number = forward_dna_number_from_string(seq->seq+i,ci->kii->kmer_size); */
+      number = 0;
+      for(k=0;k<ci->kii->kmer_size;k++) {
+	number = number + (base_numbers[i+k]*base_nos[k]);
+      }
+      
+      if( number < 0 ) {
+	fprintf(logfp,"Yikes. Got bad number %ld at position %d, %.*s\n",number,i,ci->kii->kmer_size,seq->seq+i);
+      }
+      
+      assert(number>= 0);
+      
+      chead = (ComparaHead*) (*ci->kii->retrieve_by_kmer)(ci->kii->handle,number);
+      
+      if( chead == NULL && is_target == 1 && test_rev == 1 ) {
+	/* have to test reverse strand, otherwise pointless to put in */
+	rev_number = reverse_complement_dna_number(number,ci->kii->kmer_size);
+	revhead = (ComparaHead*) (*ci->kii->retrieve_by_kmer)(ci->kii->handle,rev_number);
+	if( revhead == NULL ) {
+	  continue;
+	}
+      }
+      
+      if( chead != NULL ) {
+	if( is_target == 0 ) {
+	  seen_repeats++;
+	  chead->state |= COMPARA_IS_REPEATED;
+	  chead->state = chead->state | COMPARA_QUERY_MULTIPLE;
+	  continue;
+	}
+
+	if( (chead->state & COMPARA_IS_REPEATED)  ) {
+	  seen_repeats++;
+	  continue;
+	}
+	
+	if( chead->size >= 2 ) {
+	  chead->state |= COMPARA_IS_REPEATED;
+	  repeated++;
+	  continue;
+	}
+      }
+      
+      if( chead == NULL ) {
+	chead = new_ComparaHead(ci->blockalloc);
+	if( chead == NULL ) {
+	  warn("Unable to make new ComparaHead for position %lld\n",i);
+	  assert(chead);
+	}
+	chead->number = number;
+	(*ci->kii->insert_by_kmer)(ci->kii->handle,number,chead);
+	
+	if( is_target ) {
+	  chead->state = COMPARA_TARGET_UNIQUE;
+	} else {
+	  chead->state = COMPARA_QUERY_UNIQUE;
+	}
+      } else {
+	/* must change state... */
+	if( is_target ) {
+	  if( (chead->state & COMPARA_TARGET_UNIQUE) ) {
+	    chead->state = chead->state & (~COMPARA_TARGET_UNIQUE);
+	    chead->state = chead->state | COMPARA_TARGET_MULTIPLE;
+	  } else if( !(chead->state & COMPARA_TARGET_MULTIPLE) ) {
+	    chead->state = chead->state | COMPARA_TARGET_UNIQUE;
+	  }
+	} else {
+	  if( (chead->state & COMPARA_QUERY_UNIQUE) ) {
+	    chead->state = chead->state & (~COMPARA_QUERY_UNIQUE);
+	    chead->state = chead->state | COMPARA_QUERY_MULTIPLE;
+	  } else if ( !(chead->state & COMPARA_QUERY_MULTIPLE) ) {
+	    chead->state = chead->state | COMPARA_QUERY_UNIQUE;
+	  }
+	}
+      }
+      
+      new_position_in_ComparaHead(chead,pos_start+i);
+      
+      if( cls->start == NULL ) {
+	if( chead == NULL ) {
+	  warn("Very weird; NULL chead at start assignment");
+	} else {
+	  cls->start = chead;
+	}
+      }
+      
+      if( is_target == 0 && prev != NULL ) {
+	prev->next_query = chead;
+	chead->next_query = NULL;
+      }
+      prev = chead;
+    }
+  }
+
+  free(base_numbers);
+  
+  return cls;
+}
+
+
+
+ComparaIndex * new_ComparaIndex(KmerIndexInterface * kii)
+{
+  ComparaIndex * out;
+  
+  assert(kii);
+
+  out = malloc(sizeof(ComparaIndex));
+  out->kii = kii;
+
+  
+  out->linkstart = calloc(COMPARAINDEX_LINK_START,sizeof(ComparaLinkStart*));
+  out->current_link = 0;
+  out->link_len = COMPARAINDEX_LINK_START;
+  out->sps = new_SinglePosSpace(1,50000);
+  out->blockalloc = new_ComparaHeadBlockAllocator(COMPARAHEAD_BA_BLOCK_LENGTH,COMPARAHEAD_BA_UNIT_LENGTH);
+  return out;
+}
+
+ComparaLinkStart * new_ComparaLinkStart(Sequence * seq)
+{
+  ComparaLinkStart * out;
+
+  out = malloc(sizeof(ComparaLinkStart));
+  
+  out->start = NULL;
+  out->seq = seq;
+
+  return out;
+}
+
+void add_ComparaLinkStart_to_ComparaIndex(ComparaIndex * ci,ComparaLinkStart * cls)
+{
+  assert(ci);
+  assert(cls);
+
+  if( ci->current_link >= ci->link_len ) {
+    if( ci->link_len > COMPARAINDEX_LINK_LINEAR ) {
+      ci->linkstart = realloc(ci->linkstart,sizeof(ComparaLinkStart*)*(ci->link_len + COMPARAINDEX_LINK_LINEAR));
+      ci->link_len = ci->link_len + COMPARAINDEX_LINK_LINEAR;
+    } else {
+      ci->linkstart = realloc(ci->linkstart,sizeof(ComparaLinkStart*)*(ci->link_len*2));
+      ci->link_len = ci->link_len*2;
+    }
+  }
+
+
+  ci->linkstart[ci->current_link++] = cls;
+
+}
+
+
+ComparaHead * new_ComparaHead(ComparaHeadBlockAllocator * ba)
+{
+  ComparaHead * out;
+
+  out = new_ComparaHead_from_ComparaHeadBlockAllocator(ba);
+  assert(out != NULL);
+
+  out->size = 0;
+  out->position[0] = -1;
+  out->position[1] = -1;
+
+  out->state    = COMPARA_NOTHING;
+  out->spline  = NULL;
+  return out;
+}
+
+void new_position_in_ComparaHead(ComparaHead * h,long int position)
+{
+  assert(h != NULL);
+  if( h->size == 2 ) {
+    h->state |= COMPARA_IS_REPEATED;
+    return;
+  }
+
+  h->position[(int)h->size] = position;
+  h->size++;
+  
+  return;
+}
+
+ComparaHeadBlockAllocator * new_ComparaHeadBlockAllocator(int block_length,int unit_length)
+{
+  ComparaHeadBlockAllocator * out;
+
+  out = (ComparaHeadBlockAllocator*) malloc(sizeof(ComparaHeadBlockAllocator));
+  out->current_block = 0;
+  out->current_unit = 0;
+  out->unit_length = unit_length;
+  out->block_length = block_length;
+
+  out->block = calloc(block_length,sizeof(ComparaHead*));
+  out->block[0] = calloc(unit_length,sizeof(ComparaHead));
+
+  return out;
+
+}
+
+ComparaHead * new_ComparaHead_from_ComparaHeadBlockAllocator(ComparaHeadBlockAllocator * chba)
+{
+  ComparaHead * ret;
+  assert(chba != NULL);
+  if( chba->current_unit >= chba->unit_length ) {
+    if( chba->current_block >= chba->block_length ) {
+      chba->block = realloc(chba->block,sizeof(ComparaHead*)*(2*chba->block_length));
+      chba->block_length *= 2;
+    }
+    chba->current_block++;
+    chba->block[chba->current_block] = calloc(chba->unit_length,sizeof(ComparaHead));
+    chba->current_unit = 0;
+  }
+  
+  
+  ret =  chba->block[chba->current_block]+(chba->current_unit);
+  chba->current_unit++;
+
+  return ret;
+
+}
+
+%}
+
+

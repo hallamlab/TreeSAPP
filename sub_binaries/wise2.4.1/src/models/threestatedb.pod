@@ -1,0 +1,292 @@
+=head1 NAME
+
+threestatedb module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item ThreeStateDB
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object ThreeStateDB
+
+=over
+
+=item dbtype
+
+ Type [int] Scalar No documentation
+
+=item filename
+
+ Type [char *] Scalar No documentation
+
+=item type
+
+ Type [int] Scalar No documentation
+
+=item current_file
+
+ Type [FILE *] Scalar No documentation
+
+=item rm
+
+ Type [RandomModel *] Scalar  NB, this is hard-linked... 
+
+=item byte_position
+
+ Type [long] Scalar  this is the file position for the current model
+
+=item single
+
+ Type [ThreeStateModel *] Scalar  for single db cases
+
+=item phdb
+
+ Type [PfamHmmer1DB *] Scalar  for Pfam Hmmer1 style databases.
+
+=item sdb
+
+ Type [SequenceDB   *] Scalar  for protein databases
+
+=item comp
+
+ Type [CompMat      *] Scalar  for protein databases
+
+=item gap
+
+ Type [int] Scalar  for protein databases
+
+=item ext
+
+ Type [int] Scalar  for protein databases
+
+=item seq_cache
+
+ Type [Sequence * ] Scalar  needed for a bit of inter-function communication 
+
+=item reload_generic
+
+ Type [ThreeStateModel * (*reload_generic)(ThreeStateDB * tdb,int * return_status)] Scalar  for generic parsing applications...
+
+
+=item open_generic
+
+ Type [boolean (*open_generic)(ThreeStateDB * tdb)] Scalar No documentation
+
+=item close_generic
+
+ Type [boolean (*close_generic)(ThreeStateDB * tdb)] Scalar No documentation
+
+=item dataentry_add
+
+ Type [boolean (*dataentry_add)(ThreeStateDB * tdb,DataEntry * en)] Scalar No documentation
+
+=item open_index_generic
+
+ Type [boolean (*open_index_generic)(ThreeStateDB *tdb)] Scalar No documentation
+
+=item index_generic
+
+ Type [ThreeStateModel * (*index_generic)(ThreeStateDB *tdb,DataEntry *de)] Scalar No documentation
+
+=item close_index_generic
+
+ Type [boolean (*close_index_generic)(ThreeStateDB *tdb)] Scalar No documentation
+
+=item data
+
+ Type [void *] Scalar  whatever else the damn system wants to carry around with it! 
+
+=item hmm_model_start
+
+ Type [int ] Scalar No documentation
+
+=item hmm_model_end
+
+ Type [int ] Scalar No documentation
+
+=item current_no
+
+ Type [int ] Scalar No documentation
+
+
+
+=back
+
+ThreeStateDB is the object that represents
+a database of profile-HMMs. 
+
+The object hold a variety of fields on some of which are
+occupied depending on the type.
+
+Realistically we need a more abstract class idea, which is
+implemented here anyway via the generic stuff, in hacky
+C-style pointers to function plus a void pointer. This object
+therefore houses a switch system around the different types
+including the generic system... but as the generic function
+stuff was bolted on later, some things are handled with
+explicit datastructures. It is quite messy ;). Apologies.
+To be cleaned up.
+
+The generic stuff was principly added in to allow a decoupling of this module
+from the HMMer2.o interface code which is held in wise2xhmmer.dy
+
+The old static datastructure code can be 
+made via protein sequences which are then converted or a 
+Pfam 2.0 style directory + HMMs file.
+
+
+
+=head2 Member functions of ThreeStateDB
+
+=over
+
+=item indexed_model
+
+&Wise2::ThreeStateDB::indexed_model(mdb,en)
+
+  Retrieves a model from a database which has been opened
+  for indexing by /open_for_indexing_ThreeStateDB
+
+  The index information comes from the dataentry which should 
+  have been from a search of the ThreeStateDB.
+
+
+
+  Argument mdb          [UNKN ] database where this is indexed [ThreeStateDB *]
+  Argument en           [UNKN ] dataentry to pull the model from [DataEntry *]
+  Return [UNKN ] Undocumented return value [ThreeStateModel *]
+
+
+=item new_proteindb_ThreeStateDB
+
+&Wise2::ThreeStateDB::new_proteindb_ThreeStateDB(sdb,comp,gap,ext)
+
+  makes a new ThreeStateDB from a
+  sequencedb (better be protein!)
+
+
+
+
+  Argument sdb          [READ ] sequence database to use [SequenceDB *]
+  Argument comp         [READ ] comparison matrix to use [CompMat *]
+  Argument gap          [READ ] gap open penalty [int]
+  Argument ext          [READ ] gap extensions penalty [int]
+  Return [UNKN ] Undocumented return value [ThreeStateDB *]
+
+
+=item new_PfamHmmer1DB_ThreeStateDB
+
+&Wise2::ThreeStateDB::new_PfamHmmer1DB_ThreeStateDB(dirname)
+
+  Makes a new PfamHmmer1DB from a filename
+  indicating the directory
+
+
+
+  Argument dirname      [UNKN ] Undocumented argument [char *]
+  Return [UNKN ] Undocumented return value [ThreeStateDB *]
+
+
+=item new_single_ThreeStateDB
+
+&Wise2::ThreeStateDB::new_single_ThreeStateDB(tsm,rm)
+
+  Making a new ThreeStateDB from a single
+  model
+
+
+
+
+  Argument tsm          [READ ] a single ThreeStateModel [ThreeStateModel *]
+  Argument rm           [READ ] random model to be used in comparisons.. [RandomModel *]
+  Return [UNKN ] Undocumented return value [ThreeStateDB *]
+
+
+=item hard_link_ThreeStateDB
+
+&Wise2::ThreeStateDB::hard_link_ThreeStateDB(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [ThreeStateDB *]
+  Return [UNKN ] Undocumented return value [ThreeStateDB *]
+
+
+=item alloc
+
+&Wise2::ThreeStateDB::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [ThreeStateDB *]
+
+
+=item set_dbtype
+
+&Wise2::ThreeStateDB::set_dbtype(obj,dbtype)
+
+  Replace member variable dbtype
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateDB *]
+  Argument dbtype       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable dbtype [boolean]
+
+
+=item dbtype
+
+&Wise2::ThreeStateDB::dbtype(obj)
+
+  Access member variable dbtype
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateDB *]
+  Return [SOFT ] member variable dbtype [int]
+
+
+=item set_filename
+
+&Wise2::ThreeStateDB::set_filename(obj,filename)
+
+  Replace member variable filename
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateDB *]
+  Argument filename     [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable filename [boolean]
+
+
+=item filename
+
+&Wise2::ThreeStateDB::filename(obj)
+
+  Access member variable filename
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateDB *]
+  Return [SOFT ] member variable filename [char *]
+
+
+=back
+

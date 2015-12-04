@@ -1,0 +1,296 @@
+
+
+%{
+
+#include "dyna.h"
+#include "contig.h"
+
+#define OverlapCollectionLISTLENGTH 128
+
+typedef enum OverlapTypeUsage {
+  OVERLAP_TYPE_INIT,
+  OVERLAP_TYPE_CIRCULAR,
+  OVERLAP_TYPE_USED,
+  OVERLAP_TYPE_UNUSED
+} OverlapType;
+
+%}
+
+
+
+struct Overlap
+char * leftid
+Contig * left
+int left_direction
+int left_switch
+char * rightid
+Contig * right
+int right_direction
+int right_switch
+double score
+int length
+OverlapType type  !def="OVERLAP_TYPE_INIT"
+
+struct OverlapCollection
+Overlap ** overlap !list
+
+
+struct ContigAssembly
+ContigCollection  * contig
+OverlapCollection * overlap
+Contig * leftmost !link
+
+%{
+#include "overlap.h"
+
+
+void ContigAssembly_agp(ContigAssembly * ca,char * ctg_name,FILE *ofp)
+{
+  int i;
+  Contig ** processed_ends;
+
+
+  /* find all the unsatisified ends */
+}
+
+
+void ContigAssembly_assembl(ContigAssembly * ca)
+{
+  Overlap * o;
+  int i;
+
+  /*
+   * sort by score
+   * for each overlap
+   *   if( left end is open and right end is open)
+   *      if ( left walk ends in no end or right walk ends in no end )
+   *        assign circular
+   *      else 
+   *        attach left contig to right contig with direction
+   *        assign overlap_used
+   *    else 
+   *      assign overlap_unused
+   */
+
+  OverlapCollection_sort_by_score(ca->overlap);
+
+  for(i=0;i<ca->overlap->len;i++) {
+    o = ca->overlap->overlap[i];
+    
+    if( o->left_direction == 1 ) {
+      /* means we want to attach to 5' */
+      if( o->left->real_5peer != NULL ) {
+	o->type = OVERLAP_TYPE_UNUSED;
+	continue;
+      }
+    } else {
+      if( o->left->real_3peer != NULL ) {
+	o->type = OVERLAP_TYPE_UNUSED;
+	continue;
+      }
+    } 
+
+    /* symmetrical about the right hand side */
+
+    if( o->right_direction == 1 ) {
+      /* means we want to attach to 5' */
+      if( o->right->real_5peer != NULL ) {
+	o->type = OVERLAP_TYPE_UNUSED;
+	continue;
+      }
+    } else {
+      if( o->right->real_3peer != NULL ) {
+	o->type = OVERLAP_TYPE_UNUSED;
+	continue;
+      }
+    } 
+
+
+    /*
+     * NOT IMPLEMENTED YET - CIRCULARITY CHECK 
+     */
+
+
+    /* we can use the overlap */
+
+    o->type = OVERLAP_TYPE_USED;
+
+    /* 
+     * attach underlying contigs 
+     * direction is implict ie
+     * if( contig->real_5peer == contig->real_5peer->real_3peer ) 
+     *     forward::forward overlap
+     * is attached on the left or the right
+     */
+       
+
+    if( o->left_direction == 1 ) {
+      o->left->real_5peer = o->right;
+      o->left->golden_start = o->left_switch;
+    } else {
+      o->left->real_3peer = o->right;
+      o->left->golden_end = o->left_switch;
+    }
+
+    if( o->right_direction == 1 ) {
+      o->right->real_5peer = o->left;
+      o->right->golden_start = o->right_switch;
+    } else {
+      o->right->real_3peer = o->left;
+      o->right->golden_end = o->right_switch;
+    }
+  }
+
+  /* done */
+}
+    
+      
+    
+void OverlapCollection_sort_by_score(OverlapCollection * oc)
+{
+  sort_OverlapCollection(oc,Overlap_cmp_by_score);
+}
+
+
+int Overlap_cmp_by_score(Overlap * one,Overlap * two)
+{
+  if( one->score > two->score ) {
+    return -1;
+  } else {
+    return 1;
+  }
+}
+
+
+boolean ContigAssembly_validate(ContigAssembly * ca)
+{
+  int i;
+  Contig * c;
+
+  for(i=0;i<ca->overlap->len;i++) {
+    c = ContigCollection_find(ca->contig,ca->overlap->overlap[i]->leftid);
+    if( c == NULL ) {
+      return FALSE;
+    } 
+    ca->overlap->overlap[i]->left = c;
+
+    c = ContigCollection_find(ca->contig,ca->overlap->overlap[i]->rightid);
+    if( c == NULL ) {
+      return FALSE;
+    } 
+    ca->overlap->overlap[i]->right = c;
+  }
+
+  return TRUE;
+}
+
+
+
+
+
+ContigAssembly * ContigAssembly_read(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  ContigAssembly * out;
+  Contig * c;
+  Overlap * o;
+
+  out = ContigAssembly_alloc();
+
+  out->contig = ContigCollection_alloc_std();
+  out->overlap = OverlapCollection_alloc_std();
+
+  while( fgets(buffer,MAXLINE,ifp) ) {
+    if( buffer[0] == '#' ) {
+      continue;
+    }
+    if( strstartcmp(buffer,"contig") == 0 ) {
+      c = Contig_from_line(buffer);
+      add_ContigCollection(out->contig,c);
+    } else if ( strstartcmp(buffer,"overlap") == 0 ) {
+      o = Overlap_from_line(buffer);
+      add_OverlapCollection(out->overlap,o);
+    } else {
+      fprintf(stderr,"Unable to parse line %s",buffer);
+    }
+  }
+
+  return out;
+
+}
+
+
+void ContigAssembly_dump(ContigAssembly * ca,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<ca->contig->len;i++) {
+    fprintf(ofp,"Contig %s\n",ca->contig->contig[i]->id);
+  }
+
+  for(i=0;i<ca->overlap->len;i++) {
+    fprintf(ofp,"Overlap %s %s %f\n",ca->overlap->overlap[i]->leftid,
+	    ca->overlap->overlap[i]->rightid,
+	    ca->overlap->overlap[i]->score);
+  }
+}
+
+  
+
+
+Overlap * Overlap_from_line(char * line)
+{
+  Overlap * out;
+  char ** base;
+  char ** brk;
+
+  out = Overlap_alloc();
+
+  /* line is
+   * overlap contig-a contig-b switch-a direction-a switch-b direction-b score length
+   */
+
+  base=brk=breakstring(line,spacestr);
+
+  brk++;
+  out->leftid = stringalloc(*brk);
+  brk++;
+  out->rightid = stringalloc(*brk);
+  brk++;
+  if( is_integer_string(*brk,&out->left_switch) == FALSE ) {
+    fatal("parsing error in overlap");
+  }
+  brk++;
+  if( is_integer_string(*brk,&out->left_direction) == FALSE ) {
+    fatal("parsing error in overlap");
+  }
+
+  brk++;
+  if( is_integer_string(*brk,&out->right_switch) == FALSE ) {
+    fatal("parsing error in overlap");
+  }
+  brk++;
+  if( is_integer_string(*brk,&out->right_direction) == FALSE ) {
+    fatal("parsing error in overlap");
+  }
+
+  brk++;
+
+  is_double_string(*brk,&out->score);
+
+  brk++;
+
+  is_integer_string(*brk,&out->length);
+
+    
+
+  ckfree(base);
+    
+
+  return out;
+}  
+
+
+%}
+
+

@@ -1,0 +1,82 @@
+
+%{
+
+#include "hsplookupscan.h"
+#include "hsplookupthreaded.h"
+#include "hsptwohitscan.h"
+
+
+%}
+
+
+struct HSPScanRuntimeImpl
+HSPScanInterface * vanilla
+HSPScanInterface * threaded
+HSPScanInterface * twohit
+
+
+%{
+#include "hspscanruntime.h"
+
+
+%func
+Makes a new function which will at runtime switch between
+implementation; vanilla, threaded and twohit
+%%
+HSPScanInterface * new_runtime_HSPScanInterface(SeqLookupInterface * sli,CompMat * mat,int drop_off,int score_cutoff,int threadno)
+{
+  HSPScanInterface * out;
+  HSPScanRuntimeImpl * rt;
+
+  out = HSPScanInterface_alloc();
+
+  rt = HSPScanRuntimeImpl_alloc();
+  rt->vanilla  = new_one_off_HSPScanInterface(sli,mat,drop_off,score_cutoff);
+  rt->threaded = new_threaded_HSPScanInterface(sli,mat,drop_off,score_cutoff,threadno);
+  rt->twohit   = new_twohit_one_off_HSPScanInterface(sli,mat,drop_off,score_cutoff);
+
+  out->data = (void*) rt;
+  out->free_data = free_runtime_hspscan;
+  out->scan_query = scan_query_runtime_hspscan;
+
+  return out;
+}
+
+%func
+Handles runtime switching between methods for the scan query
+%%
+LinearHSPmanager * scan_query_runtime_hspscan(void * data,Sequence * seq,HSPScanInterfacePara * para)
+{
+  HSPScanRuntimeImpl * d;
+
+  d = (HSPScanRuntimeImpl *) data;
+
+  switch(para->implementation) {
+  case HSPSCAN_IMPLEMENTATION_VANILLA :
+    return (*d->vanilla->scan_query)(d->vanilla->data,seq,para);
+  case HSPSCAN_IMPLEMENTATION_THREADED :
+    return (*d->threaded->scan_query)(d->threaded->data,seq,para);
+  case HSPSCAN_IMPLEMENTATION_TWOHIT  :
+    return (*d->twohit->scan_query)(d->twohit->data,seq,para);
+  default :
+    warn("No good implementation for %d as implementation",para->implementation);
+  }
+
+  return NULL;
+}
+
+
+%func
+free function for runtime
+%%
+void free_runtime_hspscan(void * data)
+{
+  HSPScanRuntimeImpl * d;
+
+  d = (HSPScanRuntimeImpl *) data;
+
+  free_HSPScanRuntimeImpl(d);
+}
+
+
+  

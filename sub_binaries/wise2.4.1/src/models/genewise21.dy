@@ -1,0 +1,601 @@
+
+
+%{
+
+#include "dyna.h"
+#include "genewisemodel.h"
+#include "genewisemodeldb.h"
+
+
+%}
+
+
+matrix GeneWise21
+query    type="GENEWISEMODEL"      name="query"  field:len="len"
+target   type="GENOMIC"              name="target"
+resource type="GeneParser21Score *"  name="gp21"
+resource type="RandomCodonScore *"   name="rndcodon"
+resource type="RandomModelDNAScore *"     name="rndbase"
+extern   type="int" name="GW_*"
+extern   type="int" name="GP21_*"
+state  MATCH offi="1" offj="3"
+  calc="GENOMIC_CDS_POT(target,j)"
+  source MATCH 
+    calc="query->seg[i]->transition[GW_MATCH2MATCH] +query->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2MATCH] +query->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2MATCH] +query->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+  source BEFORE_CODON offj="3"
+    calc="query->seg[i]->transition[GW_START2MATCH] +query->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+  source SPACER_0M offi="1" offj="6"
+    target_label 3SS_PHASE_0
+    calc="gp21->transition[GP21_SPACER2CDS] +query->seg[i]->match[GENOMIC_CODON(target,j)] +GENOMIC_3SS(target,j-3) + query->seg[i]->transition[GW_MATCH_BALANCE_3SS]"
+    endsource
+  source PY_0M offi="1" offj="6"
+    target_label 3SS_PHASE_0
+    calc="gp21->transition[GP21_PY2CDS] +query->seg[i]->match[GENOMIC_CODON(target,j)] +GENOMIC_3SS(target,j-3) + query->seg[i]->transition[GW_MATCH_BALANCE_3SS]"
+    endsource
+  source SPACER_1M offi="1" offj="5"
+    target_label 3SS_PHASE_1
+    calc="gp21->transition[GP21_SPACER2CDS] +GENOMIC_3SS(target,j-2)"
+    endsource
+  source PY_1M offi="1" offj="5"
+    target_label 3SS_PHASE_1
+    calc="gp21->transition[GP21_PY2CDS] +GENOMIC_3SS(target,j-2)"
+    endsource
+  source SPACER_2M offi="1" offj="4"
+    target_label 3SS_PHASE_2
+    calc="gp21->transition[GP21_SPACER2CDS] +GENOMIC_3SS(target,j-1)"
+    endsource
+  source PY_2M offi="1" offj="4"
+    target_label 3SS_PHASE_2
+    calc="gp21->transition[GP21_PY2CDS] +GENOMIC_3SS(target,j-1)"
+    endsource
+  source MATCH offi="1" offj="2"
+    target_label SEQUENCE_DELETION
+    calc="gp21->transition[GP21_DELETE_1_BASE]"
+    endsource
+  source MATCH offi="1" offj="1"
+    target_label SEQUENCE_DELETION
+    calc="gp21->transition[GP21_DELETE_2_BASE]"
+    endsource
+  source MATCH offi="1" offj="4"
+    target_label SEQUENCE_INSERTION
+    calc="gp21->transition[GP21_INSERT_1_BASE]"
+    endsource
+  source MATCH offi="1" offj="5"
+    target_label SEQUENCE_INSERTION
+    calc="gp21->transition[GP21_INSERT_2_BASE]"
+    endsource
+  query_label  MATCH_STATE
+  target_label CODON
+endstate
+state  INSERT offi="0" offj="3"
+  calc="GENOMIC_CDS_POT(target,j)"
+  source MATCH 
+    calc="query->seg[i]->transition[GW_MATCH2INSERT] +query->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2INSERT] +query->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2INSERT] +query->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource
+  source BEFORE_CODON
+    calc="query->seg[i]->transition[GW_START2INSERT] +query->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource
+  source SPACER_0I offi="1" offj="6"
+    target_label 3SS_PHASE_0
+    calc="gp21->transition[GP21_SPACER2CDS] +query->seg[i]->insert[GENOMIC_CODON(target,j)] +GENOMIC_3SS(target,j-3) + query->seg[i]->transition[GW_MATCH_BALANCE_3SS]"
+    endsource
+  source SPACER_1I offi="1" offj="5"
+    target_label 3SS_PHASE_1
+    calc="gp21->transition[GP21_SPACER2CDS] +GENOMIC_3SS(target,j-2)"
+    endsource
+  source SPACER_2I offi="1" offj="4"
+    target_label 3SS_PHASE_2
+    calc="gp21->transition[GP21_SPACER2CDS] +GENOMIC_3SS(target,j-1)"
+    endsource
+  source PY_0I offi="1" offj="6"
+    target_label 3SS_PHASE_0
+    calc="gp21->transition[GP21_PY2CDS] +query->seg[i]->insert[GENOMIC_CODON(target,j)] +GENOMIC_3SS(target,j-3) + query->seg[i]->transition[GW_MATCH_BALANCE_3SS]"
+    endsource
+  source PY_1I offi="1" offj="5"
+    target_label 3SS_PHASE_1
+    calc="gp21->transition[GP21_PY2CDS] +GENOMIC_3SS(target,j-2)"
+    endsource
+  source PY_2I offi="1" offj="4"
+    target_label 3SS_PHASE_2
+    calc="gp21->transition[GP21_PY2CDS] +GENOMIC_3SS(target,j-1)"
+    endsource
+  source INSERT offi="1" offj="2"
+    target_label SEQUENCE_DELETION
+    calc="gp21->transition[GP21_DELETE_1_BASE]"
+    endsource
+  source INSERT offi="1" offj="1"
+    target_label SEQUENCE_DELETION
+    calc="gp21->transition[GP21_DELETE_2_BASE]"
+    endsource
+  source INSERT offi="1" offj="4"
+    target_label SEQUENCE_INSERTION
+    calc="gp21->transition[GP21_INSERT_1_BASE]"
+    endsource
+  source INSERT offi="1" offj="5"
+    target_label SEQUENCE_INSERTION
+    calc="gp21->transition[GP21_INSERT_2_BASE]"
+    endsource
+  query_label  INSERT_STATE
+  target_label CODON
+endstate
+state   DELETE offi="1" offj="0" 
+  source MATCH 
+    calc="query->seg[i]->transition[GW_MATCH2DELETE]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2DELETE]"
+    endsource
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2DELETE]"
+    endsource
+  source BEFORE_CODON
+    calc="query->seg[i]->transition[GW_START2DELETE]"
+    endsource
+  query_label  DELETE_STATE
+  target_label INSERT
+endstate
+#
+#
+#
+state CENTRAL_0M 
+  source MATCH offj="8" offi="0"
+    target_label 5SS_PHASE_0
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_MATCH2MATCH] + query->seg[i]->transition[GW_MATCH_BALANCE_5SS]"
+    endsource
+  source INSERT offj="8" offi="0"
+    target_label 5SS_PHASE_0
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_INSERT2MATCH] + query->seg[i]->transition[GW_INSERT_BALANCE_5SS]"
+    endsource
+  source DELETE offj="8" offi="0"
+    target_label 5SS_PHASE_0
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_DELETE2MATCH]"
+    endsource
+  source CENTRAL_0M offj="1" offi="0"
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +gp21->transition[GP21_CENTRAL2CENTRAL]"
+    endsource
+  query_label  INTRON_MATCH_0
+  target_label CENTRAL_INTRON
+endstate
+state PY_0M offj="1" offi="0" 
+  calc="gp21->py[GENOMIC_BASE(target,j)]"
+  source CENTRAL_0M
+    calc="gp21->transition[GP21_CENTRAL2PY]"
+    endsource
+  source PY_0M
+    calc="gp21->transition[GP21_PY2PY]"
+    endsource
+  query_label  INTRON_MATCH_0
+  target_label PYRIMIDINE_TRACT
+endstate
+state SPACER_0M offj="1" offi="0"
+  calc="gp21->spacer[GENOMIC_BASE(target,j)]"
+  source PY_0M
+    calc="gp21->transition[GP21_PY2SPACER]"
+    endsource
+  source SPACER_0M
+    calc="gp21->transition[GP21_SPACER2SPACER]"
+    endsource
+  query_label  INTRON_MATCH_0
+  target_label SPACER
+endstate
+state CENTRAL_1M 
+  source MATCH offj="9" offi="0"
+    target_label 5SS_PHASE_1
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_MATCH2MATCH] + query->seg[i]->transition[GW_MATCH_BALANCE_5SS]"
+    endsource
+  source INSERT offj="9" offi="0"
+    target_label 5SS_PHASE_1
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_INSERT2MATCH] + query->seg[i]->transition[GW_MATCH_BALANCE_5SS]"
+    endsource
+  source DELETE offj="9" offi="0"
+    target_label 5SS_PHASE_1
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_DELETE2MATCH]"
+    endsource
+  source CENTRAL_1M offj="1" offi="0"
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +gp21->transition[GP21_CENTRAL2CENTRAL]"
+    endsource
+  query_label  INTRON_MATCH_1
+  target_label CENTRAL_INTRON
+endstate
+state PY_1M offj="1" offi="0" 
+  calc="gp21->py[GENOMIC_BASE(target,j)]"
+  source CENTRAL_1M
+    calc="gp21->transition[GP21_CENTRAL2PY]"
+    endsource
+  source PY_1M
+    calc="gp21->transition[GP21_PY2PY]"
+    endsource
+  query_label  INTRON_MATCH_1
+  target_label PYRIMIDINE_TRACT
+endstate
+state SPACER_1M offj="1" offi="0"
+  calc="gp21->spacer[GENOMIC_BASE(target,j)]"
+  source PY_1M
+    calc="gp21->transition[GP21_PY2SPACER]"
+    endsource
+  source SPACER_1M
+    calc="gp21->transition[GP21_SPACER2SPACER]"
+    endsource
+  query_label  INTRON_MATCH_1
+  target_label SPACER
+endstate
+state CENTRAL_2M 
+  source MATCH offj="10" offi="0"
+    target_label 5SS_PHASE_2
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_MATCH2MATCH] + query->seg[i]->transition[GW_MATCH_BALANCE_5SS]"
+    endsource
+  source INSERT offj="10" offi="0"
+    target_label 5SS_PHASE_2
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_INSERT2MATCH] + query->seg[i]->transition[GW_MATCH_BALANCE_5SS]"
+    endsource
+  source DELETE offj="10" offi="0"
+    target_label 5SS_PHASE_2
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_DELETE2MATCH]"
+    endsource
+  source CENTRAL_2M offj="1" offi="0"
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +gp21->transition[GP21_CENTRAL2CENTRAL]"
+    endsource
+  query_label  INTRON_MATCH_2
+  target_label CENTRAL_INTRON
+endstate
+state PY_2M offj="1" offi="0" 
+  calc="gp21->py[GENOMIC_BASE(target,j)]"
+  source CENTRAL_2M
+    calc="gp21->transition[GP21_CENTRAL2PY]"
+    endsource
+  source PY_2M
+    calc="gp21->transition[GP21_PY2PY]"
+    endsource
+  query_label  INTRON_MATCH_2
+  target_label PYRIMIDINE_TRACT
+endstate
+state SPACER_2M offj="1" offi="0"
+  calc="gp21->spacer[GENOMIC_BASE(target,j)]"
+  source PY_2M
+    calc="gp21->transition[GP21_PY2SPACER]"
+    endsource
+  source SPACER_2M
+    calc="gp21->transition[GP21_SPACER2SPACER]"
+    endsource
+  query_label  INTRON_MATCH_2
+  target_label SPACER
+endstate
+#
+# Insert intron states now
+#
+#
+#
+state CENTRAL_0I 
+  source MATCH offj="8" offi="0"
+    target_label 5SS_PHASE_0
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_MATCH2INSERT] + query->seg[i]->transition[GW_MATCH_BALANCE_5SS]"
+    endsource
+  source INSERT offj="8" offi="0"
+    target_label 5SS_PHASE_0
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_INSERT2INSERT] + query->seg[i]->transition[GW_INSERT_BALANCE_5SS]"
+    endsource
+  source DELETE offj="8" offi="0"
+    target_label 5SS_PHASE_0
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_DELETE2INSERT]"
+    endsource
+  source CENTRAL_0I offj="1" offi="0"
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +gp21->transition[GP21_CENTRAL2CENTRAL]"
+    endsource
+  query_label  INTRON_INSERT_0
+  target_label CENTRAL_INTRON
+endstate
+state PY_0I offj="1" offi="0" 
+  calc="gp21->py[GENOMIC_BASE(target,j)]"
+  source CENTRAL_0I
+    calc="gp21->transition[GP21_CENTRAL2PY]"
+    endsource
+  source PY_0I
+    calc="gp21->transition[GP21_PY2PY]"
+    endsource
+  query_label  INTRON_INSERT_0
+  target_label PYRIMIDINE_TRACT
+endstate
+state SPACER_0I offj="1" offi="0"
+  calc="gp21->spacer[GENOMIC_BASE(target,j)]"
+  source PY_0I
+    calc="gp21->transition[GP21_PY2SPACER]"
+    endsource
+  source SPACER_0I
+    calc="gp21->transition[GP21_SPACER2SPACER]"
+    endsource
+  query_label  INTRON_INSERT_0
+  target_label SPACER
+endstate
+state CENTRAL_1I 
+  source MATCH offj="9" offi="0"
+    target_label 5SS_PHASE_1
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_MATCH2INSERT] "
+    endsource
+  source INSERT offj="9" offi="0"
+    target_label 5SS_PHASE_1
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_INSERT2INSERT] "
+    endsource
+  source DELETE offj="9" offi="0"
+    target_label 5SS_PHASE_1
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_DELETE2INSERT] "
+    endsource
+  source CENTRAL_1I offj="1" offi="0"
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +gp21->transition[GP21_CENTRAL2CENTRAL]"
+    endsource
+  query_label  INTRON_INSERT_1
+  target_label CENTRAL_INTRON
+endstate
+state PY_1I offj="1" offi="0" 
+  calc="gp21->py[GENOMIC_BASE(target,j)]"
+  source CENTRAL_1I
+    calc="gp21->transition[GP21_CENTRAL2PY]"
+    endsource
+  source PY_1I
+    calc="gp21->transition[GP21_PY2PY]"
+    endsource
+  query_label  INTRON_INSERT_1
+  target_label PYRIMIDINE_TRACT
+endstate
+state SPACER_1I offj="1" offi="0"
+  calc="gp21->spacer[GENOMIC_BASE(target,j)]"
+  source PY_1I
+    calc="gp21->transition[GP21_PY2SPACER]"
+    endsource
+  source SPACER_1I
+    calc="gp21->transition[GP21_SPACER2SPACER]"
+    endsource
+  query_label  INTRON_INSERT_1
+  target_label SPACER
+endstate
+state CENTRAL_2I 
+  source MATCH offj="10" offi="0"
+    target_label 5SS_PHASE_2
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_MATCH2INSERT] "
+    endsource
+  source INSERT offj="10" offi="0"
+    target_label 5SS_PHASE_2
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_INSERT2INSERT] "
+    endsource
+  source INSERT offj="10" offi="0"
+    target_label 5SS_PHASE_2
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +GENOMIC_5SS(target,j-7) +query->seg[i]->transition[GW_DELETE2INSERT] "
+    endsource
+  source CENTRAL_2I offj="1" offi="0"
+    calc="gp21->central[ GENOMIC_BASE(target,j)] +gp21->transition[GP21_CENTRAL2CENTRAL]"
+    endsource
+  query_label  INTRON_INSERT_2
+  target_label CENTRAL_INTRON
+endstate
+state PY_2I offj="1" offi="0" 
+  calc="gp21->py[GENOMIC_BASE(target,j)]"
+  source CENTRAL_2I
+    calc="gp21->transition[GP21_CENTRAL2PY]"
+    endsource
+  source PY_2I
+    calc="gp21->transition[GP21_PY2PY]"
+    endsource
+  query_label  INTRON_INSERT_2
+  target_label PYRIMIDINE_TRACT
+endstate
+state SPACER_2I offj="1" offi="0"
+  calc="gp21->spacer[GENOMIC_BASE(target,j)]"
+  source PY_2I
+    calc="gp21->transition[GP21_PY2SPACER]"
+    endsource
+  source SPACER_2I
+    calc="gp21->transition[GP21_SPACER2SPACER]"
+    endsource
+  query_label  INTRON_INSERT_2
+  target_label SPACER
+endstate
+state START !special !start 
+endstate
+state END   !special !end
+  source AFTER_RND offj="1" !right
+    calc="0" 
+    endsource
+  target_label END
+  query_label  END
+endstate
+state BEFORE_RND !special
+  source START offj="1" 
+    calc="rndbase->base[GENOMIC_BASE(target,j)]" 
+    endsource
+  source BEFORE_RND offj="1"
+    calc="rndbase->base[GENOMIC_BASE(target,j)] + gp21->transition[GP21_RND2RND]"
+    endsource
+  source BEFORE_CODON offj="1"
+    calc="rndbase->base[GENOMIC_BASE(target,j)] + gp21->transition[GP21_CDS2RND]"
+    endsource
+  query_label BEFORE_RND_STATE
+  target_label RANDOM_SEQUENCE
+endstate
+state BEFORE_CODON !special offj="3"
+  source BEFORE_RND
+    calc="rndcodon->codon[GENOMIC_CODON(target,j)] + gp21->transition[GP21_RND2CDS]"
+    endsource
+  source BEFORE_CODON 
+    calc="rndcodon->codon[GENOMIC_CODON(target,j)] + gp21->transition[GP21_CDS2CDS]"
+    endsource
+  source BEFORE_SPACER offj="5"
+    calc="gp21->transition[GP21_SPACER2CDS] + rndcodon->codon[GENOMIC_CODON(target,j)] + GENOMIC_3SS(target,j-3)"
+    target_label 3SS_PHASE_0
+    endsource
+  source BEFORE_SPACER offj="4"
+    calc="gp21->transition[GP21_SPACER2CDS] + GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source BEFORE_SPACER offj="3"
+    calc="gp21->transition[GP21_SPACER2CDS] + GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+  query_label BEFORE_RND_STATE
+  target_label CODON
+endstate
+state BEFORE_CENTRAL !special
+  source BEFORE_CENTRAL offj="1"
+    calc="gp21->central[GENOMIC_BASE(target,j)] + gp21->transition[GP21_CENTRAL2CENTRAL]"
+    endsource
+  source BEFORE_CODON offj="8"
+    calc="gp21->central[GENOMIC_BASE(target,j)] + GENOMIC_5SS(target,j-7) "
+    target_label 5SS_PHASE_0
+    endsource
+  source BEFORE_CODON offj="9"
+    calc="gp21->central[GENOMIC_BASE(target,j)] + GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_1
+    endsource
+  source BEFORE_CODON offj="10"
+    calc="gp21->central[GENOMIC_BASE(target,j)] + GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_2
+    endsource
+  query_label BEFORE_RND_STATE
+  target_label CENTRAL_INTRON
+endstate
+state BEFORE_PY_TRACT !special offj="1"
+    calc="gp21->py[GENOMIC_BASE(target,j)]"
+  source BEFORE_CENTRAL
+    calc="gp21->transition[GP21_CENTRAL2PY]"
+    endsource
+  source BEFORE_PY_TRACT 
+    calc="gp21->transition[GP21_PY2PY]"
+    endsource
+  query_label BEFORE_RND_STATE
+  target_label PYRIMIDINE_TRACT
+endstate
+state BEFORE_SPACER !special offj="1"
+    calc="gp21->spacer[GENOMIC_BASE(target,j)]"
+  source BEFORE_PY_TRACT offj="1"
+    calc="gp21->transition[GP21_PY2SPACER]"
+    endsource
+  source BEFORE_SPACER offj="1"
+    calc="gp21->transition[GP21_SPACER2SPACER]"
+    endsource
+  query_label BEFORE_RND_STATE
+  target_label SPACER
+endstate
+state AFTER_RND !special
+  source AFTER_RND offj="1"
+    calc="rndbase->base[GENOMIC_BASE(target,j)] + gp21->transition[GP21_RND2RND]"
+    endsource
+  source AFTER_CODON offj="1"
+    calc="rndbase->base[GENOMIC_BASE(target,j)] + gp21->transition[GP21_CDS2RND]"
+    endsource
+  query_label  AFTER_RND_STATE
+  target_label RANDOM_SEQUENCE
+endstate
+state AFTER_CODON !special 
+  source AFTER_RND offj="3"
+    calc="rndcodon->codon[GENOMIC_CODON(target,j)] + gp21->transition[GP21_RND2CDS]"
+    endsource
+  source MATCH 
+    calc="query->seg[i]->transition[GW_MATCH2END]"
+    endsource
+  source INSERT 
+    calc="query->seg[i]->transition[GW_INSERT2END]"
+    endsource
+  source DELETE 
+    calc="query->seg[i]->transition[GW_DELETE2END]"
+    endsource
+  source AFTER_CODON offj="3"
+    calc="rndcodon->codon[GENOMIC_CODON(target,j)] + gp21->transition[GP21_CDS2CDS]"
+    endsource
+  source AFTER_SPACER offj="5"
+    calc="gp21->transition[GP21_SPACER2CDS] + rndcodon->codon[GENOMIC_CODON(target,j)] + GENOMIC_3SS(target,j-3)"
+    target_label 3SS_PHASE_0
+    endsource
+  source AFTER_SPACER offj="4"
+    calc="gp21->transition[GP21_SPACER2CDS] + GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source AFTER_SPACER offj="3"
+    calc="gp21->transition[GP21_SPACER2CDS] + GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+  query_label AFTER_RND_STATE
+  target_label CODON
+endstate
+state AFTER_CENTRAL !special 
+  source AFTER_CENTRAL offj="1"
+    calc="gp21->central[GENOMIC_BASE(target,j)] + gp21->transition[GP21_CENTRAL2CENTRAL]"
+    endsource
+  source AFTER_CODON offj="8"
+    calc="gp21->central[GENOMIC_BASE(target,j)] + GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_0
+    endsource
+  source AFTER_CODON offj="9"
+    calc="gp21->central[GENOMIC_BASE(target,j)] + GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_1
+    endsource
+  source AFTER_CODON offj="10"
+    calc="gp21->central[GENOMIC_BASE(target,j)] + GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_2
+    endsource
+  query_label AFTER_RND_STATE
+  target_label CENTRAL_INTRON
+endstate
+state AFTER_PY_TRACT !special offj="1"
+    calc="gp21->py[GENOMIC_BASE(target,j)]"
+  source AFTER_CENTRAL
+    calc="gp21->transition[GP21_CENTRAL2PY]"
+    endsource
+  source AFTER_PY_TRACT 
+    calc="gp21->transition[GP21_PY2PY]"
+    endsource
+  query_label AFTER_RND_STATE
+  target_label PYRIMIDINE_TRACT
+endstate
+state AFTER_SPACER !special offj="1"
+    calc="gp21->spacer[GENOMIC_BASE(target,j)]"
+  source AFTER_PY_TRACT
+    calc="gp21->transition[GP21_PY2SPACER]"
+    endsource
+  source AFTER_SPACER
+    calc="gp21->transition[GP21_SPACER2SPACER]"
+    endsource
+  query_label AFTER_RND_STATE
+  target_label SPACER
+endstate
+#
+#
+#
+collapse BEFORE_RND_STATE RANDOM_SEQUENCE
+collapse AFTER_RND_STATE RANDOM_SEQUENCE
+collapse BEFORE_RND_STATE CENTRAL_INTRON
+collapse AFTER_RND_STATE  CENTRAL_INTRON
+#
+# Collapse central states
+#
+collapse INTRON_MATCH_0  CENTRAL_INTRON
+collapse INTRON_MATCH_1  CENTRAL_INTRON
+collapse INTRON_MATCH_2  CENTRAL_INTRON
+collapse INTRON_INSERT_0 CENTRAL_INTRON
+collapse INTRON_INSERT_1 CENTRAL_INTRON
+collapse INTRON_INSERT_2 CENTRAL_INTRON
+endmatrix
+
+
+
+%{
+#include "genewise21.h"
+
+
+
+%}
+
+
+
+

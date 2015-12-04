@@ -1,0 +1,373 @@
+/*  Last edited: Mar 11 16:47 1997 (birney) */
+
+%{
+#include "dyna.h"
+#include "geneparser4.h"
+#include "genewisemodeldb.h"
+
+#include "phasemodel.h"
+
+%}
+
+matrix GenePhase6
+query    type="GenePhaseScore*"      name="query"  field:len="len"
+target   type="GENOMIC"         name="target"
+resource type="GeneParser4Score *" name="gp"
+resource type="GeneralGeneModelScore *" name="general_model"
+extern name="GW_*" type="int"
+extern name="GP4_*" type="int"
+globaldefaultscore NEGI
+state  MATCH offi="1" offj="3"
+  calc="GENOMIC_CDS_POT(target,j)"
+  source MATCH
+    calc="query->gws->seg[i]->transition[GW_MATCH2MATCH] + query->gws->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->gws->seg[i]->transition[GW_INSERT2MATCH] + query->gws->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+  source DELETE
+    calc="query->gws->seg[i]->transition[GW_DELETE2MATCH] + query->gws->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+  source START
+    calc="query->gws->seg[i]->transition[GW_START2MATCH] + query->gws->seg[i]->match[GENOMIC_CODON(target,j)] + general_model->start->codon[GENOMIC_CODON(target,j)]"
+    endsource
+  source BEFORE_MATCH_CODING
+    calc="query->gws->seg[i]->transition[GW_START2MATCH] + query->gws->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+#
+  source INTRON_0 offi="1" offj="6"
+    calc="query->gws->seg[i]->match[GENOMIC_CODON(target,j)]+GENOMIC_3SS(target,j-3)"
+    target_label 3SS_PHASE_0
+    endsource
+  source INTRON_1 offi="1" offj="5"
+    calc="GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source INTRON_2 offi="1" offj="4"
+    calc="GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+#
+# Sequencing error transitions, at offsets 1,2,4,5 for delete 1,2 or insert 1,2
+#
+  source MATCH offi="1" offj="2"
+    calc="gp->transition[GP4_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source MATCH offi="1" offj="1"
+    calc="gp->transition[GP4_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source MATCH offi="1" offj="4"
+    calc="gp->transition[GP4_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source MATCH offi="1" offj="5"
+    calc="gp->transition[GP4_INSERT_2_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  query_label MATCH_STATE
+  target_label CODON
+  endstate
+#
+state  INSERT offi="0" offj="3"
+  calc="GENOMIC_CDS_POT(target,j)"
+  source MATCH
+    calc="query->gws->seg[i]->transition[GW_MATCH2INSERT] + query->gws->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->gws->seg[i]->transition[GW_INSERT2INSERT] + query->gws->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource 
+  source DELETE
+    calc="query->gws->seg[i]->transition[GW_DELETE2INSERT] + query->gws->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource 
+  source LOOP
+    calc="query->gws->seg[i]->transition[GW_START2INSERT] + query->gws->seg[i]->insert[GENOMIC_CODON(target,j)] + gp->transition[GP4_LOOP2MODEL]"
+    endsource 
+#
+# phase 0,1,2 introns can calculate whole amino acid for 0.
+#
+  source INTRON_0 offi="0" offj="6"
+    calc="query->gws->seg[i]->match[GENOMIC_CODON(target,j)]+GENOMIC_3SS(target,j-3)"
+    target_label 3SS_PHASE_0
+    endsource
+  source INTRON_1 offi="0" offj="5"
+    calc="GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source INTRON_2 offi="0" offj="4"
+    calc="GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+#
+# Sequencing error transitions: because insertions are "for free" usually, we will
+# only model sequence deletion here. Could produce odd results though!
+#
+  source INSERT offi="0" offj="2"
+    calc="gp->transition[GP4_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source INSERT offi="0" offj="1"
+    calc="gp->transition[GP4_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  query_label INSERT_STATE
+  target_label CODON
+  endstate
+state DELETE offi="1" offj="0"
+  source MATCH
+    calc="query->gws->seg[i]->transition[GW_MATCH2DELETE]"
+    endsource
+  source INSERT
+    calc="query->gws->seg[i]->transition[GW_INSERT2DELETE]"
+    endsource 
+  source DELETE
+    calc="query->gws->seg[i]->transition[GW_DELETE2DELETE]"
+    endsource 
+  query_label DELETE_STATE
+  target_label INSERT
+  endstate
+#
+# Intron state: 3 separate phases, and merge INSERT/MATCH information
+#
+state INTRON_0 offi="0" offj="1"
+  source MATCH offj="8"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)+query->phase[i]->intron_0"
+    target_label 5SS_PHASE_0
+    endsource
+  source INSERT offj="8"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)+query->phase[i]->insert_intron"
+    target_label 5SS_PHASE_0
+    endsource
+  source INTRON_0 offj="1"
+    calc="gp->intron[GENOMIC_BASE(target,j)] + gp->transition[GP4_INTRON2INTRON]"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label INTRON_STATE
+  endstate
+state INTRON_1 offi="0" offj="1"
+  source MATCH offj="9" offi="0"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)+query->phase[i]->intron_1"
+    target_label 5SS_PHASE_1
+    endsource
+  source INSERT offj="9" offi="0"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)+query->phase[i]->insert_intron"
+    target_label 5SS_PHASE_1
+    endsource
+  source INTRON_1 offj="1"
+    calc="gp->intron[GENOMIC_BASE(target,j)] + gp->transition[GP4_INTRON2INTRON]"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label INTRON_STATE
+  endstate
+state INTRON_2 offi="0" offj="1"
+  source MATCH offj="10" offi="0"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)+query->phase[i]->intron_2"
+    target_label 5SS_PHASE_2
+    endsource
+  source INSERT offj="10" offi="0"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)+query->phase[i]->insert_intron"
+    target_label 5SS_PHASE_2
+    endsource
+  source INTRON_2 offj="1"
+    calc="gp->intron[GENOMIC_BASE(target,j)] + gp->transition[GP4_INTRON2INTRON]"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label INTRON_STATE
+  endstate
+state LOOP !special 
+  source START offj="1" !left 
+    calc="0"
+    endsource
+  source MATCH
+    calc="query->gws->seg[i]->transition[GW_MATCH2END]"
+    endsource
+  source INSERT 
+    calc="query->gws->seg[i]->transition[GW_INSERT2END]"
+    endsource
+  source DELETE 
+    calc="query->gws->seg[i]->transition[GW_DELETE2END]"
+    endsource
+  source LOOP offj="1"
+    calc="gp->transition[GP4_LOOP2LOOP]"
+    endsource
+  query_label  LOOP_STATE
+  target_label RANDOM_SEQUENCE
+  endstate
+state START !start !special defscore="0"
+  endstate
+state END !end !special
+  source LOOP offj="1" !right
+    calc="0"
+    endsource
+  source AFTER_MATCH_CODING offj="3"
+    calc="general_model->stop->codon[GENOMIC_CODON(target,j)]"
+    endsource
+  target_label END
+  query_label END
+  endstate
+state BEFORE_MATCH_CODING !special
+  source START offj="3"
+   calc="general_model->start->codon[GENOMIC_CODON(target,j)]"
+   endsource
+  source BEFORE_MATCH_CODING offj="3"
+   calc="general_model->general->codon[GENOMIC_CODON(target,j)]"
+   endsource
+  source BEFORE_MATCH_INTRON_0 offj="6"
+    calc="GENOMIC_3SS(target,j-3)"
+    target_label 3SS_PHASE_0
+    endsource
+  source BEFORE_MATCH_INTRON_1 offj="5"
+    calc="GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source BEFORE_MATCH_INTRON_2 offj="4"
+    calc="GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+  target_label CODON
+  query_label  BEFORE_MATCH
+endstate
+state BEFORE_MATCH_INTRON_0 !special
+  source BEFORE_MATCH_CODING offj="1"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j)"
+    target_label 5SS_PHASE_0
+    endsource
+  source BEFORE_MATCH_INTRON_0 offj="1"
+    calc="gp->intron[GENOMIC_BASE(target,j)] + gp->transition[GP4_INTRON2INTRON]"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label BEFORE_MATCH_INTRON
+endstate
+state BEFORE_MATCH_INTRON_1 !special
+  source BEFORE_MATCH_CODING offj="9"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_1
+    endsource
+  source BEFORE_MATCH_INTRON_1 offj="1"
+    calc="gp->intron[GENOMIC_BASE(target,j)] + gp->transition[GP4_INTRON2INTRON]"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label BEFORE_MATCH_INTRON
+endstate
+state BEFORE_MATCH_INTRON_2 !special
+  source BEFORE_MATCH_CODING offj="10"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_2
+    endsource
+  source BEFORE_MATCH_INTRON_2 offj="1"
+    calc="gp->intron[GENOMIC_BASE(target,j)] + gp->transition[GP4_INTRON2INTRON]"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label BEFORE_MATCH_INTRON
+endstate
+state AFTER_MATCH_CODING !special
+  source MATCH
+   calc="query->gws->seg[i]->transition[GW_MATCH2END]"
+   endsource
+  source AFTER_MATCH_CODING offj="3"
+   calc="general_model->general->codon[GENOMIC_CODON(target,j)]"
+   endsource
+  target_label CODON
+  query_label  AFTER_MATCH
+endstate
+#
+# collapse Intron labels!
+#
+collapse INTRON_STATE CENTRAL_INTRON
+collapse BEFORE_MATCH_INTRON CENTRAL_INTRON
+collapse AFTER_MATCH_INTRON  CENTRAL_INTRON
+collapse LOOP_STATE   RANDOM_SEQUENCE
+endmatrix
+
+
+
+%{
+#include "genephase6.h"
+
+
+AlnBlock * AlnBlock_from_phased_protein_wrap(Protein * pro,ThreeStateModel * tsm,Genomic * gen,CodonMapper * cm,RandomModel * rm,CompMat * mat,PhasedProteinPara * ppp,GeneParameter21 * gpara,DPRunImpl * dpri,PackAln ** palret)
+{
+  PackAln * pal;
+  AlnBlock * alb;
+  GeneParser21Score * gp21s;
+  GeneParser4Score * gp4s;
+  ComplexSequence * cs;
+  ThreeStateModel * tsmin;
+
+  GeneralGeneModelScore * ggms;
+  
+  GenePhaseModel * gpm;
+  GenePhaseScore * gps;
+
+  int i;
+  
+  assert(gen != NULL);
+  assert(ppp != NULL);
+
+  ggms = vanilla_GeneralGeneModelScore(gpara->ct,Bits2Probability(10),1.0,Bits2Probability(10));
+
+  if( tsm == NULL ) {
+    if( pro == NULL ) {
+      warn("Major problem - neither a protein nor a tsm passed into phase model");
+      return NULL;
+    }
+    tsmin = ThreeStateModel_alloc_len(pro->baseseq->len);
+    
+    if( pro->baseseq->name != NULL )
+      tsmin->name = stringalloc(pro->baseseq->name);
+    else tsmin->name = stringalloc("NoName");
+  
+    tsmin->rm = hard_link_RandomModel(rm);
+
+    for(i=0;i<pro->baseseq->len;i++) { 
+      add_ThreeStateModel(tsmin,ThreeStateUnit_from_half_bit_aminoacid(pro->baseseq->seq[i],mat,rm,ppp->gap,ppp->ext));
+    }
+  } else {
+    tsmin = hard_link_ThreeStateModel(tsm);
+  }
+
+
+  gpm = GenePhaseModel_from_ThreeStateModel(tsmin,cm,rm,mat,ppp);
+
+  GeneWise_fold_in_synchronised_RandomModel(gpm->gw,rm,gpara->cm,gpara->ct,0.5);
+
+  gps = GenePhaseScore_from_GenePhaseModel(gpm);
+  
+  if( (gp21s = GeneParser21Score_from_GeneParser21(gpara->gp)) == NULL) {
+    warn("Unable to make GeneParserScore model");
+    return NULL;
+  }
+  
+  gp4s = GeneParser4Score_from_GeneParser21Score(gp21s);
+  
+  if( (cs=evaluate_ComplexSequence_Genomic(gen,gpara->cses,0,Probability2Score(0.01))) == FALSE ) {
+    warn("Unable to make ComplexSequence in TMS2DNA wrap");
+  }
+  
+  pal = PackAln_bestmemory_GenePhase6(gps,cs,gp4s,ggms,NULL,dpri);
+
+  if( palret != NULL ) {
+    *palret = pal;
+  }
+
+  alb = convert_PackAln_to_AlnBlock_GenePhase6(pal);
+
+  free_GeneralGeneModelScore(ggms);
+  free_GenePhaseModel(gpm);
+  free_GenePhaseScore(gps);
+  free_ComplexSequence(cs);
+  free_GeneParser21Score(gp21s);
+  free_GeneParser4Score(gp4s);
+
+  free_ThreeStateModel(tsm);
+
+  return alb;
+
+}
+
+%}
+
+
+
+

@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_PackAln *    T_Wise2_PackAln
+
+INPUT
+T_Wise2_PackAln
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_PackAln *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_PackAln
+	sv_setref_pv($arg, "Wise2::PackAln", (void*) $var);
+
+TYPEMAP
+Wise2_PackAlnUnit *    T_Wise2_PackAlnUnit
+
+INPUT
+T_Wise2_PackAlnUnit
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_PackAlnUnit *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_PackAlnUnit
+	sv_setref_pv($arg, "Wise2::PackAlnUnit", (void*) $var);

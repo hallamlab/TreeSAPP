@@ -1,0 +1,147 @@
+
+%{
+
+#include "wisebase.h"
+#include "dpenvelope.h"
+
+#define ShatterMatrixLISTLENGTH 1024
+
+%}
+
+
+struct ShatterMatrixComponent
+int ** mat
+int starti
+int startj
+int endi
+int endj
+
+struct ShatterMatrix
+ShatterMatrixComponent ** smc !list
+int ** special
+int cell_length
+int special_length
+int * null_cell;
+
+%{
+#include "shattermatrix.h"
+
+%func
+Gets the actual value from cell
+%%
+int fetch_cell_value_ShatterMatrix(ShatterMatrix * sm,int ipos,int jpos,int state)
+{
+  int * ret;
+
+  ret = fetch_cell_from_ShatterMatrix(sm,ipos,jpos);
+
+  return ret[state];
+}
+
+%func
+gets int * pointer in the right place for this cell
+%%
+int * fetch_cell_from_ShatterMatrix(ShatterMatrix * sm,int ipos,int jpos)
+{
+  int i;
+  int offseti;
+  int offsetj;
+
+  assert(sm);
+
+  for(i=0;i<sm->len;i++) {
+    if( ipos >= sm->smc[i]->starti && ipos < sm->smc[i]->endi &&
+	jpos >= sm->smc[i]->startj && jpos < sm->smc[i]->endj ) {
+      /* great! */
+
+      /* offset into this */
+      offseti = ipos - sm->smc[i]->starti;
+      offsetj = jpos - sm->smc[i]->startj;
+
+      return sm->smc[i]->mat[offseti]+(offsetj*sm->cell_length);
+    }
+
+  }
+
+  /*
+  for(i=0;i<sm->cell_length;i++) {
+    if( sm->null_cell[i] !=  -100000 ) {
+      fatal("At position %d,%d fetched null cell with %d\n",ipos,jpos,sm->null_cell[i]);
+    }
+  }
+	
+  fprintf(stderr," ...null cell %d,%d\n",ipos,jpos);
+  */
+
+  return sm->null_cell;
+}
+
+
+%func
+Makes a new shattermatrix - needs to know the cell length 
+and special length
+%%
+ShatterMatrix * new_ShatterMatrix(DPEnvelope * dpenv,int cell_length,int jlength,int special_length)
+{
+  int i;
+  ShatterMatrix * out;
+
+  out = ShatterMatrix_alloc_len(dpenv->len);
+  out->cell_length = cell_length;
+  out->null_cell = calloc(cell_length,sizeof(int));
+  for(i=0;i<cell_length;i++) {
+    out->null_cell[i] = -100000;
+  }
+
+  for(i=0;i<dpenv->len;i++) {
+    auto DPUnit * dpu = dpenv->dpu[i];
+    if( dpu->type == DPENV_RECT ) {
+
+      add_ShatterMatrix(out,new_ShatterMatrixComponent(dpu->starti,dpu->starti+dpu->height,dpu->startj,dpu->startj+dpu->length,cell_length));
+    } else if ( dpu->type == DPENV_DIAG ) {
+      add_ShatterMatrix(out,new_ShatterMatrixComponent(dpu->starti-dpu->height,dpu->starti+dpu->height+dpu->length,dpu->startj-dpu->height,dpu->startj+dpu->height+dpu->length,cell_length));
+    } else {
+      fatal("Do not understand type %d",dpu->type);
+    }
+  }
+
+  out->special = calloc(special_length,sizeof(int*));
+  for(i=0;i<special_length;i++) {
+    out->special[i] = calloc(jlength,sizeof(int));
+  }
+
+  return out;
+}
+
+
+%func
+Makes a new ShatterMatrixComponent - needs to know the cell length and start/end
+%%
+ShatterMatrixComponent * new_ShatterMatrixComponent(int starti,int endi,int startj,int endj,int cell_length)
+{
+  ShatterMatrixComponent * out;
+  int i;
+  int j;
+  int leni;
+
+  assert(starti < endi);
+  assert(startj < endj);
+  assert(cell_length > 0);
+
+  out = ShatterMatrixComponent_alloc();
+  out->starti = starti;
+  out->endi   = endi;
+  out->startj = startj;
+  out->endj   = endj;
+  leni = endi - starti;
+
+  /*  fprintf(stderr,"Allocating area of %d,%d %d cells\n",leni,(endj-startj),leni*(endj-startj));*/
+
+  out->mat = calloc(leni,sizeof(int *));
+
+  for(i=0;i<leni;i++) {
+    out->mat[i] = calloc((endj-startj)*cell_length,sizeof(int));
+  }
+  
+  return out;
+}

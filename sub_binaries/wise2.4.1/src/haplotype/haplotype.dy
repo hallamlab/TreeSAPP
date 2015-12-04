@@ -1,0 +1,39 @@
+
+%{
+#include "markerframework.h"
+
+#define PartialHaplotypeLISTLENGTH 1024
+
+%}
+
+
+
+struct LocusAllele
+Locus * locus !link
+int allele
+
+friend PartialHaplotype
+
+
+struct PartialHaplotypeLink 
+PartialHaplotype * left  !link
+PartialHaplotype * right !link
+
+
+struct PartialHaplotype
+int marker_start
+int marker_end
+LocusAllele ** allele !list
+PartialHaplotypeLink ** left  !list !len="_left"
+PartialHaplotypeLink ** right !list !len="_right"
+
+
+%{
+#include "haplotype.h"
+
+
+
+
+
+
+%}

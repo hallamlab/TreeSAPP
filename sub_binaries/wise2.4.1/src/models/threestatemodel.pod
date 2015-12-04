@@ -1,0 +1,456 @@
+=head1 NAME
+
+threestatemodel module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item ThreeStateModel
+
+=item ThreeStateUnit
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object ThreeStateModel
+
+=over
+
+=item name
+
+ Type [char *] Scalar  name of the model
+
+=item unit
+
+ Type [ThreeStateUnit **] List  the actuall three state probs and emissions
+
+=item alphabet
+
+ Type [char *] Scalar  alphabet used 
+
+=item accession
+
+ Type [char *] Scalar  accession number
+
+=item threshold
+
+ Type [double] Scalar  bits threshold (if sensible)
+
+=item rm
+
+ Type [RandomModel *] Scalar  Random model for the model: maybe NULL!
+
+
+
+=back
+
+This is profile-HMM object, similar to the
+SAM and HMMer plan9 architecture. 
+
+
+
+=head2 Member functions of ThreeStateModel
+
+=over
+
+=item force_global_model
+
+&Wise2::ThreeStateModel::force_global_model(tsm,prob_into_model)
+
+  Makes start at position 0 and end at position end,
+  no other positions being valid
+
+
+
+
+  Argument tsm          [UNKN ] ThreeStateModel to be 'forced' [ThreeStateModel *]
+  Argument prob_into_model [UNKN ] Probability to start the model: for true global will be 1.0 [double]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item force_weighted_local_model
+
+&Wise2::ThreeStateModel::force_weighted_local_model(tsm,prob_into_model,ratio_start,ratio_end)
+
+  places the ratio of probability to start/end,
+  and then distributes the rest over the start/end
+
+
+
+
+  Argument tsm          [UNKN ] ThreeStateModel to be 'forced' [ThreeStateModel *]
+  Argument prob_into_model [UNKN ] Probability to start the model: for true global will be 1.0 [double]
+  Argument ratio_start  [UNKN ] ratio of prob to unit 0 to the rest (1.0 means all goes to start) [double]
+  Argument ratio_end    [UNKN ] ratio of prob to unit (last) to the rest (1.0 means all goes to the end) [double]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item ThreeStateModel_from_half_bit_Sequence
+
+&Wise2::ThreeStateModel::ThreeStateModel_from_half_bit_Sequence(pro,mat,rm,gap,ext)
+
+  Makes a local three-state-model from a sequence.  this is scary
+  hackery, assumming that the matrix is half-bits and normalising in a
+  *very* wrong way to get "probabilities" out.
+
+  Works though
+
+
+
+  Argument pro          [READ ] protein sequence [Protein *]
+  Argument mat          [READ ] comparison matrix to use [CompMat *]
+  Argument rm           [READ ] random model which you assumme the matrix was built with [RandomModel *]
+  Argument gap          [READ ] gap open penalty [int]
+  Argument ext          [READ ] gap ext penalty [int]
+  Return [UNKN ] Undocumented return value [ThreeStateModel *]
+
+
+=item write_HMMer_1_7_ascii_ThreeStateModel
+
+&Wise2::ThreeStateModel::write_HMMer_1_7_ascii_ThreeStateModel(tsm,ofp)
+
+  writes a HMMer version 1.7 (also ok with 1.8) file
+
+
+
+  Argument tsm          [UNKN ] Undocumented argument [ThreeStateModel *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_ThreeStateModel
+
+&Wise2::ThreeStateModel::hard_link_ThreeStateModel(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [ThreeStateModel *]
+  Return [UNKN ] Undocumented return value [ThreeStateModel *]
+
+
+=item ThreeStateModel_alloc_std
+
+&Wise2::ThreeStateModel::ThreeStateModel_alloc_std(void)
+
+  Equivalent to ThreeStateModel_alloc_len(ThreeStateModelLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [ThreeStateModel *]
+
+
+=item set_name
+
+&Wise2::ThreeStateModel::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::ThreeStateModel::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Return [SOFT ] member variable name [char *]
+
+
+=item unit
+
+&Wise2::ThreeStateModel::unit(obj,i)
+
+  Access members stored in the unit list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [ThreeStateModel *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [ThreeStateUnit *]
+
+
+=item length_unit
+
+&Wise2::ThreeStateModel::length_unit(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [ThreeStateModel *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_unit
+
+&Wise2::ThreeStateModel::flush_unit(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [ThreeStateModel *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_unit
+
+&Wise2::ThreeStateModel::add_unit(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [ThreeStateModel *]
+  Argument add          [OWNER] Object to add to the list [ThreeStateUnit *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_alphabet
+
+&Wise2::ThreeStateModel::set_alphabet(obj,alphabet)
+
+  Replace member variable alphabet
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Argument alphabet     [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable alphabet [boolean]
+
+
+=item alphabet
+
+&Wise2::ThreeStateModel::alphabet(obj)
+
+  Access member variable alphabet
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Return [SOFT ] member variable alphabet [char *]
+
+
+=item set_accession
+
+&Wise2::ThreeStateModel::set_accession(obj,accession)
+
+  Replace member variable accession
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Argument accession    [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable accession [boolean]
+
+
+=item accession
+
+&Wise2::ThreeStateModel::accession(obj)
+
+  Access member variable accession
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Return [SOFT ] member variable accession [char *]
+
+
+=item set_threshold
+
+&Wise2::ThreeStateModel::set_threshold(obj,threshold)
+
+  Replace member variable threshold
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Argument threshold    [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable threshold [boolean]
+
+
+=item threshold
+
+&Wise2::ThreeStateModel::threshold(obj)
+
+  Access member variable threshold
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Return [SOFT ] member variable threshold [double]
+
+
+=item set_rm
+
+&Wise2::ThreeStateModel::set_rm(obj,rm)
+
+  Replace member variable rm
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Argument rm           [OWNER] New value of the variable [RandomModel *]
+  Return [SOFT ] member variable rm [boolean]
+
+
+=item rm
+
+&Wise2::ThreeStateModel::rm(obj)
+
+  Access member variable rm
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateModel *]
+  Return [SOFT ] member variable rm [RandomModel *]
+
+
+=back
+
+=head2 Object ThreeStateUnit
+
+=over
+
+=item match_emission[ALPHABET_SIZE]
+
+ Type [Probability] Scalar No documentation
+
+=item insert_emission[ALPHABET_SIZE]
+
+ Type [Probability] Scalar No documentation
+
+=item transition[TRANSITION_LEN]
+
+ Type [Probability] Scalar No documentation
+
+=item display_char
+
+ Type [char] Scalar No documentation
+
+
+
+=back
+
+This object is the probability version
+of hte common unit to profile HMMs, ie
+the match,insert,delete triple
+
+
+
+=head2 Member functions of ThreeStateUnit
+
+=over
+
+=item hard_link_ThreeStateUnit
+
+&Wise2::ThreeStateUnit::hard_link_ThreeStateUnit(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [ThreeStateUnit *]
+  Return [UNKN ] Undocumented return value [ThreeStateUnit *]
+
+
+=item alloc
+
+&Wise2::ThreeStateUnit::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [ThreeStateUnit *]
+
+
+=item set_display_char
+
+&Wise2::ThreeStateUnit::set_display_char(obj,display_char)
+
+  Replace member variable display_char
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateUnit *]
+  Argument display_char [OWNER] New value of the variable [char]
+  Return [SOFT ] member variable display_char [boolean]
+
+
+=item display_char
+
+&Wise2::ThreeStateUnit::display_char(obj)
+
+  Access member variable display_char
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [ThreeStateUnit *]
+  Return [SOFT ] member variable display_char [char]
+
+
+=back
+
+=over
+
+=item read_HMMer_1_7_ascii_file
+
+&Wise2::read_HMMer_1_7_ascii_file(filename)
+
+  reads a HMMer ascii version 1.7 (1.8) file from filename.
+
+
+
+
+  Argument filename     [UNKN ] the name fo the hmmer file [char *]
+  Return [UNKN ] Undocumented return value [ThreeStateModel *]
+
+
+=item read_HMMer_1_7_ascii
+
+&Wise2::read_HMMer_1_7_ascii(ifp)
+
+  Basic function to read HMMer version 1.7(1.8) files.
+
+
+
+  Argument ifp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [ThreeStateModel *]
+
+
+=back
+

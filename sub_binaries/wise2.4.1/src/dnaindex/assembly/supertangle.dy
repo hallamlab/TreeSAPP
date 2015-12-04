@@ -1,0 +1,321 @@
+
+
+%{
+#include "basegraph.h"
+#include "assemblypath.h"
+#include "assemblygraph.h"
+
+#define SuperTangleLISTLENGTH 128
+#define SuperTangleDistanceSetLISTLENGTH 256
+
+%}
+
+
+
+struct SuperTangleUnique
+BaseNode * node !link
+BaseLink * link !link
+
+
+struct SuperTangle
+SuperTangleUnique ** stu !list
+
+struct SuperTangleDistance
+int dis;
+SuperTangleUnique * left !link
+SuperTangleUnique * right !link
+
+struct SuperTangleDistanceSet
+SuperTangleDistance ** std !list
+
+
+%{
+#include "supertangle.h"
+
+
+
+SuperTangleDistance * new_SuperTangleDistance(AssemblyGraph * ag,SuperTangleUnique * a,SuperTangleUnique * b)
+{
+  SuperTangleDistance * out = NULL;
+  int i;
+  int j;
+  SinglePosSequence * sps_a;
+  SinglePosSequence * sps_b;
+  int min = 1000;
+  long int dis = 0;
+  int seen = 0;
+
+
+  for(i=0;i<a->link->sequence_label_len;i++) {
+    sps_a = lookup_Sequence_SinglePosSpace(ag->sp,a->link->sequence_label[i]);
+    for(j=0;j<b->link->sequence_label_len;j++) {
+
+      /* without getting out any sequences, we know long distances wont count */
+      dis = labs(a->link->sequence_label[i] - b->link->sequence_label[j]);
+      if( dis > 1000 ) {
+	continue;
+      }
+
+      sps_b = lookup_Sequence_SinglePosSpace(ag->sp,b->link->sequence_label[j]);
+
+      if( sps_a != sps_b ) {
+	continue;
+      }
+      assert(sps_a != NULL);
+
+      seen = 1;
+      if( dis < min && dis < 1000 ) {
+	min = (int)dis;
+      }
+    }
+  }
+   
+  if( seen == 1 ) {
+    out = SuperTangleDistance_alloc();
+    out->dis = (int)min;
+    out->left = a;
+    out->right = b;
+  } else {
+    /*    fprintf(stderr,"Not making a distance\n");*/
+  }
+
+  return out;
+  
+}
+
+int insert_conservative_jump_nodes_SuperTangleDistanceSet(SuperTangleDistanceSet * stds,int max_depth)
+{
+  int count = 0;
+  BaseLink * new;
+  int i;
+  int j;
+  int pure;
+
+
+  for(i=0;i<stds->len;i++) {
+    /* consider this as a jump-link. Don't put it
+       it in until we have checked there is no other
+       possible forward or backward cases
+    */
+    pure = 1;
+
+    for(j=0;j<stds->len;j++) {
+      if( stds->std[i]->left == stds->std[j]->left ||
+	  stds->std[i]->left == stds->std[j]->right ||
+	  stds->std[i]->right == stds->std[j]->left ||
+	  stds->std[i]->right == stds->std[j]->right ) {
+	pure = 0;
+	break;
+      }
+    }
+    fatal("Ewan has not implemented any more of this supertangle stuff!\n");
+  }
+
+  return 0;
+  
+}
+  
+
+
+SuperTangleDistanceSet * new_SuperTangleDistanceSet(AssemblyGraph * ag,SuperTangle * st)
+{
+
+  SuperTangleDistanceSet * out;
+  int i;
+  int j;
+  SuperTangleDistance * std;
+
+  out = SuperTangleDistanceSet_alloc_std();
+
+  for(i=0;i<st->len;i++) {
+    for(j=i+1;j<st->len;j++) {
+      std = new_SuperTangleDistance(ag,st->stu[i],st->stu[j]);
+      if( std != NULL ) {
+	add_SuperTangleDistanceSet(out,std);
+      }
+    }
+  }
+
+  return out;
+
+}
+
+
+int compare_SuperTangleDistance(SuperTangleDistance * a,SuperTangleDistance * b)
+{
+  return (a->dis - b->dis);
+}
+
+
+void sort_dis_SuperTangleDistanceSet(SuperTangleDistanceSet * stds)
+{
+  sort_SuperTangleDistanceSet(stds,compare_SuperTangleDistance);
+  return;
+}
+
+void show_SuperTangleDistanceSet(SuperTangleDistanceSet * stds,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<stds->len;i++) {
+    fprintf(ofp," %d Distance %d to %d %d\n",i,stds->std[i]->left,stds->std[i]->right,stds->std[i]->dis);
+  }
+
+}
+
+
+SuperTangle * new_seeded_SuperTangle(BaseNode * bn,int max_depth)
+{
+  SuperTangle * out;
+  AssemblyPath * ap;
+  BaseNode * next;
+  int i;
+
+  out = SuperTangle_alloc_std();
+  ap  = AssemblyPath_alloc_std();
+
+
+  for(i=0;i<bn->link_len;i++) {
+    if( bn->link[i]->left == bn ) {
+      next = bn->link[i]->right;
+    } else {
+      next = bn->link[i]->left;
+    }
+
+    recurse_into_SuperTangle(out,next,bn->link[i],ap,0,max_depth);
+  }
+
+
+  free_AssemblyPath(ap);
+
+  return out;
+}
+
+
+SuperTangleUnique * new_SuperTangleUnique(BaseNode * bn,BaseLink * bl)
+{
+  SuperTangleUnique * out;
+
+
+  assert(bn != NULL);
+  assert(bl != NULL);
+
+  out = SuperTangleUnique_alloc();
+
+  out->node = bn;
+  out->link = bl;
+
+  return out;
+}
+
+
+
+
+boolean recurse_into_SuperTangle(SuperTangle * st,BaseNode * bn,BaseLink * bl,AssemblyPath * visited,int curr_depth,int max_depth)
+{	
+  int i;
+  int bad_link = 0;
+  BaseLink * unique = NULL;
+  BaseNode * next;
+
+  boolean ret = TRUE;
+
+  assert(st != NULL);
+  assert(bn != NULL);
+  assert(bl != NULL);
+  assert(visited != NULL);
+
+  if( curr_depth >= max_depth ) {
+    return FALSE;
+  }
+
+  if( BaseLink_in_AssemblyPath(bl,visited) == TRUE ) {
+    return TRUE;
+  }
+
+  /*  fprintf(stderr,"recursing in from %d\n",bl);*/
+
+  for(i=0;i<bn->link_len;i++) {
+    if( bn->link[i] == bl ) {
+      continue;
+    }
+    if( BaseLink_in_AssemblyPath(bn->link[i],visited) ) {
+      continue;
+    }
+    
+    if( (bn->link[i]->state & (BaseLink_IS_CYCLE | BaseLink_IS_DICYCLE)  )  ) {
+      bad_link = 1;
+      break;
+    } else {
+      /* a potentialy unique link */
+      if( unique != NULL) {
+	/* two of them - recurse further */
+	bad_link = 1;
+	break;
+      } else {
+	unique = bn->link[i];
+      }
+    }
+
+  }
+
+  add_AssemblyPath(visited,new_PathStep(bl));
+
+
+
+  if( bad_link == 1 || unique == NULL ) {
+    curr_depth++;
+    for(i=0;i<bn->link_len;i++) {
+      if( bn->link[i] == bl ) {
+	continue;
+      }
+      if( BaseLink_in_AssemblyPath(bn->link[i],visited) ) {
+	continue;
+      }
+
+      bn->link[i]->state |= BaseLink_SUPERTANGLE;
+
+      if( bn->link[i]->left == bn ) {
+	next = bn->link[i]->right;
+      } else {
+	assert(bn->link[i]->right == bn);
+	next = bn->link[i]->left;
+      }
+
+
+      if( recurse_into_SuperTangle(st,next,bn->link[i],visited,curr_depth,max_depth) == FALSE ) {
+	ret = FALSE;
+      }
+    }
+  } else {
+    /*    fprintf(stderr,"Adding unique %d\n",unique); */
+    add_AssemblyPath(visited,new_PathStep(unique));
+    
+    add_SuperTangle(st,new_SuperTangleUnique(bn,unique));
+  }
+
+		    
+  return ret;
+    
+
+}
+
+
+
+void show_SuperTangle(BaseGraph * bg,SuperTangle * st,FILE * ofp)
+{
+  int i;
+
+  fprintf(stderr,"SuperTangle with %d unique ends\n",st->len);
+  for(i=0;i<st->len;i++) {
+    show_BaseLink(bg,st->stu[i]->link,ofp);
+  }
+  
+}
+
+
+
+
+
+
+%}

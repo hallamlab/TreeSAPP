@@ -1,0 +1,116 @@
+
+%{
+#include "dnaalign.h"
+#include "hitlist.h"
+
+%}
+
+
+struct DnaMatchPara 
+DPRunImpl * dpri
+DnaMatrix * mat
+DnaStartEnd * dse
+int gap
+int ext
+
+%{
+#include "dnamatcher.h"
+
+
+void show_help_DnaMatchPara(FILE * ofp)
+{
+  fprintf(ofp,"Dna Matching Parameters\n");
+  fprintf(ofp,"   -dm_match    [5]   match score\n");
+  fprintf(ofp,"   -dm_mismatch [-4]  mismatch score\n");
+  fprintf(ofp,"   -dm_gappen   [5]   gap open penalty\n");
+  fprintf(ofp,"   -dm_extpen   [1]   gap extension penalty\n");
+  
+  show_help_DPRunImpl(ofp);
+}
+
+DnaMatchPara * new_DnaMatchPara_from_argv(int * argc,char ** argv)
+{
+  DnaMatchPara * out;
+  int match    = 5;
+  int mismatch = -10;
+
+  out = DnaMatchPara_alloc();
+
+  strip_out_integer_argument(argc,argv,"dm_match",&match);
+  strip_out_integer_argument(argc,argv,"dm_mismatch",&mismatch);
+
+  assert(mismatch < 0 );
+
+  out->dpri = new_DPRunImpl_from_argv(argc,argv);
+  out->mat = identity_DnaMatrix(match,mismatch);
+  out->dse = DnaStartEnd_from_policy("local");
+
+  out->gap = 30;
+  out->ext = 20;
+
+  strip_out_integer_argument(argc,argv,"dm_gappen",&out->gap);
+  strip_out_integer_argument(argc,argv,"dm_extpen",&out->ext);
+
+
+  return out;
+}
+
+
+HitList * HitList_from_Sequence_SequenceSet_DNA(Sequence * query,SequenceSet * set,DnaMatchPara * p)
+{
+  int i;
+  HitList * out;
+  HitPair * pair;
+  HitAln * aln;
+
+  AlnBlock * forward;
+  AlnBlock * reverse;
+
+  Sequence * rev;
+  
+  char buffer[512];
+
+  out = HitList_alloc_std();
+
+  for(i=0;i<set->len;i++) {
+    
+    rev = reverse_complement_Sequence(set->set[i]);
+
+    ckfree(rev->name);
+    sprintf(buffer,"%s.reverse",set->set[i]->name);
+    rev->name  = stringalloc(buffer);
+
+    pair = HitPair_alloc_std();
+
+    aln = HitAln_alloc();
+
+    forward = make_align_dnaalign(query,set->set[i],p->mat,p->dse,-p->gap,-p->ext,-p->gap,-p->ext,p->dpri);
+    reverse = make_align_dnaalign(query,rev,p->mat,p->dse,-p->gap,-p->ext,-p->gap,-p->ext,p->dpri);
+
+    if( forward->score > reverse->score ) {
+      pair->query  = hard_link_Sequence(query);
+      pair->target = hard_link_Sequence(set->set[i]);
+      aln->alb = hard_link_AlnBlock(forward);
+    } else {
+      pair->query  = hard_link_Sequence(query);
+      pair->target = hard_link_Sequence(rev);
+      aln->alb = hard_link_AlnBlock(reverse);
+    }
+
+
+
+    add_HitPair(pair,aln);
+
+    aln->raw_score = pair->raw_score = aln->alb->score;
+    add_HitList(out,pair);
+
+
+    free_AlnBlock(forward);
+    free_AlnBlock(reverse);
+
+    free_Sequence(rev);
+
+  }
+
+  return out;
+}

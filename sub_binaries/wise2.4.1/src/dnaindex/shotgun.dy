@@ -1,0 +1,85 @@
+
+%{
+#include "sequence.h"
+
+
+%}
+
+
+struct ShotgunPara
+int read_length
+int insert_size
+int number
+int forward_only
+
+
+
+%{
+#include "shotgun.h"
+
+
+
+
+%func
+Generates a file of Shotgun reads from a particular
+sequence randomly
+%%
+void generate_shotgun_reads(ShotgunPara * shot,Sequence * input,FILE * ofp)
+{
+  int i;
+  int j;
+  int pos;
+  
+  Sequence * rev;
+
+  Sequence * out;
+  char * seqstr;
+  char buffer[MAXLINE];
+
+
+  init_random();
+
+  seqstr = calloc(shot->read_length+1,sizeof(char));
+  rev = reverse_complement_Sequence(input);
+ 
+  for(i=0;i<shot->number;i++) {
+    pos = random_integer(input->len-shot->insert_size);
+    fprintf(stderr,"position at %d\n",pos);
+
+    for(j=0;j<shot->read_length;j++) {
+      seqstr[j] = input->seq[pos+j];
+    }
+    
+    seqstr[j] = '\0';
+    sprintf(buffer,"Read.%d.f",i);
+    out = new_Sequence_from_strings(buffer,seqstr);
+    write_fasta_Sequence(out,ofp);
+
+    if( shot->forward_only == 1 ) {
+      continue;
+    }
+
+    for(j=0;j<shot->read_length;j++) {
+      seqstr[j] = rev->seq[rev->len-(pos+shot->insert_size+j)];
+    }
+    
+    seqstr[j] = '\0';
+    sprintf(buffer,"Read.%d.r",i);
+    out = new_Sequence_from_strings(buffer,seqstr);
+    write_fasta_Sequence(out,ofp);
+  }
+
+  free_Sequence(rev);
+  free(seqstr);
+
+}
+
+
+
+
+
+
+
+
+%}
+

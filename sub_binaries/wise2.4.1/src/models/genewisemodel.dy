@@ -1,0 +1,841 @@
+/*  Last edited: Apr 24 14:53 1997 (birney) */
+
+
+
+%{
+#include "geneparser21.h"
+#include "geneparameter.h"
+#include "threestatemodel.h"
+#include "codonmapper.h"
+#include "cdparser.h"
+#include "genefrequency.h"
+#include "geneutil.h"
+
+#define GeneWiseScoreLISTLENGTH 128
+#define GeneWiseLISTLENGTH 128
+#define MAX_PROTEIN_GENEWISE 4096
+
+enum GeneWiseTransition {
+  GW_MATCH2MATCH,
+  GW_MATCH2INSERT,
+  GW_MATCH2DELETE,
+  GW_MATCH2END,
+  GW_INSERT2MATCH,
+  GW_INSERT2INSERT,
+  GW_INSERT2DELETE,
+  GW_INSERT2END,
+  GW_DELETE2MATCH,
+  GW_DELETE2INSERT,
+  GW_DELETE2DELETE,
+  GW_DELETE2END,
+  GW_START2MATCH,
+  GW_START2INSERT,
+  GW_START2DELETE,
+  GW_MATCH_BALANCE_5SS,
+  GW_INSERT_BALANCE_5SS,
+  GW_MATCH_BALANCE_3SS,
+  GW_INSERT_BALANCE_3SS,
+  GW_TRANSITION_LEN
+};
+
+#define GW_EMISSION_LEN 126
+
+
+
+
+%}
+
+
+struct GeneWiseSegment
+Probability match[GW_EMISSION_LEN]
+Probability insert[GW_EMISSION_LEN]
+Probability transition[GW_TRANSITION_LEN]
+%info
+This is a particular HMM node, with
+match and insert emissions in the codon space
+and the transitions
+
+intron/frameshifting transitions are stored
+in a different datastructure, as they are
+not position dependent
+%%
+
+
+struct GeneWise
+GeneWiseSegment ** seg !list
+char * name
+%info
+This is an expand HMM for codon
+matching, suitable for genewise and
+estwise type algorithms. It is simple
+a list of nodes
+%%
+
+struct GeneWiseScoreSegment
+Score match[GW_EMISSION_LEN]
+Score insert[GW_EMISSION_LEN]
+Score transition[GW_TRANSITION_LEN]
+%info
+This is the log space equivalent
+of GeneWiseSegment
+%%
+
+struct GeneWiseScore
+GeneWiseScoreSegment ** seg !list
+char * name
+%info
+This is the log space equivalent
+of the GeneWise 
+%%
+
+struct GeneWiseScoreFlat
+GeneWiseScoreSegment * seg
+int len
+%info
+This is a specialised datastructure
+which is equivalent to the GeneWiseScore
+object, but layed out more efficiently
+for memory lookup. The actual code is
+usually 10% faster. If you have a really
+large model however it might barf!
+%%
+
+%{
+#include "genewisemodel.h"
+
+
+%func
+Packing up the GeneWise model into a byte structure
+%%
+char * pack_GeneWiseScore(GeneWiseScore * gws)
+{
+  char * out;
+
+  return out;
+}
+
+
+
+%func
+This produces a flattened GeneWiseSegment structure
+for use in quick implementations (memory lookup
+is much better due to everything being a single
+piece of memory).
+%%
+GeneWiseScoreFlat * GeneWiseScoreFlat_from_GeneWiseScore(GeneWiseScore * gws)
+{
+  int i;
+  int j;
+  GeneWiseScoreFlat * gwsf;
+
+  gwsf = GeneWiseScoreFlat_alloc();
+  gwsf->seg = (GeneWiseScoreSegment *) malloc (sizeof(GeneWiseScoreSegment) * gws->len);
+  for(i=0;i<gws->len;i++) {
+    for(j=0;j<126;j++) {
+      gwsf->seg[i].match[j] = gws->seg[i]->match[j];
+      gwsf->seg[i].insert[j] = gws->seg[i]->insert[j];
+    }
+
+    for(j=0;j<GW_TRANSITION_LEN;j++)
+      gwsf->seg[i].transition[j] = gws->seg[i]->transition[j];
+      
+  }
+  gwsf->len = gws->len;
+  return gwsf;
+}
+
+%func 
+Frees the GeneWiseScoreFlat datastructure
+
+overrides the usual deconstructor
+%%
+!deconstructor
+GeneWiseScoreFlat * free_GeneWiseScoreFlat(GeneWiseScoreFlat * obj)
+{
+  if( obj == NULL ) {
+    warn("Attempting to free a NULL GeneWiseScoreFlat object");
+    return NULL;
+  }
+
+  if( obj->seg != NULL )
+    ckfree(obj->seg);
+  ckfree(obj);
+  
+  return NULL;
+}
+
+
+%func
+This function does something very
+sinister.
+
+It maps the phase 0 introns which 
+have three base pairs added on the
+end. 
+
+It actually changes the AlnBlock structure
+%%
+void map_phase0_codons_AlnBlock_GeneWise(AlnBlock * alb,GeneWiseScore * gws,ComplexSequence * cseq)
+{
+  AlnColumn * alc;
+  AlnColumn * new;
+
+  for(alc=alb->start;alc != NULL;alc=alc->next) {
+    /* don't map random columns */
+    if( is_random_AlnColumn_genewise(alc) == TRUE )
+      continue;
+    if( strcmp(alc->alu[1]->text_label,"3SS_PHASE_0") == 0 ) {
+      new = new_pairwise_AlnColumn();
+      new->alu[0]->start = alc->alu[0]->start;
+      new->alu[0]->end = alc->alu[0]->end;
+      
+      /* set old alc end to == start */
+
+      alc->alu[0]->end = new->alu[0]->start;
+
+      /* link label in as the same */
+
+      new->alu[0]->text_label = alc->alu[0]->text_label;
+
+
+      new->alu[1]->end = alc->alu[1]->end;
+
+      /* new starts at -3 on the codon, which is where old ends */
+
+      new->alu[1]->start = alc->alu[1]->end = alc->alu[1]->end -3;
+
+      new->alu[1]->text_label = "CODON";
+      
+      new->alu[0]->score[0] = new->alu[1]->score[0] = gws->seg[new->alu[0]->end]->transition[GW_MATCH2MATCH] + gws->seg[new->alu[0]->end]->match[CSEQ_GENOMIC_CODON(cseq,new->alu[1]->end)];
+
+      alc->alu[0]->score[0] -= new->alu[0]->score[0];
+      alc->alu[1]->score[0] -= new->alu[0]->score[0];
+
+
+      /*** add new into the AlnBlock ***/
+
+      new->next = alc->next;
+      alc->next = new;
+    }
+  }
+}
+
+
+%func
+This function is make all the balance scores 0 (hence prob-ratio to 1).
+
+Used when you are using naive models
+%arg
+gw genewise model to flatten
+%%
+void flatten_balance_scores_GeneWise(GeneWise * gw)
+{
+  int i;
+
+  for(i=0;i<gw->len;i++) {
+    gw->seg[i]->transition[GW_MATCH_BALANCE_5SS] = 1;
+    gw->seg[i]->transition[GW_INSERT_BALANCE_5SS] = 1;
+    gw->seg[i]->transition[GW_MATCH_BALANCE_3SS] = 1;
+    gw->seg[i]->transition[GW_INSERT_BALANCE_3SS] = 1;
+  }
+}
+
+
+%func
+This function makes a 
+GeneWise model for the estwise
+type algorithms
+%%
+GeneWise * GeneWise_from_ThreeStateModel_cdna(ThreeStateModel * tsm,cDNAParser * cp,CodonMapper * cm,Probability allN)
+{
+  register int i;
+  GeneWise * out;
+  Probability factor;
+
+  assert(tsm);
+  assert(cp);
+  assert(cm);
+
+  if( (out = GeneWise_alloc_len(tsm->len)) == NULL )
+    return NULL;
+
+
+  factor = (1.0 - removed_probability_from_cds_cdna(cp));
+
+  for(i=0;i<tsm->len;i++) 
+    add_GeneWise(out,GeneWiseSegment_from_ThreeStateUnit(tsm->unit[i],factor,cm,NULL,allN));
+
+
+  return out;
+}
+
+%func
+This function makes a 
+GeneWise model for the estwise
+type algorithms
+%%
+GeneWise * GeneWise_from_ThreeStateModel_setfactor(ThreeStateModel * tsm,Probability factor,CodonMapper * cm,Probability allN)
+{
+  register int i;
+  GeneWise * out;
+
+  assert(tsm  != NULL);
+  assert(cm != NULL);
+
+  if( (out = GeneWise_alloc_len(tsm->len)) == NULL )
+    return NULL;
+
+  for(i=0;i<tsm->len;i++) 
+    add_GeneWise(out,GeneWiseSegment_from_ThreeStateUnit(tsm->unit[i],factor,cm,NULL,allN));
+
+
+  return out;
+}
+  
+  
+%func
+This makes a genewise model from a 
+threestatemodel for the genewise type
+algorithms.
+
+Notice you have to provide the gene parameters
+being used
+
+Stop is now not used
+%%
+GeneWise * GeneWise_from_ThreeStateModel(ThreeStateModel * tsm,GeneParser21 * gp,CodonMapper * cm,Probability allN,GeneWiseCodonModel * gwcm)
+{
+  register int i;
+  GeneWise * out;
+  Probability factor;
+
+  assert(tsm);
+  /*  assert(gp); */
+  assert(cm);
+  /*  assert(gwcm); */ /* can cope with null gwcm's */
+
+  if( (out = GeneWise_alloc_len(tsm->len)) == NULL )
+    return NULL;
+
+  if( tsm->name != NULL )
+    out->name = stringalloc(tsm->name);
+
+
+  if( gp == NULL ) {
+    factor = 1.0;
+  } else {
+   factor = (1.0 - removed_probability_from_cds(gp));
+  }
+
+  for(i=0;i<tsm->len;i++) {
+    add_GeneWise(out,GeneWiseSegment_from_ThreeStateUnit(tsm->unit[i],factor,cm,gwcm,allN));
+  }
+  return out;
+}
+
+%func
+This function places 'log-odd' scores of the
+genewise model assumming that the random model
+is a protein model with the codon mapper system
+added in, *and* that the path of the random model
+is synchronous with the query model.
+
+It fudges stop codons with the stop score given
+as a probability.
+
+In other words, this should give bits scores as
+if it was a protein, even though it is DNA
+%%
+void GeneWise_fold_in_synchronised_RandomModel(GeneWise * gw,RandomModel * rm,CodonMapper * cm,CodonTable *ct,Probability stop_codon_background)
+{
+  int i;
+  int j;
+  double p;
+
+  if( gw == NULL || rm == NULL || cm == NULL || ct == NULL ) {
+    fatal("Null objects passed to GeneWise_fold_in_synchronised_RandomModel. Ugh!");
+  }
+
+
+  for(i=0;i<125;i++) {
+    p = map_codon_CodonMapper(i,rm->aminoacid,cm);
+    
+    if( is_stop_codon(i,ct) == FALSE && p < 0.0000001 ) {
+      warn("Got a close to zero probability for %d\n",i);
+      p = 0.0000001;
+    }
+
+    for(j=0;j<gw->len;j++) {
+      if( is_stop_codon(i,ct) == TRUE ){
+	gw->seg[j]->match[i]  /= stop_codon_background;
+	gw->seg[j]->insert[i] /= stop_codon_background;
+      } else {
+	gw->seg[j]->match[i]   = gw->seg[j]->match[i] / p;
+	gw->seg[j]->insert[i]  = gw->seg[j]->insert[i] / p;
+      }
+    }
+      
+    
+  }
+  
+  return;
+}
+
+%func
+This function checks that the insert model is bang on
+zero, forcing it to zero
+
+Potentially it warns for non zeros as well
+%%
+boolean check_flat_insert(GeneWise * gw,boolean should_force,boolean should_warn,CodonTable * ct)
+{
+  boolean ret = TRUE;
+  int i,j;
+  
+  for(i=0;i<gw->len;i++) {
+    for(j=0;j<125;j++) {
+      if ( is_stop_codon(j,ct) ) {
+	continue;
+      }
+      if( gw->seg[i]->insert[j] > 1.02 || gw->seg[i]->insert[j] < 0.99 ) {
+	ret = FALSE;
+	if( should_warn ) {
+	  warn("In checking that we have a flat zero over the insert states, at %d, codon %d got %.2f",i,j,gw->seg[i]->insert[j]);
+	}
+	if( should_force ) {
+	  gw->seg[i]->insert[j] = 1.0;
+	}
+      }
+    }
+  }
+
+  return ret;
+}
+
+%func
+This function folds in a simple random model
+(single base position) into a genewise model
+%%
+void GeneWise_fold_in_RandomModelDNA(GeneWise * gw,RandomModelDNA * rmd)
+{
+  register int i;
+  register int j;
+  Probability p;
+
+  for(i=0;i<125;i++) {
+    p = probability_of_this_codon(i,rmd);
+
+    
+    for(j=0;j<gw->len;j++) {
+      gw->seg[j]->match[i]   = gw->seg[j]->match[i] / p;
+      gw->seg[j]->insert[i]  = gw->seg[j]->insert[i] / p;
+      
+    }
+    
+  }
+  
+  return;
+}
+
+%func
+Produces a protein object from a genewise/estwise
+style label set, setting the last retrieved column
+%%
+Protein * Protein_from_GeneWise_AlnColumn(Sequence * dna,AlnColumn * col,int position_in_aln,AlnColumn ** last_column,CodonTable * ct,boolean (*is_random_AlnColumn)(const AlnColumn *))
+{
+  Sequence * out;
+  char buffer[MAX_PROTEIN_GENEWISE]; /* max protein length? */
+  char tempseq[4];
+  int i =0;
+  tempseq[3] = '\0';
+  for(;col != NULL && (*is_random_AlnColumn)(col) == TRUE;col = col->next)
+    ;
+  if( col == NULL ) 
+    return NULL;
+
+  sprintf(buffer,"%s.pep",dna->name);
+  out = empty_Sequence_from_dynamic_memory(stringalloc(buffer));
+  for(;col != NULL && (*is_random_AlnColumn)(col) == FALSE;col = col->next) {
+    if( i+1 >= MAX_PROTEIN_GENEWISE ) {
+      buffer[i] = '\0';
+      add_string_to_Sequence(out,buffer);
+      i = 0;
+    }
+
+    if( strstr(col->alu[position_in_aln]->text_label,"CODON") != NULL ) {
+      buffer[i++] = aminoacid_from_seq(ct,dna->seq+col->alu[position_in_aln]->start+1);
+    } else if ( strstr(col->alu[position_in_aln]->text_label,"5SS_PHASE_1") != NULL ) {
+      tempseq[0] = dna->seq[col->alu[position_in_aln]->start+1];
+      for(col=col->next;col != NULL && strstr(col->alu[position_in_aln]->text_label,"3SS") == NULL;col=col->next)
+	;
+      if( col == NULL ) {
+	warn("In middle of intron - got no 3'SS in making peptide translation");
+	return NULL;
+      }
+      tempseq[1] = dna->seq[col->alu[position_in_aln]->start+4];
+      tempseq[2] = dna->seq[col->alu[position_in_aln]->start+5];
+      /*fprintf(stderr,"In phase 1 intron, calling %c%c%c as split codon and %c%c%c as last codon\n",tempseq[0],tempseq[1],tempseq[2],
+	      dna->seq[col->alu[position_in_aln]->start+6],
+	      dna->seq[col->alu[position_in_aln]->start+7],
+	      dna->seq[col->alu[position_in_aln]->start+8]
+	      ); */
+      buffer[i++] = aminoacid_from_seq(ct,tempseq);
+      /* buffer[i++] = aminoacid_from_seq(ct,dna->seq+col->alu[position_in_aln]->start+6);*/
+      printf("Making a %c in phase 1 intron\n",buffer[i-1]);
+    } else if ( strstr(col->alu[position_in_aln]->text_label,"5SS_PHASE_2") != NULL ) {
+      tempseq[0] = dna->seq[col->alu[position_in_aln]->start+1];
+      tempseq[1] = dna->seq[col->alu[position_in_aln]->start+2];
+      for(col=col->next;col != NULL && strstr(col->alu[position_in_aln]->text_label,"3SS") == NULL;col=col->next)
+	;
+      if( col == NULL ) {
+	warn("In middle of intron - got no 3'SS in making peptide translation");
+	return NULL;
+      }
+      tempseq[2] = dna->seq[col->alu[position_in_aln]->start+4];
+      buffer[i++] = aminoacid_from_seq(ct,tempseq);
+      /*buffer[i++] = aminoacid_from_seq(ct,dna->seq+col->alu[position_in_aln]->start+5);*/
+      printf("Making a %c in phase 2 intron\n",buffer[i-1]);
+    } else if ( strstr(col->alu[position_in_aln]->text_label,"5SS_PHASE_0") != NULL ) {
+      /* codon already delt with! */
+      for(col=col->next;col != NULL && strstr(col->alu[position_in_aln]->text_label,"3SS") == NULL;col=col->next)
+	;
+      if( col == NULL ) {
+	warn("In middle of intron - got no 3'SS in making peptide translation");
+	return NULL;
+      }
+      /* buffer already sorted out. No need to provide compute */
+      continue;
+      buffer[i++] = aminoacid_from_seq(ct,dna->seq+col->alu[position_in_aln]->start+3);
+      printf("Making a %c in phase 0 intron\n",buffer[i-1]);
+
+      col = col->next;
+    } else if ( strstr(col->alu[position_in_aln]->text_label,"SEQUENCE_DELETION") != NULL ) {
+      buffer[i++] = 'X';
+    } else if ( strstr(col->alu[position_in_aln]->text_label,"SEQUENCE_INSERTION") != NULL ) {
+      buffer[i++] = 'X';
+    } else if ( strstr(col->alu[position_in_aln]->text_label,"INSERT") != NULL ) {
+      continue;
+    } else {
+      warn("In processing alignment to peptide, got label %s which cannot handle. Assumming X in protein translation",col->alu[position_in_aln]->text_label);
+      buffer[i++] = 'X';
+    }
+  }
+
+  if( last_column != NULL ) 
+    *last_column = col;
+  buffer[i] = '\0';
+
+  add_string_to_Sequence(out,buffer);
+  out->type = SEQUENCE_PROTEIN; /* force to protein */
+  return Protein_from_Sequence(out);
+}
+
+  
+%func
+Helper function for getting probability of
+codon for a random model
+%type internal
+%%
+Probability probability_of_this_codon(int codon,RandomModelDNA * rmd)
+{
+  base one;
+  base two;
+  base three;
+
+  all_bases_from_codon(codon,&one,&two,&three);
+
+  return rmd->base[one] * rmd->base[two] * rmd->base[three];
+}
+  
+%func
+debugging function
+%type internal
+%%
+void show_GeneWise(GeneWise * gw,FILE * ofp)
+{
+  register int i;
+
+
+  fprintf(stderr,"Got here at least [%d]\n",gw->len);
+
+  for(i=0;i<gw->len;i++)
+    show_GeneWiseSegment(gw->seg[i],ofp);
+
+}
+
+%func
+debugging
+%type internal
+%%
+void show_GeneWiseSegment(GeneWiseSegment * seg,FILE * ofp)
+{
+  fprintf(ofp,"match=\" ");
+  show_Probability_array(seg->match,125,ofp); 
+  fprintf(ofp,"\n");
+  show_Probability_array(seg->insert,125,ofp); 
+  fprintf(ofp,"\n");
+  
+}
+
+%func
+Function which actually does the mapping from
+threestate model unit to genewise
+%type internal
+%%
+GeneWiseSegment * GeneWiseSegment_from_ThreeStateUnit(ThreeStateUnit * tsu,Probability factor,CodonMapper * cm,GeneWiseCodonModel * gwcm,Probability allN)
+{
+  register int i;
+  GeneWiseSegment * out;
+  double total;
+  int codon;
+
+  
+  out = GeneWiseSegment_alloc();
+  if( out == NULL )
+    return NULL;
+
+  (void)set_Probability_array(out->match     , 0.0, GW_EMISSION_LEN);
+  (void)set_Probability_array(out->insert    , 0.0, GW_EMISSION_LEN);
+  (void)set_Probability_array(out->transition, 0.0, GW_TRANSITION_LEN);
+  
+  true_map_codon_array_CodonMapper(out->match,tsu->match_emission,cm);
+  true_map_codon_array_CodonMapper(out->insert,tsu->insert_emission,cm);
+
+  codon = codon_from_seq("NNN");
+  out->match[codon] = allN;
+  out->insert[codon] = allN;
+  
+
+
+  out->transition[GW_MATCH2MATCH]   = tsu->transition[TSM_MATCH2MATCH] * factor;
+  out->transition[GW_MATCH2INSERT]  = tsu->transition[TSM_MATCH2INSERT] * factor;
+  out->transition[GW_MATCH2DELETE]  = tsu->transition[TSM_MATCH2DELETE] * factor;
+  out->transition[GW_MATCH2END]     = tsu->transition[TSM_MATCH2END] * factor;
+
+  out->transition[GW_INSERT2MATCH]  = tsu->transition[TSM_INSERT2MATCH] * factor;
+  out->transition[GW_INSERT2INSERT] = tsu->transition[TSM_INSERT2INSERT] * factor;
+  out->transition[GW_INSERT2DELETE] = tsu->transition[TSM_INSERT2DELETE] * factor;
+  out->transition[GW_INSERT2END]    = tsu->transition[TSM_INSERT2END] * factor;
+
+  out->transition[GW_DELETE2MATCH]  = tsu->transition[TSM_DELETE2MATCH];
+  out->transition[GW_DELETE2INSERT] = tsu->transition[TSM_DELETE2INSERT];
+  out->transition[GW_DELETE2DELETE] = tsu->transition[TSM_DELETE2DELETE];
+  out->transition[GW_DELETE2END]    = tsu->transition[TSM_DELETE2END];
+  
+  out->transition[GW_START2MATCH]   = tsu->transition[TSM_START2MATCH];
+  out->transition[GW_START2INSERT]  = tsu->transition[TSM_START2INSERT];
+  out->transition[GW_START2DELETE]  = tsu->transition[TSM_START2DELETE];
+
+  /** we need 1/(sum_over_codons (match(codon)) * no(codon in 5'SS)/no(codon in cds) ) **/
+
+  if( gwcm != NULL ) {
+
+    total = 0.0;
+    for(i=0;i<64;i++) {
+      codon = codon_from_base4_codon(i);
+      total += out->match[codon] * gwcm->in_donor[i]/gwcm->in_cds[i];
+    }
+    out->transition[GW_MATCH_BALANCE_5SS] = 1.0 / total;
+
+    total = 0.0;
+    for(i=0;i<64;i++) {
+      codon = codon_from_base4_codon(i);
+      total += out->insert[codon] * gwcm->in_donor[i]/gwcm->in_cds[i];
+    }
+
+    out->transition[GW_INSERT_BALANCE_5SS] = 1.0 / total;
+   
+    total = 0.0;
+    for(i=0;i<64;i++) {
+      codon = codon_from_base4_codon(i);
+      total += out->match[codon] * gwcm->in_acceptor[i]/gwcm->in_cds[i];
+    }
+    out->transition[GW_MATCH_BALANCE_3SS] = 1.0 / total;
+
+    total = 0.0;
+    for(i=0;i<64;i++) {
+      codon = codon_from_base4_codon(i);
+      total += out->insert[codon] * gwcm->in_acceptor[i]/gwcm->in_cds[i];
+    }
+    out->transition[GW_INSERT_BALANCE_3SS] = 1.0 / total;
+  } else {
+    out->transition[GW_MATCH_BALANCE_5SS]  = 1.0;
+    out->transition[GW_MATCH_BALANCE_3SS]  = 1.0;
+    out->transition[GW_INSERT_BALANCE_5SS] = 1.0;
+    out->transition[GW_INSERT_BALANCE_3SS] = 1.0;
+  }
+
+  return out;
+}
+
+%func
+Helper function
+%type internal
+%%
+Probability Probability_of_codon(int codon,CodonTable * ct,Probability * aminoacid_26_array,Probability stop)
+{
+  register int i,j,k;
+  base base1,base2,base3;
+  Probability ret = 0.0;
+
+
+  if( has_random_bases(codon) == FALSE) {
+    if( is_stop_codon(codon,ct) == TRUE ) {
+      return stop;
+    }
+    else {
+      fprintf(stderr,"Setting a number to %f\n",aminoacid_26_array[aminoacid_no_from_codon(ct,codon)]);
+      return aminoacid_26_array[aminoacid_no_from_codon(ct,codon)];
+    }
+  }
+
+  all_bases_from_codon(codon,&base1,&base2,&base3);
+
+
+  /*** the first base is N ***/
+
+  if( base1 == BASE_N && base2 != BASE_N && base3 != BASE_N) {
+    for(i=0;i<4;i++ ) 
+      ret += aminoacid_26_array[aminoacid_no_from_codon(ct,(i*25 + base2*5 + base3))];
+    return ret;
+  }
+
+  if( base1 == BASE_N && base2 == BASE_N && base3 != BASE_N) {
+    for(i=0;i<4;i++) 
+      for(j=0;j<4;j++)
+	ret += aminoacid_26_array[aminoacid_no_from_codon(ct,(i*25 + j*5 + base3))];
+    return ret;
+  }
+
+  if( base1 == BASE_N && base2 != BASE_N && base3 == BASE_N) {
+    for(i=0;i<4;i++) 
+      for(k=0;k<4;k++) 
+	ret += aminoacid_26_array[aminoacid_no_from_codon(ct,(i*25 + base2*5 + k))];
+    return ret;
+  }
+
+  if( base1 == BASE_N && base2 == BASE_N && base3 == BASE_N) {
+    for(i=0;i<4;i++) 
+      for(j=0;j<4;j++) 
+	for(k=0;k<4;k++)
+	  ret += aminoacid_26_array[aminoacid_no_from_codon(ct,(i*25 + j*5 + k))];
+    return ret;
+  }
+
+
+  /*** the second base is N ***/
+
+  if( base1 != BASE_N && base2 == BASE_N && base3 != BASE_N) {
+    for(j=0;j<4;j++) 
+      ret += aminoacid_26_array[aminoacid_no_from_codon(ct,(base1*25 + j*5 + base3))];
+    return ret;
+  }
+
+
+  if( base1 != BASE_N && base2 == BASE_N && base3 == BASE_N) {
+    for(j=0;j<4;j++) 
+      for(k=0;k<4;k++)
+	ret += aminoacid_26_array[aminoacid_no_from_codon(ct,(base1*25 + j*5 + k))];
+    return ret;
+  }
+
+  /*** the third base is N ***/
+
+
+  if( base1 != BASE_N && base2 != BASE_N && base3 == BASE_N) {
+    for(k=0;k<4;k++)
+      ret += aminoacid_26_array[aminoacid_no_from_codon(ct,(base1*25 + base2*5 + k))];
+    return ret;
+  }
+
+  /*** should never reach here ***/
+
+  warn("Got to the end of Probability_of_codon without a BASE_N combination being triggered. This looks like a major problem. Codon inputted was %d",codon);
+
+  return 0.0;
+  
+}
+
+%func
+Makes a Score (log based) object from
+a probability based object
+%%
+GeneWiseScore * GeneWiseScore_from_GeneWise(GeneWise * gw)
+{
+  GeneWiseScore * out;
+  register int i;
+  
+
+  out = GeneWiseScore_alloc_len(gw->len);
+
+  if(gw->name != NULL )
+    out->name = stringalloc(gw->name);
+
+  add_GeneWiseScore(out,GeneWiseScoreSegment_from_GeneWiseSegment(NULL,gw->seg[0]));
+
+  for(i=1;i<gw->len;i++) 
+    add_GeneWiseScore(out,GeneWiseScoreSegment_from_GeneWiseSegment(gw->seg[i-1],gw->seg[i]));
+
+  return out;
+}
+
+%func
+helper function for prob to score mapping
+%type internal
+%%
+GeneWiseScoreSegment * GeneWiseScoreSegment_from_GeneWiseSegment(GeneWiseSegment * prev,GeneWiseSegment * seg)
+{
+  GeneWiseScoreSegment * out;
+
+  out = GeneWiseScoreSegment_alloc();
+
+  Probability2Score_move(seg->match,out->match,GW_EMISSION_LEN);
+  Probability2Score_move(seg->insert,out->insert,GW_EMISSION_LEN);
+
+  if( prev != NULL ) {
+    out->transition[GW_MATCH2MATCH] = Probability2Score(prev->transition[GW_MATCH2MATCH]);
+    out->transition[GW_INSERT2MATCH] = Probability2Score(prev->transition[GW_INSERT2MATCH]);
+    out->transition[GW_DELETE2MATCH] = Probability2Score(prev->transition[GW_DELETE2MATCH]);
+
+    out->transition[GW_MATCH2DELETE] = Probability2Score(prev->transition[GW_MATCH2DELETE]);
+    out->transition[GW_INSERT2DELETE] = Probability2Score(prev->transition[GW_INSERT2DELETE]);
+    out->transition[GW_DELETE2DELETE] = Probability2Score(prev->transition[GW_DELETE2DELETE]);
+  } else {
+
+    out->transition[GW_MATCH2MATCH] = NEGI;
+    out->transition[GW_INSERT2MATCH] = NEGI;
+    out->transition[GW_DELETE2MATCH] = NEGI;
+
+    out->transition[GW_MATCH2DELETE] = NEGI;
+    out->transition[GW_INSERT2DELETE] = NEGI;
+    out->transition[GW_DELETE2DELETE] = NEGI;
+  }
+
+  out->transition[GW_MATCH2INSERT] = Probability2Score(seg->transition[GW_MATCH2INSERT]);
+  out->transition[GW_INSERT2INSERT] = Probability2Score(seg->transition[GW_INSERT2INSERT]);
+  out->transition[GW_DELETE2INSERT] = Probability2Score(seg->transition[GW_DELETE2INSERT]);
+  
+  out->transition[GW_START2MATCH] = Probability2Score(seg->transition[GW_START2MATCH]);
+  out->transition[GW_START2INSERT] = Probability2Score(seg->transition[GW_START2INSERT]);
+  out->transition[GW_START2DELETE] = Probability2Score(seg->transition[GW_START2DELETE]);
+  
+  out->transition[GW_MATCH2END] = Probability2Score(seg->transition[GW_MATCH2END]);
+  out->transition[GW_INSERT2END] = Probability2Score(seg->transition[GW_INSERT2END]);
+  out->transition[GW_DELETE2END] = Probability2Score(seg->transition[GW_DELETE2END]);
+
+  out->transition[GW_MATCH_BALANCE_5SS] = Probability2Score(seg->transition[GW_MATCH_BALANCE_5SS]);
+  out->transition[GW_INSERT_BALANCE_5SS] = Probability2Score(seg->transition[GW_INSERT_BALANCE_5SS]);
+
+  out->transition[GW_MATCH_BALANCE_3SS] = Probability2Score(seg->transition[GW_MATCH_BALANCE_3SS]);
+  out->transition[GW_INSERT_BALANCE_3SS] = Probability2Score(seg->transition[GW_INSERT_BALANCE_3SS]);
+  
+  return out;
+}
+
+
+
+
+
+%}
+
+

@@ -1,0 +1,470 @@
+/*  Last edited: Apr 23 14:10 1997 (birney) */
+
+
+%{
+
+#include "wisebase.h"
+
+#define LOG_NEGATIVE_INFINITY (-100000000)
+#define NEGI LOG_NEGATIVE_INFINITY
+#define PROBABILITY_MINIMUM (0.0000000000000000001)
+
+#define INTEGER_FACTOR 500
+
+typedef double Probability;
+typedef int    Score;
+typedef double Bits;
+
+#define MINIMUM_ERROR (0.00000001)
+
+%}
+
+
+api
+func Probability_from_average_state_occupancy
+func state_occupancy_from_Probability
+func Probability2Score
+func Score2Probability
+func Score2Bits
+func halfbit2Probability
+endapi
+
+%{
+#include "probability.h"
+
+
+%func
+for single state (exponetial decays) takes an average length
+and converts that to a probability that will produce that
+length (on average) for the state. NB... this *assumes* that
+you want a single state exp decay.
+%arg
+length average length of state
+%%
+Probability Probability_from_average_state_occupancy(double length)
+{
+  return 1 - (1.0 / length);
+}
+
+%func
+If you have a single state then this will tak
+the probability for the state->state transition and
+give you back the average length in the state
+%arg
+p probability of staying in the state
+%%
+double      state_occupancy_from_Probability(double p)
+{
+  return 1 / (1-p);
+}
+
+%func
+gives back a score of the sum in
+probability space of the two scores.
+
+This is the function verison of this
+code, which is not efficient *at all*
+%%
+Score Probability_logsum(Score one,Score two)
+{
+  return Probability2Score(Score2Probability(one) + Score2Probability(two));
+}
+
+%func
+Gives back a Bits score for a probability
+%%
+Bits Probability2Bits(Probability p)
+{
+  return Score2Bits(Probability2Score(p));
+}
+
+%func
+shows a score array as score, score ,score ...'
+%arg
+s Score array
+len length of array
+ofp output filestream
+%%
+void show_Score_array(Score * s,int len,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"\"%d",s[0]);
+  for(i=1;i<len;i++) {
+    fprintf(ofp,",%d",s[i]);
+  }
+
+  fprintf(ofp,"\"");
+
+}
+  
+%func
+shows a proability array in scientific notation.
+
+%arg
+p probability array
+len length of proability array
+ofp output filestream
+%%
+void show_Probability_array_exp(Probability * p,int len,FILE * ofp)
+{
+  int i;
+
+  fprintf(ofp,"%4.4g",p[0]);
+  for(i=1;i<len;i++) {
+    fprintf(ofp,",%4.4g",p[i]);
+  }
+
+}
+
+%func
+reads in a probability array of comma separated numbers.
+It calls /is_double_string to test whether the numbers are
+probabilities. It tries ito read in len numbers: if it runs out of
+commad separated guys it returns FALSE
+%%
+boolean read_Probability_array(Probability * p,int len,char * start_of_array)
+{
+  char* runner;
+  int no =0;
+  
+  for(runner=strtok(start_of_array,", ");runner != NULL;runner=strtok(NULL,", "),no++) {
+    if( no >= len ) {
+      return FALSE;
+    }
+    if( is_double_string(runner,&p[no]) == FALSE ) {
+      return FALSE;
+    }
+  }
+  return TRUE;
+}
+
+  
+%func
+shows a proability array in %f notation.
+
+%arg
+p probability array
+len length of proability array
+ofp output filestream
+%%
+void show_Probability_array(Probability * p,int len,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"\"%f",p[0]);
+  for(i=1;i<len;i++) {
+    fprintf(ofp,",%f",p[i]);
+  }
+
+  fprintf(ofp,"\"");
+
+}
+
+%func
+adds up the probability array given
+%arg
+p probability array 
+len length of array
+%%
+Probability sum_Probability_array(Probability * p,int len)
+{
+  register int i;
+  Probability ret = 0.0;
+
+  for(i=0;i<len;i++)
+    ret += p[i];
+
+  return ret;
+}
+
+%func
+Sets the probability array to p
+%arg
+set probability array to set
+p   probability to set it to 
+len length of probability array
+%%
+Probability * set_Probability_array(Probability * set,Probability p,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++) 
+    set[i] = p;
+
+  return set;
+}
+
+%func
+moves the probability array from to the (same length)
+score array to going through Probability2Score function
+%arg
+from probability array to get the numbers
+to   Score array to put the numbers
+len length of arrays
+%%
+Score * Probability2Score_move(Probability * from,Score * to,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++)
+    to[i] = Probability2Score(from[i]);
+
+  return to;
+}
+
+%func 
+moves from to to 
+%arg
+from probability array with the numbers
+to   probability array to be written into
+len  length
+%%
+Probability * Probability_move(const Probability * from,Probability * to,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++)
+    to[i] = from[i];
+
+  return to;
+}
+
+%func 
+moves from to to 
+%arg
+from Score array with the numbers
+to   Score array to be written into
+len  length
+%%
+Score * Score_move(const Score * from,Score * to,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++)
+    to[i] = from[i];
+
+  return to;
+}
+
+
+%func
+Reasonably stupid function. Sums up probability array
+and then simply uses a linear renormalisation to get to the
+array adding to 1.0
+
+returns the difference between the original sum and 1,0
+%arg
+array array to renormalise
+len length of array
+%%
+double renormalise_Probability_array(Probability * array,int len)
+{
+  register int i;
+  double total;
+
+  total = sum_Probability_array(array,len);
+
+  for(i=0;i<len;i++)
+    array[i] /= total;
+
+  return (1.0 - total);
+}
+
+
+%func
+divides one prob array by another pairwise
+%arg
+to probability array to be written into
+top probability array to be divided
+bottem probability array which divides
+len length
+%%
+Probability * Probability_array_divide(Probability * to,const Probability * top,const Probability * bottem,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++) 
+    to[i] = top[i] / bottem[i];
+
+  return to;
+}
+
+
+%func
+multiplies one prob array by another pairwise
+%arg
+to probability array to be written into
+top probability array to be mulitpled
+bottem  probability array to be mulitpled
+len length
+%%
+Probability * Probability_array_multiply(Probability * to,const Probability * top,const Probability * bottem,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++) 
+    to[i] = top[i] * bottem[i];
+
+  return to;
+}
+
+%func
+sums one prob array with another pairwise
+%arg
+to probability array to be written into
+top probability array to be summed
+bottem  probability array to be summed
+len length
+%%
+Probability * Probability_array_add(Probability * to,const Probability * top,const Probability * bottem,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++) 
+    to[i] = top[i] + bottem[i];
+
+  return to;
+}
+
+
+%func
+subtracts one prob array by another pairwise
+%arg
+to probability array to be written into
+top probability array to be subtracted
+bottem probability array that subtracts
+len length
+%%
+Probability * Probability_array_subtract(Probability * to,const Probability * top,const Probability * bottem,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++) 
+    to[i] = top[i] - bottem[i];
+
+  return to;
+}
+
+
+%func
+sums one score array with another pairwise
+%arg
+to  score array to be written into
+top score  array to be summed
+bottem  score array to be summed
+len length
+%%
+Score * Score_array_add(Score * to,Score * top,Score * bottem,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++) 
+    to[i] = top[i] + bottem[i];
+
+  return to;
+}
+
+
+%func
+subtracts one score array by another pairwise
+%arg
+to score array to be written into
+top score array to be subtracted
+bottem score array that subtracts
+len length
+%%
+Score * Score_array_subtract(Score * to,const Score * top,const Score * bottem,int len)
+{
+  register int i;
+
+  for(i=0;i<len;i++) 
+    to[i] = top[i] - bottem[i];
+
+  return to;
+}
+
+%func
+Badly implemented sum in probability
+space
+%%
+Score Score_Probability_sum(Score one,Score two)
+{
+  return Probability2Score(Score2Probability(one) + Score2Probability(two));
+}
+
+%func
+maps probabilities to scores. Deals
+sensibly with 0's.
+%%
+Score Probability2Score(Probability p)
+{
+  if( p < PROBABILITY_MINIMUM )
+    return NEGI;
+
+  else return (Score) (INTEGER_FACTOR * (log(p)));
+}
+
+%func
+maps halfbits (log2(prob*2) to
+probabilities
+%%
+Probability halfbit2Probability(double half_bit)
+{
+
+  if( half_bit <= NEGI + PROBABILITY_MINIMUM ) 
+    return 0.0; /** just to guarentee conversion **/
+  /*** ok half bit = 2 * log(P) / log(2.0) ***/
+
+  return exp(half_bit * log(2.0) /2);
+}
+
+%func
+maps halfbits (log2(prob*2) to
+probabilities
+%%
+Probability Bits2Probability(double bits)
+{
+
+  if( bits <= NEGI ) 
+    return 0.0; /** just to guarentee conversion **/
+  /*** ok bits = log(P) / log(2.0) ***/
+
+  return exp(bits * log(2.0));
+}
+
+%func
+maps probabilities to halfbits.
+Deals with 0's sensibly
+%%
+double Probability2halfbit(Probability p)
+{
+  if( p < PROBABILITY_MINIMUM )
+    return NEGI;
+  return 2*log(p)/log(2.0);
+}
+
+  
+%func
+maps scores to probabilities
+%%
+Probability Score2Probability(Score s)
+{
+  if( s <= NEGI )
+    return 0.0;
+  else return  exp((((double) s )/INTEGER_FACTOR ));
+}
+
+%func
+maps scores to bits
+%%
+Bits Score2Bits(Score s)
+{
+  return (Bits)((double)s / ((log((double)2.0))*INTEGER_FACTOR) );
+}
+
+%}
+
+
+
+

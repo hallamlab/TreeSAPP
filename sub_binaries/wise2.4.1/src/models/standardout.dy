@@ -1,0 +1,80 @@
+
+
+%{
+#include "dyna.h"
+
+
+%}
+
+
+
+struct StandardOutputOptions
+boolean show_alb !def="FALSE"
+boolean show_pal !def="FALSE"
+boolean show_cumlative_alb !def="FALSE"
+boolean show_cumlative_pal !def="FALSE"
+
+
+%{
+#include "standardout.h"
+
+
+
+
+void show_help_StandardOutputOptions(FILE * ofp)
+{
+  fprintf(ofp,"Standard alignment outputs\n");
+  fprintf(ofp,"   -alb          show align block format\n");
+  fprintf(ofp,"   -pal          show raw alignment\n");
+  fprintf(ofp,"   -calb         show cumlative align block\n");
+  fprintf(ofp,"   -cpal         show cumlative raw alignemnt\n");
+
+}
+
+
+StandardOutputOptions * new_StandardOutputOptions_from_argv(int * argc,char ** argv)
+{
+  StandardOutputOptions * out;
+
+  out = StandardOutputOptions_alloc();
+
+  out->show_alb = strip_out_boolean_argument(argc,argv,"alb");
+  out->show_pal = strip_out_boolean_argument(argc,argv,"pal");
+  out->show_cumlative_alb = strip_out_boolean_argument(argc,argv,"calb");
+  out->show_cumlative_pal = strip_out_boolean_argument(argc,argv,"cpal");
+
+  return out;
+}
+
+
+void show_StandardOutputOptions(StandardOutputOptions * out,AlnBlock * alb,PackAln * pal,char * divide_str,FILE * ofp)
+{
+  assert(out);
+  assert(alb);
+  assert(pal);
+  assert(ofp);
+  assert(divide_str);
+
+  if( out->show_alb == TRUE ) {
+    mapped_ascii_AlnBlock(alb,Score2Bits,0,ofp);
+    fprintf(ofp,"%s\n",divide_str);
+  }
+
+  if( out->show_cumlative_alb == TRUE ) {
+    mapped_ascii_AlnBlock(alb,Score2Bits,1,ofp);
+    fprintf(ofp,"%s\n",divide_str);
+  }
+
+
+  if( out->show_cumlative_pal == TRUE ) {
+    show_bits_and_cumlative_PackAln(pal,ofp);
+    fprintf(ofp,"%s\n",divide_str);
+  }
+
+  if( out->show_pal == TRUE ) {
+    show_simple_PackAln(pal,ofp);
+    fprintf(ofp,"%s\n",divide_str);
+  }
+
+  return;
+}

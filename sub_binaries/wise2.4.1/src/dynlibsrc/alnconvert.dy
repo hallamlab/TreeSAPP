@@ -1,0 +1,188 @@
+/*  Last edited: Mar 11 15:45 1997 (birney) */
+
+
+%{
+#include "dyna.h"
+
+#define AlnConvertSetLISTLENGTH 64
+
+%}
+
+
+struct AlnConvertUnit
+int state1
+int state2
+int offi
+int offj
+char * label1 !link
+char * label2 !link
+boolean can_collapse !def="FALSE"
+boolean is_from_special !def="FALSE"
+
+struct AlnConvertSet
+AlnConvertUnit ** acu !list
+
+
+%{
+#include "alnconvert.h"
+
+ static char * unknown_label = "UNKNOWN_LABEL";
+
+
+%func
+Not a sensible function. Makes the convert with label1 and label2
+a collapsable label
+%%
+void add_collapse_label_AlnConvertSet(AlnConvertSet * acs,char * label1,char * label2)
+{
+  int i;
+
+  for(i=0;i<acs->len;i++) 
+    if( strcmp(acs->acu[i]->label1,label1) == 0 && strcmp(acs->acu[i]->label2,label2) == 0 )
+       acs->acu[i]->can_collapse = TRUE;
+
+}
+
+%func
+Takes a AlnConvertSet (acs) and a PackAln (pal) 
+and blindly converts it to AlnBlock. This is really
+an internal for a dynamite produced dy function
+%%
+AlnBlock  * AlnBlock_from_PackAln(AlnConvertSet * acs,PackAln *pal)
+{
+  AlnBlock * alb;
+  AlnColumn * prev;
+  AlnColumn * new;
+  boolean coll;
+  int i;
+
+  alb = AlnBlock_alloc_len(2);
+
+  add_AlnBlock(alb,AlnSequence_alloc());
+  add_AlnBlock(alb,AlnSequence_alloc());
+
+  prev = NULL;
+  alb->score = pal->score;
+  for(i=1;i<pal->len;i++) {
+    coll = FALSE;
+    new=AlnColumn_from_Pal_Convert(acs,pal->pau[i-1],pal->pau[i],prev,&coll);
+    if( new == NULL ) {
+      if( coll == FALSE ) {
+	warn("Unrecoverable error in converting PackAln to AlnBlock... bugging out with partial alignment!");
+	return alb;
+      }
+      else {
+	/** ok, was collapsed, just loop back **/
+	continue;
+      }
+    }
+    else {
+      /** got a new AlnColumn **/
+      if( prev == NULL ) {
+	/** then first col **/
+
+	alb->start = new;
+	alb->seq[0]->start = new->alu[0];
+	alb->seq[1]->start = new->alu[1];
+	prev = new;
+	
+      }
+      else {
+	prev->next = new;
+	prev->alu[0]->next = new->alu[0];
+	prev->alu[1]->next = new->alu[1];
+	prev = new;
+      }
+    }
+
+  }
+
+  return alb;
+}
+    
+
+%func
+the core of the conversion.
+%type internal
+%%
+AlnColumn * AlnColumn_from_Pal_Convert(AlnConvertSet * acs,PackAlnUnit * before,PackAlnUnit * after,AlnColumn * prev,boolean * was_collapsed)
+{
+  AlnConvertUnit * acu;
+  AlnColumn * alc;
+
+
+  acu = AlnConvertUnit_from_state_and_offset(acs,before->state,after->state,after->i - before->i,after->j - before->j);
+
+  if( acu == NULL) {
+    warn("Between state [%d,%d,%d] and [%d,%d,%d] got no labels... labelling as UNKNOWN",before->i,before->j,before->state,after->i,after->j,after->state);
+    alc = new_pairwise_AlnColumn();
+    
+    alc->alu[0]->start = before->i;
+    alc->alu[0]->end   = after->i;
+
+    alc->alu[1]->start = before->j;
+    alc->alu[1]->end   = after->j;
+    alc->alu[0]->score[0] = alc->alu[1]->score[0] = after->score;
+
+    alc->alu[1]->text_label = alc->alu[0]->text_label = unknown_label;
+
+    return alc;
+  }
+
+  if( acu->can_collapse == TRUE && prev != NULL && strcmp(prev->alu[0]->text_label,acu->label1) == 0 && strcmp(prev->alu[1]->text_label,acu->label2) == 0 ) {
+    /*** don't return something, just add into the next one ***/
+    prev->alu[0]->end = after->i;
+    prev->alu[1]->end = after->j;
+    prev->alu[0]->score[0] += after->score;
+    prev->alu[1]->score[0] += after->score;
+    if( was_collapsed != NULL ) {
+      *was_collapsed = TRUE;
+    }
+    return NULL;
+  }
+
+  /*** else, put away this unit ***/
+
+  alc = new_pairwise_AlnColumn();
+
+  if( acu->is_from_special == TRUE ) {
+    alc->alu[0]->start = after->i -1;
+    alc->alu[0]->end   = after->i;
+  } else {
+    alc->alu[0]->start = before->i;
+    alc->alu[0]->end   = after->i;
+  }
+
+  alc->alu[1]->start = before->j;
+  alc->alu[1]->end   = after->j;
+  alc->alu[0]->score[0] = alc->alu[1]->score[0] = after->score;
+
+  alc->alu[0]->text_label = acu->label1;
+  alc->alu[1]->text_label = acu->label2;
+
+  return alc;  
+}
+
+
+%func
+Finds the correct AlnConvertUnit for this state,state,offi,offj 
+quad
+%type internal
+%%
+AlnConvertUnit * AlnConvertUnit_from_state_and_offset(AlnConvertSet * acs,int state1,int state2,int offi,int offj)
+{
+  register int i;
+
+  for(i=0;i<acs->len;i++) {
+    if( acs->acu[i]->state1 == state1 && acs->acu[i]->state2 == state2 && (acs->acu[i]->offi == -1 || acs->acu[i]->offi == offi) && offj == acs->acu[i]->offj)
+      return acs->acu[i];
+  }
+  return NULL;
+}
+
+
+%}
+
+
+
+

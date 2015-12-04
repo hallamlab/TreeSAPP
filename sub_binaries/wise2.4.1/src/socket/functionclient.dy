@@ -1,0 +1,201 @@
+
+%{
+#include "transferinterface.h"
+#include "anonobj.h"
+#include "directsocketwrite.h"
+
+#define FunctionProxyCoordinatorLISTLENGTH 16
+
+%}
+
+
+struct FunctionProxy
+TransferedFunctionCall * transfer
+
+struct FunctionProxyCoordinator
+FunctionProxy ** proxy !list
+int socket
+char * host
+int port
+
+
+%{
+#include "functionclient.h"
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
+
+#include <errno.h>  /* errno */
+
+
+
+%func
+provides specific destructor for FunctionProxyCoordinators
+%%
+!deconstructor
+FunctionProxyCoordinator * free_FunctionProxyCoordinator(FunctionProxyCoordinator * obj)
+{
+  int i;
+  int return_early = 0;    
+  char buffer[1024];
+  
+  
+  if( obj == NULL) {  
+    warn("Attempting to free a NULL pointer to a FunctionProxy obj. Should be trappable"); 
+    return NULL;   
+  }  
+  
+  
+#ifdef PTHREAD   
+  assert(pthread_mutex_lock(&(obj->dynamite_mutex)) == 0); 
+#endif   
+  if( obj->dynamite_hard_link > 1)     {  
+    return_early = 1;  
+    obj->dynamite_hard_link--; 
+  }  
+#ifdef PTHREAD   
+  assert(pthread_mutex_unlock(&(obj->dynamite_mutex)) == 0);   
+#endif   
+  if( return_early == 1)   
+    return NULL;   
+  
+
+  /* send FINISH to server */
+
+  strcpy(buffer,"FINISH");
+  if (write(obj->socket, buffer, 6) == -1) {
+    fprintf(stderr, "write() failed\n");
+    fatal(strerror(errno));
+  }
+  
+  close(obj->socket);
+  
+  for(i=0;i<obj->len;i++) {
+    if( obj->proxy[i] != NULL ) {
+      free_FunctionProxy(obj->proxy[i]);
+    }
+  }
+  
+  ckfree(obj); 
+  return NULL; 
+}
+
+AnonymousObject * dispatch_FunctionProxy(FunctionProxyCoordinator * fpc,char * function_call,AnonymousObjectList * args)
+{
+  int i,j;
+  AnonymousObject * ret;
+  char buffer[1024];
+
+  FILE * ifp;
+  Wise2WriteStreamInterface * ws;
+  Wise2ReadStreamInterface * rs;
+
+
+  assert(fpc != NULL);
+  assert(function_call != NULL);
+  assert(args != NULL);
+
+  for(i=0;i<fpc->len;i++) {
+    if( strcmp(fpc->proxy[i]->transfer->name,function_call) == 0 ) {
+      break;
+    }
+  }
+
+  if( i >= fpc->len ) {
+    warn("In FunctionProxyCoordinator attached to %s,%d, function call %s has not been registered",fpc->host,fpc->port,function_call);
+    return NULL;
+  } else {
+    fprintf(stderr,"Function proxy is ok with %s\n",function_call);
+  }
+
+  /* ok, go into cycle */
+
+    warn("Ewan has not protected this write from resend");
+    if (write(fpc->socket, function_call, strlen(function_call)) == -1) {
+	fprintf(stderr, "write() failed\n");
+	fatal(strerror(errno));
+    }
+
+    if (read(fpc->socket, buffer, 1024) == -1) {
+	fprintf(stderr, "read() failed\n");
+	fatal(strerror(errno));
+    }
+
+  if( strncmp(buffer,"NOT FOUND",9) == 0 ) {
+    warn("In FunctionProxyCoordinator attached to %s,%d, function call %s is not present on server",fpc->host,fpc->port,function_call);
+    return NULL;
+  } else if( strncmp(buffer,"SEND",4) == 0 ) {
+    fprintf(stderr,"Function call %s was accepted, sending data\n",function_call);
+  } else {
+    warn("In FunctionProxyCoordinator attached to %s, %d, "
+	 "function call %s triggered unknown response ('%s')",
+	 fpc->host, fpc->port, function_call, buffer);
+    return NULL;
+  }
+
+  ws = WriteStream_from_socket(fpc->socket);
+
+  for(j=0;j<fpc->proxy[i]->transfer->len;j++) {
+    (*fpc->proxy[i]->transfer->input[j]->object_to_stream)(args->anon[j]->obj,ws);
+  }
+  
+  if ((ifp = fdopen(fpc->socket,"r")) == NULL) {
+      fprintf(stderr, "fdopen() failed\n");
+      fatal(strerror(errno));
+  }
+  rs = ReadStream_from_FILE(ifp);
+
+  ret = AnonymousObject_alloc();
+  ret->obj = (*fpc->proxy[i]->transfer->returned_type->stream_to_object)(rs);
+  ret->free_object = fpc->proxy[i]->transfer->returned_type->untyped_free_object;
+
+
+  return ret;
+
+}
+
+
+FunctionProxy * new_FunctionProxy(TransferedFunctionCall * t)
+{
+  FunctionProxy * out;
+
+  out = FunctionProxy_alloc();
+  out->transfer = t;
+
+  return out;
+}
+
+
+FunctionProxyCoordinator * new_FunctionProxyCoordinator(char * host,int port)
+{
+  FunctionProxyCoordinator * out;
+
+  struct sockaddr_in server;
+  struct hostent * hp;
+
+  out = FunctionProxyCoordinator_alloc_std();
+
+  out->host = stringalloc(host);
+  out->port = port;
+
+  out->socket = socket(AF_INET, SOCK_STREAM, 0);
+
+  server.sin_family = AF_INET;
+  hp = gethostbyname(host);
+  bcopy( hp->h_addr, &server.sin_addr, hp->h_length);
+  server.sin_port = htons(port);
+
+  connect(out->socket, &server, sizeof(server));
+  
+
+  return out;
+}
+
+
+
+%}

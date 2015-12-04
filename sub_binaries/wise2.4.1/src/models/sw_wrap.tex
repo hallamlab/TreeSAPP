@@ -1,0 +1,206 @@
+\section{sw_wrap}
+\label{module_sw_wrap}
+This module only contains factory methods
+
+\subsection{sw_wrap factory methods}
+\subsubsection{Align_strings_ProteinSmithWaterman}
+\begin{description}
+\item[External C] {\tt Wise2_Align_strings_ProteinSmithWaterman (one,two,comp,gap,ext,dpenv,dpri)}
+\item[Perl] {\tt &Wise2::Align_strings_ProteinSmithWaterman (one,two,comp,gap,ext,dpenv,dpri)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[one] [UNKN ] string of the first sequence [char *]
+\item[two] [UNKN ] string of the second sequence [char *]
+\item[comp] [UNKN ] Comparison Matrix [CompMat *]
+\item[gap] [UNKN ] gap penalty [int]
+\item[ext] [UNKN ] extension penalty [int]
+\item[dpenv] [UNKN ] Undocumented argument [DPEnvelope *]
+\item[dpri] [UNKN ] Undocumented argument [DPRunImpl *]
+\item[returns] [UNKN ] Undocumented return value [AlnBlock *]
+\end{description}
+This is the most *stupidly* abstracted view of two sequences
+getting aligned, being two strings.
+
+
+It would be much better if you used Sequence objects or Protein
+objects to carry the proteins.
+
+
+\subsubsection{Align_Sequences_ProteinSmithWaterman}
+\begin{description}
+\item[External C] {\tt Wise2_Align_Sequences_ProteinSmithWaterman (one,two,comp,gap,ext,dpenv,dpri)}
+\item[Perl] {\tt &Wise2::Align_Sequences_ProteinSmithWaterman (one,two,comp,gap,ext,dpenv,dpri)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[one] [READ ] First sequence to compare [Sequence *]
+\item[two] [READ ] Second sequecne to compare [Sequence *]
+\item[comp] [READ ] Comparison matrix to use [CompMat *]
+\item[gap] [UNKN ] gap penalty. Must be negative or 0 [int]
+\item[ext] [UNKN ] ext penalty. Must be negative or 0 [int]
+\item[dpenv] [UNKN ] Undocumented argument [DPEnvelope *]
+\item[dpri] [UNKN ] Undocumented argument [DPRunImpl *]
+\item[returns] [OWNER] new AlnBlock structure representing the alignment [AlnBlock *]
+\end{description}
+This function is a mid-level abstraction of
+comparing two sequences, which could be
+generic types (eg DNA!). This is tested
+for and warnings are given but the alignment
+is still calculated. To prevent this test
+warning either make sure the Sequence types
+are set to PROTEIN or, better still, use the
+high level abstraction Align_Proteins_SmithWaterman
+
+
+Otherwise this performs a standard smith waterman
+protein alignment...
+
+
+To display the alignment use  write_pretty_seq_align
+
+
+\subsubsection{Align_Proteins_SmithWaterman}
+\begin{description}
+\item[External C] {\tt Wise2_Align_Proteins_SmithWaterman (one,two,comp,gap,ext,dpenv,dpri)}
+\item[Perl] {\tt &Wise2::Align_Proteins_SmithWaterman (one,two,comp,gap,ext,dpenv,dpri)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[one] [UNKN ] Protein to align [Protein *]
+\item[two] [UNKN ] Protein to align [Protein *]
+\item[comp] [UNKN ] Comparison Matrix [CompMat *]
+\item[gap] [UNKN ] gap penalty [int]
+\item[ext] [UNKN ] extension penalty [int]
+\item[dpenv] [UNKN ] Undocumented argument [DPEnvelope *]
+\item[dpri] [UNKN ] Undocumented argument [DPRunImpl *]
+\item[returns] [UNKN ] Undocumented return value [AlnBlock *]
+\end{description}
+This is the most correct way of aligning two Proteins,
+using Protein objects, which can be assummed to be
+proteins with no objections
+
+
+To display the alignment use write_pretty_Protein_align
+
+
+
+
+\subsubsection{Align_Proteins_ABC}
+\begin{description}
+\item[External C] {\tt Wise2_Align_Proteins_ABC (one,two,comp,a,b,c,dpenv,dpri)}
+\item[Perl] {\tt &Wise2::Align_Proteins_ABC (one,two,comp,a,b,c,dpenv,dpri)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[one] [UNKN ] protein to align [Protein *]
+\item[two] [UNKN ] protein to align [Protein *]
+\item[comp] [UNKN ] comparison matrix [CompMat *]
+\item[a] [UNKN ] generalized affine gap cost a [int]
+\item[b] [UNKN ] generalized affine gap cost b [int]
+\item[c] [UNKN ] generalized affine gap cost c [int]
+\item[dpenv] [UNKN ] Undocumented argument [DPEnvelope *]
+\item[dpri] [UNKN ] Undocumented argument [DPRunImpl *]
+\item[returns] [UNKN ] Undocumented return value [AlnBlock *]
+\end{description}
+Analogous to Align_Proteins_SmithWaterman for ABC model
+
+
+\subsubsection{Align_Sequences_ProteinABC}
+\begin{description}
+\item[External C] {\tt Wise2_Align_Sequences_ProteinABC (one,two,comp,a,b,c,dpenv,dpri)}
+\item[Perl] {\tt &Wise2::Align_Sequences_ProteinABC (one,two,comp,a,b,c,dpenv,dpri)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[one] [UNKN ] Sequence to align [Sequence *]
+\item[two] [UNKN ] Sequence to align [Sequence *]
+\item[comp] [UNKN ] Comparison Matrix [CompMat *]
+\item[a] [UNKN ] genearlized affine gap cost  [int]
+\item[b] [UNKN ] genearlized affine gap cost  [int]
+\item[c] [UNKN ] genearlized affine gap cost  [int]
+\item[dpenv] [UNKN ] Undocumented argument [DPEnvelope *]
+\item[dpri] [UNKN ] Undocumented argument [DPRunImpl *]
+\item[returns] [UNKN ] Undocumented return value [AlnBlock *]
+\end{description}
+Align_Sequences_ProteinABC
+this function is analogous to Align_Sequences_ProteinSmithWaterman
+but using the abc model
+
+
+\subsubsection{Hscore_from_ProteinSW}
+\begin{description}
+\item[External C] {\tt Wise2_Hscore_from_ProteinSW (querydb,targetdb,comp,gap,ext,bits_cutoff,report_level,die_on_error,dbsi)}
+\item[Perl] {\tt &Wise2::Hscore_from_ProteinSW (querydb,targetdb,comp,gap,ext,bits_cutoff,report_level,die_on_error,dbsi)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[querydb] [UNKN ] query database  [ProteinDB*]
+\item[targetdb] [UNKN ] target database [ProteinDB*]
+\item[comp] [UNKN ] comparison matrix [CompMat*]
+\item[gap] [UNKN ] gap penalty [int]
+\item[ext] [UNKN ] extension penalty [int]
+\item[bits_cutoff] [UNKN ]  [double]
+\item[report_level] [UNKN ]  [int]
+\item[die_on_error] [UNKN ]  [boolean]
+\item[dbsi] [UNKN ]  [DBSearchImpl*]
+\item[returns] [UNKN ] Undocumented return value [Hscore *]
+\end{description}
+Runs a database psw search 
+
+
+\subsubsection{Hscore_from_ProteinABC}
+\begin{description}
+\item[External C] {\tt Wise2_Hscore_from_ProteinABC (querydb,targetdb,comp,a,b,c,bits_cutoff,report_level,die_on_error,dbsi)}
+\item[Perl] {\tt &Wise2::Hscore_from_ProteinABC (querydb,targetdb,comp,a,b,c,bits_cutoff,report_level,die_on_error,dbsi)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[querydb] [UNKN ] query database  [ProteinDB*]
+\item[targetdb] [UNKN ] target database [ProteinDB*]
+\item[comp] [UNKN ] comparison matrix [CompMat*]
+\item[a] [UNKN ] generalized affine gap cost a [int]
+\item[b] [UNKN ] generalized affine gap cost b [int]
+\item[c] [UNKN ] generalized affine gap cost c [int]
+\item[bits_cutoff] [UNKN ]  [double]
+\item[report_level] [UNKN ]  [int]
+\item[die_on_error] [UNKN ]  [boolean]
+\item[dbsi] [UNKN ]  [DBSearchImpl*]
+\item[returns] [UNKN ] Undocumented return value [Hscore *]
+\end{description}
+Runs a database abc search 
+
+
+\subsubsection{Hscore_from_ProteinBA}
+\begin{description}
+\item[External C] {\tt Wise2_Hscore_from_ProteinBA (querydb,targetdb,comp,bentry,bexit,bfor_trans,b_self_trans,b3exit,bits_cutoff,report_level,dbsi)}
+\item[Perl] {\tt &Wise2::Hscore_from_ProteinBA (querydb,targetdb,comp,bentry,bexit,bfor_trans,b_self_trans,b3exit,bits_cutoff,report_level,dbsi)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[querydb] [UNKN ] query database [ProteinDB*]
+\item[targetdb] [UNKN ] target database [ProteinDB*]
+\item[comp] [UNKN ] comparison matrix [CompMat*]
+\item[bentry] [UNKN ]  [Score]
+\item[bexit] [UNKN ]  [Score]
+\item[bfor_trans] [UNKN ]  [Score]
+\item[b_self_trans] [UNKN ]  [Score]
+\item[b3exit] [UNKN ]  [Score]
+\item[bits_cutoff] [UNKN ]  [double]
+\item[report_level] [UNKN ]  [int]
+\item[dbsi] [UNKN ]  [DBSearchImpl*]
+\item[returns] [UNKN ] Undocumented return value [Hscore *]
+\end{description}
+Runs a database pba search
+
+
+
+

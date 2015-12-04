@@ -1,0 +1,450 @@
+
+%{
+#include "../kmer_hash.h"
+
+
+typedef struct BaseNode {
+  struct BaseNode * next_node;
+  struct BaseNode * peer_node;
+  struct BaseLink ** link;
+  int    link_len;
+  int    link_maxlen;
+  kmer_t dna_number;
+} BaseNode;
+
+typedef struct BaseLink {
+  struct BaseNode * left;
+  struct BaseNode * right;
+  char   twist;
+  long * sequence_label;
+  int sequence_label_len;
+  int sequence_label_maxlen;
+  int state;
+} BaseLink;
+
+
+typedef struct BaseGraph {
+  KmerIndexInterface * kii;
+  struct BaseNode * start;
+  struct BaseNode * curr_end;
+} BaseGraph;
+
+#define BaseNode_LinkLENGTH 16
+#define BaseLink_SequenceLENGTH 16
+
+#define BaseLink_USED 1
+#define BaseLink_TANGLE_TOUCH 2
+#define BaseLink_IS_ERROR 4
+#define BaseLink_IS_CYCLE 8
+#define BaseLink_IS_DICYCLE 16
+#define BaseLink_SUPERTANGLE 32
+#define BaseLink_JUMPLINK    64
+
+%}
+
+
+
+%{
+#include "basegraph.h"
+
+
+boolean insert_seqpos_BaseGraph(BaseGraph * bg,kmer_t dna_a,kmer_t dna_b,char twist,long seqno)
+{
+  BaseLink * bl;
+
+  if( (bl = existing_BaseLink(bg,dna_a,dna_b,twist)) == NULL ) {
+    bl = new_BaseLink_dnanumber(bg,dna_a,dna_b,twist);
+    assert(bl != NULL);
+  }
+
+  add_Sequence_BaseLink(bl,seqno);
+
+  return TRUE;
+
+}
+
+
+
+BaseLink * existing_BaseLink(BaseGraph * bg,kmer_t dna_a,kmer_t dna_b,char twist)
+{
+  int i;
+
+  BaseNode * a;
+  BaseNode * b;
+
+  a = (BaseNode *) (*bg->kii->retrieve_by_kmer)(bg->kii->handle,dna_a);
+  b = (BaseNode *) (*bg->kii->retrieve_by_kmer)(bg->kii->handle,dna_b);
+
+  if( a == NULL || b == NULL ) {
+    return NULL;
+  }
+
+  for(i=0;i<a->link_len;i++) {
+    if( a->link[i]->left == a && a->link[i]->right == b && a->link[i]->twist == twist ) {
+      return a->link[i];
+    }
+    if( a->link[i]->right == a && a->link[i]->left == b && a->link[i]->twist == twist ) {
+      return a->link[i];
+    }
+  }
+
+  return NULL;
+}
+
+int non_error_link_BaseNode(BaseNode * n)
+{
+  return state_link_number_BaseNode(n,BaseLink_IS_ERROR);
+}
+
+int non_error_or_cycle_link_BaseNode(BaseNode * n)
+{
+  return state_link_number_BaseNode(n,(BaseLink_IS_ERROR | BaseLink_IS_CYCLE));
+}
+
+int state_link_number_BaseNode(BaseNode * n,int ignore_state)
+{
+  int i;
+  int count = 0;
+
+  assert(n != NULL);
+  for(i=0;i<n->link_len;i++) {
+    if( (n->link[i]->state & (ignore_state)) ) 
+      continue;
+    count++;
+  }
+
+  return count;
+}
+
+int next_link_if_error_unique_BaseLink(BaseLink * prev,BaseNode * curr,BaseLink ** next) 
+{
+  return next_state_unique_BaseLink(prev,curr,next,BaseLink_IS_ERROR);
+}
+
+int next_link_if_error_or_cycle_unique_BaseLink(BaseLink * prev,BaseNode * curr,BaseLink ** next)
+{
+  return next_state_unique_BaseLink(prev,curr,next,(BaseLink_IS_ERROR | BaseLink_IS_CYCLE));
+}
+
+int next_state_unique_BaseLink(BaseLink * prev,BaseNode * curr,BaseLink ** next,int ignore_state)
+{
+  BaseLink * out;
+  assert(prev != NULL);
+  assert(curr != NULL);
+
+  int i;
+  int count = 0;
+
+  assert(curr != NULL);
+  assert(prev != NULL);
+
+  for(i=0;i<curr->link_len;i++) {
+    /*    fprintf(stderr,"Looking at link %d, count %d\n",i,count); */
+    if( (curr->link[i]->state & (ignore_state)) ) {
+      continue;
+      /*      fprintf(stderr,"Got error or cycle\n"); */
+    }
+    count++;
+    if( curr->link[i] != prev ) {
+      out = curr->link[i];
+    }
+  }
+
+  /*  fprintf(stderr,"Count is %d at end\n",count); */
+  
+  if( count == 2 ) {
+    /* only two real links, therefore only one can be the next*/
+    *next = out;
+  }
+
+  count--;
+  return count;
+}
+
+
+int next_link_if_unique_BaseLink(BaseLink * prev,BaseNode * curr,BaseLink ** next)
+{
+  assert(prev != NULL);
+  assert(curr != NULL);
+
+  if( curr->link_len == 0 ) {
+    fatal("Asking for next link in a node with no links!");
+  }
+
+  if( curr->link_len == 1 ) {
+    assert(curr->link[0] == prev);
+    return 0;
+  }
+  if( curr->link_len == 2 ) {
+    if( curr->link[0] == prev ) {
+      *next = curr->link[1];
+      return 1;
+    } else {
+      assert(curr->link[1] == prev);
+      *next = curr->link[0];
+      return 1;
+    }
+  }
+
+  return curr->link_len;
+}
+
+BaseLink * new_BaseLink_dnanumber(BaseGraph * bg,kmer_t dna_a,kmer_t dna_b,char twist)
+{
+  BaseNode * left;
+  BaseNode * right;
+
+  left  = get_BaseNode_for_insert_create_if_needed(bg,dna_a);
+  right = get_BaseNode_for_insert_create_if_needed(bg,dna_b);
+
+  return new_BaseLink(left,right,twist);
+}
+
+
+BaseLink * new_BaseLink(BaseNode * left,BaseNode * right,char twist)
+{
+  BaseLink * out;
+
+  assert(left != NULL);
+  assert(right != NULL);
+
+  out = malloc(sizeof(struct BaseLink));
+  out->left = left;
+  out->right = right;
+  out->twist = twist;
+  
+  out->sequence_label = calloc(BaseLink_SequenceLENGTH,sizeof(long));
+  out->sequence_label_len = 0;
+  out->sequence_label_maxlen = BaseLink_SequenceLENGTH;
+
+  out->state = 0;
+
+  add_BaseLink_BaseNode(left,out);
+  add_BaseLink_BaseNode(right,out);
+
+  return out;
+}
+
+
+boolean remove_BaseLink_BaseNode(BaseNode * node,BaseLink * link)
+{
+  int i;
+
+  assert(node != NULL);
+  assert(link != NULL);
+
+  fprintf(stderr,"Removing link %d from node %d\n",link,node);
+  for(i=0;i<node->link_len;i++) {
+    if( node->link[i] == link ) {
+      for(i++;i<node->link_len;i++) {
+	node->link[i-1] = node->link[i];
+      }
+      node->link_len--;
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+
+}
+
+boolean add_BaseLink_BaseNode(BaseNode * node,BaseLink * link)
+{
+  int len;
+
+  assert(node != NULL);
+  assert(link != NULL);
+
+  if( node->link_len >= node->link_maxlen) {
+    len = 2 * node->link_maxlen;
+    node->link = realloc(node->link,len*(sizeof(struct BaseLink *)));
+    if( node->link == NULL ) {
+      fatal("Failed to realloc a BaseNode link list to %d, %d",len,node->link_maxlen);
+    }
+    node->link_maxlen = len;
+  }
+
+  node->link[node->link_len++] = link;
+  return TRUE;
+}
+
+boolean remove_Sequence_BaseLink(BaseLink * bl,long seqno)
+{
+  int i;
+
+  assert(bl != NULL);
+
+  for(i=0;i<bl->sequence_label_len;i++) {
+    if( bl->sequence_label[i] == seqno ) {
+      for(i++;i<bl->sequence_label_len;i++) {
+	bl->sequence_label[i-1] = bl->sequence_label[i];
+      }
+      bl->sequence_label_len--;
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+boolean add_Sequence_BaseLink(BaseLink * bl,long seqno)
+{
+  int len;
+
+  assert(bl != NULL);
+  
+  if( bl->sequence_label_len >= bl->sequence_label_maxlen ) {
+    len = 2* bl->sequence_label_maxlen;
+    bl->sequence_label = realloc(bl->sequence_label,len*sizeof(long));
+    if( bl->sequence_label == NULL ) {
+      fatal("Out of memory on reallocing %d labels on Link",len);
+    }
+    bl->sequence_label_maxlen = len;
+  }
+  
+  bl->sequence_label[bl->sequence_label_len++] = seqno;
+
+  return TRUE;
+}
+
+BaseGraph * new_BaseGraph(KmerIndexInterface * kii)
+{
+  BaseGraph * out;
+
+  assert(kii != NULL);
+  out = malloc(sizeof(BaseGraph));
+  out->kii = kii;
+  out->start = NULL;
+  out->curr_end = NULL;
+
+  return out;
+}
+
+BaseNode * retrieve_BaseNode(BaseGraph * bg,kmer_t dna_number)
+{
+ BaseNode * out;
+
+ assert(bg != NULL);
+
+ out = (*bg->kii->retrieve_by_kmer)(bg->kii->handle,dna_number);
+
+ return out;
+}
+
+BaseNode * get_BaseNode_for_insert_create_if_needed(BaseGraph * bg,kmer_t dna_number)
+{
+  BaseNode * out;
+
+  assert(bg != NULL);
+
+  if( (out = (*bg->kii->retrieve_by_kmer)(bg->kii->handle,dna_number)) == NULL ) {
+    if( bg->start == NULL ) {
+      out = new_BaseNode(&bg->start,dna_number);
+    } else {
+      out = new_BaseNode(&bg->curr_end->next_node,dna_number);
+    }
+    assert(out != NULL);
+    assert(out->dna_number == dna_number);
+
+    bg->curr_end = out;
+    if( (*bg->kii->insert_by_kmer)(bg->kii->handle,dna_number,out) == FALSE ) {
+      fatal("Unable to insert BaseNode into graph");
+    }
+  }
+
+  return out;
+
+}
+
+BaseNode * new_BaseNode(BaseNode ** end_node,kmer_t dna_number)
+{
+  BaseNode * out;
+
+  assert(end_node != NULL);
+  assert(*(end_node) == NULL);
+
+  out = malloc(sizeof(struct BaseNode));
+  out->next_node = NULL;
+  out->dna_number = dna_number;
+  out->link = calloc(BaseNode_LinkLENGTH,sizeof(struct BaseLink *));
+  out->link_len = 0;
+  out->link_maxlen = BaseNode_LinkLENGTH;
+  out->peer_node = NULL;
+
+  *(end_node) = out;
+
+  return out;
+}
+
+BaseGraph * free_BaseGraph(BaseGraph * bg)
+{
+  fprintf(stderr,"EWAN HAS NOT DELT WITH GRAPH DESTRUCTION.");
+
+  return NULL;
+}
+
+void show_BaseLink(BaseGraph * bg,BaseLink * bl,FILE *ofp)
+{
+  int i;
+  char buffer_l[256];
+  char buffer_r[256];
+
+  assert(bg != NULL);
+  assert(bl != NULL);
+  assert(ofp != NULL);
+
+  reverse_map_dna_number(bl->left->dna_number,bg->kii->kmer_size,buffer_l);
+  reverse_map_dna_number(bl->right->dna_number,bg->kii->kmer_size,buffer_r);
+
+  buffer_l[bg->kii->kmer_size] = '\0';
+  buffer_r[bg->kii->kmer_size] = '\0';
+
+  
+  fprintf(ofp," Link %d state %d depth %d\n",(int)bl,bl->state,bl->sequence_label_len);
+  fprintf(ofp,"  Left  %d (%d) %s\n",(int)(bl->left),bl->left->link_len,buffer_l);
+  fprintf(ofp,"  Right %d (%d) %s\n",(int)(bl->right),bl->right->link_len,buffer_r);
+  for(i=0;i<bl->sequence_label_len;i++) {
+    fprintf(ofp,"    Label %ld\n",bl->sequence_label[i]);
+  }
+
+}
+
+void show_BaseNode(BaseGraph * bg,BaseNode * bn,FILE * ofp)
+{
+  int i;
+
+  fprintf(ofp,"Node %d %d links\n",bn,bn->link_len);
+  for(i=0;i<bn->link_len;i++) {
+    show_BaseLink(bg,bn->link[i],ofp);
+  }
+
+
+}
+
+
+void show_BaseGraph(BaseGraph * bg,FILE *out)
+{
+  int i;
+  BaseNode * bn;
+
+  bn = bg->start;
+
+  while( bn != NULL ) {
+    fprintf(out,"Node %d Links %d\n",bn,bn->link_len);
+    for(i=0;i<bn->link_len;i++) {
+      fprintf(out,"  Link %d to %d labels %d\n",
+	      bn->link[i]->left,
+	      bn->link[i]->right,
+	      bn->link[i]->sequence_label_len);
+    }
+    bn = bn->next_node;
+  }
+
+
+
+}
+
+
+
+%}
+

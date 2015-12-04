@@ -1,0 +1,1727 @@
+
+\documentclass{article}
+\usepackage{epsfig}
+
+\begin{document}
+\newcommand{\programtext}[1]{{\tt #1}}
+
+\title{Wise2 Documentation (version 2.2 series)}
+\author{Ewan Birney\\
+EBI\\
+Wellcome Trust Genome Campus\\
+Hinxton, Cambridge CB10 1SD,\\
+England.\\
+Email: birney@ebi.ac.uk}
+
+\maketitle
+ 
+\newpage
+\tableofcontents
+\newpage
+
+\section{Overview}
+
+Wise2 is a package focused on comparisons of biopolymers, commonly DNA
+sequence and protein sequence. There are many other packages which do
+this, probably the best known being BLAST package (from NCBI) and the 
+Fasta package (from Bill Pearson). There are other packages, such as
+the HMMER package (Sean Eddy) or SAM package (UC Santa Cruz) focused
+on hidden Markov models (HMMs) of biopolymers.
+
+Wise2's is now a collection of algorithms which generally differ from
+the usualy, ``standard'' bioinformatics comparison methods. Probably
+the most used algorithm in Wise2 is \emph{genewise}, which is the
+comparison of DNA sequence at the level of its protein
+translation. This comparison allows the simultaneous prediction of say
+gene structure with homology based alignment. However Wise2 has a number
+of other methods which I hope will also appeal to users - \emph{promoterwise}
+for comparing upstream regions, \emph{genomewise} as a ``protein gene finisher''
+tool for combining disparate evidence strands and \emph{scanwisep} as a
+fast but sensitive search method.
+
+
+Wise2, although implemented in C makes heavy use of the Dynamite code
+generating language. Dynamite was written for this project, by myself
+(Ewan Birney). There is a separate documentation for Dynamite found in
+the same place as this file; to be honest noone except me can be
+expected to use Dynamite; it is a cranky, stupid, badly written code
+generating language with about two thirds of its code base dedicated
+to dynamic programming, and the remaining third a rather bad primitive
+object based system. It does however fit me like a glove, and makes my
+own personal code efficiency impressive.
+
+
+Wise2 has had a varied life. It started off as a rewrite of my old
+pairwise and searchwise package (called WiseTools), hence the name
+Wise2. For a while it looked as if it was going to be pensioned off
+and live its life out as a rather solid code base for genewise and
+estwise, but mid 2002 I came back to it for long and complex reasons
+not worth putting into documentation. This lead to the new methods
+such as promoterwise and scanwisep which I have high hopes for, though
+the real test is with real data used by real users...
+
+\subsection{Authors}
+
+The Wise2 package was principly written by Ewan Birney, who wrote the
+main genewise and estwise programs. The protein comparison database
+search program was written by Richard Copley using the underlying
+Wise2 libraries. Wise2 also uses code from Sean Eddy for reading HMMs
+and for Extreme value distribution fitting.
+
+However the authorship of Wise2 should be more fairly distributed
+between the main authors and the wonderful alpha testers I have had
+over the years. In particular Michele Clamp stands out as my longest
+running collaborator and tester, and indeed in effect all my
+successful algorithms have been best used and developed with
+Michele. Other mentions go to Gos Micklem and Niclas Jareborg and
+for their work at testing and their patience in my coding over the
+last couple of years. Other notables are (in no apparent order) -
+Enoch Huang, Erik Sonnhammer, Doug Rusch, Steve Jones, Ian Korf,
+Iftach Nachman, George Hartzell and Lars Arvestead. I believe that
+program writing is a 50-50 partnership between the coders and the
+testers or developers, and these people have actively helped me make a
+much better package. 
+
+
+\newpage
+\section{Introduction for the impatient}
+
+It may well be that you want to understand Wise2's functionality now,
+without bothering with the concepts or the installation instructions.
+This section is designed for you.
+
+Wise2 has four main executable programs using sequence inputs which
+are designed to provide access to the main algorithms sensibly. The
+algorithms you are interested in is \emph{genewise} - compare protein
+information to genomic DNA and \emph{estwise} - compare protein 
+information to EST/cDNA DNA.
+
+Other algorithms in Wise2 have their own single executables. In particular
+you might be interested in \emph{promoterwise}
+
+These are the programs which you might use for this.
+
+\begin{description}
+\item[genewise] a single protein vs a single genomic dna sequence
+\item[genewisedb] a database of proteins vs a database of genomic dna sequences. Read
+section \ref{genewise_large} before you use this in anger though.
+\item[estwise] a single protein vs a single EST/cDNA sequence. 
+\item[estwisedb] a database of proteins vs a database of EST/cDNA sequences. Read
+section \ref{estwise_large} before you use this in anger though.
+\end{description}
+
+If you see error messages like
+\begin{verbatim}
+Warning Error
+        Could not open human.gf as a genefrequency file
+Warning Error
+        Could not read a GeneFrequency file in human.gf
+...
+\end{verbatim}
+This means that the enviroment variable WISECONFIGDIR has not been
+set up correctly. You need to find where the distribution was downloaded
+to (a directory called something like wise2.1.16b) and inside that
+directory should be the configuration directory wisecfg. You need to
+setenv WISECONFIGDIR to that directory.
+
+In each of the programs the protein can either be a protein sequence
+or a protein profile HMM, as made by the HMMER package (both version 1
+and version 2 HMMs can be read). Any of the databases can have one
+entry (in which case more efficient routines are used), and databases
+of profile HMMs, such as those provided by Pfam, can be used.
+
+The simple running of a protein sequence (drosophila) vs a human genomic sequence,
+using genewise is given below. The output comes on stdout, which in normal unix
+notation can be redirected to a file.
+
+\begin{verbatim}
+adnah:[/birney/search]<98>: genewise road.pep hngen.fa
+genewise (unreleased release)
+This program is freely distributed under a GPL. See source directory
+Copyright (c) GRL limited: portions of the code are from separate copyright
+
+Query protein:       roa1_drome
+Comp Matrix:         blosum62.bla
+Gap open:            12
+Gap extension:       2
+Start/End            local
+Target Sequence      HSHNRNPA
+Strand:              forward
+Gene Paras:          human.gf
+Codon Table:         codon.table
+Subs error:          1e-05
+Indel error:         1e-05
+Model splice?        model
+Model codon bias?    flat
+Model intron bias?   tied
+Null model           syn
+Algorithm            623
+Find start end points: [25,1387][346,3962] Score 87719
+Recovering alignment: Alignment recoveredExplicit read offone 94%
+genewise output
+Score 253.10 bits over entire alignment
+Scores as bits over a synchronous coding model
+
+Warning: The bits scores is not probablistically correct for single seqs
+See WWW help for more info
+
+
+
+roa1_drome        88 AQKSRPHKIDGRVVEPKRAVPRQ                       DID 
+                     A  +RPHK+DGRVVEPKRAV R+                       D   
+                     AMNARPHKVDGRVVEPKRAVSRE                       DSQ 
+HSHNRNPA        1867 gaagaccagggagggcaaggtagGTGAGTG  Intron 2   TAGgtc 
+                     ctacgcaataggttacagctcga<0-----[1936 : 2083]-0>aca 
+                     tgtagacggtaatgaagatccaa                       tta 
+
+
+roa1_drome       114 SPNAGATVKKLFVGALKDDHDEQSIRDYFQHFGNIVDINIVIDKETGKK 
+                      P A  TVKK+FVG +K+D +E  +RDYF+ +G I  I I+ D+ +GKK 
+                     RPGAHLTVKKIFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKK 
+HSHNRNPA        2093 acggctagaaatgggaaggaggcccagttgctgaaggagaaagcgagaa 
+                     gcgcatctaatttggtaaacaaaatgaataaagatattattcaggggaa 
+                     aatccatgagatttctaactaatcaatttagtaatagtacgtcactcga 
+
+
+roa1_drome       163 RGFAFVEFDDYDPVDKVV                          QKQHQ 
+                     RGFAFV FDD+D VDK+V                          QK H  
+                     RGFAFVTFDDHDSVDKIV          L:I[att]        QKYHT 
+HSHNRNPA        2240 agtgtgatggcgtggaagAGTAAGTA  Intron 3   TAGTTcatca 
+                     ggtcttctaaaactaatt <1-----[2295 : 2387]-1>  aaaac 
+                     gctctactcctccgtgtc                          gactt 
+
+
+roa1_drome       187 LNGKMVDVKKALPKQNDQQGGGGGR                         
+                     +NG   +V+KAL KQ         R                         
+                     VNGHNCEVRKALSKQEMASASSSQR          G:G[ggt]       
+HSHNRNPA        2405 gagcatggaagctacgagagttacaGGTATGCT  Intron 4       
+                     tagaagatgactcaaatcgcccgag <1-----[2481 : 2793]    
+                     gtccctataacgagaggtttaccaa                         
+
+...truncated
+
+\end{verbatim}
+
+The output is as follows
+\begin{itemize}
+\item Parameters of the comparison used (it used default parameters)
+\item The alignment of a combined homology + gene prediction alignment
+\end{itemize}
+
+The pretty alignment shows the protein sequence on the first line,
+followed by a line indicating the similarity level of the match
+followed by 4 lines representing the DNA sequence. The DNA sequence in
+the exons descending in triplets, each triplet being a codon. The
+translation of each codon is shown above it. Between the two protein
+sequences a line indicating the similarity of the match is printed. In
+introns the DNA sequence is not shown but for the first 7 bases
+(making the 5' splice site) and the last 3 bases of the 3' splice
+site. The intervening sequence is indicated in the square
+brackets. Above each intron, for phase 1 and 2 introns (ones that
+split a codon) the implied protein to conceptual gene match is
+displayed, with the codon in square brackets.
+
+Generally the defaults of the options are reasonably sensible, and for
+the main part you should trust them until you become familar with the package.
+
+The following commands show how to run the other programs in a variety
+of different modes
+
+\subsection{Common running modes}
+\label{sec:commonmode}
+Running modes for genewise (genomic to protein comparisons).
+
+NB, the order of the -options are not important, but the protein file must be
+before the dna file
+
+\begin{itemize}
+\item \hbox{\tt{genewise protein.pep cosmid.dna}} compares a protein sequence to a DNA sequence (same
+as the example above)
+\item \hbox{\tt{genewise -hmmer pkinase.hmm cosmid.dna}} compares a protein profile HMM to
+a DNA sequence
+\item \hbox{\tt{genewisedb protein.pep human.fa}} compares a single protein sequence to a 
+database of DNA sequences
+\item \hbox{\tt{genewisedb -hmmer pkinase.hmm human.fa}} compares a single protein profile HMM to
+a database of DNA sequences
+\item \hbox{\tt{genewisedb -prodb protein.pep -dnas cosmid.dna}} compares a database of protein
+sequences to a single dna sequence
+\item \hbox{\tt{genewisedb -pfam Pfam -dnas cosmid.dna}} compares a database of protein profile HMMs
+to a single dna sequence
+\item \hbox{\tt{genewisedb -prodb protein.pep human.fa}} compares a database of protein
+sequences to a database dna sequences - beware, this will take a while!
+\item \hbox{\tt{genewisedb -pfam Pfam human.fa}} compares a database of protein profile HMMs
+to a database of single sequences - beware, this will take a while
+\end{itemize}
+
+The estwise (protein to est/cDNA comparisons) have precisely the same running modes.
+Listed for completeness below
+
+\begin{itemize}
+\item \hbox{\tt{estwise protein.pep singleest.fa}} compares a protein sequence to a DNA sequence (same
+as the example above)
+\item \hbox{\tt{estwise -hmmer pkinase.hmm singleest.fa}} compares a protein profile HMM to
+a DNA sequence
+\item \hbox{\tt{estwisedb protein.pep est.fa}} compares a single protein sequence to a 
+database of DNA sequences
+\item \hbox{\tt{estwisedb -hmmer pkinase.hmm est.fa}} compares a single protein profile HMM to
+a database of DNA sequences
+\item \hbox{\tt{estwisedb -prodb protein.pep -dnas singleest.fa}} compares a database of protein
+sequences to a single dna sequence
+\item \hbox{\tt{estwisedb -pfam Pfam -dnas singleest.fa}} compares a database of protein profile HMMs
+to a single dna sequence
+\item \hbox{\tt{estwisedb -prodb protein.pep est.fa}} compares a database of protein
+sequences to a database dna sequences - beware, this will take a while!
+\item \hbox{\tt{estwisedb -pfam Pfam est.fa}} compares a database of protein profile HMMs
+to a database of single sequences - beware, this will take a while
+\end{itemize}
+
+\subsection{Common options to change}
+
+There are a number of common options that can be used. Options can be issued anywhere
+on the command line.
+
+\begin{description}
+\item[-help] help on options
+\item[-version] show version and build date (useful for bug reporting)
+\item[-quiet] remove update line on stderr and informational messages
+\item[-silent] suppress all messages to stderr
+\item[-report] \emph{number} for database searching, issue a report on stderr every
+\emph{number} of comparisons (useful to ensure it is actually running)
+\item[-trev] genewise and estwise - use the reverse strand of the DNA
+\item[-both] genewise and estwise - use both strands of the DNA
+\item[-u position] The start point in the DNA sequence for the comparison
+\item[-v position] The end point in the DNA sequence for the comparison
+\item[-init]   [default/global/local/wing]  (see section \ref{sec:start_end})
+For protein sequences the default is to be local (like
+smith waterman). For protein profile HMMs, the default is read from the HMM - the
+HMM carries this information internally. The global mode is equivalent to to the ls building option
+(the default in the HMMer2 package). The local mode is equivalent to to the fs building option (-f)
+in the HMMer2 package. The wing model is local on the edges and global in the middle.
+\item[-gene file] change gene model parameters. Currently we have either
+human (human.gf) or worm (worm.gf)
+\item[-genes] Output option for genewise algorithms - show an easy to read gene
+structure report
+\item[-trans] Output option for genewise algorithms - provide an automatic
+translation of the predicted gene as a fasta format
+\item[-cdna] Output option for genewise algorithms - provide an automatic
+construction of the spliced dna sequence as a fasta format
+\item[-ace] Output option for genewise algorithms - provide an ACeDB 
+subsequence model output
+\end{description}
+
+\subsection{Common gripes, Cookbook and FAQ}
+
+\subsubsection{It hasn't given me a complete gene prediction}
+
+The genewise algorithm does not attempt to predict an entire gene,
+from Met to STOP. It tries to predict regions which are justified with the
+protein homology and no more.
+
+This does mean you can be confident of the predictions that genewise makes
+
+\subsubsection{How can I get rid of the annoying messages on stderr?}
+
+Some people like them. use -quiet
+
+\subsubsection{It goes far too slow} 
+
+Well... I have always had the philosophy that if it took you over a month
+to sequence a gene, then 4 hours in a computer is not an issue. However, in 
+particular for times when people are using genewise simply to confirm
+that the a gene prediction is correct with respect to a protein sequence
+(sometimes the notional translation!) it is taking too long. In many cases
+you will know the rough region to compare the sequence to - if so use the -u
+and -v options to truncate your DNA at the correct points (the output will
+remain in the coordinates of the full length sequence).
+
+For database searching there is the option of using SMP boxes efficiently
+with the pthreads port.
+
+There are also a number of heurisitcs that use the BLAST program to
+provide the speed. These heuristics are found in the perl/scripts
+directory, called halfwise and blastwise and notes on how to use them
+are a later section (\ref{half_and_blast}). The scripts have extensive
+installation instructions, and I completely expect people to edit them
+for their system.
+
+There is functionality for providing a heurisitic bound to the space the
+algorithm explores in the alignment. This is done via the potential
+gene option in genewise. It is not well tested out.
+
+\subsubsection{I have a new cosmid. What do I do?}
+
+One thing to do is to use the halfwise script available in the perl/scripts
+package. Another is to use the blastwise script. 
+
+
+\subsubsection{Can I modify or use the Wise2 source code?}
+
+Of course you can - it is Open Source code, licensed under the Gnu
+Public Licensed (GPL'd), like emacs or gcc. For more information on
+this License read the GNULICENSE file in the distribution. 
+
+As well as using the source code, you can if you like contribute
+directly back into the Wise2 source code. Get in contact with me
+if you would like to do this.
+
+\subsubsection{Making a single gene prediction on the basis of a close homolog}
+
+This is perhaps the easiest use of genewise. The basic formulation is
+\begin{verbatim}
+%genewise protein.fasta dna.fasta
+\end{verbatim}
+To get out computer parsable formats of the gene prediction
+try -genes or -gff or -ace. To get out the protein translation 
+in one go use -trans
+\subsubsection{Using non human/worm/fly genomic DNA}
+
+At the moment, genewise only has gene frequency files for
+human and worm sequences. The production of these files
+are based around somewhat annoying and non portable script. In
+any case, making a dataset requires alot of effort as it
+needs to be clean
+
+The consequence of all this is that the species that you
+are comparing against (eg, hamster) may not have a gene frequency
+(.gf) file. In which case you basically have two options
+\begin{itemize}
+\item Use a close species - ie, for hamster, use human or rat
+\item Use -splice flat -intron tied which switches the splice model to ``start at GT, finish at AG'' with no other information
+\end{itemize}
+
+\subsubsection{Working with non spliced (bacterial) genomic DNA}
+
+Use genewise with the -alg 333 or -alg 333L options. This has all the
+outputs of genewise but does not consider introns. The -gene option
+and -intron, -splice options are all pointless. The only options to worry
+about is the -subs and -indel for substitution and insertion and deletion
+errors respectively.
+
+\subsubsection{Working with ESTs}
+
+Use the estwise/estwisedb programs
+
+\subsubsection{Getting out the protein translation}
+
+You have three approaches for getting out protein translations
+
+\begin{itemize}
+\item -pep available on all programs, provides the translations moving
+over frameshifts and introns
+\item -trans available on genewise/genewisedb provides the translations
+across introns but breaks on frameshift errors. This means that the translations can be correctly placed on the genomic DNA provided
+
+\item -mul available only on estwisedb when a HMM is used, provides a
+protein multiple alignment of all the DNA hits derived against the HMM
+match
+\end{itemize}
+
+\subsubsection{Using Pfam}
+
+Pfam can be used with the genewisedb or the estwisedb program with the
+-pfam flag. Usually you want to also use the -dnas (single DNA
+sequence flag) as well. An example run would be
+\begin{verbatim}
+genewisedb -pfam Pfam -dnas myseq.fa
+\end{verbatim}
+If you have set up the HMMER package to work with Pfam using the enviroment
+variable HMMERDB, Wise2 will also pick that up as well.
+
+
+
+\subsubsection{Optimising alignment speed}
+
+Wise2 assummes you have a rather small amount of memory (20 MBytes).
+When it is making an alignment, if it cannot make the explicit matrix
+in that size (being length of query $\times$ length of target $\times$
+state number) it has to move to linear memory (length of query
+$\times$ state number). The linear memory is much slower (it is the
+one that starts with ``Find start end points'').
+
+If you have more memory than 20 Mbytes, then it is really sensible to
+up the number, using the -kbyte option. For a machine with say
+64Mbytes physical memory I would suggest putting an upper limit of
+50Mbytes with -kbyte. This does assumme you are not using it for
+anything else.
+
+You can change the compile time default in basematrix.h if you can't
+be bothered to remember to change it every time
+
+\subsubsection{Optimising search speed}
+
+See sections \ref{genewise_large} and \ref{estwise_large} for use of
+these programs in large scale throughput environments.
+
+Make sure you have compiled with optimisation. If you are using the
+make all from the top level you have. If you are using gcc, make
+sure you are using -O2 optimisation, and probably crank it all the
+way up.
+
+If you have a large SMP box, you can compile with pthread support. The
+searches work on SGI/Compaq alpha/Suns. There are some issues about some
+architecture ports, which I need to expand somewhere in the docs, but first
+off, just try compiling with pthreads (\ref{compile_pthread}) and using pthreads
+in the search.
+
+For real, order-of-magnitude speed ups, you are going to have to use a
+heuristic stage before the actual database search - in other words,
+using BLAST. I dislike this, but it is fact of life, and there are two
+scripts in perl/scripts, halfwise and blastwise
+(\ref{half_and_blast}), which help you do this. Both scripts use Steve
+Chervitz excellent perl Blast parser, which is available in
+bioperl. (Make sure you have a 0.05 release or later of bioperl, as
+the Blast parser in the 0.05 release is much better).
+
+\begin{itemize}
+\item halfwise is for the Pfam search. You need to pick up the halfwise
+database (done for a specific release of Pfam) from the ftp site.
+\item blastwise is for post processing blast results. It uses the Wise2
+perl port to do this, so you have to go make perl at the top level
+\end{itemize}
+
+halfwise is a pretty sensible, self contained script. blastwise I expect
+people to modify heavily to get to work as wished on their systems. Please
+read it, and add in your own heuristics (eg, figuring out start/end points).
+I am very interested in better heuristics in this area.
+
+\subsubsection{segmentation fault = bottle of champagne}
+
+You've found a bug? I am really keen to hear from you. I want
+to hear about the problems you've got. Each year I award my
+best tester with a prize. This year (1998/99) it will be
+a bottle of champagne. Send a mail to birney@sanger.ac.uk
+for your prize!
+
+\subsection{Using GeneWise in a large scale throughput manner}
+\label{genewise_large}
+
+If you are analysing genomic DNA in a large scale manner, you might
+wonder what is the best way to use genewise. Genewise is \emph{very
+CPU expensive} compared to other programs. Part of this is because 
+I have concentrated much more on correctness of the algorithm, not
+its speed (it is probably about 2 fold slower than it could be optimally),
+but mainly this is because the algorithm is complicated and DNA sequence
+is generally very large. I do not believe that optimising genewise in 
+the code will solve people's CPU problems. 
+
+For these reasons, I do not advise the serious use of genewisedb as
+a single executable for comparing DNA sequence to either Pfam or
+protein databases. For these cases I suggest using the halfwise and
+blastwise scripts. See the section on Halfwise and Blastwise (\ref{half_and_blast}
+
+\begin{itemize}
+\item halfwise compares a DNA sequence to Pfam using a Blast speed up
+\item blastwise uses a Blastx result to provide the database search
+and provides sequence alignments ontop of that
+\end{itemize}
+
+Another option is to get in contact with Paracel, Compugen or
+TimeLogic, all of whom may be able to sell you specialised
+hardware. Paracel has successfully ported genewise to their hardware
+with only a few minor changes to the method. 
+
+\subsection{Using EstWise in a large scale throughput manner}
+\label{estwise_large}
+
+Estwise in a large scale manner is a more troubling issue than genewise.
+Generally the DNA databases are as large, but the algorithm is smaller
+and often people are equally interested in sensitivity and alignment
+quality. Therefore it makes more sense to use estwise directly as the
+database search. Estwise is still pretty slow, so here is a check list
+of things to do
+
+\begin{itemize}
+\item Run estwise on a \emph{clustered} EST database, not raw reads
+\item Make sure you are using the 3:12 algorithm on estwise (-alg 312)
+for the database search. Try using the 3:12 quick (-alg 312Q).
+\item Use the pthread port if you have a large SGI/Sun/Dec multiprocessor
+\item For the final tuning, make sure you have switched on all the compiler
+options. egcs is a good thing to try. This will give you a 10-15% speed up
+at most
+\end{itemize}
+
+I am thinking about improvements to the estwise running time. I would very
+much like to collaborate with someone on estwise in terms of understanding
+its sensitivity and improving all aspects of the algorithm. Please get in
+contact with me.
+
+The hardware solutions from Compugen, Paracel and Time Logic are all very
+good in this area, and worth investigating if you have money to spend.
+
+
+\newpage
+\section{Installation}
+ 
+Installation is quite easy as long as you are au fait with 
+standard UNIX utilities. You should ftp to ftp.sanger.ac.uk,
+log in as anonymous and move to pub/birney/wise2. You can
+then pick up the release - I would pick up the latest
+numbered in that directory. (NB, if you want to be working
+in the development release, go to the pub/birney/wise2/alpha
+directory, but be sure to read the html help at 
+http://www.sanger.ac.uk/Software/Wise2/Programming).
+
+\subsection{Building the executables}
+The release is distributed as a gzipped, tar file. To
+unzip and untar in a single command you can type
+
+\begin{verbatim}
+%zcat wise2.1.12b.tar.gz | tar -xvf - 
+\end{verbatim}
+
+This will untar into a directory called 'wise2.1.12b'
+(of course, your version of Wise2 might be different). 
+
+Once you have made the tar file, it should build completely cleanly as
+long as you have an ANSI C compiler. If in doubt, just assumme that it
+is, but in particular sun users might want to use gcc (gnu cc) as the
+sun cc compiler installed by default is often non-ANSI. To change the
+cc compiler you only need to edit the line in the top level makefile
+called CC = cc to CC = gcc.
+
+
+To build the package type
+\begin{verbatim}
+%cd wise2.1.12b
+%make all
+%make bin
+\end{verbatim}
+
+The executable files will now be in wise2.1.12b/bin
+
+
+I am interested in all compiler errors, and consider most of them
+to be bugs (which means if you report them you could be on the
+champagne list!)
+
+\subsection{Environment set up}
+
+The Wise2 package needs to know where a number of files are (eg, 
+the gene predicition statistics). These files are in the directory
+called wisecfg/. You will need to setenv WISECONFIGDIR to this
+directory (you can of course move the directory elsewhere, and set
+WISECONFIGDIR to it).
+
+\subsection{Building with thread support (for SMP machines)}
+\label{compile_pthread}
+To build with pthread support you must switch on some extra
+compile time options before you type make all. These are found
+at the top of the makefile in the top directory, and it is
+pretty clear from the makefile what to do. See the section \ref{running_pthread}
+for information on how to run pthreaded code.
+
+In some cases the pthreads do not schedule correctly, preventing multiple
+threads working on different processors at the same time. If you have
+this problem, trying compiling with -D HAS\_PTHREAD\_SETSCOPE on the CFLAGS
+line.
+
+The pthreaded code has been reported to be 97% efficient with 8 threads, and
+there have been reports of up to 100 multiple threads running fine.
+
+\subsection{Building Perl port}
+\label{perl_port}
+
+To build with Perl support you need to go 
+\begin{verbatim}
+make perl
+\end{verbatim}
+at the top level. This should build everything correctly. The only
+problem is if you have a Solaris or *BSD box. If so you need to compile
+with -fpic or -fPIC depending on your compiler. This needs to go into
+the top level CFLAGS line. In addition, in the out-of-the box perl distribution
+for solaris they built it with a different compiler to the one it comes
+with (idiots!), so the perl generated makefile has the wrong -fpic option.
+You need to edit that by hand.
+
+\newpage
+\section{Concepts and conventions}
+
+The algorithms used in Wise2 have a strong theoretical justification,
+which is useful, though not necessary to understand.  For example to
+understand what most of the options do in the gene model part of
+genewise you need to understand the algorithm.
+
+\subsection{Technical Approach}
+
+You can miss this section which describes some of the theoretical
+background of the work.  The algorithms are based around a 'Bayesian'
+formalism that has been established in Bioinformatics by such people
+as David Haussler, Gary Churchill, Anders Krogh, Richard Durbin, Sean
+Eddy and Graeme Mitchinson, as well as many others. In this formalism
+there is assumed to be a generative model of the process that you are
+observing, which has probabilities to generate a number of different
+observations. Deciding whether this model fits a previously unseen
+piece of data or not is the first decision to make. Given that the
+data fits, a second question is what actual processes were the most
+likely to produce the observed data. Both these questions fit
+naturally into a Bayesian framework where the result is a posterior
+probability having seen the data.
+
+For people coming from a bioinformatics/biology background where the last
+paragraph may seem very confusing, it is only because this a different
+(and well established) field with their own terminology to describe the
+algorithms. In fact the methods a very close to standard techniques presented
+in bioinformatics. The generative models that we
+use are the models that are implied by the standard bioinformatics
+tools. For example, the Smith-Waterman algorithm implies a process of
+evolution with certain probabilities for seeing say an Leucine to  Valine
+substitution and certain probabilities for creating and extending a
+insertion (gap). As you can see you can almost replace the word
+'probability' with 'score' to return to the standard method, and
+mathematically it is almost that easy: the score is related to the log
+of the probability.
+
+Perhaps a better known example is the relationship between the old
+profile technology, as developped by Gribskov and Gibson along with
+others, and its probabilistic partner, profile Hidden Markov Models
+(profile HMMs).  In terms of the actual algorithm these two methods
+are very similar: it is simply that the profile HMM has a strong
+probabilistic model underlying it, allowing well established
+techniques to be used in its generation.
+
+\subsection{Introduction to Models in Wise2}
+Wise2 contains a number of algorithms, each of which are based around
+one of two biological models.
+
+\begin{description}
+\item[genewise] comparison of a related protein to genomic DNA
+\item[estwise] comparison of a related protein to cDNA (or ESTs)
+\end{description}
+
+This models themselves are built up from two component models, one for how
+protein residues are matched, and one for the gene prediction process. For the model
+of protein residues I have taken the established models of profile HMMs.
+The model of splicing and translation we developed with an eye to biology.
+It has many of the features of the GenScan model [chris Burge]. The model
+of translation (for estwise) is simple.
+
+\subsection{Model}
+
+The main model to understand is the genewise model (called genewise 21:93
+for reasons discussed below). It is this model which the other models
+are based on - for the estwise models, by removing the intron generating
+part of the models, and for the other genewise algorithms by making 
+approximations to genewise21:93. A diagramatic representation of genewise21:93
+is shown in Figure \ref{Figure:genewise21}
+
+\begin{figure}
+\begin{center}
+\leavevmode  
+\epsfxsize 300pt
+\epsfbox{genewise21.eps}
+\newline     
+\caption{GeneWise21:93 Algorithm. The dark circles represent states, and the
+arrows between them transitions. Black transitions are standard
+protein transitions, red transitions are frameshifting transitions and
+green transitions are intronic transitions. Introns are each built of
+three states, listed at the bottem of the figure}
+\label{Figure:genewise2193}
+\end{center} 
+\end{figure} 
+
+
+The central part of the model is the Match-Insert-Delete trio common to both
+profile HMMs (such as HMMER models) and the smith waterman model. This trio
+of states is one model 'position' in the profile HMMs, where each model position
+contains a Match, Insert and Delete states. This means to interpret the figure
+of the model in the way the profile HMM models are usually displayed, you have
+to imagine a series of these states concatonated together. I imagine the model
+growing as stack of pages out from the figure, each new page being a new position
+in the profile HMM. 
+
+The first addition to the model are the frameshifting transitions, shown in
+with x4 boxes above them. These occur whenever there is a transition which
+produces a codon: in effect all transitions that terminate at either match
+or insert states. There are four frameshifting transitions in each 
+Notice that there are frameshifting transitions from Delete
+to Match, which is equivalent to saying that a frameshift occurs on the codon
+just after a run of deletions in the model. It is these sorts of frameshifts 
+that are not well modelled by other algorithms.
+
+The second addition involves the intron emitting states found in the green boxes.
+Each intron is modelled by having 5 regions, two of which are fixed length. The 
+five regions are
+
+\begin{itemize}
+\item 5'SS The splice site consensus region at the 5' end of the intron. Fixed length
+\item The central part of the intron that constitutes the major part of the intron
+\item The polypyrimidine tract (a region of C/T bias upstream of the 3'SS)
+\item an optional joining region between the poly-py tract and the 3'SS
+\item 3'SS The splice site consensus region at the 3' end of the intron. Fixed length
+\end{itemize}
+
+Notice that there is no branch site, because we could not produce a good enough
+statistical model for it.
+
+This model can be modelled using 3 states, with the fixed length regions being
+accommodated using transitions which emitted the appropiate length of sequence.
+
+Each of the intron models must be duplicated 3 times to account for
+the 3 different phases of introns (each phase being a different
+placement of the intron relative to the codon), so we need to
+duplicated these 3 states at least 3 times. In addition, if this
+intron lies in an insert state, ie, the surrounding protein sequence
+in the exons are being produced by an insert state in the underlying
+protein profile HMM, so we have to maintain that information across
+the intron. This means that we need to duplicate the intron states 6
+times in total: 3 times for the different phases and twice on top of
+that for the different protein states this intron could lie in.
+
+\subsubsection{Parameterisation of the model}
+
+The model presented above seems biological sensible, but how on earth are we
+going to parameterise it? Are we honestly going to let a user try to juggle the
+forty odd parameters inherent to this model? Clearly not. The approach we have
+taken to this is to provide set statistics derived from a maximum likelhood approach
+from known genes - this requires virtually no training - and then give switches
+to the user to turn on and off a variety of different parts of the algorithm.
+
+The model is parameterised as probabilities, but actually calculated
+in log space.  If you look in the code you would find that there is alot of switching
+between the two spaces: these are provided by the functions
+Probability2Score and Score2Probability (notice that the 'Score' here
+is very specific to the Wise2 package - you can't put any old score
+into Score2Probability to get a probability out as it depends on how
+that Score was converted into Log space).
+
+\subsubsection{The protein model}
+
+For the emissions of the actually underlying amino acids when we have
+a profile HMM, we are lucky - we can take the probabilies defined in
+the HMMer2 models. This is completely natural and means I don't have
+to worry about deriving probabilities for the profile HMMs
+
+In the case where we have a protein sequence, I somehow have to get to
+a profile HMM type representation. Thankfully the smith waterman
+algorithm in terms of architecture is very close to a profile HMM, and
+so the only problem is mapping the usual scores used in the smith
+waterman algorithm to probabilites. This is quite hard to do
+correctly, but I've hacked it by knowing that the blosum62 matrix is
+given in half bits, in other words using a 2*log2 mapping from
+probability space to the give scores in the matrix.  By reversing this
+process one can get pretty good emission probability for the amino
+acids. I now assumme that the gap penalities are \emph{as if} they were
+written in half bits. A certain amount of normalisation is required to
+make sure things add to one, and eh voila - one profile HMM from a
+single sequence.
+
+\subsubsection{Start End points}
+\label{sec:start_end}
+
+One interesting issue about the protein model is how the start end points
+work. For proteins it is obvious that for distant homology, it needs to
+be local - ie can start or finish anywhere in the sequence. For protein HMMs
+it is less clear. If a HMM really represents a single domain then global start
+end points are correct. However, many times local start end points are useful.
+
+The HMMer2 models internally carry whether this HMM is has global or local (or
+indeed any type) of start end policy.
+
+However, the genewise algorithm is quite dependent on the models being global
+to effectively predict introns in domains, when the looping algorithm (multiple
+copies of the domain) is present. This is because nearly always in a local
+HMM, an intron can be better modelled as the end of the domain half way
+through and the start of a new domain half way through, further down the sequence,
+thus not predicting the intron. To get clean intron prediction, one needs to go
+to global mode. However, using global mode forces the start and end point of the model
+to be really correct, and in some cases (in particular some Pfam models) this makes
+very incorrect results on the edges of the domain. To combat this another type
+of start end policy is introduced - wing. This has a local start mode for the first
+15 model positions and end mode for the last 15 model positions, but global in the
+central part of the model.
+
+In the programs one can set four types of start end policy
+
+\begin{itemize}
+\item default local for protein, and the HMM default for HMMs
+\item local   local
+\item global  global
+\item wing    local on the edges, global in the middle
+\end{itemize}
+
+
+\subsubsection{The gene model}
+
+For the emissions of the gene model we had to do more work. What we did was to 
+make a database of known genes, with annotated gene structure. These 
+genes then provided a raw set of counts for particular parts of the 
+gene structure. It is these raw counts which are stored in the .gf files.
+(we store the raw counts because one might want to do something clever
+for deriving the probabilities of certain things using these counts. 
+Counts are the basis for the probability derivations, not frequencies).
+
+The only issue here is what to do with the splice sites. We were well aware
+that the information in the splice sites is considerably more than just the
+simple position matrix. We chose to use a single branching (biased) decision
+tree, in which each branch either carried along the main trunk of the tree or
+ended in a leaf, each leaf representing a consensus build from A,T,G,C or N
+for any character. This decision tree could be easily constructed by chosing
+the most common consensus (where N is allowed where a position is better
+represented by N than any specific residue), and then removing that consensus
+from the list of observed consensi, and then repeating the process. This
+also gave us the same basis (counts) for each consensus used in the splice
+sites.
+
+One additional twist came about in the splice site development. The
+splice sites overlap between their consensi and the coding sequence
+region. These overlaps need to be treated correctly: the problem is
+that probabilistically we have two processes wanting to account for
+the same DNA bases. This was solved by assumming conditional
+independence between the two processes. A more formal mathematicall
+approach can be found in the documented called 'probappendix'.
+
+
+\subsubsection{The NULL model}
+
+The probability of the model has to compared to an alternative model
+(in fact to all alternative models which are possible) to allow proper
+Bayesian inference. This causes considerable difficulty in these
+algorithms because from a algorithmical point of view we would
+probably like to use an alternative model which is a single state,
+like the random model in profile-HMMs, where we can simply 'log-odd'
+the scored model, whereas from a biological point of view we probably
+want to use a full gene predicting alternative model.
+
+In addition we need to account for the fact that the protein HMM or
+protein homolog probably does not extend over all the gene sequence,
+nor in fact does the gene have to be the only gene in the DNA
+sequence. This means that there are very good splice
+sites/poly-pyrimidine tracts outside of the 'matched' alignment can
+severely de-rail the alignment.
+
+Basically we are in trouble with the random model parts of this
+problem.
+
+The solutions is different in the genewise21:93 compared to the genewise 6:23
+algorithms. Genewise 6:23 is shown in figure \ref{Figure:genewise623}
+
+\begin{figure}
+\begin{center}
+\leavevmode  
+\epsfxsize 300pt
+\epsfbox{genewise6.eps}
+\newline     
+\caption{GeneWise6:23}
+\label{Figure:genewise623}
+\end{center} 
+\end{figure} 
+
+\begin{itemize}
+\item In 6:23 we force the external match portions of the homology
+model to be identical to the alternative model, thus cancelling each
+other out. This is a pretty gross approximation and is sort of
+equivalent to the intron tie'ing. It makes things algorithmically
+easier... However this means a) 6:23 is nowhere near a probabilistic
+model and b) you really have to used a tied intron model in 6:23
+otherwise very bad edge effects (final introns being ridiculously
+long) occur.  
+\item In 21:93 we have a full probabilistic model on each side
+of the homology segment. This is not reported in the -pretty output
+but you can see it in the -alb output if you like. Do not trust the
+gene model outside of the homology segment however. By having these
+external gene model parts we can use all the gene model features safe
+in the knowledge that if the homology segments do not justify the
+match then the external part of the model will soak up the additional
+intron/py-tract/splice site biases.
+\end{itemize}
+
+However this still does not solve the problem about what to compare it
+to.
+
+There are two approaches to the comparison
+
+\begin{description}
+\item[flat] The homology model is scored against a single state 0.25 emission
+model. This is effectively 'how likely is this DNA segement has any
+genes some with this homologous protein/HMM in it' for 21:93. It is,
+unsurprisingly, a massive 'yes' for nearly all biological DNA, and
+though a valid number in terms in bayesian inference pretty
+biologically uninteresing. There is also no decent interpretation of
+partial scores (ie, scores per domain).  
+
+\item[syn] For synchronous model pretends that there is an alternative
+model of a complete gene which is dragged into the coding part of the
+gene when the homology model is in the coding part. This is not
+probabilistically valid, but gives better results and interpretable
+scores for partial regions, ie domain by domain. (in fact, very
+similar scores to protein sequences). However I'm worried about what I
+am doing It would be much better to get some mathematically
+justification for this.
+\end{description}
+
+
+\subsection{Algorithms}
+\label{sec:alg}
+The algorithms are then based around this central model, but 
+have a variety of features removed from it progressively, either
+due to biological constraints (bacterial sequences have no introns,
+so there is no need to model them) or to speed up the the algorithm.
+
+Algorithms are named in two parts, \emph{descriptive-word} \emph{state-number:transition-number}.
+The descriptive word indicates the \emph{biological} model. At the moment
+there are 2 such biological models in the package
+\begin{description}
+\item[genewise] comparisons of protein information to genomic DNA
+\item[estwise] comparisons of protein information to cDNA/bacterial DNA (no
+introns)
+\end{description}
+There are many other models being worked on in development
+\begin{description}
+\item[sywise] comparisons of genomic DNA to genomic DNA
+\item[parawise] comparions of cDNA to cDNA
+\end{description}
+
+The \emph{state-number:transition-number} is the number of states in the model
+followed by the number of transitions. GeneWise 21:93 is the most complicated
+model, with 21 states and 93 transitions. The number of states is directly
+proportional to the memory usage of the program. The number of transitions
+is roughly proportional to the CPU time of the algorithm. For comparison the
+standard smithwaterman algorithm is a 3:7 algorithm (3 states, 7 transitions).
+These numbers are per compared residue - so as genomic DNA is some 1,000 fold
+longer than protein sequences on average, there is an additional massive 
+CPU load.
+
+Finally the algorithms can be looping or not. A Looping algorithm is one in
+which the protein information can be repeated in the DNA target sequence.
+This could either be due to mutliple copies of the gene in the DNA sequence
+or multiple copies of a domain in a single gene. Looping algorithms are
+given a 'L' tag. By default, when you use profile-HMMs you use a looping model
+
+For the genewise family the following algorithms are available.
+\begin{description}
+\item[genewise 21:93] The largest genewise algorithm which also contains
+a complex flanking model to prevent inappropiate gene predictions
+\item[genewise 21:93L] The same algorithm with a looping mode. This allows
+a protein HMM (nearly always a HMM) to match multiple times a DNA sequence.
+This could be due to multiple domains in a single gene or multiple genes
+in a DNA sequence with the domain. The algorithm doesn't distinguish between
+these possibilities.
+\item[genewise 6:23] This is a smaller, (and so faster) algorithm. The
+approximations made compared to genewise 21:93 are that there is no
+poly-pyrimidine tract in the intron, and that introns from match states
+are not distinct from introns in insert states. 
+
+A side effect of these approximations is that 6:23 is much more robust
+with respect to unmasked repeats and strange composition effects found
+in the DNA sequences.
+\item[genewise 6:23L] The same algorithm as 6:23 but in looping mode
+\item[genewise 4:21] The smallest algorithm in the genewise family,
+with an additional approximation of not distinguishing between introns
+of different phases. This has been compiled for short protein sequences
+only - effectively only profile-HMMs.
+\end{description}
+
+For the estwise family the following algorithms are available
+\begin{description}
+\item[estwise 3:33] The largest estwise algorithm, modelling potential
+insertion or deletions throughout the alignment of the protein
+information to the DNA sequence.
+\item[estwise 3:33L] The same algorithm but in looping mode.
+\item[estwise 3:12] A slimmer algorithm designed for faster db searching.
+The algorithm models enough insertions or deletions of DNA bases to
+'ride through' a indel region without too much penalty, even if it
+doesn't model the most correct one.
+\end{description}
+
+\subsection{Scores}
+
+The scoring system for the algorithms, as eluded to earlier is a
+Bayesian score. This score is related to the probability that model
+provided in the algorithm exists in the sequence (often called the
+posterior). Rather than expressing this probability directly I report
+a log-odds ratio of the likelhoods of the model compared to a random
+model of DNA sequence. This ratio (often called \emph{bits score}
+because the log is base 2) should be such that a score of 0 means that
+the two alternatives \emph{it has this homology} and \emph{it is a
+random DNA sequence} are equally likely. However there are two
+features of the scoring scheme that are not worked into the score that
+means that some extra calculations are required
+
+\begin{itemize}
+\item The score is reported as a likelhood of the models, and to
+convert this to a posterior probability you need to factor in the
+ratio of the prior probabilities for a match. Because you expect a far
+greater number of sequences to be random than not, this probability of
+your prior knowledge needs to be worked in. Offhand sensible priors
+would in the order of probability that there is a match being roughly
+proportional to the database size.
+
+\item The posterior probability should not merely be in favour of the
+homology model over the random model but also be confident in it. In
+other words you would want probabilities in the 0.95 or 0.99 range
+before being confident that this match was correct.
+\end{itemize}
+
+These two features mean that the reported bits score needs to be above
+some threshold which combines the effect of the prior probabilities
+and the need to have confidence in the posterior probability. In this
+field people do not tend to work the threshold out rigorously using
+the above technique, as in fact, deficiencies in the model mean that
+you end up choosing some arbitary number for a cutoff. In my
+experience, the following things hold true: bit scores above 35 nearly
+always mean that there is something there, bit scores between 25-35
+generally are true, and bit scores between 18-25 in some families are
+true but in other families definitely noise. I don't trust anything
+with a bit score less than 15 bits for these DNA based searches. For
+protein-HMM to protein there are a number of cases where very negative
+bit scores are still 'real' (this is best shown by a classical
+statistical method, usually given as evalues, which is available from
+the HMMer2 package), but this doesn't seem to occur in the DNA
+searches.
+
+I have been thinking about using a classical statistic method on top
+of the bit score, assumming the distribution is an extreme value
+distribution (EVD), but for DNA it becomes difficult to know what to
+do with the problem of different lengths of DNA. As these can be
+wildly different, it is hard to know precisely how to handle
+it. Currently a single HMM compared to a DNA database can produce
+evalues using Sean Eddy's EVD fitting code but, I am not completely
+confident that I am doing the correct thing.  Please use it, but keep
+in mind that it is an experimental feature.
+
+\newpage
+
+\section{Halfwise and Blastwise}
+\label{half_and_blast}
+
+The use of genewise in large scale analysis is beyond most people's CPU
+abilities. To counter this I have written two scripts which allow people
+to use genewise more sensibly.
+\begin{itemize}
+\item Halfwise - a Perl script that compares a DNA sequence to Pfam sensibly,
+using BLAST to speed up the process.
+\item Blastwise - a Perl script that compares a DNA sequence to a protein
+database, using BLASTX and then calls genewise on a carefully selected 
+set of proteins 
+\end{itemize}
+To run halfwise you will need
+\begin{itemize}
+\item The Wise2 package, compiled to provide the genewisedb executable at least
+\item One of the blastx type programs, either blast 1 series, blast 2 series from ncbi or wublast from
+warren gish (bioperl automatically detects the different flavours of blast and adjusts).
+\item The bioperl distribution, preferably the 0.05 series
+\item The halfwise protein database, found at ftp://ftp.sanger.ac.uk/pub/birney/wise2/halfwise
+\item The halfwise Pfam database, at the same ftp site
+\item The HMMER package, version 2.1 series
+\end{itemize}
+
+The halfwise database is made from the Pfam FULL alignments, made non redundant to 
+75%. This gives a good coverage of the protein sequences represented by Pfam whilst
+being quite a small database.
+
+To install halfwise you need to
+\begin{itemize}
+\item place the halfwise protein database in the directory pointed by BLASTDB and either
+pressdb or setdb depending on which version of blast you are going to use. (If you don't have
+the BLASTDB directory set up, make a directory called blastdb and set the environment variable
+BLASTDB to point to that)
+\item install bioperl, best by following the instructions in the README
+\item install Wise2
+\item install the latest HMMER 
+\item place the HMM library in BLASTDB and run hmmindex (from the HMMER package) on it
+\item edit the information at the top of the halfwise.pl to point to the correct executables, if need be
+\end{itemize}
+
+To run halfwise go
+\begin{verbatim}
+halfwise dna.seq > dna.seq.hlf
+\end{verbatim}
+
+halfwise by itself gives you help about it.
+
+To run blastwise you will need
+\begin{itemize}
+\item a blastable protein database
+\item one of the blastx type programs, as above
+\item The Wise2 package, having made the perl port. This is done by going
+``make perl'' in the root directory
+\item Bioperl version 0.05 or above
+\item a way of fetching fasta formatted sequences from teh protein database, eg SRS
+\end{itemize}
+
+Install bioperl and blast as before, install the Wise2 perl port. Edit
+the blastwise.pl script, making sure you change protein database and
+the GETZ line lower down to represent the way of getting sequences.
+
+To run blastwise go
+\begin{verbatim}
+blastwise.pl dna.seq > dna.seq.blw
+\end{verbatim}
+
+The blastwise script is designed to be adjusted to fit your site. There
+are a number of us world wide concentrating on extending and improving blastwise.
+Please get in touch if you want to help.
+\section{Principle Programs}
+
+The main programs are genewise, genewisedb, estwise, estwisedb. 
+These all have basically the same
+running mode
+
+\begin{verbatim}
+%genewise protein-file dna-file
+\end{verbatim}
+
+A number of options are common to these programs from the point
+of view of how they run
+
+\begin{description}
+\item[-help] verbose help of all options
+\item[-version]   show version and compile info
+\item[-silent] No messages on stderr, whether reports or warnings
+\item[-quiet] No reports or information messages on stderr
+\item[-erroroffstd] No warning messages to stderr, but reports are still issued
+\item[-errorlog] [file] Log warning messages to file (useful for sending to me)
+\end{description}
+
+You will probably want to read the \ref{sec:commonmode} common modes of usage
+section as well
+
+
+
+\subsection{genewise}
+
+Genewise compares a protein sequence or a protein profile HMM to a dna sequence
+
+\subsubsection{genewise - options: dna/protein}
+
+\begin{description}
+\item[-u]               start position in dna
+\item[-v]               end position in dna
+\item[-trev]            Compare on the reverse strand
+\item[-tfor] (default)  Compare on the forward strand
+\item[-both]            Both strands
+\item[-tabs]            Report positions as absolute to truncated/reverse sequence
+\item[-s]               start position in protein - has no meaning for HMMs
+\item[-t]               end   position in protein - has no meaning for HMMs
+\item[-gap] [no] default [12]  gap penalty to use for protein comparisons. This
+is used to estimate a probability per gap
+\item[-ext] [no] default [2]  extension penalty to use for protein comparisons.
+This is used to estimate a probability for an extension of a gap
+\item[-matrix] default [blosum62.bla]  Comparison matrix. Must be in half-bit
+units (blosum62 is in half bits). This is used to estimate a probability of amino
+acid comparisons
+\item[-hmmer]           Protein file is HMMer 2 HMM
+\item[-hname]           Use this as the name of the HMM.
+\item[-init]   [default/global/local/wing]  (see section \ref{sec:start_end})
+For protein sequences the default is to be local (like
+smith waterman). For protein profile HMMs, the default is read from the HMM - the
+HMM carries this information internally. The global mode is equivalent to to the ls building option
+(the default in the HMMer2 package). The local mode is equivalent to to the fs building option (-f)
+in the HMMer2 package. The wing model is local on the edges and global in the middle.
+\end{description}
+\subsubsection{genewise - options: gene model}
+
+\begin{description}
+\item[-codon] [codon.table] Codon file. The default is for the
+universal code, but you can supply your own
+\item[-gene] [human.gf] Gene parameter file. Provide statistics for
+different gene models. Current human.gf and worm.gf are provided. The
+statistics are basically too complicated to explain here.
+\item[-subs] [1e-05] Substitution error rate, ie the assummed
+probability of base substitutions in the sequencing reaction/assembly
+that provided the DNA sequence. The substituion error is what
+dominates the penalty for stop codons - a higher error rate implies a
+smaller penalty for stop codons
+\item[-indel] [1e-05] Insertion/deletion error rate, ie the assummed
+probability of indel events in the sequencing reaction/assembly that
+provided the DNA sequence. The indel rate is what provides the penalty
+for frameshift errors. A higher error rate implies a smaller penalty
+for indels.
+\item[-cfreq] [model/flat] Using codon bias or not?  [default flat] -
+a reasonably pointless option now, as it only applies when using -syn
+flat. If codon bias is modelled, then common codons score more than
+uncommons one for the same amino acid.
+\item[-splice] [model/flat] Using splice model or GT/AG? [default
+model] - use the full blown model for splice sites, or a simplistic
+GT/AG. Generally if you are using a DNA sequence which is from human
+or worm, then leave this on. If you are using a very different (eg
+plant) species, switch it off.
+\item[-intron] [model/tied] Use tied model for introns [default tied]
+- whether intron base distribution effects the parse. Because varying
+GC content and/or repeats can seriously drag the algorithm away from
+correct parses when intron base distribution is used, this is usually
+switched off.
+\item[-null] [syn/flat] Random Model as synchronous or flat [default
+syn] - whether to use a null model which is a simple base distribution
+(called flat), or imagine that the viterbi path is being compared to a
+gene based null model that is making all the same gene exon/intron
+boundaries (synchronous). The latter is basically a hack which
+demphaises the gene prediction machinery and tries to trust the
+homology machinery. (not ideal!)
+
+\item[-pg] [file] Potential Gene file (heurestic for speeding
+alignments). The potential gene file should look like
+\begin{verbatim}
+pgene # stands for potential gene
+ptrans # stands for potential transcript
+pexon <start-in-dna> <end-in-dna> <start-in-protein> <end-in-protein>
+pexon <start-in-dna> <end-in-dna> <start-in-protein> <end-in-protein>
+...
+endptrans
+<another ptrans if you like>
+endpgene
+\end{verbatim}
+
+When this file is read in, it provides a series of start/end in dna
+and protein sequences around which is drawn an envelope of possibly
+alignment area. The alignment is then calculated only in this area
+
+This feature has not been well tested yet. any potential bugs reported in are very useful.
+\item[-alg] [623/623L/2193/2193L/6LITE] Algorithm used [default 623/623L]
+You should read the section on algorithms (\ref{sec:alg}). Basically
+623 and 623L are cheaper computationally and more robust with respect
+to repeats etc. 2193 and 2193L are much more expensive, more sensitive
+to changes in parameters but potentially more accurate.
+\item[-kbyte] [ 2000] Max number of kilobytes used in main
+calculation. Indicates how much memory can be used for the dynamic
+programming calculation.
+\end{description}
+\subsubsection{genewise - options: output}
+
+All output options can be used at the same time. They are separated by
+the value to -divide option
+
+\begin{description}
+
+\item[-pretty] show pretty ascii output, as see in Section 2
+\item[-pseudo] For genes with frameshifts, mark them as pseudo genes
+\item[-genes] show gene structure - as
+\begin{verbatim}
+Gene 1
+  Gene 1386 3963
+    Exon 1386 1493
+    Exon 1789 1935
+    Exon 2084 2294
+    Exon 2388 2480
+    Exon 2794 2868
+    Exon 3073 3228
+    Exon 3806 3963
+//
+\end{verbatim}
+
+\item[-para]            show parameters
+\item[-sum]             show summary output. Shows output as
+\begin{verbatim}
+Bits   Query         start end Target      start end   idels introns
+230.57 roa1_drome     26  347 HSHNRNPA     1386 3963    0    6
+\end{verbatim}
+This is useful for parsing, but probably if you want to do something
+like that you want to get hold of the API directly.
+\item[-cdna]            show cDNA
+Show a fasta format of the predicted cDNA sequence
+\item[-trans]           show protein translation
+Show a fasta format of the predicted protein sequence. Breaks on frameshifts
+\item[-pep]             show predicted peptide. Shows predicted peptide,
+including frameshifts, which are X's in the proteins
+\item[-ace]             ace file gene structure - ACeDB subsequence model
+\begin{verbatim}
+  Sequence HSHNRNPA
+  subsequence HSHNRNPA.1 1386 3963
+  
+  Sequence HSHNRNPA.1
+  CDS
+  CDS_predicted_by genewise 0.00
+  source_Exons 1 108
+  source_Exons 404 550
+  source_Exons 699 909
+  source_Exons 1003 1095
+  source_Exons 1409 1483
+  source_Exons 1688 1843
+  source_Exons 2421 257
+\end{verbatim}
+\item[-gff]             Gene Feature Format file - useful for programs which also support GFF
+\begin{verbatim}
+  HSHNRNPA GeneWise cds_exon 1386 1494 0.00 + 0
+  HSHNRNPA GeneWise cds_exon 1789 1936 0.00 + 0
+  HSHNRNPA GeneWise cds_exon 2084 2295 0.00 + 0
+\end{verbatim}
+\item[-gener]           raw gene structure - a debugging output
+\item[-alb]             show logical AlnBlock alignment - a debugging output
+\item[-pal]             show raw matrix alignment - a debugging output
+\item[-block]  [50]     Length of main block in pretty output
+\item[-divide] [//]     divide string for multiple outputs
+\end{description}
+
+\subsection{genewisedb}
+
+genewisedb is the database searching version of genewise.  It takes a
+database of proteins and compares it to a database of dna sequences
+\subsubsection{genewisedb - search modes}
+\begin{description}
+\item[-protein]  [default] single protein. Protein is a single protein sequence in fasta format
+\item[-prodb]    protein fasta format db. Protein is a database of protein sequences in fasta format
+\item[-pfam]     pfam hmm library. Protein is a database of HMMer2 models as a single file 
+\item[-pfam2]    pfam old style model directory (2.1). Protein is a directory of HMMs with a file
+called HMMs in it indicating which HMMs there. This is how Pfam databases 2.1 and lower were distributed
+\item[-hmmer]    single hmmer HMM (version 2 compatible). Protein is a single HMM
+\item[-dnadb]    [default] dna fasta database. The DNA sequence is a fasta format
+file with multiple sequences
+\item[-dnas]     a single dna fasta sequence. The DNA sequence is a single sequence in fasta format
+\end{description}
+\subsubsection{genewisedb - protein comparison options}
+\begin{description}
+\item[-gap]    [ 12]  gap penalty - see genewise option
+\item[-ext]    [  2]  extension penalty - see genewise option
+\item[-matrix] [blosum62.bla]  Comparison matrix - see genewise option
+\item[-hname]           For single hmms, use this as the name, not filename
+\end{description}
+\subsubsection{genewisedb - gene model options}
+Many of these options are identical to the genewise options
+listed above
+\begin{description}
+\item[-init]   [default/global/local/wing]  (see section \ref{sec:start_end})
+For protein sequences the default is to be local (like
+smith waterman). For protein profile HMMs, the default is read from the HMM - the
+HMM carries this information internally. The global mode is equivalent to to the ls building option
+(the default in the HMMer2 package). The local mode is equivalent to to the fs building option (-f)
+in the HMMer2 package. The wing model is local on the edges and global in the middle.
+\item[-codon]  [codon.table]  Codon file -see genewise option
+\item[-gene]   [human.gf]  Gene parameter file - see genewise option
+\item[-subs]   [1e-05] Substitution error rate - see genewise option
+\item[-indel]  [1e-05] Insertion/deletion error rate - see genewise option
+\item[-cfreq]  [model/flat] Using codon bias or not?     [default flat] - see genewise option
+\item[-splice] [model/flat] Using splice model or GT/AG? [default model] - see genewise option
+\item[-intron] [model/tied] Use tied model for introns   [default tied] - see genewise option
+\item[-null]   [syn/flat]   Random Model as synchronous or flat [default syn] - see genewise option
+\item[-alg]    [421/623/2193/]            Algorithm used for searching [default 623]
+	The is the algorithm to use for the database search part of the process. 421 is the
+	cheapest algorithm but can only be used with HMMs or small proteins as it has been compiled
+	for a limited size of query. Looping algorithms (623L and 2193L) are not permitted as it is
+	hard to interpret the results  
+\item[-aalg]   [623/623L/2193/2193L]  Algorithm used for alignment [default 623/623L]
+	This is the algorithm used for the alignment of the matches. The default for proteins is
+623, whereas for HMMs it is the looping model 623L.
+\item[-kbyte]  [ 2000]  Max number of kilobytes used in alignments calculation. Maximum amount of
+	memory allowed in the alignment process.
+\item[-cut]    [20.00]   Bits cutoff for reporting in search algorithm. Comparisons scoring greater
+than this cutoff are aligned.
+\item[-ecut]   [n/a]     Evalue cutoff only for searches which can calculate evalues
+\item[-aln]    [50]   Max number of alignments (even if above cut). A cutoff for the number of 
+alignments, whatever their bits score.
+\item[-nohis]           Don't show histogram on single protein/hmm vs DNA search.
+On a single protein (or hmm) vs DNA database search an on-the-fly evalue score is calculated.
+This disables the production of a histogram
+\item[-report] [0]      Issue a report every x comparisons (default 0 comparisons). Mainly for debugging
+\end{description}
+\subsubsection{genewisedb output - for each comparison}
+For each alignment made by genewisedb you can output it as a number
+of different options
+\begin{description}
+\item[-pretty]          show pretty ascii output, as in genewise
+\item[-pseudo]          For genes with frameshifts, mark them as pseudo genes
+\item[-genes]           show gene structure, as in genewise
+\item[-para]            show parameters, as in genewise
+\item[-sum]             show summary output, as in genewise
+\item[-cdna]            show cDNA, as in genewise
+\item[-trans]           show protein translation, as in genewise
+\item[-ace]             ace file gene structure, as in genewise
+\item[-gff]             Gene Feature Format file, as in genewise
+\item[-gener]           raw gene structure, as in genewise
+\item[-alb]             show logical AlnBlock alignment, as in genewise
+\item[-pal]             show raw matrix alignment, as in genewise
+\item[-block]  [50]     Length of main block in pretty output, as in genewise
+\item[-divide] [//]     divide string for multiple outputs, as in genewise
+\end{description}
+\subsubsection{genewisedb output - complete analysis}
+Each alignment produces a notional gene prediction. At the
+end of the output, these gene predictions can be displayed
+together. This only works for -pfam or -prodb and -dnas
+options, ie a database of protein information vs a single
+dna sequence
+
+In the future it is hoped that additional options (such
+as merging consistent gene predictions) will operate
+before these outptus are made
+
+\begin{description}
+\item[-ctrans]          provide all translations
+\item[-ccdna]           provide all cdna
+\item[-cgene]           provide all gene structures
+\item[-cace]            provide all gene structures in ace format
+\end{description}
+
+\subsection{estwise}
+Estwise runs very much like genewise with basically a subset of
+options. For completeness they are all listed below 
+\subsubsection{estwise - options: dna/protein}
+\begin{description}
+\item[-u]               start position in dna
+\item[-v]               end position in dna
+\item[-trev]            reverse complement dna
+\item[-tfor]            use forward strands only
+\item[-both] [default]  do both strands
+\item[-tabs]            Positions reported as absolute to DNA
+\item[-s]               start position in protein
+\item[-t]               end   position in protein
+\item[-gap]    [ 12]  gap penalty
+\item[-ext]    [  2]  extension penalty
+\item[-matrix] [blosum62.bla]   Comparison matrix
+\item[-hmmer]           Protein file is HMMer 1.x file
+\item[-hname]           Name of HMM rather than using the filename
+\end{description}
+\subsubsection{estwise - options: model}
+\begin{description}
+\item[-init]   [default/global/local/wing]  (see section \ref{sec:start_end})
+For protein sequences the default is to be local (like
+smith waterman). For protein profile HMMs, the default is read from the HMM - the
+HMM carries this information internally. The global mode is equivalent to to the ls building option
+(the default in the HMMer2 package). The local mode is equivalent to to the fs building option (-f)
+in the HMMer2 package. The wing model is local on the edges and global in the middle.
+
+\item[-codon]  [codon.table]  Codon file. The default is for the universal code, but
+you can supply your own
+\item[-subs]   [0.01] Substitution error rate, ie the assummed probability of base substitutions
+in the sequencing reaction/assembly that provided the DNA sequence. The substituion error is what dominates
+the penalty for stop codons - a higher error rate implies a smaller penalty for stop codons
+\item[-indel]  [0.01] Insertion/deletion error rate, ie the assummed probability of indel events
+in the sequencing reaction/assembly that provided the DNA sequence. The indel rate is what provides
+the penalty for frameshift errors. A higher error rate implies a smaller penalty for indels.
+\item[-null]   [syn/flat]   Random Model as synchronous or flat [default syn]
+ whether to use
+a null model which is a simple base distribution (called flat), or imagine that the viterbi path
+is being compared to a gene based null model that is making all the same gene exon/intron boundaries
+(synchronous). The latter is basically a hack which demphaises the placement of frameshifts and
+tries to trust the homology machinery. (not ideal!)
+\item[-alg]    [333,333L,333F]  Algorithm used. 333 is the normal algorithm. 333L is the looping
+algorithm
+\item[-kbyte]  [ 2000]  Max number of kilobytes used in main calculation
+\item[-pretty]          show pretty ascii output as in genewise
+\item[-para]            show parameters 
+\item[-sum]             show summary information as in genewise
+\item[-alb]             show logical AlnBlock alignment, debugging output 
+\item[-pal]             show raw matrix alignment, debugging output
+\item[-block]  [50]     Length of main block in pretty output - the length of the main text in the pretty 
+output
+\item[-divide] [//]     divide string for multiple outputs, the string used to separate multiple outputs
+\end{description}
+
+\subsection{estwisedb}
+estwisedb is the database searching version of the 
+estwise program. Like estwise, it has the same sort of 
+running modes as genewisedb, but with more limited options.
+\subsubsection{estwisedb - options: running modes}
+\begin{description}
+\item[-protein]  [default] single protein
+\item[-prodb]    protein fasta format db
+\item[-pfam]     pfam hmm library 
+\item[-pfam2]    pfam style model directory (2.1) 
+\item[-hmmer]    single hmmer 1.x HMM
+\item[-dnadb]    [default] dna fasta database
+\item[-dnas]     a single dna fasta sequence
+\end{description}
+\subsubsection{estwisedb - options: model}
+\begin{description}
+\item[-gap]    [ 12]  gap penalty
+\item[-ext]    [  2]  extension penalty
+\item[-matrix] [blosum62.bla]  Comparison matrix
+\item[-hname]           For single hmms, use this as the name, not filename
+\item[-codon]  [codon.table]  Codon file
+\item[-subs]   [0.01] Substitution error rate
+\item[-indel]  [0.01] Insertion/deletion error rate
+\item[-null]   [syn/flat]   Random Model as synchronous or flat [default syn]
+\item[-alg]    [333/312/312Q]            Algorithm used for searching [default 312]
+\item[-aalg]   [333/333L]        Algorithm used for alignment [default 623]
+\item[-kbyte]  [ 2000]  Max number of kilobytes used in alignments calculation
+\item[-cut]    [20.00]   Bits cutoff for reporting in search algorithm
+\item[-ecut]   [n/a]     Evalue cutoff only for searches which can calculate evalues
+\item[-aln]    [50]   Max number of alignments (even if above cut)
+\item[-nohis]           Don't show histogram on single protein/hmm vs DNA search
+\item[-report] [0]      Issue a report every x comparisons (default 0 comparisons)
+\end{description}
+\subsubsection{estwisedb - options: output}
+\begin{description}
+\item[-pretty]          show pretty ascii output
+\item[-para]            show parameters
+\item[-sum]             show summary output
+\item[-alb]             show logical AlnBlock alignment
+\item[-pal]             show raw matrix alignment
+\item[-mul]             produce complete protein multiple alignment from a HMM to DNA db search as a mul format M/A.
+\item[-pep]             show predicted peptide. Shows predicted peptide,
+including frameshifts, which are X's in the proteins
+\item[-block]  [50]     Length of main block in pretty output
+\item[-divide] [//]     divide string for multiple outputs
+\item[-help]      help
+\item[-version]   show version and compile info
+\item[-silent]    No messages on stderr
+\item[-quiet]    No report on stderr
+\item[-erroroffstd] No warning messages to stderr
+\item[-errorlog] [file] Log warning messages to file
+\end{description}
+
+\subsection{Running with pthreads}
+\label{running_pthread}
+
+The two database searching programs, genewisedb and estwisedb can be run with pthread
+support on SMP boxes. To do so you need to compile the source code with pthread
+support (it is very easy, see section \ref{compile_pthread}). Then the programs
+need to be run with the additional option {\tt -pthread}. On most machines the
+executable will pick up the number of available processors automatically and 
+run that number of threads. If you want to override this use the {\tt -pthr\_no} option.
+
+
+\newpage
+\section{Other Programs}
+
+There are other programs in the wise2 package which are sometimes pretty
+well worked out (eg promoterwise) and sometimes just a little standard program
+(eg, psw).
+
+
+\subsection{promoterwise}
+
+promoterwise is a sort of next generation DBA (see next section). It
+is designed for comparisons between two promoter sequences or
+realistically any two orthologous regulatory regions (or homologous
+for that matter, but in theory it should work better for orthologous
+regulatory regions, depending on how much active change you expect
+paralogous regulatory regions to have). Promoterwise reports alignments 
+between these two sequences assumming that alignments cannot overlap in
+both sequences, but *not* assumming that the alignments have to be co
+linear or on the same strand.
+
+
+Promoterwise works by taking the two sequences and then finds all
+common exact 7mers between them, in both the forward and reverse
+strands. These are then merged such that close HSPs (whoes centers are
+within the window size of each other) are considered one region.
+These regions then have a local version of the DBA algorithm run over
+them, which has a model of DNA similarity of small regions of
+similarity, potentially with small gaps separated by large pieces of
+unknown DNA.
+
+
+The resulting set of alignments are then sorted by score, and a simple
+greedy algorithm is used to discard ``bad'' subsequent alignments. By
+default this is to discard alignments which overlap on the query
+coordinate with alignments of a higher score (this can be
+changed). The alignments are then outputted with bits score. In my
+hands I think a bit score of over 20bits looks good.
+
+
+Of course there are many options to change here.
+
+
+\subsubsection{promoterwise - options}
+\begin{description}
+\item[-s]     query start position restriction
+\item[-t]    query end position restriction
+\item[-u]    target start position restriction
+\item[-v]    target end position restriction
+\item[-lhwindow]   sequence window given to alignment, default 50
+\item[-lhseed]    seed score cutoff in bits, defualt 10.0
+\item[-lhaln]    aln  score cutoff, default 8.0 bits
+\item[-lhscore]    sort final list by score (default by position)
+\item[-lhreject] [none/query/both] - overlap rejection criteria in greedy assembly [query]
+\item[-lhmax]    maximum number of processed hits - default 20000
+\item[-hitoutput] [pseudoblast/xml/tab] pseudoblast by default
+\item[-hithelp]   more detailed help on hitlist formats
+\item[-dymem]      memory style [default/linear/explicit]
+\item[-kbyte]       memory amount to use [4000]
+\item[-\[no\]dycache] implicitly cache dy matrix usage (default yes)
+\item[-dydebug]     drop into dynamite dp matrix debugger
+\item[-paldebug]    print PackAln after debugger run if used
+\item[-help]      show help options
+\item[-version]   show version and compile info
+\item[-silent]    No messages on stderr
+\item[-quiet]     No report on stderr
+\item[-erroroffstd] No warning messages to stderr
+\item[-errorlog] [file] Log warning messages to file
+\end{description}
+
+
+
+\subsection{dba - Dna Block Aligner}
+\label{sec:dba}
+
+dba - standing for Dna Block Aligner, was developped by Niclas Jareborg,
+Richard Durbin and Ewan Birney for characterising shared regulatory regions
+of genomic DNA, either in upstream regions or introns of genes
+
+The idea was that in these regions there would a series of shared motifs,
+perhaps with one or two insertions or deletions but between motifs there
+would be any length of sequence. 
+
+The subsquent model was a 3 state model which was log-odd'd ratio to a null
+model of their being no examples of a motif in the two sequences.
+
+\subsubsection{dba - options}
+\begin{description}
+\item[-match] [0.8]      match probability
+\item[-gap] [0.05]       gap probability
+\item[-blockopen] [0.01] block open probability
+\item[-umatch] [0.99]    unmatched gap probability
+\item[-nomatchn]         do not match N to any base
+\item[-align]            show alignment
+\item[-params]           print parameters
+\item[-help]            print this message
+\end{description}
+
+\subsection{psw - Protein Smith-Waterman and other comparisons}
+\label{sec:psw}
+
+psw is a short and sweet program for calculating smith waterman alginments
+quickly. It was mainly written as C driver to test the underlying code which
+is more useful in things like the Perl port. 
+
+More recently I added in the generalised gap penalty model of Stephen
+Altschul, that is known as the \emph{abc} model in Wise2.  The abc
+model is detailed in Proteins 1998 Jul 1, 32 pages 88-96.
+
+\subsubsection{psw - options}
+\begin{description}
+\item[-g] gap penalty (default 12) - gap penalty used for smith waterman
+\item[-e] ext penatly (default 2) - ext penalty used for smith waterman
+\item[-m] comp matrix (default blosum62.bla) - comparison matrix used for
+both smith waterman and the abc model
+\item[-abc] use the abc model: use Stephen Altschul's 'generalised gap penalty'
+model (called the abc model in Wise2)
+\item[-a]   a penalty for above (default 120) gap opening penalty in the abc model
+\item[-b]   b penalty for above (default 10) gap extension penalty in the abc model
+\item[-c]   c penalty for above (default 3) unmatched 'gap' region penalty in the abc model
+\item[-r] show raw output - raw matrix output
+\item[-l] show label output - label based output
+\item[-f] show fancy output - pretty output
+\end{description}
+
+\subsection{pswdb}
+
+pswdb - protein smith waterman database searching was written by Richard Copley using
+the underlying Wise2 libraries
+\subsubsection{psw - options}
+\begin{description}
+\item[-g] gap penalty (default 12) - gap penalty used for smith waterman
+\item[-e] ext penatly (default 2) - ext penalty used for smith waterman
+\item[-m] comp matrix (default blosum62.bla) - comparison matrix used for
+both smith waterman and the abc model
+\item[-abc] use the abc model: use Stephen Altschul's 'generalised gap penalty'
+model (called the abc model in Wise2)
+\item[-a]   a penalty for above (default 120) gap opening penalty in the abc model
+\item[-b]   b penalty for above (default 10) gap extension penalty in the abc model
+\item[-c]   c penalty for above (default 3) unmatched 'gap' region penalty in the abc model
+\item[-max\_desc] Maximum number of description lines
+\item[-max\_aln] Maximum number of alignments
+\item[-ids] in alignments, show sequence names, not probe/target
+\item[-r] show raw output - raw matrix output
+\item[-l] show label output - label based output
+\item[-f] show fancy output - pretty output
+\end{description}
+
+\section{API}
+
+There used to be a direct Perl binding API. No longer. Frankly why I thought this
+was a good idea is now beyond me (the excitment of youth. The thrill of binding
+C directly to Perl. The head thumping complexity of XS). Wise2 programs are best
+run on the command line or shell'd out from scripts and then parsed in.
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+

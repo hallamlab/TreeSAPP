@@ -1,0 +1,539 @@
+=head1 NAME
+
+hscore module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item Hscore
+
+=item DataScore
+
+=item DataEntry
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object Hscore
+
+=over
+
+=item ds
+
+ Type [DataScore **] List No documentation
+
+=item store
+
+ Type [DataScoreStorage **] List No documentation
+
+=item his
+
+ Type [Histogram *] Scalar No documentation
+
+=item score_level
+
+ Type [double] Scalar  passed into should_store function
+
+=item should_store
+
+ Type [boolean (*should_store)(int given_score,double internal_score_level)] Scalar No documentation
+
+=item score_to_his
+
+ Type [float (*score_to_his)(int given_score)] Scalar No documentation
+
+=item report_level
+
+ Type [int] Scalar  number of sequences to report on
+
+=item total
+
+ Type [long] Scalar  total number of scores (duplicated info in histogram) 
+
+
+
+=back
+
+Holds the information about a db search.
+Meant to be very lightweight
+
+The histogram is carried for on-the-fly histogram storage outside
+of the database. The idea is that the function should_store will
+tell whether the datascore structure should be stored (if it is
+NULL, it is always stored). The score_to_his function maps the
+score in datascore to the float in Histogram, allowing the scoring
+system of the search method to be on a different basis to the 
+scoring system of the histogram. For most times, this is going to
+be Score2Bits
+
+To prevent too much dependency, the 'standard' way of making a 
+histogram that has a bits cut off level is done using functions
+in the dynlibcross module (cross code), as it needs both Hscore and
+Probability. You should read dynlibcross module for the constructors
+for Hscore
+
+
+
+=head2 Member functions of Hscore
+
+=over
+
+=item minimum_score_Hscore
+
+&Wise2::Hscore::minimum_score_Hscore(hs)
+
+  gets the minimum score from Hscore
+
+
+
+  Argument hs           [UNKN ] Undocumented argument [Hscore *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item maximum_score_Hscore
+
+&Wise2::Hscore::maximum_score_Hscore(hs)
+
+  gets the maximum score from Hscore
+
+
+
+  Argument hs           [UNKN ] Undocumented argument [Hscore *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item sort_Hscore_by_score
+
+&Wise2::Hscore::sort_Hscore_by_score(hs)
+
+  As it says, sorts the high score by its score
+
+
+
+  Argument hs           [UNKN ] Hscore to be sorted [Hscore *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item length
+
+&Wise2::Hscore::length(obj)
+
+  Returns the number of datascores in the hscore
+  structure
+
+
+
+  Argument obj          [READ ] Hscore object [Hscore *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item datascore
+
+&Wise2::Hscore::datascore(hs,i)
+
+  Returns the specific datascore held at this
+  position.
+
+  This requires a considerable amount of memory
+  duplication, so please dont process all your
+  results by looping through this.
+
+
+
+  Argument hs           [READ ] Hscore object [Hscore *]
+  Argument i            [UNKN ] position to be read [int]
+  Return [OWNER] New datascore object [DataScore *]
+
+
+=item score
+
+&Wise2::Hscore::score(hs,i)
+
+
+  Returns the score of the specific datascore held at this position.
+
+
+
+
+  Argument hs           [READ ] Hscore object [Hscore *]
+  Argument i            [UNKN ] position to be read [int]
+  Return [UNKN ] score  [int]
+
+
+=item evalue
+
+&Wise2::Hscore::evalue(hs,i)
+
+  Returns the evalue of the specific datascore held at this position.
+
+
+
+
+  Argument hs           [READ ] Hscore object [Hscore *]
+  Argument i            [UNKN ] position to be read [int]
+  Return [UNKN ] evalue  [double]
+
+
+=item show
+
+&Wise2::Hscore::show(hs,ofp)
+
+  The most baby-talk showing of Hscore
+
+
+
+  Argument hs           [UNKN ] Undocumented argument [Hscore *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_Hscore
+
+&Wise2::Hscore::hard_link_Hscore(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Hscore *]
+  Return [UNKN ] Undocumented return value [Hscore *]
+
+
+=item Hscore_alloc_std
+
+&Wise2::Hscore::Hscore_alloc_std(void)
+
+  Equivalent to Hscore_alloc_len(HscoreLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [Hscore *]
+
+
+=back
+
+=head2 Object DataScore
+
+=over
+
+=item query
+
+ Type [DataEntry *] Scalar No documentation
+
+=item target
+
+ Type [DataEntry *] Scalar No documentation
+
+=item score
+
+ Type [int] Scalar No documentation
+
+=item evalue
+
+ Type [double] Scalar No documentation
+
+=item is_stored
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+The basic one entry vs one entry structure. Each
+of the DataEntry datastructures actually store the 
+information about the indexing etc.
+
+
+
+=head2 Member functions of DataScore
+
+=over
+
+=item hard_link_DataScore
+
+&Wise2::DataScore::hard_link_DataScore(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [DataScore *]
+  Return [UNKN ] Undocumented return value [DataScore *]
+
+
+=item alloc
+
+&Wise2::DataScore::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [DataScore *]
+
+
+=item set_query
+
+&Wise2::DataScore::set_query(obj,query)
+
+  Replace member variable query
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataScore *]
+  Argument query        [OWNER] New value of the variable [DataEntry *]
+  Return [SOFT ] member variable query [boolean]
+
+
+=item query
+
+&Wise2::DataScore::query(obj)
+
+  Access member variable query
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataScore *]
+  Return [SOFT ] member variable query [DataEntry *]
+
+
+=item set_target
+
+&Wise2::DataScore::set_target(obj,target)
+
+  Replace member variable target
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataScore *]
+  Argument target       [OWNER] New value of the variable [DataEntry *]
+  Return [SOFT ] member variable target [boolean]
+
+
+=item target
+
+&Wise2::DataScore::target(obj)
+
+  Access member variable target
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataScore *]
+  Return [SOFT ] member variable target [DataEntry *]
+
+
+=item set_score
+
+&Wise2::DataScore::set_score(obj,score)
+
+  Replace member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataScore *]
+  Argument score        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable score [boolean]
+
+
+=item score
+
+&Wise2::DataScore::score(obj)
+
+  Access member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataScore *]
+  Return [SOFT ] member variable score [int]
+
+
+=item set_evalue
+
+&Wise2::DataScore::set_evalue(obj,evalue)
+
+  Replace member variable evalue
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataScore *]
+  Argument evalue       [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable evalue [boolean]
+
+
+=item evalue
+
+&Wise2::DataScore::evalue(obj)
+
+  Access member variable evalue
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataScore *]
+  Return [SOFT ] member variable evalue [double]
+
+
+=back
+
+=head2 Object DataEntry
+
+=over
+
+=item name
+
+ Type [char *] Scalar  name of the entry
+
+=item data[DATAENTRYSTDPOINTS]
+
+ Type [int] Scalar  space for algorithms to use 
+
+=item is_reversed
+
+ Type [boolean] Scalar  for sequences. handy
+
+=item byte_position
+
+ Type [BytePosition] Scalar  useful for indexers - hopefully long enough!
+
+=item filename
+
+ Type [char *] Scalar  useful for indexers etc.
+
+
+
+=back
+
+A lightweight structure to represent the information
+a db search algorithm will want to store and *nothing*
+more about a single entry
+
+This object will be stored twice (once for the target
+and once for the query) for each comparison: they probably
+will be on different databases and different objects. 
+
+The data field is just a number (8 at the moment) of int's available
+for databases to store useful information (eg, length) of the 
+object.
+
+A number of extra fields are provided for convience sake for indexers, 
+including byte_position and filename.
+
+
+
+=head2 Member functions of DataEntry
+
+=over
+
+=item hard_link_DataEntry
+
+&Wise2::DataEntry::hard_link_DataEntry(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [DataEntry *]
+  Return [UNKN ] Undocumented return value [DataEntry *]
+
+
+=item alloc
+
+&Wise2::DataEntry::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [DataEntry *]
+
+
+=item set_name
+
+&Wise2::DataEntry::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataEntry *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::DataEntry::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataEntry *]
+  Return [SOFT ] member variable name [char *]
+
+
+=item set_is_reversed
+
+&Wise2::DataEntry::set_is_reversed(obj,is_reversed)
+
+  Replace member variable is_reversed
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataEntry *]
+  Argument is_reversed  [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable is_reversed [boolean]
+
+
+=item is_reversed
+
+&Wise2::DataEntry::is_reversed(obj)
+
+  Access member variable is_reversed
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DataEntry *]
+  Return [SOFT ] member variable is_reversed [boolean]
+
+
+=back
+
+=over
+
+=item std_score_Hscore
+
+&Wise2::std_score_Hscore(cut_off,report_stagger)
+
+  This gives you a standard Hscore
+  module with a cutoff in score
+
+
+
+  Argument cut_off      [UNKN ] Undocumented argument [int]
+  Argument report_stagger [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [Hscore *]
+
+
+=back
+

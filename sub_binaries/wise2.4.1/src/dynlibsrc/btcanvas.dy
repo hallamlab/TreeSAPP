@@ -1,0 +1,238 @@
+
+%{
+#include "wisebase.h"
+
+
+typedef enum btCanvasDirection {
+  BC_UP,
+  BC_DOWN,
+  BC_RIGHT,
+  BC_LEFT 
+} btCanvasDirection ;
+
+/*
+ * Icky... icky.. icky
+ *
+ * Would you believe, some C compilers will not allow typdef's
+ * inside function to pointer definitions in structures...
+ *
+ * Hence - hard coded package names!!!! Yuk!!!
+ *
+ */
+%}
+
+friend btPastArea
+friend btCanvas
+
+struct btPasteArea
+int type
+int height
+int length
+boolean (*paste_char)(struct Wise2_btPasteArea *,int,int,char,int) !func
+void * canvas_data
+struct Wise2_btPasteArea * (*decons)(struct Wise2_btPasteArea * bt) !func
+
+struct btCanvas
+int type
+int height
+int res_right
+int res_left
+boolean       (*can_get_paste_area)(struct Wise2_btCanvas *,int)   !func
+boolean       (*advance_line)(struct Wise2_btCanvas *)  !func
+struct Wise2_btPasteArea * (*get_paste_area)(struct Wise2_btCanvas *,int)  !func
+struct Wise2_btPasteArea * (*get_reserved_right)(struct Wise2_btCanvas *)  !func
+struct Wise2_btPasteArea * (*get_reserved_left)(struct Wise2_btCanvas *)  !func
+void * canvas_data
+struct Wise2_btCanvas * (*decons)(struct Wise2_btCanvas * btc) !func
+%info
+
+This structure would be much cleaner written in C++
+<sigh>
+
+It is basically a virtual object which will be made by
+other (concrete) implmentations, such as asciibtcanvas
+
+A btcanvas is an abstraction of the block text type 
+alignment output common for many algorithms. It allows you
+to ask for regions in one of these alignment 'outputs'
+and for you to paste characters into it
+%%
+
+%{
+#include "btcanvas.h"
+
+%func
+This returns whether there is room for length
+of chars in this line. If not, advance a line
+%arg
+length length of block wanted
+%%
+boolean can_get_paste_area_btCanvas(btCanvas * btc,int length)
+{
+
+  return ((*btc->can_get_paste_area)(btc,length));
+}
+
+
+%func
+Advances the canvas to the next line
+%arg
+%%
+boolean advance_line_btCanvas(btCanvas * btc)
+{
+
+  return ((*btc->advance_line)(btc));
+}
+
+%func
+This gets a paste-able area at the left hand
+side of block
+%arg
+%%
+btPasteArea * get_reserved_left_btCanvas(btCanvas * btc)
+{
+  return ((*btc->get_reserved_left)(btc));
+}
+
+%func
+This gets a paste-able area at the right hand
+side of block
+%arg
+%%
+btPasteArea * get_reserved_right_btCanvas(btCanvas * btc)
+{
+  return ((*btc->get_reserved_right)(btc));
+}
+
+
+%func
+This gets a paste-able area of a certain length from
+the current cursor. NULL on error
+%arg
+%%
+btPasteArea * get_paste_area_btCanvas(btCanvas * btc,int length)
+{
+  return ((*btc->get_paste_area)(btc,length));
+}
+  
+%func
+This will paste the substr of length len (obviously this could
+not be a \0 terminated string) starting from str[0] into btCanvas
+If map_func is non NULL, it converts each of the characters 
+using the map_func first. This is surprisingly useful.
+
+map_func can be NULL, in which case the characters are just
+used as seen
+
+Length has to be less than 64 chars
+%arg
+bta PasteArea to be used
+x   x position of start of string
+y   y position of start of string
+str r string to get the substr from to be pasted
+len r length of the substr
+map_func Function to specifiy the mapping of chars from str to display
+dir direction (BC_UP, BC_DOWN, BC_RIGHT, BC_LEFT)
+format format (if recognised by the cnavas)
+%%
+boolean paste_substr_btPasteArea(btPasteArea * bta,int x,int y,const char * str,int len,char (*map_func)(char),btCanvasDirection dir,int format)
+{
+  char buf[64];
+  const char *run;
+  int i;
+
+  for(run=str,i=0;i<len;i++,run++) {
+    if( map_func == NULL ) {
+      buf[i] = *run;
+    } else {
+      buf[i] = (*map_func)(*run);
+    }
+  }
+
+  buf[i] = '\0';
+
+  return paste_string_btPasteArea(bta,x,y,buf,dir,format);
+}
+
+
+%func
+This will paste the '\0' terminated string into x,y in the direction 
+specified (up, down, left or right)
+%arg
+bta PasteArea to be used
+x   x position of start of string
+y   y position of start of string
+str r string to be pasted
+dir direction (BC_UP, BC_DOWN, BC_RIGHT, BC_LEFT)
+format format (if recognised by the cnavas)
+%%
+boolean paste_string_btPasteArea(btPasteArea * bta,int x,int y,const char * str,btCanvasDirection dir,int format)
+{
+  const char * run;
+
+  for(run=str;*run;run++) {
+    if( paste_char_btPasteArea(bta,x,y,*run,format) == FALSE ) {
+      warn("Unable to paste the word %s into btcanvas",str);
+      return FALSE;
+    }
+    switch (dir) {
+    case BC_UP : y--; break;
+    case BC_DOWN : y++; break;
+    case BC_RIGHT : x++; break;
+    case BC_LEFT : x--; break;
+    default :
+      warn("You have not put in a valid direction into the paste_string function. Sod off... ");
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+    
+%func
+This will paste one character at x,y into the paste area.
+If the canvas understands the format style, it will take
+notice of it.
+%arg
+%%
+boolean paste_char_btPasteArea(btPasteArea * bta,int x,int y,char c,int format) 
+{
+  if( x > bta->length || y > bta->height ) {
+    warn("Trying to paste a character into an unpasteable position [%d,%d] into [%d,%d]",x,y,bta->length,bta->height);
+    return FALSE;
+  }
+
+  return ((*bta->paste_char))(bta,x,y,c,format);
+
+}
+
+%func
+Specialised deconstructor. Ensures the 
+data structures are freed
+%arg
+obj w btPasteArea obj to be destroyed
+%%
+!deconstructor
+btPasteArea * free_btPasteArea(btPasteArea * obj)
+{
+  return ((*obj->decons))(obj);
+}
+
+%func
+Specialised deconstructor. Ensures the 
+data structures are freed
+%arg
+obj w btCanvas obj to be destroyed
+%%
+!deconstructor
+btCanvas * free_btCanvas(btCanvas * obj)
+{
+  return ((*obj->decons))(obj);
+}
+
+%}
+
+
+
+
+

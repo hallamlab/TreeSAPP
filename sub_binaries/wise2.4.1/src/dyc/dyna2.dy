@@ -1,0 +1,1971 @@
+/*  Last edited: Apr 24 11:36 1997 (birney) */
+
+
+Dynamite GenericMatrix I/O file 
+
+
+%{
+
+#include "wisebase.h"
+#include "wisec.h"
+#include "exprtree.h"
+#include "type.h"
+
+#define CellSourceLISTLENGTH 64
+#define CellStateLISTLENGTH  64
+#define GenericMatrixLISTLENGTH 64
+#define CellExprLISTLENGTH 64
+#define CellSignatureSetLISTLENGTH 64
+
+
+#define STANDARDGENERICMATRIX   231
+#define SEARCHGENERICMATRIX     232 
+#define VARIABLEGENERICMATRIX   234
+
+
+enum calc_unit {
+  GENERICMATRIX_IDEPCALCUNIT = 214,
+  GENERICMATRIX_JDEPCALCUNIT,
+  GENERICMATRIX_IJDEPCALCUNIT
+} ;
+
+
+/*
+ * Ok, gets a bit weird: if position is less
+ * than 21 then it has the bit number from the
+ * bit positions so it can be warned properely
+ * Look at source_bit2position function.
+ */
+
+
+enum source_positon {
+  SOURCE_POS_ALL     = 16,
+  SOURCE_POS_TOPLEFT = 32,
+  SOURCE_POS_TOP     = 64,
+  SOURCE_POS_LEFT    = 128,
+  SOURCE_POS_BOTTOM  = 256,
+  SOURCE_POS_RIGHT   = 512,
+  SOURCE_POS_BOTTOMRIGHT = 1024 };
+
+#define SOURCE_TOP_BIT    1
+#define SOURCE_LEFT_BIT   2
+#define SOURCE_BOTTOM_BIT 4
+#define SOURCE_RIGHT_BIT  8
+
+%}
+
+struct CellSignature
+int offi
+int offj
+
+struct CellSignatureSet
+CellSignature ** sig !list
+
+struct CellSource
+char * state_source;
+int offi;      !def="-1"
+int offj;      !def="-1"
+char * calc_expr // going to replace CellExpr list possibly
+char * source_expr
+ExprTree * etr;
+boolean isspecial !def="FALSE"
+char * query_label;
+char * target_label;
+int  position; !def="SOURCE_POS_ALL" 
+int  trans_no; // unique number for this transition
+int  from_state_no;
+
+struct CellState
+char * name;         !def="NULL"
+char * def_score;    !def="NULL"
+char * calc_expr;    !def="NULL"
+char * source_expr;  !def="NULL"
+int offi;            !def="0"
+int offj;            !def="0"
+boolean is_special_i !def="FALSE"
+boolean is_special_j !def="FALSE"
+boolean is_end       !def="FALSE"
+boolean is_start     !def="FALSE"
+boolean specialtospecial !def="FALSE"
+CellSource ** source !list
+char * query_char;   !def="NULL"
+char * target_char;  !def="NULL"
+int footprint_start  !def="0"
+int footprint_end    !def="1"
+char * query_label   !def="NULL"
+char * target_label  !def="NULL"
+int position; !def="SOURCE_POS_ALL"
+ExprTree * etr       !def="NULL"
+int state_number     !def="-1"
+
+
+struct CollapsableLabel
+char * query;         !def="NULL" 
+char * target;        !def="NULL" 
+
+struct ExternVariable
+char * name;
+char * type;
+
+struct GenericMatrix
+char * name;
+int type;
+CellState ** state         !list
+CellState ** special       !list !len="spec_"
+StructElement * query;
+char * query_name;
+char * query_len;
+Type * qtype; !link
+StructElement * target;
+char * target_name;
+char * target_len;
+Type * ttype !link 
+StructElement  ** resource !list !len="res_"
+CollapsableLabel ** cal    !list !len="cal_"
+ExternVariable   ** ev     !list !len="ev_"
+char * defscore_all_states;
+int window_i;
+int window_j;
+int footprint;             !def="1"
+boolean cansearch          !def="FALSE"
+boolean canlabel           !def="FALSE"
+boolean specialtospecial   !def="FALSE"
+StructHolder * sh; // where structure for matrix is placed
+char * calcfunc            !def="FALSE"
+Scope * sc                 !def="FALSE"
+MethodTypeSet * mts        !def="NULL"
+
+%{
+#include "dyna2.h"
+
+
+
+ /*********************************/
+ /* Access and checking functions */
+ /*********************************/
+
+CellSignatureSet * CellSignatureSet_from_GenericMatrix(GenericMatrix * gm)
+{
+  int i;
+  int j;
+  int k;
+  CellSignatureSet * out;
+  CellSignature * sig;
+
+  out = CellSignatureSet_alloc_std();
+
+  for(i=0;i<gm->len;i++) {
+    for(j=0;j<gm->state[i]->len;j++) {
+      
+      for(k=0;k<out->len;k++) {
+	if( gm->state[i]->source[j]->offi == out->sig[k]->offi &&
+	    gm->state[i]->source[j]->offj == out->sig[k]->offj) {
+	  break;
+	}
+      }
+      if( k >= out->len ) {
+	/* new */
+	sig = CellSignature_alloc();
+	sig->offi = gm->state[i]->source[j]->offi;
+	sig->offj = gm->state[i]->source[j]->offj;
+	add_CellSignatureSet(out,sig);
+      }
+    }
+  }
+
+  return out;
+}
+
+boolean  can_do_threads(GenericMatrix * gm)
+{
+  if( gm->qtype != NULL ) {
+    if( gm->qtype->is_thread_safe == FALSE ) 
+      return FALSE;
+  }
+
+  if( gm->ttype != NULL ) {
+    if( gm->ttype->is_thread_safe == FALSE ) 
+      return FALSE;
+  }
+
+  return TRUE;
+}
+    
+
+CellState * CellState_from_str(GenericMatrix * gm,char * str)
+{
+  register int i;
+  
+  for(i=0;i<gm->len;i++)
+    if( strcmp(gm->state[i]->name,str) == 0)
+      return gm->state[i];
+  
+  
+  for(i=0;i<gm->spec_len;i++)
+    if( strcmp(gm->special[i]->name,str) == 0)
+      return gm->special[i];
+  
+  
+  return NULL;
+}
+
+
+%func
+main function to check GenericMatrix onced parsed
+
+checks
+  state defaults
+  state/source cross references
+  labels
+  calc epxressions
+  types and type migration
+  calc parsing
+%arg
+gm rw GenericMatrix to be checked
+mts r Type and Method Scope
+failing_errors r Calc line parser on which errors fail
+%%
+boolean prepare_matrix(GenericMatrix * gm,MethodTypeSet * mts,DycWarning * dycw,ParseError failing_errors)
+{
+  boolean ret = TRUE;
+  ParseError pe;
+
+  push_errormsg_stack("In preparing matrix %s",gm->name);
+
+  (void) calc_footprint(gm);
+
+  /* this must happen first */
+  if( cross_reference_state_and_source(gm) == FALSE ) {
+    warn("Unable to cross reference state and source");
+    ret = FALSE;
+  }
+
+  /* now this to provide score setting */
+
+  if( check_start_end(gm) == FALSE ) {
+    warn("Start/End points are faulty");
+    ret = FALSE;
+  }
+
+  /* set global score */
+
+  gm->defscore_all_states = stringalloc("NEGI");
+
+  if( perculate_state_defaults(gm) == FALSE )  {
+    warn("Unable to perculate state defaults");
+    ret = FALSE;
+  }
+
+
+  if( assign_source_no(gm) == FALSE ) {
+    warn("Weird! unable to assign source numbers!");
+    ret = FALSE;
+  }
+ 
+  if( prepare_labels(gm) == FALSE ) {
+    warn("Unable to prepare labels");
+    ret = FALSE;
+  }
+
+  if( handle_names(gm) == FALSE ) {
+    warn("Unable to handle all the resource/query/target objects");
+    ret = FALSE;
+  }
+
+  if( check_source_positions(gm) == FALSE ) {
+    warn("Unable to resolve positions");
+    ret = FALSE;
+  }
+
+  if( calc_window(gm) == FALSE ) {
+    warn("Unable to calculate window");
+    ret = FALSE;
+  }
+
+
+  if( check_cell_refs(gm) == FALSE ) {
+    warn("Unable to resolve all the cell offset refs into correct offsets");
+    ret = FALSE;
+  }
+
+
+  if( make_StructHolder_for_GenericMatrix(gm,mts) == FALSE ) {
+    warn("Unable to build structure holder for GenericMatrix");
+    ret = FALSE;
+  }
+
+ 
+
+  if( ret == FALSE ) {
+    warn("Failing simple cross-checks, aborting before calc-line parsing");
+    pop_errormsg_stack();
+    return FALSE;
+  }
+
+  pe = parse_calc_line_GenericMatrix(gm,mts,dycw);
+  if( pe & failing_errors ) {
+    warn("Failed to parse calc lines");
+    fprintf(stderr,"\nThe following parser errors were considered fatal:\n");
+    complain_ParseError_to_file(pe & failing_errors,stderr);
+
+    if( (pe & (~failing_errors)) != 0 ) { 
+      fprintf(stderr,"\nThe following parser errors are only warnings:\n");
+      complain_ParseError_to_file(pe & (~failing_errors),stderr);
+    }
+
+    fprintf(stderr,"\n");
+
+    ret = FALSE;
+  }
+
+  gm->mts = hard_link_MethodTypeSet(mts);
+
+  /***
+    Very hacky to conform to old gm code: 
+
+    type migration moves logical types to real. This is ok for now,
+    but it does mean that in the function writing code we have
+    lost the logical type information.
+
+    So... probably should have the mts in the middle of function
+    code.
+
+    ***/
+
+  if( ret == TRUE )
+    handle_type_migration(gm,mts);
+
+  pop_errormsg_stack();
+
+  return ret;
+}
+
+%func
+Adds a unique transition number for CellSource
+%%
+boolean assign_source_no(GenericMatrix * gm)
+{
+  int i,j;
+  int no = 0;
+
+  for(i=0;i<gm->len;i++)
+    for(j=0;j<gm->state[i]->len;j++)
+      gm->state[i]->source[j]->trans_no = no++;
+
+  for(i=0;i<gm->spec_len;i++)
+    for(j=0;j<gm->special[i]->len;j++)
+      gm->special[i]->source[j]->trans_no = no++;
+  
+  return TRUE;
+}
+
+%func
+Adds the current generic matrix variables to the scope with 
+"mat->" as scope resolver
+%type internal
+%%
+void add_GenericMatrix_Scope(Scope * sc,GenericMatrix * gm)
+{
+  int i;
+  ScopeUnit * su;
+
+
+  su = ScopeUnit_from_nat(NULL,"i","","int");
+  su->no_accept = stringalloc(gm->target->name);
+  add_Scope(sc,su);
+  su = ScopeUnit_from_nat(NULL,"j","","int");
+  su->no_accept = stringalloc(gm->query->name);
+  add_Scope(sc,su);
+  su = ScopeUnit_from_nat(NULL,"mat","","*Matrix*");
+  add_Scope(sc,su);
+  
+  su = ScopeUnit_from_nat(NULL,gm->query->name,"mat->",gm->query->element_type);
+  su->no_accept = stringalloc("j");
+
+  add_Scope(sc,su);
+  su = ScopeUnit_from_nat(NULL,gm->target->name,"mat->",gm->target->element_type);
+  su->no_accept = stringalloc("i");
+
+  add_Scope(sc,su);
+
+  for(i=0;i<gm->res_len;i++) {
+    su = ScopeUnit_from_nat(NULL,gm->resource[i]->name,"mat->",gm->resource[i]->element_type);
+    add_Scope(sc,su);
+  }
+  
+  for(i=0;i<gm->ev_len;i++) {
+    su = ScopeUnit_from_nat(NULL,gm->ev[i]->name,"",gm->ev[i]->type);
+    add_Scope(sc,su);
+  }
+
+
+}
+
+%func
+Function which actually does the loop over calc lines.
+Importantly calls /allocd_calc_line from type.dy for
+the main parsing
+%type internal
+%%
+ParseError parse_calc_line_GenericMatrix(GenericMatrix * gm,MethodTypeSet * mts,DycWarning * dycw)
+{
+  ParseError pe  = 0;
+  char * temp;
+  int i;
+  int j;
+  Scope * sc;
+  ExprTree * expr;
+
+  sc = std_Dynamite_Scope();
+  
+  add_GenericMatrix_Scope(sc,gm);
+
+  gm->sc = sc;
+
+  for(i=0;i<gm->len;i++) {
+    if( gm->state[i]->calc_expr != NULL ) {
+      push_errormsg_stack("In parsing calc line for state [%s] (source ind.)",gm->state[i]->name);
+      temp = allocd_calc_line(gm->state[i]->calc_expr,sc,mts,dycw,&pe,&expr);
+      if( temp == NULL ) {
+	temp = stringalloc(gm->state[i]->calc_expr);
+      }
+      gm->state[i]->source_expr = gm->state[i]->calc_expr;
+      gm->state[i]->calc_expr = temp;
+      gm->state[i]->etr      = expr;
+
+      pop_errormsg_stack();
+
+    }
+
+    for(j=0;j<gm->state[i]->len;j++) {
+
+      push_errormsg_stack("In parsing calc line for state [%s] source [%s]",gm->state[i]->name,gm->state[i]->source[j]->state_source);
+
+      temp = allocd_calc_line(gm->state[i]->source[j]->calc_expr,sc,mts,dycw,&pe,&expr);
+      if( temp == NULL ) {
+	temp = stringalloc(gm->state[i]->source[j]->calc_expr);
+      }
+      gm->state[i]->source[j]->source_expr = gm->state[i]->source[j]->calc_expr;
+      gm->state[i]->source[j]->calc_expr = temp;
+      gm->state[i]->source[j]->etr = expr;
+
+
+      pop_errormsg_stack();
+    }
+  }
+
+  for(i=0;i<gm->spec_len;i++) {
+    if( gm->special[i]->calc_expr != NULL ) {
+      push_errormsg_stack("In parsing calc line for state [%s] (source ind.)",gm->special[i]->name);
+      temp = allocd_calc_line(gm->special[i]->calc_expr,sc,mts,dycw,&pe,&expr);
+      if( temp == NULL ) {
+	temp = stringalloc(gm->special[i]->calc_expr);
+      }
+      gm->special[i]->source_expr = gm->special[i]->calc_expr;
+      gm->special[i]->calc_expr = temp;
+      gm->special[i]->etr      = expr;
+
+      pop_errormsg_stack();
+
+    }
+
+    for(j=0;j<gm->special[i]->len;j++) {
+
+      push_errormsg_stack("In parsing calc line for state [%s] source [%s]",gm->special[i]->name,gm->special[i]->source[j]->state_source);
+
+      temp = allocd_calc_line(gm->special[i]->source[j]->calc_expr,sc,mts,dycw,&pe,&expr);
+      if( temp == NULL ) {
+	temp = stringalloc(gm->special[i]->source[j]->calc_expr);
+      }
+      gm->special[i]->source[j]->source_expr = gm->special[i]->source[j]->calc_expr;
+      gm->special[i]->source[j]->calc_expr = temp;
+      gm->special[i]->source[j]->etr      = expr;
+
+
+      pop_errormsg_stack();
+    }
+  }
+
+  return pe;
+}
+
+
+%func
+calculates window_i and window_j
+%type internal
+%%
+boolean calc_window(GenericMatrix * gm)
+{
+  register int i;
+  register int j;
+  int ilen = 0;
+  int jlen = 0;
+
+
+  for(i=0;i<gm->len;i++)
+    {
+      auto CellState * state;
+      state = gm->state[i];
+      for(j=0;j<state->len;j++)
+	{
+	  if( state->source[j]->offi > ilen )
+	    ilen = state->source[j]->offi;
+	  if( state->source[j]->offj > jlen )
+	    jlen = state->source[j]->offj;
+	}
+    }
+
+
+  gm->window_i = ilen;
+  gm->window_j = jlen;
+
+  return TRUE;
+}
+
+%func
+checks we have a start + end (and only 1 each!)
+and sets start's defscore to 0
+%%
+boolean check_start_end(GenericMatrix * gm)
+{
+  int i;
+  int j;
+  boolean ret = TRUE;
+
+  for(i=0;i<gm->spec_len;i++) {
+    if( gm->special[i]->is_end == TRUE ) {
+      if( gm->special[i]->is_start == TRUE ) {
+	warn("Trying to make state %s both the start and the end!",gm->special[i]->name);
+	ret = FALSE;
+      }
+      break;
+    }
+  } 
+
+  if( i == gm->spec_len ) {
+    for(i=0;i<gm->spec_len;i++) {
+      if( strcmp(gm->special[i]->name,"END") == 0 ) {
+	warn("You have not got a !end special, but you do have a END special state. Presuming that you wanted to make that the END ;)");
+	gm->special[i]->is_end = TRUE;
+	break;
+      }
+    }
+    if( i == gm->spec_len) {
+      warn("You have no end special state. Impossible matrix");
+      ret = FALSE;
+    }
+  } else {
+    /*** check there are no more end states ***/
+
+    for(j=i+1;j<gm->spec_len;j++) {
+      if( gm->special[j]->is_end == TRUE ) {
+	warn("Special state %s is also end (as well as %s)",gm->special[j]->name,gm->special[i]->name);
+      }
+    }
+  } /*** end of else ***/
+
+  /*** done end, do start ***/
+
+
+  for(i=0;i<gm->spec_len;i++) {
+    if( gm->special[i]->is_start == TRUE ) {
+      if( gm->special[i]->is_end == TRUE ) {
+	warn("Trying to make state %s both the start and the end!",gm->special[i]->name);
+	ret = FALSE;
+      }
+      break;
+    }
+  } 
+
+  if( i == gm->spec_len ) {
+    for(i=0;i<gm->spec_len;i++) {
+      if( strcmp(gm->special[i]->name,"START") == 0 ) {
+	warn("You have not got a !start special, but you do have a START special state. Presuming that you wanted to make that the START ;)");
+	gm->special[i]->is_start = TRUE;
+	break;
+      }
+    }
+    if( i == gm->spec_len) {
+      warn("You have no start special state. Impossible matrix");
+      ret = FALSE;
+    }
+  } else {
+    /*** check there are no more start states ***/
+
+    for(j=i+1;j<gm->spec_len;j++) {
+      if( gm->special[j]->is_start == TRUE ) {
+	warn("Special state %s is also start (as well as %s)",gm->special[j]->name,gm->special[i]->name);
+      }
+    }
+    /*** set score for start = 0 **/
+
+    gm->special[i]->def_score = stringalloc("0");
+  } /*** end of else ***/
+
+  return ret;
+}
+
+
+%func
+checks the top/bottom/left/right source
+positions
+%%
+boolean check_source_positions(GenericMatrix * gm)
+{
+  int i;
+  int j;
+  boolean ret = TRUE;
+
+  for(i=0;i<gm->len;i++){
+    auto CellState * s;
+    s = gm->state[i];
+    for(j=0;j<s->len;j++) {
+      if( j == 0 && s->source[0]->isspecial == TRUE ) {
+	warn("For [%s] source [%s] your first transition is from a special. This is not allowed currently to make code generation easier. There must be a non-special transition to place here. could you rearrange your dy file?",s->name,s->source[0]->state_source);
+	ret = FALSE;
+      }
+
+      if( s->source[j]->position < 16 ) {
+	ret = FALSE;
+	warn("For [%s] source [%s] you have an impossible position vector (top/left/bottom/right 1/2/4/8) %d",s->name,s->source[j]->state_source,s->source[j]->position);
+      }
+      else {
+	if( s->source[j]->position == SOURCE_POS_ALL ) 
+	  continue; /* fine */
+	if( s->source[j]->isspecial == FALSE ) {
+	  warn("For [%s] source [%s] you have indicated an edge to calculate on, but it is a non special source",s->name,s->source[j]->state_source);
+	  ret = FALSE;
+	}
+	else if( s->source[j]->position != SOURCE_POS_TOPLEFT && s->source[j]->position != SOURCE_POS_TOPLEFT ) {
+	  /*** allow? ***/
+	  /*
+	  warn("Really sorry, you have a lone top bottem left or right source which is not yet implemented. talk to Ewan for a work around");
+	  ret = FALSE;
+	  */
+	}
+      }
+    }
+  }
+
+  for(i=0;i<gm->spec_len;i++){
+    auto CellState * s;
+    s = gm->special[i];
+    for(j=0;j<s->len;j++) {
+      if( s->source[j]->position < 16 ) {
+	ret = FALSE;
+	warn("For [%s] source [%s] you have an impossible position vector (top/left/bottom/right 1/2/4/8) %d",s->name,s->source[j]->state_source,s->source[j]->position);
+      }
+      else {
+	if( s->source[j]->position == SOURCE_POS_ALL ) 
+	  continue; /* fine */
+	else if( (s->source[j]->position == SOURCE_POS_TOPLEFT || s->source[j]->position == SOURCE_POS_TOP || s->source[j]->position == SOURCE_POS_BOTTOM || s->source[j]->position == SOURCE_POS_BOTTOMRIGHT) && s->source[j]->isspecial == TRUE) {
+	  warn("State [%s] source [%s] has top/bottom tags - but it is a special to special. Surely you only mean left (no top/bottom concept to specials)",s->name,s->source[j]->state_source);
+
+	  ret = FALSE;
+	}
+      }
+    }
+  }
+
+  return ret;
+}
+
+
+%func 
+calculates footprint
+
+now useless
+%type internal
+%%
+boolean calc_footprint(GenericMatrix * gm)
+{
+  register int i;
+  register int foot = 1;
+
+  for(i=0;i<gm->len;i++)
+    if( gm->state[i]->footprint_end > foot )
+      foot = gm->state[i]->footprint_end;
+
+  gm->footprint = foot;
+
+  return TRUE;
+}
+
+%func
+makes sure each source has a state
+%type internal
+%%
+boolean cross_reference_state_and_source(GenericMatrix * gm)
+{
+  register int i;
+  register int j;
+
+  for(i=0;i<gm->len;i++) {
+    gm->state[i]->state_number = i;
+  }
+  j = gm->len;
+  
+  for(i=0;i<gm->spec_len;i++) {
+    gm->special[i]->state_number = i+j;
+  }
+
+  for(i=0;i<gm->len;i++) {
+    auto CellState * state;
+    auto CellState * temp;
+    state = gm->state[i];
+    for(j=0;j<state->len;j++) {
+      if( (temp=CellState_from_str(gm,state->source[j]->state_source)) == NULL){
+	warn("In matrix %s - State %s asks for source %s but there is no State of that name",gm->name,state->name,state->source[j]->state_source);
+	return FALSE;
+      }
+      if( temp->is_special_i == TRUE || temp->is_special_j == TRUE)
+	state->source[j]->isspecial = TRUE;
+      state->source[j]->from_state_no = temp->state_number;
+    }
+  }
+
+  for(i=0;i<gm->spec_len;i++) {
+    auto CellState * state;
+    auto CellState * temp;
+    state = gm->special[i];
+    for(j=0;j<state->len;j++) {
+
+      if( (temp=CellState_from_str(gm,state->source[j]->state_source)) == NULL)
+	{
+	  warn("In matrix %s - State %s asks for source %s but there is no State of that name",gm->name,state->name,state->source[j]->state_source);
+	  return FALSE;
+	}
+      if( temp->is_special_i == TRUE || temp->is_special_j == TRUE) {
+	state->source[j]->isspecial = TRUE;
+	state->specialtospecial = TRUE;
+	gm->specialtospecial = TRUE;
+      }
+    }
+  }
+
+  return TRUE;
+}
+
+
+boolean check_cell_refs(GenericMatrix * gm)
+{
+  boolean ret = TRUE;
+  register int i;
+  register int j;
+
+  for(i=0;i<gm->len;i++) {
+    for(j=0;j<gm->state[i]->len;j++) {
+      if( gm->state[i]->source[j]->offi == 0 && gm->state[i]->source[j]->offj == 0 ) {
+	warn("In state %s (source %s), both offi and offj are zero: dynamite cannot currently handle cell internal references",gm->state[i]->name,gm->state[i]->source[j]->state_source);
+	ret = FALSE;
+      }
+      if( gm->state[i]->source[j]->offi < 0 || gm->state[i]->source[j]->offj < 0 ) {
+	warn("In state %s, offi,offj [%d][%d] has some negative indices: offi and offj are always positive, probably you should just strip off the negative signs",gm->state[i]->name,gm->state[i]->source[j]->offi,gm->state[i]->source[j]->offj);
+	ret = FALSE;
+      }
+    }
+  }
+
+  for(i=0;i<gm->spec_len;i++) {
+    for(j=0;j<gm->special[i]->len;j++) {
+      if( gm->special[i]->source[j]->isspecial == TRUE ) {
+	if( gm->special[i]->source[j]->offj == 0 ) {
+	  warn("In special state %s, source %s (also special) got a offj of zero, an impossible reference",gm->special[i]->name,gm->special[i]->source[j]->state_source);
+	  ret = FALSE;
+	}
+      } else {
+	if( gm->special[i]->source[j]->offj != 0 ) {
+	  warn("In special state %s, source %s (a main matrix cell) got an offset of non zero (%d). This cannot be modelled at the moment",gm->special[i]->name,gm->special[i]->source[j]->state_source, gm->special[i]->source[j]->offj);
+	  ret = FALSE;
+	}
+      }
+
+      if( gm->special[i]->source[j]->offj  < 0 ) {
+	warn("In special state %s, source %s, offj is %d (Negative!), and you can't have negative offsets",
+gm->special[i]->name,gm->special[i]->source[j]->state_source);
+	ret = FALSE;
+      }
+    }
+  }
+
+  return ret;
+}
+
+
+boolean prepare_labels(GenericMatrix * gm)
+{
+  boolean all_labelled = TRUE;
+  boolean ret = TRUE;
+  register int i;
+  register int j;
+
+  for(i=0;i<gm->len;i++) {
+    auto CellState * state;
+    state = gm->state[i];
+    for(j=0;j<state->len;j++) {
+      if( state->source[j]->query_label == NULL ) {
+	warn("For state %s, source %s, missing a query_label",state->name,state->source[j]->state_source);
+	ret = FALSE;
+      }
+      if( state->source[j]->target_label == NULL ) {
+	warn("For state %s, source %s, missing a target_label",state->name,state->source[j]->state_source);
+	ret = FALSE;
+      }
+    }
+  }
+
+  for(i=0;i<gm->spec_len;i++) {
+    auto CellState * state;
+    state = gm->special[i];
+    for(j=0;j<state->len;j++) {
+      if( state->source[j]->query_label == NULL ) {
+	warn("For state %s, source %s, missing a query_label",state->name,state->source[j]->state_source);
+	ret = FALSE;
+      }
+      if( state->source[j]->target_label == NULL ) {
+	warn("For state %s, source %s, missing a target_label",state->name,state->source[j]->state_source);
+	ret = FALSE;
+      }
+    }
+  }
+
+  gm->canlabel = all_labelled;
+
+  return ret;
+}
+
+boolean handle_names(GenericMatrix * gm)
+{
+  boolean ret = TRUE;
+  register int i;
+
+
+  if( gm->query->name == NULL ) {
+    warn("Your query [type %s]  had no name: calling it 'query'",CKS(gm->query->element_type));
+    gm->query->name = stringalloc("query"); 
+  }
+
+  if( gm->target->name == NULL ) {
+    warn("Your target [type %s] had no name: calling it 'target'",CKS(gm->target->element_type));
+    gm->target->name = stringalloc("target");
+  }
+
+  for(i=0;i<gm->res_len;i++) {
+    if( gm->resource[i]->name == NULL ) {
+      warn("Resource number %d had no name... cannot process",i);
+      ret = FALSE;
+    }
+    if( gm->resource[i]->element_type == NULL ) {
+      warn("Resource number %d had no type... cannot process",i);
+      ret = FALSE;
+    }
+
+  }
+
+  return ret;
+}
+
+
+boolean handle_type_migration(GenericMatrix * gm,MethodTypeSet * mts)
+{
+  register int i;
+  Type * t;
+
+  if( gm->query_len == NULL ) {
+    gm->query_len = length_string_from_GenericMatrix_type(gm->query->element_type);
+  }
+
+  if( gm->target_len == NULL ) {
+    gm->target_len = length_string_from_GenericMatrix_type(gm->target->element_type);
+  }
+
+  if( (t = Type_from_name(mts,gm->query->element_type)) != NULL) {
+    ckfree(gm->query->element_type);
+    gm->query->element_type = stringalloc(t->real);
+    gm->qtype = t;
+  }
+
+  if( (t = Type_from_name(mts,gm->target->element_type)) != NULL) {
+    ckfree(gm->target->element_type);
+    gm->target->element_type = stringalloc(t->real);
+    gm->ttype = t;
+  }
+
+  for(i=0;i<gm->res_len;i++) {
+    if( (t = Type_from_name(mts,gm->resource[i]->element_type)) != NULL) {
+      ckfree(gm->resource[i]->element_type);
+      gm->resource[i]->element_type = stringalloc(t->real);
+    }
+  }
+
+  return TRUE;
+}
+
+
+boolean perculate_state_defaults(GenericMatrix * gm)
+{
+  register int i;
+  register int j;
+  boolean ret = TRUE;
+
+  for(i=0;i<gm->len;i++) {
+    auto CellState * state;
+    state = gm->state[i];
+
+    if( state->def_score == NULL) {
+      if( gm->defscore_all_states == NULL ) {
+	warn("State %s has no specific default score and you have not specified a global default score",state->name);
+	ret = FALSE;
+      }
+      state->def_score = stringalloc( gm->defscore_all_states);
+    }
+    for(j=0;j<state->len;j++) {
+      if( state->source[j]->offi == -1 )
+	state->source[j]->offi = state->offi;
+      if( state->source[j]->offj == -1 )
+	state->source[j]->offj = state->offj;
+      
+      /*** now do labels ***/
+      if( state->source[j]->query_label == NULL && state->query_label != NULL )
+	state->source[j]->query_label = stringalloc(state->query_label);
+      
+      if( state->source[j]->target_label == NULL && state->target_label != NULL )
+	state->source[j]->target_label = stringalloc(state->target_label);
+
+     
+    }
+    
+  }
+  
+  for(i=0;i<gm->spec_len;i++) {
+    auto CellState * state;
+    state = gm->special[i];
+    
+    gm->special[i]->is_special_i = TRUE;
+    
+    if( state->def_score == NULL) {
+      if( gm->defscore_all_states == NULL ) {
+	warn("State %s has no specific default score and you have not specified a global default score",state->name);
+	ret = FALSE;
+      }
+      state->def_score = stringalloc( gm->defscore_all_states);
+    }
+    for(j=0;j<state->len;j++) {
+      if( state->source[j]->offi == -1 ) 
+	state->source[j]->offi = state->offi;
+      if( state->source[j]->offj == -1 )
+	state->source[j]->offj = state->offj;
+      
+      /*** now do labels ***/
+      if( state->source[j]->query_label == NULL && state->query_label != NULL )
+	state->source[j]->query_label = stringalloc(state->query_label);
+      
+      if( state->source[j]->target_label == NULL && state->target_label != NULL )
+	state->source[j]->target_label = stringalloc(state->target_label);
+      
+      
+    }
+
+  }
+  
+
+  return ret;
+}
+
+
+boolean make_StructHolder_for_GenericMatrix(GenericMatrix * gm,MethodTypeSet * mts)
+{
+  StructHolder * out;
+  StructElement * temp;
+  register int i;
+
+  out = StructHolder_alloc_std();
+
+
+  if( out == NULL ) {
+    warn("Unable to build generic matrix %s's structure",gm->name);
+    return FALSE;
+  }
+
+  out->name = stringalloc(gm->name);
+
+  temp = basic_add_StructElement(out,"basematrix","BaseMatrix *");
+  temp->def=stringalloc("NULL");
+
+  if( temp == NULL ) {
+    warn("Serious problem - unable to add one of the structelements in make_StructHolder_for_GenericMatrix");
+    return FALSE;
+  }
+
+  temp = basic_add_StructElement(out,"shatter","ShatterMatrix *");
+  temp->def=stringalloc("NULL");
+
+  temp = basic_add_StructElement(out,"leni","int");
+  temp->def=stringalloc("0");
+
+  if( temp == NULL ) {
+    warn("Serious problem - unable to add one of the structelements in make_StructHolder_for_GenericMatrix");
+    return FALSE;
+  }
+
+  temp = basic_add_StructElement(out,"lenj","int");
+  temp->def=stringalloc("0");
+
+  if( temp == NULL ) {
+    warn("Serious problem - unable to add one of the structelements in make_StructHolder_for_GenericMatrix");
+    return FALSE;
+  }
+
+
+
+  /*** ok... this is now typed! ***/
+
+  temp = StructElement_from_MethodTypeSet(gm->query->name,gm->query->element_type,mts);
+  add_StructHolder(out,temp);
+  temp = StructElement_from_MethodTypeSet(gm->target->name,gm->target->element_type,mts);
+  add_StructHolder(out,temp);
+  for(i=0;i<gm->res_len;i++) {
+    temp = StructElement_from_MethodTypeSet(gm->resource[i]->name,gm->resource[i]->element_type,mts);
+    temp->isfunc   = gm->resource[i]->isfunc;
+    add_StructHolder(out,temp);
+  }
+
+  gm->sh = out;
+
+  return TRUE;
+}
+
+
+StructElement * StructElement_for_GenericMatrix_type(char * name,char * element)
+{
+  StructElement * out;
+
+
+  if( name == NULL || element == NULL ) {
+    warn("In trying to make a struct element for GenericMatrix type, got some NULL fields... this is not good");
+    return NULL;
+  }
+
+  out = (StructElement *) ckalloc (sizeof(StructElement));
+
+  if( strcmp(element,"PROTEIN") == 0 || strcmp(element,"GENOMIC") == 0 || strcmp(element,"CDNA") == 0 ) {
+    out->element_type = stringalloc("ComplexSequence *");
+  }
+
+  else {
+    out->element_type = stringalloc(element);
+  }
+
+  out->name = stringalloc(name);
+  out->islinked = TRUE;
+
+  return out;
+}
+
+char * length_string_from_GenericMatrix_type(char * element)
+{
+  if( strcmp(element,"PROTEIN") == 0 )
+    return stringalloc("seq->len");
+  if( strcmp(element,"GENOMIC") == 0 || strcmp(element,"CDNA") == 0 || strcmp(element,"DNA") == 0)
+    return stringalloc("seq->len");
+  else {
+    warn("Cannot automatically find length string for element type [%s] (perhaps it is not a logical type). You"
+" should have a field:len in this line if it is not a logical type. Assuming [len] anyway",element);
+    return stringalloc("len");
+  }
+
+}
+
+boolean can_interpret_type(char * type)
+{
+  if( strcmp(type,"PROTEIN") == 0 || strcmp(type,"GENOMIC") == 0 || strcmp(type,"CDNA") == 0)
+    return TRUE;
+  return FALSE;
+}
+ 
+char * interpret_type(char * type)
+{
+  if( strcmp(type,"PROTEIN") == 0 || strcmp(type,"GENOMIC") == 0 || strcmp(type,"CDNA") == 0)
+    return stringalloc("ComplexSequence *");
+
+  return NULL;
+}
+
+
+CellState * start_CellState_from_GenericMatrix(GenericMatrix * gm)
+{
+  register int i;
+
+  for(i=0;i<gm->spec_len;i++) {
+    if(gm->special[i]->is_start == TRUE ) 
+      return gm->special[i];
+  }
+
+  return NULL;
+}
+
+CellState * end_CellState_from_GenericMatrix(GenericMatrix * gm)
+{
+  register int i;
+
+  for(i=0;i<gm->spec_len;i++) {
+    if(gm->special[i]->is_end == TRUE ) 
+      return gm->special[i];
+  }
+
+  return NULL;
+}
+
+ /***************************/
+ /* noddy display functions */
+ /***************************/
+
+void show_GenericMatrix(GenericMatrix * gm,char padchar,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"Matrix: %s\n",gm->name);
+  
+  fprintf(ofp,"Query Type [%s] Name [%s]\n",gm->query->element_type,gm->query->name);
+  
+  fprintf(ofp,"Target Type [%s] Name [%s]\n",gm->target->element_type,gm->target->name);
+  
+  for(i=0;i<gm->res_len;i++)
+    fprintf(ofp,"Resource Type[%s] Name [%s]\n",gm->resource[i]->element_type,gm->resource[i]->name);
+  
+  for(i=0;i<gm->len;i++)
+    show_CellState(gm->state[i],padchar,1,ofp);
+}
+
+
+void show_CellState(CellState * cell,char padchar,int num,FILE * ofp)
+{
+  register int i;
+  fprintf(ofp,"\nFor state %s\n",cell->name);
+  for(i=0;i<num;i++)
+    fputc(padchar,ofp);
+  fprintf(ofp,"def_score: %s\n",cell->def_score == NULL ? "ANY [NULL STRING]" : cell->def_score);
+
+  for(i=0;i<num;i++)
+    fputc(padchar,ofp);
+  fprintf(ofp,"calculation for each score: %s\n",CKS(cell->calc_expr));
+
+  for(i=0;i<num;i++)
+    fputc(padchar,ofp);
+  fprintf(ofp,"offi: %d\n",cell->offi);
+
+  for(i=0;i<num;i++)
+    fputc(padchar,ofp);
+  fprintf(ofp,"offj: %d\n",cell->offj);
+
+
+  for(i=0;i<cell->len;i++)
+    show_CellSource(cell->source[i],padchar,num+1,ofp);
+}
+
+void show_CellSource(CellSource * cell,char padchar,int num,FILE * ofp)
+{
+  register int i;
+  for(i=0;i<num;i++)
+    fputc(padchar,ofp);
+  fprintf(ofp,"state_source: %s\n",cell->state_source == NULL ? "ANY [NULL STRING]" : cell->state_source);
+  for(i=0;i<num;i++)
+    fputc(padchar,ofp);
+  fprintf(ofp,"offi: %d\n",cell->offi);
+
+  for(i=0;i<num;i++)
+    fputc(padchar,ofp);
+  fprintf(ofp,"offj: %d\n",cell->offj);
+
+
+}
+
+
+/*********************/
+/* Parsing functions */
+/*********************/
+
+
+GenericMatrix * read_GenericMatrix(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  GenericMatrix * out = NULL;
+
+  while( get_watched_line(buffer,MAXLINE,ifp) != NULL )
+    {
+      if( strstartcmp(buffer,"matrix") == 0)
+	{
+	  out = read_GenericMatrix_line(buffer,ifp);
+	  break;
+	}
+    }
+
+  if( out == NULL )
+    warn("Unable to read GenericMatrix");
+
+  while( get_watched_line(buffer,MAXLINE,ifp) != NULL )
+    {
+      if( strstartcmp(buffer,"%{") == 0)
+	break;
+    }
+
+  return out;
+}
+
+
+GenericMatrix * read_GenericMatrix_line(char * line,FILE * ifp)
+{
+  GenericMatrix * out;
+  ExternVariable * ev;
+  CellState * temp;
+  char buffer[MAXLINE];
+  char ** base;
+  char ** splitstr;
+  char * runner;
+  StructElement * res_temp;
+  boolean isspecial = FALSE;
+  CollapsableLabel * cal;
+  
+
+
+
+  base=splitstr=breakstring(line,spacestr);
+
+  if( strcmp(*splitstr,"matrix") != 0) {
+    log_full_error(WARNING,0,"In parsing the line starting %s it had no matrix tag!",line);
+    return NULL;
+  }
+  splitstr++;
+
+  if( *splitstr == NULL ) {
+    log_full_error(WARNING,0,"In parsing the first matrix line there was no matrix name: must have matrix <name>",line);
+    return NULL;
+  }
+
+
+  out = GenericMatrix_alloc_std();
+
+  if( out == NULL )
+    return NULL;
+
+  out->name = stringalloc(*splitstr);
+
+  push_errormsg_stack("In reading matrix definition for %s",out->name);
+
+  ckfree(base);
+
+
+  while( get_watched_line(buffer,MAXLINE,ifp) != NULL) {
+    chop_newline(buffer);
+
+    if( strwhitestartcmp(buffer,"#",spacestr) == 0 )
+      continue;
+
+    if( only_whitespace(buffer,spacestr) == TRUE)
+      continue;
+
+    if( strstartcmp(buffer,"endmatrix") == 0)
+      break;			
+    if( strwhitestartcmp(buffer,"endmatrix",spacestr) == 0 ) {
+      warn("endmatrix tag not flush to the start of the line. Ok, but not in the specification");
+      break;
+    }
+    
+    if( strstartcmp(buffer,"end") == 0 ) {
+      warn("got an 'end' tag [%s] but expecting a 'endmatrix'. Considering this a parse failure");
+      goto error;
+    }
+    
+    
+    /*** ok, proper parsing now ****/
+    
+    if( strwhitestartcmp(buffer,"collapse",spacestr) == 0 ) {
+      cal = read_CollapsableLabel_line(buffer);
+      if( cal == NULL ) {
+	warn("Cannot read Collapsable label line. Ignoring collapsed label");
+	continue;
+      }
+      add_cal_GenericMatrix(out,cal);
+      continue;
+    }
+
+    else if( strwhitestartcmp(buffer,"extern",spacestr) == 0 ){
+      ev = read_ExternVariable_line(buffer);
+      if( ev == NULL ) {
+	warn("unable to read an Extern line");
+      }
+      else add_ev_GenericMatrix(out,ev);
+      continue;
+    } else if( strwhitestartcmp(buffer,"state",spacestr) == 0) {
+      
+      
+      if( strstr(buffer,"!special") != NULL )
+	isspecial = TRUE;
+      else if ( strstr(buffer,"SPECIAL") != NULL ) {
+	warn("In state [%s], got a SPECIAL tag. This has been replaced with !special for consistency. Please change ;)",buffer);
+	isspecial = TRUE;
+      }
+      else	isspecial = FALSE;
+      
+      /*********************************************/
+      /* this function actually reads in the state */
+      /* block                                     */
+      /*********************************************/
+      
+      temp = read_CellState_line(buffer,ifp);
+      
+      /* read in state */
+      
+      if( temp == NULL ) {
+	/* warning already issued, just chain */
+	/*	warn("unable to read line for CellState in GenericMatrix %s - going to fail",out->name); */
+	goto error;
+      }
+      if( isspecial == FALSE) {
+	if( add_GenericMatrix(out,temp) == FALSE ) {
+	  warn("Able to read - but unable to add - line for CellState in GeericMatrix %s - going to return now",out->name);
+	  goto error;
+	}
+      } else	{
+	if( add_spec_GenericMatrix(out,temp) == FALSE ) {
+	  warn("Able to read - but unable to add - line for CellState in GeericMatrix %s - going to return now",out->name);
+	  goto error;
+	}
+      }
+      continue;		/* should not chop up line! */
+    }
+
+
+    /**** OK not a state line, hence a "processed" line ****/
+    
+    /* split up line, look at first word, decide what to do */
+    /* - probably loop through the rest of the words to     */
+    /* to read out - these are the for(splitstr++; etc loops*/ 
+    
+    
+    base=splitstr=breakstring(buffer,spacestr);
+    
+    
+    /* NB, base free'd at the end of the if/else switch */
+    
+
+    if( strwhitestartcmp(*splitstr,"query",spacestr) == 0) {
+      if( out->query_name != NULL ) {
+	log_full_error(WARNING,0,"This is the second time to specify a query - only one allowed: ignoring [%s]",buffer);
+	continue;
+      }
+
+      /*** allocate's memory etc ready */
+      out->query = StructElement_alloc();
+      
+      for(splitstr++;*splitstr;splitstr++) {
+	  if( (runner=string_from_quoted_equality(*splitstr)) == NULL ) {
+	    warn("You have specified a modifier [%s] to query but it has either no '=' sign or no quoted argument. The '=' character should be flush to both the tag and the quoted (using \")  argument",CKS(*splitstr));
+	    continue;
+	  }
+	  if( strstartcmp(*splitstr,"name") == 0 ) {
+	    out->query->name = runner;
+	  }
+	  else if ( strstartcmp(*splitstr,"field:name") ==  0) {
+	    out->query_name = runner;
+	  }
+	  else if ( strstartcmp(*splitstr,"field:len") == 0) {
+	    out->query_len = runner;
+	  }
+	  else if ( strstartcmp(*splitstr,"type") == 0) {
+	    out->query->element_type = runner;
+	  }
+	  else	{
+	    warn("Got modify %s=%s fine for tag query - but don't know what to do with it!",*splitstr,runner);
+			  ckfree(runner);
+	  }
+	    } /* end of query modifers */
+    } /* end of query if */
+    else if( strwhitestartcmp(*splitstr,"target",spacestr) == 0)
+      {
+	if( out->target_name != NULL ) {
+	  log_full_error(WARNING,0,"This is the second time to specify a target - only one allowed Ignoring [%s]",buffer);
+	}
+	/*** allocate's memory etc ready */
+	
+	
+	out->target = StructElement_alloc();
+	
+	for(splitstr++;*splitstr;splitstr++) {
+	    if( (runner=string_from_quoted_equality(*splitstr)) == NULL ) {
+	      warn("You have specified a modifier [%s] to target but it has either no '=' sign or no quoted argument. The '=' character should be flush to both the tag and the quoted (using \")  argument",CKS(*splitstr));
+	      continue;
+	    }
+	    if( strstartcmp(*splitstr,"name") == 0 ) {
+		out->target->name = runner;
+	    }
+	    else if ( strstartcmp(*splitstr,"field:name") ==  0) {
+		out->target_name = runner;
+	      }
+	    else if ( strstartcmp(*splitstr,"field:len") == 0)
+	      {
+		out->target_len = runner;
+	      }
+	    else if ( strstartcmp(*splitstr,"type") == 0)
+	      {
+		out->target->element_type = runner;
+	      }
+	    else	{
+	      warn("Got modify %s=%s fine for tag target - but don't know what to do with it!",*splitstr,runner);
+	      ckfree(runner);
+	    }
+	  } /* end of target modifers */
+      } /* end of target if */
+    else if( strstartcmp(*splitstr,"resource") == 0)
+      {
+	/*** allocate's memory etc ready */
+	res_temp = StructElement_alloc();
+			
+	add_res_GenericMatrix(out,res_temp);
+
+	for(splitstr++;*splitstr;splitstr++)
+	  {
+	    if( (runner=string_from_quoted_equality(*splitstr)) == NULL )
+	      {
+		warn("You have specified a modifier [%s] to resource but it has either no '=' sign or no quoted argument. The '=' character should be flush to both the tag and the quoted (using \")  argument",CKS(*splitstr));
+		continue;
+	      }
+	    if( strstartcmp(*splitstr,"name") == 0 )
+	      {
+		res_temp->name = runner;
+	      }
+	    else if ( strstartcmp(*splitstr,"type") == 0)
+	      {
+		res_temp->element_type = runner;
+	      }
+	    else	{
+	      warn("Got modifier %s=%s fine for tag resource - but don't know what to do with it!",*splitstr,runner);
+	      ckfree(runner);
+	    }
+	  } /* end of resource modifers */
+      } /* end of resource if */
+    else if( strstartcmp(*splitstr,"globaldefaultscore") == 0)
+      {
+	warn("No need for globaldefaultscore lines anymore");
+      }
+    else if ( strstartcmp(*splitstr,"calcfunc") == 0) {
+      if( *++splitstr == NULL ) {
+	warn("Got a calcfunc tag with no function!");
+      } else {
+	out->calcfunc = stringalloc(*splitstr);
+      }
+    }
+    else {
+      warn("Could not understand line in matrix parse");
+    }
+
+
+		
+    ckfree(base);
+    }
+
+  pop_errormsg_stack();
+	
+  return out;
+
+  error :
+  pop_errormsg_stack();
+
+  out = free_GenericMatrix(out);
+  return NULL;
+}
+
+%func
+reads line like extern name="xxx" type="xxx"
+%%
+ExternVariable * read_ExternVariable_line(char * line)
+{
+  ExternVariable * out;
+  char ** base;
+  char ** brk;
+  char * nameq = NULL;
+  char * tq = NULL;
+
+  if( strwhitestartcmp(line,"extern",spacestr) != 0 ) {
+    warn("Tried to pass read_ExternVariable_line without an extern tag. Nope!");
+    return NULL;
+  }
+
+  base = brk = breakstring(line,spacestr);
+
+  for(;*brk != NULL;brk++) {
+    if( strcmp(*brk,"extern") == 0 )
+      continue;
+    if( strstartcmp(*brk,"name") == 0 ) {
+      if( (nameq = string_from_quoted_equality(*brk)) == NULL) {
+	warn("In reading extern line, got a name tag, but no argument. The tag should have no whitespace between aname and equals");
+	continue;
+      }
+    } else if ( strstartcmp(*brk,"type") == 0 ) {
+      if( (tq = string_from_quoted_equality(*brk)) == NULL) {
+	warn("In reading extern line, got a type tag, but no argument. The tag should have no whitespace between the type and =");
+	continue;
+      }
+    } else {
+      warn("Did not understand tag [%s] in extern line",*brk);
+    }
+  }
+  
+  ckfree(base);
+
+
+  out = ExternVariable_alloc();
+
+  out->name = nameq;
+  out->type = tq;
+
+  return out;
+}
+  
+
+CollapsableLabel * read_CollapsableLabel_line(char * line)
+{
+  CollapsableLabel * out;
+  char * runner;
+  char * run2;
+
+  if( strwhitestartcmp(line,"collapse",spacestr) != 0 ) {
+    warn("Tried to pass read_CollapsableLabel_line a no collapse line. Problem!");
+    return NULL;
+  }
+
+  runner = strtok(line,spacestr);
+  runner = strtok(NULL,spacestr);
+  run2   = strtok(NULL,spacestr);
+  if( runner == NULL || run2 == NULL) {
+    warn("Collapsable line has no collapsable label. Ooops");
+    return NULL;
+  }
+
+  out = CollapsableLabel_alloc();
+  if( out == NULL)
+    return NULL;
+
+  out->query = stringalloc(runner);
+  out->target = stringalloc(run2);
+  
+  return out;
+
+}
+
+
+CellState  * read_CellState_line(char * line,FILE * ifp)
+{
+  CellState * out;
+  CellSource * temp;
+  char buffer[MAXLINE];
+  char ** base;
+  char ** splitstr;
+  char * runner;
+	
+
+  /*** allocate and die if no memory ***/
+  /*** warnings should be issued in  ***/
+  /*** alloc                         ***/
+
+
+  /*** check state and name and Loop through the current line given ****/
+
+  base=splitstr=breakstring(line,spacestr);
+
+
+  if( strcmp(*splitstr,"state") != 0) {
+    log_full_error(WARNING,0,"In parsing the line starting %s it had no state tag!",line);
+    return NULL;
+  }
+
+  splitstr++;
+
+
+  if( *splitstr == NULL ) {
+    log_full_error(WARNING,0,"In parsing the line source [%s] there was no state name",line);
+    return NULL;
+  }
+
+
+  out = CellState_alloc_std();
+
+  if( out == NULL )
+    return NULL;
+
+  out->name = stringalloc(*splitstr);
+
+  push_errormsg_stack("In Reading state %s",out->name);
+
+
+  /*** looping through first line ***/
+
+  for(splitstr++;*splitstr;splitstr++) {
+    if( strstartcmp(*splitstr,"offi") == 0) {
+      runner=string_from_quoted_equality(*splitstr);
+      if( runner == NULL ) {
+	warn("Unable to read offi in state %s. The tag should look like offi=\"<number>\" with no whitespace",out->name);
+	continue;
+      }
+      out->offi = atoi(runner);
+      ckfree(runner);
+    }
+    else if ( strstartcmp(*splitstr,"offj") == 0) {
+      runner=string_from_quoted_equality(*splitstr);
+      if( runner == NULL ) {
+	warn("Unable to read offj in state %s. The tag should look like offj=\"<number>\" with no whitespace",out->name);
+	continue;
+      }
+      out->offj = atoi(runner);
+      ckfree(runner);
+    }
+    else if ( strstartcmp(*splitstr,"defscore") == 0)
+      {
+	warn("No need for defscore lines anymore");
+      }			
+    else if ( strstartcmp(*splitstr,"calc") == 0)
+      {
+	runner=string_from_quoted_equality(*splitstr);
+	if( runner == NULL ) {
+	    warn("Unable to read source independent calc line in state %s. Remember that there should be no white space between calc and the \"string\", ie calc=\"gap\" ",out->name);
+	    continue;
+	  }
+	out->calc_expr=runner;
+      }
+    else if ( strstartcmp(*splitstr,"!special") == 0) {
+      out->is_special_i=TRUE;
+    }
+    else if ( strstartcmp(*splitstr,"SPECIAL") == 0) {
+      out->is_special_i=TRUE;
+    }
+    
+    else if ( strstartcmp(*splitstr,"!end") == 0) {
+      out->is_end = TRUE;
+    }
+    else if ( strstartcmp(*splitstr,"!start") == 0) {
+      out->is_start = TRUE;
+    }
+    else {
+      warn("Parse error in state %s - cannot make sense of %s",out->name,*splitstr);
+    }
+  }
+  
+  ckfree(base);
+
+
+  while( get_watched_line(buffer,MAXLINE,ifp) != NULL) {
+    chop_newline(buffer);
+
+    if( strwhitestartcmp(buffer,"#",spacestr) == 0 )
+      continue;
+    
+    if( strwhitestartcmp(buffer,"endstate",spacestr) == 0 )
+      break;
+
+    if( only_whitespace(buffer,spacestr) == TRUE)
+      continue;
+
+    if( strwhitestartcmp(buffer,"end",spacestr) == 0 ) {
+      warn("Got an end line [%s] but expecting endstate. Will fail.",buffer);
+      goto error;
+    }
+    if( strwhitestartcmp(buffer,"state",spacestr) == 0 ) {
+      warn("Got the line [%s], a state start line inside a state. Expect you forgot an endstate.",buffer);
+      goto error;
+    }
+
+
+    if( strwhitestartcmp(buffer,"query_label",spacestr) == 0 ) {
+      base = splitstr = breakstring(buffer,spacestr);
+      splitstr++;
+      if( *splitstr == NULL ) {
+	warn("Picked up query_label tag but no query label in state %s",out->name);
+      }
+      else out->query_label = stringalloc(*splitstr);
+      ckfree(base);
+      continue;
+    }
+
+
+    if( strwhitestartcmp(buffer,"target_label",spacestr) == 0 ) {
+      base = splitstr = breakstring(buffer,spacestr);
+      splitstr++;
+      if( *splitstr == NULL ) {
+	warn("Picked up target_label tag but no target label in state %s",out->name);
+      }
+      else out->target_label = stringalloc(*splitstr);
+      ckfree(base);
+      continue;
+    }
+
+    if( strwhitestartcmp(buffer,"calc",spacestr) == 0 ) {
+      base = splitstr = breakstring(buffer,spacestr);
+      if( out->calc_expr != NULL ) {
+	warn("Already picked up a calc line [%s]. Replacing with %s\n",out->calc_expr,runner);
+	ckfree(out->calc_expr);
+      }
+      
+      out->calc_expr = string_from_quoted_equality(*splitstr);
+      ckfree(base);
+      continue;
+    }
+
+    else if( strstr(buffer,"source") == NULL) {
+      warn("Parse error in reading state %s - cannot interpret [%s]",out->name,buffer);
+      continue;
+    }
+
+    temp = read_CellSource_line(buffer,ifp);
+    
+    /*		fprintf(stderr,"Have read source line!\n"); */
+
+    if( temp == NULL ) {
+      /* warning already issued, just chain back up */
+      /* warn("unable to read line for CellSource in CellState %s - going to fail parser",out->name); */
+      goto error;
+    }
+
+    if( add_CellState(out,temp) == FALSE ) {
+      warn("Able to read - but unable to add - line for CellSource in CellState %s - going to return now",out->name);
+      goto error;
+    }
+    
+  }
+	
+  pop_errormsg_stack();
+
+  return out;
+
+  error :
+    
+  pop_errormsg_stack();
+  out = free_CellState(out);
+  return NULL;
+
+}
+
+int source_bit2pos(int bit)
+{
+  if( bit == 0 ) 
+    return SOURCE_POS_ALL;
+
+  if( (bit & SOURCE_TOP_BIT) ) {
+    if( (bit & SOURCE_LEFT_BIT) ) {
+      return SOURCE_POS_TOPLEFT;
+    }
+    if( (bit & ~SOURCE_TOP_BIT) != 0 ) {
+	return bit;
+    }
+    else 
+      return SOURCE_POS_TOP;
+  
+  }
+
+  if( (bit & SOURCE_LEFT_BIT) ) {
+    if( (bit & ~SOURCE_LEFT_BIT) != 0 )
+      return bit;
+    else return SOURCE_POS_LEFT;
+  }
+
+
+  if( (bit & SOURCE_BOTTOM_BIT) ) {
+    if( (bit & SOURCE_RIGHT_BIT) ) {
+      return SOURCE_POS_BOTTOMRIGHT;
+    }
+    if( (bit & ~SOURCE_BOTTOM_BIT) != 0 ) {
+	return bit;
+    }
+    else 
+      return SOURCE_POS_BOTTOM;
+  
+  }
+
+  if( (bit & SOURCE_RIGHT_BIT) ) {
+    if( (bit & ~SOURCE_RIGHT_BIT) != 0 )
+      return bit;
+    else return SOURCE_POS_RIGHT;
+  }
+
+  warn("Got a HIDEOUS error in source_bit2pos");
+  return SOURCE_POS_ALL;
+}
+
+
+CellSource * read_CellSource_line(char * line,FILE * ifp)
+{
+  CellSource * out;
+  char buffer[MAXLINE];
+  char * runner;	
+  char * temp;
+  char ** base;
+  char ** splitstr;
+  int posbits = 0; /** use with SOURCE_TOP_BIT etc **/
+
+	
+  /* parse first line */
+
+  base=splitstr=breakstring(line,spacestr);
+
+  if( strcmp(*splitstr,"source") != 0)  {
+    warn("In parsing the line starting %s it had no source tag!",line);
+    return NULL;
+  }
+  splitstr++;
+  
+  if( *splitstr == NULL )  {
+    warn("In parsing the line source [%s] there was no source tag",line);
+    return NULL;
+  }
+  
+  out = CellSource_alloc();
+
+  if( out == NULL)
+    return NULL;
+
+  out->state_source = stringalloc(*splitstr);
+
+
+  push_errormsg_stack("In reading source %s",out->state_source);
+
+  for(splitstr++;*splitstr;splitstr++)
+    {
+      if( strstartcmp(*splitstr,"offi") == 0)
+	{
+	  runner=string_from_quoted_equality(*splitstr);
+	  if( runner == NULL )
+	    {
+	      warn("Unable to read offi in Source %s",line);
+	      continue;
+	    }
+	  out->offi = atoi(runner);
+	  ckfree(runner);
+	}
+      else if ( strstartcmp(*splitstr,"offj") == 0)
+	{
+	  runner=string_from_quoted_equality(*splitstr);
+	  if( runner == NULL )
+	    {
+	      warn("Unable to read offi in Source %s",line);
+	      continue;
+	    }
+	  out->offj = atoi(runner);
+	  ckfree(runner);
+	}
+      else if ( strcmp(*splitstr,"!top") == 0 ) {
+	posbits = (posbits | SOURCE_TOP_BIT);
+      }
+      else if ( strcmp(*splitstr,"!left") == 0 ) {
+	posbits = (posbits | SOURCE_LEFT_BIT);
+      }
+      else if ( strcmp(*splitstr,"!right") == 0 ) {
+	posbits = (posbits | SOURCE_RIGHT_BIT);
+      }
+      else if ( strcmp(*splitstr,"!bottom") == 0 ) {
+	posbits = (posbits | SOURCE_BOTTOM_BIT);
+      }
+      
+      else	{
+		  warn("Parse error in source %s - cannot make sense of %s",line,*splitstr);
+		}
+    }
+
+  out->position = source_bit2pos(posbits);
+  ckfree(base);
+
+  while( get_watched_line(buffer,MAXLINE,ifp) != NULL) {
+    chop_newline(buffer);
+
+
+    if( strwhitestartcmp(buffer,"#",spacestr) == 0 )
+      continue;
+    if( only_whitespace(buffer,spacestr) == TRUE)
+      continue;
+    
+    if( strwhitestartcmp(buffer,"endsource",spacestr) == 0 )
+      break;
+    if( strwhitestartcmp(buffer,"end",spacestr) == 0 ) {
+      warn("you have a end line [%s] but expecting an endsource line. Will fail",buffer);
+      goto error;
+    }
+
+    if( strwhitestartcmp(buffer,"source",spacestr) == 0 ) {
+      warn("In reading a source, got a source tag [%s]. Expect you forgot an endsource. Will fail",buffer);
+      goto error;
+    }
+    
+    
+    if( strwhitestartcmp(buffer,"query_label",spacestr) == 0 ) {
+      base = splitstr = breakstring(buffer,spacestr);
+      splitstr++;
+      if( *splitstr == NULL ) {
+	warn("Picked up query_label tag but no query label in source %s",out->state_source);
+      }
+      else out->query_label = stringalloc(*splitstr);
+      ckfree(base);
+      continue;
+    }
+
+
+    else if( strwhitestartcmp(buffer,"target_label",spacestr) == 0 ) {
+      base = splitstr = breakstring(buffer,spacestr);
+      splitstr++;
+      if( *splitstr == NULL ) {
+	warn("Picked up target_label tag but no target label in source %s",out->state_source);
+      }
+      else out->target_label = stringalloc(*splitstr);
+      ckfree(base);
+      continue;
+    }
+    
+    else if( strwhitestartcmp(buffer,"calc",spacestr) == 0 ) {
+      temp = read_calc_line(buffer);
+
+      if( temp == NULL ) {
+	warn("unable to read calc line in Source %s - going to return now",out->state_source);
+	return NULL;
+      }
+      out->calc_expr = stringalloc(temp);
+    }
+    
+    else {
+      warn("Cannot understand the line [%s] on CellSource",buffer);
+    }
+    
+  }
+  
+  pop_errormsg_stack();
+  
+  return out;
+
+  error :
+
+  pop_errormsg_stack();
+
+    out = free_CellSource(out);
+  return NULL;
+}
+
+char * read_calc_line(char * buffer)
+{
+  char * runner;
+  /* get to = */
+  for(;*buffer && *buffer != '=';buffer++)
+    ;
+  /* get to " */
+  for(;*buffer && *buffer != '"';buffer++)
+    ;
+  if( *buffer == '\0' ) {
+    warn("In reading calc line string, got to the end of the buffer without gettint to a \"");
+    return NULL;
+  }
+
+  runner = buffer+1;
+  for(buffer++;*buffer && *buffer != '"';buffer++)
+    ;
+  *buffer='\0';
+  return runner;
+}
+
+%}
+
+

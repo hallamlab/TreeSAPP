@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_ThreeStateDB *    T_Wise2_ThreeStateDB
+
+INPUT
+T_Wise2_ThreeStateDB
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_ThreeStateDB *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_ThreeStateDB
+	sv_setref_pv($arg, "Wise2::ThreeStateDB", (void*) $var);

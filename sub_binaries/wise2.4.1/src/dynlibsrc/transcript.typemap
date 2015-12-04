@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_Exon *    T_Wise2_Exon
+
+INPUT
+T_Wise2_Exon
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Exon *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Exon
+	sv_setref_pv($arg, "Wise2::Exon", (void*) $var);
+
+TYPEMAP
+Wise2_Transcript *    T_Wise2_Transcript
+
+INPUT
+T_Wise2_Transcript
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Transcript *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Transcript
+	sv_setref_pv($arg, "Wise2::Transcript", (void*) $var);

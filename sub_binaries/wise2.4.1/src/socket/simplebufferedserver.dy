@@ -1,0 +1,162 @@
+
+
+%{
+#include "wisebase.h"
+#include <errno.h>
+
+
+typedef char BufferedString;
+
+#define SimpleBufferedServerLISTLENGTH 1024
+
+%}
+
+
+struct SimpleBufferedServer
+int socket
+BufferedString ** buffer !list
+int current_read
+
+
+
+%{
+#include "simplebufferedserver.h"
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+
+void write_buffer_simple_buffered_server_impl(void * handle,char * string)
+{
+  SimpleBufferedServer * sbs = (SimpleBufferedServer*) handle;
+
+  add_string_SimpleBufferedServer(sbs,string);
+}
+
+void write_bufferf_simple_buffered_server_impl(void * handle,char * format,...)
+{
+  SimpleBufferedServer * sbs = (SimpleBufferedServer*) handle;
+  char buffer[1024];
+  va_list ap;
+
+
+  va_start(ap,format);
+  vsprintf(buffer,format,ap);	
+
+  add_string_SimpleBufferedServer(sbs,buffer);
+
+  return;
+}
+
+void close_and_free_simple_buffered_server(void * handle)
+{
+  /* no-op, as this is not the owner */
+  return;
+}
+
+void add_string_SimpleBufferedServer(SimpleBufferedServer * sbs,char * unallocated_string)
+{
+  add_SimpleBufferedServer(sbs,stringalloc(unallocated_string));
+}
+
+
+Wise2WriteStreamInterface * WriteStream_from_SimpleBufferedServer(SimpleBufferedServer * sbs)
+{
+  Wise2WriteStreamInterface * out;
+
+  out = malloc(sizeof(Wise2WriteStreamInterface));
+
+  out->write_buffer  = write_buffer_simple_buffered_server_impl;
+  out->write_bufferf = write_bufferf_simple_buffered_server_impl;
+  out->close_and_free_handle = close_and_free_simple_buffered_server;
+
+  out->handle = (void *) sbs;
+
+  return out;
+}
+
+SimpleBufferedServer * new_SimpleBufferedServer(int port)
+{
+  struct sockaddr_in server;
+  struct sockaddr * name;
+  SimpleBufferedServer * out;
+  int yes = 1;
+
+  out = SimpleBufferedServer_alloc_std();
+
+  out->socket = socket(AF_INET, SOCK_STREAM, 0);
+  
+  server.sin_family = AF_INET;
+  server.sin_addr.s_addr = INADDR_ANY;
+  server.sin_port = htons(port);
+
+  setsockopt(out->socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
+  /* If setsockopt() fails, we're not too unhappy, so no check */
+
+  if (bind(out->socket, (struct sockaddr *)&server, sizeof(server))) {
+      /* Probably tried to bind to a port that was already in use... */
+      fatal(strerror(errno));
+  }
+
+  return out;
+}
+
+char * free_BufferedString(char * str)
+{
+  free(str);
+}
+
+void listen_and_respond_SimpleBufferedServer(SimpleBufferedServer * sbs)
+{
+  int i;
+  char buf[1024];
+  int ret;
+  int len;
+  int curr;
+  int ms;
+
+  int new_socket;
+
+  listen(sbs->socket, 5);
+  
+  
+  while( 1 ) {
+    fprintf(stderr,"blocking at accept...\n");
+    ms = accept(sbs->socket, 0, 0);
+    fprintf(stderr,"Accepted socket...\n");
+    read(ms,buf,sizeof(buf));
+    fprintf(stderr,"Read buffer...\n");
+    if( strstartcmp(buf,"<WISE2-START-SIMPLE-STREAM>") == 0 ) {
+      for(i=0;i<sbs->len;i++) {
+	fprintf(stderr,"Going to send position %d\n",i);
+	len = strlen(sbs->buffer[i]);
+	curr = 0;
+	while( curr < len ) {
+	  fprintf(stderr,"Going to send at position %d\n",curr);
+	  ret = write(ms,sbs->buffer[i]+curr,len-curr);
+	  if( ret == -1 ) {
+	    warn("error sending with %d\n",errno);
+	  }	
+	  fprintf(stderr,"...sent at position %d, sent %d bytes [%.6s]\n",curr,ret,sbs->buffer[i]);
+	  if( ret+curr >= len ) {
+	    break;
+	  }
+	  curr += ret;
+	  sleep(2);
+	}
+      }
+      buf[0] = '\0';
+      write(ms,buf,1);
+      close(ms);
+    } else {
+      fatal("Bad client initialisation string...%s\n",buf);
+    }
+  }
+
+}
+
+%}

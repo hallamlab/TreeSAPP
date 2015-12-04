@@ -1,0 +1,425 @@
+\section{histogram}
+\label{module_histogram}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_Histogram} Histogram
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{histogram factory methods}
+\subsubsection{new_Histogram}
+\begin{description}
+\item[External C] {\tt Wise2_new_Histogram (min,max,lumpsize)}
+\item[Perl] {\tt &Wise2::new_Histogram (min,max,lumpsize)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[min] [UNKN ] minimum score (integer) [int]
+\item[max] [UNKN ] maximum score (integer) [int]
+\item[lumpsize] [UNKN ] when reallocating histogram, the reallocation amount [int]
+\item[returns] [UNKN ] Undocumented return value [Histogram *]
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Allocate and return a histogram structure.
+min and max are your best guess. They need
+not be absolutely correct; the histogram
+will expand dynamically to accomodate scores
+that exceed these suggested bounds. The amount
+that the histogram grows by is set by "lumpsize"
+
+
+Was called AllocHistorgram new_Historgram is more wise2-ish
+
+
+
+
+\subsection{Object Histogram}
+
+\label{object_Histogram}
+
+The Histogram object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{histogram} Type [int*   : Scalar]  counts of hits                     
+
+\item{min} Type [int : Scalar]  elem 0 of histogram == min         
+
+\item{max} Type [int : Scalar]  last elem of histogram == max      
+
+\item{highscore} Type [int : Scalar]  highest active elem has this score 
+
+\item{lowscore} Type [int : Scalar]  lowest active elem has this score  
+
+\item{lumpsize} Type [int : Scalar]  when resizing, overalloc by this   
+
+\item{total} Type [int : Scalar]  total # of hits counted            
+
+\item{expect} Type [float* : Scalar]  expected counts of hits            
+
+\item{fit_type} Type [int : Scalar]  flag indicating distribution type  
+
+\item{param[3]} Type [float : Scalar]  parameters used for fits           
+
+\item{chisq} Type [float : Scalar]  chi-squared val for goodness of fit
+
+\item{chip} Type [float : Scalar]  P value for chisquared             
+
+\end{description}
+This Object came from Sean Eddy excellent histogram package.
+He donated it free of all restrictions to allow it to be used
+in the Wise2 package without complicated licensing terms.
+He is a *very* nice man.
+
+
+It was made into a dynamite object so that
+\begin{verbatim}
+   a) External ports to scripting languages would be trivial
+   b) cooperation with future versions of histogram.c would be possible.
+
+
+\end{verbatim}
+Here is the rest of the documentation from sean.
+
+
+Keep a score histogram. 
+
+
+The main implementation issue here is that the range of
+scores is unknown, and will go negative. histogram is
+a 0..max-min array that represents the range min..max.
+A given score is indexed in histogram array as score-min.
+The AddToHistogram function deals with dynamically 
+resizing the histogram array when necessary.
+
+
+
+
+Member functions of Histogram
+
+\subsubsection{UnfitHistogram}
+
+\begin{description}
+\item[External C] {\tt Wise2_UnfitHistogram (h)}
+\item[Perl] {\tt &Wise2::Histogram::UnfitHistogram (h)}
+
+\item[Perl-OOP call] {\tt $obj->UnfitHistogram()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[h] [UNKN ] Undocumented argument [Histogram *]
+\item[returns] Nothing - no return value
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Free only the theoretical fit part of a histogram.
+
+
+\subsubsection{AddToHistogram}
+
+\begin{description}
+\item[External C] {\tt Wise2_AddToHistogram (h,sc)}
+\item[Perl] {\tt &Wise2::Histogram::add (h,sc)}
+
+\item[Perl-OOP call] {\tt $obj->add(sc)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[h] [UNKN ] Undocumented argument [Histogram *]
+\item[sc] [UNKN ] Undocumented argument [float]
+\item[returns] Nothing - no return value
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Bump the appropriate counter in a histogram
+structure, given a score. The score is
+rounded off from float precision to the
+next lower integer.
+
+
+\subsubsection{PrintASCIIHistogram}
+
+\begin{description}
+\item[External C] {\tt Wise2_PrintASCIIHistogram (h,fp)}
+\item[Perl] {\tt &Wise2::Histogram::show (h,fp)}
+
+\item[Perl-OOP call] {\tt $obj->show(fp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[h] [UNKN ] histogram to print [Histogram *]
+\item[fp] [UNKN ] open file to print to (stdout works) [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Print a "prettified" histogram to a file pointer.
+Deliberately a look-and-feel clone of Bill Pearson's 
+excellent FASTA output.
+
+
+\subsubsection{EVDBasicFit}
+
+\begin{description}
+\item[External C] {\tt Wise2_EVDBasicFit (h)}
+\item[Perl] {\tt &Wise2::Histogram::EVDBasicFit (h)}
+
+\item[Perl-OOP call] {\tt $obj->EVDBasicFit()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[h] [UNKN ] histogram to fit [Histogram *]
+\item[returns] Nothing - no return value
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Fit a score histogram to the extreme value 
+distribution. Set the parameters lambda
+and mu in the histogram structure. Fill in the
+expected values in the histogram. Calculate
+a chi-square test as a measure of goodness of fit. 
+
+
+This is the basic version of ExtremeValueFitHistogram(),
+in a nonrobust form: simple linear regression with no
+outlier pruning.
+
+
+Methods:  Uses a linear regression fitting method [Collins88,Lawless82]
+
+
+\subsubsection{ExtremeValueFitHistogram}
+
+\begin{description}
+\item[External C] {\tt Wise2_ExtremeValueFitHistogram (h,censor,high_hint)}
+\item[Perl] {\tt &Wise2::Histogram::fit_EVD (h,censor,high_hint)}
+
+\item[Perl-OOP call] {\tt $obj->fit_EVD(censor,high_hint)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[h] [UNKN ] histogram to fit [Histogram *]
+\item[censor] [UNKN ] TRUE to censor data left of the peak [int]
+\item[high_hint] [UNKN ] score cutoff; above this are real hits that arent fit [float]
+\item[returns] [UNKN ] if fit is judged to be valid else 0 if fit is invalid (too few seqs.) [int]
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Purpose:  Fit a score histogram to the extreme value 
+distribution. Set the parameters lambda
+and mu in the histogram structure. Calculate
+a chi-square test as a measure of goodness of fit. 
+
+
+Methods:  Uses a maximum likelihood method [Lawless82].
+Lower outliers are removed by censoring the data below the peak.
+Upper outliers are removed iteratively using method 
+described by [Mott92].
+
+
+\subsubsection{ExtremeValueSetHistogram}
+
+\begin{description}
+\item[External C] {\tt Wise2_ExtremeValueSetHistogram (h,mu,lambda,lowbound,highbound,wonka,ndegrees)}
+\item[Perl] {\tt &Wise2::Histogram::set_EVD (h,mu,lambda,lowbound,highbound,wonka,ndegrees)}
+
+\item[Perl-OOP call] {\tt $obj->set_EVD(mu,lambda,lowbound,highbound,wonka,ndegrees)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[h] [UNKN ] the histogram to set [Histogram *]
+\item[mu] [UNKN ] mu location parameter                 [float]
+\item[lambda] [UNKN ] lambda scale parameter [float]
+\item[lowbound] [UNKN ] low bound of the histogram that was fit [float]
+\item[highbound] [UNKN ] high bound of histogram that was fit [float]
+\item[wonka] [UNKN ] fudge factor; fraction of hits estimated to be "EVD-like" [float]
+\item[ndegrees] [UNKN ] extra degrees of freedom to subtract in chi2 test: [int]
+\item[returns] Nothing - no return value
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Instead of fitting the histogram to an EVD,
+simply set the EVD parameters from an external source.
+
+
+Note that the fudge factor "wonka" is used /only/
+for prettification of expected/theoretical curves
+in PrintASCIIHistogram displays.
+
+
+
+
+\subsubsection{GaussianFitHistogram}
+
+\begin{description}
+\item[External C] {\tt Wise2_GaussianFitHistogram (h,high_hint)}
+\item[Perl] {\tt &Wise2::Histogram::fit_Gaussian (h,high_hint)}
+
+\item[Perl-OOP call] {\tt $obj->fit_Gaussian(high_hint)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[h] [UNKN ] histogram to fit [Histogram *]
+\item[high_hint] [UNKN ] score cutoff; above this are `real' hits that aren't fit [float]
+\item[returns] [UNKN ] if fit is judged to be valid else 0 if fit is invalid (too few seqs.)            [int]
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Fit a score histogram to a Gaussian distribution.
+Set the parameters mean and sd in the histogram
+structure, as well as a chi-squared test for
+goodness of fit.
+
+
+
+
+\subsubsection{GaussianSetHistogram}
+
+\begin{description}
+\item[External C] {\tt Wise2_GaussianSetHistogram (h,mean,sd)}
+\item[Perl] {\tt &Wise2::Histogram::set_Gaussian (h,mean,sd)}
+
+\item[Perl-OOP call] {\tt $obj->set_Gaussian(mean,sd)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[h] [UNKN ] Undocumented argument [Histogram *]
+\item[mean] [UNKN ] Undocumented argument [float]
+\item[sd] [UNKN ] Undocumented argument [float]
+\item[returns] Nothing - no return value
+\end{description}
+
+
+This function was written by Sean Eddy
+as part of his HMMer2 histogram.c module
+
+
+Converted by Ewan Birney to Dynamite source June 98.
+Copyright is LGPL. For more info read READMEs
+
+
+Documentation:
+
+
+Instead of fitting the histogram to a Gaussian,
+simply set the Gaussian parameters from an external source.
+
+
+\subsubsection{Evalue_from_Histogram}
+
+\begin{description}
+\item[External C] {\tt Wise2_Evalue_from_Histogram (his,score)}
+\item[Perl] {\tt &Wise2::Histogram::evalue (his,score)}
+
+\item[Perl-OOP call] {\tt $obj->evalue(score)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[his] [UNKN ] Histogram object [Histogram *]
+\item[score] [UNKN ] score you want the evalue for [double]
+\item[returns] [UNKN ] Undocumented return value [double]
+\end{description}
+
+
+This is a convient short cut for calculating
+expected values from the histogram of results
+
+

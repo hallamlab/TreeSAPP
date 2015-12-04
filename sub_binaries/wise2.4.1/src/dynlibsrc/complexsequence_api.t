@@ -1,0 +1,4 @@
+typedef struct Wise2_ComplexSequence Wise2_ComplexSequence;
+
+typedef struct Wise2_ComplexSequenceEvalSet Wise2_ComplexSequenceEvalSet;
+

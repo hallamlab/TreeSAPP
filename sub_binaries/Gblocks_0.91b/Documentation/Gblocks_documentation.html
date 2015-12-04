@@ -1,0 +1,598 @@
+<html>
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=ISO-8859-1">
+		<title>Gblocks Documentation</title>
+		<style media="screen, print" type="text/css"><!--
+.BL {background-color:navy;color:navy}
+.A1 {background-color:black;color:lime}
+.G1 {background-color:black;color:lime}
+.S1 {background-color:black;color:lime}
+.T1 {background-color:black;color:lime}
+.C1 {background-color:black;color:orange}
+.P1 {background-color:black;color:aqua}
+.D1 {background-color:black;color:white}
+.E1 {background-color:black;color:white}
+.Q1 {background-color:black;color:white}
+.N1 {background-color:black;color:white}
+.F1 {background-color:black;color:yellow}
+.W1 {background-color:black;color:yellow}
+.Y1 {background-color:black;color:yellow}
+.H1 {background-color:black;color:red}
+.K1 {background-color:black;color:red}
+.R1 {background-color:black;color:red}
+.I1 {background-color:black;color:fuchsia}
+.L1 {background-color:black;color:fuchsia}
+.M1 {background-color:black;color:fuchsia}
+.V1 {background-color:black;color:fuchsia}
+--></style>
+	</head>
+
+	<body bgcolor="#ffffff">
+		<div align="center">
+			<h1>
+				Gblocks
+			</h1>
+		</div>
+		<div align="center">
+			<h4>
+				Selection of conserved blocks from multiple alignments for their use in phylogenetic analysis
+			</h4>
+		</div>
+		<div align="center">
+			Version 0.91b || January 2002
+			<br>
+			Copyright &copy; Jose Castresana
+		</div>
+		<hr>
+		<address>
+			Institut de Biologia Evolutiva (IBE), CSIC-UPF<br>
+			Passeig Mar&iacute;tim de la Barceloneta 37-49, 08003 Barcelona, Spain<br>
+		</address>
+		<hr>
+		<p><b>Gblocks</b> is a computer program written in ANSI C language that eliminates poorly aligned positions and divergent regions of an alignment of DNA or protein sequences. These positions may not be homologous or may have been saturated by multiple substitutions and it is convenient to eliminate them prior to phylogenetic analysis. Gblocks selects blocks in a similar way as it is usually done by hand but following a reproducible set of conditions. The selected blocks must fulfill certain requirements with respect to the lack of large segments of contiguous nonconserved positions, lack or low density of gap positions and high conservation of flanking positions, making the final alignment more suitable for phylogenetic analysis. Gblocks outputs several files to visualize the selected blocks. The use of a program such as Gblocks reduces the necessity of manually editing multiple alignments, makes the automation of phylogenetic analysis of large data sets feasible and, finally, facilitates the reproduction of the alignments and subsequent phylogenetic analysis by other researchers.</p>
+		<p>Several parameters can be modified to make the selection of blocks more or less stringent. In general, a relaxed selection of blocks is better for short alignment, whereas a stringent selection is more adequate for longer ones. Be aware that the default options of Gblocks are stringent.</p>
+		<p>The program is available free of charge for Macintosh, Windows and some UNIX / UNIX-like computers.</p>
+		<p>The software and its accompanying documentation are provided as is, without guarantee of support or maintenance.</p>
+		<p></p>
+		<hr align="LEFT">
+		<h2>Contents</h2>
+		<ul>
+			<li><a href="#Installation">Installation</a></li>
+			<li><a href="#Quick Start">Quick start</a></li>
+			<li><a href="#Method">How the method works</a></li>
+			<li><a href="#Options">Available options</a>
+				<ul>
+					<li><a href="#main_menu">Main menu</a></li>
+					<li><a href="#block_parameters_menu">Block Parameters menu</a></li>
+					<li><a href="#saving_options_menu">Saving Options menu</a></li>
+				</ul>
+			</li>
+			<li><a href="#command_line">Command line parameters</a></li>
+			<li><a href="#file_formats">File formats</a></li>
+			<li><a href="#Citation">Citation</a></li>
+			<li><a href="#Version_history">Version history</a></li>
+		</ul>
+		<p></p>
+		<hr align="LEFT">
+		<h2><a name="Installation"></a>Installation</h2>
+		<p><b>Mac OS 9 and Windows 95/98/NT</b>: The downloaded file is in zip format. You can un-zip it with different compression/decompression tools. In the Mac OS 9 version, if you get a &quot;Memory allocation failure&quot; while running Gblocks with large alignments, you have to increase its memory partition with the &quot;Get Info: Memory&quot; command in the Finder menu.</p>
+		<p><b>UNIX</b>: Decode the downloaded file with the commands (substituting <b>OS</b> for your corresponding file):</p>
+		<blockquote>
+			<p><b>uncompress Gblocks_OS_0.91b.tar.Z<br>tar xvf Gblocks_OS_0.91b.tar</b></p>
+		</blockquote>
+		<p>In all cases you will get the folder &quot;Gblocks_0.91b&quot; with the executable program, example files and the documentation.</p>
+		<hr align="LEFT">
+		<h2><a name="Quick Start"></a>Quick start</h2>
+		<p>You can use the alignment file of protein sequences <b>nad3.pir,</b> which is included in the distribution of Gblocks, to understand how the program works. The file is in NBRF/PIR format. Open Gblocks, select the option <b>o</b> (<b>Open File</b>) and enter the name of the file. Accept the default parameters with the option <b>g</b> (<b>Get Blocks</b>). You will obtain two files:</p>
+		<p><b>nad3.pir-gb</b>. This is the final alignment containing the positions selected by Gblocks to be used with any tree reconstruction or genetic distance estimation program.</p>
+		<p><b>nad3.pir-gb.htm</b>. This file contains the original alignment in HTML format with the selected positions highlighted and a description of the parameters used. It can be viewed with any web browser.</p>
+		<hr align="LEFT">
+		<h2><a name="Method"></a>How the method works</h2>
+		<p>Gblocks selects conserved blocks from a multiple alignment according to a set of features of the alignment positions.</p>
+		<p>First, the degree of conservation of every positions of the multiple alignment is evaluated and classified as nonconserved, conserved, or highly conserved. All stretches of contiguous nonconserved positions bigger than a certain value are rejected. In such stretches, alignments are normally ambiguous and, even when in some cases a unique alignment could be given, multiple hidden substitutions make them inadequate for phylogenetic analysis. In the remaining blocks, flanks are examined and positions are removed until blocks are surrounded by highly conserved positions at both flanks. This way, selected blocks are anchored by positions that can be aligned with high confidence.</p>
+		<p>Then, all gap positions -that can be defined in three different ways- are removed. Furthermore, nonconserved positions adjacent to a gap position are also eliminated until a conserved position is reached, because regions adjacent to a gap are the most difficult to align. Finally, small blocks remaining after gap cleaning are also removed.</p>
+		<p>An important requirement for the input alignment is that there are no individual sequences completely misaligned within a very well-conserved block (because of a frame-shifting sequencing error or high divergence in this particular sequence). If there are enough number of identities in the rest of sequences, Gblocks will consider that the block is conserved and it will be selected. There are methods to detect such misaligned sequences, such as the visualization of low-scoring segments implemented in the ClustalX program, that should be used to assure that sequences with many of these segments are not included in the alignment.</p>
+		<p><a name="mask_file"></a>The following figure is generated by Gblocks in HTML format and shows the blocks selected using default parameters from the alignment <b>nad3.pir</b>, that was created with the program ClustalW 1.7 using default parameters. Conserved positions as defined by the parameters given to Gblocks are highlighted, showing in color the most repeated amino acid, and selected positions are underlined with a heavy blue line. Amino acid colors (used only as a visual guide, and not indicative of any distance matrix) are: lime for A, G, S and T; aqua for P; orange for C; white for D, E, Q and N; yellow for F, W and Y; red for H, K and R; and fuchsia for I, L, M and V.</p>
+		<table border="5" cellpadding="20" cellspacing="2">
+			<tr>
+				<td bgcolor="#f5f5a3">
+					<pre>
+                         10        20        30        40        50        60
+                 =========+=========+=========+=========+=========+=========+
+nad3_parde       ------MEYLLQEYLPI<span class=L1>L</span>VFLGMASA<span class=L1>L</span>AIV<span class=L1>L</span>ILAAAVIAVRN--PDP<span class=E1>E</span><span class=K1>K</span>V<span class=S1>S</span>A<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span>NA<span class=F1>F</span>
+nad3_acaca       ---------MTLEYIYIFIFFWGAFFI<span class=S1>S</span>CL<span class=L1>L</span>IFLSYF<span class=L1>L</span>VYQE--SDI<span class=E1>E</span><span class=K1>K</span>N<span class=S1>S</span>A<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span>Q<span class=P1>P</span><span class=F1>F</span>
+nad3_allma       --------------MTY<span class=L1>L</span>VYIVFTIV<span class=L1>L</span>TVG<span class=L1>L</span>ILVSYL<span class=L1>L</span>SQAQ--PDS<span class=E1>E</span><span class=K1>K</span>V<span class=S1>S</span>A<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span>S<span class=P1>P</span>L
+nad3_apec        -----------IFNFLT<span class=L1>L</span>FVSILIFLITTLITFAAHF<span class=L1>L</span>PSRN-TD-S<span class=E1>E</span><span class=K1>K</span>S<span class=S1>S</span>P<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span>L
+nad3_arath       ---------MMSEFAPISIYLVISLLV<span class=S1>S</span>LI<span class=L1>L</span>LGVPFPFASNS-STYP<span class=E1>E</span><span class=K1>K</span>L<span class=S1>S</span>A<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span>S
+nad3_balca       -------------MNSF<span class=L1>L</span>IYLLIAIT<span class=L1>L</span><span class=S1>S</span>FI<span class=L1>L</span>SIVGHR<span class=L1>L</span>PTRN-MD-Q<span class=E1>E</span><span class=K1>K</span>L<span class=S1>S</span>P<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span>Q
+nad3_chocr       ------MKLIFTEYSAI<span class=L1>L</span>IFFAISSL<span class=L1>L</span><span class=S1>S</span>SVIFLLSYF<span class=L1>L</span>IPQK--PDQ<span class=E1>E</span><span class=K1>K</span>V<span class=S1>S</span>A<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span>N<span class=P1>P</span><span class=F1>F</span>
+nad3_drome       -------------MFSIIFIALLILLITTIVMFLASI<span class=L1>L</span>SKKA-LIDR<span class=E1>E</span><span class=K1>K</span>S<span class=S1>S</span>PF<span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span>K
+nad3_human       -------------MN-FALILMINTL<span class=L1>L</span>ALL<span class=L1>L</span>MIITFW<span class=L1>L</span>PQLN-GY-M<span class=E1>E</span><span class=K1>K</span>STP<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span>M
+nad3_ktun        -------------MFFV<span class=L1>L</span>SLVLFTFL<span class=L1>L</span><span class=S1>S</span>LV<span class=L1>L</span>LSVSLS<span class=L1>L</span>TKKK-MMNR<span class=E1>E</span><span class=K1>K</span>S<span class=S1>S</span>PF<span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span>K
+nad3_lter        -------------MILTALSSAIALLVPIIILGAAWV<span class=L1>L</span>ASRS-TEDR<span class=E1>E</span><span class=K1>K</span>S<span class=S1>S</span>PF<span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span>K
+nad3_marpo       -----------MEFAPIFVYLVISLL<span class=L1>L</span><span class=S1>S</span>LI<span class=L1>L</span>IGVSFLFASSSSLAYP<span class=E1>E</span><span class=K1>K</span>L<span class=S1>S</span>A<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span><span class=F1>F</span>
+nad3_metse       ---------MYTEFYGI<span class=L1>L</span>VLLIFSVV<span class=L1>L</span><span class=S1>S</span>AIISGASYI<span class=L1>L</span>GDKQ--PDR<span class=E1>E</span><span class=K1>K</span>V<span class=S1>S</span>A<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span><span class=F1>F</span>
+nad3_picca       MLNYFVYPYGIENDMGMKFYMMLVPMM<span class=S1>S</span>MV<span class=L1>L</span>MMINYMMTNKS-DNNMN<span class=K1>K</span>TGP<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span>S<span class=F1>F</span>
+nad3_podan       -------------MSSMTLFILFVSIIALLFLFINLIFAPHN--PYQ<span class=E1>E</span><span class=K1>K</span>Y<span class=S1>S</span>IF<span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span>HS<span class=F1>F</span>
+nad3_prowi       ----------MYEFLGI<span class=L1>L</span>IYFFIALA<span class=L1>L</span><span class=S1>S</span>LL<span class=L1>L</span>LGLPFLVSTRK--ADP<span class=E1>E</span><span class=K1>K</span>I<span class=S1>S</span>A<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span><span class=D1>D</span><span class=P1>P</span><span class=F1>F</span>
+nad3_recam       -----MNTMILSEYLSV<span class=L1>L</span>IFFIFSFG<span class=L1>L</span><span class=S1>S</span>CIILGLSYV<span class=L1>L</span>ATQN--ADT<span class=E1>E</span><span class=K1>K</span>L<span class=S1>S</span>P<span class=Y1>Y</span><span class=E1>E</span><span class=C1>C</span><span class=G1>G</span><span class=F1>F</span>N<span class=P1>P</span><span class=F1>F</span>
+                                                                <span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span>
+
+
+
+                         70        80        90       100       110       120
+                 =========+=========+=========+=========+=========+=========+
+nad3_parde       D-D<span class=A1>A</span><span class=R1>R</span>MK<span class=F1>F</span>DV<span class=R1>R</span><span class=F1>F</span>Y<span class=L1>L</span><span class=V1>V</span>S<span class=I1>I</span><span class=L1>L</span><span class=F1>F</span>I<span class=I1>I</span><span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span>VAF<span class=L1>L</span><span class=F1>F</span><span class=P1>P</span>WAVSFASLS-DVAF<span class=W1>W</span>GLMVFLAV<span class=L1>L</span><span class=T1>T</span>V<span class=G1>G</span><span class=F1>F</span>A
+nad3_acaca       E-DT<span class=R1>R</span>SK<span class=F1>F</span>NV<span class=R1>R</span>YY<span class=L1>L</span>I<span class=A1>A</span><span class=I1>I</span><span class=L1>L</span><span class=F1>F</span>M<span class=I1>I</span><span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span><span class=I1>I</span>MY<span class=L1>L</span><span class=F1>F</span><span class=P1>P</span>WSISISTGS-FFGV<span class=W1>W</span>AIFLFLI<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span>V<span class=G1>G</span><span class=F1>F</span><span class=I1>I</span>
+nad3_allma       G-D<span class=A1>A</span><span class=R1>R</span>QK<span class=F1>F</span>DVS<span class=F1>F</span>Y<span class=L1>L</span>I<span class=A1>A</span><span class=I1>I</span><span class=L1>L</span><span class=F1>F</span>I<span class=I1>I</span><span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span>VVFIL<span class=P1>P</span>FASVIHNVS-LLGG<span class=W1>W</span>ITIIFLV<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span><span class=I1>I</span><span class=G1>G</span><span class=F1>F</span><span class=I1>I</span>
+nad3_apec        N-S<span class=A1>A</span><span class=R1>R</span>VP<span class=F1>F</span>SF<span class=R1>R</span><span class=F1>F</span>F<span class=L1>L</span><span class=V1>V</span><span class=A1>A</span><span class=I1>I</span><span class=L1>L</span><span class=F1>F</span><span class=L1>L</span>L<span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span><span class=I1>I</span>AL<span class=L1>L</span><span class=F1>F</span><span class=P1>P</span>LPFSVFFH--P--IHTP----L<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span>V<span class=G1>G</span>L<span class=I1>I</span>
+nad3_arath       G-D<span class=A1>A</span><span class=R1>R</span>SR<span class=F1>F</span>DI<span class=R1>R</span><span class=F1>F</span>Y<span class=L1>L</span><span class=V1>V</span>S<span class=I1>I</span><span class=L1>L</span><span class=F1>F</span><span class=L1>L</span><span class=I1>I</span>P<span class=D1>D</span><span class=L1>L</span><span class=E1>E</span>VTFF<span class=F1>F</span><span class=P1>P</span>WAVPPNKID-LFGF<span class=W1>W</span>SMMAFLF<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span><span class=I1>I</span><span class=G1>G</span><span class=F1>F</span>L
+nad3_balca       A-S<span class=A1>A</span><span class=R1>R</span>LP<span class=F1>F</span>SL<span class=R1>R</span><span class=F1>F</span>F<span class=L1>L</span><span class=V1>V</span><span class=A1>A</span><span class=I1>I</span><span class=L1>L</span><span class=F1>F</span><span class=L1>L</span>L<span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span><span class=I1>I</span>AL<span class=L1>L</span>L<span class=P1>P</span>FPAALSARDPQLSFTLAFLILL<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span><span class=I1>I</span><span class=G1>G</span>L<span class=I1>I</span>
+nad3_chocr       D-D<span class=A1>A</span><span class=R1>R</span>AT<span class=F1>F</span>DI<span class=R1>R</span><span class=F1>F</span>Y<span class=L1>L</span><span class=V1>V</span><span class=A1>A</span><span class=I1>I</span><span class=L1>L</span><span class=F1>F</span><span class=L1>L</span><span class=I1>I</span><span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span><span class=I1>I</span>SF<span class=L1>L</span><span class=F1>F</span><span class=P1>P</span>WSLVLGEIS-IIGF<span class=W1>W</span>SMIVFLV<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span><span class=I1>I</span><span class=G1>G</span><span class=F1>F</span><span class=I1>I</span>
+nad3_drome       S-SS<span class=R1>R</span>LP<span class=F1>F</span>SL<span class=R1>R</span><span class=F1>F</span>F<span class=L1>L</span>IT<span class=I1>I</span>I<span class=F1>F</span><span class=L1>L</span><span class=I1>I</span><span class=F1>F</span><span class=D1>D</span>V<span class=E1>E</span><span class=I1>I</span>ALIL<span class=P1>P</span>MIIIMKYSNIMIWTITSIIFIL<span class=I1>I</span><span class=L1>L</span>L<span class=I1>I</span><span class=G1>G</span>LY
+nad3_human       S-P<span class=A1>A</span><span class=R1>R</span>VP<span class=F1>F</span>SMK<span class=F1>F</span>F<span class=L1>L</span><span class=V1>V</span><span class=A1>A</span><span class=I1>I</span>T<span class=F1>F</span><span class=L1>L</span>L<span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span><span class=I1>I</span>AL<span class=L1>L</span>L<span class=P1>P</span>LPWALQTTNLPLMVMSSLLLII<span class=I1>I</span><span class=L1>L</span>ALSLA
+nad3_ktun        S-S<span class=A1>A</span><span class=R1>R</span>LP<span class=F1>F</span>SM<span class=R1>R</span><span class=F1>F</span>F<span class=L1>L</span>ITVV<span class=F1>F</span><span class=L1>L</span>V<span class=F1>F</span><span class=D1>D</span>V<span class=E1>E</span><span class=I1>I</span>VL<span class=L1>L</span>L<span class=P1>P</span>YLFSSGWSIDVFSLVGSMMILV<span class=I1>I</span><span class=L1>L</span>I<span class=I1>I</span><span class=G1>G</span>VL
+nad3_lter        S-T<span class=A1>A</span><span class=R1>R</span>IP<span class=F1>F</span>ST<span class=R1>R</span><span class=F1>F</span>F<span class=L1>L</span>L<span class=A1>A</span><span class=I1>I</span>I<span class=F1>F</span>IV<span class=F1>F</span><span class=D1>D</span>I<span class=E1>E</span><span class=I1>I</span>VL<span class=L1>L</span>M<span class=P1>P</span>LPTILHTSDVFTTVTTSVLFLM<span class=I1>I</span><span class=L1>L</span>L<span class=I1>I</span><span class=G1>G</span>L<span class=I1>I</span>
+nad3_marpo       D-D<span class=A1>A</span><span class=R1>R</span>SR<span class=F1>F</span>DI<span class=R1>R</span><span class=F1>F</span>Y<span class=L1>L</span><span class=V1>V</span>S<span class=I1>I</span><span class=L1>L</span><span class=F1>F</span>I<span class=I1>I</span><span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span>VTF<span class=L1>L</span><span class=F1>F</span><span class=P1>P</span>WAVSLNKIG-LFGF<span class=W1>W</span>SMMVFLF<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span><span class=I1>I</span><span class=G1>G</span><span class=F1>F</span>V
+nad3_metse       G-TPGRP<span class=F1>F</span>SI<span class=R1>R</span><span class=F1>F</span>F<span class=L1>L</span>IG<span class=I1>I</span><span class=L1>L</span><span class=F1>F</span><span class=L1>L</span><span class=I1>I</span><span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span><span class=I1>I</span>SF<span class=L1>L</span><span class=F1>F</span><span class=P1>P</span>WCVVCNQVF-PFGY<span class=W1>W</span>TMIVFLAV<span class=L1>L</span><span class=T1>T</span>L<span class=G1>G</span>LV
+nad3_picca       R-QS<span class=R1>R</span>TTYSIK<span class=F1>F</span>I<span class=L1>L</span>I<span class=A1>A</span><span class=I1>I</span><span class=L1>L</span><span class=F1>F</span><span class=L1>L</span>P<span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span>LTSIL<span class=P1>P</span>YTLSMYNTN-IYGLFILLYFLLP<span class=L1>L</span>I<span class=I1>I</span><span class=G1>G</span><span class=F1>F</span><span class=I1>I</span>
+nad3_podan       LGQN<span class=R1>R</span>TQ<span class=F1>F</span>GVK<span class=F1>F</span>FIF<span class=A1>A</span>LVY<span class=L1>L</span>LL<span class=D1>D</span><span class=L1>L</span><span class=E1>E</span><span class=I1>I</span>LLT<span class=F1>F</span><span class=P1>P</span>FAVSEYVNN-IYGLIILLGFIT<span class=I1>I</span>I<span class=T1>T</span><span class=I1>I</span><span class=G1>G</span><span class=F1>F</span>V
+nad3_prowi       D-D<span class=A1>A</span><span class=R1>R</span>GR<span class=F1>F</span>DIQ<span class=F1>F</span>Y<span class=L1>L</span><span class=V1>V</span><span class=A1>A</span><span class=I1>I</span><span class=L1>L</span><span class=F1>F</span>I<span class=I1>I</span><span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span>VAF<span class=L1>L</span><span class=F1>F</span><span class=P1>P</span>WALTLNKIG-YFGF<span class=W1>W</span>SMMLFLF<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span>V<span class=G1>G</span><span class=F1>F</span><span class=I1>I</span>
+nad3_recam       D-D<span class=A1>A</span><span class=R1>R</span>GA<span class=F1>F</span>DV<span class=R1>R</span><span class=F1>F</span>Y<span class=L1>L</span><span class=V1>V</span><span class=A1>A</span><span class=I1>I</span><span class=L1>L</span><span class=F1>F</span>I<span class=I1>I</span><span class=F1>F</span><span class=D1>D</span><span class=L1>L</span><span class=E1>E</span>VAF<span class=L1>L</span><span class=F1>F</span><span class=P1>P</span>WAVALSDVT-IFGF<span class=W1>W</span>TMFIFLL<span class=I1>I</span><span class=L1>L</span><span class=T1>T</span>V<span class=G1>G</span><span class=F1>F</span><span class=I1>I</span>
+                    <span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span>                      <span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span>
+
+
+
+                        130       140       150
+                 =========+=========+=========+===
+nad3_parde       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>KK<span class=G1>G</span><span class=A1>A</span><span class=L1>L</span>E<span class=W1>W</span>A----------------------
+nad3_acaca       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>QK<span class=G1>G</span><span class=A1>A</span><span class=L1>L</span>E<span class=W1>W</span>D----------------------
+nad3_allma       <span class=Y1>Y</span><span class=E1>E</span>FVS<span class=G1>G</span><span class=A1>A</span>ITDSF---------------------
+nad3_apec        F<span class=E1>E</span><span class=W1>W</span>VQ<span class=G1>G</span>G<span class=L1>L</span>D<span class=W1>W</span>AE---------------------
+nad3_arath       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>KR<span class=G1>G</span><span class=A1>A</span>SDRE----------------------
+nad3_balca       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>ME<span class=G1>G</span>G<span class=L1>L</span>E<span class=W1>W</span>AE---------------------
+nad3_chocr       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>YK<span class=G1>G</span><span class=A1>A</span><span class=L1>L</span>E<span class=W1>W</span>E----------------------
+nad3_drome       H<span class=E1>E</span><span class=W1>W</span>NQ<span class=G1>G</span>M<span class=L1>L</span>N<span class=W1>W</span>SN---------------------
+nad3_human       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>LQKG<span class=L1>L</span>D<span class=W1>W</span>TE---------------------
+nad3_ktun        H<span class=E1>E</span><span class=W1>W</span>SE<span class=G1>G</span>S<span class=L1>L</span>E<span class=W1>W</span>FSSSN------------------
+nad3_lter        H<span class=E1>E</span><span class=W1>W</span>KE<span class=G1>G</span>S<span class=L1>L</span>D<span class=W1>W</span>SS---------------------
+nad3_marpo       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>KK<span class=G1>G</span><span class=A1>A</span><span class=L1>L</span>D<span class=W1>W</span>E----------------------
+nad3_metse       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>LK<span class=G1>G</span>G<span class=L1>L</span>E<span class=W1>W</span>E----------------------
+nad3_picca       I<span class=E1>E</span>INTK<span class=A1>A</span>IYMTKMFNRNVKSMTSYVKYNNKI--
+nad3_podan       <span class=Y1>Y</span><span class=E1>E</span>LGKS<span class=A1>A</span><span class=L1>L</span>KIDSRQVITMTRFNYSSTIEYLGKI
+nad3_prowi       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>RK<span class=G1>G</span><span class=A1>A</span><span class=L1>L</span>D<span class=W1>W</span>S----------------------
+nad3_recam       <span class=Y1>Y</span><span class=E1>E</span><span class=W1>W</span>KK<span class=G1>G</span><span class=A1>A</span><span class=L1>L</span>D<span class=W1>W</span>E----------------------
+                 <span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span><span class=BL>#</span>                         
+
+</pre>
+				</td>
+			</tr>
+		</table>
+		<hr align="LEFT">
+		<h2><a name="Options"></a>Available options</h2>
+		<h3><a name="main_menu"></a>Main menu</h3>
+		<table border="5" cellpadding="20" cellspacing="2" bgcolor="#dffff4">
+			<tr>
+				<td>
+					<pre>******************************************************
+                    GBLOCKS 0.91b                     
+SELECTION OF CONSERVED BLOCKS FROM MULTIPLE ALIGNMENTS
+        FOR THEIR USE IN PHYLOGENETIC ANALYSIS        
+******************************************************
+
+CURRENT FILE: nad3.pir
+t. Type Of Sequence: Protein
+
+o. Open File&#133;
+
+b. Block Parameters&#133;
+
+s. Saving Options&#133;
+
+g. Get Blocks
+
+q. Quit
+
+
+Your Choice: </pre>
+				</td>
+			</tr>
+		</table>
+		<p><b>t.</b> specifies the type of sequences in the current alignment. It can be <b>Protein</b>, <b>DNA</b> or <b>Codons</b>. In protein alignments, the 20 amino acid letters are used to calculate the degree of conservation of positions, and it is possible to invoke the use of a similarity matrix. In DNA and codon alignments, only A, C, G, T and U letters are considered (other symbols are allowed but do not count in the calculations). In codon alignments, selected blocks are made to contain only complete codons (if the alignment is really based on codons).</p>
+		<p><b>o.</b> opens a file. <b>NBRF/PIR </b>and<b> FASTA </b>formats are accepted (see the specifications of the formats <a href="#file_formats">below</a>). There is no limit for the number of sequences or positions in the alignment as long as there is enough memory available for the program.<br>
+			In NBRF/PIR-formatted alignments, the specification in the first line is used by Gblocks to define the type of sequence.<b> </b>In FASTA-formatted alignments, the type of sequence is always assigned to Protein. In both cases this can be changed with the option <b>t</b> (Type Of Sequence).<br>
+			Gap-only positions are eliminated before the analysis.</p>
+		<p><a name="pathnames"></a><b>Pathnames: </b>It is also possible to enter a file with the pathnames of a batch of files to be processed. This file must have one path -absolute or relative to the directory where Gblocks resides- per line. You can see the example file called <b>paths</b> included in the distribution, that has the paths to the files in the folder <b>more_alignments</b>. If all alignments in a pathnames file have the same number of sequences and sequences in all alignments are in the same relative order then it is possible to concatenate the resulting files (see below in extended saving options). If the alignments in a pathnames file do not have the same number of sequences they can be processed but they cannot be concatenated.</p>
+		<p><b>b.</b> displays the Block Parameters menu (see below).</p>
+		<p><b>s.</b> displays the Saving Options menu (see below).</p>
+		<p><b>g.</b> asks the program to proceed with the calculations. The program doesn't quit after a calculation so that it is possible to make other calculations with different parameters or to open a new file and re-use the previous options.</p>
+		<p><b>q.</b> quits the program.</p>
+		<p></p>
+		<h3><a name="block_parameters_menu"></a>Block Parameters menu</h3>
+		<table border="5" cellpadding="20" cellspacing="2" bgcolor="#dffff4">
+			<tr>
+				<td>
+					<pre>BLOCK PARAMETERS
+
+1. Minimum Number Of Sequences For A Conserved Position: . 9
+2. Minimum Number Of Sequences For A Flank Position: ..... 14
+3. Maximum Number Of Contiguous Nonconserved Positions: .. 8
+4. Minimum Length Of A Block: ............................ 10
+5. Allowed Gap Positions: ................................ None
+
+r. Restore Defaults
+g. Get Blocks
+
+z. Extended Block Options
+m. Go To Main Menu
+
+
+Your Choice: </pre>
+				</td>
+			</tr>
+		</table>
+		<p><b>1.</b> sets the Minimum Number Of Sequences For A Conserved Position, i.e. it sets the threshold for the definition of conserved positions. This value must be bigger than half the number of sequences. Bigger values of this parameter DECREASE the selected number of positions.</p>
+		<p><b>2.</b> sets the Minimum Number Of Sequences For A Flank Position, i.e. it sets the threshold for the definition of flank positions. This value must be bigger than or equal to the Minimum Number Of Sequences For A Conserved Position. Bigger values of this parameter DECREASE the selected number of positions.</p>
+		<p><b>3.</b> sets the Maximum Number Of Contiguous Nonconserved Positions. All segments with contiguous nonconserved positions bigger than this value are rejected. Bigger values of this parameter INCREASE the selected number of positions.</p>
+		<p><b>4.</b> sets the Minimum Length Of A Block after gap cleaning. Blocks smaller than this value after gap cleaning are rejected. Bigger values of this parameter DECREASE the selected number of positions.</p>
+		<p><b>NOTE</b>: In an older version of the program (0.73b) there were two parameters to modulate the length of the final blocks. The parameter at which the current menu option corresponds is Minimum Length Of A Block After Gap Cleaning, which is the most crucial. The other parameter, Minimum Length Of An Initial Block, is given in this version of the program the same value than the previous length. However, if you want to reproduce exactly the same results obtained with the older version, you can give any value to Minimum Length Of An Initial Block through the command line (see below). You can view the values of both minimum length parameters with the Save Short option of Results and Parameters File in the Saving Options menu (see below).</p>
+		<p><b>5.</b> toggles among three different possibilities for treating gap positions:<br>
+			<b>None</b>: no gap positions are allowed in the final alignment. All positions with a single gap or more are treated as a gap position for the block selection procedure, and they and the adjacent nonconserved positions are eliminated.<br>
+			<b>With Half</b>: only positions where 50% or more of the sequences have a gap are treated as a gap position. Thus, positions with a gap in less than 50% of the sequences can be selected in the final alignment if they are within an appropriate block.<br>
+			<b>All</b>: all gap positions can be selected. Positions with gaps are not treated differently from other positions.</p>
+		<p><b>r.</b> restores defaults for all parameters. These defaults are considered to be most appropriate for moderately conserved protein alignments. For rDNA-like alignments, that contain many small but very well-conserved blocks, it is advisable to manually set Minimum Length Of A Block to a smaller value, like 5 (instead of 10, which is the default).</p>
+		<p><b>g.</b> asks the program to proceed with the calculations. This option does the same here than in the Main Menu. The use of this option together with the Generic File Extension option (available in the extended menu) allows to test several parameters without leaving the block parameters menu.</p>
+		<p><b>z.</b> displays additional options in the Block Parameters menu.</p>
+		<p><b>m.</b> goes to the Main Menu.</p>
+		<p>As explained <a href="#pathnames">above</a> it is possible to enter a file with the pathnames of a batch of files to be processed. In this case, the first two parameters, that are related to the number of sequences, are set to defaults for every alignment, allowing to process alignments with different number of sequences. If one of these parameters is changed, then all alignments should have the same number sequences; otherwise, if an alignment with a different number of sequences is found the program will stop.</p>
+		<table border="5" cellpadding="20" cellspacing="2" bgcolor="#dffff4">
+			<tr>
+				<td>
+					<pre>BLOCK PARAMETERS
+
+1. Minimum Number Of Sequences For A Conserved Position: . Default
+2. Minimum Number Of Sequences For A Flank Position: ..... Default
+3. Maximum Number Of Contiguous Nonconserved Positions: .. 8
+4. Minimum Length Of A Block: ............................ 10
+5. Allowed Gap Positions: ................................ None
+
+r. Restore Defaults
+g. Get Blocks
+
+z. Extended Block Options
+m. Go To Main Menu
+
+
+Your Choice: </pre>
+				</td>
+			</tr>
+		</table>
+		<p> </p>
+		<p><b>Additional options in the Block Parameters menu</b> (they are in effect also if the menu is not extended):</p>
+		<table border="5" cellpadding="20" cellspacing="2" bgcolor="#dffff4">
+			<tr>
+				<td>
+					<pre>6. Use Similarity Matrix: ................................ Yes
+e. Generic File Extension: ............................... -gb</pre>
+				</td>
+			</tr>
+		</table>
+		<p><b>6.</b> toggles between using or not using a similarity matrix to define the degree of conservation in conserved positions and flank positions in protein alignments. However, a position needs to have a number of identities bigger than half the number of sequences to start adding more values from similar amino acids. The similarity matrix used by Gblocks is derived from the Gonnet 120 matrix.</p>
+		<p><b>e.</b> sets the generic file extension to be added to output files. It must have 5 characters maximum. Yu can change this extension when testing different parameters to avoid overwriting files. Another extension specific for each output file is also added. This option is also present in the saving options menu.</p>
+		<p></p>
+		<h3><a name="saving_options_menu"></a>Saving Options menu</h3>
+		<table border="5" cellpadding="20" cellspacing="2" bgcolor="#dffff4">
+			<tr>
+				<td>
+					<pre>SAVING OPTIONS
+
+s. Selected Blocks: ...................................... Save
+p. Results And Parameters File: .......................... Save
+e. Generic File Extension: ............................... -gb
+
+z. Extended Saving Options
+m. Go To Main Menu
+
+
+Your Choice: </pre>
+				</td>
+			</tr>
+		</table>
+		<p><b>s.</b> toggles between saving or not saving the alignment file with the selected blocks in NBRF/PIR or FASTA format, depending on the format of the input alignment. The file receives the extension <b>-gb</b> (or whatever is entered in the Generic File Extension option).</p>
+		<p><b>p.</b> toggles among saving an HTML file, saving a text file, saving a short text file or not saving any of them. With the first two options the original file is shown with the selected blocks underlined and, in the HTML file, with colored conserved positions (if you do not see these colors in your browser you may need to activate JavaScript and style sheets in the preferences). The parameters used and the flank positions of the selected blocks are also written in these files. These files receive the extension <b>-gb.htm</b>, <b>-gb.txt</b> or <b>-gb.txts</b>, respectively. Residue coloring in the HTML file is explained <a href="#mask_file">above</a>.</p>
+		<p><b>e.</b> sets the generic file extension to be added to output files. It must have 5 characters maximum. You can change this extension when testing different parameters to avoid overwriting files. Another extension specific for each output file is also added. This option is also present in the Block Parameters menu.</p>
+		<p><b>z.</b> displays additional options in the saving menu.</p>
+		<p><b>m.</b> goes to the Main Menu.</p>
+		<p></p>
+		<p><b>Additional options in the Saving Options menu</b> (they work also if the menu is not extended):</p>
+		<table border="5" cellpadding="20" cellspacing="2" bgcolor="#dffff4">
+			<tr>
+				<td>
+					<pre>v. Characters Per Line In Results And Parameters File: ... 60
+n. Nonconserved Blocks: .................................. Don't Save
+u. Ungapped Alignment: ................................... Don't Save
+k. Mask File With The Selected Blocks: ................... Don't Save
+d. Postscript File With The Selected Blocks: ............. Don't Save
+</pre>
+				</td>
+			</tr>
+		</table>
+		<p><b>v.</b> sets the number of characters per line in the alignment shown in the Results And Parameters File.</p>
+		<p><b>n.</b> toggles between saving or not saving the alignment file with the blocks <b>NOT</b> selected, in NBRF/PIR or FASTA format (i.e., the complementary of the selected blocks). The file receives the extension <b>-gbComp</b>.</p>
+		<p><b>u.</b> toggles between saving or not saving the alignment file in NBRF/PIR or FASTA format where only gap positions (i.e. positions with at least one gap) have been removed. The file receives the extension <b>-- </b>(two hyphens).</p>
+		<p><b>k.</b> toggles between saving or not saving a file that can be read by the program SeqPup, where conserved positions as defined by Gblocks are shadowed and selected blocks underlined. The file receives the extension <b>-gbMask</b>. When viewing this file with SeqPup the &quot;View&quot; pop-up menu in the alignment window must be in &quot;Select mask 1&quot;.</p>
+		<p><b>d.</b> toggles between saving or not saving a postscript file that shows schematically the selected blocks. This file is useful to quickly view the position and distribution of the selected blocks. The file receives the extension <b>-gbPS</b>. You need a postscript viewer or editor to view this file.</p>
+
+		<p>As explained <a href="#pathnames">above</a> it is possible to enter a file with the pathnames of a batch of files to be processed. In this case, three extra saving options allow you to concatenate the original, the ungapped and the Gblocks alignments. However, this should only be used if all alignments have the same number of sequences (see also the warning below). If an alignment with a different number of sequences is found the program will stop.</p>
+		<table border="5" cellpadding="20" cellspacing="2" bgcolor="#dffff4">
+			<tr>
+				<td>
+					<pre>a. Concatenated Blocks From Alignments In Batch: ......... Don't Save
+c. Concatenated Input Alignments In Batch: ............... Don't Save
+w. Concatenated Ungapped Alignments In Batch: ............ Don't Save
+</pre>
+				</td>
+			</tr>
+		</table>
+		<p><b>a.</b> toggles between saving or not saving the concatenated blocks selected from all the alignments in a batch file in NBRF/PIR or FASTA format. The file receives the name <b>paths-gb.seq</b> (where <b>paths</b> is the name of the pathnames file and <b>-gb</b> the Generic File Extension).</p>
+		<p><b>c.</b> toggles between saving or not saving all the concatenated input alignments in a batch file, without any other processing, in NBRF/PIR or FASTA format. The file receives the name <b>paths.seq</b> (where <b>paths</b> is the name of the pathnames file).</p>
+		<p><b>w.</b> toggles between saving or not saving all the concatenated ungapped alignments in a batch file in NBRF/PIR or FASTA format. The file receives the name <b>paths--.seq</b> (where <b>paths</b> is the name of the pathnames file).</p>
+		<p><b>WARNING. </b>All alignments in a pathnames file must have the same number of sequences and sequences must be in the same relative order in order to concatenate the results. Sequence names of the last alignment in the pathnames file will be used for the concatenated files. If you prepare a batch of unaligned sequences with the same relative order you should assure that your alignment program doesn't change the order of the sequences. For example, in ClustalW or ClustalX you must set in the Output Format Options that the output order is INPUT (and not ALIGNED, which is the default). Otherwise the concatenated files will be scrambled.</p>
+		<hr align="LEFT">
+		<h2><a name="command_line"></a>Command line parameters</h2>
+		<p>In Windows 95/98/NT and UNIX versions of the program all parameters can be entered in the command line.</p>
+		<p>The first parameter must always be the name of the alignment file or the pathnames file. If this is the only given parameter, the menu of the program is activated. For example:</p>
+		<blockquote>
+			<p><b>Gblocks nad3.pir</b></p>
+		</blockquote>
+		<p>The next parameters are entered according to the letter of the corresponding menu item. They can be entered in any order. The list of all parameters is:</p>
+		<table border="1" cellpadding="4" cellspacing="2" width="606" bgcolor="#f5f5a3">
+			<tr>
+				<td width="97"><b>PARAMETER NAME</b></td>
+				<td width="237"><b>MEANING<br>
+					</b>(<b>Default</b>)</td>
+				<td><b>ALLOWED VALUES</b></td>
+			</tr>
+			<tr>
+				<td width="97"><i>(None)</i></td>
+				<td width="237">Filename<br>
+					(No default)</td>
+				<td>Alignment or pathnames file</td>
+			</tr>
+			<tr>
+				<td width="97">-t=</td>
+				<td width="237">Type Of Sequence<br>
+					
+					(<b>Protein</b>, DNA, Codons)</td>
+				<td><b>p</b>, <b>d</b>, <b>c</b></td>
+			</tr>
+			<tr>
+				<td width="97">-b1=</td>
+				<td width="237">Minimum Number Of Sequences For A Conserved Position<br>
+					(<b>50% of the number of sequences + 1</b>)</td>
+				<td>Any integer bigger than half the number of sequences and smaller or equal than the total number of sequences</td>
+			</tr>
+			<tr>
+				<td width="97">-b2=</td>
+				<td width="237">Minimum Number Of Sequences For A Flank Position<br>
+					(<b>85% of the number of sequences</b>)</td>
+				<td>Any integer equal or bigger than Minimum Number Of Sequences For A Conserved Position</td>
+			</tr>
+			<tr>
+				<td width="97">-b3=</td>
+				<td width="237">Maximum Number Of Contiguous Nonconserved Positions<br>
+					(<b>8</b>)</td>
+				<td>Any integer</td>
+			</tr>
+			<tr>
+				<td width="97">-b4=</td>
+				<td width="237">Minimum Length Of A Block<br>
+					(<b>10</b>)</td>
+				<td>Any integer equal or bigger than 2</td>
+			</tr>
+			<tr>
+				<td width="97">-b5=</td>
+				<td width="237">Allowed Gap Positions<br>
+					(<b>None</b>, With Half, All)</td>
+				<td><b>n</b>, <b>h</b>, <b>a</b></td>
+			</tr>
+			<tr>
+				<td width="97">-b6=<br>
+					<i>(Only available for protein alignments; only visible in the extended block parameters menu) </i></td>
+				<td width="237">Use Similarity Matrices<br>
+					(<b>Yes</b>, No)</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-b0=<br>
+					<i>(This option does not appear in the menu) </i></td>
+				<td width="237">Minimum Length Of An Initial Block<br>
+					(<b>Same as Minimum Length Of A Block</b>)</td>
+				<td>Any integer equal or bigger than 2</td>
+			</tr>
+			<tr>
+				<td width="97">-s=</td>
+				<td width="237">Selected Blocks<br>
+					(<b>Yes</b>, No)</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-p=</td>
+				<td width="237">Results And Parameters File<br>
+					(<b>Yes</b>, Text, Short Text, No)</td>
+				<td><b>y</b>, <b>t</b>, <b>s, n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-v=<br>
+					<i>(Only visible in the extended saving options) </i></td>
+				<td width="237">Characters Per Line In Results And Parameters File<br>
+					
+					(<b>60</b>)</td>
+				<td>Any integer bigger than 50</td>
+			</tr>
+			<tr>
+				<td width="97">-n=<br>
+					<i>(Only visible in the extended saving options) </i></td>
+				<td width="237">Nonconserved Blocks<br>
+					
+					(Yes, <b>No</b>)</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-u=<br>
+					<i>(Only visible in the extended saving options) </i></td>
+				<td width="237">Ungapped Alignment<br>
+					
+					(Yes, <b>No</b>)</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-k=<br>
+					<i>(Only visible in the extended saving options) </i></td>
+				<td width="237">Mask File With The Selected Blocks<br>
+					(Yes, <b>No</b>)</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-d=<br>
+					<i>(Only visible in the extended saving options) </i></td>
+				<td width="237">Postscript File With The Selected Blocks<br>
+					(Yes, <b>No</b>)</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-a=<br>
+					<i>(Only available with paths files) </i></td>
+				<td width="237">Concatenated Blocks From Alignments In Batch<br>
+					(Yes, <b>No</b>)<br>
+				</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-c=<br>
+					<i>(Only available with paths files) </i></td>
+				<td width="237">Concatenated Input Alignments In Batch<br>
+					(Yes, <b>No</b>)</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-w=<br>
+					<i>(Only available with paths files)</i></td>
+				<td width="237">Concatenated Ungapped Alignments In Batch<br>
+					
+					(Yes, <b>No</b>)</td>
+				<td><b>y</b>, <b>n</b></td>
+			</tr>
+			<tr>
+				<td width="97">-e=</td>
+				<td width="237">Generic File Extension<br>
+					
+					(<b>-gb</b>)</td>
+				<td>Any string with 5 or less characters</td>
+			</tr>
+		</table>
+		<p>For example, the following command line will open an alignment file, insist in that the alignment type is Protein, change the Generic File Extension, set the Minimum Length Of A Block to 5 and ask to save the postscript file:</p>
+		<blockquote>
+			<p><b>Gblocks nad3.pir -t=p -e=-gb1 -b4=5 -d=y</b></p>
+		</blockquote>
+		<p><b>Note for paths files</b>. If one of the options <b>a</b>, <b>c</b> or <b>w</b> are set to yes (a concatenated file is to be saved) or parameters <b>b1</b> or <b>b2</b> (that are related to the number of sequences) are changed, then the paths file should contain all alignments with the same number or sequences; otherwise the program will stop.</p>
+		<hr align="LEFT">
+		<h2><a name="file_formats"></a>File formats</h2>
+		<p>The <b>NBRF/PIR </b>format has the following features:</p>
+		<ul>
+			<li>The first line of every sequence must contain the sequence name preceded by &quot;<b>&gt;P1;</b>&quot; for protein sequences or &quot;<b>&gt;DL;</b>&quot; for DNA sequences (without quotes). This specification is used by Gblocks to define the type of sequence, but it can be changed with the option <b>t</b> (Type Of Sequence).</li>
+			<li>Then there is a line with information about this sequence that can be left blank, but there must always be an extra line here.</li>
+			<li>Finally the sequence comes. The last character must always be &quot;<b>*</b>&quot; (without quotes).</li>
+		</ul>
+		<p>For example, this is a protein alignment with three sequences in NBRF/PIR format:</p>
+		<table border="0" cellpadding="4" cellspacing="2">
+			<tr>
+				<td bgcolor="#f5f5a3">
+					<pre>&gt;P1;nad3_parde
+
+------MEYLLQEYLPILVFLGMASALAIVLILAAAVIAVRN--PDPEKVSAYECGFNAF
+D-DARMKFDVRFYLVSILFIIFDLEVAFLFPWAVSFASLS-DVAFWGLMVFLAVLTVGFA
+YEWKKGALEWA----------------------*
+
+&gt;P1;nad3_picca
+
+MLNYFVYPYGIENDMGMKFYMMLVPMMSMVLMMINYMMTNKS-DNNMNKTGPYECGFDSF
+R-QSRTTYSIKFILIAILFLPFDLELTSILPYTLSMYNTN-IYGLFILLYFLLPLIIGFI
+IEINTKAIYMTKMFNRNVKSMTSYVKYNNKI--*
+
+&gt;P1;nad3_podan
+
+-------------MSSMTLFILFVSIIALLFLFINLIFAPHN--PYQEKYSIFECGFHSF
+LGQNRTQFGVKFFIFALVYLLLDLEILLTFPFAVSEYVNN-IYGLIILLGFITIITIGFV
+YELGKSALKIDSRQVITMTRFNYSSTIEYLGKI*
+</pre>
+				</td>
+			</tr>
+		</table>
+		<p>The <b>FASTA </b>format is simpler:</p>
+		<ul>
+			<li>The first line of every sequence must contain the sequence name preceded by &quot;<b>&gt;</b>&quot;.</li>
+			<li>Then the sequence follows.</li>
+		</ul>
+		<p>This is the same protein alignment in FASTA format:</p>
+		<table border="0" cellpadding="4" cellspacing="2">
+			<tr>
+				<td bgcolor="#f5f5a3">
+					<pre>&gt;nad3_parde
+------MEYLLQEYLPILVFLGMASALAIVLILAAAVIAVRN--PDPEKVSAYECGFNAF
+D-DARMKFDVRFYLVSILFIIFDLEVAFLFPWAVSFASLS-DVAFWGLMVFLAVLTVGFA
+YEWKKGALEWA----------------------
+&gt;nad3_picca
+MLNYFVYPYGIENDMGMKFYMMLVPMMSMVLMMINYMMTNKS-DNNMNKTGPYECGFDSF
+R-QSRTTYSIKFILIAILFLPFDLELTSILPYTLSMYNTN-IYGLFILLYFLLPLIIGFI
+IEINTKAIYMTKMFNRNVKSMTSYVKYNNKI--
+&gt;nad3_podan
+-------------MSSMTLFILFVSIIALLFLFINLIFAPHN--PYQEKYSIFECGFHSF
+LGQNRTQFGVKFFIFALVYLLLDLEILLTFPFAVSEYVNN-IYGLIILLGFITIITIGFV
+YELGKSALKIDSRQVITMTRFNYSSTIEYLGKI
+</pre>
+				</td>
+			</tr>
+		</table>
+
+		<hr align="LEFT">
+		<h2><a name="Citation"></a>Citation</h2>
+
+		<p>The following paper describes the Gblocks method as well as the advantages and apparent disadvantages of eliminating nonconserved segments from an alignment intended for phylogenetic analysis:</p>
+		<ul><li>
+		Castresana, J. (<b>2000</b>). Selection of conserved blocks from multiple alignments for their use in phylogenetic analysis. <b>Molecular Biology and Evolution</b> 17, 540-552.
+		<br><a href="http://www.ncbi.nlm.nih.gov/sites/entrez?cmd=Retrieve&db=PubMed&list_uids=10742046&dopt=AbstractPlus" class="menu3">[abstract]</a>
+		</li></ul>
+
+		<p>Other paper showing the effects of Gblocks on alignments is:</p>
+		<ul><li>
+		Talavera, G., and Castresana, J. (<b>2007</b>). Improvement of phylogenies after removing divergent and ambiguously aligned blocks from protein sequence alignments. <b>Systematic Biology</b> 56, 564-577.
+		<br><a href="http://www.ncbi.nlm.nih.gov/sites/entrez?cmd=Retrieve&db=PubMed&list_uids=17654362&dopt=AbstractPlus" class="menu3">[abstract]</a>
+		</li></ul>
+
+		<hr align="LEFT">
+		<h2><a name="Version_history"></a>Version history</h2>
+		
+				<p><b>Gblocks 0.91b</b>:<br>
+		- It is now possible to select blocks that contain some gap positions inside.<br>
+		- It now uses a similarity matrix in protein alignments so that conserved positions are less strictly defined.<br>
+		- In codon alignments, selected blocks are made to coincide with complete codons.<br>
+		- It generates an HTML output file of the original alignment with the selected blocks highlighted.<br>
+		- All saving and block parameters can be entered through the command line (in UNIX and PC versions).<br>
+		- It now reads and writes FASTA format (besides PIR/NBRF). In addition, gap-only positions are removed previous to the analysis.<br>
+		- It can now process alignments with only two positions (previously the minimum was five) or only two sequences (previously the minimum was three), and path files with only one sequence (previously the minimum was two).<br>
+		- It is possible to process path files containing alignments with different number of sequences; in this case the program calculates defaults for every alignment.<br>
+		- The block parameters and saving menus have been simplified. As a consequence of the block parameters simplification and other changes, the results with defaults are slightly different from those of version 0.73b.<br>
+		- A bug that would crash the program under certain rare conditions in the alignment ends has been fixed.<br>
+		</p>
+
+		<p><b>Gblocks 0.73b</b>:<br>
+		- First release.<br>
+		</p>
+
+		<br>		
+
+	</body>
+
+</html>

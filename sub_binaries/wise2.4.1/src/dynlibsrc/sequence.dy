@@ -1,0 +1,1264 @@
+
+%{
+
+#include "wisebase.h"
+#include "codon.h"
+
+#ifdef LINUX
+#include "posix.h"
+#endif
+
+#define SEQUENCEBLOCK 8000
+
+#define SEQUENCE_STARTSIZE 512
+#define SEQUENCE_REALLOC_LINEAR (4096*4)
+
+enum SequenceType {
+SEQUENCE_UNKNOWN = 64,
+SEQUENCE_PROTEIN,
+SEQUENCE_DNA,
+SEQUENCE_CDNA,
+SEQUENCE_GENOMIC,
+SEQUENCE_EST,
+SEQUENCE_RNA };
+
+#define is_dna_SequenceType(type) (type == SEQUENCE_DNA || type == SEQUENCE_CDNA || type == SEQUENCE_GENOMIC || type == SEQUENCE_EST ? TRUE : FALSE)
+#define is_rna_SequenceType(type) (type == SEQUENCE_RNA ? TRUE : FALSE)
+#define is_protein_SequenceType(type) (type == SEQUENCE_PROTEIN ? TRUE : FALSE )
+
+#define is_dna_Sequence(seq) (is_dna_SequenceType(seq->type))
+#define is_rna_Sequence(seq) (is_rna_SequenceType(seq->type))
+#define is_protein_Sequence(seq) (is_protein_SequenceType(seq->type))
+
+#define SequenceSetLISTLENGTH 64
+%}
+
+
+
+
+struct Sequence
+char * name !def="NULL" // name of the sequence
+char * seq  !def="NULL" // actual sequence
+int len;    !def="0" // length of the sequence
+int maxlen; !def="0" // internal counter, indicating how much space in seq there is
+int offset; !def="1"; // start (in bio-coords) of the sequence. Not called start due to weird legacy.
+int end;    !def="(-1)"; // end (in bio-coords == C coords) of the sequence
+char type;  !def="SEQUENCE_UNKNOWN"; // guess of protein/dna type
+int tax_id  !def="0" // taxonimic id of this
+double weight !def="1.0"
+char * desc !def="NULL" // description - often this will be NULL
+%info 
+This object is the basic sequence object,
+trying to hold little more than the 
+name and sequence of the DNA/protein. 
+
+The len/maxlen is the actual length
+of the sequence (strlen(obj->seq)) and
+amount of memory allocated in obj->seq 
+mainly for parsing purposes.
+
+%%
+
+struct SequenceSet
+Sequence ** set !list 
+%info
+A list of sequences. Not a database (you should
+use the db stuff for that!). But useful anyway
+%%
+
+api
+object Sequence
+func uppercase_Sequence
+func force_to_dna_Sequence
+func is_reversed_Sequence
+func translate_Sequence
+func reverse_complement_Sequence
+func magic_trunc_Sequence
+func trunc_Sequence
+func read_fasta_file_Sequence
+func read_Sequence_EMBL_seq
+func read_fasta_Sequence 
+func show_Sequence_residue_list
+func write_fasta_Sequence
+func make_len_type_Sequence
+des  free_Sequence
+endobject
+object SequenceSet
+des free_SequenceSet
+endobject
+func Sequence_type_to_string
+func new_Sequence_from_strings
+endapi
+
+
+%{
+#include "wisebase.h"
+#include "sequence.h"
+
+%func
+Makes a new sequence from strings given. 
+Separate memory will be allocated for them
+and them copied into it.
+
+They can be NULL, in which case 
+o  a dummy name SequenceName will be assigned
+o  No sequence placed and length of zero.
+
+Though this is dangerous later on. 
+
+The sequence type is calculated automatically using
+/best_guess_type. If you want a DNA sequence but are
+unsure of the content of, for example, IUPAC codes,
+please use /force_to_dna_Sequence before using the
+sequence. Most of the rest of dynamite relies on a
+five letter A,T,G,C,N alphabet, but this function
+will allow any sequence type to be stored, so please
+check if you want to save yourself alot of grief.
+
+In perl and other interfaces, this is a much safer
+constructor than the raw "new" type
+%arg
+name r name of sequence, memory is allocated for it.
+seq  r char * of sequence, memory is allocated for it.
+%% 
+Sequence * new_Sequence_from_strings(char * name,char * seq)
+{
+  Sequence * out;
+  
+  out = Sequence_alloc();
+  
+  if( name == NULL) 
+    name = "SequenceName";
+
+  out->name = stringalloc(name);
+
+  if( seq == NULL ) {
+    out->seq = NULL;
+    out->len = 0;
+    return out;
+  }
+
+  out->seq = stringalloc(seq);
+  out->len = strlen(out->seq);
+  out->offset = 1;
+  out->end = out->len;
+
+  out->type = best_guess_type(out);
+
+  return out;
+}
+
+
+%func
+Returns true if name looks like [A-Za-z]+[0-9]+
+This should be an accession number 
+%arg
+name r name to be tested
+%%
+boolean looks_like_accession(char * name)
+{
+  char * run;
+  
+  for(run=name;*run && isalpha((int)*run);run++)
+    ;
+  if( *run == '\0')
+    return FALSE;
+  for(;*run && isalnum((int)*run) && !isalpha((int)*run);run++)
+    ;
+  if( *run == '\0')
+    return TRUE;
+  return FALSE;
+}
+
+
+%func
+makes seq->len and seq->end match the seq->seq
+length number. 
+
+It also checks the type of the sequence with
+/best_guess_type
+%simple validate
+%arg
+seq rw Sequence object
+%%
+void make_len_type_Sequence(Sequence * seq)
+{
+  seq->len = strlen(seq->seq);
+
+  seq->end = seq->len + seq->offset -1;
+  seq->type = best_guess_type(seq);
+
+}
+
+%func
+Guesses DNA or protein, by adding all
+the A,T,G,C up and if len < 300 && > 95% or 
+len > 300 && > 75% then considers
+it to be DNA. NB - Ns now counted.
+%arg
+seq r Sequence to be guessed
+return o SEQUENCE_DNA or SEQUENCE_PROTEIN
+%%
+int   best_guess_type(Sequence * seq)
+{
+  register int i;
+  int ch[26];
+  int no;
+  int unplaced = 0;
+  int total;
+
+  for(i=0;i<26;i++) 
+    ch[i] = 0;
+  
+  for(i=0;i<seq->len;i++) {
+    /*fprintf(stderr,"character is %c and total is %d\n",seq->seq[i],unplaced);*/
+    if( (no=(int)( toupper(seq->seq[i])-'A')) > 26 || no < 0 )
+      unplaced++;
+    else ch[no]++;
+  }
+  
+  total = (ch['A' - 'A']+ch['T' - 'A'] + ch['G' - 'A'] + ch['C' - 'A'] + ch['N' - 'A']);
+
+  if( seq->len < 300 ) {
+    if( (double)total/(double)seq->len > 0.95 )
+      return SEQUENCE_DNA;
+    else return SEQUENCE_PROTEIN;
+  } else {
+    if( (double)total/(double)seq->len > 0.75 )
+      return SEQUENCE_DNA;
+    else return SEQUENCE_PROTEIN;
+  }
+
+}
+
+%func
+Converts sequence type (SEQUENCE_*) to a string
+%arg
+type type eg SEQUENCE_PROTEIN
+%%
+char * Sequence_type_to_string(int type)
+{
+  switch (type ) {
+  case SEQUENCE_UNKNOWN : return "Unknown type";
+  case SEQUENCE_PROTEIN : return "Protein";
+  case SEQUENCE_DNA : return "Dna";
+  case SEQUENCE_CDNA : return "cDNA";
+  case SEQUENCE_GENOMIC : return "Genomic";
+  case SEQUENCE_EST : return "Est";
+  case SEQUENCE_RNA  : return "RNA";
+  default : return "Undefined!";
+  }
+}
+
+%func
+makes all the sequence uppercase
+%simple uppercase
+%arg
+seq rw Sequence to be uppercased
+%%
+void uppercase_Sequence(Sequence * seq)
+{
+  int i;
+
+  for(i=0;i<seq->len;i++)
+    seq->seq[i] = toupper((int)seq->seq[i]);
+}
+
+%func
+This 
+ a) sees how many non ATGCN characters there are in Seq
+ b) If the level is below fraction
+    a) flips non ATGC chars to N
+    b) writes number of conversions to number_of_conver
+    c) returns TRUE
+ c) else returns FALSE
+
+fraction of 0.0 means completely intolerant of errors
+fraction of 1.0 means completely tolerant of errors
+
+%simple force_to_dna
+%arg
+seq              rw sequence object read and converted 
+fraction         r number 0..1 for tolerance of conversion
+number_of_conver wN number of conversions actually made
+return r TRUE for conversion to DNA, FALSE if not
+%%
+boolean force_to_dna_Sequence(Sequence * seq,double fraction,int * number_of_conver)
+{
+  int count =0;
+  int i;
+
+  if( seq == NULL ) {
+    warn("Attempting to force a sequence with no Sequence object!\n");
+    return FALSE;
+  } 
+  if( seq->len <= 0 ) {
+    warn("Trying to make a sequence with a length of %d. Bad news!",seq->len);
+    return FALSE;
+  }
+
+  
+  for(i=0;i<seq->len;i++) {
+    /* if it is lower case, uppercase it! */
+    seq->seq[i] = (char)toupper((int)seq->seq[i]);
+    
+    if( !is_valid_base_char(seq->seq[i]) ) {
+      count++;
+    }
+  }
+
+
+  if( ((double)count/(double)seq->len) < fraction ) {
+    seq->type = SEQUENCE_DNA;
+    if( count != 0 ) {
+      for(i=0;i<seq->len;i++) {
+	if( !is_valid_base_char(seq->seq[i]) ) {
+	  seq->seq[i] = 'N';
+	}
+      }
+    }
+    if( number_of_conver != NULL ) {
+      *number_of_conver = count;
+    }
+    return TRUE;
+  }
+  else {
+    if( number_of_conver != NULL ) {
+      *number_of_conver = count;
+    }
+    return FALSE;
+  }
+}
+    
+%func
+Currently the sequence object stores 
+reversed sequences as start > end.
+
+This tests that and returns true if it is
+%simple is_reversed
+%arg
+seq r sequence to test
+%%
+boolean is_reversed_Sequence(Sequence * seq)
+{
+  if( seq->offset > seq->end)
+    return TRUE;
+  return FALSE;
+}
+
+%func
+This translates a DNA sequence to a protein.
+It assummes that it starts at first residue
+(use trunc_Sequence to chop a sequence up).
+%simple translate
+%arg
+dna r DNA sequence to be translated
+ct  r Codon table to do codon->aa mapping
+return o new protein sequence
+%%
+Sequence * translate_Sequence(Sequence * dna,CodonTable * ct)
+{
+  Sequence * out;
+  int i;
+  int j;
+  int len;
+  char * seq;
+  char * name;
+  char buffer[512];
+
+  if( is_dna_Sequence(dna) == FALSE) {
+    warn("Trying to make a translation from a non DNA sequence... type is [%s]",Sequence_type_to_string(dna->type));
+    return NULL;
+  }
+
+  len = dna->len/3 + 1;
+  
+  seq = ckcalloc(len,sizeof(char));
+
+  sprintf(buffer,"%s.tr",dna->name == NULL ? "NoNameDNASeq" : dna->name);
+
+  name = stringalloc(buffer);
+
+  out  = Sequence_from_dynamic_memory(name,seq);
+
+  for(i=0,j=0;i<dna->len-3;i+=3,j++) {
+    out->seq[j] = aminoacid_from_seq(ct,dna->seq+i);
+  }
+  out->seq[j] = '\0';
+
+  out->type  = SEQUENCE_PROTEIN;
+  out->len   = strlen(out->seq);
+
+  return out;
+}
+
+%func
+This both complements and reverses a sequence,
+- a common wish!
+
+The start/end are correct with respect to the start/end
+of the sequence (ie start = end, end = start).
+%simple revcomp
+%arg
+seq r Sequence to that is used to reverse (makes a new Sequence)
+return o new Sequence which is reversed
+%%    
+Sequence * reverse_complement_Sequence(Sequence * seq)
+{
+  Sequence * out;
+  int i;
+  int j;
+
+
+  if( is_dna_Sequence(seq) != TRUE ) {
+    warn("Cannot reverse complement non-DNA sequence... type is %s",Sequence_type_to_string(seq->type));
+    return NULL;
+  }
+
+  out = Sequence_from_static_memory(seq->name,seq->seq);
+  
+  for(j=0,i=seq->len-1;i >= 0;i--,j++) {
+    if( seq->seq[i] == '.' || seq->seq[i] == '-' ) {
+      out->seq[j] = seq->seq[i];
+    } else {
+      out->seq[j] = char_complement_base(seq->seq[i]);
+    }
+    /*fprintf(stderr,"In position %d placed %c from %c\n",j,out->seq[j],seq->seq[i]);*/
+  }
+
+  out->len = strlen(seq->seq);
+
+  out->offset = seq->end;
+  out->end   = seq->offset;
+  out->type  = seq->type;
+  
+
+  return out;
+}
+%func
+Clever function for dna sequences.
+
+When start < end, truncates normally
+
+when start > end, truncates end,start and then
+reverse complements.
+
+ie. If you have a coordinate system where reverse 
+sequences are labelled in reverse start/end way,
+then this routine produces the correct sequence.
+%simple magic_trunc
+%arg
+seq r sequence that is the source to be truncated
+start r start point
+end r end point
+return o new Sequence which is truncated/reversed
+%%
+Sequence * magic_trunc_Sequence(Sequence * seq,int start,int end)
+{
+  Sequence * temp;
+  Sequence * out;
+
+  if( is_dna_Sequence(seq) == FALSE) {
+    warn("Cannot magic truncate on a non DNA sequence... type is %s",Sequence_type_to_string(seq->type));
+    return NULL;
+  }
+
+  if( start < 0 || end < 0 ) {
+    warn("Attempting a magic truncation on indices which are less than zero [%d:%d]. Clearly impossible",start,end);
+    return NULL;
+  }
+
+  if( start < end ) {
+    return trunc_Sequence(seq,start,end);
+  }
+  else {
+    temp = trunc_Sequence(seq,end,start);
+    if( temp == NULL ) {
+      warn("Unable to truncate sequence");
+      return NULL;
+    }
+
+
+    out = reverse_complement_Sequence(temp);
+
+    free_Sequence(temp);
+
+    return out;
+  }
+
+}
+
+
+%func
+truncates a sequence. It produces a new memory structure
+which is filled from sequence start to end.
+
+Please notice
+  
+  Truncation is in C coordinates. That is
+the first residue is 0 and end is the number of the
+residue after the cut-point. In otherwords to 
+2 - 3 would be a single residue truncation. So - if
+you want to work in more usual, 'inclusive' molecular
+biology numbers, which start at 1, then you need to say
+
+  trunc_Sequence(seq,start-1,end);
+
+(NB, should be (end - 1 + 1) = end for the last coordinate).
+
+  Truncation occurs against the *absolute* coordinate
+system of the Sequence, not the offset/end pair inside.
+So, this is a very bad error
+ 
+  ** wrong code, and also leaks memory **
+
+  tru = trunc_Sequence(trunc_Sequence(seq,50,80),55,75); 
+
+This the most portable way of doing this
+
+  temp = trunc_Sequence(seq,50,80);
+
+  tru  = trunc_Sequence(temp,55-temp->offset,75-temp->offset);
+
+  free_Sequence(temp);
+
+%simple trunc
+%arg
+seq  r object holding the sequence to be truncated
+start r start point of truncation
+end r end point of truncation
+return o newly allocated sequence structure
+%%
+Sequence * trunc_Sequence(Sequence * seq,int start,int end)
+{
+  char * name;
+  char * seqb;
+  Sequence * out;
+
+  if( start < 0 || end < 0 ) {
+    warn("Attempting a truncation on indices which are less than zero [%d:%d]. Clearly impossible",start,end);
+    return NULL;
+  }
+  
+  if( end <= start ) {
+    warn("Trying to truncate Sequence from %d - %d",start,end);
+    return NULL;
+  }
+  
+  if( end > seq->len ) {
+    warn("Trying to truncate Sequecne %s from %d - %d when length is %d",
+	 seq->name,start,end,seq->len);
+    return NULL;
+    }
+  
+  name = stringalloc(seq->name);
+  
+  seqb = (char *) ckcalloc(end-start+1,sizeof(char));
+  
+  memcpy(seqb,seq->seq+start,(end-start));
+  seqb[end-start] = '\0';
+  
+  out = Sequence_from_dynamic_memory(name,seqb);
+
+  out->len = strlen(out->seq);
+  out->type = seq->type;
+  out->offset = seq->offset+start;
+  out->end  = seq->offset + end-1;
+
+  return out;
+}
+
+%func
+A function for you to easily specify the sequence name
+and the database separately. Just concatonates the two
+strings with : betwqeen them. Therefore you should use
+"swisprot-id" for example as your datastring.
+
+calls /read_SRS_Sequence
+%arg
+datastring r string representing the database (swissprot-id)
+srsstring r string for the name (eg, ROA1_HUMAN)
+%%
+Sequence * read_SRS_db_Sequence(char * datastring,char * srsstring)
+{
+  char buffer[256];
+  
+  sprintf(buffer,"%s:%s",datastring,srsstring);
+  
+  return read_SRS_Sequence(buffer);
+}
+
+%func
+reads SRS specified sequence. calls popoen
+with getz -f using srs4 syntax. Will only read
+the first sequence if there is more than one in the 
+SRS spec, and does not warn you about additional 
+sequences
+%arg
+srsstring r srs spec'd string swissprot-id:ROA1_HUMAN
+%%
+Sequence * read_SRS_Sequence(char * srsstring)
+{
+  FILE * pipe;
+  char buffer[MAXLINE];
+  Sequence * out;
+  
+  
+  sprintf(buffer,"getz -d '[%s]' ",srsstring);
+  
+  pipe = popen(buffer,"r");
+  
+  if ( pipe == NULL ) {
+    warn("Could not open %s as an SRS database string - probably no getz",srsstring);
+    return NULL;
+  }
+  
+  out = read_fasta_Sequence(pipe);
+  
+  pclose(pipe);
+  
+  return out;
+}
+
+%func
+reads efetch specificed sequence. calls popen to
+efetch. A hack around accession numbers so that if the 
+thing looks like WP:acc number, calls it with -a...
+otherwise assummes you have both database and name in the
+efetchstring
+%arg
+efetchstring r efetch valid string
+%%
+Sequence * read_efetch_Sequence(char * efetchstring)
+{
+  FILE * pf;
+  Sequence * out;
+  char buffer[MAXLINE];
+
+  if( strstartcmp(efetchstring,"WP:") != 0 && looks_like_accession(efetchstring+3) == TRUE) {
+    sprintf(buffer,"efetch -f -a %s",efetchstring);
+  }
+  else {
+    sprintf(buffer,"efetch -f %s",efetchstring);
+  }
+
+  pf = popen(buffer,"r");
+
+  if( pf == NULL ) {
+    warn("Could not open efetch pipe with [%s]",efetchstring);
+    return NULL;
+  }
+
+  out = read_fasta_Sequence(pf);
+
+  pclose(pf);
+
+  return out;
+}
+
+%func
+Just a call
+  a) open filename
+  b) read sequence with /read_fasta_Sequence
+  c) close file.
+%arg
+filename r filename to open 
+%%
+Sequence * read_fasta_file_Sequence(char * filename)
+{
+  Sequence * out;
+  FILE * ifp;
+  
+  ifp = openfile(filename,"r");
+  
+  if( ifp == NULL ) {
+    warn("Cannot open %s for read_fasta_file",filename);
+    return NULL;
+  }
+
+
+  out = read_fasta_Sequence(ifp);
+  
+  fclose(ifp);
+  
+  return out;
+}
+
+%func
+reads the sequence part of an EMBL file.
+
+This function can either take a file which 
+starts
+
+%arg
+ifp    r input file to read from
+buffer rw buffer containing the first line.
+maxlen r length of buffer
+%%
+Sequence * read_Sequence_EMBL_seq(char * buffer,int maxlen,FILE * ifp)
+{
+  Sequence * out;
+  char seqbuffer[SEQUENCEBLOCK];
+  int i = 0;
+  signed char c;
+
+  if( !isalpha((int)*buffer) ) {
+    warn("I don't like this - got a buffer of [%s] in reading an EMBL sequence section",buffer);
+  }
+
+  do {
+    if( strstartcmp(buffer,"SQ") == 0 ) {
+      break;
+    }
+  } while ( fgets(buffer,maxlen,ifp) != NULL);
+
+  out = empty_Sequence_from_dynamic_memory(stringalloc("EMBLseq"));
+
+  while( (c=fgetc(ifp)) != EOF ) {
+    if( c == '/' && (c=fgetc(ifp)) == '/') 
+      break; /*** ugly perhaps. what about single / lines? ***/
+
+    if( isalpha(c) )
+      seqbuffer[i++] = c;
+    if( i > SEQUENCEBLOCK-2) {
+      seqbuffer[i] = '\0';
+      if( add_string_to_Sequence(out,seqbuffer) == FALSE )
+	{
+	  warn("Could not read full sequence of %s - returning\n",out->name);
+	  return out;
+	}
+      i = 0;
+    }
+  }
+  
+  /* ok have to now put away final buffer read! */
+  
+  seqbuffer[i] = '\0';
+  
+  add_string_to_Sequence(out,seqbuffer);
+
+  /** add back > if need be **/
+  
+  if( feof(ifp) || c != '/' ) {
+    warn("In parsing an EMBL file got an poor ending of a sequence region");
+  } else {
+    while( (c=fgetc(ifp)) != '\n' && c != EOF )
+      ;
+  }
+  
+  make_len_type_Sequence(out);
+
+  return out;
+}
+
+%func
+reads a fasta file assumming pretty 
+standard sanity for the file layout
+%%
+Sequence * read_fasta_Sequence(FILE * ifp)
+{
+  char buffer[MAXLINE];
+  char c; /* we need to do a nasty fgetc/ungetc to detect whether we have ended */
+  char seqbuffer[SEQUENCEBLOCK];
+  int i = 0;
+  int j;
+  int tax_id = -1;
+  double weight = 1.0;
+  boolean seen_weight = 0;
+  char * temp;
+  char * desc;
+  char * name;
+  Sequence * out;
+
+
+  
+
+  /* first line is '>' */
+
+  if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+    return NULL;
+  }
+
+  if( buffer[strlen(buffer)-1] != '\n' ) {
+    /* excessive description line */
+    while( (c=fgetc(ifp)) != '\n' && c != EOF ) {
+      ;
+    }
+    if( c == EOF ) {
+      warn("In sequence file, overead line into end of file. Exiting");
+      return NULL;
+    }
+  }
+
+
+  if( (temp = strstr(buffer,"tax_id=")) != NULL ) {
+    tax_id = atoi(temp+strlen("tax_id="));
+  }
+
+  if( (temp = strstr(buffer,"weight=")) != NULL ) {
+    weight = atof(temp+strlen("weight="));
+  }
+
+  if( buffer[0] == '/' && buffer[1] == '/' ) {
+    /* silent exit as if EOF */
+    return NULL;
+  }
+  
+  if( buffer[0] != '>' ) {
+    warn("First character read not >, assumming is not fasta");
+    return NULL;
+  }
+
+  /* some annoying formats have >\s+\S+ ... Grrrr! */
+
+  for(i=1,name=buffer+1;*name && isspace(*name);name++,i++)
+    ;
+    
+  /* now delimit this point */
+  for(;!isspace(buffer[i]);i++)
+    ;
+
+  buffer[i] = '\0';
+
+  /* now find description line if here */
+
+  for(i++;isspace(buffer[i]) && buffer[i] != '\0';i++) {
+    ;
+  }
+  if( buffer[i] != '\0' ) {
+    desc = buffer+i;
+    for(i++;buffer[i] != '\0' && buffer[i] != '\n';i++) {
+      ;
+    }
+    buffer[i] = '\0';
+  } else {
+    desc = NULL;
+  }
+
+
+  out = empty_Sequence_from_dynamic_memory(stringalloc(name));
+  if( desc != NULL ){
+    out->desc = stringalloc(desc);
+  }
+
+  out->tax_id = tax_id;
+  out->weight = weight;
+
+  i =0;
+  while( 1 ) {
+    i =0;
+    /* get/ungetc to see if we should read this line */
+    c = fgetc(ifp);
+    if( c == EOF || c == '>' || c == '/') {
+      break;
+    }
+    seqbuffer[i++] = c;
+    /* get the rest of the line */
+    if( fgets(buffer,MAXLINE,ifp) == NULL ) {
+      warn("Strangely truncated line in fasta file");
+      break;
+    }
+
+    /*fprintf(stderr,"Getting into while loop.. with [%s]\n",buffer); */
+
+    for(j=0;buffer[j] != '\0';j++) {
+      if( isalpha(buffer[j]) || buffer[j] == '-' || buffer[j] == '.' || buffer[j] == '~' )
+	seqbuffer[i++] = buffer[j];
+    }
+    seqbuffer[i] = '\0';
+
+    if( add_string_to_Sequence(out,seqbuffer) == FALSE ) {
+      warn("Could not read full sequence of %s - returning\n",out->name);
+      return out;
+    }
+  }
+
+  /* ok have to now put away final buffer read! */
+  
+  seqbuffer[i] = '\0';
+  
+  add_string_to_Sequence(out,seqbuffer);
+
+  /* end of file or '>' or '/' */
+  if( c == '>' || c == '/' )
+    ungetc(c,ifp);
+
+  make_len_type_Sequence(out);
+
+  return out;
+      
+}
+
+
+
+  
+%func
+reads the fasta file: format is
+
+>name
+sequence
+
+allocates a structure and puts in the
+sequence. Calls /make_len_type_Sequence to
+check type and length.
+
+It leaves the '>' on the next fasta sequence
+for multiple sequence reading
+%arg
+ifp r input file to read from
+return o new Sequence structure 
+%%
+Sequence * read_old_fasta_Sequence(FILE * ifp)
+{
+  Sequence * out;
+  char seqbuffer[SEQUENCEBLOCK];
+  int i = 0;
+  signed char c = EOF;
+  
+  if( feof(ifp) ) {
+    /* fail silently */
+    return NULL;
+  }
+
+  while( (c=fgetc(ifp)) != EOF &&  isspace(c)) 
+    ;
+
+  if( feof(ifp) )
+    return NULL;
+
+  if( c != '>' ) {
+    warn("First letter read is not '>' - assumming it is not a fasta stream");
+    return NULL;
+  }
+
+  
+  if( c == EOF || feof(ifp) )
+    return NULL;
+  
+  /*** ok = got to > ****/
+  /*** read in name  ****/
+  
+  
+  while( !isspace(c=fgetc(ifp)) && c != EOF)
+    seqbuffer[i++]=c;
+  
+  if( c == EOF)
+    return NULL;
+  
+  seqbuffer[i]='\0';
+  
+  /*** name now in sequence buffer - make sequence ***/
+  
+  out = empty_Sequence_from_dynamic_memory(stringalloc(seqbuffer));
+  
+  if( out == NULL )
+    return NULL;
+
+
+  /*** ok, suck in the rest of this line if necessary (ie something else on the 1st line) ***/
+
+  while( c != EOF && c != '\n' )
+    c=fgetc(ifp);
+
+  
+  /*** now read in sequence ***/
+  
+  for(i=0; !feof(ifp) && (c=fgetc(ifp)) != '>' && c != EOF;)
+    {
+      if( isalpha(c) || c == '-' || c == '.' || c == '~' )
+	seqbuffer[i++] = c;
+      if( i > SEQUENCEBLOCK-2)
+	{
+	  seqbuffer[i] = '\0';
+	  if( add_string_to_Sequence(out,seqbuffer) == FALSE )
+	    {
+	      warn("Could not read full sequence of %s - returning\n",out->name);
+	      return out;
+	    }
+	  i = 0;
+	}
+    }
+
+
+  
+  
+  /* ok have to now put away final buffer read! */
+  
+  seqbuffer[i] = '\0';
+  
+  add_string_to_Sequence(out,seqbuffer);
+
+  /** add back > if need be **/
+  
+  if( c == '>' )
+    ungetc(c,ifp);
+  
+  make_len_type_Sequence(out);
+
+  return out;
+}
+
+%func
+shows a region of a sequence as
+   124  A
+   125  T
+
+etc from start to end. The numbers
+are in C coordinates (ie, 0 is the first
+letter).
+
+useful for debugging
+%simple show_debug
+%arg
+seq r Sequence to show
+start r start of list
+end r end of list
+%%
+void show_Sequence_residue_list(Sequence * seq,int start,int end,FILE * ofp)
+{
+  int i;
+  
+  for(i=start;i<end;i++) {
+    fprintf(ofp,"%d %c\n",i,seq->seq[i]);
+  }
+}
+
+%func
+New add_string_to_Sequence which should be much better at
+handling memory update
+%%
+boolean add_string_to_Sequence(Sequence * seq,char * more)
+{
+  int strl;
+
+  assert(seq);
+  assert(more);
+  assert(seq->maxlen > 0);
+
+  strl = strlen(more);
+
+  if( (seq->len + strl) > (seq->maxlen -2) ) {
+    if( seq->maxlen < SEQUENCE_REALLOC_LINEAR ) {
+      seq->seq = realloc( seq->seq,seq->maxlen*2);
+      seq->maxlen = seq->maxlen *2;
+    } else {
+      seq->seq = realloc( seq->seq,seq->maxlen + SEQUENCE_REALLOC_LINEAR );
+      seq->maxlen = seq->maxlen + SEQUENCE_REALLOC_LINEAR;
+    }
+  }
+  assert(seq->seq);
+
+  strcat(seq->seq,more);
+
+  seq->len = strlen(seq->seq);
+
+  return TRUE;
+}
+
+
+%func
+Dodgy function. This is meant to add the more
+sequence to seq (into ->seq). Not sure how stable
+this is. In theory it reallocates memory on
+the basis of ->maxlen.
+%type internal
+%arg
+seq Sequence to add sequence to
+more pointer to sequence to add
+return TRUE if successful, FALSE if not
+%%
+boolean add_string_to_Sequence_old(Sequence * seq,char * more)
+{
+  register int len;
+  register int blocklen;
+  void * temp;
+  
+  
+  len = strlen(more)+1;
+  
+  if( len < seq->maxlen - seq->len )
+    {
+      /*** ok can add to this block! ****/
+      strcat(seq->seq,more);
+      seq->len = strlen(seq->seq);
+      return TRUE;
+    }
+  
+  
+  /*** nope - need to realloc ****/
+  
+  len -= (seq->maxlen - seq->len); /* amount that needs to be realloc'd */
+  blocklen = 1 + (int)(len / SEQUENCEBLOCK); /* number of blocks */
+  blocklen *= SEQUENCEBLOCK;                 /* make that into bytes */
+  blocklen += seq->maxlen;    /* final size of string */
+  
+  temp = ckrealloc ( seq->seq,blocklen);             
+  
+  
+  if( temp == NULL )
+    {
+      warn("Sequence block error for sequence %s on blocklen %d\n",CKS(seq->name),blocklen);
+      return FALSE;
+    }
+  
+  seq->seq = (char *) temp; /* realloc moves the memory for us as well */
+  seq->maxlen = blocklen;
+  
+  /*** copy in string ****/
+  
+  strcat(seq->seq,more);
+  
+  seq->len = strlen(seq->seq);
+  
+  return TRUE;
+}
+
+%func
+Only allocates sequence structure and name
+%%
+Sequence * empty_Sequence_from_dynamic_memory(char * name)
+{
+  Sequence * out;
+  
+  out = Sequence_alloc();
+  
+  if( out == NULL )
+    return NULL;
+  
+  if( name == NULL )
+    {
+      warn("Attempting to make an empty sequence with no name: assigning dummy name");
+      name = stringalloc("DummyName");
+    }
+  
+  out->name = name;
+  out->seq = (char *) ckcalloc (SEQUENCE_STARTSIZE,sizeof(char));
+  out->maxlen = SEQUENCE_STARTSIZE;
+  out->len = 0;
+  
+  return out;
+}
+
+%func
+allocates sequence structure with enough
+length in char for len sequence.
+%arg
+len r length of blank sequene space
+%%
+Sequence * Sequence_alloc_len(int len)
+{
+  Sequence * out;
+
+  out = Sequence_alloc();
+  if( out == NULL)
+    return NULL;
+
+  out->seq = (char *) ckcalloc (len,sizeof(char));
+  out->maxlen = out->len = len;
+
+  return out;
+}
+
+%func
+Allocates the sequence structure and memory for
+name and seq, copies them in.
+%type internal
+%%
+Sequence * Sequence_from_static_memory (char * name,char * seq)
+{
+  return Sequence_from_dynamic_memory(stringalloc(name),stringalloc(seq));
+}
+
+%func
+Allocates the sequence structure and simple attaches
+name and seq to the correct places
+%type internal
+%arg
+name name of sequence
+seq  a char * to correct sequence
+%%
+Sequence * Sequence_from_dynamic_memory(char * name,char * seq)
+{
+  Sequence * out;
+  
+  
+  if( seq == NULL) {
+      warn("Cannot make a sequence with no sequence!");
+      return NULL;
+    }
+  
+  if( name == NULL ) {
+      warn("You are attempting to make a sequence with no name - assigning dummy name");
+      name = stringalloc ("DummyName");
+    }
+  
+  out = Sequence_alloc();
+  
+  if( out == NULL)
+    return out;
+  
+  out->name = name;
+  out->seq = seq;
+  
+  out->maxlen = out->len = strlen(seq);
+  
+  return out;
+}
+
+%func
+writes a fasta file of the form
+>name
+Sequence
+%simple write_fasta
+%arg
+seq r sequence to be written
+ofp file to write to
+%%
+void write_fasta_Sequence(Sequence * seq,FILE * ofp)
+{
+  assert(seq);
+  fprintf(ofp,">%s\n",seq->name == NULL ? "NoName_Null_string" : seq->name );
+  show_line(seq->seq,60,ofp);
+}
+
+%func
+reads a fasta file as a sequence set
+%%
+SequenceSet * read_fasta_SequenceSet(FILE * ifp)
+{
+  SequenceSet * out;
+  Sequence * in;
+
+  out = SequenceSet_alloc_std();
+
+  while( (in = read_fasta_Sequence(ifp)) != NULL ) {
+    add_SequenceSet(out,in);
+  }
+
+  return out;
+}
+
+%func
+opens file and reads in sequence set
+%%
+SequenceSet * read_fasta_SequenceSet_file(char * filename)
+{
+  SequenceSet * out;
+  FILE * ifp;
+
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open %s as a file",filename);
+    return NULL;
+  }
+
+  out = read_fasta_SequenceSet(ifp);
+
+  fclose(ifp);
+
+  return out;
+
+}
+
+
+%}

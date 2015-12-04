@@ -1,0 +1,194 @@
+
+%{
+#include "dyna.h"
+
+
+enum dhmm_trans_type {
+  DHMM_MATCH2MATCH  = 0,
+  DHMM_MATCH2INSERT,  
+  DHMM_MATCH2DELETE,
+  DHMM_INSERT2MATCH,
+  DHMM_INSERT2INSERT,  
+  DHMM_INSERT2DELETE,
+  DHMM_DELETE2MATCH,
+  DHMM_DELETE2INSERT,  
+  DHMM_DELETE2DELETE,  
+  DHMM_START2MATCH,    
+  DHMM_START2INSERT,   
+  DHMM_START2DELETE,   
+  DHMM_MATCH2END,      
+  DHMM_INSERT2END,     
+  DHMM_DELETE2END,
+  DHMM_TRANSITION_LEN
+};
+
+#define DNA_HMM_ALPHABET 5
+#define DnaHmmProbLISTLENGTH 64
+#define DnaHmmScoreLISTLENGTH 64
+
+%}
+
+
+struct DnaHmmProbUnit
+Probability match[DNA_HMM_ALPHABET]
+Probability insert[DNA_HMM_ALPHABET]
+Probability transition[DHMM_TRANSITION_LEN]
+
+struct DnaHmmProb
+DnaHmmProbUnit ** unit !list
+SeqAlign * ref_align
+char * consensus;
+
+struct DnaHmmScoreUnit
+Score match[DNA_HMM_ALPHABET]
+Score insert[DNA_HMM_ALPHABET]
+Score transition[DHMM_TRANSITION_LEN]
+
+struct DnaHmmScore
+DnaHmmScoreUnit ** unit !list
+SeqAlign * ref_align
+
+%{
+#include "dnahmm.h"
+
+
+DnaHmmScore * DnaHmmScore_from_DnaHmmProb(DnaHmmProb * dhp)
+{
+  int i;
+  DnaHmmScore * out;
+
+  out = DnaHmmScore_alloc_len(dhp->len);
+  
+  for(i=0;i<dhp->len;i++) {
+    add_DnaHmmScore(out,DnaHmmScoreUnit_from_DnaHmmProbUnit(dhp->unit[i]));
+  }
+
+  return out;
+}
+
+void make_consensus_DnaHmmProb(DnaHmmProb * dhp)
+{
+  int i;
+  int j;
+  double prob_max;
+  int base;
+
+  dhp->consensus = calloc(dhp->len+1,sizeof(char));
+
+  for(i=0;i<dhp->len;i++) {
+    prob_max = -1.0;
+    for(j=0;j<4;j++) {
+      if( dhp->unit[i]->match[j] > prob_max ) {
+	prob_max =  dhp->unit[i]->match[j];
+	base = j;
+      }
+    }
+    if( prob_max > 0.5 ) {
+      dhp->consensus[i] = char_from_base(base);
+    } else if ( prob_max > 0.3 ) {
+      dhp->consensus[i] = tolower(char_from_base(base));
+    } else {
+      dhp->consensus[i] = '.';
+    }
+  }
+  dhp->consensus[i] = '\0';
+
+}
+
+DnaHmmScoreUnit * DnaHmmScoreUnit_from_DnaHmmProbUnit(DnaHmmProbUnit * dpu)
+{
+  DnaHmmScoreUnit * out;
+
+  out = DnaHmmScoreUnit_alloc();
+
+  Probability2Score_move(dpu->match,out->match,DNA_HMM_ALPHABET);
+  Probability2Score_move(dpu->insert,out->insert,DNA_HMM_ALPHABET);
+  Probability2Score_move(dpu->transition,out->transition,DHMM_TRANSITION_LEN);
+
+ 
+  return out;
+}
+
+DnaHmmProb * new_DnaHmmProb_from_SeqAlign_ungapped(SeqAlign * sa,double simple_pseudocount)
+{
+  DnaHmmProb * out;
+  ColumnCount * cc;
+  int i;
+
+  assert(sa);
+
+  out = DnaHmmProb_alloc_std();
+  out->ref_align = hard_link_SeqAlign(sa);
+
+  for(i=0;i<sa->seq[0]->len;i++) {
+    cc = ColumnCount_from_SeqAlign(sa,i);
+    add_DnaHmmProb(out,new_DnaHmmProbUnit_from_ColumnCount_ungapped(cc,simple_pseudocount));
+
+    free_ColumnCount(cc);
+  }
+  
+  out->unit[0]->transition[DHMM_START2MATCH] = 1.0;
+  out->unit[out->len-1]->transition[DHMM_MATCH2END] = 1.0;
+
+
+  return out;
+}
+
+
+DnaHmmProbUnit * new_DnaHmmProbUnit_from_ColumnCount_ungapped(ColumnCount * cc,double simple_pseudocount)
+{
+  DnaHmmProbUnit * out;
+  double total;
+  char base[] = "ATGC";
+  int i;
+
+  out = DnaHmmProbUnit_alloc();
+  
+  for(i=0,total = 0.0;i<4;i++)
+    total += (cc->count[base[i]-'A'] + simple_pseudocount);
+
+  
+  for(i=0;i<4;i++)
+    out->match[base_from_char(base[i])] = (cc->count[base[i]-'A'] + simple_pseudocount) / total;
+  out->match[4] = 1.0;
+
+  for(i=0;i<DHMM_TRANSITION_LEN;i++) {
+    out->transition[i] = 0.0;
+  }
+  out->transition[DHMM_MATCH2MATCH] = 1.0;
+
+  return out;
+}
+
+
+void set_N_DnaHmmProb(DnaHmmProb * dhp,Probability basen)
+{
+  int i;
+
+  for(i=0;i<dhp->len;i++) {
+    dhp->unit[i]->match[BASE_N] = basen;
+    dhp->unit[i]->insert[BASE_N] = basen;
+  }
+
+}
+
+void fold_RandomModelDNA_DnaHmmProb(DnaHmmProb * dhp,RandomModelDNA * d,Probability rnd_advance)
+{
+  int i;
+  int j;
+
+  for(i=0;i<dhp->len;i++) {
+    for(j=0;j<DNA_HMM_ALPHABET;j++) {
+      dhp->unit[i]->match[j] = dhp->unit[i]->match[j] / d->base[j];
+      dhp->unit[i]->insert[j] = dhp->unit[i]->insert[j] / d->base[j];
+    }
+
+    for(j=0;j<DHMM_TRANSITION_LEN;j++) {
+      dhp->unit[i]->transition[j] = dhp->unit[i]->transition[j] / rnd_advance;
+    }
+  }
+}
+
+
+
+%}

@@ -1,0 +1,3 @@
+# Phylogenetic analysis, 18s rRNA:
+
+Placement weight 100%: Assignment of query to Arabidopsis thaliana (18S rRNA) (3702).

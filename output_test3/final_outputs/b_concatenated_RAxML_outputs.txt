@@ -1,0 +1,4 @@
+# Phylogenetic analysis, 18s rRNA:
+
+Placement weight 80.0%: Assignment of query to Convoluta convoluta diatom endosymbiont (18S rRNA) (242046).
+Placement weight 20.0%: Assignment of query to Arabidopsis thaliana (18S rRNA) (3702).

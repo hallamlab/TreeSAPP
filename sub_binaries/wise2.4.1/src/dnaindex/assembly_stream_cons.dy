@@ -1,0 +1,105 @@
+
+%{
+#include "assembly_stream_interface.h"
+#include "assembly_sanger_project.h"
+#include "assembly_stream_fasta.h"
+
+typedef enum assembly_stream_type {
+  AssemblyStreamTypeFasta = 791,
+  AssemblyStreamTypeSanger,
+} AssemblyStreamType;
+
+%}
+
+
+struct AssemblyStreamConstructor
+int type
+char * file_name
+char * dir_name
+char * extension
+
+%{
+#include "assembly_stream_cons.h"
+
+void show_help_AssemblyStreamConstructor(FILE * ofp)
+{
+  fprintf(ofp,"Assembly Read Sequence input options\n");
+  fprintf(ofp,"  -astype [fasta/sanger] type of input\n");
+  fprintf(ofp,"  -asfile <filename>     filename for fasta input\n");
+  fprintf(ofp,"  -asdir  <dirname>      directory name for sanger project-style input\n");
+  fprintf(ofp,"  -asdirext [1c]         extension for reads in sanger project style, defaul 1c\n");
+}
+
+AssemblySequenceStream * new_AssemblySequenceStream_from_AssemblyStreamConstructor(AssemblyStreamConstructor * asc)
+{
+  FILE * ifp; /* a bit evil as we don't close this. Should fix */
+
+  switch(asc->type) {
+  case AssemblyStreamTypeFasta :
+    if( asc->file_name == NULL ) {
+      warn("Fasta file type needs a filename with -asfile");
+      return NULL;
+    }
+    ifp = openfile(asc->file_name,"r");
+    if( ifp == NULL ) {
+      warn("Unable to open file %s for fasta reading",asc->file_name);
+      return NULL;
+    }
+    return plain_fasta_AssemblySequenceStream(ifp);
+    break;
+
+  case AssemblyStreamTypeSanger :
+    if( asc->dir_name == NULL || asc->extension == NULL ) {
+      warn("Sanger project type needs directory (-asdir) and extension (-asdirext) arguments");
+      return NULL;
+    }
+    return new_sanger_project_AssemblySequenceStream(asc->dir_name,asc->extension);
+    break;
+
+  default :
+    warn("Unknown assembly stream type %d",asc->type);
+  }
+    
+  fatal("impossible to get here");
+  
+  return NULL;
+}
+
+
+AssemblyStreamConstructor * new_AssemblyStreamConstructor_from_argv(int * argc,char ** argv)
+{
+  char * temp;
+  AssemblyStreamConstructor * out;
+
+  out = AssemblyStreamConstructor_alloc();
+
+  out->type = AssemblyStreamTypeFasta;
+
+  temp = strip_out_assigned_argument(argc,argv,"astype");
+  if( temp != NULL) {
+    if( strcmp(temp,"fasta") == 0 ) {
+      out->type = AssemblyStreamTypeFasta;
+    } else if ( strcmp(temp,"sanger") == 0 ) {
+      out->type = AssemblyStreamTypeSanger;
+    } else {
+      warn("Unable to decipher type %s as a type of assembly stream",temp);
+    }
+  }
+
+  temp = strip_out_assigned_argument(argc,argv,"asdir");
+  if( temp != NULL)
+    out->dir_name = stringalloc(temp);
+
+  temp = strip_out_assigned_argument(argc,argv,"asdirext");
+  if( temp != NULL)
+    out->extension = stringalloc(temp);
+  else
+    out->extension = stringalloc("1c");
+
+  temp = strip_out_assigned_argument(argc,argv,"asfile");
+  if( temp != NULL)
+    out->file_name = stringalloc(temp);
+
+  return out;
+}
+

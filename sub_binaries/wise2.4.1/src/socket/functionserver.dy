@@ -1,0 +1,273 @@
+
+%{
+#include "wisebase.h"
+#include "simplebufferedserver.h"
+#include "transferinterface.h"
+#include "directsocketwrite.h"
+#include "anonobj.h"
+
+#define FunctionServerLISTLENGTH 16
+
+
+
+%}
+
+
+struct FunctionImplementation
+TransferedFunctionCall * transfer
+AnonymousObject* (*implementation)(void * h,AnonymousObjectList*) !func
+void * handle !link
+
+struct FunctionServer
+FunctionImplementation ** fi !list
+int socket
+
+
+%{
+#include "functionserver.h"
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <errno.h>	/* errno */
+#include <string.h>	/* strerror() */
+
+#include <signal.h>
+
+#include <sys/time.h>		/* gettimeofday() */
+#include <sys/resource.h>
+
+
+void main_loop_forking_FunctionServer(FunctionServer * fs,int verbose)
+{
+  int new_socket;
+  char buf[1024];
+  int i;
+
+  int j;
+  AnonymousObject * anon;
+  AnonymousObjectList * aol;
+  FILE * ifp;
+  FILE * ofp;
+  Wise2ReadStreamInterface  * rs;
+  Wise2WriteStreamInterface * ws; 
+  struct sigaction sigchange;
+
+  ssize_t bytes_in;
+
+  assert(fs != NULL);
+
+
+
+  /* 
+   * ignore child signals
+   */
+
+  sigchange.sa_handler = SIG_IGN;
+  sigemptyset(&sigchange.sa_mask);
+
+    
+  listen(fs->socket,30);
+
+  if( (sigaction(SIGCHLD,&sigchange,NULL) == -1)) {
+    fatal("Unable to set signal handling behaviour");
+  }
+
+  while( 1 ) {
+    if( verbose ) {
+      info("Blocking on accept in main loop");
+    } 
+
+    new_socket = accept(fs->socket,0,0);
+
+    if( fork() == 0 ) {
+	int count = 0;
+      /* forked process for client */
+
+	struct timeval t0, t1 , t2 , t3;
+
+	gettimeofday(&t0, NULL);
+
+      if( verbose ) {
+	info("Accepted connection");
+      } 
+    
+      /* loop around possible multiple functions */
+      while( 1 ) {
+	++count;
+
+	if ((bytes_in = read(new_socket,buf,sizeof(buf))) == -1) {
+	  fatal(strerror(errno));
+	}
+	/* Terminate the recieved string */
+	buf[bytes_in] = '\0';
+	
+	
+	if( strncmp(buf,"FINISH",6) == 0) {
+	  if( verbose ) {
+	    info("Finished connection");
+	  }
+	  break;
+	}
+	
+	for (i = 0; i < fs->len; i++) {
+	  if (strncmp(buf, fs->fi[i]->transfer->name,
+		      strlen(fs->fi[i]->transfer->name)) == 0 ) {
+	    break;
+	  }
+	}
+	
+	if( i >= fs->len ) {
+	  warn("Client asked for %s, unable to respond\n",buf);
+
+	  strcpy(buf,"NOT FOUND");
+	  buf[9] = '\0';
+	  write(new_socket,buf,9);
+	  close(new_socket);
+	  /* exit out of child process */
+          exit(0);
+	}
+	
+	if( verbose ) 
+	  info("Found %s for client, processing",fs->fi[i]->transfer->name);
+	
+	/* read the inputs, ask for data */
+	
+	strcpy(buf,"SEND\n\0");
+	write(new_socket,buf,6);
+	
+	/* now inputs */
+	
+	aol = AnonymousObjectList_alloc_len(fs->fi[i]->transfer->len);
+	ifp = fdopen(new_socket,"r");
+	
+	rs = ReadStream_from_FILE(ifp);
+	
+	for(j=0;j<fs->fi[i]->transfer->len;j++) {
+	  anon = AnonymousObject_alloc();
+	  anon->obj = (*fs->fi[i]->transfer->input[j]->stream_to_object)(rs);
+	  anon->free_object = fs->fi[i]->transfer->input[j]->untyped_free_object;
+	  
+	  
+	  add_AnonymousObjectList(aol,anon);
+	}
+	
+	/* call function */
+	
+	gettimeofday(&t1, NULL);
+	
+	anon = (*fs->fi[i]->implementation)(fs->fi[i]->handle,aol);
+	
+	gettimeofday(&t2, NULL);
+
+	/* send data back */
+	
+	if( verbose ) {
+	  info("implementation successful, preparing to send result");
+	}
+	
+	ws = WriteStream_from_socket(new_socket);
+	(*fs->fi[i]->transfer->returned_type->object_to_stream)(anon->obj,ws);
+	
+	/* handle server side memory */
+	
+	free_AnonymousObjectList(aol);
+	free_AnonymousObject(anon);
+	
+	
+	strcpy(buf,"DONE\n");
+	write(new_socket,buf,5);
+
+
+	if( verbose ) {
+	  info("sent return object");
+	}
+	
+	
+	gettimeofday(&t3, NULL);
+
+      }
+      close(new_socket);
+
+      info("Exiting child having closed socket");
+
+      /* client exits */
+      exit(0);
+    } else { /* fork != 0 */
+      
+      /* parent needs to close socket as well */
+      close(new_socket);
+
+      /* main server, back to accept */
+    }
+  } /* main loop */
+
+  close(fs->socket);
+}
+
+
+FunctionServer * new_FunctionServer(int port)
+{
+  struct sockaddr_in server;
+  struct sockaddr * name;
+  FunctionServer * out;
+  int yes = 1;
+
+  out = FunctionServer_alloc_std();
+
+  out->socket = socket(AF_INET, SOCK_STREAM, 0);
+
+  server.sin_family = AF_INET;
+  server.sin_addr.s_addr = INADDR_ANY;
+  server.sin_port = htons(port);
+
+  setsockopt(out->socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
+  /* If setsockopt() fails, we're not too unhappy, so no check */
+
+  if (bind(out->socket, (struct sockaddr *)&server, sizeof(server))) {
+      /* Probably tried to bind to a port that was already in use... */
+      fatal(strerror(errno));
+  }
+
+  return out;
+}
+
+FunctionImplementation * test_strcat_FunctionImplementation(void)
+{
+  FunctionImplementation * out;
+
+  out = FunctionImplementation_alloc();
+  out->transfer = test_stringcat_TransferedFunctionCall();
+  out->implementation = test_strcat_implementation;
+
+  return out;
+}
+
+AnonymousObject * test_strcat_implementation(void * h,AnonymousObjectList * aol)
+{
+  char buffer[1024];
+  char * one;
+  char * two;
+  AnonymousObject * ret;
+
+  assert(aol != NULL);
+  assert(aol->len == 2);
+
+  one = (char*)aol->anon[0]->obj;
+  two = (char*)aol->anon[1]->obj;
+
+  ret = AnonymousObject_alloc();
+
+  strcpy(buffer,one);
+  strcat(buffer,two);
+
+  ret->obj = stringalloc(buffer);
+
+  return ret;
+}
+
+%}

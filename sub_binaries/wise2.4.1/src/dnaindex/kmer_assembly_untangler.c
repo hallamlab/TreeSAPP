@@ -1,0 +1,983 @@
+#ifdef _cplusplus
+extern "C" {
+#endif
+#include "kmer_assembly_untangler.h"
+
+
+
+
+# line 38 "kmer_assembly_untangler.dy"
+void show_KmerAssemblyPath(KmerAssemblyIndex * kai,KmerAssemblyPath * kap,FILE * ofp)
+{
+  int i;
+  char forw[512];
+  char back[512];
+
+  for(i=0;i<kap->stack_len;i++) {
+
+    reverse_map_dna_number(kap->stack[i]->prev->number,kai->kii->kmer_size,back);
+    reverse_map_dna_number(kap->stack[i]->next->number,kai->kii->kmer_size,forw);
+
+    back[kai->kii->kmer_size] ='\0';
+    forw[kai->kii->kmer_size] ='\0';
+
+    fprintf(ofp,"%3d memory %d, from [%s] to [%s], base %c\n",i,(int)kap->stack[i],back,forw,kap->stack[i]->base);
+  }
+}
+
+
+
+# line 58 "kmer_assembly_untangler.dy"
+void push_KmerAssemblyPath(KmerAssemblyPath * kap,KmerAssemblyLink * kal)
+{
+  assert(kap != NULL);
+  assert(kal != NULL);
+
+  if( kap->stack_len >= kap->max_stack) {
+    fatal("Bugger it. Max stack over flow, could be made growable. Complain to Ewan... ;)");
+  }
+
+  kap->stack[kap->stack_len++] = kal;
+
+}
+
+# line 71 "kmer_assembly_untangler.dy"
+KmerAssemblyLink * pop_KmerAssemblyPath(KmerAssemblyPath * kap)
+{
+  assert(kap != NULL);
+  if( kap->stack_len <= 0 ) {
+    return NULL;
+  }
+
+  return kap->stack[kap->stack_len--];
+}
+
+# line 81 "kmer_assembly_untangler.dy"
+KmerAssemblyPath * new_KmerAssemblyPath(void)
+{
+  KmerAssemblyPath * out;
+
+  out = KmerAssemblyPath_alloc();
+
+  out->stack = (KmerAssemblyLink**) calloc(KmerAssemblyPath_MAX_STACK,sizeof(KmerAssemblyLink*));
+  out->stack_len = 0;
+  out->max_stack = KmerAssemblyPath_MAX_STACK;
+
+  return out;
+}
+
+
+# line 95 "kmer_assembly_untangler.dy"
+int untangle_KmerAssembly(KmerAssemblyIndex * kai)
+{
+  int total = 0;
+  int i;
+  kmer_t kmer;
+  KmerAssemblyNode * node;
+  KmerAssemblyLink * link_set[1024];
+  int node_len;
+  char buffer[256];
+  int fully_untangled = 0;
+  
+  assert(kai != NULL);
+  assert(kai->kii != NULL );
+  assert(kai->kii->next_filled_kmer != NULL);
+
+  kmer = -1;
+  kmer = (*kai->kii->next_filled_kmer)(kai->kii->handle,kmer);
+
+  for(;kmer != -1;  kmer = (*kai->kii->next_filled_kmer)(kai->kii->handle,kmer)) {
+    node = (*kai->kii->retrieve_by_kmer)(kai->kii->handle,kmer);
+
+    if( node->next_len > 1 || node->prev_len > 1 ) {
+      reverse_map_dna_number(node->number,kai->kii->kmer_size,buffer);
+      buffer[kai->kii->kmer_size] = '\0';
+
+      fprintf(stderr,"TANGLE: Node %ld, %s has forward %d and back %d links\n",node->number,buffer,node->next_len,node->prev_len);
+    }
+
+    if( node->prev_len < 2 ) {
+      continue;
+    }
+
+
+
+
+    if( node->prev_len > 1024 ) {
+      fatal("Insane - over 1024 possible back links, can't cope");
+    }
+
+    /* we have to put this into temporary memory*/
+    for(i=0;i<node->prev_len;i++) {
+      link_set[i] = node->prev[i];
+    }
+    node_len = node->prev_len;
+
+    for(i=0;i<node_len;i++) {
+      fprintf(stderr,"Will attempt untangle starting at %ld to %ld\n",node->prev[i]->prev->number,node->number);
+      if( attempt_forward_untangle_KmerAssembly(kai,node->prev[i],500) == TRUE ) {
+	total++;
+	if( node->prev_len == 1 ) {
+	  fully_untangled = 1;
+	  /* fully untangled on left hand side. Assumme is ok on right side?
+	   * break this loop
+	   */
+	  break;
+	}
+      }
+    }
+    reverse_map_dna_number(node->number,kai->kii->kmer_size,buffer);
+    buffer[kai->kii->kmer_size] = '\0';
+    
+    if( fully_untangled == 1 ) {
+      fprintf(stderr,"RESOLVED: Node %ld [%s] Fully untangled now...\n",node->number,buffer);
+    } else {
+      fprintf(stderr,"UNRESOLVED: Node %ld [%s] still tangled...\n",node->number,buffer);
+    }
+    
+  }
+
+
+
+  return total;
+
+}
+
+
+# line 171 "kmer_assembly_untangler.dy"
+boolean recursive_untangle_KmerAssembly(KmerTangleResolver * res,KmerAssemblyIndex * kai,KmerAssemblyLink * current,KmerAssemblyPath * p,int current_pos)
+{
+  KmerAssemblyLink * temp_link[500];
+  int start_pos = current_pos;
+  int j;
+  int i;
+
+  while( 1 ) {
+
+    if( current_pos > res->max_path ) {
+      return FALSE;
+    }
+
+    /* belts and braces; should never reach here */
+    if( current == NULL || current->next == NULL ) {
+      warn("Belt and braces test to ensure no path overrun");
+      return FALSE;
+    }
+
+    /* if the link is simple, just move along. We
+       might want to check all labels are still valid in here
+       to find right tails
+    */
+
+    /* no matter what the next decision is, this position
+       is on the valid path. push into the temporary array */
+    temp_link[current_pos] = current;
+    current_pos++;
+
+    if( current->next->next_len == 1 ) {
+      /* check that this is not a buried tail */
+      if( no_longer_active_KmerTangleResolver(res,current,current_pos) == TRUE ) {
+	p->right_tail = TRUE;
+	break;
+      }
+      current = current->next->next[0];
+      continue;
+    }
+
+    /* if is the end of this path, must be false
+    */
+
+    if( current->next->next_len == 0 ) {
+      return FALSE;
+    }
+
+    fprintf(stderr,"Looking at split node with %d outgoing paths\n",current->next->next_len);
+
+    /* for each possible link out */
+    for(j=0;j<current->next->next_len;j++) {
+      assert(current->next->next[j] != NULL);
+
+      if( is_righthand_link_KmerTangleResolver(res,current->next->next[j],current_pos-1) == TRUE ) {
+	fprintf(stderr,"Is valid!\n");
+	temp_link[current_pos] = current->next->next[j];
+	current_pos++;
+	break;
+      }
+    }
+
+    /* if j < length, then we have a valid rightside */
+    if( j < current->next->next_len ) {
+      break;
+    }
+
+    /* no links are possible; recurse down links */
+    for(j=0;j<current->next->next_len;j++) {
+      assert(current->next->next[j] != NULL);
+      if( recursive_untangle_KmerAssembly(res,kai,current->next->next[j],p,current_pos) == TRUE ) {
+	break;
+      }
+    }
+
+    if( j < current->next->next_len ) {
+      break;
+    } else {
+      /* done all possible recursions, return FALSE */
+      return FALSE;
+    }
+
+  }
+
+  /* path is true; fill up path and return */
+
+  if( p->max_stack < current_pos ) {
+    fatal("Path overflow, just need to extend data here. Talk to Ewan");
+  }
+  if( p->stack_len < current_pos ) {
+    p->stack_len = current_pos;
+  }
+
+  /* this puts the temporary links into the path structure
+     for final use */
+  for(i=start_pos;i<current_pos;i++) {
+    p->stack[i] = temp_link[i];
+  }
+
+  return TRUE;
+
+}
+
+# line 272 "kmer_assembly_untangler.dy"
+KmerTangleResolver * new_KmerTangleResolver(KmerAssemblyIndex * kai,KmerAssemblyLink * leftmost,int max_path)
+{
+  int i;
+  KmerTangleResolver * out;
+
+  if( leftmost->sequence_label_len > MAX_TANGLE_DEPTH ) {
+    fatal("We need to move to dynamic memory for tangle resolver, have depth of %d\n",leftmost->sequence_label_len);
+  }
+
+  out = KmerTangleResolver_alloc();
+  out->max_end = 0;
+
+  for(i=0;i<leftmost->sequence_label_len;i++) {
+    out->start_label[i]   = leftmost->sequence_label[i];
+    out->start_pos[i]     = lookup_Sequence_SinglePosSpace(kai->sps,leftmost->sequence_label[i]);
+    out->distance_to_end[i] = ((Sequence*)out->start_pos[i]->data)->len - ((int)(out->start_label[i] - out->start_pos[i]->start));
+    if( out->distance_to_end[i] > out->max_end ) {
+      out->max_end = out->distance_to_end[i];
+    }
+  }
+
+  out->label_len = leftmost->sequence_label_len;
+  out->max_path  = max_path;
+
+  return out;
+
+}
+
+
+# line 301 "kmer_assembly_untangler.dy"
+boolean no_longer_active_KmerTangleResolver(KmerTangleResolver * res,KmerAssemblyLink * current,int pathlen)
+{
+  int i;
+  int j;
+
+  for(i=0;i<res->label_len;i++) {
+    for(j=0;j<current->sequence_label_len;j++) {
+      fprintf(stderr,"Comparing %ld to %ld  (%d)\n",res->start_label[i]+pathlen,current->sequence_label[j]+1,pathlen);
+
+      if( res->start_label[i]+pathlen == current->sequence_label[j]+1 ) {
+	fprintf(stderr,"...returning FALSE...\n");
+	return FALSE;
+      }
+    }
+  }
+
+  fprintf(stderr,"Inactive Resolver!\n");
+  return TRUE;
+}
+
+# line 321 "kmer_assembly_untangler.dy"
+boolean is_righthand_link_KmerTangleResolver(KmerTangleResolver * res,KmerAssemblyLink * rightside,int pathlen)
+{
+  int i;
+  int j;
+  int start_label_ok[MAX_TANGLE_DEPTH];
+
+  assert(res->label_len < MAX_TANGLE_DEPTH);
+  assert(rightside->sequence_label_len < MAX_TANGLE_DEPTH);
+
+  /* have to find all transfered links */
+
+  for(i=0;i<res->label_len;i++) {
+    if( pathlen + res->start_label[i] >= res->start_pos[i]->start + ((Sequence*)(res->start_pos[i])->data)->len ) {
+      start_label_ok[i] = 0;
+    } else {
+      start_label_ok[i] = -1;
+    }
+  }
+
+  for(j=0;j<rightside->sequence_label_len;j++) {
+    for(i=0;i<res->label_len;i++) {
+      if( rightside->sequence_label[j] - res->start_label[i] == pathlen+1 ) {
+	start_label_ok[i] = 1;
+	break;
+      }
+    }
+  }
+
+  for(i=0;i<res->label_len;i++) {
+    if( start_label_ok[i] == -1 ) {
+      return FALSE;
+    }
+  }
+     
+
+  return TRUE;
+
+}
+
+# line 360 "kmer_assembly_untangler.dy"
+boolean attempt_forward_untangle_KmerAssembly(KmerAssemblyIndex * kai,KmerAssemblyLink * left_input,int max_search)
+{
+  KmerAssemblyPath * path;
+  KmerAssemblyPath * newpath;
+  KmerTangleResolver * kres;
+  boolean ret = FALSE;
+
+  path = new_KmerAssemblyPath();
+  kres = new_KmerTangleResolver(kai,left_input,max_search);
+
+  if( recursive_untangle_KmerAssembly(kres,kai,left_input,path,0) == TRUE ) {
+    ret = TRUE;
+    fprintf(stderr,"Successful untangling...\n");
+    show_KmerAssemblyPath(kai,path,stderr);
+    if( path->right_tail == TRUE ) {
+      lift_forward_tangled_tail(kai,path,kres->start_label,kres->label_len);
+    } else {
+      newpath = lift_forward_tangled_KmerAssemblyPath(kai,path,kres->start_label,kres->label_len);
+    }
+  }
+
+  fprintf(stderr,"returning from attempt\n");
+
+  free_KmerAssemblyPath(path);
+  free_KmerAssemblyPath(newpath);
+  free_KmerTangleResolver(kres);
+
+
+  return ret;
+
+}
+
+# line 392 "kmer_assembly_untangler.dy"
+boolean old_attempt_forward_untangle_KmerAssembly(KmerAssemblyIndex * kai,KmerAssemblyLink * left_input,int max_search)
+{
+  int i;
+  int j;
+
+  int k,l;
+  int have_link;
+
+
+  long int start_label[MAX_TANGLE_DEPTH];
+  long int end_label[MAX_TANGLE_DEPTH];
+  SinglePosSequence * start_pos[MAX_TANGLE_DEPTH];
+  SinglePosSequence * end_pos[MAX_TANGLE_DEPTH];
+
+  char buffer[128];
+  
+  int start_len;
+  int end_len;
+
+  int pathlen = 0;
+
+  long int transferred_label[MAX_TANGLE_DEPTH];
+  SinglePosSequence * transferred_pos[MAX_TANGLE_DEPTH];
+  int transferred_len;
+
+  KmerAssemblyLink * current;
+  KmerAssemblyPath * path;
+  KmerAssemblyPath * newpath;
+
+  assert(kai != NULL);
+  assert(left_input != NULL);
+
+  if( left_input->sequence_label_len > MAX_TANGLE_DEPTH ) {
+    fatal("Ach, bugger it, overflow on fixed buffer length for forward untangle. Easily fixed; talk to Ewan");
+  }
+
+  for(i=0;i<left_input->sequence_label_len;i++) {
+    start_pos[i] = lookup_Sequence_SinglePosSpace(kai->sps,left_input->sequence_label[i]);
+    start_label[i] = left_input->sequence_label[i];
+  }
+  start_len = left_input->sequence_label_len;
+
+  reverse_map_dna_number(left_input->next->number,kai->kii->kmer_size,buffer);
+  buffer[kai->kii->kmer_size] = '\0';
+
+  fprintf(stderr,"Entering mapping code with %s depth %d\n",buffer,left_input->sequence_label_len);
+
+
+  path = new_KmerAssemblyPath();
+  push_KmerAssemblyPath(path,left_input);
+
+  for(pathlen=0,current = left_input;current != NULL && pathlen < max_search;) {
+    fprintf(stderr,"looking at node %ld with path length %d, next length %d depth %d\n",current->next->number,pathlen,current->next->next_len,current->sequence_label_len);
+
+    assert(current->next != NULL);
+
+    if( current->next->next_len == 1 ) {
+      pathlen++;
+      current = current->next->next[0];
+      push_KmerAssemblyPath(path,current);
+      continue;
+    }
+
+    if( current->next->next_len == 0 ) {
+      return FALSE;
+    }
+
+    fprintf(stderr,"Looking at split out node %d, %d\n",current->next->next_len,pathlen);
+    /* > 1, so should have our paths somewhere in here */
+    
+
+    
+    /* pull out exit sps... */
+    for(j=0;j<current->next->next_len;j++) {
+      assert(current->next->next[j] != NULL);
+
+      fprintf(stderr,"... paths are of size %d\n",pathlen);
+
+      if( current->next->next[j]->sequence_label_len > MAX_TANGLE_DEPTH ) {
+	warn("YIKES... unable to untangle, because over Max tangle depth, at %d\n",current->next->next[j]->sequence_label_len);
+	return FALSE;
+      }
+
+      for(i=0;i<current->next->next[j]->sequence_label_len;i++) {
+	end_pos[i] = lookup_Sequence_SinglePosSpace(kai->sps,current->next->next[j]->sequence_label[i]);
+	end_label[i] = current->next->next[j]->sequence_label[i];
+      }
+      end_len = current->next->next[j]->sequence_label_len;
+
+
+      transferred_len =0;
+      have_link = 0;
+      /* match pos to proposed, set labels to -1 when matched */
+      for(l=0;l<start_len;l++) {
+	if( start_label[l] == -1 ) {
+	  continue;
+	}
+	for(k=0;k<end_len;k++) {
+	  if( end_label[k] == -1 ) {
+	    continue;
+	  }
+
+	  /*	  fprintf(stderr,"Looking at %d,%d (%d,%d) with diff %d vs %d\n",i,j,l,k,(int)(end_label[k] - start_label[l]),pathlen); */
+
+
+	  
+	  if( (end_label[k] - start_label[l]) == pathlen+1 ) {
+	    fprintf(stderr,"...Found a transfer\n");
+	    transferred_label[transferred_len++] = start_label[l];
+	    have_link = 1;
+	  }
+	  
+	}
+      }
+      
+      /* checked looking at labels */
+      if( have_link == 0 ) {
+	continue;
+      }
+
+      /* end link must be all -1, otherwise we generate another tangle */
+      for(k=0;k<end_len;k++) {
+	if( end_label[k] != -1 ) {
+	  have_link = 0;
+	}
+      }
+
+      if( have_link == 0 ) {
+	continue;
+      }
+
+
+      /* we have a link. Lift out sequence */
+
+      push_KmerAssemblyPath(path,current->next->next[j]);
+
+      newpath = lift_forward_tangled_KmerAssemblyPath(kai,path,transferred_label,transferred_len);
+
+
+      /* we should check if we have any tails */
+
+      transferred_len = 0;
+      have_link = 0;
+      for(l=0;l<start_len;l++) {
+/*	fprintf(stderr,"Considering label %d with end %ld %d %d vs (%ld, %d)\n",l,start_label[l],pathlen,kai->kii->kmer_size,start_pos[l]->start,((Sequence*)start_pos[l]->data)->len); */
+
+	if( start_label[l] + pathlen + kai->kii->kmer_size > start_pos[l]->start + ((Sequence*)start_pos[l]->data)->len ) {
+	  /* yup, got a tail */
+/*	  fprintf(stderr,"Got a tail label...\n"); */
+	  transferred_label[transferred_len] = start_label[l];
+	  transferred_pos[transferred_len]   = start_pos[l];
+	  transferred_len++;
+	  have_link = 1;
+	}
+      }
+
+      if( have_link == 1 ) {
+/*	fprintf(stderr," ..forward TAIL.. untangling...\n"); */
+	fatal("Duff function!");
+      }
+
+
+      transferred_len = 0;
+      have_link = 0;
+      for(l=0;l<end_len;l++) {
+	if( end_label[l] - pathlen < end_pos[l]->start ) {
+	  /* yup, got a tail */
+	  transferred_label[transferred_len] = end_label[l];
+	  transferred_pos[transferred_len]   = end_pos[l];
+	  transferred_len++;
+	  have_link = 1;
+	}
+      }
+
+      if( have_link == 1 ) {
+/*	fprintf(stderr," ..reverse TAIL.. untangling...\n"); */
+	lift_backward_tangled_tail(kai,newpath->stack[newpath->stack_len-1],path,transferred_label,transferred_pos,transferred_len);
+      }
+
+      /* pop off the top of this path */
+
+      pop_KmerAssemblyPath(path);
+
+      free_KmerAssemblyPath(newpath);
+    }
+
+
+/*    fprintf(stderr,"Left input between %ld and %ld has depth %d\n",left_input->prev->number,left_input->next->number,left_input->sequence_label_len);*/
+
+    /* main loop around links; test whether starting link is empty */
+
+    if( left_input->sequence_label_len <= 0 ) {
+      return TRUE;
+    }
+
+    /* currently we can't handle overbranching */
+
+    fprintf(stderr,"Currently we can't handle over-branching; returning FALSE...\n");
+    return FALSE;
+
+  }
+
+  return FALSE;
+
+}
+
+
+# line 599 "kmer_assembly_untangler.dy"
+void lift_forward_tangled_tail(KmerAssemblyIndex * kai,KmerAssemblyPath * tail,long int * start_label,int label_len)
+{
+  int i;
+  int j;
+
+
+  KmerAssemblyNode * prev;
+
+  KmerAssemblyLink * link;
+
+  KmerAssemblyNode * new_node;
+
+  assert(kai != NULL);
+  assert(tail != NULL);
+  assert(start_label != NULL);
+  assert(label_len > 0);
+
+  prev = tail->stack[0]->prev;
+
+  for(i=0;i<tail->stack_len;i++) {
+
+    if( i+1 != tail->stack_len ) {
+      new_node = new_KmerAssemblyNode(tail->stack[i]->next->number);
+      new_node->node_chain = tail->stack[i]->next->node_chain;
+      tail->stack[i]->next->node_chain = new_node;
+    } else {
+      new_node = NULL;
+    }
+
+
+    link = new_KmerAssemblyLink(tail->stack[i]->base);
+
+
+    add_next_KmerAssemblyNode(prev,link);
+    if( new_node != NULL) {
+      add_prev_KmerAssemblyNode(new_node,link);
+    }
+
+    link->prev = prev;
+    link->next = new_node;
+
+
+    for(j=0;j<label_len;j++) {
+      remove_sequence_label_KmerAssemblyLink(tail->stack[i],start_label[j]+i);
+      add_sequence_label_KmerAssemblyLink(link,start_label[j]+i);
+    }
+
+    if( tail->stack[i]->sequence_label_len == 0 ) {
+      /* detach link */
+      remove_next_KmerAssemblyNode(tail->stack[i]->prev,tail->stack[i]);
+      remove_prev_KmerAssemblyNode(tail->stack[i]->next,tail->stack[i]);
+    }
+
+    prev = new_node;
+  }
+
+  return;
+}
+
+
+
+# line 660 "kmer_assembly_untangler.dy"
+void lift_backward_tangled_tail(KmerAssemblyIndex * kai,KmerAssemblyLink * new,KmerAssemblyPath * tail,int * start_label,SinglePosSequence ** positions,int label_len)
+{
+  int i;
+  int j;
+  int k;
+
+  assert(kai != NULL);
+  assert(new != NULL);
+  assert(tail != NULL);
+  assert(start_label != NULL);
+  assert(label_len > 0);
+
+  i=0;
+  k=0;
+  while( 1) {
+    /* check we have things to do */
+    for(j=0;j<label_len;j++) {
+      if( start_label[j]-i >= positions[j]->start ) {
+	break;
+      }
+    }
+    if( j >= label_len ) {
+      break;
+    }
+    
+    /* lift out active sequences */
+    for(j=0;j<label_len;j++) {
+      if( start_label[j]-i >= positions[j]->start ) {
+	remove_sequence_label_KmerAssemblyLink(tail->stack[k],start_label[j]-i);
+	add_sequence_label_KmerAssemblyLink(new,start_label[j]-i);
+      }
+    }
+
+    /* remove link if needed */
+    if( tail->stack[k]->sequence_label_len == 0 ) {
+      detach_KmerAssemblyLink(kai,tail->stack[k]);
+    }
+
+    /* advance links */
+    if( new->prev->prev_len > 1 ) {
+      warn("VERY VERY BAD NEWS: in lifting a backward tail, new stream has more than one path");
+    }
+
+    new = new->prev->prev[0];
+    k++;
+    i++;
+
+    if( new->prev->number != tail->stack[k]->prev->number ) {
+      warn("IMPOSSIBLE: error! in lifting backward tail, old stream and new stream differ in numbers");
+      return;
+    }
+
+  }
+
+  /* finished lift */
+}
+
+# line 717 "kmer_assembly_untangler.dy"
+KmerAssemblyPath * lift_forward_tangled_KmerAssemblyPath(KmerAssemblyIndex * kai,KmerAssemblyPath * kap,long int * start_label,int label_len)
+{
+  int i,j;
+
+  KmerAssemblyNode * new;
+  KmerAssemblyNode * prev;
+  KmerAssemblyLink * link;
+
+  KmerAssemblyPath * out;
+
+  char back[256];
+  char forw[256];
+
+  assert(kai != NULL);
+  assert(kap != NULL);
+  assert(start_label != NULL);
+  assert(label_len > 0);
+
+  
+
+  out = new_KmerAssemblyPath();
+  prev = kap->stack[0]->prev;
+
+  for(i=0;i<kap->stack_len;i++) {
+    reverse_map_dna_number(kap->stack[i]->prev->number,kai->kii->kmer_size,back);
+    back[kai->kii->kmer_size] = '\0';
+    reverse_map_dna_number(kap->stack[i]->next->number,kai->kii->kmer_size,forw);
+    forw[kai->kii->kmer_size] = '\0';
+
+    fprintf(stderr,"Moving stack position %d, depth %d, transfer %d, between %ld [%s] and %ld [%s]\n",i,kap->stack[i]->sequence_label_len,label_len,kap->stack[i]->prev->number,back,kap->stack[i]->next->number,forw);
+
+    fprintf(stderr,"... Before transfer %d sequence labels and %d outgoing and %d incoming\n",kap->stack[i]->sequence_label_len,kap->stack[i]->prev->next_len,kap->stack[i]->next->prev_len);
+
+    if( i+1 == kap->stack_len ) {
+      /* last link --- has to be done differently as we attach it to the new place */
+      new = kap->stack[i]->next;
+    } else {
+      new = new_KmerAssemblyNode(kap->stack[i]->next->number);
+      new->node_chain = kap->stack[i]->next->node_chain;
+      kap->stack[i]->next->node_chain = new;
+    }
+
+    link = new_KmerAssemblyLink(kap->stack[i]->base);
+    push_KmerAssemblyPath(out,link);
+
+    add_next_KmerAssemblyNode(prev,link);
+    add_prev_KmerAssemblyNode(new,link);
+
+    link->prev = prev;
+    link->next = new;
+
+
+    for(j=0;j<label_len;j++) {
+      remove_sequence_label_KmerAssemblyLink(kap->stack[i],start_label[j]+i);
+      add_sequence_label_KmerAssemblyLink(link,start_label[j]+i);
+    }
+
+    if( kap->stack[i]->sequence_label_len == 0 ) {
+      /* detach link */
+      remove_next_KmerAssemblyNode(kap->stack[i]->prev,kap->stack[i]);
+      remove_prev_KmerAssemblyNode(kap->stack[i]->next,kap->stack[i]);
+      fprintf(stderr,"...left with prev next_len %d and next prev_len %d\n",kap->stack[i]->prev->next_len,kap->stack[i]->next->prev_len);
+
+    } else {
+      fprintf(stderr,"...node is still live with %d sequence labels and %d outgoing and %d incoming\n",kap->stack[i]->sequence_label_len,kap->stack[i]->prev->next_len,kap->stack[i]->next->prev_len);
+    }
+
+    prev = new;
+  }
+
+
+  return out;
+
+}
+
+
+
+
+
+
+# line 781 "kmer_assembly_untangler.c"
+/* Function:  hard_link_KmerAssemblyPath(obj)
+ *
+ * Descrip:    Bumps up the reference count of the object
+ *             Meaning that multiple pointers can 'own' it
+ *
+ *
+ * Arg:        obj [UNKN ] Object to be hard linked [KmerAssemblyPath *]
+ *
+ * Return [UNKN ]  Undocumented return value [KmerAssemblyPath *]
+ *
+ */
+KmerAssemblyPath * hard_link_KmerAssemblyPath(KmerAssemblyPath * obj) 
+{
+    if( obj == NULL )    {  
+      warn("Trying to hard link to a KmerAssemblyPath object: passed a NULL object");    
+      return NULL;   
+      }  
+    obj->dynamite_hard_link++;   
+    return obj;  
+}    
+
+
+/* Function:  KmerAssemblyPath_alloc(void)
+ *
+ * Descrip:    Allocates structure: assigns defaults if given 
+ *
+ *
+ *
+ * Return [UNKN ]  Undocumented return value [KmerAssemblyPath *]
+ *
+ */
+KmerAssemblyPath * KmerAssemblyPath_alloc(void) 
+{
+    KmerAssemblyPath * out; /* out is exported at end of function */ 
+
+
+    /* call ckalloc and see if NULL */ 
+    if((out=(KmerAssemblyPath *) ckalloc (sizeof(KmerAssemblyPath))) == NULL)    {  
+      warn("KmerAssemblyPath_alloc failed ");    
+      return NULL;  /* calling function should respond! */ 
+      }  
+    out->dynamite_hard_link = 1; 
+#ifdef PTHREAD   
+    pthread_mutex_init(&(out->dynamite_mutex),NULL);     
+#endif   
+    out->stack = NULL;   
+    out->stack_len = 0;  
+    out->max_stack = 0;  
+    out->right_tail = FALSE; 
+    out->left_tail = FALSE;  
+
+
+    return out;  
+}    
+
+
+/* Function:  free_KmerAssemblyPath(obj)
+ *
+ * Descrip:    Free Function: removes the memory held by obj
+ *             Will chain up to owned members and clear all lists
+ *
+ *
+ * Arg:        obj [UNKN ] Object that is free'd [KmerAssemblyPath *]
+ *
+ * Return [UNKN ]  Undocumented return value [KmerAssemblyPath *]
+ *
+ */
+KmerAssemblyPath * free_KmerAssemblyPath(KmerAssemblyPath * obj) 
+{
+    int return_early = 0;    
+
+
+    if( obj == NULL) {  
+      warn("Attempting to free a NULL pointer to a KmerAssemblyPath obj. Should be trappable");  
+      return NULL;   
+      }  
+
+
+#ifdef PTHREAD   
+    assert(pthread_mutex_lock(&(obj->dynamite_mutex)) == 0); 
+#endif   
+    if( obj->dynamite_hard_link > 1)     {  
+      return_early = 1;  
+      obj->dynamite_hard_link--; 
+      }  
+#ifdef PTHREAD   
+    assert(pthread_mutex_unlock(&(obj->dynamite_mutex)) == 0);   
+#endif   
+    if( return_early == 1)   
+      return NULL;   
+    if( obj->stack != NULL)  
+      ckfree(obj->stack);    
+
+
+    ckfree(obj); 
+    return NULL; 
+}    
+
+
+/* Function:  hard_link_KmerTangleResolver(obj)
+ *
+ * Descrip:    Bumps up the reference count of the object
+ *             Meaning that multiple pointers can 'own' it
+ *
+ *
+ * Arg:        obj [UNKN ] Object to be hard linked [KmerTangleResolver *]
+ *
+ * Return [UNKN ]  Undocumented return value [KmerTangleResolver *]
+ *
+ */
+KmerTangleResolver * hard_link_KmerTangleResolver(KmerTangleResolver * obj) 
+{
+    if( obj == NULL )    {  
+      warn("Trying to hard link to a KmerTangleResolver object: passed a NULL object");  
+      return NULL;   
+      }  
+    obj->dynamite_hard_link++;   
+    return obj;  
+}    
+
+
+/* Function:  KmerTangleResolver_alloc(void)
+ *
+ * Descrip:    Allocates structure: assigns defaults if given 
+ *
+ *
+ *
+ * Return [UNKN ]  Undocumented return value [KmerTangleResolver *]
+ *
+ */
+KmerTangleResolver * KmerTangleResolver_alloc(void) 
+{
+    KmerTangleResolver * out;   /* out is exported at end of function */ 
+
+
+    /* call ckalloc and see if NULL */ 
+    if((out=(KmerTangleResolver *) ckalloc (sizeof(KmerTangleResolver))) == NULL)    {  
+      warn("KmerTangleResolver_alloc failed ");  
+      return NULL;  /* calling function should respond! */ 
+      }  
+    out->dynamite_hard_link = 1; 
+#ifdef PTHREAD   
+    pthread_mutex_init(&(out->dynamite_mutex),NULL);     
+#endif   
+    /* start_label[MAX_TANGLE_DEPTH] is an array: no default possible */ 
+    /* distance_to_end[MAX_TANGLE_DEPTH] is an array: no default possible */ 
+    out->max_end = 0;    
+    out->label_len = 0;  
+    out->max_path = 0;   
+
+
+    return out;  
+}    
+
+
+/* Function:  free_KmerTangleResolver(obj)
+ *
+ * Descrip:    Free Function: removes the memory held by obj
+ *             Will chain up to owned members and clear all lists
+ *
+ *
+ * Arg:        obj [UNKN ] Object that is free'd [KmerTangleResolver *]
+ *
+ * Return [UNKN ]  Undocumented return value [KmerTangleResolver *]
+ *
+ */
+KmerTangleResolver * free_KmerTangleResolver(KmerTangleResolver * obj) 
+{
+    int return_early = 0;    
+
+
+    if( obj == NULL) {  
+      warn("Attempting to free a NULL pointer to a KmerTangleResolver obj. Should be trappable");    
+      return NULL;   
+      }  
+
+
+#ifdef PTHREAD   
+    assert(pthread_mutex_lock(&(obj->dynamite_mutex)) == 0); 
+#endif   
+    if( obj->dynamite_hard_link > 1)     {  
+      return_early = 1;  
+      obj->dynamite_hard_link--; 
+      }  
+#ifdef PTHREAD   
+    assert(pthread_mutex_unlock(&(obj->dynamite_mutex)) == 0);   
+#endif   
+    if( return_early == 1)   
+      return NULL;   
+    /* obj->start_pos[MAX_TANGLE_DEPTH] is linked in */ 
+
+
+    ckfree(obj); 
+    return NULL; 
+}    
+
+
+
+#ifdef _cplusplus
+}
+#endif

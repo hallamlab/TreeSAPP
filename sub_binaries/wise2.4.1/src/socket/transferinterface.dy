@@ -1,0 +1,91 @@
+
+%{
+#include "wisebase.h"
+
+#define TransferedFunctionCallLISTLENGTH 16
+
+%}
+
+
+struct TransferedObjectMarshaller
+void   (*object_to_stream)(void *,Wise2WriteStreamInterface*) !func
+void * (*stream_to_object)(Wise2ReadStreamInterface*) !func
+char * object_type !link
+void (*untyped_free_object)(void *) !func
+
+
+struct TransferedFunctionCall
+char * name
+TransferedObjectMarshaller * returned_type
+TransferedObjectMarshaller ** input !list
+
+
+%{
+#include "transferinterface.h"
+
+
+
+
+TransferedFunctionCall * test_stringcat_TransferedFunctionCall(void)
+{
+  TransferedFunctionCall * out;
+
+  out = TransferedFunctionCall_alloc_std();
+
+  out->name = stringalloc("stringcat");
+  out->returned_type = new_string_Marshaller();
+
+  add_TransferedFunctionCall(out,new_string_Marshaller());
+  add_TransferedFunctionCall(out,new_string_Marshaller());
+
+  return out;
+}
+
+TransferedObjectMarshaller * new_string_Marshaller(void)
+{
+  TransferedObjectMarshaller * out;
+
+  out = TransferedObjectMarshaller_alloc();
+  out->object_to_stream = object_to_stream_string;
+  out->stream_to_object = stream_to_object_string;
+  return out;
+}
+
+void object_to_stream_string(void * obj,Wise2WriteStreamInterface* write)
+{
+  char * string = (char *) obj;
+
+  fprintf(stderr,"Writing to buffer with string [%s]\n",string);
+  (*write->write_buffer)(write->handle,string);
+  (*write->write_buffer)(write->handle,"\n//\n");
+}
+
+void * stream_to_object_string(Wise2ReadStreamInterface * read)
+{
+  char buffer[1024];
+  char * out;
+  int i;
+
+  fprintf(stderr,"reading string...\n");
+
+  WISE2_READ_BUFFER(buffer,1024,read);
+
+  fprintf(stderr,"read buffer %s...\n",buffer);
+  for(i=0;i<1024;i++) {
+    if( buffer[i] == '\n' || buffer[i] == '\r' || buffer[i] == '\0' ) {
+      break;
+    }
+  }
+
+  buffer[i] = '\0';
+  out = stringalloc(buffer);
+
+  WISE2_READ_BUFFER(buffer,1024,read);
+
+  fprintf(stderr,"discarding buffer... %s, have string %s\n",buffer,out);
+
+  return out;
+}
+
+
+%} 

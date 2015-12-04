@@ -1,0 +1,302 @@
+/*  Last edited: Apr 23 17:21 1997 (birney) */
+
+
+
+%{
+#include "probability.h"
+#include "dyna.h"
+#include "randommodel.h"
+#include "genefrequency.h"
+
+enum {
+  GP21_CDS2CENTRAL = 0,
+  GP21_CENTRAL2CENTRAL,
+  GP21_CENTRAL2PY,
+  GP21_PY2PY,
+  GP21_PY2SPACER,
+  GP21_PY2CDS,
+  GP21_SPACER2SPACER,
+  GP21_SPACER2CDS,
+  GP21_INSERT_1_BASE,
+  GP21_INSERT_2_BASE,
+  GP21_DELETE_1_BASE,
+  GP21_DELETE_2_BASE,
+  GP21_CDS2CDS, /* this is for gene parsing outside of the *Wise set */
+  GP21_RND2CDS,
+  GP21_CDS2RND,
+  GP21_RND2RND,
+  GP21_RND2MODEL,
+  GP21_LINK2MODEL, /* this is for link models */
+  GP21_LINK2LINK,
+  GP21_LINK2RND,
+  GENEPARSER21_TRANSITION_LEN
+};
+
+
+#define GENEPARSER21_EMISSION_LEN 5
+
+#define GeneParser21SetLISTLENGTH 32
+
+
+%}
+
+
+
+struct GeneParser21
+Probability transition[GENEPARSER21_TRANSITION_LEN]
+Probability central[GENEPARSER21_EMISSION_LEN]
+Probability py[GENEPARSER21_EMISSION_LEN]
+Probability spacer[GENEPARSER21_EMISSION_LEN]
+
+
+struct GeneParser21Score
+Score transition[GENEPARSER21_TRANSITION_LEN]
+Score central[GENEPARSER21_EMISSION_LEN]
+Score py[GENEPARSER21_EMISSION_LEN]
+Score spacer[GENEPARSER21_EMISSION_LEN]
+
+
+%{
+#include "geneparser21.h"
+
+
+
+RandomModelDNA * fudged_mixed_RandomModelDNA_from_GeneParser21(GeneParser21 * gp,RandomModelDNA * rnd)
+{
+  RandomModelDNA * out;
+  int i;
+
+  out = RandomModelDNA_alloc();
+
+#define PROBMAX(this,that) (this > that ? this : that)
+
+
+  for(i=0;i<5;i++) {
+    out->base[i] = PROBMAX(PROBMAX(gp->central[i],gp->py[i]),PROBMAX(gp->spacer[i],rnd->base[i]))/rnd->base[i];
+  }
+
+#undef PROBMAX
+
+  return out;
+}
+
+  
+/***
+  Adds the error probabilities
+
+***/
+
+void add_flat_error_probabilities_GeneParser21(GeneParser21 * gp21,Probability error)
+{
+  add_error_probabilities_GeneParser21(gp21,error,error,error,error);
+}
+
+void add_error_probabilities_GeneParser21(GeneParser21 * gp21,Probability insert_1,Probability insert_2,Probability delete_1,Probability delete_2)
+{
+  gp21->transition[GP21_INSERT_1_BASE] = insert_1;
+  gp21->transition[GP21_INSERT_2_BASE] = insert_2;
+  gp21->transition[GP21_DELETE_1_BASE] = delete_1;
+  gp21->transition[GP21_DELETE_2_BASE] = delete_2;
+}
+
+
+
+  
+/****
+  Makes the GeneParser21 structure, which essentially has
+  transition probabilities for geneparsing
+
+  this sets everything to zero and then 
+  only allocates gene parsing probs. Frameshifting error is not
+  delt with here.
+
+  ****/
+
+
+GeneParser21 * GeneParser21_from_GeneFrequency21_cds(GeneFrequency21 * gf,Probability rnd_loop,Probability cds_loop,Probability rnd_to_model,Probability link_loop,Probability link_to_model)
+{
+  GeneParser21 * out;
+  register int i;
+  double total;
+
+
+  out = GeneParser21_alloc();
+
+  set_Probability_array(out->transition,0.0,GENEPARSER21_TRANSITION_LEN);
+  set_Probability_array(out->central,0.0,GENEPARSER21_EMISSION_LEN);
+  set_Probability_array(out->spacer,0.0,GENEPARSER21_EMISSION_LEN);
+  set_Probability_array(out->py,0.0,GENEPARSER21_EMISSION_LEN);
+
+
+  total = sum_Probability_array(gf->central,4);  
+
+
+  for(i=0;i<4;i++) {
+    out->central[i] = gf->central[i]/total;
+  }
+  out->central[4] = 1.0;
+
+  total = sum_Probability_array(gf->py,4);  
+  for(i=0;i<4;i++) {
+    out->py[i] = gf->py[i]/total;
+  }
+  out->py[4] = 1.0;
+
+  total = sum_Probability_array(gf->spacer,4);  
+  for(i=0;i<4;i++) {
+    out->spacer[i] = gf->spacer[i]/total;
+  }
+  out->spacer[4] = 1.0;
+
+  out->transition[GP21_CENTRAL2CENTRAL] = gf->transition[GF21_CENTRAL_STAY];
+  out->transition[GP21_CENTRAL2PY]      = 1-  gf->transition[GF21_CENTRAL_STAY];
+  out->transition[GP21_PY2PY]           = gf->transition[GF21_PY_STAY];
+  out->transition[GP21_PY2SPACER]       = 1 - gf->transition[GF21_PY_STAY] * (1-gf->transition[GF21_NO_SPACER]);
+  out->transition[GP21_PY2CDS]       = 1 - gf->transition[GF21_PY_STAY] * (gf->transition[GF21_NO_SPACER]);
+  out->transition[GP21_SPACER2SPACER]   = gf->transition[GF21_SPACER_STAY];
+  out->transition[GP21_SPACER2CDS]      = 1 - gf->transition[GF21_SPACER_STAY];
+  
+
+  out->transition[GP21_CDS2CDS] = cds_loop;
+  out->transition[GP21_CDS2RND] = (1-cds_loop);
+  out->transition[GP21_RND2RND] = rnd_loop;
+  /*  fprintf(stderr,"Score is %f\n",out->transition[GP21_RND2RND]); */
+  out->transition[GP21_RND2CDS] = (1-rnd_loop-rnd_to_model);
+  out->transition[GP21_RND2MODEL] = rnd_to_model;
+  out->transition[GP21_LINK2MODEL] = link_to_model;
+  out->transition[GP21_LINK2LINK] = link_loop;
+  out->transition[GP21_LINK2RND] = (1- link_loop - link_to_model) ;
+
+  return out;
+}
+
+RandomModelDNA * RandomModelDNA_from_central_GeneParser21(GeneParser21 *gp21)
+{
+  RandomModelDNA * rmd;
+
+  rmd = RandomModelDNA_alloc();
+  if( rmd == NULL ) 
+    return NULL;
+
+  rmd->base[BASE_A] = gp21->central[BASE_A];
+  rmd->base[BASE_T] = gp21->central[BASE_T];
+  rmd->base[BASE_G] = gp21->central[BASE_G];
+  rmd->base[BASE_C] = gp21->central[BASE_C];
+  rmd->base[BASE_N] = gp21->central[BASE_N];
+
+  return rmd;
+}
+
+void show_GeneParser21(GeneParser21 * gp21,FILE * ofp)
+{
+  fprintf(ofp,"Central emissions\n");
+  show_Probability_array(gp21->central,GENEPARSER21_EMISSION_LEN,ofp);
+  fprintf(ofp,"\nPyrimidine emissions\n");
+  show_Probability_array(gp21->py,GENEPARSER21_EMISSION_LEN,ofp);
+  fprintf(ofp,"\nSpacer emissions\n");
+  show_Probability_array(gp21->spacer,GENEPARSER21_EMISSION_LEN,ofp);
+  fprintf(ofp,"\nTransitions\n");
+  show_Probability_array(gp21->transition,GENEPARSER21_TRANSITION_LEN,ofp);
+
+}
+
+
+GeneParser21 * std_GeneParser21(void)
+{
+  GeneParser21 * out;
+
+
+  out = GeneParser21_alloc();
+
+  out->central[BASE_T] = 0.25;
+  out->central[BASE_G] = 0.25;
+  out->central[BASE_C] = 0.25;
+  out->central[BASE_A] = 0.25;
+
+  out->py[BASE_T] = 0.4;
+  out->py[BASE_C] = 0.4;
+  out->py[BASE_G] = 0.1;
+  out->py[BASE_A] = 0.1;
+
+  out->spacer[BASE_T] = 0.4;
+  out->spacer[BASE_G] = 0.2;
+  out->spacer[BASE_C] = 0.2;
+  out->spacer[BASE_A] = 0.2;
+   
+  out->central[BASE_N] = out->py[BASE_N] = out->spacer[BASE_N] = 1.0;
+  
+
+  out->transition[GP21_CDS2CENTRAL]     = 0.0;
+  out->transition[GP21_CENTRAL2CENTRAL] = 0.998;
+  out->transition[GP21_CENTRAL2PY]      = 0.002;
+  out->transition[GP21_PY2PY]           = 0.94;
+  out->transition[GP21_PY2CDS]          = 0.01;
+  out->transition[GP21_PY2SPACER]       = 0.05;
+  out->transition[GP21_SPACER2SPACER]   = 0.9;
+  out->transition[GP21_SPACER2CDS]      = 0.1;
+  out->transition[GP21_INSERT_1_BASE] = 0.001;
+  out->transition[GP21_INSERT_2_BASE] = 0.001;
+  out->transition[GP21_DELETE_1_BASE] = 0.002;
+  out->transition[GP21_DELETE_2_BASE] = 0.003;
+
+  return out;
+}
+
+
+Probability removed_probability_from_cds(GeneParser21 * gp21)
+{
+
+  Probability ret;
+
+  ret =  gp21->transition[GP21_INSERT_1_BASE] +
+    gp21->transition[GP21_INSERT_2_BASE] +
+      gp21->transition[GP21_DELETE_2_BASE] +
+	gp21->transition[GP21_DELETE_1_BASE];
+
+  return ret;
+}
+
+void GeneParser21_fold_in_RandomModelDNA(GeneParser21 * gp21,RandomModelDNA * rmd)
+{
+  (void)Probability_array_divide(gp21->central,gp21->central,rmd->base,5);
+  (void)Probability_array_divide(gp21->py,gp21->py,rmd->base,5);
+  (void)Probability_array_divide(gp21->spacer,gp21->spacer,rmd->base,5);
+	  
+}
+
+GeneParser21Score * GeneParser21Score_from_GeneParser21(GeneParser21 * gp21)
+{
+  GeneParser21Score * out;
+
+  out = GeneParser21Score_alloc();
+
+  if( out == NULL )
+    return NULL;
+
+  Probability2Score_move(gp21->transition,out->transition,GENEPARSER21_TRANSITION_LEN);
+  Probability2Score_move(gp21->central,   out->central,   GENEPARSER21_EMISSION_LEN);
+  Probability2Score_move(gp21->py,        out->py,        GENEPARSER21_EMISSION_LEN);
+  Probability2Score_move(gp21->spacer,    out->spacer,    GENEPARSER21_EMISSION_LEN);
+
+  return out;
+}
+
+
+
+%}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

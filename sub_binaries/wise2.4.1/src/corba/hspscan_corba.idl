@@ -1,0 +1,39 @@
+
+module Wise2HSP {
+
+  struct Sequence {
+    string name;
+    string seq;
+  };
+  
+  struct HSPinfo {
+    long query_start;
+    long target_start;
+    long length;
+    long score;
+  };
+  
+  typedef sequence<HSPinfo> HSPinfoList;
+  
+  struct HSPtargetset {
+    Sequence target;
+    HSPinfoList hsp;
+  };
+  
+  typedef sequence<HSPtargetset> HSPtargetlist;
+  
+  struct HSPmanager {
+    HSPtargetlist target;
+  };
+  
+  interface HSP_ts_iterator {
+    HSPtargetset next();
+    boolean is_more();
+  };
+
+  interface HSPmanagerFactory {
+    HSPmanager scan_query(in Sequence query);
+    HSP_ts_iterator scan_query_iterator(in Sequence query,in short max_size);
+  };
+
+};

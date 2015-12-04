@@ -1,0 +1,157 @@
+
+
+
+
+%{
+#include "dyna.h"
+
+%}
+
+api
+object Translation
+func get_Protein_from_Translation
+des  free_Translation
+endobject
+endapi
+
+friend Transcript
+
+struct Translation
+int start
+int end
+Transcript * parent !link
+Protein * protein
+%info
+
+Translation represents a single translation from
+a cDNA. Although most cDNAs will have one translation, 
+this does allow us to deal with alternative translation 
+points etc.
+
+As with Transcript and Gene before it, the 
+translation does not necessarily have any
+sequence in it. When sequence is asked for by
+get_Protein_from_Translation() the cache is checked,
+and if it is empty, then the transcript's DNA
+is called for, and the converted into the translation
+with appropiate start and stops.
+
+Of course, get_Protein_from_Translation can
+potentially trigger the construction of an entire
+gene upstairs, but that need not worry you here
+%%
+
+%{
+#include "translation.h"
+
+%func
+Makes a complete clean copy of the translation
+%%
+Translation * copy_Translation(Translation * t)
+{
+  Translation * out;
+  out = Translation_alloc();
+  out->start = t->start;
+  out->end   = t->end;
+
+  return out;
+
+}
+
+%func
+Gets the protein
+%arg
+ts translation
+ct codon table to use
+return s Protein sequence
+%%
+Protein * get_Protein_from_Translation(Translation * ts,CodonTable * ct)
+{
+  cDNA * cd;
+  int i,j;
+  Sequence * seq;
+  char buffer[64];
+
+  assert(ts);
+  assert(ct);
+
+  /*  fprintf(stderr,"Codon table is %d\n",ct);*/
+
+  if( ts->protein != NULL)
+    return ts->protein;
+
+  if( ts->parent == NULL ) {
+    warn("Cannot get Protein from translation as no parent!");
+    return NULL;
+  }
+
+
+  cd = get_cDNA_from_Transcript(ts->parent);
+
+  if( cd == NULL ) {
+    warn("Cannot make translation as can't get transcript!");
+    return NULL;
+  }
+
+  if( cd->baseseq == NULL ) {
+    warn("A bad error - a non NULL cDNA with a null sequence object. No translation here!");
+    return NULL;
+  }
+  if( cd->baseseq->len == 0 ) {
+    warn("Attempting to translate a zero length cDNA. Yikes!");
+    return NULL;
+  }
+
+  seq = Sequence_alloc();
+  sprintf(buffer,"%s.tr",cDNA_name(cd));
+  seq->name = stringalloc(buffer);
+  seq->seq = ckcalloc((cd->baseseq->len/3) + 2,sizeof(char));
+  seq->type = SEQUENCE_PROTEIN;
+
+  if( cd->baseseq->len%3 != 0 ) {
+    warn("Problem in making translation, cDNA is not mod3! - length is %d - transcript id %s",cd->baseseq->len,seq->name);
+  }
+
+
+  for(i=0,j=0;i<cd->baseseq->len;i+=3,j++) {
+    if( is_stop_codon(codon_from_seq(cd->baseseq->seq+i),ct) == TRUE ) {
+      if( i+3 >= cd->baseseq->len ) 
+	break;
+      else {
+	warn("Got a stop codon in the middle of a translation at postion [%d]. Yuk!",i);
+	seq->seq[j] = '*';
+      }
+    } else {
+      seq->seq[j] = aminoacid_from_seq(ct,cd->baseseq->seq+i);
+
+    }
+  }
+  seq->seq[j]='\0';
+  make_len_type_Sequence(seq);
+
+  /*write_fasta_Sequence(seq,stdout);*/
+  seq->type = SEQUENCE_PROTEIN;
+  ts->protein = Protein_from_Sequence(seq);
+
+  return ts->protein;
+
+}
+
+
+%func
+shows a translation in vaguely human form
+%%
+void show_Translation(Translation *ts,FILE * ofp)
+{
+  fprintf(ofp,"Translation %d - %d\n",ts->start,ts->end);
+}
+
+
+%}
+
+
+
+
+
+
+

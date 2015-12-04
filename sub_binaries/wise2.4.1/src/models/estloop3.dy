@@ -1,0 +1,221 @@
+/*  Last edited: Apr 24 15:04 1997 (birney) */
+
+%{
+#include "dyna.h"
+#include "cdparser.h"
+#include "genewisemodel.h"
+#include "genewisemodeldb.h"
+
+
+
+
+%}
+
+
+matrix EstLoop3
+query    type="GENEWISEMODEL"      name="query"  field:len="len"
+target   type="CDNA"            name="target"
+resource type="cDNAParserScore *" name="cp"
+extern   name="GW_*" type="int"
+extern   name="PCD_*" type="int"
+state  MATCH offi="1" offj="3"
+  source MATCH
+    calc="query->seg[i]->transition[GW_MATCH2MATCH] + query->seg[i]->match[CDNA_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2MATCH] + query->seg[i]->match[CDNA_CODON(target,j)]"
+    endsource 
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2MATCH] + query->seg[i]->match[CDNA_CODON(target,j)]"
+    endsource 
+  source LOOP
+    calc="query->seg[i]->transition[GW_START2MATCH] + query->seg[i]->match[CDNA_CODON(target,j)]"
+    endsource 
+  source START
+    calc="query->seg[i]->transition[GW_START2MATCH] + query->seg[i]->match[CDNA_CODON(target,j)]"
+    endsource 
+#
+# Sequencing error transitions, at offsets 1,2,4,5 for delete 1,2 or insert 1,2
+#
+  source MATCH offi="1" offj="2"
+    calc="cp->trans[PCD_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source MATCH offi="1" offj="1"
+    calc="cp->trans[PCD_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source MATCH offi="1" offj="4"
+    calc="cp->trans[PCD_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source MATCH offi="1" offj="5"
+    calc="cp->trans[PCD_INSERT_2_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source INSERT offi="1" offj="2"
+    calc="cp->trans[PCD_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source INSERT offi="1" offj="1"
+    calc="cp->trans[PCD_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source INSERT offi="1" offj="4"
+    calc="cp->trans[PCD_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source INSERT offi="1" offj="5"
+    calc="cp->trans[PCD_INSERT_2_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source DELETE offi="1" offj="2"
+    calc="cp->trans[PCD_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source DELETE offi="1" offj="1"
+    calc="cp->trans[PCD_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source DELETE offi="1" offj="4"
+    calc="cp->trans[PCD_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source DELETE offi="1" offj="5"
+    calc="cp->trans[PCD_INSERT_2_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  query_label MATCH_STATE
+  target_label CODON
+  endstate
+#
+# Insert state: does not move along model, produces DNA sequence...
+#
+state  INSERT offi="0" offj="3"
+  source MATCH
+    calc="query->seg[i]->transition[GW_MATCH2INSERT] + query->seg[i]->insert[CDNA_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2INSERT] + query->seg[i]->insert[CDNA_CODON(target,j)]"
+    endsource 
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2INSERT] + query->seg[i]->insert[CDNA_CODON(target,j)]"
+    endsource 
+  source LOOP
+    calc="query->seg[i]->transition[GW_START2INSERT] + query->seg[i]->insert[CDNA_CODON(target,j)]"
+    endsource 
+#
+# Sequencing error transitions
+#
+  source INSERT offi="0" offj="2"
+    calc="cp->trans[PCD_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source INSERT offi="0" offj="1"
+    calc="cp->trans[PCD_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source INSERT offi="0" offj="4"
+    calc="cp->trans[PCD_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source INSERT offi="0" offj="5"
+    calc="cp->trans[PCD_INSERT_2_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source MATCH offi="0" offj="2"
+    calc="cp->trans[PCD_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source MATCH offi="0" offj="1"
+    calc="cp->trans[PCD_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source MATCH offi="0" offj="4"
+    calc="cp->trans[PCD_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source MATCH offi="0" offj="5"
+    calc="cp->trans[PCD_INSERT_2_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source DELETE offi="0" offj="2"
+    calc="cp->trans[PCD_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source DELETE offi="0" offj="1"
+    calc="cp->trans[PCD_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source DELETE offi="0" offj="4"
+    calc="cp->trans[PCD_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  source DELETE offi="0" offj="5"
+    calc="cp->trans[PCD_INSERT_2_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  query_label INSERT_STATE
+  target_label CODON
+  endstate
+state DELETE offi="1" offj="0"
+  source MATCH
+    calc="query->seg[i]->transition[GW_MATCH2DELETE]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2DELETE]"
+    endsource 
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2DELETE]"
+    endsource 
+  source LOOP
+    calc="query->seg[i]->transition[GW_START2DELETE]"
+    endsource 
+  query_label DELETE_STATE
+  target_label INSERT
+  endstate
+state LOOP  !special 
+  source START  offj="1" !left
+    calc="0"
+    endsource
+  source MATCH 
+    calc="query->seg[i]->transition[GW_MATCH2END]"
+    endsource
+  source INSERT 
+    calc="query->seg[i]->transition[GW_INSERT2END]"
+    endsource
+  source DELETE 
+    calc="query->seg[i]->transition[GW_DELETE2END]"
+    endsource
+  source LOOP offj="1"
+    calc="0"
+    endsource
+  target_label RANDOM_SEQUENCE
+  query_label LOOP
+  endstate
+state START !start !special 
+  endstate
+state END !end !special
+  source LOOP  !right offj="1"
+    calc="0"
+    endsource
+  source MATCH 
+    calc="query->seg[i]->transition[GW_MATCH2END]"
+    endsource
+  source INSERT 
+    calc="query->seg[i]->transition[GW_INSERT2END]"
+    endsource
+  source DELETE 
+    calc="query->seg[i]->transition[GW_DELETE2END]"
+    endsource
+  target_label END
+  query_label END
+  endstate
+# collapse labels
+collapse LOOP RANDOM_SEQUENCE
+endmatrix
+
+
+
+
+

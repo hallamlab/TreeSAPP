@@ -1,0 +1,81 @@
+
+%{
+#include "assemblygraph.h"
+
+
+%}
+
+
+struct AssemblyGraphStats
+long int node_count
+long int link_count
+long int node_link[256]
+long int link_depth[256]
+
+
+%{
+#include "assemblystats.h"
+
+
+AssemblyGraphStats * new_AssemblyGraphStats(AssemblyGraph * ag)
+{
+  BaseNode * bn;
+  int i;
+  AssemblyGraphStats * out;
+
+  out = AssemblyGraphStats_alloc();
+
+  out->node_count = 0;
+  out->link_count = 0;
+
+  for(i=0;i < 256;i++) {
+    out->node_link[i] = 0;
+    out->link_depth[i] = 0;
+  }
+  
+  bn = ag->bg->start;
+
+  while( bn != NULL ) {
+    out->node_count++;
+    out->link_count += bn->link_len;
+    if( bn->link_len < 255 ) {
+      out->node_link[bn->link_len]++;
+    } else {
+      out->node_link[255]++;
+    }
+
+    for(i=0;i<bn->link_len;i++) {
+      if( bn->link[i]->sequence_label_len < 255 ) {
+	out->link_depth[bn->link[i]->sequence_label_len]++;
+      } else {
+	out->link_depth[255]++;
+      }
+    }
+
+    bn = bn->next_node;
+  }
+      
+  return out;
+}
+
+
+void show_AssemblyGraphStats(AssemblyGraphStats * st,int node_report,int link_report,FILE * ofp)
+{
+  int i;
+
+  assert(st != NULL);
+  assert(ofp != NULL);
+
+  fprintf(ofp,"Nodes %ld Links %ld (%.2f)\n",st->node_count,st->link_count,(double)st->link_count/(double)st->node_count);
+
+  for(i=0;i<node_report;i++) {
+    fprintf(ofp,"  Nodes with %d links %ld (%.2f)\n",i,st->node_link[i],100.0*(double)st->node_link[i]/(double)st->node_count);
+  }
+
+  for(i=0;i<link_report;i++) {
+    fprintf(ofp,"  Links with %d depth %ld (%.2f)\n",i,st->link_depth[i],100.0*(double)st->link_depth[i]/(double)st->link_count);
+  }
+
+}
+
+%}

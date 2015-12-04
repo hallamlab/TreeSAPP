@@ -1,0 +1,262 @@
+
+
+%{
+#include "wisebase.h"
+
+#define FblockLISTLENGTH 64
+#define FtextLISTLENGTH 64
+
+%}
+
+
+struct Fblock
+char ** line !list
+
+struct Ftext
+Fblock ** fb !list
+
+
+%{
+#include "ftext.h"
+
+%func
+adds a vsprintf'd line (below MAXLINE length!) to
+the Ftext.
+%%
+boolean add_line_to_Ftext(Ftext * ft,char * str,...)
+{
+  char buffer[MAXLINE];
+  va_list ap;
+
+
+  va_start(ap,str);
+  vsprintf(buffer,str,ap);
+  va_end(ap);
+
+  return add_Fblock(ft->fb[ft->len-1],stringalloc(buffer));
+}
+
+%func
+puts in a break into the Ftext
+%%
+boolean add_break_to_Ftext(Ftext * ft)
+{
+  Fblock * temp;
+
+  temp = Fblock_alloc_std();
+  return add_Ftext(ft,temp);
+}
+
+%func
+Makes a complete Ftext from just this string:
+%%
+Ftext * single_Ftext_from_str(char * str)
+{
+  Fblock * temp;
+  Ftext * out;
+
+  out = Ftext_alloc_len(1);
+
+  temp = Fblock_alloc_len(1);
+  
+  add_Fblock(temp,stringalloc(str));
+  add_Ftext(out,temp);
+
+  return out;
+}
+  
+%func
+shows Ftext as a C style comment with
+  *
+  * 
+  *
+indenting: 
+
+will return number of lines printed.
+%arg
+ft r Ftext to be shown
+header r Header for the first line, eg, "description:"
+depth r depth of from * to text
+ofp  output file
+blank_text r if non NULL, what to put if ft is empty, Can be NULL.
+%%
+int show_eddystyle_Ftext(Ftext * ft,char * header,int depth,FILE * ofp,char * blank_text)
+{
+  int len = 0;
+  int i;
+  int j;
+  int st = 1;
+  char space[]="                                                                    ";
+
+  if( ft == NULL || ft->len ==  0 || ft->fb[0]->len == 0) {
+    fprintf(ofp," * %*s %s\n",depth-9,header,blank_text == NULL ? "No text" : blank_text);
+    return 1;
+  }
+
+
+  fprintf(ofp," * %*s %s\n",-(depth-4),header,ft->fb[0]->line[0]);
+  len++;
+
+  for(i=0;i<ft->len;i++) {
+    for(j=0;j<ft->fb[i]->len;j++) {
+      if( st == 1 ) {
+	st =0;
+	continue;
+      }
+      fprintf(ofp," *%.*s%s\n",depth-2,space,ft->fb[i]->line[j]);
+      len++;
+    }
+    fprintf(ofp," *\n");
+    len++;
+  }
+
+  return len;
+}
+      
+
+%func
+Provides a latex dump of some text.
+
+Lines that start flush to the left
+are given as paragraphs
+
+Line that are indented are made verbatim
+%%
+void latex_Ftext(Ftext * ft,FILE * ofp)
+{
+  int i,j;
+  boolean inverbatim = FALSE;
+
+  for(i=0;i<ft->len;i++) {
+    for(j=0;j<ft->fb[i]->len;j++) {
+      if( isspace(ft->fb[i]->line[j][0]) ) {
+	if( inverbatim == FALSE ) {
+	  fprintf(ofp,"\\begin{verbatim}\n");
+	  inverbatim = TRUE;
+	} 
+      } else if ( inverbatim == TRUE ) {
+	fprintf(ofp,"\\end{verbatim}\n");
+	inverbatim = FALSE;
+      } 
+      
+      fprintf(ofp,"%s\n",ft->fb[i]->line[j]);
+    }
+    fprintf(ofp,"\n\n");
+  }
+
+  /* if we are in verbatim - get out! */
+  if ( inverbatim == TRUE ) 
+    fprintf(ofp,"\\end{verbatim}\n");
+}
+
+
+      
+%func
+stupid function which gives flat dump of ftext
+%%
+void dump_Ftext(Ftext * ft,FILE *ofp)
+{
+  int i;
+
+  for(i=0;i<ft->len;i++) {
+    dump_Fblock_str("",ft->fb[i],ofp);
+    fprintf(ofp,"\n");
+  }
+
+}
+
+%func
+stupid function which gives flat dump of ftext,
+with a start of pre 
+%%
+void dump_Ftext_pre(char * pre,Ftext * ft,FILE *ofp)
+{
+  int i;
+
+  for(i=0;i<ft->len;i++) {
+    dump_Fblock_str(pre,ft->fb[i],ofp);
+    fprintf(ofp,"\n");
+  }
+
+}
+
+%func
+sub of /dump_Ftext
+%type internal
+%%
+void dump_Fblock_str(char * pre,Fblock * fb,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<fb->len;i++) {
+    fprintf(ofp,"%s%s\n",pre,fb->line[i]);
+  }
+}
+
+%func
+reads in lines until it hits endpoint.
+A bit of an internal: is going to use buffer and maxlen
+as its buffer (this is so it is not fixed to one length of
+buffer). You probably have abuffer in your calling function.
+%arg
+buffer w pointer to a char * buffer of maxlen that can be written in
+maxlen r maximum size of buffer to read
+ifp  input file
+endpoint r a string which is used (using /strstartcmp) as a tag for the end of text
+%%
+Ftext * read_Ftext(char * buffer,int maxlen,FILE * ifp,char * endpoint,char * (*fgets_func)(char *,int,FILE *))
+{
+  Ftext * out;
+  Fblock * temp;
+
+  out = Ftext_alloc_std();
+  if( fgets_func == NULL  )
+    fgets_func = fgets;
+
+  while((temp= read_Fblock(buffer,maxlen,ifp,endpoint,fgets_func)) != NULL ) {
+    add_Ftext(out,temp);
+    
+    if( strstartcmp(buffer,endpoint) == 0 )
+      return out;
+  }
+
+  warn("Got a NULL Fblock in reading a Ftext. Not good news!");
+  return out;
+}
+
+
+%func
+Really an internal for read_Ftext
+%type internal
+%%
+Fblock * read_Fblock(char * buffer,int maxlen,FILE * ifp,char * endpoint,char * (*fgets_func)(char *,int,FILE *))
+{
+  Fblock * out;
+
+  out = Fblock_alloc_std();
+
+
+  while((*fgets_func)(buffer,maxlen,ifp) != NULL ) {
+    if( strstartcmp(buffer,endpoint) == 0 )
+      return out;
+    if( strstartcmp(buffer,"\n") == 0 ) 
+      return out;
+    buffer[strlen(buffer)-1] ='\0'; /*** strips off '\n' ***/
+
+    /*    fprintf(stderr,"Adding %s",buffer); */
+
+    add_Fblock(out,stringalloc(buffer));
+
+  }
+
+  warn("Got to then end of the file in reading a Fblock. Not a good sign!");
+  return out;
+}    
+
+
+
+
+%}
+
+
+

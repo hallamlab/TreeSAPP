@@ -1,0 +1,165 @@
+
+
+%{
+#include "sequence.h"
+
+
+
+%}
+
+
+struct DNA
+Sequence * baseseq;
+
+
+
+%{
+#include "dna.h"
+
+
+
+%func
+Truncates a DNA sequence. Basically uses
+the /trunc_Sequence function (of course!)
+
+It does not alter dna, rather it returns a new
+sequence with that truncation
+%arg
+dna r DNA that is truncated
+%%
+DNA * truncate_DNA(DNA * dna,int start,int stop)
+{
+  return DNA_from_Sequence(trunc_Sequence(dna->baseseq,start,stop));
+}
+
+%func
+Reads a fasta file assumming that it is DNA. 
+Will complain if it is not, and return NULL.
+%arg
+filename filename to be opened and read
+%%
+DNA * read_fasta_file_DNA (char * filename)
+{
+  Sequence * seq;
+
+  seq = read_fasta_file_Sequence(filename);
+  if( seq == NULL ) {
+    return NULL;
+  }
+
+  return DNA_from_Sequence(seq);
+}
+
+
+%func
+Reads a fasta file assumming that it is DNA. 
+Will complain if it is not, and return NULL.
+%arg
+ifp file point to be read from
+%%
+DNA * read_fasta_DNA (FILE * ifp)
+{
+  Sequence * seq;
+
+  seq = read_fasta_Sequence(ifp);
+  if( seq == NULL ) {
+    return NULL;
+  }
+
+  return DNA_from_Sequence(seq);
+}
+
+%func
+Reads a efetch specified query
+Uses, of course /read_efetch_Sequence
+%arg
+estr r efetch string which is read
+%%
+DNA * read_efetch_DNA(char * estr)
+{
+  return DNA_from_Sequence(read_efetch_Sequence(estr));
+}
+
+%func
+Reads a SRS sequence using srs4 syntax.
+Uses, of course, /read_SRS_Sequence
+
+%arg
+srsquery r string query representing SRS name
+%%
+DNA * read_SRS_DNA(char * srsquery)
+{
+  return DNA_from_Sequence(read_SRS_Sequence(srsquery));
+}
+
+
+%func
+Returns the name of the DNA
+%arg
+%%
+char * DNA_name (DNA * dna)
+{
+  return dna->baseseq->name;
+}
+
+%func
+Returns the length of the DNA
+%arg
+%%
+int DNA_length (DNA * dna)
+{
+  return dna->baseseq->len;
+}
+
+%func
+Returns sequence character at this position.
+%arg
+dna DNA
+pos position in DNA to get char
+%%
+char DNA_seqchar(DNA * dna,int pos)
+{
+  return dna->baseseq->seq[pos];
+}
+
+
+%func
+makes a new DNA from a Sequence. It 
+owns the Sequence memory, ie will attempt a /free_Sequence
+on the structure when /free_DNA is called
+
+If you want to give this DNA this Sequence and
+forget about it, then just hand it this sequence and set
+seq to NULL (no need to free it). If you intend to use 
+the sequence object elsewhere outside of the DNA datastructure
+then use DNA_from_Sequence(/hard_link_Sequence(seq))
+
+%arg
+seq Sequence to make DNA from
+%%
+DNA * DNA_from_Sequence(Sequence * seq)
+{
+  DNA * out;
+
+
+  if( is_dna_Sequence(seq) == FALSE ) {
+    warn("Trying to make a DNA sequence from a non DNA base sequence [%s].",seq->name);
+    return NULL;
+  }
+
+  out = DNA_alloc();
+
+  out->baseseq = seq;
+
+  return out;
+}
+
+
+
+
+%}
+
+
+
+
+

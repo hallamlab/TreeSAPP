@@ -1,0 +1,218 @@
+
+%{
+#include "dyna.h"
+
+enum DnaStartEndEnum {
+  DSE_GLOBAL_START = 0,
+  DSE_GLOBAL_END,
+  DSE_EDGE_START,
+  DSE_EDGE_END,
+  DSE_LOCAL_START,
+  DSE_LOCAL_END,
+  DSE_NUMBER
+};
+
+%}
+
+
+struct DnaStartEnd
+int    trans[DSE_NUMBER] // start/end points possibilities
+
+matrix DnaAlign
+query  name="query" type="DNA"
+target name="target" type="DNA"
+resource name="comp" type="DNACOMPMAT"
+resource name="qgap"  type="Score"
+resource name="qext"  type="Score"
+resource name="tgap"  type="Score"
+resource name="text"  type="Score"
+resource name="startend" type="DnaStartEnd *"
+extern   name="DSE_*" type="TRANS_TYPE"
+state MATCH offi="1" offj="1"
+   calc="DNABASEMATCH(comp,DNA_BASE(query,i),DNA_BASE(target,j))"
+   source MATCH 
+     calc="0"
+     endsource
+   source INSERT 
+     calc="0"
+     endsource
+   source DELETE
+     calc="0"
+     endsource
+   source START 
+     calc="startend->trans[DSE_LOCAL_START]"
+     endsource
+   source START !left
+     calc="startend->trans[DSE_EDGE_START]"
+     endsource
+   source START !top
+     calc="startend->trans[DSE_EDGE_START]"
+     endsource
+   source START !top !left
+     calc="startend->trans[DSE_GLOBAL_START]"
+     endsource
+   query_label SEQUENCE   
+   target_label SEQUENCE
+endstate
+state INSERT offi="0" offj="1"
+   source MATCH
+     calc="qgap"
+     endsource
+   source INSERT
+     calc="qext"
+     endsource
+   query_label INSERT
+   target_label SEQUENCE
+endstate
+state DELETE offi="1" offj="0"
+   source MATCH
+     calc="tgap"
+     endsource
+   source DELETE
+     calc="text"
+     endsource
+   query_label  SEQUENCE
+   target_label INSERT
+endstate
+state START !special !start 
+endstate
+state END !special !end
+   source MATCH 
+     calc="startend->trans[DSE_LOCAL_END]"
+     endsource
+   source MATCH !bottom
+     calc="startend->trans[DSE_EDGE_END]"
+     endsource
+   source MATCH !right
+     calc="startend->trans[DSE_EDGE_END]"
+     endsource
+   source MATCH !right !bottom
+     calc="startend->trans[DSE_GLOBAL_END]"
+     endsource
+  query_label END
+  target_label END
+endstate
+endmatrix
+
+api
+object DnaStartEnd
+des free_DnaStartEnd
+endobject
+func make_align_dnaalign
+func DnaStartEnd_from_policy
+endapi
+
+
+%{
+#include "dnaalign.h"
+
+%func
+Makes an alignment out of two DNA sequences
+%arg
+one r first sequence to align
+two r second sequence to align
+mat r DnaMatrix for the matching
+se  r DnaStartEnd policy
+qgap r gap open penalty in query (one) coordinate
+qext r gap extension penalty in query (one) coordinate
+tgap r gap open penalty in target (two) coordinate
+text r gap extension penalty in target (two) coordinate
+dpri r DPRunImpl structure
+return an alb structure of the alignment
+%%
+AlnBlock * make_align_dnaalign(Sequence * one,Sequence * two,DnaMatrix * mat,DnaStartEnd * se,int qgap,int qext,int tgap,int text,DPRunImpl * dpri)
+{
+  AlnBlock * alb;
+  PackAln * pal;
+  ComplexSequence * cone;
+  ComplexSequence * ctwo;
+  ComplexSequenceEvalSet * cses;
+
+  if( one == NULL || two == NULL || mat == NULL || se == NULL ) {
+    warn("Passed null objects into make_align_dnaalign... no!");
+    return NULL;
+  }
+
+  cses = default_dna_ComplexSequenceEvalSet();
+  assert(cses);
+  cone = new_ComplexSequence(one,cses);
+  ctwo = new_ComplexSequence(two,cses);
+  
+
+  assert(cone);
+  assert(ctwo);
+	
+  assert(qgap <= 0 );
+  assert(qext <= 0 );
+  assert(tgap <= 0 );
+  assert(text <= 0 );
+
+
+  pal = PackAln_bestmemory_DnaAlign(cone,ctwo,mat,qgap,qext,tgap,text,se,NULL,dpri);
+
+  alb = convert_PackAln_to_AlnBlock_DnaAlign(pal);
+
+  free_ComplexSequence(cone);
+  free_ComplexSequence(ctwo);
+  free_ComplexSequenceEvalSet(cses);
+
+
+  return alb;
+}
+  
+
+%func
+Makes a DnaStartEnd from a particular string.
+Possible strings are:
+
+local - fully local
+global - fully global
+edge - aligns only to edges
+%%
+DnaStartEnd * DnaStartEnd_from_policy(char * policy)
+{
+  int t;
+  DnaStartEnd * out;
+  
+  t = get_number_from_slashed_string(policy,"local/global/edge");
+
+  if( t == -1 ) {
+    warn("Policy %s is not a valid policy!",policy);
+    return NULL;
+  }
+  out = DnaStartEnd_alloc();
+
+  switch (t) {
+    case 0 : 
+      out->trans[DSE_GLOBAL_START] = NEGI;
+      out->trans[DSE_GLOBAL_END] = NEGI;
+      out->trans[DSE_LOCAL_START] = 0;
+      out->trans[DSE_LOCAL_END] = 0;
+      out->trans[DSE_EDGE_START] = NEGI;
+      out->trans[DSE_EDGE_END] = NEGI;
+      break;
+    case 1:
+      out->trans[DSE_GLOBAL_START] = 0;
+      out->trans[DSE_GLOBAL_END] = 0;
+      out->trans[DSE_LOCAL_START] = NEGI;
+      out->trans[DSE_LOCAL_END] = NEGI;
+      out->trans[DSE_EDGE_START] = NEGI;
+      out->trans[DSE_EDGE_END] = NEGI;
+      break;
+    case 2:
+      out->trans[DSE_GLOBAL_START] = NEGI;
+      out->trans[DSE_GLOBAL_END] = NEGI;
+      out->trans[DSE_LOCAL_START] = NEGI;
+      out->trans[DSE_LOCAL_END] = NEGI;
+      out->trans[DSE_EDGE_START] = 0;
+      out->trans[DSE_EDGE_END] = 0;
+      break;
+  }
+
+
+  return out;
+}
+
+
+
+

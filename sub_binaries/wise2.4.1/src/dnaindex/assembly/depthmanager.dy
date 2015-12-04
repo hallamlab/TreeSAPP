@@ -1,0 +1,43 @@
+
+%{
+#include "basegraph.h"
+
+
+%}
+
+
+struct DepthPara
+int max_depth
+int depth_variation
+
+
+%{
+#include "depthmanager.h"
+
+
+
+void show_help_DepthPara(FILE * ofp)
+{
+  fprintf(ofp,"Read depth management\n");
+  fprintf(ofp,"  -depth_max [10] largest depth accepted for unique sequence\n");
+  fprintf(ofp,"  -depth_var [2]  max variation in depth expected at nodes\n");
+}
+
+
+DepthPara * new_DepthPara_from_argv(int * argc,char ** argv)
+{
+  DepthPara * out;
+
+  out = DepthPara_alloc();
+  out->max_depth = 10;
+  out->depth_variation = 2;
+
+  strip_out_integer_argument(argc,argv,"depth_max",&out->max_depth);
+  strip_out_integer_argument(argc,argv,"depth_var",&out->depth_variation);
+
+  return out;
+
+}
+
+
+%}

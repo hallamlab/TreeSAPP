@@ -1,0 +1,421 @@
+
+%{
+
+#include "dyna2.h"
+#include "dpimpl.h"
+
+%}
+ 
+
+
+%{
+
+#include "dbmpi.h"
+
+%func
+The master mpi process loop.
+
+The essential idea here is that there is a queue of processes waiting 
+for jobs; they indicate their readiness by sending a message to the master.
+The master then reads in the score (if necessary), and sends off a job to 
+the slave (if there are more jobs to be done).
+
+Here is the pseudo code:
+
+check number of processes, and allocate space for (n-1) datascore objects
+
+initialize the databases
+
+forever {
+
+  Receive a message
+  if the message contains data
+    process it
+
+  if there are no more jobs to be done
+    send a message to the slave, telling it to die
+
+  if all the slaves have been notified
+    Terminate MPI and return.
+
+  if we have not done everything
+    Pack data, and dispatch; do bookkeeping, reload next target
+}
+%% 
+boolean write_MPI_master_loop(DYNFILE * dfp,DPImplementation * dpi,GenericMatrix * gm)
+{
+  FuncInfo * fi;
+  boolean tdb = FALSE;
+  boolean qdb = FALSE;
+  char buffer[MAXLINE];
+  int i;
+
+  if( gm->qtype != NULL && gm->qtype->is_database == TRUE) 
+    qdb = TRUE;
+
+  if( gm->ttype != NULL && gm->ttype->is_database == TRUE) 
+    tdb = TRUE;
+  
+  fi = FuncInfo_named_from_varstr(FI_INTERNAL,"MPI_master_loop_%s",gm->name);
+  add_line_to_Ftext(fi->ft,"Infinite loop code for MPI master for %s",gm->name);
+
+  if (qdb == FALSE || tdb == FALSE) {
+    warn("Currently no way of dealing with non-databased calls in MPI");
+    return FALSE;
+  }
+
+  macro(dfp,"#ifdef MPI");
+  if (qdb == TRUE)
+    sprintf(buffer,"Search_Return_Type MPI_master_loop_%s(Hscore *out, %s querydb,", gm->name, gm->qtype->database_type);
+  else
+    sprintf(buffer,"Search_Return_Type MPI_master_loop_%s(Hscore *out, %s %s,", gm->name, gm->query->element_type, gm->query->name);
+
+  if (tdb == TRUE) {
+    strcat(buffer,gm->ttype->database_type);
+    strcat(buffer," targetdb ");
+  } else {
+    strcat(buffer,gm->target->element_type);
+    strcat(buffer," ");
+    strcat(buffer,gm->target->name);
+    strcat(buffer," ");
+  }
+
+  for (i=0;i<gm->res_len;i++) {
+    strcat(buffer,",");
+    strcat(buffer,gm->resource[i]->element_type);
+    strcat(buffer," ");
+    strcat(buffer,gm->resource[i]->name);
+  }
+  strcat(buffer,")");
+
+  start_function_FuncInfo(fi,dfp,buffer);
+  
+  if (qdb == TRUE)
+    expr(dfp,"%s %s",gm->query->element_type,gm->query->name);
+
+  if (tdb == TRUE)
+    expr(dfp,"%s %s",gm->target->element_type,gm->target->name);
+
+  expr(dfp, "int db_status;");
+  expr(dfp, "Score score;");
+  expr(dfp, "DataScore ** ds_arr;");
+  expr(dfp, "int done_targets = 0;");
+  expr(dfp, "int done_queries = 0;");
+  expr(dfp, "int all_done = 0;");
+
+  add_break(dfp);
+
+  expr(dfp, "int slave_nr;");
+  expr(dfp, "int i, j;");
+  expr(dfp, "int size;");
+  expr(dfp, "int *working_arr;");
+  expr(dfp, "MPI_Status status;");
+  expr(dfp, "size_t buflen;");
+  expr(dfp, "char *buf;");
+  expr(dfp, "char *buforig;");
+  add_break(dfp);
+  
+  add_block_comment(dfp, "Init");
+  expr(dfp, "MPI_Comm_size(MPI_COMM_WORLD, &size);");
+  expr(dfp, "ds_arr = ckcalloc(1,sizeof(DataScore*) * size);");
+  expr(dfp, "working_arr = ckcalloc(1,sizeof(int) * size);");
+
+  add_break(dfp);
+
+  /* FIXME: non-databased calls */
+
+  if (qdb == TRUE) {
+    expr(dfp, "%s = %s(querydb, &db_status);", gm->query->name, gm->qtype->init_func);
+    expr(dfp, "if(db_status == DB_RETURN_ERROR)");
+    hang_expr(dfp, "return SEARCH_ERROR;");
+  } else {
+    warn("Don't yet know how to deal with non-databased MPI");
+  }
+
+  if (tdb == TRUE) {
+    expr(dfp, "%s = %s(targetdb, &db_status);", gm->target->name, gm->ttype->init_func);
+    expr(dfp, "if(db_status == DB_RETURN_ERROR)");
+    hang_expr(dfp, "return SEARCH_ERROR;");
+  } else {
+    warn("Don't yet know how to deal with non-databased MPI");
+  }
+
+
+  expr(dfp, "for(;;)");
+  startbrace(dfp);
+  expr(dfp, "MPI_Recv(&score, sizeof(Score), MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);");
+  expr(dfp, "slave_nr = status.MPI_SOURCE");
+  expr(dfp, "info(\"received(%%d). score = %%d\\n\", slave_nr, score);");
+  add_block_comment(dfp, "bookkeeping");
+  expr(dfp, "working_arr[slave_nr] = 0;");
+  expr(dfp, "switch (status.MPI_TAG)");
+  startbrace_tag(dfp, "What we do is based on what the tag of the message was");
+  expr(dfp, "case MPI_DATA_TAG :");
+  startcase(dfp);
+  add_block_comment(dfp, "process incoming data");
+  expr(dfp, "if (should_store_Hscore(out,score) == TRUE)");
+  startbrace(dfp);
+  expr(dfp, "info(\"saving score(%%d)\", score);");
+  expr(dfp, "ds_arr[slave_nr]->score = score;");    
+  expr(dfp, "add_Hscore(out,ds_arr[slave_nr]);");
+  closebrace(dfp);
+  expr(dfp, "else");
+  startbrace(dfp);
+  expr(dfp, "free_DataScore(ds_arr[slave_nr]);");
+  closebrace(dfp);
+  /* Fall through. This is not an error */
+  add_block_comment(dfp, "We fall through here, since the next case is for sending data out only.");
+  closecase(dfp);
+  expr(dfp, "case MPI_READY_TAG :");
+  startcase(dfp);
+  expr(dfp, "if (!done_queries)");
+  startbrace(dfp);
+  expr(dfp, "if (done_targets)");
+  startbrace_tag(dfp, "so get next query object");
+  if (qdb == TRUE) {
+    expr(dfp, "%s = %s(%s,querydb,&db_status);", gm->query->name, gm->qtype->reload_func, gm->query->name);
+    expr(dfp, "if( db_status == DB_RETURN_ERROR)");
+    hang_expr(dfp, "return SEARCH_ERROR;");
+    expr(dfp, "if( db_status == DB_RETURN_END )");
+    startbrace(dfp);
+    expr(dfp, "info(\"no more queries\");");
+    expr(dfp, "done_queries=1;");
+    expr(dfp, "%s(%s,querydb);", gm->qtype->close_func, gm->query->name);
+    closebrace(dfp);
+    expr(dfp, "else");
+    startbrace_tag(dfp, "need new targets");
+    expr(dfp, "%s = %s(targetdb,&db_status);", gm->target->name, gm->ttype->init_func);
+    expr(dfp, "if (db_status == DB_RETURN_ERROR)");
+    hang_expr(dfp, "return SEARCH_ERROR");
+    expr(dfp, "done_targets = 0;");
+    closebrace(dfp);
+  } else {
+    warn("Don't yet know how to deal with non-databased MPI");
+  }
+  closebrace(dfp);
+  add_block_comment(dfp, "if (done_targets)");
+  closebrace(dfp);
+  add_block_comment(dfp, "if (!done_queries)");
+    
+  add_break(dfp);
+  
+  expr(dfp, "if (done_queries)");
+  startbrace(dfp);
+  expr(dfp, "info(\"sending dietag2 to %%d\", slave_nr);");
+  expr(dfp, "MPI_Send(NULL, 0, MPI_BYTE, slave_nr, MPI_DIE_TAG, MPI_COMM_WORLD);");
+  
+  add_break(dfp);
+  expr(dfp, "working_arr[slave_nr] = 0;");
+  expr(dfp, "all_done = 1;");
+  expr(dfp, "for (i=1; i<size; i++)");
+  startbrace(dfp);
+  expr(dfp, "if (working_arr[i])");
+  startbrace_tag(dfp, "more processes to wait for?");
+  expr(dfp, "all_done = 0;");
+  expr(dfp, "break;");
+  closebrace(dfp);
+  closebrace(dfp);
+
+  expr(dfp, "if(all_done)");
+  hang_expr(dfp, "return SEARCH_OK;");
+  expr(dfp, "else");
+  hang_expr(dfp, "continue;");
+ 
+  closebrace(dfp);
+  add_block_comment(dfp, "OK, we do stuff");
+  expr(dfp, "ds_arr[slave_nr] = new_DataScore();");
+  expr(dfp, "if (ds_arr[slave_nr] == NULL)");
+  hang_expr(dfp, "return SEARCH_ERROR;");
+  expr(dfp, "%s(ds_arr[slave_nr]->query,%s,querydb);", gm->qtype->dataentry_add, gm->query->name);
+  expr(dfp, "%s(ds_arr[slave_nr]->target,%s,targetdb);", gm->ttype->dataentry_add, gm->target->name);
+  add_block_comment(dfp, "Send job");
+
+  /* FIXME -- this won't work for gm->qtype = NULL */
+  if ((gm->qtype != NULL) && (gm->ttype != NULL)) {
+    expr(dfp, "buflen = %s(%s) + %s(%s);", gm->qtype->buf_len_func, gm->query->name, gm->ttype->buf_len_func, gm->target->name);
+    /* FIXME -- should reuse static buffer to reduce memory fragmentation */
+    expr(dfp, "buf = buforig = ckalloc(buflen);");
+    expr(dfp, "buf = %s(buf, %s);", gm->qtype->pack_func, gm->query->name);
+    expr(dfp, "buf = %s(buf, %s);", gm->ttype->pack_func, gm->target->name);
+  }
+
+  expr(dfp, "MPI_Send(&buflen, sizeof(size_t), MPI_BYTE, slave_nr, MPI_WORK_TAG, MPI_COMM_WORLD);");
+  expr(dfp, "MPI_Send(buforig, buflen, MPI_BYTE, slave_nr, MPI_WORK_TAG, MPI_COMM_WORLD);");
+  expr(dfp, "ckfree(buforig);");
+  
+  add_block_comment(dfp, "bookkeeping");
+  /* FIXME -- here, and elsewhere, this should really be boolean */
+  expr(dfp, "working_arr[slave_nr] = 1;");
+
+  add_break(dfp);
+  expr(dfp, "info(\"loading target obj\");");
+  if (tdb == TRUE) {
+    expr(dfp, "%s = %s(%s,targetdb,&db_status);", gm->target->name, gm->ttype->reload_func, gm->target->name);
+    expr(dfp, "if(db_status == DB_RETURN_ERROR)");
+    hang_expr(dfp, "return SEARCH_ERROR;");
+    expr(dfp, "if(db_status == DB_RETURN_END)");
+    startbrace(dfp);
+    expr(dfp, "%s(%s,targetdb);", gm->ttype->close_func, gm->target->name);
+    expr(dfp, "done_targets = 1;");
+    closebrace(dfp);
+  } else {
+    warn("Don't yet know how to deal with non-databased MPI");
+  }
+
+  expr(dfp, "break;");
+  closecase(dfp);
+  expr(dfp, "default :");
+  startcase(dfp);
+  expr(dfp, "fatal(\"Oops. Invalid MPI tag received. Blammo.\");");
+  expr(dfp, "break;");
+  closecase(dfp);
+  closebrace(dfp);
+  add_block_comment(dfp, "switch(status.MPI_TAG)");
+  closebrace(dfp);
+  add_block_comment(dfp, "for (;;)");
+  close_function(dfp);
+  macro(dfp, "#endif /* MPI */");
+
+  return TRUE;
+}
+
+boolean write_MPI_slave_loop(DYNFILE * dfp,DPImplementation * dpi,GenericMatrix * gm)
+{
+  FuncInfo * fi;
+  boolean qdb = FALSE;
+  boolean tdb = FALSE;
+  char buffer[MAXLINE];
+  int i;
+
+  if( gm->qtype != NULL && gm->qtype->is_database == TRUE) 
+    qdb = TRUE;
+
+  if( gm->ttype != NULL && gm->ttype->is_database == TRUE) 
+    tdb = TRUE;
+
+  if ((qdb == FALSE) || (tdb == FALSE)) {
+    warn("Currently no way of dealing with non-databased calls in MPI");
+    return FALSE;
+  }
+
+  fi = FuncInfo_named_from_varstr(FI_INTERNAL,"MPI_slave_loop_%s",gm->name);
+  add_line_to_Ftext(fi->ft,"Infinite loop code for MPI slave for %s",gm->name);
+
+  macro(dfp,"#ifdef MPI");
+  
+  sprintf(buffer,"Search_Return_Type MPI_slave_loop_%s(generic_search_%s routine", gm->name, gm->name);
+
+  for (i=0;i<gm->res_len;i++) {
+    strcat(buffer,",");
+    strcat(buffer,gm->resource[i]->element_type);
+    strcat(buffer," ");
+    strcat(buffer,gm->resource[i]->name);
+  }
+  strcat(buffer,")");
+
+  start_function_FuncInfo(fi,dfp,buffer);
+  
+
+  /* FIXME: What if gm->query->element_type is not a pointer */
+
+  expr(dfp,"%s %s = NULL",gm->query->element_type,gm->query->name);
+  expr(dfp,"%s %s = NULL",gm->target->element_type,gm->target->name);
+
+  expr(dfp, "char *buf;");
+  expr(dfp, "char *buforig;");
+  expr(dfp, "Score score;");
+  expr(dfp, "size_t buflen, tmp;");
+  expr(dfp, "int data_offset;");
+  expr(dfp, "int i, j;");
+  expr(dfp, "MPI_Status status;");
+
+  add_break(dfp);
+  add_block_comment(dfp, "allocate some of the structures");
+
+  /* This is almost certainly not right (explicitly calling the thing
+     Sequence, that is */
+
+  expr(dfp, "buflen = DEFAULT_BUF_LEN;");
+  expr(dfp, "buforig = buf = ckcalloc(1,buflen);");
+
+  add_break(dfp);
+  add_block_comment(dfp, "Initial Send");
+  expr(dfp, "MPI_Send(NULL, 0, MPI_BYTE, 0, MPI_READY_TAG, MPI_COMM_WORLD);");
+  
+  add_break(dfp);
+  expr(dfp, "while(1)");
+  startbrace(dfp);
+  expr(dfp, "buf = buforig;");
+  add_block_comment(dfp, "get job from master (0) process");
+  expr(dfp, "MPI_Recv(buf, sizeof(size_t), MPI_BYTE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);");
+  add_block_comment(dfp, "if MPI_DIE_TAG, break and wait for barrier, then exit");
+  expr(dfp, "switch(status.MPI_TAG)");
+  startbrace(dfp);
+  expr(dfp, "case MPI_WORK_TAG :");
+  startcase(dfp);
+  expr(dfp, "tmp = *((int*)buf);");
+  expr(dfp, "if (tmp > buflen)");
+  startbrace(dfp);
+  expr(dfp, "buflen = tmp;");
+  add_block_comment(dfp, "reallocate");
+  expr(dfp, "ckfree(buforig);");
+  expr(dfp, "buforig = buf = ckcalloc(1,buflen);");
+  closebrace(dfp);
+  expr(dfp, "MPI_Recv(buf, buflen, MPI_BYTE, 0, MPI_WORK_TAG, MPI_COMM_WORLD, &status);");
+
+  add_break(dfp);
+
+  if(gm->qtype != NULL) {
+    expr(dfp, "buf = %s(buf, &%s);", gm->qtype->unpack_func, gm->query->name);
+  } else {
+    expr(dfp, "info(\"This really isn't going to work -- don't try\");");
+  }
+
+  if(gm->ttype != NULL) {
+    expr(dfp, "buf = %s(buf, &%s);", gm->ttype->unpack_func, gm->target->name);
+  } else {
+    expr(dfp, "info(\"This really isn't going to work -- don't try\");");
+  }
+  
+  add_break(dfp);
+
+  add_block_comment(dfp, "Actually do the work");
+
+  sprintf(buffer, "score = (*routine)(%s, %s", gm->query->name, gm->target->name);
+  for (i=0;i<gm->res_len;i++) {
+    strcat(buffer,", ");
+    strcat(buffer,gm->resource[i]->name);
+  }
+  strcat(buffer,")");
+
+  expr(dfp, buffer);
+
+  expr(dfp, "MPI_Send(&score, sizeof(Score), MPI_BYTE, 0, MPI_DATA_TAG, MPI_COMM_WORLD);");
+  expr(dfp, "break;");
+  closecase(dfp);
+  expr(dfp, "case MPI_DIE_TAG :");
+  startcase(dfp);
+  expr(dfp, "info(\"got dietag\");");
+  
+  expr(dfp, "if (NULL != %s) %s(%s);", gm->query->name, gm->qtype->free_func, gm->query->name);
+  expr(dfp, "if (NULL != %s) %s(%s);", gm->target->name, gm->ttype->free_func, gm->target->name);
+  expr(dfp, "ckfree(buforig);");
+  expr(dfp, "return SEARCH_OK;");
+  closecase(dfp);
+  expr(dfp, "default :");
+  startcase(dfp);
+  add_block_comment(dfp, "Ooo. This is really bad if we get to here");
+  expr(dfp, "return SEARCH_ERROR;");
+  closecase(dfp);
+  closebrace(dfp);
+  closebrace(dfp);
+    
+  close_function(dfp);
+  macro(dfp, "#endif /* MPI */");
+
+  return TRUE;
+}
+
+%}
+
+

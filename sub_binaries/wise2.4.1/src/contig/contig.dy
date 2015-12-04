@@ -1,0 +1,117 @@
+
+%{
+#include "dyna.h"
+
+#define ContigCollectionLISTLENGTH 128
+#define ContigLISTLENGTH 128
+
+%}
+
+struct Contig
+char* id
+struct Wise2_Contig * real_5peer !link
+int golden_start
+struct Wise2_Contig * real_3peer !link
+int golden_end
+
+struct ContigCollection
+Contig ** contig !list
+
+%{
+#include "contig.h"
+
+void Contig_agp(Contig * leftmost,char * ctg_name,FILE * ofp)
+{
+  Contig * c;
+  int ori = 1;
+  int start = 1;
+  int len;
+
+  for(c=leftmost;c!= NULL;c = Contig_walk_right(c,&ori) ) {
+    len = c->golden_end - c->golden_start +1;
+
+    fprintf(ofp,"%s\t%d\t%d\t%s\t%d\t%d\t%d\n",ctg_name,start,start+len,c->id,c->golden_start,c->golden_end,ori);
+  }
+}
+
+Contig * Contig_walk_right(Contig * p,int * ori)
+{
+  if( *ori == 1 ) {
+    /* normal - take the 3' peer */
+    if( p->real_3peer == NULL ) {
+      /* finished */
+      *ori = 5;
+      return NULL;
+    }
+
+    if( p->real_3peer->real_5peer == p ) {
+      /* same orientation */
+      *ori = 1;
+      return p->real_3peer;
+    } else if ( p->real_3peer->real_3peer == p ) {
+      *ori = -1;
+      return p->real_3peer;
+    } else {
+      fatal("In walk at contig %s, failed to walk to my peer!",p->id);
+    }
+  } else if( *ori == -1 )  {
+    /* take the 5' peer */
+    
+    if( p->real_5peer == NULL ) {
+      /* finished */
+      *ori = 5;
+      return NULL;
+    }
+
+    if( p->real_5peer->real_5peer  == p ) {
+      /* orientation flips to 1 */
+      *ori = 1;
+      return p->real_5peer;
+    } else if ( p->real_5peer->real_3peer == p ) {
+      *ori = -1;
+      return p->real_5peer;
+    } else {
+      fatal("In walk at contig %s, failed to walk to my peer!",p->id);
+    }
+  } else {
+      fatal("In walk at contig %s, got a weird orientation %d",p->id,*ori);
+  }
+
+  /* should not reach here */
+}
+
+    
+
+Contig * ContigCollection_find(ContigCollection * c,char * id)
+{
+  int i;
+
+  /* yup - should be a hash */
+  for(i=0;i<c->len;i++) {
+    if( strcmp(c->contig[i]->id,id) == 0 ) {
+      return c->contig[i];
+    }
+  }
+
+  return NULL;
+}
+      
+
+Contig * Contig_from_line(char * line)
+{
+  char * run1;
+  char * run2;
+  Contig * c;
+
+  run1 = strtok(line,spacestr);
+  run2 = strtok(line,spacestr);
+
+  c = Contig_alloc();
+
+  c->id = stringalloc(run2);
+
+  return c;
+}
+    
+
+%}

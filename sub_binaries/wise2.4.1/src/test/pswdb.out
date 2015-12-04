@@ -1,0 +1,170 @@
+-------------------------------------------------------------
+Wise2 - Protein vs. Protein
+Program: pswdb version: $Name: wise2-4-1 $ released: unreleased
+This program is freely distributed under a Gnu Public License.
+   See -version for more info on copyright
+Bugs and credits to: Richard Copley <copley@embl-heidelberg.de>
+                     Ewan Birney <birney@sanger.ac.uk>
+-------------------------------------------------------------
+
+Algorithm type: Smith/Waterman
+Gap open:       12
+Gap extension:  2
+Query info from:     road.pep
+Database info from:  pep.fa
+Comp Matrix:         BLOSUM62.bla
+[Warning: Can't fit histogram to a db smaller than 1,000]
+
+
+#High Score list
+-------------------------------------------------------------
+Probe roa1_drome               Dbase ROA1_HUMAN               +  833 0
+Probe roa1_drome               Dbase SW:ROA1_XENLA            +  773 0
+Probe roa1_drome               Dbase Q22037                   +  662 0
+
+
+#Alignments
+-------------------------------------------------------------
+
+
+
+>roa1_drome vs ROA1_HUMAN [1]
+
+P: 0 Sc: 833 aln_len: 368 p_len: 365 t_len: 371 match: 93.7% ID: 47.8%
+
+probe:      22       DSITEPEHMRKLFIGGLDYRTTDENLKAHFEKWGNIVDVVVMKDPRTKR 
+                     +S  EPE +RKLFIGGL + TTDE+L++HFE+WG + D VVM+DP TKR 
+target:     4        ESPKEPEQLRKLFIGGLSFETTDESLRSHFEQWGTLTDCVVMRDPNTKR 
+
+
+probe:      71       SRGFGFITYSHSSMIDEAQKSRPHKIDGRVVEPKRAVPRQDIDSPNAGA 
+                     SRGFGF+TY+    +D A  +RPHK+DGRVVEPKRAV R+D   P A   
+target:     53       SRGFGFVTYATVEEVDAAMNARPHKVDGRVVEPKRAVSREDSQRPGAHL 
+
+
+probe:      120      TVKKLFVGALKDDHDEQSIRDYFQHFGNIVDINIVIDKETGKKRGFAFV 
+                     TVKK+FVG +K+D +E  +RDYF+ +G I  I I+ D+ +GKKRGFAFV 
+target:     102      TVKKIFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKKRGFAFV 
+
+
+probe:      169      EFDDYDPVDKVVLQKQHQLNGKMVDVKKALPKQ------NDQQGGGGGR 
+                      FDD+D VDK+V+QK H +NG   +V+KAL KQ      + Q+G  G   
+target:     151      TFDDHDSVDKIVIQKYHTVNGHNCEVRKALSKQEMASASSSQRGRSGSG 
+
+
+probe:      212      GGPGGRAGGNRGNMGGGNYGNQNGGGNW--NNGGNNWGNNRGGNDNWGN 
+                        GGR GG  GN   G  GN +G G +  + GG  +G +  G + +GN 
+target:     200      NFGGGRGGGFGGNDNFGRGGNFSGRGGFGGSRGGGGYGGSGDGYNGFGN 
+
+
+probe:      259      NS-FGGGG----GGGGGYGGGNNSWGNN----------NPWDNGNGGGN 
+                     +  +GGGG    GG  GYG G   +GN           + ++NG G G  
+target:     249      DGGYGGGGPGYSGGSRGYGSGGQGYGNQGSGYGGSGSYDSYNNGGGRGF 
+
+
+probe:      293      FGGGGNNWNNGG--NDFGGYQ-QNYGGGPQRGGGNFNNNRMQPYQGGGG 
+                      GG G+N+  GG  NDFG Y  Q+   GP +GG NF      PY GGG  
+target:     298      GGGSGSNFGGGGSYNDFGNYNNQSSNFGPMKGG-NFGGRSSGPYGGGGQ 
+
+
+probe:      339      FKAGGGNQGNYGGNNQGFNNGGNNR                         
+                     + A   NQG YGG++   + G   R                         
+target:     346      YFAKPRNQGGYGGSSSSSSYGSGRR                         
+
+
+
+-------------------------------------------------------------
+
+
+
+>roa1_drome vs SW:ROA1_XENLA [2]
+
+P: 0 Sc: 773 aln_len: 359 p_len: 365 t_len: 365 match: 90.1% ID: 47.4%
+
+probe:      26       EPEHMRKLFIGGLDYRTTDENLKAHFEKWGNIVDVVVMKDPRTKRSRGF 
+                     EPE +RKLFIGGL + TTDE+L+ HFE+WG + D VVM+DP +KRSRGF 
+target:     9        EPEQLRKLFIGGLSFETTDESLREHFEQWGTLTDCVVMRDPNSKRSRGF 
+
+
+probe:      75       GFITYSHSSMIDEAQKSRPHKIDGRVVEPKRAVPRQDIDSPNAGATVKK 
+                     GF+TY  +  +D A  +RPHK+DGRVVEPKRAV R+D   P A  TVKK 
+target:     58       GFVTYLSTDEVDAAMTARPHKVDGRVVEPKRAVSREDSSRPGAHLTVKK 
+
+
+probe:      124      LFVGALKDDHDEQSIRDYFQHFGNIVDINIVIDKETGKKRGFAFVEFDD 
+                     +FVG +K+D +E  +R+YF+ +G I  I I+ D+ +GKKRGFAFV F+D 
+target:     107      IFVGGIKEDTEEDHLREYFEQYGKIEVIEIMTDRGSGKKRGFAFVTFED 
+
+
+probe:      173      YDPVDKVVLQKQHQLNGKMVDVKKALPKQ-------NDQQGGGGGR--- 
+                     +D VDK+V+QK H +N     V+KAL KQ       + ++ GG G     
+target:     156      HDSVDKIVIQKYHTVNNHNSQVRKALSKQEMASVSGSQRERGGSGNYGS 
+
+
+probe:      212      ---------GGPGGRAGGNRGNMGGGNYGNQNGGGNWNNG-GNNWGNNR 
+                              GG GG  GGNRG  GGG +GN+  GG+  NG G  W     
+target:     205      RGGFGNDNFGGRGGNFGGNRG--GGGGFGNRGYGGDGYNGDGQLWWQPS 
+
+
+probe:      251      --GGNDNWGNNSFGG-GGGGGGGYGGGNNS--WGNNNPWDNGNGGGN-F 
+                       G N  +G    GG G G GGGYGGG     +G N  +D  NGGG+ F 
+target:     252      LLGWNRGYGAGQGGGYGAGQGGGYGGGGQGGGYGGNGGYDGYNGGGSGF 
+
+
+probe:      294      GGGGNNWNNGG--NDFGGY--QQNYGGGPQRGGGNFNNNRMQPYQGGGG 
+                      G G N+ + G  NDFG Y  Q +   GP +GG         PY GG G 
+target:     301      SGSGGNFGSSGGYNDFGNYNSQSSSNFGPMKGGNYGGGRNSGPYGGGYG 
+
+
+probe:      339      FKAGGGNQGNYGGNNQ                                  
+                       +   + G YGG  +                                  
+target:     350      GGSASSSSG-YGGGRR                                  
+
+
+
+-------------------------------------------------------------
+
+
+
+>roa1_drome vs Q22037 [3]
+
+P: 0 Sc: 662 aln_len: 338 p_len: 365 t_len: 346 match: 91.8% ID: 40.2%
+
+probe:      22       DSITEPEHMRKLFIGGLDYRTTDENLKAHFEKWGNIVDVVVMKDPRTKR 
+                     D+  EPE++RK+F+GGL   TTD+ ++  + ++G I D++VM+DP TKR 
+target:     14       DASLEPENLRKIFVGGLTSNTTDDLMREFYSQFGEITDIIVMRDPTTKR 
+
+
+probe:      71       SRGFGFITYSHSSMIDEAQKSRPHKIDGRVVEPKRAVPRQDIDSPNAGA 
+                     SRGFGF+T+S  + +D A K RPH IDG+ V+PKRAVPR D +   +   
+target:     63       SRGFGFVTFSGKTEVDAAMKQRPHIIDGKTVDPKRAVPRDDKNRSESNV 
+
+
+probe:      120      TVKKLFVGALKDDHDEQSIRDYFQHFGNIVDINIVIDKETGKKRGFAFV 
+                     + K+L+V  +++DH E  + +YF  +G +    I++DK T K RGF FV 
+target:     112      STKRLYVSGVREDHTEDMLTEYFTKYGTVTKSEIILDKATQKPRGFGFV 
+
+
+probe:      169      EFDDYDPVDKVVLQKQHQLNGKMVDVKKALPKQNDQQGGGGGRGGPGGR 
+                      FDD+D VD+ VLQK H +NG   DV+K L K  D+            R 
+target:     161      TFDDHDSVDQCVLQKSHMVNGHRCDVRKGLSK--DEMSKAQMNRDRETR 
+
+
+probe:      218      AGGNRGNMGGGNYGNQNGGGNWNNGGNNWGNNR-GGNDNWGNNSFGGGG 
+                      G +R    GG  G   GGG W       G    GG    G   +GG   
+target:     208      GGRSRDGQRGGYNGGGGGGGGWGGPAQRGGPGAYGGPGGGGQGGYGGDY 
+
+
+probe:      266      GGGGGY--GGGNNSWGNNNPWDNGNGGGNFGGGGNNWNNGGNDFGGYQQ 
+                     GGG G   GGG   WG       G G G  GGGG     G       QQ 
+target:     257      GGGWGQQGGGGQGGWGGPQQQQGGGGWGQQGGGGQGGWGGPQQ---QQQ 
+
+
+probe:      313      NYGGGPQRGGGNFNNNRMQPYQGGGGFKAGGGNQGNYGGNNQGF      
+                        GGPQ+GGG          QGG G ++G     +  G N+ +      
+target:     303      GGWGGPQQGGGGGGWGGQGQQQGGWGGQSGAQQWAHAQGGNRNY      
+
+
+
+-------------------------------------------------------------
+

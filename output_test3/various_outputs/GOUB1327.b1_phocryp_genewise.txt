@@ -1,0 +1,11 @@
+Bits   Query         start end Target      start end   idels introns
+//
+//
+Bits   Query         start end Target      start end   idels introns
+38.49 phocryp        62  218 GOUB1327.b1   475   47    0    0
+//
+>GOUB1327.b1.pep
+NHHKQKIAFLISALRHWKEELQKKYSNIIHIKISKDHQTDFMSELDKIYEADRFDVIHIT
+QPSDHNTLTQLMFFVSKKNVTLQIHHDTKFIDSIEDFAEWAKDRKSLVQEYYYRWLRKKY
+DLLMENGKPLGGKWNYDKENQQS
+//

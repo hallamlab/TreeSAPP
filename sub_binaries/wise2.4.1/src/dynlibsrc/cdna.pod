@@ -1,0 +1,177 @@
+=head1 NAME
+
+cdna module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item cDNA
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object cDNA
+
+=over
+
+=item baseseq
+
+ Type [Sequence *] Scalar No documentation
+
+
+
+=back
+
+No documentation for cDNA
+
+=head2 Member functions of cDNA
+
+=over
+
+=item truncate_cDNA
+
+&Wise2::cDNA::truncate_cDNA(cdna,start,stop)
+
+  Truncates a cDNA sequence. Basically uses
+  the /magic_trunc_Sequence function (of course!)
+
+  It does not alter cdna, rather it returns a new
+  sequence with that truncation
+
+
+
+  Argument cdna         [READ ] cDNA that is truncated [cDNA *]
+  Argument start        [UNKN ] Undocumented argument [int]
+  Argument stop         [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [cDNA *]
+
+
+=item read_fasta_file_cDNA
+
+&Wise2::cDNA::read_fasta_file_cDNA(filename)
+
+  Reads a fasta file assumming that it is cDNA. 
+  Will complain if it is not, and return NULL.
+
+
+
+  Argument filename     [UNKN ] filename to be opened and read [char *]
+  Return [UNKN ] Undocumented return value [cDNA *]
+
+
+=item cDNA_name
+
+&Wise2::cDNA::cDNA_name(cdna)
+
+  Returns the name of the cDNA
+
+
+
+  Argument cdna         [UNKN ] Undocumented argument [cDNA *]
+  Return [UNKN ] Undocumented return value [char *]
+
+
+=item cDNA_length
+
+&Wise2::cDNA::cDNA_length(cdna)
+
+  Returns the length of the cDNA
+
+
+
+  Argument cdna         [UNKN ] Undocumented argument [cDNA *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item cDNA_seqchar
+
+&Wise2::cDNA::cDNA_seqchar(cdna,pos)
+
+  Returns sequence character at this position.
+
+
+
+  Argument cdna         [UNKN ] cDNA [cDNA *]
+  Argument pos          [UNKN ] position in cDNA to get char [int]
+  Return [UNKN ] Undocumented return value [char]
+
+
+=item cDNA_from_Sequence
+
+&Wise2::cDNA::cDNA_from_Sequence(seq)
+
+  makes a new cDNA from a Sequence. It 
+  owns the Sequence memory, ie will attempt a /free_Sequence
+  on the structure when /free_cDNA is called
+
+  If you want to give this cDNA this Sequence and
+  forget about it, then just hand it this sequence and set
+  seq to NULL (no need to free it). If you intend to use 
+  the sequence object elsewhere outside of the cDNA datastructure
+  then use cDNA_from_Sequence(/hard_link_Sequence(seq))
+
+
+
+
+  Argument seq          [OWNER] Sequence to make cDNA from [Sequence *]
+  Return [UNKN ] Undocumented return value [cDNA *]
+
+
+=item hard_link_cDNA
+
+&Wise2::cDNA::hard_link_cDNA(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [cDNA *]
+  Return [UNKN ] Undocumented return value [cDNA *]
+
+
+=item alloc
+
+&Wise2::cDNA::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [cDNA *]
+
+
+=item set_baseseq
+
+&Wise2::cDNA::set_baseseq(obj,baseseq)
+
+  Replace member variable baseseq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNA *]
+  Argument baseseq      [OWNER] New value of the variable [Sequence *]
+  Return [SOFT ] member variable baseseq [boolean]
+
+
+=item baseseq
+
+&Wise2::cDNA::baseseq(obj)
+
+  Access member variable baseseq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNA *]
+  Return [SOFT ] member variable baseseq [Sequence *]
+
+
+=back
+

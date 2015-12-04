@@ -1,0 +1,239 @@
+
+%{
+#include "genotype.h"
+#include "probability.h"
+
+
+#define LocusGenotypeCountSetLISTLENGTH 128
+#define LocusGenotypeCountLISTLENGTH 128
+
+
+%}
+
+
+struct PopulationGenotypeCount
+int count[BiGenotypeLength]
+int defined_total
+Population * pop !link
+
+struct LocusGenotypeCount
+BiLocus * bl !link
+PopulationGenotypeCount ** pgc !list
+
+struct LocusGenotypeCountSet 
+LocusGenotypeCount ** lgc !list
+
+
+
+%{
+#include "frequency_count.h"
+
+
+double chisquared_stat_LocusGenotypeCount(LocusGenotypeCount * lgc)
+{
+  double ret = 0.0;
+  int i;
+
+  for(i=0;i<lgc->len;i++) {
+    ret += chisquared_stat_PopulationGenotypeCount(lgc->pgc[i]);
+  }
+
+  return ret;
+}
+
+
+double chisquared_stat_PopulationGenotypeCount(PopulationGenotypeCount * pgc)
+{
+  double first;
+  double second;
+  double ret = 0.0;
+  double diff;
+  double expec;
+
+  assert(pgc->defined_total > 5);
+
+  first = central_first_frequency_PopulationGenotypeCount(pgc);
+
+  if( first < 0.0000000000000001 || first > 0.999999999999999 ) {
+    warn("Problem in chisquared statistic with central first freq at %f, returning 0.0",first);
+    return 0.0;
+  }
+
+
+  second = 1.0 - first;
+
+
+  expec =  (first*first * (double)pgc->defined_total);
+
+  /*  fprintf(stderr,"first is %.2f, totalis %d, expect is %f\n",first,pgc->defined_total,expec);*/
+
+  assert(expec > 0.0);
+
+  diff = pgc->count[BiGenotypeHomozygousFirst] - expec;
+  
+  ret += (diff*diff)/expec;
+
+  expec =  (first*second*2 * (double)pgc->defined_total);
+  assert(expec > 0.0);
+
+  diff = pgc->count[BiGenotypeHetrozygous] - expec;
+  
+  ret += (diff*diff)/expec;
+
+
+  expec =  (second*second * (double)pgc->defined_total);
+  assert(expec > 0.0);
+
+  diff = pgc->count[BiGenotypeHetrozygous] - expec;
+  
+  ret += (diff*diff)/expec;
+
+  return ret;
+
+}
+
+boolean seen_each_genotype_in_all_populations_LocusGenotypeCount(LocusGenotypeCount * lgc)
+{
+  int i;
+
+
+  for(i=0;i<lgc->len;i++) {
+    if( lgc->pgc[i]->count[BiGenotypeHomozygousFirst] == 0 ||
+	lgc->pgc[i]->count[BiGenotypeHomozygousSecond] == 0 ||
+	lgc->pgc[i]->count[BiGenotypeHetrozygous] == 0 ) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+
+
+double central_first_frequency_PopulationGenotypeCount(PopulationGenotypeCount * pgc)
+{
+  assert(pgc != NULL);
+  assert(pgc->defined_total > 0);
+
+  return ((double)(pgc->count[BiGenotypeHomozygousFirst]*2+pgc->count[BiGenotypeHetrozygous]))/
+    (2*(double)(pgc->defined_total));
+}
+
+double smallest_minor_allele_LocusGenotypeCount(LocusGenotypeCount * lgc) 
+{
+  int i;
+  double smallest = 0.5;
+  double central;
+
+
+  for(i=0;i<lgc->len;i++) {
+    central = central_first_frequency_PopulationGenotypeCount(lgc->pgc[i]);
+    if( central > 0.5 ) {
+      if( smallest > (1.0 - central)) {
+	smallest = (1.0 - central);
+      }
+    } else {
+      if( smallest > central ) {
+	smallest = central;
+      }
+    }
+  }
+
+  return smallest;
+}
+
+LocusGenotypeCount * resampled_LocusGenotypeCount(LocusGenotypeCount * lgc)
+{
+  int i,j;
+  LocusGenotypeCount * out;
+  PopulationGenotypeCount * pgc;
+  double rnd1;
+  double rnd2;
+  double central;
+
+  assert(lgc != NULL);
+
+  out = LocusGenotypeCount_alloc_len(lgc->len);
+  out->bl = lgc->bl;
+
+  for(i=0;i<lgc->len;i++) {
+
+
+    pgc  = PopulationGenotypeCount_alloc();
+
+    pgc->count[BiGenotypeHomozygousFirst] = 0;
+    pgc->count[BiGenotypeHetrozygous] = 0;
+    pgc->count[BiGenotypeHomozygousSecond] = 0;
+
+    central = central_first_frequency_PopulationGenotypeCount(lgc->pgc[i]);
+    for(j=0;j<lgc->pgc[i]->defined_total;j++) {
+      rnd1 = random_0_to_1();
+      rnd2 = random_0_to_1();
+      if( rnd1 < central && rnd2 < central ) {
+	pgc->count[BiGenotypeHomozygousFirst]++;
+      } else if ( rnd1 > central && rnd2 > central ) {
+	pgc->count[BiGenotypeHomozygousSecond]++;
+      } else {
+	pgc->count[BiGenotypeHetrozygous]++;
+      }
+    }
+    pgc->defined_total = lgc->pgc[i]->defined_total;
+    add_LocusGenotypeCount(out,pgc);
+  }
+
+  return out;
+}
+
+LocusGenotypeCountSet * LocusGenotypeCountSet_from_BiGenotypeSet(BiGenotypeSet * bgs)
+{
+  int i;
+  int j;
+  int p;
+  LocusGenotypeCount * lgc;
+  PopulationGenotypeCount* pgc;
+  LocusGenotypeCountSet * out;
+
+  out = LocusGenotypeCountSet_alloc_len(bgs->len);
+
+  for(i=0;i<bgs->len;i++) {
+    lgc = LocusGenotypeCount_alloc_len(bgs->ps->len);
+    lgc->bl = bgs->locus[i]->locus;
+
+    
+    for(p=0;p<bgs->ps->len;p++) {
+
+      pgc = PopulationGenotypeCount_alloc();
+      pgc->pop = bgs->ps->pop[p];
+      add_LocusGenotypeCount(lgc,pgc);
+
+      pgc->count[BiGenotypeHomozygousFirst] = 0;
+      pgc->count[BiGenotypeHomozygousSecond] = 0;
+      pgc->count[BiGenotypeHetrozygous] = 0;
+      pgc->count[BiGenotypeUnknown] = 0;
+
+      pgc->defined_total = 0;
+
+      for(j=0;j<bgs->locus[i]->len;j++) {
+
+	if( bgs->locus[i]->big[j]->person->pop != pgc->pop ) {
+	  continue;
+	}
+
+	pgc->count[bgs->locus[i]->big[j]->type]++;
+	if( bgs->locus[i]->big[j]->type != BiGenotypeUnknown ) {
+	  pgc->defined_total++;
+	}
+	
+      }
+
+
+    }
+    add_LocusGenotypeCountSet(out,lgc);
+
+  }
+
+  return out;
+}
+
+
+
+%}

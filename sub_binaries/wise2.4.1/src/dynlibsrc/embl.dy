@@ -1,0 +1,50 @@
+
+%{
+#include "wisebase.h"
+
+%}
+
+
+
+%{
+#include "embl.h"
+
+
+%func
+internal function for reading EMBL feature
+tables.
+
+reads in line. If id 3 in, returns FALSE. 
+Otherwise strips FT up to central tab region. 
+%%
+boolean next_feature_tab_line(char * buffer,int maxlen,FILE * ifp)
+{
+  char * runner;
+
+  if( fgets(buffer,maxlen,ifp) == NULL ) {
+    buffer[0]= '\0';
+    return FALSE;
+  }
+
+  if( strstartcmp(buffer,"FT") != 0) {
+    return FALSE;
+  }
+
+  for(runner = buffer+2;*runner && isspace((int)*runner);runner++)
+    ;
+
+  if( *runner == '\0' ) {
+    warn("A supposed EMBL feature line with nothing on it");
+    return FALSE;
+  }
+
+  if( runner - buffer > 3 ) {
+    memmove(buffer,runner,strlen(runner));
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+%}
+

@@ -1,0 +1,808 @@
+
+%{
+#include "dyna.h"
+#include "singleseqspace.h"
+#include "dnamapping.h"
+
+#define EulerNodeLISTLENGTH 4
+#define EulerGraphLISTLENGTH 128
+
+#define EulerLinkLabelLength 8
+#define EulerLinkLabelLinear 128
+
+%}
+
+friend EulerNode
+friend EulerLink
+
+
+struct EulerLink 
+EulerNode * prev !link
+EulerNode * next !link
+int * label
+int label_len
+int depth
+char base
+
+struct EulerPath
+EulerLink ** stack
+int max_stack_len
+int current
+
+struct EulerNode
+int number
+EulerLink ** link !list !len="link_"
+EulerLink ** back !list !len="back_"
+char is_leftmost
+char is_rightmost
+
+struct EulerGraph
+EulerNode ** node
+int node_len
+int kmer
+Sequence ** seq !list
+SinglePosSpace * sps
+EulerNode ** dup !list !len="dup_"
+
+struct EulerErrorPara
+int error_size !def="1"
+
+%{
+#include "eulerindex.h"
+
+
+void dump_EulerGraph(EulerGraph * eg,FILE * ofp)
+{
+  int i;
+  int j;
+  char dna_str[512];
+
+  assert(eg);
+  assert(ofp);
+
+  for(i=0;i<eg->node_len;i++) {
+    if( eg->node[i] != NULL ) {
+      reverse_map_dna_number(i,eg->kmer,dna_str);
+      dna_str[eg->kmer] = '\0';
+      fprintf(ofp,"Node %d [%s]\n",i,dna_str);
+      fprintf(ofp,"  Incoming Links:\n");
+      for(j=0;j<eg->node[i]->back_len;j++) {
+	fprintf(ofp,"   %d [%c] from %d\n",eg->node[i]->back[j]->depth,eg->node[i]->back[j]->base,eg->node[i]->back[j]->prev->number);
+      }
+      fprintf(ofp,"  Outgoing Links:\n");
+      for(j=0;j<eg->node[i]->link_len;j++) {
+	fprintf(ofp,"   %d [%c] to %d\n",eg->node[i]->link[j]->depth,eg->node[i]->link[j]->base,eg->node[i]->link[j]->next->number);
+      }
+    }
+  }
+
+}
+
+Sequence * read_Sequence_EulerNode(EulerNode * leftmost)
+{
+  int i;
+  Sequence * out;
+  EulerLink * l;
+
+  assert(leftmost);
+  assert(leftmost->link_len == 1);
+  
+  i=0;
+  l = leftmost->link[0];
+
+  while( 1 ) {
+    i++;
+    if( l->next->link_len == 1 ) {
+      l = l->next->link[0];
+      continue;
+    }
+
+    if( l->next->link_len > 1 ) {
+      warn("Untangled repeat sequence on node %d\n",l->next->number);
+      break;
+    }
+    if( l->next->link_len == 0 ) {
+      break;
+    }
+  }
+
+  out = Sequence_alloc();
+  out->seq = calloc(i+1,sizeof(char));
+
+  i=0;
+  l = leftmost->link[0];
+
+  while( 1 ) {
+    out->seq[i] = l->base;
+    i++;
+    if( l->next->link_len == 1 ) {
+      l = l->next->link[0];
+      continue;
+    }
+
+    if( l->next->link_len > 1 ) {
+      break;
+    }
+    if( l->next->link_len == 0 ) {
+      break;
+    }
+  }
+
+  out->seq[i] = '\0';
+  out->name = stringalloc("EulerGraphSequence");
+
+  return out;
+}
+
+
+boolean can_resolve_error_EulerGraph(EulerGraph *eg,EulerLink * leftmost)
+{
+  EulerNode * node;
+  EulerLink * path;
+
+  int len = 1;
+  int error_len;
+
+  
+  assert(eg);
+  assert(leftmost);
+
+  fprintf(stderr,"starting resolving\n");
+  error_len = eg->kmer;
+  path = leftmost;
+  
+  while( len < error_len ) {
+
+    if( path->depth != 1 ) {
+      return FALSE;
+    }
+
+    if( path->next->link_len > 1 ) {
+      return FALSE;
+    }
+
+    path = path->next->link[0];
+
+    if( path == NULL ) {
+      return FALSE;
+    }
+    len++;
+  }
+
+  return TRUE;
+}
+
+
+boolean resolve_error_EulerGraph(EulerGraph * eg,EulerLink * leftmost)
+{
+  char * dna = "ATGC";
+  char dna_str[128];
+  int i;
+  int test_number;
+  EulerLink * walk;
+  int w;
+
+  assert(eg);
+  assert(leftmost);
+
+  reverse_map_dna_number(leftmost->next->number,eg->kmer,dna_str);
+
+
+  for(i=0,walk = leftmost;i<eg->kmer;i++) {
+    dna_str[eg->kmer+i] = walk->base;
+    walk = walk->next->link[0];
+  }
+  dna_str[eg->kmer+i] = '\0';
+
+  fprintf(stderr,"Have string of %s\n",dna_str);
+
+  for(i=0;i<4;i++) {
+    dna_str[eg->kmer-1] = dna[i];
+    
+    fprintf(stderr,"Considering %c for fixing\n",dna[i]);
+
+    test_number = forward_dna_number_from_string(dna_str,eg->kmer);
+    if( eg->node[test_number] != NULL && eg->node[test_number]->link_len ==1 ) {
+      fprintf(stderr,"Test number works, now walking...\n");
+      for(walk = eg->node[test_number]->back[0],w=0; walk != NULL && w<eg->kmer;w++) {
+	/*	fprintf(stderr,"Looking at %c vs %c\n",dna_str[eg->kmer+w],walk->base); */
+	if( dna_str[eg->kmer+w] != walk->base ) {
+	  break; 
+	}
+	walk = walk->next->link[0];
+      }
+      if( w >= eg->kmer ) {
+	fix_error_EulerGraph(eg,leftmost,dna_str,eg->kmer);
+	return TRUE;
+      }
+    }
+  }
+  
+  return FALSE;
+
+}
+
+void fix_error_EulerGraph(EulerGraph * eg, EulerLink * leftmost,char * dna_str,int len)
+{
+  int i;
+  int j;
+  int number;
+  int prev_number;
+  EulerLink * walk;
+  EulerLink * temp;
+  EulerNode * prev;
+
+  fprintf(stderr,"Fixing with %s length %d\n",dna_str,len);
+
+  prev = leftmost->prev;
+  prev_number = prev->number;
+
+  walk = leftmost;
+  for(i=0;i<len;i++) {
+    number = forward_dna_number_from_string(dna_str+i,eg->kmer);
+    for(j=0;j<eg->node[prev_number]->link_len;j++) {
+      if( eg->node[prev_number]->link[j]->next->number == number ) {
+	break;
+      }
+    }
+    if( j >= eg->node[prev_number]->link_len ) {
+      fprintf(stderr,"Problem here; fixed node doesn't have active numbers in link...");
+      return;
+    }
+
+    add_label_EulerLink(eg->node[prev_number]->link[j],walk->label[0]);
+    prev_number = number;
+
+    temp = walk;
+    walk = walk->next->link[0];
+    
+    remove_EulerLink_forward_EulerNode(temp->prev,temp);
+    remove_EulerLink_backward_EulerNode(temp->next,temp);
+    free_EulerLink(temp);
+  }
+    
+}
+
+void build_new_node_path_EulerGraph(EulerGraph * eg,EulerLink * leftmost,EulerPath * path,int * starting_labels,int length)
+{
+  int i;
+  int l;
+  int path_offset;
+  EulerNode * new_node;
+  EulerNode * prev_node;
+
+  EulerLink * new_link;
+
+  assert(eg);
+  assert(leftmost);
+  assert(starting_labels);
+  assert(length > 0);
+  
+  fprintf(stderr,"Going to build new node path\n");
+
+  new_node = new_EulerNode(leftmost->next->number);
+  add_dup_EulerGraph(eg,new_node);
+
+  
+  new_link = new_EulerLink();
+  new_link->prev = leftmost->prev;
+  new_link->next = new_node;
+  new_link->base = leftmost->base;
+  new_link->depth = length;
+
+  for(l=0;l<length;l++) {
+    remove_label_EulerLink(leftmost,starting_labels[l]);
+    add_label_EulerLink(new_link,starting_labels[l]);
+  }
+
+  add_link_EulerNode(new_link->prev,new_link);
+  add_back_EulerNode(new_link->next,new_link);
+
+  prev_node = new_node;
+
+  for(i=path->current-1,path_offset = 1;i >= 0 ;i--,path_offset++) {
+
+    new_link = new_EulerLink();
+    new_link->prev = prev_node;
+    new_link->next = NULL;
+    new_link->base = path->stack[i]->base;
+    new_link->depth = length;
+
+    for(l=0;l<length;l++) {
+      remove_label_EulerLink(path->stack[i],starting_labels[i]+path_offset);
+      add_label_EulerLink(new_link,starting_labels[l]+path_offset);
+    }
+
+    if( i > 0 ) {
+      new_node = new_EulerNode(path->stack[i]->next->number);
+      add_dup_EulerGraph(eg,new_node);
+      new_link->next = new_node;
+    } else {
+      /* connect to the same path */
+      new_link->next = path->stack[0]->next;
+    }
+
+    add_link_EulerNode(new_link->prev,new_link);
+    add_back_EulerNode(new_link->next,new_link);
+    
+    
+    prev_node = new_node;
+   
+  }
+
+
+
+}
+
+
+boolean attempt_untangle_EulerPath(EulerGraph *eg,EulerPath * path,EulerLink * leftmost)
+{
+  int i;
+  int j;
+  SinglePosSequence * leftmost_sps[512];
+  SinglePosSequence * rightmost_sps[512];
+  int can_untangle_left[512];
+  int can_untangle_right[512];
+  int untangle_feasible = 0;
+
+  int starting_label[512];
+  int total_labels = 0;
+
+  int fully_left_untangled;
+  int fully_right_untangled;
+
+  assert(eg);
+  assert(path);
+  assert(leftmost);
+
+  fprintf(stderr,"Considering untangle at position %d in path\n",path->current);
+
+  for(i=0;i<leftmost->label_len && leftmost->label[i] != -1;i++) {
+    leftmost_sps[i]      = lookup_Sequence_SinglePosSpace(eg->sps,leftmost->label[i]);
+    if( eg->kmer+leftmost->label[i]+3 > leftmost_sps[i]->end ) {
+      can_untangle_left[i] = -2;
+      fprintf(stderr,"Too close to end for resolving power, %s\n",leftmost_sps[i]->seq->name);
+    } else {
+      can_untangle_left[i] = -1;
+    }
+  }
+
+  fprintf(stderr,"Going to look at rightmost\n");
+
+  for(i=0;i<path->stack[0]->label_len && path->stack[0]->label[i] != -1;i++) {
+    rightmost_sps[i]      = lookup_Sequence_SinglePosSpace(eg->sps,path->stack[0]->label[i]);
+
+    if( path->stack[0]->label[i] - eg->kmer - 3 < rightmost_sps[i]->start ) {
+      can_untangle_right[i] = -2;
+      fprintf(stderr,"Too close to start for resolving power, %s\n",rightmost_sps[i]->seq->name);
+    } else {
+      can_untangle_right[i] = -1;
+    }
+
+    can_untangle_right[i] = -1;
+    for(j=0;j<leftmost->label_len && leftmost->label[j] != -1;j++) {
+      if( leftmost_sps[j]->seq == rightmost_sps[i]->seq && (path->current == (path->stack[0]->label[i] - leftmost->label[j])) ) {
+
+      	fprintf(stderr,"Able to untangle label %d with (%d) diff [left %d, right %d]\n",leftmost->label[j],path->stack[0]->label[i]-leftmost->label[j],j,i);
+	can_untangle_left[j] = i;
+	can_untangle_right[i] = j;
+	untangle_feasible = 1;
+
+	starting_label[total_labels++] = leftmost->label[j];
+      }
+    }
+  }
+  
+  if( untangle_feasible == 0 ) {
+    fprintf(stderr,"No untangle feasible\n");
+    return 0;
+  }
+
+  fprintf(stderr,"Abotu to build new node path....\n");
+
+  build_new_node_path_EulerGraph(eg,leftmost,path,starting_label,total_labels);
+
+  fully_left_untangled = 1;
+  for(i=0;i<leftmost->label_len && leftmost->label[i] != -1 ;i++) {
+    if( can_untangle_left[i] == -1 ) {
+      fprintf(stderr,"Left: Label position %d not resolved (%s)\n",i,leftmost_sps[i]->seq->name);
+      fully_left_untangled = 0;
+      break;
+    }
+  }
+
+  fully_right_untangled = 1;
+  for(i=0;i<path->stack[0]->label_len && path->stack[0]->label[i] != -1;i++) {
+    if( can_untangle_right[i] == -1 ) {
+      fprintf(stderr,"Right: Label position %d not resolved (%s)\n",i,rightmost_sps[i]->seq->name);
+      fully_right_untangled = 0;
+      break;
+    }
+  }
+
+  if( fully_left_untangled == 1) {
+    fprintf(stderr,"Managed to fully left untangle path\n");
+    /* remove the link on leftmost */
+    remove_EulerLink_forward_EulerNode(leftmost->prev,leftmost);
+    remove_EulerLink_backward_EulerNode(leftmost->next,leftmost);
+  }
+
+  if( fully_right_untangled == 1 ) {
+    fprintf(stderr,"Managed to fully right untangle path\n");
+    /* remove the link on leftmost */
+    remove_EulerLink_forward_EulerNode(path->stack[0]->prev,path->stack[0]);
+    remove_EulerLink_backward_EulerNode(path->stack[0]->next,path->stack[0]);
+  }
+
+  return fully_right_untangled;
+}
+
+boolean untangle_from_split_EulerNode(EulerGraph * eg,EulerNode * split_outgoing,int max_backtrack)
+{
+  EulerPath * ep;
+  int i;
+  int resolved = 0;
+  EulerLink * split[512];
+  int len;
+
+  assert(eg);
+  assert(split_outgoing);
+  assert(split_outgoing->link_len > 1);
+
+  ep = new_EulerPath();
+
+  for(i=0;i<split_outgoing->link_len;i++) {
+    split[i] = split_outgoing->link[i];
+  }
+  len = split_outgoing->link_len;
+
+  for(i=0;i<len;i++) {
+    if( split_outgoing->link_len == 1 ) {
+      fprintf(stderr,"No need to resolve this node at %d from %d\n",i,len);
+      break;
+    }
+
+    ep->current = 0;
+    resolved = 0;
+    untangle_EulerLink_EulerPath(eg,ep,split[i],&resolved,0,max_backtrack);
+  }
+
+  free_EulerPath(ep);
+
+}
+
+boolean untangle_EulerLink_EulerPath(EulerGraph * eg,EulerPath * current_path,EulerLink * current,int * resolved,int backtrack_len,int max_backtrack)
+{
+  int i;
+  int starting_path_point;
+
+  assert(eg);
+  assert(current_path);
+  assert(current);
+
+
+  fprintf(stderr,"Entering untangle at link between %d and %d, backtrack length of %d on path of %d\n",current->prev->number,current->next->number,backtrack_len,current_path->current);
+
+  if( *resolved == 1 ) {
+    return TRUE;
+  }
+
+  if( backtrack_len >= max_backtrack ) {
+    return TRUE;
+  }
+
+  starting_path_point = current_path->current;
+
+  while( 1 ) {
+    /* push current into the path */
+    fprintf(stderr,"Pushing on to path link between %d and %d with back length of %d\n",current->prev->number,current->next->number,current->prev->back_len);
+
+    push_EulerPath(current_path,current);
+    backtrack_len++;
+
+    if( current->prev->back_len == 0 ) {
+      /* end of a stream! */
+      *resolved = 1;
+      return TRUE;
+    }
+
+
+    if( current->prev->back_len > 1 ) {
+      for(i=0;i<current->prev->back_len;i++) {
+	if( attempt_untangle_EulerPath(eg,current_path,current->prev->back[i]) == 1 ) {
+	  *resolved = 1;
+	  return TRUE;
+	}
+      }
+
+      for(i=0;i<current->prev->back_len;i++) {
+	/* recurse into this branch */
+	untangle_EulerLink_EulerPath(eg,current_path,current->prev->back[i],resolved,backtrack_len,max_backtrack);
+      }
+      
+      current_path->current = starting_path_point;
+      /* at this point, gone down all paths, so return */
+      return TRUE;
+    } else {
+      /* continue in this routine steping back */
+      current = current->prev->back[0];
+    }
+  }
+
+  current_path->current = starting_path_point;
+  return TRUE;
+
+}
+
+boolean remove_EulerLink_forward_EulerNode(EulerNode * n,EulerLink *l)
+{
+  int i;
+
+  assert(n);
+  assert(l);
+
+  for(i=0;i<n->link_len;i++) {
+    if( n->link[i] == l ) {
+      for(++i;i<n->link_len;i++) {
+	n->link[i-1] = n->link[i];
+      }
+      n->link_len--;
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+boolean remove_EulerLink_backward_EulerNode(EulerNode * n,EulerLink *l)
+{
+  int i;
+
+  assert(n);
+  assert(l);
+
+  for(i=0;i<n->back_len;i++) {
+    if( n->back[i] == l ) {
+      for(++i;i<n->back_len;i++) {
+	n->back[i-1] = n->back[i];
+      }
+      n->back_len--;
+      return TRUE;
+    }
+  }
+
+  fprintf(stderr,"...could not remove link\n");
+  return FALSE;
+}
+
+
+
+boolean remove_label_EulerLink(EulerLink * el,int label)
+{
+  int i;
+
+  assert(el);
+
+  for(i=0;i<el->label_len;i++) {
+    if( el->label[i] == label ) {
+      break;
+    }
+  }
+
+  if( i >= el->label_len ) {
+    return FALSE;
+  }
+
+
+  for(i++;i<el->label_len && el->label[i] != -1 ;i++) {
+    el->label[i-1] = el->label[i];
+  }
+
+  el->label[i] = -1;
+
+  return TRUE;
+}
+
+
+boolean store_Sequence_EulerGraph(EulerGraph * eg,Sequence * seq)
+{
+  int i;
+  int prev_number;
+  int next_number;
+  
+  int pos_start;
+
+  assert(eg);
+  assert(seq);
+
+  add_EulerGraph(eg,seq);
+
+  pos_start = add_Sequence_SinglePosSpace(eg->sps,seq);
+
+  for(i=0;i<seq->len - eg->kmer ;i++) {
+    prev_number = forward_dna_number_from_string(seq->seq+i,eg->kmer);
+    next_number = forward_dna_number_from_string(seq->seq+i+1,eg->kmer);
+
+    store_EulerLink_EulerGraph(eg,prev_number,next_number,seq->seq[i+eg->kmer],pos_start+i);
+  }
+
+}
+
+boolean store_EulerLink_EulerGraph(EulerGraph * eg,int prev_number,int next_number,char base,int label)
+{
+  int i;
+  EulerLink * link;
+  
+  assert(eg);
+
+  if( eg->node[prev_number] != NULL ) {
+    for(i=0;i<eg->node[prev_number]->link_len;i++) {
+      if( eg->node[prev_number]->link[i]->next->number == next_number ) {
+	eg->node[prev_number]->link[i]->depth++;
+	add_label_EulerLink(eg->node[prev_number]->link[i],label);
+	return TRUE;
+      }
+    }
+  }
+
+  /* else need new link */
+
+  if( eg->node[prev_number] == NULL ) {
+    eg->node[prev_number] = new_EulerNode(prev_number);
+  }
+
+  if( eg->node[next_number] == NULL ) {
+    eg->node[next_number] = new_EulerNode(next_number);
+  }
+
+
+  link = new_EulerLink();
+  link->depth = 1;
+  link->base = base;
+  add_label_EulerLink(link,label);
+
+  link->prev = eg->node[prev_number];
+  link->next = eg->node[next_number];
+  
+  eg->node[prev_number]->is_rightmost = 0;
+  eg->node[next_number]->is_leftmost = 0;
+
+  add_link_EulerNode(eg->node[prev_number],link);
+  add_back_EulerNode(eg->node[next_number],link);
+  
+  return TRUE;
+}
+
+
+EulerLink * new_EulerLink(void)
+{
+  int i;
+  EulerLink * out;
+
+  out = EulerLink_alloc();
+  out->label = calloc(EulerLinkLabelLength,sizeof(int));
+  for(i=0;i<EulerLinkLabelLength;i++) {
+    out->label[i] = -1;
+  }
+  out->label_len = EulerLinkLabelLength;
+
+  return out;
+}
+
+boolean add_label_EulerLink(EulerLink * el,int label)
+{
+  int i;
+  int old_len;
+
+  assert(el);
+
+  for(i=0;i<el->label_len;i++) {
+    if( el->label[i] == -1 ) {
+      el->label[i] = label;
+      return TRUE;
+    }
+  }
+  /* run out of space */
+  old_len = el->label_len;
+
+  if( el->label_len > EulerLinkLabelLinear ) {
+    el->label = realloc(el->label,el->label_len*2*sizeof(int));
+    el->label_len = el->label_len*2;
+  } else {
+    el->label = realloc(el->label,el->label_len*el->label_len*sizeof(int));
+    el->label_len = el->label_len * el->label_len;
+  }
+
+  /* put label at old_len, and then -1s */
+  el->label[old_len] = label;
+  for(i=old_len+1;i<el->label_len;i++) {
+    el->label[i] = -1;
+  }
+
+  return TRUE;
+}
+
+EulerNode * new_EulerNode(int number)
+{
+  EulerNode * out;
+
+  out = EulerNode_alloc_std();
+
+  out->number = number;
+  out->is_leftmost = 1;
+  out->is_rightmost = 1;
+
+  return out;
+}
+
+EulerGraph * new_EulerGraph(int kmer)
+{
+  EulerGraph * out;
+  int len = 1;
+  int i;
+
+  for(i=0;i<kmer;i++) {
+    len = len *4;
+  }
+
+  out = EulerGraph_alloc_std();
+  out->node = calloc(len,sizeof(EulerNode*));
+
+  out->node_len = len;
+  out->kmer = kmer;
+
+  out->sps = new_SinglePosSpace(0,3000);
+  
+  return out;
+}
+
+void * push_EulerPath(EulerPath * ep,EulerLink * el)
+{
+  assert(ep);
+  assert(el);
+
+  if( ep->current+1 >= ep->max_stack_len ) 
+    extend_EulerPath_stack(ep);
+
+  ep->stack[ep->current++] = el;
+
+  return;
+}
+
+
+EulerLink * pop_EulerPath(EulerPath * ep)
+{
+  assert(ep);
+
+  if( ep->current <= 0 ) {
+    warn("Stack underflow on EulerPath");
+    return NULL;
+  }
+
+  return ep->stack[ep->current--];
+}
+
+void extend_EulerPath_stack(EulerPath * ep)
+{
+  assert(ep);
+
+  ep->stack = (EulerLink**) realloc(ep->stack,sizeof(EulerLink*) * ep->max_stack_len * 2);
+  ep->max_stack_len = ep->max_stack_len * 2;
+
+  return;
+}
+
+EulerPath * new_EulerPath(void)
+{
+  EulerPath * out;
+
+  out = EulerPath_alloc();
+  out->stack = (EulerLink**) calloc(64,sizeof(EulerLink*));
+  out->max_stack_len = 64;
+  out->current = 0;
+
+  return out;
+}
+
+%}

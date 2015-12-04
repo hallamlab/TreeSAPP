@@ -1,0 +1,192 @@
+=head1 NAME
+
+sw_wrap module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains helper functions for the Wise2 package
+
+=head1 DESCRIPTION
+
+=over
+
+=item Align_strings_ProteinSmithWaterman
+
+&Wise2::Align_strings_ProteinSmithWaterman(one,two,comp,gap,ext,dpenv,dpri)
+
+  This is the most *stupidly* abstracted view of two sequences
+  getting aligned, being two strings.
+
+  It would be much better if you used Sequence objects or Protein
+  objects to carry the proteins.
+
+
+
+  Argument one          [UNKN ] string of the first sequence [char *]
+  Argument two          [UNKN ] string of the second sequence [char *]
+  Argument comp         [UNKN ] Comparison Matrix [CompMat *]
+  Argument gap          [UNKN ] gap penalty [int]
+  Argument ext          [UNKN ] extension penalty [int]
+  Argument dpenv        [UNKN ] Undocumented argument [DPEnvelope *]
+  Argument dpri         [UNKN ] Undocumented argument [DPRunImpl *]
+  Return [UNKN ] Undocumented return value [AlnBlock *]
+
+
+=item Align_Sequences_ProteinSmithWaterman
+
+&Wise2::Align_Sequences_ProteinSmithWaterman(one,two,comp,gap,ext,dpenv,dpri)
+
+  This function is a mid-level abstraction of
+  comparing two sequences, which could be
+  generic types (eg DNA!). This is tested
+  for and warnings are given but the alignment
+  is still calculated. To prevent this test
+  warning either make sure the Sequence types
+  are set to PROTEIN or, better still, use the
+  high level abstraction Align_Proteins_SmithWaterman
+
+  Otherwise this performs a standard smith waterman
+  protein alignment...
+
+  To display the alignment use  write_pretty_seq_align
+
+
+
+  Argument one          [READ ] First sequence to compare [Sequence *]
+  Argument two          [READ ] Second sequecne to compare [Sequence *]
+  Argument comp         [READ ] Comparison matrix to use [CompMat *]
+  Argument gap          [UNKN ] gap penalty. Must be negative or 0 [int]
+  Argument ext          [UNKN ] ext penalty. Must be negative or 0 [int]
+  Argument dpenv        [UNKN ] Undocumented argument [DPEnvelope *]
+  Argument dpri         [UNKN ] Undocumented argument [DPRunImpl *]
+  Return [OWNER] new AlnBlock structure representing the alignment [AlnBlock *]
+
+
+=item Align_Proteins_SmithWaterman
+
+&Wise2::Align_Proteins_SmithWaterman(one,two,comp,gap,ext,dpenv,dpri)
+
+  This is the most correct way of aligning two Proteins,
+  using Protein objects, which can be assummed to be
+  proteins with no objections
+
+  To display the alignment use write_pretty_Protein_align
+
+
+
+
+  Argument one          [UNKN ] Protein to align [Protein *]
+  Argument two          [UNKN ] Protein to align [Protein *]
+  Argument comp         [UNKN ] Comparison Matrix [CompMat *]
+  Argument gap          [UNKN ] gap penalty [int]
+  Argument ext          [UNKN ] extension penalty [int]
+  Argument dpenv        [UNKN ] Undocumented argument [DPEnvelope *]
+  Argument dpri         [UNKN ] Undocumented argument [DPRunImpl *]
+  Return [UNKN ] Undocumented return value [AlnBlock *]
+
+
+=item Align_Proteins_ABC
+
+&Wise2::Align_Proteins_ABC(one,two,comp,a,b,c,dpenv,dpri)
+
+  Analogous to Align_Proteins_SmithWaterman for ABC model
+
+
+
+  Argument one          [UNKN ] protein to align [Protein *]
+  Argument two          [UNKN ] protein to align [Protein *]
+  Argument comp         [UNKN ] comparison matrix [CompMat *]
+  Argument a            [UNKN ] generalized affine gap cost a [int]
+  Argument b            [UNKN ] generalized affine gap cost b [int]
+  Argument c            [UNKN ] generalized affine gap cost c [int]
+  Argument dpenv        [UNKN ] Undocumented argument [DPEnvelope *]
+  Argument dpri         [UNKN ] Undocumented argument [DPRunImpl *]
+  Return [UNKN ] Undocumented return value [AlnBlock *]
+
+
+=item Align_Sequences_ProteinABC
+
+&Wise2::Align_Sequences_ProteinABC(one,two,comp,a,b,c,dpenv,dpri)
+
+  Align_Sequences_ProteinABC
+  this function is analogous to Align_Sequences_ProteinSmithWaterman
+  but using the abc model
+
+
+
+  Argument one          [UNKN ] Sequence to align [Sequence *]
+  Argument two          [UNKN ] Sequence to align [Sequence *]
+  Argument comp         [UNKN ] Comparison Matrix [CompMat *]
+  Argument a            [UNKN ] genearlized affine gap cost  [int]
+  Argument b            [UNKN ] genearlized affine gap cost  [int]
+  Argument c            [UNKN ] genearlized affine gap cost  [int]
+  Argument dpenv        [UNKN ] Undocumented argument [DPEnvelope *]
+  Argument dpri         [UNKN ] Undocumented argument [DPRunImpl *]
+  Return [UNKN ] Undocumented return value [AlnBlock *]
+
+
+=item Hscore_from_ProteinSW
+
+&Wise2::Hscore_from_ProteinSW(querydb,targetdb,comp,gap,ext,bits_cutoff,report_level,die_on_error,dbsi)
+
+  Runs a database psw search 
+
+
+
+  Argument querydb      [UNKN ] query database  [ProteinDB*]
+  Argument targetdb     [UNKN ] target database [ProteinDB*]
+  Argument comp         [UNKN ] comparison matrix [CompMat*]
+  Argument gap          [UNKN ] gap penalty [int]
+  Argument ext          [UNKN ] extension penalty [int]
+  Argument bits_cutoff  [UNKN ]  [double]
+  Argument report_level [UNKN ]  [int]
+  Argument die_on_error [UNKN ]  [boolean]
+  Argument dbsi         [UNKN ]  [DBSearchImpl*]
+  Return [UNKN ] Undocumented return value [Hscore *]
+
+
+=item Hscore_from_ProteinABC
+
+&Wise2::Hscore_from_ProteinABC(querydb,targetdb,comp,a,b,c,bits_cutoff,report_level,die_on_error,dbsi)
+
+  Runs a database abc search 
+
+
+
+  Argument querydb      [UNKN ] query database  [ProteinDB*]
+  Argument targetdb     [UNKN ] target database [ProteinDB*]
+  Argument comp         [UNKN ] comparison matrix [CompMat*]
+  Argument a            [UNKN ] generalized affine gap cost a [int]
+  Argument b            [UNKN ] generalized affine gap cost b [int]
+  Argument c            [UNKN ] generalized affine gap cost c [int]
+  Argument bits_cutoff  [UNKN ]  [double]
+  Argument report_level [UNKN ]  [int]
+  Argument die_on_error [UNKN ]  [boolean]
+  Argument dbsi         [UNKN ]  [DBSearchImpl*]
+  Return [UNKN ] Undocumented return value [Hscore *]
+
+
+=item Hscore_from_ProteinBA
+
+&Wise2::Hscore_from_ProteinBA(querydb,targetdb,comp,bentry,bexit,bfor_trans,b_self_trans,b3exit,bits_cutoff,report_level,dbsi)
+
+  Runs a database pba search
+
+
+
+  Argument querydb      [UNKN ] query database [ProteinDB*]
+  Argument targetdb     [UNKN ] target database [ProteinDB*]
+  Argument comp         [UNKN ] comparison matrix [CompMat*]
+  Argument bentry       [UNKN ]  [Score]
+  Argument bexit        [UNKN ]  [Score]
+  Argument bfor_trans   [UNKN ]  [Score]
+  Argument b_self_trans [UNKN ]  [Score]
+  Argument b3exit       [UNKN ]  [Score]
+  Argument bits_cutoff  [UNKN ]  [double]
+  Argument report_level [UNKN ]  [int]
+  Argument dbsi         [UNKN ]  [DBSearchImpl*]
+  Return [UNKN ] Undocumented return value [Hscore *]
+
+
+=back
+

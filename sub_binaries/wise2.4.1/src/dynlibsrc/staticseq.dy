@@ -1,0 +1,71 @@
+
+%{
+#include "sequence.h"
+#include <glib.h>
+
+%}
+
+
+struct StaticSeqHolder
+GStringChunk * gstring_chunk
+%info
+Makes sequences with optimised
+static memory, but the sequences
+cannot be freed individually
+%%
+
+
+%{
+#include "staticseq.h"
+
+
+%func
+makes a new StaticSeqHolder
+%%
+StaticSeqHolder * new_StaticSeqHolder(void)
+{
+  StaticSeqHolder * out;
+
+  out = StaticSeqHolder_alloc();
+  assert(out);
+  out->gstring_chunk = g_string_chunk_new(1024*1024);
+
+  return out;
+}
+
+%func
+for registering glib thingy for freeing
+%%
+GStringChunk * free_GStringChunk(GStringChunk * gs)
+{
+  assert(gs);
+
+  g_string_chunk_free(gs);
+  return NULL;
+}
+
+%func
+Making a new sequence from a staticseq holder - consumes
+the sequence object (actually recycling the shell of it)
+%%
+Sequence * new_Sequence_StaticSeqHolder(StaticSeqHolder * ssh,Sequence * seq)
+{
+  char * str;
+  
+  assert(seq);
+  assert(ssh);
+  assert(ssh->gstring_chunk);
+  
+  str = g_string_chunk_insert(ssh->gstring_chunk,seq->seq);
+  ckfree(seq->seq);
+  seq->seq = str;
+
+  seq->dynamite_hard_link++;
+
+  return seq;
+}
+
+%}
+
+
+%}

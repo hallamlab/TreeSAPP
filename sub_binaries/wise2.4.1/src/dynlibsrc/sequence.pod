@@ -1,0 +1,778 @@
+=head1 NAME
+
+sequence module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item Sequence
+
+=item SequenceSet
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object Sequence
+
+=over
+
+=item name
+
+ Type [char *] Scalar  name of the sequence
+
+=item seq
+
+ Type [char *] Scalar  actual sequence
+
+=item len
+
+ Type [int] Scalar  length of the sequence
+
+=item maxlen
+
+ Type [int] Scalar  internal counter, indicating how much space in seq there is
+
+=item offset
+
+ Type [int] Scalar  start (in bio-coords) of the sequence. Not called start due to weird legacy.
+
+=item end
+
+ Type [int] Scalar  end (in bio-coords == C coords) of the sequence
+
+=item type
+
+ Type [char] Scalar  guess of protein/dna type
+
+=item tax_id
+
+ Type [int] Scalar  taxonimic id of this
+
+=item weight
+
+ Type [double] Scalar No documentation
+
+=item desc
+
+ Type [char *] Scalar  description - often this will be NULL
+
+
+
+=back
+
+This object is the basic sequence object,
+trying to hold little more than the 
+name and sequence of the DNA/protein. 
+
+The len/maxlen is the actual length
+of the sequence (strlen(obj->seq)) and
+amount of memory allocated in obj->seq 
+mainly for parsing purposes.
+
+
+
+
+=head2 Member functions of Sequence
+
+=over
+
+=item uppercase
+
+&Wise2::Sequence::uppercase(seq)
+
+  makes all the sequence uppercase
+
+
+
+  Argument seq          [RW   ] Sequence to be uppercased [Sequence *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item force_to_dna
+
+&Wise2::Sequence::force_to_dna(seq,fraction,number_of_conver)
+
+  This 
+   a) sees how many non ATGCN characters there are in Seq
+   b) If the level is below fraction
+      a) flips non ATGC chars to N
+      b) writes number of conversions to number_of_conver
+      c) returns TRUE
+   c) else returns FALSE
+
+  fraction of 0.0 means completely intolerant of errors
+  fraction of 1.0 means completely tolerant of errors
+
+
+
+
+  Argument seq          [RW   ] sequence object read and converted  [Sequence *]
+  Argument fraction     [READ ] number 0..1 for tolerance of conversion [double]
+  Return [READ ] TRUE for conversion to DNA, FALSE if not [boolean]
+
+
+=item is_reversed
+
+&Wise2::Sequence::is_reversed(seq)
+
+  Currently the sequence object stores 
+  reversed sequences as start > end.
+
+  This tests that and returns true if it is
+
+
+
+  Argument seq          [READ ] sequence to test [Sequence *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item translate
+
+&Wise2::Sequence::translate(dna,ct)
+
+  This translates a DNA sequence to a protein.
+  It assummes that it starts at first residue
+  (use trunc_Sequence to chop a sequence up).
+
+
+
+  Argument dna          [READ ] DNA sequence to be translated [Sequence *]
+  Argument ct           [READ ] Codon table to do codon->aa mapping [CodonTable *]
+  Return [OWNER] new protein sequence [Sequence *]
+
+
+=item revcomp
+
+&Wise2::Sequence::revcomp(seq)
+
+  This both complements and reverses a sequence,
+  - a common wish!
+
+  The start/end are correct with respect to the start/end
+  of the sequence (ie start = end, end = start).
+
+
+
+  Argument seq          [READ ] Sequence to that is used to reverse (makes a new Sequence) [Sequence *]
+  Return [OWNER] new Sequence which is reversed [Sequence *]
+
+
+=item magic_trunc
+
+&Wise2::Sequence::magic_trunc(seq,start,end)
+
+  Clever function for dna sequences.
+
+  When start < end, truncates normally
+
+  when start > end, truncates end,start and then
+  reverse complements.
+
+  ie. If you have a coordinate system where reverse 
+  sequences are labelled in reverse start/end way,
+  then this routine produces the correct sequence.
+
+
+
+  Argument seq          [READ ] sequence that is the source to be truncated [Sequence *]
+  Argument start        [READ ] start point [int]
+  Argument end          [READ ] end point [int]
+  Return [OWNER] new Sequence which is truncated/reversed [Sequence *]
+
+
+=item trunc
+
+&Wise2::Sequence::trunc(seq,start,end)
+
+  truncates a sequence. It produces a new memory structure
+  which is filled from sequence start to end.
+
+  Please notice
+    
+    Truncation is in C coordinates. That is
+  the first residue is 0 and end is the number of the
+  residue after the cut-point. In otherwords to 
+  2 - 3 would be a single residue truncation. So - if
+  you want to work in more usual, 'inclusive' molecular
+  biology numbers, which start at 1, then you need to say
+
+    trunc_Sequence(seq,start-1,end);
+
+  (NB, should be (end - 1 + 1) = end for the last coordinate).
+
+    Truncation occurs against the *absolute* coordinate
+  system of the Sequence, not the offset/end pair inside.
+  So, this is a very bad error
+   
+    ** wrong code, and also leaks memory **
+
+    tru = trunc_Sequence(trunc_Sequence(seq,50,80),55,75); 
+
+  This the most portable way of doing this
+
+    temp = trunc_Sequence(seq,50,80);
+
+    tru  = trunc_Sequence(temp,55-temp->offset,75-temp->offset);
+
+    free_Sequence(temp);
+
+
+
+
+  Argument seq          [READ ] object holding the sequence to be truncated [Sequence *]
+  Argument start        [READ ] start point of truncation [int]
+  Argument end          [READ ] end point of truncation [int]
+  Return [OWNER] newly allocated sequence structure [Sequence *]
+
+
+=item read_fasta_file_Sequence
+
+&Wise2::Sequence::read_fasta_file_Sequence(filename)
+
+  Just a call
+    a) open filename
+    b) read sequence with /read_fasta_Sequence
+    c) close file.
+
+
+
+  Argument filename     [READ ] filename to open  [char *]
+  Return [UNKN ] Undocumented return value [Sequence *]
+
+
+=item read_Sequence_EMBL_seq
+
+&Wise2::Sequence::read_Sequence_EMBL_seq(buffer,maxlen,ifp)
+
+  reads the sequence part of an EMBL file.
+
+  This function can either take a file which 
+  starts
+
+
+
+
+  Argument buffer       [RW   ] buffer containing the first line. [char *]
+  Argument maxlen       [READ ] length of buffer [int]
+  Argument ifp          [READ ] input file to read from [FILE *]
+  Return [UNKN ] Undocumented return value [Sequence *]
+
+
+=item read_fasta_Sequence
+
+&Wise2::Sequence::read_fasta_Sequence(ifp)
+
+  reads a fasta file assumming pretty 
+  standard sanity for the file layout
+
+
+
+  Argument ifp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [Sequence *]
+
+
+=item show_debug
+
+&Wise2::Sequence::show_debug(seq,start,end,ofp)
+
+  shows a region of a sequence as
+     124  A
+     125  T
+
+  etc from start to end. The numbers
+  are in C coordinates (ie, 0 is the first
+  letter).
+
+  useful for debugging
+
+
+
+  Argument seq          [READ ] Sequence to show [Sequence *]
+  Argument start        [READ ] start of list [int]
+  Argument end          [READ ] end of list [int]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item write_fasta
+
+&Wise2::Sequence::write_fasta(seq,ofp)
+
+  writes a fasta file of the form
+  >name
+  Sequence
+
+
+
+  Argument seq          [READ ] sequence to be written [Sequence *]
+  Argument ofp          [UNKN ] file to write to [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item validate
+
+&Wise2::Sequence::validate(seq)
+
+  makes seq->len and seq->end match the seq->seq
+  length number. 
+
+  It also checks the type of the sequence with
+  /best_guess_type
+
+
+
+  Argument seq          [RW   ] Sequence object [Sequence *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_Sequence
+
+&Wise2::Sequence::hard_link_Sequence(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Sequence *]
+  Return [UNKN ] Undocumented return value [Sequence *]
+
+
+=item alloc
+
+&Wise2::Sequence::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [Sequence *]
+
+
+=item set_name
+
+&Wise2::Sequence::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::Sequence::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable name [char *]
+
+
+=item set_seq
+
+&Wise2::Sequence::set_seq(obj,seq)
+
+  Replace member variable seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument seq          [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable seq [boolean]
+
+
+=item seq
+
+&Wise2::Sequence::seq(obj)
+
+  Access member variable seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable seq [char *]
+
+
+=item set_len
+
+&Wise2::Sequence::set_len(obj,len)
+
+  Replace member variable len
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument len          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable len [boolean]
+
+
+=item len
+
+&Wise2::Sequence::len(obj)
+
+  Access member variable len
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable len [int]
+
+
+=item set_maxlen
+
+&Wise2::Sequence::set_maxlen(obj,maxlen)
+
+  Replace member variable maxlen
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument maxlen       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable maxlen [boolean]
+
+
+=item maxlen
+
+&Wise2::Sequence::maxlen(obj)
+
+  Access member variable maxlen
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable maxlen [int]
+
+
+=item set_offset
+
+&Wise2::Sequence::set_offset(obj,offset)
+
+  Replace member variable offset
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument offset       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable offset [boolean]
+
+
+=item offset
+
+&Wise2::Sequence::offset(obj)
+
+  Access member variable offset
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable offset [int]
+
+
+=item set_end
+
+&Wise2::Sequence::set_end(obj,end)
+
+  Replace member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument end          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable end [boolean]
+
+
+=item end
+
+&Wise2::Sequence::end(obj)
+
+  Access member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable end [int]
+
+
+=item set_type
+
+&Wise2::Sequence::set_type(obj,type)
+
+  Replace member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument type         [OWNER] New value of the variable [char]
+  Return [SOFT ] member variable type [boolean]
+
+
+=item type
+
+&Wise2::Sequence::type(obj)
+
+  Access member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable type [char]
+
+
+=item set_tax_id
+
+&Wise2::Sequence::set_tax_id(obj,tax_id)
+
+  Replace member variable tax_id
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument tax_id       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable tax_id [boolean]
+
+
+=item tax_id
+
+&Wise2::Sequence::tax_id(obj)
+
+  Access member variable tax_id
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable tax_id [int]
+
+
+=item set_weight
+
+&Wise2::Sequence::set_weight(obj,weight)
+
+  Replace member variable weight
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument weight       [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable weight [boolean]
+
+
+=item weight
+
+&Wise2::Sequence::weight(obj)
+
+  Access member variable weight
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable weight [double]
+
+
+=item set_desc
+
+&Wise2::Sequence::set_desc(obj,desc)
+
+  Replace member variable desc
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Argument desc         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable desc [boolean]
+
+
+=item desc
+
+&Wise2::Sequence::desc(obj)
+
+  Access member variable desc
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Sequence *]
+  Return [SOFT ] member variable desc [char *]
+
+
+=back
+
+=head2 Object SequenceSet
+
+=over
+
+=item set
+
+ Type [Sequence **] List No documentation
+
+
+
+=back
+
+A list of sequences. Not a database (you should
+use the db stuff for that!). But useful anyway
+
+
+
+=head2 Member functions of SequenceSet
+
+=over
+
+=item hard_link_SequenceSet
+
+&Wise2::SequenceSet::hard_link_SequenceSet(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [SequenceSet *]
+  Return [UNKN ] Undocumented return value [SequenceSet *]
+
+
+=item SequenceSet_alloc_std
+
+&Wise2::SequenceSet::SequenceSet_alloc_std(void)
+
+  Equivalent to SequenceSet_alloc_len(SequenceSetLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [SequenceSet *]
+
+
+=item set
+
+&Wise2::SequenceSet::set(obj,i)
+
+  Access members stored in the set list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [SequenceSet *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [Sequence *]
+
+
+=item length_set
+
+&Wise2::SequenceSet::length_set(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [SequenceSet *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_set
+
+&Wise2::SequenceSet::flush_set(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [SequenceSet *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_set
+
+&Wise2::SequenceSet::add_set(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [SequenceSet *]
+  Argument add          [OWNER] Object to add to the list [Sequence *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=back
+
+=over
+
+=item Sequence_type_to_string
+
+&Wise2::Sequence_type_to_string(type)
+
+  Converts sequence type (SEQUENCE_*) to a string
+
+
+
+  Argument type         [UNKN ] type eg SEQUENCE_PROTEIN [int]
+  Return [UNKN ] Undocumented return value [char *]
+
+
+=item new_Sequence_from_strings
+
+&Wise2::new_Sequence_from_strings(name,seq)
+
+  Makes a new sequence from strings given. 
+  Separate memory will be allocated for them
+  and them copied into it.
+
+  They can be NULL, in which case 
+  o  a dummy name SequenceName will be assigned
+  o  No sequence placed and length of zero.
+
+  Though this is dangerous later on. 
+
+  The sequence type is calculated automatically using
+  /best_guess_type. If you want a DNA sequence but are
+  unsure of the content of, for example, IUPAC codes,
+  please use /force_to_dna_Sequence before using the
+  sequence. Most of the rest of dynamite relies on a
+  five letter A,T,G,C,N alphabet, but this function
+  will allow any sequence type to be stored, so please
+  check if you want to save yourself alot of grief.
+
+  In perl and other interfaces, this is a much safer
+  constructor than the raw "new" type
+
+
+
+  Argument name         [READ ] name of sequence, memory is allocated for it. [char *]
+  Argument seq          [READ ] char * of sequence, memory is allocated for it. [char *]
+  Return [UNKN ] Undocumented return value [Sequence *]
+
+
+=back
+

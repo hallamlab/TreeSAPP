@@ -1,0 +1,92 @@
+
+%{
+#include "seqlookup.h"
+
+
+%}
+
+struct SeqLookupPos
+Sequence * seq;
+int pos
+struct Wise2_SeqLookupPos * next
+
+
+struct SeqLookupPosResult
+SeqLookupPos * current
+SeqLookupResultStruct result !link
+
+%{
+#include "linkedlist_lookpos.h"
+
+
+
+
+%func
+Makes a hash based SeqLookupResultsInterface thing
+%%
+SeqLookupResultInterface * new_linkedl_SeqLookupResultInterface(SeqLookupPos * head)
+{
+  SeqLookupResultInterface * out;
+  SeqLookupPosResult * data;
+
+  data = SeqLookupPosResult_alloc();
+  data->current = head;
+
+  out = SeqLookupResultInterface_alloc();
+
+  out->next = next_linkedl_SeqLook;
+  out->is_more = is_more_linkedl_SeqLook;
+  out->free_data = free_linkedl_SeqLook;
+  out->data = (void*)data;
+
+  return out;
+  
+}
+
+
+%func
+Internal function returns data...
+%%
+void free_linkedl_SeqLook(void * data)
+{
+  SeqLookupPosResult * posres = (SeqLookupPosResult *) data;
+
+
+  free_SeqLookupPosResult(posres);
+
+}  
+
+%func
+Internal function for returning whether there is more data
+%%
+boolean is_more_linkedl_SeqLook(void *data)
+{
+  SeqLookupPosResult * posres = (SeqLookupPosResult *) data;
+
+  if( posres->current == NULL ) {
+    return FALSE;
+  } else {
+    return TRUE;
+  }
+
+}
+
+
+%func
+Internal function for returning the next position in the hash
+%%
+SeqLookupResultStruct * next_linkedl_SeqLook(void * data,SeqLookupResultStruct * prev)
+{
+  SeqLookupPosResult * posres = (SeqLookupPosResult *) data;
+
+  if( posres->current == NULL ) {
+    fatal("Overrun virtual buffer");
+  }
+
+  posres->result.seq = posres->current->seq;
+  posres->result.pos = posres->current->pos;
+  
+  posres->current = posres->current->next;
+
+  return &(posres->result);
+}

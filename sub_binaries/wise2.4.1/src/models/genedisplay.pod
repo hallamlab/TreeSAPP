@@ -1,0 +1,55 @@
+=head1 NAME
+
+genedisplay module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains helper functions for the Wise2 package
+
+=head1 DESCRIPTION
+
+=over
+
+=item protein2genomic_ascii_display
+
+&Wise2::protein2genomic_ascii_display(alb,p,gen,ct,name,main,ofp)
+
+  shows the alignment in alb between protsequence and protname
+  with genomic into ofp with pretty formatting
+
+
+
+  Argument alb          [UNKN ] logical alignment [AlnBlock *]
+  Argument p            [UNKN ] protein sequence [Protein *]
+  Argument gen          [UNKN ] genomic dna to do the comparison [Genomic *]
+  Argument ct           [UNKN ] codon table for translation [CodonTable *]
+  Argument name         [UNKN ] length of name block [int]
+  Argument main         [UNKN ] length of main block [int]
+  Argument ofp          [UNKN ] output file [FILE *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item protcdna_ascii_display
+
+&Wise2::protcdna_ascii_display(alb,protsequence,protname,protoff,cdna,ct,name,main,mult,ofp)
+
+  shows the alignment in alb between protsequence and protname
+  with cdna into ofp with pretty formatting
+
+
+
+  Argument alb          [UNKN ] logical alignment [AlnBlock *]
+  Argument protsequence [UNKN ] protein sequence - either real or an artifical consensus [char *]
+  Argument protname     [UNKN ] name of the protein [char *]
+  Argument protoff      [UNKN ] offset of the alb from the protein [int]
+  Argument cdna         [UNKN ] cdna of the match [cDNA *]
+  Argument ct           [UNKN ] codon table for translation [CodonTable *]
+  Argument name         [UNKN ] length of name block [int]
+  Argument main         [UNKN ] length of main block [int]
+  Argument mult         [UNKN ] is multi-match [boolean]
+  Argument ofp          [UNKN ] output file [FILE *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=back
+

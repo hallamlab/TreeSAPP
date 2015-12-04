@@ -1,0 +1,545 @@
+
+%{
+#include "dyna2.h"
+#include "exprtree.h"
+
+enum OmStateType {
+	OmState_TYPE_UNKNOWN = 67,
+	OmState_TYPE_STATE,
+	OmState_TYPE_SEMISTATE,
+	OmState_TYPE_MIDSTATE };
+
+
+#define OneModelLISTLENGTH 64
+
+
+typedef struct descent_return {
+  int is_doable; /* 1 is yes, 0 cannot be handled by Compugen */
+  int is_index;  /* 1 is yes, 0 is it is a float/number */
+  int is_query;  /* when is index, 1 means in query, 0 in target */
+  int is_variable;
+  struct OmUnit * unit; /* if non-NULL, this is the "done" unit */
+} CugenYaccReturn;
+
+
+
+%}
+
+
+
+struct OmState
+char * name
+int  type;     !def="OmState_TYPE_UNKNOWN"
+
+struct OmUnit
+char * c_string // string of the actual C to use in making profile line
+int  base       // offset in profile line, must be the same as t_prf or w_base
+int  length     // 1 for t_prf lines. Longer for w_base lines.
+int  is_tprf;
+
+struct OmTrans
+OmState * from !link
+OmState * to   !link
+int dx
+int dy
+int t_prf      !def="-1"
+int dprf      
+int t_seq      !def="-1"
+int dseq
+int w_base     !def="-1"
+int w_seq
+int dwx
+int dwy
+OmUnit * tprf_unit
+OmUnit * wbase_unit
+int current_base;
+
+struct OmTransFunc
+char * name
+Method * me
+
+struct OneModel
+char * name
+int state_num
+int semistate_num
+int midstate_num
+int profile_line_size
+OmTrans ** trans     !list 
+OmState ** state     !list !len="st_"
+OmTransFunc ** tfunc !list !len="tf_"
+
+%{
+#include "dy2om.h"
+
+
+    /***
+      Globals used to communicate with yacc parser
+
+      These are defined in type.dy. Here we will define
+      them as externs. 
+
+      ***/
+
+ extern char * calc_lex_string;
+ extern int stringpos;
+ extern ExprTree * root;
+
+
+    /*
+      Conversion functions from internal dynamite datastruct
+      to OneModel structure
+      */
+
+OneModel * OneModel_from_GenericMatrix(GenericMatrix * gm,MethodTypeSet * mts)
+{
+    OneModel * out;
+    OmTrans * trans;
+    Scope * sc;
+    int i,j;
+
+    out = OneModel_alloc_std();
+
+    sc = std_Dynamite_Scope();
+
+    add_GenericMatrix_Scope(sc,gm);
+
+    /*** add states ***/
+
+    for(i=0;i<gm->len;i++) {
+	for(j=0;j<gm->state[i]->len;j++) {
+	    trans = OmTrans_from_CellSource(0,gm->state[i]->source[j],mts,sc);
+	    add_OneModel(out,trans); /* adds trans to out->trans list */
+	}
+    }
+
+    /*** should now do specials ***/
+
+
+    free_Scope(sc);
+
+    return out;
+
+}
+
+
+
+
+
+
+OmTrans * OmTrans_from_CellSource(int base_point,CellSource * s,MethodTypeSet * mts,Scope * sc)
+{
+    OmTrans * out;
+    ExprTree * et;
+    CugenYaccReturn ret;
+
+    out = OmTrans_alloc();
+
+    out->dx = s->offi;
+    out->dy = s->offj;
+    
+    /** this is the tricky part **/
+
+    /** copied from type.dy allocd_calc_line **/
+
+    /*** set globals that we share with lex/yacc ***/
+
+    calc_lex_string = s->source_expr;
+    stringpos= 0;
+    root = NULL;
+
+    /*** parse it ***/
+    
+    yyparse();
+
+    /*** check root, if NULL... otta here ***/
+
+    if( root == NULL ) {
+	fatal("Nasty error, we cannot parse this calc line in making OneModel transition");
+    }
+    
+    find_toplevel_name(root);
+
+    /** debugging stuff for now **/
+
+    printf("Doing calc line [%s]\n",s->source_expr);
+
+    print_ExprTree(root);
+
+    /** ok, just enter the function correctly **/
+
+    ret = descend_ExprTree_Cugen(root,mts,TRUE,sc,out);
+    if( ret.is_doable == 0  ) {
+      printf("Can't do this calc");
+    }
+    else { 
+      printf("Can do this calc");
+    }
+
+
+
+    printf("End\n\n");
+
+
+
+    return out;
+}
+
+
+
+
+OmState * OmState_from_CellState(CellState * cs)
+{
+    OmState * out;
+
+    out = OmState_alloc();
+
+    /* warn if NULL...oops! */
+
+    out->name = stringalloc(cs->name);
+    if( cs->is_special_i == TRUE )
+	out->type = OmState_TYPE_MIDSTATE;
+    else out->type = OmState_TYPE_STATE;
+
+    return out;
+}
+
+/* Descent of yacc grammar to get
+   Compugen model 
+   */
+
+
+%func
+Recursive parser of the yacc grammar for
+compugen.
+
+If it is impossible for compugen to do, then
+is_doable == 0 and the descent should abort asap.
+
+If not, at the lowest level of being able to map
+to a compugen number, it is mapped. 
+
+targetname should be entire scope.
+%%
+CugenYaccReturn descend_ExprTree_Cugen(ExprTree * et,MethodTypeSet * mts,boolean is_attachable,Scope * sc,OmTrans * ot)
+{
+  int i;
+  CugenYaccReturn out;
+  CugenYaccReturn child;
+  ScopeUnit * su;
+  OmUnit * unit;
+
+
+  set_CugenYaccReturn(&out);
+
+  switch(et->type) {
+  case ETR_STATEMENT : 
+    /** descend into grammar **/
+
+    for(i=0;i<et->nochild;i++) {
+      child = descend_ExprTree_Cugen(et->child[i],mts,is_attachable,sc,ot);
+      if( child.is_doable == 0 ) {
+	out.is_doable = 0; 
+	return out; /** get out of here now! **/
+      }
+    }
+
+    /** nothing else, if we are here, then we are ok! **/
+    out.is_doable = 1;
+
+    return out;
+
+  case ETR_EXPRESSION : 
+    /** expression is *at the moment* only 3 things wide **/
+
+    if( et->nochild != 3) {
+      warn("Annoying. Sadly we have written the compugen parser to only have 3 piece expressions. You have %d piece ones. So... have to fail",et->nochild);
+      out.is_doable = 0;
+      return out;
+    }
+
+    /** we can only handle pluses **/
+
+    if( et->child[1]->type != ETR_OPERATOR || et->child[1]->word[0] != '+' ) {
+      warn("Sadly the compugen parser can only handle simple plus expressions. you have a middle expression of type [%d] with character [%s]",et->child[1]->type,CKS(et->child[1]->word));
+      out.is_doable = 0;
+      return out;
+    }
+
+    /** ok, now descend into 0 and 2 child **/
+
+    child = descend_ExprTree_Cugen(et->child[0],mts,is_attachable,sc,ot);
+    if( child.is_doable == 0 ) {
+      out.is_doable = 0; 
+      return out; /** get out of here now! **/
+    }
+    
+      
+	  
+    
+    child = descend_ExprTree_Cugen(et->child[2],mts,is_attachable,sc,ot);
+    if( child.is_doable == 0 ) {
+      out.is_doable = 0; 
+      return out; /** get out of here now! **/
+    }
+
+    /** fine! **/
+    
+    out.is_doable = 1;
+    return out;
+
+    /** end of ETR_EXPRESSION **/
+  case ETR_NUMBER :
+    
+    /** too easy. This is a non-index, query associated thing **/
+
+    out.is_doable = 1;
+    out.is_index  = 0;
+    out.is_query  = 1;
+    
+    if( is_attachable == FALSE ) {
+      /** we are in an array/method call, just chain out for them to know **/
+
+      return out;
+    }
+
+    /** ok, lets attach it now! **/
+    
+    if( ot->tprf_unit != NULL ) {
+      warn("This is annoying problem. We have a very simple grammar involved in compugen things, and can't cope with 2 tprfs. We should!!");
+      out.is_doable = 0;
+      return out;
+    }
+
+    unit = OmUnit_alloc();
+
+    /*** should put away C loop now ***/
+    
+    unit->base = (-1); /** unassigned for the moment **/
+    unit->length = 1;
+    unit->is_tprf = 1;
+    out.unit = unit;
+    ot->tprf_unit = unit;
+
+    return out;
+
+    /*** end of NUMBER ***/
+
+  case ETR_NAME :
+
+    
+    /** If it is top level, need to scope to query/target/resource/extern **/
+
+    if( (et->attrib & IS_TOPLEVEL) == IS_TOPLEVEL) {
+      
+      su = ScopeUnit_from_Scope(sc,et->word);
+      if( su == NULL ) {
+	warn("Currently we can't cope with implicit externs in compugen funcs");
+	out.is_doable = 0;
+	return out;
+      }
+      
+      if( su->scope_type == SCOPE_TARGET ) {
+	out.is_doable   = 1;
+	out.is_variable = 1;
+	out.is_query    = 0;
+	return out;
+      }
+      
+      /*** otherwise, if this attachable, then - lets attach to tprf **/
+      out.is_doable = 1;	
+      out.is_index  = 0;
+      out.is_variable = 0;
+      out.is_query  = 1;
+    
+      if( is_attachable == FALSE ) {
+	/** we are in an array/method call, just chain out for them to know **/
+	out.is_variable = 1;
+	return out;
+      }
+
+
+      /** we should look at the type here... 
+	is this really something we can "add"**/
+
+      /** ok, lets attach it now! **/
+    
+      if( ot->tprf_unit != NULL ) {
+	warn("This is annoying problem. We have a very simple grammar involved in compugen things, and can't cope with 2 tprfs. We should!!");
+	out.is_doable = 0;
+	return out;
+      }
+
+      unit = OmUnit_alloc();
+
+      /*** should put away C loop now ***/
+      
+      unit->base = (-1); /** unassigned for the moment **/
+      unit->length = 1;
+      unit->is_tprf = 1;
+      out.unit = unit;
+      ot->tprf_unit = unit;
+      
+      return out;
+      
+      /*** end of if TOP_LEVEL  ***/
+    }
+
+    /** is not top level... do we care? **/
+
+    if( is_attachable == TRUE ) {
+      warn("I feel bad about this: we have a non-top level name which you claim is attachable. Should not be!");
+      
+    }
+    return out;
+
+    /** end of ETR_NAME **/
+
+  case ETR_TAG :
+
+    /** right... need to loop into tag... **/
+
+    /** for the moment, handle only 1 length tags. Should be most **/
+
+    if( et->nochild > 1 ) {
+      warn("Can't currently cope with tags with more than one child. Yikes!");
+      out.is_doable = 0;
+      return out;
+    }
+
+    child = descend_ExprTree_Cugen(et->child[0],mts,is_attachable,sc,ot);
+    return child; /** get out of here now! **/
+
+  case ETR_ARRAY :
+
+    /** ok, lets see the first part of the array **/
+
+    child = descend_ExprTree_Cugen(et->child[0],mts,FALSE,sc,ot);
+    if( child.is_doable == 0 )
+      return child;
+
+    if( child.is_query == 0 ) {
+      /** is a target type. No! **/
+
+      warn("Certainly can't array into target type for compugen port");
+      out.is_doable = 0;
+      return out;
+    }
+
+    /** should be a query type, not indexed. Lets hope so! **/
+
+    /** ok, now the expression into the array. Lets see what it is **/
+
+    child = descend_ExprTree_Cugen(et->child[1],mts,FALSE,sc,ot);
+
+    printf("Child of array into is %d\n",child.is_doable);
+    if( child.is_doable == 0 )
+      return child;
+
+
+    /** if child is query ... then we have a tprf ***/
+
+    if( child.is_query == 1 ) {
+
+      if( ot->tprf_unit != NULL ) {
+	warn("This is annoying problem. We have a very simple grammar involved in compugen things, and can't cope with 2 tprfs. We should!!");
+	out.is_doable = 0;
+	return out;
+      }
+
+      unit = OmUnit_alloc();
+
+      /*** should put away C loop now ***/
+      
+      unit->base = (-1); /** unassigned for the moment **/
+      unit->length = 1;
+      unit->is_tprf = 1;
+      out.unit = unit;
+      ot->tprf_unit = unit;
+
+      out.is_doable = 1;
+
+      return out;
+    } else {
+      warn("Not sure what to do with non query typed array expressions");
+      return out;
+    }
+      
+    warn("Should not have got here!!!!");
+    return out;
+
+    
+
+  default :
+    warn("Fell into an uncatched ETR_ type [%d]. Does not look good for you!",et->type);
+    out.is_doable = 0;
+    return out;
+  } /* end of switch */
+
+}
+
+
+   
+      
+
+void set_CugenYaccReturn(CugenYaccReturn * ret)
+{
+  ret->is_doable = 0;
+  ret->is_index  = 0;
+  ret->is_query  = 0;
+  ret->unit      = NULL;
+}
+
+
+
+
+
+    /*
+      Debugging/test functions, not going to be
+      used in final port 
+      
+      */
+
+
+
+%func
+writes the model definition
+%%
+void write_OneModel(OneModel * om,FILE * ofp)
+{
+    int i;
+
+    fprintf(ofp,"FILE_TYPE=MODEL;\n");
+
+    /*** boring stuff ***/
+
+    fprintf(ofp,"transition_name from to  dx dy t_prf dprf t_seq dseq w_base w_seq dwx dwy\n");
+
+    for(i=0;i<om->len;i++) {
+	write_OmTrans(i,om->trans[i],ofp);
+    }
+
+}
+
+
+
+%func
+writes one transition line
+%%
+void write_OmTrans(int number,OmTrans * ot,FILE * ofp)
+{
+    fprintf(ofp,"Trans%d  %s %s %d %d %d %d %d %d %d %d %d %d\n",number,
+	    ot->from->name,
+	    ot->to->name,
+	    ot->dx,
+	    ot->dy,
+	    ot->t_prf,
+	    ot->dprf,
+	    ot->t_seq,
+	    ot->dseq,
+	    ot->w_base,	   
+	    ot->w_seq,
+	    ot->dwx,
+	    ot->dwy );
+}
+
+%}

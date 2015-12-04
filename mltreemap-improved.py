@@ -15,6 +15,7 @@ try:
     import glob
     import subprocess
     import time
+    import traceback
 except:
     print """ Could not load some user defined  module functions"""
     print """ """
@@ -384,7 +385,7 @@ def runBlast(args, splitFiles):
                       '-evalue 0.01 -max_target_seqs 20000 ' + \
                       '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cput_count())):
+                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '
@@ -395,7 +396,7 @@ def runBlast(args, splitFiles):
                       '-evalue 0.01 -max_target_seqs 20000 ' + \
                       '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cput_count())):
+                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '
@@ -407,7 +408,7 @@ def runBlast(args, splitFiles):
                       '-evalue 0.01 -max_target_seqs 20000 ' + \
                       '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cput_count())):
+                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '

@@ -1,0 +1,387 @@
+
+%{
+#include "sequence.h"
+#include "compmat.h"
+
+
+#define HSPsetLISTLENGTH 20
+
+#define HSP_BLOCK_SIZE 1024
+#define HSPCacheLISTLENGTH 1024
+
+#define LinearHSPmanagerLISTLENGTH 128
+
+#define ON_HSP_MACRO(test,query_pos,target_pos) ( (((test->query_start-test->target_start)!=(query_pos-target_pos))||(query_pos<test->query_start)||(target_pos<test->target_start)||(query_pos-test->query_start>test->length)) ? FALSE : TRUE)
+ 
+
+%}
+
+
+
+
+struct HSP
+Sequence * query
+Sequence * target
+int query_start
+int target_start
+int length
+int score
+char is_in_block !def="0"
+char target_reverse !def="0"
+
+
+struct HSPCache
+HSP ** cache !list
+int max_cache
+
+struct HSPset 
+HSP ** hsp !list
+int score
+int best_score
+int last_accessed !def="-1"
+
+
+struct LinearHSPmanager
+HSPset ** set !list
+Sequence * query
+CompMat * mat
+int min_score !def=80
+int width   !def=30
+int tail    !def=30
+int worst_hsp_score 
+
+
+
+%{
+#include "hsp.h"
+
+
+
+
+%func
+tests whether this point is on this test HSP
+%%
+boolean on_HSP(HSP * test,int query_pos,int target_pos)
+{
+  if( (test->query_start - test->target_start) != query_pos - target_pos || query_pos < test->query_start || target_pos < test->target_start) {
+    return FALSE;
+  }
+
+  if( query_pos - test->query_start > test->length ) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
+
+%func
+sorting linear HSPsets via qsort function
+%%
+int compare_HSPset_score_qsort(const void * a,const void * b)
+{
+  const HSPset * one; 
+  const HSPset * two;
+
+  one = *((HSPset**)a);
+  two = *((HSPset**)b);
+
+
+  return two->score - one->score;
+}
+
+%func 
+internal function for sort linear HSPsets
+%%
+int compare_HSPset_score(HSPset * one,HSPset * two)
+{
+  return two->score - one->score;
+}
+
+
+%func
+Sorts by score
+%%
+void sort_HSPset_by_score(HSPset *set)
+{
+  sort_HSPset(set,compare_HSP_score);
+}
+
+%func
+internal for sort by score
+%type internal
+%%
+int compare_HSP_score(HSP * one,HSP * two)
+{
+  return two->score - one->score;
+}
+
+%func
+builds a new HSP for these sequences breaking at first mismatch
+%%
+HSP * new_dna_identical_HSP(Sequence * query,Sequence * target,int query_pos,int target_pos,int target_reverse)
+{
+  int i,j;
+  HSP * out;
+
+  assert(query);
+  assert(target);
+  assert(query_pos >= 0 && query_pos < query->len);
+  assert(target_pos >= 0 && target_pos < target->len);
+
+  out = HSP_alloc();
+
+  out->query = hard_link_Sequence(query);
+  out->target= hard_link_Sequence(target);
+
+  i = query_pos;
+  j = target_pos;
+
+  /* upstream first */
+
+
+  while( i >= 0 && j >= 0 && j <= target->len ) {
+/*  fprintf(stderr," in upstream loop, looking at %d (is revd %d)\n",i,target_reverse); */
+    if( target_reverse == 1 ) {
+      if( toupper(query->seq[i]) != char_complement_base(toupper(target->seq[j])) ) {
+	/*	fprintf(stderr,"Breaking, reversed  at %d,%d %c,%c\n",i,j,query->seq[i],char_complement_base(toupper(target->seq[j]))); */
+
+	break;
+      } else {
+	i--;
+	j++;
+      }
+    } else {
+      if( toupper(query->seq[i]) != toupper(target->seq[j]) ) {
+	/*	fprintf(stderr,"Breaking at %d,%d %c,%c\n",i,j,query->seq[i],target->seq[j]); */
+	break;
+      } else{
+	i--;
+	j--;
+      }
+    }
+  }
+
+  if( target_reverse == 1 ) {
+    i++;
+    j--;
+  } else {
+    i++;
+    j++;
+  }
+  
+  out->query_start = i;
+  out->target_start = j;
+
+  i = query_pos;
+  j = target_pos;
+
+  /* downstream next */
+
+  while( i < query->len && j >= 0 && j < target->len ) {
+    if( target_reverse == 1 ) {
+      if( toupper(query->seq[i]) != char_complement_base(toupper(target->seq[j])) ) {
+	i--;
+	j++;
+	break;
+      } else {
+	i++;
+	j--;
+      }
+    } else {
+      if( toupper(query->seq[i]) != toupper(target->seq[j]) ) {
+	i--;
+	j--;
+	break;
+      } else{
+	i++;
+	j++;
+      }
+    }
+  }
+
+  if( target_reverse == 1 ) {
+    i++;
+    j--;
+  } else {
+    i--;
+    j--;
+  }
+
+  out->length = i - out->query_start;
+  out->score = out->length;
+
+  out->target_reverse = target_reverse;
+
+  return out;
+}
+
+%func
+builds a new HSP for these sequences
+%%
+HSP * new_HSP(HSPCache * cache,Sequence * query,Sequence * target,int query_pos,int target_pos,CompMat * mat,int drop_off)
+{
+  int i,j;
+  int pause_i,pause_j;
+  int score = 0;
+  int max_score= 0;
+  HSP * out;
+
+
+
+  if( cache != NULL ) {
+    out = HSP_alloc_cache(cache);
+  } else {
+    out = HSP_alloc();
+  }
+
+  assert(out != NULL);
+  assert(query != NULL);
+  assert(query->seq != NULL);
+  assert(target != NULL);
+  assert(target->seq != NULL);
+  assert(mat != NULL);
+  assert(drop_off > 0);
+  assert(query->seq[query_pos] >= 'A' && query->seq[query_pos] <= 'Z');
+  assert(target->seq[target_pos] >= 'A' && target->seq[target_pos] <= 'Z');
+
+
+  /*  fprintf(stdout,"got new hsp with drop_off of %d\n",drop_off);*/
+
+  out->query = hard_link_Sequence(query);
+  out->target= hard_link_Sequence(target);
+  out->score = -(mat->comp[query->seq[query_pos]-'A'][target->seq[target_pos]-'A']);
+
+  pause_i = i = query_pos;
+  pause_j = j = target_pos;
+
+  /* go upstream first */
+  
+  for(score = 0,max_score = 0;(max_score - score) < drop_off && i >= 0 && j >= 0;i--,j--) {
+
+    score += mat->comp[query->seq[i]-'A'][target->seq[j]-'A'];
+       /*fprintf(stderr,"Examining %c,%c - score %d max_score %d\n",query->seq[i],target->seq[j],score,max_score); */
+
+    if( score > max_score ) {
+      pause_i = i;
+      pause_j = j;
+      max_score = score;
+    }
+  }
+  
+
+  out->query_start = pause_i;
+  out->target_start = pause_j;
+  out->score += max_score;
+
+  /* now downstream */
+
+  for(score=0,max_score=0,pause_i=i=query_pos,pause_j=j=target_pos;(max_score - score) < drop_off && i < query->len && j < target->len;i++,j++) {
+    score += mat->comp[query->seq[i]-'A'][target->seq[j]-'A'];
+    if( score > max_score ) {
+      pause_i = i;
+      pause_j = j;
+      max_score = score;
+    }
+  }
+
+  out->length = pause_i - out->query_start+1;
+
+  out->score += max_score;
+
+  return out;
+}
+
+%func
+Returns new HSP, using cache if needed
+%%
+HSP * HSP_alloc_cache(HSPCache * hspc)
+{
+  assert(hspc);
+
+  if( hspc->len > 0 ) {
+    hspc->len--;
+    return hspc->cache[hspc->len];
+  } 
+
+  return HSP_alloc();
+}
+
+%func
+Places HSP back into cache, freeing if necessary
+%%
+HSP * free_HSP_cache(HSPCache * cache,HSP * hsp)
+{
+  int return_early = 0;
+
+  assert(cache);
+  assert(hsp);
+
+#ifdef PTHREAD   
+  assert(pthread_mutex_lock(&(hsp->dynamite_mutex)) == 0); 
+#endif   
+  if( hsp->dynamite_hard_link > 1)     {  
+    return_early = 1;  
+    hsp->dynamite_hard_link--; 
+  }  
+#ifdef PTHREAD   
+  assert(pthread_mutex_unlock(&(hsp->dynamite_mutex)) == 0);   
+#endif   
+  
+  if( return_early == 1)   
+    return NULL;   
+  
+  if( cache->len > cache->max_cache ) {
+    return free_HSP(hsp);
+  } else {
+    add_HSPCache(cache,hsp);
+    return NULL;
+  }
+}
+
+%func
+Makes a new cache
+%%
+HSPCache * new_HSPCache(int maxsize)
+{
+  HSPCache * out;
+
+  out = HSPCache_alloc_std();
+  out->max_cache = maxsize;
+
+  return out;
+}
+
+%func 
+Shows a HSP set
+%%
+void show_HSPset(HSPset * s,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<s->len;i++) {
+    if( s->hsp[i]->target_reverse == 0 ) {
+      fprintf(ofp,"%5d %s\t%d\t%d\t%s\t%d\t%d\t+\n",s->hsp[i]->length,s->hsp[i]->query->name,s->hsp[i]->query_start,s->hsp[i]->query_start+s->hsp[i]->length,s->hsp[i]->target->name,s->hsp[i]->target_start,s->hsp[i]->target_start + s->hsp[i]->length);
+    } else {
+      fprintf(ofp,"%5d %s\t%d\t%d\t%s\t%d\t%d\t-\n",s->hsp[i]->length,s->hsp[i]->query->name,s->hsp[i]->query_start,s->hsp[i]->query_start+s->hsp[i]->length,s->hsp[i]->target->name,s->hsp[i]->target_start,s->hsp[i]->target_start - s->hsp[i]->length);
+    }
+  }
+
+
+}
+
+%func
+Shows an HSP
+%%
+void show_HSP(HSP * hsp,int linelength,FILE * out)
+{
+  int i,j;
+
+  for(i=hsp->query_start,j=hsp->target_start;(i-hsp->query_start) < hsp->length;i++,j++) {
+    fprintf(out,"%c %c\n",hsp->query->seq[i],hsp->target->seq[j]);
+  }
+
+}
+
+
+
+%}

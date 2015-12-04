@@ -1,0 +1,424 @@
+genewise $Name: wise2-4-1 $ (unreleased release)
+This program is freely distributed under a GPL. See source directory
+Copyright (c) GRL limited: portions of the code are from separate copyright
+
+Query model:         unnamed
+Start/End            local
+Target Sequence      HSHNCPA1
+Strand:              forward
+Start/End (protein)  local
+Gene Parameter file: gene.stat
+Splice site model:   GT/AG only
+GT/AG bits penalty   -9.96
+Codon Table:         codon.table
+Subs error:          1e-06
+Indel error:         1e-06
+Null model           syn
+Algorithm            623L
+
+genewise output
+Score 112.25 bits over entire alignment
+Scores as bits over a synchronous coding model
+
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                     Alignment 1 Score 112.25 (Bits)                   
+
+
+unnamed            1 KLFVGNLPPDTTEEELRELFSQFGEIESVKVMRDEPKTGKSRGFGFVTF 
+                     K+FVG++ +DT E +LR++F+Q+G+IE +++M+D +++GK+RGF+ VTF 
+                     KIFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTD-RGSGKKRGFAxVTF 
+HSHNCPA1          14 aatgggaaggaggcccagttgctgaaggagaaag cgagaaagtgtgat 
+                     atttggtaaacaaaatgaataaagatattattca ggggaaggtcttct 
+                     gatttctaactaatcaatttagtaatagtacgtc actcgagctcNact 
+
+
+unnamed           50 ESEEDAEKAIEALNGKVLGGRVLRVKAAQKKEERQ               
+                     +++++++K++ +++++V+G++++++KA +K+E++                
+                     DDHDSVDKIVIQKYHTVNGHNCEVRKALSKQEMAS               
+HSHNCPA1         158 ggcgtggaagacatcagagcatggaagctacgaga               
+                     aaaactaatttaaaactagaagatgactcaaatcg               
+                     cctccgtgtctgacttgtccctataacgagaggtt               
+
+
+//
+Bits   Query         start end Target      start end   idels introns
+112.25 unnamed         1   84 HSHNCPA1       14  262    0    0
+//
+Gene 1
+Gene 14 262 
+  Exon 14 262 phase 0
+//
+>HSHNCPA1.[14:262].sp.tr
+KIFVGGIKEDTEEHHLRDYFEQYGKIEVIEIMTDRGSGKKRGFAxVTFDDHDSVDKIVIQ
+KYHTVNGHNCEVRKALSKQEMAS
+//
+>HSHNCPA1.[14:262].sp
+AAGATATTTGTTGGTGGCATTAAAGAAGACACTGAAGAACATCACCTAAGAGATTATTTT
+GAACAGTATGGAAAAATTGAAGTGATTGAAATCATGACTGACCGAGGCAGTGGCAAGAAA
+AGGGGCTTTGCCTTNGTAACCTTTGACGACCATGACTCCGTGGATAAGATTGTCATTCAG
+AAATACCATACTGTGAATGGCCACAACTGTGAAGTTAGAAAAGCCCTGTCAAAGCAAGAG
+ATGGCTAGT
+//
+Sequence HSHNCPA1
+subsequence HSHNCPA1.1 14 262
+
+Sequence HSHNCPA1.1
+CDS
+Start_not_found
+End_not_found
+CDS_predicted_by genewise 112.25
+source_Exons 1 249
+
+//
+Gene 0
+Gene 13 - 262
+Transcript 0
+Exon 0-249
+Translation 0 - 249
+
+//
+0.00 [-1:-1 "LOOP_STATE" 0],[0:12 "RANDOM_SEQUENCE" 0]
+-18.25 [-1:0 "MATCH_STATE" -6326],[12:15 "CODON" -6326]
+2.11 [0:1 "MATCH_STATE" 730],[15:18 "CODON" 730]
+3.60 [1:2 "MATCH_STATE" 1249],[18:21 "CODON" 1249]
+3.15 [2:3 "MATCH_STATE" 1090],[21:24 "CODON" 1090]
+2.67 [3:4 "MATCH_STATE" 924],[24:27 "CODON" 924]
+2.08 [4:5 "MATCH_STATE" 720],[27:30 "CODON" 720]
+0.82 [5:6 "MATCH_STATE" 285],[30:33 "CODON" 285]
+-0.43 [6:7 "MATCH_STATE" -150],[33:36 "CODON" -150]
+1.14 [7:8 "MATCH_STATE" 395],[36:39 "CODON" 395]
+2.26 [8:9 "MATCH_STATE" 783],[39:42 "CODON" 783]
+2.01 [9:10 "MATCH_STATE" 696],[42:45 "CODON" 696]
+-0.21 [10:11 "MATCH_STATE" -74],[45:48 "CODON" -74]
+2.64 [11:12 "MATCH_STATE" 914],[48:51 "CODON" 914]
+-0.01 [12:13 "MATCH_STATE" -3],[51:54 "CODON" -3]
+1.05 [13:14 "MATCH_STATE" 364],[54:57 "CODON" 364]
+2.82 [14:15 "MATCH_STATE" 976],[57:60 "CODON" 976]
+2.36 [15:16 "MATCH_STATE" 819],[60:63 "CODON" 819]
+1.57 [16:17 "MATCH_STATE" 543],[63:66 "CODON" 543]
+2.33 [17:18 "MATCH_STATE" 808],[66:69 "CODON" 808]
+4.24 [18:19 "MATCH_STATE" 1468],[69:72 "CODON" 1468]
+1.47 [19:20 "MATCH_STATE" 511],[72:75 "CODON" 511]
+2.06 [20:21 "MATCH_STATE" 715],[75:78 "CODON" 715]
+2.33 [21:22 "MATCH_STATE" 808],[78:81 "CODON" 808]
+3.34 [22:23 "MATCH_STATE" 1159],[81:84 "CODON" 1159]
+0.92 [23:24 "MATCH_STATE" 320],[84:87 "CODON" 320]
+2.71 [24:25 "MATCH_STATE" 938],[87:90 "CODON" 938]
+1.57 [25:26 "MATCH_STATE" 544],[90:93 "CODON" 544]
+-0.06 [26:27 "MATCH_STATE" -22],[93:96 "CODON" -22]
+1.75 [27:28 "MATCH_STATE" 605],[96:99 "CODON" 605]
+1.01 [28:29 "MATCH_STATE" 349],[99:102 "CODON" 349]
+1.92 [29:30 "MATCH_STATE" 664],[102:105 "CODON" 664]
+2.97 [30:31 "MATCH_STATE" 1029],[105:108 "CODON" 1029]
+1.03 [31:32 "MATCH_STATE" 358],[108:111 "CODON" 358]
+3.21 [32:33 "MATCH_STATE" 1114],[111:114 "CODON" 1114]
+-0.56 [33:34 "DELETE_STATE" -193],[114:114 "INSERT" -193]
+0.85 [34:35 "MATCH_STATE" 295],[114:117 "CODON" 295]
+0.37 [35:36 "MATCH_STATE" 128],[117:120 "CODON" 128]
+1.02 [36:37 "MATCH_STATE" 352],[120:123 "CODON" 352]
+2.79 [37:38 "MATCH_STATE" 968],[123:126 "CODON" 968]
+2.50 [38:39 "MATCH_STATE" 865],[126:129 "CODON" 865]
+0.39 [39:40 "MATCH_STATE" 135],[129:132 "CODON" 135]
+2.80 [40:41 "MATCH_STATE" 970],[132:135 "CODON" 970]
+3.33 [41:42 "MATCH_STATE" 1154],[135:138 "CODON" 1154]
+3.41 [42:43 "MATCH_STATE" 1183],[138:141 "CODON" 1183]
+2.13 [43:44 "MATCH_STATE" 739],[141:144 "CODON" 739]
+-3.04 [44:45 "MATCH_STATE" -1053],[144:147 "CODON" -1053]
+3.23 [45:46 "MATCH_STATE" 1120],[147:150 "CODON" 1120]
+2.25 [46:47 "MATCH_STATE" 780],[150:153 "CODON" 780]
+3.95 [47:48 "MATCH_STATE" 1368],[153:156 "CODON" 1368]
+1.26 [48:49 "MATCH_STATE" 436],[156:159 "CODON" 436]
+1.45 [49:50 "MATCH_STATE" 503],[159:162 "CODON" 503]
+2.08 [50:51 "MATCH_STATE" 722],[162:165 "CODON" 722]
+1.57 [51:52 "MATCH_STATE" 543],[165:168 "CODON" 543]
+0.84 [52:53 "MATCH_STATE" 292],[168:171 "CODON" 292]
+1.71 [53:54 "MATCH_STATE" 593],[171:174 "CODON" 593]
+1.39 [54:55 "MATCH_STATE" 481],[174:177 "CODON" 481]
+2.50 [55:56 "MATCH_STATE" 867],[177:180 "CODON" 867]
+0.82 [56:57 "MATCH_STATE" 285],[180:183 "CODON" 285]
+1.49 [57:58 "MATCH_STATE" 517],[183:186 "CODON" 517]
+-0.49 [58:59 "MATCH_STATE" -169],[186:189 "CODON" -169]
+1.25 [59:60 "MATCH_STATE" 432],[189:192 "CODON" 432]
+1.33 [60:61 "MATCH_STATE" 460],[192:195 "CODON" 460]
+1.13 [61:62 "MATCH_STATE" 393],[195:198 "CODON" 393]
+3.10 [62:63 "MATCH_STATE" 1073],[198:201 "CODON" 1073]
+1.22 [63:64 "MATCH_STATE" 424],[201:204 "CODON" 424]
+1.39 [64:65 "MATCH_STATE" 482],[204:207 "CODON" 482]
+0.78 [65:66 "MATCH_STATE" 269],[207:210 "CODON" 269]
+1.58 [66:67 "MATCH_STATE" 547],[210:213 "CODON" 547]
+1.05 [67:68 "MATCH_STATE" 364],[213:216 "CODON" 364]
+0.88 [68:69 "MATCH_STATE" 306],[216:219 "CODON" 306]
+2.57 [69:70 "MATCH_STATE" 891],[219:222 "CODON" 891]
+1.37 [70:71 "MATCH_STATE" 475],[222:225 "CODON" 475]
+0.68 [71:72 "MATCH_STATE" 236],[225:228 "CODON" 236]
+0.47 [72:73 "MATCH_STATE" 164],[228:231 "CODON" 164]
+1.27 [73:74 "MATCH_STATE" 439],[231:234 "CODON" 439]
+1.60 [74:75 "MATCH_STATE" 553],[234:237 "CODON" 553]
+-0.53 [75:76 "MATCH_STATE" -182],[237:240 "CODON" -182]
+0.77 [76:77 "MATCH_STATE" 268],[240:243 "CODON" 268]
+2.12 [77:78 "MATCH_STATE" 734],[243:246 "CODON" 734]
+0.94 [78:79 "MATCH_STATE" 326],[246:249 "CODON" 326]
+1.07 [79:80 "MATCH_STATE" 372],[249:252 "CODON" 372]
+1.54 [80:81 "MATCH_STATE" 533],[252:255 "CODON" 533]
+0.66 [81:82 "MATCH_STATE" 229],[255:258 "CODON" 229]
+-0.20 [82:83 "MATCH_STATE" -68],[258:261 "CODON" -68]
+0.00 [83:0 "LOOP_STATE" 0],[261:413 "RANDOM_SEQUENCE" 0]
+0.00 [0:0 "END" 0],[413:414 "END" 0]
+//
+Score 38904
+Position i:[-1] j:[0] State:[7] Score: 0
+Position i:[-1] j:[1] State:[6] Score: 0
+Position i:[-1] j:[2] State:[6] Score: 0
+Position i:[-1] j:[3] State:[6] Score: 0
+Position i:[-1] j:[4] State:[6] Score: 0
+Position i:[-1] j:[5] State:[6] Score: 0
+Position i:[-1] j:[6] State:[6] Score: 0
+Position i:[-1] j:[7] State:[6] Score: 0
+Position i:[-1] j:[8] State:[6] Score: 0
+Position i:[-1] j:[9] State:[6] Score: 0
+Position i:[-1] j:[10] State:[6] Score: 0
+Position i:[-1] j:[11] State:[6] Score: 0
+Position i:[-1] j:[12] State:[6] Score: 0
+Position i:[0] j:[15] State:[0] Score: -6326
+Position i:[1] j:[18] State:[0] Score: 730
+Position i:[2] j:[21] State:[0] Score: 1249
+Position i:[3] j:[24] State:[0] Score: 1090
+Position i:[4] j:[27] State:[0] Score: 924
+Position i:[5] j:[30] State:[0] Score: 720
+Position i:[6] j:[33] State:[0] Score: 285
+Position i:[7] j:[36] State:[0] Score: -150
+Position i:[8] j:[39] State:[0] Score: 395
+Position i:[9] j:[42] State:[0] Score: 783
+Position i:[10] j:[45] State:[0] Score: 696
+Position i:[11] j:[48] State:[0] Score: -74
+Position i:[12] j:[51] State:[0] Score: 914
+Position i:[13] j:[54] State:[0] Score: -3
+Position i:[14] j:[57] State:[0] Score: 364
+Position i:[15] j:[60] State:[0] Score: 976
+Position i:[16] j:[63] State:[0] Score: 819
+Position i:[17] j:[66] State:[0] Score: 543
+Position i:[18] j:[69] State:[0] Score: 808
+Position i:[19] j:[72] State:[0] Score: 1468
+Position i:[20] j:[75] State:[0] Score: 511
+Position i:[21] j:[78] State:[0] Score: 715
+Position i:[22] j:[81] State:[0] Score: 808
+Position i:[23] j:[84] State:[0] Score: 1159
+Position i:[24] j:[87] State:[0] Score: 320
+Position i:[25] j:[90] State:[0] Score: 938
+Position i:[26] j:[93] State:[0] Score: 544
+Position i:[27] j:[96] State:[0] Score: -22
+Position i:[28] j:[99] State:[0] Score: 605
+Position i:[29] j:[102] State:[0] Score: 349
+Position i:[30] j:[105] State:[0] Score: 664
+Position i:[31] j:[108] State:[0] Score: 1029
+Position i:[32] j:[111] State:[0] Score: 358
+Position i:[33] j:[114] State:[0] Score: 1114
+Position i:[34] j:[114] State:[2] Score: -193
+Position i:[35] j:[117] State:[0] Score: 295
+Position i:[36] j:[120] State:[0] Score: 128
+Position i:[37] j:[123] State:[0] Score: 352
+Position i:[38] j:[126] State:[0] Score: 968
+Position i:[39] j:[129] State:[0] Score: 865
+Position i:[40] j:[132] State:[0] Score: 135
+Position i:[41] j:[135] State:[0] Score: 970
+Position i:[42] j:[138] State:[0] Score: 1154
+Position i:[43] j:[141] State:[0] Score: 1183
+Position i:[44] j:[144] State:[0] Score: 739
+Position i:[45] j:[147] State:[0] Score: -1053
+Position i:[46] j:[150] State:[0] Score: 1120
+Position i:[47] j:[153] State:[0] Score: 780
+Position i:[48] j:[156] State:[0] Score: 1368
+Position i:[49] j:[159] State:[0] Score: 436
+Position i:[50] j:[162] State:[0] Score: 503
+Position i:[51] j:[165] State:[0] Score: 722
+Position i:[52] j:[168] State:[0] Score: 543
+Position i:[53] j:[171] State:[0] Score: 292
+Position i:[54] j:[174] State:[0] Score: 593
+Position i:[55] j:[177] State:[0] Score: 481
+Position i:[56] j:[180] State:[0] Score: 867
+Position i:[57] j:[183] State:[0] Score: 285
+Position i:[58] j:[186] State:[0] Score: 517
+Position i:[59] j:[189] State:[0] Score: -169
+Position i:[60] j:[192] State:[0] Score: 432
+Position i:[61] j:[195] State:[0] Score: 460
+Position i:[62] j:[198] State:[0] Score: 393
+Position i:[63] j:[201] State:[0] Score: 1073
+Position i:[64] j:[204] State:[0] Score: 424
+Position i:[65] j:[207] State:[0] Score: 482
+Position i:[66] j:[210] State:[0] Score: 269
+Position i:[67] j:[213] State:[0] Score: 547
+Position i:[68] j:[216] State:[0] Score: 364
+Position i:[69] j:[219] State:[0] Score: 306
+Position i:[70] j:[222] State:[0] Score: 891
+Position i:[71] j:[225] State:[0] Score: 475
+Position i:[72] j:[228] State:[0] Score: 236
+Position i:[73] j:[231] State:[0] Score: 164
+Position i:[74] j:[234] State:[0] Score: 439
+Position i:[75] j:[237] State:[0] Score: 553
+Position i:[76] j:[240] State:[0] Score: -182
+Position i:[77] j:[243] State:[0] Score: 268
+Position i:[78] j:[246] State:[0] Score: 734
+Position i:[79] j:[249] State:[0] Score: 326
+Position i:[80] j:[252] State:[0] Score: 372
+Position i:[81] j:[255] State:[0] Score: 533
+Position i:[82] j:[258] State:[0] Score: 229
+Position i:[83] j:[261] State:[0] Score: -68
+Position i:[0] j:[261] State:[6] Score: 0
+Position i:[0] j:[262] State:[6] Score: 0
+Position i:[0] j:[263] State:[6] Score: 0
+Position i:[0] j:[264] State:[6] Score: 0
+Position i:[0] j:[265] State:[6] Score: 0
+Position i:[0] j:[266] State:[6] Score: 0
+Position i:[0] j:[267] State:[6] Score: 0
+Position i:[0] j:[268] State:[6] Score: 0
+Position i:[0] j:[269] State:[6] Score: 0
+Position i:[0] j:[270] State:[6] Score: 0
+Position i:[0] j:[271] State:[6] Score: 0
+Position i:[0] j:[272] State:[6] Score: 0
+Position i:[0] j:[273] State:[6] Score: 0
+Position i:[0] j:[274] State:[6] Score: 0
+Position i:[0] j:[275] State:[6] Score: 0
+Position i:[0] j:[276] State:[6] Score: 0
+Position i:[0] j:[277] State:[6] Score: 0
+Position i:[0] j:[278] State:[6] Score: 0
+Position i:[0] j:[279] State:[6] Score: 0
+Position i:[0] j:[280] State:[6] Score: 0
+Position i:[0] j:[281] State:[6] Score: 0
+Position i:[0] j:[282] State:[6] Score: 0
+Position i:[0] j:[283] State:[6] Score: 0
+Position i:[0] j:[284] State:[6] Score: 0
+Position i:[0] j:[285] State:[6] Score: 0
+Position i:[0] j:[286] State:[6] Score: 0
+Position i:[0] j:[287] State:[6] Score: 0
+Position i:[0] j:[288] State:[6] Score: 0
+Position i:[0] j:[289] State:[6] Score: 0
+Position i:[0] j:[290] State:[6] Score: 0
+Position i:[0] j:[291] State:[6] Score: 0
+Position i:[0] j:[292] State:[6] Score: 0
+Position i:[0] j:[293] State:[6] Score: 0
+Position i:[0] j:[294] State:[6] Score: 0
+Position i:[0] j:[295] State:[6] Score: 0
+Position i:[0] j:[296] State:[6] Score: 0
+Position i:[0] j:[297] State:[6] Score: 0
+Position i:[0] j:[298] State:[6] Score: 0
+Position i:[0] j:[299] State:[6] Score: 0
+Position i:[0] j:[300] State:[6] Score: 0
+Position i:[0] j:[301] State:[6] Score: 0
+Position i:[0] j:[302] State:[6] Score: 0
+Position i:[0] j:[303] State:[6] Score: 0
+Position i:[0] j:[304] State:[6] Score: 0
+Position i:[0] j:[305] State:[6] Score: 0
+Position i:[0] j:[306] State:[6] Score: 0
+Position i:[0] j:[307] State:[6] Score: 0
+Position i:[0] j:[308] State:[6] Score: 0
+Position i:[0] j:[309] State:[6] Score: 0
+Position i:[0] j:[310] State:[6] Score: 0
+Position i:[0] j:[311] State:[6] Score: 0
+Position i:[0] j:[312] State:[6] Score: 0
+Position i:[0] j:[313] State:[6] Score: 0
+Position i:[0] j:[314] State:[6] Score: 0
+Position i:[0] j:[315] State:[6] Score: 0
+Position i:[0] j:[316] State:[6] Score: 0
+Position i:[0] j:[317] State:[6] Score: 0
+Position i:[0] j:[318] State:[6] Score: 0
+Position i:[0] j:[319] State:[6] Score: 0
+Position i:[0] j:[320] State:[6] Score: 0
+Position i:[0] j:[321] State:[6] Score: 0
+Position i:[0] j:[322] State:[6] Score: 0
+Position i:[0] j:[323] State:[6] Score: 0
+Position i:[0] j:[324] State:[6] Score: 0
+Position i:[0] j:[325] State:[6] Score: 0
+Position i:[0] j:[326] State:[6] Score: 0
+Position i:[0] j:[327] State:[6] Score: 0
+Position i:[0] j:[328] State:[6] Score: 0
+Position i:[0] j:[329] State:[6] Score: 0
+Position i:[0] j:[330] State:[6] Score: 0
+Position i:[0] j:[331] State:[6] Score: 0
+Position i:[0] j:[332] State:[6] Score: 0
+Position i:[0] j:[333] State:[6] Score: 0
+Position i:[0] j:[334] State:[6] Score: 0
+Position i:[0] j:[335] State:[6] Score: 0
+Position i:[0] j:[336] State:[6] Score: 0
+Position i:[0] j:[337] State:[6] Score: 0
+Position i:[0] j:[338] State:[6] Score: 0
+Position i:[0] j:[339] State:[6] Score: 0
+Position i:[0] j:[340] State:[6] Score: 0
+Position i:[0] j:[341] State:[6] Score: 0
+Position i:[0] j:[342] State:[6] Score: 0
+Position i:[0] j:[343] State:[6] Score: 0
+Position i:[0] j:[344] State:[6] Score: 0
+Position i:[0] j:[345] State:[6] Score: 0
+Position i:[0] j:[346] State:[6] Score: 0
+Position i:[0] j:[347] State:[6] Score: 0
+Position i:[0] j:[348] State:[6] Score: 0
+Position i:[0] j:[349] State:[6] Score: 0
+Position i:[0] j:[350] State:[6] Score: 0
+Position i:[0] j:[351] State:[6] Score: 0
+Position i:[0] j:[352] State:[6] Score: 0
+Position i:[0] j:[353] State:[6] Score: 0
+Position i:[0] j:[354] State:[6] Score: 0
+Position i:[0] j:[355] State:[6] Score: 0
+Position i:[0] j:[356] State:[6] Score: 0
+Position i:[0] j:[357] State:[6] Score: 0
+Position i:[0] j:[358] State:[6] Score: 0
+Position i:[0] j:[359] State:[6] Score: 0
+Position i:[0] j:[360] State:[6] Score: 0
+Position i:[0] j:[361] State:[6] Score: 0
+Position i:[0] j:[362] State:[6] Score: 0
+Position i:[0] j:[363] State:[6] Score: 0
+Position i:[0] j:[364] State:[6] Score: 0
+Position i:[0] j:[365] State:[6] Score: 0
+Position i:[0] j:[366] State:[6] Score: 0
+Position i:[0] j:[367] State:[6] Score: 0
+Position i:[0] j:[368] State:[6] Score: 0
+Position i:[0] j:[369] State:[6] Score: 0
+Position i:[0] j:[370] State:[6] Score: 0
+Position i:[0] j:[371] State:[6] Score: 0
+Position i:[0] j:[372] State:[6] Score: 0
+Position i:[0] j:[373] State:[6] Score: 0
+Position i:[0] j:[374] State:[6] Score: 0
+Position i:[0] j:[375] State:[6] Score: 0
+Position i:[0] j:[376] State:[6] Score: 0
+Position i:[0] j:[377] State:[6] Score: 0
+Position i:[0] j:[378] State:[6] Score: 0
+Position i:[0] j:[379] State:[6] Score: 0
+Position i:[0] j:[380] State:[6] Score: 0
+Position i:[0] j:[381] State:[6] Score: 0
+Position i:[0] j:[382] State:[6] Score: 0
+Position i:[0] j:[383] State:[6] Score: 0
+Position i:[0] j:[384] State:[6] Score: 0
+Position i:[0] j:[385] State:[6] Score: 0
+Position i:[0] j:[386] State:[6] Score: 0
+Position i:[0] j:[387] State:[6] Score: 0
+Position i:[0] j:[388] State:[6] Score: 0
+Position i:[0] j:[389] State:[6] Score: 0
+Position i:[0] j:[390] State:[6] Score: 0
+Position i:[0] j:[391] State:[6] Score: 0
+Position i:[0] j:[392] State:[6] Score: 0
+Position i:[0] j:[393] State:[6] Score: 0
+Position i:[0] j:[394] State:[6] Score: 0
+Position i:[0] j:[395] State:[6] Score: 0
+Position i:[0] j:[396] State:[6] Score: 0
+Position i:[0] j:[397] State:[6] Score: 0
+Position i:[0] j:[398] State:[6] Score: 0
+Position i:[0] j:[399] State:[6] Score: 0
+Position i:[0] j:[400] State:[6] Score: 0
+Position i:[0] j:[401] State:[6] Score: 0
+Position i:[0] j:[402] State:[6] Score: 0
+Position i:[0] j:[403] State:[6] Score: 0
+Position i:[0] j:[404] State:[6] Score: 0
+Position i:[0] j:[405] State:[6] Score: 0
+Position i:[0] j:[406] State:[6] Score: 0
+Position i:[0] j:[407] State:[6] Score: 0
+Position i:[0] j:[408] State:[6] Score: 0
+Position i:[0] j:[409] State:[6] Score: 0
+Position i:[0] j:[410] State:[6] Score: 0
+Position i:[0] j:[411] State:[6] Score: 0
+Position i:[0] j:[412] State:[6] Score: 0
+Position i:[0] j:[413] State:[6] Score: 0
+Position i:[0] j:[414] State:[8] Score: 0
+//

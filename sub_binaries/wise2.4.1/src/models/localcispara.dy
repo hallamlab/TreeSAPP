@@ -1,0 +1,102 @@
+
+%{
+#include "dyna.h"
+
+
+#define LCH_GAP 0.05   
+#define LCH_BLOCKOPEN  0.01   
+#define LCH_UNMATCHED_PEN 0.99  
+
+
+%}
+
+
+struct LocalCisHitProb
+DnaProbMatrix* comp65
+DnaProbMatrix* comp75
+DnaProbMatrix* comp85
+DnaProbMatrix* comp95
+Probability      g
+Probability      u
+Probability      v
+Probability      s
+Probability      b
+
+
+struct LocalCisHitScore
+DnaMatrix* comp65
+DnaMatrix* comp75
+DnaMatrix* comp85
+DnaMatrix* comp95
+Score      g
+Score      u
+Score      v
+Score      s
+Score      b
+
+
+%{
+#include "localcispara.h"
+
+LocalCisHitScore * standard_LocalCisHitScore(NMaskType nmask)
+{
+  LocalCisHitProb *p;
+  LocalCisHitScore * out;
+
+  p = standard_LocalCisHitProb(nmask);
+  out = LocalCisHitScore_from_LocalCisHitProb(p);
+
+  free_LocalCisHitProb(p);
+
+  return out;
+}
+
+LocalCisHitProb * standard_LocalCisHitProb(NMaskType nmask)
+{
+  LocalCisHitProb * out;
+
+  out = LocalCisHitProb_alloc();
+
+  out->comp65 = DnaProbMatrix_from_match(0.65,nmask);  
+  flat_null_DnaProbMatrix(out->comp65);  
+
+  out->comp75 = DnaProbMatrix_from_match(0.75,nmask);  
+  flat_null_DnaProbMatrix(out->comp75);  
+
+  out->comp85 = DnaProbMatrix_from_match(0.85,nmask);  
+  flat_null_DnaProbMatrix(out->comp85);  
+
+  out->comp95 = DnaProbMatrix_from_match(0.95,nmask);  
+  flat_null_DnaProbMatrix(out->comp95);  
+
+  out->g = LCH_GAP / LCH_UNMATCHED_PEN;
+  out->u = 1.0;
+  out->v = (1.0- LCH_UNMATCHED_PEN)/(LCH_UNMATCHED_PEN);
+  out->s = (1.0 - (LCH_GAP + LCH_GAP + LCH_BLOCKOPEN))/(LCH_UNMATCHED_PEN * LCH_UNMATCHED_PEN);
+  out->b = (LCH_BLOCKOPEN/LCH_UNMATCHED_PEN);
+
+  return out;
+}
+
+
+LocalCisHitScore * LocalCisHitScore_from_LocalCisHitProb(LocalCisHitProb * lchp)
+{
+  LocalCisHitScore * lchs;
+
+  lchs = LocalCisHitScore_alloc();
+
+  lchs->comp65 = DnaMatrix_from_DnaProbMatrix(lchp->comp65);
+  lchs->comp75 = DnaMatrix_from_DnaProbMatrix(lchp->comp75);
+  lchs->comp85 = DnaMatrix_from_DnaProbMatrix(lchp->comp85);
+  lchs->comp95 = DnaMatrix_from_DnaProbMatrix(lchp->comp95);
+  lchs->g = Probability2Score(lchp->g);
+  lchs->u = Probability2Score(lchp->u);
+  lchs->v = Probability2Score(lchp->v);
+  lchs->s = Probability2Score(lchp->s);
+  lchs->b = Probability2Score(lchp->b);
+
+  return lchs;
+}
+
+
+%}

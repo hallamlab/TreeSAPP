@@ -1,0 +1,26 @@
+
+%{
+#include "markerframework.h"
+
+#define GenotypeLISTLENGTH 1024
+
+%}
+
+
+struct LocusGenotype
+Locus * locus !link
+int allele_1
+int allele_2
+
+
+struct Genotype
+LocusGenotype ** locus !list
+
+
+%{
+#include "individual.h"
+
+
+
+
+%}

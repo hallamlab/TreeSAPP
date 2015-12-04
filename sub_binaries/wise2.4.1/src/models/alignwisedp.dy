@@ -1,0 +1,166 @@
+
+%{
+#include "aligngenemodel.h"
+
+
+
+%}
+
+
+struct AlignGeneModelFrame
+int len
+
+matrix AlignWise
+query  type="AlignGeneModelFrame*" name="model" field:len="len"
+target type="AlignGeneModelScore*" name="align" field:len="len"
+resource type="Score" name="intronopen"
+resource type="Score" name="geneopen"
+state  CODON offi="0"
+  source CODON offj="3"
+    calc="align->forward_coding[j]"
+    endsource
+  source INTERGENIC offj="3"
+    calc="align->forward_coding[j]"
+    endsource
+  source INTRON_0 offj="6"
+    calc="align->splice3_forward[j-3] + align->forward_coding[j]"
+    target_label 3SS_PHASE_0
+    endsource
+  source INTRON_1 offj="5"
+    calc="align->splice3_forward[j-2]"
+    target_label 3SS_PHASE_1
+    endsource
+  source INTRON_2 offj="4"
+    calc="align->splice3_forward[j-1]"
+    target_label 3SS_PHASE_2
+    endsource
+  query_label EXON_STATE
+  target_label CODON
+endstate
+state INTRON_0 offi="0" offj="1"
+  source CODON offj="8"
+    calc="align->splice5_forward[j-7]+intronopen"
+    target_label 5SS_PHASE_0
+    endsource
+  source INTRON_0 offj="1"
+    calc="0"
+    endsource
+  query_label INTRON_STATE
+  target_label INTRON
+endstate
+state INTRON_1 offi="0" offj="1"
+   source CODON offj="9"
+    calc="align->splice5_forward[j-7]+intronopen"
+    target_label 5SS_PHASE_1
+    endsource
+  source INTRON_1 offj="1"
+    calc="0"
+    endsource
+  query_label INTRON_STATE
+  target_label INTRON
+endstate
+state INTRON_2 offi="0" offj="1"
+   source CODON offj="10"
+    calc="align->splice5_forward[j-7]+intronopen"
+    target_label 5SS_PHASE_2
+    endsource
+  source INTRON_2 offj="1"
+    calc="0"
+    endsource
+  query_label INTRON_STATE
+  target_label INTRON
+endstate
+state  REVERSE_CODON offi="0"
+  source REVERSE_CODON offj="3"
+    calc="align->reverse_coding[j]"
+    endsource
+  source INTERGENIC offj="3"
+    calc="align->reverse_coding[j]"
+    endsource
+  source REVERSE_INTRON_0 offj="6"
+    calc="align->splice5_reverse[j-3]"
+    target_label REV_5SS_PHASE_0
+    endsource
+  source REVERSE_INTRON_1 offj="5"
+    calc="align->splice5_reverse[j-2]"
+    target_label REV_5SS_PHASE_1
+    endsource
+  source REVERSE_INTRON_2 offj="4"
+    calc="align->splice5_reverse[j-1]"
+    target_label REV_5SS_PHASE_2
+    endsource
+  query_label REV_EXON_STATE
+  target_label REV_CODON
+endstate
+state REVERSE_INTRON_0 offi="0" offj="1"
+  source REVERSE_CODON offj="8"
+    calc="align->splice3_reverse[j-7]+intronopen"
+    target_label REV_3SS_PHASE_0
+    endsource
+  source REVERSE_INTRON_0 offj="1"
+    calc="0"
+    endsource
+  query_label REV_INTRON_STATE
+  target_label REV_INTRON
+endstate
+state REVERSE_INTRON_1 offi="0" offj="1"
+   source REVERSE_CODON offj="9"
+    calc="align->splice3_reverse[j-7]+intronopen"
+    target_label REV_3SS_PHASE_1
+    endsource
+  source REVERSE_INTRON_1 offj="1"
+    calc="0"
+    endsource
+  query_label REV_INTRON_STATE
+  target_label REV_INTRON
+endstate
+state REVERSE_INTRON_2 offi="0" offj="1"
+   source REVERSE_CODON offj="10"
+    calc="align->splice3_reverse[j-7]+intronopen"
+    target_label REV_3SS_PHASE_2
+    endsource
+  source REVERSE_INTRON_2 offj="1"
+    calc="0"
+    endsource
+  query_label REV_INTRON_STATE
+  target_label REV_INTRON
+endstate
+state START !special !start
+endstate
+state INTERGENIC !special 
+  source START offj="1"
+    calc="0"
+    endsource
+  source INTERGENIC offj="1"
+    calc="0"
+    endsource
+  source CODON  
+    calc="geneopen"
+    target_label STOP
+    endsource
+  source REVERSE_CODON  
+    calc="geneopen"
+    target_label REV_CODON    
+    endsource
+  target_label SEQUENCE
+  query_label  INTERGENIC
+endstate
+state END !special !end
+  source INTERGENIC offj="1" 
+    calc="0"
+    endsource
+  query_label END
+  target_label END
+endstate
+collapse INTRON_STATE INTRON
+collapse REV_INTRON_STATE REV_INTRON
+collapse INTERGENIC SEQUENCE
+endmatrix
+
+
+%{
+#include "alignwisedp.h"
+
+
+
+%}

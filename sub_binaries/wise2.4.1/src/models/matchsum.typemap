@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_MatchSummarySet *    T_Wise2_MatchSummarySet
+
+INPUT
+T_Wise2_MatchSummarySet
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_MatchSummarySet *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_MatchSummarySet
+	sv_setref_pv($arg, "Wise2::MatchSummarySet", (void*) $var);
+
+TYPEMAP
+Wise2_MatchSummary *    T_Wise2_MatchSummary
+
+INPUT
+T_Wise2_MatchSummary
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_MatchSummary *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_MatchSummary
+	sv_setref_pv($arg, "Wise2::MatchSummary", (void*) $var);

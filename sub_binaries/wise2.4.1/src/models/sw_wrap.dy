@@ -1,0 +1,493 @@
+
+%{
+#include "proteinsw.h"
+#include "abc.h"
+#include "pba.h"
+
+%}
+
+
+api
+func Align_strings_ProteinSmithWaterman
+func Align_Sequences_ProteinSmithWaterman
+func Align_Proteins_SmithWaterman
+func Align_Proteins_ABC
+func Align_Sequences_ProteinABC
+func Hscore_from_ProteinSW
+func Hscore_from_ProteinABC
+func Hscore_from_ProteinBA
+endapi
+
+%{
+#include "sw_wrap.h"
+
+%func
+This is the most *stupidly* abstracted view of two sequences
+getting aligned, being two strings.
+
+It would be much better if you used Sequence objects or Protein
+objects to carry the proteins.
+%arg
+one string of the first sequence
+two string of the second sequence
+comp Comparison Matrix
+gap gap penalty
+ext extension penalty
+%%
+AlnBlock * Align_strings_ProteinSmithWaterman(char * one,char * two,CompMat * comp,int gap,int ext,DPEnvelope * dpenv,DPRunImpl * dpri)
+{
+  Sequence * one_s;
+  Sequence * two_s;
+  AlnBlock * out;
+
+  /* error check the strings? */
+
+  one_s = new_Sequence_from_strings(NULL,one);
+  if( one_s == NULL ) {
+    warn("Cannot make new sequence...\n");
+    return NULL;
+  }
+
+  two_s = new_Sequence_from_strings(NULL,two);
+  if( two_s == NULL ) {
+    warn("Cannot make new sequence...\n");
+    return NULL;
+  }
+
+  out = Align_Sequences_ProteinSmithWaterman(one_s,two_s,comp,gap,ext,dpenv,dpri);
+
+  free_Sequence(one_s);
+  free_Sequence(two_s);
+
+  return out;
+}
+  
+
+%func
+This function is a mid-level abstraction of
+comparing two sequences, which could be
+generic types (eg DNA!). This is tested
+for and warnings are given but the alignment
+is still calculated. To prevent this test
+warning either make sure the Sequence types
+are set to PROTEIN or, better still, use the
+high level abstraction Align_Proteins_SmithWaterman
+
+Otherwise this performs a standard smith waterman
+protein alignment...
+
+To display the alignment use  write_pretty_seq_align
+%arg
+one r First sequence to compare
+two r Second sequecne to compare
+comp r Comparison matrix to use
+gap gap penalty. Must be negative or 0
+ext ext penalty. Must be negative or 0
+return o new AlnBlock structure representing the alignment
+%%
+AlnBlock * Align_Sequences_ProteinSmithWaterman(Sequence * one,Sequence * two,CompMat * comp,int gap,int ext,DPEnvelope * dpenv,DPRunImpl * dpri)
+{
+  AlnBlock * out = NULL;
+  ComplexSequenceEvalSet * evalfunc = NULL;
+  ComplexSequence * query_cs = NULL;
+  ComplexSequence * target_cs = NULL;
+  PackAln * pal = NULL;
+
+  if( one == NULL || two == NULL || comp == NULL ) {
+    warn("Passed in NULL objects into Align_Sequences_ProteinSmithWaterman!");
+    return NULL;
+  }
+
+  if( one->type != SEQUENCE_PROTEIN ) {
+    warn("Sequence %s is not typed as protein... ignoring!\n",one->name);
+  }
+
+  if( two->type != SEQUENCE_PROTEIN ) {
+    warn("Sequence %s is not typed as protein... ignoring!\n",two->name);
+  }
+
+
+  if( gap > 0 || ext > 0 ) {
+    warn("Gap penalties %d,%d only make sense if they are negative",gap,ext);
+    return NULL;
+  }
+
+  evalfunc = default_aminoacid_ComplexSequenceEvalSet();
+  
+  query_cs = new_ComplexSequence(one,evalfunc);
+  if( query_cs == NULL )
+    goto cleanup;
+  target_cs = new_ComplexSequence(two,evalfunc);
+  if( target_cs == NULL )
+    goto cleanup;
+
+  pal = PackAln_bestmemory_ProteinSW(query_cs,target_cs,comp,gap,ext,dpenv,dpri);
+  if( pal == NULL ) 
+    goto cleanup;
+
+  out = convert_PackAln_to_AlnBlock_ProteinSW(pal);
+  
+  goto cleanup;
+
+  cleanup :
+
+    if( query_cs != NULL )
+      free_ComplexSequence(query_cs);
+
+  if( target_cs != NULL )
+    free_ComplexSequence(target_cs);
+
+  if( pal != NULL )
+    free_PackAln(pal);
+
+  if( evalfunc != NULL )
+    free_ComplexSequenceEvalSet(evalfunc);
+
+  return out;
+
+}
+
+%func
+This is a way of aligning two sequences using
+the ProteinBlockAligner algorithm
+
+%arg
+one Sequence to align
+two Sequence to align
+comp Comparison Matrix
+bentry entry into a block
+bexit  exit for a block
+b1exit exit for a block of length one
+b_self self transition
+b_on   onwards transition
+%%
+AlnBlock * Align_Sequences_ProteinBlockAligner(Sequence * one,Sequence * two,CompMat * comp,int bentry,int bexit,int b1exit,int b_self,int b_on,DPEnvelope * dpenv,DPRunImpl * dpri)
+{
+  ComplexSequence * cone=NULL;
+  ComplexSequence * ctwo=NULL;
+  AlnBlock * alb= NULL;
+  PackAln * pal=NULL;
+  ComplexSequenceEvalSet * evalfunc = NULL;
+
+  if( one == NULL || two == NULL || comp == NULL ) {
+    warn("Passed in NULL objects into Align_Sequences_ProteinSmithWaterman!");
+    return NULL;
+  }
+
+  if( one->type != SEQUENCE_PROTEIN ) {
+    warn("Sequence %s is not typed as protein... ignoring!\n",one->name);
+  }
+
+  if( two->type != SEQUENCE_PROTEIN ) {
+    warn("Sequence %s is not typed as protein... ignoring!\n",two->name);
+  }
+
+
+  evalfunc = default_aminoacid_ComplexSequenceEvalSet();
+  
+  cone = new_ComplexSequence(one,evalfunc);
+  if( cone == NULL )
+    goto cleanup;
+  ctwo = new_ComplexSequence(two,evalfunc);
+  if( ctwo == NULL )
+    goto cleanup;
+
+  pal = PackAln_bestmemory_ProteinBlockAligner(cone,ctwo,comp,bentry,b1exit,b_on,b_self,bexit,dpenv,dpri);
+
+  if( pal == NULL ) 
+    goto cleanup;
+
+  alb = convert_PackAln_to_AlnBlock_ProteinSW(pal);
+  
+  goto cleanup;
+
+  cleanup :
+
+  if( cone != NULL )
+      free_ComplexSequence(cone);
+
+  if( ctwo != NULL )
+    free_ComplexSequence(ctwo);
+
+  if( pal != NULL )
+    free_PackAln(pal);
+
+  if( evalfunc != NULL )
+    free_ComplexSequenceEvalSet(evalfunc);
+
+  return alb;
+
+}
+
+%func 
+Align_Sequences_ProteinABC
+this function is analogous to Align_Sequences_ProteinSmithWaterman
+but using the abc model
+%arg
+one Sequence to align
+two Sequence to align
+comp Comparison Matrix
+a genearlized affine gap cost 
+b genearlized affine gap cost 
+c genearlized affine gap cost 
+%%
+AlnBlock * Align_Sequences_ProteinABC(Sequence * one,Sequence * two,CompMat * comp,int a, int b, int c,DPEnvelope * dpenv,DPRunImpl * dpri)
+{
+   ComplexSequence * cone=NULL;
+   ComplexSequence * ctwo=NULL;
+   AlnBlock * alb= NULL;
+   PackAln * pal=NULL;
+   ComplexSequenceEvalSet * evalfunc = NULL;
+
+   if( one == NULL || two == NULL || comp == NULL ) {
+     warn("Passed in NULL objects into Align_Sequences_ProteinSmithWaterman!");
+     return NULL;
+   }
+
+   if( one->type != SEQUENCE_PROTEIN ) {
+     warn("Sequence %s is not typed as protein... ignoring!\n",one->name);
+   }
+
+   if( two->type != SEQUENCE_PROTEIN ) {
+     warn("Sequence %s is not typed as protein... ignoring!\n",two->name);
+   }
+
+   evalfunc = default_aminoacid_ComplexSequenceEvalSet();
+
+   cone = new_ComplexSequence(one,evalfunc);
+   if( cone == NULL )
+      goto cleanup;
+    ctwo = new_ComplexSequence(two,evalfunc);
+   if( ctwo == NULL )
+     goto cleanup;
+
+   pal = PackAln_bestmemory_abc(cone,ctwo,comp,a,b,c,NULL,dpri);
+
+   if( pal == NULL )
+     goto cleanup;
+
+   alb = convert_PackAln_to_AlnBlock_abc(pal);
+
+   goto cleanup;
+
+   cleanup :
+
+   if( cone != NULL )
+       free_ComplexSequence(cone);
+
+   if( ctwo != NULL )
+     free_ComplexSequence(ctwo);
+
+   if( pal != NULL )
+     free_PackAln(pal);
+
+   if( evalfunc != NULL )
+     free_ComplexSequenceEvalSet(evalfunc);
+
+   return alb;
+
+}
+  
+%func
+Analogous to Align_Proteins_SmithWaterman for ABC model
+%arg
+one protein to align
+two protein to align
+comp comparison matrix
+a generalized affine gap cost a
+b generalized affine gap cost b
+c generalized affine gap cost c
+%%
+AlnBlock * Align_Proteins_ABC(Protein * one,Protein * two,CompMat * comp,int a,int b,int c,DPEnvelope * dpenv,DPRunImpl * dpri) 
+{
+
+  if( one == NULL || two == NULL || comp == NULL ) {
+    warn("Passed in NULL objects into Align_Proteins_ABC!");
+    return NULL;
+  }
+
+  return Align_Sequences_ProteinABC(one->baseseq,two->baseseq,comp,a,b,c,dpenv,dpri);
+}
+
+%func
+This is the most correct way of aligning two Proteins,
+using Protein objects, which can be assummed to be
+proteins with no objections
+
+To display the alignment use write_pretty_Protein_align
+
+%arg
+one Protein to align
+two Protein to align
+comp Comparison Matrix
+gap gap penalty
+ext extension penalty
+%%
+AlnBlock * Align_Proteins_SmithWaterman(Protein * one,Protein * two,CompMat * comp,int gap,int ext,DPEnvelope * dpenv,DPRunImpl * dpri)
+{
+  if( one == NULL || two == NULL || comp == NULL ) {
+    warn("Passed in NULL objects into Align_Proteins_SmithWaterman!");
+    return NULL;
+  }
+    
+  
+  return Align_Sequences_ProteinSmithWaterman(one->baseseq,two->baseseq,comp,gap,ext,dpenv,dpri);
+}
+
+%func
+Runs a database psw search 
+%arg
+querydb query database 
+targetdb target database
+comp comparison matrix
+gap gap penalty
+ext extension penalty
+bits_cutoff 
+report_level 
+die_on_error 
+dbsi
+%%
+Hscore * Hscore_from_ProteinSW(ProteinDB* querydb,ProteinDB* targetdb,CompMat* comp,int gap,int ext,double bits_cutoff,int report_level,boolean die_on_error,DBSearchImpl* dbsi)
+{
+
+   Hscore * out = NULL;
+ 
+   Search_Return_Type ret;
+
+   ret = SEARCH_ERROR;
+
+   out = std_score_Hscore(bits_cutoff,report_level);
+
+   if( dbsi == NULL ) {
+      warn("Passed a NULL dbsi search implementaion object. Exiting without searching");
+      goto exit;
+   }
+
+   if( querydb == NULL ) {
+      warn("Passed a NULL querydb. Exiting without searching");
+      goto exit;
+   }
+
+   if( targetdb == NULL ) {
+      warn("Passed a NULL targetdb. Exiting without searching");
+      goto exit;
+   }
+
+   if( comp == NULL ) {
+      warn("Passed a NULL comparison matrix. Exiting without searching");
+      goto exit;
+   }
+
+   ret = search_ProteinSW(dbsi,out,querydb,targetdb,comp,gap,ext);
+
+   exit:
+
+   return out;
+}
+
+%func
+Runs a database abc search 
+%arg
+querydb query database 
+targetdb target database
+comp comparison matrix
+a generalized affine gap cost a
+b generalized affine gap cost b
+c generalized affine gap cost c
+bits_cutoff 
+report_level 
+die_on_error 
+dbsi
+%%
+Hscore * Hscore_from_ProteinABC(ProteinDB* querydb,ProteinDB* targetdb,CompMat* comp,int a,int b,int c,double bits_cutoff,int report_level,boolean die_on_error,DBSearchImpl* dbsi)
+{
+
+   Hscore * out = NULL;
+ 
+   Search_Return_Type ret;
+
+   ret = SEARCH_ERROR;
+
+   out = std_score_Hscore(bits_cutoff,report_level);
+
+   if( dbsi == NULL ) {
+      warn("Passed a NULL dbsi search implementaion object. Exiting without searching");
+      goto exit;
+   }
+
+   if( querydb == NULL ) {
+      warn("Passed a NULL querydb. Exiting without searching");
+      goto exit;
+   }
+
+   if( targetdb == NULL ) {
+      warn("Passed a NULL targetdb. Exiting without searching");
+      goto exit;
+   }
+
+   if( comp == NULL ) {
+      warn("Passed a NULL comparison matrix. Exiting without searching");
+      goto exit;
+   }
+
+   ret = search_abc(dbsi,out,querydb,targetdb,comp,a,b,c);
+
+   exit:
+
+   return out;
+}
+
+%func
+Runs a database pba search
+%arg
+querydb query database
+targetdb target database
+comp comparison matrix
+bentry
+bexit
+bfor_trans
+b_self_trans
+b3exit
+bits_cutoff
+report_level
+dbsi
+%%
+Hscore * Hscore_from_ProteinBA(ProteinDB* querydb,ProteinDB* targetdb,CompMat* comp,Score bentry,Score bexit,Score bfor_trans,Score b_self_trans,Score b3exit,double bits_cutoff,int report_level,DBSearchImpl* dbsi)
+{
+
+   Hscore * out = NULL;
+
+   Search_Return_Type ret;
+
+   ret = SEARCH_ERROR;
+
+   out = std_score_Hscore(bits_cutoff,report_level);
+
+   if( dbsi == NULL ) {
+      warn("Passed a NULL dbsi search implementaion object. Exiting without searching");
+      goto exit;
+   }
+
+   if( querydb == NULL ) {
+      warn("Passed a NULL querydb. Exiting without searching");
+      goto exit;
+   }
+
+   if( targetdb == NULL ) {
+      warn("Passed a NULL targetdb. Exiting without searching");
+      goto exit;
+   }
+
+   if( comp == NULL ) {
+      warn("Passed a NULL comparison matrix. Exiting without searching");
+      goto exit;
+   }
+
+   ret = search_ProteinBlockAligner(dbsi,out,querydb,targetdb,comp,bentry,bexit,bfor_trans,b_self_trans,b3exit);
+
+   exit:
+
+   return out;
+}
+
+%}

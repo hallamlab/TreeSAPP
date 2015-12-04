@@ -1,0 +1,180 @@
+
+%{
+#include "transregion.h"
+
+
+%}
+
+struct MotifMatrixPara
+Probability  comp_in_match  
+Probability  comp_out_match
+Probability  comp_spacer
+Probability  region_in
+Probability  motif_indel
+Probability  cons_indel
+Probability  spacer_indel
+Probability  spacer_to_cons
+Probability  spacer_to_motif
+Probability  spacer_duration
+Probability  motif_duration
+Probability  cons_duration
+
+struct MotifMatrixScore
+DnaMatrix * comp_in_motif
+DnaMatrix * comp_out_motif
+DnaMatrix * comp_spacer
+Score  region_in
+Score  motif_indel
+Score  cons_indel
+Score  spacer_indel
+Score  spacer_to_cons
+Score  spacer_to_motif
+Score  spacer_duration
+Score  motif_duration
+Score  cons_duration
+
+
+struct MotifConsMatrix
+char ** mat !matrix
+
+
+
+%{
+#include "motifmatrix.h"
+
+
+MotifMatrixScore * MotifMatrixScore_from_MotifMatrixPara(MotifMatrixPara * mmp)
+{
+  MotifMatrixScore * out;
+  DnaProbMatrix * dmp;
+
+  out = MotifMatrixScore_alloc();
+
+  dmp = DnaProbMatrix_from_match(mmp->comp_in_match,NMaskType_BANNED);  
+  assert(dmp);
+  flat_null_DnaProbMatrix(dmp);  
+
+  out->comp_in_motif = DnaMatrix_from_DnaProbMatrix(dmp);
+  free_DnaProbMatrix(dmp);
+
+  dmp = DnaProbMatrix_from_match(mmp->comp_out_match,NMaskType_BANNED);  
+  assert(dmp);
+  flat_null_DnaProbMatrix(dmp);  
+
+  out->comp_out_motif = DnaMatrix_from_DnaProbMatrix(dmp);
+  free_DnaProbMatrix(dmp);
+
+
+  dmp = DnaProbMatrix_from_match(mmp->comp_spacer,NMaskType_BANNED);  
+  assert(dmp);
+  flat_null_DnaProbMatrix(dmp);  
+
+  out->comp_spacer = DnaMatrix_from_DnaProbMatrix(dmp);
+  free_DnaProbMatrix(dmp);
+
+  out->region_in       = Probability2Score(mmp->region_in);
+  out->motif_indel     = Probability2Score(mmp->motif_indel);
+  out->cons_indel      = Probability2Score(mmp->cons_indel);
+  out->spacer_indel    = Probability2Score(mmp->spacer_indel);
+  out->spacer_to_cons  = Probability2Score(mmp->spacer_to_cons);
+  out->spacer_to_motif = Probability2Score(mmp->spacer_to_motif);
+  out->spacer_duration = Probability2Score(mmp->spacer_duration);
+  out->motif_duration  = Probability2Score(mmp->motif_duration);
+  out->cons_duration   = Probability2Score(mmp->cons_duration);
+
+
+  return out;
+
+}
+
+MotifMatrixPara * new_MotifMatrixPara_from_argv(int * argc,char ** argv)
+{
+  MotifMatrixPara * out;
+
+  out = MotifMatrixPara_alloc();
+
+  out->comp_in_match  = 0.9;
+  out->comp_out_match = 0.75;
+  out->comp_spacer    = 0.35;
+  out->region_in      = 0.0001;
+  out->motif_indel    = 0.00001;
+  out->cons_indel     = 0.025;
+  out->spacer_indel   = 0.1;
+  out->spacer_duration = 0.2;
+  out->motif_duration = 0.9;
+  out->cons_duration  = 0.7;
+  out->spacer_to_motif = 0.05;
+  out->spacer_to_cons  = 0.000001;
+
+  strip_out_float_argument(argc,argv,"mm_motif",&out->comp_in_match);
+  strip_out_float_argument(argc,argv,"mm_cons",&out->comp_out_match);
+  strip_out_float_argument(argc,argv,"mm_spacer",&out->comp_spacer);
+  strip_out_float_argument(argc,argv,"mm_motif_indel",&out->motif_indel);
+  strip_out_float_argument(argc,argv,"mm_cons_indel",&out->cons_indel);
+  strip_out_float_argument(argc,argv,"mm_spacer_indel",&out->spacer_indel);
+  strip_out_float_argument(argc,argv,"mm_switch_motif",&out->spacer_to_motif);
+  strip_out_float_argument(argc,argv,"mm_switch_cons",&out->spacer_to_cons);
+
+  return out;
+}
+
+void show_help_MotifMatrixPara(FILE * ofp)
+{
+  fprintf(ofp,"Motif Matrix matching paramters\n");
+  fprintf(ofp,"  -mm_motif [0.9]  Probability of a match in a motif\n");
+  fprintf(ofp,"  -mm_cons  [0.75] Probability of a match in a non-motif conserved\n");
+  fprintf(ofp,"  -mm_spacer[0.35] Probability of a match in a spacer\n");
+  fprintf(ofp,"  -mm_motif_indel [0.00001] indel inside a motif\n");
+  fprintf(ofp,"  -mm_cons_indel  [0.025]   indel inside a conserved region\n");
+  fprintf(ofp,"  -mm_spacer_indel [0.1]    indel inside a spacer\n");
+  fprintf(ofp,"  -mm_switch_motif [0.05]    cost of switching to motif match\n");
+  fprintf(ofp,"  -mm_switch_cons  [0.000001]  cost of switching to conserved match\n");
+
+}
+
+MotifConsMatrix * new_MotifConsMatrix(TransFactorMatchSet * one,int starti,int endi,TransFactorMatchSet * two,int startj,int endj)
+{
+  int i;
+  int j;
+  int l;
+  int k;
+  int z;
+  MotifConsMatrix * out;
+  int motif_len;
+
+  assert(one != NULL);
+  assert(two != NULL);
+
+  out = MotifConsMatrix_alloc_matrix(endi-starti,endj-startj);
+
+  for(i=0;i< (endi-starti);i++) {
+    for(j=0;j< (endj-startj) ;j++) {
+      out->mat[i][j] = 0;
+    }
+  }
+
+  for(l=0;l<one->len;l++) {
+    if( one->match[l]->start < starti || one->match[l]->end > endi ) {
+      continue;
+    }
+    for(k=0;k<two->len;k++) {
+      if( two->match[k]->start < startj || two->match[k]->end > endj ) {
+	continue;
+      }
+      
+      if( two->match[k]->factor != one->match[l]->factor ) {
+	continue;
+      }
+
+      motif_len = one->match[l]->end - one->match[l]->start;
+
+      for(z=0;z<motif_len;z++) {
+	out->mat[one->match[l]->start-starti+z][two->match[k]->start-startj+z] = 1;
+      }      
+
+    }
+  }
+
+
+  return out;
+}

@@ -1,0 +1,64 @@
+#
+#
+#
+#
+name promoterwise
+desc promoterwise standard test
+do   promoterwise -silent pw.human pw.mouse > TEMP-PW
+diff TEMP-PW promoterwise.out
+//
+name basic-cdna
+desc cdna test case (protein v cdna), all outputs
+do   estwise short.pep short.dna -indel 1e-5 -subs 1e-5 -pretty -para -sum -alb -pal -silent -alg 333 > TEMP
+diff TEMP basic_cdna.out
+//
+name basic-genomic
+desc genomic test case (protein v genomic), all outputs
+do   genewise short.pep short.dna -pretty -para  -genes -sum -cdna -trans -ace -gener -alb -pal -quiet -dymem linear  > TEMP
+diff TEMP basic_genomic.out
+//
+name hmm-binary-cdna
+desc cdna test case (protein v cdna), all outputs
+do   estwise HMM.binary -indel 1e-5 -subs 1e-5 -hmmer  short.dna -pretty -para -sum -alb -pal -quiet -alg 333L > TEMP
+diff TEMP hmm_cdna.out
+//
+name hmm-wrong-dna
+desc HMMs vs DNA sequence when there is no match
+do   genewise wrong.hmm -hmmer short.dna -alg 623 -pal > TEMP
+diff TEMP wrong.out
+//
+name hmm-wrong-dna-est
+desc HMMs vs DNA sequence when there is no match
+do   estwise wrong.hmm -hmmer short.dna -alg 333 -pal > TEMP
+diff TEMP wrong_est.out
+//
+name hmm-ascii-genomic
+desc cdna test case (protein v cdna), all outputs
+do   genewise -init local HMM.ascii -hmmer  short.dna -pretty -para  -genes -sum -cdna -trans -ace -gener -alb -pal -quiet > TEMP
+diff TEMP hmm_genomic.out
+//
+name genewise-db
+desc genewisedb hmm vs DNA sequences. Could take a while
+do   genewisedb rrm.HMM -hmmer dna.db -pretty -para -gener -genes -cdna -trans -ace -quiet -init global > TEMP
+diff TEMP genewise-db.out
+//
+name genewise-db-lite
+desc genewisedb hmm vs DNA sequences, using GWLITE. Could take a while
+do   genewisedb rrm.HMM -hmmer dna.db -pretty -para -gener -genes -cdna -trans -ace -quiet -init global -alg 6LITE > TEMP
+diff TEMP genewise-db-lite.out
+//
+name estwise-db
+desc estwisedb hmm vs DNA sequences. Could take a while
+do   estwisedb -init local rrm.HMM -hmmer dna.db -pretty -para -alb -quiet -alg 333 -aalg 333 > TEMP
+diff TEMP estwise-db.out
+//
+name pswdb
+desc Protein smith waterman db search
+do   pswdb road.pep pep.fa -quiet > TEMP 
+diff TEMP pswdb.out
+//
+name genewisedb-pfam-mode
+desc genewisedb designed for Pfam searching
+do   genewisedb -pfam rrm.HMM -dnas short.dna -pretty -para -alb -quiet -alg 623 -aalg 623L > TEMP
+diff TEMP genewisedb-pfam.out
+//

@@ -1,0 +1,104 @@
+\section{packaln}
+\label{module_packaln}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_PackAln} PackAln
+
+\item \ref{object_PackAlnUnit} PackAlnUnit
+
+\end{itemize}
+\subsection{Object PackAln}
+
+\label{object_PackAln}
+
+The PackAln object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{pau} Type [PackAlnUnit ** : List]  list of PackAlnUnits from start to end
+
+\item{score} Type [int : Scalar]  score over the entire alignment
+
+\end{description}
+This is the lowest-level of representation
+of a DP alignment, being the list of 
+(i,j,state) triples taken through the
+DP matrix. The score for the transition to
+this point is held as well.
+
+
+This object is very low level and often a
+much better choice for representation is
+in /AlnBlock objects 
+
+
+
+
+Member functions of PackAln
+
+\subsubsection{show_simple_PackAln}
+
+\begin{description}
+\item[External C] {\tt Wise2_show_simple_PackAln (pal,ofp)}
+\item[Perl] {\tt &Wise2::PackAln::show_simple_PackAln (pal,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->show_simple_PackAln(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[pal] [UNKN ] Undocumented argument [PackAln *]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+shows packaln with a pretty verbose debugging 
+format
+
+
+\subsubsection{show_bits_and_cumlative_PackAln}
+
+\begin{description}
+\item[External C] {\tt Wise2_show_bits_and_cumlative_PackAln (pal,ofp)}
+\item[Perl] {\tt &Wise2::PackAln::show_bits_and_cumlative_PackAln (pal,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->show_bits_and_cumlative_PackAln(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[pal] [UNKN ] Undocumented argument [PackAln *]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+Shows packaln as: 
+
+
+i,j,state,score,bits,cumlative-score,cumlative-bits
+
+
+cumlative score and cumlative bits are useful sometimes
+
+
+\subsection{Object PackAlnUnit}
+
+\label{object_PackAlnUnit}
+
+The PackAlnUnit object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{i} Type [int : Scalar]  position in query 
+
+\item{j} Type [int : Scalar]  position in target
+
+\item{state} Type [int : Scalar]  state in FSM
+
+\item{score} Type [int : Scalar]  score of the transition that reached this state
+
+\end{description}
+Internal object for /PackAln:
+A single position of an alignment
+as the (i,j,state) triple
+
+
+
+
+Member functions of PackAlnUnit
+

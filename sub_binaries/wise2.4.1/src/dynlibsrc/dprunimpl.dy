@@ -1,0 +1,114 @@
+
+%{
+#include "wisebase.h"
+#include "basematrix.h"
+
+typedef enum DPRunImplMemory {
+  DPIM_Default = 543,
+  DPIM_Explicit,
+  DPIM_Linear 
+} DPRunImplMemory; 
+
+
+%}
+
+
+
+struct DPRunImpl
+DPRunImplMemory memory !def="DPIM_Default"
+int kbyte_size !def="100000"
+boolean debug  !def="FALSE"
+boolean paldebug !def="FALSE"
+boolean should_cache !def="TRUE"
+BaseMatrix * cache;
+
+
+%{
+#include "dprunimpl.h"
+
+%func
+Clones a DPRunImpl - particularly sensible
+for cached cases
+%%
+DPRunImpl * clone_DPRunImpl(DPRunImpl * dpri)
+{
+  DPRunImpl * out;
+
+  out = DPRunImpl_alloc();
+
+  out->memory = dpri->memory;
+  out->kbyte_size = dpri->kbyte_size;
+  out->debug = dpri->debug;
+  out->paldebug = dpri->paldebug;
+  out->should_cache = dpri->should_cache;
+  out->cache = NULL;
+
+  return out;
+}
+
+%func
+Shows help functions for DPRunImpl
+%%
+void show_help_DPRunImpl(FILE * ofp)
+{
+  fprintf(ofp,"Dynamic programming matrix implementation\n");
+  fprintf(ofp,"  -dymem       memory style [default/linear/explicit]\n");
+  fprintf(ofp,"  -kbyte       memory amount to use [4000]\n");
+  fprintf(ofp,"  -[no]dycache implicitly cache dy matrix usage (default yes)\n");
+  fprintf(ofp,"  -dydebug     drop into dynamite dp matrix debugger\n");
+  fprintf(ofp,"  -paldebug    print PackAln after debugger run if used\n");
+}
+
+%func
+Makes a DPRunImpl object from stripping from
+a command line
+%%
+DPRunImpl * new_DPRunImpl_from_argv(int * argc,char ** argv)
+{
+  DPRunImpl * out;
+  char * temp;
+
+  out = DPRunImpl_alloc();
+
+  if( (temp = strip_out_assigned_argument(argc,argv,"dymem")) != NULL ) {
+    if( strcmp(temp,"explicit") == 0) {
+      out->memory = DPIM_Explicit;
+    } else if( strcmp(temp,"linear") == 0 ) {
+      out->memory = DPIM_Linear;
+    } else if( strcmp(temp,"default") == 0 ) {
+      out->memory = DPIM_Default;
+    } else {
+      warn("String [%s] for dynamic memory layout is not recognised",temp);
+      free_DPRunImpl(out);
+      return NULL;
+    }
+  }
+
+  if( (temp = strip_out_assigned_argument(argc,argv,"kbyte")) != NULL ) {
+    if( is_integer_string(temp,&out->kbyte_size) == FALSE ) {
+      warn("String [%s] for dynamic memory size is not recognised",temp);
+      free_DPRunImpl(out);
+      return NULL;
+    }
+  }
+
+  strip_out_boolean_def_argument(argc,argv,"dycache",&out->should_cache);
+
+
+
+  if(strip_out_boolean_argument(argc,argv,"dydebug") == TRUE ) {
+    out->debug  = 1;
+    out->memory = DPIM_Explicit;
+  }
+
+  if(strip_out_boolean_argument(argc,argv,"paldebug") == TRUE ) {
+    out->paldebug  = 1;
+  }
+
+  return out;
+}
+
+  
+
+
+%}
