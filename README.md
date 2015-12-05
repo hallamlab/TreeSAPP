@@ -11,16 +11,17 @@ A unified python software for generating phylogenetic trees from genomic sequenc
 ```
 git clone git@github.com:hallamlab/MLTreeMap.git
 ```
-The exectutables for the required softwares are included in the MLTreeMap/sub_binaries/mac directory.
-The Linux executables are in MLTreeMap/sub_binaries/ubuntu. If these do not work out-of-the-box, instructions
-on installing the dependencies specific to your machine are included below.
+The exectutables for the required softwares are included either in the MLTreeMap/sub_binaries/mac
+ directory or MLTreeMap/sub_binaries/ubuntu, depending on your OS.
+If these do not work out-of-the-box, instructions on installing the dependencies specific to your
+ machine are included below.
 ### Downloading dependencies for Linux:
 
 #### RAxML:
 A simple `git clone` of their [github page](https://github.com/stamatak/standard-RAxML) should work.
 We have tested several versions and found no problems from V.7.1 to the most recent release as of 
 December 1st, 2015. However, the executable MUST be named `raxmlHPC` or it will not be found by MLTreeMap!
-If you find an incompatability please notify us through the Issues feed!
+If you find an incompatibility please notify us through the Issues feed!
 
 #### Gblocks:
 For Linux/x86:
@@ -61,6 +62,6 @@ To perform a basic run with only the required arguments:
 ```
 ./mltreemap.py -i input.fasta -o ~/path/to/output/directory/
 ```
-As you can see, executables are automatically detected in both the $PATH and in the
+Executables are automatically detected in both the $PATH and in the
 sub_binaries/mac or sub_binaries/ubuntu, depending on your OS. However, if your executables
-are elsewhere, MLTreeMap can be directed to them through the `--executables` argument.
+are together elsewhere, MLTreeMap can be directed to them with `--executables`.
