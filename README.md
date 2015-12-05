@@ -20,7 +20,7 @@ on installing the dependencies specific to your machine are included below.
 A simple `git clone` of their [github page](https://github.com/stamatak/standard-RAxML) should work.
 We have tested several versions and found no problems from V.7.1 to the most recent release as of 
 December 1st, 2015. However, the executable MUST be named `raxmlHPC` or it will not be found by MLTreeMap!
-If you have find an incompatability please notify us through the Issues feed!
+If you find an incompatability please notify us through the Issues feed!
 
 #### Gblocks:
 For Linux/x86:
