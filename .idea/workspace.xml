@@ -2,9 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a88da795-8b99-4ab5-b16d-a838c96ecb1e" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/FileHolder.py" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/mltreemap_utility.py" afterPath="" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/README.md" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/mltreemap.py" afterPath="$PROJECT_DIR$/mltreemap.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="MLTreeMap.iws" />
@@ -29,8 +27,8 @@
       <file leaf-file-name="mltreemap.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/mltreemap.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.35723433">
-              <caret line="686" column="65" selection-start-line="686" selection-start-column="64" selection-end-line="686" selection-end-column="65" />
+            <state vertical-scroll-proportion="0.63380283">
+              <caret line="977" column="0" selection-start-line="977" selection-start-column="0" selection-end-line="977" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -65,9 +63,9 @@
   </component>
   <component name="ProjectFrameBounds">
     <option name="x" value="65" />
-    <option name="y" value="-4" />
+    <option name="y" value="24" />
     <option name="width" value="1535" />
-    <option name="height" value="904" />
+    <option name="height" value="876" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -92,8 +90,6 @@
       <sortByType />
     </navigator>
     <panes>
-      <pane id="Scope" />
-      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -114,6 +110,8 @@
           </PATH>
         </subPane>
       </pane>
+      <pane id="Scope" />
+      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -302,7 +300,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="65" y="-4" width="1535" height="904" extended-state="6" />
+    <frame x="65" y="24" width="1535" height="876" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.24885994" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -346,6 +344,14 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/mltreemap.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/../../MeatLoaf/FastaSubsetter.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
@@ -355,8 +361,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/mltreemap.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.35723433">
-          <caret line="686" column="65" selection-start-line="686" selection-start-column="64" selection-end-line="686" selection-end-column="65" />
+        <state vertical-scroll-proportion="0.63380283">
+          <caret line="977" column="0" selection-start-line="977" selection-start-column="0" selection-end-line="977" selection-end-column="0" />
           <folding />
         </state>
       </provider>

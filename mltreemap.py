@@ -983,8 +983,6 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
     # For each contig analyzed by Genewise...
     for contig in sorted(genewise_outputfiles.keys()):
-        if args.verbose:
-            print "Parsing genewise results for", contig + "...",
         genewise_results_raw = Autovivify()
         genewise_results = Autovivify()
         at_least_one_hit = 0
@@ -1053,8 +1051,6 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                     genewise_results_raw[contig][genewise_outputfile][sequence_count]['sequence'] += line.strip()
 
             input.close()
-            if args.verbose:
-                print "done."
 
         # Skip to next contig if there isn't at least 1 hit
         if at_least_one_hit != 1:
