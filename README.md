@@ -65,3 +65,18 @@ To perform a basic run with only the required arguments:
 Executables are automatically detected in both the $PATH and in the
 sub_binaries/mac or sub_binaries/ubuntu, depending on your OS. However, if your executables
 are together elsewhere, MLTreeMap can be directed to them with `--executables`.
+
+### Using MLTreeMap_imagemaker_2_061/mltreemap_imagemaker.pl
+
+We packaged the original MLTreeMap perl code with our python re-implementation
+
+To use it, some perl dependencies may need to be installed. For instance, the commands
+```
+cpan
+install "SVG"
+install "Math::Trig"
+```
+may be necessary. Two perl module files (\*.pm) are included in MLTreeMap_imagemaker_2_061/lib: NEWICK_tree.pm and TREEMAP_ml_svg_visualizer.pm.
+These will need to be copied to somewhere in your perl path (such as /usr/lib/perl5/) to allow mltreemap_imagemaker.pl to work anywhere
+on your machine.  
+

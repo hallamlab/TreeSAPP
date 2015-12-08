@@ -60,9 +60,10 @@ sub read_user_input {
     $error_message .= "-b: parameter for the size of the placement bubbles (default: 1)\n-r display 16s and 18s rRNA hits in different trees (2, default).";
     $error_message .= " or one tree of life (1)\n-h: high quality placement bubbles (1, default) or low quality bubbles (0). High quality bubbles work perfectly";
     $error_message .= "with inkscape but can cause trouble with Adobe Illustrator.\n";
+    $error_message .= "-T Location of tree_data/ relative to the current-working directory (default: ./tree_data/).\n";
         
     my %mandatory_options = (-i => 0);
-    my %option_defaults = (-o => "output/", -d => 0, -b => 1, -r => 2, -h => 1, -t => 1);
+    my %option_defaults = (-o => "output/", -d => 0, -b => 1, -r => 2, -h => 1, -t => 1, -T => "tree_data/");
     
     my %user_options = %option_defaults;
     my $current_option = "";
@@ -216,7 +217,7 @@ sub concatenate_files {
     my @colors = "";
     my %used_colors = ();
     
-    open (IN, "tree_data/available_dataset_colors.txt") or die "ERROR: tree_data/available_dataset_colors.txt does not exist!\n";
+    open (IN, "$$user_options{-T}/available_dataset_colors.txt") or die "ERROR: $$user_options{-T}/available_dataset_colors.txt does not exist!\n";
     <IN>;
     my $count = 0;
     while (<IN>) {
@@ -321,12 +322,13 @@ sub run_the_imagemaker {
     my $bubble_type = $$user_options{-h};
     my $color_mode = $$user_options{-d};
     my $text_mode = $$user_options{-t};
+    my $tree_data = $$user_options{-T};
     
     foreach my $denominator (sort {$a cmp $b} keys %$concatenated_input_files) {
         foreach my $input_filename_long (sort {$a cmp $b} keys %{$$concatenated_input_files{$denominator}}) {
             my $input_filename = $$concatenated_input_files{$denominator}{$input_filename_long};
             
-            my $message = TREEMAP_ml_svg_visualizer::run_visualisation ($input_filename,$input_filename_long,$output_dir,$denominator,$param_scale_bubble,$text_of_denominator,$bubble_type,$used_colors,$color_mode,$text_mode);
+            my $message = TREEMAP_ml_svg_visualizer::run_visualisation ($input_filename,$input_filename_long,$output_dir,$denominator,$param_scale_bubble,$text_of_denominator,$bubble_type,$used_colors,$color_mode,$text_mode,$tree_data);
             print "$message\n";
         }    
     }
