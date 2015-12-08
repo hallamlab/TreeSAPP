@@ -1,0 +1,17 @@
+#denominator	tree
+p	hardcoded!
+g	hardcoded!
+i	fungitr
+A	COGrRNA
+a	16srRNA
+b	18srRNA
+c	phocryp
+d	dsr_v2_
+e	hzo_hao
+f	pufMKEG
+h	_K02588
+m	p_a_moA
+n	_K02586
+r	COG1850
+w	bssAref
+y	mcrAref

@@ -1,0 +1,63 @@
+1	Azoarcus sp. T bssA
+2	Geobacter metallireducens GS-15 bssA
+3	Contaminated Testfeld Sued aquifer sediments clone B49bss_020 bssA
+4	Contaminated Testfeld Sued aquifer sediments clone B49bss_087 bssA
+5	Contaminated Flingern aquifer sediments clone D12_09 bssA
+6	Contaminated Flingern aquifer sediments clone D12_31 bssA
+7	Contaminated Pasing aquifer sediments clone Pb112_15 bssA
+8	Desulfosarcina cetonica bssA
+9	Desulfobacula toluolica Tol2 bssA
+10	Geobacter grbiciae bssA
+11	Desulfotomaculum sp. Ox39 bssA
+12	Geobacter toluenoxydans bssA
+13	Sulfate-reducing bacterium TRM1 bssA
+14	Toluene degrading methanogenic consortium clone bssA-2 bssA
+15	Toluene degrading methanogenic consortium clone bssA-1 bssA
+16	Sulfate-reducing bacterium PRTOL1 bssA
+17	Coal tar waste-contaminated groundwater clone bssAC03 bssA
+18	Coal tar waste-contaminated groundwater clone bssAC05 bssA
+19	Coal tar waste-contaminated groundwater clone bssAC14 bssA
+20	Coal tar waste-contaminated groundwater clone bssAC15 bssA
+21	Coal tar waste-contaminated groundwater clone bssAC16 bssA
+22	Coal tar waste-contaminated groundwater clone bssAC18 bssA
+23	Coal tar waste-contaminated groundwater clone bssAD03 bssA
+24	Coal tar waste-contaminated groundwater clone bssAD10 bssA
+25	BTEX-contaminated afquifer enrichment clone B1B6 bssA
+26	BTEX-contaminated afquifer enrichment clone B1C1 bssA
+27	BTEX-contaminated afquifer enrichment clone B2B2 bssA
+28	Toluene-degrading SIP microcosms clone LA07bs01 bssA
+29	Toluene-degrading SIP microcosms clone LA07bs07 bssA
+30	Toluene-degrading SIP microcosms clone LA07bs11 bssA
+31	Toluene-degrading SIP microcosms clone LA07bs16 bssA
+32	Casper Wyoming contaminated aquifer sediment clone OTU1 bssA
+33	Casper Wyoming contaminated aquifer sediment clone OTU4 bssA
+34	Fort Lupton contaminated aquifer sediment clone OTU1 bssA
+35	Casper Wyoming contaminated aquifer sediment clone OTU6 bssA
+36	Thauera sp. DNT-1 bssA
+37	Magnetospirillum sp. TS-6 bssA
+38	Azoarcus sp. DN11 bssA
+39	Thauera aromatica bssA
+40	Aromatoleum aromaticum EbN1 bssA
+41	Georgfuchsia toluolica bssA
+42	Geobacter sp. FRC-32 bssA
+43	Deltaproteobacterium NaphS2 nmsA
+44	Deltaproteobacterium NaphS3 nmsA
+45	Deltaproteobacterium NaphS6 nmsA
+46	Deltaproteobacterium N47 nmsA
+47	Sulfate-reducing bacterium AK-01 assA2
+48	Sulfate-reducing bacterium AK-01 assA1
+49	Desulfoglaeba alkanexedens ALDC assA
+50	Contaminated river sediment clone Aurthur_Kill_OTU4 assA
+51	Contaminated river sediment clone Aurthur_Kill_OTU5 assA
+52	Contaminated river sediment clone Aurthur_Kill_OTU3 assA
+53	Contaminated river sediment clone Aurthur_Kill_OTU2 assA
+54	Contaminated river sediment clone Passaic_River_OTU5 assA
+55	Contaminated river sediment clone Gowanus_Canal_OTU2 assA
+56	Contaminated river sediment clone Fort_Lupton_OTU1 assA
+57	Contaminated river sediment clone Gowanus_Canal_OTU5 assA
+58	Contaminated river sediment clone Newton_Creek_OTU1 assA
+59	Contaminated river sediment clone Gowanus_Canal_OTU4 assA
+60	Contaminated river sediment clone Aurthur_Kill_OTU1 assA
+61	Contaminated river sediment clone Newton_Creek_OTU2 assA
+62	Contaminated river sediment clone Passaic_River_OTU9 assA
+63	Contaminated river sediment clone Passaic_River_OTU3 assA
