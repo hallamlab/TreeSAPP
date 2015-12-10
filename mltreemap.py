@@ -12,6 +12,7 @@ try:
     from os import path
     from os import listdir
     from os.path import isfile, join
+    import errno
     import shutil
     import re
     import glob
@@ -69,9 +70,10 @@ def getParser():
                         help='long input files will be split into files containing L sequences each [DEFAULT L = 2000]')
     parser.add_argument('-s', '--bitscore', default=60, type=int,
                         help='minimum bitscore for the blast hits [DEFAULT = 60]')
-    parser.add_argument('-t', '--reftree', default='p', choices=['p', 'g', 'i'],
+    parser.add_argument('-t', '--reftree', default='p', type=str,
                         help='reference tree (p = MLTreeMap reference tree [DEFAULT]; '
-                             'g = GEBA reference tree; i = fungi tree)')
+                             'g = GEBA reference tree; i = fungi tree; '
+                             'other gene family in data/tree_data [e.g., mcrA]')
     parser.add_argument('-r', '--reftype', default='n', choices=['a', 'n'],
                         help='the type of input sequences (a = Amino Acid; n = Nucleotide [DEFAULT])')
     parser.add_argument('-e', '--executables', default='sub_binaries',
@@ -117,7 +119,8 @@ def find_executables(args):
         elif which(dep):
             exec_paths[dep] = which(dep)
         else:
-            sys.exit("Could not find a valid executable for", dep, ". Bailing out.")
+            print "Could not find a valid executable for", dep
+            sys.exit("Bailing out.")
 
     args.executables = exec_paths
     return args
@@ -153,9 +156,12 @@ def checkParserArguments(parser):
     elif args.reftree == 'i':
         args.reference_data_prefix = 'fungi_'
         args.reference_tree = 'fungitr_tree.txt'
-    else:
+    elif args.reftree == 'p':
         args.reference_data_prefix = ''
         args.reference_tree = 'MLTreeMap_reference.tree'
+    else:
+        args.reference_data_prefix = ''
+        args.reference_tree = args.reftree + "ref_tree.txt"
 
     # Notify the user that bootstraps cannot be used with the Maximum Parsimony settings of RAxML.
     if args.bootstraps > 1 and args.phylogeny == 'p':
@@ -183,8 +189,8 @@ def removePreviousOutput(args):
 
     # delete previous output folders by force
     if args.overwrite:
-       if path.exists(args.output):
-          shutil.rmtree(args.output)
+        if path.exists(args.output):
+            shutil.rmtree(args.output)
 
     # Prompt the user to deal with the pre-existing output directory
     while os.path.isdir(args.output):
@@ -240,32 +246,35 @@ def createCogList(args):
     kind_of_cog = ''
 
     # For each line in the COG list file...    
-    cogInputList = open( args.mltreemap + os.sep + \
-                         'data' + os.sep + 'tree_data' + os.sep + 'cog_list.txt', 'r')
-    cogList = [ x.strip() for x in cogInputList.readlines() ] 
+    cogInputList = open(args.mltreemap + os.sep +
+                        'data' + os.sep + 'tree_data' + os.sep + 'cog_list.txt', 'r')
+    cogList = [x.strip() for x in cogInputList.readlines()]
     for cogInput in cogList:
 
         # Get the kind of COG if cogInput is a header line        
-        if (re.match(r'\A#(.*)', cogInput)):
+        if re.match(r'\A#(.*)', cogInput):
             kind_of_cog = re.match(r'\A#(.*)', cogInput).group(1)
             continue
 
         # Add data to COG list based on the kind of COG it is
-        if (kind_of_cog == 'phylogenetic_cogs'):
+        if kind_of_cog == 'phylogenetic_cogs':
             cog_list[kind_of_cog][cogInput] = alignment_set
             cog_list['all_cogs'][cogInput] = alignment_set
             text_inset = ''
-            if (alignment_set == 'g'):
+            if alignment_set == 'g':
                 text_inset = ' based on the GEBA reference'
-            if (alignment_set == 'i'):
+            if alignment_set == 'i':
                 text_inset = ' focusing only on fungi'
+            elif alignment_set not in ['i', 'g', 'p']:
+                print "WARNING: phylogenetic COG being set to", alignment_set, "in createCogList"
+                print "Does this make sense? If not, please contact the developers through the gitHub page."
             text_of_analysis_type[alignment_set] = 'Phylogenetic analysis' + text_inset + ':'
-        elif (kind_of_cog == 'phylogenetic_rRNA_cogs'):
+        elif kind_of_cog == 'phylogenetic_rRNA_cogs':
             cog, denominator, text = cogInput.split('\t')
             cog_list[kind_of_cog][cog] = denominator
             cog_list['all_cogs'][cog] = denominator
             text_of_analysis_type[denominator] = 'Phylogenetic analysis, ' + text + ':'
-        elif (kind_of_cog == 'functional_cogs'):
+        elif kind_of_cog == 'functional_cogs':
             cog, denominator, text = cogInput.split('\t')
             cog_list[kind_of_cog][cog] = denominator
             cog_list['all_cogs'][cog] = denominator
@@ -274,7 +283,7 @@ def createCogList(args):
     # Close the COG list file
     cogInputList.close()
 
-    return (cog_list, text_of_analysis_type)
+    return cog_list, text_of_analysis_type
 
 def calculate_overlap(info):
     """Returns the overlap length of the base and the check sequences."""
@@ -437,6 +446,12 @@ def runBlast(args, splitFiles):
                          'data' + os.sep + \
                          args.reference_data_prefix + 'alignment_data' + os.sep + \
                          '*.fa'
+    # TODO: Make sure this works -- exit if the directory doesn't exist
+    try:
+        os.path.isdir(alignment_data_dir)
+    except IOError as e:
+        print os.strerror(e.errno)
+
     db_nt = '-db "'
     db_aa = '-db "'
 
@@ -1322,12 +1337,12 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                 hmmalign_singlehit_files[f_contig][genewise_singlehit_file + ".mfa"] = True 
                 genewise_singlehit_file_fa = genewise_singlehit_file + ".fa" 
                 try:
-                   outfile = open(genewise_singlehit_file_fa, 'w')
-                   fprintf(outfile, '>query\n%s', sequence)
-                   outfile.close()
+                    outfile = open(genewise_singlehit_file_fa, 'w')
+                    fprintf(outfile, '>query\n%s', sequence)
+                    outfile.close()
                 except IOError:
-                   print 'Can\'t create ' + genewise_singlehit_file_fa + '\n'
-                   sys.exit(0)                
+                    print 'Can\'t create ' + genewise_singlehit_file_fa + '\n'
+                    sys.exit(0)
                 mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
                 hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
                                     mltreemap_resources + reference_data_prefix + 'alignment_data' +
@@ -1867,16 +1882,16 @@ def get_correct_mp_assignment(terminal_children_strings_of_reference, mp_tree_fi
 
 def read_the_reference_tree(reference_tree_file):
     try:
-        input = open(reference_tree_file, 'r')
+        reference_tree = open(reference_tree_file, 'r')
     except IOError:
         sys.exit('ERROR: Could not open ' + reference_tree_file + '!\n')
     tree_string = ''
 
-    for line in input:
+    for line in reference_tree:
         line = line.strip()
         tree_string += line
 
-    input.close()
+    reference_tree.close()
 
     tree_string = re.sub('\(', 'L', tree_string)
     tree_string = re.sub('\)', 'R', tree_string)
@@ -2302,11 +2317,11 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
         for final_RAxML_output_file in sorted(final_RAxML_output_files[denominator].keys()):
             nr_of_files += 1
             try:
-                input = open(final_RAxML_output_file, 'r')
+                final_raxml_output = open(final_RAxML_output_file, 'r')
             except IOError:
                 sys.exit('ERROR: Can\'t open ' + str(final_RAxML_output_file) + '!\n')
             
-            for line in input:
+            for line in final_raxml_output:
                 line = line.strip()
                 if re.search(r'Placement weight (\d+)%: (.+)\Z', line):
                     weight = re.search(r'Placement weight (\d+)%: (.+)\Z', line).group(1)
@@ -2318,7 +2333,7 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
                 else:
                     continue
 
-            input.close()
+            final_raxml_output.close()
 
         assignments_with_relative_weights = Autovivify()
 
@@ -2358,11 +2373,15 @@ def read_species_translation_files(args, cog_list):
         translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
                                                       'data' + os.sep + 'tree_data' + \
                                                       os.sep + 'tax_ids_fungitr.txt'
-    else:
+    elif phylogenetic_denominator == 'p':
         translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
                                                       'data' + os.sep + 'tree_data' + \
                                                       os.sep + 'tax_ids_nr.txt'
-
+    else:
+        translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
+                                                      'data' + os.sep + 'tree_data' + \
+                                                      os.sep + "tax_ids_" + args.reference_data_prefix + ".txt"
+    # TODO: Make sure only the species translation files of the reftree are being read
     for functional_cog in sorted(cog_list['functional_cogs'].keys()):
         denominator = cog_list['functional_cogs'][functional_cog]
         filename = 'tax_ids_' + str(functional_cog) + '.txt'
