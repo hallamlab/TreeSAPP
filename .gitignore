@@ -15,7 +15,6 @@ var
 sdist
 develop-eggs
 .installed.cfg
-lib
 lib64
 new/*
 old/*
@@ -35,6 +34,7 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+.idea/*
 
 # Binaries
 sub_binaries/*RAxML*

@@ -41,6 +41,7 @@ def os_type():
         if hits:
             return 'linux'
 
+
 class Autovivify(dict):
     """In cases of Autovivify objects, enable the referencing of variables (and sub-variables)
     without explicitly declaring those variables beforehand."""
@@ -73,7 +74,7 @@ def getParser():
     parser.add_argument('-t', '--reftree', default='p', type=str,
                         help='reference tree (p = MLTreeMap reference tree [DEFAULT]; '
                              'g = GEBA reference tree; i = fungi tree; '
-                             'other gene family in data/tree_data [e.g., mcrA]')
+                             'other gene family in data/tree_data/cog_list.txt - e.g., y for mcrA]')
     parser.add_argument('-r', '--reftype', default='n', choices=['a', 'n'],
                         help='the type of input sequences (a = Amino Acid; n = Nucleotide [DEFAULT])')
     parser.add_argument('-e', '--executables', default='sub_binaries',
@@ -95,6 +96,7 @@ def getParser():
                         help='maintains intermediate files in `various_outputs` and `final_RaXML_outputs` directories'
                              ', and prints a more verbose runtime log')
     return parser
+
 
 def find_executables(args):
     """
@@ -125,8 +127,10 @@ def find_executables(args):
     args.executables = exec_paths
     return args
 
+
 def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
 
 def which(program):
     fpath, fname = os.path.split(program)
@@ -140,6 +144,7 @@ def which(program):
             if is_exe(exe_file):
                 return exe_file
     return None
+
 
 def checkParserArguments(parser):
     """Returns 'args', a summary of MLTreeMap settings."""
@@ -231,6 +236,33 @@ def removePreviousOutput(args):
     return args
 
 
+def single_cog_list(reftree, cog_list, text_of_analysis_type):
+    """
+    Copies the relevant information from the cog_list and text_of_analysis_type to new dictionaries
+    :param reftree: The reference gene family
+    :param cog_list: The vivification of cog names, reference names, and their respective type
+    :param text_of_analysis_type: Mapping of cogs and analysis type based on their type
+    :return: Pared down versions of cog_list and text_of_analysis_type containing only information of gene
+    """
+    new_list = Autovivify()
+    single_text_analysis = Autovivify()
+
+    # Parse the cog_list
+    for cog_type in cog_list:
+        for cog, denominator in cog_list[cog_type].iteritems():
+            if denominator == reftree:
+                new_list[cog_type][cog] = denominator
+                break
+
+    # Parse the text_of_analysis_type
+    for denominator, analysis in text_of_analysis_type.iteritems():
+        if denominator == reftree:
+            single_text_analysis[denominator] = analysis
+            break
+
+    return new_list, single_text_analysis
+
+
 def createCogList(args):
     """
     Loads the MLTreeMap COG list file
@@ -242,13 +274,17 @@ def createCogList(args):
     
     cog_list = Autovivify()
     text_of_analysis_type = Autovivify()
-    alignment_set = args.reftree
+    if args.reftree not in ['i', 'p', 'g']:
+        alignment_set = ''
+    else:
+        alignment_set = args.reftree
     kind_of_cog = ''
 
     # For each line in the COG list file...    
     cogInputList = open(args.mltreemap + os.sep +
                         'data' + os.sep + 'tree_data' + os.sep + 'cog_list.txt', 'r')
     cogList = [x.strip() for x in cogInputList.readlines()]
+
     for cogInput in cogList:
 
         # Get the kind of COG if cogInput is a header line        
@@ -265,9 +301,6 @@ def createCogList(args):
                 text_inset = ' based on the GEBA reference'
             if alignment_set == 'i':
                 text_inset = ' focusing only on fungi'
-            elif alignment_set not in ['i', 'g', 'p']:
-                print "WARNING: phylogenetic COG being set to", alignment_set, "in createCogList"
-                print "Does this make sense? If not, please contact the developers through the gitHub page."
             text_of_analysis_type[alignment_set] = 'Phylogenetic analysis' + text_inset + ':'
         elif kind_of_cog == 'phylogenetic_rRNA_cogs':
             cog, denominator, text = cogInput.split('\t')
@@ -282,8 +315,8 @@ def createCogList(args):
 
     # Close the COG list file
     cogInputList.close()
-
     return cog_list, text_of_analysis_type
+
 
 def calculate_overlap(info):
     """Returns the overlap length of the base and the check sequences."""
@@ -333,15 +366,15 @@ def splitFastaInput(args):
     fasta.seek(-1, 1)
 
     # Determine the output file names and open the output files
-    if (re.match(r'\A.*\/(.*)', args.input)):
+    if re.match(r'\A.*\/(.*)', args.input):
         inputFileName = re.match(r'\A.*\/(.*)', args.input).group(1)
     else:
         inputFileName = args.input
     outputSplit = open(args.output_dir_var + inputFileName + '_0.txt', 'w')
-    outputFormatted = open(args.output_dir_var + inputFileName + '_formatted.txt', 'w')
     args.formatted_input_file = args.output_dir_var + inputFileName + '_formatted.txt'
+    outputFormatted = open(args.formatted_input_file, 'w')
     countFiles = 0
-    countSequences = 0
+    countSequences = -1
 
     # Iterate through the input file...
     regATCG = re.compile(r'[acgtACGT]')
@@ -351,9 +384,8 @@ def splitFastaInput(args):
     countNucleotides = 0
     countXN = 0
     countUndef = 0
-    splitFiles = []
+    split_files = []
 
-    count = 0
     for line in fasta:
         # If the line is a sequence name...
         if line[0] == '>':
@@ -366,16 +398,16 @@ def splitFastaInput(args):
             
             # Because RAxML can only work with file names having length <= 125,
             # Ensure that the sequence name length is <= 100
-            if (line.__len__() > 100):
+            if line.__len__() > 100:
                 line = line[0:100]
 
             # Split the file if countSequences > the number of sequences per file specified by the user
-            if (countSequences >= args.filelength):
+            if countSequences >= args.filelength:
                countSequences = 0
-               splitFiles.append(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles))
+               split_files.append(args.output_dir_var + inputFileName + '_%d.txt' % countFiles)
                countFiles += 1
                outputSplit.close()
-               outputSplit = open(args.output_dir_var + inputFileName + '_%d.txt' %(countFiles), 'w')
+               outputSplit = open(args.output_dir_var + inputFileName + '_%d.txt' % countFiles, 'w')
         # Else, if the line is a sequence...
         else:
 
@@ -415,8 +447,8 @@ def splitFastaInput(args):
     outputFormatted.close()
 
     # If there's only one input file, add it to the list of split input files
-    if not splitFiles:
-        splitFiles.append(args.output_dir_var + inputFileName + '_%d.txt' % countFiles)
+    if not split_files:
+        split_files.append(args.output_dir_var + inputFileName + '_%d.txt' % countFiles)
 
     # Exit the program if character count is 0
     if countTotal == 0:
@@ -433,10 +465,10 @@ def splitFastaInput(args):
         elif args.reftype == 'a':
             sys.exit('ERROR: Your sequence(s) most likely contain no AA!\n')
 
-    return splitFiles
+    return split_files
 
 
-def runBlast(args, splitFiles):
+def runBlast(args, split_files):
     """Runs the BLAST algorithm on each of the split input files."""
 
     print "Running BLAST... this may take a while."
@@ -464,7 +496,7 @@ def runBlast(args, splitFiles):
     db_nt += '"'
     db_aa += '"'
 
-    for splitFile in sorted(splitFiles):
+    for splitFile in sorted(split_files):
 
         # Ensure splitFile is a .txt file; save file name if so, die otherwise
         blastInputFileName = ''
@@ -730,7 +762,8 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
 
 def blastpParser(args, shortened_sequence_files, blast_hits_purified):
     """
-    For each contig, produces a file similar to the Genewise output file (this is in cases where Genewise is unnecessary because it is already an AA sequence.
+    For each contig, produces a file similar to the Genewise output file
+    (this is in cases where Genewise is unnecessary because it is already an AA sequence.
 
     Returns an Autovivification of the output file for each contig.
     """
@@ -939,7 +972,7 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
 
     Returns an Autovivification mapping the Genewise output files to each contig.
     """
-# CML: re-ordered some items in the for loop, and filtered the input to genewise
+
     if args.verbose:
         print "Running Genewise...",
 
@@ -958,6 +991,8 @@ def startGenewise(args, shortened_sequence_files, blast_hits_purified):
 
     # For each file which has been shortened by produceGenewiseFiles...
     for shortened_sequence_file in sorted(shortened_sequence_files.keys()):
+        print shortened_sequence_file
+        sys.exit
         contig = shortened_sequence_files[shortened_sequence_file]
     
         # For each identifier associated with this contig in the output of parseBlastResults
@@ -1159,7 +1194,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
             continue
 
         # Write the summary file
-        genewise_summary_file = args.output_dir_var +  contig + '_genewise_result_summary.txt'
+        genewise_summary_file = args.output_dir_var + contig + '_genewise_result_summary.txt'
         try: 
             output = open(genewise_summary_file, 'w')
         except IOError:
@@ -1179,6 +1214,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
     if args.verbose:
         print "Finished parsing Genewise outputs"
     return genewise_summary_files
+
 
 def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files):
     """
@@ -1414,7 +1450,7 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
         for hmmalign_singlehit_file in sorted(hmmalign_singlehit_files[f_contig].keys()):
             # Open the file
             try:
-                input = open(hmmalign_singlehit_file, 'r')
+                hmmalign_msa = open(hmmalign_singlehit_file, 'r')
             except IOError:
                 sys.exit('Can\'t open ' + hmmalign_singlehit_file + '!\n')
             reached_data_part = False
@@ -1429,7 +1465,7 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
                 model_to_be_used = 'PROTGAMMAWAG'
 
             # Get sequence from file
-            for _line in input:
+            for _line in hmmalign_msa:
                 line = _line.strip()
                 if re.search(r'query', line):
                     reached_data_part = True
@@ -1449,7 +1485,7 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
                         else:
                             sequences[sequence_name] = sequence_part
 
-            input.close()
+            hmmalign_msa.close()
 
         models_to_be_used[f_contig] = model_to_be_used
         concatenated_mfa_files[f_contig] = args.output_dir_var + f_contig + '.mfa'
@@ -1718,8 +1754,12 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
 def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, text_of_analysis_type):
     """
     Parse the RAxML output files.
-
-    Returns an Autovivification of the final RAxML output files.
+    :param args: Command-line argument object from getParser and checkParserArguments
+    :param args2:
+    :param tree_numbers_translation:
+    :param raxml_outfiles:
+    :param text_of_analysis_type:
+    :return: An Autovivification of the final RAxML output files.
     """
 
     raxml_option = args.phylogeny
@@ -1826,7 +1866,8 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                     try:
                         name_of_terminal_target
                     except NameError:
-                        sys.exit('ERROR: ' + str(assignment_terminal_target) + ' could not be located in the tree with the denominator ' +\
+                        sys.exit('ERROR: ' + str(assignment_terminal_target) +
+                                 ' could not be located in the tree with the denominator ' +
                                  str(denominator) + '!\n')
                     output.write(str(name_of_terminal_target) + ' (' + str(assignment_terminal_target) + ')')
                     if count < nr_of_terminal_targets - 1:
@@ -2306,6 +2347,8 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
 
 
 def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type):
+    if args.verbose:
+        print "Concatenating the RAxML outputs for each marker gene class..."
     output_directory_final = args.output_dir_final
     
     for denominator in sorted(final_RAxML_output_files.keys()):
@@ -2346,7 +2389,8 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
             output = open(final_output_file_name, 'w')
         except IOError:
             sys.exit('ERROR: Can\'t create ' + str(final_output_file_name) + '!\n')
-        print str(denominator) + '_ results concatenated:'
+        if args.verbose:
+            print str(denominator) + '_ results concatenated:'
         output.write(str(description_text) + '\n')
         sum_of_relative_weights = 0
 
@@ -2377,11 +2421,7 @@ def read_species_translation_files(args, cog_list):
         translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
                                                       'data' + os.sep + 'tree_data' + \
                                                       os.sep + 'tax_ids_nr.txt'
-    else:
-        translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
-                                                      'data' + os.sep + 'tree_data' + \
-                                                      os.sep + "tax_ids_" + args.reference_data_prefix + ".txt"
-    # TODO: Make sure only the species translation files of the reftree are being read
+
     for functional_cog in sorted(cog_list['functional_cogs'].keys()):
         denominator = cog_list['functional_cogs'][functional_cog]
         filename = 'tax_ids_' + str(functional_cog) + '.txt'
@@ -2399,11 +2439,11 @@ def read_species_translation_files(args, cog_list):
     for denominator in sorted(translation_files.keys()):
         filename = translation_files[denominator]
         try:
-            input = open(filename, 'r')
+            cog_tax_ids = open(filename, 'r')
         except IOError:
             sys.exit('ERROR: Can\'t open ' + str(filename) + '!\n')
 
-        for line in input:
+        for line in cog_tax_ids:
             line = line.strip()
             try:
                 number, translation = line.split('\t')
@@ -2411,7 +2451,7 @@ def read_species_translation_files(args, cog_list):
                 sys.exit('ValueError: .split(\'\\t\') on ' + str(line))
             tree_numbers_translation[denominator][number] = translation
 
-        input.close()
+        cog_tax_ids.close()
 
     return tree_numbers_translation
 
@@ -2576,6 +2616,64 @@ def deleteFiles(args):
                 pass
 
 
+def single_family_msa(args, cog_list):
+    """
+    A wrapper function for hmmalign -- to generate a multiple-sequence alignment with the reference sequences
+    of the gene family being updated
+    :param args: Command-line argument object returned by argparse
+    :param cog_list: The reference gene family to be updated
+    :return: An Autovivification mapping the summary files to each contig
+    """
+    reference_data_prefix = args.reference_data_prefix
+    hmmalign_singlehit_files = Autovivify()
+    if args.verbose:
+        print "Running hmmalign...",
+
+    # split the input into a contig per fasta file
+    args.filelength = 1
+    split_files = splitFastaInput(args)
+
+    cog = cog_list["all_cogs"].keys()[0]
+    start = 0
+
+    # Imitate the Genewise / blastpSummaryFiles output
+    for contig_fasta in sorted(split_files):
+        with open(contig_fasta) as contig_seq:
+            header = contig_seq.readline().strip()[1:]
+            sequence = ""
+            line = contig_seq.readline()
+            while line:
+                sequence += line.strip()
+                line = contig_seq.readline()
+            end = len(sequence)
+
+            denominator = cog_list["all_cogs"][cog]
+            f_contig = denominator + "_" + header
+            genewise_singlehit_file = args.output_dir_var + os.sep + \
+                                      f_contig + '_' + cog + "_" + str(start) + "_" + str(end)
+            hmmalign_singlehit_files[f_contig][genewise_singlehit_file + ".mfa"] = True
+            genewise_singlehit_file_fa = genewise_singlehit_file + ".fa"
+            try:
+                outfile = open(genewise_singlehit_file_fa, 'w')
+                fprintf(outfile, '>query\n%s', sequence)
+                outfile.close()
+            except IOError:
+                print 'Can\'t create ' + genewise_singlehit_file_fa + '\n'
+                sys.exit(0)
+            mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
+            hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
+                                mltreemap_resources + reference_data_prefix + 'alignment_data' +
+                                os.sep + cog + '.fa',
+                                '--outformat', 'Clustal',
+                                mltreemap_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
+                                genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
+            os.system(' '.join(hmmalign_command))
+
+    if args.verbose:
+        print "done."
+    return hmmalign_singlehit_files
+
+
 def main(argv):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = getParser()
@@ -2583,30 +2681,35 @@ def main(argv):
     args = removePreviousOutput(args)
     cog_list, text_of_analysis_type = createCogList(args)
     non_wag_cog_list = get_non_wag_cogs(args)
-    splitFiles = splitFastaInput(args)
+    split_files = splitFastaInput(args)
 
-    # STAGE 2: Run BLAST to determine which COGs are present in the input sequence(s)
-    runBlast(args, splitFiles)
-    blast_results = readBlastResults(args)
-    blast_hits_purified = parseBlastResults(args, blast_results, cog_list)
+    # UPDATE GENE FAMILY TREE MODE:
+    if args.reftree not in ['i', 'g', 'p']:
+        cog_list, text_of_analysis_type = single_cog_list(args.reftree, cog_list, text_of_analysis_type)
+        hmmalign_singlehit_files = single_family_msa(args, cog_list)
+    else:
+        # STAGE 2: Run BLAST to determine which COGs are present in the input sequence(s)
+        runBlast(args, split_files)
+        blast_results = readBlastResults(args)
+        blast_hits_purified = parseBlastResults(args, blast_results, cog_list)
 
-    # STAGE 3: Run Genewise (or not) to produce amino acid sequences based on the COGs found in the input sequence(s)
-    # TODO: Exchange genewise for exonerate since it is faster and better maintained
-    contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
-    if args.reftype == 'n':
-        genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
-        genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
-        get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
-    elif args.reftype == 'a':
-        genewise_summary_files = blastpParser(args, shortened_sequence_files, blast_hits_purified)
+        # STAGE 3: Run Genewise (or not) to produce amino acid sequences based on the COGs found in the input sequence(s)
+        # TODO: Exchange genewise for exonerate since it is faster and better maintained
+        contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
+        if args.reftype == 'n':
+            genewise_outputfiles = startGenewise(args, shortened_sequence_files, blast_hits_purified)
+            genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
+            get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
+        elif args.reftype == 'a':
+            genewise_summary_files = blastpParser(args, shortened_sequence_files, blast_hits_purified)
 
-    # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
-    hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
+        # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
+        hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
     concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
     gblocks_files = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
+    phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
 
     # STAGE 5: Run RAxML to compute the ML/MP estimations
-    phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
     raxml_outfiles, args2 = start_RAxML(args, phy_files, cog_list, models_to_be_used)
     tree_numbers_translation = read_species_translation_files(args, cog_list)
     final_RAxML_output_files = parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, text_of_analysis_type)
