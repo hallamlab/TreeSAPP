@@ -17,6 +17,7 @@ try:
     import re
     import glob
     import subprocess
+    import signal
     import time
     import traceback
 except:
@@ -1396,13 +1397,14 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                     print 'Can\'t create ' + genewise_singlehit_file_fa + '\n'
                     sys.exit(0)
                 mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
-                hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
+                hmmalign_command = [args.executables["hmmalign"], '--mapali',
                                     mltreemap_resources + reference_data_prefix + 'alignment_data' +
                                     os.sep + cog + '.fa',
                                     '--outformat', 'Clustal',
                                     mltreemap_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
                                     genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
                 os.system(' '.join(hmmalign_command))
+
                 line = input.readline()
                 line = line.strip()
 
@@ -1724,7 +1726,8 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
                           '-n', str(f_contig),
                           '-w', str(output_dir),
                           '>', str(output_dir) + str(f_contig) + '_RAxML.txt']
-        os.system(' '.join(raxml_command))
+        raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
+        raxml_pro.wait()
 
     # Rename the RAxML output files
 
@@ -1737,7 +1740,9 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
         if os.path.exists(str(output_dir) + 'RAxML_info.' + str(f_contig)):
             os.system(' '.join(move_command))
         if raxml_option == 'v':
-            raxml_outfiles[denominator][f_contig]['classification'] = str(output_dir) + str(f_contig) + '.RAxML_classification.txt'
+            raxml_outfiles[denominator][f_contig]['classification'] = str(output_dir) + \
+                                                                      str(f_contig) + \
+                                                                      '.RAxML_classification.txt'
             raxml_outfiles[denominator][f_contig]['labelled_tree'] = str(output_dir) + str(f_contig) + '.originalRAxML_labelledTree.txt'
             move_command1 = ['mv', str(output_dir) + 'RAxML_classification.' + str(f_contig),
                              str(raxml_outfiles[denominator][f_contig]['classification'])]
@@ -1786,6 +1791,7 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
         reference_tree_file = args2['reference_tree_file_of_denominator'][denominator]
         terminal_children_strings_of_reference = read_and_understand_the_reference_tree(reference_tree_file)
         content_of_previous_labelled_tree_file = ''
+        previous_f_contig = ""
         rooted_labelled_trees = ''
         insertion_point_node_hash = ''
         final_assignment_target_strings = Autovivify()
@@ -1796,7 +1802,6 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                 denominator = re.search(r'\A(.)', f_contig).group(1)
             content_of_labelled_tree_file = ''
             assignments = Autovivify()
-            nr_of_assignments = 0
 
             if raxml_option == 'v':
                 classification_file = raxml_outfiles[denominator][f_contig]['classification']
@@ -1816,6 +1821,11 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                         print "Reading the labelled tree", labelled_tree_file
                     rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(labelled_tree_file)
                     final_assignment_target_strings = Autovivify()
+                    nr_of_assignments = 0
+                else:
+                    if args.verbose:
+                        print "Identical RAxML classifications between", f_contig, "and", previous_f_contig + "!"
+
                 new_assignments = Autovivify()
                 at_least_one_new_assignment = 0
                 try:
@@ -1829,11 +1839,13 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                     assignment = ''
                     if re.search(r'I(\d+)', insertion_point_l):
                         assignment = re.search(r'I(\d+)', insertion_point_l).group(1)
-                        nr_of_assignments += 1
+                        # nr_of_assignments += 1
                     assignments[assignment] = weight
                     if assignment not in final_assignment_target_strings.keys():
                         new_assignments[assignment] = 1
                         at_least_one_new_assignment = 1
+                        final_assignment_target_strings[assignment] = ""
+                        nr_of_assignments += 1
 
                 RAxML_classification.close()
                 if at_least_one_new_assignment > 0:
@@ -1866,11 +1878,11 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
             
             for assignment in sorted(assignments.keys()):
                 assignment_target_string = final_assignment_target_strings[assignment]
-                weight = assignments[assignment]
-                relative_weight = int(((int(weight) / int(nr_of_assignments)) * 100) + 0.5)
+                weight = float(assignments[assignment])  # CML: is always 1
+                relative_weight = float(weight * 100.0 / float(nr_of_assignments))
                 assignment_terminal_targets = assignment_target_string.split(' ')
                 nr_of_terminal_targets = len(assignment_terminal_targets) - 1
-                output.write('Placement weight ' + str(relative_weight) + '%: Assignment of query to ')
+                output.write('Placement weight ' + '%.2f' % relative_weight + '%: Assignment of query to ')
                 if not nr_of_terminal_targets == 1:
                     output.write('the lowest common ancestor of ')
                 count = 1
@@ -1890,11 +1902,12 @@ def parse_RAxML_output(args, args2, tree_numbers_translation, raxml_outfiles, te
                     if count == nr_of_terminal_targets - 1:
                         output.write(' and ')
                     if count == nr_of_terminal_targets:
-                        output.write('.')
+                        output.write('.\n')  # CML added new-line character
                     count += 1
 
             output.close()
             content_of_previous_labelled_tree_file = content_of_labelled_tree_file
+            previous_f_contig = f_contig
     print "Finished parsing RAxML outputs."
     return final_RAxML_output_files
 
@@ -2378,13 +2391,13 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
             
             for line in final_raxml_output:
                 line = line.strip()
-                if re.search(r'Placement weight (\d+)%: (.+)\Z', line):
-                    weight = re.search(r'Placement weight (\d+)%: (.+)\Z', line).group(1)
-                    assignment = re.search(r'Placement weight (\d+)%: (.+)\Z', line).group(2)
+                if re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line):
+                    weight = float(re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line).group(1))
+                    assignment = re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line).group(2)
                     if assignment in assignments.keys():
-                        assignments[assignment] += int(weight)
+                        assignments[assignment] += weight
                     else:
-                        assignments[assignment] = int(weight)
+                        assignments[assignment] = weight
                 else:
                     continue
 
@@ -2394,7 +2407,7 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
 
         for assignment in sorted(assignments.keys(), reverse=True):
             weight = assignments[assignment]
-            relative_weight = (int(((float(weight)/float(nr_of_files))*10000.0)+0.5))/10000.0
+            relative_weight = weight / float(nr_of_files)
             assignments_with_relative_weights[relative_weight][assignment] = 1
 
         try:
@@ -2406,15 +2419,15 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
         output.write(str(description_text) + '\n')
         sum_of_relative_weights = 0
 
-        for relative_weight in sorted (assignments_with_relative_weights.keys(), reverse=True):
+        for relative_weight in sorted(assignments_with_relative_weights.keys(), reverse=True):
 
             for assignment in sorted(assignments_with_relative_weights[relative_weight].keys(), reverse=True):
                 sum_of_relative_weights += relative_weight
-                print 'Placement weight ' + str(relative_weight) + '%: ' + str(assignment)
+                print 'Placement weight', '%.2f' % relative_weight + "%:", assignment
                 output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n')
 
         output.close()
-        print str(denominator) + '_ sum of placement weights (should be 100): ' + str(sum_of_relative_weights)
+        print str(denominator) + '_ sum of placement weights (should be 100):', int(sum_of_relative_weights + 0.5)
 
 
 def read_species_translation_files(args, cog_list):
@@ -2705,7 +2718,7 @@ def main(argv):
         blast_results = readBlastResults(args)
         blast_hits_purified = parseBlastResults(args, blast_results, cog_list)
 
-        # STAGE 3: Run Genewise (or not) to produce amino acid sequences based on the COGs found in the input sequence(s)
+        # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
         # TODO: Exchange genewise for exonerate since it is faster and better maintained
         contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
         if args.reftype == 'n':
