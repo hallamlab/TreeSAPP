@@ -41,5 +41,4 @@ sub_binaries/*RAxML*
 
 # Data
 mcrA_resources/
-test_data/
 output*
