@@ -34,7 +34,7 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
-.idea/*
+.idea/*xml
 
 # Binaries
 sub_binaries/*RAxML*
