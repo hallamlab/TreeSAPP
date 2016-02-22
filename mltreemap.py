@@ -2210,8 +2210,8 @@ def assign_parents_and_children(tree_info):
                 parent = potential_parent
                 break
         if parent is None:
-            print "No parent assigned for", node
-            sys.exit("This is probably due to an incompatibility with your RAxML version and will cause problems."
+            print "ERROR: No parent assigned for", node
+            sys.exit("This is due to either an incompatibility with your RAxML version or a formatting error in the reference tree.\n\n"
                      "Please post an issue on the github page!\n")
         else:
             tree_info['parent_of_node'][node] = parent
