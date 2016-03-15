@@ -2,14 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a88da795-8b99-4ab5-b16d-a838c96ecb1e" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/mcrA_tree.txt" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/tax_ids_mcrA.txt" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_mcrA.txt" afterPath="" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/mcrAref_tree.txt" afterPath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/mcrAref_tree.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/tax_ids_mcrAref.txt" afterPath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/tax_ids_mcrAref.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/data/tree_data/mcrAref_tree.txt" afterPath="$PROJECT_DIR$/data/tree_data/mcrAref_tree.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/data/tree_data/tax_ids_mcrAref.txt" afterPath="$PROJECT_DIR$/data/tree_data/tax_ids_mcrAref.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/mltreemap.py" afterPath="$PROJECT_DIR$/mltreemap.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_mcrAref.txt" afterPath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_mcrAref.txt" />
     </list>
     <ignored path="MLTreeMap.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -41,7 +36,7 @@
       <file leaf-file-name="mltreemap.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/mltreemap.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.25356752">
+            <state vertical-scroll-proportion="0.26086956">
               <caret line="2192" column="60" selection-start-line="2192" selection-start-column="60" selection-end-line="2192" selection-end-column="60" />
               <folding />
             </state>
@@ -83,8 +78,8 @@
   <component name="ProjectFrameBounds">
     <option name="x" value="65" />
     <option name="y" value="-4" />
-    <option name="width" value="1855" />
-    <option name="height" value="1084" />
+    <option name="width" value="1535" />
+    <option name="height" value="904" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -97,7 +92,7 @@
     <ConfirmationsSetting value="0" id="Remove" />
   </component>
   <component name="ProjectView">
-    <navigator currentView="ProjectPane" proportions="" version="1">
+    <navigator proportions="" version="1">
       <flattenPackages />
       <showMembers />
       <showModules />
@@ -110,30 +105,7 @@
       <manualOrder />
       <foldersAlwaysOnTop value="true" />
     </navigator>
-    <panes>
-      <pane id="Scope" />
-      <pane id="Scratches" />
-      <pane id="ProjectPane">
-        <subPane>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MLTreeMap" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MLTreeMap" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="MLTreeMap" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-        </subPane>
-      </pane>
-    </panes>
+    <panes />
   </component>
   <component name="PropertiesComponent">
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
@@ -403,7 +375,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="65" y="-4" width="1855" height="1084" extended-state="6" />
+    <frame x="65" y="-4" width="1535" height="904" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.2661823" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -706,7 +678,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/mltreemap.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.25356752">
+        <state vertical-scroll-proportion="0.26086956">
           <caret line="2192" column="60" selection-start-line="2192" selection-start-column="60" selection-end-line="2192" selection-end-column="60" />
           <folding />
         </state>
