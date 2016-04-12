@@ -1,0 +1,8 @@
+## mtdA
+1 1 0 220 0 Gammaprotobacteria
+12 10 110 110 220 PVC
+9 9 50 200 200 Alphaprotobacteria
+11 7 110 110 220 PVC
+8 8 50 200 200 Alphaprotobacteria
+13 6 110 110 220 PVC
+2 2 0 220 0 Gammaprotobacteria
