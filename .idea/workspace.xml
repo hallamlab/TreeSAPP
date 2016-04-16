@@ -2,9 +2,13 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a88da795-8b99-4ab5-b16d-a838c96ecb1e" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_mcrA.txt" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_mcrAref.txt.new" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_mcrAref.txt.old" afterPath="" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions.txt" afterPath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions.txt" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_mcrAref.txt" afterPath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_mcrAref.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/tax_ids_mcrAref.txt" afterPath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/tax_ids_mcrAref.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/mltreemap.py" afterPath="$PROJECT_DIR$/mltreemap.py" />
     </list>
     <ignored path="MLTreeMap.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -36,8 +40,8 @@
       <file leaf-file-name="mltreemap.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/mltreemap.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.26086956">
-              <caret line="2192" column="60" selection-start-line="2192" selection-start-column="60" selection-end-line="2192" selection-end-column="60" />
+            <state vertical-scroll-proportion="0.68906456">
+              <caret line="1638" column="26" selection-start-line="1638" selection-start-column="26" selection-end-line="1638" selection-end-column="26" />
               <folding />
             </state>
           </provider>
@@ -127,7 +131,7 @@
     <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth3" value="974" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder3" value="3" />
     <property name="recentsLimit" value="5" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../MeatLoaf/FastaSubsetter.py" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last.edited.regexp" value="Sample Text" />
   </component>
@@ -524,6 +528,30 @@
     <entry file="file://$PROJECT_DIR$/mltreemap.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mltreemap.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mltreemap.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mltreemap.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
           <caret line="1782" column="33" selection-start-line="1782" selection-start-column="33" selection-end-line="1782" selection-end-column="33" />
           <folding />
         </state>
@@ -678,8 +706,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/mltreemap.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.26086956">
-          <caret line="2192" column="60" selection-start-line="2192" selection-start-column="60" selection-end-line="2192" selection-end-column="60" />
+        <state vertical-scroll-proportion="0.68906456">
+          <caret line="1638" column="26" selection-start-line="1638" selection-start-column="26" selection-end-line="1638" selection-end-column="26" />
           <folding />
         </state>
       </provider>

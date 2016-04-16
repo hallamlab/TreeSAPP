@@ -1583,7 +1583,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                     sys.exit('ERROR: Your reference alignment contains element with the number -666. ' +\
                              'Please change it, because this number is needed for internal purposes.\n')
                 if seq_name == 'query':
-                   seq_name = -666
+                    seq_name = -666
             else:
                 line = re.sub(r' ', '', line)
                 if seq_name == "":
@@ -1607,6 +1607,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
             sequence = re.sub(r'\.', 'X', sequence)
             sequence = re.sub(r'\*', 'X', sequence)
             sequence = re.sub('-', 'X', sequence)
+
             if re.search(r'\AX+\Z', sequence):
                 sequence = re.sub('X', 'V', sequence, 1)
             if seq_name == -666:
@@ -1622,10 +1623,25 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
                                  '-  insufficient number of marker gene residues in query sequence.\n')
                     output.close()
                     continue
+            #
+            # if sequence.count('X') > (0.99*len(sequence)) and seq_name != -666:
+            #     print "WARNING: More than 99% of", seq_name, "is unknown sequence!"
+            #     print "Removing it from further processing to prevent errors with RAxML."
+            #     do_not_continue = 1
+            #     exit_file_name = args.output_dir_var + f_contig + '_exit_after_Gblocks.txt'
+            #     try:
+            #         output = open(exit_file_name, 'w')
+            #     except IOError:
+            #         sys.exit('ERROR: Can\'t open ' + exit_file_name + '!\n')
+            #     output.write(seq_name + 'contained an insufficient number of marker gene residues in alignment ' +
+            #                  '- this would cause an error in Gblocks and RAxML.\n')
+            #     output.close()
+            #     continue
+
             sub_sequences = re.findall(r'.{1,50}', sequence)
 
             for sub_sequence in sub_sequences:
-                sub_sequence = re.sub('U', 'T', sub_sequence)  # TK: This for debug; got error from RAxML when encountering Uracil
+                sub_sequence = re.sub('U', 'T', sub_sequence)  # Got error from RAxML when encountering Uracil
                 sequences_for_phy[f_contig][count][int(seq_name)] = sub_sequence
                 count += 1
 

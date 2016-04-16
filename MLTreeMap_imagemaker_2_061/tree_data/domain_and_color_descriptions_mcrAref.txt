@@ -1,2 +1,29 @@
-##mcrA
-33 34 0 255 255 anme-1a
+## mcrA
+172 177 255 153 51 Bathyarchaeota
+20 20 175 238 238 Methanopyrales
+1 154 255 69 0 Methanobacteriales
+3 143 255 165 0 Methanococcales
+77 148 106 90 205 Unassigned
+98 162 120 120 120 Methanomassiliicoccales
+94 102 106 90 205 Unassigned
+33 34 255 20 147 ANME-1a
+60 155 255 105 180 ANME-1b 
+99 90 106 90 205 Unassigned
+71 71 127 255 212 Methanomicrobiales
+132 132 85 107 47 Fen_cluster_IV
+129 135 173 255 47 Fen_cluster_III
+138 139 50 205 50 Fen_cluster_I
+68 68 127 255 212 Methanomicrobiales
+131 141 154 205 50 Fen_cluster_II
+72 81 127 255 212 Methanomicrobiales
+136 128 107 142 35 Fen_cluster_V
+133 137 180 107 99 Fen_cluster_VI
+15 9 20 250 20 Methanocellales
+13 52 135 206 250 Methanosarcinales
+122 37 132 112 255 ANME_2c
+70 70 255 105 180 ANME_1b
+42 121 132 112 255 ANME_2c
+147 146 147 112 219 ANME_3
+54 80 135 206 250 Methanosarcinales
+184 10 45 80 77 ANME_2d
+111 45 24 72 61 139 ANME_2a
