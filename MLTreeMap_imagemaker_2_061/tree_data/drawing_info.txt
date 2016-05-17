@@ -31,6 +31,7 @@ X	prx2ref
 y	mcrAref
 z	faeref_
 N	mtdAref
+I	acdref_
 #mtrBref	mtrB	Tetrahydro-methanopterin methyltransferase subunit B (mtrB)
 #mtrCref	mtrC	Tetrahydro-methanopterin methyltransferase subunit C (mtrC)
 #mtrDref	mtrD	Tetrahydro-methanopterin methyltransferase subunit D (mtrD)
@@ -50,7 +51,6 @@ N	mtdAref
 #fmdCref	C	Formylmethylfuran dehydrogenase subunit C (fmdC)
 #fmdDref	D	Formylmethylfuran dehydrogenase subunit D (fmdD)
 #fmdEref	E	Formylmethylfuran dehydrogenase subunit E (fmdE)
-#acdref_	I	ADP-forming acetyl-CoA synthetase (acd)
 #hdrAref	hdrA	Heterodisulfide reductase subunit A (hdrA)
 #hdrBref	hdrB	Heterodisulfide reductase subunit B (hdrB)
 #hdrCref	hdrC	Heterodisulfide reductase subunit C (hdrC)

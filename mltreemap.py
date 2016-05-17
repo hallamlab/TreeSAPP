@@ -20,7 +20,8 @@ try:
     import signal
     import time
     import traceback
-except:
+    from multiprocessing import Pool, Process, Lock
+except ImportWarning:
     print """ Could not load some user defined module functions\n"""
     print traceback.print_exc(10)
     sys.exit(3)
@@ -392,6 +393,7 @@ def split_fasta_input(args):
     num_files = 0
     sequence_count = -1
     header = ""
+    sequence = ""
 
     # Iterate through the input file...
     reg_nuc = re.compile(r'[acgtACGT]')
@@ -1600,7 +1602,7 @@ def get_non_wag_cogs(args):
     Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
     :param args: Command-line argument object returned by getParser and checkParserArguments
     """
-
+    denominator = ""
     non_wag_cog_list = Autovivify()
     try:
         non_wag_cogs_file = args.mltreemap + os.sep + \
@@ -2023,6 +2025,41 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     return raxml_outfiles, denominator_reference_tree_dict, len(phy_files.keys())
 
 
+def pparse_ref_trees(denominator_ref_tree_dict, args):
+    pool = Pool(processes=int(args.num_threads))
+    ref_trees_dict = dict()
+
+    def log_tree(result):
+        marker, terminal_children_of_reference = result
+        ref_trees_dict[marker] = terminal_children_of_reference
+
+    for denominator in denominator_ref_tree_dict:
+        reference_tree_file = denominator_ref_tree_dict[denominator]
+        pool.apply_async(func=read_and_understand_the_reference_tree,
+                         args=(reference_tree_file, denominator, ),
+                         callback=log_tree)
+    pool.close()
+    pool.join()
+    return ref_trees_dict
+
+
+def pparse_raxml_out_trees(labelled_trees_list, args):
+    pool = Pool(processes=int(args.num_threads))
+    raxml_tree_dict = dict()
+
+    def log_tree(result):
+        f_contig, rooted_labelled_trees, insertion_point_node_hash = result
+        raxml_tree_dict[f_contig] = [rooted_labelled_trees, insertion_point_node_hash]
+
+    for tree_file in labelled_trees_list:
+        pool.apply_async(func=read_understand_and_reroot_the_labelled_tree,
+                         args=(tree_file,),
+                         callback=log_tree)
+    pool.close()
+    pool.join()
+    return raxml_tree_dict
+
+
 def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
                        raxml_outfiles, text_of_analysis_type, num_raxml_outputs):
     """
@@ -2044,7 +2081,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
     if num_raxml_outputs > 50:
         progress_bar_width = 50
-        step_proportion = float(num_raxml_outputs / 50)
+        step_proportion = float(num_raxml_outputs) / progress_bar_width
     else:
         progress_bar_width = num_raxml_outputs
         step_proportion = 1
@@ -2066,13 +2103,21 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
         sys.stderr.write("WARNING: Unable to open " + args.output + os.sep + "mltreemap_parse_RAxML_log.txt!")
         sys.stderr.flush()
         parse_log = sys.stdout
+
+    terminal_children_strings_of_ref_denominators = pparse_ref_trees(denominator_reference_tree_dict, args)
+
+    if sorted(denominator_reference_tree_dict.keys()) != sorted(terminal_children_strings_of_ref_denominators.keys()):
+        print "input: ", denominator_reference_tree_dict.keys()
+        print "output: ", terminal_children_strings_of_ref_denominators.keys()
+        sys.exit("ERROR: Not all of the reference trees were parsed!")
+
     for denominator in sorted(raxml_outfiles.keys()):
         description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
-        reference_tree_file = str(denominator_reference_tree_dict[denominator])
         if args.verbose:
             parse_log.write("Reading the reference tree for " + denominator + "... ")
 
-        terminal_children_strings_of_reference = read_and_understand_the_reference_tree(reference_tree_file, parse_log)
+        # Can give this to parallel and return the terminal children of each denominator
+        terminal_children_strings_of_reference = terminal_children_strings_of_ref_denominators[denominator]
 
         if args.verbose:
             parse_log.write("done.\n")
@@ -2081,14 +2126,21 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
         rooted_labelled_trees = ''
         insertion_point_node_hash = ''
         final_assignment_target_strings = Autovivify()
+        
+        labelled_tree_file_list = list()
+        for f_contig in raxml_outfiles[denominator].keys():
+            labelled_tree_file_list.append(raxml_outfiles[denominator][f_contig]['labelled_tree'])
+        raxml_tree_dict = pparse_raxml_out_trees(labelled_tree_file_list, args)
 
         for f_contig in sorted(raxml_outfiles[denominator].keys()):
+            # Update the progress bar
             acc += 1.0
             if acc >= step_proportion:
                 acc -= step_proportion
                 time.sleep(0.1)
                 sys.stdout.write("-")
                 sys.stdout.flush()
+
             denominator = ''
             if re.search(r'\A(.)', f_contig):
                 denominator = f_contig.split('_')[0]
@@ -2113,7 +2165,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
                     # TODO: Write these files to a RAxML log file
                     if args.verbose:
                         parse_log.write("Reading the labelled tree " + labelled_tree_file + "... ")
-                    rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(labelled_tree_file, parse_log)
+                    rooted_labelled_trees, insertion_point_node_hash = raxml_tree_dict[f_contig]
                     if args.verbose:
                         parse_log.write("done.\n")
                     final_assignment_target_strings = Autovivify()
@@ -2150,7 +2202,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
                         parse_log.write(time.ctime() + "\n")
                     prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(
                                                          terminal_children_strings_of_reference, rooted_labelled_trees,
-                                                         insertion_point_node_hash, new_assignments)
+                                                         insertion_point_node_hash, new_assignments, args.num_threads)
                     if args.verbose:
                         parse_log.write("done. " + time.ctime() + "\n")
 
@@ -2216,32 +2268,34 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
     return final_RAxML_output_files
 
 
-def read_and_understand_the_reference_tree(reference_tree_file, parse_log):
+def read_and_understand_the_reference_tree(reference_tree_file, denominator):
+    # marker = os.path.basename(reference_tree_file).split('_')[0]
     reference_tree_elements = read_the_reference_tree(reference_tree_file)
     reference_tree_info = create_tree_info_hash()
     reference_tree_info = get_node_subtrees(reference_tree_elements, reference_tree_info)
-    reference_tree_info = assign_parents_and_children(reference_tree_info, parse_log)
+    reference_tree_info = assign_parents_and_children(reference_tree_info)
     terminal_children_of_reference = build_terminal_children_strings_of_reference_nodes(reference_tree_info)
-    return terminal_children_of_reference
+    return denominator, terminal_children_of_reference
 
 
-def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, parse_log):
+def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
+    f_contig = os.path.basename(labelled_tree_file).rstrip("'.originalRAxML_labelledTree.txt'")
     labelled_tree_elements, insertion_point_node_hash = read_the_raxml_out_tree(labelled_tree_file)
     labelled_tree_info = create_tree_info_hash()
     labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
-    labelled_tree_info = assign_parents_and_children(labelled_tree_info, parse_log)
+    labelled_tree_info = assign_parents_and_children(labelled_tree_info)
     labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
     rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
-    return rooted_labelled_trees, insertion_point_node_hash
+    return [f_contig, rooted_labelled_trees, insertion_point_node_hash]
 
 
 def identify_the_correct_terminal_children_of_each_assignment(terminal_children_of_reference,
                                                               rooted_labelled_trees,
                                                               insertion_point_node_hash,
-                                                              assignments):
+                                                              assignments, num_threads):
     terminal_children_of_assignments = build_terminal_children_strings_of_assignments(rooted_labelled_trees,
                                                                                               insertion_point_node_hash,
-                                                                                              assignments)
+                                                                                              assignments, num_threads)
     real_terminal_children_of_assignments = compare_terminal_children_strings(terminal_children_of_assignments,
                                                                                       terminal_children_of_reference)
     return real_terminal_children_of_assignments
@@ -2489,13 +2543,13 @@ def get_node_subtrees(tree_elements, tree_info):
     return tree_info
 
 
-def assign_parents_and_children(tree_info, parse_log):
+def assign_parents_and_children(tree_info):
     """
     :param tree_info: Autovivification of a tree from get_node_subtrees
     :return: tree info with parent and child relationships included
     """
 
-    parse_log.write("assigning_parents_and_children... \nStart:\t" + time.ctime() + "\n")
+    # parse_log.write("assigning_parents_and_children... \nStart:\t" + time.ctime() + "\n")
     for node in sorted(tree_info['subtree_of_node'].keys()):
         if node == -1:
             continue
@@ -2523,8 +2577,7 @@ def assign_parents_and_children(tree_info, parse_log):
             tree_info['parent_of_node'][node] = parent
             tree_info['children_of_node'][parent][node] = 1
 
-    parse_log.write("End:  \t" + time.ctime() + "\n")
-    print tree_info['children_of_node']
+    # parse_log.write("End:  \t" + time.ctime() + "\n")
     return tree_info
 
 
@@ -2601,16 +2654,35 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
     return tree_string
 
 
-def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point_node_hash, assignments):
+def parallel_subtree_node_retriever(rooted_trees, num_threads):
+    if num_threads < 2:
+        num_threads = 2
+    pool = Pool(processes=int(num_threads))
+    rooted_tree_nodes = list()
+
+    def log_tree(result):
+        rooted_tree_nodes.append(result)
+
+    for rooted_tree in rooted_trees.keys():
+        rooted_tree_elements = split_tree_string(rooted_trees[rooted_tree])
+        rooted_tree_info = create_tree_info_hash()
+        pool.apply_async(func=get_node_subtrees,
+                         args=(rooted_tree_elements, rooted_tree_info,),
+                         callback=log_tree)
+    pool.close()
+    pool.join()
+    return rooted_tree_nodes
+
+
+def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point_node_hash, assignments, num_threads):
     terminal_children_strings_of_assignments = Autovivify()
 
     for assignment in sorted(assignments.keys()):
         internal_node_of_assignment = insertion_point_node_hash[assignment]
 
-        for rooted_tree in rooted_trees.keys():
-            rooted_tree_elements = split_tree_string(rooted_trees[rooted_tree])
-            rooted_tree_info = create_tree_info_hash()
-            rooted_tree_info = get_node_subtrees(rooted_tree_elements, rooted_tree_info)
+        rooted_tree_nodes = parallel_subtree_node_retriever(rooted_trees, num_threads)
+
+        for rooted_tree_info in rooted_tree_nodes:
             assignment_subtree = str(rooted_tree_info['subtree_of_node'][str(internal_node_of_assignment)])
             terminal_children = Autovivify()
             if re.search(r'\A(\d+)\Z', assignment_subtree):
@@ -2628,6 +2700,11 @@ def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point
                 terminal_children_string_of_assignment += str(terminal_child_of_assignment) + ' '
 
             terminal_children_strings_of_assignments[assignment][terminal_children_string_of_assignment] = 1
+
+        # for rooted_tree in rooted_trees.keys():
+        #     rooted_tree_elements = split_tree_string(rooted_trees[rooted_tree])
+        #     rooted_tree_info = create_tree_info_hash()
+        #     rooted_tree_info = get_node_subtrees(rooted_tree_elements, rooted_tree_info)
 
     return terminal_children_strings_of_assignments
 

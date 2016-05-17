@@ -48,8 +48,9 @@ rm wise2.4.1.tar.gz
 cd wise2.4.1/src/
 make all
 ```
-If you have problems involving `getline` being previously declared follow these instructions:
-http://www.langebio.cinvestav.mx/bioinformatica/jacob/?p=709
+If you have problems involving `getline` being previously declared in sqio.c,
+use your text editor of choice to replace all instances of `getline` with a new function name such as `getline_new`.
+Other installation issues may be taken care of elsewhere.
 
 #### HMMER
 hmmalign is the only HMMER module required by MLTreeMap, but HMMER3 is incompatible with this
