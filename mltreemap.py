@@ -20,7 +20,7 @@ try:
     import signal
     import time
     import traceback
-    from multiprocessing import Pool, Process, Lock
+    from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
 except ImportWarning:
     print """ Could not load some user defined module functions\n"""
     print traceback.print_exc(10)
@@ -86,8 +86,8 @@ def getParser():
                         help='locations of executables (e.g. blastx, Gblocks, etc.)')
     parser.add_argument('-x', '--mltreemap', default=os.path.abspath(os.path.dirname(os.path.realpath(__file__))),
                         help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
-    parser.add_argument('-T', '--num_threads', default=None,
-                        help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 1]')
+    parser.add_argument('-T', '--num_threads', default=2, type=int,
+                        help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 2]')
     parser.add_argument('-d', '--delete', default=None,
                         help='the sections of files to be deleted, as separated by colons '
                              '(1 = Sequence Files; '
@@ -100,6 +100,8 @@ def getParser():
     parser.add_argument('-v', '--verbose', action='store_true',  default=False,
                         help='maintains intermediate files in `various_outputs` and `final_RaXML_outputs` directories'
                              ', and prints a more verbose runtime log')
+    parser.add_argument("--check_trees", action="store_true", default=False,
+                        help="Flag indicating the reference trees should be quality-checked before running MLTreeMap")
     return parser
 
 
@@ -245,33 +247,6 @@ def remove_previous_output(args):
     return args
 
 
-def single_cog_list(reftree, cog_list, text_of_analysis_type):
-    """
-    Copies the relevant information from the cog_list and text_of_analysis_type to new dictionaries
-    :param reftree: The reference gene family
-    :param cog_list: The vivification of cog names, reference names, and their respective type
-    :param text_of_analysis_type: Mapping of cogs and analysis type based on their type
-    :return: Pared down versions of cog_list and text_of_analysis_type containing only information of gene
-    """
-    new_list = Autovivify()
-    single_text_analysis = Autovivify()
-
-    # Parse the cog_list
-    for cog_type in cog_list:
-        for cog, denominator in cog_list[cog_type].iteritems():
-            if denominator == reftree:
-                new_list[cog_type][cog] = denominator
-                break
-
-    # Parse the text_of_analysis_type
-    for denominator, analysis in text_of_analysis_type.iteritems():
-        if denominator == reftree:
-            single_text_analysis[denominator] = analysis
-            break
-
-    return new_list, single_text_analysis
-
-
 def create_cog_list(args):
     """
     Loads the MLTreeMap COG list file
@@ -298,10 +273,12 @@ def create_cog_list(args):
     cog_input_list.close()
 
     for cogInput in cogList:
-
         # Get the kind of COG if cogInput is a header line        
         if re.match(r'\A#(.*)', cogInput):
             kind_of_cog = re.match(r'\A#(.*)', cogInput).group(1)
+            continue
+
+        if re.match(r'\A%(.*)', cogInput):
             continue
 
         # Add data to COG list based on the kind of COG it is
@@ -326,6 +303,33 @@ def create_cog_list(args):
             text_of_analysis_type[denominator] = 'Functional analysis, ' + text + ':'
 
     return cog_list, text_of_analysis_type
+
+
+def single_cog_list(reftree, cog_list, text_of_analysis_type):
+    """
+    Copies the relevant information from the cog_list and text_of_analysis_type to new dictionaries
+    :param reftree: The reference gene family
+    :param cog_list: The vivification of cog names, reference names, and their respective type
+    :param text_of_analysis_type: Mapping of cogs and analysis type based on their type
+    :return: Pared down versions of cog_list and text_of_analysis_type containing only information of gene
+    """
+    new_list = Autovivify()
+    single_text_analysis = Autovivify()
+
+    # Parse the cog_list
+    for cog_type in cog_list:
+        for cog, denominator in cog_list[cog_type].iteritems():
+            if denominator == reftree:
+                new_list[cog_type][cog] = denominator
+                break
+
+    # Parse the text_of_analysis_type
+    for denominator, analysis in text_of_analysis_type.iteritems():
+        if denominator == reftree:
+            single_text_analysis[denominator] = analysis
+            break
+
+    return new_list, single_text_analysis
 
 
 def calculate_overlap(info):
@@ -591,51 +595,66 @@ def validate_inputs(args, cog_list):
     :param args: the command-line and default options
     :return: list of files that were edited
     """
-    print "Validating MSA files in data/alignment_data...",
-    alignment_files = glob.glob(args.mltreemap + os.sep + "data/alignment_data/*fa")
-    modified_files = list()
-    ambiguities = {'X', '-', 'N'}
-    characters = set()
-    for msa_file in alignment_files:
-        msa_dict = dict()
-        fix = False
-        header = ""
-        with open(msa_file) as msa:
-            for line in msa:
-                if line[0] == ">":
-                    if len(header) > 0:
-                        msa_dict[header] = "".join(msa_dict[header])
-                    header = line.strip()
-                    msa_dict[header] = list()
-                else:
-                    sequence = line.strip()
-                    msa_dict[header].append(sequence)
-        msa_dict[header] = "".join(msa_dict[header])
-        ref_seq_length = len(msa_dict[header])
-
-        for gene in msa_dict:
-            seq = "".join(msa_dict[gene])
-            if len(seq) != ref_seq_length:
-                fix = True
-            for c in seq:
-                characters.add(c)
-            if len(characters.difference(ambiguities)) == 0:
-                # Only ambiguity characters in characters
-                fix = True
-            characters.clear()
-
-        if fix:
-            if args.verbose:
-                print "Fixing", msa_file
-            seq_len_dist = get_seq_len_dist(msa_dict)
-            bad_marker = write_fixed_msa(seq_len_dist, msa_dict, msa_file, args)
-            # if len(bad_marker) > 0:
-            #     for k in cog_list:
-            #         if bad_marker in cog_list[k].keys():
-            #             print "WARNING: Removing", bad_marker, "from list of ", k, "gene families!"
-            #             cog_list[k].pop(bad_marker)
-    print "done."
-    return modified_files
+    print "Testing validity of reference trees..."
+    ref_trees = glob.glob(args.mltreemap + os.sep + "data/tree_data/*_tree.txt")
+    ref_tree_dict = dict()
+    f_cogs = [cog.strip("_") for cog in cog_list["functional_cogs"].keys()]
+    for tree_file in ref_trees:
+        denominator = os.path.basename(tree_file).strip("_tree.txt")
+        denominator = denominator.strip("_")
+        if denominator in f_cogs:
+            ref_tree_dict[denominator] = tree_file
+    status = pparse_ref_trees(denominator_ref_tree_dict=ref_tree_dict, args=args)
+    if status is None:
+        sys.exit()
+    else:
+        print "Reference trees appear to be formatted correctly! Continuing with MLTreeMap."
+    return
+    # print "Validating MSA files in data/alignment_data...",
+    # alignment_files = glob.glob(args.mltreemap + os.sep + "data/alignment_data/*fa")
+    # modified_files = list()
+    # ambiguities = {'X', '-', 'N'}
+    # characters = set()
+    # for msa_file in alignment_files:
+    #     msa_dict = dict()
+    #     fix = False
+    #     header = ""
+    #     with open(msa_file) as msa:
+    #         for line in msa:
+    #             if line[0] == ">":
+    #                 if len(header) > 0:
+    #                     msa_dict[header] = "".join(msa_dict[header])
+    #                 header = line.strip()
+    #                 msa_dict[header] = list()
+    #             else:
+    #                 sequence = line.strip()
+    #                 msa_dict[header].append(sequence)
+    #     msa_dict[header] = "".join(msa_dict[header])
+    #     ref_seq_length = len(msa_dict[header])
+    #
+    #     for gene in msa_dict:
+    #         seq = "".join(msa_dict[gene])
+    #         if len(seq) != ref_seq_length:
+    #             fix = True
+    #         for c in seq:
+    #             characters.add(c)
+    #         if len(characters.difference(ambiguities)) == 0:
+    #             # Only ambiguity characters in characters
+    #             fix = True
+    #         characters.clear()
+    #
+    #     if fix:
+    #         if args.verbose:
+    #             print "Fixing", msa_file
+    #         seq_len_dist = get_seq_len_dist(msa_dict)
+    #         bad_marker = write_fixed_msa(seq_len_dist, msa_dict, msa_file, args)
+    #         # if len(bad_marker) > 0:
+    #         #     for k in cog_list:
+    #         #         if bad_marker in cog_list[k].keys():
+    #         #             print "WARNING: Removing", bad_marker, "from list of ", k, "gene families!"
+    #         #             cog_list[k].pop(bad_marker)
+    # print "done."
+    # return modified_files
 
 
 def run_blast(args, split_files, cog_list):
@@ -655,7 +674,6 @@ def run_blast(args, split_files, cog_list):
         'data' + os.sep + \
         args.reference_data_prefix + 'alignment_data' + os.sep + \
         "*.fa"
-    # TODO: Make sure this works -- exit if the directory doesn't exist
     try:
         os.path.isdir(alignment_data_dir)
     except IOError as e:
@@ -665,7 +683,7 @@ def run_blast(args, split_files, cog_list):
     db_aa = '-db "'
 
     for fasta in glob.glob(alignment_data_dir):
-        cog = os.path.basename(fasta).rstrip(".fa")
+        cog = os.path.basename(fasta).split('.')[0]
         if cog in cog_list["all_cogs"].keys():
             if re.match(r'.*rRNA\.fa\Z', fasta):
                 db_nt += fasta + ' '
@@ -1651,6 +1669,7 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
         acc = 0
 
         if re.search(r'\A(.)', f_contig):
+            # An issue if there were denominators with underscores
             denominator = f_contig.split('_')[0]
         else:
             sys.exit('ERROR: The analysis type could not be parsed from ' + f_contig + '!\n')
@@ -1920,16 +1939,6 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
         if re.search(r'\A(.)', f_contig):
             denominator = f_contig.split('_')[0]
         if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
-            # if denominator in cog_list['phylogenetic_rRNA_cogs'].values() and denominator in cog_list['functional_cogs'].values():
-            #     print denominator, "is redundant - replace!"
-            # elif denominator in cog_list['phylogenetic_rRNA_cogs'].values():
-            #     for cog in sorted(cog_list['phylogenetic_rRNA_cogs'].keys()):
-            #         if denominator == cog_list['phylogenetic_rRNA_cogs'][cog]:
-            #             reference_tree_file = mltree_resources + 'tree_data' + os.sep + cog + '_tree.txt'
-            # elif denominator in cog_list['functional_cogs'].values():
-            #     for cog in sorted(cog_list['functional_cogs'].keys()):
-            #         if denominator == cog_list['functional_cogs'][cog]:
-            #             reference_tree_file = mltree_resources + 'tree_data' + os.sep + cog + '_tree.txt'
             for cog in sorted(cog_list['all_cogs'].keys()):
                 if not cog_list['all_cogs'][cog] == denominator:
                     continue
@@ -2031,6 +2040,9 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
 
     def log_tree(result):
         marker, terminal_children_of_reference = result
+        if terminal_children_of_reference is None:
+            sys.stdout.write("Letting threads finish before exiting... ")
+            sys.stdout.flush()
         ref_trees_dict[marker] = terminal_children_of_reference
 
     for denominator in denominator_ref_tree_dict:
@@ -2040,20 +2052,38 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
                          callback=log_tree)
     pool.close()
     pool.join()
+    for marker in ref_trees_dict:
+        if ref_trees_dict[marker] is None:
+            sys.stdout.write("done.\n")
+            return None
+        else:
+            pass
     return ref_trees_dict
 
 
-def pparse_raxml_out_trees(labelled_trees_list, args):
-    pool = Pool(processes=int(args.num_threads))
+def pparse_raxml_out_trees(labelled_trees, args):
+    """
+    The wrapper command for parsing all trees of a gene family (denominator) in parallel
+    :param labelled_trees: Dictionary containing labelled tree files for each f_contig
+    :param args: args object (for num_threads)
+    :return: Dictionary containing all parsed trees for each contig
+    """
+    # TODO: Implement locking and timeouts to prevent threads from sleeping and therefore ensure jobs complete
+    # Keep a "failed" dictionary for the processes that do not terminate successfully. This will be regulated by time.
+    pool = Pool(processes=int(args.num_threads), maxtasksperchild=10)
     raxml_tree_dict = dict()
 
     def log_tree(result):
         f_contig, rooted_labelled_trees, insertion_point_node_hash = result
+        if rooted_labelled_trees is None:
+            pool.terminate()
+            sys.exit()
         raxml_tree_dict[f_contig] = [rooted_labelled_trees, insertion_point_node_hash]
 
-    for tree_file in labelled_trees_list:
+    for f_contig in labelled_trees:
+        tree_file = labelled_trees[f_contig]
         pool.apply_async(func=read_understand_and_reroot_the_labelled_tree,
-                         args=(tree_file,),
+                         args=(tree_file, f_contig, ),
                          callback=log_tree)
     pool.close()
     pool.join()
@@ -2104,7 +2134,13 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
         sys.stderr.flush()
         parse_log = sys.stdout
 
+    parse_log.write("Parsing each gene reference tree file found in the input sequences in parallel...")
+    parse_log.flush()
     terminal_children_strings_of_ref_denominators = pparse_ref_trees(denominator_reference_tree_dict, args)
+    parse_log.write(" done.\n")
+    if terminal_children_strings_of_ref_denominators is None:
+        sys.exit()
+    parse_log.write(time.ctime() + "\n")
 
     if sorted(denominator_reference_tree_dict.keys()) != sorted(terminal_children_strings_of_ref_denominators.keys()):
         print "input: ", denominator_reference_tree_dict.keys()
@@ -2113,24 +2149,40 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
     for denominator in sorted(raxml_outfiles.keys()):
         description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
+
+        # Retrieve the parsed reference tree from the dictionary of parsed reference trees
         if args.verbose:
-            parse_log.write("Reading the reference tree for " + denominator + "... ")
-
-        # Can give this to parallel and return the terminal children of each denominator
+            parse_log.write("Retrieving the reference tree for " + denominator + "... ")
         terminal_children_strings_of_reference = terminal_children_strings_of_ref_denominators[denominator]
-
         if args.verbose:
             parse_log.write("done.\n")
+
         content_of_previous_labelled_tree_file = ''
         previous_f_contig = ""
         rooted_labelled_trees = ''
         insertion_point_node_hash = ''
         final_assignment_target_strings = Autovivify()
-        
-        labelled_tree_file_list = list()
+
+        # Parse all labelled tree files for denominator in parallel
+        labelled_tree_files = dict()
         for f_contig in raxml_outfiles[denominator].keys():
-            labelled_tree_file_list.append(raxml_outfiles[denominator][f_contig]['labelled_tree'])
-        raxml_tree_dict = pparse_raxml_out_trees(labelled_tree_file_list, args)
+            if not os.path.isfile(raxml_outfiles[denominator][f_contig]['labelled_tree']):
+                parse_log.write("WARNING: " + str(raxml_outfiles[denominator][f_contig]['labelled_tree']) +
+                                "was included in RAxML output files but is not a file. Continuing...\n")
+            else:
+                labelled_tree_files[f_contig] = raxml_outfiles[denominator][f_contig]['labelled_tree']
+
+        parse_log.write("Parsing the " + str(len(labelled_tree_files.keys())) +
+                        " trees for " + denominator + " in parallel... ")
+        start_time = time.time()
+        parse_log.flush()
+        raxml_tree_dict = pparse_raxml_out_trees(labelled_tree_files, args)
+        end_time = time.time()
+        parse_log.write("done.\n")
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        parse_log.write("Parsing required " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+        parse_log.flush()
 
         for f_contig in sorted(raxml_outfiles[denominator].keys()):
             # Update the progress bar
@@ -2162,12 +2214,15 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
                 RAxML_labelled_tree.close()
                 if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
-                    # TODO: Write these files to a RAxML log file
-                    if args.verbose:
-                        parse_log.write("Reading the labelled tree " + labelled_tree_file + "... ")
+                    parse_log.write("Retrieving the labelled tree " + labelled_tree_file + "... ")
+                    parse_log.flush()
+                    if f_contig not in raxml_tree_dict.keys():
+                        sys.exit("ERROR: " + f_contig + " is not found in not in raxml_tree_dict.keys():"
+                                                        " \n" + str(raxml_tree_dict.keys()))
                     rooted_labelled_trees, insertion_point_node_hash = raxml_tree_dict[f_contig]
-                    if args.verbose:
-                        parse_log.write("done.\n")
+
+                    parse_log.write("done.\n")
+                    parse_log.flush()
                     final_assignment_target_strings = Autovivify()
                     nr_of_assignments = 0  # This does not exist in the original MLTreeMap perl code
                 else:
@@ -2197,18 +2252,19 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
                 RAxML_classification.close()
                 if at_least_one_new_assignment > 0:
-                    if args.verbose:
-                        parse_log.write("identifying the terminal children of each assignment for "+f_contig+"... ")
-                        parse_log.write(time.ctime() + "\n")
+                    parse_log.write("identifying the terminal children of each assignment for "+f_contig+"... ")
+                    parse_log.write(time.ctime() + "\n")
+                    parse_log.flush()
                     prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(
-                                                         terminal_children_strings_of_reference, rooted_labelled_trees,
-                                                         insertion_point_node_hash, new_assignments, args.num_threads)
-                    if args.verbose:
-                        parse_log.write("done. " + time.ctime() + "\n")
+                        terminal_children_strings_of_reference, rooted_labelled_trees, insertion_point_node_hash,
+                        new_assignments, args.num_threads, parse_log)
+                    parse_log.write("done.\n")
 
                     for assignment in sorted(prae_assignment_target_strings.keys()):
                         assignment_target_string = prae_assignment_target_strings[assignment]
                         final_assignment_target_strings[assignment] = assignment_target_string
+
+                parse_log.write("Finished parsing " + f_contig + "'s RAxML output at " + time.ctime() + "\n")
 
             elif raxml_option == 'p':
                 # Maximum parsimony analysis
@@ -2273,17 +2329,20 @@ def read_and_understand_the_reference_tree(reference_tree_file, denominator):
     reference_tree_elements = read_the_reference_tree(reference_tree_file)
     reference_tree_info = create_tree_info_hash()
     reference_tree_info = get_node_subtrees(reference_tree_elements, reference_tree_info)
-    reference_tree_info = assign_parents_and_children(reference_tree_info)
+    reference_tree_info = assign_parents_and_children(reference_tree_info, denominator)
+    if reference_tree_info is None:
+        return denominator, None
     terminal_children_of_reference = build_terminal_children_strings_of_reference_nodes(reference_tree_info)
     return denominator, terminal_children_of_reference
 
 
-def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
-    f_contig = os.path.basename(labelled_tree_file).rstrip("'.originalRAxML_labelledTree.txt'")
+def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
     labelled_tree_elements, insertion_point_node_hash = read_the_raxml_out_tree(labelled_tree_file)
     labelled_tree_info = create_tree_info_hash()
     labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
-    labelled_tree_info = assign_parents_and_children(labelled_tree_info)
+    labelled_tree_info = assign_parents_and_children(labelled_tree_info, f_contig)
+    if labelled_tree_info is None:
+        return [f_contig, None, insertion_point_node_hash]
     labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
     rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
     return [f_contig, rooted_labelled_trees, insertion_point_node_hash]
@@ -2292,10 +2351,10 @@ def read_understand_and_reroot_the_labelled_tree(labelled_tree_file):
 def identify_the_correct_terminal_children_of_each_assignment(terminal_children_of_reference,
                                                               rooted_labelled_trees,
                                                               insertion_point_node_hash,
-                                                              assignments, num_threads):
+                                                              assignments, num_threads, parse_log):
     terminal_children_of_assignments = build_terminal_children_strings_of_assignments(rooted_labelled_trees,
-                                                                                              insertion_point_node_hash,
-                                                                                              assignments, num_threads)
+                                                                                      insertion_point_node_hash,
+                                                                                      assignments, num_threads, parse_log)
     real_terminal_children_of_assignments = compare_terminal_children_strings(terminal_children_of_assignments,
                                                                                       terminal_children_of_reference)
     return real_terminal_children_of_assignments
@@ -2543,7 +2602,7 @@ def get_node_subtrees(tree_elements, tree_info):
     return tree_info
 
 
-def assign_parents_and_children(tree_info):
+def assign_parents_and_children(tree_info, source):
     """
     :param tree_info: Autovivification of a tree from get_node_subtrees
     :return: tree info with parent and child relationships included
@@ -2570,9 +2629,12 @@ def assign_parents_and_children(tree_info):
                 parent = potential_parent
                 break
         if parent is None:
-            print "ERROR: No parent assigned for", node
-            sys.exit("This is due to either an incompatibility with your RAxML version or a formatting error in the reference tree.\n\n"
-                     "Please post an issue on the github page!\n")
+            print "ERROR: No parent assigned for", node, "for", source
+            print "This is due to either an incompatibility with your RAxML version or " \
+                  "a formatting error in the reference tree.\n"
+            print "Please post an issue on the github page!"
+            return None
+            # TODO: handle this better when dealing with multiple processes
         else:
             tree_info['parent_of_node'][node] = parent
             tree_info['children_of_node'][parent][node] = 1
@@ -2654,33 +2716,104 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
     return tree_string
 
 
-def parallel_subtree_node_retriever(rooted_trees, num_threads):
-    if num_threads < 2:
-        num_threads = 2
-    pool = Pool(processes=int(num_threads))
+# def parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log):
+#     """
+#     Run `get_node_subtrees` in parallel for each of the elements in rooted_trees
+#     :param rooted_trees: dictionary of rooted trees
+#     :param num_threads: Number of threads to use
+#     :return: rooted_tree_nodes - a list of results from get_node_subtrees()
+#     """
+#     if num_threads < 2:
+#         num_threads = 2
+#     pool = Pool(processes=int(num_threads), maxtasksperchild=40)
+#     rooted_tree_nodes = list()
+#
+#     def log_tree(result):
+#         rooted_tree_nodes.append(result)
+#
+#     parse_log.write("Number of subtrees = " + str(len(rooted_trees.keys())) + "\n")
+#     parse_log.flush()
+#
+#     for rooted_tree in rooted_trees.keys():
+#         rooted_tree_elements = split_tree_string(rooted_trees[rooted_tree])
+#         rooted_tree_info = create_tree_info_hash()
+#         pool.apply_async(func=get_node_subtrees,
+#                          args=(rooted_tree_elements, rooted_tree_info,),
+#                          callback=log_tree)
+#     pool.close()
+#     pool.join()
+#     for worker in pool._pool:
+#         assert not worker.is_alive()
+#     return rooted_tree_nodes
+
+
+class Worker(Process):
+    """
+    Doug Hellman's Consumer class for handling processes via queues
+    """
+    def __init__(self, task_queue, result_queue):
+        Process.__init__(self)
+        self.task_queue = task_queue
+        self.result_queue = result_queue
+
+    def run(self):
+        while True:
+            next_task = self.task_queue.get()
+            if next_task is None:
+                # Poison pill means shutdown
+                self.task_queue.task_done()
+                break
+            result = get_node_subtrees(next_task, create_tree_info_hash())
+            self.task_queue.task_done()
+            self.result_queue.put(result)
+        return
+
+
+def parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log):
+    """
+    Run `get_node_subtrees` in parallel for each of the elements in rooted_trees
+    :param rooted_trees: Dictionary of rooted trees
+    :param num_threads: Number of threads to use
+    :param parse_log: The file object to write parsing information to
+    :return: rooted_tree_nodes - a list of results from get_node_subtrees()
+    """
+    job_queue = JoinableQueue()
+    result_queue = Queue()
     rooted_tree_nodes = list()
 
-    def log_tree(result):
-        rooted_tree_nodes.append(result)
+    worker_group = [Worker(job_queue, result_queue) for i in range(int(num_threads))]
+    for worker in worker_group:
+        worker.start()
 
-    for rooted_tree in rooted_trees.keys():
-        rooted_tree_elements = split_tree_string(rooted_trees[rooted_tree])
-        rooted_tree_info = create_tree_info_hash()
-        pool.apply_async(func=get_node_subtrees,
-                         args=(rooted_tree_elements, rooted_tree_info,),
-                         callback=log_tree)
-    pool.close()
-    pool.join()
+    tasks = [split_tree_string(rooted_trees[rooted_tree]) for rooted_tree in rooted_trees.keys()]
+    parse_log.write("Number of subtrees = " + str(len(tasks)) + "\n")
+    parse_log.flush()
+    for rooted_tree_elements in tasks:
+        if job_queue.full():
+            sys.exit("ERROR: multiprocessing.Queue full in parallel_subtree_node_retriever!")
+        job_queue.put(rooted_tree_elements)
+
+    for i in range(int(num_threads)):
+        job_queue.put(None)
+
+    for i in range(len(rooted_trees.keys())):
+        rooted_tree_nodes.append(result_queue.get())
+
+    job_queue.close()
+    result_queue.close()
+    result_queue.join_thread()
+
     return rooted_tree_nodes
 
 
-def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point_node_hash, assignments, num_threads):
+def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point_node_hash,
+                                                   assignments, num_threads, parse_log):
     terminal_children_strings_of_assignments = Autovivify()
 
     for assignment in sorted(assignments.keys()):
         internal_node_of_assignment = insertion_point_node_hash[assignment]
 
-        rooted_tree_nodes = parallel_subtree_node_retriever(rooted_trees, num_threads)
+        rooted_tree_nodes = parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log)
 
         for rooted_tree_info in rooted_tree_nodes:
             assignment_subtree = str(rooted_tree_info['subtree_of_node'][str(internal_node_of_assignment)])
@@ -3096,7 +3229,8 @@ def main(argv):
     args = remove_previous_output(args)
     cog_list, text_of_analysis_type = create_cog_list(args)
     non_wag_cog_list = get_non_wag_cogs(args)
-    # modified_files = validate_inputs(args, cog_list)
+    if args.check_trees:
+        validate_inputs(args, cog_list)
     split_files = split_fasta_input(args)
 
     # UPDATE GENE FAMILY TREE MODE:
