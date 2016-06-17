@@ -22,8 +22,8 @@ try:
     import traceback
     from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
 except ImportWarning:
-    print """ Could not load some user defined module functions\n"""
-    print traceback.print_exc(10)
+    sys.stderr.write("Could not load some user defined module functions")
+    sys.stderr.write(traceback.print_exc(10))
     sys.exit(3)
 
 
@@ -128,7 +128,7 @@ def find_executables(args):
         elif which(dep):
             exec_paths[dep] = which(dep)
         else:
-            print "Could not find a valid executable for", dep
+            sys.stderr.write("Could not find a valid executable for " + dep)
             sys.exit("Bailing out.")
 
     args.executables = exec_paths
@@ -181,9 +181,9 @@ def checkParserArguments(parser):
 
     # Notify the user that bootstraps cannot be used with the Maximum Parsimony settings of RAxML.
     if args.bootstraps > 1 and args.phylogeny == 'p':
-        print 'ATTENTION: You intended to do ' + str(args.bootstraps) + \
+        sys.stderr.write('ATTENTION: You intended to do ' + str(args.bootstraps) + \
               ' bootstrap replications. Unfortunately, bootstrapping is ' +\
-              'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n'
+              'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n')
         args.bootstraps = 1
 
     args = find_executables(args)
@@ -192,6 +192,11 @@ def checkParserArguments(parser):
     while re.search(r'/\Z', args.output) or re.search(r'\\\Z', args.output):
         args.output = args.output[:-1]
     args.output += os.sep
+
+    if sys.version_info > (2, 9):
+        args.py_version = 3
+    else:
+        args.py_version = 2
 
     args.output_dir_var = args.output + 'various_outputs' + os.sep
     args.output_dir_raxml = args.output + 'final_RAxML_outputs' + os.sep
@@ -214,8 +219,8 @@ def remove_previous_output(args):
 
     # Prompt the user to deal with the pre-existing output directory
     while os.path.isdir(args.output):
-        print('WARNING: Your output directory "' + args.output + '" already exists!')
-        print('Overwrite [1], quit [2], or change directory [3]?')
+        sys.stdout.write('WARNING: Your output directory "' + args.output + '" already exists!\n')
+        sys.stdout.write('Overwrite [1], quit [2], or change directory [3]?\n')
         answer = raw_input()
         answer = int(answer)
 
@@ -223,8 +228,8 @@ def remove_previous_output(args):
             answer = raw_input('Invalid input. Please choose 1, 2, or 3.\n')
             answer = int(answer)
         if answer == 1:
-            print('Do you really want to overwrite the old output directory?')
-            print('All data in it will be lost!')
+            sys.stdout.write('Do you really want to overwrite the old output directory?\n')
+            sys.stdout.write('All data in it will be lost!\n')
             answer2 = raw_input('Yes [y] or no [n]?\n')
             while not answer2 == 'y' and not answer2 == 'n':
                 answer2 = raw_input('Invalid input. Please choose y or n.\n')
@@ -384,7 +389,7 @@ def split_fasta_input(args):
         sys.exit('ERROR: Your file does not appear to be a proper FASTA file!\n')
 
     # Unread the '>' to prevent problems later
-    fasta.seek(-1, 1)
+    #fasta.seek(-1, 1)
 
     # Determine the output file names and open the output files
     if re.match(r'\A.*\/(.*)', args.input):
@@ -519,7 +524,7 @@ def get_seq_len_dist(msa_dict):
 
 def build_hmm(msa_file, args):
     gene_family = ".".join(msa_file.split("/")[-1].split('.')[0:-1])
-    print "realigning sequences for " + gene_family
+    sys.stdout.write("realigning sequences for " + gene_family)
     hmm_output = args.mltreemap + "/data/hmm_data/" + gene_family + ".hmm"
     if os.path.isfile(hmm_output):
         os.remove(hmm_output)
@@ -529,63 +534,64 @@ def build_hmm(msa_file, args):
     return
 
 
-def write_fixed_msa(seq_len_dist, msa_dict, msa_file, args):
-    """
-    Will detect and remove lines that are comprised of ambiguity and gap characters, saving the original inputs in the
-    specified output directory/bad_inputs/*.original
-    :param seq_len_dist: dictionary containing the sequence lengths as keys and abundance as values
-    :param msa_dict: dictionary collection of the MSA FASTA file (headers = sequences)
-    :param msa_file: Name of the MSA file
-    :return:
-    """
-    aligned_status = False
-    ambiguities = {'X', '-', 'N'}
-    characters = set()
-    bad_seqs = list()
-    if len(seq_len_dist.keys()) > 1:
-        dominant_length = max(seq_len_dist.keys())
-        print "Dominant length =", dominant_length
-        for header in msa_dict:
-            if '-' in msa_dict[header]:
-                aligned_status = True
-                continue
-            if aligned_status and len(msa_dict[header]) != dominant_length:
-                bad_seqs.append(header)
-        if not aligned_status:
-            print msa_file, "needs to be aligned!"
-            return ".".join(msa_file.split("/")[-1].split('.')[0:-1])
-
-    for seq in msa_dict:
-        for c in msa_dict[seq]:
-            characters.add(c)
-        if len(characters.difference(ambiguities)) == 0:
-            bad_seqs.append(seq)
-        characters.clear()
-
-    if len(bad_seqs) >= 1:
-        # print "The following sequences were removed from", msa_file
-        # for bad in bad_seqs:
-        #     print bad
-        # good_msa_seqs = dict()
-        # for sequence in msa_dict:
-        #     if sequence not in bad_seqs:
-        #         good_msa_seqs[sequence] = msa_dict[sequence]
-        # try:
-        #     shutil.copyfile(msa_file, msa_file+".original")
-        # except IOError:
-        #     print "ERROR: Cannot copy " + msa_file
-        #
-        # try:
-        #     fixed_msa_file = open(msa_file, 'w')
-        # except IOError:
-        #     print "ERROR: Cannot open file " + msa_file + " for rewriting."
-        #
-        # for header in good_msa_seqs:
-        #     fixed_msa_file.write(header + "\n")
-        #     fixed_msa_file.write(good_msa_seqs[header] + "\n")
-        # fixed_msa_file.close()
-        build_hmm(msa_file, args)
-    return ""
+# def write_fixed_msa(seq_len_dist, msa_dict, msa_file, args):
+#     """
+#     Will detect and remove lines that are comprised of ambiguity and gap characters, saving the original inputs in the
+#     specified output directory/bad_inputs/*.original
+#     :param seq_len_dist: dictionary containing the sequence lengths as keys and abundance as values
+#     :param msa_dict: dictionary collection of the MSA FASTA file (headers = sequences)
+#     :param msa_file: Name of the MSA file
+#     :return:
+#     """
+#     aligned_status = False
+#     ambiguities = set('X', '-', 'N')
+#     characters = set()
+#     bad_seqs = list()
+#     if len(seq_len_dist.keys()) > 1:
+#         dominant_length = max(seq_len_dist.keys())
+#         sys.stdout.write("Dominant length = " + dominant_length)
+#         sys.stdout.flush()
+#         for header in msa_dict:
+#             if '-' in msa_dict[header]:
+#                 aligned_status = True
+#                 continue
+#             if aligned_status and len(msa_dict[header]) != dominant_length:
+#                 bad_seqs.append(header)
+#         if not aligned_status:
+#             sys.stdout.write(msa_file + "needs to be aligned!")
+#             return ".".join(msa_file.split("/")[-1].split('.')[0:-1])
+#
+#     for seq in msa_dict:
+#         for c in msa_dict[seq]:
+#             characters.add(c)
+#         if len(characters.difference(ambiguities)) == 0:
+#             bad_seqs.append(seq)
+#         characters.clear()
+#
+#     if len(bad_seqs) >= 1:
+#         # print "The following sequences were removed from", msa_file
+#         # for bad in bad_seqs:
+#         #     print bad
+#         # good_msa_seqs = dict()
+#         # for sequence in msa_dict:
+#         #     if sequence not in bad_seqs:
+#         #         good_msa_seqs[sequence] = msa_dict[sequence]
+#         # try:
+#         #     shutil.copyfile(msa_file, msa_file+".original")
+#         # except IOError:
+#         #     print "ERROR: Cannot copy " + msa_file
+#         #
+#         # try:
+#         #     fixed_msa_file = open(msa_file, 'w')
+#         # except IOError:
+#         #     print "ERROR: Cannot open file " + msa_file + " for rewriting."
+#         #
+#         # for header in good_msa_seqs:
+#         #     fixed_msa_file.write(header + "\n")
+#         #     fixed_msa_file.write(good_msa_seqs[header] + "\n")
+#         # fixed_msa_file.close()
+#         build_hmm(msa_file, args)
+#     return ""
 
 
 def validate_inputs(args, cog_list):
@@ -595,7 +601,8 @@ def validate_inputs(args, cog_list):
     :param args: the command-line and default options
     :return: list of files that were edited
     """
-    print "Testing validity of reference trees..."
+    sys.stdout.write("Testing validity of reference trees...")
+    sys.stdout.flush()
     ref_trees = glob.glob(args.mltreemap + os.sep + "data/tree_data/*_tree.txt")
     ref_tree_dict = dict()
     f_cogs = [cog.strip("_") for cog in cog_list["functional_cogs"].keys()]
@@ -608,7 +615,8 @@ def validate_inputs(args, cog_list):
     if status is None:
         sys.exit()
     else:
-        print "Reference trees appear to be formatted correctly! Continuing with MLTreeMap."
+        sys.stdout.write("Reference trees appear to be formatted correctly! Continuing with MLTreeMap.")
+        sys.stdout.flush()
     return
     # print "Validating MSA files in data/alignment_data...",
     # alignment_files = glob.glob(args.mltreemap + os.sep + "data/alignment_data/*fa")
@@ -676,8 +684,10 @@ def run_blast(args, split_files, cog_list):
         "*.fa"
     try:
         os.path.isdir(alignment_data_dir)
-    except IOError as e:
-        print os.strerror(e.errno)
+    except IOError:
+        sys.stderr.write("ERROR: " + alignment_data_dir + "does not exist!")
+        sys.stderr.flush()
+        sys.exit()
 
     db_nt = '-db "'
     db_aa = '-db "'
@@ -754,7 +764,7 @@ def run_blast(args, split_files, cog_list):
         if path.exists(split_fasta):
             os.remove(split_fasta)
 
-    print "done."
+    sys.stdout.write("done.\n")
 
  
 def collect_blast_outputs(args):
@@ -793,7 +803,7 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
         try:     
             blast_results = open(file, 'r')
         except IOError:
-            print "ERROR: Cannot open BLAST outputfile " + file
+            sys.stdout.write("ERROR: Cannot open BLAST outputfile " + file)
             continue
 
         contigs = {}
@@ -966,7 +976,7 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
 
         out.close()
     if args.verbose:
-        print "done."
+        sys.stdout.write("done.\n")
     return purifiedBlastHits
 
 
@@ -1148,7 +1158,7 @@ def produceGenewiseFiles(args, blast_hits_purified):
                         fprintf(f, "%s\n", ">" + contig_name + "\n" + sequence)
                     f.close()
                 except:
-                    print "ERROR: Can't create " + args.output_dir_var + contig_name + "_sequence.txt!"
+                    sys.stdout.write("ERROR: Can't create " + args.output_dir_var + contig_name + "_sequence.txt!")
 
                 try:   
                     with open(args.output_dir_var + contig_name + "_sequence_shortened.txt", 'w') as f:
@@ -1156,7 +1166,7 @@ def produceGenewiseFiles(args, blast_hits_purified):
                     f.close()
                     shortened_sequence_files[args.output_dir_var + contig_name + "_sequence_shortened.txt"] = contig_name
                 except:
-                    print "ERROR: Can't create " + args.output_dir_var + contig_name + "_sequence_shortened.txt!"
+                    sys.stdout.write("ERROR: Can't create " + args.output_dir_var + contig_name + "_sequence_shortened.txt!")
 
             if searchmatch:
                 contig_name = searchmatch.group(1)
@@ -1167,7 +1177,7 @@ def produceGenewiseFiles(args, blast_hits_purified):
 
     input.close()
     if args.verbose:
-        print "done."
+        sys.stdout.write("done.\n")
     return contig_coordinates, shortened_sequence_files
 
 
@@ -1260,7 +1270,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
             try:     
                 input = open(genewise_outputfile, 'r')
             except IOError:
-                print "ERROR: Cannot open Genewise outputfile " + genewise_outputfile
+                sys.stdout.write("ERROR: Cannot open Genewise outputfile " + genewise_outputfile)
                 continue
 
             header_count = 0
@@ -1407,7 +1417,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
         # Skip to next hit if there are no valid hits
         if count <= 0:
-            print "Number of valid hits for", contig, "=", str(count)
+            sys.stdout.write("Number of valid hits for " + contig + " = "  + str(count))
             continue
 
         # Write the summary file
@@ -1415,7 +1425,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
         try: 
             output = open(genewise_summary_file, 'w')
         except IOError:
-            print 'ERROR: Cannot open Genewise summary file ' + genewise_summary_file + ' for writing'
+            sys.stdout.write('ERROR: Cannot open Genewise summary file ' + genewise_summary_file + ' for writing')
             sys.exit(0)
 
         genewise_summary_files[contig][genewise_summary_file] = 1
@@ -1446,8 +1456,8 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
     """
 
 # TK: ...the list of rRNA hit files is empty.
-    print "Retrieving rRNA hits...",
-
+    sys.stdout.write("Retrieving rRNA hits...")
+    sys.stdout.flush()
     contig_rRNA_coordinates = Autovivify()
     rRNA_hit_files = {}
     
@@ -1472,14 +1482,14 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
             try:
                 outfile = open(outfile_name, 'w')
                 outfile.close()
-            except IOError, e:
-                print "ERROR: Can't create " + outfile_name + '!\n'
+            except IOError:
+                sys.stderr.write("ERROR: Can't create " + outfile_name + '!\n')
                 sys.exit(0)
 
     try:
         input = open(args.input, 'r')
-    except IOError, e:
-        print "ERROR: Can't create " + args.input + '!\n'
+    except IOError:
+        sys.stdout.write("ERROR: Can't create " + args.input + '!\n')
         sys.exit(0)
     contig_name = ''
     sequence = ''
@@ -1534,8 +1544,8 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
                         out = open(outfile, 'a')
                         fprintf(out, '%s\t%s\t%s\t%s\t%s\n', cog, start, end, 'n/a', shortened_sequence)
                         out.close()
-                    except IOError, e:
-                        print "ERROR: Can't create " + outfile + '!\n'
+                    except IOError:
+                        sys.stderr.write("ERROR: Can't create " + outfile + '!\n')
                         sys.exit(0)
 
                 try:
@@ -1543,7 +1553,7 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
                     fprintf(output_file, '>%s\n%s', contig_name, sequence)
                     output_file.close()
                 except IOError:
-                    print "ERROR: Can't create " + args.output_dir_var + contig_name + '_sequence.txt!\n'
+                    sys.stderr.write("ERROR: Can't create " + args.output_dir_var + contig_name + '_sequence.txt!\n')
                     sys.exit(0)
 
             if searchmatch:
@@ -1552,7 +1562,7 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
         else:
             sequence += line
     input.close()
-    print "done."
+    sys.stdout.write("done.\n")
     return contig_rRNA_coordinates, rRNA_hit_files
 
 
@@ -1575,8 +1585,8 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
         for genewise_summary_file in sorted(genewise_summary_files[contig].keys()):
             try:
                 input = open(genewise_summary_file, 'r')
-            except IOError:  
-                print "ERROR: Can't open " + genewise_summary_file + "!\n"
+            except IOError:
+                sys.stderr.write("ERROR: Can't open " + genewise_summary_file + "!\n")
                 sys.exit(0)
 
             line = input.readline()
@@ -1595,7 +1605,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                     fprintf(outfile, '>query\n%s', sequence)
                     outfile.close()
                 except IOError:
-                    print 'Can\'t create ' + genewise_singlehit_file_fa + '\n'
+                    sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
                     sys.exit(0)
                 mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
                 hmmalign_command = [args.executables["hmmalign"], '--mapali',
@@ -1611,7 +1621,8 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
 
             input.close()
     if args.verbose:
-        print "done."
+        sys.stdout.write("done.\n")
+        sys.stdout.flush()
     return hmmalign_singlehit_files
                    
 
@@ -1746,13 +1757,13 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
             output.write('>' + sequence_name + '\n' + sequence + '\n')
             if len(sequence) != qlen:
                 output.close()
-                print "ERROR: inconsistent sequence lengths between query and concatenated HMM alignments!"
+                sys.stderr.write("ERROR: inconsistent sequence lengths between query and concatenated HMM alignments!")
                 sys.exit("Check " + args.output_dir_var + f_contig + ".mfa")
 
         output.close()
 
     if args.verbose:
-        print "done."
+        sys.stdout.write("done.\n")
 
     return concatenated_mfa_files, nrs_of_sequences, models_to_be_used
 
@@ -1825,8 +1836,8 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
             else:
                 line = re.sub(r' ', '', line)
                 if seq_name == "":
-                    print "ERROR: The Gblocks output", gblocks_file, "is not in the required format."
-                    print "Please make sure that your versions of hmmalign and gblocks are compatible with MLTreeMap."
+                    sys.stderr.write("ERROR: The Gblocks output " + gblocks_file + "is not in the required format.")
+                    sys.stderr.write("Please make sure that your versions of hmmalign and gblocks are compatible with MLTreeMap.")
                     sys.exit()
                 if seq_name in sequences_raw:
                     sequences_raw[seq_name] += line
@@ -1836,7 +1847,8 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
         input.close()
 
         # Ensure the sequences contain only valid characters for RAxML
-        for seq_name in sorted(sequences_raw.keys()):
+        # for seq_name in sorted(sequences_raw.keys()):
+        for seq_name in sequences_raw.keys():
             if do_not_continue == 1:
                 continue
             sequence = sequences_raw[seq_name]
@@ -1924,7 +1936,8 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     Returns an Autovivification listing the output files of RAxML.
     Returns an Autovivification containing the reference tree file associated with each functional or rRNA COG.
     """
-    print 'Running RAxML... coffee?'
+    sys.stdout.write("Running RAxML... coffee?\n")
+    sys.stdout.flush()
 
     raxml_outfiles = Autovivify()
 
@@ -2019,8 +2032,8 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
             if os.path.exists(str(output_dir) + 'RAxML_labelledTree.' + str(f_contig)):
                 os.system(' '.join(remove_command))
             else:
-                print "Some files were not successfully created for", str(f_contig)
-                print "Check " + str(output_dir) + str(f_contig) + "_RAxML.txt for an error!"
+                sys.stderr.write("Some files were not successfully created for " + str(f_contig))
+                sys.stderr.write("Check " + str(output_dir) + str(f_contig) + "_RAxML.txt for an error!")
                 sys.exit("Bailing out!")
         elif raxml_option == 'p':
             raxml_outfiles[denominator][f_contig] = str(output_dir) + str(f_contig) + '.RAxML_parsimonyTree.txt'
@@ -2068,9 +2081,7 @@ def pparse_raxml_out_trees(labelled_trees, args):
     :param args: args object (for num_threads)
     :return: Dictionary containing all parsed trees for each contig
     """
-    # TODO: Implement locking and timeouts to prevent threads from sleeping and therefore ensure jobs complete
-    # Keep a "failed" dictionary for the processes that do not terminate successfully. This will be regulated by time.
-    pool = Pool(processes=int(args.num_threads), maxtasksperchild=10)
+    pool = Pool(processes=int(args.num_threads))
     raxml_tree_dict = dict()
 
     def log_tree(result):
@@ -2104,7 +2115,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
     raxml_option = args.phylogeny
 
-    sys.stdout.write('Parsing the RAxML outputs...')
+    sys.stdout.write('Parsing the RAxML outputs...\n')
     sys.stdout.flush()
 
     final_RAxML_output_files = Autovivify()
@@ -2115,10 +2126,6 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
     else:
         progress_bar_width = num_raxml_outputs
         step_proportion = 1
-
-    if args.verbose:
-        sys.stdout.write("\n")
-        sys.stdout.flush()
 
     sys.stdout.write("[%s ]" % (" " * progress_bar_width))
     sys.stdout.write("%")
@@ -2143,8 +2150,8 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
     parse_log.write(time.ctime() + "\n")
 
     if sorted(denominator_reference_tree_dict.keys()) != sorted(terminal_children_strings_of_ref_denominators.keys()):
-        print "input: ", denominator_reference_tree_dict.keys()
-        print "output: ", terminal_children_strings_of_ref_denominators.keys()
+        sys.stderr.write("input: " + str(denominator_reference_tree_dict.keys()) + "\n")
+        sys.stderr.write("output: " + str(terminal_children_strings_of_ref_denominators.keys()) + "\n")
         sys.exit("ERROR: Not all of the reference trees were parsed!")
 
     for denominator in sorted(raxml_outfiles.keys()):
@@ -2319,13 +2326,12 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
             content_of_previous_labelled_tree_file = content_of_labelled_tree_file
             previous_f_contig = f_contig
 
-    print "-]%"
+    sys.stdout.write("-]%\n")
     parse_log.close()
     return final_RAxML_output_files
 
 
 def read_and_understand_the_reference_tree(reference_tree_file, denominator):
-    # marker = os.path.basename(reference_tree_file).split('_')[0]
     reference_tree_elements = read_the_reference_tree(reference_tree_file)
     reference_tree_info = create_tree_info_hash()
     reference_tree_info = get_node_subtrees(reference_tree_elements, reference_tree_info)
@@ -2474,7 +2480,8 @@ def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
 
     for assig in sorted(assignments.keys()):
         assignment = assig
-        print assig
+        sys.stdout.write(assig + "\n")
+        sys.stdout.flush()
         break
 
     try:
@@ -2598,7 +2605,6 @@ def get_node_subtrees(tree_elements, tree_info):
         if tree_element in tree_info['subtree_of_node'].keys():
             continue
         tree_info['subtree_of_node'][tree_element] = tree_element
-    
     return tree_info
 
 
@@ -2609,13 +2615,13 @@ def assign_parents_and_children(tree_info, source):
     """
 
     # parse_log.write("assigning_parents_and_children... \nStart:\t" + time.ctime() + "\n")
-    for node in sorted(tree_info['subtree_of_node'].keys()):
+    tree_nodes = sorted(list(tree_info['subtree_of_node'].keys()))
+    for node in tree_nodes:
         if node == -1:
             continue
         subtree = str(tree_info['subtree_of_node'][node])
         parent = None
-
-        for potential_parent in sorted(tree_info['subtree_of_node'].keys()):
+        for potential_parent in tree_nodes:
             if node == potential_parent:
                 continue
             potential_parent_subtree = str(tree_info['subtree_of_node'][potential_parent])
@@ -2629,10 +2635,11 @@ def assign_parents_and_children(tree_info, source):
                 parent = potential_parent
                 break
         if parent is None:
-            print "ERROR: No parent assigned for", node, "for", source
-            print "This is due to either an incompatibility with your RAxML version or " \
-                  "a formatting error in the reference tree.\n"
-            print "Please post an issue on the github page!"
+            sys.stderr.write("ERROR: No parent assigned for " + node + " for " + source + "\n")
+            sys.stderr.write("This is due to either an incompatibility with your RAxML version or ")
+            sys.stderr.write("a formatting error in the reference tree.\n")
+            sys.stderr.write("Please post an issue on the github page!")
+            sys.stderr.flush()
             return None
             # TODO: handle this better when dealing with multiple processes
         else:
@@ -2714,37 +2721,6 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
             tree_string += ')' + str(node)
 
     return tree_string
-
-
-# def parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log):
-#     """
-#     Run `get_node_subtrees` in parallel for each of the elements in rooted_trees
-#     :param rooted_trees: dictionary of rooted trees
-#     :param num_threads: Number of threads to use
-#     :return: rooted_tree_nodes - a list of results from get_node_subtrees()
-#     """
-#     if num_threads < 2:
-#         num_threads = 2
-#     pool = Pool(processes=int(num_threads), maxtasksperchild=40)
-#     rooted_tree_nodes = list()
-#
-#     def log_tree(result):
-#         rooted_tree_nodes.append(result)
-#
-#     parse_log.write("Number of subtrees = " + str(len(rooted_trees.keys())) + "\n")
-#     parse_log.flush()
-#
-#     for rooted_tree in rooted_trees.keys():
-#         rooted_tree_elements = split_tree_string(rooted_trees[rooted_tree])
-#         rooted_tree_info = create_tree_info_hash()
-#         pool.apply_async(func=get_node_subtrees,
-#                          args=(rooted_tree_elements, rooted_tree_info,),
-#                          callback=log_tree)
-#     pool.close()
-#     pool.join()
-#     for worker in pool._pool:
-#         assert not worker.is_alive()
-#     return rooted_tree_nodes
 
 
 class Worker(Process):
@@ -2834,11 +2810,6 @@ def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point
 
             terminal_children_strings_of_assignments[assignment][terminal_children_string_of_assignment] = 1
 
-        # for rooted_tree in rooted_trees.keys():
-        #     rooted_tree_elements = split_tree_string(rooted_trees[rooted_tree])
-        #     rooted_tree_info = create_tree_info_hash()
-        #     rooted_tree_info = get_node_subtrees(rooted_tree_elements, rooted_tree_info)
-
     return terminal_children_strings_of_assignments
 
 
@@ -2891,7 +2862,7 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
 
 def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type):
     if args.verbose:
-        print "Concatenating the RAxML outputs for each marker gene class..."
+        sys.stdout.write("Concatenating the RAxML outputs for each marker gene class... ")
     output_directory_final = args.output_dir_final
     
     for denominator in sorted(final_RAxML_output_files.keys()):
@@ -2933,7 +2904,7 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
         except IOError:
             sys.exit('ERROR: Can\'t create ' + str(final_output_file_name) + '!\n')
         if args.verbose:
-            print str(denominator) + '_ results concatenated:'
+            sys.stdout.write(str(denominator) + '_ results concatenated:\n')
         output.write(str(description_text) + '\n')
         sum_of_relative_weights = 0
 
@@ -2941,11 +2912,15 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
 
             for assignment in sorted(assignments_with_relative_weights[relative_weight].keys(), reverse=True):
                 sum_of_relative_weights += relative_weight
-                print 'Placement weight', '%.2f' % relative_weight + "%:", assignment
+                sys.stdout.write('Placement weight' )
+                sys.stdout.write('%.2f' % relative_weight + "%:")
+                sys.stdout.write(assignment + "\n")
                 output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n')
 
         output.close()
-        print str(denominator) + '_ sum of placement weights (should be 100):', int(sum_of_relative_weights + 0.5)
+        sys.stdout.write('_' + str(denominator) + '_ sum of placement weights (should be 100): ')
+        sys.stdout.write(str(int(sum_of_relative_weights + 0.5)) + "\n")
+        sys.stdout.flush()
 
 
 def read_species_translation_files(args, cog_list):
@@ -2987,7 +2962,10 @@ def read_species_translation_files(args, cog_list):
     for denominator in sorted(translation_files.keys()):
         filename = translation_files[denominator]
         try:
-            cog_tax_ids = open(filename, 'r')
+            if args.py_version == 3:
+                cog_tax_ids = open(filename, 'r', encoding='utf-8')
+            else:
+                cog_tax_ids = open(filename, 'r')
         except IOError:
             sys.exit('ERROR: Can\'t open ' + str(filename) + '!\n')
 
@@ -3118,7 +3096,7 @@ def available_cpu_count():
 
 
 def delete_files(args):
-    print 'Deleting files as requested'
+    sys.stdout.write('Deleting files as requested\n')
     sectionsToBeDeleted = []
     if args.delete:
         sectionsToBeDeleted = args.delete.split(':')
@@ -3175,7 +3153,7 @@ def single_family_msa(args, cog_list):
     reference_data_prefix = args.reference_data_prefix
     hmmalign_singlehit_files = Autovivify()
     if args.verbose:
-        print "Running hmmalign...",
+        sys.stdout.write("Running hmmalign... ")
 
     # split the input into a contig per fasta file
     args.filelength = 1
@@ -3206,7 +3184,7 @@ def single_family_msa(args, cog_list):
                 fprintf(outfile, '>query\n%s', sequence)
                 outfile.close()
             except IOError:
-                print 'Can\'t create ' + genewise_singlehit_file_fa + '\n'
+                sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
                 sys.exit(0)
             mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
             hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
@@ -3218,7 +3196,7 @@ def single_family_msa(args, cog_list):
             os.system(' '.join(hmmalign_command))
 
     if args.verbose:
-        print "done."
+        sys.stdout.write("done.\n")
     return hmmalign_singlehit_files
 
 
@@ -3270,7 +3248,8 @@ def main(argv):
     # STAGE 6: Delete files as determined by the user
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes,...
     delete_files(args)
-    print 'MLTreeMap has finished successfully.'
+    sys.stdout.write("MLTreeMap has finished successfully.\n")
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

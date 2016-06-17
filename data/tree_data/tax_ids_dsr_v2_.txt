@@ -53,7 +53,7 @@
 53	AF482459 (Desulfomicrobium apsheronum)
 54	AF482462 (Desulfovibrio piger)
 55	AF492838 (Desulfovibrio aespoeensis)
-56	AJ277107 (Desulfococcus multivorans, strain Göttingen, dsrA+B)
+56	AJ277107 (Desulfococcus multivorans, strain GÃ¶ttingen, dsrA+B)
 57	AJ277293 (Thermodesulforhabdus norvegica)
 58	AJ289157 (Desulfovibrio desulfuricans subsp. aestuarii, strain sylt 3, dsrA+B)
 59	AJ310430 (Desulfobulbus elongatus)
