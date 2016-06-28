@@ -205,6 +205,13 @@ def checkParserArguments(parser):
     return args
 
 
+def get_response(py_version, string=""):
+    if py_version == 3:
+        return input(string)
+    if py_version == 2:
+        return raw_input(string)
+
+
 def remove_previous_output(args):
     """
     Prompts the user to determine how to deal with a pre-existing output directory.
@@ -221,18 +228,16 @@ def remove_previous_output(args):
     while os.path.isdir(args.output):
         sys.stdout.write('WARNING: Your output directory "' + args.output + '" already exists!\n')
         sys.stdout.write('Overwrite [1], quit [2], or change directory [3]?\n')
-        answer = raw_input()
-        answer = int(answer)
+        answer = int(get_response(args.py_version))
 
         while not answer == 1 and not answer == 2 and not answer == 3:
-            answer = raw_input('Invalid input. Please choose 1, 2, or 3.\n')
-            answer = int(answer)
+            answer = int(get_response(args.py_version, 'Invalid input. Please choose 1, 2, or 3.\n'))
         if answer == 1:
             sys.stdout.write('Do you really want to overwrite the old output directory?\n')
             sys.stdout.write('All data in it will be lost!\n')
-            answer2 = raw_input('Yes [y] or no [n]?\n')
+            answer2 = get_response(args.py_version, 'Yes [y] or no [n]?\n')
             while not answer2 == 'y' and not answer2 == 'n':
-                answer2 = raw_input('Invalid input. Please choose y or n.\n')
+                answer2 = get_response(args.py_version, 'Invalid input. Please choose y or n.\n')
             if answer2 == 'y':
                 shutil.rmtree(args.output)
             else:
@@ -240,7 +245,7 @@ def remove_previous_output(args):
         elif answer == 2:
             sys.exit('Exit MLTreeMap\n')
         else:
-            args.output = raw_input('Please enter the path to the new directory.\n')
+            args.output = get_response(args.py_version, 'Please enter the path to the new directory.\n')
     
     # Create the output directories
     if not os.path.isdir(args.output):
@@ -378,50 +383,31 @@ def split_fasta_input(args):
     :param args: Command-line argument object from getParser and checkParserArguments
     :return A list of the files produced from the input file.
     """
-    
     if args.verbose:
-        sys.stdout.write("Splitting " + args.input + " into multiple files... ")
+        sys.stdout.write("Formatting " + args.input + " for pipeline... ")
         sys.stdout.flush()
 
-    # Confirm input file is a fasta file
-    fasta = open(args.input, 'r')
-    if not fasta.read(1) == '>':
-        sys.exit('ERROR: Your file does not appear to be a proper FASTA file!\n')
-
-    # Unread the '>' to prevent problems later
-    #fasta.seek(-1, 1)
-
-    # Determine the output file names and open the output files
     if re.match(r'\A.*\/(.*)', args.input):
         input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
     else:
         input_multi_fasta = args.input
-    split_fasta = open(args.output_dir_var + input_multi_fasta + '_0.txt', 'w')
     args.formatted_input_file = args.output_dir_var + input_multi_fasta + '_formatted.txt'
+    
+    fasta = open(args.input, 'r')
     output_formatted = open(args.formatted_input_file, 'w')
-    num_files = 0
-    sequence_count = -1
     header = ""
     sequence = ""
-
-    # Iterate through the input file...
     reg_nuc = re.compile(r'[acgtACGT]')
     reg_ambiguity = re.compile(r'[xnXN]')
     reg_amino = re.compile(r'[abcdefghiklmnpqrstuvwyzABCDEFGHIKLMNPQRSTUVWYZ*]')
-    countTotal = 0
-    countNucleotides = 0
-    countXN = 0
-    countUndef = 0
-    split_files = []
-
+    count_total = 0
+    count_nucleotides = 0
+    count_xn = 0
+    count_undef = 0
     for line in fasta:
         # If the line is a sequence name...
         if line[0] == '>':
-            sequence_count += 1
-
             if len(header) > 0 and len(sequence) > args.gblocks:
-                split_fasta.write(header)
-                split_fasta.write(sequence + "\n")
                 output_formatted.write(header)
                 output_formatted.write(sequence + "\n")
             sequence = ""
@@ -429,97 +415,69 @@ def split_fasta_input(args):
             # Then replace the initial _ with a >
             line = re.sub(r'[^a-zA-Z0-9.\r\n]', '_', line)
             line = re.sub(r'\A_', '>', line)
-            
+    
             # Because RAxML can only work with file names having length <= 125,
             # Ensure that the sequence name length is <= 100
             if line.__len__() > 100:
                 line = line[0:100]
-
+    
             header = line
-            # Split the file if sequence_count > the number of sequences per file specified by the user
-            if sequence_count >= args.filelength:
-                sequence_count = 0
-                split_files.append(args.output_dir_var + input_multi_fasta + '_%d.txt' % num_files)
-                num_files += 1
-                split_fasta.close()
-                split_fasta = open(args.output_dir_var + input_multi_fasta + '_%d.txt' % num_files, 'w')
+    
         # Else, if the line is a sequence...
         else:
             if len(line.strip()) == 0:
                 continue
             # Remove all non-characters from the sequence
             re.sub(r'[^a-zA-Z]', '', line)
-
+    
             sequence += line.strip()
-
+    
             # Count the number of {atcg} and {xn} in all the sequences
             characters = list(line)
-            
+    
             for character in characters:
-                countTotal += 1
+                count_total += 1
                 # If fasta is nucleotides, count nucleotides
                 if args.reftype == 'n':
-
+    
                     if reg_nuc.match(character):
-                        countNucleotides += 1
+                        count_nucleotides += 1
                     elif reg_ambiguity.match(character):
-                        countXN += 1
+                        count_xn += 1
                     else:
-                        countUndef += 1
+                        count_undef += 1
                 # Else, if fasta is amino acids, count amino acids
                 elif args.reftype == 'a':
                     if reg_amino.match(character):
-                        countNucleotides += 1
+                        count_nucleotides += 1
                     elif reg_ambiguity.match(character):
-                        countXN += 1
+                        count_xn += 1
                     else:
-                        countUndef += 1
-
+                        count_undef += 1
+    
     # Write the lines to the appropriate files
-    split_fasta.write(header)
-    split_fasta.write(sequence + "\n")
     output_formatted.write(header)
     output_formatted.write(sequence + "\n")
-
-    # Close the files
-    fasta.close()
-    split_fasta.close()
-    output_formatted.close()
-    split_files.append(args.output_dir_var + input_multi_fasta + '_%d.txt' % num_files)
-
-    # If there's only one input file, add it to the list of split input files
-    if not split_files:
-        split_files.append(args.output_dir_var + input_multi_fasta + '_%d.txt' % num_files)
-
-    # Exit the program if character count is 0
-    if countTotal == 0:
+    if count_total == 0:
         sys.exit('ERROR: Your input file appears to be corrupted. No sequences were found!\n')
-
+    
     # Exit the program if all sequences are composed only of X or N
-    elif countXN == countTotal:
+    elif count_xn == count_total:
         sys.exit('ERROR: Your sequence(s) contain only X or N!\n')
-
+    
     # Exit the program if less than half of the characters are nucleotides
-    elif float(countNucleotides / float(countTotal)) < 0.5:
+    elif float(count_nucleotides / float(count_total)) < 0.5:
         if args.reftype == 'n':
             sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
         elif args.reftype == 'a':
             sys.exit('ERROR: Your sequence(s) most likely contain no AA!\n')
-
+    
+    # Close the files
+    fasta.close()
+    output_formatted.close()
     if args.verbose:
         sys.stdout.write("done.\n")
-
-    return split_files
-
-
-def get_seq_len_dist(msa_dict):
-    seq_len_dist = dict()
-    for alignment in msa_dict:
-        seq_len = len(msa_dict[alignment])
-        if seq_len not in seq_len_dist.keys():
-            seq_len_dist[seq_len] = 0
-        seq_len_dist[seq_len] += 1
-    return seq_len_dist
+    return [args.formatted_input_file]
 
 
 def build_hmm(msa_file, args):
@@ -761,8 +719,8 @@ def run_blast(args, split_files, cog_list):
             os.system(command)
 
         # Remove the BLAST input file
-        if path.exists(split_fasta):
-            os.remove(split_fasta)
+        # if path.exists(split_fasta):
+        #     os.remove(split_fasta)
 
     sys.stdout.write("done.\n")
 
@@ -2032,8 +1990,8 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
             if os.path.exists(str(output_dir) + 'RAxML_labelledTree.' + str(f_contig)):
                 os.system(' '.join(remove_command))
             else:
-                sys.stderr.write("Some files were not successfully created for " + str(f_contig))
-                sys.stderr.write("Check " + str(output_dir) + str(f_contig) + "_RAxML.txt for an error!")
+                sys.stderr.write("Some files were not successfully created for " + str(f_contig) + "\n")
+                sys.stderr.write("Check " + str(output_dir) + str(f_contig) + "_RAxML.txt for an error!\n")
                 sys.exit("Bailing out!")
         elif raxml_option == 'p':
             raxml_outfiles[denominator][f_contig] = str(output_dir) + str(f_contig) + '.RAxML_parsimonyTree.txt'
@@ -2912,8 +2870,8 @@ def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analy
 
             for assignment in sorted(assignments_with_relative_weights[relative_weight].keys(), reverse=True):
                 sum_of_relative_weights += relative_weight
-                sys.stdout.write('Placement weight' )
-                sys.stdout.write('%.2f' % relative_weight + "%:")
+                sys.stdout.write('Placement weight ')
+                sys.stdout.write('%.2f' % relative_weight + "%: ")
                 sys.stdout.write(assignment + "\n")
                 output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n')
 
