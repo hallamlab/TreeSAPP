@@ -788,22 +788,24 @@ def collect_blast_outputs(args):
     :param args: Command-line argument object from getParser and check_parser_arguments
     Returns a list of non-empty BLAST results files.
     """
-    rawBlastResultFiles = []
+    raw_blast_result_files = []
 
     for blast_result in glob.glob(args.output_dir_var + '*BLAST_results_raw.txt'):
         blast_result.rstrip('\r\n')
         if path.getsize(blast_result) <= 0:
             os.remove(blast_result)
         else:
-            rawBlastResultFiles.append(blast_result)
+            raw_blast_result_files.append(blast_result)
     
-    return rawBlastResultFiles
+    return raw_blast_result_files
 
 
-def parseBlastResults(args, rawBlastResultFiles, cog_list):
+def parse_blast_results(args, raw_blast_results, cog_list):
     """
     Returns an Autovivification of purified (eg. non-redundant) BLAST hits.
     :param args: Command-line argument object from getParser and check_parser_arguments
+    :param raw_blast_results: list of files produced from BLAST alignment
+    :param cog_list: list of COGs included in analysis pipeline
     """
 
     if args.verbose:
@@ -814,11 +816,11 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
     counter = 0
     purifiedBlastHits = Autovivify()
 
-    for file in sorted(rawBlastResultFiles):
+    for blast_table in sorted(raw_blast_results):
         try:     
-            blast_results = open(file, 'r')
+            blast_results = open(blast_table, 'r')
         except IOError:
-            sys.stdout.write("ERROR: Cannot open BLAST outputfile " + file)
+            sys.stdout.write("ERROR: Cannot open BLAST outputfile " + blast_table)
             continue
 
         contigs = {}
@@ -849,8 +851,14 @@ def parseBlastResults(args, rawBlastResultFiles, cog_list):
                 tempQStart = tempQEnd
                 tempQEnd = temp
                 if direction == 'reverse':
-                    sys.exit('ERROR: Parsing error with the BLAST results. Please notify the authors about ' + tempContig + ' at ' +
-                              tempDetailedCOG + 'q('+tempQEnd+'..'+tempQStart+'),r('+tempREnd+'..'+tempRStart+')')
+                    sys.stderr.write("ERROR: Confusing BLAST result!\n")
+                    sys.stderr.write("Please notify the authors about " +
+                                     tempContig + ' at ' +
+                                     tempDetailedCOG +
+                                     " q(" + str(tempQEnd) + '..' + str(tempQStart) + ")," +
+                                     " r(" + str(tempREnd) + '..' + str(tempRStart) + ")")
+                    sys.stderr.flush()
+                    sys.exit()
                 direction = 'reverse'
 
             # Trim COG name to last 7 characters of detailed COG name
@@ -1047,7 +1055,7 @@ def blastpParser(args, blast_hits_purified):
     return blastpSummaryFiles
 
 
-def produceGenewiseFiles(args, blast_hits_purified):
+def produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict):
     """
     Takes an Autovivification of purified BLAST hits and uses these to produce the input files needed for Genewise.
 
@@ -1126,78 +1134,51 @@ def produceGenewiseFiles(args, blast_hits_purified):
             prae_contig_coordinates[contig][base_start][base_end] = 1
 
     # Produce the input files for Genewise
-    input = open(args.formatted_input_file, 'r')
-    print args.formatted_input_file
-    contig_name = ''
-    sequence = ''
-    line = 'x'
+    for contig_name in prae_contig_coordinates:
+        sequence = formatted_fasta_dict[">" + contig_name]
+        sequence_length = len(sequence)
+        shortened_sequence = ""
 
-    while line:
-        line = input.readline()
-        line = line.strip()
-        line = re.sub(r'\s', '_', line)
-        searchmatch = re.search(r'\A>(.+)', line)
+        # Start searching for the information to shorten the file.
+        for start_blast in sorted(prae_contig_coordinates[contig_name].keys()):
+            for end_blast in sorted(prae_contig_coordinates[contig_name][start_blast].keys()):
 
-        if searchmatch or not line:
-            if not line:
-                sequence += line
-            if contig_name in prae_contig_coordinates:
-                sequence_length = len(sequence)
-                shortened_sequence = ""
+                # Ok, now we have all information about the hit. Correct start and end if needed:
+                if start_blast < 0:
+                    start_blast = 0
 
-                # Start searching for the information to shorten the file.
-                for start_blast in sorted(prae_contig_coordinates[contig_name].keys()):
-                    for end_blast in sorted(prae_contig_coordinates[contig_name][start_blast].keys()):
+                if end_blast >= sequence_length:
+                    end_blast = sequence_length - 1
 
-                        # Ok, now we have all information about the hit. Correct start and end if needed: 
-                        if start_blast < 0:
-                            start_blast = 0
+                # Note: Genewise (gw) positions start with 1, blast positions with 0 ->
+                # thus differentiate between start_blast and start_gw
+                shortened_start_gw = len(shortened_sequence) + 1
+                count = -1
+                for nucleotide in sequence:
+                    count += 1
+                    if not count >= start_blast and count <= end_blast:
+                        continue
+                    shortened_sequence += nucleotide
 
-                        if end_blast >= sequence_length:
-                            end_blast = sequence_length - 1
-      
-                        # Note: Genewise (gw) positions start with 1, blast positions with 0 ->
-                        # thus differentiate between start_blast and start_gw
-                        shortened_start_gw = len(shortened_sequence) + 1 
-                        count = -1
-                        for nucleotide in sequence: 
-                            count += 1     
-                            if not count >= start_blast and count <= end_blast:
-                                continue
-                            shortened_sequence += nucleotide
+                shortened_end_gw = len(shortened_sequence)
+                addition_factor = (start_blast + 1) - shortened_start_gw  # $start_B + 1 == $start_GW
+                contig_coordinates[contig_name][shortened_start_gw][shortened_end_gw] = addition_factor
 
-                        shortened_end_gw = len(shortened_sequence)
-                        addition_factor = (start_blast + 1) - shortened_start_gw  # $start_B + 1 == $start_GW
-                        contig_coordinates[contig_name][shortened_start_gw][shortened_end_gw] = addition_factor
-                # if len(shortened_sequence) < 10:
-                #     print "Contig: ", contig_name
-                #     print "Sequence:", sequence
-                #     print "start:", start_blast, "end:", end_blast
-                #     print "Shortened sequence:", shortened_sequence
+        try:
+            with open(args.output_dir_var + contig_name + "_sequence.txt", 'w') as f:
+                fprintf(f, "%s\n", ">" + contig_name + "\n" + sequence)
+            f.close()
+        except:
+            raise IOError("Can't create " + args.output_dir_var + contig_name + "_sequence.txt!")
 
-                try:
-                    with open(args.output_dir_var + contig_name + "_sequence.txt", 'w') as f:
-                        fprintf(f, "%s\n", ">" + contig_name + "\n" + sequence)
-                    f.close()
-                except:
-                    raise IOError("Can't create " + args.output_dir_var + contig_name + "_sequence.txt!")
+        try:
+            with open(args.output_dir_var + contig_name + "_sequence_shortened.txt", 'w') as f:
+                fprintf(f, "%s\n", ">" + contig_name + "\n" + shortened_sequence)
+            f.close()
+            shortened_sequence_files[args.output_dir_var + contig_name + "_sequence_shortened.txt"] = contig_name
+        except:
+            raise IOError("Can't create " + args.output_dir_var + contig_name + "_sequence_shortened.txt!")
 
-                try:   
-                    with open(args.output_dir_var + contig_name + "_sequence_shortened.txt", 'w') as f:
-                        fprintf(f, "%s\n", ">" + contig_name + "\n" + shortened_sequence)
-                    f.close()
-                    shortened_sequence_files[args.output_dir_var + contig_name + "_sequence_shortened.txt"] = contig_name
-                except:
-                    raise IOError("Can't create " + args.output_dir_var + contig_name + "_sequence_shortened.txt!")
-
-            if searchmatch:
-                contig_name = searchmatch.group(1)
-                sequence = ""
-
-        else:
-            sequence += line
-
-    input.close()
     if args.verbose:
         sys.stdout.write("done.\n")
     return contig_coordinates, shortened_sequence_files
@@ -1262,11 +1243,11 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
 
     cog_hmms = ['.'.join(hmmF.split('.')[:-1]) for hmmF in hmm_dir_files]
 
-    # For each file which has been shortened by produceGenewiseFiles...
+    # For each file which has been shortened by produce_genewise_files...
     for shortened_sequence_file in sorted(shortened_sequence_files.keys()):
         contig = shortened_sequence_files[shortened_sequence_file]
     
-        # For each identifier associated with this contig in the output of parseBlastResults
+        # For each identifier associated with this contig in the output of parse_blast_results
         for identifier in sorted(blast_hits_purified[contig].keys()):
             cog = blast_hits_purified[contig][identifier]['cog']
             if cog not in cog_hmms:
@@ -3282,12 +3263,13 @@ def main(argv):
     else:
         # STAGE 2: Run BLAST to determine which COGs are present in the input sequence(s)
         run_blast(args, formatted_fasta_files, cog_list)
-        blast_results = collect_blast_outputs(args)
-        blast_hits_purified = parseBlastResults(args, blast_results, cog_list)
+        raw_blast_results = collect_blast_outputs(args)
+        blast_hits_purified = parse_blast_results(args, raw_blast_results, cog_list)
 
         # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
-        contig_coordinates, shortened_sequence_files = produceGenewiseFiles(args, blast_hits_purified)
+        contig_coordinates, shortened_sequence_files = produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict)
         genewise_summary_files = Autovivify()
+        formatted_fasta_dict.clear()
         if args.reftype == 'n':
             genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
             genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
@@ -3317,5 +3299,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
-
+    main(sys.argv[1:])
