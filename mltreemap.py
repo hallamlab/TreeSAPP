@@ -420,11 +420,12 @@ def write_formatted_fasta(args, formatted_fasta_dict):
     return split_files
 
 
-def format_read_fasta(args):
+def format_read_fasta(args, duplicates=False):
     """
     Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
     Ensures each sequence and sequence name is valid.
     :param args: Command-line argument object from getParser and check_parser_arguments
+    :param duplicates: A flag indicating the function should be duplicate-aware
     :return A list of the files produced from the input file.
     """
     if args.verbose:
@@ -441,9 +442,10 @@ def format_read_fasta(args):
     count_total = 0
     count_nucleotides = 0
     count_xn = 0
-    count_undef = 0
     header_clash = False
-    duplicate_headers = dict()
+    num_headers = 0
+    if duplicates:
+        duplicate_headers = dict()
     for line in fasta:
         # If the line is a sequence name...
         if line[0] == '>':
@@ -461,54 +463,51 @@ def format_read_fasta(args):
                 line = line[0:100]
     
             header = line.strip()
-            if header in formatted_fasta_dict.keys():
-                if header not in duplicate_headers.keys():
-                    duplicate_headers[header] = 0
-                duplicate_headers[header] += 1
-                header = header + "_" + str(duplicate_headers[header])
-                header_clash = True
+            if duplicates:
+                if header in formatted_fasta_dict.keys():
+                    if header not in duplicate_headers.keys():
+                        duplicate_headers[header] = 1
+                    duplicate_headers[header] += 1
+                    header = header + "_" + str(duplicate_headers[header])
+            num_headers += 1
 
         # Else, if the line is a sequence...
         else:
-            if len(line.strip()) == 0:
+            characters = line.strip()
+            if len(characters) == 0:
                 continue
             # Remove all non-characters from the sequence
-            re.sub(r'[^a-zA-Z]', '', line)
+            re.sub(r'[^a-zA-Z]', '', characters)
     
             # Count the number of {atcg} and {xn} in all the sequences
-            characters = list(line.strip())
-    
-            for character in characters:
-                count_total += 1
-                # If fasta is nucleotides, count nucleotides
-                if args.reftype == 'n':
-    
-                    if reg_nuc.match(character):
-                        count_nucleotides += 1
-                        sequence += character
-                    elif reg_ambiguity.match(character):
-                        count_xn += 1
-                        sequence += character
-                    else:
-                        count_undef += 1
-                        sequence += "N"
-                        sys.stderr.write("WARNING: " + header.strip() + " contains unknown character '" + character +
-                                         "' which will be replaced with an 'N'\n")
-                        sys.stderr.flush()
-                # Else, if fasta is amino acids, count amino acids
-                elif args.reftype == 'a':
-                    if reg_amino.match(character):
-                        count_nucleotides += 1
-                        sequence += character
-                    elif reg_ambiguity.match(character):
-                        count_xn += 1
-                        sequence += character
-                    else:
-                        count_undef += 1
-                        sequence += "N"
-                        sys.stderr.write("WARNING: " + header.strip() + " contains unknown character '" + character +
-                                         "' which will be replaced with an 'N'\n")
-                        sys.stderr.flush()
+            count_total += len(characters)
+
+            if args.reftype == 'n':
+                nucleotides = len(reg_nuc.findall(characters))
+                ambiguity = len(reg_ambiguity.findall(characters))
+                if (nucleotides + ambiguity) != len(characters):
+                    sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters!")
+                    sys.stderr.flush()
+                    sys.exit()
+                else:
+                    count_nucleotides += nucleotides
+                    count_xn += ambiguity
+            elif args.reftype == 'a':
+                aminos = len(reg_amino.findall(characters))
+                ambiguity = len(reg_ambiguity.findall(characters))
+                if (aminos + ambiguity) != len(characters):
+                    sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters!")
+                    sys.stderr.flush()
+                    sys.exit()
+                else:
+                    count_nucleotides += aminos
+                    count_xn += ambiguity
+            sequence += characters
+    formatted_fasta_dict[header] = sequence
+
+    # Check for duplicate headers and change them to make unique headers
+    if len(formatted_fasta_dict.keys()) != num_headers:
+        header_clash = True
 
     if count_total == 0:
         sys.exit('ERROR: Your input file appears to be corrupted. No sequences were found!\n')
@@ -530,9 +529,19 @@ def format_read_fasta(args):
         sys.stdout.write("done.\n")
 
     if header_clash:
-        sys.stderr.write("WARNING: duplicate header names were detected in " + args.input +
-                         "! The headers in the original input and formatted fasta will not match.\n")
+        sys.stderr.write("ERROR: duplicate header names were detected in " + args.input + "!\n")
         sys.stderr.flush()
+        response = raw_input("Do you want the headers to be renamed "
+                             "(The headers in the original input and formatted fasta will not match) [Y/N]?\n")
+        if response == 'Y':
+            sys.stderr.write("Formatting input FASTA with duplicates... ")
+            sys.stderr.flush()
+            formatted_fasta_dict = format_read_fasta(args, True)
+            sys.stderr.write("done.\n")
+            sys.stderr.flush()
+        else:
+            sys.stderr.write("Bailing out. ")
+            sys.stderr.flush()
 
     return formatted_fasta_dict
 
@@ -3254,6 +3263,7 @@ def main(argv):
     if args.check_trees:
         validate_inputs(args, cog_list)
     formatted_fasta_dict = format_read_fasta(args)
+    sys.exit()
     formatted_fasta_files = write_formatted_fasta(args, formatted_fasta_dict)
 
     # UPDATE GENE FAMILY TREE MODE:
