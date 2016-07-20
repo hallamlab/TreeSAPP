@@ -3263,7 +3263,6 @@ def main(argv):
     if args.check_trees:
         validate_inputs(args, cog_list)
     formatted_fasta_dict = format_read_fasta(args)
-    sys.exit()
     formatted_fasta_files = write_formatted_fasta(args, formatted_fasta_dict)
 
     # UPDATE GENE FAMILY TREE MODE:
