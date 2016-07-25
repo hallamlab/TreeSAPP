@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_ThreeStateModel *    T_Wise2_ThreeStateModel
+
+INPUT
+T_Wise2_ThreeStateModel
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_ThreeStateModel *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_ThreeStateModel
+	sv_setref_pv($arg, "Wise2::ThreeStateModel", (void*) $var);
+
+TYPEMAP
+Wise2_ThreeStateUnit *    T_Wise2_ThreeStateUnit
+
+INPUT
+T_Wise2_ThreeStateUnit
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_ThreeStateUnit *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_ThreeStateUnit
+	sv_setref_pv($arg, "Wise2::ThreeStateUnit", (void*) $var);

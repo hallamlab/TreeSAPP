@@ -1,0 +1,83 @@
+/*  Last edited: Apr 14 11:15 1997 (birney) */
+
+%{
+#include "dyna.h"
+
+#define AlnRangeSetLISTLENGTH 64
+%}
+
+
+struct AlnRange
+int starti
+int startj
+int startstate
+int stopi
+int stopj
+int stopstate
+int startscore
+int stopscore
+
+
+struct AlnRangeSet
+int score // over complete alignment
+AlnRange ** alr !list
+
+api
+object AlnRange
+des free_AlnRange
+endobject
+object AlnRangeSet
+des free_AlnRangeSet
+endobject
+endapi
+
+
+%{
+
+#include "alnrange.h"
+
+
+%func
+shows AlnRangeSet in vaguely human form
+%%
+void show_AlnRangeSet(AlnRangeSet * ars,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<ars->len;i++) {
+    show_AlnRange(ars->alr[i],ofp);
+  }
+
+}
+
+%func
+shows AlnRange in vaguely human form
+%%
+void show_AlnRange(AlnRange * alr,FILE * ofp)
+{
+  fprintf(ofp,"(%d,%d,%d)-(%d,%d,%d) [%d,%d]\n",alr->starti,alr->startj,alr->startstate,
+alr->stopi,alr->stopj,alr->stopstate,alr->startscore,alr->stopscore);
+}
+
+%func
+Sorts an AlnRangeSet by start of each AlnRange
+%%
+void sort_AlnRangeSet_by_start(AlnRangeSet * ars)
+{
+  sort_AlnRangeSet(ars,compare_AlnRange_start);
+}
+
+%func
+compares to AlnRange for /sort_AlnRangeSet_by_start
+%type internal
+%%
+int compare_AlnRange_start(AlnRange * one,AlnRange * two)
+{
+  if( one->startj > two->startj) 
+    return 1;
+  else return -1;
+}
+
+
+%}
+

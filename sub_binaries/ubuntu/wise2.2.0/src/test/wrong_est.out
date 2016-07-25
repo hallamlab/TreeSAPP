@@ -1,0 +1,16 @@
+Score 1088
+Position i:[-1] j:[287] State:[3] Score: 0
+Position i:[0] j:[290] State:[0] Score: 1722
+Position i:[1] j:[293] State:[0] Score: 1106
+Position i:[2] j:[296] State:[0] Score: 584
+Position i:[3] j:[299] State:[0] Score: 211
+Position i:[0] j:[299] State:[4] Score: -2535
+//
+Score 1290
+Position i:[74] j:[7] State:[3] Score: 0
+Position i:[75] j:[10] State:[0] Score: -1590
+Position i:[76] j:[13] State:[0] Score: 386
+Position i:[77] j:[16] State:[0] Score: 1414
+Position i:[78] j:[19] State:[0] Score: 1100
+Position i:[0] j:[19] State:[4] Score: -20
+//

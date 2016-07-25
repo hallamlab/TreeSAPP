@@ -1,0 +1,223 @@
+
+%{
+#include "wisebase.h"
+#include "probability.h"
+#include "aln.h"
+#include "sequence.h"
+
+enum SeqErrorType {
+  SeqErrorInsertion,
+  SeqErrorDeletion,
+  SeqErrorSubstitution
+};
+
+#define SequenceErrorSetLISTLENGTH 128
+
+%}
+
+
+struct SequenceError
+int type
+int start
+int end
+char * replaced_bases
+Probability probability
+char * inserted_bases
+char * suspected_deletion
+%info
+This holds information about
+a particular insertion or
+deletion for one sequence
+%%
+
+struct SequenceErrorSet
+SequenceError ** error !list
+%info
+This holds a set of insertion
+or deletions for a sequence
+%%
+
+struct ErrorSequence
+Sequence * seq
+SequenceErrorSet * ses
+%info
+This holds a sequence and what
+errors have occured in it.
+%%
+
+
+%{
+#include "seqerror.h"
+
+
+%func
+Makes a sequence error set from standard genewise labels
+%%
+SequenceErrorSet * genewise_SequenceErrorSet(AlnSequence * als )
+{
+  SequenceErrorSet * out;
+  SequenceError * se;
+  AlnUnit * alu;
+
+  assert(als);
+  out = SequenceErrorSet_alloc_std();
+  
+  for(alu=als->start;alu;alu = alu->next ) {
+    if( strcmp(alu->text_label,"SEQUENCE_INSERTION") == 0 ) {
+      se = SequenceError_alloc();
+      add_SequenceErrorSet(out,se);
+      se->start = alu->start+1;
+      se->end   = alu->end;
+      
+      se->type = SeqErrorInsertion;
+      se->inserted_bases = stringalloc("?");
+      se->replaced_bases = stringalloc("NNN");
+    } else if ( strcmp(alu->text_label,"SEQUENCE_DELETION") == 0 ) {
+      se = SequenceError_alloc();
+      se->start = alu->start+1;
+      se->end   = alu->end;
+      se->type = SeqErrorDeletion;
+      se->replaced_bases = stringalloc("NNN");
+      add_SequenceErrorSet(out,se);
+    }
+  }
+
+  return out;
+}
+
+
+
+%func
+Displays a set of sequence errors in space deliminted format
+%%
+void show_SequenceErrorSet(SequenceErrorSet * ses,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<ses->len;i++) {
+    show_SequenceError(ses->error[i],ofp);
+  }
+}
+
+    
+
+%func
+Displays sequence error in space deliminted format
+%%
+void show_SequenceError(SequenceError * se,FILE * ofp)
+{
+  fprintf(ofp,"%c %5d %5d %10s (%10s)\n",
+	  (se->type == SeqErrorInsertion ? 'I' : 
+	   (se->type == SeqErrorDeletion ? 'D' : 'S')),
+	  se->start,se->end,
+	  se->replaced_bases == NULL ? "-none-" : se->replaced_bases,
+	  se->type == SeqErrorInsertion ? se->inserted_bases : "-");
+}
+
+%func
+Makes an error sequence (DNA) with set substitution
+and insertion/deletion rates.
+%%
+ErrorSequence * make_ErrorSequence(Sequence * seq,Probability subs,Probability insertion,Probability deletion)
+{
+  ErrorSequence * out;
+  
+  char * seq_buffer;
+  int buf_len;
+  int i,j;
+  double rnd;
+  char c[2];
+  SequenceError * se;
+  
+  i=j=0;
+
+  out = ErrorSequence_alloc();
+  out->ses = SequenceErrorSet_alloc_std();
+  c[1] = '\0';
+
+  buf_len = seq->len *3;
+  seq_buffer = (char*)calloc(buf_len,sizeof(char));
+  
+  for(i=0;i<seq->len;i++) {
+    if( j >= buf_len ) {
+      warn("run out of temporary buffer in error sequence");
+      break;
+    }
+
+    rnd = random_0_to_1();
+
+    if( rnd > deletion ) {
+      /* yes this base is here */
+      rnd = random_0_to_1();
+      if( rnd < subs ) {
+	rnd = random_0_to_1();
+	if( rnd < 0.25 ) {
+	  c[0] = 'A';
+	} else if ( rnd < 0.5 ) {
+	  c[0] = 'T';
+	} else if ( rnd < 0.75 ) {
+	  c[0] = 'G';
+	} else {
+	  c[0] = 'C';
+	}
+
+	se = SequenceError_alloc();
+	se->type = SeqErrorSubstitution;
+	se->start = j+1;
+	se->end = j+1;
+	se->replaced_bases = stringalloc(c);
+	add_SequenceErrorSet(out->ses,se);
+	seq_buffer[j++] = c[0];
+      } else {
+	seq_buffer[j++] = seq->seq[i];
+      }
+    } else {
+      /* there has been a deletion */
+      se = SequenceError_alloc();
+      se->type = SeqErrorDeletion;
+      se->start = j+1;
+      se->end = j+1;
+      c[0] = seq_buffer[i];
+      se->suspected_deletion = stringalloc(c);
+      add_SequenceErrorSet(out->ses,se);
+    }
+
+    rnd = random_0_to_1();
+    
+    if( rnd < insertion ) {
+   
+      rnd = random_0_to_1();
+      if( rnd < 0.25 ) {
+	c[0] = 'A';
+      } else if ( rnd < 0.5 ) {
+	c[0] = 'T';
+      } else if ( rnd < 0.75 ) {
+	c[0] = 'G';
+      } else {
+	c[0] = 'C';
+      }
+
+      se = SequenceError_alloc();
+      se->type = SeqErrorInsertion;
+      se->start = j+1;
+      se->end = j+1;
+      se->inserted_bases = stringalloc(c);
+      add_SequenceErrorSet(out->ses,se);
+      seq_buffer[j++] = c[0];
+    }
+  }
+
+  seq_buffer[j] = '\0';
+
+  out->seq = new_Sequence_from_strings(seq->name,seq_buffer);
+
+  return out;
+}
+    
+
+
+
+
+
+
+

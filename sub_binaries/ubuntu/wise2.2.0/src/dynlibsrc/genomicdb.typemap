@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_GenomicDB *    T_Wise2_GenomicDB
+
+INPUT
+T_Wise2_GenomicDB
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_GenomicDB *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_GenomicDB
+	sv_setref_pv($arg, "Wise2::GenomicDB", (void*) $var);

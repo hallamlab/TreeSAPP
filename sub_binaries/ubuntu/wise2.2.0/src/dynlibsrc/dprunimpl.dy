@@ -1,0 +1,85 @@
+
+%{
+#include "wisebase.h"
+
+
+typedef enum DPRunImplMemory {
+  DPIM_Default = 543,
+  DPIM_Explicit,
+  DPIM_Linear 
+} DPRunImplMemory; 
+
+
+%}
+
+
+
+struct DPRunImpl
+DPRunImplMemory memory !def="DPIM_Default"
+int kbyte_size !def="20000"
+boolean debug  !def="FALSE"
+
+
+
+
+%{
+#include "dprunimpl.h"
+
+
+%func
+Shows help functions for DPRunImpl
+%%
+void show_help_DPRunImpl(FILE * ofp)
+{
+  fprintf(ofp,"Dynamic programming matrix implementation\n");
+  fprintf(ofp,"  -dymem      memory style [default/linear/explicit]\n");
+  fprintf(ofp,"  -kbyte      memory amount to use [4000]\n");
+  fprintf(ofp,"  -dydebug    drop into dynamite dp matrix debugger\n");
+}
+
+%func
+Makes a DPRunImpl object from stripping from
+a command line
+%%
+DPRunImpl * new_DPRunImpl_from_argv(int * argc,char ** argv)
+{
+  DPRunImpl * out;
+  char * temp;
+
+  out = DPRunImpl_alloc();
+
+  if( (temp = strip_out_assigned_argument(argc,argv,"dymem")) != NULL ) {
+    if( strcmp(temp,"explicit") == 0) {
+      out->memory = DPIM_Explicit;
+    } else if( strcmp(temp,"linear") == 0 ) {
+      out->memory = DPIM_Linear;
+    } else if( strcmp(temp,"default") == 0 ) {
+      out->memory = DPIM_Default;
+    } else {
+      warn("String [%s] for dynamic memory layout is not recognised",temp);
+      free_DPRunImpl(out);
+      return NULL;
+    }
+  }
+
+  if( (temp = strip_out_assigned_argument(argc,argv,"kbyte")) != NULL ) {
+    if( is_integer_string(temp,&out->kbyte_size) == FALSE ) {
+      warn("String [%s] for dynamic memory size is not recognised",temp);
+      free_DPRunImpl(out);
+      return NULL;
+    }
+  }
+
+
+  if(strip_out_boolean_argument(argc,argv,"dydebug") == TRUE ) {
+    out->debug  = 1;
+    out->memory = DPIM_Explicit;
+  }
+
+  return out;
+}
+
+  
+
+
+%}

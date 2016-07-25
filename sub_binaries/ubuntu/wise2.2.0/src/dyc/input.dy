@@ -1,0 +1,153 @@
+
+%{
+#include "wisebase.h"
+
+#define CodeLISTLENGTH 128
+#define InputLISTLENGTH 16
+%}
+
+
+
+struct Code
+char ** lines !list
+
+struct InDeclare
+char * name;
+char * type;
+
+struct InRequire
+char * name
+char * type
+char * help
+char * tag
+
+struct Input
+InDeclare ** decl !list !len="decl_"
+InRequire ** req  !list !len="req_"
+Code * code;
+
+%{
+
+#include "input.h"
+
+
+Input * read_Input_line(char * line,FILE * ifp)
+{
+  Input * out;
+  InRequire * re;
+  InDeclare * de;
+  char buffer[MAXLINE];
+
+  out = Input_alloc_std();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strwhitestartcmp(buffer,"#",spacestr) == 0 )
+      continue;
+
+    if( strstartcmp(buffer,"declare") == 0 ) {
+      de = InDeclare_from_line(buffer);
+      if( de != NULL ) {
+	add_decl_Input(out,de);
+      } else {
+	warn("Unreadable declaration line in input");
+      }
+    } else if ( strstartcmp(buffer,"require") == 0 ) {
+      re = InRequire_from_line(buffer);
+      if( re != NULL ) {
+	add_req_Input(out,re);
+      } else {
+	warn("Unreadable require line in input");
+      }
+    } else if ( strstartcmp(buffer,"code") == 0 ) {
+      if( out->code != NULL ) {
+	warn("Two code segments in an input!");
+	out->code = free_Code(out->code);
+      }
+      out->code = read_Code_line(buffer,ifp);
+    } else {
+      warn("Could not understand line %s in input specification",buffer);
+    }
+  }
+
+  return out;
+}
+
+Code * read_Code_line(char * line,FILE * ifp)
+{
+  char buffer[MAXLINE];
+  Code * out;
+
+  out = Code_alloc_std();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"endcode") == 0 ) 
+      break;
+    
+  }
+
+
+  return out;
+}
+
+InRequire * InRequire_from_line(char * line)
+{
+  InRequire * out;
+  int i;
+  char ** base;
+  char ** brk;
+
+
+  base = brk = breakstring(line,spacestr);
+  if( *brk == NULL || strcmp(*brk,"require") == 0 ) {
+    warn("In require - no require line!");
+  }
+  for(i=1;i<5;i++) {
+    if( brk[i] == NULL ) {
+      warn("wrong number of arguments for require line [%s]",line);
+      return NULL;
+    }
+  }
+
+  out = InRequire_alloc();
+
+  out->name = stringalloc(brk[1]);
+  out->type = stringalloc(brk[2]);
+  strip_quote_chars(brk[3],"\"");
+  out->help = stringalloc(brk[3]);
+  out->tag  = stringalloc(brk[4]);
+
+  ckfree(base);
+  return out;
+}
+
+InDeclare * InDeclare_from_line(char * line)
+{
+  InDeclare * out;
+  char * runner;
+  char * name;
+  char * type;
+
+
+  runner = strtok(line,spacestr);
+  if( strcmp(runner,"declare") != 0 ) {
+    warn("You don't have a declaration line in %s",line);
+    return NULL;
+  }
+  name = strtok(NULL,spacestr);
+  type = strtok(NULL,spacestr);
+
+  if( type == NULL ) {
+    warn("In reading the line %s, we have no type. format problem",line);
+    return NULL;
+  }
+
+  out = InDeclare_alloc();
+  out->name = stringalloc(name);
+  out->type = stringalloc(type);
+  
+  return out;
+}
+
+      
+
+

@@ -1,0 +1,169 @@
+\documentstyle{article}
+\begin{document}
+\newcommand{\programtext}[1]{{\tt #1}}
+
+\title{Wise3 Open Architecture}
+\author{Ewan Birney, Guy Slater
+Sanger Centre\\
+Wellcome Trust Genome Campus\\
+Hinxton, Cambridge CB10 1SA,\\
+England.\\
+Email: birney@sanger.ac.uk,gslater@hgmp.mrc.ac.uk}
+
+\maketitle
+ 
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+The aim of this paper is to lay out some architecture goals for the next generation
+of the Wise package, Wise3. In addition we would like to lay out some of the changes
+to the software of Wise. The architecture is designed to be open and provide
+additional code to work seemlessly with the Wise package. There are two main groups of
+people this open architecture is aimed at.
+
+FIXME: the document should be more focused at general wise3 issues.
+
+
+\begin{itemize}
+\item Large sites with databases which are not kept in simple fasta databases.
+\item Hardware manufacturers, including specialised hardware, who would like
+to improve on the speed or sensitivity aspects of the database search.
+\end{itemize}
+
+The aim is also to encourage people to work on a consistent framework for using
+genewise and genewise type algorithms sensibly by encouraging people to conform
+to standards whenever it is sensible.
+
+The main goal is to prevent the annoying habit of hardware manufactures being
+asked to ``implement genewise'' without a clear definition of what that means,
+and in addition, being forced not merely to implement genewise, but also the
+entire supporting framework, such as alignments and post processing. This is
+a huge additional strain on the hardware manufactures which does not help anyone.
+
+For consumers of hardware or database systems, this provides a single document
+which you can point to to indicate what you want from the system. It should
+clear up a considerable amount of confusion for providing compliant systems.
+
+\subsection{Committment to open source, freely available code}
+
+The Wise2 package has been licensed under the Gnu Public License since
+its inception.  In addition, parts of the package has even less
+restrictive Licenses. I have a strong committment to keep Wise a
+freely available, open source package. The aim of the open
+architecture is to allow Wise to be compiled with additional
+extensions provided by third party sources: As the users will be
+compiling in the additional extensions, this will not require the 3rd
+parties to License their code under GPL. They will be free to license
+their code under any license they see fit, including keep their source
+code closed and charging for it.
+
+\subsection{Potential conflict of interests}
+
+I have been a consultant to Compugen (a company which builds specialised
+hardware) and am currently a consultant to Paracel (again, a specialised
+hardware company) and I have been a consultant to a number of bioinformatics
+and pharmaceutical companies worldwide. I do \emph{not believe} that my
+involvement with these companies prejuidices the open source nature of the
+Wise package, nor has this architecture been written to favour one particular
+company over another. I'd like to point out both that my committment to 
+the scientific endeavour involved in the Wise package is far greater than
+any committment to any company, and that if I wanted to make money out
+of the Wise package in a serious manner I would have gone private \emph{myself}
+some time ago.
+
+I am sympathetic to people who are concerned about any 
+potential conflict of interests that I have: I would welcome people to email
+their concerns and we can discuss it. I am very happy to allow the involvement
+of independent researchers who can verify the open nature Wise - all suggestions
+welcome.
+
+\subsection{A collaborative approach}
+
+This document is the first stab at a definition of an open architecture. I would
+very much welcome feedback from both manufactures, corporate users and academic
+users as to what would help them make better use of Wise in a large scale software
+environment. Please feel free to make your own suggestions and corrections.
+
+\section{Overview of the architecture}
+
+The architecture will define 3 main interfaces
+
+\begin{itemize}
+\item A C based interface of opening, iterating over and closing a database
+of sequences.
+\item A CORBA based interface of opening, iterating over and closing a database
+of sequences: this reuses the BioSource idl from bioperl for greater code reuse
+between packages.
+\item A C based interface of running a database search of a particular algorithm
+type, of a single query structure against a database of sequences as give by
+the above, C interface
+\end{itemize}
+
+In addition there needs to be additional rules for propagating command line
+arguments into the intialisation of the database and search routines, and also
+conventions for how to find and link against libaries containing this information,
+regardless of where they came from.
+
+Although at first the expected mode of action will be that the Wise source code
+will be compiled and then linked to the additional functionalities provided as
+C libraries, eventually dynamic loading routines might be considered.
+
+It was also tempting to focus on a CORBA only based interface of the
+code: however, even with free, lightweight effective ORBs such as
+ORBit, the technology is both an overkill for what is effectively a
+series of very simple interfaces and ties the portability of the code
+to the portability of the ORBs. In addition, people may be concerned
+that performance issues would come into play, even though ORBit will
+do direct function calls for in process object requests.
+
+A CORBA defintion has been provided for the database layer, but will 
+always sit behind the pure C interface (ORBit will be our ORB of choice
+to do the mapping).
+
+The C interfaces will be designed with the following features in mind
+
+\begin{itemize}
+\item All the definitions will focus on passing opaque pointers to functions
+\item When functions return status values, they will return an integer, with
+0 being success and non zero indicating an error of some sort
+\end{itemize}
+
+\section{Database Access, C definition}
+
+\begin{verbatim}
+
+
+
+typedef struct WOpenSeq       WOpenSeq;
+typedef struct WOpenSeqStream WOpenSeqStream;
+typedef struct WOpenSeqDB     WOpenSeqDB;
+
+typedef int WOpenStatus;
+
+char * WOpenSeq_seq(WOpenSeq * seq);
+char * WOpenSeq_subseq(WOpenSeq * seq,long start,long end);
+long   WOpenSeq_length(WOpenSeq * seq);
+char * WOpenSeq_desc(WOpenSeq * seq);
+char * WOpenSeq_identifier(WOpenSeq * seq);
+
+
+WOpenStatus WOpenSeqStream_open(WOpenSeqStream * stream);
+
+\end{verbatim}
+
+
+\section{Error Libraries}
+
+The idea is that we ditch the error handling libraries of Wise2 (the /base stuff) and
+switch over to using glib routines
+
+\end{document}
+
+
+
+
+
+

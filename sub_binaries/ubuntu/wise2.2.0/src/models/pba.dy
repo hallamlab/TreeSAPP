@@ -1,0 +1,98 @@
+
+%{
+#include "dyna.h"
+
+%}
+
+matrix ProteinBlockAligner
+query name="q" type="PROTEIN"
+target name="t" type="PROTEIN"
+resource name="m" type="COMPMAT"
+resource name="bentry" type="Score"
+resource name="bexit"  type="Score"
+resource name="bfor_trans" type="Score"
+resource name="b_self_trans" type="Score"
+resource name="b3exit" type="Score"
+state BLOCK_1
+  calc="AAMATCH(m,AMINOACID(q,i),AMINOACID(t,j))"
+  source BLOCK_1 offi="1" offj="1"
+    calc="b_self_trans"
+    endsource
+  source START offi="1" offj="1"
+    calc="0"
+    endsource
+  source UNALIGNED offi="1" offj="1"
+    calc="bentry"
+    endsource
+  query_label SEQUENCE_BLOCK_1
+  target_label SEQUENCE_BLOCK_1
+endstate
+state BLOCK_2
+  calc="AAMATCH(m,AMINOACID(q,i),AMINOACID(t,j))"
+  source BLOCK_2 offi="1" offj="1"
+    calc="b_self_trans"
+    endsource
+  source BLOCK_1 offi="1" offj="1"
+    calc="bfor_trans"
+    endsource
+  query_label SEQUENCE_BLOCK_2
+  target_label SEQUENCE_BLOCK_2
+endstate
+state BLOCK_3
+  calc="AAMATCH(m,AMINOACID(q,i),AMINOACID(t,j))"
+  source BLOCK_3 offi="1" offj="1"
+    calc="b_self_trans"
+    endsource
+  source BLOCK_2 offi="1" offj="1"
+    calc="bfor_trans"
+    endsource
+  query_label SEQUENCE_BLOCK_2
+  target_label SEQUENCE_BLOCK_2
+endstate
+state UNALIGNED
+  source BLOCK_1 offi="0" offj="1"
+    calc="bexit"
+    endsource
+  source BLOCK_1 offi="1" offj="0"
+    calc="bexit"
+    endsource
+  source BLOCK_2 offi="0" offj="1"
+    calc="b3exit"
+    endsource
+  source BLOCK_2 offi="1" offj="0"
+    calc="b3exit"
+    endsource
+  source UNALIGNED offi="0" offj="1"
+    calc="0"
+    endsource
+  source UNALIGNED offi="1" offj="0"
+    calc="0"
+    endsource
+  query_label UNALIGNED
+  target_label UNALIGNED
+endstate
+state START !start !special
+endstate
+state END !end !special
+  source UNALIGNED 
+    calc="0"
+    endsource
+  source BLOCK_1 
+    calc="0"
+    endsource
+  query_label END
+  target_label END
+endstate
+endmatrix
+
+%{
+#include "pba.h"
+
+
+%}
+  
+ 
+    
+
+
+

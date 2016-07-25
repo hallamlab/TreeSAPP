@@ -1,0 +1,963 @@
+/*  Last edited: Apr 22 17:49 1997 (birney) */
+
+
+
+%{
+#include "probability.h"
+#include "codon.h"
+#include "wisebase.h"
+#include "dyna.h"
+#include "randommodel.h"
+
+enum {
+  GF21_CENTRAL_STAY,
+  GF21_PY_STAY,
+  GF21_SPACER_STAY,
+  GF21_NO_SPACER,
+  GF21_INTRON_CORR_TERM,
+  GENEFREQUENCY21_TRANSITION_LEN
+};
+
+#define GeneConsensusLISTLENGTH 128
+
+enum {
+  GeneConsensusType_5SS = 131,
+  GeneConsensusType_3SS,
+  GeneConsensusType_CDS,
+  GeneConsensusType_Intron_Corr_Term,
+  GeneConsensusType_Intron_emission,
+  GeneConsensusType_Pyrimidine_emission,
+  GeneConsensusType_Spacer_emission,
+  GeneConsensusType_Central_stay,
+  GeneConsensusType_Pyrimidine_stay,
+  GeneConsensusType_Spacer_stay,
+  GeneConsensusType_No_spacer,
+  GeneConsensusType_Error
+};
+
+
+%}
+
+
+
+struct GeneSingleCons
+char * string
+double number
+
+struct GeneConsensus
+int center
+GeneSingleCons ** gsc !list
+
+struct GeneFrequency21
+GeneConsensus * ss5
+GeneConsensus * ss3
+double codon[64]
+double central[4]
+double py[4]
+double spacer[4]
+double transition[GENEFREQUENCY21_TRANSITION_LEN]
+double cds_triplet[64] // phase 0
+
+
+api
+object GeneFrequency21
+des free_GeneFrequency21
+endobject
+object GeneConsensus
+des    free_GeneConsensus
+endobject
+object GeneSingleCons
+des    free_GeneSingleCons
+endobject
+func read_GeneFrequency21_file
+func read_GeneFrequency21
+endapi
+
+%{
+#include "genefrequency.h"
+
+%func
+makes a randomcodon probability emission
+from the counts in genefrequency
+%%
+RandomCodon * RandomCodon_from_cds_triplet(GeneFrequency21 * gf)
+{
+  int i;
+  int a,b,c;
+  double total;
+  double lit;
+
+  RandomCodon * out;
+
+  out = RandomCodon_alloc();
+
+  for(i=0,total=0;i<64;i++)
+    total += gf->cds_triplet[i];
+  
+  for(i=0;i<125;i++) {
+    if( has_random_bases(i) ) {
+      lit = 0.0;
+      for(a=0;a<4;a++)
+	for(b=0;b<4;b++)
+	  for(c=0;c<4;c++)
+	    lit += gf->cds_triplet[base4_codon_from_codon(permute_possible_random_bases(i,a,b,c))];
+      out->codon[i] = lit/(64*total);
+    } else {
+      out->codon[i] = gf->cds_triplet[base4_codon_from_codon(i)]/(total);
+    }
+  }
+
+  return out;
+}
+
+
+%func
+Makes a random model from the central gene 
+model of an intron. Ideal for tieing intron
+state distribution to the randommodel
+%%
+RandomModelDNA * RandomModelDNA_from_central_GeneFrequency21(GeneFrequency21 * gf)
+{
+  RandomModelDNA * out;
+  double total;
+
+  total = sum_Probability_array(gf->central,4);
+
+
+  out = RandomModelDNA_alloc();
+
+  out->base[BASE_A] = gf->central[BASE_A]/total;
+  out->base[BASE_T] = gf->central[BASE_T]/total;
+  out->base[BASE_G] = gf->central[BASE_G]/total;
+  out->base[BASE_C] = gf->central[BASE_C]/total;
+  out->base[BASE_N] = 1.0;
+
+  return out;
+}
+
+%func
+makes 5'SS ComplexConsensi from GeneFrequency21 structure using
+
+  CCC|XXXXXXX score = no(5'SS with CCC|XXXXXXX) / no(CCC in cds).
+%%
+ComplexConsensi * ComplexConsensi_5SS_from_GeneFrequency(GeneFrequency21 * gf)
+{
+  register int i;
+  double nocds;
+  ComplexConsensi * out;
+
+  out = ComplexConsensi_alloc_len(gf->ss5->len);
+
+
+
+  for(i=0;i<gf->ss5->len;i++) {
+    nocds = nocds_from_ambiguous_codon(gf->ss5->gsc[i]->string,gf->cds_triplet);
+    if( nocds < 20 ) {
+      warn("In making 5'SS consensi, got %g cds for codon %s ... not happy about this",nocds,gf->ss5->gsc[i]->string);
+    }
+    add_ComplexConsensi(out,ComplexConsensusWord_from_string_and_prob(gf->ss5->gsc[i]->string,gf->ss5->gsc[i]->number / nocds));
+  }
+
+  return out;
+  
+}
+
+%func
+makes 3'SS ComplexConsensi from GeneFrequency21 structure using
+
+  ZZZ|CCC score = no(3'SS with ZZZ|CCC) / no(CCC in cds).
+%%
+ComplexConsensi * ComplexConsensi_3SS_from_GeneFrequency(GeneFrequency21 * gf)
+{
+  register int i;
+  double nocds;
+  ComplexConsensi * out;
+
+  out = ComplexConsensi_alloc_len(gf->ss3->len);
+
+  for(i=0;i<gf->ss3->len;i++) {
+    nocds = nocds_from_ambiguous_codon(gf->ss3->gsc[i]->string+3,gf->cds_triplet);
+    if( nocds < 20 ) {
+      warn("In making 3'SS consensi, got %g cds for codon %s ... not happy about this!",nocds,gf->ss3->gsc[i]->string);
+    }
+    add_ComplexConsensi(out,ComplexConsensusWord_from_string_and_prob(gf->ss3->gsc[i]->string,gf->ss3->gsc[i]->number / nocds));
+  }
+
+  return out;
+  
+}
+
+%func
+helper function for above guys
+%type internal
+%%
+double nocds_from_ambiguous_codon(char * codon,double * codon_freq_array)
+{
+  int factor = 1;
+  int one;
+  int two;
+  int three;
+  int i,j,k;
+  double ret = 0.0;
+
+  one = base_from_char(*codon == '-' ? 'N' : *codon);
+  two = base_from_char(*(codon+1) == '-' ? 'N' : *(codon+1));
+  three = base_from_char(*(codon+2) == '-' ? 'N' : *(codon+2));
+
+
+  if(one == BASE_N)
+    factor *= 4;
+  if(two == BASE_N)
+    factor *= 4;
+  if(three == BASE_N)
+    factor *= 4;
+  
+
+  for(i=0;i<4;i++)
+    for(j=0;j<4;j++) 
+      for(k=0;k<4;k++) 
+	if( (one == i || one == BASE_N) && (two == j || two == BASE_N) && (three == k || three == BASE_N)) { 
+	  ret += codon_freq_array[i*16+j*4+k];
+	}
+  
+
+  ret = ret / factor;
+
+  if( ret < 0.0000000000000001 ) {
+    warn("For codon  %c%c%c we have a frequency of %g",*codon,*(codon+1),*(codon+2),ret);
+    ret = 0.0000000000000001;
+  }
+
+  return ret;
+}
+
+%func
+convienent constructor
+%type internal
+%%
+ComplexConsensusWord * ComplexConsensusWord_from_string_and_prob(char * string,Probability p)
+{
+  ComplexConsensusWord * out;
+
+  out = ComplexConsensusWord_alloc();
+
+  out->pattern = stringalloc(string);
+  out->p = p;
+  out->score = Probability2Score(p);
+
+  return out;
+}
+
+
+%func
+Builds a codon frequency table from raw counts
+in the counts file
+%%
+CodonFrequency * CodonFrequency_from_GeneFrequency21(GeneFrequency21 * gf,CodonTable * ct)
+{
+  return CodonFrequence_from_raw_counts(gf->codon,ct);
+}
+
+
+%func
+For debugging
+%type internal
+%%
+void show_flat_GeneFrequency21(GeneFrequency21 * gf21,FILE * ofp)
+{
+  if( gf21->ss5 != NULL ) {
+    fprintf(ofp,"5'SS\n");
+    show_GeneConsensus(gf21->ss5,ofp);
+  }
+  if( gf21->ss3 != NULL ) {
+    fprintf(ofp,"3'SS\n");
+    show_GeneConsensus(gf21->ss3,ofp);
+  }
+
+  fprintf(ofp,"Codon frequency\n");
+  show_codon_emission(gf21->codon,ofp);
+
+  fprintf(ofp,"Central emission\n");
+  show_base_emission(gf21->central,ofp);
+
+  fprintf(ofp,"Pyrimidine emission\n");
+  show_base_emission(gf21->py,ofp);
+
+  fprintf(ofp,"Spacer emission\n");
+  show_base_emission(gf21->spacer,ofp);
+
+  fprintf(ofp,"Transitions\n");
+  show_Probability_array(gf21->transition,GENEFREQUENCY21_TRANSITION_LEN,ofp);
+
+  fprintf(ofp,"\n\n");
+}
+
+%func
+For debugging
+%type internal
+%%
+void show_codon_emission(double * codon,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"begin consensus\n");
+
+  for(i=0;i<64;i++) 
+    show_single_codon_emission(codon[i],i,ofp);
+
+  fprintf(ofp,"end consensus\n");
+}
+
+%func
+For debugging
+%type internal
+%%
+void show_single_codon_emission(double no,int base4codon,FILE * ofp)
+{
+  codon c;
+  base one;
+  base two;
+  base three;
+
+  c = codon_from_base4_codon(base4codon);
+
+  all_bases_from_codon(c,&one,&two,&three);
+
+  fprintf(ofp,"%c%c%c %.2f\n",char_from_base(one),char_from_base(two),char_from_base(three),no);
+}
+
+%func
+For debugging
+%type internal
+%%
+void show_base_emission(double * base,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"begin consensus\n");
+
+  for(i=0;i<4;i++)
+    fprintf(ofp,"%c %.2f\n",char_from_base(i),base[i]);
+
+  fprintf(ofp,"end consensus\n");
+}
+
+
+%func
+For debugging
+%type internal
+%%
+void show_GeneConsensus(GeneConsensus * gc,FILE * ofp)
+{
+  register int i;
+
+  fprintf(ofp,"begin consensus\n");
+
+  for(i=0;i<gc->len;i++)
+    show_GeneSingleCons(gc->gsc[i],ofp);
+
+  fprintf(ofp,"end consensus\n");
+}
+
+
+%func
+For debugging
+%type internal
+%%
+void show_GeneSingleCons(GeneSingleCons * gsc,FILE * ofp)
+{
+  fprintf(ofp,"%s %f\n",gsc->string,gsc->number);
+}
+
+
+
+
+ /*** reading in ***/
+
+%func
+Opens the file with /openfile
+
+Reads in a GeneFrequency (Mor-Ewan style)
+
+%arg
+filename will open from WISECONFIGDIR etc via openfile
+return a newly allocated structure
+%%
+GeneFrequency21 * read_GeneFrequency21_file(char * filename)
+{
+  GeneFrequency21 * out;
+  FILE * ifp;
+
+  ifp = openfile(filename,"r");
+
+  if( ifp == NULL ) {
+    warn("Could not open %s as a genefrequency file",filename);
+    return NULL;
+  }
+
+  out = read_GeneFrequency21(ifp);
+
+  fclose(ifp);
+
+  return out;
+}
+
+%func
+Reads in a GeneFrequency (Mor-Ewan style)
+file from ifp
+%arg
+ifp file pointer
+return a newly allocated structure
+%%
+GeneFrequency21 * read_GeneFrequency21(FILE * ifp)
+{
+  GeneFrequency21 * out;
+  GeneConsensus   * temp;
+  char buffer[MAXLINE];
+  int phase;
+  int center;
+  int type;
+  boolean err = FALSE;
+
+  out = GeneFrequency21_alloc();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( buffer[0] == '#' )
+      continue;
+
+
+    if( strwhitestartcmp(buffer,"type",spacestr) == 0 ) {
+
+      phase = 3; /** if no phase, assumme it is for all phases **/
+
+      type = check_type_GeneFrequency(buffer,ifp,&center,&phase);
+      
+      switch(type) {
+      case GeneConsensusType_5SS :
+	if( phase == 3) {
+	  temp = read_line_GeneConsensus(buffer,ifp);
+	  temp->center = center;
+	  out->ss5 = temp;
+	}
+	else {
+	  if( skip_consensus(ifp) == FALSE ) {
+	    warn("Unable to skip phase'd 5'SS information ... problem!");
+	    break;
+	  }
+	}
+	break;
+      case GeneConsensusType_3SS :
+	if( phase == 3) {
+	  temp = read_line_GeneConsensus(buffer,ifp);
+	  temp->center = center;
+	  out->ss3 = temp;
+	}
+	else {
+	  if( skip_consensus(ifp) == FALSE ) {
+	    warn("Unable to skip phase'd 5'SS information ... problem!");
+	    err = TRUE;
+	  }
+	}
+	break;
+      case GeneConsensusType_CDS :
+	if( phase == 0) {
+	  if( read_codon_GeneConsensus(out->codon,buffer,ifp) == FALSE ) {
+	    warn("Unable to read codon information in GeneFrequency21... problem!");
+	    break;
+	  }
+	}
+	else if( phase == 3 ) {
+	  /*** we need this! ***/
+	  if( read_codon_GeneConsensus(out->cds_triplet,buffer,ifp) == FALSE ) {
+	    warn("Unable to read codon information in GeneFrequency21... problem!");
+	    break;
+	  }
+	}
+	else { /** in a different phase **/
+	  if( skip_consensus(ifp) == FALSE ) {
+	    warn("Unable to skip phase'd CDS information ... problem!");
+	    err = TRUE;
+	  }
+	}
+	break;
+      case GeneConsensusType_Intron_emission :
+	if( phase == 3 ) {
+	  if( read_base_GeneConsensus(out->central,buffer,ifp) == FALSE ) {
+	    warn("Unable to read Intron emissions in genefrequency21 ... problem!");
+	    err = TRUE;
+	  }
+	}
+	else {
+	  if( skip_consensus(ifp) == FALSE ) {
+	    warn("Unable to skip phase'd CDS information ... problem!");
+	    err = TRUE;
+	  }
+	}
+	break;
+      case GeneConsensusType_Pyrimidine_emission :
+	if( phase == 3 ) {
+	  if( read_base_GeneConsensus(out->py,buffer,ifp) == FALSE ) {
+	    warn("Unable to read pyrimidine emissions in genefrequency21 ... problem!");
+	    err = TRUE;
+	  }
+	}
+	else {
+	  if( skip_consensus(ifp) == FALSE ) {
+	    warn("Unable to skip phase'd pyrimidine information ... problem!");
+	    err = TRUE;
+	  }
+	}
+	break;
+      case GeneConsensusType_Spacer_emission :
+	if( phase == 3 ) {
+	  if( read_base_GeneConsensus(out->spacer,buffer,ifp) == FALSE ) {
+	    warn("Unable to read spacer emissions in genefrequency21 ... problem!");
+	    err = TRUE;
+	  }
+	}
+	else {
+	  if( skip_consensus(ifp) == FALSE ) {
+	    warn("Unable to skip phase'd spacer information ... problem!");
+	    err = TRUE;
+	  }
+	}
+	break;
+      case GeneConsensusType_Central_stay :
+	out->transition[GF21_CENTRAL_STAY] = double_from_line(buffer);
+	break;
+      case GeneConsensusType_Pyrimidine_stay :
+	out->transition[GF21_PY_STAY] = double_from_line(buffer);
+	break;
+      case GeneConsensusType_Spacer_stay :
+	out->transition[GF21_SPACER_STAY] = double_from_line(buffer);
+	break;
+      case GeneConsensusType_No_spacer :
+	out->transition[GF21_NO_SPACER] = double_from_line(buffer);
+	break;
+      case GeneConsensusType_Intron_Corr_Term :
+	switch(phase) {
+	case 0 :
+/*	  out->transition[GF21_INTRON_CORR_TERM_0] = double_from_line(buffer); */
+	  break;
+	case 1 :
+/*	  out->transition[GF21_INTRON_CORR_TERM_1] = double_from_line(buffer); */
+	  break;
+	case 2 :
+/*	  out->transition[GF21_INTRON_CORR_TERM_2] = double_from_line(buffer); */
+	  break;
+	case 3 :
+	  out->transition[GF21_INTRON_CORR_TERM] = double_from_line(buffer); 
+	  break;
+	default :
+	  warn("Well... I have got some bad news for you. We found a phase of %d in Intron correction term. ",phase);
+	  break;
+	}
+	break;
+      default :
+	warn("Got an unidenitifable type in GeneFrequency21 parse. Skippping");
+	if( skip_consensus(ifp) == FALSE ) {
+	  warn("Unable to skip phase'd 5'SS information ... problem!");
+	  err = TRUE;
+	}
+	
+      }
+
+      if( err == TRUE ) {
+	warn("You have had an unrecoverable error in GeneFrequency21 parsing");
+	break;
+      }
+
+    }
+    else {
+      striptoprint(buffer);
+      warn("Could not understand line [%s] in GeneFrequency21 parse",buffer);
+    }
+  }
+
+  return out;
+}
+	
+	
+%func
+helper string function
+%%	
+double double_from_line(char * buffer)
+{
+  char * runner;
+  char * end;
+  double ret;
+
+  runner = strtok(buffer,spacestr);
+
+  if( runner == NULL ) {
+    warn("Unable to read a number in double_from_line");
+    return -1.0;
+  }
+
+  ret = strtod(runner,&end);
+
+  if( end == runner || isalnum((int)*end) ) {
+    warn("Bad conversion of string [%s] to double [%f] occured",runner,ret);
+  }
+
+  return ret;
+}
+  
+%func
+helper function for
+teh file parsing
+%type internal
+%%
+boolean skip_consensus(FILE * ifp)
+{
+  char buffer[MAXLINE];
+
+
+  while(fgets(buffer,MAXLINE,ifp) != NULL ) 
+    if( strwhitestartcmp(buffer,"end",spacestr) == 0)
+      break;
+
+  if( feof(ifp) || ferror(ifp) )
+    return FALSE;
+  return TRUE;
+}
+
+
+%func 
+Pretty sneaky function 
+
+give 
+
+  line starting with "type xxx"
+  ifp  file pointer
+  centre a &int for returning the centre value of the consensus if any.
+  phase  a &int for returning the phase value of the consensus if any.
+
+you get *back* the line with the line "begin consensus" or "number" in it.
+
+  
+It returns a GeneConsensusType
+
+with GeneConsensusType_Error on error
+
+%%
+int check_type_GeneFrequency(char *line,FILE * ifp,int * center,int * phase)  
+{
+  int ret = GeneConsensusType_Error;
+  char * runner;
+
+
+  if( strwhitestartcmp(line,"type",spacestr) != 0 ) {
+    warn("Attempting to check phase of consensus with no type line...");
+    return GeneConsensusType_Error;
+  }
+
+  runner = strtok(line,spacestr);
+  runner = strtok(NULL,spacestr);
+
+  if( runner == NULL ) {
+    warn("GeneFrequency type with no type. Can't read type, must set to error, but problem in later parsing");
+    ret = GeneConsensusType_Error;
+  }
+
+  else {
+    ret = string_to_GeneConsensusType(runner);
+  }
+
+  while( fgets(line,MAXLINE,ifp) != NULL ) {
+    if( line[0] == '#' )
+      continue;
+
+    else if( strwhitestartcmp(line,"phase",spacestr) == 0 ) {
+      runner = strtok(line,spacestr);
+      runner = strtok(NULL,spacestr);
+
+      if( runner == NULL ) {
+	warn("Got phase line with no phase. Sad....");
+	continue;
+      }
+      
+
+      if( phase != NULL ) {
+	if( strcmp(runner,"all") ==0 || strcmp(runner,"All") == 0)
+	  *phase = 3;
+	else *phase = atoi(runner);
+      }
+    }
+
+    else if( strwhitestartcmp(line,"center",spacestr) == 0 || strwhitestartcmp(line,"centre",spacestr) == 0) {
+      runner = strtok(line,spacestr);
+      runner = strtok(NULL,spacestr);
+
+      if( runner == NULL ) {
+	warn("Got center line with no phase. Sad....");
+	continue;
+      }
+
+      if( center != NULL ) {
+	*center = atoi(runner);
+      }
+    }
+    else {
+      break;
+    }
+  }
+
+
+
+  return ret;
+}
+
+%func
+flips string 5SS to enum type
+%type internal
+%%
+int string_to_GeneConsensusType(char * string)
+{
+
+
+  if( strcmp(string,"5SS") == 0 )
+    return GeneConsensusType_5SS;
+  else if( strcmp(string,"3SS") == 0 )
+    return GeneConsensusType_3SS;
+  else if( strcmp(string,"CDS") == 0 )
+    return GeneConsensusType_CDS;
+  else if( strcmp(string,"Intron_Corr_Term") == 0 )
+    return  GeneConsensusType_Intron_Corr_Term;
+  else if( strcmp(string,"Intron_emission") == 0 )
+    return  GeneConsensusType_Intron_emission;
+  else if( strcmp(string,"Pyrimidine_emission") == 0 )
+    return  GeneConsensusType_Pyrimidine_emission;
+  else if( strcmp(string,"Spacer_emission") == 0 )
+    return GeneConsensusType_Spacer_emission;
+  else if( strcmp(string,"Central_Intron_Stay_Prob") == 0 )
+    return GeneConsensusType_Central_stay;
+  else if( strcmp(string,"Pyrimidine_Stay_Prob") == 0 )
+    return GeneConsensusType_Pyrimidine_stay;
+  else if( strcmp(string,"Spacer_Stay_Prob") == 0 )
+    return GeneConsensusType_Spacer_stay;
+  else if( strcmp(string,"No_Spacer_Prob") == 0 )
+    return GeneConsensusType_No_spacer;
+  else {
+    warn("Could convert string [%s] into a gene frequency type",string);
+    return GeneConsensusType_Error;
+  }
+}
+  
+%func
+assummes base_array is 4 positions long
+  
+line should have begin consensus on it and be of MAXLINE length as it will be used as the buffer.
+  
+This does **not** check that you have filled up all 4 positions.
+%%
+boolean read_base_GeneConsensus(double * base_array,char* line,FILE * ifp)
+{
+  boolean ret = TRUE;
+  int b;
+  char * base;
+  char * number;
+
+
+  if( strwhitestartcmp(line,"begin",spacestr) != 0 || strstr(line,"consensus") == NULL ) {
+    warn("In reading base GeneConsensus line, got no 'begin consensus' tag [%s]",line);
+    return FALSE;
+  }
+
+
+  while( fgets(line,MAXLINE,ifp) != NULL ) {
+    if( line[0] == '#' )
+      continue;
+
+    if( strwhitestartcmp(line,"end",spacestr) == 0 )
+      break;
+
+    base = strtok(line,spacestr);
+    number = strtok(NULL,spacestr);
+
+    if( base == NULL ) {
+      warn("Found an uncommented line in base consensus with no leading base word");
+      continue;
+    }
+
+    if( number == NULL ) {
+      warn("For base %s, no number found",base);
+      ret = FALSE;
+      continue;
+    }
+
+    if( strlen(base) > 1 || (b=base_from_char(*base)) == BASE_N ) {
+      warn("Could not interpret %s as an actual DNA base in read_base_GeneConsensus");
+      ret = FALSE;
+      continue;
+    }
+
+    base_array[b]= atof(number);
+
+  }
+
+  return ret;
+}
+
+
+
+%func
+assummes codon_array is 64 positions long
+  
+line should have begin consensus on it and be of MAXLINE length as it will be used as the buffer.
+
+This does **not** check that you have filled up all 64 positions.
+%%
+boolean read_codon_GeneConsensus(double * codon_array,char* line,FILE * ifp)
+{
+  boolean ret = TRUE;
+  char * codon;
+  char * number;
+
+
+  if( strwhitestartcmp(line,"begin",spacestr) != 0 || strstr(line,"consensus") == NULL ) {
+    warn("In reading codon GeneConsensus line, got no 'begin consensus' tag [%s]",line);
+    return FALSE;
+  }
+
+
+  while( fgets(line,MAXLINE,ifp) != NULL ) {
+    if( line[0] == '#' )
+      continue;
+
+    if( strwhitestartcmp(line,"end",spacestr) == 0 )
+      break;
+
+    codon = strtok(line,spacestr);
+    number = strtok(NULL,spacestr);
+
+    if( codon == NULL ) {
+      warn("Found an uncommented line in codon consensus with no leading codon word");
+      continue;
+    }
+
+    if( number == NULL ) {
+      warn("For codon %s, no number found",codon);
+      ret = FALSE;
+      continue;
+    }
+
+    if( strchr(codon,'N') != NULL ) 
+      continue;
+
+    if( is_non_ambiguous_codon_seq(codon) == FALSE ) {
+      warn("Codon %s is not really a codon... problem!");
+      ret = FALSE;
+      continue;
+    }
+
+
+
+    codon_array[base4_codon_from_seq(codon)]= atof(number);
+
+  }
+
+  return ret;
+}
+    
+%func
+Reads a single GeneConsensus from a file
+%%
+GeneConsensus  * read_line_GeneConsensus(char * line,FILE * ifp)
+{
+  GeneConsensus * out;
+  GeneSingleCons * temp;
+  char buffer[MAXLINE];
+  char * runner;
+
+
+
+  if( strwhitestartcmp(line,"begin",spacestr) != 0 ) {
+    warn("Attempting to read a GeneConsensus structure with a line not starting with 'begin' [%s]",line);
+    return NULL;
+  }
+
+  runner = strtok(line,spacestr);
+  runner = strtok(NULL,spacestr);
+
+  if( runner == NULL || strcmp(runner,"consensus") != 0 ) {
+    warn("Attempting to read a GeneConsensus structure without a 'begin consensus' tag [%s]",line);
+    return NULL;
+  }
+
+  out = GeneConsensus_alloc_std();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( buffer[0] == '#' )
+      continue;
+    if( strwhitestartcmp(buffer,"end",spacestr) == 0 )
+      break;
+    
+   
+    temp = read_line_GeneSingleCons(buffer);
+
+    if( temp == NULL ) {
+      warn("Unable to process GeneSingleCons line... dropping out...");
+      break;
+    }
+
+    add_GeneConsensus(out,temp);
+  }
+
+
+  return out;
+}
+    
+
+
+GeneSingleCons * read_line_GeneSingleCons(char * line)
+{
+  GeneSingleCons * out;
+  char * runner;
+  char * run2;
+
+
+  runner = strtok(line,spacestr);
+  run2   = strtok(NULL,spacestr);
+
+  if( runner == NULL || run2 == NULL ) {
+    warn("In read_line_GeneSingleCons was not give two different words in line [%s]",line);
+    return NULL;
+  }
+
+  out = GeneSingleCons_alloc();
+
+  out->string = stringalloc(runner);
+
+  out->number = strtod(run2,&runner);
+
+  if( runner == run2 || *runner != '\0' ) {
+    warn("In read_line_GeneSingleCons, for string [%s], unable to convert the number [%s]",out->string,run2);
+  }
+
+  return out;
+}
+
+
+GeneFrequency21  * untouched_GeneFrequency21(void)
+{
+  register int i;
+  GeneFrequency21 * out;
+
+  out = GeneFrequency21_alloc();
+
+  for(i=0;i<64;i++)
+    out->codon[i] = (-1);
+
+  for(i=0;i<4;i++)
+    out->central[i] = out->py[i] = out->spacer[i] = (-1);
+  
+  for(i=0;i<GENEFREQUENCY21_TRANSITION_LEN;i++) 
+    out->transition[i] = (-1.0);
+
+  return out;
+}
+
+
+
+%}

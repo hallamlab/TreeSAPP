@@ -1,0 +1,65 @@
+
+
+%{
+#include "dyna.h"
+
+%}
+
+matrix ProteinSW
+query  type="PROTEIN"  name="query"  
+target type="PROTEIN"  name="target"
+resource type="COMPMAT" name="comp"
+resource type="int"    name="gap"
+resource type="int"    name="ext"
+state MATCH offi="1" offj="1" 
+	calc="AAMATCH(comp,AMINOACID(query,i),AMINOACID(target,j))"
+	source MATCH
+		calc="0"
+		endsource
+	source INSERT
+		calc="0"
+		endsource
+	source DELETE
+		calc="0"
+		endsource
+	source START
+		calc="0"
+		endsource
+	query_label  SEQUENCE
+	target_label SEQUENCE
+endstate
+state INSERT offi="0" offj="1"
+	source MATCH
+		calc="gap"
+		endsource
+	source INSERT
+		calc="ext"
+		endsource
+	query_label  INSERT
+	target_label SEQUENCE
+endstate
+state DELETE offi="1" offj="0"
+	source MATCH
+		calc="gap"
+		endsource
+	source DELETE
+		calc="ext"
+		endsource
+	query_label  SEQUENCE
+	target_label INSERT
+endstate
+state START !special !start
+	query_label  START
+	target_label START
+endstate
+state END !special !end
+	source MATCH 
+		calc="0"
+		endsource
+	query_label  END
+	target_label END
+endstate
+endmatrix
+
+
+

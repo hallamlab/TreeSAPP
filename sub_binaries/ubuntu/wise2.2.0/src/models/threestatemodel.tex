@@ -1,0 +1,183 @@
+\section{threestatemodel}
+\label{module_threestatemodel}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_ThreeStateModel} ThreeStateModel
+
+\item \ref{object_ThreeStateUnit} ThreeStateUnit
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{threestatemodel factory methods}
+\subsubsection{read_HMMer_1_7_ascii_file}
+\begin{description}
+\item[External C] {\tt Wise2_read_HMMer_1_7_ascii_file (filename)}
+\item[Perl] {\tt &Wise2::read_HMMer_1_7_ascii_file (filename)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[filename] [UNKN ] the name fo the hmmer file [char *]
+\item[returns] [UNKN ] Undocumented return value [ThreeStateModel *]
+\end{description}
+reads a HMMer ascii version 1.7 (1.8) file from filename.
+
+
+
+
+\subsubsection{read_HMMer_1_7_ascii}
+\begin{description}
+\item[External C] {\tt Wise2_read_HMMer_1_7_ascii (ifp)}
+\item[Perl] {\tt &Wise2::read_HMMer_1_7_ascii (ifp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ifp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] [UNKN ] Undocumented return value [ThreeStateModel *]
+\end{description}
+Basic function to read HMMer version 1.7(1.8) files.
+
+
+
+
+\subsection{Object ThreeStateModel}
+
+\label{object_ThreeStateModel}
+
+The ThreeStateModel object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{name} Type [char * : Scalar]  name of the model
+
+\item{unit} Type [ThreeStateUnit ** : List]  the actuall three state probs and emissions
+
+\item{alphabet} Type [char * : Scalar]  alphabet used 
+
+\item{accession} Type [char * : Scalar]  accession number
+
+\item{threshold} Type [double : Scalar]  bits threshold (if sensible)
+
+\item{rm} Type [RandomModel * : Scalar]  Random model for the model: maybe NULL!
+
+\end{description}
+This is profile-HMM object, similar to the
+SAM and HMMer plan9 architecture. 
+
+
+
+
+Member functions of ThreeStateModel
+
+\subsubsection{force_global_model}
+
+\begin{description}
+\item[External C] {\tt Wise2_force_global_model (tsm,prob_into_model)}
+\item[Perl] {\tt &Wise2::ThreeStateModel::force_global_model (tsm,prob_into_model)}
+
+\item[Perl-OOP call] {\tt $obj->force_global_model(prob_into_model)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[tsm] [UNKN ] ThreeStateModel to be 'forced' [ThreeStateModel *]
+\item[prob_into_model] [UNKN ] Probability to start the model: for true global will be 1.0 [double]
+\item[returns] Nothing - no return value
+\end{description}
+Makes start at position 0 and end at position end,
+no other positions being valid
+
+
+
+
+\subsubsection{force_weighted_local_model}
+
+\begin{description}
+\item[External C] {\tt Wise2_force_weighted_local_model (tsm,prob_into_model,ratio_start,ratio_end)}
+\item[Perl] {\tt &Wise2::ThreeStateModel::force_weighted_local_model (tsm,prob_into_model,ratio_start,ratio_end)}
+
+\item[Perl-OOP call] {\tt $obj->force_weighted_local_model(prob_into_model,ratio_start,ratio_end)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[tsm] [UNKN ] ThreeStateModel to be 'forced' [ThreeStateModel *]
+\item[prob_into_model] [UNKN ] Probability to start the model: for true global will be 1.0 [double]
+\item[ratio_start] [UNKN ] ratio of prob to unit 0 to the rest (1.0 means all goes to start) [double]
+\item[ratio_end] [UNKN ] ratio of prob to unit (last) to the rest (1.0 means all goes to the end) [double]
+\item[returns] Nothing - no return value
+\end{description}
+places the ratio of probability to start/end,
+and then distributes the rest over the start/end
+
+
+
+
+\subsubsection{ThreeStateModel_from_half_bit_Sequence}
+
+\begin{description}
+\item[External C] {\tt Wise2_ThreeStateModel_from_half_bit_Sequence (pro,mat,rm,gap,ext)}
+\item[Perl] {\tt &Wise2::ThreeStateModel::ThreeStateModel_from_half_bit_Sequence (pro,mat,rm,gap,ext)}
+
+\item[Perl-OOP call] {\tt $obj->ThreeStateModel_from_half_bit_Sequence(mat,rm,gap,ext)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[pro] [READ ] protein sequence [Protein *]
+\item[mat] [READ ] comparison matrix to use [CompMat *]
+\item[rm] [READ ] random model which you assumme the matrix was built with [RandomModel *]
+\item[gap] [READ ] gap open penalty [int]
+\item[ext] [READ ] gap ext penalty [int]
+\item[returns] [UNKN ] Undocumented return value [ThreeStateModel *]
+\end{description}
+Makes a local three-state-model from a sequence.  this is scary
+hackery, assumming that the matrix is half-bits and normalising in a
+*very* wrong way to get "probabilities" out.
+
+
+Works though
+
+
+\subsubsection{write_HMMer_1_7_ascii_ThreeStateModel}
+
+\begin{description}
+\item[External C] {\tt Wise2_write_HMMer_1_7_ascii_ThreeStateModel (tsm,ofp)}
+\item[Perl] {\tt &Wise2::ThreeStateModel::write_HMMer_1_7_ascii_ThreeStateModel (tsm,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->write_HMMer_1_7_ascii_ThreeStateModel(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[tsm] [UNKN ] Undocumented argument [ThreeStateModel *]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+writes a HMMer version 1.7 (also ok with 1.8) file
+
+
+\subsection{Object ThreeStateUnit}
+
+\label{object_ThreeStateUnit}
+
+The ThreeStateUnit object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{match_emission[ALPHABET_SIZE]} Type [Probability : Scalar] No documentation
+
+\item{insert_emission[ALPHABET_SIZE]} Type [Probability : Scalar] No documentation
+
+\item{transition[TRANSITION_LEN]} Type [Probability : Scalar] No documentation
+
+\item{display_char} Type [char : Scalar] No documentation
+
+\end{description}
+This object is the probability version
+of hte common unit to profile HMMs, ie
+the match,insert,delete triple
+
+
+
+
+Member functions of ThreeStateUnit
+

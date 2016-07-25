@@ -1,0 +1,181 @@
+/*  Last edited: Mar  5 10:27 1997 (birney) */
+
+%{
+#include "dyna.h"
+#include "geneparser4.h"
+#include "genewisemodel.h"
+#include "genewisemodeldb.h"
+
+%}
+
+
+matrix GeneWise4
+query    type="GENEWISEMODEL" name="query" field:len="len"
+target   type="GENOMIC"         name="target"
+resource type="GeneParser4Score *" name="gp"
+extern name="GW_*" type="int"
+extern name="GP4_*" type="int"
+state  MATCH offi="1" offj="3"
+  calc="GENOMIC_CDS_POT(target,j)"
+  source MATCH
+    calc="query->seg[i]->transition[GW_MATCH2MATCH] + query->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2MATCH] + query->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource 
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2MATCH] + query->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource 
+  source START
+    calc="query->seg[i]->transition[GW_START2MATCH] + query->seg[i]->match[GENOMIC_CODON(target,j)]"
+    endsource 
+#
+# phase 0,1,2 introns can calculate whole amino acid for 0.
+#
+  source INTRON offi="1" offj="6"
+    calc="query->seg[i]->transition[GW_MATCH2MATCH] + gp->transition[GP4_INTRON2CDS] + query->seg[i]->match[GENOMIC_CODON(target,j)]+GENOMIC_3SS(target,j-3)+query->seg[i]->transition[GW_MATCH_BALANCE_3SS]"
+    target_label 3SS_PHASE_0
+    endsource
+  source INTRON offi="1" offj="5"
+    calc="query->seg[i]->transition[GW_MATCH2MATCH] + gp->transition[GP4_INTRON2CDS] + GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source INTRON offi="1" offj="4"
+    calc="query->seg[i]->transition[GW_MATCH2MATCH] + gp->transition[GP4_INTRON2CDS] + GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+#
+# Sequencing error transitions, at offsets 2 and 4 (covers both frames)
+#
+  source MATCH offi="1" offj="2"
+    calc="gp->transition[GP4_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source MATCH offi="1" offj="4"
+    calc="gp->transition[GP4_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  query_label MATCH_STATE
+  target_label CODON
+  endstate
+#
+# Insert state: does not move along model, produces DNA sequence...
+#
+state  INSERT offi="0" offj="3"
+  calc="GENOMIC_CDS_POT(target,j)"
+  source MATCH
+    calc="query->seg[i]->transition[GW_MATCH2INSERT] + query->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2INSERT] + query->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource 
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2INSERT] + query->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource 
+  source START
+    calc="query->seg[i]->transition[GW_START2INSERT] + query->seg[i]->insert[GENOMIC_CODON(target,j)]"
+    endsource 
+#
+# phase 0,1,2 introns can calculate whole amino acid for 0.
+#
+  source INTRON offi="0" offj="6"
+    calc="query->seg[i]->transition[GW_INSERT2INSERT] + gp->transition[GP4_INTRON2CDS] + query->seg[i]->match[GENOMIC_CODON(target,j)]+GENOMIC_3SS(target,j-3)+query->seg[i]->transition[GW_INSERT_BALANCE_3SS]"
+    target_label 3SS_PHASE_0
+    endsource
+  source INTRON offi="0" offj="5"
+    calc="query->seg[i]->transition[GW_INSERT2INSERT] + gp->transition[GP4_INTRON2CDS] + GENOMIC_3SS(target,j-2)"
+    target_label 3SS_PHASE_1
+    endsource
+  source INTRON offi="0" offj="4"
+    calc="query->seg[i]->transition[GW_INSERT2INSERT] + gp->transition[GP4_INTRON2CDS] + GENOMIC_3SS(target,j-1)"
+    target_label 3SS_PHASE_2
+    endsource
+#
+# Sequencing error transitions: because insertions are "for free" usually, we will
+# only model sequence deletion here. Could produce odd results though!
+#
+  source INSERT offi="0" offj="2"
+    calc="gp->transition[GP4_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source INSERT offi="0" offj="1"
+    calc="gp->transition[GP4_DELETE_2_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  query_label INSERT_STATE
+  target_label CODON
+  endstate
+state DELETE offi="1" offj="0"
+  source MATCH
+    calc="query->seg[i]->transition[GW_MATCH2DELETE]"
+    endsource
+  source INSERT
+    calc="query->seg[i]->transition[GW_INSERT2DELETE]"
+    endsource 
+  source DELETE
+    calc="query->seg[i]->transition[GW_DELETE2DELETE]"
+    endsource 
+  source START
+    calc="query->seg[i]->transition[GW_START2DELETE]"
+    endsource 
+  query_label DELETE_STATE
+  target_label INSERT
+  endstate
+#
+# Intron state: Merge phase and match/insert stuff.
+#
+state INTRON offi="0" offj="1"
+  source MATCH offj="8"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)+ query->seg[i]->transition[GW_MATCH_BALANCE_5SS]"
+    target_label 5SS_PHASE_0
+    endsource
+  source INSERT offj="8"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)+ query->seg[i]->transition[GW_INSERT_BALANCE_5SS]"
+    target_label 5SS_PHASE_0
+    endsource
+  source MATCH offj="9" offi="0"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_1
+    endsource
+  source INSERT offj="9" offi="0"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_1
+    endsource
+  source MATCH offj="10" offi="0"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_2
+    endsource
+  source INSERT offj="10" offi="0"
+    calc="gp->intron[GENOMIC_BASE(target,j)]+GENOMIC_5SS(target,j-7)"
+    target_label 5SS_PHASE_2
+    endsource
+  source INTRON offj="1"
+    calc="gp->intron[GENOMIC_BASE(target,j)] + gp->transition[GP4_INTRON2INTRON]"
+    target_label CENTRAL_INTRON
+    endsource
+  query_label INTRON_STATE
+  endstate
+state START !start !special defscore="0"
+  endstate
+state END !end !special
+  source MATCH 
+    calc="query->seg[i]->transition[GW_MATCH2END]"
+    endsource
+  target_label END
+  query_label END
+  endstate
+#
+# collapse Intron labels!
+#
+collapse INTRON_STATE CENTRAL_INTRON
+endmatrix
+
+%{
+#include "genewise4.h"
+
+
+%}
+
+
+
+

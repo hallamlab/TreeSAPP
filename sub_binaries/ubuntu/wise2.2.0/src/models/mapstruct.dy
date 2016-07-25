@@ -1,0 +1,397 @@
+
+%{
+#include "dyna.h"
+
+#define MappedCloneSetLISTLENGTH 1024
+
+%}
+
+
+struct MappedClone
+char * clone_name
+char * accession
+char * contig
+int start
+int end
+int seen !def="0"
+
+struct MappedCloneSet
+MappedClone ** clone !list
+int length
+int cursor  !def="0"
+
+
+struct MappedCloneMatch
+int ** matrix !matrix !def="0" // NB i,j proper
+int * skip_iset
+int * skip_jset
+
+%{
+#include "mapstruct.h"
+
+
+MappedCloneMatch * new_MappedCloneMatch(MappedCloneSet * iset,MappedCloneSet * jset,int match,int mismatch)
+{
+  int i;
+  int j;
+  int ii;
+  int jj;
+  int k;
+  MappedCloneMatch * out;
+  int * buffer;
+
+  assert(match >= 0 );
+  assert(mismatch <= 0);
+  assert(iset);
+  assert(jset);
+
+
+  out = MappedCloneMatch_alloc_matrix(iset->length,jset->length);
+
+  
+  buffer = calloc(jset->length,sizeof(int));
+
+
+  for(i=0;i<iset->len;i++) {
+
+    /* no point even noticing not seen clones */
+    if( iset->clone[i]->seen == 0 ) {
+      continue;
+    }
+
+    for(k=0;k<jset->length;k++) 
+      buffer[k] = 0;
+
+    for(j=0;j<jset->len;j++) {
+      /* positive scores are easy, as we only have to loop over names */      
+      if( strcmp(iset->clone[i]->clone_name,jset->clone[j]->clone_name) == 0 ) {
+	for(ii=iset->clone[i]->start;ii<iset->clone[i]->end;ii++) {
+	  for(jj=jset->clone[j]->start;jj<jset->clone[j]->end;jj++) {
+	    out->matrix[ii][jj] += match;
+	    buffer[jj] = 1;
+	  }
+	}
+      }
+    }
+
+    /* now handle negative scores. in the j dimension, where buffer == 0, these
+       regions do not have this particular i clone. As long as this i clone is actually
+       seen (true due to first continue if) then we can substract the mismatch across the i
+    */
+
+    for(k=0;k<jset->length;k++) {
+      if( buffer[k] == 0 ) {
+	for(ii=iset->clone[i]->start;ii<iset->clone[i]->end;ii++) {
+	  out->matrix[ii][k] += mismatch;
+	}
+      }
+    }
+
+  }
+  
+
+  out->skip_iset = (int*) calloc(iset->length,sizeof(int));
+  out->skip_jset = (int*) calloc(jset->length,sizeof(int));
+
+  for(i=0;i<iset->len;i++) {
+    for(ii=iset->clone[i]->start;ii<iset->clone[i]->end;ii++) {
+      if( iset->clone[i]->seen == 1 ) {
+	out->skip_iset += mismatch;
+      }
+    }
+  }
+
+  for(j=0;j<jset->len;j++) {
+    for(jj=jset->clone[j]->start;jj<jset->clone[j]->end;jj++) {
+      if( jset->clone[j]->seen == 1 ) {
+	out->skip_jset += mismatch;
+      }
+    }
+  }
+
+
+  return out;
+}
+
+
+int MappedCloneSet_skip(MappedCloneSet * s,int pos,int skip_cost)
+{
+  int i;
+  int score = 0;
+  MappedCloneSet * mcs;
+
+  mcs = subsection_MappedCloneSet(s,pos,pos,1);
+
+  free_MappedCloneSet(mcs);
+
+  return skip_cost*mcs->len;
+}
+
+  
+int MappedCloneSet_match(MappedCloneSet * weak_query,MappedCloneSet * trusted_target,int qpos,int tpos,int spread,int match,int mismatch)
+{
+  MappedCloneSet * weak_slice;
+  MappedCloneSet * trusted_slice;
+  int i;
+  int j;
+  int score =0;
+
+  weak_slice    = subsection_MappedCloneSet(weak_query,qpos-spread,qpos+spread,1);
+  trusted_slice = subsection_MappedCloneSet(trusted_target,tpos-spread,tpos+spread,1);
+
+  if( weak_slice->len == 0 || trusted_slice->len == 0 ) {
+    score = mismatch;
+  } else {
+    for(i=0;i<weak_slice->len;i++) {
+      for(j=0;j<trusted_slice->len;j++) {
+	if( strcmp(weak_slice->clone[i]->clone_name,trusted_slice->clone[j]->clone_name) == 0 ) {
+	  score += match;
+	}
+      }
+    }
+  }
+
+  free_MappedCloneSet(weak_slice);
+  free_MappedCloneSet(trusted_slice);
+
+  return score;
+}
+
+
+
+int old_MappedCloneSet_match(MappedCloneSet * one,MappedCloneSet * two,int qpos,int tpos,int spread,int match,int mismatch)
+{
+  int i;
+  int startj;
+  int j;
+  int score = 0;
+  int has_matched;
+
+  /* sorted by start. If positions are before start - return 0 */
+
+  if( one->clone[0]->start-spread > qpos ) {
+    return mismatch;
+  }
+
+  if( two->clone[0]->start-spread > tpos ) {
+    return mismatch;
+  }
+
+
+  for(i=0;i<one->len;i++) {
+    if( one->clone[i]->end+spread >= qpos ) {
+      break;
+    }
+  }
+
+  for(startj=0;startj<two->len;startj++) {
+    if( two->clone[startj]->end+spread >= tpos ) {
+      break;
+    }
+  }
+
+  if( i >= one->len ) {
+    return mismatch;
+  }
+
+  if( startj >= two->len ) {
+    return mismatch;
+  }
+
+
+  for(;i<one->len && one->clone[i]->start-spread <= qpos;i++) {
+    if( one->clone[i]->seen == 0 ) {
+      continue;
+    }
+    has_matched = 0;
+    for(j=startj;j<two->len && j < two->clone[j]->start-spread < tpos;j++) {
+      if( two->clone[j]->seen == 0 ) {
+	continue;
+      }
+      if( strcmp(two->clone[j]->clone_name,one->clone[i]->clone_name) == 0 ) {
+	has_matched = 1;
+	break;
+      }
+    }
+    if( has_matched == 1 ) {
+      score += match;    
+    } else {
+      score -= mismatch;
+    }
+  }
+
+  return score;
+}
+
+
+%func
+updates the internal seen flags for the clone sets in
+preparation for the dp
+%%
+boolean synchronise_MappedCloneSets(MappedCloneSet * one,MappedCloneSet * two)
+{
+  int i;
+  MappedClone * mc;
+
+
+  assert(one);
+  assert(two);
+
+  for(i=0;i<one->len;i++) {
+    mc = find_named_MappedClone(two,one->clone[i]->clone_name);
+    if( mc != NULL ) {
+      mc->seen = 1;
+      one->clone[i]->seen = 1;
+    }
+  }
+
+  return TRUE;
+}
+      
+
+%func
+Returns a sub-section of the MappedClone 
+%%
+MappedCloneSet * subsection_MappedCloneSet(MappedCloneSet * mcs,int coord_start,int coord_end,int only_seen)
+{
+  MappedCloneSet * out;
+  int i;
+
+
+  out = MappedCloneSet_alloc_std();
+
+  for(i=0;i<mcs->len;i++) {
+    if( mcs->clone[i]->end >= coord_start ) {
+      break;
+    }
+  }
+
+  if( i >= mcs->len ) {
+    return out;
+  }
+
+  for(i=0;i<mcs->len;i++) {
+    if( only_seen == 1 && mcs->clone[i]->seen == 0 ) {
+      continue;
+    }
+
+    if( !(mcs->clone[i]->end < coord_start || mcs->clone[i]->start > coord_end) ) {
+      add_MappedCloneSet(out,hard_link_MappedClone(mcs->clone[i]));
+    }
+    if( mcs->clone[i]->start > coord_end ) {
+      break;
+    }
+  }
+
+  return out;
+}
+
+  
+
+%func 
+Finds a mapped clone set with this name
+%%
+MappedClone * find_named_MappedClone(MappedCloneSet * mcs,char * clone_name)
+{
+  int i;
+
+  /*we should have hashed. Oooops */
+
+  for(i=0;i<mcs->len;i++) {
+    if( strcmp(mcs->clone[i]->clone_name,clone_name) == 0 ) {
+      return mcs->clone[i];
+    }
+  }
+
+  return NULL;
+}
+
+%func
+sorting for MappedClones
+%%
+int start_comp_MappedClone(MappedClone * a,MappedClone * b)
+{
+  if( a->start >= b->start ) {
+    return 1;
+  } else {
+    return -1;
+  }
+}
+    
+
+%func
+Reads in a MappedCloneSet file
+%%
+MappedCloneSet * read_MappedCloneSet(FILE * ifp) 
+{
+  MappedCloneSet * out;
+  MappedClone * temp;
+  char buffer[512];
+
+  out = MappedCloneSet_alloc_std();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( strstartcmp(buffer,"#") == 0 ) {
+      continue;
+    }
+    
+    temp = read_MappedClone_line(buffer);
+    if( temp == NULL ) { 
+      continue;
+    }
+
+    add_MappedCloneSet(out,temp);
+  }
+
+  sort_MappedCloneSet(out,start_comp_MappedClone);
+
+  out->length = out->clone[out->len-1]->end;
+
+  return out;
+}
+
+
+%func
+Provides a mapped clone from a name\tstart\tend format
+%%
+MappedClone * read_MappedClone_line(char * line)
+{
+  MappedClone * out;
+  char * a;
+  char * b;
+  char * c;
+  char * d;
+  char * e;
+
+  char * copy;
+
+  copy = stringalloc(line);
+  out = MappedClone_alloc();
+
+  a = strtok(line,spacestr);
+  b = strtok(NULL,spacestr);
+  c = strtok(NULL,spacestr);
+  d = strtok(NULL,spacestr);
+  e = strtok(NULL,spacestr);
+
+
+  if( a == NULL || b == NULL || c == NULL || d == NULL || e == NULL ) {
+    warn("Bad clone line %s",copy);
+    ckfree(copy);
+    return NULL;
+  }
+
+
+
+  out->start = atol(a);
+  out->end   = atol(b);
+  out->clone_name  = stringalloc(c);
+  out->accession   = stringalloc(d);
+  out->contig      = stringalloc(e);
+
+  ckfree(copy);
+  return out;
+}
+
+
+  

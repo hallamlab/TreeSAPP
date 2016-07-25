@@ -1,0 +1,516 @@
+
+
+%{
+#include "dyna2.h"
+#include "dynafunc.h" 
+#include "optimiser.h"
+
+#define TransitionSetLISTLENGTH 24
+#define Transition_from_special(trans) (trans->trans_type == TRANSITION_FROM_SPECIAL || trans->trans_type == TRANSITION_FROM_START ? 1 : 0)
+
+#define TRANSITION_NORMAL 0
+#define TRANSITION_FROM_SPECIAL 1
+#define TRANSITION_FROM_START 2
+
+%}
+
+struct Transition
+char * to
+char * from
+int offi
+int offj
+char * calc
+int trans_type !def="TRANSITION_NORMAL"
+ExprTree * expr;
+ExprTree * expr_state;
+%info
+This is the data structure for one
+transition - it will probably replace
+the generic matrix type data structure
+eventually, but as we need this for
+kbest type systems, we do it here
+%%
+
+struct TransitionSet
+Transition ** trans !list 
+%info
+Data for an entire DP matrix- just being the transitions
+at the moment
+
+Sometime this - or something similar to this - will
+replace the generic matrix datastructure, but for the
+moment, this suffices!
+%%
+
+%{
+#include "kbestsearch.h"
+
+
+
+      
+%func
+Produces a kbest search type single score function
+
+kbest algorithm used here is that each cell is 
+reduced to a single score + state number that it
+came from. The kbest heuristic is to provide only k paths
+onto the next position in the sequence. In our case we
+have k = length of model / number of states. This sort
+of kbest heurisitc is good because it cuts down on excessive
+book keeping of the alignments, by being able to store
+information of the state only
+%%
+void write_kbest_score_GenericMatrix(DYNFILE * dfp,GenericMatrix * gm,Scope * sc,MethodTypeSet * mts,DPImplementation * dpi)
+{
+  char subexpr_buffer[MAXLINE];
+  int i,j;
+  FuncInfo * fi;
+  char * arg_str;
+  char * chain_str;
+  CommonSubExpressionSet * cses;
+
+  cses = find_CommonSubExpressions(gm,TRUE);
+  show_CommonSubExpressionSet(cses,stdout);
+  
+
+  for(j=0;j<gm->spec_len;j++)
+    if( gm->special[j]->is_start == TRUE ) 
+      break;
+
+  /*** prepare function information ***/
+
+  
+  fi = FuncInfo_named_from_varstr(FI_INTERNAL,"kbest_score_only_%s",gm->name);
+  add_line_to_Ftext(fi->ft,"This function just calculates the score for the matrix",gm->name);
+  add_line_to_Ftext(fi->ft,"It uses a kbest style algorithm to compute the score");
+  add_line_to_Ftext(fi->ft,"It calls /allocate_%s_only",gm->name);
+
+  arg_str = get_argstr_GenericMatrix(gm);
+  add_args_GenericMatrix_FuncInfo(fi,gm);
+
+
+  start_function_FuncInfo(fi,dfp,"int kbest_score_only_%s(%s)",gm->name,arg_str);
+
+  /*** clean up ***/
+  ckfree(arg_str);
+
+
+
+  /*** into function body ***/
+
+
+  expr(dfp,"int bestscore = NEGI;");
+  expr(dfp,"int i;");
+  expr(dfp,"int j;");
+  expr(dfp,"%s * mat",gm->name);
+  expr(dfp,"int * score_mat[%d];",gm->window_j+1);
+  expr(dfp,"char * state_mat;",gm->window_j+1);
+  expr(dfp,"int score_special[%d][%d];",gm->window_j+1,gm->spec_len);
+  
+  /** for the moment, ignore the possibility of static
+      allocation
+  */
+
+  if( 0 && gm->qtype != NULL && gm->qtype->maxlen != NULL) {
+    expr(dfp,"int internal_matrix[%d][(%s+%d) * %d];",gm->window_j+1,gm->qtype->maxlen,gm->window_i,gm->len);
+    expr(dfp,"int internal_specials[%d][%d];",gm->window_j+1,gm->spec_len);
+  }
+  
+
+  if(0 && dpi->largemem == TRUE ) {
+    expr(dfp,"int * internal_pointer_db;");
+    expr(dfp,"int * internal_special_db;");
+  }
+
+  /** kbest optimisation stuff **/
+
+  if( dpi->dokbestcse == TRUE ) {
+    for(i=0;i<cses->len;i++) {
+      expr(dfp,"int subexpr%d;",i);
+    }
+  }
+
+  
+  add_break(dfp);
+  chain_str = get_chainstr_GenericMatrix(gm);
+  expr(dfp,"mat = allocate_%s_only(%s);",gm->name,chain_str);
+  ckfree(chain_str);
+
+  expr(dfp,"if( mat == NULL )");
+  startbrace(dfp);
+  warn_expr(dfp,"Memory allocation error in the db search - unable to communicate to calling function. this spells DISASTER!");
+  expr(dfp,"return NEGI");
+  closebrace(dfp);
+  /*
+  if(0 && gm->qtype != NULL && gm->qtype->maxlen != NULL) {
+    add_block_comment(dfp,"Ok,don't need to allocate matrix as it is internal, because we have a max length");
+  } else  {
+    expr(dfp,"if((mat->basematrix = BaseMatrix_alloc_matrix_and_specials(%d,(mat->leni + %d)*2,%d,%d)) == NULL)",gm->window_j+1,gm->window_i,gm->window_j+1,gm->spec_len);
+    startbrace(dfp);
+    expr(dfp,"warn(\"Score only matrix for %s cannot be allocated, (asking for %d  by %%d  cells)\",mat->leni);",gm->name,gm->window_j);
+    expr(dfp,"mat = free_%s(mat)",gm->name);
+    expr(dfp,"return NEGI;");
+    closebrace(dfp);
+    expr(dfp,"mat->basematrix->type = BASEMATRIX_TYPE_VERYSMALL;");
+  }
+  */
+
+  add_block_comment(dfp,"Allocate memory for matrix");
+  expr(dfp,"for(j=0;j<%d;j++)",gm->window_j+1);
+  startbrace(dfp);
+  expr(dfp,"score_mat[j] = (int *) ckalloc (sizeof(int) * (mat->leni+%d));",gm->window_i);
+  closebrace(dfp);
+  expr(dfp,"state_mat = (char *) ckalloc (sizeof(char) * (mat->leni+%d)*%d *%d);",gm->window_i,gm->len,gm->window_j+1);
+  add_break(dfp);
+
+  add_block_comment(dfp,"Now, initiate matrix");
+
+  expr(dfp,"for(j=0;j<%d;j++)",gm->window_j+2);
+  startbrace(dfp);
+  expr(dfp,"for(i=(-%d);i<mat->leni;i++)",gm->window_i);
+  startbrace(dfp);
+  expr(dfp,"%s_KBEST_MATRIX_SCORE(mat,i,j,KBEST_SCORE) = NEGI;",gm->name);
+  for(i=0;i<gm->spec_len;i++) {
+    expr(dfp,"%s_KBEST_SPECIAL(mat,0,j,%s) = %s;",gm->name,gm->special[i]->name,gm->special[i]->def_score);
+  }
+  closebrace(dfp);
+  closebrace(dfp);
+
+  add_break(dfp);
+
+  add_block_comment(dfp,"Ok, lets do-o-o-o-o it");
+
+  add_break(dfp);
+
+  if( dpi->dokbestcse == TRUE ) {
+    for(i=0;i<cses->len;i++) {
+      if( IS_NON_IJ_DEP_CSE(cses->cse[i]) ) {  
+	subexpr_buffer[0]='\0';
+	strcat_ExprTree_Scoped(cses->cse[i]->expr,subexpr_buffer,sc,mts,dpi->dycw,NULL,NULL);
+	expr(dfp,"subexpr%d = %s;",i,subexpr_buffer);
+      }
+    }
+  }
+
+  expr(dfp,"for(j=0;j<mat->lenj;j++)");
+  startbrace_tag(dfp,"for all target positions");
+  expr(dfp,"auto int score");
+  expr(dfp,"auto int temp");
+  expr(dfp,"auto int state");
+  expr(dfp,"auto int temp_state");
+
+  if( dpi->dokbestcse == TRUE ) {
+    for(i=0;i<cses->len;i++) {
+      if( IS_J_DEP_CSE(cses->cse[i]) == TRUE && IS_I_DEP_CSE(cses->cse[i]) == FALSE ) {  
+	subexpr_buffer[0]='\0';
+	strcat_ExprTree_Scoped(cses->cse[i]->expr,subexpr_buffer,sc,mts,dpi->dycw,NULL,NULL);
+	expr(dfp,"subexpr%d = %s;",i,subexpr_buffer);
+      }
+    }
+  }
+
+  add_break(dfp);
+  add_block_comment(dfp,"Initialise these specials");
+  for(i=0;i<gm->spec_len;i++) {
+    expr(dfp,"%s_KBEST_SPECIAL(mat,0,j,%s) = %s;",gm->name,gm->special[i]->name,gm->special[i]->def_score);
+  }
+  expr(dfp,"for(i=0;i<mat->leni;i++)");
+  startbrace_tag(dfp,"for all query positions");
+
+
+  /** kbest cse optimisations **/
+
+  if( dpi->dokbestcse == TRUE ) {
+    for(i=0;i<cses->len;i++) {
+      if( IS_J_DEP_CSE(cses->cse[i]) == TRUE && IS_I_DEP_CSE(cses->cse[i]) == TRUE ) {  
+	subexpr_buffer[0]='\0';
+	strcat_ExprTree_Scoped(cses->cse[i]->expr,subexpr_buffer,sc,mts,dpi->dycw,NULL,NULL);
+	expr(dfp,"subexpr%d = %s;",i,subexpr_buffer);
+      }
+    }
+  }
+
+  write_kbest_block(dfp,gm,"KBEST_MATRIX","mat","KBEST_SPECIAL",TRUE,cses,mts,dpi);
+  
+  closebrace(dfp);
+
+  add_break(dfp);
+
+  write_special_block(dfp,gm,"KBEST_MATRIX","KBEST_SPECIAL","bestscore");
+
+  closebrace(dfp);
+
+  add_break(dfp);
+
+  expr(dfp,"mat = free_%s(mat)",gm->name);
+
+  expr(dfp,"return bestscore;");
+
+  close_function(dfp);
+
+  add_break(dfp);
+}
+
+      
+%func
+Produces the actual kbest scoring inner loop
+%%
+void write_kbest_block(DYNFILE * dfp,GenericMatrix * gm,char * matrixtag,char * pointertag,char * specialtag,boolean use_special,CommonSubExpressionSet * cses,MethodTypeSet * mts,DPImplementation * dpi)
+{
+  char buffer[MAXLINE];
+  register int i;
+  register int j;
+  register int k;
+  TransitionSet * ts;
+
+  int current_i_off;
+  int current_j_off;
+
+  ts = TransitionSet_from_GenericMatrix(gm);
+  sort_TransitionSet_offset(ts);
+  /*  show_TransitionSet(ts,stderr); */
+  add_break(dfp);
+  expr(dfp,"score = NEGI;");
+  expr(dfp,"state = 300;");
+  add_break(dfp);
+
+  /* do switch statements from specials first */
+
+  for(k=0;k<ts->len && Transition_from_special(ts->trans[k]) == 1;k++) {
+    if( ts->trans[k]->trans_type == TRANSITION_FROM_START ) {
+      add_block_comment(dfp,"Source is the start state, and hence no need to look, must be 0");
+      expr(dfp,"temp = %s",
+	   ts->trans[k]->calc
+	   );
+    } else {
+      expr(dfp,"temp = %s_KBEST_SPECIAL(mat,i-%d,j-%d,%s) + %s",gm->name,
+	   ts->trans[k]->offi,
+	   ts->trans[k]->offj,
+	   ts->trans[k]->from,
+	   ts->trans[k]->calc
+	   );
+    }
+
+    expr(dfp,"if(temp > score)");
+    startbrace(dfp);
+    expr(dfp,"score = temp;");
+    expr(dfp,"state = %s;",ts->trans[k]->to);
+    closebrace(dfp);
+  }
+
+  /* do switch statements over the possibilities for each i,j offset */
+
+  for(;k<ts->len;) {
+    current_i_off = ts->trans[k]->offi;
+    current_j_off = ts->trans[k]->offj;
+    expr(dfp,"switch ( %s_KBEST_MATRIX_STATE(mat,i-%d,j-%d,DUMMY_KBEST_STATE) )",gm->name,current_i_off,current_j_off);
+    startbrace(dfp);
+    for(;k < ts->len && ts->trans[k]->offi == current_i_off && ts->trans[k]->offj == current_j_off;k++) {
+      expr(dfp,"case %s :",ts->trans[k]->from);
+      startcase(dfp);
+      if( dpi->dokbestcse == TRUE ) {
+	buffer[0] = '\0';
+	strcat(buffer,"(");
+	strcat_cses_ExprTree(ts->trans[k]->expr,buffer,gm->sc,mts,dpi);
+	strcat(buffer,")");
+	if( ts->trans[k]->expr_state != NULL ) {
+	  strcat(buffer,"+ (");
+	  strcat_cses_ExprTree(ts->trans[k]->expr_state,buffer,gm->sc,mts,dpi);
+	  strcat(buffer,")");
+	}
+	expr(dfp,"temp = %s;",buffer);
+      } else {
+	expr(dfp,"temp = %s;",ts->trans[k]->calc);
+      }
+      expr(dfp,"temp_state = %s;",ts->trans[k]->to);
+      expr(dfp,"break;");
+      closecase(dfp);
+    }
+    expr(dfp,"default :");
+    startcase(dfp);
+    expr(dfp,"temp = NEGI;");
+    expr(dfp,"temp_state = (200);");
+    expr(dfp,"break;");
+    closecase(dfp);
+    closebrace(dfp); /* close switch statement */
+    add_break(dfp);
+
+    expr(dfp,"if( temp > NEGI )");
+    startbrace(dfp);
+    expr(dfp,"temp += %s_KBEST_MATRIX_SCORE(mat,i-%d,j-%d,KBEST_SCORE);",gm->name,current_i_off,current_j_off);
+    expr(dfp,"if( temp > score )");
+    startbrace(dfp);
+    expr(dfp,"score = temp;");
+    expr(dfp,"state = temp_state;");
+    closebrace(dfp);
+    closebrace(dfp);
+    add_break(dfp);
+  }
+      
+  expr(dfp,"%s_KBEST_MATRIX_SCORE(mat,i,j,KBEST_SCORE) = score;",gm->name);
+  expr(dfp,"%s_KBEST_MATRIX_STATE(mat,i,j,KBEST_STATE) = state;",gm->name);
+
+  add_break(dfp);
+  add_block_comment(dfp,"Now do any potential main to special movements");
+  
+  for(i=0;i<gm->spec_len;i++) {
+    for(j=0;j<gm->special[i]->len;j++) {
+      if( gm->special[i]->source[j]->isspecial == FALSE ) {
+	expr(dfp,"if( state == %s)",gm->special[i]->source[j]->state_source);
+	startbrace(dfp);
+	expr(dfp,"temp = score + (%s) + (%s);",
+	     gm->special[i]->source[j]->calc_expr,
+	     gm->special[i]->calc_expr == NULL ? "0" : gm->special[i]->calc_expr);
+	expr(dfp,"if( temp > %s_KBEST_SPECIAL(mat,i,j,%s) )",gm->name,gm->special[i]->name);
+	hang_expr(dfp,"%s_KBEST_SPECIAL(mat,i,j,%s) = temp;",gm->name,gm->special[i]->name);
+	closebrace(dfp);
+      }
+    }
+  }
+
+}
+
+
+%func
+Makes a transition set from a generic matrix
+%%
+TransitionSet * TransitionSet_from_GenericMatrix(GenericMatrix * gm)
+{
+  TransitionSet *out;
+  int i,j,k;
+  Transition * trans;
+  char buffer[1024];
+  
+  out = TransitionSet_alloc_std();
+
+  for(i=0;i<gm->len;i++)
+    for(j=0;j<gm->state[i]->len;j++) {
+      trans = Transition_alloc();
+      trans->offi = gm->state[i]->source[j]->offi;
+      trans->offj = gm->state[i]->source[j]->offj;
+      trans->to   = stringalloc(gm->state[i]->name);
+      trans->from = stringalloc(gm->state[i]->source[j]->state_source);
+      trans->expr = gm->state[i]->source[j]->etr;
+      trans->expr_state = gm->state[i]->etr;
+      /* if it is from a special, see if it is from start */
+      if( gm->state[i]->source[j]->isspecial ) {
+
+	/* this is painful, but because I hadn't got the previous
+	   data structure right! */
+
+	for(k=0;k<gm->spec_len;k++) {
+	  if( gm->special[k]->is_start == TRUE && strcmp(gm->state[i]->source[j]->state_source,gm->special[k]->name) == 0) {
+	    trans->trans_type = TRANSITION_FROM_START;
+	    break;
+	  }
+	}
+	if( k == gm->spec_len ) {
+	  trans->trans_type = TRANSITION_FROM_SPECIAL;
+	}
+      }
+
+      if( gm->state[i]->calc_expr != NULL ) {
+	sprintf(buffer,"(%s) + (%s)",gm->state[i]->source[j]->calc_expr,gm->state[i]->calc_expr);
+      } else {
+	sprintf(buffer,"%s",gm->state[i]->source[j]->calc_expr);
+      }
+      trans->calc = stringalloc(buffer);
+      add_TransitionSet(out,trans);
+    }
+
+  return out;
+}
+
+%func
+sees whether the generic matrix is suitable for kbest optimisations
+%%
+boolean can_kbest_GenericMatrix(GenericMatrix * gm)
+{
+  int i,j;
+  int k,l;
+
+  /* have to find cases in which the source,i,j is 
+     the same twice */
+
+  for(i=0;i<gm->len;i++) {
+    auto CellState * state;
+    state = gm->state[i];
+    
+    for(j=0;j<state->len;j++) {
+      /* now loop over all other transitions in this state */
+      for(l=j+1;l<state->len;l++)
+	if( state->source[j]->offi == state->source[l]->offi &&
+	    state->source[j]->offj == state->source[l]->offj &&
+	    strcmp(state->source[j]->state_source,state->source[l]->state_source) == 0 )
+	  return FALSE;
+      
+
+      /* now loop over all other states */
+
+      for(k=i+1;k<gm->len;k++) {
+	for(l=0;l<gm->state[k]->len;l++)
+	  if( state->source[j]->offi == gm->state[k]->source[l]->offi &&
+	      state->source[j]->offj == gm->state[k]->source[l]->offj &&
+	      strcmp(state->source[j]->state_source,gm->state[k]->source[l]->state_source) == 0 )
+	    return FALSE;
+      }/* all other states */
+    } /* all transitions in this particular i'th state */
+  }/* all states */
+
+  return TRUE;
+}
+
+
+%func
+Sorts by offi then offj
+%%
+void sort_TransitionSet_offset(TransitionSet * ts)
+{
+  sort_TransitionSet(ts,comp_Transition);
+}
+
+%func
+comparison by offi/offj
+%%
+int comp_Transition(Transition * two,Transition * one)
+{
+  if( Transition_from_special(one) != Transition_from_special(two) ) {
+    if( Transition_from_special(two) ) {
+      return -1;
+    } else {
+      return 1;
+    }
+  }
+
+  if( one->offi == two->offi ) {
+    return one->offj - two->offj;
+  }
+
+  return one->offi - two->offi;
+}
+
+	
+%func
+Shows a transition set
+%%
+void show_TransitionSet(TransitionSet * tset,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<tset->len;i++)
+    show_Transition(tset->trans[i],ofp);
+}
+
+%func
+Shows a transition
+%type internal
+%%
+void show_Transition(Transition * trans,FILE * ofp)
+{
+  fprintf(ofp,"Transition [%s %d %d %s]\n",trans->from,trans->offi,trans->offj,trans->to);
+  fprintf(ofp,"   calc %s\n",trans->calc);
+}
+
+
+
+

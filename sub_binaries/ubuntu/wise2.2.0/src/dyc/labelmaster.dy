@@ -1,0 +1,227 @@
+/*  Last edited: Mar 11 13:22 1997 (birney) */
+
+%{
+
+#include "wisebase.h"
+#include "dyna2.h"
+
+
+#define LabelLISTLENGTH 64
+#define LabelMasterLISTLENGTH 64
+
+#define LMNOTYPE    213
+#define LMQUERYTYPE 214
+#define LMTARGETTYPE 215
+
+%}
+
+
+
+struct LabelInstance
+char * state
+char * source
+int  offi
+int  offj
+char * calc_line 
+
+
+struct Label
+char * name
+int  type
+LabelInstance ** li !list
+
+
+struct LabelMaster
+Label ** query  !list !len="query_"
+Label ** target !list !len="target_"
+
+
+
+%{
+#include "labelmaster.h"
+
+char * quoted_string_from_Label(Label ** list,int len)
+{
+  char buf[512];
+  char buffer[2048];
+  int i;
+
+  sprintf(buffer,"\"%s\"",list[0]->name);
+
+  for(i=1;i<len;i++) {
+    sprintf(buf,",\"%s\"",list[i]->name);
+    strcat(buffer,buf);
+
+  }
+
+  return stringalloc(buffer);
+}
+
+char * query_quoted_string_from_LabelMaster(LabelMaster * lm)
+{
+  return quoted_string_from_Label(lm->query,lm->query_len);
+}
+
+char * target_quoted_string_from_LabelMaster(LabelMaster * lm)
+{
+  return quoted_string_from_Label(lm->target,lm->target_len);
+}
+
+
+int index_for_label(char * name,Label ** list,int len)
+{
+  int i;
+
+  for(i=0;i<len;i++) {
+    if( strcmp(list[i]->name,name) == 0)
+      return i;
+  }
+
+  return -1;
+}
+
+
+int index_for_query_label(char * name,LabelMaster * lm)
+{
+  return index_for_label(name,lm->query,lm->query_len);
+}
+
+int index_for_target_label(char * name,LabelMaster * lm)
+{
+  return index_for_label(name,lm->target,lm->target_len);
+}
+
+
+Label * target_Label_from_name(LabelMaster * lm,char * name)
+{
+  register int i;
+
+  for(i=0;i<lm->target_len;i++) {
+    if( strcmp(name,lm->target[i]->name) == 0 )
+      return lm->target[i];
+  }
+
+  return NULL;
+}
+
+Label * query_Label_from_name(LabelMaster * lm,char * name)
+{
+  register int i;
+
+  for(i=0;i<lm->query_len;i++) {
+    if( strcmp(name,lm->query[i]->name) == 0 )
+      return lm->query[i];
+  }
+
+  return NULL;
+}
+
+
+LabelMaster * LabelMaster_from_GenericMatrix(GenericMatrix * gm)
+{
+  register int i;
+  register int j;
+  CellState * state;
+  LabelMaster * out;
+
+
+  out = LabelMaster_alloc_std();
+
+
+  for(i=0;i<gm->len;i++) {
+    state = gm->state[i];
+
+    for(j=0;j<state->len;j++) 
+      add_CellSource_to_LabelMaster(out,state->source[j],state->name);
+  }
+
+  for(i=0;i<gm->spec_len;i++) {
+    state = gm->special[i];
+
+    for(j=0;j<state->len;j++) 
+      add_CellSource_to_LabelMaster(out,state->source[j],state->name);
+  }
+
+  return out;
+}
+
+boolean add_CellSource_to_LabelMaster(LabelMaster * lm,CellSource * cs,char * state)
+{
+  Label * temp;
+  LabelInstance * li;
+
+
+  li = LabelInstance_from_CellSource(state,cs);
+
+  if( cs->query_label != NULL ) {
+    if( (temp=query_Label_from_name(lm,cs->query_label)) == NULL ) {
+      temp = new_query_Label(cs->query_label);
+      add_query_LabelMaster(lm,temp);
+    }
+
+    add_Label(temp,li);
+  }
+
+
+  li = LabelInstance_from_CellSource(state,cs);
+
+  if( cs->target_label != NULL ) {
+    if( (temp=target_Label_from_name(lm,cs->target_label)) == NULL ) {
+      temp = new_target_Label(cs->target_label);
+      add_target_LabelMaster(lm,temp);
+    }
+
+    add_Label(temp,li);
+  }
+
+  return TRUE;
+}
+ 
+
+Label * new_query_Label(char * name)
+{
+  Label * out;
+
+  out = Label_alloc_std();
+
+  out->name = stringalloc(name);
+  out->type = LMQUERYTYPE;
+
+  return out;
+}
+
+Label * new_target_Label(char * name)
+{
+  Label * out;
+
+  out = Label_alloc_std();
+
+  out->name = stringalloc(name);
+  out->type = LMTARGETTYPE;
+
+  return out;
+}
+
+
+LabelInstance * LabelInstance_from_CellSource(char * state,CellSource * cs)
+{
+  LabelInstance * out;
+
+
+  out = LabelInstance_alloc();
+
+  out->state  = stringalloc(state);
+  out->source = cs->state_source;
+  out->offi = cs->offi;
+  out->offj = cs->offj;
+
+  return out;
+}
+
+
+
+
+
+
+
+%}

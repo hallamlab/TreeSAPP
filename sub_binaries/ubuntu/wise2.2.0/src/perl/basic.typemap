@@ -1,0 +1,10 @@
+TYPEMAP
+void             T_IV
+boolean          T_IV
+aa               T_CHAR
+codon            T_IV
+base             T_IV
+Score            T_IV
+float            T_DOUBLE
+Probability      T_DOUBLE
+Bits             T_DOUBLE

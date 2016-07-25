@@ -1,0 +1,878 @@
+=head1 NAME
+
+aln module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item AlnBlock
+
+=item AlnColumn
+
+=item AlnUnit
+
+=item AlnSequence
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object AlnBlock
+
+=over
+
+=item start
+
+ Type [AlnColumn *] Scalar  the first AlnColumn in the alignment
+
+=item seq
+
+ Type [AlnSequence **] List  a list of AlnSequences in the alignment
+
+=item length
+
+ Type [int] Scalar  not used 
+
+=item score
+
+ Type [int] Scalar  not used
+
+
+
+=back
+
+AlnBlock is the main representation of alignments from Dynamite. Each
+AlnBlock represents any number of 'sequences', of any type, which share
+things in common. The alignment is represented by a series of /AlnColumns 
+(linked list) in which each AlnColumn has a series of AlnUnits, each 
+Unit being a start/end/text_label triple. Alternatively, one can see
+each sequence in isolation, and not ask what it is aligned to, but rather
+what labels it has on it. 
+
+
+
+=head2 Member functions of AlnBlock
+
+=over
+
+=item dump_ascii_AlnBlock
+
+&Wise2::AlnBlock::dump_ascii_AlnBlock(alb,ofp)
+
+  Dumps the alignment in rereadable ascii form.
+
+  Not really for human consumption
+
+
+
+  Argument alb          [UNKN ] AlnBlock to dump [AlnBlock *]
+  Argument ofp          [UNKN ] File stream to dump to [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_AlnBlock
+
+&Wise2::AlnBlock::hard_link_AlnBlock(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [AlnBlock *]
+  Return [UNKN ] Undocumented return value [AlnBlock *]
+
+
+=item AlnBlock_alloc_std
+
+&Wise2::AlnBlock::AlnBlock_alloc_std(void)
+
+  Equivalent to AlnBlock_alloc_len(AlnBlockLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [AlnBlock *]
+
+
+=item set_start
+
+&Wise2::AlnBlock::set_start(obj,start)
+
+  Replace member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnBlock *]
+  Argument start        [OWNER] New value of the variable [AlnColumn *]
+  Return [SOFT ] member variable start [boolean]
+
+
+=item start
+
+&Wise2::AlnBlock::start(obj)
+
+  Access member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnBlock *]
+  Return [SOFT ] member variable start [AlnColumn *]
+
+
+=item seq
+
+&Wise2::AlnBlock::seq(obj,i)
+
+  Access members stored in the seq list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [AlnBlock *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [AlnSequence *]
+
+
+=item length_seq
+
+&Wise2::AlnBlock::length_seq(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [AlnBlock *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_seq
+
+&Wise2::AlnBlock::flush_seq(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [AlnBlock *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_seq
+
+&Wise2::AlnBlock::add_seq(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [AlnBlock *]
+  Argument add          [OWNER] Object to add to the list [AlnSequence *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_length
+
+&Wise2::AlnBlock::set_length(obj,length)
+
+  Replace member variable length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnBlock *]
+  Argument length       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable length [boolean]
+
+
+=item length
+
+&Wise2::AlnBlock::length(obj)
+
+  Access member variable length
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnBlock *]
+  Return [SOFT ] member variable length [int]
+
+
+=item set_score
+
+&Wise2::AlnBlock::set_score(obj,score)
+
+  Replace member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnBlock *]
+  Argument score        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable score [boolean]
+
+
+=item score
+
+&Wise2::AlnBlock::score(obj)
+
+  Access member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnBlock *]
+  Return [SOFT ] member variable score [int]
+
+
+=back
+
+=head2 Object AlnColumn
+
+=over
+
+=item alu
+
+ Type [AlnUnit **] List  list of the AlnUnits in this column
+
+=item next
+
+ Type [AlnColumn *] Scalar  the next AlnColumn in this block
+
+
+
+=back
+
+This is a coupling of AlnUnits from different sequences.
+Each AlnUnit is meant to represent *the equivalent* piece
+of biological information in some sense (ie, they are
+alignmed), even though quite possibly they are very 
+different types of information
+
+
+
+=head2 Member functions of AlnColumn
+
+=over
+
+=item at_end
+
+&Wise2::AlnColumn::at_end(alc)
+
+  This tells you whether the AlnColumn is at the
+  end without passing NULL's around
+
+
+
+
+  Argument alc          [READ ] AlnColumn [AlnColumn *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item hard_link_AlnColumn
+
+&Wise2::AlnColumn::hard_link_AlnColumn(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [AlnColumn *]
+  Return [UNKN ] Undocumented return value [AlnColumn *]
+
+
+=item AlnColumn_alloc_std
+
+&Wise2::AlnColumn::AlnColumn_alloc_std(void)
+
+  Equivalent to AlnColumn_alloc_len(AlnColumnLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [AlnColumn *]
+
+
+=item alu
+
+&Wise2::AlnColumn::alu(obj,i)
+
+  Access members stored in the alu list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [AlnColumn *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [AlnUnit *]
+
+
+=item length_alu
+
+&Wise2::AlnColumn::length_alu(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [AlnColumn *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_alu
+
+&Wise2::AlnColumn::flush_alu(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [AlnColumn *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_alu
+
+&Wise2::AlnColumn::add_alu(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [AlnColumn *]
+  Argument add          [OWNER] Object to add to the list [AlnUnit *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_next
+
+&Wise2::AlnColumn::set_next(obj,next)
+
+  Replace member variable next
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnColumn *]
+  Argument next         [OWNER] New value of the variable [AlnColumn *]
+  Return [SOFT ] member variable next [boolean]
+
+
+=item next
+
+&Wise2::AlnColumn::next(obj)
+
+  Access member variable next
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnColumn *]
+  Return [SOFT ] member variable next [AlnColumn *]
+
+
+=back
+
+=head2 Object AlnUnit
+
+=over
+
+=item start
+
+ Type [int] Scalar  start position in the sequence
+
+=item end
+
+ Type [int] Scalar  end position in the sequence
+
+=item label
+
+ Type [int] Scalar  not used
+
+=item text_label
+
+ Type [char *] Scalar  text label of this position
+
+=item next
+
+ Type [AlnUnit *] Scalar  next AlnUnit in this sequence
+
+=item score[AlnUnitSCORENUMBER]
+
+ Type [int] Scalar  a series of scores for this position.
+
+=item in_column
+
+ Type [boolean] Scalar  not used 
+
+=item seq
+
+ Type [AlnSequence *] Scalar No documentation
+
+
+
+=back
+
+This is the basic unit of the label alignment.
+It describes a single mark-up over one sequence:
+being a start, an end and a text_label.
+
+
+
+=head2 Member functions of AlnUnit
+
+=over
+
+=item bio_start
+
+&Wise2::AlnUnit::bio_start(alu)
+
+  Tells the bio-coordinate of the
+  start point of this alnunit
+
+
+
+  Argument alu          [UNKN ] Undocumented argument [AlnUnit *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item bio_end
+
+&Wise2::AlnUnit::bio_end(alu)
+
+  Tells the bio-coordinate of the
+  end point of this alnunit
+
+
+
+  Argument alu          [UNKN ] Undocumented argument [AlnUnit *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item hard_link_AlnUnit
+
+&Wise2::AlnUnit::hard_link_AlnUnit(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [AlnUnit *]
+  Return [UNKN ] Undocumented return value [AlnUnit *]
+
+
+=item alloc
+
+&Wise2::AlnUnit::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [AlnUnit *]
+
+
+=item set_start
+
+&Wise2::AlnUnit::set_start(obj,start)
+
+  Replace member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Argument start        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable start [boolean]
+
+
+=item start
+
+&Wise2::AlnUnit::start(obj)
+
+  Access member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Return [SOFT ] member variable start [int]
+
+
+=item set_end
+
+&Wise2::AlnUnit::set_end(obj,end)
+
+  Replace member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Argument end          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable end [boolean]
+
+
+=item end
+
+&Wise2::AlnUnit::end(obj)
+
+  Access member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Return [SOFT ] member variable end [int]
+
+
+=item set_label
+
+&Wise2::AlnUnit::set_label(obj,label)
+
+  Replace member variable label
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Argument label        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable label [boolean]
+
+
+=item label
+
+&Wise2::AlnUnit::label(obj)
+
+  Access member variable label
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Return [SOFT ] member variable label [int]
+
+
+=item set_text_label
+
+&Wise2::AlnUnit::set_text_label(obj,text_label)
+
+  Replace member variable text_label
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Argument text_label   [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable text_label [boolean]
+
+
+=item text_label
+
+&Wise2::AlnUnit::text_label(obj)
+
+  Access member variable text_label
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Return [SOFT ] member variable text_label [char *]
+
+
+=item set_next
+
+&Wise2::AlnUnit::set_next(obj,next)
+
+  Replace member variable next
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Argument next         [OWNER] New value of the variable [AlnUnit *]
+  Return [SOFT ] member variable next [boolean]
+
+
+=item next
+
+&Wise2::AlnUnit::next(obj)
+
+  Access member variable next
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Return [SOFT ] member variable next [AlnUnit *]
+
+
+=item set_in_column
+
+&Wise2::AlnUnit::set_in_column(obj,in_column)
+
+  Replace member variable in_column
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Argument in_column    [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable in_column [boolean]
+
+
+=item in_column
+
+&Wise2::AlnUnit::in_column(obj)
+
+  Access member variable in_column
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Return [SOFT ] member variable in_column [boolean]
+
+
+=item set_seq
+
+&Wise2::AlnUnit::set_seq(obj,seq)
+
+  Replace member variable seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Argument seq          [OWNER] New value of the variable [AlnSequence *]
+  Return [SOFT ] member variable seq [boolean]
+
+
+=item seq
+
+&Wise2::AlnUnit::seq(obj)
+
+  Access member variable seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnUnit *]
+  Return [SOFT ] member variable seq [AlnSequence *]
+
+
+=back
+
+=head2 Object AlnSequence
+
+=over
+
+=item start
+
+ Type [AlnUnit *] Scalar  the first AlnUnit of this sequence
+
+=item data_type
+
+ Type [int] Scalar  not used
+
+=item data
+
+ Type [void *] Scalar  not used - don't use!
+
+=item bio_start
+
+ Type [int] Scalar  start of this sequence in its 'bio' coordinates
+
+=item bio_end
+
+ Type [int] Scalar  end of this sequence in its 'bio' coordinates
+
+
+
+=back
+
+Each Sequence in an AlnBlock is represented by one of these, and
+in many ways this is an orthogonal way of looking at the alignment
+than the AlnColumns. If you look at the alignment from one 
+AlnSequence you will just see the individual labels on this 
+sequence
+
+
+
+=head2 Member functions of AlnSequence
+
+=over
+
+=item hard_link_AlnSequence
+
+&Wise2::AlnSequence::hard_link_AlnSequence(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [AlnSequence *]
+  Return [UNKN ] Undocumented return value [AlnSequence *]
+
+
+=item alloc
+
+&Wise2::AlnSequence::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [AlnSequence *]
+
+
+=item set_start
+
+&Wise2::AlnSequence::set_start(obj,start)
+
+  Replace member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Argument start        [OWNER] New value of the variable [AlnUnit *]
+  Return [SOFT ] member variable start [boolean]
+
+
+=item start
+
+&Wise2::AlnSequence::start(obj)
+
+  Access member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Return [SOFT ] member variable start [AlnUnit *]
+
+
+=item set_data_type
+
+&Wise2::AlnSequence::set_data_type(obj,data_type)
+
+  Replace member variable data_type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Argument data_type    [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable data_type [boolean]
+
+
+=item data_type
+
+&Wise2::AlnSequence::data_type(obj)
+
+  Access member variable data_type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Return [SOFT ] member variable data_type [int]
+
+
+=item set_data
+
+&Wise2::AlnSequence::set_data(obj,data)
+
+  Replace member variable data
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Argument data         [OWNER] New value of the variable [void *]
+  Return [SOFT ] member variable data [boolean]
+
+
+=item data
+
+&Wise2::AlnSequence::data(obj)
+
+  Access member variable data
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Return [SOFT ] member variable data [void *]
+
+
+=item set_bio_start
+
+&Wise2::AlnSequence::set_bio_start(obj,bio_start)
+
+  Replace member variable bio_start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Argument bio_start    [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable bio_start [boolean]
+
+
+=item bio_start
+
+&Wise2::AlnSequence::bio_start(obj)
+
+  Access member variable bio_start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Return [SOFT ] member variable bio_start [int]
+
+
+=item set_bio_end
+
+&Wise2::AlnSequence::set_bio_end(obj,bio_end)
+
+  Replace member variable bio_end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Argument bio_end      [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable bio_end [boolean]
+
+
+=item bio_end
+
+&Wise2::AlnSequence::bio_end(obj)
+
+  Access member variable bio_end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnSequence *]
+  Return [SOFT ] member variable bio_end [int]
+
+
+=back
+

@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_GenomicRegion *    T_Wise2_GenomicRegion
+
+INPUT
+T_Wise2_GenomicRegion
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_GenomicRegion *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_GenomicRegion
+	sv_setref_pv($arg, "Wise2::GenomicRegion", (void*) $var);

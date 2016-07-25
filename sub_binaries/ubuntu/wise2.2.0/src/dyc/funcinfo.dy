@@ -1,0 +1,664 @@
+
+%{
+#include "wisebase.h"
+#include "ftext.h"
+#include "inputfile.h"
+
+#define FuncInfoLISTLENGTH 32
+
+enum argtype {
+  ARGTYPE_UNKNOWN = 43,
+  ARGTYPE_READ,
+  ARGTYPE_WRITE,
+  ARGTYPE_READWRITE,
+  ARGTYPE_P2FUNC,
+  ARGTYPE_OWNER,
+  ARGTYPE_STATIC
+};
+
+enum FI_TYPE {
+  FI_CALLABLE = 12,
+  FI_UNKNOWN,
+  FI_INTERNAL
+};
+
+#define iscword(c) (c == '_' ? 1 : isalnum(c))
+
+
+%}
+
+
+
+
+struct ArgInfo
+int  argtype; !def="ARGTYPE_UNKNOWN"
+boolean should_NULL !def="FALSE"
+char * name
+char * type
+char * desc
+int argpos;
+char * func_decl; // for pointers to functions, so we can get declaration correct
+
+struct ErrorInfo
+char * value
+char * desc
+
+struct FuncInfo
+char * name !def="NULL"
+char * type !def="NULL"
+char * complete_name;
+char * stripped_return;
+Ftext * ft;
+char * error
+ArgInfo   ** arg !list
+ErrorInfo ** err !list !len="err_" 
+char * sdesc;
+ArgInfo   * ret  !def="NULL"
+int functype !def="FI_UNKNOWN";
+int line_in_c !def="0"
+int infopos;
+char * simple
+boolean is_hand_written !def="FALSE"
+
+struct ModuleInfo
+Ftext * ft
+
+
+%{
+#include "funcinfo.h"
+
+
+void dump_FuncInfo(FuncInfo * fi,FILE * ofp ) 
+{
+  int i;
+
+  fprintf(ofp,"Function info of %s\n",CKS(fi->name));
+  dump_Ftext(fi->ft,ofp);
+
+  for(i=0;i<fi->len;i++) {
+    fprintf(ofp,"Argument %s type [%s] Desc %s\n",fi->arg[i]->name,fi->arg[i]->type,fi->arg[i]->desc);
+  }
+
+}
+
+%func
+shows functions in
+
+ *Function:
+ *
+ *des
+ *
+ * Arg
+ *
+
+Returns number of lines printed
+%%
+int show_eddystyle_FuncInfo(FuncInfo * fi,FILE * ofp) 
+{
+  int i;
+  int len=0;
+  int maxn;
+
+  maxn = max_argame(fi );
+
+  fprintf(ofp,"/* Function:  %s(%s",CKS(fi->name),fi->len == 0 ? "void" : fi->arg[0]->name);
+  for(i=1;i<fi->len;i++)
+    fprintf(ofp,",%s",fi->arg[i]->name);
+  fprintf(ofp,")\n *\n");
+  len++;
+
+  len += show_eddystyle_Ftext(fi->ft,"Descrip:",15,ofp,"No Description");
+  fprintf(ofp," *\n");
+
+  for(i=0;i<fi->len;i++)
+    len += show_eddystyle_ArgInfo(fi->arg[i],15,maxn,ofp);
+
+  if( fi->ret != NULL && strcmp(fi->ret->type,"void") != 0 ) {
+    fprintf(ofp," *\n * Return [%s]  %s [%s]\n",ArgType_to_string(fi->ret->argtype),fi->ret->desc,CKS(fi->ret->type));
+    len +=2;
+  }
+  len += 2;
+  fprintf(ofp," *\n */\n");
+  return len;
+}
+
+char * ArgType_to_string(int type)
+{
+  switch(type) {
+  case  ARGTYPE_READ :
+    return "READ ";
+  case  ARGTYPE_WRITE :
+    return "WRITE";
+  case   ARGTYPE_READWRITE :
+    return "RW   ";
+  case ARGTYPE_P2FUNC :
+    return "FUNCP";
+  case ARGTYPE_OWNER:
+    return "OWNER";
+  case ARGTYPE_STATIC :
+    return "SOFT ";
+  default :
+    return "UNKN ";
+  }
+}
+
+int max_argame(FuncInfo * fi )
+{
+  int i;
+  int max;
+
+  if(fi->len == 0 ) {
+    return 0;
+  }
+
+  for(i=1,max=strlen(fi->arg[0]->name);i < fi->len;i++) {
+    if( max < strlen(fi->arg[i]->name) ) {
+      max = strlen(fi->arg[i]->name);
+    }
+  }
+
+  return max;
+}
+
+int show_eddystyle_ArgInfo(ArgInfo * ai,int depth,int namedepth,FILE * ofp)
+{
+
+  fprintf(ofp," * %*s%*s [%s] %s [%s]\n",-(depth-3),"Arg:",namedepth,ai->name,ArgType_to_string(ai->argtype),ai->desc,CKS(ai->type));
+  return 1;
+}
+
+void sort_FuncInfo_by_position(FuncInfo * fi)
+{
+  sort_FuncInfo(fi,compare_ArgInfo_pos);
+  return;
+}
+
+int compare_ArgInfo_pos(ArgInfo * one,ArgInfo * two)
+{
+  return one->argpos- two->argpos;
+}
+
+boolean reconcile_FuncInfo_with_funcstr(FuncInfo * fi,char * pass_str)
+{
+  /** ok, stupid parsing for the moment **/
+  boolean ret = TRUE;
+  char * runner;
+  char * run2;
+  char * arg;
+  char ** base;
+  char ** brk;
+  char * fstr;
+  int count;
+
+  fstr = stringalloc(pass_str);
+
+  if( fi->complete_name == NULL ) {
+    fi->complete_name = stringalloc(fstr);
+  }
+
+  /** get the return type **/
+
+  if( strstartcmp(fstr,"const") == 0 ) {
+    runner = fstr+5;
+    for(;isspace(*runner);runner++)
+      ;
+  } else {
+    runner = fstr;
+  }
+
+  if( strstartcmp(runner,"signed") == 0 ) {
+    runner = fstr+6;
+    for(;isspace(*runner);runner++)
+      ;
+  }
+
+  if( strstartcmp(runner,"long") == 0 ) {
+    runner = fstr+6;
+    for(;isspace(*runner);runner++)
+      ;
+  } 
+
+
+  if( strstartcmp(runner,"struct") == 0 ) {
+    runner = fstr+6;
+    for(;isspace(*runner);runner++)
+      ;
+  } 
+
+  for(;isalnum(*runner) || *runner == '_' ;runner++)
+    ;
+  for(run2=runner;isspace(*runner);runner++)
+    ;
+
+  if( *runner == '*' ) {
+    for(;*runner == '*';runner++)
+      ;
+  } else {
+    runner = run2;
+  }
+  *runner = '\0';
+
+  if( fi->ret == NULL ) {
+    fi->ret = ArgInfo_alloc();
+
+    fi->ret->name = stringalloc("return");
+    fi->ret->desc = stringalloc("Undocumented return value");
+  } 
+
+  fi->ret->type = stringalloc(fstr);
+  
+
+  /** got to the end of the return value **/
+
+  for(run2=runner+1;isspace(*run2);run2++)
+    ;
+  fi->stripped_return = stringalloc(run2);
+
+  /** get the name of the function ***/
+  runner = strchr(run2,'(') ;
+
+
+  if( runner == NULL ) {
+    warn("reconciling function [%s] - no bracket!",pass_str);
+    return FALSE;
+  }
+
+
+  arg = runner+1;
+ 
+
+  *(runner) = '\0';
+  
+  /** run2 now at the name **/
+
+  if( fi->name != NULL ) {
+    if( strcmp(fi->name,run2) != 0 ) {
+      warn("In reconciling function different names [%s] [%s]",fi->name,run2);
+    }
+  }else {
+    fi->name = stringalloc(run2);
+  }
+
+
+  /*** now, process the argument list ***/
+  runner = arg + strlen(arg) -1;
+  
+  for(;runner > arg && *runner != ')';runner--)
+    ;
+
+  *runner = '\0';
+
+
+  base = brk = breakstring_protect(arg,",","()");
+
+  if( *brk != NULL && strcmp(*brk,"void") != 0 ) { 
+    for(count=0;*brk != NULL;brk++) {
+      if( reconcile_FuncInfo_with_argstr(fi,*brk,count++) == FALSE ) 
+	ret = FALSE;
+    }
+  }
+  ckfree(base);
+  ckfree(fstr);
+
+  sort_FuncInfo_by_position(fi);
+
+  return ret;
+
+} 
+
+boolean reconcile_FuncInfo_with_pfunc(FuncInfo * fi,char * str,int pos)
+{
+  char * runner;
+  char * name;
+  ArgInfo * temp;
+  char * held;
+
+  /**
+    This is a HUGE kludge. V.v.v. embarrasing
+
+    ***/
+
+  /** assumme type (*name)(type,type,type) ***/
+
+  held = stringalloc(str);
+
+  name = runner = strchr(str,'(');
+  
+  name = runner = strchr(runner,'*');
+
+  name++;
+
+  for(runner++;!isspace(*runner) && *runner != ')' ;runner++)
+    ;
+
+  *runner = '\0';
+
+  if( (temp=get_ArgInfo_by_name(fi,name)) == NULL ) {
+    temp = ArgInfo_alloc();
+    add_FuncInfo(fi,temp);
+
+    temp->name = stringalloc(name);
+    temp->desc = stringalloc("Undocumented argument");
+    temp->func_decl = held;
+  } else {
+    temp->type = stringalloc(str);
+    temp->argtype = ARGTYPE_P2FUNC;
+    temp->argpos = pos;
+    temp->func_decl = held;
+  }
+
+  return TRUE;
+}
+  
+FuncInfo * unknown_user_FuncInfo(char * funcstr)
+{
+  FuncInfo * fi;
+
+  fi = FuncInfo_from_str("Unknown user-defined function");
+
+  if( reconcile_FuncInfo_with_funcstr(fi,funcstr) == FALSE ) {
+    warn("Could not reconcile [%s]... bad internal error.",funcstr);
+  }
+
+  return fi;
+}
+  
+boolean reconcile_FuncInfo_with_argstr(FuncInfo * fi,char * str,int pos) 
+{
+  char * runner;
+  char * name;
+  ArgInfo * temp;
+
+
+
+  if( strchr(str,'(') != NULL ) 
+    return reconcile_FuncInfo_with_pfunc(fi,str,pos);
+  
+  for(;isspace(*str);str++) 
+    ;
+
+  runner = str + strlen(str) -1;
+  
+  for(;runner > str && isspace(*runner);runner--)
+    ;
+
+  *(runner+1) = '\0';
+
+  for(;runner > str && !isspace(*runner);runner--)
+    ;
+  
+  name = runner+1;
+  if( strcmp(name,"void") == 0 )
+    return TRUE;
+
+  for(;runner > str && isspace(*runner);runner--)
+    ;
+
+  *(runner+1) = '\0';
+  
+  
+  if( (temp=get_ArgInfo_by_name(fi,name)) == NULL ) {
+    temp = ArgInfo_alloc();
+    add_FuncInfo(fi,temp);
+
+    temp->name = stringalloc(name);
+    temp->desc = stringalloc("Undocumented argument");
+  }
+
+  temp->type = stringalloc(str);
+  temp->argpos = pos;
+
+  return TRUE;
+}
+  
+ArgInfo  * get_ArgInfo_by_name(FuncInfo * fi,char * str)
+{
+  int i;
+
+  for(i=0;i<fi->len;i++)
+    if( strcmp(fi->arg[i]->name,str) == 0 )
+      return fi->arg[i];
+
+  return NULL;
+}
+
+ArgInfo * ArgInfo_in_FuncInfo_from_varstr(FuncInfo * fi,char * str,...)
+{
+  char buffer[MAXLINE];
+  ArgInfo * out;
+  va_list ap;
+
+  va_start(ap,str);
+  vsprintf(buffer,str,ap);
+  va_end(ap);
+
+  out = ArgInfo_alloc();
+  out->name = stringalloc(buffer);
+
+  add_FuncInfo(fi,out);
+
+  return out;
+}
+
+FuncInfo * FuncInfo_named_from_varstr(int type,char * str, ...)
+{
+  char buffer[MAXLINE];
+  FuncInfo * out;
+  va_list ap;
+
+  va_start(ap,str);
+  vsprintf(buffer,str,ap);
+  va_end(ap);
+
+  out = FuncInfo_alloc_std();
+  out->functype = type;
+  out->name = stringalloc(buffer);
+  out->ft = Ftext_alloc_std();
+  add_Ftext(out->ft,Fblock_alloc_std());
+
+  return out;
+
+}
+
+FuncInfo * FuncInfo_from_str(char * str)
+{
+  FuncInfo * fi;
+
+  fi = FuncInfo_alloc_std();
+
+  
+  fi->ft = single_Ftext_from_str(str);
+
+  return fi;
+}
+
+/** I/O from user **/
+
+ModuleInfo * read_ModuleInfo_line(char * line,FILE * ifp)
+{
+  ModuleInfo * out;
+  char buffer[MAXLINE];
+
+  if( strstartcmp(line,"%module") != 0 ) {
+    warn("Attempting to read module help with line starting [%30s] not %module",line);
+    return NULL;
+  }
+
+  out = ModuleInfo_alloc();
+
+  out->ft = read_Ftext(buffer,MAXLINE,ifp,"%",fgets);
+
+  return out;
+}
+
+FuncInfo * read_FuncInfo_line(char * line,FILE * ifp)
+{
+  FuncInfo * out;
+  ArgInfo * ari;
+  char buffer[MAXLINE];
+  char * runner;
+
+  
+  if( strstartcmp(line,"%func") != 0 ) {
+    warn("Attempting to read in-line function help with line starting [%30s] not %func",line);
+    return NULL;
+  }
+
+  out = FuncInfo_alloc_std();
+  out->functype = FI_CALLABLE;
+  out->ft = read_Ftext(buffer,MAXLINE,ifp,"%",get_watched_line);
+
+  if( strstartcmp(buffer,"%%") == 0 )
+    return out;
+
+  /*** could be in any order ***/
+
+  for(;;) {
+    /*    fprintf(stderr,"Looking at [%s]\n",buffer); */
+    if( feof(ifp) || ferror(ifp) ) {
+      warn("End of file or file read error while in FuncInfo read. Not good!");
+      break;
+    } else if ( strstartcmp(buffer,"%%") == 0 ) {
+      break;
+    } else if ( strstartcmp(buffer,"%simple") == 0 ) {
+      if( (runner=strtok(buffer+7,spacestr)) == NULL ) {
+	warn("Got a simple name specification, but no name!");
+      } else {
+	out->simple = stringalloc(runner);
+      }
+      get_watched_line(buffer,MAXLINE,ifp);
+    } else if( strstartcmp(buffer,"%arg") == 0) {
+      while( get_watched_line(buffer,MAXLINE,ifp) != NULL ) {
+	if( buffer[0] == '%' )
+	  break;
+	ari = read_ArgInfo_line(buffer);
+
+	if( strcmp(ari->name,"return") == 0 ) {
+	  out->ret = ari;
+	  
+	} else 	if( ari != NULL ) {
+	  add_FuncInfo(out,ari);
+	}
+      }
+    } else if ( strstartcmp(buffer,"%short") == 0 ) {
+      for(runner=buffer;*runner && !isspace(*runner);runner++) 
+	;
+      for(;*runner && isspace(*runner);runner++)
+	;
+      out->sdesc=stringalloc(runner);
+      get_watched_line(buffer,MAXLINE,ifp);
+
+    } else if ( strstartcmp(buffer,"%type") == 0 ) {
+      if( strstr(buffer,"call") != NULL ) {
+	out->functype = FI_CALLABLE;
+      } else if ( strstr(buffer,"int") != NULL ) {
+	out->functype = FI_INTERNAL;
+      }
+      get_watched_line(buffer,MAXLINE,ifp);
+    }
+
+    else {
+      warn("Cannot understand %% tag %20s\n",buffer);
+      while( get_watched_line(buffer,MAXLINE,ifp) != NULL ) {
+	if( buffer[0] == '%' )
+	  break;
+      }
+    } 
+    if( buffer[0] == '%')
+      continue; /*** back to for(;;) ***/
+      
+    /* else */
+    warn("In funcinfo line, could not understand [%s], going to skip to next %% tag",buffer);
+
+    while( get_watched_line(buffer,MAXLINE,ifp) != NULL ) {
+      chop_newline(buffer);
+      if( buffer[0] == '%' )
+	break;
+      else {
+	warn("Did not interpret line [%s]\n",buffer);
+      }
+    }
+  }
+
+  return out;
+}
+
+int get_arg_type(char * line,boolean * should_NULL)
+{
+  char * runner;
+
+  *should_NULL = FALSE;
+
+
+  for(runner=line;*runner && !isspace(*runner);runner++)
+    ;
+  runner--;
+  if( runner-line < 3 &&  *runner == 'N') {
+    *should_NULL = TRUE;
+    *runner=' ';
+  }
+  
+
+  if ( strwordcmp(line,"rw",spacestr) == 0 )
+    return ARGTYPE_READWRITE;
+
+  if( strwordcmp(line,"r",spacestr) == 0 ) 
+    return ARGTYPE_READ;
+  if( strwordcmp(line,"o",spacestr) == 0 ) 
+    return ARGTYPE_OWNER;
+  if( strwordcmp(line,"s",spacestr) == 0 ) 
+    return ARGTYPE_STATIC;
+  if( strwordcmp(line,"f",spacestr) == 0 ) 
+    return ARGTYPE_P2FUNC;
+  else if ( strwordcmp(line,"w",spacestr) == 0 )
+    return ARGTYPE_WRITE;
+  else return ARGTYPE_UNKNOWN;
+
+}
+
+
+ArgInfo * read_ArgInfo_line(char * line)
+{
+  ArgInfo * out;
+  char * runner;
+  char * fix;
+
+  out = ArgInfo_alloc();
+
+  for(runner=line;*runner && !isalpha(*runner) ;runner++)
+    ;
+
+  fix = runner;
+
+  for(runner=line;*runner && iscword(*runner);runner++)
+    ;
+
+  /*** got first word ***/
+
+  *runner = '\0';
+  out->name = stringalloc(fix);
+
+  /*** next word ***/
+  for(runner++;*runner && !isalpha(*runner);runner++)
+    ;
+
+  /*** if it is a valid arg type, get it and move on ***/
+ 
+  if( (out->argtype=get_arg_type(runner,&out->should_NULL)) != ARGTYPE_UNKNOWN) {
+    for(;*runner && isalnum(*runner);runner++)
+      ;
+    for(;*runner && isspace(*runner);runner++)
+      ;
+  }
+
+  fix = runner;
+  for(;*runner && *runner != '\n';runner++)
+    ;
+  *runner = '\0';
+
+  out->desc = stringalloc(fix);
+
+  return out;
+}
+
+%}

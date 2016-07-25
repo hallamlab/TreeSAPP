@@ -1,0 +1,436 @@
+=head1 NAME
+
+alnrange module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item AlnRange
+
+=item AlnRangeSet
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object AlnRange
+
+=over
+
+=item starti
+
+ Type [int] Scalar No documentation
+
+=item startj
+
+ Type [int] Scalar No documentation
+
+=item startstate
+
+ Type [int] Scalar No documentation
+
+=item stopi
+
+ Type [int] Scalar No documentation
+
+=item stopj
+
+ Type [int] Scalar No documentation
+
+=item stopstate
+
+ Type [int] Scalar No documentation
+
+=item startscore
+
+ Type [int] Scalar No documentation
+
+=item stopscore
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+No documentation for AlnRange
+
+=head2 Member functions of AlnRange
+
+=over
+
+=item hard_link_AlnRange
+
+&Wise2::AlnRange::hard_link_AlnRange(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [AlnRange *]
+  Return [UNKN ] Undocumented return value [AlnRange *]
+
+
+=item alloc
+
+&Wise2::AlnRange::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [AlnRange *]
+
+
+=item set_starti
+
+&Wise2::AlnRange::set_starti(obj,starti)
+
+  Replace member variable starti
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Argument starti       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable starti [boolean]
+
+
+=item starti
+
+&Wise2::AlnRange::starti(obj)
+
+  Access member variable starti
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Return [SOFT ] member variable starti [int]
+
+
+=item set_startj
+
+&Wise2::AlnRange::set_startj(obj,startj)
+
+  Replace member variable startj
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Argument startj       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable startj [boolean]
+
+
+=item startj
+
+&Wise2::AlnRange::startj(obj)
+
+  Access member variable startj
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Return [SOFT ] member variable startj [int]
+
+
+=item set_startstate
+
+&Wise2::AlnRange::set_startstate(obj,startstate)
+
+  Replace member variable startstate
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Argument startstate   [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable startstate [boolean]
+
+
+=item startstate
+
+&Wise2::AlnRange::startstate(obj)
+
+  Access member variable startstate
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Return [SOFT ] member variable startstate [int]
+
+
+=item set_stopi
+
+&Wise2::AlnRange::set_stopi(obj,stopi)
+
+  Replace member variable stopi
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Argument stopi        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable stopi [boolean]
+
+
+=item stopi
+
+&Wise2::AlnRange::stopi(obj)
+
+  Access member variable stopi
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Return [SOFT ] member variable stopi [int]
+
+
+=item set_stopj
+
+&Wise2::AlnRange::set_stopj(obj,stopj)
+
+  Replace member variable stopj
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Argument stopj        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable stopj [boolean]
+
+
+=item stopj
+
+&Wise2::AlnRange::stopj(obj)
+
+  Access member variable stopj
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Return [SOFT ] member variable stopj [int]
+
+
+=item set_stopstate
+
+&Wise2::AlnRange::set_stopstate(obj,stopstate)
+
+  Replace member variable stopstate
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Argument stopstate    [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable stopstate [boolean]
+
+
+=item stopstate
+
+&Wise2::AlnRange::stopstate(obj)
+
+  Access member variable stopstate
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Return [SOFT ] member variable stopstate [int]
+
+
+=item set_startscore
+
+&Wise2::AlnRange::set_startscore(obj,startscore)
+
+  Replace member variable startscore
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Argument startscore   [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable startscore [boolean]
+
+
+=item startscore
+
+&Wise2::AlnRange::startscore(obj)
+
+  Access member variable startscore
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Return [SOFT ] member variable startscore [int]
+
+
+=item set_stopscore
+
+&Wise2::AlnRange::set_stopscore(obj,stopscore)
+
+  Replace member variable stopscore
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Argument stopscore    [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable stopscore [boolean]
+
+
+=item stopscore
+
+&Wise2::AlnRange::stopscore(obj)
+
+  Access member variable stopscore
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRange *]
+  Return [SOFT ] member variable stopscore [int]
+
+
+=back
+
+=head2 Object AlnRangeSet
+
+=over
+
+=item score
+
+ Type [int] Scalar  over complete alignment
+
+=item alr
+
+ Type [AlnRange **] List No documentation
+
+
+
+=back
+
+No documentation for AlnRangeSet
+
+=head2 Member functions of AlnRangeSet
+
+=over
+
+=item hard_link_AlnRangeSet
+
+&Wise2::AlnRangeSet::hard_link_AlnRangeSet(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [AlnRangeSet *]
+  Return [UNKN ] Undocumented return value [AlnRangeSet *]
+
+
+=item AlnRangeSet_alloc_std
+
+&Wise2::AlnRangeSet::AlnRangeSet_alloc_std(void)
+
+  Equivalent to AlnRangeSet_alloc_len(AlnRangeSetLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [AlnRangeSet *]
+
+
+=item set_score
+
+&Wise2::AlnRangeSet::set_score(obj,score)
+
+  Replace member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRangeSet *]
+  Argument score        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable score [boolean]
+
+
+=item score
+
+&Wise2::AlnRangeSet::score(obj)
+
+  Access member variable score
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [AlnRangeSet *]
+  Return [SOFT ] member variable score [int]
+
+
+=item alr
+
+&Wise2::AlnRangeSet::alr(obj,i)
+
+  Access members stored in the alr list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [AlnRangeSet *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [AlnRange *]
+
+
+=item length_alr
+
+&Wise2::AlnRangeSet::length_alr(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [AlnRangeSet *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_alr
+
+&Wise2::AlnRangeSet::flush_alr(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [AlnRangeSet *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_alr
+
+&Wise2::AlnRangeSet::add_alr(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [AlnRangeSet *]
+  Argument add          [OWNER] Object to add to the list [AlnRange *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=back
+

@@ -1,0 +1,249 @@
+
+
+%{
+#include "dyna.h"
+#include "genome_evidence.h"
+
+%}
+
+
+
+
+
+matrix GenomeWise9
+query  name="evi"     type="GenomeEvidenceSet*"
+target name="gen"     type="GENOMIC"
+resource name="switchcost" type="int"
+resource name="newgenecost" type="int"
+resource name="non_start_codon" type="int"
+resource name="non_stop_codon"  type="int"
+resource type="RandomCodonScore *"   name="rndcodon"
+state UTR5 offi="0" offj="1"
+  source UTR5
+    calc="GNE_UTR(evi,i,gen,j)"
+    endsource
+  source UTR5_INTRON
+    calc="GNE_UTR_3SS(evi,i,gen,j)"
+    endsource
+  source SPECIAL_UTR5
+    calc="GNE_UTR(evi,i,gen,j)"
+    endsource    
+  source START
+    calc="GNE_UTR5_START(evi,i,gen,j)"
+    endsource    
+  source INTERGENIC
+    calc="GNE_UTR(evi,i,gen,j) + GNE_UTR5_START(evi,i,gen,j)"
+    endsource    
+  source PREGENE_INTERGENIC
+    calc="GNE_UTR(evi,i,gen,j)"
+    endsource    
+  query_label  UTR5
+  target_label UTR5
+endstate
+state UTR5_INTRON offj="1"
+  source UTR5_INTRON
+    calc="GNE_UTR_INTRON(evi,i,gen,j)"
+    endsource
+  source UTR5
+    calc="GNE_UTR_5SS(evi,i,gen,j)"
+    endsource
+  query_label  UTR5
+  target_label UTR5_INTRON
+endstate
+state START_CODON offi="0" offj="3"
+  source UTR5_INTRON
+    calc="GNE_START_CODON(evi,i,gen,j)"
+    query_label START_CODON
+    target_label CODON
+    endsource
+  source UTR5
+    calc="GNE_START_CODON(evi,i,gen,j)"
+    query_label START_CODON
+    target_label CODON
+    endsource
+endstate
+state CDS offi="0" offj="3"
+  source CDS
+    calc="GNE_CDS(evi,i,gen,j)"
+    endsource
+  source CDS_INTRON_0 offj="6"
+    calc="GNE_CDS_3SS(evi,i,gen,j-3,0)"
+    target_label 3SS_PHASE_0
+    endsource
+  source CDS_INTRON_1 offj="5"
+    calc="GNE_CDS_3SS(evi,i,gen,j-2,1)"
+    target_label 3SS_PHASE_1
+    endsource
+  source CDS_INTRON_2 offj="4"
+    calc="GNE_CDS_3SS(evi,i,gen,j-1,2)"
+    target_label 3SS_PHASE_2
+    endsource
+  source CDS offj="2"
+    calc="GNE_CDS_FRAMESHIFT(evi,i,gen,j,2)"
+    target_label SEQUENCE_DELETION
+    endsource
+  source CDS offj="4"
+    calc="GNE_CDS_FRAMESHIFT(evi,i,gen,j,4)"
+    target_label SEQUENCE_DELETION
+    endsource
+  source UTR5
+    calc="GNE_CDS(evi,i,gen,j)+non_start_codon"
+    endsource
+  source START_CODON
+    calc="GNE_CDS(evi,i,gen,j)"
+    endsource
+  source SPECIAL_CDS
+    calc="GNE_CDS(evi,i,gen,j)"
+    endsource    
+  source INTERGENIC
+    calc="GNE_CDS(evi,i,gen,j) + GNE_UTR5_START(evi,i,gen,j)"
+    endsource    
+  query_label CDS
+  target_label CODON
+endstate
+state CDS_INTRON_0 offj="1"
+  source CDS_INTRON_0 offj="1"
+    calc="GNE_CDS_INTRON(evi,i,gen,j)"
+    endsource
+  source CDS offj="8"
+    calc="GNE_CDS_5SS(evi,i,gen,j-7,0)"
+    target_label 5SS_PHASE_0
+    endsource
+  query_label CDS_INTRON
+  target_label CDS_INTRON
+endstate
+state CDS_INTRON_1 offj="1"
+  source CDS_INTRON_1 
+    calc="GNE_CDS_INTRON(evi,i,gen,j)"
+    endsource
+  source CDS offj="9"
+    calc="GNE_CDS_5SS(evi,i,gen,j-7,1)"
+    target_label 5SS_PHASE_1
+    endsource
+  query_label CDS_INTRON
+  target_label CDS_INTRON
+endstate
+state CDS_INTRON_2 offj="1"
+  source CDS_INTRON_2
+    calc="GNE_CDS_INTRON(evi,i,gen,j)"
+    endsource
+  source CDS offj="10"
+    calc="GNE_CDS_5SS(evi,i,gen,j-7,2)"
+    target_label 5SS_PHASE_2
+    endsource
+  query_label CDS_INTRON
+  target_label CDS_INTRON
+endstate
+state STOP_CODON offi="0" offj="3"
+  source CDS
+    calc="GNE_STOP_CODON(evi,i,gen,j)"
+    query_label  STOP_CODON
+    target_label STOP_CODON
+    endsource
+endstate    
+state UTR3 offi="0" offj="1"
+  source UTR3
+    calc="GNE_UTR(evi,i,gen,j)"
+    endsource
+  source CDS
+    calc="GNE_UTR(evi,i,gen,j) + non_stop_codon"
+    endsource
+  source STOP_CODON
+    calc="GNE_UTR(evi,i,gen,j)"
+    endsource
+  source UTR3_INTRON
+    calc="GNE_UTR_3SS(evi,i,gen,j)"
+    endsource
+  source INTERGENIC !left
+    calc="GNE_UTR(evi,i,gen,j)"
+    endsource    
+  query_label  UTR3
+  target_label UTR3
+endstate
+state UTR3_INTRON offj="1"
+  source UTR3_INTRON
+    calc="GNE_UTR_INTRON(evi,i,gen,j)"
+    endsource
+  source UTR3
+    calc="GNE_UTR_5SS(evi,i,gen,j)"
+    endsource
+  source SPECIAL_UTR3
+    calc="GNE_UTR(evi,i,gen,j)"
+    endsource    
+  query_label  UTR3
+  target_label UTR3_INTRON
+endstate
+state PREGENE_INTERGENIC !special
+  source START offi="0" offj="1"
+     calc="0"
+     endsource
+  query_label  INTERGENIC
+  target_label RANDOM_DNA
+endstate
+state POSTGENE_INTERGENIC !special
+  source UTR3 offj="0"
+     calc="newgenecost + GNE_UTR3_END(evi,i,gen,j)"
+     endsource
+  query_label  INTERGENIC
+  target_label RANDOM_DNA
+endstate
+state INTERGENIC !special offj="1"
+  source INTERGENIC offi="0" offj="1" 
+     calc="0"
+     endsource
+  source CDS offj="0"
+     calc="newgenecost + GNE_UTR3_END(evi,i,gen,j)"
+     endsource
+  source UTR3 offj="0"
+     calc="newgenecost + GNE_UTR3_END(evi,i,gen,j)"
+     endsource
+  query_label  INTERGENIC
+  target_label RANDOM_DNA
+endstate
+state SPECIAL_UTR5 !special
+   source UTR5  
+     calc="switchcost"
+     endsource
+   query_label  SPECIAL
+   target_label UTR5
+endstate
+state SPECIAL_UTR3 !special
+   source UTR3 
+     calc="switchcost"
+     endsource
+   query_label  SPECIAL
+   target_label UTR3
+endstate
+state SPECIAL_CDS !special
+   source CDS 
+     calc="switchcost + rndcodon->codon[GENOMIC_CODON(gen,j)]"
+     endsource
+   source SPECIAL_CDS offj="3"
+     calc="rndcodon->codon[GENOMIC_CODON(gen,j)]"
+     endsource
+   query_label  SPECIAL
+   target_label CODON
+endstate
+state START !start !special
+endstate
+state END !end !special
+  source INTERGENIC offj="1" !right
+    calc="0"
+    endsource
+  target_label END
+  query_label END
+endstate
+collapse UTR5 UTR5
+collapse UTR3 UTR3
+collapse UTR5 UTR5_INTRON
+collapse UTR3 UTR3_INTRON
+collapse INTERGENIC RANDOM_DNA
+collapse CDS_INTRON CDS_INTRON
+endmatrix
+
+
+
+
+
+
+

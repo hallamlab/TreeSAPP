@@ -1,0 +1,430 @@
+
+
+%{
+#include "sequencedb.h"
+#include "cdna.h"
+#include "hscore.h"
+#include "complexsequence.h"
+#include "complexevalset.h"
+
+typedef enum CdnaDBErrorType {
+  CDNADB_READ_THROUGH = 0,
+  CDNADB_FAIL_ON_ERROR = 1
+} CdnaDBErrorType;
+
+%}
+
+
+struct  cDNADB
+boolean is_single_seq !def="FALSE"
+boolean done_forward  !def="FALSE"
+boolean forward_only  !def="FALSE"
+ComplexSequence * forw
+ComplexSequence * rev
+SequenceDB * sdb
+Sequence * current
+ComplexSequenceEvalSet * cses
+CdnaDBErrorType error_handling !def="CDNADB_READ_THROUGH" !hidden
+double error_tol !def="0.7"
+%info
+This object hold a database of
+cDNA sequences.
+
+You will probably use it in one of
+two ways
+
+1 A sequence formatted database, which
+is provided by a /SequenceDB object
+is used to provide the raw sequences 
+
+2 A single cDNA sequence is used.
+
+In each case this database provides
+both the forward and reverse strands
+into the system.
+
+Notice that what is exported are
+/ComplexSequence objects, not cDNA dna,
+as this is what is generally needed. 
+These are things with splice sites calculated
+etc. This is why for initialisation this needs
+a /ComplexSequenceEvalSet of the correct type.
+%%
+
+
+api
+object cDNADB
+des    free_cDNADB
+func   get_cDNA_from_cDNADB
+endobject
+func new_cDNADB_from_single_seq
+func new_cDNADB
+endapi
+
+%{
+#include "cdnadb.h"
+
+
+%func 
+shows the Hscore by the cDNADB information
+
+%arg
+hs  High Score structure
+ofp output file
+%%
+void show_Hscore_cDNADB(Hscore * hs,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<hs->len;i++)
+    fprintf(ofp,"Query [%20s] Target [%20s] %d\n",hs->ds[i]->query->name,hs->ds[i]->target->name,hs->ds[i]->score);
+}
+
+%func
+Gets cDNA sequence out from
+the cDNADB using the information stored in
+dataentry
+%simple get_entry
+%arg
+cdnadb r cDNA database
+de     r DataEntry information 
+%%
+cDNA * get_cDNA_from_cDNADB(cDNADB * cdnadb,DataEntry * de)
+{
+  Sequence * seq;
+  Sequence * temp;
+
+  if( cdnadb == NULL ) {
+    warn("Cannot get entry from a null database");
+    return NULL;
+  }
+
+  if( de == NULL ) {
+    warn("Cannot get entry with a null dataentry");
+    return NULL;
+  }
+
+
+  if( cdnadb->is_single_seq == TRUE ) {
+    if( de->is_reversed == TRUE ) 
+      return cDNA_from_Sequence(hard_link_Sequence(cdnadb->rev->seq));
+    else 
+      return cDNA_from_Sequence(hard_link_Sequence(cdnadb->forw->seq));
+  }
+
+  /* we need to get out the Sequence from seqdb */
+
+  seq = get_Sequence_from_SequenceDB(cdnadb->sdb,de);
+  if( seq == NULL ) {
+    warn("Cannot get entry for %s from cDNA db",de->name);
+    return NULL;
+  }
+
+  if( seq->type != SEQUENCE_DNA) {
+    warn("Sequence from %s data entry doesn't look like DNA. Forcing it to",de->name);
+  }
+
+  force_to_dna_Sequence(seq,1.0,NULL);
+
+  if( de->is_reversed == TRUE ) {
+    temp = reverse_complement_Sequence(seq);
+    free_Sequence(seq);
+    seq = temp;
+  }
+
+  return cDNA_from_Sequence(seq);
+}
+
+
+
+%func
+adds information to dataentry from cDNADB
+
+will eventually add file offset and format information,
+but this is handled by the SequenceDB mainly.
+%%
+boolean dataentry_add_cDNADB(DataEntry * de,ComplexSequence * cs,cDNADB * cdnadb)
+{
+  if( cs == NULL || cs->seq == NULL ) {
+    warn("Adding a dataentry with a NULL complex sequence or null internal sequence. Nope!");
+    return FALSE;
+  }
+
+  if( cdnadb->is_single_seq == FALSE) 
+    add_SequenceDB_info_DataEntry(cdnadb->sdb,de);
+  de->name = stringalloc(cs->seq->name);
+  de->is_reversed = is_reversed_Sequence(cs->seq);
+  return TRUE;
+}
+
+
+%func 
+top level function which opens the cDNA database
+%arg
+cdnadb protein database
+return_status w the status of the open from database.h
+%%
+ComplexSequence * init_cDNADB(cDNADB * cdnadb,int * return_status)
+{
+  ComplexSequence * cs;
+  Sequence * seq;
+
+  if( cdnadb->is_single_seq == TRUE) {
+    *return_status = DB_RETURN_OK;
+    cdnadb->done_forward = TRUE;
+    return hard_link_ComplexSequence(cdnadb->forw);
+    
+  }
+
+  /* is a seq db */
+
+  seq = init_SequenceDB(cdnadb->sdb,return_status);
+
+  if( seq == NULL || *return_status == DB_RETURN_ERROR || *return_status == DB_RETURN_END ) {
+    return NULL; /** error already reported **/
+  }
+
+  if( force_to_dna_Sequence(seq,cdnadb->error_tol,NULL) == FALSE ) {
+    warn("first sequence below error level, have to fail at the moment. Ooops...");
+    free_Sequence(seq);
+    *return_status = DB_RETURN_ERROR;
+    return NULL;
+  }
+
+  cdnadb->current = seq;
+  cdnadb->done_forward = TRUE;
+  cs = new_ComplexSequence(seq,cdnadb->cses);
+  if( cs == NULL ) {
+    warn("Cannot make initial ComplexSequence. Unable to error catch this. Failing!");
+    *return_status = DB_RETURN_ERROR;
+    return NULL;
+  }
+
+
+
+  return cs;
+}
+
+%func
+function which reloads the database
+%arg
+last previous complex sequence, will be freed
+return_status w return_status of the load
+return o a new ComplexSequence object
+%%
+ComplexSequence * reload_cDNADB(ComplexSequence * last,cDNADB * cdnadb,int * return_status)
+{
+  ComplexSequence * cs;
+  Sequence * seq,*temp;
+  
+
+  /** free Complex Sequence **/
+
+  if ( last != NULL ) {
+    free_ComplexSequence(last);
+  }
+
+  if( cdnadb->forward_only == TRUE) {
+     temp = reload_SequenceDB(NULL,cdnadb->sdb,return_status);
+     if ( *return_status  != DB_RETURN_OK ) {
+         return NULL;
+     }
+    cs = new_ComplexSequence(temp,cdnadb->cses);
+    return cs;
+  }
+
+  if( cdnadb->is_single_seq == TRUE ) {
+    if( cdnadb->done_forward == TRUE ) {
+      *return_status = DB_RETURN_OK;
+      cdnadb->done_forward = FALSE;
+      return hard_link_ComplexSequence(cdnadb->rev);
+    } else {
+      *return_status = DB_RETURN_END;
+      return NULL;
+    }
+  }
+
+  
+  /** standard database **/
+
+
+  if( cdnadb->done_forward == TRUE ) {
+    if( cdnadb->current == NULL ) {
+      warn("A bad internal cDNA db error - unable to find current sequence in db reload");
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+
+    temp = reverse_complement_Sequence(cdnadb->current);
+
+
+    if( temp == NULL ) {
+      warn("A bad internal cDNA db error - unable to reverse complements current");
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+
+    cs = new_ComplexSequence(temp,cdnadb->cses);
+
+    if( cs == NULL ) {
+      warn("A bad internal cDNA db error - unable to make complex sequence in db reload");
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+
+    free_Sequence(temp);
+    cdnadb->done_forward = FALSE;
+    return cs;
+  }
+
+
+  /* otherwise we have to get a new sequence */
+
+  seq = reload_SequenceDB(NULL,cdnadb->sdb,return_status);
+
+  if( seq == NULL || *return_status == DB_RETURN_ERROR || *return_status == DB_RETURN_END ) {
+    return NULL; /** error already reported **/
+  }
+
+  uppercase_Sequence(seq);
+
+  if( force_to_dna_Sequence(seq,cdnadb->error_tol,NULL) == FALSE ) {
+    if( cdnadb->error_handling == CDNADB_READ_THROUGH ) {
+      warn("Unable to map %s sequence to a cDNA sequence, but ignoring that for the moment...",seq->name);
+      free_Sequence(seq);
+      return reload_cDNADB(NULL,cdnadb,return_status);
+    } else {
+      warn("Unable to map %s sequence to a cDNA sequence. Failing",seq->name);
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+  }
+
+
+  cs = new_ComplexSequence(seq,cdnadb->cses);
+  if( cs == NULL ) {
+    if( cdnadb->error_handling == CDNADB_READ_THROUGH ) {
+      warn("Unable to map %s sequence to a cDNA sequence, but ignoring that for the moment...",seq->name);
+      free_Sequence(seq);
+      return reload_cDNADB(NULL,cdnadb,return_status);
+    } else {
+      warn("Unable to map %s sequence to a cDNA sequence. Failing",seq->name);
+      *return_status = DB_RETURN_ERROR;
+      return NULL;
+    }
+  }
+
+  cdnadb->current = free_Sequence(cdnadb->current);
+  cdnadb->current = seq;
+  cdnadb->done_forward= TRUE;
+
+  return cs;
+}
+  
+
+
+%func
+top level function which closes the cDNA database
+%arg
+cs last complex sequence 
+cdnadb protein database
+%%
+boolean close_cDNADB(ComplexSequence * cs,cDNADB * cdnadb) 
+{
+  if( cdnadb->is_single_seq == TRUE ) {
+    return TRUE;
+  }
+
+  if( cs != NULL)
+    free_ComplexSequence(cs);
+
+  if( cdnadb->current != NULL)
+    cdnadb->current = free_Sequence(cdnadb->current);
+
+  return close_SequenceDB(NULL,cdnadb->sdb);
+}
+
+%func 
+To make a new cDNA database
+from a single cDNA Sequence with a eval system
+%arg
+seq sequence which as placed into cDNADB structure.
+%%
+cDNADB * new_cDNADB_from_single_seq(cDNA * seq)
+{
+  ComplexSequence * cs,*cs_rev;
+  Sequence * temp;
+  ComplexSequenceEvalSet * cses;
+  
+  cses = default_cDNA_ComplexSequenceEvalSet();
+
+  cs = new_ComplexSequence(seq->baseseq,cses);
+  temp = reverse_complement_Sequence(seq->baseseq);
+  cs_rev = new_ComplexSequence(temp,cses);
+  free_Sequence(temp);
+  free_ComplexSequenceEvalSet(cses);
+
+  return new_cDNADB_from_forrev_cseq(cs,cs_rev);
+}
+  
+
+%func
+To make a new cDNA database
+from a single ComplexSequence
+%type internal
+%arg
+cs o complex sequence which is held.
+cs_rev o complex sequence which is held.
+%%
+cDNADB * new_cDNADB_from_forrev_cseq(ComplexSequence * cs,ComplexSequence * cs_rev)
+{
+  cDNADB * out;
+
+
+  out = cDNADB_alloc();
+  out->is_single_seq = TRUE;
+  out->forw = cs;
+  out->rev = cs_rev;
+  
+  return out;
+}
+
+
+  
+%func
+To make a new cDNA database
+%arg
+seqdb r sequence database
+%%
+cDNADB * new_cDNADB(SequenceDB * seqdb)
+{
+  cDNADB * out;
+  ComplexSequenceEvalSet * cses;
+  
+
+  if( seqdb == NULL ) {
+    warn("No sequencedb - can't make a cDNADB!");
+    return NULL;
+  }
+
+  /** should check sequence database **/
+  cses = default_cDNA_ComplexSequenceEvalSet();
+
+  if( cses->type != SEQUENCE_CDNA ) {
+    warn("You can't make a cDNA database with a non SEQUENCE_cDNA cses type [%d]",cses->type);
+    return NULL;
+  }
+
+
+  out = cDNADB_alloc();
+
+  out->is_single_seq = FALSE;
+  out->sdb  = hard_link_SequenceDB(seqdb);
+  out->cses = hard_link_ComplexSequenceEvalSet(cses);
+  free_ComplexSequenceEvalSet(cses);
+
+  return out;
+}
+
+ 
+%} 

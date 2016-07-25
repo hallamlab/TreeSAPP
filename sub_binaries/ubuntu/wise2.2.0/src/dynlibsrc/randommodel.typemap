@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_RandomModelDNA *    T_Wise2_RandomModelDNA
+
+INPUT
+T_Wise2_RandomModelDNA
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_RandomModelDNA *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_RandomModelDNA
+	sv_setref_pv($arg, "Wise2::RandomModelDNA", (void*) $var);
+
+TYPEMAP
+Wise2_RandomModel *    T_Wise2_RandomModel
+
+INPUT
+T_Wise2_RandomModel
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_RandomModel *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_RandomModel
+	sv_setref_pv($arg, "Wise2::RandomModel", (void*) $var);

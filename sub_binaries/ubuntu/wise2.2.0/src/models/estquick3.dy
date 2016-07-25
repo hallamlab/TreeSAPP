@@ -1,0 +1,108 @@
+/*  Last edited: Apr 24 15:04 1997 (birney) */
+
+
+%{
+#include "dyna.h"
+#include "cdparser.h"
+#include "genewisemodel.h"
+#include "gwquickdb.h"
+
+
+
+%}
+
+type QUICK_GENEWISE
+real GeneWiseScoreFlat*
+dbtype GeneWiseQuickDB*
+init   init_GeneWiseQuickDB
+reload reload_GeneWiseQuickDB
+close  close_GeneWiseQuickDB
+addentry dataentry_add_GeneWiseQuickDB
+hardlink hard_link_GeneWiseScoreFlat
+free   free_GeneWiseScoreFlat
+threadsafe
+endtype
+
+
+matrix EstQuick3
+query    type="QUICK_GENEWISE" name="query" field:len="len"
+target   type="CDNA"            name="target"
+resource type="cDNAParserScore *" name="cp"
+extern   name="GW_*" type="int"
+extern   name="PCD_*" type="int"
+state  MATCH offi="1" offj="3"
+  source MATCH
+    calc="query->seg[i].transition[GW_MATCH2MATCH] + query->seg[i].match[CDNA_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->seg[i].transition[GW_INSERT2MATCH] + query->seg[i].match[CDNA_CODON(target,j)]"
+    endsource 
+  source DELETE
+    calc="query->seg[i].transition[GW_DELETE2MATCH] + query->seg[i].match[CDNA_CODON(target,j)]"
+    endsource 
+  source START
+    calc="query->seg[i].transition[GW_START2MATCH] + query->seg[i].match[CDNA_CODON(target,j)]"
+    endsource 
+#
+# Sequencing error transitions, at offsets 2,4 for speed up
+#
+  source MATCH offi="1" offj="2"
+    calc="cp->trans[PCD_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source MATCH offi="1" offj="4"
+    calc="cp->trans[PCD_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  query_label MATCH_STATE
+  target_label CODON
+  endstate
+#
+# Insert state: does not move along model, produces DNA sequence...
+#
+state  INSERT offi="0" offj="3"
+  source MATCH
+    calc="query->seg[i].transition[GW_MATCH2INSERT] + query->seg[i].insert[CDNA_CODON(target,j)]"
+    endsource
+  source INSERT
+    calc="query->seg[i].transition[GW_INSERT2INSERT] + query->seg[i].insert[CDNA_CODON(target,j)]"
+    endsource 
+#
+# Sequencing error transitions at only 2,4 for speed up
+#
+  source INSERT offi="0" offj="2"
+    calc="cp->trans[PCD_DELETE_1_BASE]"
+    target_label SEQUENCE_DELETION
+    endsource
+  source INSERT offi="0" offj="4"
+    calc="cp->trans[PCD_INSERT_1_BASE]"
+    target_label SEQUENCE_INSERTION
+    endsource
+  query_label INSERT_STATE
+  target_label CODON
+  endstate
+state DELETE offi="1" offj="0"
+  source MATCH
+    calc="query->seg[i].transition[GW_MATCH2DELETE]"
+    endsource
+  source DELETE
+    calc="query->seg[i].transition[GW_DELETE2DELETE]"
+    endsource 
+  query_label DELETE_STATE
+  target_label INSERT
+  endstate
+state START !start !special
+  endstate
+state END !end !special
+  source MATCH 
+    calc="query->seg[i].transition[GW_MATCH2END]"
+    endsource
+  target_label END
+  query_label END
+  endstate
+endmatrix
+
+
+
+
+

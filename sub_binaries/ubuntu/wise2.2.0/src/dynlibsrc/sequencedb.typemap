@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_SequenceDB *    T_Wise2_SequenceDB
+
+INPUT
+T_Wise2_SequenceDB
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_SequenceDB *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_SequenceDB
+	sv_setref_pv($arg, "Wise2::SequenceDB", (void*) $var);
+
+TYPEMAP
+Wise2_FileSource *    T_Wise2_FileSource
+
+INPUT
+T_Wise2_FileSource
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_FileSource *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_FileSource
+	sv_setref_pv($arg, "Wise2::FileSource", (void*) $var);

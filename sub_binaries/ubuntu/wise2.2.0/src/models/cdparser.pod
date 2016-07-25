@@ -1,0 +1,88 @@
+=head1 NAME
+
+cdparser module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item cDNAParser
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object cDNAParser
+
+=over
+
+=item trans[PCD_PARSER_TRANS_LEN]
+
+ Type [Probability] Scalar No documentation
+
+
+
+=back
+
+This object holds the (very few) extra
+transition information needed for the
+estwise algorithm. It is sort of like
+the 'gene model' part of sequencing
+error (but very very simple)
+
+
+
+
+=head2 Member functions of cDNAParser
+
+=over
+
+=item hard_link_cDNAParser
+
+&Wise2::cDNAParser::hard_link_cDNAParser(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [cDNAParser *]
+  Return [UNKN ] Undocumented return value [cDNAParser *]
+
+
+=item alloc
+
+&Wise2::cDNAParser::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [cDNAParser *]
+
+
+=back
+
+=over
+
+=item flat_cDNAParser
+
+&Wise2::flat_cDNAParser(p)
+
+  Makes a flat (ie, indels of 1 or 2 == p)
+  cDNA parser. This means that insertions
+  and deletions of both 1 or 2 bases are
+  all parameterised at the same probability
+
+
+
+
+  Argument p            [READ ] probability of an indel [Probability]
+  Return [UNKN ] Undocumented return value [cDNAParser *]
+
+
+=back
+

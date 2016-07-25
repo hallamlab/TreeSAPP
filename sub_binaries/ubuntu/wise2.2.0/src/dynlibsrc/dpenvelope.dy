@@ -1,0 +1,116 @@
+
+%{
+#include "wisebase.h"
+
+typedef enum dpenvelope_type {
+  DPENV_RECT = 0,
+  DPENV_DIAG
+} dpenv_type;
+
+#define DPEnvelopeLISTLENGTH 32
+%}
+
+
+struct DPUnit
+int type !def="DPENV_RECT"
+int starti
+int startj
+int height // for diagonal units
+int length // for diagonal units
+
+struct DPEnvelope
+DPUnit ** dpu !list
+
+
+%{
+#include "dpenvelope.h"
+
+%func
+shows structure. useful for debugging
+%%
+void show_DPEnvelope(DPEnvelope * dpe,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<dpe->len;i++) {
+    fprintf(ofp,"Unit [%d] %d-%d %d-%d\n",i,dpe->dpu[i]->starti,dpe->dpu[i]->startj,dpe->dpu[i]->starti+dpe->dpu[i]->height,dpe->dpu[i]->startj+dpe->dpu[i]->length);
+  }
+
+}
+
+%func
+Tests whether this i,j position is allowed in the
+DPEnvelope
+%%
+boolean is_in_DPEnvelope(DPEnvelope * dpe,int i,int j)
+{
+  int k;
+
+  for(k=0;k<dpe->len;k++) {
+    auto DPUnit * u;
+    u = dpe->dpu[k];
+    /* sorted by startj position */
+    if( j < u->startj ) 
+      return FALSE;
+  
+
+    switch (u->type) {
+
+    case DPENV_RECT :
+      if( i >= u->starti && j >= u->startj && i <= (u->starti+u->height) && j <= (u->startj+u->length) ) 
+	return TRUE;
+      else 
+	break;
+    case DPENV_DIAG :
+      warn("Can't do diagonals yet.");
+      return FALSE;
+    default :
+      warn("Bad DPUnit type put in. Yuk. Bad error... %d",u->type);
+      return FALSE;
+    }
+  }
+
+  /* bad error to get here! */
+  return FALSE;
+}
+
+%func
+Should run this before using the DPEnvelope
+%%
+boolean prepare_DPEnvelope(DPEnvelope * dpe)
+{
+  int i;
+
+  for(i=0;i<dpe->len;i++)
+    if( dpe->dpu[i]->type != DPENV_RECT ) {
+      warn("Bad envelope type %d",dpe->dpu[i]->type);
+      return FALSE;
+    }
+  
+  sort_DPEnvelope_by_startj(dpe);
+  return TRUE;
+}
+
+%func
+Sorts by startj
+%%
+void sort_DPEnvelope_by_startj(DPEnvelope * dpe)
+{
+  sort_DPEnvelope(dpe,compare_DPUnit_startj);
+}
+
+%func
+internal for sort by startj
+%type internal
+%%
+int compare_DPUnit_startj(DPUnit * one,DPUnit * two)
+{
+  return one->startj  - two->startj;
+}
+
+
+
+
+
+
+

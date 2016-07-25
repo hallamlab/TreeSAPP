@@ -1,0 +1,67 @@
+\section{translation}
+\label{module_translation}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_Translation} Translation
+
+\end{itemize}
+\subsection{Object Translation}
+
+\label{object_Translation}
+
+The Translation object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{start} Type [int : Scalar] No documentation
+
+\item{end} Type [int : Scalar] No documentation
+
+\item{parent} Type [Transcript * : Scalar] No documentation
+
+\item{protein} Type [Protein * : Scalar] No documentation
+
+\end{description}
+
+
+Translation represents a single translation from
+a cDNA. Although most cDNAs will have one translation, 
+this does allow us to deal with alternative translation 
+points etc.
+
+
+As with Transcript and Gene before it, the 
+translation does not necessarily have any
+sequence in it. When sequence is asked for by
+get_Protein_from_Translation() the cache is checked,
+and if it is empty, then the transcript's DNA
+is called for, and the converted into the translation
+with appropiate start and stops.
+
+
+Of course, get_Protein_from_Translation can
+potentially trigger the construction of an entire
+gene upstairs, but that need not worry you here
+
+
+
+
+Member functions of Translation
+
+\subsubsection{get_Protein_from_Translation}
+
+\begin{description}
+\item[External C] {\tt Wise2_get_Protein_from_Translation (ts,ct)}
+\item[Perl] {\tt &Wise2::Translation::get_Protein_from_Translation (ts,ct)}
+
+\item[Perl-OOP call] {\tt $obj->get_Protein_from_Translation(ct)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ts] [UNKN ] translation [Translation *]
+\item[ct] [UNKN ] codon table to use [CodonTable *]
+\item[returns] [SOFT ] Protein sequence [Protein *]
+\end{description}
+Gets the protein
+
+

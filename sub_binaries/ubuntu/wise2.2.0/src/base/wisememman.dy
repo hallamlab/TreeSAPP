@@ -1,0 +1,200 @@
+%{
+
+#define CKALLOC_GUARD
+#include "wisebase.h"
+#undef  CKALLOC_GUARD
+
+#define WISE_MEMORY_WATCH_MAX 4096
+
+%}
+
+
+%{
+#include "wisememman.h"
+
+
+#ifdef WISE_MEMORY_WATCH
+ struct wise_memory_watcher {
+   void * position;
+   int amount;
+   int has_freed;
+   char * file;
+   int lineno;
+ };
+
+ static struct wise_memory_watcher mempool[WISE_MEMORY_WATCH_MAX];
+ static int nextpool = 0;
+
+%func
+Displays to filehandle all non freed memory
+%%
+void display_allocated_memory(char * tag,FILE * ofp)
+{
+  int i;
+  for(i=0;i < nextpool && i<WISE_MEMORY_WATCH_MAX;i++)
+    if( mempool[i].has_freed == FALSE ) {
+      if( mempool[i].file != NULL ) 
+	fprintf(ofp,"%s [%s:%d] %d of %d bytes not free\n",tag,mempool[i].file,mempool[i].lineno,mempool[i].position,mempool[i].amount);
+      else
+	fprintf(ofp,"%s %d of %d bytes not free\n",tag,mempool[i].position,mempool[i].amount);
+      fprintf(ofp,"Bytes: %c%c\n",*((char *)mempool[i].position),*((char *)mempool[i].position +1));
+    }
+
+}
+
+
+%func 
+Only if compiled with WISE_MEMORY_WATCH
+
+Allocates memory and watches the usage of it,
+knowing the file and line number
+%%
+void * allocate_watched_memory_file(char * file,int lineno,int no_bytes)
+{
+  if( nextpool >= WISE_MEMORY_WATCH_MAX ) {
+    warn("Memory allocation over limits for watching");
+    return malloc(no_bytes);
+  }
+
+  mempool[nextpool].position = malloc(no_bytes);
+  mempool[nextpool].amount = no_bytes;
+  mempool[nextpool].has_freed = FALSE;
+  mempool[nextpool].file = file;
+  mempool[nextpool].lineno = lineno;
+  
+
+  nextpool++;
+
+  return mempool[nextpool-1].position;
+}
+
+
+%func 
+Only if compiled with WISE_MEMORY_WATCH
+
+Allocates memory and watches the usage of it
+%%
+void * allocate_watched_memory(int no_bytes)
+{
+  if( nextpool >= WISE_MEMORY_WATCH_MAX ) {
+    warn("Memory allocation over limits for watching");
+    return malloc(no_bytes);
+  }
+
+  mempool[nextpool].position = malloc(no_bytes);
+  mempool[nextpool].amount = no_bytes;
+  mempool[nextpool].has_freed = FALSE;
+  mempool[nextpool].file = NULL;
+  mempool[nextpool].lineno = -1;
+
+  nextpool++;
+
+  return mempool[nextpool-1].position;
+}
+
+%func 
+Only if compiled with WISE_MEMORY_WATCH
+
+frees memory that has been watched
+%%
+void * free_watched_memory(void * mem)
+{
+  int i;
+  for(i=0;i < nextpool && i<WISE_MEMORY_WATCH_MAX;i++)
+    if( mempool[i].position == mem ) {
+      break;
+    }
+
+  if( i == nextpool || i == WISE_MEMORY_WATCH_MAX ) {
+    warn("Problem! memory position %d not watched",(int)mem);
+    return NULL;
+  }
+
+
+  free(mempool[i].position); 
+  mempool[i].has_freed = TRUE;
+
+  return NULL;
+}
+
+#endif /* WISE_MEMORY_WATCH */
+
+%func
+Tries to alloc bytes of memory. Posts
+to warn if it fails
+%%
+void * ckalloc(size_t bytes)
+{
+  register void *ret;
+  extern void *calloc (size_t nelem, size_t elsize);
+
+#ifdef WISE_MEMORY_WATCH
+  /* call into the watched memory pool */
+  ret = allocate_watched_memory(bytes);
+  if( ret == NULL ) {
+    warn("Out of memory (watched) on %d bytes\n",bytes);
+    return NULL;
+  } else 
+    return ret;
+  
+#endif
+
+  if( (ret = calloc(bytes, sizeof(char))) == NULL) {
+    warn("Out of memory, on asking for %d bytes\n",bytes);
+    return NULL; /*** for the moment, could fail here ***/
+  } else
+    return ret;	
+}
+
+%func
+calloc equivalent
+%%
+void * ckcalloc(int len,size_t bytes)
+{
+  return ckalloc(len*bytes);
+}
+
+%func
+realloc equivalent
+%%
+void * ckrealloc(void *ptr, size_t bytes)
+{
+  register void *ret;
+  extern void *realloc (void *ptr, size_t size);
+
+  if (ptr == NULL) {	
+    warn("Bad call to ckrealloc, NULL pointer\n");
+    return NULL;
+  }
+  else if( (ret = realloc(ptr, bytes)) == NULL) {
+    warn("Out of memory, trying to realloc %d bytes\n",bytes);
+    return NULL;
+  }
+  else
+    return ret;	
+}
+
+%func
+free equivalent
+%%
+void * ckfree(void *ptr)
+{
+
+#ifdef WISE_MEMORY_WATCH
+  free_watched_memory(ptr);
+  return NULL;
+#endif
+
+  if (ptr == NULL)
+    warn("Bad call to ckfree - NULL pointer\n");
+  else {
+    free(ptr);
+    ptr = NULL;
+  }
+  return ptr;
+}
+
+
+
+
+

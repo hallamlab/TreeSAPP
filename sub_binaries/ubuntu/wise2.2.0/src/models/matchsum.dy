@@ -1,0 +1,238 @@
+
+%{
+#include "gwrap.h"
+
+#define MatchSummarySetLISTLENGTH 128
+
+%}
+
+
+struct MatchSummary
+double bits
+char * qname
+char * tname
+int qstart
+int qend
+int tstart
+int tend
+int qintron     !def="0"
+int qframeshift !def="0"
+int tintron     !def="0"
+int tframeshift !def="0"
+%info
+A Match Summary has summary statistics
+for a single alignment, with the
+two start/end ranges and the number of
+introns and frameshifts for each
+sequence (obviously, if one is a protein
+then neither are valid!)
+%%
+
+struct MatchSummarySet
+MatchSummary ** ms !list
+%info
+This holds a set of MatchSummaries,
+%%
+
+api
+object MatchSummarySet
+des free_MatchSummarySet
+func MatchSummarySet_from_AlnBlock_estwise
+func MatchSummarySet_from_AlnBlock_genewise
+endobject
+object MatchSummary
+des    free_MatchSummary
+endobject
+endapi
+
+%{
+#include "matchsum.h"
+
+%func
+Builds a MatchSummarySet from a
+EstWise alignment. this makes
+alot of assumptions about the labels
+setc in alb, so make sure it was a 
+estwise alignment  - however as you
+can notice this is exactly the same 
+labels as found in genewise set
+%%
+MatchSummarySet * MatchSummarySet_from_AlnBlock_estwise(AlnBlock * alb,char * qname,int offset,Sequence * target)
+{
+  return MatchSummarySet_from_AlnBlock_genewise(alb,qname,offset,target);
+}
+
+%func
+Builds a MatchSummarySet from a
+GeneWise alignment. this makes
+alot of assumptions about the labels
+setc in alb, so make sure it was a 
+genewise alignment 
+%%
+MatchSummarySet * MatchSummarySet_from_AlnBlock_genewise(AlnBlock * alb,char * qname,int protoff,Sequence * target)
+{
+  MatchSummarySet * out;
+  MatchSummary * ms;
+  AlnColumn * alc;
+  int len;
+
+  out = MatchSummarySet_alloc_std();
+
+  alc = alb->start;
+
+  while( (ms = MatchSummary_from_AlnColumn_genewise(alc,&alc)) != NULL ) {
+    ms->qstart+= protoff-1; /*** offset in old-style offset mode ***/
+    ms->qend += protoff-1;
+    if( target->offset > target->end ) {
+      len = ms->tend - ms->tstart;
+      /*    fprintf(stderr,"Look - length %d\n",len); */
+      ms->tstart = target->offset-1 - ms->tstart;
+      ms->tend   = ms->tstart - len;
+    } else {
+      ms->tstart += target->offset-1;
+      ms->tend += target->offset-1;
+    }
+
+    ms->qname = stringalloc(qname);
+    ms->tname = stringalloc(target->name);
+    add_MatchSummarySet(out,ms);
+  }
+
+  return out;
+}
+  
+%func
+For making each alignment
+%type internal
+%%
+MatchSummary * MatchSummary_from_AlnColumn_genewise(AlnColumn * alc,AlnColumn ** end)
+{
+  MatchSummary * out;
+  int score;
+  
+
+  for(;alc != NULL && is_random_AlnColumn_genewise(alc) == TRUE;alc = alc->next) 
+    ;
+
+  if( alc == NULL ) {
+    *end = NULL;
+    return NULL;
+  }
+
+  out = MatchSummary_alloc();
+
+  /* NB alignment start is one before the C ordinate start system */
+
+  out->qstart = alc->alu[0]->start+1; /* in C coords */
+  out->tstart = alc->alu[1]->start+1; /* in C coords */
+  score  = alc->alu[0]->score[0]; 
+
+  for(;alc->next != NULL && is_random_AlnColumn_genewise(alc->next) == FALSE;alc = alc->next) {
+    score += alc->next->alu[0]->score[0];
+    if( strcmp(alc->alu[1]->text_label,"SEQUENCE_DELETION") == 0 || strcmp(alc->alu[1]->text_label,"SEQUENCE_INSERTION") == 0) 
+      out->tframeshift++;
+    else if ( strcmp(alc->alu[1]->text_label,"CENTRAL_INTRON") == 0 ) 
+      out->tintron++; /* NB, assuming we have collapsed central intron labels! */
+  }
+
+  out->qend = alc->alu[0]->end+1; /* in C coords */
+  out->tend = alc->alu[1]->end+1;
+  /*score += alc->alu[0]->score[0];*/
+  out->bits = Score2Bits(score); /*** hmm... this could be bad news ***/
+
+  *end = alc->next;
+
+  return out;
+}
+
+%func
+Shows a header (bits Query start etc) which matches
+the order of the show_MatchSummarySet_genewise
+%%
+void show_MatchSummary_genewise_header(FILE * ofp)
+{
+  fprintf(ofp,"Bits   Query         start end Target      start end   idels introns\n");
+}
+
+%func
+shows Matchsummary for genewise
+results, ie with target indels and introns
+%%
+void show_MatchSummarySet_genewise(MatchSummarySet * mss,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<mss->len;i++)
+    show_MatchSummary_genewise(mss->ms[i],ofp);
+}
+
+%func
+shows a single match summary
+%type internal
+%% 
+void show_MatchSummary_genewise(MatchSummary * ms,FILE * ofp)
+{
+  if( ms->tstart < ms->tend ) 
+    fprintf(ofp,"%4.2f %-12s %4d %4d %-12s %4d %4d %4d %4d\n",
+	    ms->bits,
+	    ms->qname,
+	    ms->qstart+1, /* map to bio coords */
+	    ms->qend,
+	    ms->tname,
+	    ms->tstart+1, /* map to 'bio coords */
+	    ms->tend,
+	    ms->tframeshift,
+	    ms->tintron);
+  else 
+    fprintf(ofp,"%4.2f %-12s %4d %4d %-12s %4d %4d %4d %4d\n",
+	    ms->bits,
+	    ms->qname,
+	    ms->qstart+1, /* map to bio coords */
+	    ms->qend,
+	    ms->tname,
+	    ms->tstart+1, /* map to 'bio coords */
+	    ms->tend+2, /* map to bio coords */
+	    ms->tframeshift,
+	    ms->tintron);
+}
+
+
+%func
+Shows a header (bits Query start etc) which matches
+the order of the show_MatchSummarySet_estwise
+%%
+void show_MatchSummary_estwise_header(FILE * ofp)
+{
+  fprintf(ofp,"Bits Query         start end Target      start end   idels\n");
+}
+
+%func
+Shows an estwise match, ie with only the target with indels
+%%
+void show_MatchSummarySet_estwise(MatchSummarySet * mss,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<mss->len;i++)
+    show_MatchSummary_estwise(mss->ms[i],ofp);
+}
+
+ 
+%func
+shows a single estwise match
+%type internal
+%%
+void show_MatchSummary_estwise(MatchSummary * ms,FILE * ofp)
+{
+  fprintf(ofp,"%4.2f %-12s %4d %4d %-12s %4d %4d %4d\n",
+	  ms->bits,
+	  ms->qname,
+	  ms->qstart+1, /* map to bio coords */
+	  ms->qend,
+	  ms->tname,
+	  ms->tstart+1, /* map to 'bio coords */
+	  ms->tend,
+	  ms->tframeshift);
+}
+
+ 

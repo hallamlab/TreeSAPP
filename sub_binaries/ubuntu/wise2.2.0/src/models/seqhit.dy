@@ -1,0 +1,301 @@
+
+%{
+#include "dyna.h"
+
+#define SegmentHitListLISTLENGTH 128
+%}
+
+friend SegmentHit
+  
+struct SegmentHit
+char * name
+int qstart
+int qend
+int tstart
+int tend
+double score
+SegmentHit * next_hit // for collecting hits together ;)
+
+
+struct SequenceHit
+char * name
+SegmentHit * start 
+
+struct SegmentHitList
+SegmentHit ** seghit !list  
+
+struct DnaSequenceHitList
+SegmentHitList * forward;
+SegmentHitList * backward;
+
+
+api
+object DnaSequenceHitList
+des free_DnaSequenceHitList
+func show_DnaSequenceHitList
+func read_MSPcrunch_DnaSequenceHitList
+endobject
+object SegmentHitList
+des    free_SegmentHitList
+endobject
+object SegmentHit
+des    free_SegmentHit
+endobject
+endapi
+
+
+
+%{
+#include "seqhit.h"
+
+
+
+DnaSequenceHitList * new_DnaSequenceHitList(void)
+{
+  DnaSequenceHitList * out;
+
+  out = DnaSequenceHitList_alloc();
+  out->forward = SegmentHitList_alloc_std();
+  out->backward = SegmentHitList_alloc_std();
+
+  return out;
+}
+
+%func
+shows a DnaSequenceHitsList -
+
+only really useful for debugging
+%%
+void show_DnaSequenceHitList(DnaSequenceHitList * dsl,FILE * ofp)
+{
+  show_SegmentHitList(dsl->forward,ofp);
+  show_SegmentHitList(dsl->backward,ofp);
+}
+
+void show_SegmentHitList(SegmentHitList * shl,FILE * ofp)
+{
+  int i;
+  for(i=0;i<shl->len;i++)
+    show_SegmentHit(shl->seghit[i],ofp);
+  
+}
+
+void show_SegmentHit(SegmentHit * sh,FILE * ofp)
+{
+  fprintf(ofp,"%4d %4d %4d %4d %4.2f %s\n",sh->qstart,sh->qend,sh->tstart,sh->tend,sh->score,sh->name);
+}
+
+void sort_SegmentHitList_by_qstart(SegmentHitList * sgl)
+{
+  sort_SegmentHitList(sgl,compare_SegmentHit_by_qstart);
+}
+
+int compare_SegmentHit_by_qstart(SegmentHit * one,SegmentHit * two)
+{
+  return one->qstart - two->qstart;
+}
+
+DnaSequenceHitList * read_msptmp_DnaSequenceHitList(FILE * ifp)
+{
+  DnaSequenceHitList * out;
+  SegmentHit * sh;
+  char buffer[MAXLINE];
+  char copy[MAXLINE];
+  int strand;
+
+  out = new_DnaSequenceHitList();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    strcpy(copy,buffer);
+    if( (sh = SegmentHit_from_msptmp_line(buffer,&strand)) == NULL ) {
+      warn("Cannot parse [%s] as a MSP crunch line",copy);
+      continue;
+    }
+
+    if( strand < 0 ) {
+      add_SegmentHitList(out->backward,sh);
+    } else {
+      add_SegmentHitList(out->forward,sh);
+    }
+  }
+
+  sort_SegmentHitList_by_qstart(out->forward);
+  sort_SegmentHitList_by_qstart(out->backward);
+
+  return out;
+}
+
+boolean verify_SegmentHit(SegmentHit * sh)
+{
+  boolean ret = TRUE;
+
+  if ( sh->qstart <= 0 ) {
+    ret = FALSE;
+    warn("Got a less than zero index in query start %d",sh->qstart);
+  }
+  if ( sh->qend <= 0 ) {
+    ret = FALSE;
+    warn("Got a less than zero index in query end %d",sh->qend);
+  }
+  if ( sh->tstart <= 0 ) {
+    ret = FALSE;
+    warn("Got a less than zero index in target start %d",sh->tstart);
+  }
+  if ( sh->tend <= 0 ) {
+    ret = FALSE;
+    warn("Got a less than zero index in target end %d",sh->tend);
+  }
+
+  return ret;
+}
+
+%func
+Reads a MSPcrunch -x output file 
+%arg
+ifp input file to read
+return newly allocated structure
+%%
+DnaSequenceHitList * read_MSPcrunch_DnaSequenceHitList(FILE * ifp)
+{
+  DnaSequenceHitList * out;
+  SegmentHit * sh;
+  char buffer[MAXLINE];
+  char copy[MAXLINE];
+  int strand;
+
+  out = new_DnaSequenceHitList();
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    strcpy(copy,buffer);
+    if( (sh = SegmentHit_from_MSPcrunch_line(buffer,&strand)) == NULL ) {
+      warn("Cannot parse [%s] as a MSP crunch line",copy);
+      continue;
+    }
+    if( verify_SegmentHit(sh) == FALSE ) {
+      warn("Segment hit read in from [%s] was considered bad. Discarding",copy);
+      sh = free_SegmentHit(sh);
+      continue;
+    }
+
+    if( strand < 0 ) {
+      add_SegmentHitList(out->backward,sh);
+    } else {
+      add_SegmentHitList(out->forward,sh);
+    }
+  }
+
+  sort_SegmentHitList_by_qstart(out->forward);
+  sort_SegmentHitList_by_qstart(out->backward);
+
+  /*  fprintf(stderr,"We have %d forward and %d backward guys\n",out->forward->len,out->backward->len); */
+  return out;
+}
+
+
+
+SegmentHit * SegmentHit_from_msptmp_line(char * line,int * strand)
+{
+  SegmentHit * out;
+  char * runner;
+
+  out = SegmentHit_alloc();
+
+  runner = strtok(line,spacestr);
+
+  if( runner == NULL || is_double_string(runner,&out->score) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL ) 
+    goto error;
+
+  if( *runner != '(' || runner[strlen(runner)-1] != ')' ) 
+    goto error;
+
+  runner[strlen(runner)-1] = '\0';
+  runner++;
+  if( is_integer_string(runner,strand) == FALSE)
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL || is_integer_string(runner,&out->qstart) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL || is_integer_string(runner,&out->qend) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL || is_integer_string(runner,&out->tstart) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL || is_integer_string(runner,&out->tend) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL ) 
+    goto error;
+
+  out->name = stringalloc(runner);
+
+  return out;
+
+  error :
+
+    free_SegmentHit(out);
+  return NULL;
+
+}
+
+
+SegmentHit * SegmentHit_from_MSPcrunch_line(char * line,int * strand)
+{
+  SegmentHit * out;
+  char * runner;
+
+  out = SegmentHit_alloc();
+
+  runner = strtok(line,spacestr);
+
+  if( runner == NULL || is_double_string(runner,&out->score) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL ) 
+    goto error;
+
+  if( *runner != '(' || runner[strlen(runner)-1] != ')' ) 
+    goto error;
+
+  runner[strlen(runner)-1] = '\0';
+  runner++;
+  if( is_integer_string(runner,strand) == FALSE)
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL || is_integer_string(runner,&out->qstart) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL || is_integer_string(runner,&out->qend) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL || is_integer_string(runner,&out->tstart) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL || is_integer_string(runner,&out->tend) == FALSE ) 
+    goto error;
+
+  if( (runner=strtok(NULL,spacestr)) == NULL ) 
+    goto error;
+
+  out->name = stringalloc(runner);
+
+  return out;
+
+  error :
+
+    free_SegmentHit(out);
+  return NULL;
+
+}
+
+  
+
+  
+
+
+%}
+

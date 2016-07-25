@@ -1,0 +1,80 @@
+
+%{
+#include "wisebase.h"
+#include <pthread.h>
+
+
+#define MAX_THREAD_NUMBER 100
+
+%}
+
+
+friend PThreadPool
+friend PTP_Work
+
+struct PTP_Work
+void (*work_routine)(void * data) !func
+void * data
+PTP_Work * next;
+%info
+This data structure holds an individual job to be
+executed by the PThreadPool.
+%%
+
+struct PThreadPool
+int number_of_threads
+pthread_t threads[MAX_THREAD_NUMBER]
+int max_work_size
+int current_work_size
+PTP_Work * head
+PTP_Work * tail
+pthread_mutex_t * lock;
+pthread_cond_t  * work_to_do
+pthread_cond_t  * queue_not_full
+pthread_cond_t  * queue_empty
+int queue_closed
+int shutdown
+%info
+This datastructure is to hold a thread pool.
+Work can be added via 
+
+This is work in progress. Dont use!
+%%
+
+%{
+#include "pthreadpool.h"
+
+
+%func
+Makes a new Thread pool 
+%%
+PThreadPool * new_PThreadPool(int no_threads)
+{
+  PThreadPool * out;
+
+  out = PThreadPool_alloc();
+
+  out->number_of_threads = no_threads;
+  out->max_work_size = max_work;
+  out->cur_queue_size = 0;
+  out->head = NULL;
+  out->tail = NULL;
+  out->queue_closed = 0;
+  out->shutdown = 0;
+
+  out->lock = (pthread_mutex_t *) ckalloc (sizeof(pthread_mutex_t));
+  out->work_to_do = (pthread_cond_t *) ckalloc (sizeof(pthread_cond_t));
+  out->queue_not_full = (pthread_cond_t *) ckalloc (sizeof(pthread_cond_t));
+  out->queue_empty = (pthread_cond_t *) ckalloc (sizeof(pthread_cond_t));
+
+  if( pthread_mutex_init(out->lock,NULL) != 0 ) {
+    warn("Unable to initialise lock mutex");
+    return NULL;
+  }
+
+  return out;
+
+}
+
+
+%}

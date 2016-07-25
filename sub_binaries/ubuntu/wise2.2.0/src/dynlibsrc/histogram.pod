@@ -1,0 +1,389 @@
+=head1 NAME
+
+histogram module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item Histogram
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object Histogram
+
+=over
+
+=item histogram
+
+ Type [int*  ] Scalar  counts of hits                     
+
+=item min
+
+ Type [int] Scalar  elem 0 of histogram == min         
+
+=item max
+
+ Type [int] Scalar  last elem of histogram == max      
+
+=item highscore
+
+ Type [int] Scalar  highest active elem has this score 
+
+=item lowscore
+
+ Type [int] Scalar  lowest active elem has this score  
+
+=item lumpsize
+
+ Type [int] Scalar  when resizing, overalloc by this   
+
+=item total
+
+ Type [int] Scalar  total # of hits counted            
+
+=item expect
+
+ Type [float*] Scalar  expected counts of hits            
+
+=item fit_type
+
+ Type [int] Scalar  flag indicating distribution type  
+
+=item param[3]
+
+ Type [float] Scalar  parameters used for fits           
+
+=item chisq
+
+ Type [float] Scalar  chi-squared val for goodness of fit
+
+=item chip
+
+ Type [float] Scalar  P value for chisquared             
+
+
+
+=back
+
+This Object came from Sean Eddy excellent histogram package.
+He donated it free of all restrictions to allow it to be used
+in the Wise2 package without complicated licensing terms.
+He is a *very* nice man.
+
+It was made into a dynamite object so that
+   a) External ports to scripting languages would be trivial
+   b) cooperation with future versions of histogram.c would be possible.
+
+Here is the rest of the documentation from sean.
+
+Keep a score histogram. 
+
+The main implementation issue here is that the range of
+scores is unknown, and will go negative. histogram is
+a 0..max-min array that represents the range min..max.
+A given score is indexed in histogram array as score-min.
+The AddToHistogram function deals with dynamically 
+resizing the histogram array when necessary.
+
+
+
+=head2 Member functions of Histogram
+
+=over
+
+=item UnfitHistogram
+
+&Wise2::Histogram::UnfitHistogram(h)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Free only the theoretical fit part of a histogram.
+
+
+
+  Argument h            [UNKN ] Undocumented argument [Histogram *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item add
+
+&Wise2::Histogram::add(h,sc)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Bump the appropriate counter in a histogram
+  structure, given a score. The score is
+  rounded off from float precision to the
+  next lower integer.
+
+
+
+  Argument h            [UNKN ] Undocumented argument [Histogram *]
+  Argument sc           [UNKN ] Undocumented argument [float]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item show
+
+&Wise2::Histogram::show(h,fp)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Print a "prettified" histogram to a file pointer.
+  Deliberately a look-and-feel clone of Bill Pearson's 
+  excellent FASTA output.
+
+
+
+  Argument h            [UNKN ] histogram to print [Histogram *]
+  Argument fp           [UNKN ] open file to print to (stdout works) [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item EVDBasicFit
+
+&Wise2::Histogram::EVDBasicFit(h)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Fit a score histogram to the extreme value 
+  distribution. Set the parameters lambda
+  and mu in the histogram structure. Fill in the
+  expected values in the histogram. Calculate
+  a chi-square test as a measure of goodness of fit. 
+
+  This is the basic version of ExtremeValueFitHistogram(),
+  in a nonrobust form: simple linear regression with no
+  outlier pruning.
+
+  Methods:  Uses a linear regression fitting method [Collins88,Lawless82]
+
+
+
+  Argument h            [UNKN ] histogram to fit [Histogram *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item fit_EVD
+
+&Wise2::Histogram::fit_EVD(h,censor,high_hint)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Purpose:  Fit a score histogram to the extreme value 
+  distribution. Set the parameters lambda
+  and mu in the histogram structure. Calculate
+  a chi-square test as a measure of goodness of fit. 
+
+  Methods:  Uses a maximum likelihood method [Lawless82].
+  Lower outliers are removed by censoring the data below the peak.
+  Upper outliers are removed iteratively using method 
+  described by [Mott92].
+
+
+
+  Argument h            [UNKN ] histogram to fit [Histogram *]
+  Argument censor       [UNKN ] TRUE to censor data left of the peak [int]
+  Argument high_hint    [UNKN ] score cutoff; above this are real hits that arent fit [float]
+  Return [UNKN ] if fit is judged to be valid else 0 if fit is invalid (too few seqs.) [int]
+
+
+=item set_EVD
+
+&Wise2::Histogram::set_EVD(h,mu,lambda,lowbound,highbound,wonka,ndegrees)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Instead of fitting the histogram to an EVD,
+  simply set the EVD parameters from an external source.
+
+  Note that the fudge factor "wonka" is used /only/
+  for prettification of expected/theoretical curves
+  in PrintASCIIHistogram displays.
+
+
+
+
+  Argument h            [UNKN ] the histogram to set [Histogram *]
+  Argument mu           [UNKN ] mu location parameter                 [float]
+  Argument lambda       [UNKN ] lambda scale parameter [float]
+  Argument lowbound     [UNKN ] low bound of the histogram that was fit [float]
+  Argument highbound    [UNKN ] high bound of histogram that was fit [float]
+  Argument wonka        [UNKN ] fudge factor; fraction of hits estimated to be "EVD-like" [float]
+  Argument ndegrees     [UNKN ] extra degrees of freedom to subtract in chi2 test: [int]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item fit_Gaussian
+
+&Wise2::Histogram::fit_Gaussian(h,high_hint)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Fit a score histogram to a Gaussian distribution.
+  Set the parameters mean and sd in the histogram
+  structure, as well as a chi-squared test for
+  goodness of fit.
+
+
+
+
+  Argument h            [UNKN ] histogram to fit [Histogram *]
+  Argument high_hint    [UNKN ] score cutoff; above this are `real' hits that aren't fit [float]
+  Return [UNKN ] if fit is judged to be valid else 0 if fit is invalid (too few seqs.)            [int]
+
+
+=item set_Gaussian
+
+&Wise2::Histogram::set_Gaussian(h,mean,sd)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Instead of fitting the histogram to a Gaussian,
+  simply set the Gaussian parameters from an external source.
+
+
+
+  Argument h            [UNKN ] Undocumented argument [Histogram *]
+  Argument mean         [UNKN ] Undocumented argument [float]
+  Argument sd           [UNKN ] Undocumented argument [float]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item evalue
+
+&Wise2::Histogram::evalue(his,score)
+
+
+  This is a convient short cut for calculating
+  expected values from the histogram of results
+
+
+
+  Argument his          [UNKN ] Histogram object [Histogram *]
+  Argument score        [UNKN ] score you want the evalue for [double]
+  Return [UNKN ] Undocumented return value [double]
+
+
+=item hard_link_Histogram
+
+&Wise2::Histogram::hard_link_Histogram(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Histogram *]
+  Return [UNKN ] Undocumented return value [Histogram *]
+
+
+=item alloc
+
+&Wise2::Histogram::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [Histogram *]
+
+
+=back
+
+=over
+
+=item new_Histogram
+
+&Wise2::new_Histogram(min,max,lumpsize)
+
+
+  This function was written by Sean Eddy
+  as part of his HMMer2 histogram.c module
+
+  Converted by Ewan Birney to Dynamite source June 98.
+  Copyright is LGPL. For more info read READMEs
+
+  Documentation:
+
+  Allocate and return a histogram structure.
+  min and max are your best guess. They need
+  not be absolutely correct; the histogram
+  will expand dynamically to accomodate scores
+  that exceed these suggested bounds. The amount
+  that the histogram grows by is set by "lumpsize"
+
+  Was called AllocHistorgram new_Historgram is more wise2-ish
+
+
+
+  Argument min          [UNKN ] minimum score (integer) [int]
+  Argument max          [UNKN ] maximum score (integer) [int]
+  Argument lumpsize     [UNKN ] when reallocating histogram, the reallocation amount [int]
+  Return [UNKN ] Undocumented return value [Histogram *]
+
+
+=back
+

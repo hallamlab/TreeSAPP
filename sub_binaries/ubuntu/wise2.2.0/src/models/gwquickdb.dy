@@ -1,0 +1,101 @@
+
+%{
+#include "genewisemodeldb.h"
+
+
+%}
+
+
+struct GeneWiseQuickDB
+GeneWiseDB * gwdb;
+%info
+This is a database stream of
+GeneWiseScoreFlat objects, layered
+ontop of a vanilla genewisedb.
+
+The GeneWiseScoreFlat objects give
+around a 10% speed up due to them
+being allocated as a single block
+of memory that then gets accessed
+
+This object is a very thin layer over
+the genewisedb object, which itself handles
+the actual HMM stuff via threestatedb object.
+So if you want to discover how HMMs are
+actually being streamed into the database,
+look in there.
+%%
+
+
+%{
+#include "gwquickdb.h"
+
+
+%func
+inits a genewisequick database. 
+%%
+GeneWiseScoreFlat * init_GeneWiseQuickDB(GeneWiseQuickDB * gdb,int * return_status)
+{
+  GeneWiseScore * gws;
+  
+  gws = init_GeneWiseDB(gdb->gwdb,return_status);
+  if( gws != NULL ) {
+    return GeneWiseScoreFlat_from_GeneWiseScore(gws);
+  }
+
+}
+
+
+%func
+Reloads a genewisequick database
+
+%%
+GeneWiseScoreFlat * reload_GeneWiseQuickDB(GeneWiseScoreFlat * prev,GeneWiseQuickDB * gdb,int * return_status)
+{
+  GeneWiseScore * gws;
+
+  if( prev != NULL )
+    free_GeneWiseScoreFlat(prev);
+
+  gws = reload_GeneWiseDB(NULL,gdb->gwdb,return_status);
+  if( gws != NULL ) {
+    return GeneWiseScoreFlat_from_GeneWiseScore(gws);
+  }
+
+}
+
+
+%func
+closes a GeneWiseDB
+%%
+boolean close_GeneWiseQuickDB(GeneWiseScoreFlat * gws,GeneWiseQuickDB * gdb)
+{
+  if( gws != NULL )
+    free_GeneWiseScoreFlat(gws);
+
+  return close_GeneWiseDB(NULL,gdb->gwdb);
+}
+
+%func
+adds dataentry stuff to a query.
+%%
+boolean dataentry_add_GeneWiseQuickDB(DataEntry * de,GeneWiseScoreFlat * gws,GeneWiseQuickDB * gdb)
+{
+  return dataentry_add_GeneWiseDB(de,NULL,gdb->gwdb);
+}
+
+%func
+Makes a new genewisequickdb from a genewisemodeldb
+%arg
+gwdb r genewisedb - hard links as it enters
+%%
+GeneWiseQuickDB * GeneWiseQuickDB_from_GeneWiseDB(GeneWiseDB * gwdb)
+{
+  GeneWiseQuickDB * out;
+
+  out = GeneWiseQuickDB_alloc();
+  out->gwdb = hard_link_GeneWiseDB(gwdb);
+
+  return out;
+}
+

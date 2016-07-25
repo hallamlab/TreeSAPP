@@ -1,0 +1,515 @@
+
+
+%{
+#include "wisebase.h"
+
+/*
+ *
+
+ Expr Tree is about the yacc parse tree. Each node in the
+ tree is going to be ExprTree *. The children of each node
+ are in the child array, the number of children are in the
+ nochild field.
+
+ Each node has a type, and this is the critical layout of
+ the node. Each type will layout its children in a particular
+ way:
+
+ ETR_NUMBER - has no children. The number is word
+ ETR_OPERATOR - has no children. The operator character is in word
+ ETR_EXPRESSION - has potentially any number of children, but
+    the yacc parser restricts it to (possible_tag) (operator) (possible_tag).
+    Don't rely on this though. Generally allowed types in possible_tag
+    are NUMBEr, TAG, METHOD or EXPRESSION
+
+ ETR_STATEMENT - is the top level tag. It only has one child which must
+     be an ETR_EXPRESSION
+ 
+ ETR_NAME  - is for absolute variable names (or method names). It has no
+     children. The actual name is in the word
+
+ ETR_ARRAY - has 2 children. The first must be a "TAG" type and is what
+     is indexed, the second must be an EXPRESSION and is what indexes it.
+
+ ETR_TAG -   has any number of children to build up a TAG from NAMES, 
+     ->,. (struct refs) or * (REFERNECES).
+
+ ETR_STRUCTREF -  -> or . constructions. It has 3 children: 1st is the
+     TAG to the left of the STRUCTREF, second holds either . or -> in word
+     and third is the tag to the right.
+
+ ETR_REFERENCE - * or & constructions. It has two children. 1st is * or & in 
+     word, the second is the tag which is it is acting on.
+
+ ETR_METHOD - function calls. It has one or two children. The first is a tag (hence
+     could be a pointer to a function, or similar). If it is a void function
+     it has no other children the second is a commalist.
+
+ ETR_COMMALIST - can only be found in methods. Any number of children, each being
+     an argument of the method
+
+*/
+
+    
+ 
+	
+
+	
+enum types {
+	ETR_NUMBER = 0,
+	ETR_OPERATOR,
+	ETR_EXPRESSION,
+	ETR_STATEMENT,
+	ETR_ARRAY,
+	ETR_NAME,
+	ETR_REFERENCE,
+	ETR_STRUCTREF,
+	ETR_METHOD,
+	ETR_COMMALIST,
+	ETR_DECL_VARIABLE,
+	ETR_DECL_METHOD,
+	ETR_DECL_LIST,
+	ETR_TAG
+	};
+
+#define EXPRTREE_MAXCHILD 128
+
+#define IS_DECLARED 2
+#define IS_TOPLEVEL 4
+
+
+%}
+
+
+struct ExprTree
+struct ExprTree * child[EXPRTREE_MAXCHILD];
+int nochild; !def="0"
+char token;
+char * word;
+int type;
+int attrib; !def="0"
+struct ExprTree * parent;
+int position_in_parent;
+
+
+
+%{
+#include "exprtree.h"
+
+void parentfy_ExprTree(ExprTree * et)
+{
+  int i;
+
+  for(i=0;i<et->nochild;i++) {
+    et->child[i]->parent = et;
+    et->child[i]->position_in_parent = i;
+    parentfy_ExprTree(et->child[i]);
+  }
+
+ 
+}
+
+void declared_ExprTree(ExprTree * et)
+{
+  fprintf(stderr,"Declaring...");
+
+  et->attrib = et->attrib | IS_DECLARED;
+
+}
+  
+  
+    
+void find_toplevel_name(ExprTree * et)
+{
+  /** et should be an expression or a tag **/
+
+  int i;
+
+  for(i=0;i<et->nochild;i++) {
+    switch(et->child[i]->type) {
+    case ETR_NAME :
+      if( et->position_in_parent == 0 || !(et->parent->type == ETR_REFERENCE || et->parent->type == ETR_STRUCTREF) ) {
+	/*      	printf("Found as a name -> [%d][%d]",et->parent->position_in_parent,et->parent->type);
+	print_ExprTree(et->child[i]);
+	printf("\n");
+	*/
+	et->child[i]->attrib |= IS_TOPLEVEL;
+      } else {
+       
+	/*	printf("Ignoring name %d,%d",et->parent->position_in_parent,et->parent->type);
+	print_ExprTree(et->child[i]);
+	printf("\n");
+	*/
+
+	et->child[i]->attrib &= ~IS_TOPLEVEL;
+
+      }
+      break;
+    default :
+/*
+      printf("Going into");
+      print_ExprTree(et->child[i]);
+      printf("\n");
+*/
+      find_toplevel_name(et->child[i]);
+      break;
+    }
+  }
+}
+
+
+void strcat_ExprTree(ExprTree * ExprTree,char * buffer)
+{
+  int i;
+
+  switch(ExprTree->type) {
+  case ETR_NUMBER : strcat(buffer,ExprTree->word); return;
+  case ETR_OPERATOR : strcat(buffer,ExprTree->word); return;
+  case ETR_EXPRESSION : strcat(buffer,"(");
+    for(i=0;i< ExprTree->nochild;i++)
+      strcat_ExprTree(ExprTree->child[i],buffer);
+    strcat(buffer,")");
+    return;
+  case ETR_STATEMENT :
+    for(i=0;i< ExprTree->nochild;i++)
+      strcat_ExprTree(ExprTree->child[i],buffer);
+    return;
+  case ETR_NAME : strcat(buffer,ExprTree->word);
+    return;
+  case ETR_ARRAY : 
+    strcat_ExprTree(ExprTree->child[0],buffer);
+    strcat(buffer,"[");
+    strcat_ExprTree(ExprTree->child[1],buffer);
+    strcat(buffer,"]");
+    return;
+  case ETR_TAG : 
+    for(i=0;i< ExprTree->nochild;i++)
+      strcat_ExprTree(ExprTree->child[i],buffer);
+    return;
+  case ETR_STRUCTREF :
+    strcat_ExprTree(ExprTree->child[0],buffer);
+    strcat(buffer,ExprTree->child[1]->word);
+    strcat_ExprTree(ExprTree->child[2],buffer);
+    return;
+  case ETR_REFERENCE :
+    strcat(buffer,ExprTree->child[0]->word);
+    strcat_ExprTree(ExprTree->child[1],buffer);
+    return;
+  case ETR_METHOD :
+    fprintf(stderr,"So buffer is now [%s]\n",buffer);
+    strcat_ExprTree(ExprTree->child[0],buffer);
+    strcat(buffer,"(");
+    fprintf(stderr,"So buffer is now [%s]\n",buffer);
+    strcat_ExprTree(ExprTree->child[1],buffer);
+
+    /*    for(i=0;i<ExprTree->child[1]->nochild;i++) 
+      strcat_ExprTree(ExprTree->child[1]->child[i],buffer);
+      */
+
+    strcat(buffer,")");
+    return;
+  case ETR_COMMALIST :
+    for(i=0;i<ExprTree->nochild;i++) {
+      strcat_ExprTree(ExprTree->child[i],buffer);
+      if( i != ExprTree->nochild-1)
+	strcat(buffer,",");
+    }
+    return;
+
+  default :
+      warn("In trying to make Expr string, got unobtainable type!");
+  }
+}
+  
+void print_ExprTree(ExprTree * ExprTree)
+{
+  int i;
+
+  switch(ExprTree->type) {
+  case ETR_NUMBER : printf("#{%s}",ExprTree->word); return;
+  case ETR_OPERATOR : printf("Op{%s}",ExprTree->word); return;
+  case ETR_EXPRESSION : printf("Expression (");
+    for(i=0;i< ExprTree->nochild;i++)
+      print_ExprTree(ExprTree->child[i]);
+    printf(")");
+    return;
+  case ETR_STATEMENT : printf("Top level:");
+    for(i=0;i< ExprTree->nochild;i++)
+      print_ExprTree(ExprTree->child[i]);
+    printf("\n");
+    return;
+  case ETR_NAME : printf("N{%s}",ExprTree->word);
+    for(i=0;i< ExprTree->nochild;i++)
+      print_ExprTree(ExprTree->child[i]);
+    return;
+  case ETR_ARRAY : printf("{ArrayInto{");
+    print_ExprTree(ExprTree->child[0]);
+    printf("} of [");
+    print_ExprTree(ExprTree->child[1]);
+    printf("]}");
+    return;
+  case ETR_TAG : 
+    printf("Tag{");
+    for(i=0;i< ExprTree->nochild;i++)
+      print_ExprTree(ExprTree->child[i]);
+    printf("}");
+    return;
+  case ETR_STRUCTREF :
+    printf("struct{%s}(",ExprTree->child[1]->word);
+    print_ExprTree(ExprTree->child[0]);
+    printf(":");
+    print_ExprTree(ExprTree->child[2]);
+    printf(")");
+    return;
+  case ETR_REFERENCE :
+    printf("Ref{");  
+    puts(ExprTree->child[0]->word);
+    print_ExprTree(ExprTree->child[1]);
+    printf("}\n");
+    return;
+  case ETR_METHOD :
+    if( ExprTree->attrib & IS_DECLARED ) 
+      printf("DEC:");
+
+    printf("Method{");
+    for(i=0;i<ExprTree->child[0]->nochild;i++) 
+      print_ExprTree(ExprTree->child[0]->child[i]);
+    if( ExprTree->nochild == 1 )
+      printf("}(void)");
+    else {
+      printf("}(");
+      for(i=0;i<ExprTree->child[1]->nochild;i++) 
+	print_ExprTree(ExprTree->child[1]->child[i]);
+      printf(")");
+    }
+    return;
+  case ETR_COMMALIST :
+    printf("List{");
+    for(i=0;i<ExprTree->nochild;i++) 
+      print_ExprTree(ExprTree->child[i]);
+    printf("}");
+    return;
+
+  default :
+      printf("Unprintable!");
+  }
+}
+
+
+/*** declarations ***/
+
+ExprTree * new_ExprTree_decl_method(ExprTree * name,ExprTree * list)
+{
+  ExprTree * out;
+  
+  out = new_ExprTree();
+
+  out->type = ETR_DECL_METHOD;
+  out->child[0]=name;
+  out->child[1]=list;
+  out->nochild = 2;
+
+  return out;
+}
+
+ExprTree * new_ExprTree_decl_variable(ExprTree * type,ExprTree * name)
+{
+  ExprTree * out;
+  
+  out = new_ExprTree();
+
+  out->type = ETR_DECL_VARIABLE;
+  out->child[0]=type;
+  out->child[1]=name;
+  out->nochild = 2;
+
+  return out;
+}
+
+ExprTree * add_to_decl_list_ExprTree(ExprTree * list,ExprTree * add)
+{
+  if( list->type != ETR_DECL_LIST ) {
+    warn("Attempting to add to a non commalist %d",list->type);
+    return list;
+  }
+
+  add_ExprTree(list,add);
+
+  return list;
+}
+
+ExprTree * new_ExprTree_decl_list(ExprTree * start)
+{
+  ExprTree * out;
+  
+  out = new_ExprTree();
+
+  out->type = ETR_DECL_LIST;
+  add_ExprTree(out,start);
+
+  return out;
+}
+
+ExprTree * new_ExprTree_struct_ref(ExprTree * left, ExprTree * ref,ExprTree * right)
+{
+  ExprTree * out;
+  
+  out = new_ExprTree();
+
+  out->type = ETR_STRUCTREF;
+  out->child[0]=left;
+  out->child[1]=ref;
+  out->child[2]=right;
+  out->nochild = 3;
+
+  return out;
+}
+
+ExprTree * new_ExprTree_ref(char op,ExprTree * right)
+{
+  ExprTree * out;
+  
+  out = new_ExprTree();
+
+  out->type = ETR_REFERENCE;
+  out->child[0]=new_ExprTree_token(op);
+  out->child[1]=right;
+  out->nochild = 2;
+
+  return out;
+}
+
+ExprTree * add_to_commalist_ExprTree(ExprTree * list,ExprTree * add)
+{
+  if( list->type != ETR_COMMALIST ) {
+    warn("Attempting to add to a non commalist %d",list->type);
+    return list;
+  }
+
+  add_ExprTree(list,add);
+
+  return list;
+}
+
+ExprTree * new_ExprTree_commalist(ExprTree * start)
+{
+  ExprTree * out;
+  
+  out = new_ExprTree();
+
+  out->type = ETR_COMMALIST;
+  add_ExprTree(out,start);
+
+  return out;
+}
+
+ExprTree * new_ExprTree_method(ExprTree * one,ExprTree * other)
+{
+  ExprTree * out;
+
+  out = ExprTree_alloc();
+  out->type = ETR_METHOD;
+
+  /* printf("This one %d\n",one->nochild); */
+
+  add_ExprTree(out,one);
+
+  if(other == NULL) {
+    return out;
+  }
+
+  if(other->type != ETR_COMMALIST ) {
+    warn("Attempting to have a non commalist argument for a method");
+  }
+
+  add_ExprTree(out,other);
+
+  return out;
+}
+
+ExprTree * new_ExprTree_tag_from_name(ExprTree * name)
+{
+
+  ExprTree * out;
+
+  out= new_ExprTree();
+  out->type = ETR_TAG;
+
+  add_ExprTree(out,name);
+
+
+  return out;
+}
+
+ExprTree * new_ExprTree_array(ExprTree * tag,ExprTree * expr) 
+{
+  ExprTree * out;
+
+  out = new_ExprTree();
+  out->type = ETR_ARRAY;
+  out->child[0] = tag;
+  out->child[1] = expr;
+  out->nochild = 2;
+  return out;
+}
+
+ExprTree * new_ExprTree_binary_expr(ExprTree * left,char op,ExprTree * rgt)
+{
+  ExprTree * out;
+
+  
+  out = new_ExprTree();
+
+  out->type = ETR_EXPRESSION;
+  out->child[0] = left;
+  out->child[1] = new_ExprTree_token(op);
+  out->child[2] = rgt;
+  out->nochild = 3;
+
+  return out;
+}
+
+ExprTree * new_ExprTree_token(char t)
+{
+  ExprTree * out;
+  char buf[2];
+
+  buf[0] = t;
+  buf[1] = '\0';
+
+  out= new_ExprTree();
+  out->type= ETR_OPERATOR;
+  out->token = t;
+  out->word = stringalloc(buf);
+
+  return out;
+}
+
+boolean add_ExprTree(ExprTree * one,ExprTree * child)
+{
+  if( one->nochild+1 > EXPRTREE_MAXCHILD ) {
+    warn("Overflow in ExprTree at %d children",EXPRTREE_MAXCHILD);
+    return FALSE;
+  }
+
+  one->child[one->nochild++] = child;
+  return TRUE;
+}
+
+ExprTree * new_ExprTree(void)
+{
+  int i;
+  ExprTree * out;
+  
+  out = ExprTree_alloc();
+  for(i=0;i<128;i++)
+    out->child[i]= NULL;
+
+ 
+  return out;
+}
+
+
+
+%}
+

@@ -1,0 +1,79 @@
+\section{codonmapper}
+\label{module_codonmapper}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_CodonMapper} CodonMapper
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{codonmapper factory methods}
+\subsubsection{flat_CodonMapper}
+\begin{description}
+\item[External C] {\tt Wise2_flat_CodonMapper (ct)}
+\item[Perl] {\tt &Wise2::flat_CodonMapper (ct)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ct] [UNKN ] Codon Table giving codon->aa info [CodonTable *]
+\item[returns] [UNKN ] Undocumented return value [CodonMapper *]
+\end{description}
+Makes a CodonMapper with no codon bias
+or error possiblities from codon table
+
+
+
+
+
+
+\subsection{Object CodonMapper}
+
+\label{object_CodonMapper}
+
+The CodonMapper object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{ct} Type [CodonTable * : Scalar]  hard-linked!
+
+\item{codon_map[125][26]} Type [double : Scalar] No documentation
+
+\end{description}
+CodonMapper holds a matrix of 125 by 26
+to provide a mapping between a probabilities
+calculated on amino acids to triplet codon
+probabilities. This mapping takes into account
+3 things
+\begin{verbatim}
+  1) The CodonTable
+  2) The distribution of synonmous codons (codon bias)
+  3) substitution errors
+
+
+\end{verbatim}
+
+
+Member functions of CodonMapper
+
+\subsubsection{sprinkle_errors_over_CodonMapper}
+
+\begin{description}
+\item[External C] {\tt Wise2_sprinkle_errors_over_CodonMapper (cm,error)}
+\item[Perl] {\tt &Wise2::CodonMapper::sprinkle_errors_over_CodonMapper (cm,error)}
+
+\item[Perl-OOP call] {\tt $obj->sprinkle_errors_over_CodonMapper(error)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[cm] [READ ] CodonMapper to be sprinkled [CodonMapper *]
+\item[error] [UNKN ] substitution error rate [double]
+\item[returns] Nothing - no return value
+\end{description}
+Takes a codon mapper and assummes that the majority of errors
+are due to a single base change in the codon at probability error.
+Therefore, for each codon it adds error * prob(codon) * 0.25 to each 
+other codon one base away, taking away therefore the result.
+
+
+
+

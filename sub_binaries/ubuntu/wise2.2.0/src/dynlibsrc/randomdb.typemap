@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_RandomProteinDB *    T_Wise2_RandomProteinDB
+
+INPUT
+T_Wise2_RandomProteinDB
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_RandomProteinDB *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_RandomProteinDB
+	sv_setref_pv($arg, "Wise2::RandomProteinDB", (void*) $var);
+
+TYPEMAP
+Wise2_RandomDNADB *    T_Wise2_RandomDNADB
+
+INPUT
+T_Wise2_RandomDNADB
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_RandomDNADB *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_RandomDNADB
+	sv_setref_pv($arg, "Wise2::RandomDNADB", (void*) $var);

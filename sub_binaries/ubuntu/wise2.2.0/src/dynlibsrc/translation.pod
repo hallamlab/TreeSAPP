@@ -1,0 +1,212 @@
+=head1 NAME
+
+translation module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item Translation
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object Translation
+
+=over
+
+=item start
+
+ Type [int] Scalar No documentation
+
+=item end
+
+ Type [int] Scalar No documentation
+
+=item parent
+
+ Type [Transcript *] Scalar No documentation
+
+=item protein
+
+ Type [Protein *] Scalar No documentation
+
+
+
+=back
+
+
+Translation represents a single translation from
+a cDNA. Although most cDNAs will have one translation, 
+this does allow us to deal with alternative translation 
+points etc.
+
+As with Transcript and Gene before it, the 
+translation does not necessarily have any
+sequence in it. When sequence is asked for by
+get_Protein_from_Translation() the cache is checked,
+and if it is empty, then the transcript's DNA
+is called for, and the converted into the translation
+with appropiate start and stops.
+
+Of course, get_Protein_from_Translation can
+potentially trigger the construction of an entire
+gene upstairs, but that need not worry you here
+
+
+
+=head2 Member functions of Translation
+
+=over
+
+=item get_Protein_from_Translation
+
+&Wise2::Translation::get_Protein_from_Translation(ts,ct)
+
+  Gets the protein
+
+
+
+  Argument ts           [UNKN ] translation [Translation *]
+  Argument ct           [UNKN ] codon table to use [CodonTable *]
+  Return [SOFT ] Protein sequence [Protein *]
+
+
+=item hard_link_Translation
+
+&Wise2::Translation::hard_link_Translation(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Translation *]
+  Return [UNKN ] Undocumented return value [Translation *]
+
+
+=item alloc
+
+&Wise2::Translation::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [Translation *]
+
+
+=item set_start
+
+&Wise2::Translation::set_start(obj,start)
+
+  Replace member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Translation *]
+  Argument start        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable start [boolean]
+
+
+=item start
+
+&Wise2::Translation::start(obj)
+
+  Access member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Translation *]
+  Return [SOFT ] member variable start [int]
+
+
+=item set_end
+
+&Wise2::Translation::set_end(obj,end)
+
+  Replace member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Translation *]
+  Argument end          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable end [boolean]
+
+
+=item end
+
+&Wise2::Translation::end(obj)
+
+  Access member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Translation *]
+  Return [SOFT ] member variable end [int]
+
+
+=item set_parent
+
+&Wise2::Translation::set_parent(obj,parent)
+
+  Replace member variable parent
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Translation *]
+  Argument parent       [OWNER] New value of the variable [Transcript *]
+  Return [SOFT ] member variable parent [boolean]
+
+
+=item parent
+
+&Wise2::Translation::parent(obj)
+
+  Access member variable parent
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Translation *]
+  Return [SOFT ] member variable parent [Transcript *]
+
+
+=item set_protein
+
+&Wise2::Translation::set_protein(obj,protein)
+
+  Replace member variable protein
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Translation *]
+  Argument protein      [OWNER] New value of the variable [Protein *]
+  Return [SOFT ] member variable protein [boolean]
+
+
+=item protein
+
+&Wise2::Translation::protein(obj)
+
+  Access member variable protein
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Translation *]
+  Return [SOFT ] member variable protein [Protein *]
+
+
+=back
+

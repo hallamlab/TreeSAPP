@@ -1,0 +1,70 @@
+
+%{
+#include "dyna.h"
+
+
+#define GNE_CDS_3SS(evi,i,seq,j,phase) ((*((evi)->geu[i]->cds_3SS))((evi)->geu[i]->data,seq,j,phase))
+#define GNE_CDS_5SS(evi,i,seq,j,phase) ((*((evi)->geu[i]->cds_5SS))((evi)->geu[i]->data,seq,j,phase))
+#define GNE_CDS(evi,i,seq,j)           ((*((evi)->geu[i]->cds_pot))((evi)->geu[i]->data,seq,j))
+#define GNE_CDS_INTRON(evi,i,seq,j)    ((*((evi)->geu[i]->cds_intron_pot))((evi)->geu[i]->data,seq,j)) 
+#define GNE_UTR_3SS(evi,i,seq,j)       ((*((evi)->geu[i]->utr_3SS))((evi)->geu[i]->data,seq,j))
+#define GNE_UTR_5SS(evi,i,seq,j)       ((*((evi)->geu[i]->utr_5SS))((evi)->geu[i]->data,seq,j))
+#define GNE_UTR(evi,i,seq,j)           ((*((evi)->geu[i]->utr_pot))((evi)->geu[i]->data,seq,j))
+#define GNE_UTR_INTRON(evi,i,seq,j)    ((*((evi)->geu[i]->utr_intron_pot))((evi)->geu[i]->data,seq,j))
+#define GNE_CDS_FRAMESHIFT(evi,i,seq,j,jump) ((*((evi)->geu[i]->frameshift_cds))((evi)->geu[i]->data,seq,j,jump))
+#define GNE_START_CODON(evi,i,seq,j)   ((*((evi)->geu[i]->start_pot))((evi)->geu[i]->data,seq,j))
+#define GNE_STOP_CODON(evi,i,seq,j)    ((*((evi)->geu[i]->stop_pot))((evi)->geu[i]->data,seq,j))
+#define GNE_UTR3_END(evi,i,seq,j)      ((*((evi)->geu[i]->utr3_end))((evi)->geu[i]->data,seq,j))
+#define GNE_UTR5_START(evi,i,seq,j)      ((*((evi)->geu[i]->utr5_start))((evi)->geu[i]->data,seq,j))
+
+#define GenomeEvidenceSetLISTLENGTH 512
+
+%}
+
+
+
+struct GenomeEvidenceUnit
+int type
+void * data
+int  (*cds_3SS)(void*,Wise2_ComplexSequence*,int,int) !func
+int  (*cds_5SS)(void*,Wise2_ComplexSequence*,int,int) !func
+int  (*utr_3SS)(void*,Wise2_ComplexSequence*,int) !func
+int  (*utr_5SS)(void*,Wise2_ComplexSequence*,int) !func
+int  (*cds_pot)(void*,Wise2_ComplexSequence*,int) !func
+int  (*utr_pot)(void*,Wise2_ComplexSequence*,int) !func
+int  (*cds_intron_pot)(void*,Wise2_ComplexSequence*,int) !func
+int  (*utr_intron_pot)(void*,Wise2_ComplexSequence*,int) !func
+int  (*frameshift_cds)(void*,Wise2_ComplexSequence*,int,int) !func
+int  (*start_pot)(void*,Wise2_ComplexSequence*,int) !func
+int  (*stop_pot)(void*,Wise2_ComplexSequence*,int) !func
+int  (*utr3_end)(void*,Wise2_ComplexSequence*,int) !func
+int  (*utr5_start)(void*,Wise2_ComplexSequence*,int) !func
+int  (*geu_free)(void *) !func
+
+struct GenomeEvidenceSet
+GenomeEvidenceUnit ** geu !list
+
+
+%{
+#include "genome_evidence.h"
+
+
+%func
+Specialised deconstructor. Ensures the 
+data structures are freed
+%%
+!deconstructor
+GenomeEvidenceUnit * free_GenomeEvidenceUnit(GenomeEvidenceUnit * obj)
+{
+  (*(obj->geu_free))(obj->data);
+  free(obj);
+}
+
+
+%}
+
+
+
+
+
+

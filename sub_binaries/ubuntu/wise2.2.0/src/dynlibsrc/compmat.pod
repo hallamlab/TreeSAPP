@@ -1,0 +1,155 @@
+=head1 NAME
+
+compmat module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item CompMat
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object CompMat
+
+=over
+
+=item comp[26][26]
+
+ Type [Score] Scalar No documentation
+
+=item name
+
+ Type [char *] Scalar  if any, could be NULL
+
+
+
+=back
+
+This object stores BLOSUM and PAM 
+comparison matrices. It stores them as
+scores: NB - this means probabilistically
+we are talking about some arbitary base of
+log which is really annoying.
+
+
+
+=head2 Member functions of CompMat
+
+=over
+
+=item fail_safe_CompMat_access
+
+&Wise2::CompMat::fail_safe_CompMat_access(cm,aa1,aa2)
+
+  gives the fail form of the macro CompMat_AAMATCH which 
+  checks that aa1 and a2 are sensible and that cm is not NULL.
+
+
+
+  Argument cm           [UNKN ] compmat object [CompMat *]
+  Argument aa1          [UNKN ] first amino acid [int]
+  Argument aa2          [UNKN ] second amino acid [int]
+  Return [UNKN ] Undocumented return value [Score]
+
+
+=item write_Blast_CompMat
+
+&Wise2::CompMat::write_Blast_CompMat(cm,ofp)
+
+  writes a protien CompMat with a standard
+  alphabet.
+
+
+
+  Argument cm           [UNKN ] CompMat object [CompMat *]
+  Argument ofp          [UNKN ] file to output [FILE *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item read_Blast_file_CompMat
+
+&Wise2::CompMat::read_Blast_file_CompMat(filename)
+
+  Opens file, reads matrix, closes file.
+  calls /read_Blast_CompMat for the actual format
+  reading. Uses /openfile to open the file,
+  so will open from config files.
+
+
+
+  Argument filename     [UNKN ] Undocumented argument [char *]
+  Return [UNKN ] Undocumented return value [CompMat *]
+
+
+=item read_Blast_CompMat
+
+&Wise2::CompMat::read_Blast_CompMat(ifp)
+
+  reads a BLAST format matrix and
+  allocates a new ComMat structure.
+
+
+
+  Argument ifp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [CompMat *]
+
+
+=item hard_link_CompMat
+
+&Wise2::CompMat::hard_link_CompMat(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [CompMat *]
+  Return [UNKN ] Undocumented return value [CompMat *]
+
+
+=item alloc
+
+&Wise2::CompMat::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [CompMat *]
+
+
+=item set_name
+
+&Wise2::CompMat::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [CompMat *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::CompMat::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [CompMat *]
+  Return [SOFT ] member variable name [char *]
+
+
+=back
+

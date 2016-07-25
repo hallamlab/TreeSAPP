@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_DBSearchImpl *    T_Wise2_DBSearchImpl
+
+INPUT
+T_Wise2_DBSearchImpl
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_DBSearchImpl *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_DBSearchImpl
+	sv_setref_pv($arg, "Wise2::DBSearchImpl", (void*) $var);

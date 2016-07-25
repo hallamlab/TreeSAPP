@@ -1,0 +1,71 @@
+\section{randommodel}
+\label{module_randommodel}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_RandomModelDNA} RandomModelDNA
+
+\item \ref{object_RandomModel} RandomModel
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{randommodel factory methods}
+\subsubsection{RandomModelDNA_std}
+\begin{description}
+\item[External C] {\tt Wise2_RandomModelDNA_std (void)}
+\item[Perl] {\tt &Wise2::RandomModelDNA_std ()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[returns] [UNKN ] Undocumented return value [RandomModelDNA *]
+\end{description}
+Returns a structure with 0.25 set in each place
+
+
+\subsubsection{default_RandomModel}
+\begin{description}
+\item[External C] {\tt Wise2_default_RandomModel (void)}
+\item[Perl] {\tt &Wise2::default_RandomModel ()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[returns] [UNKN ] Undocumented return value [RandomModel *]
+\end{description}
+Gives a default random model numbers from
+swissprot34- via the HMMEr1 package
+
+
+
+
+\subsection{Object RandomModelDNA}
+
+\label{object_RandomModelDNA}
+
+The RandomModelDNA object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{base[5]} Type [Probability : Scalar] No documentation
+
+\item{name} Type [char * : Scalar] No documentation
+
+\end{description}
+No documentation for RandomModelDNA
+
+Member functions of RandomModelDNA
+
+\subsection{Object RandomModel}
+
+\label{object_RandomModel}
+
+The RandomModel object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{aminoacid[26]} Type [Probability : Scalar] No documentation
+
+\item{name} Type [char * : Scalar] No documentation
+
+\end{description}
+No documentation for RandomModel
+
+Member functions of RandomModel
+

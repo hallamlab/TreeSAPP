@@ -1,0 +1,299 @@
+\section{hscore}
+\label{module_hscore}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_Hscore} Hscore
+
+\item \ref{object_DataScore} DataScore
+
+\item \ref{object_DataEntry} DataEntry
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{hscore factory methods}
+\subsubsection{std_score_Hscore}
+\begin{description}
+\item[External C] {\tt Wise2_std_score_Hscore (cut_off,report_stagger)}
+\item[Perl] {\tt &Wise2::std_score_Hscore (cut_off,report_stagger)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[cut_off] [UNKN ] Undocumented argument [int]
+\item[report_stagger] [UNKN ] Undocumented argument [int]
+\item[returns] [UNKN ] Undocumented return value [Hscore *]
+\end{description}
+This gives you a standard Hscore
+module with a cutoff in score
+
+
+
+
+\subsection{Object Hscore}
+
+\label{object_Hscore}
+
+The Hscore object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{ds} Type [DataScore ** : List] No documentation
+
+\item{store} Type [DataScoreStorage ** : List] No documentation
+
+\item{his} Type [Histogram * : Scalar] No documentation
+
+\item{score_level} Type [double : Scalar]  passed into should_store function
+
+\item{should_store} Type [boolean (*should_store)(int given_score,double internal_score_level) : Scalar] No documentation
+
+\item{score_to_his} Type [float (*score_to_his)(int given_score) : Scalar] No documentation
+
+\item{report_level} Type [int : Scalar]  number of sequences to report on
+
+\item{total} Type [long : Scalar]  total number of scores (duplicated info in histogram) 
+
+\end{description}
+Holds the information about a db search.
+Meant to be very lightweight
+
+
+The histogram is carried for on-the-fly histogram storage outside
+of the database. The idea is that the function should_store will
+tell whether the datascore structure should be stored (if it is
+NULL, it is always stored). The score_to_his function maps the
+score in datascore to the float in Histogram, allowing the scoring
+system of the search method to be on a different basis to the 
+scoring system of the histogram. For most times, this is going to
+be Score2Bits
+
+
+To prevent too much dependency, the 'standard' way of making a 
+histogram that has a bits cut off level is done using functions
+in the dynlibcross module (cross code), as it needs both Hscore and
+Probability. You should read dynlibcross module for the constructors
+for Hscore
+
+
+
+
+Member functions of Hscore
+
+\subsubsection{minimum_score_Hscore}
+
+\begin{description}
+\item[External C] {\tt Wise2_minimum_score_Hscore (hs)}
+\item[Perl] {\tt &Wise2::Hscore::minimum_score_Hscore (hs)}
+
+\item[Perl-OOP call] {\tt $obj->minimum_score_Hscore()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[hs] [UNKN ] Undocumented argument [Hscore *]
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+gets the minimum score from Hscore
+
+
+\subsubsection{maximum_score_Hscore}
+
+\begin{description}
+\item[External C] {\tt Wise2_maximum_score_Hscore (hs)}
+\item[Perl] {\tt &Wise2::Hscore::maximum_score_Hscore (hs)}
+
+\item[Perl-OOP call] {\tt $obj->maximum_score_Hscore()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[hs] [UNKN ] Undocumented argument [Hscore *]
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+gets the maximum score from Hscore
+
+
+\subsubsection{sort_Hscore_by_score}
+
+\begin{description}
+\item[External C] {\tt Wise2_sort_Hscore_by_score (hs)}
+\item[Perl] {\tt &Wise2::Hscore::sort_Hscore_by_score (hs)}
+
+\item[Perl-OOP call] {\tt $obj->sort_Hscore_by_score()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[hs] [UNKN ] Hscore to be sorted [Hscore *]
+\item[returns] Nothing - no return value
+\end{description}
+As it says, sorts the high score by its score
+
+
+\subsubsection{length_datascore_Hscore}
+
+\begin{description}
+\item[External C] {\tt Wise2_length_datascore_Hscore (obj)}
+\item[Perl] {\tt &Wise2::Hscore::length (obj)}
+
+\item[Perl-OOP call] {\tt $obj->length()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[obj] [READ ] Hscore object [Hscore *]
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+Returns the number of datascores in the hscore
+structure
+
+
+\subsubsection{get_datascore_Hscore}
+
+\begin{description}
+\item[External C] {\tt Wise2_get_datascore_Hscore (hs,i)}
+\item[Perl] {\tt &Wise2::Hscore::datascore (hs,i)}
+
+\item[Perl-OOP call] {\tt $obj->datascore(i)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[hs] [READ ] Hscore object [Hscore *]
+\item[i] [UNKN ] position to be read [int]
+\item[returns] [OWNER] New datascore object [DataScore *]
+\end{description}
+Returns the specific datascore held at this
+position.
+
+
+This requires a considerable amount of memory
+duplication, so please dont process all your
+results by looping through this.
+
+
+\subsubsection{get_score_Hscore}
+
+\begin{description}
+\item[External C] {\tt Wise2_get_score_Hscore (hs,i)}
+\item[Perl] {\tt &Wise2::Hscore::score (hs,i)}
+
+\item[Perl-OOP call] {\tt $obj->score(i)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[hs] [READ ] Hscore object [Hscore *]
+\item[i] [UNKN ] position to be read [int]
+\item[returns] [UNKN ] score  [int]
+\end{description}
+
+
+Returns the score of the specific datascore held at this position.
+
+
+
+
+\subsubsection{get_evalue_Hscore}
+
+\begin{description}
+\item[External C] {\tt Wise2_get_evalue_Hscore (hs,i)}
+\item[Perl] {\tt &Wise2::Hscore::evalue (hs,i)}
+
+\item[Perl-OOP call] {\tt $obj->evalue(i)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[hs] [READ ] Hscore object [Hscore *]
+\item[i] [UNKN ] position to be read [int]
+\item[returns] [UNKN ] evalue  [double]
+\end{description}
+Returns the evalue of the specific datascore held at this position.
+
+
+
+
+\subsubsection{basic_show_Hscore}
+
+\begin{description}
+\item[External C] {\tt Wise2_basic_show_Hscore (hs,ofp)}
+\item[Perl] {\tt &Wise2::Hscore::show (hs,ofp)}
+
+\item[Perl-OOP call] {\tt $obj->show(ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[hs] [UNKN ] Undocumented argument [Hscore *]
+\item[ofp] [UNKN ] Undocumented argument [FILE *]
+\item[returns] Nothing - no return value
+\end{description}
+The most baby-talk showing of Hscore
+
+
+\subsection{Object DataScore}
+
+\label{object_DataScore}
+
+The DataScore object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{query} Type [DataEntry * : Scalar] No documentation
+
+\item{target} Type [DataEntry * : Scalar] No documentation
+
+\item{score} Type [int : Scalar] No documentation
+
+\item{evalue} Type [double : Scalar] No documentation
+
+\item{is_stored} Type [int : Scalar] No documentation
+
+\end{description}
+The basic one entry vs one entry structure. Each
+of the DataEntry datastructures actually store the 
+information about the indexing etc.
+
+
+
+
+Member functions of DataScore
+
+\subsection{Object DataEntry}
+
+\label{object_DataEntry}
+
+The DataEntry object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{name} Type [char * : Scalar]  name of the entry
+
+\item{data[DATAENTRYSTDPOINTS]} Type [int : Scalar]  space for algorithms to use 
+
+\item{is_reversed} Type [boolean : Scalar]  for sequences. handy
+
+\item{byte_position} Type [BytePosition : Scalar]  useful for indexers - hopefully long enough!
+
+\item{filename} Type [char * : Scalar]  useful for indexers etc.
+
+\end{description}
+A lightweight structure to represent the information
+a db search algorithm will want to store and *nothing*
+more about a single entry
+
+
+This object will be stored twice (once for the target
+and once for the query) for each comparison: they probably
+will be on different databases and different objects. 
+
+
+The data field is just a number (8 at the moment) of int's available
+for databases to store useful information (eg, length) of the 
+object.
+
+
+A number of extra fields are provided for convience sake for indexers, 
+including byte_position and filename.
+
+
+
+
+Member functions of DataEntry
+

@@ -1,0 +1,174 @@
+
+
+These directories have the source code for the
+Wise2 package and the Dynamite compiler. The 
+directories are as follows.
+
+
+
+base      - base memory, string and error reporting library
+
+dynlibsrc - bioinformatics library - sequences, genes, codon tables
+            etc
+
+models    - algorithms and more complex objects for the wise2 package
+
+dyc       - dynamite compiler source code.
+
+HMMer2    - the HMMer2 package - used for hmmio in this case
+	The source code here was provided by Sean Eddy <eddy@wol.wustl.edu>
+
+perl      - Integration into perl via an XS interface: makefile for the interface
+
+perl/Wise2 - the actual Perl 'directory' to compiled for it
+
+perl/Wise2/libs - where the libraries are copied into to build perl
+
+examples  - examples for the Wise2 package
+
+dynamite_examples - examples for the Dynamite package.
+
+
+
+Source code files:
+
+	There is a scary number of files in each directory. This is
+because the dynamite compiler generates alot files for each module
+here is an explanation of the files
+
+	.dy - the dynamite source
+
+For each .dy files the following files are generated
+
+	.h - C header file - contains documentation
+	.c - C source file
+	_api.t api 'type' file
+	_api.h api header file
+	.pod - pod documentation
+	.xs - xs interface into perl
+
+
+
+More documentation occurs in a appropiate file. Read the .h  files for
+each module
+
+base library
+	wisestring - common string functions
+	wisememman - memory management
+	wiseerror  - error functions
+	wisetime   - (small) time functions
+	wiserandom - wrapper around random functions
+	wiseconfig - almost defunct configuration
+
+dynlibsrc
+
+	Sequence types
+
+	sequence - base sequence object
+	protein - typed protein sequence object
+	genomic - typed genomic sequence object
+	cdna	- typed cdna object
+
+	Sequence databases
+
+	sequencedb - sequence database
+	proteindb - protein database
+	cdnadb - cdna database
+	genomicdb - genomic database
+	randommodel     - protein+dna random models
+
+	Central dogma types
+
+	genomicregion - holder for gene structures on a genomic sequence
+	gene - gene structure 
+	transcript - one transcript from a gene 
+	translation - one translation from a transcript
+
+	Sequence accessories
+
+	codon - codon table, base encoding and translation
+	compmat - protein comparison matrix
+	dnamat - dna comparison matrix
+	codonmatrix - codon comparison matrix
+
+	Dynamic programming libraries
+
+	basematrix - underlying memory of DPs
+	dpenvelope - a envelope over the dynamic programming
+	packaln - low level alignment
+	aln - high level alignment
+	
+
+	Alignment Output libraries
+
+	asciibtcanvas - ascii class for outputs
+	btcanvas - virtual class for outputs
+
+
+	Database searching accessories
+
+	hscore - high scores
+	histogram - package for handling score distributions (from sean eddy)
+	database.h - generic types for database looping	
+
+Models
+
+	Protein<->protein alignmetns
+
+	proteinsw.dy  - smith waterman protein alignments
+	abc.dy        - stephen altschul's 'generalised' gap penalties
+	sw_wrap.dy    - a clean API for the protein smith waterman
+
+	HMM support
+
+	wise2xhmmer2    - conversion from hmmer<->wise
+	threestatemodel - internal wise2 profile-HMM object
+	threestatedb    - database of HMMs
+	pfamhmmer1db    - old-style HMM 1.x db (driectory)- new style done by wise2xhmmer2
+
+	GeneWise/EstWise algorithm support
+
+	genewisemodel - extended HMM for genewise/estwise
+	geneparameter - raw frequencies for gene model
+	geneparser21  - probability model for 21:93
+	geneparser4   - probability model for 6/4 state models
+	splicesitemodeler - splice site models
+	
+	GeneWise algorithms
+
+	genewise4 - 421 algorithm
+	genewise6 - 623 algorithm
+	genewise21 - 2193 algorithm
+	geneloop6 - 623 looping algorithm
+	geneloop21 - 2193 looping algorithm
+	
+	EstWise algorithms
+	
+	estwise3 - 333 algorithm
+	estloop3 - 333 looping algorithm
+	estfrag3 - [not used] est fragment
+	estslim3 - 312 algorithm
+	
+	Clean api into package
+
+	gwrap - genewise algorithm API
+	estwrap - estwise algorithm API
+
+	dba support
+
+	dba - dba algorithm
+
+Executable main functions
+
+	genewise.c - genewise 
+	genewisedb.c
+	estwise.c
+	estwisedb.c
+	psw - protein smith waterman
+	dbac.c - dba calling function
+
+
+
+
+
+

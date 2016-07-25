@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_DnaMatrix *    T_Wise2_DnaMatrix
+
+INPUT
+T_Wise2_DnaMatrix
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_DnaMatrix *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_DnaMatrix
+	sv_setref_pv($arg, "Wise2::DnaMatrix", (void*) $var);
+
+TYPEMAP
+Wise2_DnaProbMatrix *    T_Wise2_DnaProbMatrix
+
+INPUT
+T_Wise2_DnaProbMatrix
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_DnaProbMatrix *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_DnaProbMatrix
+	sv_setref_pv($arg, "Wise2::DnaProbMatrix", (void*) $var);

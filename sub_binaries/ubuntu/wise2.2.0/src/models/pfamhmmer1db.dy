@@ -1,0 +1,220 @@
+
+%{
+#include "threestatemodel.h"
+#define NO_HMMER_INCLUDES
+#include "wise2xhmmer2.h"
+
+#define PfamHmmer1DBLISTLENGTH 512
+
+%}
+
+struct PfamHmmer1Entry
+char * entryname
+boolean is_random
+boolean is_hmmls
+double bits_cutoff
+
+
+struct PfamHmmer1DB
+PfamHmmer1Entry ** en !list
+char * dirname // directory name with the models
+int cur !def="0"
+RandomModel * def; // default random model
+%info
+
+Pfam Hmmer1db is a wrapper around a Pfam Hmmer database.  This is file
+called HMM.s in a directory which has appropiate .HMM and .random
+files
+
+Although this DB will be phased out, it is still around for a while.
+
+This wont be used directly, but rather in a threestatedb model. 
+It does not implement a full dynamite style db stream. rather it expects
+threestatedb to prod it in the correct manner.
+
+%%
+
+api
+object PfamHmmer1DB
+des free_PfamHmmer1DB
+endobject
+object PfamHmmer1Entry
+des free_PfamHmmer1Entry
+endobject
+endapi
+
+%{
+#include "pfamhmmer1db.h"
+
+
+%func
+reads a named model - akin to indexing
+%%
+ThreeStateModel * ThreeStateModel_from_name_PfamHmmer1DB(PfamHmmer1DB * phd,char * name)
+{
+  char buffer[512];
+  ThreeStateModel * tsm;
+
+  sprintf(buffer,"%s/%s.hmm",phd->dirname,name);
+
+  /*  tsm = Wise2_read_ThreeStateModel_from_hmmer1_file(buffer); */
+  tsm = HMMer2_read_ThreeStateModel(buffer);
+
+  if( tsm == NULL ) {
+    warn("Could not open Hmmer1 style hmm from Pfam db on file [%s]",buffer);
+    return NULL;
+  }
+
+  if( tsm->name != NULL ) {
+    ckfree(tsm->name);
+  }
+  tsm->name = stringalloc(name);
+
+  /* ignore random stuff for the moment */
+
+  return tsm;
+}
+
+%func
+reads the next threestatemodel
+for PfamHmmer1DB, placing the correct
+status into return_status( DB_RETURN_OK, etc).
+%%
+ThreeStateModel * read_next_TSM_PfamHmmer1DB(PfamHmmer1DB * phd,int * return_status)
+{
+  ThreeStateModel * out;
+
+  if( phd->cur >= phd->len ) {
+    *return_status = DB_RETURN_END;
+    return NULL;
+  }
+  out = read_TSM_from_PfamHmmer1Entry(phd->en[phd->cur++],phd->dirname);
+
+  if( out == NULL ) {
+    *return_status = DB_RETURN_ERROR;
+    return NULL;
+  } else {
+    *return_status = DB_RETURN_OK;
+    out->rm = hard_link_RandomModel(phd->def);
+    return out;
+  }
+  return out;
+}
+
+%func
+reads an individual HMMer model from the entry
+specification
+%%
+ThreeStateModel * read_TSM_from_PfamHmmer1Entry(PfamHmmer1Entry * en,char * dir)
+{
+  char buffer[512];
+  ThreeStateModel * tsm;
+
+  sprintf(buffer,"%s/%s.hmm",dir,en->entryname);
+
+  /*  tsm = Wise2_read_ThreeStateModel_from_hmmer1_file(buffer); */
+  tsm = HMMer2_read_ThreeStateModel(buffer);
+
+  if( tsm == NULL ) {
+    warn("Could not open Hmmer1 style hmm from Pfam db on file [%s]",buffer);
+    return NULL;
+  }
+
+  if( tsm->name != NULL ) {
+    ckfree(tsm->name);
+  }
+  tsm->name = stringalloc(en->entryname);
+  display_char_in_ThreeStateModel(tsm);
+
+  /* ignore random stuff for the moment */
+
+  if( en->is_hmmls == FALSE ) {
+    force_weighted_local_model(tsm,1.0,1.0,1.0);
+  } else {
+    force_weighted_local_model(tsm,1.0,0.5,0.5);
+  }
+
+  return tsm;
+}
+
+%func
+Makes a new PfamHmmer1DB from the dir name.
+
+The directory should have a file HMMs which has
+entries like
+
+rrm hmmls 12
+
+with -r indicating a specialised random model.
+%%
+PfamHmmer1DB * PfamHmmer1DB_from_dirname(char * dirname)
+{
+  char buffer[512];
+  PfamHmmer1DB * out;
+  FILE * ifp;
+  char * runner;
+  PfamHmmer1Entry * en;
+
+  if( dirname == NULL ) {
+    warn("passed through a NULL dirname into PfamHmmer1DB!");
+    return NULL;
+  }
+  
+  sprintf(buffer,"%s/HMMs",dirname);
+  if( (ifp= openfile(buffer,"r")) == NULL ) {
+    warn("Could not open %s as PfamHmmer1DB file list",buffer);
+    return NULL;
+  }
+
+  out = PfamHmmer1DB_alloc_std();
+  out->def = default_RandomModel();
+  out->dirname = stringalloc(dirname);
+
+  while( fgets(buffer,512,ifp) != NULL ) {
+    if( (runner=strtok(buffer,spacestr)) == NULL) {
+      continue; /* silently */
+    }
+    en  = PfamHmmer1Entry_alloc();
+    en->entryname = stringalloc(runner);
+    if( (runner=strtok(NULL,spacestr)) == NULL) {
+      warn("Got a bad HMM.s line for a Pfam db. Skipping");
+      free_PfamHmmer1Entry(en);
+      continue;
+    }
+    if( strstr(runner,"hmmls") != NULL ) {
+      en->is_hmmls = TRUE;
+    } else {
+      en->is_hmmls = FALSE;
+    }
+
+
+    if( strstr(runner,"-r") != NULL ) {
+      en->is_random = TRUE;
+    } else {
+      en->is_random = FALSE;
+    }
+
+    if( (runner=strtok(NULL,spacestr)) == NULL) {
+      warn("Got a bad HMM.s line for a Pfam db. Skipping");
+      free_PfamHmmer1Entry(en);
+      continue;
+    }
+
+    if( is_double_string(runner,&en->bits_cutoff) == FALSE ) {
+      warn("%s does not look like a bits cutoff to me. Calling it 25",en->entryname,runner);
+      en->bits_cutoff = 25;
+    }
+    add_PfamHmmer1DB(out,en);
+  }
+
+  fclose(ifp);
+  return out;
+}
+
+
+%}
+
+
+
+
+

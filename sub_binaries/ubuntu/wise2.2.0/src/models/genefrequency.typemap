@@ -1,0 +1,33 @@
+
+TYPEMAP
+Wise2_GeneFrequency21 *    T_Wise2_GeneFrequency21
+
+INPUT
+T_Wise2_GeneFrequency21
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_GeneFrequency21 *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_GeneFrequency21
+	sv_setref_pv($arg, "Wise2::GeneFrequency21", (void*) $var);
+
+TYPEMAP
+Wise2_GeneConsensus *    T_Wise2_GeneConsensus
+
+INPUT
+T_Wise2_GeneConsensus
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_GeneConsensus *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_GeneConsensus
+	sv_setref_pv($arg, "Wise2::GeneConsensus", (void*) $var);
+
+TYPEMAP
+Wise2_GeneSingleCons *    T_Wise2_GeneSingleCons
+
+INPUT
+T_Wise2_GeneSingleCons
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_GeneSingleCons *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_GeneSingleCons
+	sv_setref_pv($arg, "Wise2::GeneSingleCons", (void*) $var);

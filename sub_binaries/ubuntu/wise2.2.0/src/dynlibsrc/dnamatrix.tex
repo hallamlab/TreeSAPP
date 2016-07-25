@@ -1,0 +1,108 @@
+\section{dnamatrix}
+\label{module_dnamatrix}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_DnaMatrix} DnaMatrix
+
+\item \ref{object_DnaProbMatrix} DnaProbMatrix
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{dnamatrix factory methods}
+\subsubsection{identity_DnaMatrix}
+\begin{description}
+\item[External C] {\tt Wise2_identity_DnaMatrix (id_score,mismatch)}
+\item[Perl] {\tt &Wise2::identity_DnaMatrix (id_score,mismatch)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[id_score] [UNKN ] score of idenities [Score]
+\item[mismatch] [UNKN ] score of mistmatches [Score]
+\item[returns] [UNKN ] Undocumented return value [DnaMatrix *]
+\end{description}
+makes an idenity matrix wth id_score on the leading
+diagonal and mismatch elsewhere.
+
+
+
+
+\subsubsection{DnaProbMatrix_from_match}
+\begin{description}
+\item[External C] {\tt Wise2_DnaProbMatrix_from_match (match,nmask_type)}
+\item[Perl] {\tt &Wise2::DnaProbMatrix_from_match (match,nmask_type)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[match] [UNKN ] Undocumented argument [Probability]
+\item[nmask_type] [UNKN ] Undocumented argument [int]
+\item[returns] [UNKN ] Undocumented return value [DnaProbMatrix *]
+\end{description}
+Makes a probability matrix from simple match/mismatch 
+probabilities.
+
+
+
+
+\subsubsection{DnaMatrix_from_DnaProbMatrix}
+\begin{description}
+\item[External C] {\tt Wise2_DnaMatrix_from_DnaProbMatrix (dpm)}
+\item[Perl] {\tt &Wise2::DnaMatrix_from_DnaProbMatrix (dpm)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[dpm] [UNKN ] Undocumented argument [DnaProbMatrix *]
+\item[returns] [UNKN ] Undocumented return value [DnaMatrix *]
+\end{description}
+Maps probabilities to scores
+
+
+
+
+\subsection{Object DnaMatrix}
+
+\label{object_DnaMatrix}
+
+The DnaMatrix object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{score[5][5]} Type [Score : Scalar] No documentation
+
+\end{description}
+No documentation for DnaMatrix
+
+Member functions of DnaMatrix
+
+\subsection{Object DnaProbMatrix}
+
+\label{object_DnaProbMatrix}
+
+The DnaProbMatrix object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{prob[5][5]} Type [Probability : Scalar] No documentation
+
+\end{description}
+No documentation for DnaProbMatrix
+
+Member functions of DnaProbMatrix
+
+\subsubsection{flat_null_DnaProbMatrix}
+
+\begin{description}
+\item[External C] {\tt Wise2_flat_null_DnaProbMatrix (dpm)}
+\item[Perl] {\tt &Wise2::DnaProbMatrix::flat_null_DnaProbMatrix (dpm)}
+
+\item[Perl-OOP call] {\tt $obj->flat_null_DnaProbMatrix()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[dpm] [UNKN ] Undocumented argument [DnaProbMatrix *]
+\item[returns] Nothing - no return value
+\end{description}
+makes a odds of dpm via a 0.25 factor 
+into each base.
+
+

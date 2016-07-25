@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_cDNAParser *    T_Wise2_cDNAParser
+
+INPUT
+T_Wise2_cDNAParser
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_cDNAParser *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_cDNAParser
+	sv_setref_pv($arg, "Wise2::cDNAParser", (void*) $var);

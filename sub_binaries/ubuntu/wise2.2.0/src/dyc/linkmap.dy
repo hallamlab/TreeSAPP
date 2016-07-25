@@ -1,0 +1,85 @@
+
+%{
+#include "wisebase.h"
+
+%}
+
+struct LinkMap
+char * word
+char * urltail
+char * text
+
+struct LinkSet
+LinkMap ** lm !list
+
+%{
+#include "linkmap.h"
+
+char * update_links_LinkMap(char * line,char * startid,char * stopid,char * nolinkstr,LinkSet * ls)
+{
+  char buffer[MAXLINE];
+  char * run;
+  char c;
+  char * end;
+  LinkMap * lm;
+
+  for(end=line,run=line;(run = strstr(run,startid)) != NULL;) {
+
+    /*** strcat the previous string ***/
+
+    c = *run;
+    *run =  '\0';
+    strcat(buffer,end);
+
+    /*** now put in the link system ***/
+
+    end = strstr(run,stopid);
+    c = *end;
+    *end = '\0';
+    if( (lm = LinkMap_from_word(run,ls)) == NULL ) {
+      
+    }
+
+  }
+
+}
+
+LinkMap * new_std_LinkMap(char * word,char * urlstub,char * textstub)
+{
+  char buffer[128];
+  char * run;
+  LinkMap * out;
+
+  out= LinkMap_alloc();
+
+  push_scan_and_replace_pair("$LINK",word);
+
+  strcpy(buffer,urlstub);
+  run = scan_and_replace_line(buffer);
+  out->urltail = stringalloc(run);
+  strcpy(buffer,textstub);
+  run = scan_and_replace_line(buffer);
+  out->text = stringalloc(textstub);
+
+  pop_scan_and_replace_pair();
+
+  return out;
+}
+  
+
+LinkMap * LinkMap_from_word(char * word,LinkSet * ls)
+{
+  int i;
+
+  for(i=0;i<ls->len;i++) {
+    if( strcmp(ls->lm[i]->word,word) == 0 )
+      return lm[i];
+  }
+
+  return NULL;
+}
+
+
+
+
+

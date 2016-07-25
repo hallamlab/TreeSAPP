@@ -1,0 +1,21 @@
+
+
+%{
+#include "ftext.h"
+
+
+
+%}
+
+
+
+struct ModuleInfo 
+Ftext * ft // description of module
+
+
+
+%{
+#include "moduleinfo.h"
+
+
+%}

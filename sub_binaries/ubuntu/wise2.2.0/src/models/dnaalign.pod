@@ -1,0 +1,102 @@
+=head1 NAME
+
+dnaalign module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item DnaStartEnd
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object DnaStartEnd
+
+=over
+
+=item trans[DSE_NUMBER]
+
+ Type [int] Scalar  start/end points possibilities
+
+
+
+=back
+
+No documentation for DnaStartEnd
+
+=head2 Member functions of DnaStartEnd
+
+=over
+
+=item hard_link_DnaStartEnd
+
+&Wise2::DnaStartEnd::hard_link_DnaStartEnd(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [DnaStartEnd *]
+  Return [UNKN ] Undocumented return value [DnaStartEnd *]
+
+
+=item alloc
+
+&Wise2::DnaStartEnd::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [DnaStartEnd *]
+
+
+=back
+
+=over
+
+=item make_align_dnaalign
+
+&Wise2::make_align_dnaalign(one,two,mat,se,qgap,qext,tgap,text,dpri)
+
+  Makes an alignment out of two DNA sequences
+
+
+
+  Argument one          [READ ] first sequence to align [Sequence *]
+  Argument two          [READ ] second sequence to align [Sequence *]
+  Argument mat          [READ ] DnaMatrix for the matching [DnaMatrix *]
+  Argument se           [READ ] DnaStartEnd policy [DnaStartEnd *]
+  Argument qgap         [READ ] gap open penalty in query (one) coordinate [int]
+  Argument qext         [READ ] gap extension penalty in query (one) coordinate [int]
+  Argument tgap         [READ ] gap open penalty in target (two) coordinate [int]
+  Argument text         [READ ] gap extension penalty in target (two) coordinate [int]
+  Argument dpri         [READ ] DPRunImpl structure [DPRunImpl *]
+  Return [UNKN ] an alb structure of the alignment [AlnBlock *]
+
+
+=item DnaStartEnd_from_policy
+
+&Wise2::DnaStartEnd_from_policy(policy)
+
+  Makes a DnaStartEnd from a particular string.
+  Possible strings are:
+
+  local - fully local
+  global - fully global
+  edge - aligns only to edges
+
+
+
+  Argument policy       [UNKN ] Undocumented argument [char *]
+  Return [UNKN ] Undocumented return value [DnaStartEnd *]
+
+
+=back
+

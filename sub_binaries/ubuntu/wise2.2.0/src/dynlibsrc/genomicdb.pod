@@ -1,0 +1,366 @@
+=head1 NAME
+
+genomicdb module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item GenomicDB
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object GenomicDB
+
+=over
+
+=item is_single_seq
+
+ Type [boolean] Scalar No documentation
+
+=item done_forward
+
+ Type [boolean] Scalar No documentation
+
+=item forw
+
+ Type [ComplexSequence *] Scalar No documentation
+
+=item rev
+
+ Type [ComplexSequence *] Scalar No documentation
+
+=item sdb
+
+ Type [SequenceDB *] Scalar No documentation
+
+=item current
+
+ Type [Genomic *] Scalar No documentation
+
+=item cses
+
+ Type [ComplexSequenceEvalSet *] Scalar No documentation
+
+=item error_handling
+
+ Type [GenDBErrorType] Scalar No documentation
+
+=item single
+
+ Type [Genomic *] Scalar  for single sequence cases, so we can 'index' on it 
+
+=item revsingle
+
+ Type [Genomic *] Scalar No documentation
+
+=item length_of_N
+
+ Type [int] Scalar No documentation
+
+=item repeat_in_cds_score
+
+ Type [int] Scalar No documentation
+
+
+
+=back
+
+This object hold a database of
+genomic sequences.
+
+You will probably use it in one of
+two ways
+
+1 A sequence formatted database, which
+is provided by a /SequenceDB object
+is used to provide the raw sequences 
+
+2 A single Genomic sequence is used.
+
+In each case this database provides
+both the forward and reverse strands
+into the system.
+
+Notice that what is exported are
+/ComplexSequence objects, not genomic dna,
+as this is what is generally needed. 
+These are things with splice sites calculated
+etc. This is why for initialisation this needs
+a /ComplexSequenceEvalSet of the correct type.
+
+
+
+=head2 Member functions of GenomicDB
+
+=over
+
+=item get_Genomic_from_GenomicDB
+
+&Wise2::GenomicDB::get_Genomic_from_GenomicDB(gendb,de)
+
+  Gets Genomic sequence out from
+  the GenomicDB using the information stored in
+  dataentry
+
+
+
+  Argument gendb        [UNKN ] Undocumented argument [GenomicDB *]
+  Argument de           [UNKN ] Undocumented argument [DataEntry *]
+  Return [UNKN ] Undocumented return value [Genomic *]
+
+
+=item hard_link_GenomicDB
+
+&Wise2::GenomicDB::hard_link_GenomicDB(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [GenomicDB *]
+  Return [UNKN ] Undocumented return value [GenomicDB *]
+
+
+=item alloc
+
+&Wise2::GenomicDB::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [GenomicDB *]
+
+
+=item set_is_single_seq
+
+&Wise2::GenomicDB::set_is_single_seq(obj,is_single_seq)
+
+  Replace member variable is_single_seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Argument is_single_seq [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable is_single_seq [boolean]
+
+
+=item is_single_seq
+
+&Wise2::GenomicDB::is_single_seq(obj)
+
+  Access member variable is_single_seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Return [SOFT ] member variable is_single_seq [boolean]
+
+
+=item set_done_forward
+
+&Wise2::GenomicDB::set_done_forward(obj,done_forward)
+
+  Replace member variable done_forward
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Argument done_forward [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable done_forward [boolean]
+
+
+=item done_forward
+
+&Wise2::GenomicDB::done_forward(obj)
+
+  Access member variable done_forward
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Return [SOFT ] member variable done_forward [boolean]
+
+
+=item set_forw
+
+&Wise2::GenomicDB::set_forw(obj,forw)
+
+  Replace member variable forw
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Argument forw         [OWNER] New value of the variable [ComplexSequence *]
+  Return [SOFT ] member variable forw [boolean]
+
+
+=item forw
+
+&Wise2::GenomicDB::forw(obj)
+
+  Access member variable forw
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Return [SOFT ] member variable forw [ComplexSequence *]
+
+
+=item set_rev
+
+&Wise2::GenomicDB::set_rev(obj,rev)
+
+  Replace member variable rev
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Argument rev          [OWNER] New value of the variable [ComplexSequence *]
+  Return [SOFT ] member variable rev [boolean]
+
+
+=item rev
+
+&Wise2::GenomicDB::rev(obj)
+
+  Access member variable rev
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Return [SOFT ] member variable rev [ComplexSequence *]
+
+
+=item set_sdb
+
+&Wise2::GenomicDB::set_sdb(obj,sdb)
+
+  Replace member variable sdb
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Argument sdb          [OWNER] New value of the variable [SequenceDB *]
+  Return [SOFT ] member variable sdb [boolean]
+
+
+=item sdb
+
+&Wise2::GenomicDB::sdb(obj)
+
+  Access member variable sdb
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Return [SOFT ] member variable sdb [SequenceDB *]
+
+
+=item set_current
+
+&Wise2::GenomicDB::set_current(obj,current)
+
+  Replace member variable current
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Argument current      [OWNER] New value of the variable [Genomic *]
+  Return [SOFT ] member variable current [boolean]
+
+
+=item current
+
+&Wise2::GenomicDB::current(obj)
+
+  Access member variable current
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Return [SOFT ] member variable current [Genomic *]
+
+
+=item set_cses
+
+&Wise2::GenomicDB::set_cses(obj,cses)
+
+  Replace member variable cses
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Argument cses         [OWNER] New value of the variable [ComplexSequenceEvalSet *]
+  Return [SOFT ] member variable cses [boolean]
+
+
+=item cses
+
+&Wise2::GenomicDB::cses(obj)
+
+  Access member variable cses
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicDB *]
+  Return [SOFT ] member variable cses [ComplexSequenceEvalSet *]
+
+
+=back
+
+=over
+
+=item new_GenomicDB_from_single_seq
+
+&Wise2::new_GenomicDB_from_single_seq(gen,cses,score_in_repeat_coding)
+
+  To make a new genomic database
+  from a single Genomic Sequence with a eval system
+
+
+
+  Argument gen          [UNKN ] sequence which as placed into GenomicDB structure. [Genomic *]
+  Argument cses         [UNKN ] Undocumented argument [ComplexSequenceEvalSet *]
+  Argument score_in_repeat_coding [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [GenomicDB *]
+
+
+=item new_GenomicDB
+
+&Wise2::new_GenomicDB(seqdb,cses,length_of_N,repeat_in_cds_score)
+
+  To make a new genomic database
+
+
+
+  Argument seqdb        [UNKN ] sequence database [SequenceDB *]
+  Argument cses         [UNKN ] protein evaluation set [ComplexSequenceEvalSet *]
+  Argument length_of_N  [UNKN ] Undocumented argument [int]
+  Argument repeat_in_cds_score [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [GenomicDB *]
+
+
+=back
+

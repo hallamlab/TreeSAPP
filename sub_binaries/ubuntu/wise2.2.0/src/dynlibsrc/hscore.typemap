@@ -1,0 +1,33 @@
+
+TYPEMAP
+Wise2_Hscore *    T_Wise2_Hscore
+
+INPUT
+T_Wise2_Hscore
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Hscore *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Hscore
+	sv_setref_pv($arg, "Wise2::Hscore", (void*) $var);
+
+TYPEMAP
+Wise2_DataScore *    T_Wise2_DataScore
+
+INPUT
+T_Wise2_DataScore
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_DataScore *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_DataScore
+	sv_setref_pv($arg, "Wise2::DataScore", (void*) $var);
+
+TYPEMAP
+Wise2_DataEntry *    T_Wise2_DataEntry
+
+INPUT
+T_Wise2_DataEntry
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_DataEntry *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_DataEntry
+	sv_setref_pv($arg, "Wise2::DataEntry", (void*) $var);
