@@ -4,7 +4,7 @@ Kishori M. Konwar, Young C. Song, Connor Morgan-Lang, and Steven J. Hallam
 
 ## Overview:
 
-A unified python software for generating phylogenetic trees from genomic sequences. 
+A python pipeline for grafting phylogenetic sequences onto reference phylogenetic trees.
 
 ## Download and installation:
 
@@ -14,7 +14,7 @@ git clone git@github.com:hallamlab/MLTreeMap.git
 The exectutables for the required softwares are included either in the MLTreeMap/sub_binaries/mac
  directory or MLTreeMap/sub_binaries/ubuntu, depending on your OS.
 If these do not work out-of-the-box, instructions on installing the dependencies specific to your
- machine are included below.
+ machine are included below. We currently support Red Hat Enterprise Linux, Ubuntu (14.04), and Mac OS (10.6-10.8).
 ### Downloading dependencies for Linux:
 
 #### RAxML:
@@ -29,11 +29,12 @@ If you find an incompatibility please notify us through the Issues feed!
 For Linux/x86:
 ```
 cd path/to/MLTreeMap/sub_binaries/
-wget http://molevol.cmima.csic.es/castresana/Gblocks/Gblocks_Linux_0.91b.tar.Z
 tar xzf Gblocks_Linux_0.91b.tar.Z
 rm Gblocks
 ln -s Gblocks_0.91b/Gblocks ./
 ```
+
+If you get a segmentation fault, try the executable in Gblocks_Linux64_0.91b.tar.Z.
 
 #### Genewise:
 You can either install the package with apt-get:
@@ -50,7 +51,9 @@ make all
 ```
 If you have problems involving `getline` being previously declared in sqio.c,
 use your text editor of choice to replace all instances of `getline` with a new function name such as `getline_new`.
-Other installation issues may be taken care of elsewhere.
+Other installation issues may be taken care of elsewhere. We also suggest changing line 25 in wise2.4.1/src/makefile
+and line 84 in wise2.4.1/src/dynlibsrc/makefile from `CC = cc` to `CC = gcc` to make compilation more smooth on modern
+systems.
 
 #### HMMER
 hmmalign is the only HMMER module required by MLTreeMap, but HMMER3 is incompatible with this
@@ -68,6 +71,8 @@ To perform a basic run with only the required arguments:
 Executables are automatically detected in both the $PATH and in the
 sub_binaries/mac or sub_binaries/ubuntu, depending on your OS. However, if your executables
 are together elsewhere, MLTreeMap can be directed to them with `--executables`.
+If WISECONFIGDIR is not already set, mltreemap.py will exit and provide you with the correct command to
+add this to you environment.
 
 ### Using MLTreeMap_imagemaker_2_061/mltreemap_imagemaker.pl
 

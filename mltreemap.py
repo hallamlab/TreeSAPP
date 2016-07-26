@@ -202,6 +202,14 @@ def check_parser_arguments(parser):
     args.output_dir_raxml = args.output + 'final_RAxML_outputs' + os.sep
     args.output_dir_final = args.output + 'final_outputs' + os.sep
 
+    mltreemap_dir = args.mltreemap + os.sep + 'data' + os.sep
+    genewise_support = mltreemap_dir + os.sep + 'genewise_support_files' + os.sep
+
+    # TODO: make this soultion a bit better
+    if os.getenv("WISECONFIGDIR") is None:
+        sys.stderr.write("ERROR: WISECONFIGDIR not set!\n")
+        sys.exit("export WISECONFIGDIR=" + genewise_support + os.sep + "wisecfg")
+
     return args
 
 
@@ -758,6 +766,7 @@ def run_blast(args, split_files, cog_list):
                 else:
                     command += '-num_threads ' + str(1) + ' '
             command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
+            command += " 2>/dev/null"
             os.system(command)
             command = args.executables["blastn"] + " " + \
                 '-query ' + split_fasta + ' ' + db_nt + ' ' + \
@@ -769,6 +778,7 @@ def run_blast(args, split_files, cog_list):
                 else:
                     command += '-num_threads ' + str(1) + ' '
             command += '>> ' + args.output_dir_var + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
+            command += " 2>/dev/null"
             os.system(command)
 
         elif args.reftype == 'a':
@@ -782,11 +792,8 @@ def run_blast(args, split_files, cog_list):
                 else:
                     command += '-num_threads ' + str(1) + ' '
             command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
+            command += " 2> /dev/null"
             os.system(command)
-
-        # Remove the BLAST input file
-        # if path.exists(split_fasta):
-        #     os.remove(split_fasta)
 
     sys.stdout.write("done.\n")
 
@@ -1222,6 +1229,34 @@ class GenewiseWorker(Process):
         return
 
 
+def add_tasks_to_queue(task_list, task_queue, num_threads):
+    """
+    Function for adding genewise commands from task_list to task_queue while ensuring space in the JoinableQueue
+    :param task_list: List of genewise commands
+    :param task_queue: JoinableQueue object with a maximum size of 32767
+    :param num_threads: Number of threads to be used
+    :return: Nothing
+    """
+    num_tasks = len(task_list)
+    task = task_list.pop()
+    while task:
+        if not task_queue.full():
+            task_queue.put(task)
+            if num_tasks > 1:
+                task = task_list.pop()
+                num_tasks -= 1
+            else:
+                task = None
+
+    i = int(num_threads)
+    while i:
+        if not task_queue.full():
+            task_queue.put(None)
+            i -= 1
+
+    return
+
+
 def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     """
     Runs Genewise on the provided list of sequence files.
@@ -1230,7 +1265,9 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     Returns an Autovivification mapping the Genewise output files to each contig.
     """
 
-    task_queue = JoinableQueue()
+    max_size = 32767  # The actual size limit of a JoinableQueue
+    task_queue = JoinableQueue(max_size)
+    task_list = list()
     genewise_process_queues = [GenewiseWorker(task_queue) for i in range(int(args.num_threads))]
     for process in genewise_process_queues:
         process.start()
@@ -1245,8 +1282,11 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
 
     genewise_outputfiles = Autovivify()
 
-    if os.getenv("WISECONFIGDIR") is None:
-        os.putenv("WISECONFIGDIR", genewise_support + os.sep + "wisecfg")
+    # This is not working on linux machines. Having to revert to command-line calls
+    # if os.getenv("WISECONFIGDIR") is None:
+    #     sys.stderr.write("genewise exception\n")
+    #     sys.stderr.flush()
+    #     os.environ["WISECONFIGDIR"] = genewise_support + os.sep + "wisecfg"
 
     hmm_dir_files = [f for f in os.listdir(hmm_dir) if os.path.isfile(join(hmm_dir, f))]
 
@@ -1280,12 +1320,9 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
             genewise_command += ["-ext", str(1)]
             genewise_command += ["-both", "-pep", "-sum", ">", genewise_outputfile]
 
-            if task_queue.full():
-                sys.exit("ERROR: multiprocessing.Queue full in start_genewise!")
-            task_queue.put(genewise_command)
+            task_list.append(genewise_command)
 
-    for i in range(int(args.num_threads)):
-        task_queue.put(None)
+    add_tasks_to_queue(task_list, task_queue, args.num_threads)
 
     task_queue.close()
     task_queue.join()
@@ -1323,7 +1360,8 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
             try:     
                 input = open(genewise_outputfile, 'r')
             except IOError:
-                sys.stdout.write("ERROR: Cannot open Genewise outputfile " + genewise_outputfile)
+                sys.stdout.write("ERROR: Cannot open Genewise outputfile " + genewise_outputfile + "\n")
+                sys.exit()
                 continue
 
             header_count = 0
