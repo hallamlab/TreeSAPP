@@ -1,0 +1,114 @@
+
+
+%{
+#include "mapstruct.h"
+
+
+%}
+
+
+
+
+matrix CloneWise
+query  name="q" type="MappedCloneSet *" field:len="length"
+target name="t" type="MappedCloneSet *" field:len="length"
+resource name="match"    type="MappedCloneMatch*"
+resource name="target_skip_start" type="Score"
+resource name="target_skip" type="Score"
+resource name="query_skip_start" type="Score" 
+resource name="query_skip" type="Score"
+resource name="spread"     type="int"
+resource name="target_special_s" type="int"
+state MATCH offi="1" offj="1"
+  source MATCH 
+    calc="match->matrix[i][j]+1"
+    endsource
+  source MATCH offi="0" offj="1"
+    calc="0"
+    query_label QUERY_MATCH_PAUSE
+    endsource
+  source MATCH offi="1" offj="0"
+    calc="0"
+    target_label TARGET_MATCH_PAUSE
+    endsource
+  source SKIP_QUERY
+    calc="0"
+    endsource
+  source SKIP_TARGET
+    calc="0"
+    endsource
+  source START !top !left
+    calc="0"
+    endsource
+  query_label  QUERY_MATCH
+  target_label TARGET_MATCH
+  calc="match->matrix[i][j]"
+endstate
+state SKIP_QUERY offi="1" offj="0"
+  source MATCH 
+     calc="query_skip_start"
+     endsource
+  source SKIP_TARGET 
+     calc="query_skip_start"
+     endsource
+  source SKIP_QUERY
+     calc="0"
+     endsource
+  source START !left !top
+    calc="query_skip_start"
+    endsource
+  calc="match->skip_iset[i]"
+  query_label  QUERY_SKIP
+  target_label TARGET_PAUSE
+endstate
+state SKIP_TARGET offi="0" offj="1"
+  source MATCH 
+     calc="target_skip_start"
+     endsource
+  source SKIP_QUERY
+     calc="target_skip_start"
+     endsource  
+  source SKIP_TARGET
+     calc="0"
+     endsource
+  source START !left !top
+     calc="target_skip_start"
+     endsource
+  calc="match->skip_jset[j]"
+  query_label  QUERY_PAUSE
+  target_label TARGET_SKIP
+endstate
+state START !special !start
+endstate
+state TRUSTED_SPECIAL !special offj="1"
+  source START !left 
+    calc="0"
+    endsource
+  source TRUSTED_SPECIAL
+    calc="match->skip_jset[j]-1"
+    endsource
+  source MATCH offj="0"
+     calc="target_special_s"
+     endsource
+  source SKIP_QUERY offj="0"
+     calc="target_special_s"
+     endsource
+  source SKIP_TARGET offj="0"
+     calc="target_special_s"
+     endsource
+  query_label NO_QUERY_PAUSE
+  target_label TARGET_SKIP
+endstate
+state END !special !end
+  source TRUSTED_SPECIAL !right offj="1"
+    calc="0"
+    endsource
+  query_label END
+  target_label END
+endstate
+endmatrix
+
+
+
+
+

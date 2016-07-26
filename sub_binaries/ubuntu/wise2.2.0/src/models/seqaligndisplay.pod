@@ -1,0 +1,72 @@
+=head1 NAME
+
+seqaligndisplay module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains helper functions for the Wise2 package
+
+=head1 DESCRIPTION
+
+=over
+
+=item write_pretty_str_align
+
+&Wise2::write_pretty_str_align(alb,qname,query,tname,target,name,main,ofp)
+
+  This gives an interface into the alignment
+  display using strings and files.
+
+
+
+  Argument alb          [UNKN ] alignment structure [AlnBlock *]
+  Argument qname        [UNKN ] name of first sequence [char *]
+  Argument query        [UNKN ] first sequence [char *]
+  Argument tname        [UNKN ] name of second sequence [char *]
+  Argument target       [UNKN ] second sequence [char *]
+  Argument name         [UNKN ] length of the name block [int]
+  Argument main         [UNKN ] length of the main block [int]
+  Argument ofp          [UNKN ] output file [FILE *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item write_pretty_seq_align
+
+&Wise2::write_pretty_seq_align(alb,q,t,name,main,ofp)
+
+  This gives an interface into the alignment
+  display using sequences and files. A more
+  generic function is write_pretty_str_align
+
+
+
+  Argument alb          [UNKN ] alignment structure [AlnBlock *]
+  Argument q            [UNKN ] first sequence [Sequence *]
+  Argument t            [UNKN ] second sequence  [Sequence *]
+  Argument name         [UNKN ] length of the name block [int]
+  Argument main         [UNKN ] length of the main block [int]
+  Argument ofp          [UNKN ] output file [FILE *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item write_pretty_Protein_align
+
+&Wise2::write_pretty_Protein_align(alb,q,t,name,main,ofp)
+
+  This gives an interface into the
+  alignment display using Protein
+  objects
+
+
+
+  Argument alb          [UNKN ] alignment structure [AlnBlock *]
+  Argument q            [UNKN ] first sequence [Protein *]
+  Argument t            [UNKN ] second sequence  [Protein *]
+  Argument name         [UNKN ] length of the name block [int]
+  Argument main         [UNKN ] length of the main block [int]
+  Argument ofp          [UNKN ] output file [FILE *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=back
+

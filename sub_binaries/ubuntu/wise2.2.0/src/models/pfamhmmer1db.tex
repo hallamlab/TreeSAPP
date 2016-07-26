@@ -1,0 +1,65 @@
+\section{pfamhmmer1db}
+\label{module_pfamhmmer1db}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_PfamHmmer1DB} PfamHmmer1DB
+
+\item \ref{object_PfamHmmer1Entry} PfamHmmer1Entry
+
+\end{itemize}
+\subsection{Object PfamHmmer1DB}
+
+\label{object_PfamHmmer1DB}
+
+The PfamHmmer1DB object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{en} Type [PfamHmmer1Entry ** : List] No documentation
+
+\item{dirname} Type [char * : Scalar]  directory name with the models
+
+\item{cur} Type [int : Scalar] No documentation
+
+\item{def} Type [RandomModel * : Scalar]  default random model
+
+\end{description}
+
+
+Pfam Hmmer1db is a wrapper around a Pfam Hmmer database.  This is file
+called HMM.s in a directory which has appropiate .HMM and .random
+files
+
+
+Although this DB will be phased out, it is still around for a while.
+
+
+This wont be used directly, but rather in a threestatedb model. 
+It does not implement a full dynamite style db stream. rather it expects
+threestatedb to prod it in the correct manner.
+
+
+
+
+
+
+Member functions of PfamHmmer1DB
+
+\subsection{Object PfamHmmer1Entry}
+
+\label{object_PfamHmmer1Entry}
+
+The PfamHmmer1Entry object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{entryname} Type [char * : Scalar] No documentation
+
+\item{is_random} Type [boolean : Scalar] No documentation
+
+\item{is_hmmls} Type [boolean : Scalar] No documentation
+
+\item{bits_cutoff} Type [double : Scalar] No documentation
+
+\end{description}
+No documentation for PfamHmmer1Entry
+
+Member functions of PfamHmmer1Entry
+

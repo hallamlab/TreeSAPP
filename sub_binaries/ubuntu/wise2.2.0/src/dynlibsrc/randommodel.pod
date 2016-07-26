@@ -1,0 +1,196 @@
+=head1 NAME
+
+randommodel module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item RandomModelDNA
+
+=item RandomModel
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object RandomModelDNA
+
+=over
+
+=item base[5]
+
+ Type [Probability] Scalar No documentation
+
+=item name
+
+ Type [char *] Scalar No documentation
+
+
+
+=back
+
+No documentation for RandomModelDNA
+
+=head2 Member functions of RandomModelDNA
+
+=over
+
+=item hard_link_RandomModelDNA
+
+&Wise2::RandomModelDNA::hard_link_RandomModelDNA(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [RandomModelDNA *]
+  Return [UNKN ] Undocumented return value [RandomModelDNA *]
+
+
+=item alloc
+
+&Wise2::RandomModelDNA::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [RandomModelDNA *]
+
+
+=item set_name
+
+&Wise2::RandomModelDNA::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomModelDNA *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::RandomModelDNA::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomModelDNA *]
+  Return [SOFT ] member variable name [char *]
+
+
+=back
+
+=head2 Object RandomModel
+
+=over
+
+=item aminoacid[26]
+
+ Type [Probability] Scalar No documentation
+
+=item name
+
+ Type [char *] Scalar No documentation
+
+
+
+=back
+
+No documentation for RandomModel
+
+=head2 Member functions of RandomModel
+
+=over
+
+=item hard_link_RandomModel
+
+&Wise2::RandomModel::hard_link_RandomModel(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [RandomModel *]
+  Return [UNKN ] Undocumented return value [RandomModel *]
+
+
+=item alloc
+
+&Wise2::RandomModel::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [RandomModel *]
+
+
+=item set_name
+
+&Wise2::RandomModel::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomModel *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::RandomModel::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [RandomModel *]
+  Return [SOFT ] member variable name [char *]
+
+
+=back
+
+=over
+
+=item RandomModelDNA_std
+
+&Wise2::RandomModelDNA_std(void)
+
+  Returns a structure with 0.25 set in each place
+
+
+
+  Return [UNKN ] Undocumented return value [RandomModelDNA *]
+
+
+=item default_RandomModel
+
+&Wise2::default_RandomModel(void)
+
+  Gives a default random model numbers from
+  swissprot34- via the HMMEr1 package
+
+
+
+  Return [UNKN ] Undocumented return value [RandomModel *]
+
+
+=back
+

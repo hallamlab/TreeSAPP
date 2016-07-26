@@ -1,0 +1,414 @@
+=head1 NAME
+
+gene module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item Gene
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object Gene
+
+=over
+
+=item start
+
+ Type [int] Scalar No documentation
+
+=item end
+
+ Type [int] Scalar No documentation
+
+=item parent
+
+ Type [GenomicRegion *] Scalar  may not be here
+
+=item genomic
+
+ Type [Genomic *] Scalar  may not be here!
+
+=item transcript
+
+ Type [Transcript **] List No documentation
+
+=item name
+
+ Type [char *] Scalar  ugly . Need a better system
+
+=item bits
+
+ Type [double] Scalar  ditto...
+
+=item seqname
+
+ Type [char *] Scalar  very bad! this is for keeping track of what sequence was used to make the gene
+
+=item ispseudo
+
+ Type [boolean] Scalar  is a pseudogene or not
+
+
+
+=back
+
+Gene is the datastructure which represents a single
+gene. At the moment this is considered to be a series
+of transcripts (the first transcript being "canonical")
+which are made from a certain start/stop region in
+genomic DNA.
+
+The gene datastructure does not necessarily contain
+any DNA sequence. When someone askes for the gene sequence,
+via get_Genomic_from_Gene(), it first sees if there
+is anything in the Genomic * 'cache'. If this is null,
+it then looks at parent (the genomic region), and if
+that is null, complains and returns null. Otherwise it
+truncates its parent's dna in the correct way, places
+the data structure into the genomic * cache, and returns
+it.
+
+The name, bits and seqname have put into this datastructure
+for convience of carrying around this information into some
+of the gene prediction output formats. Probabaly
+  o they should be in transcript, not gene
+  o they shouldn't be here at all.
+
+<sigh>
+
+
+
+=head2 Member functions of Gene
+
+=over
+
+=item get_Genomic_from_Gene
+
+&Wise2::Gene::get_Genomic_from_Gene(gene)
+
+  Gives back a Genomic sequence type
+  from a gene.
+
+
+
+  Argument gene         [READ ] gene to get Genomic from [Gene *]
+  Return [SOFT ] Genomic DNA data structure [Genomic *]
+
+
+=item show_pretty_Gene
+
+&Wise2::Gene::show_pretty_Gene(ge,show_supporting,ofp)
+
+  Shows a gene in the biologically accepted form
+
+
+
+  Argument ge           [UNKN ] Undocumented argument [Gene *]
+  Argument show_supporting [UNKN ] Undocumented argument [boolean]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_Gene
+
+&Wise2::Gene::hard_link_Gene(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [Gene *]
+  Return [UNKN ] Undocumented return value [Gene *]
+
+
+=item Gene_alloc_std
+
+&Wise2::Gene::Gene_alloc_std(void)
+
+  Equivalent to Gene_alloc_len(GeneLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [Gene *]
+
+
+=item set_start
+
+&Wise2::Gene::set_start(obj,start)
+
+  Replace member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Argument start        [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable start [boolean]
+
+
+=item start
+
+&Wise2::Gene::start(obj)
+
+  Access member variable start
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Return [SOFT ] member variable start [int]
+
+
+=item set_end
+
+&Wise2::Gene::set_end(obj,end)
+
+  Replace member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Argument end          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable end [boolean]
+
+
+=item end
+
+&Wise2::Gene::end(obj)
+
+  Access member variable end
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Return [SOFT ] member variable end [int]
+
+
+=item set_parent
+
+&Wise2::Gene::set_parent(obj,parent)
+
+  Replace member variable parent
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Argument parent       [OWNER] New value of the variable [GenomicRegion *]
+  Return [SOFT ] member variable parent [boolean]
+
+
+=item parent
+
+&Wise2::Gene::parent(obj)
+
+  Access member variable parent
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Return [SOFT ] member variable parent [GenomicRegion *]
+
+
+=item set_genomic
+
+&Wise2::Gene::set_genomic(obj,genomic)
+
+  Replace member variable genomic
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Argument genomic      [OWNER] New value of the variable [Genomic *]
+  Return [SOFT ] member variable genomic [boolean]
+
+
+=item genomic
+
+&Wise2::Gene::genomic(obj)
+
+  Access member variable genomic
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Return [SOFT ] member variable genomic [Genomic *]
+
+
+=item transcript
+
+&Wise2::Gene::transcript(obj,i)
+
+  Access members stored in the transcript list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Gene *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [Transcript *]
+
+
+=item length_transcript
+
+&Wise2::Gene::length_transcript(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [Gene *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_transcript
+
+&Wise2::Gene::flush_transcript(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [Gene *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_transcript
+
+&Wise2::Gene::add_transcript(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [Gene *]
+  Argument add          [OWNER] Object to add to the list [Transcript *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_name
+
+&Wise2::Gene::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::Gene::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Return [SOFT ] member variable name [char *]
+
+
+=item set_bits
+
+&Wise2::Gene::set_bits(obj,bits)
+
+  Replace member variable bits
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Argument bits         [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable bits [boolean]
+
+
+=item bits
+
+&Wise2::Gene::bits(obj)
+
+  Access member variable bits
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Return [SOFT ] member variable bits [double]
+
+
+=item set_seqname
+
+&Wise2::Gene::set_seqname(obj,seqname)
+
+  Replace member variable seqname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Argument seqname      [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable seqname [boolean]
+
+
+=item seqname
+
+&Wise2::Gene::seqname(obj)
+
+  Access member variable seqname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Return [SOFT ] member variable seqname [char *]
+
+
+=item set_ispseudo
+
+&Wise2::Gene::set_ispseudo(obj,ispseudo)
+
+  Replace member variable ispseudo
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Argument ispseudo     [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable ispseudo [boolean]
+
+
+=item ispseudo
+
+&Wise2::Gene::ispseudo(obj)
+
+  Access member variable ispseudo
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [Gene *]
+  Return [SOFT ] member variable ispseudo [boolean]
+
+
+=back
+

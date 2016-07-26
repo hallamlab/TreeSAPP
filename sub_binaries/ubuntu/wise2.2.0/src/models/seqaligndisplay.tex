@@ -1,0 +1,71 @@
+\section{seqaligndisplay}
+\label{module_seqaligndisplay}
+This module only contains factory methods
+
+\subsection{seqaligndisplay factory methods}
+\subsubsection{write_pretty_str_align}
+\begin{description}
+\item[External C] {\tt Wise2_write_pretty_str_align (alb,qname,query,tname,target,name,main,ofp)}
+\item[Perl] {\tt &Wise2::write_pretty_str_align (alb,qname,query,tname,target,name,main,ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alb] [UNKN ] alignment structure [AlnBlock *]
+\item[qname] [UNKN ] name of first sequence [char *]
+\item[query] [UNKN ] first sequence [char *]
+\item[tname] [UNKN ] name of second sequence [char *]
+\item[target] [UNKN ] second sequence [char *]
+\item[name] [UNKN ] length of the name block [int]
+\item[main] [UNKN ] length of the main block [int]
+\item[ofp] [UNKN ] output file [FILE *]
+\item[returns] [UNKN ] Undocumented return value [boolean]
+\end{description}
+This gives an interface into the alignment
+display using strings and files.
+
+
+\subsubsection{write_pretty_seq_align}
+\begin{description}
+\item[External C] {\tt Wise2_write_pretty_seq_align (alb,q,t,name,main,ofp)}
+\item[Perl] {\tt &Wise2::write_pretty_seq_align (alb,q,t,name,main,ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alb] [UNKN ] alignment structure [AlnBlock *]
+\item[q] [UNKN ] first sequence [Sequence *]
+\item[t] [UNKN ] second sequence  [Sequence *]
+\item[name] [UNKN ] length of the name block [int]
+\item[main] [UNKN ] length of the main block [int]
+\item[ofp] [UNKN ] output file [FILE *]
+\item[returns] [UNKN ] Undocumented return value [boolean]
+\end{description}
+This gives an interface into the alignment
+display using sequences and files. A more
+generic function is write_pretty_str_align
+
+
+\subsubsection{write_pretty_Protein_align}
+\begin{description}
+\item[External C] {\tt Wise2_write_pretty_Protein_align (alb,q,t,name,main,ofp)}
+\item[Perl] {\tt &Wise2::write_pretty_Protein_align (alb,q,t,name,main,ofp)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[alb] [UNKN ] alignment structure [AlnBlock *]
+\item[q] [UNKN ] first sequence [Protein *]
+\item[t] [UNKN ] second sequence  [Protein *]
+\item[name] [UNKN ] length of the name block [int]
+\item[main] [UNKN ] length of the main block [int]
+\item[ofp] [UNKN ] output file [FILE *]
+\item[returns] [UNKN ] Undocumented return value [boolean]
+\end{description}
+This gives an interface into the
+alignment display using Protein
+objects
+
+
+
+

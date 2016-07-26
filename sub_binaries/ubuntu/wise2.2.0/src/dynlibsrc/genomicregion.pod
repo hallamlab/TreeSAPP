@@ -1,0 +1,276 @@
+=head1 NAME
+
+genomicregion module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item GenomicRegion
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object GenomicRegion
+
+=over
+
+=item gene
+
+ Type [Gene **] List No documentation
+
+=item genomic
+
+ Type [Genomic *] Scalar  NB, may not be here. Be careful!
+
+
+
+=back
+
+GenomicRegion is structure which represents
+information on a region of genomic DNA. It
+*may not* have the actual DNA sequence in there,
+and it is important to realise that.
+
+The numbering scheme of many other things (eg,
+genes) are going to be represented in this 
+guys coordinates
+
+
+
+=head2 Member functions of GenomicRegion
+
+=over
+
+=item new_GenomicRegion
+
+&Wise2::GenomicRegion::new_GenomicRegion(gen)
+
+  makes a genomicregion from a genomic sequence
+
+
+
+  Argument gen          [UNKN ] Undocumented argument [Genomic *]
+  Return [UNKN ] Undocumented return value [GenomicRegion *]
+
+
+=item read_EMBL_GenomicRegion_file
+
+&Wise2::GenomicRegion::read_EMBL_GenomicRegion_file(filename)
+
+  Reads in both EMBL sequence and features 
+
+
+
+  Argument filename     [UNKN ] Undocumented argument [char *]
+  Return [UNKN ] Undocumented return value [GenomicRegion *]
+
+
+=item read_EMBL_GenomicRegion
+
+&Wise2::GenomicRegion::read_EMBL_GenomicRegion(ifp)
+
+  Reads in both EMBL sequence and features 
+
+
+
+  Argument ifp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [GenomicRegion *]
+
+
+=item add_Gene_to_GenomicRegion
+
+&Wise2::GenomicRegion::add_Gene_to_GenomicRegion(gr,gene)
+
+  adds a Gene to this GenomicRegion, making
+  sure that it parent/son relationship is ok
+
+
+
+  Argument gr           [UNKN ] GenomicRegion to be added to [GenomicRegion *]
+  Argument gene         [UNKN ] Gene to be added [Gene *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item show_ace_GenomicRegion
+
+&Wise2::GenomicRegion::show_ace_GenomicRegion(gr,seq_name,ofp)
+
+  shows ACeDB subsequence source.
+
+  Assummes
+    a only one transcript per gene
+    b only cds exons are used
+
+
+
+  Argument gr           [UNKN ] Undocumented argument [GenomicRegion *]
+  Argument seq_name     [UNKN ] Undocumented argument [char *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item show_pretty_GenomicRegion
+
+&Wise2::GenomicRegion::show_pretty_GenomicRegion(gr,show_supporting,ofp)
+
+
+  shows 'pretty' bio type gene
+
+
+
+  Argument gr           [UNKN ] Undocumented argument [GenomicRegion *]
+  Argument show_supporting [UNKN ] Undocumented argument [boolean]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item write_Diana_FT_GenomicRegion
+
+&Wise2::GenomicRegion::write_Diana_FT_GenomicRegion(gr,ofp)
+
+  Writes Embl feature table for diana use. Does assumme that
+  there is only one transcript per gene and only
+  cds exons are used
+
+  Output like
+
+     FT   misc_feature       join(100..200)
+
+
+
+  Argument gr           [UNKN ] Undocumented argument [GenomicRegion *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item write_Embl_FT_GenomicRegion
+
+&Wise2::GenomicRegion::write_Embl_FT_GenomicRegion(gr,ofp)
+
+  Writes Embl feature table. Does assumme that
+  there is only one transcript per gene and only
+  cds exons are used
+
+  Output like
+
+     FT   CDS          join(100..200)
+
+
+
+  Argument gr           [UNKN ] Undocumented argument [GenomicRegion *]
+  Argument ofp          [UNKN ] Undocumented argument [FILE *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_GenomicRegion
+
+&Wise2::GenomicRegion::hard_link_GenomicRegion(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [GenomicRegion *]
+  Return [UNKN ] Undocumented return value [GenomicRegion *]
+
+
+=item GenomicRegion_alloc_std
+
+&Wise2::GenomicRegion::GenomicRegion_alloc_std(void)
+
+  Equivalent to GenomicRegion_alloc_len(GenomicRegionLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [GenomicRegion *]
+
+
+=item gene
+
+&Wise2::GenomicRegion::gene(obj,i)
+
+  Access members stored in the gene list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [GenomicRegion *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [Gene *]
+
+
+=item length_gene
+
+&Wise2::GenomicRegion::length_gene(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [GenomicRegion *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_gene
+
+&Wise2::GenomicRegion::flush_gene(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [GenomicRegion *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_gene
+
+&Wise2::GenomicRegion::add_gene(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [GenomicRegion *]
+  Argument add          [OWNER] Object to add to the list [Gene *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_genomic
+
+&Wise2::GenomicRegion::set_genomic(obj,genomic)
+
+  Replace member variable genomic
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicRegion *]
+  Argument genomic      [OWNER] New value of the variable [Genomic *]
+  Return [SOFT ] member variable genomic [boolean]
+
+
+=item genomic
+
+&Wise2::GenomicRegion::genomic(obj)
+
+  Access member variable genomic
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GenomicRegion *]
+  Return [SOFT ] member variable genomic [Genomic *]
+
+
+=back
+

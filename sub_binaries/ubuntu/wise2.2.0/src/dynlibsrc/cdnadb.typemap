@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_cDNADB *    T_Wise2_cDNADB
+
+INPUT
+T_Wise2_cDNADB
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_cDNADB *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_cDNADB
+	sv_setref_pv($arg, "Wise2::cDNADB", (void*) $var);

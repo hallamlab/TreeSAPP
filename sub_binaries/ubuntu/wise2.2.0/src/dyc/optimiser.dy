@@ -1,0 +1,263 @@
+
+%{
+#include "dyna2.h"
+#include "type.h"
+
+#define CommonSubExpressionSetLISTLENGTH 512
+
+#define CSE_I_DEP 1
+#define CSE_J_DEP 2
+
+#define IS_I_DEP_CSE(cse) ((cse->type & CSE_I_DEP) == CSE_I_DEP ? TRUE : FALSE)
+#define IS_J_DEP_CSE(cse) ((cse->type & CSE_J_DEP) == CSE_J_DEP ? TRUE : FALSE)
+#define IS_NON_IJ_DEP_CSE(cse) (cse->type == 0 ? TRUE : FALSE)
+%}
+
+
+struct CommonSubExpression
+ExprTree * expr; !link
+int id; // able to set things as being 1,2,3 etc
+int type; // is i or j or i,j or no dependent
+int number; !def="0" // number of times this sub expression is used
+
+struct CommonSubExpressionSet
+CommonSubExpression ** cse !list // list of common sub expressions
+
+
+%{
+#include "optimiser.h"
+
+%func
+figures out whether this cse is i or j dependent
+%%
+void expr_ij_dependence(ExprTree * expr,int * ijdep)
+{
+  int i;
+
+  if( expr->type == ETR_NAME ) {
+    if( strcmp(expr->word,"i") == 0 ) {
+      *ijdep = (*ijdep | CSE_I_DEP);
+    } 
+    if( strcmp(expr->word,"j") == 0 ) {
+      *ijdep = (*ijdep | CSE_J_DEP);
+    } 
+  }
+
+  for(i=0;i<expr->nochild;i++) {
+    expr_ij_dependence(expr->child[i],ijdep);
+  }
+}
+
+%func
+Writes code with sub expressions in the correct places
+%%
+void strcat_cses_ExprTree(ExprTree * epr,char * buffer,Scope * sc,MethodTypeSet * mts,DPImplementation * dpi)
+{
+  strcat_ExprTree_Scoped(epr,buffer,sc,mts,dpi->dycw,cses_expr_placer,NULL);
+}
+
+%func
+pointer to function that does the magic on the cses placer system
+%type internal
+%%
+boolean cses_expr_placer(ExprTree * etr,char * buffer,void * data)
+{
+  char b[20];
+  /*  fprintf(stdout,"Getting into scoping, but with %d and %d\n",etr->type,etr->cse);*/
+  if( etr->cse == NULL ) 
+    return FALSE;
+
+  strcat(buffer,"subexpr");
+  sprintf(b,"%d",etr->cse->id);
+  strcat(buffer,b);
+
+  return TRUE;
+}
+
+%func
+Places ids into the cses
+%type internal
+%%
+void id_CommonSubExpressionSet(CommonSubExpressionSet * cses)
+{
+  int i;
+
+  for(i=0;i<cses->len;i++) 
+    cses->cse[i]->id = i;
+
+}
+
+
+
+
+%func
+Shows common sub expression set
+%%
+void show_CommonSubExpressionSet(CommonSubExpressionSet * cses,FILE * ofp)
+{
+  int i;
+
+  for(i=0;i<cses->len;i++) {
+    fprintf(ofp,"Sub Expression %d - Number of times seen %d IJdep %d\n   ",i,cses->cse[i]->number,cses->cse[i]->type);
+    print_ExprTree(cses->cse[i]->expr,ofp);
+    fprintf(ofp,"\n");
+  }
+}
+
+
+%func
+Makes a CommonSubExpressionSet from the
+GenericMatrix structure. 
+
+if source_ind_promote is true, then source_independent type systems
+are automatically promoted as a common sub expression, regardless of 
+number of subexpressions found
+%%
+CommonSubExpressionSet * find_CommonSubExpressions(GenericMatrix * gm,boolean source_ind_promote)
+{
+  int i,j;
+  ExprTree * exlist[512];
+  int notags =0;
+
+  CommonSubExpressionSet * out;
+  CommonSubExpression * temp;
+
+  
+  out = CommonSubExpressionSet_alloc_std();
+
+  for(i=0;i<gm->len;i++) {
+    for(j=0;j<gm->state[i]->len;j++) {
+      attach_expressions_to_list(exlist,&notags,gm->state[i]->source[j]->etr);
+    }
+    if( source_ind_promote == TRUE && gm->state[i]->etr != NULL) {
+      temp = CommonSubExpression_alloc();
+      temp->expr = gm->state[i]->etr;
+      gm->state[i]->etr->cse = temp;
+      temp->number = 1;
+      add_CommonSubExpressionSet(out,temp);
+    } else {
+      attach_expressions_to_list(exlist,&notags,gm->state[i]->etr);
+    }
+  }
+
+  for(i=0;i<gm->spec_len;i++) {
+    for(j=0;j<gm->special[i]->len;j++) {
+      attach_expressions_to_list(exlist,&notags,gm->special[i]->source[j]->etr);
+    }
+    attach_expressions_to_list(exlist,&notags,gm->special[i]->etr);
+  }
+
+  for(i=0;i<notags;i++) {
+    /*   fprintf(stderr,"Looking at %d  ",i);
+    print_ExprTree(exlist[i],stderr);
+    fprintf(stderr,"\n");
+    */
+
+    if( exlist[i]->cse != NULL )
+      continue;
+    temp = NULL;
+    for(j=i+1;j<notags;j++) {
+      if( exlist[j]->cse != NULL ) 
+	continue;
+      
+      if( identical_ExprTree(exlist[i],exlist[j]) == TRUE ) {
+	if( temp == NULL ) {
+	  temp = CommonSubExpression_alloc();
+	  temp->expr = exlist[i];
+	  exlist[i]->cse = temp;
+	  temp->number = 1;
+	  add_CommonSubExpressionSet(out,temp);
+	}
+	
+	/* we do this for every subexpression that we find */
+	exlist[j]->cse = temp;
+	temp->number++;
+      }
+    }
+  }
+
+  /* find i,j dependence */
+  for(i=0;i<out->len;i++) {
+    expr_ij_dependence(out->cse[i]->expr,&out->cse[i]->type);
+  }
+
+  id_CommonSubExpressionSet(out);
+  return out;
+
+}
+
+%func
+whether we should consider this a possible common sub expression or not
+%type internal
+%%
+boolean should_store_ExprTree_cse(ExprTree * start)
+{
+  if( start->type == ETR_EXPRESSION ||  start->type == ETR_METHOD )
+    return TRUE;
+
+  if( start->type == ETR_TAG || start->type == ETR_ARRAY || start->type == ETR_STRUCTREF || start->type == ETR_REFERENCE ) {
+    if( start->parent->type == ETR_EXPRESSION || start->parent->type == ETR_STATEMENT) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+%func
+Attaches only ETR_EXPRESSIONS into the list.
+Really a subroutine for find_CommonSubExpressions
+%%
+void attach_expressions_to_list(ExprTree ** list,int * no,ExprTree * start)
+{
+  int i;
+  if( start == NULL )
+    return;
+
+  /* fprintf(stderr,"Looking at expression %d... to %d\n",start->type,ETR_EXPRESSION); */
+  if( should_store_ExprTree_cse(start) == TRUE ) {
+    list[*no] = start;
+    *no = *no +1;
+  }
+
+  if( start->type == ETR_METHOD && start->nochild == 2) {
+    for(i=0;i<start->child[1]->nochild;i++) 
+      attach_expressions_to_list(list,no,start->child[1]->child[i]);
+  } else {
+    for(i=0;i<start->nochild;i++) 
+      attach_expressions_to_list(list,no,start->child[i]);
+  }
+}
+  
+
+%func
+Says whether two ExprTrees are completely identical - ie,
+same trees with same tags in the same order. 
+%type internal
+%%
+boolean identical_ExprTree(ExprTree * one,ExprTree * two)
+{
+  int i;
+  if( one->type != two->type ) 
+    return FALSE;
+
+  if( one->word != NULL || two->word != NULL ) {
+    if( strcmp(one->word,two->word) != 0 )
+      return FALSE;
+  }
+
+  if( one->nochild != two->nochild )
+    return FALSE;
+
+  for(i=0;i<one->nochild;i++ ) {
+    if( identical_ExprTree(one->child[i],two->child[i]) == FALSE ) {
+      return FALSE;
+    }
+  }
+
+  return TRUE;
+}
+  
+
+%}

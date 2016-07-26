@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_Protein *    T_Wise2_Protein
+
+INPUT
+T_Wise2_Protein
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Protein *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Protein
+	sv_setref_pv($arg, "Wise2::Protein", (void*) $var);

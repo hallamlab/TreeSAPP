@@ -1,0 +1,101 @@
+\section{transcript}
+\label{module_transcript}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_Exon} Exon
+
+\item \ref{object_Transcript} Transcript
+
+\end{itemize}
+\subsection{Object Exon}
+
+\label{object_Exon}
+
+The Exon object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{start} Type [int : Scalar] No documentation
+
+\item{end} Type [int : Scalar] No documentation
+
+\item{used} Type [boolean : Scalar]  used by some prediction programs etc
+
+\item{score} Type [double : Scalar] No documentation
+
+\item{sf} Type [SupportingFeature ** : List] No documentation
+
+\item{phase} Type [int : Scalar] No documentation
+
+\end{description}
+No documentation for Exon
+
+Member functions of Exon
+
+\subsection{Object Transcript}
+
+\label{object_Transcript}
+
+The Transcript object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{exon} Type [Exon ** : List] No documentation
+
+\item{parent} Type [Gene * : Scalar] No documentation
+
+\item{translation} Type [Translation ** : List] No documentation
+
+\item{cDNA} Type [cDNA * : Scalar]  may not be here!
+
+\end{description}
+
+
+Transcript represents a single spliced product from a gene. The
+transcript is considered to be a series of exons and it contains, in
+addition a series of translations. Most genes will only have one
+translation.
+
+
+Like gene before it, transcript does not necessarily contain
+DNA. When some DNA is asked from it, via get_cDNA_from_Transcript
+(notice the change from Genomic typed sequence in Gene to cDNA
+typed sequence in Transcript) it first checkes the 'cache'. 
+If it is not there, it asks for its parents genomic DNA, and
+then assemblies the cDNA using the exon coordinates. The exon
+coordinates are such that 0 means the start of the gene, not
+the start of the genomic region. (makes some outputs a pain).
+
+
+Supporting Features are added to exons, and, keeping in the spirit of
+this module, are relative to the exon start. The strand is inherieted
+from the exon
+
+
+
+
+
+
+Member functions of Transcript
+
+\subsubsection{get_cDNA_from_Transcript}
+
+\begin{description}
+\item[External C] {\tt Wise2_get_cDNA_from_Transcript (trs)}
+\item[Perl] {\tt &Wise2::Transcript::get_cDNA_from_Transcript (trs)}
+
+\item[Perl-OOP call] {\tt $obj->get_cDNA_from_Transcript()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[trs] [READ ] transcript to get cDNA from [Transcript *]
+\item[returns] [SOFT ] cDNA of the transcript [cDNA *]
+\end{description}
+gets the cDNA associated with this transcript,
+if necessary, building it from the exon information
+provided.
+
+
+returns a soft-linked object. If you want to ensure
+that this cDNA object remains in memory use
+/hard_link_cDNA on the object.
+
+

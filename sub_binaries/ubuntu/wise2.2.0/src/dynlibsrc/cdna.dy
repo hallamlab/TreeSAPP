@@ -1,0 +1,193 @@
+
+
+%{
+#include "sequence.h"
+
+
+
+%}
+
+api
+object cDNA
+des free_cDNA
+func truncate_cDNA
+func read_fasta_file_cDNA
+func cDNA_name
+func cDNA_length
+func cDNA_seqchar
+func cDNA_from_Sequence
+endobject
+endapi
+
+
+struct cDNA
+Sequence * baseseq;
+
+
+#SequenceErrorList * se // list of the sequence errors
+
+
+
+%{
+#include "cdna.h"
+
+
+
+%func
+Truncates a cDNA sequence. Basically uses
+the /magic_trunc_Sequence function (of course!)
+
+It does not alter cdna, rather it returns a new
+sequence with that truncation
+%arg
+cdna r cDNA that is truncated
+%%
+cDNA * truncate_cDNA(cDNA * cdna,int start,int stop)
+{
+  return cDNA_from_Sequence(magic_trunc_Sequence(cdna->baseseq,start,stop));
+}
+
+%func
+Reads a fasta file assumming that it is cDNA. 
+Will complain if it is not, and return NULL.
+%arg
+filename filename to be opened and read
+%%
+cDNA * read_fasta_file_cDNA(char * filename)
+{
+  Sequence * seq;
+
+  seq = read_fasta_file_Sequence(filename);
+  if( seq == NULL ) {
+    return NULL;
+  }
+
+  return cDNA_from_Sequence(seq);
+}
+
+
+%func
+Reads a fasta file assumming that it is cDNA. 
+Will complain if it is not, and return NULL.
+%arg
+ifp file point to be read from
+%%
+cDNA * read_fasta_cDNA(FILE * ifp)
+{
+  Sequence * seq;
+
+  seq = read_fasta_Sequence(ifp);
+  if( seq == NULL ) {
+    return NULL;
+  }
+
+  return cDNA_from_Sequence(seq);
+}
+
+%func
+Reads a efetch specified query
+Uses, of course /read_efetch_Sequence
+%arg
+estr r efetch string which is read
+%%
+cDNA * read_efetch_cDNA(char * estr)
+{
+  return cDNA_from_Sequence(read_efetch_Sequence(estr));
+}
+
+%func
+Reads a SRS sequence using srs4 syntax.
+Uses, of course, /read_SRS_Sequence
+
+%arg
+srsquery r string query representing SRS name
+%%
+cDNA * read_SRS_cDNA(char * srsquery)
+{
+  return cDNA_from_Sequence(read_SRS_Sequence(srsquery));
+}
+
+
+%func
+Returns the name of the cDNA
+%arg
+%%
+char * cDNA_name(cDNA * cdna)
+{
+  return cdna->baseseq->name;
+}
+
+%func
+Returns the length of the cDNA
+%arg
+%%
+int cDNA_length(cDNA * cdna)
+{
+  return cdna->baseseq->len;
+}
+
+%func
+Returns sequence character at this position.
+%arg
+cdna cDNA
+pos position in cDNA to get char
+%%
+char cDNA_seqchar(cDNA * cdna,int pos)
+{
+  return cdna->baseseq->seq[pos];
+}
+
+
+%func
+makes a new cDNA from a Sequence. It 
+owns the Sequence memory, ie will attempt a /free_Sequence
+on the structure when /free_cDNA is called
+
+If you want to give this cDNA this Sequence and
+forget about it, then just hand it this sequence and set
+seq to NULL (no need to free it). If you intend to use 
+the sequence object elsewhere outside of the cDNA datastructure
+then use cDNA_from_Sequence(/hard_link_Sequence(seq))
+
+%arg
+seq o Sequence to make cDNA from
+%%
+cDNA * cDNA_from_Sequence(Sequence * seq)
+{
+  cDNA * out;
+  int conv;
+
+  if( seq == NULL ) {
+    warn("Trying to make a cdna sequence from a NULL baseseq.");
+    return NULL;
+  }
+
+  if( is_dna_Sequence(seq) == FALSE ) {
+    warn("Trying to make a cDNA sequence from a non cDNA base sequence [%s].",seq->name);
+    return NULL;
+  }
+
+  uppercase_Sequence(seq);
+
+  force_to_dna_Sequence(seq,1.0,&conv);
+ 
+  if( conv != 0 ) {
+    log_full_error(INFO,0,"In making %s a cdna sequence, converted %d bases (%2.1f%%) to N's from non ATGCN",seq->name,conv,(double)conv*100/(double)seq->len);
+  }
+
+  out = cDNA_alloc();
+
+  out->baseseq = seq;
+
+  return out;
+}
+
+
+
+
+%}
+
+
+
+
+

@@ -1,0 +1,380 @@
+=head1 NAME
+
+cdnadb module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item cDNADB
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object cDNADB
+
+=over
+
+=item is_single_seq
+
+ Type [boolean] Scalar No documentation
+
+=item done_forward
+
+ Type [boolean] Scalar No documentation
+
+=item forward_only
+
+ Type [boolean] Scalar No documentation
+
+=item forw
+
+ Type [ComplexSequence *] Scalar No documentation
+
+=item rev
+
+ Type [ComplexSequence *] Scalar No documentation
+
+=item sdb
+
+ Type [SequenceDB *] Scalar No documentation
+
+=item current
+
+ Type [Sequence *] Scalar No documentation
+
+=item cses
+
+ Type [ComplexSequenceEvalSet *] Scalar No documentation
+
+=item error_handling
+
+ Type [CdnaDBErrorType] Scalar No documentation
+
+=item error_tol
+
+ Type [double] Scalar No documentation
+
+
+
+=back
+
+This object hold a database of
+cDNA sequences.
+
+You will probably use it in one of
+two ways
+
+1 A sequence formatted database, which
+is provided by a /SequenceDB object
+is used to provide the raw sequences 
+
+2 A single cDNA sequence is used.
+
+In each case this database provides
+both the forward and reverse strands
+into the system.
+
+Notice that what is exported are
+/ComplexSequence objects, not cDNA dna,
+as this is what is generally needed. 
+These are things with splice sites calculated
+etc. This is why for initialisation this needs
+a /ComplexSequenceEvalSet of the correct type.
+
+
+
+=head2 Member functions of cDNADB
+
+=over
+
+=item get_entry
+
+&Wise2::cDNADB::get_entry(cdnadb,de)
+
+  Gets cDNA sequence out from
+  the cDNADB using the information stored in
+  dataentry
+
+
+
+  Argument cdnadb       [READ ] cDNA database [cDNADB *]
+  Argument de           [READ ] DataEntry information  [DataEntry *]
+  Return [UNKN ] Undocumented return value [cDNA *]
+
+
+=item hard_link_cDNADB
+
+&Wise2::cDNADB::hard_link_cDNADB(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [cDNADB *]
+  Return [UNKN ] Undocumented return value [cDNADB *]
+
+
+=item alloc
+
+&Wise2::cDNADB::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [cDNADB *]
+
+
+=item set_is_single_seq
+
+&Wise2::cDNADB::set_is_single_seq(obj,is_single_seq)
+
+  Replace member variable is_single_seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Argument is_single_seq [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable is_single_seq [boolean]
+
+
+=item is_single_seq
+
+&Wise2::cDNADB::is_single_seq(obj)
+
+  Access member variable is_single_seq
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Return [SOFT ] member variable is_single_seq [boolean]
+
+
+=item set_done_forward
+
+&Wise2::cDNADB::set_done_forward(obj,done_forward)
+
+  Replace member variable done_forward
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Argument done_forward [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable done_forward [boolean]
+
+
+=item done_forward
+
+&Wise2::cDNADB::done_forward(obj)
+
+  Access member variable done_forward
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Return [SOFT ] member variable done_forward [boolean]
+
+
+=item set_forward_only
+
+&Wise2::cDNADB::set_forward_only(obj,forward_only)
+
+  Replace member variable forward_only
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Argument forward_only [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable forward_only [boolean]
+
+
+=item forward_only
+
+&Wise2::cDNADB::forward_only(obj)
+
+  Access member variable forward_only
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Return [SOFT ] member variable forward_only [boolean]
+
+
+=item set_forw
+
+&Wise2::cDNADB::set_forw(obj,forw)
+
+  Replace member variable forw
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Argument forw         [OWNER] New value of the variable [ComplexSequence *]
+  Return [SOFT ] member variable forw [boolean]
+
+
+=item forw
+
+&Wise2::cDNADB::forw(obj)
+
+  Access member variable forw
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Return [SOFT ] member variable forw [ComplexSequence *]
+
+
+=item set_rev
+
+&Wise2::cDNADB::set_rev(obj,rev)
+
+  Replace member variable rev
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Argument rev          [OWNER] New value of the variable [ComplexSequence *]
+  Return [SOFT ] member variable rev [boolean]
+
+
+=item rev
+
+&Wise2::cDNADB::rev(obj)
+
+  Access member variable rev
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Return [SOFT ] member variable rev [ComplexSequence *]
+
+
+=item set_sdb
+
+&Wise2::cDNADB::set_sdb(obj,sdb)
+
+  Replace member variable sdb
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Argument sdb          [OWNER] New value of the variable [SequenceDB *]
+  Return [SOFT ] member variable sdb [boolean]
+
+
+=item sdb
+
+&Wise2::cDNADB::sdb(obj)
+
+  Access member variable sdb
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Return [SOFT ] member variable sdb [SequenceDB *]
+
+
+=item set_current
+
+&Wise2::cDNADB::set_current(obj,current)
+
+  Replace member variable current
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Argument current      [OWNER] New value of the variable [Sequence *]
+  Return [SOFT ] member variable current [boolean]
+
+
+=item current
+
+&Wise2::cDNADB::current(obj)
+
+  Access member variable current
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Return [SOFT ] member variable current [Sequence *]
+
+
+=item set_cses
+
+&Wise2::cDNADB::set_cses(obj,cses)
+
+  Replace member variable cses
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Argument cses         [OWNER] New value of the variable [ComplexSequenceEvalSet *]
+  Return [SOFT ] member variable cses [boolean]
+
+
+=item cses
+
+&Wise2::cDNADB::cses(obj)
+
+  Access member variable cses
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [cDNADB *]
+  Return [SOFT ] member variable cses [ComplexSequenceEvalSet *]
+
+
+=back
+
+=over
+
+=item new_cDNADB_from_single_seq
+
+&Wise2::new_cDNADB_from_single_seq(seq)
+
+  To make a new cDNA database
+  from a single cDNA Sequence with a eval system
+
+
+
+  Argument seq          [UNKN ] sequence which as placed into cDNADB structure. [cDNA *]
+  Return [UNKN ] Undocumented return value [cDNADB *]
+
+
+=item new_cDNADB
+
+&Wise2::new_cDNADB(seqdb)
+
+  To make a new cDNA database
+
+
+
+  Argument seqdb        [READ ] sequence database [SequenceDB *]
+  Return [UNKN ] Undocumented return value [cDNADB *]
+
+
+=back
+

@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_Histogram *    T_Wise2_Histogram
+
+INPUT
+T_Wise2_Histogram
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Histogram *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Histogram
+	sv_setref_pv($arg, "Wise2::Histogram", (void*) $var);

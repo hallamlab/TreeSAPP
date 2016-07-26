@@ -1,0 +1,132 @@
+
+
+%{
+#include "dyna.h"
+
+
+%}
+
+struct CodonMatrix
+Probability prob[125][125]
+
+struct CodonMatrixScore
+Score  score[125][125]
+
+%{
+#include "codonmatrix.h"
+
+
+
+%func
+Combines CodonMatrixScore_from_CodonMatrix and naive_CodonMatrix
+%%
+CodonMatrixScore * naive_CodonMatrixScore_from_prob(CodonTable * ct,CompProb * cm)
+{
+  CodonMatrixScore * out;
+  CodonMatrix * com;
+
+  com = naive_CodonMatrix(ct,cm);
+
+  out = CodonMatrixScore_from_CodonMatrix(com);
+
+  free_CodonMatrix(com);
+
+  return out;
+}
+
+
+%func
+Makes a CodonMatrixScore from a CodonMatrix
+%%
+CodonMatrixScore * CodonMatrixScore_from_CodonMatrix(CodonMatrix * cm)
+{
+  int i,j;
+  CodonMatrixScore * out;
+
+  out = CodonMatrixScore_alloc();
+
+  for(i=0;i<125;i++) 
+    for(j=0;j<125;j++) 
+      out->score[i][j] = Probability2Score(cm->prob[i][j]);
+  
+  return out;
+}
+
+%func
+Builds a probability matrix
+  No codon bias
+  No errors
+N codons score 1.0, stop codons probability 0.00001
+%%
+CodonMatrix * naive_CodonMatrix(CodonTable * ct,CompProb * comp)
+{
+  int i;
+  int j;
+  CodonMatrix * out;
+
+
+  out = CodonMatrix_alloc();
+
+  for(i=0;i<125;i++)
+    for(j=i;j<125;j++) {
+
+      if( has_random_bases(i) == TRUE || has_random_bases(j) == TRUE ) {
+	out->prob[i][j] = out->prob[j][i] = 1.0;
+      } else if ( is_stop_codon(i,ct) == TRUE || is_stop_codon(j,ct) == TRUE ) {	
+	out->prob[i][j] = out->prob[j][i] = 0.00001;
+      } else { 
+	out->prob[i][j] = out->prob[j][i] = comp->comp[aminoacid_no_from_codon(ct,i)][aminoacid_no_from_codon(ct,j)];
+      }
+    }
+    
+
+  return out;
+}
+
+
+%func
+Builds a codon matrix from CompMat which assummes:
+  No codon Bias
+  No errors
+N codons score 0, stop codons score ??
+%arg
+ct CodonTable for codon->aa mapping
+comp Comparison matrix for the score of the individual access
+%%
+CodonMatrixScore * naive_CodonMatrixScore(CodonTable * ct,CompMat * comp)
+{
+  int i;
+  int j;
+  CodonMatrixScore * out;
+
+
+  out = CodonMatrixScore_alloc();
+
+  for(i=0;i<125;i++)
+    for(j=i;j<125;j++) {
+      if( has_random_bases(i) == TRUE || has_random_bases(j) == TRUE ) 
+	out->score[i][j] = out->score[j][i] = 0;
+      else 
+	out->score[i][j] = out->score[j][i] = fail_safe_CompMat_access(comp,aminoacid_no_from_codon(ct,i),aminoacid_no_from_codon(ct,j));
+    }
+
+  return out;
+}
+
+
+%func
+Shows a codonmatrix
+%%
+void show_CodonMatrixScore(CodonMatrixScore * cms,CodonTable * ct,FILE * ofp)
+{
+  int i;
+  int j;
+
+  for(i=0;i<125;i++) 
+    for(j=0;j<125;j++) {
+      fprintf(ofp,"%5d %c :%5d %c Score %5d\n",i,aminoacid_from_codon(ct,i),j,aminoacid_from_codon(ct,j),cms->score[i][j]);
+    }
+
+}
+
+

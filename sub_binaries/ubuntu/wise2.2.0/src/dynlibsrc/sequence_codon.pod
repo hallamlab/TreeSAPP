@@ -1,0 +1,68 @@
+=head1 NAME
+
+sequence_codon module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains helper functions for the Wise2 package
+
+=head1 DESCRIPTION
+
+=over
+
+=item reverse_complement_Sequence
+
+&Wise2::reverse_complement_Sequence(seq)
+
+  This both complements and reverses a sequence,
+  - a common wish!
+
+  The start/end are correct with respect to the start/end
+  of the sequence (ie start = end, end = start).
+
+
+
+  Argument seq          [READ ] Sequence to that is used to reverse (makes a new Sequence) [Sequence *]
+  Return [OWNER] new Sequence which is reversed [Sequence *]
+
+
+=item magic_trunc_Sequence
+
+&Wise2::magic_trunc_Sequence(seq,start,end)
+
+  Clever function for dna sequences.
+
+  When start < end, truncates normally
+
+  when start > end, truncates end,start and then
+  reverse complements.
+
+  ie. If you have a coordinate system where reverse 
+  sequences are labelled in reverse start/end way,
+  then this routine produces the correct sequence.
+
+
+
+  Argument seq          [READ ] sequence that is the source to be truncated [Sequence *]
+  Argument start        [READ ] start point [int]
+  Argument end          [READ ] end point [int]
+  Return [OWNER] new Sequence which is truncated/reversed [Sequence *]
+
+
+=item translate_Sequence
+
+&Wise2::translate(dna,ct)
+
+  This translates a DNA sequence to a protein.
+  It assummes that it starts at first residue
+  (use trunc_Sequence to chop a sequence up).
+
+
+
+  Argument dna          [READ ] DNA sequence to be translated [Sequence *]
+  Argument ct           [READ ] Codon table to do codon->aa mapping [CodonTable *]
+  Return [OWNER] new protein sequence [Sequence *]
+
+
+=back
+

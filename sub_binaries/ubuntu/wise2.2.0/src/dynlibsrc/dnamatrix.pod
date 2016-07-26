@@ -1,0 +1,166 @@
+=head1 NAME
+
+dnamatrix module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item DnaMatrix
+
+=item DnaProbMatrix
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object DnaMatrix
+
+=over
+
+=item score[5][5]
+
+ Type [Score] Scalar No documentation
+
+
+
+=back
+
+No documentation for DnaMatrix
+
+=head2 Member functions of DnaMatrix
+
+=over
+
+=item hard_link_DnaMatrix
+
+&Wise2::DnaMatrix::hard_link_DnaMatrix(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [DnaMatrix *]
+  Return [UNKN ] Undocumented return value [DnaMatrix *]
+
+
+=item alloc
+
+&Wise2::DnaMatrix::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [DnaMatrix *]
+
+
+=back
+
+=head2 Object DnaProbMatrix
+
+=over
+
+=item prob[5][5]
+
+ Type [Probability] Scalar No documentation
+
+
+
+=back
+
+No documentation for DnaProbMatrix
+
+=head2 Member functions of DnaProbMatrix
+
+=over
+
+=item flat_null_DnaProbMatrix
+
+&Wise2::DnaProbMatrix::flat_null_DnaProbMatrix(dpm)
+
+  makes a odds of dpm via a 0.25 factor 
+  into each base.
+
+
+
+  Argument dpm          [UNKN ] Undocumented argument [DnaProbMatrix *]
+  Return [UNKN ] Undocumented return value [void]
+
+
+=item hard_link_DnaProbMatrix
+
+&Wise2::DnaProbMatrix::hard_link_DnaProbMatrix(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [DnaProbMatrix *]
+  Return [UNKN ] Undocumented return value [DnaProbMatrix *]
+
+
+=item alloc
+
+&Wise2::DnaProbMatrix::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [DnaProbMatrix *]
+
+
+=back
+
+=over
+
+=item identity_DnaMatrix
+
+&Wise2::identity_DnaMatrix(id_score,mismatch)
+
+  makes an idenity matrix wth id_score on the leading
+  diagonal and mismatch elsewhere.
+
+
+
+
+  Argument id_score     [UNKN ] score of idenities [Score]
+  Argument mismatch     [UNKN ] score of mistmatches [Score]
+  Return [UNKN ] Undocumented return value [DnaMatrix *]
+
+
+=item DnaProbMatrix_from_match
+
+&Wise2::DnaProbMatrix_from_match(match,nmask_type)
+
+  Makes a probability matrix from simple match/mismatch 
+  probabilities.
+
+
+
+
+  Argument match        [UNKN ] Undocumented argument [Probability]
+  Argument nmask_type   [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [DnaProbMatrix *]
+
+
+=item DnaMatrix_from_DnaProbMatrix
+
+&Wise2::DnaMatrix_from_DnaProbMatrix(dpm)
+
+  Maps probabilities to scores
+
+
+
+  Argument dpm          [UNKN ] Undocumented argument [DnaProbMatrix *]
+  Return [UNKN ] Undocumented return value [DnaMatrix *]
+
+
+=back
+

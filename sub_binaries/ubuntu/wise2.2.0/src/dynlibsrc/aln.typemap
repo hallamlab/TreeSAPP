@@ -1,0 +1,44 @@
+
+TYPEMAP
+Wise2_AlnBlock *    T_Wise2_AlnBlock
+
+INPUT
+T_Wise2_AlnBlock
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_AlnBlock *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_AlnBlock
+	sv_setref_pv($arg, "Wise2::AlnBlock", (void*) $var);
+
+TYPEMAP
+Wise2_AlnColumn *    T_Wise2_AlnColumn
+
+INPUT
+T_Wise2_AlnColumn
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_AlnColumn *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_AlnColumn
+	sv_setref_pv($arg, "Wise2::AlnColumn", (void*) $var);
+
+TYPEMAP
+Wise2_AlnUnit *    T_Wise2_AlnUnit
+
+INPUT
+T_Wise2_AlnUnit
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_AlnUnit *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_AlnUnit
+	sv_setref_pv($arg, "Wise2::AlnUnit", (void*) $var);
+
+TYPEMAP
+Wise2_AlnSequence *    T_Wise2_AlnSequence
+
+INPUT
+T_Wise2_AlnSequence
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_AlnSequence *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_AlnSequence
+	sv_setref_pv($arg, "Wise2::AlnSequence", (void*) $var);

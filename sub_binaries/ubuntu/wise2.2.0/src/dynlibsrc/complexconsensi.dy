@@ -1,0 +1,241 @@
+/*  Last edited: Jan 10 17:23 1997 (birney) */
+
+
+
+%{
+#include "wisebase.h"
+#include "probability.h"
+
+#define ComplexConsensiLISTLENGTH 64
+
+%}
+
+
+struct ComplexConsensusWord
+char * pattern
+Score score
+Probability p
+
+struct ComplexConsensi
+ComplexConsensusWord ** ccw !list
+char * name
+
+
+%{
+#include "complexconsensi.h"
+
+%func
+shows complexconsensi in vaguely human form
+%arg
+%%
+void show_ComplexConsensi(ComplexConsensi * cc,FILE *ofp)
+{
+  register int i;
+
+  for(i=0;i<cc->len;i++)
+    show_ComplexConsensusWord(cc->ccw[i],ofp);
+
+}
+
+%func
+shows an individual ccword
+%type internal
+%arg
+%%
+void show_ComplexConsensusWord(ComplexConsensusWord * ccw,FILE * ofp)
+{
+  fprintf(ofp,"%s %4.4f %d\n",ccw->pattern,ccw->p,ccw->score);
+}
+
+
+%func
+Way of getting probabilities out of a consensus.
+If it is in the Consensus, then gets prob, otherwise 0.
+%arg
+%%
+Probability word_from_ComplexConsensi(char * word,ComplexConsensi * cc)
+{
+  ComplexConsensusWord * ccw;
+
+  ccw = best_ComplexConsensusWord(word,cc);
+
+  if( ccw == NULL )
+    return 0.0;
+
+  return ccw->p;
+}
+
+%func
+Way of getting scores out of a consensus.
+If it is in the Consensus, then gets score, otherwise NEGI.
+%arg
+%%
+Score score_from_ComplexConsensi(char * word,ComplexConsensi * cc)
+{
+  ComplexConsensusWord * ccw;
+
+  ccw = best_ComplexConsensusWord(word,cc);
+
+  if( ccw == NULL )
+    return NEGI;
+
+  return ccw->score;
+}
+
+%func
+Finds the best (highest) match to this word
+%arg
+%%
+ComplexConsensusWord * best_ComplexConsensusWord(char * word,ComplexConsensi * cc)
+{
+  register int i;
+
+  for(i=0;i<cc->len;i++) {
+    if( word_matches_ComplexConsensusWord(word,cc->ccw[i]) == TRUE)
+      return cc->ccw[i];
+  }
+
+  return NULL;
+}
+    
+
+%func
+Core of the matching system. Checks that word matches 
+ComplexConsensusWord. This says that '-' matches anything.
+Issues a warning if hits a '\0' in word
+%arg
+%%
+boolean word_matches_ComplexConsensusWord(char * word,ComplexConsensusWord * ccw)
+{
+  return strcmp_with_dashes(word,ccw->pattern);
+} 
+
+%func
+The matching 'function' used by
+/word_matches_ComplexConsensusWord
+%type internal
+%%
+boolean strcmp_with_dashes(char * word,char * pattern)
+{
+  char * runner;
+  char * base = word;
+
+  for(runner = pattern;*runner && *word;word++,runner++) {
+    if( *runner == '-') {
+      continue;
+    }
+
+    if( *runner != *word ) {
+      break;
+    }
+
+  }
+
+  if( *word == '\0' && *runner != '\0') {
+    warn("Tried to match a word [%s] which is shorter than the pattern [%s]",base,pattern);
+    return FALSE;
+  }
+
+  if( *runner == '\0') {
+    /* end of pattern */
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+
+
+ /************************/
+ /* I/O                  */
+ /************************/
+
+
+%func
+Reads a file containing the ComplexConsensi.
+Not every useful, as most times these consensi
+are in one file, with other things
+%arg
+%%
+ComplexConsensi * read_ComplexConsensi_file(char * filename)
+{
+  FILE * ifp;
+  ComplexConsensi * out;
+
+  ifp = openfile(filename,"r");
+  if( ifp == NULL ) {
+    warn("Could not open file %s for ComplexConsensi",filename);
+    return NULL;
+  }
+
+  out = read_ComplexConsensi(ifp);
+
+  fclose(ifp);
+
+  return out;
+}
+
+
+%func
+Reads on ComplexConsensi from the FILE ifp.
+%arg
+ifp input filestream
+%%
+ComplexConsensi * read_ComplexConsensi(FILE * ifp)
+{
+  ComplexConsensi * out;
+  ComplexConsensusWord * temp;
+  char buffer[MAXLINE];
+
+
+  out = ComplexConsensi_alloc_std();
+  if( out == NULL )
+    return NULL;
+
+
+  while( fgets(buffer,MAXLINE,ifp) != NULL ) {
+    if( buffer[0] == '#' ) 
+      continue;
+    temp = read_ComplexConsensusWord_line(buffer);
+    if( temp != NULL ) 
+      add_ComplexConsensi(out,temp);
+  }
+
+  return out;
+}
+    
+
+%func
+Reads a single ccword from a line
+%type internal
+%arg
+%%
+ComplexConsensusWord * read_ComplexConsensusWord_line(char * line)
+{
+  ComplexConsensusWord * out;
+  char * pattern;
+  char * score;
+
+
+  pattern = strtok(line,spacestr);
+  score   = strtok(NULL,spacestr);
+
+  if( pattern == NULL || score == NULL ) {
+    warn("Could not read a ComplexConsenusWord... ooops");
+    return NULL;
+  }
+
+
+  out = ComplexConsensusWord_alloc();
+
+  if( out == NULL)
+    return NULL;
+
+  out->pattern = stringalloc(pattern);
+  out->score = (double) atof(score);
+
+  return out;
+}
+
+

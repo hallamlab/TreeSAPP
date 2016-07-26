@@ -1,0 +1,152 @@
+
+%{
+#include "wisebase.h"
+
+
+%}
+
+struct DycWarning
+boolean warn_extern !def="TRUE"
+boolean warn_extern_method !def="TRUE"
+boolean warn_c_type !def="TRUE"
+
+struct DPImplementation
+boolean do_threads !def="FALSE"
+int protect_level  !def="0"
+int db_trace_level !def="0"
+boolean doprob     !def="FALSE"
+boolean doone      !def="FALSE"
+char * calcfunc    !def="NULL"
+boolean largemem   !def="FALSE"
+DycWarning * dycw
+boolean dydebug    !def="FALSE"
+%info
+
+This structure indicates 
+what dynamic programming implementations
+should be written using dynamite
+%%
+
+
+%{
+#include "dpimpl.h"
+
+%func
+Shows to stdout the list of options
+used by DycWarning
+%%
+void show_help_DycWarning(FILE * ofp)
+{
+  fprintf(ofp,"Dyc Compiler Warnings\n");
+  fprintf(ofp,"  -[no]cwarn   Global switch to put on/off all warnings about C constructs\n");
+  fprintf(ofp,"  -[no]extern  Warning about extern scope of names\n");
+  fprintf(ofp,"  -[no]methods Warning about extern methods not being scoped/typed\n");
+  fprintf(ofp,"  -[no]ctype   Warning about non logical (C) types\n");
+}
+
+%func
+Shows to stdout the list options used
+by DPImplementation
+%%
+void show_help_DPImplementation(FILE * ofp)
+{
+  fprintf(ofp,"Dynamic Programming debugging options\n");
+  fprintf(ofp,"  -g             generate dynamic programming debugging\n");
+  fprintf(ofp,"Dynamic Programming Optimisations\n");
+  fprintf(ofp,"  -O             switch all optimisations on\n");
+  fprintf(ofp,"  -[no]largemem  Assume large malloc chunks ok (default no)\n");
+  fprintf(ofp,"Database search implementation options\n");
+  fprintf(ofp,"  -pthreads      generate pthread code\n");
+  fprintf(ofp,"  -dbtrace <no>  database trace level code production\n");
+  fprintf(ofp,"  -onemodel      generate onemodel (bioxl/g) port\n");
+  fprintf(ofp,"Additional generated routines\n");
+  fprintf(ofp,"  -prob          all probabilistic routines\n");
+  fprintf(ofp,"  -logsum <func> function to use for summing log'd scores\n");
+
+  show_help_DycWarning(ofp);
+}
+
+%func
+Processes the argstring into the DycWarning stuff
+%%
+DycWarning * new_DycWarning_from_argstr(int * argc,char ** argv)
+{
+  DycWarning * out;
+  boolean cwarn = TRUE;
+  
+  out = DycWarning_alloc();
+
+  strip_out_boolean_def_argument(argc,argv,"cwarn",&cwarn);
+
+  if( cwarn == TRUE ) {
+    out->warn_extern = TRUE;
+    out->warn_extern_method = TRUE;
+    out->warn_c_type = TRUE;
+  } else {
+    out->warn_extern = FALSE;
+    out->warn_c_type = FALSE;
+    out->warn_extern_method = FALSE;
+  }
+
+
+  strip_out_boolean_def_argument(argc,argv,"extern",&out->warn_extern);
+  strip_out_boolean_def_argument(argc,argv,"ctype",&out->warn_c_type);
+  strip_out_boolean_def_argument(argc,argv,"methods",&out->warn_extern_method);
+  
+  return out;
+}
+
+%func
+Processes the argstring into the DPImplementation
+datastructure.
+%%
+DPImplementation * new_DPImplementation_from_argstr(int * argc,char ** argv)
+{
+  DPImplementation * out;
+  char * temp;
+
+  out = DPImplementation_alloc();
+  
+  if( (strip_out_boolean_argument(argc,argv,"pthreads")) == TRUE ) {
+    out->do_threads = TRUE;
+  }
+  if( (temp=strip_out_assigned_argument(argc,argv,"dbtrace")) != NULL ) {
+    if( is_integer_string(temp,&out->db_trace_level) == FALSE ) {
+      warn("%s is not an integer argument for dbtrace",temp);
+    }
+  }
+
+  if( strip_out_boolean_argument(argc,argv,"O") == TRUE ) {
+    out->largemem= TRUE;
+    /* other optimisations */
+  }
+
+  strip_out_boolean_def_argument(argc,argv,"largemem",&out->largemem);
+
+  strip_out_boolean_def_argument(argc,argv,"onemodel",&out->doone);
+    
+  if( strip_out_boolean_argument(argc,argv,"prob") == TRUE ) {
+    out->doprob = TRUE;
+  }
+
+  if( strip_out_boolean_argument(argc,argv,"g") == TRUE ) {
+    out->dydebug = TRUE;
+  }
+
+  if( (temp=strip_out_assigned_argument(argc,argv,"logsum")) != NULL ) {
+    out->calcfunc = stringalloc(temp);
+  } else {
+    out->calcfunc = stringalloc("Probability_logsum");
+  }
+  out->dycw = new_DycWarning_from_argstr(argc,argv);
+
+  /*  fprintf(stderr,"And %d is extern warning",out->dycw->warn_extern);*/
+  return out;
+}
+  
+
+%}
+
+
+
+

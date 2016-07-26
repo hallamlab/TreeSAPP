@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_PfamHmmer1DB *    T_Wise2_PfamHmmer1DB
+
+INPUT
+T_Wise2_PfamHmmer1DB
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_PfamHmmer1DB *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_PfamHmmer1DB
+	sv_setref_pv($arg, "Wise2::PfamHmmer1DB", (void*) $var);
+
+TYPEMAP
+Wise2_PfamHmmer1Entry *    T_Wise2_PfamHmmer1Entry
+
+INPUT
+T_Wise2_PfamHmmer1Entry
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_PfamHmmer1Entry *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_PfamHmmer1Entry
+	sv_setref_pv($arg, "Wise2::PfamHmmer1Entry", (void*) $var);

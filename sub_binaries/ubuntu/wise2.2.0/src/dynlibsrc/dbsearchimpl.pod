@@ -1,0 +1,279 @@
+=head1 NAME
+
+dbsearchimpl module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item DBSearchImpl
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object DBSearchImpl
+
+=over
+
+=item type
+
+ Type [int] Scalar No documentation
+
+=item trace_level
+
+ Type [int] Scalar  how much debugging information to print
+
+=item trace_file
+
+ Type [FILE *] Scalar  for writing out trace of db stuff
+
+=item suggest_thread_no
+
+ Type [int] Scalar  default, -1, means the use a call to _SC_NPROC
+
+=item search_routine
+
+ Type [int] Scalar  routine used for the calculation, exact/kbest
+
+
+
+=back
+
+
+DBSearchImpl contains the information about
+the database search implementation used in
+a dynamite call. This is the only object which
+needs to specify say threads vs serial code
+
+The construction of this object is from its own
+stripping of the command line. This way programs
+which do database searching need not know anything
+about the implementation that is being used by 
+the dynamite compiler
+
+From the API you should be looking to make it from
+one of the handy constructors.
+
+For the threads code, if you leave the suggest_thread_no
+at (-1) - what it usually comes as for the constructors.
+The system then figures out the number of processors available
+on the machine and sets it to that.
+
+
+
+=head2 Member functions of DBSearchImpl
+
+=over
+
+=item string
+
+&Wise2::DBSearchImpl::string(dbsi)
+
+  Gets a static text string out of the
+  search implementation 
+
+
+
+  Argument dbsi         [UNKN ] Undocumented argument [DBSearchImpl *]
+  Return [SOFT ] string of the search implementation [char *]
+
+
+=item hard_link_DBSearchImpl
+
+&Wise2::DBSearchImpl::hard_link_DBSearchImpl(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [DBSearchImpl *]
+  Return [UNKN ] Undocumented return value [DBSearchImpl *]
+
+
+=item alloc
+
+&Wise2::DBSearchImpl::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [DBSearchImpl *]
+
+
+=item set_type
+
+&Wise2::DBSearchImpl::set_type(obj,type)
+
+  Replace member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Argument type         [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable type [boolean]
+
+
+=item type
+
+&Wise2::DBSearchImpl::type(obj)
+
+  Access member variable type
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Return [SOFT ] member variable type [int]
+
+
+=item set_trace_level
+
+&Wise2::DBSearchImpl::set_trace_level(obj,trace_level)
+
+  Replace member variable trace_level
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Argument trace_level  [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable trace_level [boolean]
+
+
+=item trace_level
+
+&Wise2::DBSearchImpl::trace_level(obj)
+
+  Access member variable trace_level
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Return [SOFT ] member variable trace_level [int]
+
+
+=item set_trace_file
+
+&Wise2::DBSearchImpl::set_trace_file(obj,trace_file)
+
+  Replace member variable trace_file
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Argument trace_file   [OWNER] New value of the variable [FILE *]
+  Return [SOFT ] member variable trace_file [boolean]
+
+
+=item trace_file
+
+&Wise2::DBSearchImpl::trace_file(obj)
+
+  Access member variable trace_file
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Return [SOFT ] member variable trace_file [FILE *]
+
+
+=item set_suggest_thread_no
+
+&Wise2::DBSearchImpl::set_suggest_thread_no(obj,suggest_thread_no)
+
+  Replace member variable suggest_thread_no
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Argument suggest_thread_no [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable suggest_thread_no [boolean]
+
+
+=item suggest_thread_no
+
+&Wise2::DBSearchImpl::suggest_thread_no(obj)
+
+  Access member variable suggest_thread_no
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Return [SOFT ] member variable suggest_thread_no [int]
+
+
+=item set_search_routine
+
+&Wise2::DBSearchImpl::set_search_routine(obj,search_routine)
+
+  Replace member variable search_routine
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Argument search_routine [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable search_routine [boolean]
+
+
+=item search_routine
+
+&Wise2::DBSearchImpl::search_routine(obj)
+
+  Access member variable search_routine
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [DBSearchImpl *]
+  Return [SOFT ] member variable search_routine [int]
+
+
+=back
+
+=over
+
+=item new_pthread_DBSearchImpl
+
+&Wise2::new_pthread_DBSearchImpl(void)
+
+  Makes a new pthreaded DBSearchImpl
+
+  For use mainly for api's who don't want
+  to initalize the object from the command
+  line
+
+
+
+  Return [UNKN ] Undocumented return value [DBSearchImpl *]
+
+
+=item new_serial_DBSearchImpl
+
+&Wise2::new_serial_DBSearchImpl(void)
+
+  Makes a new serial DBSearchImpl
+
+  For use mainly for api's who don't want
+  to initalize the object from the command
+  line
+
+
+
+  Return [UNKN ] Undocumented return value [DBSearchImpl *]
+
+
+=back
+

@@ -1,0 +1,1172 @@
+
+
+%{
+#include "dynfile.h"
+#include "objectinfo.h"
+#include "wisec.h"
+
+#define APIObjectLISTLENGTH 64
+#define dynAPILISTLENGTH 64
+
+
+%}
+
+
+struct APIfunc
+char * name
+FuncInfo * fi //  hard linked
+boolean only_C !def="FALSE"
+
+struct APIObject
+char * name
+APIfunc * destructor
+APIfunc * hard_linker
+APIfunc ** member !list
+ObjectInfo * info
+StructHolder * sh 
+
+struct dynAPI
+APIfunc ** non_obj !list !len="non_"
+APIObject ** obj !list
+%info
+This Object contains the api definition
+for the module. The api is used to 
+generate a name-space clear C api and
+a Perl interface at the moment. 
+%%
+
+%{
+#include "api.h"
+
+  
+boolean write_pfdoc_dynAPI(dynAPI * api,char * package_name,FILE * ofp)
+{
+  int i,j;
+
+  for(i=0;i<api->len;i++) {
+    auto APIObject * obj;
+    obj = api->obj[i];
+    fprintf(ofp,":object %s\n",obj->name);
+    for(j=0;j<obj->len;j++) {
+      fprintf(ofp,"\t:func %s\n",obj->member[j]->name);
+    } 
+    fprintf(ofp,"\t:des %s\n",obj->destructor->name);
+    fprintf(ofp,"\n\n");
+  }
+
+
+  for(j=0;j<api->non_len;j++) {
+      fprintf(ofp,":func %s\n",api->non_obj[j]->name);
+  }
+
+  fprintf(ofp,"\n\n");
+
+  for(i=0;i<api->len;i++) {
+    auto APIObject * obj;
+    obj = api->obj[i];
+    if( obj->info != NULL ) { 
+      fprintf(ofp,"\n:define %s\n",obj->name);
+      fprintf(ofp,":desc\n");
+      dump_Ftext(obj->info->ft,ofp);
+      fprintf(ofp,"!desc\n!defined\n\n");
+    }
+
+    for(j=0;j<obj->len;j++) {
+      write_pfdoc_func_def(obj->member[j]->fi,ofp);
+      fprintf(ofp,"\n\n");
+    } 
+    write_pfdoc_func_def(obj->destructor->fi,ofp);
+    fprintf(ofp,"\n\n");
+  }
+
+  for(i=0;i<api->non_len;i++) {
+    write_pfdoc_func_def(api->non_obj[i]->fi,ofp);
+    fprintf(ofp,"\n\n");
+  }
+
+  return TRUE;
+}
+
+boolean write_pfdoc_func_def(FuncInfo * fi,FILE * ofp)
+{
+  int i;
+
+  fprintf(ofp,":define %s\n",fi->name);
+  fprintf(ofp,":desc\n");
+  dump_Ftext(fi->ft,ofp);
+  fprintf(ofp,"!desc\n");
+  fprintf(ofp,":arg\n");
+  for(i=0;i<fi->len;i++) {
+    fprintf(ofp,"%s [%s] %s\n",fi->arg[i]->name,fi->arg[i]->type,fi->arg[i]->desc);
+  }
+  fprintf(ofp,"!arg\n");
+  fprintf(ofp,":return\n");
+  fprintf(ofp,"%s [%s] %s\n",fi->ret->name,fi->ret->type,fi->ret->desc);
+  fprintf(ofp,"!return\n");
+  fprintf(ofp,"!define");
+  
+  return TRUE;
+}
+
+
+boolean write_latex_dynAPI(dynAPI * api,char * module,char * package,FILE * ofp)
+{
+  int i,j;
+
+  fprintf(ofp,"\\section{%s}\n",module);
+  fprintf(ofp,"\\label{module_%s}\n",module);
+  if( api->len == 0 ) {
+    fprintf(ofp,"This module only contains factory methods\n\n");
+  } else {
+    fprintf(ofp,"This module contains the following objects\n\n\\begin{itemize}\n");
+    for(i=0;i<api->len;i++)
+      fprintf(ofp,"\\item \\ref{object_%s} %s\n\n",api->obj[i]->name,api->obj[i]->name);
+    if( api->non_len > 0 ) {
+      fprintf(ofp,"\\item This module also contains some factory methods\n");
+    }
+
+    fprintf(ofp,"\\end{itemize}\n");
+  }
+
+  if( api->non_len > 0) {
+    fprintf(ofp,"\\subsection{%s factory methods}\n",module);
+    for(i=0;i<api->non_len;i++) {
+      fprintf(ofp,"\\subsubsection{%s}\n",api->non_obj[i]->name);
+      write_latex_APIfunc(api->non_obj[i],package,FALSE,NULL,ofp);
+    }
+    fprintf(ofp,"\n\n");
+  }
+
+  for(i=0;i<api->len;i++) {
+    fprintf(ofp,"\\subsection{Object %s}\n\n",api->obj[i]->name);
+    fprintf(ofp,"\\label{object_%s}\n\n",api->obj[i]->name);
+    fprintf(ofp,"The %s object has the following fields. To see how to access them refer to \\ref{accessing_fields}\n",api->obj[i]->name);
+    fprintf(ofp,"\\begin{description}\n");
+    for(j=0;j<api->obj[i]->sh->len;j++) {
+      fprintf(ofp,"\\item{%s} Type [%s : %s] %s\n\n",api->obj[i]->sh->el[j]->name,api->obj[i]->sh->el[j]->element_type,api->obj[i]->sh->el[j]->islist == TRUE ? "List" : "Scalar",api->obj[i]->sh->el[j]->comment == NULL ? "No documentation" : api->obj[i]->sh->el[j]->comment);
+    }
+    fprintf(ofp,"\\end{description}\n");
+
+    if( api->obj[i]->info == NULL ) {
+      fprintf(ofp,"No documentation for %s\n\n",api->obj[i]->name);
+    } else {
+      latex_Ftext(api->obj[i]->info->ft,ofp);
+      fprintf(ofp,"\n\n");
+    }
+    
+    fprintf(ofp,"Member functions of %s\n\n",api->obj[i]->name);
+    for(j=0;j<api->obj[i]->len;j++) {
+      if( api->obj[i]->member[j]->fi->is_hand_written == TRUE) {
+	fprintf(ofp,"\\subsubsection{%s}\n\n",api->obj[i]->member[j]->name);
+	write_latex_APIfunc(api->obj[i]->member[j],package,TRUE,api->obj[i]->name,ofp);
+      }
+    }
+  }
+
+  return TRUE;
+}
+
+
+boolean write_latex_APIfunc(APIfunc * f,char * package,boolean isobj,char * objectname,FILE * ofp)
+{
+  FuncInfo * fi;
+  int i;
+
+  fi = f->fi;
+  if( fi == NULL ) {
+    warn("Could not make latex non API function due to no info!");
+    return FALSE;
+  }
+  
+  fprintf(ofp,"\\begin{description}\n");
+  fprintf(ofp,"\\item[External C] {\\tt %s_%s (%s",package,fi->name,fi->len == 0 ? "void" : fi->arg[0]->name);
+  if( f->only_C == TRUE ) {
+    fprintf(ofp,"(This function is only available in the C api)");
+  } else {
+    for(i=1;i<fi->len;i++)
+      fprintf(ofp,",%s",fi->arg[i]->name);
+    fprintf(ofp,")}\n");
+    if( isobj == TRUE ) {
+      fprintf(ofp,"\\item[Perl] {\\tt &%s::%s::%s (%s",package,objectname,fi->simple == NULL ? fi->name : fi->simple,fi->len == 0 ? "" : fi->arg[0]->name); 
+    } else {
+      fprintf(ofp,"\\item[Perl] {\\tt &%s::%s (%s",package,fi->simple == NULL ? fi->name : fi->simple,fi->len == 0 ? "" : fi->arg[0]->name);
+    }
+    
+    
+    for(i=1;i<fi->len;i++) {
+      if( fi->arg[i]->should_NULL == TRUE ) 
+	continue; /* skip it out */
+      fprintf(ofp,",%s",fi->arg[i]->name);
+    }
+    fprintf(ofp,")}\n\n");
+
+    if( isobj == TRUE ) {
+      if( fi->len == 0 ) {
+	warn("Trying to indicate that %s is an object method when it doesn't have an argument",fi->name);
+      } else {
+	fprintf(ofp,"\\item[Perl-OOP call] {\\tt $obj->%s(%s",fi->simple == NULL ? fi->name : fi->simple,fi->len == 1 ? "" : fi->arg[1]->name);
+	for(i=2;i<fi->len;i++) {
+	  if( fi->arg[i]->should_NULL == TRUE ) 
+	    continue; /* skip it out */
+	  fprintf(ofp,",%s",fi->arg[i]->name);
+	}
+	fprintf(ofp,")}\n\n");
+      }
+    }
+  } /* end of is an non C based function */
+  fprintf(ofp,"\\end{description}\n");
+
+  fprintf(ofp,"Arguments\n\\begin{description}\n");
+
+  for(i=0;i<fi->len;i++) {
+    auto ArgInfo * ai;
+    ai = fi->arg[i];
+    if( ai->should_NULL == TRUE ) 
+      fprintf(ofp,"\\item[%s] \\em{only for C api} [%s] %s [%s]\n",ai->name,ArgType_to_string(ai->argtype),ai->desc,CKS(ai->type));
+    else {  
+      fprintf(ofp,"\\item[%s] [%s] %s [%s]\n",ai->name,ArgType_to_string(ai->argtype),ai->desc,CKS(ai->type));
+    }
+  }
+  if( strcmp(fi->ret->type,"void") == 0 ) {
+    fprintf(ofp,"\\item[returns] Nothing - no return value\n");
+  } else {
+    fprintf(ofp,"\\item[returns] [%s] %s [%s]\n",ArgType_to_string(fi->ret->argtype),fi->ret->desc,CKS(fi->ret->type));
+  }
+
+  fprintf(ofp,"\\end{description}\n");
+
+  latex_Ftext(fi->ft,ofp);
+
+  return TRUE;
+}
+  
+
+boolean write_pod_dynAPI(dynAPI * api,char * module,char * package,FILE * ofp)
+{
+  int i,j;
+
+  fprintf(ofp,"=head1 NAME\n\n%s module - part of the %s package\n\n",module,package);
+  if( api->len == 0 ) {
+    fprintf(ofp,"=head1 SYNOPSIS\n\nThis module contains helper functions for the %s package\n\n",package);
+  } else {
+    fprintf(ofp,"=head1 SYNOPSIS\n\nThis module contains the following objects\n\n=over\n\n");
+    for(i=0;i<api->len;i++)
+      fprintf(ofp,"=item %s\n\n",api->obj[i]->name);
+    fprintf(ofp,"\n=back\n\n");
+  }
+  fprintf(ofp,"=head1 DESCRIPTION\n\n");
+  for(i=0;i<api->len;i++) {
+    fprintf(ofp,"=head2 Object %s\n\n=over\n\n",api->obj[i]->name);
+    for(j=0;j<api->obj[i]->sh->len;j++) {
+      fprintf(ofp,"=item %s\n\n Type [%s] %s %s\n\n",api->obj[i]->sh->el[j]->name,api->obj[i]->sh->el[j]->element_type,api->obj[i]->sh->el[j]->islist == TRUE ? "List" : "Scalar",api->obj[i]->sh->el[j]->comment == NULL ? "No documentation" : api->obj[i]->sh->el[j]->comment);
+    }
+    fprintf(ofp,"\n\n=back\n\n");
+    if( api->obj[i]->info == NULL ) {
+      fprintf(ofp,"No documentation for %s\n\n",api->obj[i]->name);
+    } else {
+      dump_Ftext(api->obj[i]->info->ft,ofp);
+      fprintf(ofp,"\n\n");
+    }
+    fprintf(ofp,"=head2 Member functions of %s\n\n",api->obj[i]->name);
+    fprintf(ofp,"=over\n\n");
+    for(j=0;j<api->obj[i]->len;j++) {
+      fprintf(ofp,"=item %s\n\n",api->obj[i]->member[j]->fi->simple == NULL ? api->obj[i]->member[j]->name : api->obj[i]->member[j]->fi->simple);
+      write_pod_obj_APIfunc(api->obj[i]->member[j],package,api->obj[i]->name,ofp);
+    }
+    fprintf(ofp,"=back\n\n");
+  }
+  if( api->non_len > 0) {
+    fprintf(ofp,"=over\n\n");
+    for(i=0;i<api->non_len;i++) {
+      fprintf(ofp,"=item %s\n\n",api->non_obj[i]->name);
+      write_pod_non_APIfunc(api->non_obj[i],package,ofp);
+    }
+    fprintf(ofp,"=back\n\n");
+  }
+
+  return TRUE;
+}
+  
+void write_pod_obj_APIfunc(APIfunc * f,char * package,char * obj,FILE * ofp)
+{
+  FuncInfo * fi;
+  int i;
+
+  fi = f->fi;
+
+  fprintf(ofp,"&%s::%s::%s(%s",package,obj,fi->simple == NULL ? fi->name : fi->simple ,fi->len == 0 ? "void" : fi->arg[0]->name);
+  for(i=1;i<fi->len;i++)
+    fprintf(ofp,",%s",fi->arg[i]->name);
+  fprintf(ofp,")\n\n");
+  
+  dump_Ftext_pre("  ",fi->ft,ofp);
+  
+  fprintf(ofp,"\n\n");
+  for(i=0;i<fi->len;i++) {
+    auto ArgInfo * ai;
+    ai = fi->arg[i];
+    if( ai->should_NULL == TRUE ) {
+      continue;
+    }
+
+    fprintf(ofp,"  Argument %-12s [%s] %s [%s]\n",ai->name,ArgType_to_string(ai->argtype),ai->desc,CKS(ai->type));
+  }
+  fprintf(ofp,"  Return [%s] %s [%s]\n",ArgType_to_string(fi->ret->argtype),fi->ret->desc,CKS(fi->ret->type));
+
+  fprintf(ofp,"\n\n");
+}
+  
+void write_pod_non_APIfunc(APIfunc * f,char * package,FILE * ofp)
+{
+  FuncInfo * fi;
+  int i;
+
+  fi = f->fi;
+
+  fprintf(ofp,"&%s::%s(%s",package,fi->simple == NULL ? fi->name : fi->simple ,fi->len == 0 ? "void" : fi->arg[0]->name);
+  for(i=1;i<fi->len;i++)
+    fprintf(ofp,",%s",fi->arg[i]->name);
+  fprintf(ofp,")\n\n");
+  
+  dump_Ftext_pre("  ",fi->ft,ofp);
+  
+  fprintf(ofp,"\n\n");
+  for(i=0;i<fi->len;i++) {
+    auto ArgInfo * ai;
+    ai = fi->arg[i];
+    fprintf(ofp,"  Argument %-12s [%s] %s [%s]\n",ai->name,ArgType_to_string(ai->argtype),ai->desc,CKS(ai->type));
+  }
+  fprintf(ofp,"  Return [%s] %s [%s]\n",ArgType_to_string(fi->ret->argtype),fi->ret->desc,CKS(fi->ret->type));
+
+  fprintf(ofp,"\n\n");
+}
+    
+  
+  
+  
+  
+  
+boolean write_type_C_dynAPI(dynAPI * api,char * package_name,FILE * ofp)
+{
+  int i;
+  
+  for(i=0;i<api->len;i++) {
+    auto APIObject * obj;
+    obj = api->obj[i];
+  
+    fprintf(ofp,"typedef struct %s%s %s%s;\n\n",package_name,obj->name,package_name,obj->name);
+  }
+
+  return TRUE;
+}
+
+boolean write_C_dynAPI(dynAPI * api,char * package_name,FILE * ofp)
+{
+  int i,j;
+
+  for(i=0;i<api->len;i++) {
+    auto APIObject * obj;
+    obj = api->obj[i];
+    fprintf(ofp,"\n\n/* Functions that create, manipulate or act on %s\n *\n",obj->name);
+    for(j=0;j<obj->len;j++) {
+      fprintf(ofp," * %s%s\n",package_name,obj->member[j]->name);
+    }
+    fprintf(ofp," * %s%s [destructor]\n",package_name,obj->destructor->name);
+    fprintf(ofp," *\n */\n\n");
+  }
+  if( api->non_len > 0 ) { 
+    fprintf(ofp,"\n\n/* Helper functions in the module\n *\n");
+    for(i=0;i<api->non_len;i++) {
+      fprintf(ofp," * %s%s\n",package_name,api->non_obj[i]->name);
+    }
+    fprintf(ofp," *\n\n");
+  }
+
+  for(i=0;i<api->len;i++) {
+    auto APIObject * obj;
+    obj = api->obj[i];
+    fprintf(ofp,"/* API for object %s */\n",obj->name);
+
+    for(j=0;j<obj->len;j++) {
+      write_C_APIfunc(obj->member[j],package_name,ofp);
+    }
+    fprintf(ofp,"/* This is the destructor function, ie, call this to free object*/\n");
+    write_C_APIfunc(obj->destructor,package_name,ofp);
+  }
+  if( api->non_len > 0 ) 
+    fprintf(ofp,"\n\n/* These functions are not associated with an object */\n");
+  for(i=0;i<api->non_len;i++) {
+    write_C_APIfunc(api->non_obj[i],package_name,ofp);
+  }
+
+  return TRUE;
+}
+
+boolean write_C_APIfunc(APIfunc * api,char * package_name,FILE * ofp)
+{
+  int i;
+  FuncInfo * fi;
+
+  fi = api->fi;
+
+  fprintf(ofp,"/* Function:  %s%s(%s",package_name,CKS(fi->name),fi->len == 0 ? "void" : fi->arg[0]->name);
+  for(i=1;i<fi->len;i++)
+    fprintf(ofp,",%s",fi->arg[i]->name);
+  fprintf(ofp,")\n *\n");
+
+  show_eddystyle_Ftext(fi->ft,"Descrip:",15,ofp,"No Description");
+  fprintf(ofp," *\n");
+
+  for(i=0;i<fi->len;i++)
+      fprintf(ofp," * %*s%-12s %s [%s%s]\n",-12,"Arg:",fi->arg[i]->name,fi->arg[i]->desc,is_basic_type_API(fi->arg[i]->type) == TRUE ? "" : package_name,fi->arg[i]->type);
+  fprintf(ofp," *\n");
+  fprintf(ofp," * Returns %s [%s%s]\n",fi->ret->desc,is_basic_type_API(fi->ret->type) == TRUE ? "" : package_name,fi->ret->type);
+
+  fprintf(ofp," *\n */\n");
+
+  fprintf(ofp,"%s%s ",is_basic_type_API(fi->ret->type) == TRUE ? "" : package_name,fi->ret->type);
+  fprintf(ofp,"%s%s(",package_name,fi->name);
+  for(i=0;i<fi->len;i++) {
+    if( fi->arg[i]->argtype == ARGTYPE_P2FUNC ) {
+      fprintf(ofp,"%c%s",i == 0 ? ' ' : ',',fi->arg[i]->func_decl);
+    } else {
+      fprintf(ofp,"%c%s%s %s",i == 0 ? ' ' : ',',is_basic_type_API(fi->arg[i]->type) == TRUE ? "" : package_name,fi->arg[i]->type,fi->arg[i]->name);
+    }
+  }
+
+  fprintf(ofp,");\n\n");
+
+  return TRUE;
+}
+
+boolean is_membasic_type_API(char * type)
+{
+  char * temp;
+
+  if( is_basic_type_API(type) == FALSE) 
+    return FALSE;
+
+  if( strstartcmp(type,"char") == 0 ) {
+    if( (temp=strchr(type,'*')) != NULL ) {
+      if( strchr(++temp,'*') != NULL ) {
+	warn("Can't cope with char **'s or above!");
+	return TRUE;
+      } else {
+	return FALSE; /* char *'s are not membasic */
+      }
+    } 
+  }
+
+  return TRUE; /* default */
+}
+
+
+  
+boolean is_basic_type_API(char * type)
+{
+  if( strstartcmp(type,"const") == 0 ) 
+    return TRUE; /*** oops! ***/
+
+  if( strstartcmp(type,"char") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"FILE") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"double") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"float") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"short") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"long") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"int") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"void") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"boolean") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"Score") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"Probability") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"Bits") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"base") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"codon") == 0 ) 
+    return TRUE;
+  if( strstartcmp(type,"aa") == 0 ) 
+    return TRUE;
+  return FALSE;
+}
+
+
+
+dynAPI * read_dynAPI_line(char * line,FILE * ifp)
+{
+  char buffer[MAXLINE];
+  dynAPI * out;
+  APIfunc * func;
+  APIObject * obj;
+  
+
+  if( strstartcmp(line,"api") != 0 ) {
+    warn("In building dynAPI, passed in a non api [%s]",line);
+    return NULL;
+  }
+
+  out = dynAPI_alloc_std();
+
+  while( get_watched_line(buffer,MAXLINE,ifp) != NULL ) {
+    if ( buffer[0] == '#' ) {
+      continue;
+    }
+    if( strstartcmp(buffer,"endapi") == 0 ) {
+      break;
+    }
+    if( strstartcmp(buffer,"end") == 0 ) {
+      warn("Got an end line but not endapi in api section. Don't like it [%s]",buffer);
+      break;
+    }
+
+    if( strstartcmp(buffer,"func") == 0 ) {
+      func = APIfunc_from_buffer(buffer);
+      if( func == NULL )
+	continue;
+      add_non_dynAPI(out,func);
+    } else if ( strstartcmp(buffer,"object") == 0 ) {
+      obj = APIObject_from_line(buffer,MAXLINE,ifp);
+      if( obj == NULL ) 
+	continue;
+      add_dynAPI(out,obj);
+    } else {
+      warn("In reading an api specification, [%s] not understood\n",buffer);
+    }
+  }
+
+  return out;
+
+}
+
+boolean write_perl_XS_accessor_functions(APIObject * obj,char * package,FILE * ofp)
+{
+  int j;
+  StructHolder * sh;
+  char strippack[64];
+  char * listappend;
+  char * runner;
+
+  /* HACK coming up! */
+
+  strcpy(strippack,package);
+  if( strippack[strlen(strippack)-1] == '_') 
+    strippack[strlen(strippack)-1] = '\0';
+
+  sh  = obj->sh;
+
+
+  for(j=0;j<sh->len;j++) {
+    auto StructElement * temp;
+      
+    temp = sh->el[j];
+    if( temp->ishidden == TRUE ) 
+      continue; /* skip it! */
+
+    if( temp->islist == TRUE ) {
+      listappend=CKN(temp->len_append);
+      runner = depointer_element(temp->element_type);
+      runner = depointer_element(runner);
+      while ( !isalpha(runner[strlen(runner)-1]) ) {
+	runner[strlen(runner)-1] = '\0';
+      }
+
+      fprintf(ofp,"void\neach_%s(obj)\n",temp->name);
+      fprintf(ofp,"\t%s%s * obj\n",package,sh->name);
+      fprintf(ofp,"\tPPCODE:\n\tint i=0;\n\tint len;\n\tSV* temp;\n\tlen = %s_length_%s_%s(obj);\n\tfor(i=0;i<len;i++){\n",strippack,temp->name,obj->name);
+      fprintf(ofp,"\t  temp = sv_newmortal();\n");
+      fprintf(ofp,"\t  sv_setref_pv(temp, \"%s::%s\", (void*) (%shard_link_%s(%s_access_%s_%s(obj,i))));\n",strippack,runner,package,runner,strippack,temp->name,obj->name);
+      fprintf(ofp,"\t  XPUSHs(temp);\n");
+      fprintf(ofp,"\t  }\n");
+      fprintf(ofp,"\tXSRETURN(len);\n\n");
+    }
+  }
+
+  return TRUE;
+}
+      
+
+boolean write_dynAPI_accessor_functions(DYNFILE * dfp,dynAPI * api)
+{
+  int i,j;
+  FuncInfo * fi;
+  ArgInfo * ai;
+  APIfunc * af;
+  boolean islist;
+  
+  char * runner;
+  char * listappend;
+
+  /* Ngggg! We have to check if there is a list or not. this was bad API design
+     in wisec.dy sometime ago. (like - years ago ) Yuk! yuk! */
+
+
+
+
+  for(i=0;i<api->len;i++) {
+    auto APIObject * obj;
+    auto StructHolder * sh;
+
+
+    obj = api->obj[i];
+    sh  = obj->sh;
+
+    islist = FALSE;
+    for(j=0;j<sh->len;j++) {
+      if( sh->el[j]->islist == TRUE ) {
+	islist = TRUE;
+      }
+    }
+
+    /* promote hard link into API */
+    af = APIfunc_alloc();
+    af->name = stringallocf("hard_link_%s",sh->name);
+    add_APIObject(obj,af);
+
+    /* promote alloc into API */
+
+    /* yuk. stupid is list problem! */
+
+    af = APIfunc_alloc();
+    af->name = stringallocf("%s_alloc%s",sh->name,islist == TRUE ? "_std" : "");
+    af->only_C = TRUE;
+    add_APIObject(obj,af);
+
+    for(j=0;j<sh->len;j++) {
+      auto StructElement * temp;
+      
+      temp = sh->el[j];
+      if( temp->ishidden == TRUE ) 
+	continue; /* skip it! */
+
+      if( temp->islist == TRUE ) {
+	listappend=CKN(temp->len_append);
+	runner = depointer_element(temp->element_type);
+
+
+	/* make a "access element" function */
+
+	
+	/* build the function documentation. hide it from the C header file */
+	fi = FuncInfo_named_from_varstr(FI_INTERNAL,"access_%s_%s",temp->name,sh->name);
+	fi->simple = stringalloc(temp->name);
+	add_line_to_Ftext(fi->ft,"Access members stored in the %s list",temp->name);
+	add_line_to_Ftext(fi->ft,"For use principly by API functions",temp->name);
+	ai =  ArgInfo_in_FuncInfo_from_varstr(fi,"obj");
+	ai->desc = stringalloc("Object holding the list");
+	ai =  ArgInfo_in_FuncInfo_from_varstr(fi,"i");
+	ai->desc = stringalloc("Position in the list");
+
+	ai = ArgInfo_alloc();
+	ai->name = stringalloc("return");
+	ai->desc = stringalloc("Element of the list");
+	ai->argtype = ARGTYPE_STATIC;
+	fi->ret  = ai;
+
+	/* promote it into API */
+	af = APIfunc_alloc();
+	af->name = stringalloc(fi->name);
+	add_APIObject(obj,af);
+
+	/* build the function */
+	
+	
+	start_function_FuncInfo(fi,dfp,"%s access_%s_%s(%s * obj,int i)",runner,temp->name,sh->name,sh->name);
+	expr(dfp,"if( obj == NULL) ");
+	startbrace(dfp);
+	warn_expr(dfp,"In accessor function %s for object %s, got a NULL object",temp->name,sh->name);
+	expr(dfp,"return %s",def_from_element(runner));
+	closebrace(dfp);
+	
+	expr(dfp,"if( obj->%slen <= i )",listappend);
+	startbrace(dfp);
+	expr(dfp,"warn(\"In accessor function %s for object %s, index %%%%d is greater than list length %%%%d\",i,obj->len);",temp->name,sh->name);
+	expr(dfp,"return %s",def_from_element(runner));
+	closebrace(dfp);
+
+	expr(dfp,"return obj->%s[i]",temp->name);
+	close_function(dfp);
+	add_break(dfp);
+
+	/* make a "length" function */
+
+	/* build the function documentation. hide it from the C header file */
+	fi = FuncInfo_named_from_varstr(FI_INTERNAL,"length_%s_%s",temp->name,sh->name);
+	fi->simple=stringallocf("length_%s",temp->name);
+	add_line_to_Ftext(fi->ft,"discover the length of the list",temp->name);
+	add_line_to_Ftext(fi->ft,"For use principly by API functions",temp->name);
+	ai =  ArgInfo_in_FuncInfo_from_varstr(fi,"obj");
+	ai->desc = stringalloc("Object holding the list");
+
+	ai = ArgInfo_alloc();
+	ai->name = stringalloc("return");
+	ai->desc = stringalloc("length of the list");
+	fi->ret = ai;
+
+	/* promote it into API */
+	af = APIfunc_alloc();
+	af->name = stringalloc(fi->name);
+	add_APIObject(obj,af);
+
+	/* build the function */
+	
+	start_function_FuncInfo(fi,dfp,"int length_%s_%s(%s * obj)",temp->name,sh->name,sh->name);
+	expr(dfp,"if( obj == NULL) ");
+	startbrace(dfp);
+	warn_expr(dfp,"In length function %s for object %s, got a NULL object",temp->name,sh->name);
+	expr(dfp,"return -1");
+	closebrace(dfp);
+	
+
+	expr(dfp,"return obj->%slen",listappend);
+	close_function(dfp);
+	add_break(dfp);
+	
+	/* promote flush and add to api */
+
+	af = APIfunc_alloc();
+	af->name = stringallocf("flush_%s%s",listappend,sh->name);
+	add_APIObject(obj,af);
+
+	af = APIfunc_alloc();
+	af->name = stringallocf("add_%s%s",listappend,sh->name);
+	add_APIObject(obj,af);
+
+
+      } else if ( temp->ismatrix == TRUE ) {
+	warn("Cannot make matrix accessor functions yet!");
+      } else if ( temp->isfunc == TRUE ) {
+	warn("Cannot make pointer to functions accessor functions yet (if at all!)");
+      } else {
+
+	if ( strchr(temp->name,'[') != NULL  ) {
+	  /* should be a compiler option */
+	  /* warn("Cannot build accessor for %s, as is an array",temp->name); */
+	  continue;
+	}
+	
+	/* simple replace guy */
+
+	/* build the function documentation. hide it from the C header file */
+	fi = FuncInfo_named_from_varstr(FI_INTERNAL,"replace_%s_%s",temp->name,sh->name);
+	fi->simple = stringallocf("set_%s",temp->name);
+	add_line_to_Ftext(fi->ft,"Replace member variable %s",temp->name);
+	add_line_to_Ftext(fi->ft,"For use principly by API functions",temp->name);
+	ai =  ArgInfo_in_FuncInfo_from_varstr(fi,"obj");
+	ai->desc = stringalloc("Object holding the variable");
+
+	ai =  ArgInfo_in_FuncInfo_from_varstr(fi,temp->name);
+	ai->argtype = ARGTYPE_OWNER;
+	ai->desc = stringalloc("New value of the variable");
+
+	ai = ArgInfo_alloc();
+	ai->name = stringalloc("return");
+	ai->desc = stringallocf("member variable %s",temp->name);
+
+	ai->argtype = ARGTYPE_STATIC;
+	fi->ret =ai;
+
+	/* promote it into API */
+	af = APIfunc_alloc();
+	af->name = stringalloc(fi->name);
+	add_APIObject(obj,af);
+
+	/* build the function */
+	
+	start_function_FuncInfo(fi,dfp,"boolean replace_%s_%s(%s * obj,%s %s)",temp->name,sh->name,sh->name,temp->element_type,temp->name);
+	expr(dfp,"if( obj == NULL) ");
+	startbrace(dfp);
+	warn_expr(dfp,"In replacement function %s for object %s, got a NULL object",temp->name,sh->name);
+	expr(dfp,"return FALSE");
+	closebrace(dfp);
+	
+	expr(dfp,"obj->%s = %s;",temp->name,temp->name);
+	expr(dfp,"return TRUE;");
+	close_function(dfp);
+	add_break(dfp);
+
+	/* simple accessor */
+
+	/* build the function documentation. hide it from the C header file */
+	fi = FuncInfo_named_from_varstr(FI_INTERNAL,"access_%s_%s",temp->name,sh->name);
+	fi->simple = stringalloc(temp->name);
+	add_line_to_Ftext(fi->ft,"Access member variable %s",temp->name);
+	add_line_to_Ftext(fi->ft,"For use principly by API functions",temp->name);
+	ai =  ArgInfo_in_FuncInfo_from_varstr(fi,"obj");
+	ai->desc = stringalloc("Object holding the variable");
+
+	ai = ArgInfo_alloc();
+	ai->name = stringalloc("return");
+	ai->desc = stringallocf("member variable %s",temp->name);
+
+	ai->argtype = ARGTYPE_STATIC;
+	fi->ret =ai;
+
+	/* promote it into API */
+	af = APIfunc_alloc();
+	af->name = stringalloc(fi->name);
+	add_APIObject(obj,af);
+
+	/* build the function */
+	
+	start_function_FuncInfo(fi,dfp,"%s access_%s_%s(%s * obj)",temp->element_type,temp->name,sh->name,sh->name);
+	expr(dfp,"if( obj == NULL) ");
+	startbrace(dfp);
+	warn_expr(dfp,"In accessor function %s for object %s, got a NULL object",temp->name,sh->name);
+	expr(dfp,"return %s",def_from_element(temp->element_type));
+	closebrace(dfp);
+	
+	expr(dfp,"return obj->%s",temp->name);
+	close_function(dfp);
+	add_break(dfp);
+      }
+    }
+  }
+
+  return TRUE;
+}
+
+
+boolean write_XS_typemap_dynAPI(dynAPI * api,char * package_name,FILE * ofp)
+{
+  int i;
+  char strip_package[64];
+
+  /* HACK coming up! */
+
+  strcpy(strip_package,package_name);
+  if( strip_package[strlen(strip_package)-1] == '_') 
+    strip_package[strlen(strip_package)-1] = '\0';
+
+  for(i=0;i<api->len;i++) {
+    fprintf(ofp,"\nTYPEMAP\n%s%s *    T_%s_%s\n",package_name,api->obj[i]->name,strip_package,api->obj[i]->name);
+    fprintf(ofp,"\nINPUT\nT_%s_%s\n\t$var = ($type) (SvROK($arg) == 0 ? NULL : (%s_%s *) SvIV((SV*)SvRV($arg)))\n",strip_package,api->obj[i]->name,strip_package,api->obj[i]->name);
+    
+    fprintf(ofp,"\nOUTPUT\nT_%s_%s\n\tsv_setref_pv($arg, \"%s::%s\", (void*) $var);\n",strip_package,api->obj[i]->name,strip_package,api->obj[i]->name);
+  }
+    
+  return TRUE;
+}
+
+boolean write_XS_dynAPI(dynAPI * api,char * package_name,FILE * ofp)
+{
+  int i;
+  char strip_package[64];
+
+  /* HACK coming up! */
+
+  strcpy(strip_package,package_name);
+  if( strip_package[strlen(strip_package)-1] == '_') 
+    strip_package[strlen(strip_package)-1] = '\0';
+
+  for(i=0;i<api->len;i++) {
+    write_XS_header_APIObject(api,package_name,api->obj[i],ofp);
+    write_perl_XS_accessor_functions(api->obj[i],package_name,ofp);
+  }
+
+  fprintf(ofp,"\n\nMODULE = %s PACKAGE = %s\n\n",strip_package,strip_package);
+  for(i=0;i<api->non_len;i++) {
+    write_XS_APIfunc(api->non_obj[i],package_name,ofp);
+  }
+  
+  return TRUE;
+}
+
+boolean write_XS_header_APIObject(dynAPI * api,char * package_name,APIObject * obj,FILE * ofp)
+{
+  int i;
+  boolean islist;
+  char strip_package[64];
+
+  /* HACK coming up! */
+
+  strcpy(strip_package,package_name);
+  if( strip_package[strlen(strip_package)-1] == '_') 
+    strip_package[strlen(strip_package)-1] = '\0';
+  
+
+  fprintf(ofp,"\n\nMODULE = %s PACKAGE = %s::%s\n\n",strip_package,strip_package,obj->name);
+
+  for(i=0;i<obj->len;i++) {
+    write_XS_APIfunc(obj->member[i],package_name,ofp);
+  }
+
+  /* now to write a simple constructor */
+
+  /* Ngggg! We have to check if there is a list or not. this was bad API design
+     in wisec.dy sometime ago. (like - years ago ) Yuk! yuk! */
+
+  islist = FALSE;
+  for(i=0;i<obj->sh->len;i++) {
+    if( obj->sh->el[i]->islist == TRUE ) {
+      islist = TRUE;
+    }
+  }
+
+  fprintf(ofp,"\n%s%s *\nnew(class)\n\tchar * class\n\tPPCODE:\n\t%s%s * out;\n\tout = %s%s_alloc%s();\n\tST(0) = sv_newmortal();\n\tsv_setref_pv(ST(0),class,(void*)out);\n\tXSRETURN(1);\n",package_name,obj->name,package_name,obj->name,package_name,obj->name,islist == TRUE ? "_std" : "");
+  /* now to write the destructor */
+
+  fprintf(ofp,"\nvoid\nDESTROY(obj)\n\t%s%s * obj\n\tCODE:\n\t%s%s(obj);\n\n",package_name,obj->name,package_name,obj->destructor->name);
+  
+  return TRUE;
+}
+
+boolean write_XS_APIfunc(APIfunc * fu,char * package_name,FILE * ofp)
+{
+  int j;
+  boolean is_basic;
+  
+
+ 
+  /* return statement */
+  is_basic = is_basic_type_API(fu->fi->ret->type);
+  if( is_basic == TRUE ) 
+    fprintf(ofp,"%s\n",fu->fi->ret->type);
+  else
+    fprintf(ofp,"%s%s\n",(is_basic == TRUE ? "" : package_name),fu->fi->ret->type);
+  
+  
+  /* if we have a simple specification use that - 
+     the package will protect us from nasty name clashes!
+     */
+  if( fu->fi->simple != NULL ) {
+    fprintf(ofp,"%s(",fu->fi->simple);
+  } else {
+    /* function name - we do need the package stuff...*/
+    fprintf(ofp,"%s(",fu->name);
+  }
+  
+  for(j=0;j<fu->fi->len;j++) {
+    if( fu->fi->arg[j]->should_NULL == TRUE) {
+      continue; /* don't put it into the Perl prototype */
+    }
+    fprintf(ofp,"%s%s",j == 0 ? "" : ",",fu->fi->arg[j]->name);
+  }
+  fprintf(ofp,")\n");
+  
+  /* each arguments */
+  for(j=0;j<fu->fi->len;j++) {
+
+    if( fu->fi->arg[j]->should_NULL == TRUE) {
+      continue; /* don't put it into the Perl prototype */
+    }
+
+    is_basic = is_basic_type_API(fu->fi->arg[j]->type);
+    if( is_basic == TRUE) 
+      fprintf(ofp,"\t%s %s\n",fu->fi->arg[j]->type,fu->fi->arg[j]->name);
+    else
+      fprintf(ofp,"\t%s%s %s\n",(is_basic == TRUE ? "" : package_name),fu->fi->arg[j]->type,fu->fi->arg[j]->name);
+  }
+  
+  
+  /* ok - now lets do the glue */
+  if( strcmp(fu->fi->ret->type,"void") != 0 ) {
+    if( fu->fi->ret->argtype == ARGTYPE_STATIC && is_basic_type_API(fu->fi->ret->type) == FALSE) {
+      /* we need to put in the memory handler... */
+      /*
+       * Horrible hack. We assumme the the C type MyType * means dynamite type MyType.
+       *
+       * YUK!!!! Also - v.v.v.v.v bad hard coded Wise2
+       *
+       */
+      fprintf(ofp,"\tINIT:\nWise2_%s temp;\n\tCODE:\n\ttemp = Wise2_hard_link_%s(%s%s(",fu->fi->ret->type,c2dyn_type(fu->fi->ret->type),package_name,fu->name);
+    }
+    else if(fu->fi->ret->argtype == ARGTYPE_STATIC &&  strcmp(fu->fi->ret->type,"char *") == 0 ) {
+	fprintf(ofp,"\tINIT:\n\t%s temp;\n\tCODE:\n\ttemp = Wise2_stringalloc(%s%s(",fu->fi->ret->type,package_name,fu->name);
+      }
+    else { /* a basic type - don't need to handle, despite STATIC linkage */
+      fprintf(ofp,"\tCODE:\n\tRETVAL = %s%s(",package_name,fu->name);
+    } 
+  } /* end of is not void */ 
+  else { /* if it is void */
+    fprintf(ofp,"\tCODE:\n\t%s%s(",package_name,fu->name);
+  }
+  
+  for(j=0;j<fu->fi->len;j++) {
+    if( fu->fi->arg[j]->argtype == ARGTYPE_OWNER && is_membasic_type_API(fu->fi->arg[j]->type) == FALSE && fu->fi->arg[j]->should_NULL == FALSE ) {
+      if( (strcmp(fu->fi->arg[j]->type,"char*") == 0)  || (strcmp(fu->fi->arg[j]->type,"char *") == 0) ) {
+	fprintf(ofp,"%sWise2_stringalloc(%s)",j == 0 ? "" : ",",fu->fi->arg[j]->name);
+      } else {
+	fprintf(ofp,"%sWise2_hard_link_%s(%s)",j == 0 ? "" : ",",c2dyn_type(fu->fi->arg[j]->type),fu->fi->arg[j]->name); 
+      }
+    } else {
+      fprintf(ofp,"%s%s",j == 0 ? "" : ",",fu->fi->arg[j]->should_NULL == TRUE ? "NULL" : fu->fi->arg[j]->name);
+    }
+  }
+
+  if( fu->fi->ret->argtype == ARGTYPE_STATIC && (is_basic_type_API(fu->fi->ret->type) == FALSE || strcmp(fu->fi->ret->type,"char *") == 0) ) {
+    fprintf(ofp,"));\n\tRETVAL = temp;\n\tOUTPUT:\n\tRETVAL\n\n");
+  } else {
+
+    if( strcmp(fu->fi->ret->type,"void") != 0 ) {
+      fprintf(ofp,");\n\tOUTPUT:\n\tRETVAL\n\n");
+    }  else {
+      fprintf(ofp,");\n\n");
+    }
+  }
+  
+  fprintf(ofp,"\n\n");
+
+  return TRUE;
+}
+  
+
+static char statbuf[128];
+
+%func
+internal thing that maps C * types to dynamite types
+%type internal
+%%
+char * c2dyn_type(char * c)
+{
+  strcpy(statbuf,c);
+
+  c = statbuf + strlen(statbuf)-1;
+  for(;c != statbuf && *c != '*';c--)
+    ;
+  c--;
+  for(;c != statbuf && isspace(*c);c--)
+    ;
+  c++;
+  *c = '\0';
+  return statbuf;
+}
+  
+  
+
+boolean reconcile_dynAPI_with_FuncInfo(dynAPI * api,DYNFILE * dfp)
+{
+  int i;
+  int j;
+  boolean ret = TRUE;
+  FuncInfo * fi;
+
+  for(i=0;i<api->len;i++) {
+    for(j=0;j<api->obj[i]->len;j++) {
+      if( (fi= FuncInfo_from_name_DYNFILE(dfp,api->obj[i]->member[j]->name)) == NULL ) {
+	warn("Cannot find any documentation for %s\n",api->obj[i]->member[j]->name);
+	ret = FALSE;
+      } else {
+	api->obj[i]->member[j]->fi = fi;
+      }
+    }
+    if(api->obj[i]->destructor != NULL) {
+      if( (fi= FuncInfo_from_name_DYNFILE(dfp,api->obj[i]->destructor->name)) == NULL ) {
+	warn("Cannot find any documentation for %s (destructor!)\n",api->obj[i]->destructor->name);
+	ret = FALSE;
+      } else {
+	api->obj[i]->destructor->fi = fi;
+      }
+    }
+  }
+
+  for(j=0;j<api->non_len;j++) {
+      if( (fi= FuncInfo_from_name_DYNFILE(dfp,api->non_obj[j]->name)) == NULL ) {
+	warn("Cannot find any documentation for %s\n",api->non_obj[j]->name);
+	ret = FALSE;
+      } else {
+	api->non_obj[j]->fi = fi;
+      }
+  }
+  
+  return ret;
+}
+
+APIObject * APIObject_from_line(char * line,int maxline,FILE * ifp)
+{
+  APIObject * out;
+  APIfunc * func;
+  char * runner;
+
+  if( strstartcmp(line,"object") != 0 ) {
+    warn("In building APIObject, passed in a non object line [%s]",line);
+    return NULL;
+  }
+
+  (void) strtok(line,spacestr);
+
+  if( (runner=strtok(NULL,spacestr)) == NULL ) {
+    warn("In building APIObject, no name for object",line);
+    /* should skip to endobject ? */
+    return NULL;
+  }
+
+  out = APIObject_alloc_std();
+  out->name = stringalloc(runner);
+
+  while( get_watched_line(line,maxline,ifp) != NULL ) {
+    if( line[0] == '#' ) 
+      continue;
+
+    if( strstartcmp(line,"endobject") == 0 ) {
+      break;
+    }
+
+    if( strstartcmp(line,"end") == 0 ) {
+      warn("Got an end line [%s] but not an end object line. Don't like!");
+      break;
+    }
+
+    if( strstartcmp(line,"func") == 0 ) {
+      func = APIfunc_from_buffer(line);
+      if( func == NULL )
+	continue;
+      add_APIObject(out,func);
+    } else if ( strstartcmp(line,"des") == 0 ) {
+      func = APIfunc_from_buffer(line);
+      if( func == NULL )
+	continue;
+      out->destructor=  func;
+    } else {
+      warn("Did not understand [%s] as an APIObject line",line);
+    }
+
+  }
+
+
+  return out;
+
+}
+
+
+
+
+APIfunc * APIfunc_from_buffer(char * line)
+{
+  APIfunc * out;
+
+  if( line == NULL ) {
+    warn("Passed in a NULL line to APIfunc_from_buffer");
+    return NULL;
+  }
+  if( strstartcmp(line,"func") != 0 && strstartcmp(line,"des") != 0 ) {
+    warn("Passed a non function line to APIfunc_from_buffer");
+    return NULL;
+  }
+  (void)strtok(line,spacestr);
+
+  if( (line = strtok(NULL,spacestr)) == NULL ) {
+    warn("line to APIfunc_from_buffer was empty. Yikes");
+    return NULL;
+  }
+
+  out = APIfunc_alloc();
+  if( out == NULL)
+    return NULL;
+  
+  out->name = stringalloc(line);
+  
+  return out;
+}
+
+
+

@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_Sequence *    T_Wise2_Sequence
+
+INPUT
+T_Wise2_Sequence
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Sequence *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Sequence
+	sv_setref_pv($arg, "Wise2::Sequence", (void*) $var);
+
+TYPEMAP
+Wise2_SequenceSet *    T_Wise2_SequenceSet
+
+INPUT
+T_Wise2_SequenceSet
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_SequenceSet *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_SequenceSet
+	sv_setref_pv($arg, "Wise2::SequenceSet", (void*) $var);

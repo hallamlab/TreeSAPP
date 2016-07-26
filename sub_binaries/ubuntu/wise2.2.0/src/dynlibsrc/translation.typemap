@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_Translation *    T_Wise2_Translation
+
+INPUT
+T_Wise2_Translation
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_Translation *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_Translation
+	sv_setref_pv($arg, "Wise2::Translation", (void*) $var);

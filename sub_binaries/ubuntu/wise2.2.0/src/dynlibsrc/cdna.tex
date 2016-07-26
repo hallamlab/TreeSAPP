@@ -1,0 +1,143 @@
+\section{cdna}
+\label{module_cdna}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_cDNA} cDNA
+
+\end{itemize}
+\subsection{Object cDNA}
+
+\label{object_cDNA}
+
+The cDNA object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{baseseq} Type [Sequence * : Scalar] No documentation
+
+\end{description}
+No documentation for cDNA
+
+Member functions of cDNA
+
+\subsubsection{truncate_cDNA}
+
+\begin{description}
+\item[External C] {\tt Wise2_truncate_cDNA (cdna,start,stop)}
+\item[Perl] {\tt &Wise2::cDNA::truncate_cDNA (cdna,start,stop)}
+
+\item[Perl-OOP call] {\tt $obj->truncate_cDNA(start,stop)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[cdna] [READ ] cDNA that is truncated [cDNA *]
+\item[start] [UNKN ] Undocumented argument [int]
+\item[stop] [UNKN ] Undocumented argument [int]
+\item[returns] [UNKN ] Undocumented return value [cDNA *]
+\end{description}
+Truncates a cDNA sequence. Basically uses
+the /magic_trunc_Sequence function (of course!)
+
+
+It does not alter cdna, rather it returns a new
+sequence with that truncation
+
+
+\subsubsection{read_fasta_file_cDNA}
+
+\begin{description}
+\item[External C] {\tt Wise2_read_fasta_file_cDNA (filename)}
+\item[Perl] {\tt &Wise2::cDNA::read_fasta_file_cDNA (filename)}
+
+\item[Perl-OOP call] {\tt $obj->read_fasta_file_cDNA()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[filename] [UNKN ] filename to be opened and read [char *]
+\item[returns] [UNKN ] Undocumented return value [cDNA *]
+\end{description}
+Reads a fasta file assumming that it is cDNA. 
+Will complain if it is not, and return NULL.
+
+
+\subsubsection{cDNA_name}
+
+\begin{description}
+\item[External C] {\tt Wise2_cDNA_name (cdna)}
+\item[Perl] {\tt &Wise2::cDNA::cDNA_name (cdna)}
+
+\item[Perl-OOP call] {\tt $obj->cDNA_name()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[cdna] [UNKN ] Undocumented argument [cDNA *]
+\item[returns] [UNKN ] Undocumented return value [char *]
+\end{description}
+Returns the name of the cDNA
+
+
+\subsubsection{cDNA_length}
+
+\begin{description}
+\item[External C] {\tt Wise2_cDNA_length (cdna)}
+\item[Perl] {\tt &Wise2::cDNA::cDNA_length (cdna)}
+
+\item[Perl-OOP call] {\tt $obj->cDNA_length()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[cdna] [UNKN ] Undocumented argument [cDNA *]
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+Returns the length of the cDNA
+
+
+\subsubsection{cDNA_seqchar}
+
+\begin{description}
+\item[External C] {\tt Wise2_cDNA_seqchar (cdna,pos)}
+\item[Perl] {\tt &Wise2::cDNA::cDNA_seqchar (cdna,pos)}
+
+\item[Perl-OOP call] {\tt $obj->cDNA_seqchar(pos)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[cdna] [UNKN ] cDNA [cDNA *]
+\item[pos] [UNKN ] position in cDNA to get char [int]
+\item[returns] [UNKN ] Undocumented return value [char]
+\end{description}
+Returns sequence character at this position.
+
+
+\subsubsection{cDNA_from_Sequence}
+
+\begin{description}
+\item[External C] {\tt Wise2_cDNA_from_Sequence (seq)}
+\item[Perl] {\tt &Wise2::cDNA::cDNA_from_Sequence (seq)}
+
+\item[Perl-OOP call] {\tt $obj->cDNA_from_Sequence()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[seq] [OWNER] Sequence to make cDNA from [Sequence *]
+\item[returns] [UNKN ] Undocumented return value [cDNA *]
+\end{description}
+makes a new cDNA from a Sequence. It 
+owns the Sequence memory, ie will attempt a /free_Sequence
+on the structure when /free_cDNA is called
+
+
+If you want to give this cDNA this Sequence and
+forget about it, then just hand it this sequence and set
+seq to NULL (no need to free it). If you intend to use 
+the sequence object elsewhere outside of the cDNA datastructure
+then use cDNA_from_Sequence(/hard_link_Sequence(seq))
+
+
+
+

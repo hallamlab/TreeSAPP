@@ -1,0 +1,48 @@
+
+%{
+#include "dynfile.h"
+
+%}
+
+
+struct Friend
+char * name
+
+%{
+#include "friend.h"
+
+
+Friend * read_Friend_line(char * line,FILE * ifp)
+{
+  Friend * out;
+  char * runner;
+
+  if( strstartcmp(line,"friend") != 0 ) {
+    warn("Trying to read [%s] as a friend line? I think not!");
+  }
+
+  runner = strtok(line,spacestr);
+  runner = strtok(NULL,spacestr);
+
+  if( runner == NULL ) {
+    warn("Could not find any friend for a friend line. Sad!");
+  }
+
+  out = Friend_alloc();
+
+  out->name = stringalloc(runner);
+
+  return out;
+}
+
+
+void write_Friend_header(DYNFILE * dfp,Friend * fr)
+{
+  if( dfp->package_name != NULL ) {
+    fprintf(dfp->head,"#ifndef DYNAMITE_DEFINED_%s\n",fr->name);
+    fprintf(dfp->head,"typedef struct %s%s %s%s;\n",dfp->package_name,fr->name,dfp->package_name,fr->name);
+    fprintf(dfp->head,"#define %s %s%s\n",fr->name,dfp->package_name,fr->name);
+    fprintf(dfp->head,"#define DYNAMITE_DEFINED_%s\n#endif\n\n",fr->name);
+  } else 
+  fprintf(dfp->head,"#ifndef DYNAMITE_DEFINED_%s\ntypedef struct %s %s;\n#define DYNAMITE_DEFINED_%s\n#endif\n\n",fr->name,fr->name,fr->name,fr->name);
+}

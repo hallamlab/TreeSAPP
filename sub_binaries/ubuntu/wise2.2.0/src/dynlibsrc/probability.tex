@@ -1,0 +1,98 @@
+\section{probability}
+\label{module_probability}
+This module only contains factory methods
+
+\subsection{probability factory methods}
+\subsubsection{Probability_from_average_state_occupancy}
+\begin{description}
+\item[External C] {\tt Wise2_Probability_from_average_state_occupancy (length)}
+\item[Perl] {\tt &Wise2::Probability_from_average_state_occupancy (length)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[length] [UNKN ] average length of state [double]
+\item[returns] [UNKN ] Undocumented return value [Probability]
+\end{description}
+for single state (exponetial decays) takes an average length
+and converts that to a probability that will produce that
+length (on average) for the state. NB... this *assumes* that
+you want a single state exp decay.
+
+
+\subsubsection{state_occupancy_from_Probability}
+\begin{description}
+\item[External C] {\tt Wise2_state_occupancy_from_Probability (p)}
+\item[Perl] {\tt &Wise2::state_occupancy_from_Probability (p)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[p] [UNKN ] probability of staying in the state [double]
+\item[returns] [UNKN ] Undocumented return value [double]
+\end{description}
+If you have a single state then this will tak
+the probability for the state->state transition and
+give you back the average length in the state
+
+
+\subsubsection{Probability2Score}
+\begin{description}
+\item[External C] {\tt Wise2_Probability2Score (p)}
+\item[Perl] {\tt &Wise2::Probability2Score (p)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[p] [UNKN ] Undocumented argument [Probability]
+\item[returns] [UNKN ] Undocumented return value [Score]
+\end{description}
+maps probabilities to scores. Deals
+sensibly with 0's.
+
+
+\subsubsection{Score2Probability}
+\begin{description}
+\item[External C] {\tt Wise2_Score2Probability (s)}
+\item[Perl] {\tt &Wise2::Score2Probability (s)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[s] [UNKN ] Undocumented argument [Score]
+\item[returns] [UNKN ] Undocumented return value [Probability]
+\end{description}
+maps scores to probabilities
+
+
+\subsubsection{Score2Bits}
+\begin{description}
+\item[External C] {\tt Wise2_Score2Bits (s)}
+\item[Perl] {\tt &Wise2::Score2Bits (s)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[s] [UNKN ] Undocumented argument [Score]
+\item[returns] [UNKN ] Undocumented return value [Bits]
+\end{description}
+maps scores to bits
+
+
+\subsubsection{halfbit2Probability}
+\begin{description}
+\item[External C] {\tt Wise2_halfbit2Probability (half_bit)}
+\item[Perl] {\tt &Wise2::halfbit2Probability (half_bit)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[half_bit] [UNKN ] Undocumented argument [double]
+\item[returns] [UNKN ] Undocumented return value [Probability]
+\end{description}
+maps halfbits (log2(prob*2) to
+probabilities
+
+
+
+

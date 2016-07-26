@@ -1,0 +1,33 @@
+
+%{
+#include "dynfile.h"
+#include "ftext.h"
+
+%}
+
+
+struct ObjectInfo
+Ftext * ft // description of Object
+
+
+%{
+#include "objectinfo.h"
+
+int write_C_ObjectInfo(ObjectInfo * oi,FILE * ofp)
+{
+  return show_eddystyle_Ftext(oi->ft,"Descrip:",10,ofp,"No Description");
+}
+			     
+ObjectInfo * read_ObjectInfo_line_func(char * line,int maxline,FILE * ifp,char * (fgets_func)(char *,int,FILE*))
+{
+  ObjectInfo * out;
+
+  out = ObjectInfo_alloc();
+
+  out->ft = read_Ftext(line,maxline,ifp,"%%",fgets_func);
+
+  return out;
+}
+
+
+%}

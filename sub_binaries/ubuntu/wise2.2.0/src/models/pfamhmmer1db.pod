@@ -1,0 +1,386 @@
+=head1 NAME
+
+pfamhmmer1db module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item PfamHmmer1DB
+
+=item PfamHmmer1Entry
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object PfamHmmer1DB
+
+=over
+
+=item en
+
+ Type [PfamHmmer1Entry **] List No documentation
+
+=item dirname
+
+ Type [char *] Scalar  directory name with the models
+
+=item cur
+
+ Type [int] Scalar No documentation
+
+=item def
+
+ Type [RandomModel *] Scalar  default random model
+
+
+
+=back
+
+
+Pfam Hmmer1db is a wrapper around a Pfam Hmmer database.  This is file
+called HMM.s in a directory which has appropiate .HMM and .random
+files
+
+Although this DB will be phased out, it is still around for a while.
+
+This wont be used directly, but rather in a threestatedb model. 
+It does not implement a full dynamite style db stream. rather it expects
+threestatedb to prod it in the correct manner.
+
+
+
+
+=head2 Member functions of PfamHmmer1DB
+
+=over
+
+=item hard_link_PfamHmmer1DB
+
+&Wise2::PfamHmmer1DB::hard_link_PfamHmmer1DB(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [PfamHmmer1DB *]
+  Return [UNKN ] Undocumented return value [PfamHmmer1DB *]
+
+
+=item PfamHmmer1DB_alloc_std
+
+&Wise2::PfamHmmer1DB::PfamHmmer1DB_alloc_std(void)
+
+  Equivalent to PfamHmmer1DB_alloc_len(PfamHmmer1DBLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [PfamHmmer1DB *]
+
+
+=item en
+
+&Wise2::PfamHmmer1DB::en(obj,i)
+
+  Access members stored in the en list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [PfamHmmer1DB *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [PfamHmmer1Entry *]
+
+
+=item length_en
+
+&Wise2::PfamHmmer1DB::length_en(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [PfamHmmer1DB *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_en
+
+&Wise2::PfamHmmer1DB::flush_en(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [PfamHmmer1DB *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_en
+
+&Wise2::PfamHmmer1DB::add_en(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [PfamHmmer1DB *]
+  Argument add          [OWNER] Object to add to the list [PfamHmmer1Entry *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=item set_dirname
+
+&Wise2::PfamHmmer1DB::set_dirname(obj,dirname)
+
+  Replace member variable dirname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1DB *]
+  Argument dirname      [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable dirname [boolean]
+
+
+=item dirname
+
+&Wise2::PfamHmmer1DB::dirname(obj)
+
+  Access member variable dirname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1DB *]
+  Return [SOFT ] member variable dirname [char *]
+
+
+=item set_cur
+
+&Wise2::PfamHmmer1DB::set_cur(obj,cur)
+
+  Replace member variable cur
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1DB *]
+  Argument cur          [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable cur [boolean]
+
+
+=item cur
+
+&Wise2::PfamHmmer1DB::cur(obj)
+
+  Access member variable cur
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1DB *]
+  Return [SOFT ] member variable cur [int]
+
+
+=item set_def
+
+&Wise2::PfamHmmer1DB::set_def(obj,def)
+
+  Replace member variable def
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1DB *]
+  Argument def          [OWNER] New value of the variable [RandomModel *]
+  Return [SOFT ] member variable def [boolean]
+
+
+=item def
+
+&Wise2::PfamHmmer1DB::def(obj)
+
+  Access member variable def
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1DB *]
+  Return [SOFT ] member variable def [RandomModel *]
+
+
+=back
+
+=head2 Object PfamHmmer1Entry
+
+=over
+
+=item entryname
+
+ Type [char *] Scalar No documentation
+
+=item is_random
+
+ Type [boolean] Scalar No documentation
+
+=item is_hmmls
+
+ Type [boolean] Scalar No documentation
+
+=item bits_cutoff
+
+ Type [double] Scalar No documentation
+
+
+
+=back
+
+No documentation for PfamHmmer1Entry
+
+=head2 Member functions of PfamHmmer1Entry
+
+=over
+
+=item hard_link_PfamHmmer1Entry
+
+&Wise2::PfamHmmer1Entry::hard_link_PfamHmmer1Entry(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [PfamHmmer1Entry *]
+  Return [UNKN ] Undocumented return value [PfamHmmer1Entry *]
+
+
+=item alloc
+
+&Wise2::PfamHmmer1Entry::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [PfamHmmer1Entry *]
+
+
+=item set_entryname
+
+&Wise2::PfamHmmer1Entry::set_entryname(obj,entryname)
+
+  Replace member variable entryname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1Entry *]
+  Argument entryname    [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable entryname [boolean]
+
+
+=item entryname
+
+&Wise2::PfamHmmer1Entry::entryname(obj)
+
+  Access member variable entryname
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1Entry *]
+  Return [SOFT ] member variable entryname [char *]
+
+
+=item set_is_random
+
+&Wise2::PfamHmmer1Entry::set_is_random(obj,is_random)
+
+  Replace member variable is_random
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1Entry *]
+  Argument is_random    [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable is_random [boolean]
+
+
+=item is_random
+
+&Wise2::PfamHmmer1Entry::is_random(obj)
+
+  Access member variable is_random
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1Entry *]
+  Return [SOFT ] member variable is_random [boolean]
+
+
+=item set_is_hmmls
+
+&Wise2::PfamHmmer1Entry::set_is_hmmls(obj,is_hmmls)
+
+  Replace member variable is_hmmls
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1Entry *]
+  Argument is_hmmls     [OWNER] New value of the variable [boolean]
+  Return [SOFT ] member variable is_hmmls [boolean]
+
+
+=item is_hmmls
+
+&Wise2::PfamHmmer1Entry::is_hmmls(obj)
+
+  Access member variable is_hmmls
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1Entry *]
+  Return [SOFT ] member variable is_hmmls [boolean]
+
+
+=item set_bits_cutoff
+
+&Wise2::PfamHmmer1Entry::set_bits_cutoff(obj,bits_cutoff)
+
+  Replace member variable bits_cutoff
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1Entry *]
+  Argument bits_cutoff  [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable bits_cutoff [boolean]
+
+
+=item bits_cutoff
+
+&Wise2::PfamHmmer1Entry::bits_cutoff(obj)
+
+  Access member variable bits_cutoff
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [PfamHmmer1Entry *]
+  Return [SOFT ] member variable bits_cutoff [double]
+
+
+=back
+

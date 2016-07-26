@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_cDNA *    T_Wise2_cDNA
+
+INPUT
+T_Wise2_cDNA
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_cDNA *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_cDNA
+	sv_setref_pv($arg, "Wise2::cDNA", (void*) $var);

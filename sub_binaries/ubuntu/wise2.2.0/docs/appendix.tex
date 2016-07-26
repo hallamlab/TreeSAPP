@@ -1,0 +1,613 @@
+\makeatletter
+\documentstyle[11pt,fleqn]{article}
+
+%\input amssym.def
+%\input amssym.tex
+
+\setlength{\evensidemargin}{0in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\textwidth}{6.25in}
+\setlength{\textheight}{8.5in}
+\setlength{\topmargin}{0in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\itemsep}{-\parsep}
+\renewcommand{\topfraction}{.9}
+\renewcommand{\textfraction}{.1}
+\newcommand{\ol}{\setlength{\itemsep}{0pt.}\begin{enumerate}}
+\newcommand{\eol}{\end{enumerate}\setlength{\itemsep}{-\parsep}}
+\newcommand{\ignore}[1]{}
+\setlength{\parskip}{0pt}   %{\medskipamount}
+\parindent 1em
+
+% \sup will be used for superscript.
+%\def\sup{^}
+%right arrow
+\newcommand{\rarrow}{\rightarrow}
+%left arrow
+\newcommand{\larrow}{\leftarrow}
+\overfullrule=0pt
+\def\setof#1{\lbrace #1 \rbrace}
+% SIDE MARGINS:
+\oddsidemargin  0pt     %   Left margin on odd-numbered pages.
+\evensidemargin 0pt     %   Left margin on even-numbered pages.
+\marginparwidth 40pt    %   Width of marginal notes.
+\marginparsep 10pt      % Horizontal space between outer margin and
+                        % marginal note
+% VERTICAL SPACING:
+\topmargin 0pt           %    Nominal distance from top of page to top of
+                         %    box containing running head.
+\headsep 10pt            %    Space between running head and text.
+% DIMENSION OF TEXT:
+\textheight 8.4in        % Height of text (including footnotes and figures,
+                         % excluding running head and foot).
+\textwidth 6.5in         % Width of text line.
+\newtheorem{theo}{Theorem}
+\newtheorem{prop}[theo]{Proposition}
+\newtheorem{conj}{Conjecture}
+\newtheorem{prob}[conj]{Problem}
+
+\renewcommand{\baselinestretch}{1.6}
+
+\title{GeneWise - Probability Appendix}
+\author{Ewan Birney, Mor Amitai}
+
+
+\begin{document}
+\maketitle
+
+\section{Intron Probabilities}
+
+\subsection{Definitions and Preamble}
+
+This document describes the derivation of probabilities for the
+case of an intron of a known phase occuring between two match states.
+Precisely the same process can be used for the other phase introns
+and the introns occuring between two insert states or insert to match or
+match to insert.
+
+The way we will model the introns is as 5 regions, two of fixed length,
+which can then be modeled as 3 states in the resulting HMM. Because we
+allow overlaps in the 'emission' of characters from different states there
+are conditional probabilities which require carefully handling; for this
+reason we explicitly expand the probability calculations and then collect
+relevant terms to construct the HMM.
+
+The final HMM is slightly incorrect in that the correction terms needed to
+be multipled on the non-intron, coding sequence path cannot take into
+account the more complicated intron modeling we have provided here. However
+because these probabilities for introns are small, with the corresponding correction
+term being 1-($\sum$ intron probabilites) this effect is likely to be small.
+
+We will use the following notations:
+
+\begin{description}
+\item intron = intron$V$ = intron of phase $V$.
+\item $C^s = c^s_1,...,c^s_l$ - l bases before the intron.
+\item $C^e = c^e_1,...,c^e_t$ - t bases after the intron.
+\item $X = x_1,x_2,...,x_m$ - the first $m$ bases of the intron.
+\item $A = a_1,a_2,...,a_n$ - the central $n$ bases of the intron.
+\item $Y = y_1,y_2,...,y_p$ - the $p$ bases of the pyrimidine tract.
+\item $B = b_1,b_2,...,b_q$ - the $b$ bases between the pyrimidine tract
+and the 3' splice site.
+\item $Z = z_1,z_2,...,z_r$ - the last $r$ bases of the intron.
+\end{description}
+
+$C^sX$ is the 5' splice site information, $Y$ the pyrimidine
+tract information and $ZC^e$ is the 3' splice
+site information. $A$ and $B$ are spacers between the 5'SS and
+the pyrimidine tract and the pyrimidine tract and the 3'SS which
+will mainly provide length information.
+
+\subsection{Overview of the probabilities}
+
+We want to calculate Prob(sequence , alignment  $|$  model).
+In most Hidden Markov Models, this probability can be calculated
+in two parts:
+\begin{enumerate}
+\item Prob(alignment $|$ model) - The transition probabilities
+\item Prob(sequence $|$ model,alignment) - The emission probabilities
+\end{enumerate}
+        
+In calculating the intron probability there are terms equivalent to
+the alignment path and terms equivalent to the sequence emitted, but
+because the same sequence is 'emitted' by two separate processes (for
+example, the bases before the 5'SS must be evaluted both as part of
+the protein sequence and as part of the splice site consensus), the
+probability calculation is not a mechanical decomposition of path and
+emissions.
+
+So, starting from the complete probability of a intron of phase $V$
+between match states $i$ and $i+1$, we will first decompse the
+probabilities into a product in which each term can be calculated
+using some biological assumptions. Following this, the different terms
+of the product can be placed at appropiate transitions or emissions in
+the expanded HMM for the best path to be calculated by standard
+dynamic programming methods.
+
+\subsection{Biological assumptions}
+The biological assumptions which we make are as follows
+\begin{enumerate}
+\item Amino acids, or in this case, codons are independent. This assumption
+is made in standard HMM models of protein sequence.
+\item The different regions of the intron are independent and so the 
+probability of an intron is simply the product of the different regions.
+This assumption is often used in current gene parsing methods.
+\item The intron can be adaquately modelled as a having 5 regions: 5'SS, central
+region, pyrimidine tract, spacer, 3'SS.
+\item The length distributions of the separate regions are independant of
+any other features of the introns.
+\item The length distributions of the different regions can be adquately
+modeled by an exponential decay or fixed lengths. This assumption can be
+changed at the cost of greater computional complexity.
+\item That there is no exon of less than $l+t+2$ bases. $l$ and $t$ are 
+the splice site information which overlap the coding sequence, and are 
+currently fixed at 3.
+\item That the number of phase 1 or 2 introns in a gene are small such
+ that ignoring
+the information in the split codons in these introns (which
+will be necessary for calculating the probability of an intron) does not 
+significantly change the overall probability.
+\end{enumerate}
+Some assumptions which we have kept however in the model are
+\begin{enumerate}
+\item The 5'SS is $dependent$ on the previous coding sequence bases
+\item The 3'SS is $dependent$ on the following coding sequence bases
+\end{enumerate}
+
+
+\subsection{Probability}
+In the following formula the terms such as $Y_{j+m+n,p}$ encorporates three
+separate parts of the probability: firstly that the length of the region is
+$p$, secondly that the bases $y_1$ ... $y_p$,
+come from the $Y$ region, ie the pyrimidine tract, and finally
+that the Y region starts at position $j+m+n$. Thus these terms represent
+both alignment and emission components.
+
+We are interested in the probability of an intron of a defined path between
+positions $j$ and $h$ in the DNA sequence and between match state $i$ and
+match state $i+1$ in the Hidden Markov model.
+
+
+\begin{equation}\label{overall}
+Prob(C^s_{j-l,l},C^e_{h,t},X_{j,m},A_{j+m,n},Y_{j+m+n,p},B_{j+m+n+p,q},Z_{j+m+n+p+q,r} \; |\; 
+model)
+\end{equation}
+
+Notice that $$ h = j+m+n+p+q+r $$
+
+As everything is dependant on the model, we can omit explicit $P( \cdot\; |
+\; model)$ terms.
+
+
+$$
+Prob(C^s_{j-l,l},C^e_{h,t},X_{j,m},A_{j+m,n},Y_{j+m+n,p},B_{j+m+n+p,q},Z_{j+m+n+p+q,r} \;)
+$$
+
+Using $$ P(\alpha, \beta \; |\;  \gamma) = P(\alpha \; |\;  \gamma) \times P(\beta \; |\; 
+\alpha, \gamma) $$ iteratively we can decompose this probability into a
+product
+
+\begin{equation}\label{eq1}
+P(C^s_{j-l,l},C^e_{h,t}\;) \times
+\end{equation}
+\begin{equation}\label{eq2}
+P(X_{j,m}\; |\; C^s_{j-l,l},C^e_{h,t}) \times
+\end{equation}
+\begin{equation}\label{eq3}
+P(A_{j+m,n}\; |\; C^s_{j-l,l},C^e_{h,t},X_{j,m}) \times
+\end{equation}
+\begin{equation}\label{eq4}
+P(Y_{j+m+n,p}\; |\; C^s_{j-l,l},C^e_{h,t},X_{j,m},A_{j+m,n}) \times
+\end{equation}
+\begin{equation}\label{eq5}
+P(B_{j+m+n+p,q}\; |\; C^s_{j-l,l},C^e_{h,t},X_{j,m},A_{j+m,n},Y_{j+m+n,p}) \times
+\end{equation}
+\begin{equation}\label{eq6}
+P(Z_{j+m+n+p+q,r}\; |\; C^s_{j-l,l},C^e_{h,t},X_{j,m},A_{j+m,n},Y_{j+m+n,p},B_{j+m+n+p,q})
+\end{equation}
+
+
+Now, we will treat each of these equations in turn, and, by using
+the biological assumptions stated above, decompose them into measurably
+quanities. For the terms 2-6 generally we will have three components
+\begin{enumerate}
+\item the probability of entering this region from the previous region
+\item the probability of the length of this region
+\item the probability of the bases in this region
+\end{enumerate}
+
+\subsection{equation 2}
+$$
+P(C^s_{j-l,l},C^e_{h,t}\; |\;  model) =
+$$
+$$
+P(c^s_1,...,c^s_{l-V}\; |\;
+model) \times P(c^{split}_{l-V+1},c^{split}_{l-V+2},c^{split}_{l-V+3}) \times
+P(c^e_{4-V},...,c^e_{t} \; |\;  model) (\ref{eq1})
+$$
+The first and last terms (for appropiates choice of $l$ and $t$), and the
+middle $c^{split}$ term for $V = 0$ are
+emission probabilities (whether match or insert) from the model, and are
+calculated in the standard manner. For $V = 1 \mbox{ or } 2$ 
+The term $c^{split}_{index}$ indicates the
+split codon made from the end of $C^s$ and the beginning of $C^e$,
+depending on $V$. This codon cannot be calculated correctly without a
+large increased in computational complexity, and so we ignore the 
+information in this codon.
+
+\subsection{equation 3}
+$$
+P(X_{j,m}\; |\; C^s_{j-l,l},C^e_{h,t}) = 
+$$
+\begin{equation}\label{eq2.1}
+P(5'SS_j,3'SS_h \; |\;  C^s_{j-l,l},C^e_{h,t})\times
+\end{equation}
+\begin{equation}\label{eq2.2}
+P(length(X)=m \; |\; C^s_{j-l,l},C^e_{h,t},5'SS_j,3'SS_h)
+\end{equation}
+\begin{equation}\label{eq2.3}
+P(X_{j,m} \; |\; C^s_{j-l,l},C^e_{h,t},5'SS_j,3'SS_h,length(X)=m)
+\end{equation}
+
+The term $P(5'SS_j,3'SS_h | \cdot)$ indicates that the intron starts
+at position $j$ and ends at position $h$. $h$ is defined to
+be the end of the intron, and we assume that all introns have an end.
+And so $P(5'SS_j| \cdot) = P(3'SS_h| \cdot) = P(5'SS_j,3'SS_h\; |\;\cdot)$.
+
+$$
+(\ref{eq2.1}) \;\;\; P(5'SS_j,3'SS_h \; |\;  C^s_{j-l,l},C^e_{h,t})
+= \frac{P(C^s_{j-l,l},C^e_{h,t} \; |\;  5'SS_j,3'SS_h ) \times
+P( 5'SS_j,3'SS_h)}{ P(C^s_{j-l,l},C^e_{h,t})}
+$$
+$$
+= \frac{P(C^s_{j-l,l} \; |\;  5'SS_j,3'SS_h ) \times P(C^e_{h,t}\; |\; 5'SS_j,3'SS_h )\times P( 5'SS_j,3'SS_h)}
+{ P(C^s_{j-l,l})\times P(C^e_{h,t})}
+$$
+$$
+= \frac{P(C^s_{j-l,l} \; |\;  5'SS_j ) \times P( 5'SS_j,3'SS_h)} {P(C^s_{j-l,l})} \times
+ \frac{ P(C^e_{h,t}\; |\; 3'SS_h )\times  P(5'SS_j,3'SS_h)}{P(C^e_{h,t})} \times
+\frac{1}{ P(5'SS_j,3'SS_h)}
+$$
+Notice that $P(5'SS_j,3'SS_h \; |\; C^s_{j-l,l}) = P(5'SS_j \; |\; C^s_{j-l,l})$ and similarly for $3'SS$.
+$$
+= P( 5'SS_j \; |\;  C^s_{j-l,l}) \times  P(3'SS_h \; |\;  C^e_{h,t}) \times \frac{1}{ P(5'SS_j,3'SS_h)}
+$$ 
+$$
+=
+	\frac{no(C^s \mbox{ in 5' SS})}{no(\mbox{ $C^s$ in CDS})}
+\times
+	\frac{no(C^e \mbox{ in 3' SS})}{no(\mbox{ $C^e$ in CDS})}
+\times
+	\frac{1}{\frac{no(\mbox{intron of phase $V$})}
+		{no(\mbox{CDS bases})\times \frac{1}{3}}}
+$$
+\begin{equation}\label{intron_existance_term}
+=
+\frac	{
+	no(C^s \mbox{ in 5' SS})\times no(C^e \mbox{ in 3' SS})\times no(\mbox{CDS bases})
+	}
+	{
+	no(\mbox{$C^s$ in CDS})\times no(\mbox{$C^e$ in CDS})\times no(\mbox{intron of phase $V$})\times 3
+	}
+\end{equation}
+$
+(\ref{eq2.2}) \;\;\; P(length(X) = m | C^s_{j-l,l},C^e_{h,t},5'SS_j,3'SS_h) = 1
+$
+We have fixed m to be a set length (7 for the current human model), and thus this ``transition'' probability
+is one.
+
+\begin{equation}\label{5'SS_consensus}
+(\ref{eq2.3}) \;\;\; P(X_{j,m} \; |\; C^s_{j-l,l},C^e_{h,t},5'SS_j,3'SS_h) = P(X_{j,m} \; |\; C^s_{j-l,l},5'SS_j) = 
+\frac{no(\mbox{$C^sX$ in 5' SS})}{no(\mbox{$C^s$ in 5' SS} )}
+\end{equation}
+
+\subsection{equation 4}
+$$
+P(A_{j+m,n} \; |\; C^s_{j-l,l},C^e_{h,t},X_{j,m}) = P(A_{j+m,n} \; |\; X_{j,m})
+$$
+\begin{equation}\label{eq3.1}
+P(A \mbox{ region } \; |\; X_{j,m})\times
+\end{equation}
+\begin{equation}\label{eq3.2}
+P( \mbox{ length of $A$ region is }n \; |\; \mbox{ region $A$} ) \times
+\end{equation}
+\begin{equation}\label{eq3.3}
+P( A = a_1,a_2,...,a_n \; |\; \mbox{ region $A$ of length $n$ } )
+\end{equation}
+$(\ref{eq3.1})$ is 1 because we always have a central region following a 5'SS.\\
+$(\ref{eq3.2})$
+assuming an exponetial decay distribution with parameter $\alpha$
+\begin{equation}\label{central_length}
+P( \mbox{ $A$ region  of length }n\; | \; \mbox{ region $A$} ) = (1- \alpha) \alpha^{n-1}
+\end{equation}
+$(\ref{eq3.3})$ is
+\begin{equation}\label{central_emission}
+\prod_{i=1}^n P(a_i \; |\; \mbox{ central region })
+\end{equation}
+
+
+\subsection{equation 5}
+$$
+P(Y_{j+m+n,p}\; |\; C^s_{j-l,l},C^e_{h,t},X_{j,m},A_{j+m,n}) =
+ P(Y_{j+m+n,p}\; |\; A_{j+m,n}) = 
+$$
+\begin{equation}\label{eq4.1}
+P(Y \mbox{ region } \; |\; A_{j+m,n})\times
+\end{equation}
+\begin{equation}\label{eq4.2}
+P( \mbox{ length of $Y$ region is }p\; | \; \mbox{ region $Y$ }) \times
+\end{equation}
+\begin{equation}\label{eq4.3}
+P( Y = y_1,y_2,...,y_p \; |\; \mbox{ region $Y$ of length $p$ } )
+\end{equation} 
+
+As the previous region, the first term ($\ref{eq4.1}$) is one, whereas
+the other two terms are as before,
+
+
+\begin{equation}\label{py_length}
+(\ref{eq4.2}) 
+P( \mbox{ $Y$ region  of length }p \; | \; \mbox{ region $Y$ }) = (1- \beta) \beta^{p-1}
+\end{equation}
+
+\begin{equation}\label{py_emission}
+(\ref{eq4.3}) = 
+\prod_{i=1}^p P(y_i \; |\; \mbox{ pyrimidine region })
+\end{equation}
+
+
+
+
+\subsection{equation 6}
+$$
+P(B_{j+m+n}\; |\; C^s_{j-l,l},C^e_{h,t},X_{j,m},A_{j+m,n},Y_{j+m+n,p}) =
+ P(B_{j+m+n+p,q}\; |\; Y_{j+m+n,p}) = 
+$$
+\begin{equation}\label{eq5.1}
+P(B \mbox{ region } \; |\; Y_{j+m+n,p})\times
+\end{equation}
+\begin{equation}\label{eq5.2}
+P( \mbox{ length of $B$ region is }q \; | \; \mbox{ region $B$ } ) \times
+\end{equation}
+\begin{equation}\label{eq5.3}
+P( B = b_1,b_2,...,b_q \; |\; \mbox{ region $B$ of length $q$ } )
+\end{equation} 
+
+
+
+As the previous two regions, the first term ($\ref{eq5.1}$) is one, whereas
+the other two terms are as before,
+
+
+\begin{equation}\label{spacer_length}
+(\ref{eq5.2}) 
+P( \mbox{ $B$ region  of length }q\; | \; \mbox{ region $Y$} ) = (1- \gamma) \gamma^{q-1}
+\end{equation}
+
+\begin{equation}\label{spacer_emission}
+(\ref{eq5.3}) = 
+\prod_{i=1}^q P(b_i \; |\; \mbox{ pyrimidine to 3'SS spacer  region })
+\end{equation}
+
+
+
+
+
+\subsection{equation 7}
+$$
+P( Z_{j+m+n+p+q,r}\; | \;
+C^s_{j-l,l},C^e_{h,t},X_{j,m},A_{j+m,n},Y_{j+m+n,p},B_{j+m+n+p,q})
+$$
+$$
+ = P( Z_{j+m+n+p+q,r} | C^e_{h,t}, B_{j+m+n+p,q})
+$$ 
+\begin{equation}\label{eq6.1}
+P(Z \mbox{ region } \; |\; C^e_{h,t}, B_{j+m+n+p,q} ) \times
+\end{equation}
+\begin{equation}\label{eq6.2}
+P( \mbox{ length of $Z$ region is }r \; | \; \mbox{ region $Z$}  ) \times
+\end{equation}
+\begin{equation}\label{eq6.3}
+P( Z = z_1,...,z_r \; |\; C^e_{h,t}, \mbox{ length of $Z$ region is }r) 
+\end{equation}
+
+$(\ref{eq6.1})$ is one
+$(\ref{eq6.2})$ is also one because we have a fixed length of $r$ (3 for the
+current human model) and 
+\begin{equation}\label{3'SS_consensus}
+(\ref{eq6.3}) = \frac{ no(ZC^e \mbox{ in 3'SS } )}{ no(C^e \mbox{ in 3'SS })}
+\end{equation}
+
+
+\section{Applying Probabilities to the expanded HMM}
+
+The above probabilities, although now measurable cannot be placed on the
+HMM architecture. We need to mulitple the terms $\ref{eq1}-\ref{eq6}$
+and then redistribute the
+resulting product over the HMM. In fact the central,pyrimidine tract and
+spacer regions ($A$,$Y$ and $B$) behave exactly as one expects in a standard
+HMM. However the $X$ and $Z$ regions are not calculable in the HMM as the stand
+at must be multiplied out first
+
+So, the equations which need to be multiplied together are:
+
+\begin{equation}\label{multiply}
+\mbox{Final Probabilty } = (\ref{intron_existance_term}) \times
+(\ref{5'SS_consensus}) \times (\ref{central_length}) \times (\ref{central_emission})
+\times (\ref{py_length}) \times (\ref{py_emission}) \times (\ref{spacer_length})
+\times (\ref{spacer_emission}) \times (\ref{3'SS_consensus})
+\end{equation}
+
+$$
+(\ref{multiply}) = 
+\frac	{
+	no(C^s \mbox{ in 5'SS})\times no(C^e \mbox{ in 3' SS})\times no(\mbox{CDS bases})
+	}
+	{
+	no(\mbox{$C^s$ in CDS})\times no(\mbox{$C^e$ in CDS})\times no(\mbox{intron of phase $V$})\times 3
+	}
+\times
+$$
+$$
+\frac{no(\mbox{$C^sX$ in 5' SS})}{no(\mbox{$C^s$ in 5' SS} )}
+\times
+ \frac{ no(ZC^e \mbox{ in 3'SS } )}{ no(C^e \mbox{ in 3'SS })} \times
+$$
+$$
+\times (\ref{central_length}) \times (\ref{central_emission})
+\times (\ref{py_length}) \times (\ref{py_emission}) \times (\ref{spacer_length})
+\times (\ref{spacer_emission}) 
+$$
+Cancelling the $no(C^s \mbox{ in 5'SS})$ and $no(C^e \mbox{ in 3'SS})$
+terms, and rearranging the terms involving $C^s$ and $C^e$
+ together we arrive at
+\begin{equation}\label{5'SS_term}
+\frac { no(C^sX \mbox{ in 5'SS})}{ no(C^s \mbox{ in CDS}) } \times
+\end{equation}
+\begin{equation}\label{3'SS_term}
+\frac { no(ZC^e \mbox{ in 3'SS})}{ no(C^e \mbox{ in CDS}) } \times
+\end{equation}
+\begin{equation}\label{intron_correction_term}
+\frac { no(\mbox{CDS bases})}{ no(\mbox{introns of phase $V$}) \times 3} \times
+\end{equation}
+$$
+\times (\ref{central_length}) \times (\ref{central_emission})
+\times (\ref{py_length}) \times (\ref{py_emission}) \times (\ref{spacer_length})
+\times (\ref{spacer_emission}) 
+$$
+
+\subsection{HMM transition probabilities}
+
+
+Despite having 5 regions in the intron, two of them, the 5'SS and the
+3'SS are of fixed length. This means that these regions can be precisely
+modeled in the transition of states leading into them or leading from them
+with appropiate transition emission lengths
+(notice that these HMMs must 'emit' on the transitions as the probability
+depends on the sequence emitted). Thus the five regions of the intron can
+be represented by three states in the HMM, called CENTRAL, PY and SPACER
+
+We have some freedom as where to place the term
+($\ref{intron_correction_term}$), which must be multipled once during the
+parse of the intron, but could go at any non-looping transition. We will
+place it at the 3'SS. [NB, this term, which will be greater than one is a 'correction'
+term for the fact that we have to incorporate the probability of having an intron
+twice, once in the 5'SS calculations and once in the 3'SS calculations].
+In addition some probabilities will be
+the same for all positions in the protein model and depends only on
+the DNA sequence, for example ($\ref{5'SS_term}$) which indicates the
+consensus information at the 5'SS. These probabilities can be
+preprocessed on the sequence before the final dynamic programming
+method.
+
+
+\subsubsection{Transitions from MATCH to CENTRAL}
+From state MATCH to CENTRAL
+\begin{enumerate}
+\item sequence dependant: $(\ref{5'SS_term})$
+\item sequence dependant: $P(a_1 \; | \; \mbox{ Central region})$ [the first term in$~(\ref{central_emission})$]
+partial match information: See note
+\end{enumerate}
+
+\subsubsection{Transitions from CENTRAL}
+From CENTRAL to CENTRAL
+\begin{enumerate}
+\item constant: $\alpha$
+\item sequence dependant: $P(a_i \; | \; \mbox{ Central region})$ [the $i^{th}$ term in$~(\ref{central_emission})$]
+\end{enumerate}
+
+From CENTRAL to PY
+\begin{enumerate}
+\item constant: $1-\alpha$
+\item sequence dependant: $P(y_1 \; | \; \mbox{ pyrimidine region})$ [the first term in$~(\ref{py_emission})$]
+\end{enumerate}
+
+\subsubsection{Transitions from PY}
+From PY to PY
+\begin{enumerate}
+\item constant: $\beta$
+\item sequence dependant: $P(y_i \; | \; \mbox{ pyrimidine region})$ [the $i^{th}$ term in$~(\ref{py_emission})$]
+\end{enumerate}
+
+From PY to SPACER
+\begin{enumerate}
+\item constant: $1-\beta$
+\item sequence dependant: $P(b_1 \; | \; \mbox{ spacer region})$ [the first term in$~(\ref{spacer_emission})$]
+\end{enumerate}
+
+\subsubsection{Transitions from SPACER}
+
+From SPACER to SPACER
+\begin{enumerate}
+\item constant: $\gamma$
+\item sequence dependant: $P(b_i \; | \; \mbox{ spacer region})$ [the $i^{th}$ term in$~(\ref{spacer_emission})$]
+\end{enumerate}
+
+
+From SPACER to MATCH
+\begin{enumerate}
+\item constant: $1-\gamma$
+\item constant: $\ref{intron_correction_term}$
+\item sequence dependant: $\ref{3'SS_term}$
+\item artifical match information: See note
+\end{enumerate}
+
+
+
+\subsection{Partial Match information}
+
+The Match information in phase 1 and 2 must be split but the split bases can still be evaluated
+as cases in which only one or two bases of the codon are known. Thus some of the
+information in the protein HMM is retained.
+
+
+
+\subsection{Tranistion from MATCH to MATCH (in coding sequence)}
+
+
+The protein MATCH to MATCH transition has now become four transitions, MATCH to MATCH, and MATCH to phase 0,1,2 introns.
+The sum of these four probabilities must sum to the original MATCH to MATCH probability. This can
+be achieved by the MATCH to MATCH (and MATCH to INSERT) taking a sequence dependant multipler to its
+probability
+
+Defining the term $S$ to mean the sequence around the codon ending at $j$.
+$$
+S = s_{j-l},...,s_{j+m}
+$$
+Notice that $l$ and $m$ are fixed for a particular model. 
+$$
+Prob(\mbox{ MATCH}\rightarrow \mbox{ MATCH in DNA }) =
+$$
+$$
+Prob(\mbox{ MATCH}\rightarrow \mbox{ MATCH in protein})
+(1 - P(\mbox{ Intron phase 0}\;|\;S) - P(\mbox{Intron phase 1}\;|\;S) - P(\mbox{Intron phase 2}\;|\;S))
+$$
+The latter half of this product can be preprocessed on the sequence outside of the dynamic programming routine.
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

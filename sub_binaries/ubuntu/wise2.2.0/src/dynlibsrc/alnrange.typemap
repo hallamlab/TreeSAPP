@@ -1,0 +1,22 @@
+
+TYPEMAP
+Wise2_AlnRange *    T_Wise2_AlnRange
+
+INPUT
+T_Wise2_AlnRange
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_AlnRange *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_AlnRange
+	sv_setref_pv($arg, "Wise2::AlnRange", (void*) $var);
+
+TYPEMAP
+Wise2_AlnRangeSet *    T_Wise2_AlnRangeSet
+
+INPUT
+T_Wise2_AlnRangeSet
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_AlnRangeSet *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_AlnRangeSet
+	sv_setref_pv($arg, "Wise2::AlnRangeSet", (void*) $var);

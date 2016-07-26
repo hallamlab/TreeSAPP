@@ -1,0 +1,410 @@
+=head1 NAME
+
+genefrequency module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item GeneFrequency21
+
+=item GeneConsensus
+
+=item GeneSingleCons
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object GeneFrequency21
+
+=over
+
+=item ss5
+
+ Type [GeneConsensus *] Scalar No documentation
+
+=item ss3
+
+ Type [GeneConsensus *] Scalar No documentation
+
+=item codon[64]
+
+ Type [double] Scalar No documentation
+
+=item central[4]
+
+ Type [double] Scalar No documentation
+
+=item py[4]
+
+ Type [double] Scalar No documentation
+
+=item spacer[4]
+
+ Type [double] Scalar No documentation
+
+=item transition[GENEFREQUENCY21_TRANSITION_LEN]
+
+ Type [double] Scalar No documentation
+
+=item cds_triplet[64]
+
+ Type [double] Scalar  phase 0
+
+
+
+=back
+
+No documentation for GeneFrequency21
+
+=head2 Member functions of GeneFrequency21
+
+=over
+
+=item hard_link_GeneFrequency21
+
+&Wise2::GeneFrequency21::hard_link_GeneFrequency21(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [GeneFrequency21 *]
+  Return [UNKN ] Undocumented return value [GeneFrequency21 *]
+
+
+=item alloc
+
+&Wise2::GeneFrequency21::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [GeneFrequency21 *]
+
+
+=item set_ss5
+
+&Wise2::GeneFrequency21::set_ss5(obj,ss5)
+
+  Replace member variable ss5
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneFrequency21 *]
+  Argument ss5          [OWNER] New value of the variable [GeneConsensus *]
+  Return [SOFT ] member variable ss5 [boolean]
+
+
+=item ss5
+
+&Wise2::GeneFrequency21::ss5(obj)
+
+  Access member variable ss5
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneFrequency21 *]
+  Return [SOFT ] member variable ss5 [GeneConsensus *]
+
+
+=item set_ss3
+
+&Wise2::GeneFrequency21::set_ss3(obj,ss3)
+
+  Replace member variable ss3
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneFrequency21 *]
+  Argument ss3          [OWNER] New value of the variable [GeneConsensus *]
+  Return [SOFT ] member variable ss3 [boolean]
+
+
+=item ss3
+
+&Wise2::GeneFrequency21::ss3(obj)
+
+  Access member variable ss3
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneFrequency21 *]
+  Return [SOFT ] member variable ss3 [GeneConsensus *]
+
+
+=back
+
+=head2 Object GeneConsensus
+
+=over
+
+=item center
+
+ Type [int] Scalar No documentation
+
+=item gsc
+
+ Type [GeneSingleCons **] List No documentation
+
+
+
+=back
+
+No documentation for GeneConsensus
+
+=head2 Member functions of GeneConsensus
+
+=over
+
+=item hard_link_GeneConsensus
+
+&Wise2::GeneConsensus::hard_link_GeneConsensus(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [GeneConsensus *]
+  Return [UNKN ] Undocumented return value [GeneConsensus *]
+
+
+=item GeneConsensus_alloc_std
+
+&Wise2::GeneConsensus::GeneConsensus_alloc_std(void)
+
+  Equivalent to GeneConsensus_alloc_len(GeneConsensusLISTLENGTH)
+
+
+
+  Return [UNKN ] Undocumented return value [GeneConsensus *]
+
+
+=item set_center
+
+&Wise2::GeneConsensus::set_center(obj,center)
+
+  Replace member variable center
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneConsensus *]
+  Argument center       [OWNER] New value of the variable [int]
+  Return [SOFT ] member variable center [boolean]
+
+
+=item center
+
+&Wise2::GeneConsensus::center(obj)
+
+  Access member variable center
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneConsensus *]
+  Return [SOFT ] member variable center [int]
+
+
+=item gsc
+
+&Wise2::GeneConsensus::gsc(obj,i)
+
+  Access members stored in the gsc list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [GeneConsensus *]
+  Argument i            [UNKN ] Position in the list [int]
+  Return [SOFT ] Element of the list [GeneSingleCons *]
+
+
+=item length_gsc
+
+&Wise2::GeneConsensus::length_gsc(obj)
+
+  discover the length of the list
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the list [GeneConsensus *]
+  Return [UNKN ] length of the list [int]
+
+
+=item flush_gsc
+
+&Wise2::GeneConsensus::flush_gsc(obj)
+
+  Frees the list elements, sets length to 0
+  If you want to save some elements, use hard_link_xxx
+  to protect them from being actually destroyed in the free
+
+
+
+  Argument obj          [UNKN ] Object which contains the list  [GeneConsensus *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item add_gsc
+
+&Wise2::GeneConsensus::add_gsc(obj,add)
+
+  Adds another object to the list. It will expand the list if necessary
+
+
+
+  Argument obj          [UNKN ] Object which contains the list [GeneConsensus *]
+  Argument add          [OWNER] Object to add to the list [GeneSingleCons *]
+  Return [UNKN ] Undocumented return value [boolean]
+
+
+=back
+
+=head2 Object GeneSingleCons
+
+=over
+
+=item string
+
+ Type [char *] Scalar No documentation
+
+=item number
+
+ Type [double] Scalar No documentation
+
+
+
+=back
+
+No documentation for GeneSingleCons
+
+=head2 Member functions of GeneSingleCons
+
+=over
+
+=item hard_link_GeneSingleCons
+
+&Wise2::GeneSingleCons::hard_link_GeneSingleCons(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [GeneSingleCons *]
+  Return [UNKN ] Undocumented return value [GeneSingleCons *]
+
+
+=item alloc
+
+&Wise2::GeneSingleCons::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [GeneSingleCons *]
+
+
+=item set_string
+
+&Wise2::GeneSingleCons::set_string(obj,string)
+
+  Replace member variable string
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneSingleCons *]
+  Argument string       [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable string [boolean]
+
+
+=item string
+
+&Wise2::GeneSingleCons::string(obj)
+
+  Access member variable string
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneSingleCons *]
+  Return [SOFT ] member variable string [char *]
+
+
+=item set_number
+
+&Wise2::GeneSingleCons::set_number(obj,number)
+
+  Replace member variable number
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneSingleCons *]
+  Argument number       [OWNER] New value of the variable [double]
+  Return [SOFT ] member variable number [boolean]
+
+
+=item number
+
+&Wise2::GeneSingleCons::number(obj)
+
+  Access member variable number
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [GeneSingleCons *]
+  Return [SOFT ] member variable number [double]
+
+
+=back
+
+=over
+
+=item read_GeneFrequency21_file
+
+&Wise2::read_GeneFrequency21_file(filename)
+
+  Opens the file with /openfile
+
+  Reads in a GeneFrequency (Mor-Ewan style)
+
+
+
+
+  Argument filename     [UNKN ] will open from WISECONFIGDIR etc via openfile [char *]
+  Return [UNKN ] a newly allocated structure [GeneFrequency21 *]
+
+
+=item read_GeneFrequency21
+
+&Wise2::read_GeneFrequency21(ifp)
+
+  Reads in a GeneFrequency (Mor-Ewan style)
+  file from ifp
+
+
+
+  Argument ifp          [UNKN ] file pointer [FILE *]
+  Return [UNKN ] a newly allocated structure [GeneFrequency21 *]
+
+
+=back
+

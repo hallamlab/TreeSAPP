@@ -1,0 +1,358 @@
+\section{codon}
+\label{module_codon}
+This module contains the following objects
+
+\begin{itemize}
+\item \ref{object_CodonTable} CodonTable
+
+\item This module also contains some factory methods
+\end{itemize}
+\subsection{codon factory methods}
+\subsubsection{is_non_ambiguous_codon_seq}
+\begin{description}
+\item[External C] {\tt Wise2_is_non_ambiguous_codon_seq (seq)}
+\item[Perl] {\tt &Wise2::is_non_ambiguous_codon_seq (seq)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[seq] [READ ] pointer to DNA sequence [char *]
+\item[returns] [UNKN ] TRUE if real codon, FALSE if contains N's [boolean]
+\end{description}
+Tells you if this codon is a real codon
+
+
+\subsubsection{codon_from_base4_codon}
+\begin{description}
+\item[External C] {\tt Wise2_codon_from_base4_codon (c)}
+\item[Perl] {\tt &Wise2::codon_from_base4_codon (c)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[c] [UNKN ] Undocumented argument [int]
+\item[returns] [UNKN ] Undocumented return value [codon]
+\end{description}
+maps a 0-63 codon to a 0-123 codon. Suprisingly useful.
+
+
+\subsubsection{base4_codon_from_codon}
+\begin{description}
+\item[External C] {\tt Wise2_base4_codon_from_codon (c)}
+\item[Perl] {\tt &Wise2::base4_codon_from_codon (c)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[c] [READ ] codon 0-125 [codon]
+\item[returns] [UNKN ] base 4 codon (0-63) [int]
+\end{description}
+maps a 0-125 codon to a 0-63 codon.
+
+
+If ambiguous then returns 64 having issued a warning.
+
+
+\subsubsection{has_random_bases}
+\begin{description}
+\item[External C] {\tt Wise2_has_random_bases (c)}
+\item[Perl] {\tt &Wise2::has_random_bases (c)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[c] [READ ] codon number 0-124 [codon]
+\item[returns] [UNKN ] TRUE if has N's , FALSE otherwise [boolean]
+\end{description}
+Tests to see if this codon number has any N's in it
+
+
+\subsubsection{permute_possible_random_bases}
+\begin{description}
+\item[External C] {\tt Wise2_permute_possible_random_bases (c,one,two,three)}
+\item[Perl] {\tt &Wise2::permute_possible_random_bases (c,one,two,three)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[c] [READ ] codon number [codon]
+\item[one] [READ ] base to replace first position if N [base]
+\item[two] [READ ] base to replace second position if N [base]
+\item[three] [READ ] base to replace third position if N [base]
+\item[returns] [UNKN ] codon number  [codon]
+\end{description}
+Bizarely useful function for calculating ambiguity scores.
+
+
+This takes the codon c, and for each possible base, 
+if it is N, replaces it with one, two or three.
+
+
+If the base is not N, it remains the same
+
+
+\subsubsection{base_from_codon}
+\begin{description}
+\item[External C] {\tt Wise2_base_from_codon (c,pos)}
+\item[Perl] {\tt &Wise2::base_from_codon (c,pos)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[c] [UNKN ] Undocumented argument [codon]
+\item[pos] [UNKN ] Undocumented argument [int]
+\item[returns] [UNKN ] Undocumented return value [base]
+\end{description}
+Probably not the best function to use for this, but 
+useful. Takes a codon and with pos being 1,2,3 gives
+you the firt,second of third base
+
+
+\subsubsection{codon_from_seq}
+\begin{description}
+\item[External C] {\tt Wise2_codon_from_seq (seq)}
+\item[Perl] {\tt &Wise2::codon_from_seq (seq)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[seq] [UNKN ] pointer to sequence of at least 3 chrs long. [char *]
+\item[returns] [UNKN ] Undocumented return value [codon]
+\end{description}
+takes an ASCII coded pointer to a 3 base pair
+sequence (it could be the part of a sequence: it only
+assummes that the seq points with 3 chars at pos 0,1,2 
+in C coordinates from seq. No NULL is required). It 
+ives back the codon as made from standard mapping, ie,
+25*base_1+5*base_2 + base3 being a number from 0-124 inc.
+
+
+\subsubsection{base4_codon_from_seq}
+\begin{description}
+\item[External C] {\tt Wise2_base4_codon_from_seq (seq)}
+\item[Perl] {\tt &Wise2::base4_codon_from_seq (seq)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[seq] [UNKN ] pointer to sequence of at least 3 chrs long [char *]
+\item[returns] [UNKN ] Undocumented return value [int]
+\end{description}
+Sometimes it is more useful to work in base64, ie, 
+non N. this functions does the same thing as 
+/codon_from_seq but produces a seq being
+16*base1 + 4 *base2 + base3
+
+
+\subsubsection{char_from_base}
+\begin{description}
+\item[External C] {\tt Wise2_char_from_base (b)}
+\item[Perl] {\tt &Wise2::char_from_base (b)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[b] [UNKN ] Undocumented argument [base]
+\item[returns] [UNKN ] Undocumented return value [char]
+\end{description}
+maps a base number (-04 inc) to A,T,G,C,N
+
+
+\subsubsection{base_from_char}
+\begin{description}
+\item[External C] {\tt Wise2_base_from_char (c)}
+\item[Perl] {\tt &Wise2::base_from_char (c)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[c] [UNKN ] Undocumented argument [char]
+\item[returns] [UNKN ] Undocumented return value [base]
+\end{description}
+maps a char (atcgn) to number, 
+case insensitive, returns BASE_N
+if not atcgn
+
+
+\subsubsection{char_complement_base}
+\begin{description}
+\item[External C] {\tt Wise2_char_complement_base (c)}
+\item[Perl] {\tt &Wise2::char_complement_base (c)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[c] [UNKN ] Undocumented argument [char]
+\item[returns] [UNKN ] Undocumented return value [char]
+\end{description}
+the char equivalent of /complement_base.
+this gives the complement in char of a base
+in char. Does not check for non ATGCN
+
+
+\subsubsection{complement_base}
+\begin{description}
+\item[External C] {\tt Wise2_complement_base (b)}
+\item[Perl] {\tt &Wise2::complement_base (b)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[b] [UNKN ] Undocumented argument [base]
+\item[returns] [UNKN ] Undocumented return value [base]
+\end{description}
+gives back the complement as a number
+ofthe base (given as a number)
+
+
+
+
+\subsection{Object CodonTable}
+
+\label{object_CodonTable}
+
+The CodonTable object has the following fields. To see how to access them refer to \ref{accessing_fields}
+\begin{description}
+\item{codon_str[125]} Type [aa : Scalar] No documentation
+
+\item{name} Type [char * : Scalar] No documentation
+
+\end{description}
+The codon table provides a mapping from the 64 codons to the 20 amino
+acids. The rest of the modules provides assorted codon<->base<->amino
+acid mappings.
+
+
+Probably the trickiest thing is that there are two different types of
+representations of codons. One in base 5 (N being the 5th base),
+providing 0-124 inclusive codon numbers.  These numbers are the ones
+going to be principly used in most calculations.
+
+
+However, it is often very useful to use 0-63 numbers, for example 
+in the precise definition of the codon table. 
+
+
+
+
+Member functions of CodonTable
+
+\subsubsection{read_CodonTable_file}
+
+\begin{description}
+\item[External C] {\tt Wise2_read_CodonTable_file (file)}
+\item[Perl] {\tt &Wise2::CodonTable::read_CodonTable_file (file)}
+
+\item[Perl-OOP call] {\tt $obj->read_CodonTable_file()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[file] [READ ] filename to open [char *]
+\item[returns] [OWNER] A codon-table, NULL if error [CodonTable *]
+\end{description}
+Opens filename, reads it as if a Ewan style
+codon table and closes.
+
+
+\subsubsection{read_CodonTable}
+
+\begin{description}
+\item[External C] {\tt Wise2_read_CodonTable (ifp)}
+\item[Perl] {\tt &Wise2::CodonTable::read_CodonTable (ifp)}
+
+\item[Perl-OOP call] {\tt $obj->read_CodonTable()}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ifp] [READ ] file input [FILE *]
+\item[returns] [UNKN ] Undocumented return value [CodonTable *]
+\end{description}
+reads a codon table from a filestream in Ewan
+format.
+
+
+As Ewan format is really bad and has no start/stop
+this will effectively read to the end of the file.
+Ooops.
+
+
+\subsubsection{aminoacid_from_seq}
+
+\begin{description}
+\item[External C] {\tt Wise2_aminoacid_from_seq (ct,seq)}
+\item[Perl] {\tt &Wise2::CodonTable::aminoacid_from_seq (ct,seq)}
+
+\item[Perl-OOP call] {\tt $obj->aminoacid_from_seq(seq)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ct] [READ ] codon table [CodonTable *]
+\item[seq] [READ ] pointer to DNA chars [char *]
+\item[returns] [UNKN ] an amino acid char (A-Z) [aa]
+\end{description}
+Returns the amino acid for this position in the DNA sequence
+Takes the pointer +1 and +2 points.
+
+
+No error checks implemented. Probably a mistake ;)
+
+
+\subsubsection{aminoacid_from_codon}
+
+\begin{description}
+\item[External C] {\tt Wise2_aminoacid_from_codon (ct,c)}
+\item[Perl] {\tt &Wise2::CodonTable::aminoacid_from_codon (ct,c)}
+
+\item[Perl-OOP call] {\tt $obj->aminoacid_from_codon(c)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ct] [READ ] codon table [CodonTable *]
+\item[c] [READ ] codon number [codon]
+\item[returns] [READ ] aminoacid that is this codon (X for ambiguous, * for stop) [aa]
+\end{description}
+returns amino acid for this codon number (NB codon numbers 0-125)
+
+
+\subsubsection{is_stop_codon}
+
+\begin{description}
+\item[External C] {\tt Wise2_is_stop_codon (c,ct)}
+\item[Perl] {\tt &Wise2::CodonTable::is_stop_codon (c,ct)}
+
+\item[Perl-OOP call] {\tt $obj->is_stop_codon(ct)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[c] [READ ] codon number [codon]
+\item[ct] [READ ] codon table [CodonTable *]
+\item[returns] [UNKN ] TRUE if is stop, FALSE otherwise [boolean]
+\end{description}
+tells you whether this codon number is really a stop
+in this translation table
+
+
+\subsubsection{is_valid_aminoacid}
+
+\begin{description}
+\item[External C] {\tt Wise2_is_valid_aminoacid (ct,c)}
+\item[Perl] {\tt &Wise2::CodonTable::is_valid_aminoacid (ct,c)}
+
+\item[Perl-OOP call] {\tt $obj->is_valid_aminoacid(c)}
+
+\end{description}
+Arguments
+\begin{description}
+\item[ct] [READ ] Codon Table [CodonTable *]
+\item[c] [UNKN ] aminoacid [char]
+\item[returns] [UNKN ] TRUE if valid, FALSE if not. [boolean]
+\end{description}
+Tells you if this letter (c) is recognised as a valid amino acid
+in this codon table
+
+

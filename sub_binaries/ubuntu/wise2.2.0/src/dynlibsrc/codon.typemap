@@ -1,0 +1,11 @@
+
+TYPEMAP
+Wise2_CodonTable *    T_Wise2_CodonTable
+
+INPUT
+T_Wise2_CodonTable
+	$var = ($type) (SvROK($arg) == 0 ? NULL : (Wise2_CodonTable *) SvIV((SV*)SvRV($arg)))
+
+OUTPUT
+T_Wise2_CodonTable
+	sv_setref_pv($arg, "Wise2::CodonTable", (void*) $var);

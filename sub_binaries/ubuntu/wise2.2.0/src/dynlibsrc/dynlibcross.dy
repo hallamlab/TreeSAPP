@@ -1,0 +1,79 @@
+
+%{
+#include "dyna.h"
+
+
+
+%}
+
+
+
+%{
+#include "dynlibcross.h"
+
+%func
+shows Hscore as bits level
+%%
+void show_bits_Hscore(Hscore * out,FILE * ofp)
+{
+  int i;
+
+  assert(out);
+  assert(ofp);
+
+  for(i=0;i<out->len;i++) 
+    fprintf(ofp,"Query %s Target %s Bits %.2f\n",out->ds[i]->query->name,
+	    out->ds[i]->target->name,Score2Bits(out->ds[i]->score));
+  
+}
+
+
+
+%func
+This gives you a standard Hscore 
+module with a cutoff in bits (assumming
+the score is being made from a standard
+Probability2Score type function).
+%%
+Hscore * std_bits_Hscore(double cut_off_level,int report_stagger)
+{
+  Hscore * out;
+
+  out = Hscore_alloc_std();
+  out->his = new_Histogram(-1000,1000,100);
+  out->score_level = cut_off_level;
+  out->should_store = std_should_store_Hscore;
+  out->score_to_his = std_score_to_his;
+  out->report_level = report_stagger;
+
+  return out;
+}
+
+
+%func
+This function is for the Hscore std constructor,
+%type internal
+%%
+boolean std_should_store_Hscore(int score,double cutoff)
+{
+  if( Score2Bits(score) > cutoff ) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+%func
+This function is for the Hscore std constructor,
+%type internal
+%%
+float std_score_to_his(int score)
+{
+  return Score2Bits(score);
+}
+ 
+
+ 
+   
+
+
+

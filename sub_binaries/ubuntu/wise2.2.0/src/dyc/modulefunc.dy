@@ -1,0 +1,153 @@
+/*  Last edited: Oct  4 16:25 1996 (birney) */
+
+
+
+
+%{
+
+#include "wisebase.h"
+#define ModuleFunctionListLISTLENGTH 64
+
+
+
+
+/********************************************************/
+/* Wisetools version 3 file                             */
+/*                                                      */
+/* this file is copyright (c) Ewan Birney 1996          */
+/* this file is part of the wisetools sequence analysis */
+/* package                                              */
+/********************************************************/
+
+/********************************************************/
+/* This stores information about which modules do       */
+/* have constructors or deconstructors, such that       */
+/* they can be made correctly                           */
+/*                                                      */
+/********************************************************/
+
+/***** RCS Info *****************************************/
+/*
+   $Id
+
+   $Log
+
+*/
+/********************************************************/
+
+%}
+
+
+struct ModuleFunction
+char * name
+boolean has_cons   !def="FALSE"
+boolean has_decons !def="FALSE"
+boolean has_copy   !def="FALSE"
+
+
+struct ModuleFunctionList
+ModuleFunction ** mf !list
+
+%{
+#include "modulefunc.h"
+
+ModuleFunction * get_ModuleFunction_from_name(ModuleFunctionList * mfl,char * name)
+{
+  register int i;
+
+  for(i=0;i<mfl->len;i++)
+    if( strcmp(mfl->mf[i]->name,name) == 0 )
+      return mfl->mf[i];
+
+  return NULL;
+}
+
+ModuleFunction * new_ModuleFunction(ModuleFunctionList * mfl,char * name) 
+{
+  ModuleFunction * out;
+
+
+  out = ModuleFunction_alloc();
+  if( out == NULL )
+    return out;
+
+  out->name = stringalloc(name);
+  add_ModuleFunctionList(mfl,out);
+
+
+  return out;
+}
+
+void show_ModuleFunctionList(ModuleFunctionList * mfl,FILE * ofp)
+{
+  register int i;
+
+  for(i=0;i<mfl->len;i++) 
+    show_ModuleFunction(mfl->mf[i],ofp);
+
+}
+
+void show_ModuleFunction(ModuleFunction * mf,FILE * ofp)
+{
+  fprintf(ofp,"Module %s Constructor: %s Deconstructor %s\n",mf->name,
+mf->has_cons == TRUE ? "yes" : " no", mf->has_decons == TRUE ? "yes" : " no");
+}
+
+
+char * parse_and_get_module_name_from_func(char * line,boolean isalloc)
+{
+  char * name;
+  char * next;
+  char * func;
+  char buffer[128]; /** max function name! **/
+
+  name = strtok(line," \t(");
+  if( name == NULL ) {
+    warn("Cannot even get first name from line [%s] in parse module_name_alloc",line);
+    return NULL;
+  }
+
+  if( *(name + strlen(name) - 1) == '*' )
+    next = name + strlen(name) -1;
+  else {
+    next = strtok(NULL," \t(");
+    if ( next == NULL ) {
+      warn("Cannot get pointer ref from line [%s] in parse module_name_alloc [name %s]",line,name);
+      return NULL;
+    }
+  }
+
+  func = strtok(NULL," \t(");
+  if( name == NULL ) {
+    warn("Cannot get function from line [%s] in parse module_name_alloc [name %s]",line,name);
+    return NULL;
+  }
+
+  if( strlen(next) > 1 || *next != '*' ) {
+    warn("In parse_module_name, the pointer string [%s] was invalid for name [%s]",next,name);
+    return NULL;
+  }
+
+  if( isalloc == TRUE ) {
+    sprintf(buffer,"%s_alloc",name);
+    if( strcmp(buffer,func) != 0 ) {
+      warn("In parse_module_name, the function [%s] did not match the type-proto [%s]",func,buffer);
+      return NULL;
+    }
+  }
+  else {
+    sprintf(buffer,"free_%s",name);
+    if( strcmp(buffer,func) != 0 ) {
+      warn("In parse_module_name, the function [%s] did not match the type-proto [%s]",func,buffer);
+      return NULL;
+    }
+  }
+
+  return stringalloc(name);
+}
+
+  
+
+
+
+%}

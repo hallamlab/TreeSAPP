@@ -1,0 +1,365 @@
+=head1 NAME
+
+codon module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains the following objects
+
+=over
+
+=item CodonTable
+
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Object CodonTable
+
+=over
+
+=item codon_str[125]
+
+ Type [aa] Scalar No documentation
+
+=item name
+
+ Type [char *] Scalar No documentation
+
+
+
+=back
+
+The codon table provides a mapping from the 64 codons to the 20 amino
+acids. The rest of the modules provides assorted codon<->base<->amino
+acid mappings.
+
+Probably the trickiest thing is that there are two different types of
+representations of codons. One in base 5 (N being the 5th base),
+providing 0-124 inclusive codon numbers.  These numbers are the ones
+going to be principly used in most calculations.
+
+However, it is often very useful to use 0-63 numbers, for example 
+in the precise definition of the codon table. 
+
+
+
+=head2 Member functions of CodonTable
+
+=over
+
+=item read_CodonTable_file
+
+&Wise2::CodonTable::read_CodonTable_file(file)
+
+  Opens filename, reads it as if a Ewan style
+  codon table and closes.
+
+
+
+  Argument file         [READ ] filename to open [char *]
+  Return [OWNER] A codon-table, NULL if error [CodonTable *]
+
+
+=item read_CodonTable
+
+&Wise2::CodonTable::read_CodonTable(ifp)
+
+  reads a codon table from a filestream in Ewan
+  format.
+
+  As Ewan format is really bad and has no start/stop
+  this will effectively read to the end of the file.
+  Ooops.
+
+
+
+  Argument ifp          [READ ] file input [FILE *]
+  Return [UNKN ] Undocumented return value [CodonTable *]
+
+
+=item aminoacid_from_seq
+
+&Wise2::CodonTable::aminoacid_from_seq(ct,seq)
+
+  Returns the amino acid for this position in the DNA sequence
+  Takes the pointer +1 and +2 points.
+
+  No error checks implemented. Probably a mistake ;)
+
+
+
+  Argument ct           [READ ] codon table [CodonTable *]
+  Argument seq          [READ ] pointer to DNA chars [char *]
+  Return [UNKN ] an amino acid char (A-Z) [aa]
+
+
+=item aminoacid_from_codon
+
+&Wise2::CodonTable::aminoacid_from_codon(ct,c)
+
+  returns amino acid for this codon number (NB codon numbers 0-125)
+
+
+
+  Argument ct           [READ ] codon table [CodonTable *]
+  Argument c            [READ ] codon number [codon]
+  Return [READ ] aminoacid that is this codon (X for ambiguous, * for stop) [aa]
+
+
+=item is_stop_codon
+
+&Wise2::CodonTable::is_stop_codon(c,ct)
+
+  tells you whether this codon number is really a stop
+  in this translation table
+
+
+
+  Argument c            [READ ] codon number [codon]
+  Argument ct           [READ ] codon table [CodonTable *]
+  Return [UNKN ] TRUE if is stop, FALSE otherwise [boolean]
+
+
+=item is_valid_aminoacid
+
+&Wise2::CodonTable::is_valid_aminoacid(ct,c)
+
+  Tells you if this letter (c) is recognised as a valid amino acid
+  in this codon table
+
+
+
+  Argument ct           [READ ] Codon Table [CodonTable *]
+  Argument c            [UNKN ] aminoacid [char]
+  Return [UNKN ] TRUE if valid, FALSE if not. [boolean]
+
+
+=item hard_link_CodonTable
+
+&Wise2::CodonTable::hard_link_CodonTable(obj)
+
+  Bumps up the reference count of the object
+  Meaning that multiple pointers can 'own' it
+
+
+
+  Argument obj          [UNKN ] Object to be hard linked [CodonTable *]
+  Return [UNKN ] Undocumented return value [CodonTable *]
+
+
+=item alloc
+
+&Wise2::CodonTable::alloc(void)
+
+  Allocates structure: assigns defaults if given 
+
+
+
+  Return [UNKN ] Undocumented return value [CodonTable *]
+
+
+=item set_name
+
+&Wise2::CodonTable::set_name(obj,name)
+
+  Replace member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [CodonTable *]
+  Argument name         [OWNER] New value of the variable [char *]
+  Return [SOFT ] member variable name [boolean]
+
+
+=item name
+
+&Wise2::CodonTable::name(obj)
+
+  Access member variable name
+  For use principly by API functions
+
+
+
+  Argument obj          [UNKN ] Object holding the variable [CodonTable *]
+  Return [SOFT ] member variable name [char *]
+
+
+=back
+
+=over
+
+=item is_non_ambiguous_codon_seq
+
+&Wise2::is_non_ambiguous_codon_seq(seq)
+
+  Tells you if this codon is a real codon
+
+
+
+  Argument seq          [READ ] pointer to DNA sequence [char *]
+  Return [UNKN ] TRUE if real codon, FALSE if contains N's [boolean]
+
+
+=item codon_from_base4_codon
+
+&Wise2::codon_from_base4_codon(c)
+
+  maps a 0-63 codon to a 0-123 codon. Suprisingly useful.
+
+
+
+  Argument c            [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [codon]
+
+
+=item base4_codon_from_codon
+
+&Wise2::base4_codon_from_codon(c)
+
+  maps a 0-125 codon to a 0-63 codon.
+
+  If ambiguous then returns 64 having issued a warning.
+
+
+
+  Argument c            [READ ] codon 0-125 [codon]
+  Return [UNKN ] base 4 codon (0-63) [int]
+
+
+=item has_random_bases
+
+&Wise2::has_random_bases(c)
+
+  Tests to see if this codon number has any N's in it
+
+
+
+  Argument c            [READ ] codon number 0-124 [codon]
+  Return [UNKN ] TRUE if has N's , FALSE otherwise [boolean]
+
+
+=item permute_possible_random_bases
+
+&Wise2::permute_possible_random_bases(c,one,two,three)
+
+  Bizarely useful function for calculating ambiguity scores.
+
+  This takes the codon c, and for each possible base, 
+  if it is N, replaces it with one, two or three.
+
+  If the base is not N, it remains the same
+
+
+
+  Argument c            [READ ] codon number [codon]
+  Argument one          [READ ] base to replace first position if N [base]
+  Argument two          [READ ] base to replace second position if N [base]
+  Argument three        [READ ] base to replace third position if N [base]
+  Return [UNKN ] codon number  [codon]
+
+
+=item base_from_codon
+
+&Wise2::base_from_codon(c,pos)
+
+  Probably not the best function to use for this, but 
+  useful. Takes a codon and with pos being 1,2,3 gives
+  you the firt,second of third base
+
+
+
+  Argument c            [UNKN ] Undocumented argument [codon]
+  Argument pos          [UNKN ] Undocumented argument [int]
+  Return [UNKN ] Undocumented return value [base]
+
+
+=item codon_from_seq
+
+&Wise2::codon_from_seq(seq)
+
+  takes an ASCII coded pointer to a 3 base pair
+  sequence (it could be the part of a sequence: it only
+  assummes that the seq points with 3 chars at pos 0,1,2 
+  in C coordinates from seq. No NULL is required). It 
+  ives back the codon as made from standard mapping, ie,
+  25*base_1+5*base_2 + base3 being a number from 0-124 inc.
+
+
+
+  Argument seq          [UNKN ] pointer to sequence of at least 3 chrs long. [char *]
+  Return [UNKN ] Undocumented return value [codon]
+
+
+=item base4_codon_from_seq
+
+&Wise2::base4_codon_from_seq(seq)
+
+  Sometimes it is more useful to work in base64, ie, 
+  non N. this functions does the same thing as 
+  /codon_from_seq but produces a seq being
+  16*base1 + 4 *base2 + base3
+
+
+
+  Argument seq          [UNKN ] pointer to sequence of at least 3 chrs long [char *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=item char_from_base
+
+&Wise2::char_from_base(b)
+
+  maps a base number (-04 inc) to A,T,G,C,N
+
+
+
+  Argument b            [UNKN ] Undocumented argument [base]
+  Return [UNKN ] Undocumented return value [char]
+
+
+=item base_from_char
+
+&Wise2::base_from_char(c)
+
+  maps a char (atcgn) to number, 
+  case insensitive, returns BASE_N
+  if not atcgn
+
+
+
+  Argument c            [UNKN ] Undocumented argument [char]
+  Return [UNKN ] Undocumented return value [base]
+
+
+=item char_complement_base
+
+&Wise2::char_complement_base(c)
+
+  the char equivalent of /complement_base.
+  this gives the complement in char of a base
+  in char. Does not check for non ATGCN
+
+
+
+  Argument c            [UNKN ] Undocumented argument [char]
+  Return [UNKN ] Undocumented return value [char]
+
+
+=item complement_base
+
+&Wise2::complement_base(b)
+
+  gives back the complement as a number
+  ofthe base (given as a number)
+
+
+
+  Argument b            [UNKN ] Undocumented argument [base]
+  Return [UNKN ] Undocumented return value [base]
+
+
+=back
+

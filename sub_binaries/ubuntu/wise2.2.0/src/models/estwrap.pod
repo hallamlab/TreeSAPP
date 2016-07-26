@@ -1,0 +1,107 @@
+=head1 NAME
+
+estwrap module - part of the Wise2 package
+
+=head1 SYNOPSIS
+
+This module contains helper functions for the Wise2 package
+
+=head1 DESCRIPTION
+
+=over
+
+=item Hscore_from_TSM_estwise
+
+&Wise2::Hscore_from_TSM_estwise(tdb,cdb,cp,cm,rmd,use_syn,alg,bits_cutoff,allN,flat_insert,report_level,die_on_error,dbsi)
+
+  Runs a database search for the estwise set
+  of algorithms
+
+
+
+  Argument tdb          [READ ] a three state model database [ThreeStateDB *]
+  Argument cdb          [READ ] a dna sequence database [cDNADB *]
+  Argument cp           [READ ] the codon parser for this comparison [cDNAParser *]
+  Argument cm           [READ ] the codon mapper for this comparison [CodonMapper *]
+  Argument rmd          [READ ] random model used for the dna sequence comparison [RandomModelDNA *]
+  Argument use_syn      [UNKN ] whether a synchronous coding model should be used or not [boolean]
+  Argument alg          [UNKN ] algorithm to use [int]
+  Argument bits_cutoff  [UNKN ] Undocumented argument [double]
+  Argument allN         [UNKN ] Undocumented argument [Probability]
+  Argument flat_insert  [UNKN ] Undocumented argument [boolean]
+  Argument report_level [UNKN ] Undocumented argument [int]
+  Argument die_on_error [UNKN ] if true, dies if there is an error [boolean]
+  Argument dbsi         [UNKN ] Undocumented argument [DBSearchImpl *]
+  Return [OWNER] a newly allocated Hscore structure of the search [Hscore *]
+
+
+=item AlnBlock_from_Protein_estwise_wrap
+
+&Wise2::AlnBlock_from_Protein_estwise_wrap(pro,cdna,cp,cm,ct,comp,gap,ext,is_global,rmd,alg,rm,use_syn,allN,dpri,palpoi)
+
+  This function is the guts for the est single alignment
+  mode.
+
+  It uses /AlnBlock_from_TSM_estwise_wrap for the
+  heavy part of the call
+
+
+
+  Argument pro          [READ ] protein to be used in the comparison [Protein *]
+  Argument cdna         [READ ] cdna to be compared to [cDNA *]
+  Argument cp           [READ ] cdna parser indicating insertion deletion probabilities [cDNAParser *]
+  Argument cm           [READ ] codon mapper indicating substitution errors etc [CodonMapper *]
+  Argument ct           [READ ] codon table for the codon->amino acid mappings [CodonTable *]
+  Argument comp         [READ ] comparison matrix to use [CompMat *]
+  Argument gap          [UNKN ] gap penalty [int]
+  Argument ext          [UNKN ] extension penalty [int]
+  Argument is_global    [UNKN ] if true, global start-end in protein is used [boolean]
+  Argument rmd          [UNKN ] random model of dna to use [RandomModelDNA *]
+  Argument alg          [UNKN ] est algorithm type to use [int]
+  Argument rm           [UNKN ] random protein model for use with compmat [RandomModel *]
+  Argument use_syn      [UNKN ] if true, uses a synchronous coding model [boolean]
+  Argument allN         [UNKN ] Undocumented argument [Probability]
+  Argument dpri         [UNKN ] Undocumented argument [DPRunImpl *]
+  Argument palpoi       [WRITE] the raw packed alignment output if wanted [PackAln **]
+  Return [UNKN ] Undocumented return value [AlnBlock *]
+
+
+=item AlnBlock_from_TSM_estwise_wrap
+
+&Wise2::AlnBlock_from_TSM_estwise_wrap(tsm,cdna,cp,cm,ct,rmd,alg,use_syn,force_flat_insert,allN,dpri,palpoi)
+
+  This function is the basic wrap for Protein models
+  vs cDNA sequences.
+
+
+
+  Argument tsm          [READ ] threestatemodel to be compared to the dna [ThreeStateModel *]
+  Argument cdna         [READ ] cdna to be compared to [cDNA *]
+  Argument cp           [READ ] cdna parser indicating insertion deletion probabilities [cDNAParser *]
+  Argument cm           [READ ] codon mapper indicating substitution errors etc [CodonMapper *]
+  Argument ct           [READ ] codon table for the codon->amino acid mappings [CodonTable *]
+  Argument rmd          [UNKN ] random model of dna to use [RandomModelDNA *]
+  Argument alg          [UNKN ] est algorithm type to use [int]
+  Argument use_syn      [UNKN ] if true, uses a synchronous coding model [boolean]
+  Argument force_flat_insert [UNKN ] Undocumented argument [boolean]
+  Argument allN         [UNKN ] Undocumented argument [Probability]
+  Argument dpri         [UNKN ] Undocumented argument [DPRunImpl *]
+  Argument palpoi       [WRITE] the raw packed alignment output if wanted [PackAln **]
+  Return [UNKN ] Undocumented return value [AlnBlock *]
+
+
+=item alg_estwrap_from_string
+
+&Wise2::alg_estwrap_from_string(str)
+
+  This function returns the algorithm type
+  for an est search from the string
+
+
+
+  Argument str          [UNKN ] Undocumented argument [char *]
+  Return [UNKN ] Undocumented return value [int]
+
+
+=back
+
