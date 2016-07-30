@@ -37,7 +37,7 @@ ln -s Gblocks_0.91b/Gblocks ./
 If you get a segmentation fault, try the executable in Gblocks_Linux64_0.91b.tar.Z.
 
 #### Genewise:
-You can either install the package with apt-get:
+On Ubuntu you can install the wise package with apt-get:
 ```
 sudo apt-get install wise
 ```
@@ -54,6 +54,14 @@ use your text editor of choice to replace all instances of `getline` with a new 
 Other installation issues may be taken care of elsewhere. We also suggest changing line 25 in wise2.4.1/src/makefile
 and line 84 in wise2.4.1/src/dynlibsrc/makefile from `CC = cc` to `CC = gcc` to make compilation more smooth on modern
 systems.
+
+For RHEL 7, we have included the source rpm file in ~/MLTreeMap/sub_binaries/wise2-2.2.0-14.el7.src.rpm. You can install this file as root with:
+```
+sudo rpmbuild --rebuild wise2-2.2.0-14.el7.src.rpm
+rpm -ivv /root/rpmbuild/RPMS/x86_64/wise2-2.2.0-14.el7.x86_64.rpm
+rpm -ql wise2
+```
+NOTE: the paths may not be identical here, but the commands to build the source rpm, install it, and locate the genewise binary are standard. 
 
 #### HMMER
 hmmalign is the only HMMER module required by MLTreeMap, but HMMER3 is incompatible with this
