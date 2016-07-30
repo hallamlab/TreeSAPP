@@ -1225,6 +1225,10 @@ class GenewiseWorker(Process):
                 break
             p_genewise = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
             p_genewise.wait()
+            if p_genewise.returncode != 0:
+                sys.stderr.write("ERROR: Genewise did not complete successfully for:\n")
+                sys.stderr.write(str(' '.join(next_task)))
+                sys.stderr.flush()
             self.task_queue.task_done()
         return
 
