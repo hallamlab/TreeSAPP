@@ -1362,16 +1362,15 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
         # Parse each output file of that contig
         for genewise_outputfile in sorted(genewise_outputfiles[contig].keys()):
             try:     
-                input = open(genewise_outputfile, 'r')
+                genewise_file = open(genewise_outputfile, 'r')
             except IOError:
-                sys.stdout.write("ERROR: Cannot open Genewise outputfile " + genewise_outputfile + "\n")
+                sys.stdout.write("ERROR: Cannot open Genewise output file " + genewise_outputfile + "\n")
                 sys.exit()
-                continue
 
             header_count = 0
             sequence_count = -1
 
-            for line in input:
+            for line in genewise_file:
                 line.strip()
 
                 # If the line starts with a digit, parse it
@@ -1422,7 +1421,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                 elif re.match(r'\A\w', line) and not re.match(r'\ABits', line) and not re.match(r'\AMaking', line):
                     genewise_results_raw[contig][genewise_outputfile][sequence_count]['sequence'] += line.strip()
 
-            input.close()
+            genewise_file.close()
 
         # Skip to next contig if there isn't at least 1 hit
         if at_least_one_hit != 1:
@@ -2038,7 +2037,10 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
     bootstrap_replicates = args.bootstraps
     denominator_reference_tree_dict = dict()
     mltree_resources = args.mltreemap + os.sep + 'data' + os.sep
-    output_dir = os.getcwd() + os.sep + args.output_dir_var
+    if os.path.isabs(args.output_dir_var):
+        output_dir = args.output_dir_var
+    else:
+        output_dir = os.getcwd() + os.sep + args.output_dir_var
     for f_contig in sorted(phy_files.keys()):
         # Establish the reference tree file to be used for this contig
         reference_tree_file = mltree_resources + 'tree_data' + os.sep + args.reference_tree
