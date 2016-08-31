@@ -447,6 +447,8 @@ def format_read_fasta(args, duplicates=False):
     reg_nuc = re.compile(r'[acgtACGT]')
     reg_ambiguity = re.compile(r'[xnXN]')
     reg_amino = re.compile(r'[abcdefghiklmnpqrstuvwyzABCDEFGHIKLMNPQRSTUVWYZ*]')
+    iupac_map = {'R': 'A', 'Y': 'C', 'S': 'G', 'W': 'A', 'K': 'G', 'M': 'A', 'B': 'C', 'D': 'A', 'H': 'A', 'V': 'A'}
+    substitutions = ""
     count_total = 0
     count_nucleotides = 0
     count_xn = 0
@@ -494,9 +496,18 @@ def format_read_fasta(args, duplicates=False):
                 nucleotides = len(reg_nuc.findall(characters))
                 ambiguity = len(reg_ambiguity.findall(characters))
                 if (nucleotides + ambiguity) != len(characters):
-                    sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters!")
-                    sys.stderr.flush()
-                    sys.exit()
+                    substituted_chars = ""
+                    for char in characters:
+                        if not reg_nuc.search(char):
+                            if char not in iupac_map.keys():
+                                sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters!\n")
+                                sys.exit()
+                            else:
+                                substituted_chars += iupac_map[char]
+                                substitutions += char
+                        else:
+                            substituted_chars += char
+                    characters = substituted_chars
                 else:
                     count_nucleotides += nucleotides
                     count_xn += ambiguity
@@ -504,8 +515,7 @@ def format_read_fasta(args, duplicates=False):
                 aminos = len(reg_amino.findall(characters))
                 ambiguity = len(reg_ambiguity.findall(characters))
                 if (aminos + ambiguity) != len(characters):
-                    sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters!")
-                    sys.stderr.flush()
+                    sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters!\n")
                     sys.exit()
                 else:
                     count_nucleotides += aminos
@@ -530,6 +540,10 @@ def format_read_fasta(args, duplicates=False):
             sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
         elif args.reftype == 'a':
             sys.exit('ERROR: Your sequence(s) most likely contain no AA!\n')
+
+    if len(substitutions) > 0:
+        sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made!\n")
+        sys.stderr.flush()
     
     # Close the files
     fasta.close()
