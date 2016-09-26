@@ -445,22 +445,27 @@ def format_read_fasta(args, duplicates=False):
     header = ""
     sequence = ""
     reg_nuc = re.compile(r'[acgtACGT]')
-    reg_ambiguity = re.compile(r'[xnXN]')
-    reg_amino = re.compile(r'[abcdefghiklmnpqrstuvwyzABCDEFGHIKLMNPQRSTUVWYZ*]')
+    reg_nuc_ambiguity = re.compile(r'[xnXN]')
+    reg_aa_ambiguity = re.compile(r'[bxzBXZ]')
+    reg_amino = re.compile(r'[acdefghiklmnpqrstvwyACDEFGHIKLMNPQRSTVWY*]')
     iupac_map = {'R': 'A', 'Y': 'C', 'S': 'G', 'W': 'A', 'K': 'G', 'M': 'A', 'B': 'C', 'D': 'A', 'H': 'A', 'V': 'A'}
     substitutions = ""
     count_total = 0
-    count_nucleotides = 0
+    seq_count = 0
     count_xn = 0
     header_clash = False
     num_headers = 0
     if duplicates:
         duplicate_headers = dict()
     for line in fasta:
-        # If the line is a sequence name...
+        # If the line is a header...
         if line[0] == '>':
-            if len(header) > 0 and len(sequence) > args.gblocks:
-                formatted_fasta_dict[header] = sequence
+            if len(header) > 0:
+                if len(sequence) > args.gblocks:
+                    formatted_fasta_dict[header] = sequence
+                else:
+                    num_headers -= 1
+
             sequence = ""
             # Replace all non a-z, A-Z, 0-9, or . characters with a _
             # Then replace the initial _ with a >
@@ -474,6 +479,7 @@ def format_read_fasta(args, duplicates=False):
     
             header = line.strip()
             if duplicates:
+                # TODO: Figure out why MLTreeMap isn't adding all of the headers (138237/138312) in ERB
                 if header in formatted_fasta_dict.keys():
                     if header not in duplicate_headers.keys():
                         duplicate_headers[header] = 1
@@ -494,7 +500,7 @@ def format_read_fasta(args, duplicates=False):
 
             if args.reftype == 'n':
                 nucleotides = len(reg_nuc.findall(characters))
-                ambiguity = len(reg_ambiguity.findall(characters))
+                ambiguity = len(reg_nuc_ambiguity.findall(characters))
                 if (nucleotides + ambiguity) != len(characters):
                     substituted_chars = ""
                     for char in characters:
@@ -509,16 +515,21 @@ def format_read_fasta(args, duplicates=False):
                             substituted_chars += char
                     characters = substituted_chars
                 else:
-                    count_nucleotides += nucleotides
+                    seq_count += nucleotides
                     count_xn += ambiguity
             elif args.reftype == 'a':
                 aminos = len(reg_amino.findall(characters))
-                ambiguity = len(reg_ambiguity.findall(characters))
+                ambiguity = len(reg_aa_ambiguity.findall(characters))
                 if (aminos + ambiguity) != len(characters):
-                    sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters!\n")
+                    sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters: ")
+                    unknown = ""
+                    for c in characters:
+                        if c not in "abcdefghiklmnpqrstvwxyzABCDEFGHIKLMNPQRSTVWXYZ":
+                            unknown += c
+                    sys.stderr.write(unknown + "\n")
                     sys.exit()
                 else:
-                    count_nucleotides += aminos
+                    seq_count += aminos
                     count_xn += ambiguity
             sequence += characters
     formatted_fasta_dict[header] = sequence
@@ -535,7 +546,7 @@ def format_read_fasta(args, duplicates=False):
         sys.exit('ERROR: Your sequence(s) contain only X or N!\n')
     
     # Exit the program if less than half of the characters are nucleotides
-    elif float(count_nucleotides / float(count_total)) < 0.5:
+    elif float(seq_count / float(count_total)) < 0.5:
         if args.reftype == 'n':
             sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
         elif args.reftype == 'a':
