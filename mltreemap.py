@@ -400,6 +400,12 @@ def check_parser_arguments(parser):
     mltreemap_dir = args.mltreemap + os.sep + 'data' + os.sep
     genewise_support = mltreemap_dir + os.sep + 'genewise_support_files' + os.sep
 
+    if args.num_threads >= available_cpu_count():
+        sys.stderr.write("WARNING: Number of threads specified is greater than those available! "
+                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
+        sys.stderr.flush()
+        args.num_threads = available_cpu_count()
+
     # TODO: make this soultion a bit better
     if os.getenv("WISECONFIGDIR") is None:
         sys.stderr.write("ERROR: WISECONFIGDIR not set!\n")
@@ -903,10 +909,7 @@ def run_blast(args, split_files, cog_list):
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
                 '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
-                    command += '-num_threads ' + str(int(args.num_threads)) + ' '
-                else:
-                    command += '-num_threads ' + str(1) + ' '
+                command += '-num_threads ' + str(int(args.num_threads)) + ' '
             command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
             command += " 2>/dev/null"
             os.system(command)
@@ -915,10 +918,7 @@ def run_blast(args, split_files, cog_list):
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
                 '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
-                    command += '-num_threads ' + str(int(args.num_threads)) + ' '
-                else:
-                    command += '-num_threads ' + str(1) + ' '
+                command += '-num_threads ' + str(int(args.num_threads)) + ' '
             command += '>> ' + args.output_dir_var + blast_input_file_name + '.rRNA_BLAST_results_raw.txt'
             command += " 2>/dev/null"
             os.system(command)
@@ -929,10 +929,7 @@ def run_blast(args, split_files, cog_list):
                       '-evalue 0.01 -max_target_seqs 20000 ' + \
                       '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                if (int(args.num_threads) >= 1) and (int(args.num_threads) < int(available_cpu_count())):
-                    command += '-num_threads ' + str(int(args.num_threads)) + ' '
-                else:
-                    command += '-num_threads ' + str(1) + ' '
+                command += '-num_threads ' + str(int(args.num_threads)) + ' '
             command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
             command += " 2> /dev/null"
             os.system(command)
@@ -1227,13 +1224,15 @@ def produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict):
     flanking_length = 1000  # Recommended: 1000
     prae_contig_coordinates = Autovivify()
     contig_coordinates = Autovivify()
+    gene_coordinates = Autovivify()
     shortened_sequence_files = {}
 
     for contig in sorted(blast_hits_purified.keys()):
+        nr_of_blast_hits = len(blast_hits_purified[contig].keys())
         for base_identifier in sorted(blast_hits_purified[contig].keys()):
             # Skip rRNA hits for now (we work with them later)
-            if re.search("rRNA", blast_hits_purified[contig][base_identifier]['cog']):
-                continue
+            # if re.search("rRNA", blast_hits_purified[contig][base_identifier]['cog']):
+            #     continue
 
             # Skip hits which have already been placed; otherwise, mark them as placed
             if blast_hits_purified[contig][base_identifier]['is_already_placed']:
@@ -1242,13 +1241,12 @@ def produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict):
             blast_hits_purified[contig][base_identifier]['is_already_placed'] = True
             base_start = blast_hits_purified[contig][base_identifier]['start'] - flanking_length
             base_end = blast_hits_purified[contig][base_identifier]['end'] + flanking_length
-            nr_of_blast_hits = len(blast_hits_purified[contig].keys())
             check_identifier = 0
             while check_identifier < nr_of_blast_hits:
                 # Skip rRNA hits for now (we work with them later)
-                if re.search(r'rRNA', blast_hits_purified[contig][check_identifier]['cog']):
-                    check_identifier += 1
-                    continue
+                # if re.search(r'rRNA', blast_hits_purified[contig][check_identifier]['cog']):
+                #     check_identifier += 1
+                #     continue
 
                 # Skip hits which have already been placed; otherwise, mark them as placed
                 if blast_hits_purified[contig][check_identifier]['is_already_placed']:
@@ -1289,17 +1287,19 @@ def produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict):
                     continue
                 check_identifier += 1
 
-            prae_contig_coordinates[contig][base_start][base_end] = 1
+            prae_contig_coordinates[contig][base_start][base_end] = blast_hits_purified[contig][base_identifier]['cog']
 
     # Produce the input files for Genewise
     for contig_name in prae_contig_coordinates:
         sequence = formatted_fasta_dict[">" + contig_name]
         sequence_length = len(sequence)
         shortened_sequence = ""
-
         # Start searching for the information to shorten the file.
+        # Creates a chimera of the sequence if there are multiple hits.
+        # shortened_sequence = sequence + sequence[start_blast_hit2:] + ... + sequence[start_blast_hitn:]
         for start_blast in sorted(prae_contig_coordinates[contig_name].keys()):
             for end_blast in sorted(prae_contig_coordinates[contig_name][start_blast].keys()):
+                marker_gene = prae_contig_coordinates[contig_name][start_blast][end_blast]
 
                 # Ok, now we have all information about the hit. Correct start and end if needed:
                 if start_blast < 0:
@@ -1307,6 +1307,11 @@ def produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict):
 
                 if end_blast >= sequence_length:
                     end_blast = sequence_length - 1
+
+                gene_coordinates[contig_name][start_blast][end_blast] = marker_gene
+                # Skip rRNA hits for now (we work with them later)
+                if re.search("rRNA", marker_gene):
+                    continue
 
                 # Note: Genewise (gw) positions start with 1, blast positions with 0 ->
                 # thus differentiate between start_blast and start_gw
@@ -1321,6 +1326,10 @@ def produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict):
                 shortened_end_gw = len(shortened_sequence)
                 addition_factor = (start_blast + 1) - shortened_start_gw  # $start_B + 1 == $start_GW
                 contig_coordinates[contig_name][shortened_start_gw][shortened_end_gw] = addition_factor
+
+        # Skip rRNA hits for now (we work with them later)
+        if re.search("rRNA", marker_gene):
+            continue
 
         try:
             with open(args.output_dir_var + contig_name + "_sequence.txt", 'w') as f:
@@ -1339,7 +1348,37 @@ def produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict):
 
     if args.verbose:
         sys.stdout.write("done.\n")
-    return contig_coordinates, shortened_sequence_files
+    return contig_coordinates, shortened_sequence_files, gene_coordinates
+
+
+def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
+    """
+    Function to write the nucleotide sequences representing the BLAST alignment region for each hit in the fasta
+    :param args:
+    :param gene_coordinates:
+    :param formatted_fasta_dict:
+    :return: nothing
+    """
+    # Header format:
+    # >contig_name|marker_gene|start_end
+    input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
+    orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
+    try:
+        fna_output = open(orf_nuc_fasta, 'w')
+    except:
+        raise IOError("Unable to open " + orf_nuc_fasta + " for writing!")
+
+    for contig_name in gene_coordinates:
+        start = 0
+        end = 0
+        for coords_start in sorted(gene_coordinates[contig_name].keys()):
+            start = coords_start
+            for coords_end in gene_coordinates[contig_name][coords_start].keys():
+                end = coords_end
+                cog = gene_coordinates[contig_name][coords_start][coords_end]
+                fna_output.write('>' + contig_name + '|' + cog + '|' + str(start) + '_' + str(end) + "\n")
+                fna_output.write(formatted_fasta_dict['>' + contig_name][start:end] + "\n")
+    return
 
 
 def fprintf(opened_file, fmt, *args):
@@ -2201,10 +2240,7 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
             raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
         # Run RAxML using multiple threads, if CPUs available
         if args.num_threads:
-            if (int(args.num_threads) >= 1) and (int(args.num_threads) <= available_cpu_count()):
-                raxml_command += ['-T', str(int(args.num_threads))]
-            else:
-                raxml_command += ['-T', '2']
+            raxml_command += ['-T', str(int(args.num_threads))]
         else:
             raxml_command += ['-T', '2']
         raxml_command += ['-s', phy_file,
@@ -3496,9 +3532,12 @@ def main(argv):
             blast_hits_purified = parse_blast_results(args, raw_blast_results, cog_list)
 
             # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
-            contig_coordinates, shortened_sequence_files = produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict)
-            genewise_summary_files = Autovivify()
+            contig_coordinates, shortened_sequence_files, gene_coordinates = produce_genewise_files(args,
+                                                                                                    blast_hits_purified,
+                                                                                                    formatted_fasta_dict)
+            write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
             formatted_fasta_dict.clear()
+            genewise_summary_files = Autovivify()
             if args.reftype == 'n':
                 genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
                 genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
@@ -3508,7 +3547,9 @@ def main(argv):
 
             # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
             hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
-        concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
+        concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args,
+                                                                                                            hmmalign_singlehit_files,
+                                                                                                            non_wag_cog_list)
         gblocks_files = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
         phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
 
@@ -3519,9 +3560,6 @@ def main(argv):
         final_RAxML_output_files = parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
                                                       raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
         concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
-
-        # STAGE 6: Delete files as determined by the user
-        delete_files(args)
 
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 7: Optionally update the reference tree
@@ -3537,6 +3575,9 @@ def main(argv):
         update_tree.write_reference_names()
         if args.uclust:
             cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
+
+    # STAGE 6: Delete files as determined by the user
+    delete_files(args)
 
     sys.stdout.write("MLTreeMap has finished successfully.\n")
     sys.stdout.flush()
