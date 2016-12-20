@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-__author__ = "Kishori Konwar, Young Song and Connor Morgan-Lang"
+__author__ = "Connor Morgan-Lang, Kishori Konwar and Young Song"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL"
-__version__ = "0.2"
+__version__ = "1.1.0"
 
 try:
     import argparse
@@ -27,6 +27,194 @@ except ImportWarning:
     sys.exit(3)
 
 
+# Classes begin:
+
+class Autovivify(dict):
+    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables)
+    without explicitly declaring those variables beforehand."""
+    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            value = self[item] = type(self)()
+            return value
+
+
+class GenewiseWorker(Process):
+    """
+    A worker that will launch genewise processes in its queue
+    """
+
+    def __init__(self, task_queue):
+        Process.__init__(self)
+        self.task_queue = task_queue
+
+    def run(self):
+        while True:
+            next_task = self.task_queue.get()
+            if next_task is None:
+                # Poison pill means shutdown
+                self.task_queue.task_done()
+                break
+            p_genewise = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
+            p_genewise.wait()
+            if p_genewise.returncode != 0:
+                sys.stderr.write("ERROR: Genewise did not complete successfully for:\n")
+                sys.stderr.write(str(' '.join(next_task)))
+                sys.stderr.flush()
+            self.task_queue.task_done()
+        return
+
+
+class NodeRetrieverWorker(Process):
+    """
+    Doug Hellman's Consumer class for handling processes via queues
+    """
+
+    def __init__(self, task_queue, result_queue):
+        Process.__init__(self)
+        self.task_queue = task_queue
+        self.result_queue = result_queue
+
+    def run(self):
+        while True:
+            next_task = self.task_queue.get()
+            if next_task is None:
+                # Poison pill means shutdown
+                self.task_queue.task_done()
+                break
+            result = get_node_subtrees(next_task, create_tree_info_hash())
+            self.task_queue.task_done()
+            self.result_queue.put(result)
+        return
+
+
+class CreateFuncTreeUtility:
+    """
+    Output is the directory to write the outputs for the updated tree
+    InputData is the path to the MLTReeMap output folder containing, various_outputs/ and final_RAxML_outputs/
+    RefTree is the second column in cog_list.txt for the gene to update
+    Cluster is a flag indicating whether the protein sequences for the RefTree in InputData is to be clustered at 97%
+    """
+    def __init__(self, input_data, ref_tree):
+        if input_data[-1] == '/':
+            self.InputData = input_data[:-1]
+        else:
+            self.InputData = input_data
+        self.Output = input_data + os.sep + "updated_func_tree" + os.sep
+        self.Denominator = ref_tree
+        self.COG = ""
+        self.Cluster = False
+        self.ContigDict = dict()
+        self.names = list()
+        # Automatically remove the last attempt at updating the reference tree
+        if os.path.isdir(self.Output):
+            shutil.rmtree(self.Output)
+        try:
+            os.makedirs(self.Output)
+        except:
+            raise IOError("Unable to make the directory " + str(self.Output))
+
+    def get_contigs_for_ref(self):
+        """
+        Uses self.InputData to find all the RAxML_outputs for each protein sequence for self.RefTree
+        :return: list of file names with a protein sequence of self.RefTree
+        """
+        raxml_outputs = os.listdir(self.InputData + os.sep + "final_RAxML_outputs" + os.sep)
+        for placement in raxml_outputs:
+            ref_tree = os.path.basename(placement).split('_')[0]
+            if ref_tree == self.Denominator:
+                suffix = re.sub("%s_" % ref_tree, '', placement)
+                predicted_orf = re.sub("_RAxML_parsed.txt", '', suffix)
+                self.names.append(predicted_orf)
+        return
+
+    def find_cog_name(self, cog_list):
+        for cog in cog_list["all_cogs"]:
+            denominator = cog_list["all_cogs"][cog]
+            if denominator == self.Denominator:
+                self.COG = cog
+                break
+        return
+
+    # subroutine write_reference_names: Generate the NAMEs file for all COG reference groups #
+    def write_reference_names(self):
+        tax_id_map = {}
+
+        ref_names = self.Output + "_" + "%s_ref.names" % self.COG
+        ref_names_handle = open(ref_names, "w")
+
+        # check to see whether we need to use the COG alignment files from GEBA
+
+        GEBA_ref_match = re.match("g_COG(\d+)", self.COG)
+
+        if GEBA_ref_match:
+            cog_number = GEBA_ref_match.group(1)
+            cog_id = "COG" + cog_number
+            ref_alignment_handle = open("geba_alignment_data/%s.fa" % cog_id, "rb")
+
+            ref_align_lines = ref_alignment_handle.readlines()
+
+            for each_ref_align_line in ref_align_lines:
+                each_ref_align_line = each_ref_align_line.strip()
+                header_match = re.match("^>(\d+)_%s" % cog_id, each_ref_align_line)
+
+                if header_match:
+                    tax_id = header_match.group(1)
+                    header_trimmed = re.sub("^>", "", each_ref_align_line)
+                    tax_id_map[tax_id] = header_trimmed
+
+            ref_alignment_handle.close()
+        else:
+            ref_alignment_handle = open("data/alignment_data/%s.fa" % self.COG, "rb")
+
+            ref_align_lines = ref_alignment_handle.readlines()
+
+            for each_ref_align_line in ref_align_lines:
+                each_ref_align_line = each_ref_align_line.strip()
+                header_match = re.match("^>(\d+)_%s" % self.COG, each_ref_align_line)
+
+                if header_match:
+                    tax_id = header_match.group(1)
+                    header_trimmed = re.sub("^>", "", each_ref_align_line)
+                    tax_id_map[tax_id] = header_trimmed
+
+            ref_alignment_handle.close()
+
+        # Handle tax ids for COG here #
+        cog_input_match = re.match("COG\d+", self.COG)
+        geba_cog_match = re.match("g_COG\d+", self.COG)
+
+        if cog_input_match:
+            ref_tax_ids_handle = open("data/tree_data/tax_ids_nr.txt", "rb")
+        elif geba_cog_match:
+            ref_tax_ids_handle = open("data/tree_data/tax_ids_geba_tree.txt", "rb")
+        else:
+            ref_tax_ids_handle = open("data/tree_data/tax_ids_%s.txt" % self.COG, "rb")
+
+        ref_tax_ids_lines = ref_tax_ids_handle.readlines()
+
+        for each_ref_tax_ids_line in ref_tax_ids_lines:
+            each_ref_tax_ids_line = each_ref_tax_ids_line.strip()
+
+            ids_desc_match = re.match("(\S+)\t(\S+(\s+\S+)*)", each_ref_tax_ids_line)
+
+            if ids_desc_match:
+                ids = ids_desc_match.group(1)
+                description = ids_desc_match.group(2)
+
+                if tax_id_map.has_key(ids):
+                    write_names = tax_id_map[ids] + "\t" + description
+                    ref_names_handle.write(write_names)
+                    ref_names_handle.write("\n")
+
+        ref_tax_ids_handle.close()
+        ref_names_handle.close()
+
+
+# Classes end
+
+
 def os_type():
     """Return the operating system of the user."""
     x = sys.platform
@@ -45,18 +233,7 @@ def os_type():
             return 'linux'
 
 
-class Autovivify(dict):
-    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables)
-    without explicitly declaring those variables beforehand."""
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            value = self[item] = type(self)()
-            return value
-     
-
-def getParser(): 
+def get_options(): 
     """
     Returns the parser to interpret user options.
     """
@@ -85,7 +262,7 @@ def getParser():
     parser.add_argument('-e', '--executables', default='sub_binaries',
                         help='locations of executables (e.g. blastx, Gblocks, etc.)')
     parser.add_argument('-x', '--mltreemap', default=os.path.abspath(os.path.dirname(os.path.realpath(__file__))),
-                        help='location of MLTreeMap resources (default: directory of mltreemap-improved.py)')
+                        help='location of MLTreeMap resources [DEFAULT = directory of mltreemap.py]')
     parser.add_argument('-T', '--num_threads', default=2, type=int,
                         help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 2]')
     parser.add_argument('-d', '--delete', default=None,
@@ -102,6 +279,24 @@ def getParser():
                              ', and prints a more verbose runtime log')
     parser.add_argument("--check_trees", action="store_true", default=False,
                         help="Flag indicating the reference trees should be quality-checked before running MLTreeMap")
+    parser.add_argument("--update_tree", action="store_true", default=False,
+                        help="Flag indicating the reference tree specified by `--reftree` is to be updated using the "
+                             "sequences found in MLTreeMap output")
+
+    update_tree = parser.add_argument_group('update_tree')
+    # mltreemap_output uses the output argument
+    # output will by mltreemap_output/update_tree
+    update_tree.add_argument("-n", "--names", required=False,
+                             help="Your input NAMES file for sequences to be added (NOT the reference sequences)")
+    # data_set uses the reftree argument
+    update_tree.add_argument("--uclust", required=False, default=False, action="store_true",
+                             help="Run uclust FOR WHAT?")
+    update_tree.add_argument("--gap_removal", required=False, default=False, action="store_true",
+                             help="Remove minor gaps using Gblocks?")
+    update_tree.add_argument("-u", "--uclust_identity", required=False, default=97, type=int,
+                             help="Sequence identity value to be used in uclust [DEFAULT = 97]")
+    update_tree.add_argument("-a", "--alignment_mode", required=False, default='d', type=str, choices=['d', 'p'],
+                             help="Alignment mode: 'd' for default and 'p' for profile-profile alignment")
     return parser
 
 
@@ -112,7 +307,7 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "hmmbuild"]
+    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "hmmbuild", "usearch"]
 
     if args.executables == "sub_binaries":
         if os_type() == "linux":
@@ -220,10 +415,10 @@ def get_response(py_version, string=""):
         return raw_input(string)
 
 
-def remove_previous_output(args):
+def check_previous_output(args):
     """
     Prompts the user to determine how to deal with a pre-existing output directory.
-    :param args: Command-line argument object from getParser and check_parser_arguments
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :return An updated version of 'args', a summary of MLTreeMap settings.
     """
 
@@ -232,28 +427,39 @@ def remove_previous_output(args):
         if path.exists(args.output):
             shutil.rmtree(args.output)
 
-    # Prompt the user to deal with the pre-existing output directory
-    while os.path.isdir(args.output):
-        sys.stdout.write('WARNING: Your output directory "' + args.output + '" already exists!\n')
-        sys.stdout.write('Overwrite [1], quit [2], or change directory [3]?\n')
-        answer = int(get_response(args.py_version))
+    args.skip = 'n'
+    if args.update_tree and path.exists(args.output):
+        sys.stdout.write("MLTreeMap output directory " + args.output + " already exists.")
+        sys.stdout.flush()
+        args.skip = get_response(args.py_version, " Should this be used for updating? [y|n]")
+        while not args.skip == 'y' and not args.skip == 'n':
+            args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n]")
 
-        while not answer == 1 and not answer == 2 and not answer == 3:
-            answer = int(get_response(args.py_version, 'Invalid input. Please choose 1, 2, or 3.\n'))
-        if answer == 1:
-            sys.stdout.write('Do you really want to overwrite the old output directory?\n')
-            sys.stdout.write('All data in it will be lost!\n')
-            answer2 = get_response(args.py_version, 'Yes [y] or no [n]?\n')
-            while not answer2 == 'y' and not answer2 == 'n':
-                answer2 = get_response(args.py_version, 'Invalid input. Please choose y or n.\n')
-            if answer2 == 'y':
-                shutil.rmtree(args.output)
-            else:
+    if args.skip == 'y':
+        pass
+    else:
+        # Prompt the user to deal with the pre-existing output directory
+        while os.path.isdir(args.output):
+            sys.stdout.write('WARNING: Your output directory "' + args.output + '" already exists!\n')
+            sys.stdout.write('Overwrite [1], quit [2], or change directory [3]?\n')
+            answer = int(get_response(args.py_version))
+
+            while not answer == 1 and not answer == 2 and not answer == 3:
+                answer = int(get_response(args.py_version, 'Invalid input. Please choose 1, 2, or 3.\n'))
+            if answer == 1:
+                sys.stdout.write('Do you really want to overwrite the old output directory?\n')
+                sys.stdout.write('All data in it will be lost!\n')
+                answer2 = get_response(args.py_version, 'Yes [y] or no [n]?\n')
+                while not answer2 == 'y' and not answer2 == 'n':
+                    answer2 = get_response(args.py_version, 'Invalid input. Please choose y or n.\n')
+                if answer2 == 'y':
+                    shutil.rmtree(args.output)
+                else:
+                    sys.exit('Exit MLTreeMap\n')
+            elif answer == 2:
                 sys.exit('Exit MLTreeMap\n')
-        elif answer == 2:
-            sys.exit('Exit MLTreeMap\n')
-        else:
-            args.output = get_response(args.py_version, 'Please enter the path to the new directory.\n')
+            else:
+                args.output = get_response(args.py_version, 'Please enter the path to the new directory.\n')
     
     # Create the output directories
     if not os.path.isdir(args.output):
@@ -267,7 +473,7 @@ def remove_previous_output(args):
 
 def create_cog_list(args):
     """
-    Loads the MLTreeMap COG list file
+    Loads the MLTreeMap COG list file and check that the args.reftree exists
     :param args: The command-line and default arguments object
     :return: An autovivification of the COGs in cog_list.txt. This also includes their short-form name (termed
     denominator e.g. mcrA, mcrB, a, b, cdhA, etc.) and a list of output text precursors based on the analysis type.
@@ -276,6 +482,8 @@ def create_cog_list(args):
     
     cog_list = Autovivify()
     text_of_analysis_type = Autovivify()
+    cog_list_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.txt'
+    cog_input_list = open(cog_list_file, 'r')
     # TODO: alter function so the GEBA and fungi trees can be used instead of just the MLTreeMap reference
     if args.reftree not in ['i', 'p', 'g']:
         alignment_set = ''
@@ -284,8 +492,7 @@ def create_cog_list(args):
     kind_of_cog = ''
 
     # For each line in the COG list file...
-    cog_list_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.txt'
-    cog_input_list = open(cog_list_file, 'r')
+
     cogList = [x.strip() for x in cog_input_list.readlines()]
     # Close the COG list file
     cog_input_list.close()
@@ -319,6 +526,18 @@ def create_cog_list(args):
             cog_list[kind_of_cog][cog] = denominator
             cog_list['all_cogs'][cog] = denominator
             text_of_analysis_type[denominator] = 'Functional analysis, ' + text + ':'
+
+    if args.reftree not in ['i', 'g', 'p']:
+        if args.reftree not in cog_list['all_cogs'].values():
+            sys.stderr.write("ERROR: " + args.reftree +
+                             " not found in " + cog_list_file + "! Please use a valid reference tree ID!")
+            sys.stderr.flush()
+            sys.exit()
+    elif args.reftree in ['i', 'g', 'p'] and args.update_tree:
+        sys.stderr.write("ERROR: Unable to update all reference trees at the same time! "
+                         "Please specify the reference tree to update with the '--reftree' argument and retry.\n")
+        sys.stderr.flush()
+        sys.exit()
 
     return cog_list, text_of_analysis_type
 
@@ -384,46 +603,48 @@ def calculate_overlap(info):
     return overlap 
 
 
-def write_formatted_fasta(args, formatted_fasta_dict):
+def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     """
-    Writes the sequences in formatted_fasta_dict to one or multiple files (specified via args.file_length)
-    :param formatted_fasta_dict: keys are fasta headers; values are fasta sequences. Returned by format_read_fasta
-    :param args: parsed command-line arguments
-    :return: list containing names of all files written
+    Function for writing sequences stored in dictionary to file in FASTA format; optional filtering with headers list
+    :param fasta_dict: A dictionary containing headers as keys and sequences as values
+    :param fasta_name: Name of the FASTA file to write to
+    :param max_seqs: If not None, the maximum number of sequences to write to a single FASTA file
+    :param headers: Optional list of sequence headers. Only fasta_dict keys in headers will be written
+    :return:
     """
     split_files = list()
-    sequence_accumulator = 0
     file_counter = 0
+    sequence_accumulator = 0
 
-    if re.match(r'\A.*\/(.*)', args.input):
-        input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
-    else:
-        input_multi_fasta = args.input
-    if args.file_length is None:
-        output_fasta = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
-        args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
-    else:
-        output_fasta = args.output_dir_var + input_multi_fasta + '_' + str(file_counter) + "_formatted.fasta"
+    if max_seqs is not None:
+        fasta_name = fasta_name + '_' + str(max_seqs)
 
-    output_formatted = open(output_fasta, 'w')
-    for header in formatted_fasta_dict:
-        sequence = formatted_fasta_dict[header]
+    try:
+        fa_out = open(fasta_name, 'w')
+    except:
+        raise IOError("Unable to open " + fasta_name + " for writing!")
+
+    for name in fasta_dict.keys():
+        seq = fasta_dict[name]
         sequence_accumulator += 1
-
-        if args.file_length and sequence_accumulator > args.file_length:
+        if max_seqs and sequence_accumulator > max_seqs:
             # If input is to be split and number of sequences per file has been exceeded begin writing to new file
-            output_formatted.close()
-            split_files.append(output_fasta)
+            fa_out.close()
+            split_files.append(fasta_name)
             file_counter += 1
             sequence_accumulator = 1
-            output_fasta = args.output_dir_var + input_multi_fasta + '_' + str(file_counter) + "_formatted.fasta"
-            output_formatted = open(output_fasta, 'w')
-        # Write the lines to the appropriate files
-        output_formatted.write(header + "\n")
-        output_formatted.write(sequence + "\n")
+            fasta_name = re.sub(r'_d+$', '_' + str(file_counter), fasta_name)
+            fa_out = open(fasta_name, 'w')
 
-    output_formatted.close()
-    split_files.append(output_fasta)
+        if headers is None:
+            fa_out.write(name + "\n")
+            fa_out.write(seq + "\n")
+        elif name[1:] in headers:
+            fa_out.write(name + "\n")
+            fa_out.write(seq + "\n")
+
+    fa_out.close()
+    split_files.append(fasta_name)
     file_counter += 1
     return split_files
 
@@ -432,7 +653,7 @@ def format_read_fasta(args, duplicates=False):
     """
     Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
     Ensures each sequence and sequence name is valid.
-    :param args: Command-line argument object from getParser and check_parser_arguments
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param duplicates: A flag indicating the function should be duplicate-aware
     :return A list of the files produced from the input file.
     """
@@ -479,7 +700,6 @@ def format_read_fasta(args, duplicates=False):
     
             header = line.strip()
             if duplicates:
-                # TODO: Figure out why MLTreeMap isn't adding all of the headers (138237/138312) in ERB
                 if header in formatted_fasta_dict.keys():
                     if header not in duplicate_headers.keys():
                         duplicate_headers[header] = 1
@@ -591,71 +811,12 @@ def build_hmm(msa_file, args):
     return
 
 
-# def write_fixed_msa(seq_len_dist, msa_dict, msa_file, args):
-#     """
-#     Will detect and remove lines that are comprised of ambiguity and gap characters, saving the original inputs in the
-#     specified output directory/bad_inputs/*.original
-#     :param seq_len_dist: dictionary containing the sequence lengths as keys and abundance as values
-#     :param msa_dict: dictionary collection of the MSA FASTA file (headers = sequences)
-#     :param msa_file: Name of the MSA file
-#     :return:
-#     """
-#     aligned_status = False
-#     ambiguities = set('X', '-', 'N')
-#     characters = set()
-#     bad_seqs = list()
-#     if len(seq_len_dist.keys()) > 1:
-#         dominant_length = max(seq_len_dist.keys())
-#         sys.stdout.write("Dominant length = " + dominant_length)
-#         sys.stdout.flush()
-#         for header in msa_dict:
-#             if '-' in msa_dict[header]:
-#                 aligned_status = True
-#                 continue
-#             if aligned_status and len(msa_dict[header]) != dominant_length:
-#                 bad_seqs.append(header)
-#         if not aligned_status:
-#             sys.stdout.write(msa_file + "needs to be aligned!")
-#             return ".".join(msa_file.split("/")[-1].split('.')[0:-1])
-#
-#     for seq in msa_dict:
-#         for c in msa_dict[seq]:
-#             characters.add(c)
-#         if len(characters.difference(ambiguities)) == 0:
-#             bad_seqs.append(seq)
-#         characters.clear()
-#
-#     if len(bad_seqs) >= 1:
-#         # print "The following sequences were removed from", msa_file
-#         # for bad in bad_seqs:
-#         #     print bad
-#         # good_msa_seqs = dict()
-#         # for sequence in msa_dict:
-#         #     if sequence not in bad_seqs:
-#         #         good_msa_seqs[sequence] = msa_dict[sequence]
-#         # try:
-#         #     shutil.copyfile(msa_file, msa_file+".original")
-#         # except IOError:
-#         #     print "ERROR: Cannot copy " + msa_file
-#         #
-#         # try:
-#         #     fixed_msa_file = open(msa_file, 'w')
-#         # except IOError:
-#         #     print "ERROR: Cannot open file " + msa_file + " for rewriting."
-#         #
-#         # for header in good_msa_seqs:
-#         #     fixed_msa_file.write(header + "\n")
-#         #     fixed_msa_file.write(good_msa_seqs[header] + "\n")
-#         # fixed_msa_file.close()
-#         build_hmm(msa_file, args)
-#     return ""
-
-
 def validate_inputs(args, cog_list):
     """
     This function filters the files in data/alignment_data/ for sequences that are entirely ambiguity characters
     or if there are any sequences in the MSA that are not the consistent length
     :param args: the command-line and default options
+    :param cog_list: Dictionary containing cog identifiers sorted into their classes
     :return: list of files that were edited
     """
     sys.stdout.write("Testing validity of reference trees...")
@@ -675,57 +836,13 @@ def validate_inputs(args, cog_list):
         sys.stdout.write("Reference trees appear to be formatted correctly! Continuing with MLTreeMap.")
         sys.stdout.flush()
     return
-    # print "Validating MSA files in data/alignment_data...",
-    # alignment_files = glob.glob(args.mltreemap + os.sep + "data/alignment_data/*fa")
-    # modified_files = list()
-    # ambiguities = {'X', '-', 'N'}
-    # characters = set()
-    # for msa_file in alignment_files:
-    #     msa_dict = dict()
-    #     fix = False
-    #     header = ""
-    #     with open(msa_file) as msa:
-    #         for line in msa:
-    #             if line[0] == ">":
-    #                 if len(header) > 0:
-    #                     msa_dict[header] = "".join(msa_dict[header])
-    #                 header = line.strip()
-    #                 msa_dict[header] = list()
-    #             else:
-    #                 sequence = line.strip()
-    #                 msa_dict[header].append(sequence)
-    #     msa_dict[header] = "".join(msa_dict[header])
-    #     ref_seq_length = len(msa_dict[header])
-    #
-    #     for gene in msa_dict:
-    #         seq = "".join(msa_dict[gene])
-    #         if len(seq) != ref_seq_length:
-    #             fix = True
-    #         for c in seq:
-    #             characters.add(c)
-    #         if len(characters.difference(ambiguities)) == 0:
-    #             # Only ambiguity characters in characters
-    #             fix = True
-    #         characters.clear()
-    #
-    #     if fix:
-    #         if args.verbose:
-    #             print "Fixing", msa_file
-    #         seq_len_dist = get_seq_len_dist(msa_dict)
-    #         bad_marker = write_fixed_msa(seq_len_dist, msa_dict, msa_file, args)
-    #         # if len(bad_marker) > 0:
-    #         #     for k in cog_list:
-    #         #         if bad_marker in cog_list[k].keys():
-    #         #             print "WARNING: Removing", bad_marker, "from list of ", k, "gene families!"
-    #         #             cog_list[k].pop(bad_marker)
-    # print "done."
-    # return modified_files
 
 
 def run_blast(args, split_files, cog_list):
     """
     Runs the BLAST algorithm on each of the split input files.
-    :param args: Command-line argument object from getParser and check_parser_arguments
+    :param args: Command-line argument object from get_options and check_parser_arguments
+    :param cog_list: Dictionary containing cog identifiers sorted into their classes
     :param split_files: List of all files that need to be individually used for BLAST calls
     """
 
@@ -769,15 +886,15 @@ def run_blast(args, split_files, cog_list):
                             args.mltreemap + "/data/tree_data/cog_list.txt:\n")
             for ec in excluded_cogs:
                 blast_log.write(ec + "\n")
-
+                
     for split_fasta in sorted(split_files):
 
         # Ensure split_fasta is a .fasta file; save file name if so, die otherwise
-        blastInputFileName = ''
+        
         if not re.match(r'\A.+/(.+)\.fasta\Z', split_fasta):
             sys.exit('ERROR: Something is wrong with the directory of the BLAST input file!\n')
         else:
-            blastInputFileName = re.match(r'\A.+/(.+)\.fasta\Z', split_fasta).group(1)
+            blast_input_file_name = re.match(r'\A.+/(.+)\.fasta\Z', split_fasta).group(1)
 
         # Run the appropriate BLAST command(s) based on the input sequence type
         if args.reftype == 'n':
@@ -790,7 +907,7 @@ def run_blast(args, split_files, cog_list):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '
-            command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
+            command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
             command += " 2>/dev/null"
             os.system(command)
             command = args.executables["blastn"] + " " + \
@@ -802,7 +919,7 @@ def run_blast(args, split_files, cog_list):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '
-            command += '>> ' + args.output_dir_var + blastInputFileName + '.rRNA_BLAST_results_raw.txt'
+            command += '>> ' + args.output_dir_var + blast_input_file_name + '.rRNA_BLAST_results_raw.txt'
             command += " 2>/dev/null"
             os.system(command)
 
@@ -816,7 +933,7 @@ def run_blast(args, split_files, cog_list):
                     command += '-num_threads ' + str(int(args.num_threads)) + ' '
                 else:
                     command += '-num_threads ' + str(1) + ' '
-            command += '>> ' + args.output_dir_var + blastInputFileName + '.BLAST_results_raw.txt'
+            command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
             command += " 2> /dev/null"
             os.system(command)
 
@@ -826,7 +943,7 @@ def run_blast(args, split_files, cog_list):
 def collect_blast_outputs(args):
     """
     Deletes empty BLAST results files.
-    :param args: Command-line argument object from getParser and check_parser_arguments
+    :param args: Command-line argument object from get_options and check_parser_arguments
     Returns a list of non-empty BLAST results files.
     """
     raw_blast_result_files = []
@@ -844,7 +961,7 @@ def collect_blast_outputs(args):
 def parse_blast_results(args, raw_blast_results, cog_list):
     """
     Returns an Autovivification of purified (eg. non-redundant) BLAST hits.
-    :param args: Command-line argument object from getParser and check_parser_arguments
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param raw_blast_results: list of files produced from BLAST alignment
     :param cog_list: list of COGs included in analysis pipeline
     """
@@ -855,7 +972,7 @@ def parse_blast_results(args, raw_blast_results, cog_list):
 
     regCOGID = re.compile(r'.*(.{7})\Z')
     counter = 0
-    purifiedBlastHits = Autovivify()
+    purified_blast_hits = Autovivify()
 
     for blast_table in sorted(raw_blast_results):
         try:     
@@ -869,7 +986,7 @@ def parse_blast_results(args, raw_blast_results, cog_list):
         for line in blast_results:
             # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
             # Interpret the BLAST hit, and assign the details accordingly
-            tempContig, tempDetailedCOG, _, _, _, _, tempQStart, tempQEnd, tempRStart, tempREnd, _, tempBitScore = line.split('\t')
+            temp_contig, tempDetailedCOG, _, _, _, _, tempQStart, tempQEnd, tempRStart, tempREnd, _, tempBitScore = line.split('\t')
             tempREnd = int(tempREnd)
             tempRStart = int(tempRStart)
             tempQEnd = int(tempQEnd)
@@ -894,7 +1011,7 @@ def parse_blast_results(args, raw_blast_results, cog_list):
                 if direction == 'reverse':
                     sys.stderr.write("ERROR: Confusing BLAST result!\n")
                     sys.stderr.write("Please notify the authors about " +
-                                     tempContig + ' at ' +
+                                     temp_contig + ' at ' +
                                      tempDetailedCOG +
                                      " q(" + str(tempQEnd) + '..' + str(tempQStart) + ")," +
                                      " r(" + str(tempREnd) + '..' + str(tempRStart) + ")")
@@ -912,18 +1029,18 @@ def parse_blast_results(args, raw_blast_results, cog_list):
                 sys.exit('ERROR: Could not detect the COG of sequence ' + tempDetailedCOG)
 
             # Save contig details to the list
-            if tempContig not in contigs:
-                contigs[tempContig] = {}
+            if temp_contig not in contigs:
+                contigs[temp_contig] = {}
 
-            if identifier not in contigs[tempContig]:
-                contigs[tempContig][identifier] = {}
+            if identifier not in contigs[temp_contig]:
+                contigs[temp_contig][identifier] = {}
 
-            contigs[tempContig][identifier]['bitscore'] = tempBitScore
-            contigs[tempContig][identifier]['cog'] = tempCOG
-            contigs[tempContig][identifier]['seq_start'] = tempQStart
-            contigs[tempContig][identifier]['seq_end'] = tempQEnd
-            contigs[tempContig][identifier]['direction'] = direction
-            contigs[tempContig][identifier]['validity'] = True
+            contigs[temp_contig][identifier]['bitscore'] = tempBitScore
+            contigs[temp_contig][identifier]['cog'] = tempCOG
+            contigs[temp_contig][identifier]['seq_start'] = tempQStart
+            contigs[temp_contig][identifier]['seq_end'] = tempQEnd
+            contigs[temp_contig][identifier]['direction'] = direction
+            contigs[temp_contig][identifier]['validity'] = True
             identifier += 1
 
         # Close the file
@@ -1011,45 +1128,45 @@ def parse_blast_results(args, raw_blast_results, cog_list):
                 base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
                 direction = contigs[contig][base_blast_result_raw_identifier]['direction']
                 if contigs[contig][base_blast_result_raw_identifier]['validity']:
-                    purifiedBlastHits[contig][identifier]['bitscore'] = base_bitscore
-                    purifiedBlastHits[contig][identifier]['cog'] = base_cog
-                    purifiedBlastHits[contig][identifier]['start'] = base_start
-                    purifiedBlastHits[contig][identifier]['end'] = base_end
-                    purifiedBlastHits[contig][identifier]['direction'] = direction
-                    purifiedBlastHits[contig][identifier]['is_already_placed'] = False
+                    purified_blast_hits[contig][identifier]['bitscore'] = base_bitscore
+                    purified_blast_hits[contig][identifier]['cog'] = base_cog
+                    purified_blast_hits[contig][identifier]['start'] = base_start
+                    purified_blast_hits[contig][identifier]['end'] = base_end
+                    purified_blast_hits[contig][identifier]['direction'] = direction
+                    purified_blast_hits[contig][identifier]['is_already_placed'] = False
                     identifier += 1
 
     # Print the BLAST results for each contig
-    for contig in sorted(purifiedBlastHits.keys()):
+    for contig in sorted(purified_blast_hits.keys()):
         outfile = args.output_dir_var + contig + '_blast_result_purified.txt'
         out = open(outfile, 'w')
         sorting_hash = {}
 
         # Identify the first instance of each bitscore
-        for identifier in sorted(purifiedBlastHits[contig].keys()):
-            if not purifiedBlastHits[contig][identifier]['bitscore'] in sorting_hash:
-                sorting_hash[purifiedBlastHits[contig][identifier]['bitscore']] = {}
-            sorting_hash[purifiedBlastHits[contig][identifier]['bitscore']][identifier] = 1
+        for identifier in sorted(purified_blast_hits[contig].keys()):
+            if not purified_blast_hits[contig][identifier]['bitscore'] in sorting_hash:
+                sorting_hash[purified_blast_hits[contig][identifier]['bitscore']] = {}
+            sorting_hash[purified_blast_hits[contig][identifier]['bitscore']][identifier] = 1
 
         # Print the (potentially reduced set of) BLAST results ordered by decreasing bitscore
         for bitscore in sorted(sorting_hash.keys(), reverse=True):
             for identifier in sorted(sorting_hash[bitscore]):
-                out.write(contig + '\t' + str(purifiedBlastHits[contig][identifier]['start']) + '\t' +
-                          str(purifiedBlastHits[contig][identifier]['end']) + '\t' +
-                          str(purifiedBlastHits[contig][identifier]['direction']) + '\t' +
-                          purifiedBlastHits[contig][identifier]['cog'] + '\t' + str(bitscore) + '\n')
+                out.write(contig + '\t' + str(purified_blast_hits[contig][identifier]['start']) + '\t' +
+                          str(purified_blast_hits[contig][identifier]['end']) + '\t' +
+                          str(purified_blast_hits[contig][identifier]['direction']) + '\t' +
+                          purified_blast_hits[contig][identifier]['cog'] + '\t' + str(bitscore) + '\n')
 
         out.close()
     if args.verbose:
         sys.stdout.write("done.\n")
-    return purifiedBlastHits
+    return purified_blast_hits
 
 
 def blastpParser(args, blast_hits_purified):
     """
     For each contig, produces a file similar to the Genewise output file
     (this is in cases where Genewise is unnecessary because it is already an AA sequence.
-    :param args: Command-line argument object from getParser and check_parser_arguments
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :return blastpSummaryFiles: Autovivification of the output file for each contig.
     """
 
@@ -1233,31 +1350,6 @@ def fprintf(opened_file, fmt, *args):
     opened_file.write(fmt % args)
 
 
-class GenewiseWorker(Process):
-    """
-    A worker that will launch genewise processes in its queue
-    """
-    def __init__(self, task_queue):
-        Process.__init__(self)
-        self.task_queue = task_queue
-
-    def run(self):
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                self.task_queue.task_done()
-                break
-            p_genewise = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
-            p_genewise.wait()
-            if p_genewise.returncode != 0:
-                sys.stderr.write("ERROR: Genewise did not complete successfully for:\n")
-                sys.stderr.write(str(' '.join(next_task)))
-                sys.stderr.flush()
-            self.task_queue.task_done()
-        return
-
-
 def add_tasks_to_queue(task_list, task_queue, num_threads):
     """
     Function for adding genewise commands from task_list to task_queue while ensuring space in the JoinableQueue
@@ -1336,8 +1428,8 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
             genewise_outputfiles[contig][genewise_outputfile] = 1
 
             # Prepare the Genewise command and run it
-            genewise_command = [args.executables["genewise"]]
-            genewise_command.append(hmm_dir + cog + ".hmm")
+            genewise_command = [args.executables["genewise"], 
+                                hmm_dir + cog + ".hmm"]
             genewise_command += [shortened_sequence_file, "-init", "local", "-quiet"]
             genewise_command += ["-gene", genewise_support + 'human.gf']
             genewise_command += ["-matrix", genewise_support + "blosum62.bla"]
@@ -1452,20 +1544,20 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
         if at_least_one_hit != 1:
             continue
 
-        for base_genewise_outputfile in sorted(genewise_results_raw[contig].keys()):
+        for base_genewise_output_file in sorted(genewise_results_raw[contig].keys()):
 
             # For each count of the genewise_outputfile...
-            for base_count in sorted(genewise_results_raw[contig][base_genewise_outputfile].keys()):
-                base_start = genewise_results_raw[contig][base_genewise_outputfile][base_count]['start']
-                base_end = genewise_results_raw[contig][base_genewise_outputfile][base_count]['end']
-                base_cog = genewise_results_raw[contig][base_genewise_outputfile][base_count]['cog']
-                base_bitscore = genewise_results_raw[contig][base_genewise_outputfile][base_count]['bitscore']
-                base_direction = genewise_results_raw[contig][base_genewise_outputfile][base_count]['direction']
-                base_sequence = genewise_results_raw[contig][base_genewise_outputfile][base_count]['sequence']
+            for base_count in sorted(genewise_results_raw[contig][base_genewise_output_file].keys()):
+                base_start = genewise_results_raw[contig][base_genewise_output_file][base_count]['start']
+                base_end = genewise_results_raw[contig][base_genewise_output_file][base_count]['end']
+                base_cog = genewise_results_raw[contig][base_genewise_output_file][base_count]['cog']
+                base_bitscore = genewise_results_raw[contig][base_genewise_output_file][base_count]['bitscore']
+                base_direction = genewise_results_raw[contig][base_genewise_output_file][base_count]['direction']
+                base_sequence = genewise_results_raw[contig][base_genewise_output_file][base_count]['sequence']
 
                 # Ensure that the base_cog, base_start, and base_end are defined
                 if base_cog is None or base_start is None or base_end is None:
-                    error_string = 'ERROR: The file "' + base_genewise_outputfile + '" cannot be parsed!\n' +\
+                    error_string = 'ERROR: The file "' + base_genewise_output_file + '" cannot be parsed!\n' +\
                                    'Please contact the authors about it. As a quick solution to the problem, ' +\
                                    'try to remove the sequence which produced this hit from your input file.\n'
                     sys.exit(error_string)
@@ -1748,7 +1840,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
 def get_non_wag_cogs(args):
     """
     Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
-    :param args: Command-line argument object returned by getParser and check_parser_arguments
+    :param args: Command-line argument object returned by get_options and check_parser_arguments
     """
     denominator = ""
     non_wag_cog_list = Autovivify()
@@ -1773,7 +1865,7 @@ def get_non_wag_cogs(args):
 def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list):
     """
     Concatenates the hmmalign files using the provided Autovivifications of hmmalign files and non-WAG COGs.
-    :param args: Command-line argument object from getParser and check_parser_arguments
+    :param args: Command-line argument object from get_options and check_parser_arguments
     Returns a list of the files containing the concatenated hmmalign results.
     Returns a list of the model used for each file.
     Returns a list of the number of sequences found in each file.
@@ -2226,7 +2318,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
                        raxml_outfiles, text_of_analysis_type, num_raxml_outputs):
     """
     Parse the RAxML output files.
-    :param args: Command-line argument object from getParser and check_parser_arguments
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param denominator_reference_tree_dict:
     :param tree_numbers_translation:
     :param raxml_outfiles:
@@ -2844,28 +2936,6 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
     return tree_string
 
 
-class NodeRetrieverWorker(Process):
-    """
-    Doug Hellman's Consumer class for handling processes via queues
-    """
-    def __init__(self, task_queue, result_queue):
-        Process.__init__(self)
-        self.task_queue = task_queue
-        self.result_queue = result_queue
-
-    def run(self):
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                self.task_queue.task_done()
-                break
-            result = get_node_subtrees(next_task, create_tree_info_hash())
-            self.task_queue.task_done()
-            self.result_queue.put(result)
-        return
-
-
 def parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log):
     """
     Run `get_node_subtrees` in parallel for each of the elements in rooted_trees
@@ -3277,101 +3347,197 @@ def single_family_msa(args, cog_list, formatted_fasta_dict):
     if args.verbose:
         sys.stdout.write("Running hmmalign... ")
 
-    # split the input into a contig per fasta file
-    args.file_length = 1
-    split_files = write_formatted_fasta(args, formatted_fasta_dict)
-
     cog = cog_list["all_cogs"].keys()[0]
+    denominator = cog_list["all_cogs"][cog]
+
     start = 0
 
     # Imitate the Genewise / blastpSummaryFiles output
-    for contig_fasta in sorted(split_files):
-        with open(contig_fasta) as contig_seq:
-            header = contig_seq.readline().strip()[1:]
-            sequence = ""
-            line = contig_seq.readline()
-            while line:
-                sequence += line.strip()
-                line = contig_seq.readline()
-            end = len(sequence)
+    for contig in formatted_fasta_dict.keys():
+        header = contig[1:]
+        sequence = formatted_fasta_dict[contig]
+        end = len(sequence)
 
-            denominator = cog_list["all_cogs"][cog]
-            f_contig = denominator + "_" + header
-            genewise_singlehit_file = args.output_dir_var + os.sep + \
-                                      f_contig + '_' + cog + "_" + str(start) + "_" + str(end)
-            hmmalign_singlehit_files[f_contig][genewise_singlehit_file + ".mfa"] = True
-            genewise_singlehit_file_fa = genewise_singlehit_file + ".fa"
-            try:
-                outfile = open(genewise_singlehit_file_fa, 'w')
-                fprintf(outfile, '>query\n%s', sequence)
-                outfile.close()
-            except IOError:
-                sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
-                sys.exit(0)
-            mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
-            hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
-                                mltreemap_resources + reference_data_prefix + 'alignment_data' +
-                                os.sep + cog + '.fa',
-                                '--outformat', 'Clustal',
-                                mltreemap_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
-                                genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
-            os.system(' '.join(hmmalign_command))
+        f_contig = denominator + "_" + header
+        genewise_singlehit_file = args.output_dir_var + os.sep + \
+                                  f_contig + '_' + cog + "_" + str(start) + "_" + str(end)
+        hmmalign_singlehit_files[f_contig][genewise_singlehit_file + ".mfa"] = True
+        genewise_singlehit_file_fa = genewise_singlehit_file + ".fa"
+        try:
+            outfile = open(genewise_singlehit_file_fa, 'w')
+            fprintf(outfile, '>query\n%s\n', sequence)
+            outfile.close()
+        except IOError:
+            sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
+            sys.exit(0)
+        mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
+        hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
+                            mltreemap_resources + reference_data_prefix + 'alignment_data' +
+                            os.sep + cog + '.fa',
+                            '--outformat', 'Clustal',
+                            mltreemap_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
+                            genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
+        os.system(' '.join(hmmalign_command))
 
     if args.verbose:
         sys.stdout.write("done.\n")
     return hmmalign_singlehit_files
 
 
+def get_new_ref_sequences(update_tree):
+    """
+    Function for retrieving the protein sequences from the MLTreeMap various_outputs for 
+    :param update_tree: An instance of CreateFuncTreeUtility class
+    :return: aa_dictionary is a dictionary of fasta sequences with headers as keys and protein sequences as values
+    """
+    aa_dictionary = dict()
+    various_files = os.listdir(update_tree.InputData + os.sep + "various_outputs" + os.sep)
+
+    for var_file in various_files:
+        var_file_path = update_tree.InputData + os.sep + "various_outputs" + os.sep + var_file
+        prefix = var_file.split('_')[0]
+        if prefix == update_tree.Denominator:
+            # Pull out the contig ID between the denominator and the COG ID for those that are in final_RAxML_outputs/
+            orf_fa = re.match("%s_(\S+)_%s(_\d+)*.fa" % (update_tree.Denominator, update_tree.COG), var_file)
+            if orf_fa:
+                suffix = re.sub("%s_" % update_tree.Denominator, '', var_file)
+                seq_name = re.sub("_%s(_\d+)*.fa" % update_tree.COG, '', suffix)
+                if seq_name in update_tree.names:
+                    line_counter = 0
+                    aa_dictionary[seq_name] = ""
+                    try:
+                        fasta = open(var_file_path, 'r')
+                    except:
+                        raise IOError("Unable to open " + var_file_path + " for reading!")
+
+                    line = fasta.readline()
+                    if line[0] != '>':
+                        sys.stderr.write("ERROR: first line in " + var_file_path + " is not a proper FASTA file!")
+                        sys.stderr.flush()
+                        sys.exit()
+                    # TODO: Include line to quality-check the sequences prior to saving in aa_dictionary
+                    while line:
+                        line_counter += 1
+                        if line[0] == '>':
+                            pass
+                        else:
+                            aa_dictionary[seq_name] = line.strip()
+                        line = fasta.readline()
+                    fasta.close()
+
+                    if line_counter > 2:
+                        sys.stderr.write("ERROR: " + var_file_path + " contains more than 1 sequence when 1 is expected!")
+                        sys.stderr.flush()
+                        sys.exit()
+
+    return aa_dictionary
+
+
+def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
+    sys.stdout.write("Running usearch to cluster sequences at %s percent identity... " % str(args.uclust_identity))
+    sys.stdout.flush()
+
+    usearch_command = [args.executables["usearch"]]
+    usearch_command += ["sort", new_ref_seqs_fasta]
+    usearch_command += ["--output", update_tree.Output + "usearch"]
+    usearch_command += ["--log", update_tree.Output + os.sep + "usearch_sort.log"]
+
+    p_usort = subprocess.Popen(' '.join(usearch_command), shell=True, preexec_fn=os.setsid)
+    p_usort.wait()
+    if p_usort.returncode != 0:
+        sys.stderr.write("ERROR: usearch did not complete successfully for:\n")
+        sys.stderr.write(str(' '.join(usearch_command)))
+        sys.stderr.flush()
+
+    uclust_command = [args.executables["usearch"]]
+    uclust_command += ["cluster", update_tree.Output + "usearch"]
+    uclust_command += ["--id", str(args.uclust_identity)]
+    uclust_command += ["--seedsout", update_tree.Output + "usearch" + update_tree.COG + ".fasta"]
+    uclust_command += ["--uc", update_tree.Output + "usearch" + update_tree.COG + ".uc"]
+    uclust_command += ["--log", update_tree.Output + os.sep + "usearch_cluster.log"]
+
+    p_uclust = subprocess.Popen(' '.join(uclust_command), shell=True, preexec_fn=os.setsid)
+    p_uclust.wait()
+    if p_uclust.returncode != 0:
+        sys.stderr.write("ERROR: usearch did not complete successfully for:\n")
+        sys.stderr.write(str(' '.join(uclust_command)))
+        sys.stderr.flush()
+
+    return
+
+
 def main(argv):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
-    parser = getParser()
+    parser = get_options()
     args = check_parser_arguments(parser)
-    args = remove_previous_output(args)
+    args = check_previous_output(args)
     cog_list, text_of_analysis_type = create_cog_list(args)
     non_wag_cog_list = get_non_wag_cogs(args)
     if args.check_trees:
         validate_inputs(args, cog_list)
-    formatted_fasta_dict = format_read_fasta(args)
-    formatted_fasta_files = write_formatted_fasta(args, formatted_fasta_dict)
 
-    # UPDATE GENE FAMILY TREE MODE:
-    if args.reftree not in ['i', 'g', 'p']:
-        cog_list, text_of_analysis_type = single_cog_list(args.reftree, cog_list, text_of_analysis_type)
-        hmmalign_singlehit_files = single_family_msa(args, cog_list, formatted_fasta_dict)
-    else:
-        # STAGE 2: Run BLAST to determine which COGs are present in the input sequence(s)
-        run_blast(args, formatted_fasta_files, cog_list)
-        raw_blast_results = collect_blast_outputs(args)
-        blast_hits_purified = parse_blast_results(args, raw_blast_results, cog_list)
+    if args.skip == 'n':
+        # Read and format the input FASTA
+        formatted_fasta_dict = format_read_fasta(args)
+        if re.match(r'\A.*\/(.*)', args.input):
+            input_multi_fasta = os.path.basename(args.input)
+        else:
+            input_multi_fasta = args.input
+        args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
+        formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file, args.file_length)
+        # UPDATE GENE FAMILY TREE MODE:
+        if args.reftree not in ['i', 'g', 'p']:
+            cog_list, text_of_analysis_type = single_cog_list(args.reftree, cog_list, text_of_analysis_type)
+            hmmalign_singlehit_files = single_family_msa(args, cog_list, formatted_fasta_dict)
+        else:
+            # STAGE 2: Run BLAST to determine which COGs are present in the input sequence(s)
+            run_blast(args, formatted_fasta_files, cog_list)
+            raw_blast_results = collect_blast_outputs(args)
+            blast_hits_purified = parse_blast_results(args, raw_blast_results, cog_list)
 
-        # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
-        contig_coordinates, shortened_sequence_files = produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict)
-        genewise_summary_files = Autovivify()
-        formatted_fasta_dict.clear()
-        if args.reftype == 'n':
-            genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
-            genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
-            get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
-        elif args.reftype == 'a':
-            genewise_summary_files = blastpParser(args, blast_hits_purified)
+            # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
+            contig_coordinates, shortened_sequence_files = produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict)
+            genewise_summary_files = Autovivify()
+            formatted_fasta_dict.clear()
+            if args.reftype == 'n':
+                genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
+                genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
+                get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
+            elif args.reftype == 'a':
+                genewise_summary_files = blastpParser(args, blast_hits_purified)
 
-        # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
-        hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
-    concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
-    gblocks_files = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
-    phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
+            # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
+            hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
+        concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list)
+        gblocks_files = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
+        phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
 
-    # STAGE 5: Run RAxML to compute the ML/MP estimations
-    raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_RAxML(args, phy_files,
-                                                                                     cog_list, models_to_be_used)
-    tree_numbers_translation = read_species_translation_files(args, cog_list)
-    final_RAxML_output_files = parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
-                                                  raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
-    concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
+        # STAGE 5: Run RAxML to compute the ML/MP estimations
+        raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_RAxML(args, phy_files,
+                                                                                         cog_list, models_to_be_used)
+        tree_numbers_translation = read_species_translation_files(args, cog_list)
+        final_RAxML_output_files = parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
+                                                      raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
+        concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
 
-    # STAGE 6: Delete files as determined by the user
-    # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes,...
-    delete_files(args)
+        # STAGE 6: Delete files as determined by the user
+        delete_files(args)
+
+    # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
+    # STAGE 7: Optionally update the reference tree
+    if args.update_tree:
+        # TODO: Include a minimum length threshold for a sequence to be considered a new reference sequence
+        update_tree = CreateFuncTreeUtility(args.output, args.reftree)
+        update_tree.find_cog_name(cog_list)
+        update_tree.get_contigs_for_ref()
+        aa_dictionary = get_new_ref_sequences(update_tree)
+        new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
+                             "_" + update_tree.COG + "_unaligned.fasta"
+        write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
+        update_tree.write_reference_names()
+        if args.uclust:
+            cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
+
     sys.stdout.write("MLTreeMap has finished successfully.\n")
     sys.stdout.flush()
 
