@@ -21,6 +21,10 @@ try:
     import time
     import traceback
     from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
+    import create_trees_utility
+    import string
+    import random
+    from time import gmtime, strftime
 except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
     sys.stderr.write(traceback.print_exc(10))
@@ -211,8 +215,270 @@ class CreateFuncTreeUtility:
         ref_tax_ids_handle.close()
         ref_names_handle.close()
 
+    def align_sequences(self, alignment_mode, run_uclust, ref_align):
+        """
+
+        :param alignment_mode:
+        :param run_uclust: Boolean flag for whether uclust will be used to cluster the input sequences
+        :param ref_align: FASTA file containing
+        :return:
+        """
+
+        # Default alignment #
+        if alignment_mode == "d":
+            self.write_unaligned_ref_fasta(ref_align)
+            ref_align_gap_removed = self.Output + "_" + self.COG + "_gap_removed.fa"
+
+            self.scan_unaligned_ref_fasta(ref_align_gap_removed)
+            ref_align_gap_rm_scan = self.Output + "_" + self.COG + "_gap_rm_scan.fa"
+
+            concat_fasta = self.Output + "_" + self.COG + "_concat.fasta"
+
+            if run_uclust == "y":
+                query_fasta = "uclust_" + self.Output + ".fasta"
+            else:
+                query_fasta = self.Output + "_" + self.COG + "_unaligned.fasta"
+
+            os.system('cat %s %s > %s' % (query_fasta, ref_align_gap_rm_scan, concat_fasta))
+
+            aligned_fasta = self.Output + "_" + self.COG + "_d_aligned.fasta"
+
+            fasta_random = self.Output + "_" + self.COG + "_concat_rfive.fasta"
+
+            muscle_align_command = "muscle -in %s -out %s" % (concat_fasta, aligned_fasta)
+
+            print muscle_align_command, "\n"
+            os.system(muscle_align_command)
+
+            self.randomize_fasta_id(aligned_fasta)
+
+        # Profile-Profile alignment #
+        elif alignment_mode == "p":
+
+            if run_uclust == "y":
+                query_fasta = "uclust_" + self.Output + ".fasta"
+            else:
+                query_fasta = self.Output + "_" + self.COG + "_unaligned.fasta"
+
+            query_align = self.Output + "_" + self.COG + "_query_aligned.fasta"
+
+            muscle_align_command = "muscle -in %s -out %s" % (query_fasta, query_align)
+
+            print muscle_align_command, "\n"
+            os.system(muscle_align_command)
+
+            aligned_fasta = self.Output + "_" + self.COG + "_p_aligned.fasta"
+            muscle_align_command = "muscle -profile -in1 %s -in2 %s -out %s" % (query_align, ref_align, aligned_fasta)
+
+            print muscle_align_command, "\n"
+            os.system(muscle_align_command)
+
+            self.randomize_fasta_id(aligned_fasta)
+        else:
+            sys.exit("You need to specify the alignment method")
+
+    def write_unaligned_ref_fasta(self, ref_align):
+        ref_align_gap_removed = self.Output + "_" + self.COG + "_gap_removed.fa"
+
+        ref_align_handle = open(ref_align, "rb")
+        ref_align_gap_rm_handle = open(ref_align_gap_removed, "w")
+
+        first_fas_line = ref_align_handle.readline()
+        first_fas_line = first_fas_line.strip()
+
+        first_header_match = re.match("^>", first_fas_line)
+
+        if first_header_match:
+            ref_align_gap_rm_handle.write(first_fas_line + "\n")
+
+        fasta_in_lines = ref_align_handle.readlines()
+
+        alignment_gap_removed = ""
+
+        for each_fas_line in fasta_in_lines:
+            each_fas_line = each_fas_line.strip()
+
+            fasta_header_match = re.match("^>", each_fas_line)
+
+            if fasta_header_match:
+                ref_align_gap_rm_handle.write(alignment_gap_removed + "\n")
+                ref_align_gap_rm_handle.write(each_fas_line + "\n")
+
+                alignment_gap_removed = ""
+            else:
+
+                alignment_gap_removed += each_fas_line
+
+                if re.search("[\-]+", alignment_gap_removed):
+                    alignment_gap_removed = re.sub("-", "", alignment_gap_removed)
+
+        ref_align_gap_rm_handle.write(alignment_gap_removed + "\n")
+
+        ref_align_gap_rm_handle.close()
+        ref_align_handle.close()
+
+    def scan_unaligned_ref_fasta(self, ref_align_gap_removed):
+        """
+
+        :param ref_align_gap_removed:
+        :return:
+        """
+        ref_align_handle = open(ref_align_gap_removed, "rb")
+        ref_align_gap_rm_scan = self.Output + "_" + self.COG + "_gap_rm_scan.fa"
+
+        ref_align_scan_handle = open(ref_align_gap_rm_scan, "w")
+
+        fasta_map = {}
+
+        fasta_in_lines = ref_align_handle.readlines()
+
+        sequence_id = ""
+        sequence = ""
+
+        for each_fas_line in fasta_in_lines:
+            each_fas_line = each_fas_line.strip()
+
+            fasta_header_match = re.match("^>(\S+)", each_fas_line)
+
+            if fasta_header_match:
+                sequence_id = each_fas_line
+            else:
+                sequence = each_fas_line
+
+            fasta_map[sequence_id] = sequence
+
+        for each_sequence_id in fasta_map.keys():
+            each_sequence = fasta_map[each_sequence_id]
+
+            line_of_X_s = re.match("^X((X)+)*$", each_sequence)
+
+            if not line_of_X_s:
+                ref_align_scan_handle.write(each_sequence_id + "\n")
+                ref_align_scan_handle.write(each_sequence + "\n")
+
+        ref_align_handle.close()
+        ref_align_scan_handle.close()
+
+    def randomize_fasta_id(self, fasta):
+        original_random_dict = {}
+
+        fasta_handle = open(fasta, "rb")
+        fasta_random = self.Output + "_" + self.COG + "_concat_rfive.fasta"
+
+        fasta_random_handle = open(fasta_random, "w")
+
+        fasta_lines = fasta_handle.readlines()
+
+        for each_fasta_line in fasta_lines:
+            each_fasta_line = each_fasta_line.strip()
+            header_match = re.match("^>(\S+)", each_fasta_line)
+
+            if header_match:
+                random_five = "ID"
+                random_five += ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
+
+                original_id = header_match.group(1)
+                replaced_header = re.sub(original_id, random_five, each_fasta_line)
+                original_random_dict[original_id] = random_five
+
+                fasta_random_handle.write(replaced_header)
+                fasta_random_handle.write("\n")
+            else:
+                fasta_random_handle.write(each_fasta_line)
+                fasta_random_handle.write("\n")
+
+        fasta_random_handle.close()
+        fasta_handle.close()
+
+        self.create_random_names(original_random_dict)
+
+    def create_random_names(self, random_map):
+        orig_id_desc_dict = {}
+        concat_names = self.Output + "_" + self.COG + "_concat.names"
+
+        concat_names_handle = open(concat_names, "rb")
+
+        concat_names_lines = concat_names_handle.readlines()
+
+        for each_cnl in concat_names_lines:
+            each_cnl = string.strip(each_cnl)
+
+            tab_separated_match = re.match("(\S+)\t(.*)$", each_cnl)
+
+            if tab_separated_match:
+                orig_id = tab_separated_match.group(1)
+                desc = tab_separated_match.group(2)
+
+                orig_id_desc_dict[orig_id] = desc
+
+        concat_names_handle.close()
+
+        concat_random_names = self.Output + "_" + self.COG + "_concat_rand.names"
+        concat_rand_names_handle = open(concat_random_names, "w")
+
+        for original_id in random_map.keys():
+            names_line = random_map[original_id] + "\t" + orig_id_desc_dict[original_id]
+            concat_rand_names_handle.write(names_line)
+            concat_rand_names_handle.write("\n")
+
+        concat_rand_names_handle.close()
+
+    def execute_gblocks(self, aligned_fasta):
+        data_size = retrieve_data_size(aligned_fasta)
+        min_flank_pos = str(0.55 * data_size)
+        gblock_command = "sub_binaries/Gblocks %s -t=p -s=y -u=n -p=t -b3=15 -b4=3 -b5=h -b2=%s" \
+                         % (aligned_fasta, min_flank_pos)
+
+        print gblock_command, "\n"
+
+        os.system(gblock_command)
+
+    def execute_RAxML(self, phylip_file, output_folder):
+        raxml_destination_folder = output_folder + "phy_files_%s_" % self.COG
+        os.system('mkdir %s' % raxml_destination_folder)
+
+        if self.Denominator == "a":
+            raxml_command = "sub_binaries/raxmlHPC-PTHREADS" \
+                            " -f a -x 12345 -# 100 -m GTRGAMMA" \
+                            " -s %s -n %s -w %s -T 8  -p 8" \
+                            % (phylip_file, self.COG, raxml_destination_folder)
+        else:
+            raxml_command = "sub_binaries/raxmlHPC-PTHREADS " \
+                            "-f a -x 12345 -# 100 -m PROTGAMMAWAG" \
+                            " -s %s -n %s -w %s -T 8  -p 8" \
+                            % (phylip_file, self.COG, raxml_destination_folder)
+
+        print raxml_command, "\n"
+
+        os.system(raxml_command)
+
+        bestTree = raxml_destination_folder + "/RAxML_bestTree." + self.COG
+        bootstrapTree = raxml_destination_folder + "/RAxML_bipartitions." + self.COG
+
+        bestTree_nameswap = output_folder + "_" + self.COG + "_best.tree"
+        bootstrap_nameswap = output_folder + "_" + self.COG + "_bootstrap.tree"
+
+        concat_random_names = output_folder + "_" + self.COG + "_concat_rand.names"
+
+        os.system('swapTreeNames.pl -t %s -l %s -o %s' % (bestTree, concat_random_names, bestTree_nameswap))
+        os.system('swapTreeNames.pl -t %s -l %s -o %s' % (bootstrapTree, concat_random_names, bootstrap_nameswap))
 
 # Classes end
+
+
+def retrieve_data_size(aligned_fasta):
+    # TODO: Replace if possible (just counts number of sequences) and destroy
+    num_seqs = 0
+
+    fasta_file_handle = open(aligned_fasta, "rb")
+
+    fasta_lines = fasta_file_handle.readlines()
+
+    for each_fa_line in fasta_lines:
+        if re.search(">", each_fa_line):
+            num_seqs += 1
+
+    return num_seqs
 
 
 def os_type():
@@ -3562,7 +3828,7 @@ def main(argv):
         concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
 
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
-    # STAGE 7: Optionally update the reference tree
+    # STAGE 6: Optionally update the reference tree
     if args.update_tree:
         # TODO: Include a minimum length threshold for a sequence to be considered a new reference sequence
         update_tree = CreateFuncTreeUtility(args.output, args.reftree)
@@ -3575,8 +3841,79 @@ def main(argv):
         update_tree.write_reference_names()
         if args.uclust:
             cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
+        else:
+            pass
+            # TODO: Figure out if there is something to do here
+        ref_align = "alignment_data/" + update_tree.COG + ".fa"
+        update_tree.align_sequences(args.alignment_mode, args.uclust, ref_align)
 
-    # STAGE 6: Delete files as determined by the user
+        if args.alignment_mode == "d":
+            aligned_fasta = update_tree.Output + "_" + update_tree.COG + "_d_aligned.fasta"
+        elif args.alignment_mode == "p":
+            aligned_fasta = update_tree.Output + "_" + update_tree.COG + "_p_aligned.fasta"
+        else:
+            aligned_fasta = ""
+            sys.stderr.write("WARNING: --alignment_mode was not properly assigned!")
+
+        remove_gaps = args.gap_removal
+
+        phylip_file = update_tree.Output + "_" + "%s.phy" % update_tree.COG
+
+        fasta_random = update_tree.Output + "_" + update_tree.COG + "_concat_rfive.fasta"
+
+        # Execute RAxML #
+        if remove_gaps == "y":
+            update_tree.execute_gblocks(fasta_random)
+            os.system('cp %s-gb %s' % (fasta_random, fasta_random))
+
+            os.system('java -cp readseq.jar run -a -f=12 %s' % fasta_random)
+
+            os.system('mv %s.phylip %s' % (fasta_random, phylip_file))
+        else:
+            os.system('java -cp readseq.jar run -a -f=12 %s' % fasta_random)
+
+            os.system('mv %s.phylip %s' % (fasta_random, phylip_file))
+
+        update_tree.execute_RAxML(phylip_file, update_tree.Output)
+
+        # Organize Output Files #
+
+        project_folder = update_tree.Output + "_"
+        time = strftime("%d_%b_%Y_%H_%M", gmtime())
+
+        project_folder += str(time)
+
+        os.system('mkdir %s' % project_folder)
+
+        os.system('mkdir alignment_files')
+        os.system('mv %s %s alignment_files' % (aligned_fasta, phylip_file))
+        os.system('mv alignment_files %s' % project_folder)
+
+        RAxML_destination_folder = update_tree.Output + "phy_files_%s_" % update_tree.COG
+
+        bestTree_nameswap = update_tree.Output + "_" + update_tree.COG + "_best.tree"
+        bootstrap_nameswap = update_tree.Output + "_" + update_tree.COG + "_bootstrap.tree"
+
+        os.system('mkdir final_tree_files')
+        os.system('mv %s %s final_tree_files' % (bestTree_nameswap, bootstrap_nameswap))
+        # Move the final bootstrap, non-bootstrap best trees into destination folder:
+        os.system('mv final_tree_files %s' % project_folder)
+        # Move the RAxML output folder into destination folder:
+        os.system('mv %s %s' % (RAxML_destination_folder, project_folder))
+
+        prefix = update_tree.Output + "_" + update_tree.COG
+
+        os.system('mv %s* %s' % (prefix, project_folder))
+
+        if args.uclust == "y":
+            os.system('mkdir %s_uclust' % update_tree.Output)
+
+            os.system('mv uclust_%s %s_uclust' % (update_tree.Output, update_tree.Output))
+            os.system('mv usort_%s %s_uclust' % (update_tree.Output, update_tree.Output))
+
+            os.system('mv %s_uclust %s' % (update_tree.Output, project_folder))
+
+    # STAGE 7: Delete files as determined by the user
     delete_files(args)
 
     sys.stdout.write("MLTreeMap has finished successfully.\n")
