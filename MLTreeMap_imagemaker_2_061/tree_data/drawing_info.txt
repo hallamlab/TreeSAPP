@@ -32,6 +32,7 @@ y	mcrAref
 z	faeref_
 N	mtdAref
 I	acdref_
+Z	nosZref
 #mtrBref	mtrB	Tetrahydro-methanopterin methyltransferase subunit B (mtrB)
 #mtrCref	mtrC	Tetrahydro-methanopterin methyltransferase subunit C (mtrC)
 #mtrDref	mtrD	Tetrahydro-methanopterin methyltransferase subunit D (mtrD)

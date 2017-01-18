@@ -1,0 +1,4 @@
+## nosZ
+10 73 255 153 51 Archaea
+39 89 125 125 125 Bacteria
+88 97 100 125 225 Bacteria

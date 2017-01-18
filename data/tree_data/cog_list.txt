@@ -92,3 +92,10 @@ acdref_	acdI	ADP-forming acetyl-CoA synthetase (acd)
 hdrAref	hdrA	Heterodisulfide reductase subunit A (hdrA)
 hdrBref	hdrB	Heterodisulfide reductase subunit B (hdrB)
 hdrCref	hdrC	Heterodisulfide reductase subunit C (hdrC)
+nosZref	nosZ	Nitrous oxide reductase (nosZ)
+# wishlist
+#COG2181 (nitrate reductase gamma subunit - narG+nxr - reverse process)
+#COG1251 (nirite reductase - nirK)
+#nirS
+#norC (nitric oxide reductase C subunit)
+#norB (nitric oxide reductase B subunit)

@@ -5,6 +5,10 @@
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/MLTreeMap.iml" afterPath="$PROJECT_DIR$/.idea/MLTreeMap.iml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/misc.xml" afterPath="$PROJECT_DIR$/.idea/misc.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/mltreemap_imagemaker.pl" afterPath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/mltreemap_imagemaker.pl" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/drawing_info.txt" afterPath="$PROJECT_DIR$/MLTreeMap_imagemaker_2_061/tree_data/drawing_info.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/data/tree_data/cog_list.txt" afterPath="$PROJECT_DIR$/data/tree_data/cog_list.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/mltreemap.py" afterPath="$PROJECT_DIR$/mltreemap.py" />
     </list>
     <ignored path="MLTreeMap.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -38,9 +42,33 @@
       <file leaf-file-name="mltreemap.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/mltreemap.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="446">
-              <caret line="3577" column="0" lean-forward="false" selection-start-line="3577" selection-start-column="0" selection-end-line="3577" selection-end-column="0" />
+            <state relative-caret-position="1133">
+              <caret line="3848" column="14" lean-forward="false" selection-start-line="3848" selection-start-column="14" selection-end-line="3848" selection-end-column="14" />
               <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="create_new_func_trees.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/create_new_func_trees.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="2264">
+              <caret line="158" column="47" lean-forward="false" selection-start-line="158" selection-start-column="37" selection-end-line="158" selection-end-column="47" />
+              <folding>
+                <element signature="e#19#52#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="create_trees_utility.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/create_trees_utility.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="404">
+              <caret line="346" column="68" lean-forward="false" selection-start-line="346" selection-start-column="68" selection-end-line="346" selection-end-column="81" />
+              <folding>
+                <marker date="1482263953000" expanded="true" signature="98:20022" ph="..." />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -58,13 +86,42 @@
     <findStrings>
       <find>nr_of_blast_hits</find>
       <find>blastInputFileName</find>
+      <find>tree_util</find>
+      <find>alignment_mode</find>
+      <find>runUclust</find>
+      <find>output_folder</find>
+      <find>args.alignment</find>
+      <find>align_option</find>
+      <find>remove_gaps</find>
+      <find>ref_data_chosen</find>
+      <find>ref_align</find>
+      <find>aligned_fasta</find>
+      <find>refData_chosen</find>
+      <find>alignment_data</find>
+      <find>inputData</find>
+      <find>execute</find>
+      <find>create_random_names</find>
+      <find>_concat.names</find>
+      <find>select_names</find>
     </findStrings>
     <replaceStrings>
       <replace>blast_input_file_name</replace>
+      <replace>update_tree</replace>
+      <replace>run_uclust</replace>
+      <replace>self.Output</replace>
+      <replace>args.alignment_mode</replace>
+      <replace>update_tree.Output</replace>
+      <replace>update_tree.COG</replace>
+      <replace>COG</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
   </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
@@ -80,6 +137,7 @@
         <option value="$PROJECT_DIR$/README.md" />
         <option value="$USER_HOME$/bin/MLTreeMap_package_2_061/install/mltreemap_2_061/mltreemap.pl" />
         <option value="$PROJECT_DIR$/multiprocess_test.py" />
+        <option value="$PROJECT_DIR$/create_trees_utility.py" />
         <option value="$PROJECT_DIR$/mltreemap.py" />
       </list>
     </option>
@@ -91,10 +149,9 @@
     <sorting>DEFINITION_ORDER</sorting>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="65" />
-    <option name="y" value="24" />
-    <option name="width" value="1535" />
-    <option name="height" value="876" />
+    <option name="y" value="22" />
+    <option name="width" value="1920" />
+    <option name="height" value="1090" />
   </component>
   <component name="ProjectView">
     <navigator currentView="ProjectPane" proportions="" version="1">
@@ -111,6 +168,8 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scratches" />
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -125,12 +184,10 @@
           </PATH>
         </subPane>
       </pane>
-      <pane id="Scratches" />
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="settings.editor.selected.configurable" value="configurable.group.appearance" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth0" value="175" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder0" value="0" />
     <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth1" value="176" />
@@ -153,6 +210,7 @@
     <property name="last.edited.regexp" value="Sample Text" />
     <property name="SearchEverywhereHistoryKey" value="1167&#9;null&#9;null" />
     <property name="js.eslint.eslintPackage" value="" />
+    <property name="settings.editor.splitter.proportion" value="0.2" />
   </component>
   <component name="RunManager" selected="Python tests.Unittests in MLTreeMap">
     <configuration default="false" name="mltreemap-improved_CML" type="PythonConfigurationType" factoryName="Python" temporary="true">
@@ -452,15 +510,15 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="65" y="24" width="1535" height="876" extended-state="6" />
+    <frame x="0" y="22" width="1920" height="1090" extended-state="0" />
     <editor active="false" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.2901276" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.29286474" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33673468" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32713026" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3266533" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32984003" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Version Control" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.3277635" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.3266533" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3296593" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.24983211" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4318766" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
@@ -547,22 +605,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/mltreemap.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/mltreemap.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/mltreemap.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -912,16 +954,36 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/multiprocess_test.py" />
     <entry file="file://$PROJECT_DIR$/README.md">
-      <provider selected="true" editor-type-id="text-editor">
+      <provider editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/create_trees_utility.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="404">
+          <caret line="346" column="68" lean-forward="false" selection-start-line="346" selection-start-column="68" selection-end-line="346" selection-end-column="81" />
+          <folding>
+            <marker date="1482263953000" expanded="true" signature="98:20022" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/create_new_func_trees.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2264">
+          <caret line="158" column="47" lean-forward="false" selection-start-line="158" selection-start-column="37" selection-end-line="158" selection-end-column="47" />
+          <folding>
+            <element signature="e#19#52#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/mltreemap.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="446">
-          <caret line="3577" column="0" lean-forward="false" selection-start-line="3577" selection-start-column="0" selection-end-line="3577" selection-end-column="0" />
+        <state relative-caret-position="1133">
+          <caret line="3848" column="14" lean-forward="false" selection-start-line="3848" selection-start-column="14" selection-end-line="3848" selection-end-column="14" />
           <folding />
         </state>
       </provider>

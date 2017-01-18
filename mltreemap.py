@@ -1091,7 +1091,7 @@ def validate_inputs(args, cog_list):
     :param cog_list: Dictionary containing cog identifiers sorted into their classes
     :return: list of files that were edited
     """
-    sys.stdout.write("Testing validity of reference trees...")
+    sys.stdout.write("Testing validity of reference trees... ")
     sys.stdout.flush()
     ref_trees = glob.glob(args.mltreemap + os.sep + "data/tree_data/*_tree.txt")
     ref_tree_dict = dict()
@@ -1105,7 +1105,7 @@ def validate_inputs(args, cog_list):
     if status is None:
         sys.exit()
     else:
-        sys.stdout.write("Reference trees appear to be formatted correctly! Continuing with MLTreeMap.")
+        sys.stdout.write("Reference trees appear to be formatted correctly. Continuing with MLTreeMap.\n")
         sys.stdout.flush()
     return
 
@@ -1664,6 +1664,9 @@ def add_tasks_to_queue(task_list, task_queue, num_threads):
     :return: Nothing
     """
     num_tasks = len(task_list)
+    if num_tasks == 0:
+        raise AssertionError("Task list is empty - nothing to do. Exiting.")
+
     task = task_list.pop()
     while task:
         if not task_queue.full():
@@ -2186,7 +2189,7 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
         sys.stdout.flush()
 
     for f_contig in sorted(hmmalign_singlehit_files.keys()):
-        # Determine what type of gene is currently represented, or die an error
+        # Determine what type of gene is currently represented, or raise an error
         sequences = dict()
         model_to_be_used = ""
         query_sequence = ""
@@ -2213,9 +2216,9 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
                 if cog not in cog_rep_sequences.keys():
                     acc += 1
                 cog_rep_sequences[cog] = set()
-
             else:
                 sys.exit('ERROR: The COG could not be parsed from ' + hmmalign_singlehit_file + '!\n')
+
             if non_wag_cog_list[denominator][cog] and model_to_be_used != 'PROTGAMMAWAG':
                 model_to_be_used = non_wag_cog_list[denominator][cog]
             else:
@@ -2272,8 +2275,8 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
             output.write('>' + sequence_name + '\n' + sequence + '\n')
             if len(sequence) != qlen:
                 output.close()
-                sys.stderr.write("ERROR: inconsistent sequence lengths between query and concatenated HMM alignments!")
-                sys.exit("Check " + args.output_dir_var + f_contig + ".mfa")
+                sys.stderr.write("ERROR: inconsistent sequence lengths between query and concatenated HMM alignments!\n")
+                sys.exit("Check " + args.output_dir_var + f_contig + ".mfa for offending sequence " + sequence_name)
 
         output.close()
 
@@ -3153,7 +3156,7 @@ def assign_parents_and_children(tree_info, source):
             sys.stderr.write("ERROR: No parent assigned for " + node + " for " + source + "\n")
             sys.stderr.write("This is due to either an incompatibility with your RAxML version or ")
             sys.stderr.write("a formatting error in the reference tree.\n")
-            sys.stderr.write("Please post an issue on the github page!")
+            sys.stderr.write("Please post an issue on the github page!\n")
             sys.stderr.flush()
             return None
             # TODO: handle this better when dealing with multiple processes
@@ -3844,7 +3847,14 @@ def main(argv):
         else:
             pass
             # TODO: Figure out if there is something to do here
-        ref_align = "alignment_data/" + update_tree.COG + ".fa"
+
+        # TODO: set select_names equal to all update_tree.COG protein sequence headers in the data
+        cat_command = 'cat %s_%s_ref.names %s > %s_%s_concat.names' % \
+                      (update_tree.Output, update_tree.COG, select_names, update_tree.Output, update_tree.COG)
+        print cat_command
+        os.system(cat_command)
+
+        ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
         update_tree.align_sequences(args.alignment_mode, args.uclust, ref_align)
 
         if args.alignment_mode == "d":

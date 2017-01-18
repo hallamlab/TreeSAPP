@@ -325,6 +325,7 @@ sub run_the_imagemaker {
     my $tree_data = $$user_options{-T};
     
     foreach my $denominator (sort {$a cmp $b} keys %$concatenated_input_files) {
+	print "$denominator\n";
         foreach my $input_filename_long (sort {$a cmp $b} keys %{$$concatenated_input_files{$denominator}}) {
             my $input_filename = $$concatenated_input_files{$denominator}{$input_filename_long};
             
