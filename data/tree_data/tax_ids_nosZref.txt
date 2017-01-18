@@ -111,3 +111,10 @@
 111	Denitrovibrio_acetiphilus_DSM_12809
 112	Pseudovibrio_sp._FO-BEG1
 113	Leptospira_biflexa_serovar_Patoc_strain_'Patoc_1_(Ames)'
+114	Bac22
+115	EPSILON
+116	GAMMA
+117	SAR324
+118	SHBH1141
+119	SUP05
+120	ZA3312c
