@@ -21,7 +21,6 @@ try:
     import time
     import traceback
     from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
-    import create_trees_utility
     import string
     import random
     from time import gmtime, strftime
@@ -101,15 +100,20 @@ class CreateFuncTreeUtility:
     Cluster is a flag indicating whether the protein sequences for the RefTree in InputData is to be clustered at 97%
     """
     def __init__(self, input_data, ref_tree):
-        if input_data[-1] == '/':
-            self.InputData = os.getcwd() + os.sep + input_data[:-1]
+        if os.path.isabs(input_data):
+            self.InputData = input_data
         else:
             self.InputData = os.getcwd() + os.sep + input_data
+
+        if self.InputData[-1] == '/':
+            self.InputData = self.InputData[:-1]
+
         self.Output = self.InputData + os.sep + "updated_func_tree" + os.sep
         self.Denominator = ref_tree
         self.COG = ""
         self.ContigDict = dict()
         self.names = list()
+        self.ref_names = list()
         # Automatically remove the last attempt at updating the reference tree
         if os.path.isdir(self.Output):
             shutil.rmtree(self.Output)
@@ -142,50 +146,35 @@ class CreateFuncTreeUtility:
 
     def write_reference_names(self):
         """
-        Generate the NAMEs file for all COG reference groups
-        :return:
+        Generate the mapping between reference taxa IDs and descriptions for the gene being updated
+        :return: Dictionary containing alignment_data names as keys and tax_ids descriptions as values
         """
         # TODO: Potentially replace this function with two class variables ref_names and new_names
-        tax_id_map = {}
-
-        ref_names = self.Output + "_" + "%s_ref.names" % self.COG
-        ref_names_handle = open(ref_names, "w")
+        ref_tax_id_map = {}
 
         # Check to see whether we need to use the COG alignment files from GEBA
-        GEBA_ref_match = re.match("g_COG(\d+)", self.COG)
+        geba_ref_match = re.match("g_COG(\d+)", self.COG)
 
-        if GEBA_ref_match:
-            cog_number = GEBA_ref_match.group(1)
+        if geba_ref_match:
+            cog_number = geba_ref_match.group(1)
             cog_id = "COG" + cog_number
-            ref_alignment_handle = open("geba_alignment_data/%s.fa" % cog_id, "rb")
-
-            ref_align_lines = ref_alignment_handle.readlines()
-
-            for each_ref_align_line in ref_align_lines:
-                each_ref_align_line = each_ref_align_line.strip()
-                header_match = re.match("^>(\d+)_%s" % cog_id, each_ref_align_line)
-
-                if header_match:
-                    tax_id = header_match.group(1)
-                    header_trimmed = re.sub("^>", "", each_ref_align_line)
-                    tax_id_map[tax_id] = header_trimmed
-
-            ref_alignment_handle.close()
+            ref_alignment_fasta = "data" + os.sep + "geba_alignment_data" + os.sep + cog_id + ".fa"
+            ref_alignment_handle = open(ref_alignment_fasta)
         else:
-            ref_alignment_handle = open("data/alignment_data/%s.fa" % self.COG, "rb")
+            cog_id = self.COG
+            ref_alignment_fasta = "data" + os.sep + "alignment_data" + os.sep + cog_id + ".fa"
+            ref_alignment_handle = open(ref_alignment_fasta)
+        ref_align_lines = ref_alignment_handle.readlines()
 
-            ref_align_lines = ref_alignment_handle.readlines()
+        for line in ref_align_lines:
+            line = line.strip()
+            header_match = re.match("^>(\d+)_%s" % cog_id, line)
 
-            for each_ref_align_line in ref_align_lines:
-                each_ref_align_line = each_ref_align_line.strip()
-                header_match = re.match("^>(\d+)_%s" % self.COG, each_ref_align_line)
+            if header_match:
+                header_trimmed = re.sub("^>", "", line)
+                ref_tax_id_map[header_trimmed] = ""
 
-                if header_match:
-                    tax_id = header_match.group(1)
-                    header_trimmed = re.sub("^>", "", each_ref_align_line)
-                    tax_id_map[tax_id] = header_trimmed
-
-            ref_alignment_handle.close()
+        ref_alignment_handle.close()
 
         # Handle tax ids for COG here #
         cog_input_match = re.match("COG\d+", self.COG)
@@ -206,16 +195,16 @@ class CreateFuncTreeUtility:
             ids_desc_match = re.match("(\S+)\t(\S+(\s+\S+)*)", each_ref_tax_ids_line)
 
             if ids_desc_match:
-                ids = ids_desc_match.group(1)
+                num = ids_desc_match.group(1)
+                ref_id = num + "_" + cog_id
                 description = ids_desc_match.group(2)
 
-                if tax_id_map.has_key(ids):
-                    write_names = tax_id_map[ids] + "\t" + description
-                    ref_names_handle.write(write_names)
-                    ref_names_handle.write("\n")
+                if ref_id in ref_tax_id_map.keys():
+                    ref_tax_id_map[ref_id] = description
+                else:
+                    AssertionError("Unknown reference number " + str(ref_id) + " in " + ref_alignment_fasta)
 
-        ref_tax_ids_handle.close()
-        ref_names_handle.close()
+        return ref_tax_id_map
 
     def align_sequences(self, alignment_mode, ref_align, query_fasta):
         """
@@ -232,25 +221,25 @@ class CreateFuncTreeUtility:
             ref_align_gap_removed = self.write_unaligned_ref_fasta(ref_align)
 
             self.scan_unaligned_ref_fasta(ref_align_gap_removed)
-            ref_align_gap_rm_scan = self.Output + "_" + self.COG + "_gap_rm_scan.fa"
+            ref_align_gap_rm_scan = self.Output + self.COG + "_gap_rm_scan.fa"
 
-            concat_fasta = self.Output + "_" + self.COG + "_concat.fasta"
+            concat_fasta = self.Output + self.COG + "_concat.fasta"
             os.system('cat %s %s > %s' % (query_fasta, ref_align_gap_rm_scan, concat_fasta))
 
-            aligned_fasta = self.Output + "_" + self.COG + "_d_aligned.fasta"
+            aligned_fasta = self.Output + self.COG + "_d_aligned.fasta"
             muscle_align_command = "muscle -in %s -out %s" % (concat_fasta, aligned_fasta)
 
         # Profile-Profile alignment #
         elif alignment_mode == "p":
 
-            query_align = self.Output + "_" + self.COG + "_query_aligned.fasta"
+            query_align = self.Output + self.COG + "_query_aligned.fasta"
 
             muscle_align_command = "muscle -in %s -out %s" % (query_fasta, query_align)
 
             print muscle_align_command, "\n"
             os.system(muscle_align_command)
 
-            aligned_fasta = self.Output + "_" + self.COG + "_p_aligned.fasta"
+            aligned_fasta = self.Output + self.COG + "_p_aligned.fasta"
             muscle_align_command = "muscle -profile -in1 %s -in2 %s -out %s" % (query_align, ref_align, aligned_fasta)
 
         else:
@@ -309,7 +298,7 @@ class CreateFuncTreeUtility:
         :return:
         """
         ref_align_handle = open(ref_align_gap_removed, "rb")
-        ref_align_gap_rm_scan = self.Output + "_" + self.COG + "_gap_rm_scan.fa"
+        ref_align_gap_rm_scan = self.Output + self.COG + "_gap_rm_scan.fa"
 
         ref_align_scan_handle = open(ref_align_gap_rm_scan, "w")
 
@@ -345,71 +334,57 @@ class CreateFuncTreeUtility:
         ref_align_scan_handle.close()
 
     def randomize_fasta_id(self, fasta):
+        """
+        Create a random hash for every reference and new name
+        :param fasta: A FASTA file
+        :return: Name of fasta_random - the FASTA file with random identifiers
+        """
         original_random_dict = {}
 
         fasta_handle = open(fasta, "rb")
         fasta_lines = fasta_handle.readlines()
 
-        fasta_random = self.Output + "_" + self.COG + "_concat_rfive.fasta"
+        fasta_random = self.Output + self.COG + "_concat_rfive.fasta"
         fasta_random_handle = open(fasta_random, "w")
 
-        for each_fasta_line in fasta_lines:
-            each_fasta_line = each_fasta_line.strip()
-            header_match = re.match("^>(\S+)", each_fasta_line)
+        for line in fasta_lines:
+            line = line.strip()
+            if line[0] == '>':
+                original_id = line[1:]
+                if original_id not in self.names:
+                    self.ref_names.append(original_id)
+                rfive_header = "ID"
+                # TODO: Check to make sure this random identifier hasn't already been made
+                rfive_header += ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
+                original_random_dict[original_id] = rfive_header
 
-            if header_match:
-                random_five = "ID"
-                random_five += ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
-
-                original_id = header_match.group(1)
-                replaced_header = re.sub(original_id, random_five, each_fasta_line)
-                original_random_dict[original_id] = random_five
-
-                fasta_random_handle.write(replaced_header)
-                fasta_random_handle.write("\n")
+                fasta_random_handle.write('>' + rfive_header + "\n")
             else:
-                fasta_random_handle.write(each_fasta_line)
-                fasta_random_handle.write("\n")
+                fasta_random_handle.write(line + "\n")
 
         fasta_random_handle.close()
         fasta_handle.close()
+        
+        return fasta_random, original_random_dict
 
-        # self.create_random_names(original_random_dict)
-
-    def create_random_names(self, random_map):
-        # TODO: Instead of reading _concat.names, use class variables
-        orig_id_desc_dict = {}
-        concat_names = self.Output + "_" + self.COG + "_concat.names"
-
-        concat_names_handle = open(concat_names, "rb")
-
-        concat_names_lines = concat_names_handle.readlines()
-
-        for each_cnl in concat_names_lines:
-            each_cnl = string.strip(each_cnl)
-
-            tab_separated_match = re.match("(\S+)\t(.*)$", each_cnl)
-
-            if tab_separated_match:
-                orig_id = tab_separated_match.group(1)
-                desc = tab_separated_match.group(2)
-
-                orig_id_desc_dict[orig_id] = desc
-
-        concat_names_handle.close()
-
-        concat_random_names = self.Output + "_" + self.COG + "_concat_rand.names"
+    def create_random_names(self, random_map, ref_tax_id_map):
+        """
+        Write the _concat_rand.names file which contains
+        :param random_map: A dictionary with keys from the MSA containing reference and query sequences
+        :param ref_tax_id_map: Dictionary with contig names and descriptions for reference sequences
+        :return:
+        """
+        concat_random_names = self.Output + self.COG + "_concat_rand.names"
         concat_rand_names_handle = open(concat_random_names, "w")
 
         for original_id in random_map.keys():
-            names_line = random_map[original_id] + "\t" + orig_id_desc_dict[original_id]
+            names_line = random_map[original_id] + "\t" + ref_tax_id_map[original_id] + "\n"
             concat_rand_names_handle.write(names_line)
-            concat_rand_names_handle.write("\n")
 
         concat_rand_names_handle.close()
 
-    def execute_RAxML(self, phylip_file, output_folder, args):
-        raxml_destination_folder = output_folder + "phy_files_%s_" % self.COG
+    def execute_raxml(self, phylip_file, output_folder, args):
+        raxml_destination_folder = output_folder + "phy_files_%s" % self.COG
         os.system('mkdir %s' % raxml_destination_folder)
 
         if self.Denominator == "a":
@@ -429,9 +404,8 @@ class CreateFuncTreeUtility:
                           '-#', str(100),
                           '-n', self.COG,
                           '-w', raxml_destination_folder,
-                          '-p', str(8)]
-                          # '-t', reference_tree_file,
-                          # '>', str(output_dir) + str(f_contig) + '_RAxML.txt']
+                          '-p', str(8),
+                          '>', raxml_destination_folder + os.sep + 'RAxML_log.txt']
 
         raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
         raxml_pro.wait()
@@ -439,15 +413,16 @@ class CreateFuncTreeUtility:
         bestTree = raxml_destination_folder + "/RAxML_bestTree." + self.COG
         bootstrapTree = raxml_destination_folder + "/RAxML_bipartitions." + self.COG
 
-        bestTree_nameswap = output_folder + "_" + self.COG + "_best.tree"
-        bootstrap_nameswap = output_folder + "_" + self.COG + "_bootstrap.tree"
+        best_tree_nameswap = output_folder + self.COG + "_best.tree"
+        bootstrap_nameswap = output_folder + self.COG + "_bootstrap.tree"
 
-        concat_random_names = output_folder + "_" + self.COG + "_concat_rand.names"
+        concat_random_names = output_folder + self.COG + "_concat_rand.names"
 
         # TODO: Replace this code with python function
-        os.system('swapTreeNames.pl -t %s -l %s -o %s' % (bestTree, concat_random_names, bestTree_nameswap))
-        os.system('swapTreeNames.pl -t %s -l %s -o %s' % (bootstrapTree, concat_random_names, bootstrap_nameswap))
+        os.system('./sub_binaries/swapTreeNames.pl -t %s -l %s -o %s' % (bestTree, concat_random_names, best_tree_nameswap))
+        os.system('./sub_binaries/swapTreeNames.pl -t %s -l %s -o %s' % (bootstrapTree, concat_random_names, bootstrap_nameswap))
 
+        return
 # Classes end
 
 
@@ -1461,7 +1436,7 @@ def blastpParser(args, blast_hits_purified):
     return blastpSummaryFiles
 
 
-def produce_genewise_files(args, blast_hits_purified, formatted_fasta_dict):
+def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
     """
     Takes an Autovivification of purified BLAST hits and uses these to produce the input files needed for Genewise.
 
@@ -1706,7 +1681,7 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
 
     cog_hmms = ['.'.join(hmmF.split('.')[:-1]) for hmmF in hmm_dir_files]
 
-    # For each file which has been shortened by produce_genewise_files...
+    # For each file which has been shortened by make_genewise_inputs...
     for shortened_sequence_file in sorted(shortened_sequence_files.keys()):
         contig = shortened_sequence_files[shortened_sequence_file]
     
@@ -2621,7 +2596,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
     sys.stdout.write('Parsing the RAxML outputs...\n')
     sys.stdout.flush()
 
-    final_RAxML_output_files = Autovivify()
+    final_raxml_output_files = Autovivify()
 
     if num_raxml_outputs > 50:
         progress_bar_width = 50
@@ -2788,7 +2763,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
                 final_assignment_target_strings[assignment] = assignment_target_string
 
             final_RAxML_filename = str(args.output_dir_raxml) + str(f_contig) + '_RAxML_parsed.txt'
-            final_RAxML_output_files[denominator][final_RAxML_filename] = 1
+            final_raxml_output_files[denominator][final_RAxML_filename] = 1
             
             try:
                 output = open(final_RAxML_filename, 'w')
@@ -2831,7 +2806,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
     sys.stdout.write("-]%\n")
     parse_log.close()
-    return final_RAxML_output_files
+    return final_raxml_output_files
 
 
 def read_and_understand_the_reference_tree(reference_tree_file, denominator):
@@ -3341,18 +3316,18 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
     return real_terminal_children_strings_of_assignments
 
 
-def concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type):
+def concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type):
     if args.verbose:
         sys.stdout.write("Concatenating the RAxML outputs for each marker gene class...\n")
     output_directory_final = args.output_dir_final
     
-    for denominator in sorted(final_RAxML_output_files.keys()):
+    for denominator in sorted(final_raxml_output_files.keys()):
         nr_of_files = 0
         assignments = Autovivify()
         description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
         final_output_file_name = str(output_directory_final) + str(denominator) + '_concatenated_RAxML_outputs.txt'
         
-        for final_RAxML_output_file in sorted(final_RAxML_output_files[denominator].keys()):
+        for final_RAxML_output_file in sorted(final_raxml_output_files[denominator].keys()):
             nr_of_files += 1
             try:
                 final_raxml_output = open(final_RAxML_output_file, 'r')
@@ -3678,7 +3653,7 @@ def execute_gblocks(args, aligned_fasta):
     data_size = retrieve_data_size(aligned_fasta)
     min_flank_pos = str(0.55 * data_size)
     gblock_command = args.executables["Gblocks"] + \
-                     "%s -t=p -s=y -u=n -p=t -b3=15 -b4=3 -b5=h -b2=%s" % (aligned_fasta, min_flank_pos)
+        "%s -t=p -s=y -u=n -p=t -b3=15 -b4=3 -b5=h -b2=%s" % (aligned_fasta, min_flank_pos)
 
     print gblock_command, "\n"
 
@@ -3740,7 +3715,7 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
 
     usearch_command = [args.executables["usearch"]]
     usearch_command += ["-sortbylength", new_ref_seqs_fasta]
-    usearch_command += ["--output", update_tree.Output + "usearch"]
+    usearch_command += ["--output", update_tree.Output + "usearch_sorted.fasta"]
     usearch_command += ["--log", update_tree.Output + os.sep + "usearch_sort.log"]
 
     p_usort = subprocess.Popen(' '.join(usearch_command), shell=True, preexec_fn=os.setsid)
@@ -3751,10 +3726,10 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
         sys.stderr.flush()
 
     uclust_command = [args.executables["usearch"]]
-    uclust_command += ["-cluster_fast", update_tree.Output + "usearch"]
+    uclust_command += ["-cluster_fast", update_tree.Output + "usearch_sorted.fasta"]
     uclust_command += ["--id", str(args.uclust_identity)]
-    uclust_command += ["--centroids", update_tree.Output + "usearch" + update_tree.COG + ".fasta"]
-    uclust_command += ["--uc", update_tree.Output + "usearch" + update_tree.COG + ".uc"]
+    uclust_command += ["--centroids", update_tree.Output + "uclust_" + update_tree.COG + ".fasta"]
+    uclust_command += ["--uc", update_tree.Output + "uclust_" + update_tree.COG + ".uc"]
     uclust_command += ["--log", update_tree.Output + os.sep + "usearch_cluster.log"]
 
     p_uclust = subprocess.Popen(' '.join(uclust_command), shell=True, preexec_fn=os.setsid)
@@ -3765,6 +3740,44 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
         sys.stderr.flush()
 
     return
+
+
+def filter_short_sequences(query_fasta, length_threshold):
+    """
+    Writes all sequences longer than length_threshold to a new FASTA file before performing MSA
+    :param query_fasta: FASTA file which may contain sequences shorter than length_threshold
+    :param length_threshold: Minimum number of AA a sequence must contain to be included in further analyses
+    :return: name of a new FASTA file with only the long sequences
+    """
+    try:
+        fasta_in = open(query_fasta, 'r')
+    except:
+        raise IOError("Unable to open " + query_fasta + " for reading!")
+
+    new_faa = '.'.join(query_fasta.split('.')[0:-1]) + "_" + str(length_threshold) + ".faa"
+    try:
+        fasta_out = open(new_faa, 'w')
+    except:
+        raise IOError("Unable to open " + query_fasta + " for reading!")
+
+    line = fasta_in.readline()
+    header = ""
+    sequence = ""
+    while line:
+        if line[0] == '>':
+            if len(sequence) > length_threshold:
+                fasta_out.write(header + "\n")
+                fasta_out.write(sequence + "\n")
+            header = line.strip()
+            sequence = ""
+        else:
+            sequence += line.strip()
+        line = fasta_in.readline()
+
+    fasta_in.close()
+    fasta_out.close()
+
+    return new_faa
 
 
 def main(argv):
@@ -3797,9 +3810,9 @@ def main(argv):
             blast_hits_purified = parse_blast_results(args, raw_blast_results, cog_list)
 
             # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
-            contig_coordinates, shortened_sequence_files, gene_coordinates = produce_genewise_files(args,
-                                                                                                    blast_hits_purified,
-                                                                                                    formatted_fasta_dict)
+            contig_coordinates, shortened_sequence_files, gene_coordinates = make_genewise_inputs(args,
+                                                                                                  blast_hits_purified,
+                                                                                                  formatted_fasta_dict)
             write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
             formatted_fasta_dict.clear()
             genewise_summary_files = Autovivify()
@@ -3822,9 +3835,9 @@ def main(argv):
         raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_RAxML(args, phy_files,
                                                                                          cog_list, models_to_be_used)
         tree_numbers_translation = read_species_translation_files(args, cog_list)
-        final_RAxML_output_files = parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
+        final_raxml_output_files = parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
                                                       raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
-        concatenate_RAxML_output_files(args, final_RAxML_output_files, text_of_analysis_type)
+        concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
 
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
@@ -3837,10 +3850,12 @@ def main(argv):
         new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
                              "_" + update_tree.COG + "_unaligned.fasta"
         write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
-        update_tree.write_reference_names()
+        ref_tax_id_map = update_tree.write_reference_names()
+        for seq_name in update_tree.names:
+            ref_tax_id_map[seq_name] = seq_name
         if args.uclust and len(aa_dictionary) > 1:
             cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
-            query_fasta = "uclust_" + update_tree.Output + ".fasta"
+            query_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
             # TODO: Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
         else:
             if len(aa_dictionary) == 1 and args.uclust:
@@ -3848,23 +3863,16 @@ def main(argv):
                 sys.stderr.flush()
             query_fasta = new_ref_seqs_fasta
 
-        # TODO: set select_names equal to all update_tree.COG protein sequence headers in the data
-        # cat_command = 'cat %s_%s_ref.names %s > %s_%s_concat.names' % \
-        #               (update_tree.Output, update_tree.COG, update_tree.names, update_tree.Output, update_tree.COG)
-        # print cat_command
-        # os.system(cat_command)
+        # Remove short sequences
+        # TODO: Make the length_threshold for filter_short_sequences adaptable to reference input
+        query_fasta = filter_short_sequences(query_fasta, 110)
 
         ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
         aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, query_fasta)
-        update_tree.randomize_fasta_id(aligned_fasta)
+        fasta_random, original_random_dict = update_tree.randomize_fasta_id(aligned_fasta)
+        update_tree.create_random_names(original_random_dict, ref_tax_id_map)
 
-        remove_gaps = args.gap_removal
-
-        phylip_file = update_tree.Output + "_" + "%s.phy" % update_tree.COG
-
-        fasta_random = update_tree.Output + "_" + update_tree.COG + "_concat_rfive.fasta"
-
-        if remove_gaps == "y":
+        if args.gap_removal == "y":
             if args.verbose:
                 sys.stdout.write("Executing Gblocks... ")
                 sys.stdout.flush()
@@ -3874,23 +3882,23 @@ def main(argv):
                 sys.stdout.flush()
             os.system('cp %s-gb %s' % (fasta_random, fasta_random))
 
-        os.system('java -cp readseq.jar run -a -f=12 %s' % fasta_random)
+        os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % fasta_random)
+
+        phylip_file = update_tree.Output + "%s.phy" % update_tree.COG
         os.system('mv %s.phylip %s' % (fasta_random, phylip_file))
 
         if args.verbose:
             sys.stdout.write("Executing RAxML... ")
             sys.stdout.flush()
-        update_tree.execute_RAxML(phylip_file, update_tree.Output, args)
+        update_tree.execute_raxml(phylip_file, update_tree.Output, args)
         if args.verbose:
             sys.stdout.write("done.\n")
             sys.stdout.flush()
 
         # Organize Output Files #
 
-        project_folder = update_tree.Output + "_"
-        time = strftime("%d_%b_%Y_%H_%M", gmtime())
-
-        project_folder += str(time)
+        time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
+        project_folder = update_tree.Output + str(time_of_run)
 
         os.system('mkdir %s' % project_folder)
 
@@ -3898,19 +3906,19 @@ def main(argv):
         os.system('mv %s %s alignment_files' % (aligned_fasta, phylip_file))
         os.system('mv alignment_files %s' % project_folder)
 
-        RAxML_destination_folder = update_tree.Output + "phy_files_%s_" % update_tree.COG
+        raxml_destination_folder = update_tree.Output + "phy_files_%s" % update_tree.COG
 
-        bestTree_nameswap = update_tree.Output + "_" + update_tree.COG + "_best.tree"
-        bootstrap_nameswap = update_tree.Output + "_" + update_tree.COG + "_bootstrap.tree"
+        best_tree_nameswap = update_tree.Output + update_tree.COG + "_best.tree"
+        bootstrap_nameswap = update_tree.Output + update_tree.COG + "_bootstrap.tree"
 
         os.system('mkdir final_tree_files')
-        os.system('mv %s %s final_tree_files' % (bestTree_nameswap, bootstrap_nameswap))
+        os.system('mv %s %s final_tree_files' % (best_tree_nameswap, bootstrap_nameswap))
         # Move the final bootstrap, non-bootstrap best trees into destination folder:
         os.system('mv final_tree_files %s' % project_folder)
         # Move the RAxML output folder into destination folder:
-        os.system('mv %s %s' % (RAxML_destination_folder, project_folder))
+        os.system('mv %s %s' % (raxml_destination_folder, project_folder))
 
-        prefix = update_tree.Output + "_" + update_tree.COG
+        prefix = update_tree.Output + update_tree.COG
 
         os.system('mv %s* %s' % (prefix, project_folder))
 
