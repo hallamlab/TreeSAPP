@@ -206,15 +206,18 @@ class CreateFuncTreeUtility:
 
         return ref_tax_id_map
 
-    def align_sequences(self, alignment_mode, ref_align, query_fasta):
+    def align_sequences(self, alignment_mode, ref_align, query_fasta, args):
         """
         Call MUSCLE to perform a multiple sequence alignment of the reference sequences and the
         gene sequences identified by MLTreeMap
         :param alignment_mode:
         :param query_fasta: Name of the FASTA file containing the MLTreeMap-identified genes
         :param ref_align: FASTA file containing
-        :return:
+        :return: Name of the FASTA file containing the MSA
         """
+        if args.verbose:
+            sys.stdout.write("Aligning the reference and identified " + self.COG + " sequences using MUSCLE... ")
+            sys.stdout.flush()
 
         # Default alignment #
         if alignment_mode == "d":
@@ -227,26 +230,29 @@ class CreateFuncTreeUtility:
             os.system('cat %s %s > %s' % (query_fasta, ref_align_gap_rm_scan, concat_fasta))
 
             aligned_fasta = self.Output + self.COG + "_d_aligned.fasta"
-            muscle_align_command = "muscle -in %s -out %s" % (concat_fasta, aligned_fasta)
+            muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (concat_fasta, aligned_fasta)
 
         # Profile-Profile alignment #
         elif alignment_mode == "p":
 
             query_align = self.Output + self.COG + "_query_aligned.fasta"
 
-            muscle_align_command = "muscle -in %s -out %s" % (query_fasta, query_align)
+            muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (query_fasta, query_align)
 
-            print muscle_align_command, "\n"
             os.system(muscle_align_command)
 
             aligned_fasta = self.Output + self.COG + "_p_aligned.fasta"
-            muscle_align_command = "muscle -profile -in1 %s -in2 %s -out %s" % (query_align, ref_align, aligned_fasta)
+            muscle_align_command = "muscle -profile -in1 %s -in2 %s -out %s 1>/dev/null 2>/dev/null" % \
+                                   (query_align, ref_align, aligned_fasta)
 
         else:
             sys.exit("ERROR: --alignment_mode was not properly assigned!")
 
-        print muscle_align_command, "\n"
         os.system(muscle_align_command)
+
+        if args.verbose:
+            sys.stdout.write("done.\n")
+            sys.stdout.flush()
 
         return aligned_fasta
 
@@ -324,9 +330,9 @@ class CreateFuncTreeUtility:
         for each_sequence_id in fasta_map.keys():
             each_sequence = fasta_map[each_sequence_id]
 
-            line_of_X_s = re.match("^X((X)+)*$", each_sequence)
+            line_of_x = re.match("^X((X)+)*$", each_sequence)
 
-            if not line_of_X_s:
+            if not line_of_x:
                 ref_align_scan_handle.write(each_sequence_id + "\n")
                 ref_align_scan_handle.write(each_sequence + "\n")
 
@@ -340,6 +346,7 @@ class CreateFuncTreeUtility:
         :return: Name of fasta_random - the FASTA file with random identifiers
         """
         original_random_dict = {}
+        rfive_list = list()
 
         fasta_handle = open(fasta, "rb")
         fasta_lines = fasta_handle.readlines()
@@ -354,13 +361,18 @@ class CreateFuncTreeUtility:
                 if original_id not in self.names:
                     self.ref_names.append(original_id)
                 rfive_header = "ID"
-                # TODO: Check to make sure this random identifier hasn't already been made
-                rfive_header += ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
+                rfive = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
+                while rfive in rfive_list:
+                    rfive = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
+                rfive_list.append(rfive)
+                rfive_header += rfive
                 original_random_dict[original_id] = rfive_header
 
                 fasta_random_handle.write('>' + rfive_header + "\n")
             else:
                 fasta_random_handle.write(line + "\n")
+
+        assert len(set(original_random_dict.values())) == len(original_random_dict.values())
 
         fasta_random_handle.close()
         fasta_handle.close()
@@ -383,9 +395,8 @@ class CreateFuncTreeUtility:
 
         concat_rand_names_handle.close()
 
-    def execute_raxml(self, phylip_file, output_folder, args):
-        raxml_destination_folder = output_folder + "phy_files_%s" % self.COG
-        os.system('mkdir %s' % raxml_destination_folder)
+    def execute_raxml(self, phylip_file, raxml_destination_folder, args, bootstraps=100):
+        os.makedirs(raxml_destination_folder)
 
         if self.Denominator == "a":
             model_to_be_used = "GTRGAMMA"
@@ -401,7 +412,7 @@ class CreateFuncTreeUtility:
         raxml_command += ['-s', phylip_file,
                           '-f', 'a',
                           '-x', str(12345),
-                          '-#', str(100),
+                          '-#', str(bootstraps),
                           '-n', self.COG,
                           '-w', raxml_destination_folder,
                           '-p', str(8),
@@ -409,18 +420,6 @@ class CreateFuncTreeUtility:
 
         raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
         raxml_pro.wait()
-
-        bestTree = raxml_destination_folder + "/RAxML_bestTree." + self.COG
-        bootstrapTree = raxml_destination_folder + "/RAxML_bipartitions." + self.COG
-
-        best_tree_nameswap = output_folder + self.COG + "_best.tree"
-        bootstrap_nameswap = output_folder + self.COG + "_bootstrap.tree"
-
-        concat_random_names = output_folder + self.COG + "_concat_rand.names"
-
-        # TODO: Replace this code with python function
-        os.system('./sub_binaries/swapTreeNames.pl -t %s -l %s -o %s' % (bestTree, concat_random_names, best_tree_nameswap))
-        os.system('./sub_binaries/swapTreeNames.pl -t %s -l %s -o %s' % (bootstrapTree, concat_random_names, bootstrap_nameswap))
 
         return
 # Classes end
@@ -475,8 +474,8 @@ def get_options():
                         help='RAxML algorithm (v = Maximum Likelihood [DEFAULT]; p = Maximum Parsimony)')
     parser.add_argument('-g', '--gblocks', default=50, type=int,
                         help='minimal sequence length after Gblocks [DEFAULT = 50]')
-    parser.add_argument('-l', '--file_length', default=None,
-                        help='long input files will be split into files containing L sequences each [DEFAULT is None]')
+    # parser.add_argument('-l', '--file_length', default=None,
+    #                     help='input files will be split into files containing L sequences each [DEFAULT is None]')
     parser.add_argument('-s', '--bitscore', default=60, type=int,
                         help='minimum bitscore for the blast hits [DEFAULT = 60]')
     parser.add_argument('-t', '--reftree', default='p', type=str,
@@ -566,9 +565,9 @@ def which(program):
         if is_exe(program):
             return program
     else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
+        for path_element in os.environ["PATH"].split(os.pathsep):
+            path_element = path_element.strip('"')
+            exe_file = os.path.join(path_element, program)
             if is_exe(exe_file):
                 return exe_file
     return None
@@ -583,8 +582,6 @@ def check_parser_arguments(parser):
 
     # Ensure files contain more than 0 sequences
     args = parser.parse_args()
-    if args.file_length and args.file_length <= 0:
-        sys.exit('Input files require a positive number of sequences!')
 
     # Set the reference data file prefix and the reference tree name
     if args.reftree == 'g':
@@ -602,9 +599,10 @@ def check_parser_arguments(parser):
 
     # Notify the user that bootstraps cannot be used with the Maximum Parsimony settings of RAxML.
     if args.bootstraps > 1 and args.phylogeny == 'p':
-        sys.stderr.write('ATTENTION: You intended to do ' + str(args.bootstraps) + \
-              ' bootstrap replications. Unfortunately, bootstrapping is ' +\
-              'disabled in the parsimony mode of MLTreeMap. The pipeline will continue without bootstrapping.\n')
+        sys.stderr.write('WARNING: You intended to do ' + str(args.bootstraps) +
+                         ' bootstrap replicates. Bootstrapping is disabled in the parsimony mode of MLTreeMap.' +
+                         ' The pipeline will continue without bootstrapping.\n')
+        sys.stderr.flush()
         args.bootstraps = 1
 
     args = find_executables(args)
@@ -640,11 +638,11 @@ def check_parser_arguments(parser):
     return args
 
 
-def get_response(py_version, string=""):
+def get_response(py_version, response_string=""):
     if py_version == 3:
-        return input(string)
+        return input(response_string)
     if py_version == 2:
-        return raw_input(string)
+        return raw_input(response_string)
 
 
 def check_previous_output(args):
@@ -725,11 +723,11 @@ def create_cog_list(args):
 
     # For each line in the COG list file...
 
-    cogList = [x.strip() for x in cog_input_list.readlines()]
+    cog_list_lines = [x.strip() for x in cog_input_list.readlines()]
     # Close the COG list file
     cog_input_list.close()
 
-    for cogInput in cogList:
+    for cogInput in cog_list_lines:
         # Get the kind of COG if cogInput is a header line        
         if re.match(r'\A#(.*)', cogInput):
             kind_of_cog = re.match(r'\A#(.*)', cogInput).group(1)
@@ -815,22 +813,25 @@ def calculate_overlap(info):
     check_end = info['check']['end']
 
     # Calculate the overlap based on the relative positioning of the base and check sequences
-    if base_start <= check_start and check_start <= base_end and base_end <= check_end:
-        # Base     ----
-        # Check      -------
-        overlap = base_end - check_start
-    elif base_start <= check_start and check_end <= base_end:
-        # Base     --------
-        # Check        --
-        overlap = check_end - check_start
-    elif check_start <= base_start and base_start <= check_end and check_end <= base_end:
-        # Base         -----
-        # Check    -----
-        overlap = check_end - base_start
-    elif check_start <= base_start and base_end <= check_end:
-        # Base       --
-        # Check    --------
-        overlap = base_end - base_start
+    assert isinstance(base_end, (int, long, float, complex))
+    if base_start <= check_start:
+        if check_end >= base_end >= check_start:
+            # Base     ----
+            # Check      -------
+            overlap = base_end - check_start
+        elif check_end <= base_end:
+            # Base     --------
+            # Check        --
+            overlap = check_end - check_start
+    elif check_start <= base_start:
+        if base_start <= check_end <= base_end:
+            # Base         -----
+            # Check    -----
+            overlap = check_end - base_start
+        elif base_end <= check_end:
+            # Base       --
+            # Check    --------
+            overlap = base_end - base_start
 
     return overlap 
 
@@ -3710,13 +3711,15 @@ def get_new_ref_sequences(update_tree):
 
 
 def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
-    sys.stdout.write("Running usearch to cluster sequences at %s percent identity... " % str(args.uclust_identity))
-    sys.stdout.flush()
+    if args.verbose:
+        sys.stdout.write("Running usearch to cluster sequences at %s percent identity... " % str(args.uclust_identity))
+        sys.stdout.flush()
 
     usearch_command = [args.executables["usearch"]]
     usearch_command += ["-sortbylength", new_ref_seqs_fasta]
     usearch_command += ["--output", update_tree.Output + "usearch_sorted.fasta"]
     usearch_command += ["--log", update_tree.Output + os.sep + "usearch_sort.log"]
+    usearch_command += ["1>", "/dev/null", "2>", "/dev/null"]
 
     p_usort = subprocess.Popen(' '.join(usearch_command), shell=True, preexec_fn=os.setsid)
     p_usort.wait()
@@ -3731,6 +3734,7 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
     uclust_command += ["--centroids", update_tree.Output + "uclust_" + update_tree.COG + ".fasta"]
     uclust_command += ["--uc", update_tree.Output + "uclust_" + update_tree.COG + ".uc"]
     uclust_command += ["--log", update_tree.Output + os.sep + "usearch_cluster.log"]
+    uclust_command += ["1>", "/dev/null", "2>", "/dev/null"]
 
     p_uclust = subprocess.Popen(' '.join(uclust_command), shell=True, preexec_fn=os.setsid)
     p_uclust.wait()
@@ -3739,10 +3743,49 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
         sys.stderr.write(str(' '.join(uclust_command)))
         sys.stderr.flush()
 
+    if args.verbose:
+        sys.stdout.write("done.\n")
+        sys.stdout.flush()
+
     return
 
 
-def filter_short_sequences(query_fasta, length_threshold):
+def swap_tree_names(tree, tree_swap_name, random_map, ref_tax_id_map):
+    """
+    Function used for replacing unique identifiers in a NEWICK tree file
+    :param tree:
+    :param tree_swap_name:
+    :param random_map:
+    :param ref_tax_id_map:
+    :return:
+    """
+    try:
+        old_tree = open(tree, 'r')
+    except:
+        raise IOError("Unable to open " + tree + " for reading!")
+    try:
+        new_tree = open(tree_swap_name, 'w')
+    except:
+        raise IOError("Unable to open " + tree_swap_name + " for writing!")
+
+    newick_tree = old_tree.readlines()
+    old_tree.close()
+
+    if len(newick_tree) > 1:
+        raise AssertionError("ERROR: " + tree + " should only contain one line of text to be a NEWICK tree!")
+    else:
+        newick_tree = str(newick_tree[0])
+
+    for node_id in random_map:
+        newick_tree = re.sub(random_map[node_id], ref_tax_id_map[node_id], newick_tree)
+
+    new_tree.write(newick_tree + "\n")
+    new_tree.close()
+
+    return
+
+
+def filter_short_sequences(query_fasta, length_threshold=110):
     """
     Writes all sequences longer than length_threshold to a new FASTA file before performing MSA
     :param query_fasta: FASTA file which may contain sequences shorter than length_threshold
@@ -3798,7 +3841,7 @@ def main(argv):
         else:
             input_multi_fasta = args.input
         args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
-        formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file, args.file_length)
+        formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
         # UPDATE GENE FAMILY TREE MODE:
         if args.reftree not in ['i', 'g', 'p']:
             cog_list, text_of_analysis_type = single_cog_list(args.reftree, cog_list, text_of_analysis_type)
@@ -3847,7 +3890,7 @@ def main(argv):
         update_tree.find_cog_name(cog_list)
         update_tree.get_contigs_for_ref()
         aa_dictionary = get_new_ref_sequences(update_tree)
-        new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
+        new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) +\
                              "_" + update_tree.COG + "_unaligned.fasta"
         write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
         ref_tax_id_map = update_tree.write_reference_names()
@@ -3865,10 +3908,10 @@ def main(argv):
 
         # Remove short sequences
         # TODO: Make the length_threshold for filter_short_sequences adaptable to reference input
-        query_fasta = filter_short_sequences(query_fasta, 110)
+        query_fasta = filter_short_sequences(query_fasta, 150)
 
         ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
-        aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, query_fasta)
+        aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, query_fasta, args)
         fasta_random, original_random_dict = update_tree.randomize_fasta_id(aligned_fasta)
         update_tree.create_random_names(original_random_dict, ref_tax_id_map)
 
@@ -3887,39 +3930,37 @@ def main(argv):
         phylip_file = update_tree.Output + "%s.phy" % update_tree.COG
         os.system('mv %s.phylip %s' % (fasta_random, phylip_file))
 
+        time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
+        project_folder = update_tree.Output + str(time_of_run) + os.sep
+        os.makedirs(project_folder)
+        raxml_destination_folder = project_folder + "phy_files_%s" % update_tree.COG
+        final_tree_dir = project_folder + "final_tree_files" + os.sep
+        alignment_files_dir = project_folder + "alignment_files" + os.sep
+
         if args.verbose:
             sys.stdout.write("Executing RAxML... ")
             sys.stdout.flush()
-        update_tree.execute_raxml(phylip_file, update_tree.Output, args)
+        update_tree.execute_raxml(phylip_file, raxml_destination_folder, args)
         if args.verbose:
             sys.stdout.write("done.\n")
             sys.stdout.flush()
 
         # Organize Output Files #
 
-        time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
-        project_folder = update_tree.Output + str(time_of_run)
+        os.makedirs(final_tree_dir)
+        os.makedirs(alignment_files_dir)
 
-        os.system('mkdir %s' % project_folder)
+        shutil.move(aligned_fasta, alignment_files_dir)
+        shutil.move(phylip_file, alignment_files_dir)
 
-        os.system('mkdir alignment_files')
-        os.system('mv %s %s alignment_files' % (aligned_fasta, phylip_file))
-        os.system('mv alignment_files %s' % project_folder)
-
-        raxml_destination_folder = update_tree.Output + "phy_files_%s" % update_tree.COG
-
-        best_tree_nameswap = update_tree.Output + update_tree.COG + "_best.tree"
-        bootstrap_nameswap = update_tree.Output + update_tree.COG + "_bootstrap.tree"
-
-        os.system('mkdir final_tree_files')
-        os.system('mv %s %s final_tree_files' % (best_tree_nameswap, bootstrap_nameswap))
-        # Move the final bootstrap, non-bootstrap best trees into destination folder:
-        os.system('mv final_tree_files %s' % project_folder)
-        # Move the RAxML output folder into destination folder:
-        os.system('mv %s %s' % (raxml_destination_folder, project_folder))
+        best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
+        bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitions." + update_tree.COG
+        best_tree_nameswap = final_tree_dir + update_tree.COG + "_best.tree"
+        bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bootstrap.tree"
+        swap_tree_names(best_tree, best_tree_nameswap, original_random_dict, ref_tax_id_map)
+        swap_tree_names(bootstrap_tree, bootstrap_nameswap, original_random_dict, ref_tax_id_map)
 
         prefix = update_tree.Output + update_tree.COG
-
         os.system('mv %s* %s' % (prefix, project_folder))
 
         if args.uclust == "y":
