@@ -466,7 +466,7 @@ def get_options():
                                                  ' using a Maximum Likelihood algorithm.')
     parser.add_argument('-i', '--input', required=True,
                         help='Your sequence input file in FASTA format')
-    parser.add_argument('-o', '--output', default='output/',
+    parser.add_argument('-o', '--output', default='./output/', required=False,
                         help='output directory [DEFAULT = ./output/]')
     parser.add_argument('-b', '--bootstraps', default=0, type=int,
                         help='the number of Bootstrap replicates [DEFAULT = 0]')
@@ -474,54 +474,57 @@ def get_options():
                         help='RAxML algorithm (v = Maximum Likelihood [DEFAULT]; p = Maximum Parsimony)')
     parser.add_argument('-g', '--gblocks', default=50, type=int,
                         help='minimal sequence length after Gblocks [DEFAULT = 50]')
-    # parser.add_argument('-l', '--file_length', default=None,
-    #                     help='input files will be split into files containing L sequences each [DEFAULT is None]')
     parser.add_argument('-s', '--bitscore', default=60, type=int,
                         help='minimum bitscore for the blast hits [DEFAULT = 60]')
     parser.add_argument('-t', '--reftree', default='p', type=str,
                         help='reference tree (p = MLTreeMap reference tree [DEFAULT]; '
                              'g = GEBA reference tree; i = fungi tree; '
                              'other gene family in data/tree_data/cog_list.txt - e.g., y for mcrA]')
-    parser.add_argument('-r', '--reftype', default='n', choices=['a', 'n'],
+    parser.add_argument('-m', '--molecule', default='n', choices=['a', 'n'],
                         help='the type of input sequences (a = Amino Acid; n = Nucleotide [DEFAULT])')
-    parser.add_argument('-e', '--executables', default='sub_binaries',
-                        help='locations of executables (e.g. blastx, Gblocks, etc.)')
-    parser.add_argument('-x', '--mltreemap', default=os.path.abspath(os.path.dirname(os.path.realpath(__file__))),
-                        help='location of MLTreeMap resources [DEFAULT = directory of mltreemap.py]')
-    parser.add_argument('-T', '--num_threads', default=2, type=int,
-                        help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 2]')
-    parser.add_argument('-d', '--delete', default=None,
-                        help='the sections of files to be deleted, as separated by colons '
-                             '(1 = Sequence Files; '
-                             '2 = BLAST Results; '
-                             '3 = Genewise Results; '
-                             '4 = hmmalign and Gblocks Results; '
-                             '5 = Unparsed RAxML Results)')
-    parser.add_argument('--overwrite', action='store_true', default=False,
-                        help='overwrites previously processed output folders')
-    parser.add_argument('-v', '--verbose', action='store_true',  default=False,
-                        help='maintains intermediate files in `various_outputs` and `final_RaXML_outputs` directories'
-                             ', and prints a more verbose runtime log')
-    parser.add_argument("--check_trees", action="store_true", default=False,
-                        help="Flag indicating the reference trees should be quality-checked before running MLTreeMap")
-    parser.add_argument("--update_tree", action="store_true", default=False,
-                        help="Flag indicating the reference tree specified by `--reftree` is to be updated using the "
-                             "sequences found in MLTreeMap output")
 
-    update_tree = parser.add_argument_group('update_tree')
+    rpkm_opts = parser.add_argument_group('RPKM options')
+    rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
+                           help="Flag indicating RPKM values should be calculated for the gene sequences detected")
+    rpkm_opts.add_argument("-r", "--reads", required=False,
+                           help="FASTQ file containing to be aligned to predicted genes using BWA MEM")
+    rpkm_opts.add_argument("-2", "--reverse", required=False,
+                           help="FASTQ file containing to reverse mate-pair reads to be aligned using BWA MEM")
+    rpkm_opts.add_argument("-p", "--pairing", required=False, default='pe', choices=['pe', 'se'],
+                           help="Indicating whether the reads are paired-end (pe) or single-end (se)")
+
+    update_tree = parser.add_argument_group('Update-tree options')
     # mltreemap_output uses the output argument
     # output will by mltreemap_output/update_tree
-    update_tree.add_argument("-n", "--names", required=False,
-                             help="Your input NAMES file for sequences to be added (NOT the reference sequences)")
-    # data_set uses the reftree argument
+    update_tree.add_argument("--update_tree", action="store_true", default=False,
+                             help="Flag indicating the reference tree specified by `--reftree` "
+                                  "is to be updated using the sequences found in MLTreeMap output")
     update_tree.add_argument("--uclust", required=False, default=False, action="store_true",
-                             help="Run uclust FOR WHAT?")
+                             help="Cluster sequences that mapped to the reference tree prior to updating")
     update_tree.add_argument("--gap_removal", required=False, default=False, action="store_true",
                              help="Remove minor gaps using Gblocks?")
     update_tree.add_argument("-u", "--uclust_identity", required=False, default=0.97, type=float,
                              help="Sequence identity value to be used in uclust [DEFAULT = 0.97]")
     update_tree.add_argument("-a", "--alignment_mode", required=False, default='d', type=str, choices=['d', 'p'],
                              help="Alignment mode: 'd' for default and 'p' for profile-profile alignment")
+
+    miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
+    miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
+                                    help='overwrites previously processed output folders')
+    miscellaneous_opts.add_argument('-v', '--verbose', action='store_true',  default=False,
+                                    help='Prints a more verbose runtime log')
+    miscellaneous_opts.add_argument("--check_trees", action="store_true", default=False,
+                                    help="Quality-check the reference trees before running MLTreeMap")
+    miscellaneous_opts.add_argument('-T', '--num_threads', default=2, type=int,
+                                    help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 2]')
+    miscellaneous_opts.add_argument('-d', '--delete', default=None,
+                                    help='the sections of files to be deleted, as separated by colons '
+                                         '(1 = Sequence Files; '
+                                         ' 2 = BLAST Results; '
+                                         ' 3 = Genewise Results; '
+                                         ' 4 = hmmalign and Gblocks Results; '
+                                         ' 5 = Unparsed RAxML Results)')
+
     return parser
 
 
@@ -532,15 +535,20 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "hmmbuild", "usearch"]
+    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "hmmbuild"]
 
-    if args.executables == "sub_binaries":
-        if os_type() == "linux":
-            args.executables = "sub_binaries" + os.sep + "ubuntu"
-        if os_type() == "mac":
-            args.executables = "sub_binaries" + os.sep + "mac"
-        elif os_type() == "win" or os_type() is None:
-            sys.exit("ERROR: Unsupported OS")
+    if args.rpkm:
+        dependencies += ["bwa", "rpkm"]
+
+    if args.update_tree:
+        dependencies.append("usearch")
+
+    if os_type() == "linux":
+        args.executables = args.mltreemap + "sub_binaries" + os.sep + "ubuntu"
+    if os_type() == "mac":
+        args.executables = args.mltreemap + "sub_binaries" + os.sep + "mac"
+    elif os_type() == "win" or os_type() is None:
+        sys.exit("ERROR: Unsupported OS")
 
     for dep in dependencies:
         if is_exe(args.executables + os.sep + dep):
@@ -548,7 +556,7 @@ def find_executables(args):
         elif which(dep):
             exec_paths[dep] = which(dep)
         else:
-            sys.stderr.write("Could not find a valid executable for " + dep)
+            sys.stderr.write("Could not find a valid executable for " + dep + ". ")
             sys.exit("Bailing out.")
 
     args.executables = exec_paths
@@ -582,6 +590,7 @@ def check_parser_arguments(parser):
 
     # Ensure files contain more than 0 sequences
     args = parser.parse_args()
+    args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
 
     # Set the reference data file prefix and the reference tree name
     if args.reftree == 'g':
@@ -635,6 +644,14 @@ def check_parser_arguments(parser):
         sys.stderr.write("ERROR: WISECONFIGDIR not set!\n")
         sys.exit("export WISECONFIGDIR=" + genewise_support + os.sep + "wisecfg")
 
+    if args.rpkm:
+        if not args.reads:
+            sys.stderr.write("ERROR: At least one FASTQ file must be provided if -rpkm flag is active!")
+            sys.exit()
+        if args.reverse and not args.reads:
+            sys.stderr.write("ERROR: File containing reverse reads provided but forward mates file missing!")
+            sys.exit()
+
     return args
 
 
@@ -658,38 +675,39 @@ def check_previous_output(args):
             shutil.rmtree(args.output)
 
     args.skip = 'n'
-    if args.update_tree and path.exists(args.output):
-        sys.stdout.write("MLTreeMap output directory " + args.output + " already exists.")
+    if path.exists(args.output):
+        sys.stdout.write("MLTreeMap output directory " + args.output + " already exists.\n")
         sys.stdout.flush()
-        args.skip = get_response(args.py_version, " Should this be used for updating? [y|n]")
-        while not args.skip == 'y' and not args.skip == 'n':
-            args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n]")
+        if args.update_tree:
+            args.skip = get_response(args.py_version, "Should this be used for updating? [y|n]")
+            while not args.skip == 'y' and not args.skip == 'n':
+                args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n]")
+        elif args.rpkm:
+            args.skip = get_response(args.py_version, "Should this be used for RPKM calculation? [y|n]")
+            while not args.skip == 'y' and not args.skip == 'n':
+                args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n]")
+        else:
+            # Prompt the user to deal with the pre-existing output directory
+            while os.path.isdir(args.output):
+                sys.stdout.write('Overwrite [1], quit [2], or change directory [3]?\n')
+                answer = int(get_response(args.py_version))
 
-    if args.skip == 'y':
-        pass
-    else:
-        # Prompt the user to deal with the pre-existing output directory
-        while os.path.isdir(args.output):
-            sys.stdout.write('WARNING: Your output directory "' + args.output + '" already exists!\n')
-            sys.stdout.write('Overwrite [1], quit [2], or change directory [3]?\n')
-            answer = int(get_response(args.py_version))
-
-            while not answer == 1 and not answer == 2 and not answer == 3:
-                answer = int(get_response(args.py_version, 'Invalid input. Please choose 1, 2, or 3.\n'))
-            if answer == 1:
-                sys.stdout.write('Do you really want to overwrite the old output directory?\n')
-                sys.stdout.write('All data in it will be lost!\n')
-                answer2 = get_response(args.py_version, 'Yes [y] or no [n]?\n')
-                while not answer2 == 'y' and not answer2 == 'n':
-                    answer2 = get_response(args.py_version, 'Invalid input. Please choose y or n.\n')
-                if answer2 == 'y':
-                    shutil.rmtree(args.output)
-                else:
+                while not answer == 1 and not answer == 2 and not answer == 3:
+                    answer = int(get_response(args.py_version, 'Invalid input. Please choose 1, 2, or 3.\n'))
+                if answer == 1:
+                    sys.stdout.write('Do you really want to overwrite the old output directory?\n')
+                    sys.stdout.write('All data in it will be lost!\n')
+                    answer2 = get_response(args.py_version, 'Yes [y] or no [n]?\n')
+                    while not answer2 == 'y' and not answer2 == 'n':
+                        answer2 = get_response(args.py_version, 'Invalid input. Please choose y or n.\n')
+                    if answer2 == 'y':
+                        shutil.rmtree(args.output)
+                    else:
+                        sys.exit('Exit MLTreeMap\n')
+                elif answer == 2:
                     sys.exit('Exit MLTreeMap\n')
-            elif answer == 2:
-                sys.exit('Exit MLTreeMap\n')
-            else:
-                args.output = get_response(args.py_version, 'Please enter the path to the new directory.\n')
+                else:
+                    args.output = get_response(args.py_version, 'Please enter the path to the new directory.\n')
     
     # Create the output directories
     if not os.path.isdir(args.output):
@@ -951,7 +969,7 @@ def format_read_fasta(args, duplicates=False):
             # Count the number of {atcg} and {xn} in all the sequences
             count_total += len(characters)
 
-            if args.reftype == 'n':
+            if args.molecule == 'n':
                 nucleotides = len(reg_nuc.findall(characters))
                 ambiguity = len(reg_nuc_ambiguity.findall(characters))
                 if (nucleotides + ambiguity) != len(characters):
@@ -970,7 +988,7 @@ def format_read_fasta(args, duplicates=False):
                 else:
                     seq_count += nucleotides
                     count_xn += ambiguity
-            elif args.reftype == 'a':
+            elif args.molecule == 'a':
                 aminos = len(reg_amino.findall(characters))
                 ambiguity = len(reg_aa_ambiguity.findall(characters))
                 if (aminos + ambiguity) != len(characters):
@@ -1000,9 +1018,9 @@ def format_read_fasta(args, duplicates=False):
     
     # Exit the program if less than half of the characters are nucleotides
     elif float(seq_count / float(count_total)) < 0.5:
-        if args.reftype == 'n':
+        if args.molecule == 'n':
             sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
-        elif args.reftype == 'a':
+        elif args.molecule == 'a':
             sys.exit('ERROR: Your sequence(s) most likely contain no AA!\n')
 
     if len(substitutions) > 0:
@@ -1130,7 +1148,7 @@ def run_blast(args, split_files, cog_list):
             blast_input_file_name = re.match(r'\A.+/(.+)\.fasta\Z', split_fasta).group(1)
 
         # Run the appropriate BLAST command(s) based on the input sequence type
-        if args.reftype == 'n':
+        if args.molecule == 'n':
             command = args.executables["blastx"] + " " + \
                 '-query ' + split_fasta + ' ' + db_aa + ' ' + \
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
@@ -1150,7 +1168,7 @@ def run_blast(args, split_files, cog_list):
             command += " 2>/dev/null"
             os.system(command)
 
-        elif args.reftype == 'a':
+        elif args.molecule == 'a':
             command = args.executables["blastp"] + " " + \
                       '-query ' + split_fasta + ' ' + db_aa + ' ' + \
                       '-evalue 0.01 -max_target_seqs 20000 ' + \
@@ -1194,7 +1212,7 @@ def parse_blast_results(args, raw_blast_results, cog_list):
         sys.stdout.write("Parsing BLAST results... ")
         sys.stdout.flush()
 
-    regCOGID = re.compile(r'.*(.{7})\Z')
+    reg_cog_id = re.compile(r'.*(.{7})\Z')
     counter = 0
     purified_blast_hits = Autovivify()
 
@@ -1246,7 +1264,7 @@ def parse_blast_results(args, raw_blast_results, cog_list):
             # Trim COG name to last 7 characters of detailed COG name
             # TK - This will be important to note in the user's manual,
             # especially if we enable people to add their own COGs later
-            result = regCOGID.match(tempDetailedCOG)
+            result = reg_cog_id.match(tempDetailedCOG)
             if result:
                 tempCOG = result.group(1)
             else:
@@ -1605,6 +1623,7 @@ def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
                 cog = gene_coordinates[contig_name][coords_start][coords_end]
                 fna_output.write('>' + contig_name + '|' + cog + '|' + str(start) + '_' + str(end) + "\n")
                 fna_output.write(formatted_fasta_dict['>' + contig_name][start:end] + "\n")
+
     return
 
 
@@ -3589,14 +3608,6 @@ def delete_files(args):
     for file in files_to_be_deleted:
         if path.exists(file):
             os.remove(file)
-    
-    if not args.verbose:
-        dirs_to_be_deleted = [args.output_dir_var, args.output_dir_raxml]
-        for dir in dirs_to_be_deleted:
-            if path.exists(dir):
-                shutil.rmtree(dir)
-            else:
-                pass
 
 
 def single_family_msa(args, cog_list, formatted_fasta_dict):
@@ -3823,6 +3834,101 @@ def filter_short_sequences(query_fasta, length_threshold=110):
     return new_faa
 
 
+def align_reads_to_nucs(args):
+    """
+    Align the BLAST-predicted ORFs to the reads using BWA MEM
+    :param args:
+    :return: Path to the SAM file
+    """
+    input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
+    orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
+    rpkm_output_dir = args.output + "RPKM_outputs" + os.sep
+    if not os.path.exists(rpkm_output_dir):
+        try:
+            os.makedirs(rpkm_output_dir)
+        except:
+            raise IOError("Unable to make " + rpkm_output_dir)
+
+    if args.verbose:
+        sys.stdout.write("Aligning reads to ORFs with BWA MEM... ")
+        sys.stdout.flush()
+
+    sam_file = rpkm_output_dir + '.'.join(os.path.basename(orf_nuc_fasta).split('.')[0:-1]) + ".sam"
+    index_command = [args.executables["bwa"], "index"]
+    index_command += [orf_nuc_fasta]
+    index_command += ["1>", "/dev/null", "2>", args.output + "mltreemap_bwa_index.stderr"]
+
+    p_index = subprocess.Popen(' '.join(index_command), shell=True, preexec_fn=os.setsid)
+    p_index.wait()
+    if p_index.returncode != 0:
+        sys.stderr.write("ERROR: bwa index did not complete successfully for:\n")
+        sys.stderr.write(str(' '.join(index_command)) + "\n")
+        sys.stderr.flush()
+
+    bwa_command = [args.executables["bwa"], "mem"]
+    bwa_command += ["-t", str(args.num_threads)]
+    if args.pairing == "pe" and not args.reverse:
+        bwa_command.append("-p")
+        sys.stderr.write("FASTQ file containing reverse mates was not provided - assuming the reads are interleaved!\n")
+        sys.stderr.flush()
+    elif args.pairing == "se":
+        bwa_command += ["-S", "-P"]
+
+    bwa_command.append(orf_nuc_fasta)
+    bwa_command.append(args.reads)
+    if args.pairing == "pe" and args.reverse:
+        bwa_command.append(args.reverse)
+    bwa_command += ["1>", sam_file, "2>", args.output + "mltreemap_bwa_mem.stderr"]
+
+    p_bwa = subprocess.Popen(' '.join(bwa_command), shell=True, preexec_fn=os.setsid)
+    p_bwa.wait()
+    if p_bwa.returncode != 0:
+        sys.stderr.write("ERROR: bwa mem did not complete successfully for:\n")
+        sys.stderr.write(str(' '.join(bwa_command)) + "\n")
+        sys.stderr.flush()
+
+    if args.verbose:
+        sys.stdout.write("done.\n")
+        sys.stdout.flush()
+
+    return sam_file, orf_nuc_fasta
+
+
+def run_rpkm(args, sam_file, orf_nuc_fasta):
+    """
+    Calculate RPKM values using the rpkm executable
+    :param args:
+    :param sam_file:
+    :param orf_nuc_fasta:
+    :return: Path to the RPKM output csv file
+    """
+    if args.verbose:
+        sys.stdout.write("Calculating RPKM values for each ORF... ")
+        sys.stdout.flush()
+
+    rpkm_output_file = '.'.join(sam_file.split('.')[0:-1]) + ".csv"
+    rpkm_output_dir = args.output + "RPKM_outputs" + os.sep
+
+    rpkm_command = [args.executables["rpkm"]]
+    rpkm_command += ["-c", orf_nuc_fasta]
+    rpkm_command += ["-a", sam_file]
+    rpkm_command += ["-o", rpkm_output_file]
+    rpkm_command += ["1>", rpkm_output_dir + "rpkm_stdout.txt", "2>", rpkm_output_dir + "rpkm_stderr.txt"]
+
+    p_rpkm = subprocess.Popen(' '.join(rpkm_command), shell=True, preexec_fn=os.setsid)
+    p_rpkm.wait()
+    if p_rpkm.returncode != 0:
+        sys.stderr.write("ERROR: RPKM calculation did not complete successfully for:\n")
+        sys.stderr.write(str(' '.join(rpkm_command)) + "\n")
+        sys.stderr.flush()
+
+    if args.verbose:
+        sys.stdout.write("done.\n")
+        sys.stdout.flush()
+
+    return rpkm_output_file
+
+
 def main(argv):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = get_options()
@@ -3859,11 +3965,11 @@ def main(argv):
             write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
             formatted_fasta_dict.clear()
             genewise_summary_files = Autovivify()
-            if args.reftype == 'n':
+            if args.molecule == 'n':
                 genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
                 genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
                 get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
-            elif args.reftype == 'a':
+            elif args.molecule == 'a':
                 genewise_summary_files = blastpParser(args, blast_hits_purified)
 
             # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
@@ -3881,6 +3987,11 @@ def main(argv):
         final_raxml_output_files = parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
                                                       raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
         concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
+
+    if args.rpkm:
+        sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
+        run_rpkm(args, sam_file, orf_nuc_fasta)
+        # normalize_rpkm_values()
 
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
