@@ -3929,6 +3929,88 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
     return rpkm_output_file
 
 
+def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type):
+    """
+    Recalculates the percentages for each marker gene final output based on the RPKM values
+    :param args:
+    :param rpkm_output_file: CSV file containing contig names and RPKM values
+    :return:
+    """
+    contig_rpkm_map = dict()
+    marker_contig_map = dict()
+    contig_placement_map = dict()
+    placement_rpkm_map = dict()
+    marker_rpkm_map = dict()
+
+    try:
+        rpkm_values = open(rpkm_output_file, 'r')
+    except:
+        raise IOError("Unable to open " + rpkm_output_file + " for reading!")
+    for line in rpkm_values:
+        contig, rpkm = line.strip().split(',')
+        name, marker, start_end = contig.split('|')
+
+        contig_rpkm_map[name] = rpkm
+        if marker not in marker_contig_map:
+            marker_contig_map[marker] = list()
+        marker_contig_map[marker].append(name)
+    rpkm_values.close()
+
+    final_raxml_outputs = os.listdir(args.output_dir_raxml)
+    for raxml_contig_file in final_raxml_outputs:
+        contig_name = '_'.join(re.sub("_RAxML_parsed.txt", '', raxml_contig_file).split('_')[1:])
+        try:
+            contig_placement = open(args.output_dir_raxml + raxml_contig_file, 'r')
+        except:
+            raise IOError("Unable to open " + args.output_dir_raxml + raxml_contig_file + " for reading!")
+        line = contig_placement.readline()
+        while not line.startswith("Placement"):
+            line = contig_placement.readline().strip()
+
+        placement = re.sub("^.*: ", '', line)
+        contig_placement_map[contig_name] = placement
+        if placement not in placement_rpkm_map:
+            placement_rpkm_map[placement] = 0
+        contig_placement.close()
+
+    for marker in marker_contig_map:
+        marker_rpkm_total = 0
+        marker_rpkm_map[marker] = dict()
+        for contig in marker_contig_map[marker]:
+            if contig in contig_placement_map:
+                placement = contig_placement_map[contig]
+                placement_rpkm_map[placement] += float(contig_rpkm_map[contig])
+                marker_rpkm_total += float(contig_rpkm_map[contig])
+                marker_rpkm_map[marker][placement] = 0
+        for placement in marker_rpkm_map[marker]:
+            percentage = (placement_rpkm_map[placement]*100)/marker_rpkm_total
+            marker_rpkm_map[marker][placement] = percentage
+
+    for marker in marker_rpkm_map:
+        denominator = cog_list['all_cogs'][marker]
+
+        final_output_file = args.output_dir_final + str(denominator) + "_concatenated_RAxML_outputs.txt"
+        shutil.move(final_output_file, args.output_dir_final + denominator + "_concatenated_counts.txt")
+        try:
+            cat_output = open(final_output_file, 'w')
+        except:
+            raise IOError("Unable to open " + final_output_file + " for writing!")
+
+        description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n\n'
+        cat_output.write(description_text)
+
+        for placement in sorted(marker_rpkm_map[marker].keys(), reverse=True):
+            relative_weight = marker_rpkm_map[marker][placement]
+            if relative_weight > 0:
+                cat_output.write('Placement weight ')
+                cat_output.write('%.2f' % relative_weight + "%: ")
+                cat_output.write(placement + "\n")
+
+        cat_output.close()
+
+    return
+
+
 def main(argv):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = get_options()
@@ -3990,8 +4072,8 @@ def main(argv):
 
     if args.rpkm:
         sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
-        run_rpkm(args, sam_file, orf_nuc_fasta)
-        # normalize_rpkm_values()
+        rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
+        normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type)
 
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
