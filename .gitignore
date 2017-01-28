@@ -38,6 +38,7 @@ nosetests.xml
 
 # Binaries
 sub_binaries/*RAxML*
+sub_binaries/rpkm
 
 # Data
 mcrA_resources/

@@ -535,13 +535,13 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "hmmbuild"]
+    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign"]
 
     if args.rpkm:
         dependencies += ["bwa", "rpkm"]
 
     if args.update_tree:
-        dependencies.append("usearch")
+        dependencies.append("usearch", "muscle", "hmmbuild")
 
     if os_type() == "linux":
         args.executables = args.mltreemap + "sub_binaries" + os.sep + "ubuntu"
@@ -551,8 +551,12 @@ def find_executables(args):
         sys.exit("ERROR: Unsupported OS")
 
     for dep in dependencies:
+        print dep
         if is_exe(args.executables + os.sep + dep):
             exec_paths[dep] = str(args.executables + os.sep + dep)
+        # For rpkm and potentially other executables that are compiled ad hoc
+        elif is_exe(args.mltreemap + "sub_binaries" + os.sep + dep):
+            exec_paths[dep] = str(args.mltreemap + "sub_binaries" + os.sep + dep)
         elif which(dep):
             exec_paths[dep] = which(dep)
         else:
