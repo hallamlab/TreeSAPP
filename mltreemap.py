@@ -468,6 +468,8 @@ def get_options():
                         help='Your sequence input file in FASTA format')
     parser.add_argument('-o', '--output', default='./output/', required=False,
                         help='output directory [DEFAULT = ./output/]')
+    parser.add_argument('-c', '--consensus', default=False, action="store_true",
+                        help="Input is assembled consensus sequences so ORFs will be predicted instead of using blastx")
     parser.add_argument('-b', '--bootstraps', default=0, type=int,
                         help='the number of Bootstrap replicates [DEFAULT = 0]')
     parser.add_argument('-f', '--phylogeny', default='v', choices=['v', 'p'],
@@ -541,7 +543,10 @@ def find_executables(args):
         dependencies += ["bwa", "rpkm"]
 
     if args.update_tree:
-        dependencies.append("usearch", "muscle", "hmmbuild")
+        dependencies += ["usearch", "muscle", "hmmbuild"]
+
+    if args.consensus:
+        dependencies.append("FGS+")
 
     if os_type() == "linux":
         args.executables = args.mltreemap + "sub_binaries" + os.sep + "ubuntu"
@@ -551,7 +556,6 @@ def find_executables(args):
         sys.exit("ERROR: Unsupported OS")
 
     for dep in dependencies:
-        print dep
         if is_exe(args.executables + os.sep + dep):
             exec_paths[dep] = str(args.executables + os.sep + dep)
         # For rpkm and potentially other executables that are compiled ad hoc
@@ -669,6 +673,7 @@ def get_response(py_version, response_string=""):
 def check_previous_output(args):
     """
     Prompts the user to determine how to deal with a pre-existing output directory.
+    :rtype: Namespace object
     :param args: Command-line argument object from get_options and check_parser_arguments
     :return An updated version of 'args', a summary of MLTreeMap settings.
     """
@@ -1184,6 +1189,34 @@ def run_blast(args, split_files, cog_list):
             os.system(command)
 
     sys.stdout.write("done.\n")
+
+
+def predict_orfs(args):
+    """
+    Predict ORFs from the input FASTA file using FragGeneScanPlus (FGS+)
+    :param args:
+    :return:
+    """
+    orf_fasta = args.output_dir_var + "ORFs"
+    fgs_command = [args.executables["FGS+"]]
+    fgs_command += ['-s', args.input,
+                    '-o', orf_fasta,
+                    '-w', '0',
+                    '-t', "454_10"]
+    if args.num_threads:
+        fgs_command += ['-p', str(int(args.num_threads))]
+    else:
+        fgs_command += ['-p', '2']
+    # fgs_command += ['-d', '1']
+    p_fgs = subprocess.Popen(' '.join(fgs_command), shell=True, preexec_fn=os.setsid)
+    p_fgs.wait()
+
+    # orf_fasta must be changed since FGS+ appends .faa to the output file name
+    orf_fasta += ".faa"
+    args.input = orf_fasta
+    args.molecule = "a"
+
+    return args
 
  
 def collect_blast_outputs(args):
@@ -4015,6 +4048,94 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
     return
 
 
+def update_func_tree_workflow(args, cog_list):
+    # TODO: Include a minimum length threshold for a sequence to be considered a new reference sequence
+    update_tree = CreateFuncTreeUtility(args.output, args.reftree)
+    update_tree.find_cog_name(cog_list)
+    update_tree.get_contigs_for_ref()
+    aa_dictionary = get_new_ref_sequences(update_tree)
+    new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
+                         "_" + update_tree.COG + "_unaligned.fasta"
+    write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
+    ref_tax_id_map = update_tree.write_reference_names()
+    for seq_name in update_tree.names:
+        ref_tax_id_map[seq_name] = seq_name
+    if args.uclust and len(aa_dictionary) > 1:
+        cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
+        query_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
+        # TODO: Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
+    else:
+        if len(aa_dictionary) == 1 and args.uclust:
+            sys.stderr.write("WARNING: Not clustering new " + update_tree.COG + " since there is 1 sequence\n")
+            sys.stderr.flush()
+        query_fasta = new_ref_seqs_fasta
+
+    # Remove short sequences
+    # TODO: Make the length_threshold for filter_short_sequences adaptable to reference input
+    query_fasta = filter_short_sequences(query_fasta, 150)
+
+    ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
+    aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, query_fasta, args)
+    fasta_random, original_random_dict = update_tree.randomize_fasta_id(aligned_fasta)
+    update_tree.create_random_names(original_random_dict, ref_tax_id_map)
+
+    if args.gap_removal == "y":
+        if args.verbose:
+            sys.stdout.write("Executing Gblocks... ")
+            sys.stdout.flush()
+        execute_gblocks(args, fasta_random)
+        if args.verbose:
+            sys.stdout.write("done.\n")
+            sys.stdout.flush()
+        os.system('cp %s-gb %s' % (fasta_random, fasta_random))
+
+    os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % fasta_random)
+
+    phylip_file = update_tree.Output + "%s.phy" % update_tree.COG
+    os.system('mv %s.phylip %s' % (fasta_random, phylip_file))
+
+    time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
+    project_folder = update_tree.Output + str(time_of_run) + os.sep
+    os.makedirs(project_folder)
+    raxml_destination_folder = project_folder + "phy_files_%s" % update_tree.COG
+    final_tree_dir = project_folder + "final_tree_files" + os.sep
+    alignment_files_dir = project_folder + "alignment_files" + os.sep
+
+    if args.verbose:
+        sys.stdout.write("Executing RAxML... ")
+        sys.stdout.flush()
+    update_tree.execute_raxml(phylip_file, raxml_destination_folder, args)
+    if args.verbose:
+        sys.stdout.write("done.\n")
+        sys.stdout.flush()
+
+    # Organize Output Files #
+
+    os.makedirs(final_tree_dir)
+    os.makedirs(alignment_files_dir)
+
+    shutil.move(aligned_fasta, alignment_files_dir)
+    shutil.move(phylip_file, alignment_files_dir)
+
+    best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
+    bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitions." + update_tree.COG
+    best_tree_nameswap = final_tree_dir + update_tree.COG + "_best.tree"
+    bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bootstrap.tree"
+    swap_tree_names(best_tree, best_tree_nameswap, original_random_dict, ref_tax_id_map)
+    swap_tree_names(bootstrap_tree, bootstrap_nameswap, original_random_dict, ref_tax_id_map)
+
+    prefix = update_tree.Output + update_tree.COG
+    os.system('mv %s* %s' % (prefix, project_folder))
+
+    if args.uclust == "y":
+        os.system('mkdir %s_uclust' % update_tree.Output)
+
+        os.system('mv uclust_%s %s_uclust' % (update_tree.Output, update_tree.Output))
+        os.system('mv usort_%s %s_uclust' % (update_tree.Output, update_tree.Output))
+
+        os.system('mv %s_uclust %s' % (update_tree.Output, project_folder))
+
+
 def main(argv):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = get_options()
@@ -4025,6 +4146,10 @@ def main(argv):
     if args.check_trees:
         validate_inputs(args, cog_list)
 
+    if args.consensus:
+        args = predict_orfs(args)
+        # TODO: Test this functionality and compare to standard
+
     if args.skip == 'n':
         # Read and format the input FASTA
         formatted_fasta_dict = format_read_fasta(args)
@@ -4034,7 +4159,6 @@ def main(argv):
             input_multi_fasta = args.input
         args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
         formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
-        # UPDATE GENE FAMILY TREE MODE:
         if args.reftree not in ['i', 'g', 'p']:
             cog_list, text_of_analysis_type = single_cog_list(args.reftree, cog_list, text_of_analysis_type)
             hmmalign_singlehit_files = single_family_msa(args, cog_list, formatted_fasta_dict)
@@ -4045,13 +4169,13 @@ def main(argv):
             blast_hits_purified = parse_blast_results(args, raw_blast_results, cog_list)
 
             # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
+            genewise_summary_files = Autovivify()
             contig_coordinates, shortened_sequence_files, gene_coordinates = make_genewise_inputs(args,
                                                                                                   blast_hits_purified,
                                                                                                   formatted_fasta_dict)
-            write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
-            formatted_fasta_dict.clear()
-            genewise_summary_files = Autovivify()
             if args.molecule == 'n':
+                write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
+                formatted_fasta_dict.clear()
                 genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
                 genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
                 get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
@@ -4082,91 +4206,7 @@ def main(argv):
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
-        # TODO: Include a minimum length threshold for a sequence to be considered a new reference sequence
-        update_tree = CreateFuncTreeUtility(args.output, args.reftree)
-        update_tree.find_cog_name(cog_list)
-        update_tree.get_contigs_for_ref()
-        aa_dictionary = get_new_ref_sequences(update_tree)
-        new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) +\
-                             "_" + update_tree.COG + "_unaligned.fasta"
-        write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
-        ref_tax_id_map = update_tree.write_reference_names()
-        for seq_name in update_tree.names:
-            ref_tax_id_map[seq_name] = seq_name
-        if args.uclust and len(aa_dictionary) > 1:
-            cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
-            query_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
-            # TODO: Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
-        else:
-            if len(aa_dictionary) == 1 and args.uclust:
-                sys.stderr.write("WARNING: Not clustering new " + update_tree.COG + " since there is 1 sequence\n")
-                sys.stderr.flush()
-            query_fasta = new_ref_seqs_fasta
-
-        # Remove short sequences
-        # TODO: Make the length_threshold for filter_short_sequences adaptable to reference input
-        query_fasta = filter_short_sequences(query_fasta, 150)
-
-        ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
-        aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, query_fasta, args)
-        fasta_random, original_random_dict = update_tree.randomize_fasta_id(aligned_fasta)
-        update_tree.create_random_names(original_random_dict, ref_tax_id_map)
-
-        if args.gap_removal == "y":
-            if args.verbose:
-                sys.stdout.write("Executing Gblocks... ")
-                sys.stdout.flush()
-            execute_gblocks(args, fasta_random)
-            if args.verbose:
-                sys.stdout.write("done.\n")
-                sys.stdout.flush()
-            os.system('cp %s-gb %s' % (fasta_random, fasta_random))
-
-        os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % fasta_random)
-
-        phylip_file = update_tree.Output + "%s.phy" % update_tree.COG
-        os.system('mv %s.phylip %s' % (fasta_random, phylip_file))
-
-        time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
-        project_folder = update_tree.Output + str(time_of_run) + os.sep
-        os.makedirs(project_folder)
-        raxml_destination_folder = project_folder + "phy_files_%s" % update_tree.COG
-        final_tree_dir = project_folder + "final_tree_files" + os.sep
-        alignment_files_dir = project_folder + "alignment_files" + os.sep
-
-        if args.verbose:
-            sys.stdout.write("Executing RAxML... ")
-            sys.stdout.flush()
-        update_tree.execute_raxml(phylip_file, raxml_destination_folder, args)
-        if args.verbose:
-            sys.stdout.write("done.\n")
-            sys.stdout.flush()
-
-        # Organize Output Files #
-
-        os.makedirs(final_tree_dir)
-        os.makedirs(alignment_files_dir)
-
-        shutil.move(aligned_fasta, alignment_files_dir)
-        shutil.move(phylip_file, alignment_files_dir)
-
-        best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
-        bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitions." + update_tree.COG
-        best_tree_nameswap = final_tree_dir + update_tree.COG + "_best.tree"
-        bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bootstrap.tree"
-        swap_tree_names(best_tree, best_tree_nameswap, original_random_dict, ref_tax_id_map)
-        swap_tree_names(bootstrap_tree, bootstrap_nameswap, original_random_dict, ref_tax_id_map)
-
-        prefix = update_tree.Output + update_tree.COG
-        os.system('mv %s* %s' % (prefix, project_folder))
-
-        if args.uclust == "y":
-            os.system('mkdir %s_uclust' % update_tree.Output)
-
-            os.system('mv uclust_%s %s_uclust' % (update_tree.Output, update_tree.Output))
-            os.system('mv usort_%s %s_uclust' % (update_tree.Output, update_tree.Output))
-
-            os.system('mv %s_uclust %s' % (update_tree.Output, project_folder))
+        update_func_tree_workflow(args, cog_list)
 
     # STAGE 7: Delete files as determined by the user
     delete_files(args)
