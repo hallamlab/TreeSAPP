@@ -24,6 +24,7 @@ try:
     import string
     import random
     from time import gmtime, strftime
+    import _tree_parser
 except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
     sys.stderr.write(traceback.print_exc(10))
@@ -2867,6 +2868,10 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
 
 def read_and_understand_the_reference_tree(reference_tree_file, denominator):
+    # reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
+    # print reference_tree_elements
+    # reference_tree_info = _tree_parser._assign_parents_and_children(reference_tree_elements)
+    # print reference_tree_info
     reference_tree_elements = read_the_reference_tree(reference_tree_file)
     reference_tree_info = create_tree_info_hash()
     reference_tree_info = get_node_subtrees(reference_tree_elements, reference_tree_info)
@@ -2874,14 +2879,17 @@ def read_and_understand_the_reference_tree(reference_tree_file, denominator):
     if reference_tree_info is None:
         return denominator, None
     terminal_children_of_reference = build_terminal_children_strings_of_reference_nodes(reference_tree_info)
+    # Requires ~8 seconds to complete this function for the mcrA reference tree in Python
     return denominator, terminal_children_of_reference
 
 
 def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
     labelled_tree_elements, insertion_point_node_hash = read_the_raxml_out_tree(labelled_tree_file)
+    # print "insertion_point_node_hash:\n", insertion_point_node_hash
     labelled_tree_info = create_tree_info_hash()
     labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
     labelled_tree_info = assign_parents_and_children(labelled_tree_info, f_contig)
+    # print "labelled_tree_info:\n", labelled_tree_info
     if labelled_tree_info is None:
         return [f_contig, None, insertion_point_node_hash]
     labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
@@ -3146,10 +3154,11 @@ def get_node_subtrees(tree_elements, tree_info):
 def assign_parents_and_children(tree_info, source):
     """
     :param tree_info: Autovivification of a tree from get_node_subtrees
+    :param source: The denominator ID for the tree being parsed
     :return: tree info with parent and child relationships included
     """
 
-    # parse_log.write("assigning_parents_and_children... \nStart:\t" + time.ctime() + "\n")
+    sys.stdout.write("assigning_parents_and_children... \nStart:\t" + time.ctime() + "\n")
     tree_nodes = sorted(list(tree_info['subtree_of_node'].keys()))
     for node in tree_nodes:
         if node == -1:
@@ -3157,6 +3166,7 @@ def assign_parents_and_children(tree_info, source):
         subtree = str(tree_info['subtree_of_node'][node])
         parent = None
         for potential_parent in tree_nodes:
+            # _tree_parser.get_node_relationships(subtree, tree_nodes)
             if node == potential_parent:
                 continue
             potential_parent_subtree = str(tree_info['subtree_of_node'][potential_parent])
@@ -3181,7 +3191,7 @@ def assign_parents_and_children(tree_info, source):
             tree_info['parent_of_node'][node] = parent
             tree_info['children_of_node'][parent][node] = 1
 
-    # parse_log.write("End:  \t" + time.ctime() + "\n")
+    sys.stdout.write("End:  \t" + time.ctime() + "\n")
     return tree_info
 
 
