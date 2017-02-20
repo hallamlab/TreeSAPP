@@ -1,6 +1,9 @@
 #include <Python.h>
 #include <stdlib.h>
 #include <string.h>
+#include <iostream>
+
+using namespace std;
 
 static PyObject *read_the_reference_tree(PyObject *self, PyObject *args);
 static PyObject *assign_parents_and_children(PyObject *self, PyObject *args);
@@ -65,6 +68,13 @@ int get_char_array_length(char * char_array) {
     while (char_array[x])
         x++;
     return x;
+}
+
+int append_char_array(int start, char * source, char *&dest) {
+    int i = 0;
+    while (source[i])
+        dest[start++] = source[i++];
+    return start;
 }
 
 char reverse_char_array(char * char_array, char *&flipped, int first, int last) {
@@ -210,29 +220,32 @@ char * get_previous_node(char *&parsed_tree_string, int &end) {
  * Inserts a new Node (with key=newKey) at the head of the linked_list.
  */
 void insert(Node*& head, int newKey) {
-  Node * curr = new Node;
-  curr->key  = newKey;
-  curr->next = head;
+    Node * curr = new Node;
+    curr->key  = newKey;
+    curr->next = head;
+//    printf("key = %d\n", newKey);
 
-  head = curr;
+    head = curr;
 }
 
-///**
-// * Deletes all nodes in the tree rooted at root and sets root to NULL.
-// */
-//void deleteTree( Node*& root ) {
-//    if ( root != NULL ) {
-//        deleteTree( root->left );
-//        deleteTree( root->right );
-//        delete root;
-//        root = NULL;
-//    }
-//}
 
-void load_linked_list(char * tree_string, char * parsed_tree_string, Node *&root) {
+void print(Node* head) {
+    std::cout << std::endl;
+    for (Node* curr = head; curr != NULL; curr = curr->next){
+        std::cout << "key: " << curr->key;
+        std::cout << "\tleft: " << curr->left;
+        std::cout << "\tright: " << curr->right;
+        if (curr->next != NULL) std::cout << "\n";
+    }
+    std::cout << std::endl;
+}
+
+
+void load_linked_list(char * tree_string, char * parsed_tree_string, Node *&head) {
     char c;
     int pos = 0;
     int i = 0;
+    int newKey = -1;
     int retrace_pos = 0;
     char *curr = (char*) malloc(10*sizeof(char));
     char *right = (char*) malloc(10*sizeof(char));
@@ -241,7 +254,6 @@ void load_linked_list(char * tree_string, char * parsed_tree_string, Node *&root
     while (tree_string[pos]) {
         c = tree_string[pos];
         parsed_tree_string[retrace_pos++] = c;
-//        printf("Parsed: %s\n", parsed_tree_string);
         if (c == ')') {
             // load the next node as curr
             c = tree_string[pos+1];
@@ -253,18 +265,17 @@ void load_linked_list(char * tree_string, char * parsed_tree_string, Node *&root
                 i++;
             }
             curr[i] = '\0';
-            printf("parent node: %s\n", curr);
-            int newKey = atoi(curr);
-            insert(root, newKey);
+            newKey = atoi(curr);
+            if (newKey == 0)
+                newKey = -1;
+            insert(head, newKey);
 
             // load the previous 2 nodes as children and remove these from the string
             right = get_previous_node(parsed_tree_string, retrace_pos);
-            printf("right: %s\n", right);
             left = get_previous_node(parsed_tree_string, retrace_pos);
-            printf("left: %s\n", left);
-            root->right = atoi(right);
-            root->left = atoi(left);
-            root = new Node;
+            head->right = atoi(right);
+            head->left = atoi(left);
+
 
             // add the current node to the parsed_tree_string
             i = 0;
@@ -275,7 +286,70 @@ void load_linked_list(char * tree_string, char * parsed_tree_string, Node *&root
     }
 }
 
-void get_node_relationships(char *tree_string, char *&children, char *&parents) {
+
+int get_children_of_nodes(Node * head, char *&children) {
+    char * buffer = (char*) malloc (10);
+    int _MAX = 1000;
+    children = (char *) malloc (_MAX * sizeof(char));
+    int x = 0;
+    for (Node* curr = head; curr != NULL; curr = curr->next){
+        if (x <= _MAX && x >= _MAX - 20) {
+            _MAX = _MAX + 100;
+            children = (char *) realloc (children, _MAX * sizeof(char));
+        }
+        sprintf(buffer, "%d", curr->key);
+        x = append_char_array(x, buffer, children);
+        children[x++] = '=';
+        sprintf(buffer, "%d", curr->left);
+        x = append_char_array(x, buffer, children);
+        children[x++] = ',';
+        sprintf(buffer, "%d", curr->right);
+        x = append_char_array(x, buffer, children);
+
+        if (curr->next != NULL) children[x++] = ';';
+    }
+    children[x++] = '\n';
+    children[x] = '\0';
+
+    return x;
+}
+
+
+int get_parents_of_nodes(Node * head, char *&parents) {
+    char * parent = (char*) malloc (10);
+    char * child = (char*) malloc (10);
+    int _MAX = 1000;
+    parents = (char *) malloc (_MAX * sizeof(char));
+    int x = 0;
+    for (Node* curr = head; curr != NULL; curr = curr->next){
+        if (x <= _MAX && x >= _MAX - 20) {
+            _MAX = _MAX + 100;
+            parents = (char *) realloc (parents, _MAX * sizeof(char));
+        }
+        sprintf(parent, "%d", curr->key);
+
+        // Load the left child
+        sprintf(child, "%d", curr->left);
+        x = append_char_array(x, child, parents);
+        parents[x++] = ':';
+        x = append_char_array(x, parent, parents);
+        parents[x++] = ',';
+
+        // Now the right child
+        sprintf(child, "%d", curr->right);
+        x = append_char_array(x, child, parents);
+        parents[x++] = ':';
+        x = append_char_array(x, parent, parents);
+
+        if (curr->next != NULL) parents[x++] = ',';
+    }
+    parents[x] = '\n';
+
+    return x;
+}
+
+
+int get_node_relationships(char *tree_string, char *&children, char *&parents) {
     /*
     :param tree_string: tree_info['subtree_of_node'][node]
     Function loads the whole tree into a tree struct where each node has a child and a parent
@@ -283,43 +357,51 @@ void get_node_relationships(char *tree_string, char *&children, char *&parents) 
     */
 
     // Step 1: Load the tree
-    Node * linked_list;
+    Node * linked_list = NULL;
     int tree_len = get_char_array_length(tree_string);
     char * parsed_tree_string = (char*) malloc(tree_len * sizeof(char));
 
     load_linked_list(tree_string, parsed_tree_string, linked_list);
+//    print(linked_list);
 
     //Step 2: Traverse the tree to get parents and children strings for each node
+    int len_children = get_children_of_nodes(linked_list, children);
+//    printf("Children:\n%s\n", children);
 
-    return;
+    int len_parents = get_parents_of_nodes(linked_list, parents);
+//    printf("Parents:\n%s\n", parents);
+
+    return len_children + len_parents;
 }
 
 static PyObject *assign_parents_and_children(PyObject *self, PyObject *args) {
     //TODO: Dynamically allocate more space if needed
-    char* tree_string = (char *) malloc(100000 * sizeof(char));
+    char* tree_string;
     if (!PyArg_ParseTuple(args, "s", &tree_string)) {
         return NULL;
     }
 
-    printf("%s\n", tree_string);
-    char* children = (char*) malloc(sizeof(char));
-    char* parents = (char*) malloc(sizeof(char));
+//    printf("%s\n", tree_string);
+    char* children;
+    char* parents;
 
-    get_node_relationships(tree_string, children, parents);
-//
-//    int c_pos = 0;
-//    while (children[c_pos]){
-//        c_pos++;
-//    }
-//    children = (char *) realloc(children, (c_pos + 1000) * sizeof(char));
-//
-//    int p_pos = 0;
-//    while (parents[p_pos])
-//        children[c_pos++] = parents[p_pos++];
-//
-//    free(parents);
-//
-    children = "placeholder\n";
+    int length = get_node_relationships(tree_string, children, parents);
+
+//    printf("Children:\n%s\n", children);
+//    printf("Parents:\n%s\n", parents);
+
+    int c_pos = 0;
+    while (children[c_pos]){
+        c_pos++;
+    }
+
+    children = (char *) realloc(children, (length + 10));
+
+    int p_pos = 0;
+    while (parents[p_pos])
+        children[c_pos++] = parents[p_pos++];
+
+    free(parents);
+
     return Py_BuildValue("s", children);
-
 }
