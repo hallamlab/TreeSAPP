@@ -471,12 +471,31 @@ int get_parents_of_nodes(Link * head, char *&parents) {
 /*
  Find all of the subtrees in the linked list
  */
-void get_subtree_of_node(TreeNode* root, char *&subtree, int &x, int &_MAX) {
-    char * buffer = (char*) malloc (10);
-    if ( root == NULL ) return;
-    get_subtree_of_node( root->right, d+1 );
-    // Load subtree into buffer 
-    get_subtree_of_node( root->left, d+1 );
+char * get_subtree_of_node(TreeNode* root, char *&subtree, int &x, int &_MAX) {
+    char * buffer = (char*) malloc (_MAX);
+    if (root == NULL)
+        return NULL;
+
+    if (x <= _MAX && x >= _MAX - 1000 ) {
+        _MAX = _MAX + 10000;
+        printf("REALLOC %d\n", _MAX);
+        subtree = (char *) realloc (subtree, _MAX * sizeof(char));
+    }
+
+    // Check to see if it is an internal node (key < 0) or a leaf
+    if (root->key < 0) {
+        char * right_subtree = get_subtree_of_node(root->right, subtree, x, _MAX);
+        char * left_subtree = get_subtree_of_node(root->left, subtree, x, _MAX);
+        sprintf(buffer, "%s %s", right_subtree, left_subtree);
+    }
+    // Log the root's key
+    else {
+        sprintf(buffer, "%d", root->key);
+    }
+    x = append_char_array(x, buffer, subtree);
+    subtree[x++] = ',';
+
+    return buffer;
 }
 
 
@@ -514,11 +533,11 @@ int get_node_relationships(char *tree_string, char *&children, char *&parents, c
 
     //Step 3: Traverse the linked list to get all subtrees
     int len_subtrees = 0;
-    int _MAX = 1000;
+    int _MAX = 10000;
     subtrees = (char*) malloc(_MAX);
-    printf("Getting subtrees... ");
-    get_subtree_of_node(root, subtrees, len_subtrees, _MAX);
-//    printf("subtrees:\n%s\n", subtrees);
+    char* buffer = get_subtree_of_node(root, subtrees, len_subtrees, _MAX);
+    free(buffer);
+    subtrees[--len_subtrees] = '\0';
 
     return len_children + len_parents + len_subtrees;
 }
@@ -538,7 +557,7 @@ static PyObject *assign_parents_and_children(PyObject *self, PyObject *args) {
     int length = get_node_relationships(tree_string, children, parents, subtrees);
     if (length == 0)
         return Py_BuildValue("s", ".");
-
+    children = (char *) realloc(children, (length + 10));
 
 //    printf("Children:\n%s\n", children);
 //    printf("Parents:\n%s\n", parents);
@@ -548,13 +567,16 @@ static PyObject *assign_parents_and_children(PyObject *self, PyObject *args) {
         c_pos++;
     }
 
-    children = (char *) realloc(children, (length + 10));
-
     int p_pos = 0;
     while (parents[p_pos])
         children[c_pos++] = parents[p_pos++];
 
+    int t_pos = 0;
+    while (subtrees[t_pos])
+        children[c_pos++] = subtrees[t_pos++];
+
     free(parents);
+    free(subtrees);
 
     return Py_BuildValue("s", children);
 }
