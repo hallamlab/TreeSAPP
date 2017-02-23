@@ -7,7 +7,7 @@
 using namespace std;
 
 static PyObject *read_the_reference_tree(PyObject *self, PyObject *args);
-static PyObject *assign_parents_and_children(PyObject *self, PyObject *args);
+static PyObject *get_parents_and_children(PyObject *self, PyObject *args);
 char *get_node_relationships(char *tree_string);
 char *split_tree_string(char *tree_string);
 
@@ -15,7 +15,7 @@ static char module_docstring[] =
         "This module provides an interface for parsing Newick formatted trees using C from within MLTreeMap";
 static char read_the_reference_tree_docstring[] =
         "Reads the labelled_tree_file and reformats it for downstream interpretation";
-static char assign_parents_and_children_docstring[] = 
+static char get_parents_and_children_docstring[] = 
         "Stores the input tree as a binary search tree before recursively finding the children and parent of each node";
 
 static PyMethodDef module_methods[] = {
@@ -23,10 +23,10 @@ static PyMethodDef module_methods[] = {
         read_the_reference_tree,
         METH_VARARGS,
         read_the_reference_tree_docstring},
-        {"_assign_parents_and_children",
-        assign_parents_and_children,
+        {"_get_parents_and_children",
+        get_parents_and_children,
         METH_VARARGS,
-        assign_parents_and_children_docstring},
+        get_parents_and_children_docstring},
         {NULL, NULL, 0, NULL}
 };
 
@@ -61,6 +61,7 @@ class stack {
     TreeNode** elements;
     public:
         stack();
+        ~stack();
         void push(TreeNode*);
         TreeNode* pop();
         int is_empty();
@@ -71,22 +72,32 @@ class stack {
 // TODO: Dynamic allocation for the stack
 stack::stack() {
     top = 0;
-    int SIZE = 100;
+    SIZE = 100;
     elements = (TreeNode**) malloc (SIZE * sizeof(TreeNode*));
+    while (top < SIZE )
+        elements[top++] = NULL;
+    top = 0;
+}
+
+stack::~stack() {
+    while ( !is_empty() ) {
+        cout << pop()->key << " still in stack" << endl;
+    }
+    free(this->elements);
 }
 
 int stack::is_empty() {
-    return (top == 0?1:0);
+    return (this->top == 0?1:0);
 }
 
 int stack::is_full() {
-    return (top == this->SIZE?1:0);
+    return (this->top == this->SIZE?1:0);
 }
 
 void stack::push(TreeNode* i) {
     if ( !is_full() ) {
-        this->elements[top] = i;
-        top++;
+        this->elements[this->top] = i;
+        this->top++;
     }
     else
         std::cerr << "Stack overflow error!" << std::endl;
@@ -94,9 +105,10 @@ void stack::push(TreeNode* i) {
 
 TreeNode* stack::pop() {
     if( !is_empty() ) {
-        return(this->elements[--top]);
+        this->top--;
+        return(this->elements[top]);
     }
-    return 0;
+    return NULL;
 }
 
 int stack::peak() {
@@ -254,9 +266,8 @@ char * split_tree_string(char *tree_string) {
 }
 
 
-char * get_previous_node(char *&parsed_tree_string, int &end) {
-    char *previous = (char*) malloc(10*sizeof(char));
-    char *reversed = (char*) malloc(10*sizeof(char));
+void get_previous_node(char *&parsed_tree_string, int &end, char *&previous) {
+    char reversed[10];
     char c = parsed_tree_string[end];
     int i = 0;
     // Skip through brackets and commas to the end of the previous node
@@ -272,7 +283,7 @@ char * get_previous_node(char *&parsed_tree_string, int &end) {
     }
     reversed[i] = '\0';
     reverse_char_array(reversed, previous, 0, i);
-    return previous;
+    return;
 }
 
 /**
@@ -281,10 +292,7 @@ char * get_previous_node(char *&parsed_tree_string, int &end) {
 void insert(Link*& head, int newKey) {
     Link * curr = new Link;
     curr->key  = newKey;
-    // TODO: Enter the previous node
     curr->next = head;
-//    printf("key = %d\n", newKey);
-
     head = curr;
 }
 
@@ -296,6 +304,19 @@ TreeNode* create_node(int key, TreeNode* p, TreeNode* l = NULL, TreeNode* r = NU
     curr->left = l;
     curr->right = r;
     return curr;
+}
+
+
+/**
+ * Deletes all nodes in the tree rooted at root and sets root to NULL.
+ */
+void deleteTree( TreeNode*& root ) {
+    if ( root != NULL ) {
+        deleteTree( root->left );
+        deleteTree( root->right );
+        delete root;
+        root = NULL;
+    }
 }
 
 
@@ -322,15 +343,21 @@ void print_tree( TreeNode* root, int d = 0 ) {
     print_tree( root->left, d+1 );
 }
 
-void load_linked_list(char * tree_string, char * parsed_tree_string, Link *&head) {
+void load_linked_list(char * tree_string, Link *&head) {
     char c;
     int pos = 0;
     int i = 0;
     int newKey = -1;
     int retrace_pos = 0;
-    char *curr = (char*) malloc(10*sizeof(char));
-    char *right = (char*) malloc(10*sizeof(char));
-    char *left = (char*) malloc(10*sizeof(char));
+    int x;
+    char curr[10];
+    char* right = (char*) malloc(10*sizeof(char));
+    char* left = (char*) malloc(10*sizeof(char));
+
+    int tree_len = get_char_array_length(tree_string);
+    char* parsed_tree_string = (char*) malloc(tree_len);
+    for (x = 0; x < tree_len; x++)
+        parsed_tree_string[x] = '\0';
 
     while (tree_string[pos]) {
         c = tree_string[pos];
@@ -339,11 +366,13 @@ void load_linked_list(char * tree_string, char * parsed_tree_string, Link *&head
             // load the next node as curr
             c = tree_string[pos+1];
             i = 0;
+            // Overwrite curr
+            for (x = 0; x < 10; x++)
+                curr[x] = '\0';
             while (is_char_substr(c, real_number_chars) == 1) {
-                curr[i] = c;
+                curr[i++] = c;
                 pos++;
                 c = tree_string[pos+1];
-                i++;
             }
             curr[i] = '\0';
             newKey = atoi(curr);
@@ -352,11 +381,14 @@ void load_linked_list(char * tree_string, char * parsed_tree_string, Link *&head
             insert(head, newKey);
 
             // load the previous 2 nodes as children and remove these from the string
-            right = get_previous_node(parsed_tree_string, retrace_pos);
-            left = get_previous_node(parsed_tree_string, retrace_pos);
+            get_previous_node(parsed_tree_string, retrace_pos, right);
             head->right = atoi(right);
+            for (x = 0; x < 10; x++)
+                right[x] = '\0';
+            get_previous_node(parsed_tree_string, retrace_pos, left);
             head->left = atoi(left);
-
+            for (x = 0; x < 10; x++)
+                left[x] = '\0';
 
             // add the current node to the parsed_tree_string
             i = 0;
@@ -365,6 +397,9 @@ void load_linked_list(char * tree_string, char * parsed_tree_string, Link *&head
         }
         pos++;
     }
+    free(right);
+    free(left);
+    free(parsed_tree_string);
 }
 
 
@@ -387,7 +422,7 @@ TreeNode* load_tree_from_list(Link* head, TreeNode*& root, stack& merge) {
             root->left = create_node(head->left, root);
         if (head->right != previous->key)
             root->right = create_node(head->right, root);
-        // If a child is equal to a node from a long time ago, in a galaxy far far away... reconnect
+        // If a child is equal to a node from a long time ago, in a galaxy far far away...
         if (!merge.is_empty() && head->left == merge.peak()) {
             root->left = merge.pop();
         }
@@ -468,34 +503,48 @@ int get_parents_of_nodes(Link * head, char *&parents) {
     return x;
 }
 
+
 /*
  Find all of the subtrees in the linked list
  */
 char * get_subtree_of_node(TreeNode* root, char *&subtree, int &x, int &_MAX) {
-    char * buffer = (char*) malloc (_MAX);
     if (root == NULL)
         return NULL;
-
+    char* buffer;
     if (x <= _MAX && x >= _MAX - 1000 ) {
         _MAX = _MAX + 10000;
         printf("REALLOC %d\n", _MAX);
         subtree = (char *) realloc (subtree, _MAX * sizeof(char));
+        printf("Emerged from the Realloc\n");
     }
 
     // Check to see if it is an internal node (key < 0) or a leaf
     if (root->key < 0) {
-        char * right_subtree = get_subtree_of_node(root->right, subtree, x, _MAX);
-        char * left_subtree = get_subtree_of_node(root->left, subtree, x, _MAX);
+        char* right_subtree = get_subtree_of_node(root->right, subtree, x, _MAX);
+        char* left_subtree = get_subtree_of_node(root->left, subtree, x, _MAX);
+        buffer = (char*) malloc (get_char_array_length(right_subtree) + get_char_array_length(left_subtree) + 2);
         sprintf(buffer, "%s %s", right_subtree, left_subtree);
+        free(right_subtree);
+        free(left_subtree);
     }
     // Log the root's key
     else {
+        buffer = (char*) malloc (10);
         sprintf(buffer, "%d", root->key);
     }
     x = append_char_array(x, buffer, subtree);
     subtree[x++] = ',';
 
     return buffer;
+}
+
+
+void get_subtree_of_node_helper(TreeNode* root, char *&subtrees, int &len_subtrees) {
+    int _MAX = 10000;
+    subtrees = (char*) malloc(_MAX);
+    char * buffer = get_subtree_of_node(root, subtrees, len_subtrees, _MAX);
+    free(buffer);
+    subtrees[--len_subtrees] = '\0';
 }
 
 
@@ -508,59 +557,48 @@ int get_node_relationships(char *tree_string, char *&children, char *&parents, c
 
     // Step 1: Load the tree
     Link * linked_list = NULL;
-    int tree_len = get_char_array_length(tree_string);
-    char * parsed_tree_string = (char*) malloc(tree_len * sizeof(char));
+    load_linked_list(tree_string, linked_list);
 
-    load_linked_list(tree_string, parsed_tree_string, linked_list);
-//    print_list(linked_list);
 
-    TreeNode* root = NULL;
-    stack merge;
-    load_tree_from_list(linked_list, root, merge);
-    if (!merge.is_empty()) {
-        std::cerr << "ERROR: Stack not empty after merging subtrees!" << std::endl;
-        return 0;
-    }
-    // TODO: free merge
-//    print_tree(root);
-
-    //Step 2: Traverse the tree to get parents and children strings for each node
+    //Step 2: Traverse the linked-list to get parents and children strings for each node
     int len_children = get_children_of_nodes(linked_list, children);
 //    printf("Children:\n%s\n", children);
 
     int len_parents = get_parents_of_nodes(linked_list, parents);
 //    printf("Parents:\n%s\n", parents);
 
-    //Step 3: Traverse the linked list to get all subtrees
+    TreeNode* root = NULL;
+    stack merge;
+    load_tree_from_list(linked_list, root, merge);
+    if (!merge.is_empty()) {
+        std::cerr << "ERROR: Stack not empty after merging subtrees!" << std::endl;
+        print_list(linked_list);
+        return 0;
+    }
+
+    //Step 3: Traverse the tree to get all subtrees
     int len_subtrees = 0;
-    int _MAX = 10000;
-    subtrees = (char*) malloc(_MAX);
-    char* buffer = get_subtree_of_node(root, subtrees, len_subtrees, _MAX);
-    free(buffer);
-    subtrees[--len_subtrees] = '\0';
+    get_subtree_of_node_helper(root, subtrees, len_subtrees);
+    deleteTree(root);
 
     return len_children + len_parents + len_subtrees;
 }
 
-static PyObject *assign_parents_and_children(PyObject *self, PyObject *args) {
+static PyObject *get_parents_and_children(PyObject *self, PyObject *args) {
     //TODO: Dynamically allocate more space if needed
     char* tree_string;
     if (!PyArg_ParseTuple(args, "s", &tree_string)) {
         return NULL;
     }
 
-//    printf("%s\n", tree_string);
     char* children;
     char* parents;
     char* subtrees;
 
     int length = get_node_relationships(tree_string, children, parents, subtrees);
     if (length == 0)
-        return Py_BuildValue("s", ".");
+        return Py_BuildValue("s", "$");
     children = (char *) realloc(children, (length + 10));
-
-//    printf("Children:\n%s\n", children);
-//    printf("Parents:\n%s\n", parents);
 
     int c_pos = 0;
     while (children[c_pos]){
