@@ -1090,6 +1090,7 @@ def validate_inputs(args, cog_list):
         denominator = denominator.strip("_")
         if denominator in f_cogs:
             ref_tree_dict[denominator] = tree_file
+    ref_tree_dict['p'] = args.mltreemap + os.sep + "data/tree_data/MLTreeMap_reference.tree"
     status = pparse_ref_trees(denominator_ref_tree_dict=ref_tree_dict, args=args)
     if status is None:
         sys.exit()
@@ -1682,8 +1683,6 @@ def add_tasks_to_queue(task_list, task_queue, num_threads):
     :return: Nothing
     """
     num_tasks = len(task_list)
-    if num_tasks == 0:
-        raise AssertionError("Task list is empty - nothing to do. Exiting.")
 
     task = task_list.pop()
     while task:
@@ -1713,11 +1712,7 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     """
 
     max_size = 32767  # The actual size limit of a JoinableQueue
-    task_queue = JoinableQueue(max_size)
     task_list = list()
-    genewise_process_queues = [GenewiseWorker(task_queue) for i in range(int(args.num_threads))]
-    for process in genewise_process_queues:
-        process.start()
 
     if args.verbose:
         sys.stdout.write("Running Genewise... ")
@@ -1769,10 +1764,16 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
 
             task_list.append(genewise_command)
 
-    add_tasks_to_queue(task_list, task_queue, args.num_threads)
+    num_tasks = len(task_list)
+    if num_tasks > 0:
+        task_queue = JoinableQueue(max_size)
+        genewise_process_queues = [GenewiseWorker(task_queue) for i in range(int(args.num_threads))]
+        for process in genewise_process_queues:
+            process.start()
+        add_tasks_to_queue(task_list, task_queue, args.num_threads)
 
-    task_queue.close()
-    task_queue.join()
+        task_queue.close()
+        task_queue.join()
 
     # Return the list of output files for each contig
     if args.verbose:
@@ -2584,8 +2585,14 @@ def start_RAxML(args, phy_files, cog_list, models_to_be_used):
 
 
 def pparse_ref_trees(denominator_ref_tree_dict, args):
-    pool = Pool(processes=int(args.num_threads))
     ref_trees_dict = dict()
+    # Why so serial?
+    # for denominator in denominator_ref_tree_dict:
+    #     reference_tree_file = denominator_ref_tree_dict[denominator]
+    #     marker,terminal_children_of_reference = read_and_understand_the_reference_tree(reference_tree_file,denominator)
+    #     ref_trees_dict[marker] = terminal_children_of_reference
+    #
+    pool = Pool(processes=int(args.num_threads))
 
     def log_tree(result):
         marker, terminal_children_of_reference = result
@@ -2604,6 +2611,7 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
     for marker in ref_trees_dict:
         if ref_trees_dict[marker] is None:
             sys.stdout.write("done.\n")
+            sys.stdout.flush()
             return None
         else:
             pass
@@ -2867,25 +2875,50 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
     return final_raxml_output_files
 
 
-def read_and_understand_the_reference_tree(reference_tree_file, denominator):
-    # reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-    # print reference_tree_elements
-    # reference_tree_info = _tree_parser._assign_parents_and_children(reference_tree_elements)
-    # print reference_tree_info
-    reference_tree_elements = read_the_reference_tree(reference_tree_file)
+# def format_children_assignments(children_assignments, reference_tree_info):
+#
+#     return reference_tree_info
+#
+#
+# def format_parent_assignments(parent_assignments, reference_tree_info):
+#
+#     return reference_tree_info
+
+
+def format_subtrees(subtrees):
+    terminal_children_of_reference = Autovivify()
+    subtree_list = subtrees.split(',')
+    for subtree in subtree_list:
+        nodes = subtree.split(' ')
+        node_ints = [int(x) for x in nodes]
+        sorted_node_strings = [str(i) for i in sorted(node_ints)]
+        terminal_children_of_reference[' '.join(sorted_node_strings) + ' '] = 1
+    return terminal_children_of_reference
+
+
+def deconvolute_assignments(reference_tree_assignments):
     reference_tree_info = create_tree_info_hash()
-    reference_tree_info = get_node_subtrees(reference_tree_elements, reference_tree_info)
-    reference_tree_info = assign_parents_and_children(reference_tree_info, denominator)
-    if reference_tree_info is None:
+    children_assignments, parent_assignments, subtrees = reference_tree_assignments.strip().split('\n')
+    # reference_tree_info = format_children_assignments(children_assignments, reference_tree_info)
+    # reference_tree_info = format_parent_assignments(parent_assignments, reference_tree_info)
+    terminal_children_of_reference = format_subtrees(subtrees)
+    return reference_tree_info, terminal_children_of_reference
+
+
+def read_and_understand_the_reference_tree(reference_tree_file, denominator):
+    reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
+    reference_tree_assignments = _tree_parser._get_parents_and_children(reference_tree_elements)
+    if reference_tree_assignments == "$":
+        print "Poison pill received from", denominator
         return denominator, None
-    terminal_children_of_reference = build_terminal_children_strings_of_reference_nodes(reference_tree_info)
-    # Requires ~8 seconds to complete this function for the mcrA reference tree in Python
-    return denominator, terminal_children_of_reference
+    else:
+        reference_tree_info, new_terminal_children_of_reference = deconvolute_assignments(reference_tree_assignments)
+        return denominator, new_terminal_children_of_reference
 
 
 def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
     labelled_tree_elements, insertion_point_node_hash = read_the_raxml_out_tree(labelled_tree_file)
-    # print "insertion_point_node_hash:\n", insertion_point_node_hash
+    print "insertion_point_node_hash:\n", insertion_point_node_hash
     labelled_tree_info = create_tree_info_hash()
     labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
     labelled_tree_info = assign_parents_and_children(labelled_tree_info, f_contig)
@@ -3158,7 +3191,7 @@ def assign_parents_and_children(tree_info, source):
     :return: tree info with parent and child relationships included
     """
 
-    sys.stdout.write("assigning_parents_and_children... \nStart:\t" + time.ctime() + "\n")
+    # sys.stdout.write("assigning_parents_and_children... \nStart:\t" + time.ctime() + "\n")
     tree_nodes = sorted(list(tree_info['subtree_of_node'].keys()))
     for node in tree_nodes:
         if node == -1:
@@ -3166,7 +3199,6 @@ def assign_parents_and_children(tree_info, source):
         subtree = str(tree_info['subtree_of_node'][node])
         parent = None
         for potential_parent in tree_nodes:
-            # _tree_parser.get_node_relationships(subtree, tree_nodes)
             if node == potential_parent:
                 continue
             potential_parent_subtree = str(tree_info['subtree_of_node'][potential_parent])
@@ -3191,7 +3223,7 @@ def assign_parents_and_children(tree_info, source):
             tree_info['parent_of_node'][node] = parent
             tree_info['children_of_node'][parent][node] = 1
 
-    sys.stdout.write("End:  \t" + time.ctime() + "\n")
+    # sys.stdout.write("End:  \t" + time.ctime() + "\n")
     return tree_info
 
 
@@ -3328,6 +3360,7 @@ def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point
 
             terminal_children_string_of_assignment = ''
 
+            # terminal_children_string_of_assignment = ' '.join(sorted(terminal_children.keys(), key=int))
             for terminal_child_of_assignment in sorted(terminal_children.keys(), key=int):
                 terminal_children_string_of_assignment += str(terminal_child_of_assignment) + ' '
 
@@ -3352,7 +3385,7 @@ def build_terminal_children_strings_of_reference_nodes(reference_tree_info):
                 terminal_children[each_hit[1]] = 1
 
         terminal_children_string_of_reference = ''
-
+        # terminal_children_string_of_reference = ' '.join(sorted(terminal_children.keys(), key=int))
         for terminal_child_of_reference in sorted(terminal_children.keys(), key=int):
             terminal_children_string_of_reference += str(terminal_child_of_reference) + ' '
 
@@ -3361,17 +3394,17 @@ def build_terminal_children_strings_of_reference_nodes(reference_tree_info):
     return terminal_children_strings_of_reference
 
 
-def compare_terminal_children_strings(terminal_children_strings_of_assignments, terminal_children_strings_of_reference):
-    real_terminal_children_strings_of_assignments = Autovivify()
+def compare_terminal_children_strings(terminal_children_of_assignments, terminal_children_of_reference):
+    real_terminal_children_of_assignments = Autovivify()
     there_was_a_hit = 0
 
-    for assignment in sorted(terminal_children_strings_of_assignments.keys()):
+    for assignment in sorted(terminal_children_of_assignments.keys()):
         real_terminal_children_string = ''
 
-        for terminal_children_string_of_assignment in sorted(terminal_children_strings_of_assignments[assignment].keys()):
-            if terminal_children_string_of_assignment in terminal_children_strings_of_reference:
+        for terminal_children_string_of_assignment in sorted(terminal_children_of_assignments[assignment].keys()):
+            if terminal_children_string_of_assignment in terminal_children_of_reference:
                 real_terminal_children_string = terminal_children_string_of_assignment
-                real_terminal_children_strings_of_assignments[assignment] = real_terminal_children_string
+                real_terminal_children_of_assignments[assignment] = real_terminal_children_string
                 there_was_a_hit = 1
                 break
 
@@ -3380,7 +3413,7 @@ def compare_terminal_children_strings(terminal_children_strings_of_assignments, 
 
     if there_was_a_hit <= 0:
         sys.exit('ERROR: The RAxML output tree could not be rooted correctly!!!\n')
-    return real_terminal_children_strings_of_assignments
+    return real_terminal_children_of_assignments
 
 
 def concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type):

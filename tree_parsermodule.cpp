@@ -3,6 +3,7 @@
 #include <string.h>
 #include <iostream>
 #include <iomanip>
+#include <stack>
 
 using namespace std;
 
@@ -40,80 +41,19 @@ PyMODINIT_FUNC init_tree_parser(void) {
   A tree node
   */
 struct Link {
-    int key;
-    int left;
-    int right;
+    long key;
+    long left;
+    long right;
     Link* next;
     Link* previous;
 };
 
 struct TreeNode {
-    int key;
+    long key;
     TreeNode* left;
     TreeNode* right;
-    TreeNode* parent;
 };
 
-
-class stack {
-    int SIZE;
-    int top;
-    TreeNode** elements;
-    public:
-        stack();
-        ~stack();
-        void push(TreeNode*);
-        TreeNode* pop();
-        int is_empty();
-        int is_full();
-        int peak(); // Returns the key of the TreeNode at the top of the stack
-};
-
-// TODO: Dynamic allocation for the stack
-stack::stack() {
-    top = 0;
-    SIZE = 100;
-    elements = (TreeNode**) malloc (SIZE * sizeof(TreeNode*));
-    while (top < SIZE )
-        elements[top++] = NULL;
-    top = 0;
-}
-
-stack::~stack() {
-    while ( !is_empty() ) {
-        cout << pop()->key << " still in stack" << endl;
-    }
-    free(this->elements);
-}
-
-int stack::is_empty() {
-    return (this->top == 0?1:0);
-}
-
-int stack::is_full() {
-    return (this->top == this->SIZE?1:0);
-}
-
-void stack::push(TreeNode* i) {
-    if ( !is_full() ) {
-        this->elements[this->top] = i;
-        this->top++;
-    }
-    else
-        std::cerr << "Stack overflow error!" << std::endl;
-}
-
-TreeNode* stack::pop() {
-    if( !is_empty() ) {
-        this->top--;
-        return(this->elements[top]);
-    }
-    return NULL;
-}
-
-int stack::peak() {
-    return(this->elements[top-1]->key);
-}
 
 char const *float_chars = "0.123456789";
 char const *real_number_chars = "-0123456789";
@@ -155,7 +95,7 @@ char reverse_char_array(char * char_array, char *&flipped, int first, int last) 
     return char_array[last];
 }
 
-// TODO: Fix memory leaks
+
 static PyObject *read_the_reference_tree(PyObject *self, PyObject *args) {
     char* reference_tree_file;
     if (!PyArg_ParseTuple(args, "s", &reference_tree_file)) {
@@ -289,7 +229,7 @@ void get_previous_node(char *&parsed_tree_string, int &end, char *&previous) {
 /**
  * Inserts a new Link (with key=newKey) at the head of the linked_list.
  */
-void insert(Link*& head, int newKey) {
+void insert(Link*& head, long newKey) {
     Link * curr = new Link;
     curr->key  = newKey;
     curr->next = head;
@@ -297,13 +237,21 @@ void insert(Link*& head, int newKey) {
 }
 
 
-TreeNode* create_node(int key, TreeNode* p, TreeNode* l = NULL, TreeNode* r = NULL ) {
+TreeNode* create_node(long key, TreeNode* l = NULL, TreeNode* r = NULL ) {
     TreeNode* curr = new TreeNode;
     curr->key = key;
-    curr->parent = p;
     curr->left = l;
     curr->right = r;
     return curr;
+}
+
+
+void deleteList(Link*& head) {
+    if ( head != NULL ) {
+        deleteList( head->next );
+        delete head;
+        head = NULL;
+    }
 }
 
 
@@ -323,9 +271,8 @@ void deleteTree( TreeNode*& root ) {
 void print_list(Link* head) {
     std::cout << std::endl;
     for (Link* curr = head; curr != NULL; curr = curr->next){
-        std::cout << "key: " << curr->key;
-        std::cout << "\tleft: " << curr->left;
-        std::cout << "\tright: " << curr->right;
+        printf("key: %ld\tleft: %ld\tright: %ld",
+            curr->key, curr->left, curr->right);
         if (curr->next != NULL) std::cout << "\n";
     }
     std::cout << std::endl;
@@ -351,8 +298,8 @@ void load_linked_list(char * tree_string, Link *&head) {
     int retrace_pos = 0;
     int x;
     char curr[10];
-    char* right = (char*) malloc(10*sizeof(char));
-    char* left = (char*) malloc(10*sizeof(char));
+    char* right = (char*) malloc(20);
+    char* left = (char*) malloc(20);
 
     int tree_len = get_char_array_length(tree_string);
     char* parsed_tree_string = (char*) malloc(tree_len);
@@ -403,13 +350,13 @@ void load_linked_list(char * tree_string, Link *&head) {
 }
 
 
-TreeNode* load_tree_from_list(Link* head, TreeNode*& root, stack& merge) {
+TreeNode* load_tree_from_list(Link* head, TreeNode*& root, std::stack<TreeNode*>& merge) {
     TreeNode* previous = NULL;
     if (head == NULL) {
         return previous;
     }
     previous = load_tree_from_list(head->next, root, merge);
-    root = create_node(head->key, NULL);
+    root = create_node(head->key);
 
     if (previous) {
         // If a key is equal to the previous key, then the previous key is a child
@@ -419,15 +366,17 @@ TreeNode* load_tree_from_list(Link* head, TreeNode*& root, stack& merge) {
             root->right = previous;
         // If neither children are from the previous node, then create new nodes
         if (head->left != previous->key)
-            root->left = create_node(head->left, root);
+            root->left = create_node(head->left);
         if (head->right != previous->key)
-            root->right = create_node(head->right, root);
+            root->right = create_node(head->right);
         // If a child is equal to a node from a long time ago, in a galaxy far far away...
-        if (!merge.is_empty() && head->left == merge.peak()) {
-            root->left = merge.pop();
+        if (!merge.empty() && head->left == merge.top()->key) {
+            root->left = merge.top();
+            merge.pop();
         }
-        if (!merge.is_empty() && head->right == merge.peak()) {
-            root->right = merge.pop();
+        if (!merge.empty() && head->right == merge.top()->key) {
+            root->right = merge.top();
+            merge.pop();
         }
         // If neither the left or right are equal to the previous key, store it as merge
         if (head->right != previous->key && head->left != previous->key) {
@@ -435,30 +384,30 @@ TreeNode* load_tree_from_list(Link* head, TreeNode*& root, stack& merge) {
         }
     }
     else {
-        root->right = create_node(head->right, root);
-        root->left = create_node(head->left, root);
+        root->right = create_node(head->right);
+        root->left = create_node(head->left);
     }
     return root;
 }
 
 
 int get_children_of_nodes(Link * head, char *&children) {
-    char * buffer = (char*) malloc (10);
+    char * buffer = (char*) malloc (20);
     int _MAX = 1000;
     children = (char *) malloc (_MAX * sizeof(char));
     int x = 0;
     for (Link* curr = head; curr != NULL; curr = curr->next){
         if (x <= _MAX && x >= _MAX - 20) {
-            _MAX = _MAX + 100;
+            _MAX = _MAX + 1000;
             children = (char *) realloc (children, _MAX * sizeof(char));
         }
-        sprintf(buffer, "%d", curr->key);
+        sprintf(buffer, "%ld", curr->key);
         x = append_char_array(x, buffer, children);
         children[x++] = '=';
-        sprintf(buffer, "%d", curr->left);
+        sprintf(buffer, "%ld", curr->left);
         x = append_char_array(x, buffer, children);
         children[x++] = ',';
-        sprintf(buffer, "%d", curr->right);
+        sprintf(buffer, "%ld", curr->right);
         x = append_char_array(x, buffer, children);
 
         if (curr->next != NULL) children[x++] = ';';
@@ -466,46 +415,42 @@ int get_children_of_nodes(Link * head, char *&children) {
     children[x++] = '\n';
     children[x] = '\0';
 
+    free(buffer);
+
     return x;
 }
 
 
 int get_parents_of_nodes(Link * head, char *&parents) {
-    char * parent = (char*) malloc (10);
-    char * child = (char*) malloc (10);
+    char parent_string[100];
     int _MAX = 1000;
     parents = (char *) malloc (_MAX * sizeof(char));
-    int x = 0;
+    int x;
+    for (x = 0; x < _MAX; x++)
+        parents[x] = '\0';
+    for (x = 0; x < 100; x++)
+        parent_string[x] = '\0';
+    x = 0;
     for (Link* curr = head; curr != NULL; curr = curr->next){
         if (x <= _MAX && x >= _MAX - 20) {
-            _MAX = _MAX + 100;
+            _MAX = _MAX + 1000;
             parents = (char *) realloc (parents, _MAX * sizeof(char));
         }
-        sprintf(parent, "%d", curr->key);
+        sprintf(parent_string, "%ld:%ld,%ld:%ld", curr->left, curr->key, curr->right, curr->key);
 
-        // Load the left child
-        sprintf(child, "%d", curr->left);
-        x = append_char_array(x, child, parents);
-        parents[x++] = ':';
-        x = append_char_array(x, parent, parents);
-        parents[x++] = ',';
-
-        // Now the right child
-        sprintf(child, "%d", curr->right);
-        x = append_char_array(x, child, parents);
-        parents[x++] = ':';
-        x = append_char_array(x, parent, parents);
+        x = append_char_array(x, parent_string, parents);
 
         if (curr->next != NULL) parents[x++] = ',';
+        else parents[x++] = '\n';
     }
-    parents[x] = '\n';
+    parents[x] = '\0';
 
     return x;
 }
 
 
 /*
- Find all of the subtrees in the linked list
+ Find all of the subtrees in the tree
  */
 char * get_subtree_of_node(TreeNode* root, char *&subtree, int &x, int &_MAX) {
     if (root == NULL)
@@ -513,16 +458,15 @@ char * get_subtree_of_node(TreeNode* root, char *&subtree, int &x, int &_MAX) {
     char* buffer;
     if (x <= _MAX && x >= _MAX - 1000 ) {
         _MAX = _MAX + 10000;
-        printf("REALLOC %d\n", _MAX);
         subtree = (char *) realloc (subtree, _MAX * sizeof(char));
-        printf("Emerged from the Realloc\n");
     }
 
     // Check to see if it is an internal node (key < 0) or a leaf
     if (root->key < 0) {
         char* right_subtree = get_subtree_of_node(root->right, subtree, x, _MAX);
         char* left_subtree = get_subtree_of_node(root->left, subtree, x, _MAX);
-        buffer = (char*) malloc (get_char_array_length(right_subtree) + get_char_array_length(left_subtree) + 2);
+        int sum_length = get_char_array_length(right_subtree) + get_char_array_length(left_subtree) + 2;
+        buffer = (char*) malloc (sum_length);
         sprintf(buffer, "%s %s", right_subtree, left_subtree);
         free(right_subtree);
         free(left_subtree);
@@ -530,7 +474,7 @@ char * get_subtree_of_node(TreeNode* root, char *&subtree, int &x, int &_MAX) {
     // Log the root's key
     else {
         buffer = (char*) malloc (10);
-        sprintf(buffer, "%d", root->key);
+        sprintf(buffer, "%ld", root->key);
     }
     x = append_char_array(x, buffer, subtree);
     subtree[x++] = ',';
@@ -548,6 +492,69 @@ void get_subtree_of_node_helper(TreeNode* root, char *&subtrees, int &len_subtre
 }
 
 
+//void get_previous_subtree(char* subtree_strings, char*& subtree, int x) {
+//    std::string str_buffer;
+//    int i = 2;
+//    char c;
+//    while (subtree_strings[x-i]) {
+//        c = subtree_strings[x-i];
+//        if (c == ',')
+//            break;
+//        str_buffer.insert(0, 1, c);
+//        i++;
+//    }
+//    str_buffer.push_back(',');
+//
+//    subtree = (char*) malloc (str_buffer.length() + 1);
+//    subtree = (char*) str_buffer.c_str();
+//}
+//
+//
+///*
+// Find all of the subtrees in the tree
+// */
+//void get_subtree_of_node(TreeNode* root, char *&subtree, int &x, int &_MAX) {
+//    if (root == NULL)
+//        return;
+//    if (x <= _MAX && x >= _MAX - 1000 ) {
+//        _MAX = _MAX + 10000;
+//        subtree = (char *) realloc (subtree, _MAX * sizeof(char));
+//    }
+//
+//    // Check to see if it is an internal node (key < 0) or a leaf
+//    if (root->key < 0) {
+//        char* right_subtree;
+//        char* left_subtree;
+//        get_subtree_of_node(root->right, subtree, x, _MAX);
+//        get_previous_subtree(subtree, right_subtree, x);
+//        get_subtree_of_node(root->left, subtree, x, _MAX);
+//        get_previous_subtree(subtree, left_subtree, x);
+//
+//        // Join the last two subtrees
+//        x = append_char_array(x, right_subtree, subtree);
+//        subtree[x++] = ' ';
+//        x = append_char_array(x, left_subtree, subtree);
+//    }
+//    // Log the root's key
+//    else {
+//        char buffer[256];
+//        sprintf(buffer, "%ld", root->key);
+//        x = append_char_array(x, buffer, subtree);
+//    }
+//    subtree[x++] = ',';
+//    cout << subtree << endl;
+//}
+//
+//
+//void get_subtree_of_node_helper(TreeNode* root, char *&subtrees, int &len_subtrees) {
+//    int _MAX = 10000;
+//    subtrees = (char*) malloc(_MAX);
+//    cout << endl;
+//    get_subtree_of_node(root, subtrees, len_subtrees, _MAX);
+//    subtrees[--len_subtrees] = '\0';
+//}
+
+
 int get_node_relationships(char *tree_string, char *&children, char *&parents, char *&subtrees) {
     /*
     :param tree_string: tree_info['subtree_of_node'][node]
@@ -559,7 +566,6 @@ int get_node_relationships(char *tree_string, char *&children, char *&parents, c
     Link * linked_list = NULL;
     load_linked_list(tree_string, linked_list);
 
-
     //Step 2: Traverse the linked-list to get parents and children strings for each node
     int len_children = get_children_of_nodes(linked_list, children);
 //    printf("Children:\n%s\n", children);
@@ -568,24 +574,30 @@ int get_node_relationships(char *tree_string, char *&children, char *&parents, c
 //    printf("Parents:\n%s\n", parents);
 
     TreeNode* root = NULL;
-    stack merge;
+
+    std::stack<TreeNode*> merge;
+//    print_list(linked_list);
     load_tree_from_list(linked_list, root, merge);
-    if (!merge.is_empty()) {
+    if (!merge.empty()) {
         std::cerr << "ERROR: Stack not empty after merging subtrees!" << std::endl;
         print_list(linked_list);
         return 0;
     }
 
+//    print_tree(root);
+
     //Step 3: Traverse the tree to get all subtrees
     int len_subtrees = 0;
     get_subtree_of_node_helper(root, subtrees, len_subtrees);
+
+    //Step 4: Clean up the tree and linked list
     deleteTree(root);
+    deleteList(linked_list);
 
     return len_children + len_parents + len_subtrees;
 }
 
 static PyObject *get_parents_and_children(PyObject *self, PyObject *args) {
-    //TODO: Dynamically allocate more space if needed
     char* tree_string;
     if (!PyArg_ParseTuple(args, "s", &tree_string)) {
         return NULL;
@@ -598,7 +610,8 @@ static PyObject *get_parents_and_children(PyObject *self, PyObject *args) {
     int length = get_node_relationships(tree_string, children, parents, subtrees);
     if (length == 0)
         return Py_BuildValue("s", "$");
-    children = (char *) realloc(children, (length + 10));
+
+    children = (char *) realloc(children, (length + 3));
 
     int c_pos = 0;
     while (children[c_pos]){
@@ -612,6 +625,7 @@ static PyObject *get_parents_and_children(PyObject *self, PyObject *args) {
     int t_pos = 0;
     while (subtrees[t_pos])
         children[c_pos++] = subtrees[t_pos++];
+    children[c_pos] = '\0';
 
     free(parents);
     free(subtrees);
