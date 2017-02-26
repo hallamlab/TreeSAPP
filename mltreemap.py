@@ -2588,10 +2588,11 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
     ref_trees_dict = dict()
     # Why so serial?
     # for denominator in denominator_ref_tree_dict:
+    #     print denominator
     #     reference_tree_file = denominator_ref_tree_dict[denominator]
     #     marker,terminal_children_of_reference = read_and_understand_the_reference_tree(reference_tree_file,denominator)
     #     ref_trees_dict[marker] = terminal_children_of_reference
-    #
+
     pool = Pool(processes=int(args.num_threads))
 
     def log_tree(result):
@@ -2625,9 +2626,15 @@ def pparse_raxml_out_trees(labelled_trees, args):
     :param args: args object (for num_threads)
     :return: Dictionary containing all parsed trees for each contig
     """
-    pool = Pool(processes=int(args.num_threads))
     raxml_tree_dict = dict()
+    # # Why so serial?
+    # for f_contig in labelled_trees:
+    #     print f_contig
+    #     tree_file = labelled_trees[f_contig]
+    #     f_contig, rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(tree_file, f_contig)
+    #     raxml_tree_dict[f_contig] = [rooted_labelled_trees, insertion_point_node_hash]
 
+    pool = Pool(processes=int(args.num_threads))
     def log_tree(result):
         f_contig, rooted_labelled_trees, insertion_point_node_hash = result
         if rooted_labelled_trees is None:
@@ -2875,14 +2882,21 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
     return final_raxml_output_files
 
 
-# def format_children_assignments(children_assignments, reference_tree_info):
-#
-#     return reference_tree_info
-#
-#
-# def format_parent_assignments(parent_assignments, reference_tree_info):
-#
-#     return reference_tree_info
+def format_children_assignments(children_assignments, tree_info):
+    children_of_nodes = children_assignments.split(';')
+    for family_string in children_of_nodes:
+        parent, children = family_string.split('=')
+        for node in children.split(','):
+            tree_info['children_of_node'][parent][node] = 1
+    return tree_info
+
+
+def format_parent_assignments(parent_assignments, tree_info):
+    parents_of_nodes = parent_assignments.split(',')
+    for pair in parents_of_nodes:
+        node, parent = pair.split(':')
+        tree_info['parent_of_node'][node] = parent
+    return tree_info
 
 
 def format_subtrees(subtrees):
@@ -2897,37 +2911,59 @@ def format_subtrees(subtrees):
 
 
 def deconvolute_assignments(reference_tree_assignments):
-    reference_tree_info = create_tree_info_hash()
+    tree_info = create_tree_info_hash()
     children_assignments, parent_assignments, subtrees = reference_tree_assignments.strip().split('\n')
-    # reference_tree_info = format_children_assignments(children_assignments, reference_tree_info)
-    # reference_tree_info = format_parent_assignments(parent_assignments, reference_tree_info)
+    tree_info = format_children_assignments(children_assignments, tree_info)
+    tree_info = format_parent_assignments(parent_assignments, tree_info)
     terminal_children_of_reference = format_subtrees(subtrees)
-    return reference_tree_info, terminal_children_of_reference
+    return tree_info, terminal_children_of_reference
 
 
 def read_and_understand_the_reference_tree(reference_tree_file, denominator):
+    # # Old and slow:
+    # reference_tree_elements = read_the_reference_tree(reference_tree_file)
+    # reference_tree_info = create_tree_info_hash()
+    # reference_tree_info = get_node_subtrees(reference_tree_elements, reference_tree_info)
+    # reference_tree_info = assign_parents_and_children(reference_tree_info, denominator)
+    # if reference_tree_info is None:
+    #     return denominator, None
+    # terminal_children_of_reference = build_terminal_children_strings_of_reference_nodes(reference_tree_info)
+    # return denominator, terminal_children_of_reference
+
+    # Using the C++ _tree_parser extension:
     reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
     reference_tree_assignments = _tree_parser._get_parents_and_children(reference_tree_elements)
     if reference_tree_assignments == "$":
         print "Poison pill received from", denominator
         return denominator, None
     else:
-        reference_tree_info, new_terminal_children_of_reference = deconvolute_assignments(reference_tree_assignments)
-        return denominator, new_terminal_children_of_reference
+        reference_tree_info, terminal_children_of_reference = deconvolute_assignments(reference_tree_assignments)
+        return denominator, terminal_children_of_reference
 
 
 def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
     labelled_tree_elements, insertion_point_node_hash = read_the_raxml_out_tree(labelled_tree_file)
-    print "insertion_point_node_hash:\n", insertion_point_node_hash
-    labelled_tree_info = create_tree_info_hash()
-    labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
-    labelled_tree_info = assign_parents_and_children(labelled_tree_info, f_contig)
-    # print "labelled_tree_info:\n", labelled_tree_info
-    if labelled_tree_info is None:
+    # # Old and slow:
+    # labelled_tree_info = create_tree_info_hash()
+    # labelled_tree_info = get_node_subtrees(labelled_tree_elements, labelled_tree_info)
+    # labelled_tree_info = assign_parents_and_children(labelled_tree_info, f_contig)
+    # if labelled_tree_info is None:
+    #     return [f_contig, None, insertion_point_node_hash]
+    # labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
+    # rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
+    # return [f_contig, rooted_labelled_trees, insertion_point_node_hash]
+
+    # Using the C++ _tree_parser extension:
+    labelled_tree_assignments = _tree_parser._get_parents_and_children(labelled_tree_elements)
+    if labelled_tree_assignments == "$":
+        print "Poison pill received from", f_contig
         return [f_contig, None, insertion_point_node_hash]
-    labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
-    rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
-    return [f_contig, rooted_labelled_trees, insertion_point_node_hash]
+    else:
+        labelled_tree_info, terminal_children_of_labelled_tree = deconvolute_assignments(labelled_tree_assignments)
+        labelled_tree_info['subtree_of_node'] = terminal_children_of_labelled_tree
+        labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
+        rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
+        return [f_contig, rooted_labelled_trees, insertion_point_node_hash]
 
 
 def identify_the_correct_terminal_children_of_each_assignment(terminal_children_of_reference,
@@ -3040,8 +3076,10 @@ def read_the_raxml_out_tree(labelled_tree_file):
     tree_string = re.sub('L', '(', tree_string)
     tree_string = re.sub('R', ')', tree_string)
     tree_string = re.sub('Q', '[', tree_string)
-    tree_elements = split_tree_string(tree_string)
-    return tree_elements, insertion_point_node_hash
+    # Remove this line when using the C++ extension
+    # tree_elements = split_tree_string(tree_string)
+    # return tree_elements, insertion_point_node_hash
+    return tree_string, insertion_point_node_hash
 
 
 def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
