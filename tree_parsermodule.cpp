@@ -9,6 +9,7 @@ using namespace std;
 
 static PyObject *read_the_reference_tree(PyObject *self, PyObject *args);
 static PyObject *get_parents_and_children(PyObject *self, PyObject *args);
+static PyObject *build_subtrees_newick(PyObject *self, PyObject *args);
 char *get_node_relationships(char *tree_string);
 char *split_tree_string(char *tree_string);
 
@@ -18,6 +19,8 @@ static char read_the_reference_tree_docstring[] =
         "Reads the labelled_tree_file and reformats it for downstream interpretation";
 static char get_parents_and_children_docstring[] = 
         "Stores the input tree as a binary search tree before recursively finding the children and parent of each node";
+static char build_subtrees_newick_docstring[] =
+        "Reads the labelled, rooted tree and returns all subtrees in the tree";
 
 static PyMethodDef module_methods[] = {
         {"_read_the_reference_tree",
@@ -28,6 +31,10 @@ static PyMethodDef module_methods[] = {
         get_parents_and_children,
         METH_VARARGS,
         get_parents_and_children_docstring},
+        {"_build_subtrees_newick",
+        build_subtrees_newick,
+        METH_VARARGS,
+        build_subtrees_newick_docstring},
         {NULL, NULL, 0, NULL}
 };
 
@@ -459,10 +466,42 @@ void get_subtree_of_node(TreeNode* root, CharLink*& head) {
     return;
 }
 
+/*
+ Find all of the subtrees in the tree
+ */
+void get_newick_subtrees(TreeNode* root, CharLink*& head) {
+    char* buffer;
+    // Check to see if it is an internal node (key < 0) or a leaf
+    if (root->left == NULL && root->right == NULL) {
+        buffer = (char*) malloc(100);
+        for (int x = 0; x < 100; x++)
+            buffer[x] = '\0';
+        sprintf(buffer, "%ld", root->key);
+        add_subtree(head, buffer);
+        return;
+    }
+    get_newick_subtrees(root->right, head);
+    CharLink* right_link = head;
+    get_newick_subtrees(root->left, head);
+    CharLink* left_link = head;
 
-void get_subtree_of_node_helper(TreeNode* root, char *&subtrees, int &len_subtrees) {
+    // Join the last two subtrees
+    int sum_length = get_char_array_length(right_link->subtree) + get_char_array_length(left_link->subtree) + 20;
+    buffer = (char*) malloc(sum_length);
+    for (int x = 0; x < sum_length; x++)
+        buffer[x] = '\0';
+    sprintf(buffer, "(%s,%s)%ld", right_link->subtree, left_link->subtree, root->key);
+    add_subtree(head, buffer);
+    return;
+}
+
+
+void get_subtree_of_node_helper(TreeNode* root, char *&subtrees, int &len_subtrees, const char delim) {
     CharLink * head = NULL;
-    get_subtree_of_node(root, head);
+    if (delim == ',')
+        get_subtree_of_node(root, head);
+    else
+        get_newick_subtrees(root, head);
     int _MAX = 10000;
     subtrees = (char*) malloc(_MAX);
     // Parse the CharLink linked-list
@@ -472,7 +511,7 @@ void get_subtree_of_node_helper(TreeNode* root, char *&subtrees, int &len_subtre
             subtrees = (char *) realloc (subtrees, _MAX * sizeof(char));
         }
         len_subtrees = append_char_array(len_subtrees, head->subtree, subtrees);
-        if (head->next) subtrees[len_subtrees++] = ',';
+        if (head->next) subtrees[len_subtrees++] = delim;
         head = head->next;
     }
     subtrees[len_subtrees] = '\0';
@@ -512,7 +551,7 @@ int get_node_relationships(char *tree_string, char *&children, char *&parents, c
 
     // Step 4: Traverse the tree to get all subtrees
     int len_subtrees = 0;
-    get_subtree_of_node_helper(root, subtrees, len_subtrees);
+    get_subtree_of_node_helper(root, subtrees, len_subtrees, ',');
 
     //Step 5: Clean up the tree and linked list
     deleteTree(root);
@@ -520,6 +559,7 @@ int get_node_relationships(char *tree_string, char *&children, char *&parents, c
 
     return len_children + len_parents + len_subtrees;
 }
+
 
 static PyObject *get_parents_and_children(PyObject *self, PyObject *args) {
     char* tree_string;
@@ -555,4 +595,40 @@ static PyObject *get_parents_and_children(PyObject *self, PyObject *args) {
     free(subtrees);
 
     return Py_BuildValue("s", children);
+}
+
+
+static PyObject *build_subtrees_newick(PyObject *self, PyObject *args) {
+    /*
+     Function to parse the rooted, assigned tree and find all subtrees of the inserted node
+     Algorithm:
+        1. Load the tree (load_linked_list and load_tree_from_list)
+        2. Recursively build the subtrees from leaves to root in Newick format and load into list (get_newick_subtrees)
+        3. Parse the linked list for each subtree, separating them by semicolons
+        4. Return string to Python
+     */
+    char* tree_string;
+    if (!PyArg_ParseTuple(args, "s", &tree_string)) {
+        return NULL;
+    }
+    Link * linked_list = NULL;
+    load_linked_list(tree_string, linked_list);
+
+    TreeNode* root = NULL;
+    std::stack<TreeNode*> merge;
+    load_tree_from_list(linked_list, root, merge);
+    if (!merge.empty()) {
+        std::cerr << "ERROR: Stack not empty after merging subtrees!" << std::endl;
+        print_list(linked_list);
+        return 0;
+    }
+    char* subtrees;
+    int len_subtrees = 0;
+
+    get_subtree_of_node_helper(root, subtrees, len_subtrees, ';');
+
+    deleteTree(root);
+    deleteList(linked_list);
+
+    return Py_BuildValue("s", subtrees);
 }

@@ -87,9 +87,10 @@ class NodeRetrieverWorker(Process):
                 # Poison pill means shutdown
                 self.task_queue.task_done()
                 break
-            result = get_node_subtrees(next_task, create_tree_info_hash())
+            result = _tree_parser._build_subtrees_newick(next_task)
+            subtrees = subtrees_to_dictionary(result, create_tree_info_hash())
             self.task_queue.task_done()
-            self.result_queue.put(result)
+            self.result_queue.put(subtrees)
         return
 
 
@@ -1267,35 +1268,35 @@ def parse_blast_results(args, raw_blast_results, cog_list):
         for line in blast_results:
             # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
             # Interpret the BLAST hit, and assign the details accordingly
-            temp_contig, tempDetailedCOG, _, _, _, _, tempQStart, tempQEnd, tempRStart, tempREnd, _, tempBitScore = line.split('\t')
-            tempREnd = int(tempREnd)
-            tempRStart = int(tempRStart)
-            tempQEnd = int(tempQEnd)
-            tempQStart = int(tempQStart)
-            tempBitScore = float(tempBitScore)
+            temp_contig, temp_detailed_cog, _, _, _, _, temp_query_start, temp_query_end, temp_ref_start, temp_ref_end, _, temp_bitscore = line.split('\t')
+            temp_ref_end = int(temp_ref_end)
+            temp_ref_start = int(temp_ref_start)
+            temp_query_end = int(temp_query_end)
+            temp_query_start = int(temp_query_start)
+            temp_bitscore = float(temp_bitscore)
 
             # Skip to next BLAST hit if bit score is less than user-defined minimum
-            if tempBitScore <= args.bitscore:
+            if temp_bitscore <= args.bitscore:
                 continue
 
             # Determine the direction of the hit relative to the reference
             direction = 'forward'
-            if tempRStart > tempREnd:
-                temp = tempRStart
-                tempRStart = tempREnd
-                tempREnd = temp
+            if temp_ref_start > temp_ref_end:
+                temp = temp_ref_start
+                temp_ref_start = temp_ref_end
+                temp_ref_end = temp
                 direction = 'reverse'
-            if tempQStart > tempQEnd:
-                temp = tempQStart
-                tempQStart = tempQEnd
-                tempQEnd = temp
+            if temp_query_start > temp_query_end:
+                temp = temp_query_start
+                temp_query_start = temp_query_end
+                temp_query_end = temp
                 if direction == 'reverse':
                     sys.stderr.write("ERROR: Confusing BLAST result!\n")
                     sys.stderr.write("Please notify the authors about " +
                                      temp_contig + ' at ' +
-                                     tempDetailedCOG +
-                                     " q(" + str(tempQEnd) + '..' + str(tempQStart) + ")," +
-                                     " r(" + str(tempREnd) + '..' + str(tempRStart) + ")")
+                                     temp_detailed_cog +
+                                     " q(" + str(temp_query_end) + '..' + str(temp_query_start) + ")," +
+                                     " r(" + str(temp_ref_end) + '..' + str(temp_ref_start) + ")")
                     sys.stderr.flush()
                     sys.exit()
                 direction = 'reverse'
@@ -1303,11 +1304,11 @@ def parse_blast_results(args, raw_blast_results, cog_list):
             # Trim COG name to last 7 characters of detailed COG name
             # TK - This will be important to note in the user's manual,
             # especially if we enable people to add their own COGs later
-            result = reg_cog_id.match(tempDetailedCOG)
+            result = reg_cog_id.match(temp_detailed_cog)
             if result:
                 tempCOG = result.group(1)
             else:
-                sys.exit('ERROR: Could not detect the COG of sequence ' + tempDetailedCOG)
+                sys.exit('ERROR: Could not detect the COG of sequence ' + temp_detailed_cog)
 
             # Save contig details to the list
             if temp_contig not in contigs:
@@ -1316,10 +1317,10 @@ def parse_blast_results(args, raw_blast_results, cog_list):
             if identifier not in contigs[temp_contig]:
                 contigs[temp_contig][identifier] = {}
 
-            contigs[temp_contig][identifier]['bitscore'] = tempBitScore
+            contigs[temp_contig][identifier]['bitscore'] = temp_bitscore
             contigs[temp_contig][identifier]['cog'] = tempCOG
-            contigs[temp_contig][identifier]['seq_start'] = tempQStart
-            contigs[temp_contig][identifier]['seq_end'] = tempQEnd
+            contigs[temp_contig][identifier]['seq_start'] = temp_query_start
+            contigs[temp_contig][identifier]['seq_end'] = temp_query_end
             contigs[temp_contig][identifier]['direction'] = direction
             contigs[temp_contig][identifier]['validity'] = True
             identifier += 1
@@ -1443,15 +1444,16 @@ def parse_blast_results(args, raw_blast_results, cog_list):
     return purified_blast_hits
 
 
-def blastpParser(args, blast_hits_purified):
+def blastp_parser(args, blast_hits_purified):
     """
     For each contig, produces a file similar to the Genewise output file
     (this is in cases where Genewise is unnecessary because it is already an AA sequence.
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :return blastpSummaryFiles: Autovivification of the output file for each contig.
+    :param blast_hits_purified: Parsed blastp outputs
+    :return blastp_summary_files: Autovivification of the output file for each contig.
     """
 
-    blastpSummaryFiles = Autovivify()
+    blastp_summary_files = Autovivify()
 
     regHEADER = re.compile(r'\A>')
 
@@ -1461,7 +1463,7 @@ def blastpParser(args, blast_hits_purified):
             output = open(output_file, 'w')
         except IOError:
             sys.exit('ERROR: Unable to open ' + output_file + '!\n')
-        blastpSummaryFiles[contig][output_file] = 1
+        blastp_summary_files[contig][output_file] = 1
         shortened_sequence_file = args.output_dir_var + contig + '_sequence_shortened.txt'
         try:
             sequence_file = open(shortened_sequence_file, 'r')
@@ -1491,7 +1493,7 @@ def blastpParser(args, blast_hits_purified):
         sequence_file.close()
         output.close()
 
-    return blastpSummaryFiles
+    return blastp_summary_files
 
 
 def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
@@ -2629,12 +2631,12 @@ def pparse_raxml_out_trees(labelled_trees, args):
     raxml_tree_dict = dict()
     # # Why so serial?
     # for f_contig in labelled_trees:
-    #     print f_contig
     #     tree_file = labelled_trees[f_contig]
     #     f_contig, rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(tree_file, f_contig)
     #     raxml_tree_dict[f_contig] = [rooted_labelled_trees, insertion_point_node_hash]
 
     pool = Pool(processes=int(args.num_threads))
+
     def log_tree(result):
         f_contig, rooted_labelled_trees, insertion_point_node_hash = result
         if rooted_labelled_trees is None:
@@ -2810,12 +2812,16 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
                 RAxML_classification.close()
                 if at_least_one_new_assignment > 0:
-                    parse_log.write("identifying the terminal children of each assignment for "+f_contig+"... ")
+                    parse_log.write("identifying the terminal children of each assignment for " + f_contig + "... ")
                     parse_log.write(time.ctime() + "\n")
                     parse_log.flush()
                     prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(
-                        terminal_children_strings_of_reference, rooted_labelled_trees, insertion_point_node_hash,
-                        new_assignments, args.num_threads, parse_log)
+                        terminal_children_strings_of_reference,
+                        rooted_labelled_trees,
+                        insertion_point_node_hash,
+                        new_assignments,
+                        args.num_threads,
+                        parse_log)
                     parse_log.write("done.\n")
 
                     for assignment in sorted(prae_assignment_target_strings.keys()):
@@ -2972,9 +2978,12 @@ def identify_the_correct_terminal_children_of_each_assignment(terminal_children_
                                                               assignments, num_threads, parse_log):
     terminal_children_of_assignments = build_terminal_children_strings_of_assignments(rooted_labelled_trees,
                                                                                       insertion_point_node_hash,
-                                                                                      assignments, num_threads, parse_log)
+                                                                                      assignments,
+                                                                                      num_threads,
+                                                                                      parse_log)
     real_terminal_children_of_assignments = compare_terminal_children_strings(terminal_children_of_assignments,
-                                                                                      terminal_children_of_reference)
+                                                                              terminal_children_of_reference,
+                                                                              parse_log)
     return real_terminal_children_of_assignments
 
 
@@ -2984,40 +2993,11 @@ def get_correct_mp_assignment(terminal_children_of_reference, mp_tree_file, assi
     return real_terminal_children_strings_of_assignments
 
 
-def read_the_reference_tree(reference_tree_file):
-    try:
-        reference_tree = open(reference_tree_file, 'r')
-    except IOError:
-        sys.exit('ERROR: Could not open ' + reference_tree_file + '!\n')
-    tree_string = ''
-
-    for line in reference_tree:
-        line = line.strip()
-        tree_string += line
-
-    reference_tree.close()
-
-    tree_string = re.sub('\(', 'L', tree_string)
-    tree_string = re.sub('\)', 'R', tree_string)
-    tree_string = re.sub(r':\d+\.\d+', '', tree_string)
-    count = -2
-
-    while re.search('R', tree_string):
-        tree_string = re.sub('R', 'Q' + str(count), tree_string, 1)
-        count += -1
-
-    tree_string = re.sub(r'Q-\d+;', 'Q;', tree_string)
-    tree_string = re.sub('L', '(', tree_string)
-    tree_string = re.sub('Q', ')', tree_string)
-    reference_tree_elements = split_tree_string(tree_string)
-    return reference_tree_elements
-
-
 def read_the_raxml_out_tree(labelled_tree_file):
     """
     Reads the labelled_tree_file and reformats it for downstream interpretation
     :param labelled_tree_file: RAxML output f_contig.originalRAxML_labelledTree.txt file in various_outputs directory
-    :return: An easily interpretable labelled tree
+    :return: An easily interpretable labelled tree and a collection of
     """
 
     insertion_point_node_hash = Autovivify()
@@ -3076,9 +3056,10 @@ def read_the_raxml_out_tree(labelled_tree_file):
     tree_string = re.sub('L', '(', tree_string)
     tree_string = re.sub('R', ')', tree_string)
     tree_string = re.sub('Q', '[', tree_string)
-    # Remove this line when using the C++ extension
+    # Remove these lines when using the C++ extension:
     # tree_elements = split_tree_string(tree_string)
     # return tree_elements, insertion_point_node_hash
+
     return tree_string, insertion_point_node_hash
 
 
@@ -3182,86 +3163,7 @@ def create_tree_info_hash():
 
 
 def get_node_subtrees(tree_elements, tree_info):
-    bracket_l_count = 0
-    bracket_r_count = 0
-    parents_of_node = Autovivify()
-    tree_element_nr = -1
-
-    for tree_element in tree_elements.values():
-        tree_element_nr += 1
-        
-        if str(tree_element) == '(':
-            bracket_l_count = 1
-            bracket_r_count = 0
-            tree_sub_element_nr = tree_element_nr
-            subtree_string = '('
-            
-            while True:
-                tree_sub_element_nr += 1
-                tree_sub_element = tree_elements[tree_sub_element_nr]
-                if str(tree_sub_element) == '(':
-                    bracket_l_count += 1
-                if str(tree_sub_element) == ')':
-                    bracket_r_count += 1
-                if bracket_l_count == bracket_r_count:
-                    node_name = tree_elements[tree_sub_element_nr + 1]
-                    if str(node_name) == ';':
-                        node_name = -1
-                    subtree_string += ')' + str(node_name)
-                    tree_info['subtree_of_node'][node_name] = subtree_string
-                    break
-                else:
-                    subtree_string += str(tree_sub_element)
-    
-    for tree_element in tree_elements.values():
-        if not re.search(r'\d+', str(tree_element)):
-            continue
-        if tree_element in tree_info['subtree_of_node'].keys():
-            continue
-        tree_info['subtree_of_node'][tree_element] = tree_element
-    return tree_info
-
-
-def assign_parents_and_children(tree_info, source):
-    """
-    :param tree_info: Autovivification of a tree from get_node_subtrees
-    :param source: The denominator ID for the tree being parsed
-    :return: tree info with parent and child relationships included
-    """
-
-    # sys.stdout.write("assigning_parents_and_children... \nStart:\t" + time.ctime() + "\n")
-    tree_nodes = sorted(list(tree_info['subtree_of_node'].keys()))
-    for node in tree_nodes:
-        if node == -1:
-            continue
-        subtree = str(tree_info['subtree_of_node'][node])
-        parent = None
-        for potential_parent in tree_nodes:
-            if node == potential_parent:
-                continue
-            potential_parent_subtree = str(tree_info['subtree_of_node'][potential_parent])
-            subtree = re.sub('\(', 'L', subtree)
-            subtree = re.sub('\)', '#', subtree)
-            potential_parent_subtree = re.sub('\(', 'L', potential_parent_subtree)
-            potential_parent_subtree = re.sub('\)', '#', potential_parent_subtree)
-            potential_parent = str(potential_parent)
-            if re.search(r'\AL'+re.escape(subtree)+r',.+#'+re.escape(potential_parent)+r'\Z', potential_parent_subtree) or \
-               re.search(r'\AL.+,'+re.escape(subtree)+r'#'+re.escape(potential_parent)+r'\Z', potential_parent_subtree):
-                parent = potential_parent
-                break
-        if parent is None:
-            sys.stderr.write("ERROR: No parent assigned for " + node + " for " + source + "\n")
-            sys.stderr.write("This is due to either an incompatibility with your RAxML version or ")
-            sys.stderr.write("a formatting error in the reference tree.\n")
-            sys.stderr.write("Please post an issue on the github page!\n")
-            sys.stderr.flush()
-            return None
-            # TODO: handle this better when dealing with multiple processes
-        else:
-            tree_info['parent_of_node'][node] = parent
-            tree_info['children_of_node'][parent][node] = 1
-
-    # sys.stdout.write("End:  \t" + time.ctime() + "\n")
+    # Replaced with _tree_parser._build_subtrees_newick and subtrees_to_dictionary
     return tree_info
 
 
@@ -3283,6 +3185,12 @@ def build_tree_info_quartets(tree_info):
 
 
 def build_newly_rooted_trees(tree_info):
+    """
+    Builds a new tree that is re-rooted on every node in the tree
+    :param tree_info:
+    :return:
+    """
+
     tree_number = 0
     list_of_already_used_attachments = Autovivify()
     rooted_trees = Autovivify()
@@ -3301,7 +3209,6 @@ def build_newly_rooted_trees(tree_info):
             new_tree = recursive_tree_builder(tree_info, node_infos, tree_string)
             rooted_trees[tree_number] = new_tree
             tree_number += 1
-    
     return rooted_trees
 
 
@@ -3338,13 +3245,21 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
     return tree_string
 
 
+def subtrees_to_dictionary(subtrees_string, tree_info):
+    subtree_list = subtrees_string.split(';')
+    for subtree in subtree_list:
+        node = subtree.split(')')[-1]
+        tree_info['subtree_of_node'][node] = subtree
+    return tree_info
+
+
 def parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log):
     """
     Run `get_node_subtrees` in parallel for each of the elements in rooted_trees
     :param rooted_trees: Dictionary of rooted trees
     :param num_threads: Number of threads to use
     :param parse_log: The file object to write parsing information to
-    :return: rooted_tree_nodes - a list of results from get_node_subtrees()
+    :return: rooted_tree_nodes - a list of results from get_node_subtrees(), one for each rooted_tree
     """
     job_queue = JoinableQueue()
     result_queue = Queue()
@@ -3354,7 +3269,11 @@ def parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log):
     for worker in worker_group:
         worker.start()
 
-    tasks = [split_tree_string(rooted_trees[rooted_tree]) for rooted_tree in rooted_trees.keys()]
+    # tasks = [split_tree_string(rooted_trees[rooted_tree]) for rooted_tree in rooted_trees.keys()]
+    # tasks = [rooted_trees[rooted_tree] for rooted_tree in rooted_trees.keys()]
+    # for task in tasks:
+    #     print "Input: " + task
+    tasks = rooted_trees.values()
     parse_log.write("Number of subtrees = " + str(len(tasks)) + "\n")
     parse_log.flush()
     for rooted_tree_elements in tasks:
@@ -3371,26 +3290,34 @@ def parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log):
     job_queue.close()
     result_queue.close()
     result_queue.join_thread()
-
     return rooted_tree_nodes
 
 
 def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point_node_hash,
                                                    assignments, num_threads, parse_log):
+    """
+    Performed for each gene (f_contig) identified
+    :param rooted_trees: All possible rooted trees for a given tree (with sequence inserted)
+    :param insertion_point_node_hash:
+    :param assignments: The node that is inserted into the RAxML tree - found in *RAxML_classification.txt for f_contig
+    :param num_threads: Number of theads to use for parsing the subtrees of each node in parallel
+    :param parse_log: Name of the RAxML_output parse log file to write to
+    :return:
+    """
     terminal_children_strings_of_assignments = Autovivify()
 
     for assignment in sorted(assignments.keys()):
         internal_node_of_assignment = insertion_point_node_hash[assignment]
-
+        # parse_log.write("Starting to retrieve all subtrees at " + time.ctime())
         rooted_tree_nodes = parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log)
-
+        # parse_log.write("Finished retrieving subtrees at " + time.ctime() + "\n")
         for rooted_tree_info in rooted_tree_nodes:
             assignment_subtree = str(rooted_tree_info['subtree_of_node'][str(internal_node_of_assignment)])
             terminal_children = Autovivify()
+
             if re.search(r'\A(\d+)\Z', assignment_subtree):
                 terminal_children[re.search(r'\A(\d+)\Z', assignment_subtree).group(1)] = 1
             else:
-
                 for each_hit in re.findall(r'(\D)(\d+)', assignment_subtree):
                     if each_hit[0] == '-':
                         continue
@@ -3432,10 +3359,11 @@ def build_terminal_children_strings_of_reference_nodes(reference_tree_info):
     return terminal_children_strings_of_reference
 
 
-def compare_terminal_children_strings(terminal_children_of_assignments, terminal_children_of_reference):
+def compare_terminal_children_strings(terminal_children_of_assignments, terminal_children_of_reference, parse_log):
     real_terminal_children_of_assignments = Autovivify()
     there_was_a_hit = 0
-
+    parse_log.write("compare_terminal_children_strings\tstart: ")
+    parse_log.write(time.ctime())
     for assignment in sorted(terminal_children_of_assignments.keys()):
         real_terminal_children_string = ''
 
@@ -3451,6 +3379,9 @@ def compare_terminal_children_strings(terminal_children_of_assignments, terminal
 
     if there_was_a_hit <= 0:
         sys.exit('ERROR: The RAxML output tree could not be rooted correctly!!!\n')
+
+    parse_log.write("\tstop: " + time.ctime() + "\n")
+    parse_log.flush()
     return real_terminal_children_of_assignments
 
 
@@ -3702,7 +3633,6 @@ def delete_files(args):
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.fa')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*sequence.txt')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*sequence_shortened.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.fasta_formatted.txt')
         if section == '2':
             files_to_be_deleted += glob.glob(args.output_dir_var + '*BLAST_results*')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*blast_result_purified.txt')
@@ -3723,9 +3653,9 @@ def delete_files(args):
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy.reduced')
 
-    for file in files_to_be_deleted:
-        if path.exists(file):
-            os.remove(file)
+    for useless_file in files_to_be_deleted:
+        if path.exists(useless_file):
+            os.remove(useless_file)
 
 
 def single_family_msa(args, cog_list, formatted_fasta_dict):
@@ -3747,7 +3677,7 @@ def single_family_msa(args, cog_list, formatted_fasta_dict):
 
     start = 0
 
-    # Imitate the Genewise / blastpSummaryFiles output
+    # Imitate the Genewise / blastp_summary_files output
     for contig in formatted_fasta_dict.keys():
         header = contig[1:]
         sequence = formatted_fasta_dict[contig]
@@ -4261,7 +4191,7 @@ def main(argv):
                 genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
                 get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
             elif args.molecule == 'a':
-                genewise_summary_files = blastpParser(args, blast_hits_purified)
+                genewise_summary_files = blastp_parser(args, blast_hits_purified)
 
             # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
             hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
