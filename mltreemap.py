@@ -521,13 +521,9 @@ def get_options():
                                     help="Quality-check the reference trees before running MLTreeMap")
     miscellaneous_opts.add_argument('-T', '--num_threads', default=2, type=int,
                                     help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 2]')
-    miscellaneous_opts.add_argument('-d', '--delete', default=None,
-                                    help='the sections of files to be deleted, as separated by colons '
-                                         '(1 = Sequence Files; '
-                                         ' 2 = BLAST Results; '
-                                         ' 3 = Genewise Results; '
-                                         ' 4 = hmmalign and Gblocks Results; '
-                                         ' 5 = Unparsed RAxML Results)')
+    miscellaneous_opts.add_argument('-d', '--delete', default=False, action="store_true",
+                                    help='Delete intermediate file to save disk space\n'
+                                         'Recommended for large metagenomes!')
 
     return parser
 
@@ -649,7 +645,7 @@ def check_parser_arguments(parser):
         sys.stderr.flush()
         args.num_threads = available_cpu_count()
 
-    # TODO: make this soultion a bit better
+    # TODO: make this solution a bit better
     if os.getenv("WISECONFIGDIR") is None:
         sys.stderr.write("ERROR: WISECONFIGDIR not set!\n")
         sys.exit("export WISECONFIGDIR=" + genewise_support + os.sep + "wisecfg")
@@ -3620,36 +3616,31 @@ def available_cpu_count():
     raise Exception('Can not determine number of CPUs on this system')
 
 
-def delete_files(args):
-    sys.stdout.write('Deleting files as requested\n')
-    sections_to_be_deleted = []
-    if args.delete:
-        sections_to_be_deleted = args.delete.split(':')
-
+def delete_files(args, section):
     files_to_be_deleted = []
-
-    for section in sections_to_be_deleted:
-        if section == '1':
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.fa')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*sequence.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*sequence_shortened.txt')
-        if section == '2':
+    if args.delete:
+        if section == 1:
             files_to_be_deleted += glob.glob(args.output_dir_var + '*BLAST_results*')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*blast_result_purified.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*rRNA_result_summary.txt')
-        if section == '3':
+        if section == 2:
+            files_to_be_deleted += glob.glob(args.output_dir_var + '*_sequence.txt')
+            files_to_be_deleted += glob.glob(args.output_dir_var + '*sequence_shortened.txt')
+        if section == 3:
             files_to_be_deleted += glob.glob(args.output_dir_var + '*genewise.txt')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*genewise_result_summary.txt')
-        if section == '4':
+            files_to_be_deleted += glob.glob(args.output_dir_var + '*rRNA_result_summary.txt')
+        if section == 4:
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.mfa')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.mfa-gb')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.mfa-gb.txt')
-        if section == '5':
+        if section == 5:
             files_to_be_deleted += glob.glob(args.output_dir_var + '*_exit_after_Gblocks.txt')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*_RAxML.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_classification.txt')
+            files_to_be_deleted += glob.glob(args.output_dir_var + 'RAxML_entropy.*')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_info.txt')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_labelledTree.txt')
+            files_to_be_deleted += glob.glob(args.output_dir_var + '*.jplace')
+            files_to_be_deleted += glob.glob(args.output_dir_var + 'RAxML_classificationLikelihoodWeights*')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy.reduced')
 
@@ -4178,7 +4169,7 @@ def main(argv):
             run_blast(args, formatted_fasta_files, cog_list)
             raw_blast_results = collect_blast_outputs(args)
             blast_hits_purified = parse_blast_results(args, raw_blast_results, cog_list)
-
+            delete_files(args, 1)
             # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
             genewise_summary_files = Autovivify()
             contig_coordinates, shortened_sequence_files, gene_coordinates = make_genewise_inputs(args,
@@ -4192,7 +4183,7 @@ def main(argv):
                 get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
             elif args.molecule == 'a':
                 genewise_summary_files = blastp_parser(args, blast_hits_purified)
-
+            delete_files(args, 2)
             # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
             hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
         concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args,
@@ -4200,7 +4191,7 @@ def main(argv):
                                                                                                             non_wag_cog_list)
         gblocks_files = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
         phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
-
+        delete_files(args, 3)
         # STAGE 5: Run RAxML to compute the ML/MP estimations
         raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_RAxML(args, phy_files,
                                                                                          cog_list, models_to_be_used)
@@ -4213,15 +4204,13 @@ def main(argv):
         sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
         rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
         normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type)
-
+    delete_files(args, 4)
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
         update_func_tree_workflow(args, cog_list)
 
-    # STAGE 7: Delete files as determined by the user
-    delete_files(args)
-
+    delete_files(args, 5)
     sys.stdout.write("MLTreeMap has finished successfully.\n")
     sys.stdout.flush()
 
