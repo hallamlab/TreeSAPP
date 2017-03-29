@@ -4029,24 +4029,26 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
         denominator = cog_list['all_cogs'][marker]
 
         final_output_file = args.output_dir_final + str(denominator) + "_concatenated_RAxML_outputs.txt"
-        shutil.move(final_output_file, args.output_dir_final + denominator + "_concatenated_counts.txt")
-        try:
-            cat_output = open(final_output_file, 'w')
-        except:
-            raise IOError("Unable to open " + final_output_file + " for writing!")
+        # Not all of the genes predicted will have made it to the RAxML stage
+        if os.path.isfile(final_output_file):
+            shutil.move(final_output_file, args.output_dir_final + denominator + "_concatenated_counts.txt")
+            try:
+                cat_output = open(final_output_file, 'w')
+            except:
+                raise IOError("Unable to open " + final_output_file + " for writing!")
 
-        description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n\n'
-        cat_output.write(description_text)
+            description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n\n'
+            cat_output.write(description_text)
 
-        for placement in sorted(marker_rpkm_map[marker].keys(), reverse=True):
-            relative_weight = marker_rpkm_map[marker][placement]
-            if relative_weight > 0:
-                cat_output.write('Placement weight ')
-                cat_output.write('%.2f' % relative_weight + "%: ")
-                cat_output.write(placement + "\n")
+            for placement in sorted(marker_rpkm_map[marker].keys(), reverse=True):
+                relative_weight = marker_rpkm_map[marker][placement]
+                if relative_weight > 0:
+                    cat_output.write('Placement weight ')
+                    cat_output.write('%.2f' % relative_weight + "%: ")
+                    cat_output.write(placement + "\n")
 
-        cat_output.close()
-
+            cat_output.close()
+            
     return
 
 
