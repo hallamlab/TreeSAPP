@@ -28,8 +28,6 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--fasta_file",
                         help="FASTA file that will be used to create reference data for TreeSAPP", required=True)
-    # parser.add_argument("-t", "--table",
-    #                     help="Tab-separated columns listing sequences to be used in reference data")
     parser.add_argument("-c", "--code_name",
                         help="Unique name to be used by TreeSAPP internally.\n"
                              "Refer to the first column of 'cog_list.txt' under the '#functional cogs' section)",
@@ -185,7 +183,7 @@ def create_new_fasta(code_name, fasta_dict, out_fasta, dictionary, dashes=True):
             header_match = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$", header)
             accession = header_match.group(3)
         elif header_type == "fungene":
-            header_match = re.match("^>(\d+)  coded_by=(.+),organism=(.+),definition=(.+)$", header)
+            header_match = re.match("^>(\d+)\s+coded_by=(.+),organism=(.+),definition=(.+)$", header)
             accession = header_match.group(1)
             coded_by = header_match.group(2)
             for mltree_id in dictionary:
@@ -244,7 +242,7 @@ def get_header_format(header, code_name):
     :return:
     """
     ncbi_re = re.compile(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$")
-    fungene_re = re.compile("^>(\d+)  coded_by=(.+),organism=(.+),definition=(.+)$")
+    fungene_re = re.compile("^>(\d+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
     if ncbi_re.match(header):
         return "ncbi"
@@ -290,7 +288,7 @@ def get_sequence_info(code_name, fasta_dict):
             short_id = mltree_id + '_' + code_name
             ref_seq.short_id = short_id
         else:
-            print header
+            print "Unable to handle header:", header
             sys.exit()
 
         fasta_mltree_repl_dict[mltree_id] = ref_seq
@@ -309,6 +307,22 @@ def write_tax_ids(code_name, fasta_mltree_repl_dict):
     return tree_taxa_list
 
 
+def swap_tree_names(tree_to_swap, final_mltree, code_name):
+    original_tree = open(tree_to_swap, 'r')
+    raxml_tree = open(final_mltree, 'w')
+
+    tree = original_tree.readlines()
+    original_tree.close()
+    if len(tree) > 1:
+        sys.stderr.write("ERROR: >1 line contained in RAxML tree " + tree_to_swap)
+
+    new_tree = re.sub('_' + re.escape(code_name), '', str(tree[0]))
+    raxml_tree.write(new_tree)
+
+    raxml_tree.close()
+    return
+
+
 def main():
     args = get_arguments()
     args = find_executables(args)
@@ -320,29 +334,14 @@ def main():
     fasta_mltree_repl_dict = get_sequence_info(code_name, fasta_dict)
 
     tree_taxa_list = write_tax_ids(code_name, fasta_mltree_repl_dict)
-
-    fasta_replace_names = code_name + "_fasta_replace.names"
-    fasta_mltree_names = code_name + "_fasta_mltree.names"
-    tree_replace_names = code_name + "_tree_replace.names"
     
     print "******************** %s generated ********************\n" % tree_taxa_list
-    
-    # tree_names_list = "%s_tree_replace.names" % code_name
-    #
-    # tree_names_list_handle = open(tree_names_list, "w")
-    #
-    # for short_id_key in sorted(mltree_dict.keys()):
-    #     tree_names_list_handle.write("%s:\t%s:\n" % (short_id_key, mltree_dict[short_id_key]))
-    #
-    # tree_names_list_handle.close()
-    
+
     fasta_replaced = code_name + ".fc.repl.fasta"
     
     create_new_fasta(code_name, fasta_dict, fasta_replaced, fasta_mltree_repl_dict)
-    
-    # print "******************** %s generated ********************\n" % tree_names_list
 
-    print "******************** FASTA file, %s generated ********************\n" % fasta_replaced
+    print "************************** FASTA file, %s generated *************************\n" % fasta_replaced
     
     print "******************** Aligning the sequences using MUSCLE ********************\n"
     
@@ -356,7 +355,6 @@ def main():
     
     fasta_mltree = code_name + ".fa"
 
-    # TODO: Fix the collision when generating this second fasta file
     remove_dashes_from_msa(fasta_replaced_align, fasta_mltree)
     
     print "******************** FASTA file, %s generated ********************\n" % fasta_mltree
@@ -380,9 +378,11 @@ def main():
     os.system('mv %s.phylip %s' % (fasta_replaced_align, phylip_file))
     
     raxml_out = "%s_phy_files" % code_name
-    os.system("mkdir %s" % raxml_out)
+
+    if not os.path.exists(raxml_out):
+        os.system("mkdir %s" % raxml_out)
     
-    raxml_command = "%s -f a -p 12345 -x 12345 -# 2 -m PROTGAMMAWAG -s %s -n %s -w %s -T %s" %\
+    raxml_command = "%s -f a -p 12345 -x 12345 -# 100 -m PROTGAMMAWAG -s %s -n %s -w %s -T %s" %\
                     (args.executables["raxmlHPC"], phylip_file, code_name, args.mltreemap + raxml_out, args.num_threads)
     os.system(raxml_command)
 
@@ -390,14 +390,12 @@ def main():
     final_mltree = "%s_tree.txt" % code_name
 
     # TODO: Update the data/tree_data/cog_list.txt file with the new marker gene
-    # TODO: Replace swapTreeNames.pl
-    # swapTree_command = "swapTreeNames.pl -t %s -l %s -o %s" % (tree_to_swap, tree_names_list, final_mltree)
-    # os.system(swapTree_command)
-    #
-    # final_output_folder = "MLTreeMap_files_%s" % (code_name)
-    # os.system("mkdir %s" % (final_output_folder))
-    #
-    # os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
-    # os.system("mv %s.hmm %s %s %s" % (code_name, tree_taxa_list, final_mltree, final_output_folder))
+    swap_tree_names(tree_to_swap, final_mltree, code_name)
+
+    final_output_folder = "MLTreeMap_files_%s" % code_name
+    os.system("mkdir %s" % final_output_folder)
+
+    os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
+    os.system("mv %s.hmm %s %s %s" % (code_name, tree_taxa_list, final_mltree, final_output_folder))
 
 main()
