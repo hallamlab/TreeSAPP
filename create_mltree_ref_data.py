@@ -35,7 +35,8 @@ def get_arguments():
     parser.add_argument("-m", "--min_length",
                         help="The minimum length of a protein to be used in building reference data. [ DEFAULT = 0 ]",
                         required=False,
-                        default=0)
+                        default=0,
+                        type=int)
     parser.add_argument("-T", "--num_threads",
                         help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
                         required=False,
@@ -83,6 +84,7 @@ def format_read_fasta(fasta_file, args):
     """
     Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
     Ensures each sequence and sequence name is valid.
+    :param fasta_file: 
     :param args: Command-line argument object from get_arguments
     :return A list of the files produced from the input file.
     """
@@ -181,7 +183,11 @@ def create_new_fasta(code_name, fasta_dict, out_fasta, dictionary, dashes=True):
 
         if header_type == "ncbi":
             header_match = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$", header)
-            accession = header_match.group(3)
+            accession = header_match.group(1)
+            for mltree_id in dictionary:
+                if dictionary[mltree_id].accession == accession:
+                    short_id = dictionary[mltree_id].short_id
+                    break
         elif header_type == "fungene":
             header_match = re.match("^>(\d+)\s+coded_by=(.+),organism=(.+),definition=(.+)$", header)
             accession = header_match.group(1)
@@ -283,7 +289,32 @@ def get_sequence_info(code_name, fasta_dict):
                 # definition = fungene_info.group(3)
                 ref_seq.description = fungene_info.group(2)
             else:
-                print "Fail."
+                sys.stderr.write("ERROR: Failed to parse suspected header from FunGenes repository!.\n")
+                sys.stderr.write("Problem header: " + header + "\n")
+                sys.stderr.flush()
+                sys.exit()
+            short_id = mltree_id + '_' + code_name
+            ref_seq.short_id = short_id
+        elif header_format == "ncbi":
+            if re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\| (.*) \[(.*)\]$", header):
+                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\| (.*) \[(.*)\]$", header)
+                ref_seq.accession = ncbi_info.group(1)
+                ref_seq.description = ncbi_info.group(6)
+                # organism = ncbi_info.group(6)
+            elif re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: (.*;) .*", header):
+                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: (.*;) .*$", header)
+                ref_seq.accession = ncbi_info.group(1)
+                # definition = ncbi_info.group(5)
+                ref_seq.description = "Unclassified"
+            elif re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: Full=(.*)", header):
+                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: Full=(.*)$", header)
+                ref_seq.accession = ncbi_info.group(1)
+                # definition = ncbi_info.group(5)
+                ref_seq.description = "Unclassified"
+            else:
+                sys.stderr.write("ERROR: Failed to parse suspected header from Genbank!.\n")
+                sys.stderr.write("Problem header: " + header + "\n")
+                sys.stderr.flush()
                 sys.exit()
             short_id = mltree_id + '_' + code_name
             ref_seq.short_id = short_id
@@ -334,54 +365,54 @@ def main():
     fasta_mltree_repl_dict = get_sequence_info(code_name, fasta_dict)
 
     tree_taxa_list = write_tax_ids(code_name, fasta_mltree_repl_dict)
-    
+
     print "******************** %s generated ********************\n" % tree_taxa_list
 
     fasta_replaced = code_name + ".fc.repl.fasta"
-    
+
     create_new_fasta(code_name, fasta_dict, fasta_replaced, fasta_mltree_repl_dict)
 
     print "************************** FASTA file, %s generated *************************\n" % fasta_replaced
-    
+
     print "******************** Aligning the sequences using MUSCLE ********************\n"
-    
+
     fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
 
     muscle_align_command = "%s -in %s -out %s" %\
                            (args.executables["muscle"], fasta_replaced, fasta_replaced_align)
-    
+
     print muscle_align_command, "\n"
     os.system(muscle_align_command)
-    
+
     fasta_mltree = code_name + ".fa"
 
     remove_dashes_from_msa(fasta_replaced_align, fasta_mltree)
-    
+
     print "******************** FASTA file, %s generated ********************\n" % fasta_mltree
-    
+
     makeblastdb_command = "%s -in %s -dbtype prot -input_type fasta -out %s" %\
                           (args.executables["makeblastdb"], fasta_mltree, fasta_mltree)
     os.system(makeblastdb_command)
-    
+
     print "******************** BLAST DB for %s generated ********************\n" % code_name
-    
+
     hmm_build_command = "%s -s %s.hmm %s" %\
                         (args.executables["hmmbuild"], code_name, fasta_replaced_align)
     os.system(hmm_build_command)
-    
+
     print "******************** HMM file for %s generated ********************\n" % code_name
-    
+
     phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_replaced_align)
     os.system(phylip_command)
-    
+
     phylip_file = code_name + ".phy"
     os.system('mv %s.phylip %s' % (fasta_replaced_align, phylip_file))
-    
+
     raxml_out = "%s_phy_files" % code_name
 
     if not os.path.exists(raxml_out):
         os.system("mkdir %s" % raxml_out)
-    
+
     raxml_command = "%s -f a -p 12345 -x 12345 -# 100 -m PROTGAMMAWAG -s %s -n %s -w %s -T %s" %\
                     (args.executables["raxmlHPC"], phylip_file, code_name, args.mltreemap + raxml_out, args.num_threads)
     os.system(raxml_command)
