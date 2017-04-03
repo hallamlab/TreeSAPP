@@ -29,7 +29,7 @@ def get_arguments():
     parser.add_argument("-f", "--fasta_file",
                         help="FASTA file that will be used to create reference data for TreeSAPP", required=True)
     parser.add_argument("-c", "--code_name",
-                        help="Unique name to be used by TreeSAPP internally.\n"
+                        help="Unique name to be used by TreeSAPP internally. NOTE: Must be >=5 characters.\n"
                              "Refer to the first column of 'cog_list.txt' under the '#functional cogs' section)",
                         required=True)
     parser.add_argument("-m", "--min_length",
@@ -44,6 +44,11 @@ def get_arguments():
 
     args = parser.parse_args()
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+
+    if len(args.code_name) < 5:
+        sys.stderr.write("ERROR: code_name must be >= 5 characters!")
+        sys.stderr.flush()
+        sys.exit(-1)
 
     return args
 
@@ -426,6 +431,7 @@ def main():
     final_output_folder = "MLTreeMap_files_%s" % code_name
     os.system("mkdir %s" % final_output_folder)
 
+    os.system("mv %s %s" % (fasta_replaced_align, fasta_mltree))
     os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
     os.system("mv %s.hmm %s %s %s" % (code_name, tree_taxa_list, final_mltree, final_output_folder))
 
