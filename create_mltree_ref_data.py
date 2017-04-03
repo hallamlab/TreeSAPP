@@ -46,7 +46,7 @@ def get_arguments():
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
 
     if len(args.code_name) < 5:
-        sys.stderr.write("ERROR: code_name must be >= 5 characters!")
+        sys.stderr.write("ERROR: code_name must be >= 5 characters!\n")
         sys.stderr.flush()
         sys.exit(-1)
 
@@ -401,17 +401,19 @@ def main():
 
     print "******************** BLAST DB for %s generated ********************\n" % code_name
 
+    os.system("mv %s %s" % (fasta_replaced_align, fasta_mltree))
+
     hmm_build_command = "%s -s %s.hmm %s" %\
-                        (args.executables["hmmbuild"], code_name, fasta_replaced_align)
+                        (args.executables["hmmbuild"], code_name, fasta_mltree)
     os.system(hmm_build_command)
 
     print "******************** HMM file for %s generated ********************\n" % code_name
 
-    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_replaced_align)
+    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
     os.system(phylip_command)
 
     phylip_file = code_name + ".phy"
-    os.system('mv %s.phylip %s' % (fasta_replaced_align, phylip_file))
+    os.system('mv %s.phylip %s' % (fasta_mltree, phylip_file))
 
     raxml_out = "%s_phy_files" % code_name
 
@@ -431,7 +433,6 @@ def main():
     final_output_folder = "MLTreeMap_files_%s" % code_name
     os.system("mkdir %s" % final_output_folder)
 
-    os.system("mv %s %s" % (fasta_replaced_align, fasta_mltree))
     os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
     os.system("mv %s.hmm %s %s %s" % (code_name, tree_taxa_list, final_mltree, final_output_folder))
 
