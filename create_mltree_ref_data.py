@@ -29,7 +29,7 @@ def get_arguments():
     parser.add_argument("-f", "--fasta_file",
                         help="FASTA file that will be used to create reference data for TreeSAPP", required=True)
     parser.add_argument("-c", "--code_name",
-                        help="Unique name to be used by TreeSAPP internally.\n"
+                        help="Unique name to be used by TreeSAPP internally. NOTE: Must be >=5 characters.\n"
                              "Refer to the first column of 'cog_list.txt' under the '#functional cogs' section)",
                         required=True)
     parser.add_argument("-m", "--min_length",
@@ -44,6 +44,11 @@ def get_arguments():
 
     args = parser.parse_args()
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+
+    if len(args.code_name) < 5:
+        sys.stderr.write("ERROR: code_name must be >= 5 characters!\n")
+        sys.stderr.flush()
+        sys.exit(-1)
 
     return args
 
@@ -396,17 +401,19 @@ def main():
 
     print "******************** BLAST DB for %s generated ********************\n" % code_name
 
+    os.system("mv %s %s" % (fasta_replaced_align, fasta_mltree))
+
     hmm_build_command = "%s -s %s.hmm %s" %\
-                        (args.executables["hmmbuild"], code_name, fasta_replaced_align)
+                        (args.executables["hmmbuild"], code_name, fasta_mltree)
     os.system(hmm_build_command)
 
     print "******************** HMM file for %s generated ********************\n" % code_name
 
-    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_replaced_align)
+    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
     os.system(phylip_command)
 
     phylip_file = code_name + ".phy"
-    os.system('mv %s.phylip %s' % (fasta_replaced_align, phylip_file))
+    os.system('mv %s.phylip %s' % (fasta_mltree, phylip_file))
 
     raxml_out = "%s_phy_files" % code_name
 
