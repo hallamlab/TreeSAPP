@@ -1,0 +1,125 @@
+1	uncultured crenarchaeote
+2	uncultured archaeon
+3	uncultured thaumarchaeote
+4	uncultured crenarchaeote
+5	uncultured crenarchaeote
+6	uncultured archaeon
+7	uncultured thaumarchaeote
+8	uncultured thaumarchaeote
+9	uncultured crenarchaeote
+10	uncultured thaumarchaeote
+11	uncultured crenarchaeote
+12	uncultured thaumarchaeote
+13	uncultured archaeon
+14	uncultured archaeon
+15	uncultured crenarchaeote
+16	uncultured ammonia-oxidizing archaeon
+17	uncultured crenarchaeote
+18	uncultured crenarchaeote
+19	uncultured archaeon
+20	uncultured crenarchaeote
+21	uncultured crenarchaeote
+22	uncultured archaeon
+23	uncultured ammonia-oxidizing archaeon
+24	uncultured crenarchaeote
+25	uncultured archaeon
+26	uncultured crenarchaeote
+27	uncultured thaumarchaeote
+28	uncultured thaumarchaeote
+29	uncultured archaeon
+30	uncultured crenarchaeote
+31	uncultured archaeon
+32	uncultured crenarchaeote
+33	uncultured crenarchaeote
+34	uncultured thaumarchaeote
+35	uncultured crenarchaeote
+36	uncultured ammonia-oxidizing archaeon
+37	uncultured crenarchaeote
+38	uncultured archaeon
+39	uncultured crenarchaeote
+40	uncultured ammonia-oxidizing archaeon
+41	uncultured crenarchaeote
+42	uncultured thaumarchaeote
+43	uncultured archaeon
+44	uncultured crenarchaeote
+45	uncultured archaeon
+46	uncultured thaumarchaeote
+47	uncultured archaeon
+48	uncultured archaeon
+49	uncultured crenarchaeote
+50	uncultured crenarchaeote
+51	uncultured thaumarchaeote
+52	uncultured crenarchaeote
+53	uncultured crenarchaeote
+54	uncultured archaeon
+55	uncultured thaumarchaeote
+56	uncultured archaeon
+57	uncultured archaeon
+58	uncultured ammonia-oxidizing archaeon
+59	uncultured archaeon
+60	uncultured crenarchaeote
+61	uncultured crenarchaeote
+62	uncultured crenarchaeote
+63	uncultured crenarchaeote
+64	uncultured archaeon
+65	uncultured crenarchaeote
+66	uncultured archaeon
+67	uncultured thaumarchaeote
+68	uncultured crenarchaeote
+69	uncultured crenarchaeote
+70	uncultured crenarchaeote
+71	uncultured archaeon
+72	uncultured ammonia-oxidizing archaeon
+73	uncultured archaeon
+74	uncultured archaeon
+75	uncultured archaeon
+76	uncultured crenarchaeote
+77	uncultured thaumarchaeote
+78	uncultured archaeon
+79	uncultured archaeon
+80	uncultured ammonia-oxidizing archaeon
+81	uncultured thaumarchaeote
+82	uncultured thaumarchaeote
+83	uncultured crenarchaeote
+84	uncultured crenarchaeote
+85	uncultured archaeon
+86	uncultured archaeon
+87	uncultured crenarchaeote
+88	uncultured crenarchaeote
+89	uncultured archaeon
+90	uncultured ammonia-oxidizing archaeon
+91	uncultured thaumarchaeote
+92	uncultured crenarchaeote
+93	uncultured thaumarchaeote
+94	uncultured crenarchaeote
+95	uncultured crenarchaeote
+96	uncultured ammonia-oxidizing archaeon
+97	uncultured thaumarchaeote
+98	uncultured crenarchaeote
+99	uncultured crenarchaeote
+100	uncultured crenarchaeote
+101	uncultured ammonia-oxidizing archaeon
+102	uncultured thaumarchaeote
+103	uncultured crenarchaeote
+104	uncultured crenarchaeote
+105	uncultured archaeon
+106	uncultured archaeon
+107	uncultured archaeon
+108	uncultured archaeon
+109	uncultured crenarchaeote
+110	uncultured crenarchaeote
+111	uncultured archaeon
+112	uncultured marine thaumarchaeote KM3_76_A03
+113	uncultured thaumarchaeote
+114	uncultured archaeon
+115	uncultured thaumarchaeote
+116	uncultured thaumarchaeote
+117	uncultured ammonia-oxidizing archaeon
+118	uncultured archaeon
+119	uncultured crenarchaeote
+120	uncultured crenarchaeote
+121	uncultured crenarchaeote
+122	uncultured crenarchaeote
+123	uncultured crenarchaeote
+124	uncultured thaumarchaeote
+125	uncultured archaeon

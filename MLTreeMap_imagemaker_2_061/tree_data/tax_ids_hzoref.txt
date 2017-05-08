@@ -1,0 +1,62 @@
+1	uncultured planctomycete
+2	uncultured anaerobic ammonium-oxidizing bacterium
+3	uncultured bacterium
+4	uncultured anaerobic ammonium-oxidizing bacterium
+5	uncultured anaerobic ammonium-oxidizing bacterium
+6	uncultured anaerobic ammonium-oxidizing bacterium
+7	uncultured bacterium
+8	uncultured planctomycete
+9	uncultured anaerobic ammonium-oxidizing bacterium
+10	uncultured Candidatus Scalindua sp.
+11	uncultured planctomycete
+12	uncultured anaerobic ammonium-oxidizing bacterium
+13	uncultured anaerobic ammonium-oxidizing bacterium
+14	uncultured planctomycete
+15	uncultured ammonia-oxidizing bacterium
+16	uncultured planctomycete
+17	uncultured anaerobic ammonium-oxidizing bacterium
+18	Heliocheilus albivenata
+19	uncultured anaerobic ammonium-oxidizing bacterium
+20	uncultured anaerobic ammonium-oxidizing bacterium
+21	uncultured planctomycete
+22	uncultured planctomycete
+23	uncultured anaerobic ammonium-oxidizing bacterium
+24	uncultured anaerobic ammonium-oxidizing bacterium
+25	uncultured anaerobic ammonium-oxidizing bacterium
+26	uncultured anaerobic ammonium-oxidizing bacterium
+27	uncultured anaerobic ammonium-oxidizing bacterium
+28	uncultured anaerobic ammonium-oxidizing bacterium
+29	uncultured anaerobic ammonium-oxidizing bacterium
+30	uncultured anaerobic ammonium-oxidizing bacterium
+31	uncultured bacterium
+32	uncultured anaerobic ammonium-oxidizing bacterium
+33	uncultured planctomycete
+34	uncultured anaerobic ammonium-oxidizing bacterium
+35	uncultured planctomycete
+36	uncultured anaerobic ammonium-oxidizing bacterium
+37	uncultured anaerobic ammonium-oxidizing bacterium
+38	uncultured anaerobic ammonium-oxidizing bacterium
+39	uncultured anaerobic ammonium-oxidizing bacterium
+40	uncultured anaerobic ammonium-oxidizing bacterium
+41	uncultured anaerobic ammonium-oxidizing bacterium
+42	uncultured bacterium
+43	uncultured planctomycete
+44	uncultured anaerobic ammonium-oxidizing bacterium
+45	uncultured planctomycete
+46	uncultured anaerobic ammonium-oxidizing bacterium
+47	uncultured anaerobic ammonium-oxidizing bacterium
+48	uncultured planctomycete
+49	uncultured anaerobic ammonium-oxidizing bacterium
+50	uncultured anaerobic ammonium-oxidizing bacterium
+51	uncultured planctomycete
+52	uncultured anaerobic ammonium-oxidizing bacterium
+53	uncultured anaerobic ammonium-oxidizing bacterium
+54	uncultured anaerobic ammonium-oxidizing bacterium
+55	uncultured bacterium
+56	uncultured planctomycete
+57	uncultured anaerobic ammonium-oxidizing bacterium
+58	uncultured anaerobic ammonium-oxidizing bacterium
+59	uncultured planctomycete
+60	uncultured anaerobic ammonium-oxidizing bacterium
+61	uncultured anaerobic ammonium-oxidizing bacterium
+62	uncultured anaerobic ammonium-oxidizing bacterium

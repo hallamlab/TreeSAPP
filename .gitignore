@@ -35,6 +35,8 @@ nosetests.xml
 .project
 .pydevproject
 .idea/workspace.xml
+.idea*
+dev_utils/
 
 # Binaries
 sub_binaries/*RAxML*
@@ -44,3 +46,5 @@ sub_binaries/rpkm
 mcrA_resources/
 output*
 manuscript/
+.Rproj.user
+applications_note/

@@ -1,0 +1,206 @@
+1	Desulfitobacterium chlororespirans DSM 11544
+2	Halomonas halodenitrificans
+3	Bradyrhizobium japonicum
+4	Silicibacter lacuscaerulensis ITI-1157
+5	Propionispora vibrioides
+6	Bdellovibrio bacteriovorus HD100
+7	Afipia felis
+8	Nitrosomonas europaea
+9	Pseudoalteromonas denitrificans DSM 6059
+10	Alkalilimnicola ehrlichii MLHE-1
+11	Flavobacterium glycines
+12	uncultured Epsilonproteobacteria bacterium
+13	Jannaschia aquimarina
+14	Peptococcaceae bacterium CEB3
+15	Sulfuricurvum kujiense DSM 16994
+16	Thiothrix caldifontis
+17	Pseudomonas citronellolis
+18	Phaeobacter sp. CECT 7735
+19	Phaeobacter sp. CECT 5382
+20	Dechloromonas aromatica RCB
+21	Desulfosporosinus acididurans
+22	Shewanella morhuae
+23	Sulfurimonas autotrophica DSM 16294
+24	Paracoccus sanguinis
+25	Salipiger nanhaiensis
+26	Rubrivivax gelatinosus IL144
+27	Agrobacterium genomosp. 7 str. RV3
+28	Methylacidiphilum infernorum V4
+29	Moritella viscosa
+30	Sedimentitalea nanhaiensis
+31	Paracoccus halophilus
+32	Roseobacter denitrificans
+33	Neptunomonas antarctica
+34	Bradyrhizobium sp. BTAi1
+35	Flavobacterium granuli
+36	Thiotrichales bacterium HS_08
+37	Pseudomonas pohangensis
+38	Halomonas ilicicola DSM 19980
+39	Sporomusa sphaeroides DSM 2875
+40	Ardenticatena maritima
+41	Pseudomonas balearica DSM 6083
+42	Hydrogenobacter thermophilus TK-6
+43	Jannaschia rubra
+44	Magnetococcus marinus MC-1
+45	uncultured SUP05 cluster bacterium
+46	Hydrogenophaga sp. T4
+47	Thiocapsa roseopersicina
+48	Pseudomonas borbori
+49	Cloacibacterium normanense
+50	Bacteroidetes bacterium OLB10
+51	Roseovarius pacificus
+52	Halomonas sp. DSM 26667
+53	Halomonas daqiaonensis
+54	Thermus thermophilus
+55	Pseudomonas mucidolens
+56	Cribrihabitans marinus
+57	Pseudomonas fluorescens
+58	Pseudomonas flexibilis
+59	Sulfurimonas autotrophica DSM 16294
+60	Acidovorax caeni
+61	Pseudomonas litoralis
+62	Pseudoruegeria lutimaris
+63	Rhizobium etli 8C-3
+64	Hyphomicrobium sp. GJ21
+65	uncultured gamma proteobacterium
+66	Halomonas halodenitrificans
+67	Leptonema illini DSM 21528
+68	Azoarcus tolulyticus
+69	Pseudomonas sp. 7SR1
+70	Leisingera aquaemixtae
+71	Ruegeria atlantica
+72	Thalassotalea sp. ND16A
+73	Nitrosomonas mobilis
+74	Azospirillum sp. B510
+75	Litoreibacter albidus
+76	Candidatus Competibacter denitrificans Run_A_D11
+77	Rhizobium sp. RU33A
+78	Nitrosomonas eutropha
+79	Azoarcus sp. BH72
+80	Phaeobacter inhibens 2.10
+81	Bacteroidetes bacterium OLB8
+82	Roseovarius nanhaiticus
+83	Paracoccus alcaliphilus
+84	Bosea lathyri
+85	Magnetospirillum gryphiswaldense MSR-1 v2
+86	Marinobacter sp. BSs20148
+87	Beggiatoa sp. PS
+88	Rhodobacter vinaykumarii
+89	Celeribacter indicus
+90	Nitrosomonas oligotropha
+91	Halomonas gudaonensis
+92	Magnetospirillum sp. XM-1
+93	Litoreibacter ascidiaceicola
+94	Paracoccus pantotrophus
+95	Roseovarius marisflavi
+96	Chloroflexi bacterium ADurb.Bin325
+97	Acidovorax sp. JS42
+98	Pacificibacter marinus
+99	endosymbiont of Ridgeia piscesae
+100	Sinorhizobium americanum
+101	Candidatus Accumulibacter sp. SK-12
+102	Roseovarius indicus
+103	Azoarcus sp. KH32C
+104	Pseudovibrio denitrificans
+105	Steroidobacter denitrificans
+106	endosymbiont of unidentified scaly snail isolate Monju
+107	Rhodobacteraceae bacterium HLUCCO07
+108	Labrenzia alba
+109	Nitrosospira multiformis
+110	Nitratifractor salsuginis DSM 16511
+111	Litoreibacter janthinus
+112	Leptospira biflexa serovar Patoc strain 'Patoc 1 (Paris)'
+113	Pseudomonas sp. G-179
+114	Nitrosococcus oceani ATCC 19707
+115	Lutibacter oricola
+116	Methylacidiphilum fumariolicum SolV
+117	Sulfurimonas gotlandica GD1
+118	Rhodopseudomonas palustris CGA009
+119	Aequorivita viscosa
+120	Pseudopelagicola gijangensis
+121	Phaeobacter sp. P97
+122	Rhizobium gallicum bv. gallicum R602
+123	Zobellia galactanivorans
+124	Azospirillum brasilense Sp245
+125	Rugamonas rubra
+126	Pseudomonas saudiphocaensis
+127	Bacteroidetes bacterium ADurb.Bin397
+128	Herbaspirillum sp. TSA66
+129	Microbulbifer donghaiensis
+130	Oceanicola litoreus
+131	Roseovarius tolerans
+132	Alicycliphilus sp. EPL6
+133	Ruegeria marina
+134	Paracoccus chinensis
+135	Bordetella petrii
+136	Oceanithermus profundus DSM 14977
+137	Halomonas daqingensis
+138	Oleispira antarctica RB-8
+139	Acidobacteria bacterium DSM 100886
+140	Magnetospira sp. QH-2
+141	Pseudomonas aeruginosa
+142	Sulfuricella denitrificans skB26
+143	Celeribacter neptunius
+144	Cohaesibacter marisflavi
+145	Pseudomonas xanthomarina DSM 18231
+146	Candidatus Contendobacter odensis Run_B_J11
+147	Colwellia chukchiensis
+148	Dinoroseobacter shibae DFL 12 = DSM 16493
+149	Bacteroidetes bacterium OLB11
+150	Aliiroseovarius crassostreae
+151	Filomicrobium insigne
+152	Flavobacterium haoranii
+153	Thalassospira sp. KO164
+154	Candidatus Dependentiae bacterium ADurb.Bin246
+155	Aliiroseovarius sediminilitoris
+156	Thalassobius maritimus
+157	Candidatus Thiodiazotropha endolucinida
+158	Belnapia rosea
+159	gamma proteobacterium HdN1
+160	Nitrosospira sp. Nsp11
+161	Sulfurimonas denitrificans DSM 1251
+162	Rhizobium etli CFN 42
+163	Roseovarius mucosus DSM 17069
+164	Rhodobacter sp. SW2
+165	Thauera chlorobenzoica
+166	magneto-ovoid bacterium MO-1
+167	Pseudovibrio axinellae
+168	Tranquillimonas alkanivorans
+169	Ruegeria pomeroyi DSS-3
+170	Paracoccus aminovorans
+171	Rhizobium sp. NT-26
+172	Aromatoleum aromaticum EbN1
+173	Pseudomonas bauzanensis
+174	Brachymonas denitrificans DSM 15123
+175	Pseudomonas lini
+176	Tepidiphilus thermophilus
+177	Paracoccus alkenifer
+178	Marinobacter subterrani
+179	Bizionia echini
+180	Bacteroidetes bacterium ADurb.BinA245
+181	Halomonas halodenitrificans
+182	Loktanella tamlensis
+183	Labrenzia suaedae
+184	Pseudomonas sp. LZ-4(2015)
+185	Citreimonas salinaria
+186	Pontibaca methylaminivorans
+187	Halomonas subglaciescola
+188	Sinorhizobium meliloti 1021
+189	Solemya velum gill symbiont
+190	Gulbenkiania indica
+191	Rhodobacter sphaeroides
+192	Paracoccus sp. SY
+193	Cecembia lonarensis LW9
+194	Polymorphum gilvum SL003B-26A1
+195	Lutibacter maritimus
+196	Pseudomonas litoralis
+197	uncultured gamma proteobacterium
+198	Marinobacter hydrocarbonoclasticus ATCC 49840
+199	Pseudomonas jinjuensis
+200	Herbaspirillum sp. TSA66
+201	Pseudorhodobacter antarcticus
+202	Pseudomonas borbori
+203	Nitrosomonas cryotolerans
+204	Rhodobacter sphaeroides 2.4.1
+205	bacterium endosymbiont of Lamellibrachia anaximandri
+206	Thalassobius aestuarii

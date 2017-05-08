@@ -1,0 +1,216 @@
+1	uncultured bacterium
+2	Desulfotomaculum acetoxidans DSM 771
+3	Halorhodospira halophila
+4	Phascolarctobacterium succinatutens YIT 12067
+5	Geobacter metallireducens GS-15
+6	Trichodesmium thiebautii
+7	Acidithiobacillus ferrooxidans
+8	Roseiflexus castenholzii DSM 13941
+9	Bradyrhizobium sp. TSA43
+10	Holophaga foetida DSM 6591
+11	Candidatus Accumulibacter phosphatis clade IIA str. UW-1
+12	Bradyrhizobium yuanmingense
+13	Methanoplanus petrolearius DSM 11571
+14	Ruminococcus albus SY3
+15	Syntrophobotulus glycolicus DSM 8271
+16	Methanobacterium lacus
+17	Mesorhizobium huakuii
+18	Desulfosporosinus sp. OT
+19	Thiorhodospira sibirica ATCC 700588
+20	Desulfobacca acetoxidans DSM 11109
+21	Rhodospirillum photometricum DSM 122
+22	Methanococcus maripaludis X1
+23	Marichromatium purpuratum 984
+24	Desulfosporosinus orientis DSM 765
+25	uncultured Desulfobacterium sp.
+26	Paenibacillus fujiensis
+27	Methanosphaerula palustris E1-9c
+28	Klebsiella pneumoniae 342
+29	Opitutaceae bacterium TAV3
+30	Methanococcus aeolicus Nankai-3
+31	Synechococcus sp. JA-2-3B'a(2-13)
+32	Methanothermus fervidus DSM 2088
+33	Fibrobacter succinogenes subsp. succinogenes S85
+34	Dialister invisus DSM 15470
+35	Chlorobium phaeovibrioides DSM 265
+36	Candidatus Desulforudis audaxviator MP104C
+37	[Clostridium] cellobioparum DSM 1351 = ATCC 15832
+38	Pelosinus fermentans JBW45
+39	Opitutaceae bacterium TAV5
+40	Rhodospirillum rubrum
+41	Cyanothece sp. PCC 7425
+42	Methanothermococcus okinawensis IH1
+43	Fischerella sp. UTEX 'LB 1931'
+44	delta proteobacterium MLMS-1
+45	Paenibacillus graminis
+46	Rhodospirillum rubrum ATCC 11170
+47	Clostridium pasteurianum NRRL B-598
+48	Methanococcus voltae
+49	Desulfuromonas acetoxidans DSM 684
+50	Clostridium cellulolyticum H10
+51	'Nostoc azollae' 0708
+52	Thiocystis violascens DSM 198
+53	Desulfotomaculum ruminis DSM 2154
+54	Heliobacterium modesticaldum Ice1
+55	Teredinibacter turnerae T7901
+56	Desulfovibrio fructosovorans JJ
+57	Methanobacterium paludis
+58	uncultured microorganism
+59	Treponema sp. JC4
+60	Rhodopseudomonas palustris HaA2
+61	delta proteobacterium NaphS2
+62	uncultured archaeon
+63	Nostoc punctiforme PCC 73102
+64	Zymomonas mobilis subsp. mobilis NCIMB 11163
+65	Coraliomargarita akajimensis DSM 45221
+66	Desulfomicrobium baculatum DSM 4028
+67	Sulfuricurvum kujiense DSM 16994
+68	Desulfovibrio fructosovorans JJ
+69	Selenomonas artemidis F0399
+70	Paludibacter propionicigenes WB4
+71	Methanoplanus petrolearius DSM 11571
+72	Denitrovibrio acetiphilus DSM 12809
+73	Methanothermobacter marburgensis str. Marburg
+74	[Clostridium] clariflavum DSM 19732
+75	Desulfovibrio salexigens DSM 2638
+76	Calditerrivibrio nitroreducens DSM 19672
+77	Thiorhodococcus drewsii AZ1
+78	Spirochaeta smaragdinae DSM 11293
+79	Treponema saccharophilum DSM 2985
+80	Rhizobium leguminosarum bv. trifolii WSM2304
+81	Desulfobacterium autotrophicum HRM2
+82	Magnetococcus marinus MC-1
+83	Anabaena sp. 39858
+84	Azoarcus sp. KH32C
+85	Acetobacterium woodii DSM 1030
+86	Nostoc sp. PCC 7120
+87	Clostridium papyrosolvens DSM 2782
+88	Oscillochloris trichoides DG6
+89	Desulfovibrio sp. A2
+90	Acidithiobacillus ferrivorans SS3
+91	Clostridium pasteurianum DSM 525 = ATCC 6013
+92	nitrogen fixing bacterium ANFK33
+93	hydrocarbon metagenome
+94	Thermocrinis albus DSM 14484
+95	Lyngbya sp. PCC 8106
+96	Anaeromyxobacter sp. Fw109-5
+97	Alkaliphilus metalliredigens QYMF
+98	Bradyrhizobium sp. CCBAU 33062
+99	Azotobacter vinelandii
+100	Pelosinus fermentans B3
+101	Rhodomicrobium vannielii ATCC 17100
+102	Desulfonatronospira thiodismutans ASO3-1
+103	Pelobacter carbinolicus DSM 2380
+104	Desulfomonile tiedjei DSM 6799
+105	Methanosphaerula palustris E1-9c
+106	Methanoculleus marisnigri JR1
+107	Desulfotomaculum kuznetsovii DSM 6115
+108	Slackia exigua ATCC 700122
+109	Zymomonas mobilis subsp. pomaceae ATCC 29192
+110	uncultured bacterium
+111	Clostridium beijerinckii
+112	Selenomonas ruminantium subsp. lactilytica TAM6421
+113	Thermoanaerobacterium thermosaccharolyticum DSM 571
+114	Bradyrhizobium sp. CCBAU 23011
+115	Methanobacterium ivanovii
+116	Methanocaldococcus sp. FS406-22
+117	Selenomonas flueggei ATCC 43531
+118	Chloroherpeton thalassium ATCC 35110
+119	Desulfosporosinus meridiei DSM 13257
+120	uncultured bacterium
+121	Frankia alni ACN14a
+122	Thermodesulfovibrio yellowstonii DSM 11347
+123	Paenibacillus abekawaensis
+124	Rhizobium leguminosarum
+125	Methanosarcina barkeri
+126	Methanoregula boonei 6A8
+127	Desulfatibacillum alkenivorans AK-01
+128	Desulfotomaculum gibsoniae DSM 7213
+129	Anabaena sp. 39858
+130	Rhodobacter sp. AKP1
+131	Derxia gummosa
+132	Spirochaeta thermophila DSM 6192
+133	Desulfobulbus propionicus DSM 2032
+134	Rhodomicrobium vannielii ATCC 17100
+135	Desulfarculus baarsii DSM 2075
+136	Cyanothece sp. PCC 8801
+137	Anabaena variabilis ATCC 29413
+138	Marvinbryantia formatexigens DSM 14469
+139	uncultured bacterium
+140	Leptospirillum ferriphilum
+141	Methanosarcina acetivorans C2A
+142	Phaeospirillum molischianum DSM 120
+143	Anaeromyxobacter sp. K
+144	Candidatus Azobacteroides pseudotrichonymphae genomovar. CFP2
+145	Methanococcus aeolicus Nankai-3
+146	hyperthermophilic methanogen FS406-22
+147	Ethanoligenens harbinense YUAN-3
+148	Desulfovibrio desulfuricans ND132
+149	Caldicellulosiruptor saccharolyticus DSM 8903
+150	Vibrio sp. EJY3
+151	uncultured bacterium
+152	Treponema primitia ZAS-2
+153	Methylocella silvestris BL2
+154	Clostridium cellulovorans 743B
+155	Clostridium autoethanogenum DSM 10061
+156	Dehalococcoides mccartyi
+157	Prevotella bryantii B14
+158	Geobacter lovleyi SZ
+159	Methanocella conradii HZ254
+160	Methanocaldococcus vulcanius M7
+161	Thermincola ferriacetica
+162	Frankia symbiont of Datisca glomerata
+163	Paenibacillus massiliensis
+164	Burkholderia sp. enrichment culture clone CACua-70
+165	Burkholderia phymatum
+166	Clostridium autoethanogenum DSM 10061
+167	Ruminiclostridium thermocellum DSM 2360
+168	Clostridium kluyveri DSM 555
+169	Azotobacter vinelandii CA6
+170	Candidatus Atelocyanobacterium thalassa isolate ALOHA
+171	Desulfovibrio vulgaris RCH1
+172	Polaromonas naphthalenivorans CJ2
+173	Methanospirillum hungatei JF-1
+174	Selenomonas sputigena ATCC 35185
+175	Rhodospirillum centenum SW
+176	Geobacter sulfurreducens KN400
+177	Ilyobacter polytropus DSM 2926
+178	Pseudomonas stutzeri B1SMN1
+179	Rhizobium leguminosarum
+180	Mesorhizobium tianshanense
+181	Herbaspirillum seropedicae SmR1
+182	Rhodobacter sp. SW2
+183	Fischerella sp. UTEX 'LB 1931'
+184	Desulfovibrio gigas
+185	[Clostridium] clariflavum DSM 19732
+186	Dialister succinatiphilus YIT 11850
+187	Methanothermococcus thermolithotrophicus
+188	Bradyrhizobium elkanii
+189	Prosthecochloris aestuarii DSM 271
+190	Bradyrhizobium japonicum
+191	Methanocella arvoryzae MRE50
+192	Methanobacterium paludis
+193	Ethanoligenens harbinense YUAN-3
+194	Dechloromonas aromatica RCB
+195	Azospirillum brasilense
+196	Methanolinea tarda NOBI-1
+197	Clostridium kluyveri DSM 555
+198	Rhodobacter capsulatus
+199	Cyanothece sp. CCY0110
+200	Clostridium pasteurianum
+201	Methanothermobacter thermautotrophicus str. Delta H
+202	uncultured bacterium
+203	uncultured archaeon
+204	Methanotorris igneus Kol 5
+205	Oscillatoria sp. PCC 6506
+206	Desulfurispirillum indicum S5
+207	Acetobacterium woodii DSM 1030
+208	Arcobacter nitrofigilis DSM 7299
+209	Syntrophobotulus glycolicus DSM 8271
+210	Methanocorpusculum labreanum Z
+211	Wolinella succinogenes
+212	Syntrophobacter fumaroxidans MPOB
+213	Thermodesulfatator indicus DSM 15286
+214	Methylomonas methanica MC09
+215	Clostridium lentocellum DSM 5427
+216	Methylacidiphilum infernorum V4

@@ -1,238 +1,439 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-from optparse import OptionParser
-from time import gmtime, strftime
-from decimal import *
-
-#import create_trees_utility
-import string
-import os
-import shutil
-import re
+import argparse
 import sys
-import random
+import os
+import re
+from mltreemap import os_type, is_exe, which
 
-#class func_tree_utility(create_trees_utility.create_trees):
 
-#    def __init__(self, inputData, refData_chosen, RAxML_out, var_out):
-#        create_trees_utility.create_trees.__init__(self, inputData, refData_chosen, RAxML_out, var_out)
-        
-if __name__ == '__main__':
+class ReferenceSequence():
+    def __init__(self):
+        self.accession = ""
+        self.description = ""
+        self.definition = ""
+        self.short_id = ""
+        self.sequence = ""
+        self.locus = ""
 
-    parser = OptionParser(usage='%prog ...')
-    parser.add_option("-f","--fasta_file",help="MLTreeMap output")
-    parser.add_option("-t","--table",help="Tab-separated columns listing sequences to be used in reference data")
-    parser.add_option("-r","--ref_name",help="Name of reference data (refer to the first column of 'cog_list.txt' under '#functional cogs' section)")
-    
-    (options,args) = parser.parse_args()
+    def get_info(self):
+        sys.stdout.write("accession = " + self.accession + "\t")
+        sys.stdout.write("locus = " + self.locus + "\t")
+        sys.stdout.write("description = " + self.description + "\t")
+        sys.stdout.write("mltree_id = " + self.short_id + "\n")
+        sys.stdout.flush()
 
-    inputFasta = options.fasta_file
-    inputTable = options.table
-    inputRefName = options.ref_name
-    
 
-    def create_new_fasta(in_fasta, out_fasta, dictionary, header_type):
-        missing_counter = 0
-        
-        out_fasta_handle = open(out_fasta,"w")
-    
-        in_fasta_handle = open(in_fasta,"rb")
-    
-        first_line = in_fasta_handle.readline()
-        first_line = string.strip(first_line)
-    
+def get_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--fasta_file",
+                        help="FASTA file that will be used to create reference data for TreeSAPP", required=True)
+    parser.add_argument("-c", "--code_name",
+                        help="Unique name to be used by TreeSAPP internally. NOTE: Must be >=5 characters.\n"
+                             "Refer to the first column of 'cog_list.txt' under the '#functional cogs' section)",
+                        required=True)
+    parser.add_argument("-m", "--min_length",
+                        help="The minimum length of a protein to be used in building reference data. [ DEFAULT = 0 ]",
+                        required=False,
+                        default=0,
+                        type=int)
+    parser.add_argument("-T", "--num_threads",
+                        help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
+                        required=False,
+                        default=4)
+
+    args = parser.parse_args()
+    args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+
+    if len(args.code_name) < 5:
+        sys.stderr.write("ERROR: code_name must be >= 5 characters!\n")
+        sys.stderr.flush()
+        sys.exit(-1)
+
+    return args
+
+
+def find_executables(args):
+    """
+    Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
+    :param args: command-line arguments objects
+    :return: exec_paths beings the absolute path to each executable
+    """
+    exec_paths = dict()
+    dependencies = ["raxmlHPC", "makeblastdb", "muscle", "hmmbuild"]
+
+    if os_type() == "linux":
+        args.executables = args.mltreemap + "sub_binaries" + os.sep + "ubuntu"
+    if os_type() == "mac":
+        args.executables = args.mltreemap + "sub_binaries" + os.sep + "mac"
+    elif os_type() == "win" or os_type() is None:
+        sys.exit("ERROR: Unsupported OS")
+
+    for dep in dependencies:
+        if is_exe(args.executables + os.sep + dep):
+            exec_paths[dep] = str(args.executables + os.sep + dep)
+        # For rpkm and potentially other executables that are compiled ad hoc
+        elif is_exe(args.mltreemap + "sub_binaries" + os.sep + dep):
+            exec_paths[dep] = str(args.mltreemap + "sub_binaries" + os.sep + dep)
+        elif which(dep):
+            exec_paths[dep] = which(dep)
+        else:
+            sys.stderr.write("Could not find a valid executable for " + dep + ". ")
+            sys.exit("Bailing out.")
+
+    args.executables = exec_paths
+    return args
+
+
+def format_read_fasta(fasta_file, args):
+    """
+    Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
+    Ensures each sequence and sequence name is valid.
+    :param fasta_file: 
+    :param args: Command-line argument object from get_arguments
+    :return A list of the files produced from the input file.
+    """
+    fasta = open(fasta_file, 'r')
+    formatted_fasta_dict = dict()
+    header = ""
+    sequence = ""
+    convert_upper = lambda pat: pat.group(1).upper()
+    reg_aa_ambiguity = re.compile(r'[bjxzBJXZ-]')
+    reg_amino = re.compile(r'[acdefghiklmnpqrstuvwyACDEFGHIKLMNPQRSTUVWY*]')
+    substitutions = ""
+    count_total = 0
+    seq_count = 0
+    count_xn = 0
+    num_headers = 0
+    for line in fasta:
+        # If the line is a header...
+        if line[0] == '>':
+            if len(header) > 0:
+                if len(sequence) > args.min_length:
+                    formatted_fasta_dict[header] = sequence
+                else:
+                    num_headers -= 1
+
+            sequence = ""
+
+            header = line.strip()
+            num_headers += 1
+
+        # Else, if the line is a sequence...
+        else:
+            characters = line.strip()
+            if len(characters) == 0:
+                continue
+            # Remove all non-characters from the sequence
+            re.sub(r'[^a-zA-Z]', '', characters)
+
+            # Count the number of {atcg} and {xn} in all the sequences
+            count_total += len(characters)
+
+            characters = re.sub(r'([a-z])', convert_upper, characters)
+            aminos = len(reg_amino.findall(characters))
+            ambiguity = len(reg_aa_ambiguity.findall(characters))
+            if (aminos + ambiguity) != len(characters):
+                sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters: ")
+                unknown = ""
+                for c in characters:
+                    if c not in "abcdefghiklmnpqrstvwxyzABCDEFGHIKLMNPQRSTVWXYZ":
+                        unknown += c
+                sys.stderr.write(unknown + "\n")
+                sys.exit()
+            else:
+                seq_count += aminos
+                count_xn += ambiguity
+            sequence += characters
+    formatted_fasta_dict[header] = sequence
+
+    # Check for duplicate headers
+    if len(formatted_fasta_dict.keys()) != num_headers:
+        sys.stderr.write("ERROR: duplicate header names were detected in " + fasta_file + "!\n")
+        sys.stderr.flush()
+        sys.exit(2)
+
+    if count_total == 0:
+        sys.exit('ERROR: Your input file appears to be corrupted. No sequences were found!\n')
+
+    # Exit the program if all sequences are composed only of X or N
+    elif count_xn == count_total:
+        sys.exit('ERROR: Your sequence(s) contain only X or N!\n')
+
+    if len(substitutions) > 0:
+        sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made!\n")
+        sys.stderr.flush()
+
+    # Close the files
+    fasta.close()
+
+    return formatted_fasta_dict
+
+
+def create_new_fasta(code_name, fasta_dict, out_fasta, dictionary, dashes=True):
+    """
+    Writes a new FASTA file with the headers
+    :param code_name:
+    :param fasta_dict:
+    :param out_fasta:
+    :param dictionary:
+    :param dashes:
+    :return:
+    """
+    out_fasta_handle = open(out_fasta, "w")
+
+    for header in fasta_dict.keys():
+        header_type = get_header_format(header, code_name)
+        short_id = ""
+
         if header_type == "ncbi":
-            header_match  = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$",first_line)
-    
-            if header_match:
-                accession = header_match.group(3)
-                if dictionary.has_key(accession):
-                   out_fasta_handle.write(">%s\n"%(dictionary[accession]))
-                   missing_counter = 0
-                else:
-                   missing_counter = 1
+            header_match = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$", header)
+            accession = header_match.group(1)
+            for mltree_id in dictionary:
+                if dictionary[mltree_id].accession == accession:
+                    short_id = dictionary[mltree_id].short_id
+                    break
+        elif header_type == "fungene":
+            header_match = re.match("^>(\d+)\s+coded_by=(.+),organism=(.+),definition=(.+)$", header)
+            accession = header_match.group(1)
+            coded_by = header_match.group(2)
+            for mltree_id in dictionary:
+                if dictionary[mltree_id].accession == accession and dictionary[mltree_id].locus == coded_by:
+                    short_id = dictionary[mltree_id].short_id
+                    break
         elif header_type == "mltree":
-            header_match  = re.match(">(r_\d+)$",first_line)
-            
-            if header_match:
-                id = header_match.group(1)
-                
-                if dictionary.has_key(id):
-                    out_fasta_handle.write(">%s\n"%(dictionary[id]))
-                    missing_counter = 0
-                else:
-                    missing_counter = 1
-        fasta_lines = in_fasta_handle.readlines()
-    
-        sequences_write = ""
-        
-        for each_fa_line in fasta_lines:
-            each_fa_line = string.strip(each_fa_line)
-        
-            #header_match = re.match(">gi\|(\d+)\|(\w+)\|(\S+\.\d+)\|(.*)$",each_fa_line)
+            header_match = re.match("^>(\d+)_" + re.escape(code_name), header)
+            mltree_id = header_match.group(1)
+            accession = mltree_id
+            short_id = dictionary[mltree_id].short_id
+        else:
+            print "ERROR: Incorrect regex matching of header!"
+            sys.exit(3)
 
-            if header_type == "ncbi":
-                header_match  = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$",each_fa_line)
-    
-                if header_match:
-                    accession = header_match.group(3)
-                    if dictionary.has_key(accession):
-                        if missing_counter == 0:
-                            out_fasta_handle.write(sequences_write + "\n")
-                        
-                        out_fasta_handle.write(">%s\n"%(dictionary[accession]))
-                        
-                        missing_counter = 0
-                        
-                        sequences_write = ""
-                    else:
-                        if missing_counter == 0:
-                            out_fasta_handle.write(sequences_write + "\n")
-                        missing_counter = 1
-                else:
-                    sequences_write += each_fa_line
-            elif header_type == "mltree":
-                header_match  = re.match(">(r_\d+)$",each_fa_line)
-            
-                if header_match:
-                    id = header_match.group(1)
-        
-                    if dictionary.has_key(id):
-                        if missing_counter == 0:
-                            out_fasta_handle.write(sequences_write + "\n")
-                            
-                        out_fasta_handle.write(">%s\n"%(dictionary[id]))
-                        
-                        missing_counter == 0
-                        
-                        sequences_write = ""
-                    else:
-                        if missing_counter == 0:
-                            out_fasta_handle.write(sequences_write + "\n")
-                        missing_counter = 1
-                else:
-                    sequences_write += each_fa_line
-        
-        if missing_counter == 0:    
-            out_fasta_handle.write(sequences_write + "\n")
-        
-        out_fasta_handle.close()
-        in_fasta_handle.close()
-    
-    ### End of subroutine create_new_fasta
-    
-    table_handle = open(inputTable,"rb")
-    
-    fasta_repl_dict = {}
+        if short_id:
+            out_fasta_handle.write(">%s\n" % short_id)
+            if dashes:
+                out_fasta_handle.write(fasta_dict[header] + "\n")
+            else:
+                purified = re.sub('-', '', fasta_dict[header])
+                out_fasta_handle.write(purified + "\n")
+        else:
+            print accession, "not in dictionary"
+
+    out_fasta_handle.close()
+    return
+
+
+def remove_dashes_from_msa(fasta_in, fasta_out):
+    dashed_fasta = open(fasta_in, 'r')
+    fasta = open(fasta_out, 'w')
+    sequence = ""
+
+    line = dashed_fasta.readline()
+    while line:
+        if line[0] == '>':
+            if sequence:
+                fasta.write(sequence + "\n")
+                sequence = ""
+            fasta.write(line)
+        else:
+            sequence += re.sub('-', '', line.strip())
+        line = dashed_fasta.readline()
+    fasta.write(sequence + "\n")
+    dashed_fasta.close()
+    fasta.close()
+    return
+
+
+def get_header_format(header, code_name):
+    """
+    Used to decipher which formatting style was used: NCBI, FunGenes, or other
+    :param header: A sequences header from a FASTA file
+    :param code_name:
+    :return:
+    """
+    ncbi_re = re.compile(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$")
+    fungene_re = re.compile("^>(\d+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
+    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
+    if ncbi_re.match(header):
+        return "ncbi"
+    if fungene_re.search(header):
+        return "fungene"
+    if mltree_re.match(header):
+        return "mltree"
+    else:
+        return None
+
+
+def get_sequence_info(code_name, fasta_dict):
+    """
+    This function is used to find the accession ID and description of each sequence from the FASTA file
+    :param code_name: code_name from the command-line parameters
+    :param fasta_dict: a dictionary with headers as keys and sequences as values (returned by format_read_fasta)
+    :return:
+    """
+
     fasta_mltree_repl_dict = {}
-    tree_repl_dict = {}
-    mltree_dict = {}
-    tree_name_dict = {}
-    
-    table_lines = table_handle.readlines()
-    
-    print "******************** Generating files for formatting purpose: ********************"
-    
-    for tbl_line in table_lines:
-        tbl_line = string.strip(tbl_line)
-        
-        column_match = re.match("(\S+(\.\d+)*)\t(r_(\d+))\t(\d+_%s)\t(.+)$"%(inputRefName),tbl_line)
-        
-        if column_match:
-            accession = column_match.group(1)
-            short_id = column_match.group(3)
-            tree_id = column_match.group(4)
-            mltree_id = column_match.group(5)
-            description = column_match.group(6)
-    
-            fasta_repl_dict[accession] = short_id
-            fasta_mltree_repl_dict[short_id] = mltree_id
-            tree_repl_dict[short_id] = description
-            mltree_dict[short_id] =tree_id
-            tree_name_dict[tree_id] = description
-    
-    table_handle.close()
-    
-    fasta_replace_names = inputRefName + "_fasta_replace.names"
-    fasta_mltree_names = inputRefName + "_fasta_mltree.names"
-    tree_replace_names = inputRefName + "_tree_replace.names"
-    
-    tree_taxa_list = "tax_ids_%s.txt" % (inputRefName)
-    
-    tree_tax_list_handle = open(tree_taxa_list,"w")
-    
-    for mltree_id_key in sorted(tree_name_dict.keys()):
-        tree_tax_list_handle.write("%s\t%s\n"%(mltree_id_key, tree_name_dict[mltree_id_key]))
+    mltree_id_accumulator = 1
+
+    print "******************** Generating information for formatting purposes ********************"
+
+    for header in fasta_dict.keys():
+        mltree_id = str(mltree_id_accumulator)
+        mltree_id_accumulator += 1
+        ref_seq = ReferenceSequence()
+        ref_seq.sequence = fasta_dict[header]
+        header_format = get_header_format(header, code_name)
+        if header_format == "fungene":
+            accession, info = header[1:].split("  ")
+            ref_seq.accession = accession
+            fungene_info = re.match("^coded_by=(.+),organism=(.+),definition=(.+)$", info)
+            if fungene_info:
+                ref_seq.locus = fungene_info.group(1)
+                # organism = fungene_info.group(2)
+                # definition = fungene_info.group(3)
+                ref_seq.description = fungene_info.group(2)
+            else:
+                sys.stderr.write("ERROR: Failed to parse suspected header from FunGenes repository!.\n")
+                sys.stderr.write("Problem header: " + header + "\n")
+                sys.stderr.flush()
+                sys.exit()
+            short_id = mltree_id + '_' + code_name
+            ref_seq.short_id = short_id
+        elif header_format == "ncbi":
+            if re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\| (.*) \[(.*)\]$", header):
+                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\| (.*) \[(.*)\]$", header)
+                ref_seq.accession = ncbi_info.group(1)
+                ref_seq.description = ncbi_info.group(6)
+                # organism = ncbi_info.group(6)
+            elif re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: (.*;) .*", header):
+                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: (.*;) .*$", header)
+                ref_seq.accession = ncbi_info.group(1)
+                # definition = ncbi_info.group(5)
+                ref_seq.description = "Unclassified"
+            elif re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: Full=(.*)", header):
+                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: Full=(.*)$", header)
+                ref_seq.accession = ncbi_info.group(1)
+                # definition = ncbi_info.group(5)
+                ref_seq.description = "Unclassified"
+            else:
+                sys.stderr.write("ERROR: Failed to parse suspected header from Genbank!.\n")
+                sys.stderr.write("Problem header: " + header + "\n")
+                sys.stderr.flush()
+                sys.exit()
+            short_id = mltree_id + '_' + code_name
+            ref_seq.short_id = short_id
+        else:
+            print "Unable to handle header:", header
+            sys.exit()
+
+        fasta_mltree_repl_dict[mltree_id] = ref_seq
+
+    return fasta_mltree_repl_dict
+
+
+def write_tax_ids(code_name, fasta_mltree_repl_dict):
+    tree_taxa_list = "tax_ids_%s.txt" % code_name
+
+    tree_tax_list_handle = open(tree_taxa_list, "w")
+
+    for mltree_id_key in sorted(fasta_mltree_repl_dict.keys(), key=int):
+        tree_tax_list_handle.write("%s\t%s\n" % (mltree_id_key, fasta_mltree_repl_dict[mltree_id_key].description))
     tree_tax_list_handle.close()
-    
-    print "******************** %s generated ********************\n"%(tree_taxa_list)
-    
-    tree_names_list = "%s_tree_replace.names" % (inputRefName)
-    
-    tree_names_list_handle = open(tree_names_list,"w")
-    
-    for short_id_key in sorted(mltree_dict.keys()):
-        tree_names_list_handle.write("%s:\t%s:\n"%(short_id_key, mltree_dict[short_id_key]))
-    
-    tree_names_list_handle.close()
-    
-    fasta_replaced = inputRefName + ".fc.repl.fasta"
-    
-    create_new_fasta(inputFasta, fasta_replaced, fasta_repl_dict, "ncbi")
-    
-    print "******************** %s generated ********************\n"%(tree_names_list)
-    
-    
-    print "******************** FASTA file, %s generated ********************\n"%(fasta_replaced)
-    
+    return tree_taxa_list
+
+
+def swap_tree_names(tree_to_swap, final_mltree, code_name):
+    original_tree = open(tree_to_swap, 'r')
+    raxml_tree = open(final_mltree, 'w')
+
+    tree = original_tree.readlines()
+    original_tree.close()
+    if len(tree) > 1:
+        sys.stderr.write("ERROR: >1 line contained in RAxML tree " + tree_to_swap)
+
+    new_tree = re.sub('_' + re.escape(code_name), '', str(tree[0]))
+    raxml_tree.write(new_tree)
+
+    raxml_tree.close()
+    return
+
+
+def main():
+    args = get_arguments()
+    args = find_executables(args)
+
+    input_fasta = args.fasta_file
+    fasta_dict = format_read_fasta(input_fasta, args)
+    code_name = args.code_name
+
+    fasta_mltree_repl_dict = get_sequence_info(code_name, fasta_dict)
+
+    tree_taxa_list = write_tax_ids(code_name, fasta_mltree_repl_dict)
+
+    print "******************** %s generated ********************\n" % tree_taxa_list
+
+    fasta_replaced = code_name + ".fc.repl.fasta"
+
+    create_new_fasta(code_name, fasta_dict, fasta_replaced, fasta_mltree_repl_dict)
+
+    print "************************** FASTA file, %s generated *************************\n" % fasta_replaced
+
     print "******************** Aligning the sequences using MUSCLE ********************\n"
-    
-    fasta_replaced_align = inputRefName+".fc.repl.aligned.fasta"
-    
-    muscle_align_command = "muscle -in %s -out %s" % (fasta_replaced, fasta_replaced_align)
-    
-    print muscle_align_command,"\n"
+
+    fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
+
+    muscle_align_command = "%s -in %s -out %s" %\
+                           (args.executables["muscle"], fasta_replaced, fasta_replaced_align)
+
+    print muscle_align_command, "\n"
     os.system(muscle_align_command)
-    
-    fasta_mltree = inputRefName + ".fa"
-    
-    create_new_fasta(fasta_replaced_align, fasta_mltree, fasta_mltree_repl_dict, "mltree")
-    
-    print "******************** FASTA file, %s generated ********************\n"%(fasta_mltree)
-    
-    makeblastdb_command = "makeblastdb -in %s -dbtype prot -input_type fasta -out %s" % (fasta_mltree, fasta_mltree)
+
+    fasta_mltree = code_name + ".fa"
+
+    remove_dashes_from_msa(fasta_replaced_align, fasta_mltree)
+
+    print "******************** FASTA file, %s generated ********************\n" % fasta_mltree
+
+    makeblastdb_command = "%s -in %s -dbtype prot -input_type fasta -out %s" %\
+                          (args.executables["makeblastdb"], fasta_mltree, fasta_mltree)
     os.system(makeblastdb_command)
-    
-    print "******************** BLAST DB for %s generated ********************\n"% (inputRefName)
-    
-    hmm_build_command = "hmmbuild -s %s.hmm %s" % (inputRefName, fasta_mltree)
+
+    print "******************** BLAST DB for %s generated ********************\n" % code_name
+
+    os.system("mv %s %s" % (fasta_replaced_align, fasta_mltree))
+
+    hmm_build_command = "%s -s %s.hmm %s" %\
+                        (args.executables["hmmbuild"], code_name, fasta_mltree)
     os.system(hmm_build_command)
-    
-    print "******************** HMM file for %s generated ********************\n"% (inputRefName)    
-    
-    phylip_command = "java -cp readseq.jar run -a -f=12 %s" % (fasta_replaced_align)
+
+    print "******************** HMM file for %s generated ********************\n" % code_name
+
+    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
     os.system(phylip_command)
-    
-    phylip_file = inputRefName + ".phy"
-    os.system('mv %s.phylip %s' % (fasta_replaced_align, phylip_file))
-    
-    raxml_out = "%s_phy_files" % (inputRefName)
-    os.system("mkdir %s" % (raxml_out))
-    
-    raxml_command = "raxmlHPC-PTHREADS -f a -x 12345 -# 100 -m PROTGAMMAWAG -s %s -n %s -w %s -T 4" % (phylip_file, inputRefName, raxml_out)
+
+    phylip_file = code_name + ".phy"
+    os.system('mv %s.phylip %s' % (fasta_mltree, phylip_file))
+
+    raxml_out = "%s_phy_files" % code_name
+
+    if not os.path.exists(raxml_out):
+        os.system("mkdir %s" % raxml_out)
+
+    raxml_command = "%s -f a -p 12345 -x 12345 -# 100 -m PROTGAMMAWAG -s %s -n %s -w %s -T %s" %\
+                    (args.executables["raxmlHPC"], phylip_file, code_name, args.mltreemap + raxml_out, args.num_threads)
     os.system(raxml_command)
-    
-    
-    tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, inputRefName)
-    final_mltree = "%s_tree.txt" % (inputRefName)
-    
-    swapTree_command = "swapTreeNames.pl -t %s -l %s -o %s" % (tree_to_swap, tree_names_list, final_mltree)
-    os.system(swapTree_command)
-    
-    
-    final_output_folder = "MLTreeMap_files_%s" % (inputRefName)
-    os.system("mkdir %s" % (final_output_folder))
-    
-    os.system("mv %s.fa %s.fa.p* %s" % (inputRefName, inputRefName, final_output_folder))
-    os.system("mv %s.hmm %s %s %s" % (inputRefName, tree_taxa_list, final_mltree, final_output_folder))
-    
+
+    tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, code_name)
+    final_mltree = "%s_tree.txt" % code_name
+
+    # TODO: Update the data/tree_data/cog_list.txt file with the new marker gene
+    swap_tree_names(tree_to_swap, final_mltree, code_name)
+
+    final_output_folder = "MLTreeMap_files_%s" % code_name
+    os.system("mkdir %s" % final_output_folder)
+
+    os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
+    os.system("mv %s.hmm %s %s %s" % (code_name, tree_taxa_list, final_mltree, final_output_folder))
+
+main()
