@@ -165,10 +165,16 @@ def format_read_fasta(args, duplicates=False):
 def find_replace_headers(stunted, full):
     new_fa = dict()
     for short_head in stunted.keys():
+        found = False
         for header in full.keys():
-            if short_head.split('_')[0] == header.split(' ')[0]:
+            # if short_head.split('_')[0] == header.split(' ')[0]:
+            if short_head == header.split(' ')[0]:
                 if stunted[short_head] == full[header]:
+                    found = True
                     new_fa[header] = stunted[short_head]
+                    break
+        if not found:
+            print "Unable to find match for", short_head
     return new_fa
 
 
