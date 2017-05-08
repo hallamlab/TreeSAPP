@@ -385,7 +385,7 @@ int get_children_of_nodes(Link * head, char *&children) {
     children = (char *) malloc (_MAX * sizeof(char));
     int x = 0;
     for (Link* curr = head; curr != NULL; curr = curr->next){
-        if (x <= _MAX && x >= _MAX - 50) {
+        if (x <= _MAX && x >= _MAX - 100) {
             _MAX = _MAX + 1000;
             children = (char *) realloc (children, _MAX * sizeof(char));
         }
@@ -420,7 +420,7 @@ int get_parents_of_nodes(Link * head, char *&parents) {
         parent_string[x] = '\0';
     x = 0;
     for (Link* curr = head; curr != NULL; curr = curr->next){
-        if (x <= _MAX && x >= _MAX - 50) {
+        if (x <= _MAX && x >= _MAX - 100) {
             _MAX = _MAX + 1000;
             parents = (char *) realloc (parents, _MAX * sizeof(char));
         }
@@ -544,6 +544,11 @@ int get_node_relationships(char *tree_string, char *&children, char *&parents, c
     if (!merge.empty()) {
         std::cerr << "ERROR: Stack not empty after merging subtrees!" << std::endl;
         print_list(linked_list);
+        while (!merge.empty()) {
+            cout << "Not popped: " << merge.top()->key  << endl;
+            merge.pop();
+        }
+        cout << tree_string << endl;
         return 0;
     }
 

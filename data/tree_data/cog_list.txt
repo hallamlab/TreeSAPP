@@ -93,9 +93,20 @@ hdrAref	hdrA	Heterodisulfide reductase subunit A (hdrA)
 hdrBref	hdrB	Heterodisulfide reductase subunit B (hdrB)
 hdrCref	hdrC	Heterodisulfide reductase subunit C (hdrC)
 nosZref	nosZ	Nitrous oxide reductase (nosZ)
+amoA_AOAref	amoA_AOA	Methane monooxygenase
+amoA_AOBref	amoA_AOB	Particulate methane monooxygenase
+napAref	napA	Nitrate reductase
+nifDref	nifD	dinitrogenase molybdenum-iron protein alpha subunit nifd
+nifHref	nifH	dinitrogenase iron protein nifh
+nirAref	nirA	ferredoxin--nitrite reductase
+nirBref	nirB	nad(p)h-nitrite reductase, large subunit protein nirb
+nirKref	nirK	nitrite reductase copper-containing NirK
+nirSref	nirS	Nitrite reductase
+norBref	norB	nitric oxide reductase large subunit
+narGref	narG	Nitrate reductase, Alpha subunit
+nrfAref	nrfA	Nitrite reductase
+nxrBref	nxrB	Nitrite oxidoreductase subunit B
+haoref	hao	Hydroxylamine Oxidoreductase
+hzoref	hzo	Hydroxylamine Oxidoreductase
+norCref	norC	nitric oxide reductase cytochrome b subunit
 # wishlist
-#COG2181 (nitrate reductase gamma subunit - narG+nxr - reverse process)
-#COG1251 (nirite reductase - nirK)
-#nirS
-#norC (nitric oxide reductase C subunit)
-#norB (nitric oxide reductase B subunit)
