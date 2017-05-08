@@ -1300,6 +1300,7 @@ def parse_blast_results(args, raw_blast_results, cog_list):
             # Trim COG name to last 7 characters of detailed COG name
             # TK - This will be important to note in the user's manual,
             # especially if we enable people to add their own COGs later
+            # TODO: Test if this limitation is necessary
             result = reg_cog_id.match(temp_detailed_cog)
             if result:
                 tempCOG = result.group(1)
