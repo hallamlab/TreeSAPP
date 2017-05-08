@@ -44,3 +44,4 @@ sub_binaries/rpkm
 mcrA_resources/
 output*
 manuscript/
+.Rproj.user
