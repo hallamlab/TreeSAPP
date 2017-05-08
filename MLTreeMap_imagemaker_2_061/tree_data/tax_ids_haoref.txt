@@ -1,0 +1,199 @@
+1	Syntrophaceae bacterium PtaU1.Bin231
+2	Desulfosporosinus acididurans
+3	Candidatus Thioglobus autotrophicus
+4	Candidatus Brocadia sinica JPN1
+5	Unclassified
+6	Nitrosomonas oligotropha
+7	Acidobacteria bacterium ADurb.Bin051
+8	Chloroflexi bacterium ADurb.Bin360
+9	Candidatus Thiomargarita nelsonii
+10	Unclassified
+11	Lentisphaerae bacterium RIFOXYA12_64_32
+12	Unclassified
+13	Vibrio scophthalmi
+14	Candidatus Jettenia caeni
+15	bacterium ADurb.Bin157
+16	Unclassified
+17	Unclassified
+18	Candidatus Brocadia fulgida
+19	Unclassified
+20	Desulfovibrio dechloracetivorans
+21	Unclassified
+22	Candidatus Scalindua brodae
+23	Desulfobulbus japonicus
+24	Unclassified
+25	Bacteroidetes bacterium RIFCSPLOWO2_12_FULL_35_15
+26	Nitrospirae bacterium HCH-1
+27	Peptoniphilus sp. ING2-D1G
+28	Desulfobacterium autotrophicum
+29	Candidatus Kuenenia stuttgartiensis
+30	Desulfovibrio aminophilus
+31	Methanococcoides burtonii DSM 6242
+32	uncultured bacterium
+33	Methylomicrobium alcaliphilum 20Z
+34	Desulfohalobium retbaense
+35	Unclassified
+36	Unclassified
+37	Unclassified
+38	Unclassified
+39	Unclassified
+40	Unclassified
+41	Desulfovibrio bizertensis
+42	Methylohalobius crimeensis 10Ki
+43	Desulfatiglans anilini
+44	Chloroflexi bacterium ADurb.Bin180
+45	Gammaproteobacteria bacterium RIFOXYD12_FULL_61_37
+46	Thiotrichales bacterium HS_08
+47	Labilithrix luteola
+48	Desulfococcus multivorans
+49	Unclassified
+50	Deltaproteobacteria bacterium ADurb.Bin207
+51	Vibrio fluvialis PG41
+52	Desulfovibrio sp. L21-Syr-AB
+53	Helicobacter heilmannii
+54	Unclassified
+55	endosymbiont of Riftia pachyptila (vent Ph05)
+56	Methylacidiphilum fumariolicum SolV
+57	Unclassified
+58	Phycisphaerae bacterium ST-NAGAB-D1
+59	Bacteroidetes bacterium GWA2_31_9
+60	Nitrosomonas nitrosa
+61	Candidatus Thiodiazotropha endolucinida
+62	endosymbiont of Ridgeia piscesae
+63	Betaproteobacteria bacterium CG2_30_59_46
+64	uncultured bacterium
+65	Desulfobacter vibrioformis
+66	Candidatus Brocadia sinica JPN1
+67	Candidatus Kuenenia stuttgartiensis
+68	Candidatus Scalindua rubra
+69	Minicystis rosea
+70	Bacteroidetes bacterium GWA2_30_7
+71	Unclassified
+72	Unclassified
+73	Desulfovibrio brasiliensis
+74	Unclassified
+75	Unclassified
+76	Planctomycetes bacterium RBG_13_50_24
+77	Candidatus Kuenenia stuttgartiensis
+78	Candidatus Jettenia caeni
+79	Unclassified
+80	Unclassified
+81	Verrucomicrobia bacterium ADurb.Bin063
+82	Candidatus Scalindua brodae
+83	Unclassified
+84	Desulfosporosinus sp. BG
+85	Ruegeria pomeroyi DSS-3
+86	Candidatus Kuenenia stuttgartiensis
+87	Phycisphaerae bacterium SG8_4
+88	Anaeromyxobacter sp. PSR-1
+89	Nitrosomonas marina
+90	Unclassified
+91	Unclassified
+92	Unclassified
+93	Pelobacter seleniigenes
+94	Geobacter sp. OR-1
+95	Paenibacillus sp. TI45-13ar
+96	Candidatus Scalindua brodae
+97	Unclassified
+98	Unclassified
+99	Unclassified
+100	Candidatus Thiodiazotropha endolucinida
+101	Candidatus Scalindua rubra
+102	Desulfovibrio longus
+103	Candidatus Kuenenia stuttgartiensis
+104	Unclassified
+105	Paludisphaera borealis
+106	Candidatus Thiodiazotropha endolucinida
+107	Desulfatibacillum alkenivorans
+108	Desulfovibrio inopinatus
+109	Unclassified
+110	Unclassified
+111	Psychromonas aquimarina
+112	Parcubacteria group bacterium GW2011_GWA2_38_13b
+113	Planctomycetes bacterium ADurb.Bin069
+114	Candidatus Scalindua brodae
+115	Nitrospirae bacterium CG2_30_70_394
+116	Candidatus Brocadia sinica JPN1
+117	Candidatus Magnetomorum sp. HK-1
+118	Solemya velesiana gill symbiont
+119	Unclassified
+120	Campylobacter fetus subsp. venerealis str. 84-112
+121	Candidatus Scalindua brodae
+122	uncultured bacterium
+123	Verrucomicrobia bacterium ADurb.Bin006
+124	endosymbiont of Riftia pachyptila (vent Ph05)
+125	Unclassified
+126	Unclassified
+127	Desulfatirhabdium butyrativorans
+128	Unclassified
+129	Unclassified
+130	Gynuella sunshinyii
+131	Nitrosococcus oceani
+132	Desulfovibrionaceae
+133	Desulfobacterales bacterium C00003060
+134	Sulfurifustis variabilis
+135	Solemya velum gill symbiont
+136	Bordetella petrii
+137	Nitrosomonas sp. ENI-11
+138	Candidatus Jettenia caeni
+139	Dethiosulfatarculus sandiegensis
+140	Candidatus Scalindua rubra
+141	Candidatus Kuenenia stuttgartiensis
+142	Unclassified
+143	Desulfatibacillum alkenivorans
+144	Candidatus Kuenenia stuttgartiensis
+145	uncultured bacterium
+146	Unclassified
+147	Candidatus Scalindua brodae
+148	Methylacidiphilum infernorum V4
+149	Sulfurifustis variabilis
+150	Desulfatibacillum alkenivorans AK-01
+151	Desulfovibrio alaskensis
+152	uncultured bacterium
+153	Betaproteobacteria bacterium RBG_16_58_11
+154	Desulfocarbo indianensis
+155	Desulfacinum infernum
+156	Unclassified
+157	Desulfovibrio bastinii
+158	Candidatus Accumulibacter sp. BA-92
+159	Unclassified
+160	Unclassified
+161	Unclassified
+162	Omnitrophica WOR_2 bacterium GWA2_45_18
+163	Campylobacter concisus UNSWCD
+164	Unclassified
+165	Candidatus Scalindua rubra
+166	Nitrosovibrio sp. Nv6
+167	uncultured bacterium
+168	Unclassified
+169	Unclassified
+170	Acidobacteria bacterium Mor1
+171	Candidatus Marithrix sp. Canyon 246
+172	Nitrospira sp. OLB3
+173	Candidatus Jettenia caeni
+174	Desulfatitalea tepidiphila
+175	Unclassified
+176	Unclassified
+177	Planctomycetes bacterium RBG_16_55_9
+178	Candidatus Jettenia caeni
+179	Desulfovibrio alcoholivorans
+180	Candidatus Jettenia caeni
+181	Unclassified
+182	Candidatus Brocadia caroliniensis
+183	Marinobacterium sp. AK27
+184	Desulforegula conservatrix
+185	Unclassified
+186	uncultured bacterium
+187	Candidatus Jettenia caeni
+188	Crenothrix polyspora
+189	Gemmatimonas sp. SG8_28
+190	Candidatus Methylomirabilis oxyfera
+191	Unclassified
+192	Unclassified
+193	Candidatus Thiodiazotropha endolucinida
+194	Unclassified
+195	Bdellovibrionales bacterium GWA2_49_15
+196	Desulfoplanes formicivorans
+197	Nitrospina sp. SCGC_AAA799_A02
+198	Unclassified
+199	uncultured bacterium

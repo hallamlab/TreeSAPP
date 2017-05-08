@@ -1,0 +1,140 @@
+1	Methylomonas methanica
+2	uncultured ammonia-oxidizing beta proteobacterium
+3	Haliea sp. ETY-NAG
+4	uncultured ammonia-oxidizing beta proteobacterium
+5	marine metagenome
+6	uncultured proteobacterium
+7	uncultured soil bacterium
+8	Methylococcaceae bacterium ET-HIRO
+9	uncultured bacterium
+10	Methylocystis sp. M
+11	uncultured ammonia-oxidizing bacterium
+12	uncultured ammonia-oxidizing bacterium
+13	uncultured bacterium
+14	uncultured bacterium
+15	uncultured bacterium
+16	uncultured bacterium
+17	uncultured bacterium
+18	uncultured bacterium
+19	uncultured bacterium
+20	uncultured ammonia-oxidizing bacterium
+21	marine metagenome
+22	uncultured bacterium
+23	uncultured bacterium
+24	uncultured soil bacterium
+25	uncultured bacterium
+26	uncultured bacterium
+27	uncultured bacterium
+28	Nitrosococcus watsonii C-113
+29	Methylocaldum sp. T-025
+30	uncultured bacterium
+31	uncultured ammonia-oxidizing bacterium
+32	uncultured ammonia-oxidizing bacterium
+33	uncultured ammonia-oxidizing bacterium
+34	Methylocystis sp. SC2
+35	uncultured bacterium
+36	uncultured ammonia-oxidizing beta proteobacterium
+37	Nitrosomonas sp. Is79A3
+38	uncultured bacterium
+39	Methylovulum miyakonense HT12
+40	uncultured bacterium
+41	uncultured ammonia-oxidizing bacterium
+42	uncultured bacterium
+43	uncultured bacterium
+44	Nitrosomonas sp. ENI-11
+45	uncultured ammonia-oxidizing beta proteobacterium
+46	Nitrosomonas cryotolerans ATCC 49181
+47	Haliea sp. ETY-M
+48	marine metagenome
+49	uncultured proteobacterium
+50	uncultured ammonia-oxidizing bacterium
+51	uncultured bacterium
+52	uncultured bacterium
+53	Nitrosospira briensis
+54	uncultured ammonia-oxidizing bacterium
+55	Nitrosospira sp. NIJS16
+56	uncultured ammonia-oxidizing bacterium
+57	uncultured ammonia-oxidizing bacterium
+58	uncultured bacterium
+59	uncultured Methylocystis sp. GSC357
+60	uncultured bacterium
+61	Methylocystis sp. SC2
+62	uncultured bacterium
+63	Nitrosospira sp. En13
+64	uncultured bacterium
+65	uncultured ammonia-oxidizing bacterium
+66	uncultured bacterium
+67	uncultured soil bacterium
+68	uncultured bacterium
+69	Methylomonas methanica MC09
+70	Methylococcaceae bacterium ET-SHO
+71	uncultured bacterium
+72	uncultured ammonia-oxidizing bacterium
+73	Methylacidiphilum kamchatkense Kam1
+74	uncultured soil bacterium
+75	marine metagenome
+76	uncultured bacterium
+77	uncultured ammonia-oxidizing beta proteobacterium
+78	Methylococcus capsulatus str. Bath
+79	uncultured bacterium
+80	uncultured bacterium
+81	uncultured soil bacterium
+82	uncultured bacterium
+83	uncultured bacterium
+84	uncultured bacterium
+85	uncultured ammonia-oxidizing bacterium
+86	Nitrosomonas sp. AL212
+87	uncultured bacterium
+88	uncultured ammonia-oxidizing bacterium
+89	uncultured bacterium
+90	uncultured bacterium
+91	uncultured bacterium
+92	uncultured bacterium
+93	uncultured bacterium
+94	Methylomarinovum caldicuralii
+95	Methylomarinum vadi
+96	uncultured bacterium
+97	uncultured ammonia-oxidizing bacterium
+98	uncultured ammonia-oxidizing bacterium
+99	Methylocapsa acidiphila
+100	uncultured bacterium
+101	uncultured ammonia-oxidizing bacterium
+102	uncultured soil bacterium
+103	Methylococcaceae bacterium ET-HIRO
+104	Methylomonas sp. LW13
+105	uncultured bacterium
+106	uncultured bacterium
+107	Methylacidiphilum infernorum V4
+108	Methyloprofundus sedimenti
+109	uncultured bacterium
+110	Methylohalobius crimeensis 10Ki
+111	uncultured bacterium
+112	Methylothermus subterraneus
+113	uncultured bacterium
+114	Methylococcaceae bacterium ET-SHO
+115	uncultured soil bacterium
+116	Methylacidiphilum fumariolicum SolV
+117	uncultured ammonia-oxidising bacterium M84-P81
+118	uncultured bacterium
+119	uncultured soil bacterium
+120	uncultured bacterium
+121	Nitrosospira multiformis
+122	uncultured bacterium
+123	Nitrosomonas sp. JL21
+124	uncultured bacterium
+125	Nitrosovibrio sp. FJI82
+126	uncultured bacterium
+127	uncultured ammonia-oxidizing beta proteobacterium
+128	Nitrosococcus oceani AFC27
+129	uncultured ammonia-oxidizing beta proteobacterium
+130	Nitrosococcus halophilus Nc 4
+131	Methylocaldum marinum
+132	uncultured ammonia-oxidizing bacterium
+133	uncultured ammonia-oxidizing beta proteobacterium
+134	uncultured ammonia-oxidizing beta proteobacterium
+135	uncultured ammonia-oxidizing beta proteobacterium
+136	Methylococcaceae bacterium SF-BR
+137	Methylosinus trichosporium OB3b
+138	Methylomicrobium alcaliphilum 20Z
+139	Methylacidiphilum kamchatkense
+140	uncultured Nitrosospira sp.

@@ -33,6 +33,23 @@ z	faeref_
 N	mtdAref
 I	acdref_
 Z	nosZref
+#amoA_AOAref
+#amoA_AOBref
+P	napAref
+1	narGref
+2	nifDref
+3	nifHref
+4	nirAref
+5	nirBref
+6	nirKref
+7	nirSref
+8	norBref
+9	nosZref
+Y	nrfAref
+B	xrBref
+H	haoref
+O	hzoref
+M	norCref
 #mtrBref	mtrB	Tetrahydro-methanopterin methyltransferase subunit B (mtrB)
 #mtrCref	mtrC	Tetrahydro-methanopterin methyltransferase subunit C (mtrC)
 #mtrDref	mtrD	Tetrahydro-methanopterin methyltransferase subunit D (mtrD)
@@ -52,6 +69,7 @@ Z	nosZref
 #fmdCref	C	Formylmethylfuran dehydrogenase subunit C (fmdC)
 #fmdDref	D	Formylmethylfuran dehydrogenase subunit D (fmdD)
 #fmdEref	E	Formylmethylfuran dehydrogenase subunit E (fmdE)
-#hdrAref	hdrA	Heterodisulfide reductase subunit A (hdrA)
+hdrAref	hdrA
 #hdrBref	hdrB	Heterodisulfide reductase subunit B (hdrB)
 #hdrCref	hdrC	Heterodisulfide reductase subunit C (hdrC)
+
