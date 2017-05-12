@@ -98,7 +98,7 @@ class CreateFuncTreeUtility:
     """
     Output is the directory to write the outputs for the updated tree
     InputData is the path to the MLTReeMap output folder containing, various_outputs/ and final_RAxML_outputs/
-    RefTree is the second column in cog_list.txt for the gene to update
+    RefTree is the second column in cog_list.tsv for the gene to update
     Cluster is a flag indicating whether the protein sequences for the RefTree in InputData is to be clustered at 97%
     """
     def __init__(self, input_data, ref_tree):
@@ -480,10 +480,13 @@ def get_options():
                         help='minimal sequence length after Gblocks [DEFAULT = 50]')
     parser.add_argument('-s', '--bitscore', default=60, type=int,
                         help='minimum bitscore for the blast hits [DEFAULT = 60]')
-    parser.add_argument('-t', '--reftree', default='p', type=str,
+    parser.add_argument('-R', '--reftree', default='p', type=str,
                         help='reference tree (p = MLTreeMap reference tree [DEFAULT]; '
-                             'g = GEBA reference tree; i = fungi tree; '
-                             'other gene family in data/tree_data/cog_list.txt - e.g., y for mcrA]')
+                             'g = GEBA reference tree; i = fungi tree')
+    parser.add_argument('-t', '--targets', default='ALL', type=str,
+                        help='A comma-separated list specifying which marker genes to query in input by'
+                             ' the "denominator" column in data/tree_data/cog_list.tsv'
+                             ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
     parser.add_argument('-m', '--molecule', default='n', choices=['a', 'n'],
                         help='the type of input sequences (a = Amino Acid; n = Nucleotide [DEFAULT])')
 
@@ -609,8 +612,16 @@ def check_parser_arguments(parser):
         args.reference_data_prefix = ''
         args.reference_tree = 'MLTreeMap_reference.tree'
     else:
-        args.reference_data_prefix = ''
-        args.reference_tree = args.reftree + "ref_tree.txt"
+        sys.stderr.write("ERROR: Unknown reftree specified : " + args.reftree)
+        sys.exit()
+
+    args.targets = args.targets.split(',')
+    if args.targets != ['ALL']:
+        for marker in args.targets:
+            if not re.match('[A-Z][0-9]{4}', marker):
+                sys.stderr.write("ERROR: Incorrect format for target: " + str(marker) +
+                                 "\nRefer to column 'Denominator' in cog_list.tsv for identifiers that can be used.")
+                sys.exit()
 
     # Notify the user that bootstraps cannot be used with the Maximum Parsimony settings of RAxML.
     if args.bootstraps > 1 and args.phylogeny == 'p':
@@ -730,16 +741,15 @@ def create_cog_list(args):
     """
     Loads the MLTreeMap COG list file and check that the args.reftree exists
     :param args: The command-line and default arguments object
-    :return: An autovivification of the COGs in cog_list.txt. This also includes their short-form name (termed
-    denominator e.g. mcrA, mcrB, a, b, cdhA, etc.) and a list of output text precursors based on the analysis type.
+    :return: An autovivification of the COGs in cog_list.tsv. This also includes their short-form name (termed
+    denominator e.g. M0101, C0012, U0401) and a list of output text precursors based on the analysis type.
     The denominator is equal to the command-line reference tree specifier argument (p, g, or i) if phylogenetic COGs
     """
     
     cog_list = Autovivify()
     text_of_analysis_type = Autovivify()
-    cog_list_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.txt'
+    cog_list_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
     cog_input_list = open(cog_list_file, 'r')
-    # TODO: alter function so the GEBA and fungi trees can be used instead of just the MLTreeMap reference
     if args.reftree not in ['i', 'p', 'g']:
         alignment_set = ''
     else:
@@ -752,19 +762,31 @@ def create_cog_list(args):
     # Close the COG list file
     cog_input_list.close()
 
-    for cogInput in cog_list_lines:
-        # Get the kind of COG if cogInput is a header line        
-        if re.match(r'\A#(.*)', cogInput):
-            kind_of_cog = re.match(r'\A#(.*)', cogInput).group(1)
+    for cog_input in cog_list_lines:
+        # Get the kind of COG if cog_input is a header line
+        if re.match(r'\A#', cog_input):
             continue
 
-        if re.match(r'\A%(.*)', cogInput):
+        if not re.match(r'\w+\t[A-Z][0-9]{4}\t\w+', cog_input):
+            sys.stderr.write("ERROR: entry in cog_list.tsv is incorrectly formatted! Violating line:\n")
+            sys.stderr.write(str(cog_input) + "\n")
+            sys.stderr.flush()
+            sys.exit()
+
+        marker, denominator, description = cog_input.split("\t")
+        if args.targets != ["ALL"] and denominator not in args.targets:
             continue
+        if description == "phylogenetic_cogs":
+            kind_of_cog = "phylogenetic_cogs"
+        elif description == "rRNA_marker":
+            kind_of_cog = "phylogenetic_rRNA_cogs"
+        else:
+            kind_of_cog = "functional_cogs"
 
         # Add data to COG list based on the kind of COG it is
         if kind_of_cog == 'phylogenetic_cogs':
-            cog_list[kind_of_cog][cogInput] = alignment_set
-            cog_list['all_cogs'][cogInput] = alignment_set
+            cog_list[kind_of_cog][marker] = alignment_set
+            cog_list['all_cogs'][marker] = alignment_set
             text_inset = ''
             if alignment_set == 'g':
                 text_inset = ' based on the GEBA reference'
@@ -772,15 +794,13 @@ def create_cog_list(args):
                 text_inset = ' focusing only on fungi'
             text_of_analysis_type[alignment_set] = 'Phylogenetic analysis' + text_inset + ':'
         elif kind_of_cog == 'phylogenetic_rRNA_cogs':
-            cog, denominator, text = cogInput.split('\t')
-            cog_list[kind_of_cog][cog] = denominator
-            cog_list['all_cogs'][cog] = denominator
-            text_of_analysis_type[denominator] = 'Phylogenetic analysis, ' + text + ':'
+            cog_list[kind_of_cog][marker] = denominator
+            cog_list['all_cogs'][marker] = denominator
+            text_of_analysis_type[denominator] = 'Phylogenetic analysis, ' + description + ':'
         elif kind_of_cog == 'functional_cogs':
-            cog, denominator, text = cogInput.split('\t')
-            cog_list[kind_of_cog][cog] = denominator
-            cog_list['all_cogs'][cog] = denominator
-            text_of_analysis_type[denominator] = 'Functional analysis, ' + text + ':'
+            cog_list[kind_of_cog][marker] = denominator
+            cog_list['all_cogs'][marker] = denominator
+            text_of_analysis_type[denominator] = 'Functional analysis, ' + description + ':'
 
     if args.reftree not in ['i', 'g', 'p']:
         if args.reftree not in cog_list['all_cogs'].values():
@@ -1113,8 +1133,7 @@ def run_blast(args, split_files, cog_list):
     # For each file containing a maximum of the specified number of sequences...
     alignment_data_dir = args.mltreemap + os.sep + \
         'data' + os.sep + \
-        args.reference_data_prefix + 'alignment_data' + os.sep + \
-        "*.fa"
+        args.reference_data_prefix + 'alignment_data' + os.sep
     try:
         os.path.isdir(alignment_data_dir)
     except IOError:
@@ -1125,7 +1144,7 @@ def run_blast(args, split_files, cog_list):
     db_nt = '-db "'
     db_aa = '-db "'
 
-    for fasta in glob.glob(alignment_data_dir):
+    for fasta in glob.glob(alignment_data_dir + "*fa"):
         cog = os.path.basename(fasta).split('.')[0]
         if cog in cog_list["all_cogs"].keys():
             if re.match(r'.*rRNA\.fa\Z', fasta):
@@ -1142,9 +1161,15 @@ def run_blast(args, split_files, cog_list):
         with open(args.output+"mltreemap_BLAST_log.txt", 'w') as blast_log:
             blast_log.write("WARNING:\nThe following markers were excluded from the analysis since they were " +
                             "found in " + alignment_data_dir + " but not in " +
-                            args.mltreemap + "/data/tree_data/cog_list.txt:\n")
+                            args.mltreemap + "/data/tree_data/cog_list.tsv:\n")
             for ec in excluded_cogs:
                 blast_log.write(ec + "\n")
+
+    if db_aa == '-db ""' and db_nt == '-db ""':
+        sys.stderr.write("ERROR: Unable BLAST database files not found for targets:\n" +
+                         str(cog_list["all_cogs"].keys()) + "\n")
+        sys.stderr.flush()
+        sys.exit()
                 
     for split_fasta in sorted(split_files):
 
@@ -1157,35 +1182,36 @@ def run_blast(args, split_files, cog_list):
 
         # Run the appropriate BLAST command(s) based on the input sequence type
         if args.molecule == 'n':
-            command = args.executables["blastx"] + " " + \
+            blastx_command = args.executables["blastx"] + " " + \
                 '-query ' + split_fasta + ' ' + db_aa + ' ' + \
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
                 '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                command += '-num_threads ' + str(int(args.num_threads)) + ' '
-            command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
-            command += " 2>/dev/null"
-            os.system(command)
-            command = args.executables["blastn"] + " " + \
+                blastx_command += '-num_threads ' + str(int(args.num_threads)) + ' '
+            blastx_command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
+            blastx_command += " 2>/dev/null"
+            os.system(blastx_command)
+
+            blastn_command = args.executables["blastn"] + " " + \
                 '-query ' + split_fasta + ' ' + db_nt + ' ' + \
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
                 '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                command += '-num_threads ' + str(int(args.num_threads)) + ' '
-            command += '>> ' + args.output_dir_var + blast_input_file_name + '.rRNA_BLAST_results_raw.txt'
-            command += " 2>/dev/null"
-            os.system(command)
+                blastn_command += '-num_threads ' + str(int(args.num_threads)) + ' '
+            blastn_command += '>> ' + args.output_dir_var + blast_input_file_name + '.rRNA_BLAST_results_raw.txt'
+            blastn_command += " 2>/dev/null"
+            os.system(blastn_command)
 
         elif args.molecule == 'a':
-            command = args.executables["blastp"] + " " + \
+            blastp_command = args.executables["blastp"] + " " + \
                       '-query ' + split_fasta + ' ' + db_aa + ' ' + \
                       '-evalue 0.01 -max_target_seqs 20000 ' + \
                       '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
-                command += '-num_threads ' + str(int(args.num_threads)) + ' '
-            command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
-            command += " 2> /dev/null"
-            os.system(command)
+                blastp_command += '-num_threads ' + str(int(args.num_threads)) + ' '
+            blastp_command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
+            blastp_command += " 2> /dev/null"
+            os.system(blastp_command)
 
     sys.stdout.write("done.\n")
 
@@ -1224,23 +1250,20 @@ def collect_blast_outputs(args):
     :param args: Command-line argument object from get_options and check_parser_arguments
     Returns a list of non-empty BLAST results files.
     """
-    raw_blast_result_files = []
-
-    for blast_result in glob.glob(args.output_dir_var + '*BLAST_results_raw.txt'):
-        blast_result.rstrip('\r\n')
-        if path.getsize(blast_result) <= 0:
-            os.remove(blast_result)
-        else:
-            raw_blast_result_files.append(blast_result)
+    raw_blast_result = args.output_dir_var + path.basename(args.input) + "_formatted.BLAST_results_raw.txt"
+    if path.getsize(raw_blast_result) <= 0:
+        os.remove(raw_blast_result)
+        sys.stdout.write("No marker genes detected in input! Exiting...\n")
+        sys.exit(-4)
     
-    return raw_blast_result_files
+    return raw_blast_result
 
 
-def parse_blast_results(args, raw_blast_results, cog_list):
+def parse_blast_results(args, blast_table, cog_list):
     """
     Returns an Autovivification of purified (eg. non-redundant) BLAST hits.
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :param raw_blast_results: list of files produced from BLAST alignment
+    :param blast_table: file produced by BLAST alignment
     :param cog_list: list of COGs included in analysis pipeline
     """
 
@@ -1248,129 +1271,141 @@ def parse_blast_results(args, raw_blast_results, cog_list):
         sys.stdout.write("Parsing BLAST results... ")
         sys.stdout.flush()
 
-    reg_cog_id = re.compile(r'.*(.{7})\Z')
+    # reg_cog_id = re.compile(r'.*(.{5})\Z')
     counter = 0
     purified_blast_hits = Autovivify()
 
-    for blast_table in sorted(raw_blast_results):
-        try:     
-            blast_results = open(blast_table, 'r')
-        except IOError:
-            sys.stdout.write("ERROR: Cannot open BLAST outputfile " + blast_table)
+    try:
+        blast_results = open(blast_table, 'r')
+    except IOError:
+        sys.stderr.write("ERROR: Cannot open BLAST output file " + blast_table)
+        sys.exit(5)
+
+    contigs = {}
+    identifier = 0
+    for line in blast_results:
+        # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
+        # Interpret the BLAST hit, and assign the details accordingly
+        temp_contig, temp_detailed_cog, _, _, _, _, temp_query_start, temp_query_end, temp_ref_start, temp_ref_end, _, temp_bitscore = line.split('\t')
+        temp_ref_end = int(temp_ref_end)
+        temp_ref_start = int(temp_ref_start)
+        temp_query_end = int(temp_query_end)
+        temp_query_start = int(temp_query_start)
+        temp_bitscore = float(temp_bitscore)
+
+        # Skip to next BLAST hit if bit score is less than user-defined minimum
+        if temp_bitscore <= args.bitscore:
             continue
 
-        contigs = {}
+        # Determine the direction of the hit relative to the reference
+        direction = 'forward'
+        if temp_ref_start > temp_ref_end:
+            temp = temp_ref_start
+            temp_ref_start = temp_ref_end
+            temp_ref_end = temp
+            direction = 'reverse'
+        if temp_query_start > temp_query_end:
+            temp = temp_query_start
+            temp_query_start = temp_query_end
+            temp_query_end = temp
+            if direction == 'reverse':
+                sys.stderr.write("ERROR: Confusing BLAST result!\n")
+                sys.stderr.write("Please notify the authors about " +
+                                 temp_contig + ' at ' +
+                                 temp_detailed_cog +
+                                 " q(" + str(temp_query_end) + '..' + str(temp_query_start) + ")," +
+                                 " r(" + str(temp_ref_end) + '..' + str(temp_ref_start) + ")")
+                sys.stderr.flush()
+                sys.exit()
+            direction = 'reverse'
+
+        # Trim COG name to last 7 characters of detailed COG name
+        # TK - This will be important to note in the user's manual,
+        # especially if we enable people to add their own COGs later
+        # TODO: Test if this limitation is necessary
+        # result = reg_cog_id.match(temp_detailed_cog)
+        # if result:
+        #     tempCOG = result.group(1)
+        result = temp_detailed_cog.split('_')[1]
+        if result:
+            tempCOG = result
+        else:
+            sys.exit('ERROR: Could not detect the COG of sequence ' + temp_detailed_cog)
+
+        # Save contig details to the list
+        if temp_contig not in contigs:
+            contigs[temp_contig] = {}
+
+        if identifier not in contigs[temp_contig]:
+            contigs[temp_contig][identifier] = {}
+
+        contigs[temp_contig][identifier]['bitscore'] = temp_bitscore
+        contigs[temp_contig][identifier]['cog'] = tempCOG
+        contigs[temp_contig][identifier]['seq_start'] = temp_query_start
+        contigs[temp_contig][identifier]['seq_end'] = temp_query_end
+        contigs[temp_contig][identifier]['direction'] = direction
+        contigs[temp_contig][identifier]['validity'] = True
+        identifier += 1
+
+    # Close the file
+    blast_results.close()
+
+    # Purify the BLAST hits
+    # For each contig sorted by their string-wise comparison...
+    for contig in sorted(contigs.keys()):
         identifier = 0
-        for line in blast_results:
-            # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
-            # Interpret the BLAST hit, and assign the details accordingly
-            temp_contig, temp_detailed_cog, _, _, _, _, temp_query_start, temp_query_end, temp_ref_start, temp_ref_end, _, temp_bitscore = line.split('\t')
-            temp_ref_end = int(temp_ref_end)
-            temp_ref_start = int(temp_ref_start)
-            temp_query_end = int(temp_query_end)
-            temp_query_start = int(temp_query_start)
-            temp_bitscore = float(temp_bitscore)
 
-            # Skip to next BLAST hit if bit score is less than user-defined minimum
-            if temp_bitscore <= args.bitscore:
-                continue
+        # create tuple array to sort
+        IDs = []
+        for raw_identifier in sorted(contigs[contig].keys()):
+            base_start = contigs[contig][raw_identifier]['seq_start']
+            IDs.append((raw_identifier, base_start))
+        _IDs = sorted(IDs, key=lambda x: x[1])
+        IDs = [x[0] for x in _IDs]
 
-            # Determine the direction of the hit relative to the reference
-            direction = 'forward'
-            if temp_ref_start > temp_ref_end:
-                temp = temp_ref_start
-                temp_ref_start = temp_ref_end
-                temp_ref_end = temp
-                direction = 'reverse'
-            if temp_query_start > temp_query_end:
-                temp = temp_query_start
-                temp_query_start = temp_query_end
-                temp_query_end = temp
-                if direction == 'reverse':
-                    sys.stderr.write("ERROR: Confusing BLAST result!\n")
-                    sys.stderr.write("Please notify the authors about " +
-                                     temp_contig + ' at ' +
-                                     temp_detailed_cog +
-                                     " q(" + str(temp_query_end) + '..' + str(temp_query_start) + ")," +
-                                     " r(" + str(temp_ref_end) + '..' + str(temp_ref_start) + ")")
-                    sys.stderr.flush()
-                    sys.exit()
-                direction = 'reverse'
+        base_blast_result_raw_identifier = IDs.pop()
+        contigs[contig][base_blast_result_raw_identifier]['validity'] = True
+        base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
+        base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
+        base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
+        base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
+        direction = contigs[contig][base_blast_result_raw_identifier]['direction']
+        base_length = base_end - base_start
 
-            # Trim COG name to last 7 characters of detailed COG name
-            # TK - This will be important to note in the user's manual,
-            # especially if we enable people to add their own COGs later
-            # TODO: Test if this limitation is necessary
-            result = reg_cog_id.match(temp_detailed_cog)
-            if result:
-                tempCOG = result.group(1)
+        # Compare the BLAST hit (base) against all others
+        # There may be several opinions about how to do this. This way is based on the original MLTreeMap
+        # ----A----  --C--
+        #        ---B---
+        # A kills B, B kills C. (Another approach would be to let C live,
+        # but the original MLTreeMap authors don't expect C to be useful)
+        for check_blast_result_raw_identifier in IDs:
+            check_bitscore = contigs[contig][check_blast_result_raw_identifier]['bitscore']
+            check_cog = contigs[contig][check_blast_result_raw_identifier]['cog']
+            check_start = contigs[contig][check_blast_result_raw_identifier]['seq_start']
+            check_end = contigs[contig][check_blast_result_raw_identifier]['seq_end']
+            check_length = check_end - check_start
+
+            # Compare the base and check BLAST hits
+            info = Autovivify()
+            info['base']['start'] = base_start
+            info['base']['end'] = base_end
+            info['check']['start'] = check_start
+            info['check']['end'] = check_end
+            overlap = calculate_overlap(info)
+            counter += 1
+
+            # Check for validity for hits with overlap
+            if overlap == 0:
+                base_blast_result_raw_identifier = check_blast_result_raw_identifier
+                base_bitscore = check_bitscore
+                base_cog = check_cog
+                base_start = check_start
+                base_end = check_end
+                base_length = check_length
+                contigs[contig][base_blast_result_raw_identifier]['validity'] = True
             else:
-                sys.exit('ERROR: Could not detect the COG of sequence ' + temp_detailed_cog)
-
-            # Save contig details to the list
-            if temp_contig not in contigs:
-                contigs[temp_contig] = {}
-
-            if identifier not in contigs[temp_contig]:
-                contigs[temp_contig][identifier] = {}
-
-            contigs[temp_contig][identifier]['bitscore'] = temp_bitscore
-            contigs[temp_contig][identifier]['cog'] = tempCOG
-            contigs[temp_contig][identifier]['seq_start'] = temp_query_start
-            contigs[temp_contig][identifier]['seq_end'] = temp_query_end
-            contigs[temp_contig][identifier]['direction'] = direction
-            contigs[temp_contig][identifier]['validity'] = True
-            identifier += 1
-
-        # Close the file
-        blast_results.close()
-
-        # Purify the BLAST hits
-        # For each contig sorted by their string-wise comparison...
-        for contig in sorted(contigs.keys()):
-            identifier = 0
-
-            # create tuple array to sort
-            IDs = []
-            for raw_identifier in sorted(contigs[contig].keys()):
-                base_start = contigs[contig][raw_identifier]['seq_start']
-                IDs.append((raw_identifier, base_start))
-            _IDs = sorted(IDs, key=lambda x: x[1])
-            IDs = [x[0] for x in _IDs]
-
-            base_blast_result_raw_identifier = IDs.pop()
-            contigs[contig][base_blast_result_raw_identifier]['validity'] = True
-            base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
-            base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
-            base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
-            base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
-            direction = contigs[contig][base_blast_result_raw_identifier]['direction']
-            base_length = base_end - base_start
-
-            # Compare the BLAST hit (base) against all others
-            # There may be several opinions about how to do this. This way is based on the original MLTreeMap
-            # ----A----  --C--
-            #        ---B---
-            # A kills B, B kills C. (Another approach would be to let C live,
-            # but the original MLTreeMap authors don't expect C to be useful)
-            for check_blast_result_raw_identifier in IDs:
-                check_bitscore = contigs[contig][check_blast_result_raw_identifier]['bitscore']
-                check_cog = contigs[contig][check_blast_result_raw_identifier]['cog']
-                check_start = contigs[contig][check_blast_result_raw_identifier]['seq_start']
-                check_end = contigs[contig][check_blast_result_raw_identifier]['seq_end']
-                check_length = check_end - check_start
-
-                # Compare the base and check BLAST hits
-                info = Autovivify()
-                info['base']['start'] = base_start
-                info['base']['end'] = base_end
-                info['check']['start'] = check_start
-                info['check']['end'] = check_end
-                overlap = calculate_overlap(info)
-                counter += 1
-
-                # Check for validity for hits with overlap
-                if overlap == 0:
+                if overlap > 0.5*base_length and base_bitscore < check_bitscore:
+                    contigs[contig][base_blast_result_raw_identifier]['validity'] = False
                     base_blast_result_raw_identifier = check_blast_result_raw_identifier
                     base_bitscore = check_bitscore
                     base_cog = check_cog
@@ -1378,42 +1413,32 @@ def parse_blast_results(args, raw_blast_results, cog_list):
                     base_end = check_end
                     base_length = check_length
                     contigs[contig][base_blast_result_raw_identifier]['validity'] = True
-                else:
-                    if overlap > 0.5*base_length and base_bitscore < check_bitscore:
-                        contigs[contig][base_blast_result_raw_identifier]['validity'] = False
-                        base_blast_result_raw_identifier = check_blast_result_raw_identifier
-                        base_bitscore = check_bitscore
-                        base_cog = check_cog
-                        base_start = check_start
-                        base_end = check_end
-                        base_length = check_length
-                        contigs[contig][base_blast_result_raw_identifier]['validity'] = True
-                    elif overlap > 0.5*check_length and check_bitscore < base_bitscore:
+                elif overlap > 0.5*check_length and check_bitscore < base_bitscore:
+                    contigs[contig][check_blast_result_raw_identifier]['validity'] = False
+                elif base_start == check_start and base_end == check_end:
+                    # If both are the same, keep only the one with the smaller identifier
+                    if check_blast_result_raw_identifier > base_blast_result_raw_identifier:
                         contigs[contig][check_blast_result_raw_identifier]['validity'] = False
-                    elif base_start == check_start and base_end == check_end:
-                        # If both are the same, keep only the one with the smaller identifier
-                        if check_blast_result_raw_identifier > base_blast_result_raw_identifier:
-                            contigs[contig][check_blast_result_raw_identifier]['validity'] = False
 
-            # Set validity to 0 if COG is not in list of MLTreeMap COGs
-            if base_cog not in cog_list['all_cogs']:
-                contigs[contig][base_blast_result_raw_identifier]['validity'] = False
+        # Set validity to 0 if COG is not in list of MLTreeMap COGs
+        if base_cog not in cog_list['all_cogs']:
+            contigs[contig][base_blast_result_raw_identifier]['validity'] = False
 
-            # Save purified hits for valid base hits
-            for base_blast_result_raw_identifier in IDs:
-                base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
-                base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
-                base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
-                base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
-                direction = contigs[contig][base_blast_result_raw_identifier]['direction']
-                if contigs[contig][base_blast_result_raw_identifier]['validity']:
-                    purified_blast_hits[contig][identifier]['bitscore'] = base_bitscore
-                    purified_blast_hits[contig][identifier]['cog'] = base_cog
-                    purified_blast_hits[contig][identifier]['start'] = base_start
-                    purified_blast_hits[contig][identifier]['end'] = base_end
-                    purified_blast_hits[contig][identifier]['direction'] = direction
-                    purified_blast_hits[contig][identifier]['is_already_placed'] = False
-                    identifier += 1
+        # Save purified hits for valid base hits
+        for base_blast_result_raw_identifier in IDs:
+            base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
+            base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
+            base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
+            base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
+            direction = contigs[contig][base_blast_result_raw_identifier]['direction']
+            if contigs[contig][base_blast_result_raw_identifier]['validity']:
+                purified_blast_hits[contig][identifier]['bitscore'] = base_bitscore
+                purified_blast_hits[contig][identifier]['cog'] = base_cog
+                purified_blast_hits[contig][identifier]['start'] = base_start
+                purified_blast_hits[contig][identifier]['end'] = base_end
+                purified_blast_hits[contig][identifier]['direction'] = direction
+                purified_blast_hits[contig][identifier]['is_already_placed'] = False
+                identifier += 1
 
     # Print the BLAST results for each contig
     for contig in sorted(purified_blast_hits.keys()):
@@ -2229,13 +2254,15 @@ def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wa
                 sys.exit('Can\'t open ' + hmmalign_singlehit_file + '!\n')
             reached_data_part = False
             # Determine the best AA model
-            if re.search(r'\A.+_(.{7})_\d+_\d+\.mfa\Z', hmmalign_singlehit_file):
-                cog = re.search(r'\A.+_(.{7})_\d+_\d+\.mfa\Z', hmmalign_singlehit_file).group(1)
+            if re.match(re.escape(args.output_dir_var + os.sep + f_contig) + r"_(\w+)_\d+_\d+\.mfa$",
+               hmmalign_singlehit_file.strip()):
+                cog = re.match(re.escape(args.output_dir_var + os.sep + f_contig) + r"_(\w+)_\d+_\d+\.mfa$",
+                               hmmalign_singlehit_file.strip()).group(1)
                 if cog not in cog_rep_sequences.keys():
                     acc += 1
                 cog_rep_sequences[cog] = set()
             else:
-                sys.exit('ERROR: The COG could not be parsed from ' + hmmalign_singlehit_file + '!\n')
+                sys.exit('\nERROR: The COG could not be parsed from ' + hmmalign_singlehit_file + '!\n')
 
             if non_wag_cog_list[denominator][cog] and model_to_be_used != 'PROTGAMMAWAG':
                 model_to_be_used = non_wag_cog_list[denominator][cog]
@@ -4157,6 +4184,7 @@ def main(argv):
 
     if args.skip == 'n':
         # Read and format the input FASTA
+        # TODO: Replace `format_read_fasta` with python extension
         formatted_fasta_dict = format_read_fasta(args)
         if re.match(r'\A.*\/(.*)', args.input):
             input_multi_fasta = os.path.basename(args.input)

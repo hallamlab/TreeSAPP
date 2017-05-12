@@ -1,0 +1,106 @@
+#Marker	Denominator	Description
+COG0012	C0012	phylogenetic_cogs
+COG0016	C0016	phylogenetic_cogs
+COG0018	C0018	phylogenetic_cogs
+COG0048	C0048	phylogenetic_cogs
+COG0049	C0049	phylogenetic_cogs
+COG0052	C0052	phylogenetic_cogs
+COG0080	C0080	phylogenetic_cogs
+COG0081	C0081	phylogenetic_cogs
+COG0085	C0085	phylogenetic_cogs
+COG0087	C0087	phylogenetic_cogs
+COG0088	C0088	phylogenetic_cogs
+COG0090	C0090	phylogenetic_cogs
+COG0091	C0091	phylogenetic_cogs
+COG0092	C0092	phylogenetic_cogs
+COG0093	C0093	phylogenetic_cogs
+COG0094	C0094	phylogenetic_cogs
+COG0096	C0096	phylogenetic_cogs
+COG0097	C0097	phylogenetic_cogs
+COG0098	C0098	phylogenetic_cogs
+COG0099	C0099	phylogenetic_cogs
+COG0100	C0100	phylogenetic_cogs
+COG0102	C0102	phylogenetic_cogs
+COG0103	C0103	phylogenetic_cogs
+COG0124	C0124	phylogenetic_cogs
+COG0172	C0172	phylogenetic_cogs
+COG0184	C0184	phylogenetic_cogs
+COG0185	C0185	phylogenetic_cogs
+COG0186	C0186	phylogenetic_cogs
+COG0197	C0197	phylogenetic_cogs
+COG0200	C0200	phylogenetic_cogs
+COG0201	C0201	phylogenetic_cogs
+COG0202	C0202	phylogenetic_cogs
+COG0215	C0215	phylogenetic_cogs
+COG0256	C0256	phylogenetic_cogs
+COG0495	C0495	phylogenetic_cogs
+COG0522	C0522	phylogenetic_cogs
+COG0525	C0525	phylogenetic_cogs
+COG0533	C0533	phylogenetic_cogs
+COG0541	C0541	phylogenetic_cogs
+COG0552	C0552	phylogenetic_cogs
+16srRNA	R0016	rRNA_marker
+18srRNA	R0018	rRNA_marker
+#hdrA	M0001	Heterodisulfide reductase subunit A
+#hdrB	M0002	Heterodisulfide reductase subunit B
+#hdrC	M0003	Heterodisulfide reductase subunit C
+#fmdA	M0101	Formylmethanofuran dehydrogenase subunit A
+#fmdB	M0102	Formylmethanofuran dehydrogenase subunit B
+#fmdC	M0103	Formylmethanofuran dehydrogenase subunit C
+#fmdD	M0104	Formylmethanofuran dehydrogenase subunit D
+#fmdE	M0105	Formylmethanofuran dehydrogenase subunit E
+#ftr	M0200	Formylmethanofuran-tetrahydromethanopterin formyltransferase
+#mch	M0300	N5,N10-methenyltetrahydromethanopterin cyclohydrolase
+#mtdA	M0401	NADP-methylenetetrahydromethanopterin dehydrogenase
+#mtdF	M0402	F420-dependent methylenetetrahydromethanopterin dehydrogenase
+#hmd	M0400	H2-forming methylenetetrahydromethanopterin dehydrogenase
+#mer	M0500	Methylene-tetrahydro-methanopterin reductase
+#mtrA	M0601	Tetrahydro-methanopterin methyltransferase subunit A
+#mtrB	M0602	Tetrahydro-methanopterin methyltransferase subunit B
+#mtrC	M0603	Tetrahydro-methanopterin methyltransferase subunit C
+#mtrD	M0604	Tetrahydro-methanopterin methyltransferase subunit D
+#mtrF	M0605	Tetrahydro-methanopterin methyltransferase subunit F
+#mtrG	M0606	Tetrahydro-methanopterin methyltransferase subunit G
+#mtrH	M0607	Tetrahydro-methanopterin methyltransferase subunit H
+mcrA	M0701	Methyl coenzyme M reductase alpha subunit
+#mcrB	M0702	Methyl coenzyme M reductase beta subunit
+#mcrC	M0703	Methyl coenzyme M reductase subunit C
+#mcrD	M0704	Methyl coenzyme M reductase delta subunit
+#mcrG	M0705	Methyl coenzyme M reductase gamma subunit
+#cdhA	M0801	acetyl-CoA decarbonylase/synthase alpha subunit
+#cdhB	M0802	acetyl-CoA decarbonylase/synthase epsilon subunit
+#cdhC	M0803	acetyl-CoA decarbonylase/synthase beta subunit
+#cdhD	M0804	acetyl-CoA decarbonylase/synthase delta subunit
+#cdhE	M0805	acetyl-CoA decarbonylase/synthase gamma subunit
+#acdI	M0901	ADP-forming acetyl-CoA synthetase
+#fae	M1000	Formaldehyde activating enzyme
+#fch	M1100	Methenyltetrahydrofolate cyclohydrolase
+#fhs	M1200	Formyltetrahydrofolate synthetase
+#narG	D0101	nitrate reductase / nitrite oxidoreductase, alpha subunit
+#narH	D0102	nitrate reductase / nitrite oxidoreductase, beta subunit
+#narI	D0103	nitrate reductase gamma subunit
+#napA	D0201	periplasmic nitrate reductase NapA
+#napB	D0202	cytochrome c-type protein NapB
+#nirK	D0301	nitrite reductase (NO-forming)
+#nirS	D0302	nitrite reductase (NO-forming) / hydroxylamine reductase
+#nrfA	D0401	nitrite reductase (cytochrome c-552)
+#norB	D0501	nitric oxide reductase subunit B
+#norC	D0502	nitric oxide reductase subunit C
+#nosZ	D0601	Nitrous-oxide reductase
+#amoA_AOA	N0101	Methane monooxygenase
+#amoA_AOB	N0102	Particulate methane monooxygenase
+#hao	N0200	hydroxylamine dehydrogenase
+#nxrB	N0301	Nitrite oxidoreductase subunit B
+#nifH	N0401	nitrogenase iron protein NifH (K02588)
+#nifD	N0402	nitrogenase molybdenum-iron protein alpha chain (K02586)
+#hdh	A0000	hydrazine dehydrogenase (hzo)
+#aprAB	U0101	adenosine-5'-phosphosulfate (APS) reductase alpha-beta subunits
+#ackA	U0201	Acetate-kinase
+#prx1	U0301	Bacterial Peroxidase Family
+#prx2	U0302	Animal/Plant/Fungal/Bacterial Peroxidase Family
+#qmoABC	U0401	Quinone-interacting membrane-bound oxidoreductase alpha/beta/gamma subunit
+phocryp	U0500	Photolyase/Cryptochrome
+dsr_v2	U0600	dissimilatory sulfite reductase
+pufMKEG	U0701	Reaction center complex of the purple bacteria
+COG1850	P0000	RuBisCO
+bssA	U0801	Benzoylacetate:CoA ligase; Fumarate adding enzymes (bssA-nmsA-assA)

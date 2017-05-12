@@ -3,73 +3,11 @@ p	hardcoded!
 g	hardcoded!
 i	fungitr
 A	COGrRNA
-a	16srRNA
-b	18srRNA
-c	phocryp
-d	dsr_v2_
-e	hzo_hao
-f	pufMKEG
-G	mcrGref
-h	_K02588
-j	aprAref
-k	ackAref
-l	merref
-L	fchref_
-m	p_a_moA
-n	_K02586
-o	mcrDref
-q	qmoref_
-r	COG1850
-R	ftrref_
-s	fhsref_
-t	mtrAref
-u	mcrBref
-v	mcrCref
-w	bssAref
-x	prx1ref
-X	prx2ref
-y	mcrAref
-z	faeref_
-N	mtdAref
-I	acdref_
-Z	nosZref
-#amoA_AOAref
-#amoA_AOBref
-P	napAref
-1	narGref
-2	nifDref
-3	nifHref
-4	nirAref
-5	nirBref
-6	nirKref
-7	nirSref
-8	norBref
-9	nosZref
-Y	nrfAref
-B	xrBref
-H	haoref
-O	hzoref
-M	norCref
-#mtrBref	mtrB	Tetrahydro-methanopterin methyltransferase subunit B (mtrB)
-#mtrCref	mtrC	Tetrahydro-methanopterin methyltransferase subunit C (mtrC)
-#mtrDref	mtrD	Tetrahydro-methanopterin methyltransferase subunit D (mtrD)
-#mtrFref	mtrF	Tetrahydro-methanopterin methyltransferase subunit F (mtrF)
-#mtrGref	mtrG	Tetrahydro-methanopterin methyltransferase subunit G (mtrG)
-#mtrHref	H	Tetrahydro-methanopterin methyltransferase subunit H (mtrH)
-#cdhAref	cdhA	acetyl-CoA decarbonylase/synthase alpha subunit (cdhA)
-#cdhBref	cdhB	acetyl-CoA decarbonylase/synthase epsilon subunit (cdhB)
-#cdhCref	cdhC	acetyl-CoA decarbonylase/synthase beta subunit (cdhC)
-#cdhDref	cdhD	acetyl-CoA decarbonylase/synthase delta subunit (cdhD)
-#cdhEref	cdhE	acetyl-CoA decarbonylase/synthase gamma subunit (cdhE)
-#hmdref_	hmd	H2-forming methylenetetrahydromethanopterin dehydrogenase (hmd)
-#mchref_	mch	N5,N10-methenyltetrahydromethanopterin cyclohydrolase (mch)
-#mtdref_	F	F420-dependent methylenetetrahydromethanopterin dehydrogenase (mtd)
-#fmdAref	A	Formylmethylfuran dehydrogenase subunit A (fmdA)
-#fmdBref	B	Formylmethylfuran dehydrogenase subunit B (fmdB)
-#fmdCref	C	Formylmethylfuran dehydrogenase subunit C (fmdC)
-#fmdDref	D	Formylmethylfuran dehydrogenase subunit D (fmdD)
-#fmdEref	E	Formylmethylfuran dehydrogenase subunit E (fmdE)
-hdrAref	hdrA
-#hdrBref	hdrB	Heterodisulfide reductase subunit B (hdrB)
-#hdrCref	hdrC	Heterodisulfide reductase subunit C (hdrC)
-
+R0016	16srRNA
+R0018	18srRNA
+M0701	mcrA
+U0500	phocryp
+U0600	dsr_v2
+P0000	COG1850
+U0801	bssA
+U0701	pufMKEG

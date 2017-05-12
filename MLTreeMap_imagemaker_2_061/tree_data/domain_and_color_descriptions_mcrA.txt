@@ -1,0 +1,3 @@
+## mcrA
+11 71 255 153 51 Bathyarchaeota
+90 52 175 238 238 Euryarchaeota

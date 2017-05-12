@@ -4,6 +4,7 @@ import argparse
 import sys
 import os
 import re
+import subprocess
 from mltreemap import os_type, is_exe, which
 
 
@@ -37,6 +38,11 @@ def get_arguments():
                         required=False,
                         default=0,
                         type=int)
+    parser.add_argument("-b", "--bootstraps",
+                        help="The number of bootstrap replicates RAxML should perform [ DEFAULT = 100 ]",
+                        required=False,
+                        default=100,
+                        type=int)
     parser.add_argument("-T", "--num_threads",
                         help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
                         required=False,
@@ -45,10 +51,10 @@ def get_arguments():
     args = parser.parse_args()
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
 
-    if len(args.code_name) < 5:
-        sys.stderr.write("ERROR: code_name must be >= 5 characters!\n")
-        sys.stderr.flush()
-        sys.exit(-1)
+    # if len(args.code_name) < 5:
+    #     sys.stderr.write("ERROR: code_name must be >= 5 characters!\n")
+    #     sys.stderr.flush()
+    #     sys.exit(-1)
 
     return args
 
@@ -405,6 +411,14 @@ def main():
 
     hmm_build_command = "%s -s %s.hmm %s" %\
                         (args.executables["hmmbuild"], code_name, fasta_mltree)
+    hmmbuild_pro = subprocess.Popen(' '.join(hmm_build_command), shell=True, preexec_fn=os.setsid)
+    hmmbuild_pro.wait()
+
+    if hmmbuild_pro.returncode != 0:
+        sys.stderr.write("ERROR: hmmbuild did not complete successfully for:\n")
+        sys.stderr.write(hmm_build_command)
+        sys.stderr.flush()
+
     os.system(hmm_build_command)
 
     print "******************** HMM file for %s generated ********************\n" % code_name
@@ -420,12 +434,15 @@ def main():
     if not os.path.exists(raxml_out):
         os.system("mkdir %s" % raxml_out)
 
-    raxml_command = "%s -f a -p 12345 -x 12345 -# 100 -m PROTGAMMAWAG -s %s -n %s -w %s -T %s" %\
-                    (args.executables["raxmlHPC"], phylip_file, code_name, args.mltreemap + raxml_out, args.num_threads)
+    raxml_command = "%s -f a -p 12345 -x 12345 -# %s -m PROTGAMMAWAG -s %s -n %s -w %s -T %s" %\
+                    (args.executables["raxmlHPC"], str(args.bootstraps), phylip_file, code_name,
+                     args.mltreemap + raxml_out, args.num_threads)
     os.system(raxml_command)
 
     tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, code_name)
     final_mltree = "%s_tree.txt" % code_name
+    os.system("mv %s %s" % (phylip_file, raxml_out))
+    os.system("rm %s" % fasta_replaced)
 
     # TODO: Update the data/tree_data/cog_list.txt file with the new marker gene
     swap_tree_names(tree_to_swap, final_mltree, code_name)

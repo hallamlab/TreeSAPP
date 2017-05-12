@@ -174,7 +174,7 @@ sub get_input_files {
         if (-e $input) {
             my $filename = $1;
             my $denominator = $2;
-            $denominator = "A" if (($denominator eq "b" || $denominator eq "a") && ($rRNA_display_option == 1));
+            $denominator = "A" if (($denominator eq "R0018" || $denominator eq "R0016") && ($rRNA_display_option == 1));
             $input_files{$denominator}{$input} = $filename;    
         } else {
             die "ERROR: you entered a file as input ($input), but it does not exist!\n";    
@@ -188,10 +188,10 @@ sub get_input_files {
         my %files2 = ();
         
         foreach my $filename (@files) {
-            if ($filename =~ /\A(.)_.*RAxML_.+.txt\Z/) {
+            if ($filename =~ /\A(.....)_.*RAxML_.+.txt\Z/) {
                 my $denominator = $1;
                 my $filename_long = "$input$filename";
-                $denominator = "A" if (($denominator eq "b" || $denominator eq "a") && ($rRNA_display_option == 1));
+                $denominator = "A" if (($denominator eq "R0018" || $denominator eq "R0016") && ($rRNA_display_option == 1));
                 $input_files{$denominator}{$filename_long} = $filename; 
             }    
         }       
