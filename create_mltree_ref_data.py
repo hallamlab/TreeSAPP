@@ -208,7 +208,7 @@ def create_new_fasta(code_name, fasta_dict, out_fasta, dictionary, dashes=True):
                     short_id = dictionary[mltree_id].short_id
                     break
         elif header_type == "fungene":
-            header_match = re.match("^>(\d+)\s+coded_by=(.+),organism=(.+),definition=(.+)$", header)
+            header_match = re.match("^>([A-Z0-9.]+)\s+coded_by=(.+),organism=(.+),definition=(.+)$", header)
             accession = header_match.group(1)
             coded_by = header_match.group(2)
             for mltree_id in dictionary:
@@ -278,7 +278,7 @@ def read_uc_present_options(uc_file):
             for candidate in subs:
                 candidates[str(acc)] = candidate
                 acc += 1
-            for num in candidates:
+            for num in sorted(candidates.keys(), key=int):
                 sys.stderr.write(num + ". " + candidates[num] + "\n")
             sys.stderr.flush()
             best = raw_input("Number of the best representative? ")
@@ -319,7 +319,7 @@ def get_header_format(header, code_name):
     :return:
     """
     ncbi_re = re.compile(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$")
-    fungene_re = re.compile("^>(\d+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
+    fungene_re = re.compile("^>([A-Z0-9.]+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
     if ncbi_re.match(header):
         return "ncbi"
@@ -433,6 +433,8 @@ def main():
 
     if args.uc:
         swappers = read_uc_present_options(args.uc)
+    else:
+        swappers = None
     input_fasta = args.fasta_file
     fasta_dict = format_read_fasta(input_fasta, args, swappers)
     code_name = args.code_name
