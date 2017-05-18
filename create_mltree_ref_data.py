@@ -28,7 +28,12 @@ class ReferenceSequence():
 def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--fasta_file",
-                        help="FASTA file that will be used to create reference data for TreeSAPP", required=True)
+                        help="FASTA file that will be used to create reference data for TreeSAPP",
+                        required=True)
+    parser.add_argument("-u", "--uc",
+                        help="The USEARCH cluster format file produced from clustering reference sequences",
+                        required=False,
+                        default=None)
     parser.add_argument("-c", "--code_name",
                         help="Unique name to be used by TreeSAPP internally. NOTE: Must be >=5 characters.\n"
                              "Refer to the first column of 'cog_list.txt' under the '#functional cogs' section)",
@@ -91,7 +96,7 @@ def find_executables(args):
     return args
 
 
-def format_read_fasta(fasta_file, args):
+def format_read_fasta(fasta_file, args, swappers = None):
     """
     Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
     Ensures each sequence and sequence name is valid.
@@ -116,7 +121,10 @@ def format_read_fasta(fasta_file, args):
         if line[0] == '>':
             if len(header) > 0:
                 if len(sequence) > args.min_length:
-                    formatted_fasta_dict[header] = sequence
+                    if swappers and header in swappers.keys():
+                            formatted_fasta_dict[swappers[header]] = sequence
+                    else:
+                        formatted_fasta_dict[header] = sequence
                 else:
                     num_headers -= 1
 
@@ -228,6 +236,58 @@ def create_new_fasta(code_name, fasta_dict, out_fasta, dictionary, dashes=True):
 
     out_fasta_handle.close()
     return
+
+
+def read_uc_present_options(uc_file):
+    """
+    Function to read a USEARCH cluster (.uc) file and present the user with optional headers from identical sequences
+    :param uc_file: Path to a .uc file produced by USEARCH
+    :return: swappers, a dictionary where the key is the representative cluster header and the value is the one to use
+    """
+    cluster_dict = dict()
+    swappers = dict()
+    candidates = dict()
+    try:
+        uc = open(uc_file, 'r')
+    except:
+        raise IOError("Unable to open " + uc_file + " for reading! Exiting...")
+
+    line = uc.readline()
+    # Find all clusters with multiple identical sequences
+    while line:
+        cluster_type, _, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
+        if cluster_type != "C":
+            try:
+                identity = float(identity)
+            except ValueError:
+                identity = "*"
+            if cluster_type == "S":
+                cluster_dict[header] = list()
+            if cluster_type == "H" and identity == 100.0 and cigar == '=':
+                cluster_dict[representative].append(header)
+        line = uc.readline()
+
+    # Present the headers of identical sequences to user
+    for rep in cluster_dict:
+        candidates.clear()
+        subs = cluster_dict[rep]
+        if len(subs) >= 1:
+            sys.stderr.write("Found multiple identical sequences in cluster file:\n")
+            candidates[str(1)] = rep
+            acc = 2
+            for candidate in subs:
+                candidates[str(acc)] = candidate
+                acc += 1
+            for num in candidates:
+                sys.stderr.write(num + ". " + candidates[num] + "\n")
+            sys.stderr.flush()
+            best = raw_input("Number of the best representative? ")
+            while best not in candidates.keys():
+                best = raw_input("Invalid number. Number of the best representative? ")
+            if best != str(1):
+                swappers[rep] = candidates[best]
+
+    return swappers
 
 
 def remove_dashes_from_msa(fasta_in, fasta_out):
@@ -344,7 +404,9 @@ def write_tax_ids(code_name, fasta_mltree_repl_dict):
     tree_tax_list_handle = open(tree_taxa_list, "w")
 
     for mltree_id_key in sorted(fasta_mltree_repl_dict.keys(), key=int):
-        tree_tax_list_handle.write("%s\t%s\n" % (mltree_id_key, fasta_mltree_repl_dict[mltree_id_key].description))
+        tree_tax_list_handle.write("%s\t%s | %s\n" % (mltree_id_key,
+                                                    fasta_mltree_repl_dict[mltree_id_key].description,
+                                                    fasta_mltree_repl_dict[mltree_id_key].accession))
     tree_tax_list_handle.close()
     return tree_taxa_list
 
@@ -369,8 +431,10 @@ def main():
     args = get_arguments()
     args = find_executables(args)
 
+    if args.uc:
+        swappers = read_uc_present_options(args.uc)
     input_fasta = args.fasta_file
-    fasta_dict = format_read_fasta(input_fasta, args)
+    fasta_dict = format_read_fasta(input_fasta, args, swappers)
     code_name = args.code_name
 
     fasta_mltree_repl_dict = get_sequence_info(code_name, fasta_dict)
@@ -389,11 +453,18 @@ def main():
 
     fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
 
-    muscle_align_command = "%s -in %s -out %s" %\
-                           (args.executables["muscle"], fasta_replaced, fasta_replaced_align)
+    muscle_align_command = [args.executables["muscle"]]
+    muscle_align_command += ["-in", fasta_replaced]
+    muscle_align_command += ["-out", fasta_replaced_align]
 
-    print muscle_align_command, "\n"
-    os.system(muscle_align_command)
+    # print muscle_align_command, "\n"
+
+    muscle_pro = subprocess.Popen(' '.join(muscle_align_command), shell=True, preexec_fn=os.setsid)
+    muscle_pro.wait()
+    if muscle_pro.returncode != 0:
+        sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["muscle"] +
+                         " did not complete successfully! Command used:\n" + ' '.join(muscle_align_command) + "\n")
+        sys.exit()
 
     fasta_mltree = code_name + ".fa"
 
@@ -401,25 +472,35 @@ def main():
 
     print "******************** FASTA file, %s generated ********************\n" % fasta_mltree
 
-    makeblastdb_command = "%s -in %s -dbtype prot -input_type fasta -out %s" %\
-                          (args.executables["makeblastdb"], fasta_mltree, fasta_mltree)
-    os.system(makeblastdb_command)
+    makeblastdb_command = [args.executables["makeblastdb"]]
+    makeblastdb_command += ["-in", fasta_mltree]
+    makeblastdb_command += ["-out", fasta_mltree]
+    makeblastdb_command += ["-dbtype", "prot"]
+    makeblastdb_command += ["-input_type", "fasta"]
+
+    makeblastdb_pro = subprocess.Popen(' '.join(makeblastdb_command), shell=True, preexec_fn=os.setsid)
+    makeblastdb_pro.wait()
+    if makeblastdb_pro.returncode != 0:
+        sys.stderr.write("ERROR: BLAST database was unable to be made using " + args.executables["makeblastdb"] +
+                         "! Command used:\n" + ' '.join(makeblastdb_command) + "\n")
+        sys.exit()
 
     print "******************** BLAST DB for %s generated ********************\n" % code_name
 
     os.system("mv %s %s" % (fasta_replaced_align, fasta_mltree))
 
-    hmm_build_command = "%s -s %s.hmm %s" %\
-                        (args.executables["hmmbuild"], code_name, fasta_mltree)
+    hmm_build_command = [args.executables["hmmbuild"]]
+    hmm_build_command += ["-s", code_name + ".hmm"]
+    hmm_build_command.append(fasta_mltree)
+    # hmm_build_command = "%s -s %s.hmm %s" %\
+    #                     (args.executables["hmmbuild"], code_name, fasta_mltree)
     hmmbuild_pro = subprocess.Popen(' '.join(hmm_build_command), shell=True, preexec_fn=os.setsid)
     hmmbuild_pro.wait()
 
     if hmmbuild_pro.returncode != 0:
         sys.stderr.write("ERROR: hmmbuild did not complete successfully for:\n")
-        sys.stderr.write(hmm_build_command)
-        sys.stderr.flush()
-
-    os.system(hmm_build_command)
+        sys.stderr.write(' '.join(hmm_build_command) + "\n")
+        sys.exit()
 
     print "******************** HMM file for %s generated ********************\n" % code_name
 
@@ -452,5 +533,21 @@ def main():
 
     os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
     os.system("mv %s.hmm %s %s %s" % (code_name, tree_taxa_list, final_mltree, final_output_folder))
+
+    sys.stdout.write("Data for " + code_name + " has been generated succesfully.\n\n")
+    sys.stdout.write("To integrate these data for use in TreeSAPP, the following steps must be performed:\n")
+    sys.stdout.write("1. Modify data/tree_data/cog_list.tsv to include a properly formatted 'denominator' code\n")
+    sys.stdout.write("2. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name + " data/tree_data/\n")
+    sys.stdout.write("3. $ cp " + final_output_folder + os.sep + code_name + "_tree.txt data/tree_data/\n")
+    sys.stdout.write("4. $ cp " + final_output_folder + os.sep + code_name + ".hmm data/hmm_data/\n")
+    sys.stdout.write("5. $ cp " + final_output_folder + os.sep + code_name + ".fa* data/alignment_data/\n")
+    sys.stdout.write("6. $ cp " + final_output_folder + os.sep + code_name +
+                     "_tree.txt MLTreeMap_imagemaker_2_061/tree_data/\n")
+    sys.stdout.write("7. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name +
+                     " MLTreeMap_imagemaker_2_061/tree_data/\n")
+    sys.stdout.write("8. Create a file called MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_" +
+                     code_name + ".txt to add colours to clades in the new reference tree.\n")
+    sys.stdout.write("9. Modify MLTreeMap_imagemaker_2_061/tree_data/drawing_info.txt following the obvious format\n")
+    sys.stdout.flush()
 
 main()
