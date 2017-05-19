@@ -943,11 +943,12 @@ def format_read_fasta(args, duplicates=False):
     formatted_fasta_dict = dict()
     header = ""
     sequence = ""
-    reg_nuc = re.compile(r'[acgtACGT]')
-    reg_nuc_ambiguity = re.compile(r'[xnXN]')
-    reg_aa_ambiguity = re.compile(r'[bxzBXZ]')
-    reg_amino = re.compile(r'[acdefghiklmnpqrstvwyACDEFGHIKLMNPQRSTVWY*]')
-    iupac_map = {'R': 'A', 'Y': 'C', 'S': 'G', 'W': 'A', 'K': 'G', 'M': 'A', 'B': 'C', 'D': 'A', 'H': 'A', 'V': 'A'}
+    reg_nuc = re.compile(r'[ACGT]')
+    reg_nuc_ambiguity = re.compile(r'[XN]')
+    reg_aa_ambiguity = re.compile(r'[BXZ]')
+    # reg_amino = re.compile(r'[acdefghiklmnpqrstvwyACDEFGHIKLMNPQRSTVWY*]')
+    reg_amino = re.compile(r'[ACDEFGHIKLMNPQRSTVWY*]')
+    iupac_map = {'R': 'A', 'Y': 'C', 'S': 'G', 'W': 'A', 'K': 'G', 'M': 'A', 'B': 'C', 'D': 'A', 'H': 'A', 'V': 'A',}
     substitutions = ""
     count_total = 0
     seq_count = 0
@@ -977,6 +978,8 @@ def format_read_fasta(args, duplicates=False):
                 line = line[0:100]
     
             header = line.strip()
+            while re.search(r'\.$', header):
+                header = header[:-1]
             if duplicates:
                 if header in formatted_fasta_dict.keys():
                     if header not in duplicate_headers.keys():
@@ -987,7 +990,7 @@ def format_read_fasta(args, duplicates=False):
 
         # Else, if the line is a sequence...
         else:
-            characters = line.strip()
+            characters = line.strip().upper()
             if len(characters) == 0:
                 continue
             # Remove all non-characters from the sequence
@@ -1002,9 +1005,9 @@ def format_read_fasta(args, duplicates=False):
                 if (nucleotides + ambiguity) != len(characters):
                     substituted_chars = ""
                     for char in characters:
-                        if not reg_nuc.search(char):
+                        if not reg_nuc.search(char) and not reg_nuc_ambiguity.search(char):
                             if char not in iupac_map.keys():
-                                sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters!\n")
+                                sys.stderr.write("ERROR: " + header.strip() + " contains unknown character: " + char + "\n")
                                 sys.exit()
                             else:
                                 substituted_chars += iupac_map[char]
@@ -1050,14 +1053,14 @@ def format_read_fasta(args, duplicates=False):
         elif args.molecule == 'a':
             sys.exit('ERROR: Your sequence(s) most likely contain no AA!\n')
 
-    if len(substitutions) > 0:
-        sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made!\n")
-        sys.stderr.flush()
-    
     # Close the files
     fasta.close()
     if args.verbose:
         sys.stdout.write("done.\n")
+    
+    if len(substitutions) > 0:
+        sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made!\n")
+        sys.stderr.flush()
 
     if header_clash:
         sys.stderr.write("ERROR: duplicate header names were detected in " + args.input + "!\n")
@@ -1600,6 +1603,7 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
     # Produce the input files for Genewise
     for contig_name in prae_contig_coordinates:
         sequence = formatted_fasta_dict[">" + contig_name]
+        # sequence = formatted_fasta_dict[contig_name]
         sequence_length = len(sequence)
         shortened_sequence = ""
         # Start searching for the information to shorten the file.
@@ -1669,7 +1673,8 @@ def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
     """
     # Header format:
     # >contig_name|marker_gene|start_end
-    input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
+     # input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
+    input_multi_fasta = path.basename(args.input)
     orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
     try:
         fna_output = open(orf_nuc_fasta, 'w')

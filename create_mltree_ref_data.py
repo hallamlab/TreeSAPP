@@ -285,7 +285,7 @@ def read_uc_present_options(uc_file):
             while best not in candidates.keys():
                 best = raw_input("Invalid number. Number of the best representative? ")
             if best != str(1):
-                swappers[rep] = candidates[best]
+                swappers['>' + rep] = '>' + candidates[best]
 
     return swappers
 
@@ -444,7 +444,7 @@ def main():
     tree_taxa_list = write_tax_ids(code_name, fasta_mltree_repl_dict)
 
     print "******************** %s generated ********************\n" % tree_taxa_list
-
+    
     fasta_replaced = code_name + ".fc.repl.fasta"
 
     create_new_fasta(code_name, fasta_dict, fasta_replaced, fasta_mltree_repl_dict)
