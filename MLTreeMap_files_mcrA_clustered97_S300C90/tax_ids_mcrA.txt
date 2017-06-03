@@ -1,0 +1,117 @@
+1	Methanohalophilus sp. T328-1 | KXS46816
+2	Methanothermococcus okinawensis IH1 | AEH06926
+3	uncultured archaeon | AEV59717
+4	Methanobrevibacter curvatus | KZX14437
+5	Methanoculleus bourgensis MS2 | CCJ36661
+6	Methanolinea tarda NOBI-1 | EHF09948
+7	uncultured archaeon | AFI62037
+8	Methanoregula formicica SMSP | AGB03601
+9	Methanocaldococcus jannaschii DSM 2661 | AAB98063
+10	Methanosalsum zhilinae DSM 4017 | AEH60719
+11	Methanobrevibacter sp. AbM4 | AGN17395
+12	Methanosaeta thermophila PT | ABK14360
+13	Methanocella paludicola SANAE | BAI60588
+14	Thermoplasmatales archaeon enrichment culture clone ISO4-H5 | AHY86393
+15	Methanosphaera sp. ISO3-F5 | AHY86396
+16	Methanosarcina vacuolata Z-761 | AKB45682
+17	Thermoplasmatales archaeon BRNA1 | AGI47474
+18	uncultured archaeon | AFI62033
+19	Methanobacterium curvum | SCG86533
+20	Methanosphaera stadtmanae DSM 3091 | ABC56731
+21	Methanotorris igneus Kol 5 | AEF96774
+22	Methanobrevibacter sp. D5 | AHY86394
+23	Methanosarcina sp. Kolksee | AKB49151
+24	Methanosarcina siciliae C2J | AKB38845
+25	Methanotorris igneus Kol 5 | AEF96001
+26	Methanolobus tindarius DSM 2278 | ETA68796
+27	Methanocaldococcus fervens AG86 | ACV24756
+28	Candidatus Methanomassiliicoccus intestinalis Issoire-Mx1 | AGN26871
+29	Methanoplanus petrolearius DSM 11571 | ADN37161
+30	Methanopyrus kandleri AV19 | AAM01870
+31	Methanobacterium sp. Maddingley MBC34 | EKQ53862
+32	Methanohalobium evestigatum Z-7303 | ADI73798
+33	Methanothermus fervidus | AAA72197
+34	Bathyarchaeota archaeon BA1 | KPV65186
+35	Methanobrevibacter sp. YE315 | AMD18197
+36	Methanoculleus sp. MAB1 | CVK33165
+37	hydrocarbon metagenome | KUG17798
+38	Methanosarcina barkeri | CAA68357
+39	Candidatus Methanoperedens sp. BLZ1 | KPQ44219
+40	uncultured archaeon GZfos13E1 | AAU82276
+41	Methanomethylovorans hollandica DSM 15978 | AGB49863
+42	Methanobacterium lacus | ADZ10495
+43	Methanothermobacter sp. CaT2 | BAM70270
+44	Methanoplanus petrolearius DSM 11571 | ADN36741
+45	Methanobrevibacter oralis | KZX12896
+46	uncultured archaeon | CBH39484
+47	Methanoculleus sp. MH98A | KDE55049
+48	Methanobrevibacter millerae | ALT69134
+49	Methanosarcina sp. 1.H.T.1A.1 | KKI00430
+50	Methanocaldococcus villosus KIN24-T80 | ENN96460
+51	Methanothermobacter thermautotrophicus | CAA30639
+52	Methanobacterium lacus | ADZ08605
+53	Methanobrevibacter oralis | KZX10527
+54	Methanocaldococcus vulcanius M7 | ACX72017
+55	Methanobrevibacter smithii ATCC 35061 | ABQ87107
+56	uncultured archaeon GZfos30H9 | AAU83544
+57	Methanoculleus marisnigri JR1 | ABN56311
+58	Arc I group archaeon U1lsi0528_Bin055 | KYC53403
+59	uncultured archaeon | ALK27810
+60	Methanococcus voltae A3 | ADI36785
+61	Methanospirillum hungatei JF-1 | ABD41854
+62	uncultured archaeon GZfos35D7 | AAU84044
+63	Methanobacterium sp. Maddingley MBC34 | EKQ54655
+64	hydrocarbon metagenome | KUG15452
+65	Methanotorris formicicus Mc-S-70 | EHP86352
+66	Methanocella conradii HZ254 | AFC99668
+67	Methanosarcina sp. MTP4 | AKB23569
+68	uncultured archaeon | AFI62039
+69	Methanobrevibacter millerae | ALT69783
+70	Methanobrevibacter olleyae | AMK15668
+71	Methanosarcina sp. WH1 | AKB20360
+72	uncultured archaeon | ALG76131
+73	Methanosarcina lacustris Z-7289 | AKB73417
+74	Euryarchaeota archaeon 55_53 | KUK04994
+75	Methanococcus aeolicus Nankai-3 | ABR56844
+76	Methanobacterium formicicum | CEA13436
+77	uncultured archaeon GZfos9C4 | AAU84252
+78	Methanococcus maripaludis OS7 | BAP63757
+79	hydrocarbon metagenome | KUG20861
+80	Methanosarcina sp. E03.2 | KPL45056
+81	uncultured archaeon GZfos26B2 | AAU83007
+82	Candidatus Methanomethylophilus alvus Mx1201 | AGI85144
+83	Methanobrevibacter cuticularis | KZX17247
+84	Methanococcoides methylutens MM1 | AKB84612
+85	Methanococcus vannielii SB | ABR54777
+86	Methanotorris formicicus Mc-S-70 | EHP88088
+87	Methanolobus psychrophilus R15 | AFV23037
+88	Methanomicrobiales archaeon 53_19 | KUL02431
+89	Methanosaeta harundinacea 6Ac | AET63880
+90	Methanobrevibacter smithii DSM 2375 | EEE42042
+91	Methanobrevibacter olleyae | AMK15936
+92	Methanococcus voltae PS | CAA30633
+93	methanogenic archaeon mixed culture ISO4-G1 | AMK13668
+94	Candidatus Methanoplasma termitum | AIZ56101
+95	Methanobacterium formicicum DSM 3637 | EKF85363
+96	Methanolobus sp. T82-4 | KXS44245
+97	Methanoculleus sp. MH98A | KDE55005
+98	Methanococcoides burtonii DSM 6242 | ABE53268
+99	Methanobrevibacter sp. D5 | AHY86395
+100	Candidatus Methanomethylophilus sp. 1R26 | KUE73676
+101	Methanoculleus sp. S3Fa | KLK89249
+102	Bathyarchaeota archaeon BA2 | KPV61791
+103	Methanocorpusculum labreanum Z | ABN07237
+104	Candidatus Methanoperedens nitroreducens | KCZ72673
+105	Methanosphaerula palustris E1-9c | ACL17594
+106	Arc I group archaeon ADurb1213_Bin02801 | KYC57887
+107	Methanobacterium sp. MB1 | CDG65773
+108	Methanoregula formicica SMSP | AGB01930
+109	Methanocella arvoryzae MRE50 | CAJ37204
+110	Methanothermus fervidus DSM 2088 | ADP77533
+111	Methanobacterium paludis | AEG19065
+112	Methanosarcina mazei | KKH68122
+113	Methanomassiliicoccales archaeon RumEn M2 | KQM10793
+114	Methanococcus maripaludis C5 | ABO34334
+115	Methanobrevibacter ruminantium M1 | ADC47774
+116	Methanobrevibacter filiformis | KZX11644
+117	Methanoregula boonei 6A8 | ABS55100
