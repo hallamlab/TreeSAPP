@@ -110,7 +110,7 @@ class CreateFuncTreeUtility:
         if self.InputData[-1] == '/':
             self.InputData = self.InputData[:-1]
 
-        self.Output = self.InputData + os.sep + "updated_func_tree" + os.sep
+        self.Output = self.InputData + os.sep + "updated_" + ref_tree + "_tree" + os.sep
         self.Denominator = ref_tree
         self.COG = ""
         self.ContigDict = dict()
@@ -612,7 +612,7 @@ def check_parser_arguments(parser):
         args.reference_data_prefix = ''
         args.reference_tree = 'MLTreeMap_reference.tree'
     else:
-        sys.stderr.write("ERROR: Unknown reftree specified : " + args.reftree)
+        sys.stderr.write("ERROR: Unknown reftree specified : " + args.reftree + "!\n")
         sys.exit()
 
     args.targets = args.targets.split(',')
@@ -808,11 +808,11 @@ def create_cog_list(args):
                              " not found in " + cog_list_file + "! Please use a valid reference tree ID!")
             sys.stderr.flush()
             sys.exit()
-    elif args.reftree in ['i', 'g', 'p'] and args.update_tree:
-        sys.stderr.write("ERROR: Unable to update all reference trees at the same time! "
-                         "Please specify the reference tree to update with the '--reftree' argument and retry.\n")
-        sys.stderr.flush()
-        sys.exit()
+    # elif args.reftree in ['i', 'g', 'p'] and args.update_tree:
+    #     sys.stderr.write("ERROR: Unable to update all reference trees at the same time! "
+    #                      "Please specify the reference tree to update with the '--reftree' argument and retry.\n")
+    #     sys.stderr.flush()
+    #     sys.exit()
 
     return cog_list, text_of_analysis_type
 
@@ -925,6 +925,74 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     split_files.append(fasta_name)
     file_counter += 1
     return split_files
+
+
+def get_hmm_length(args, update_tree):
+    """
+    Function to open the ref_tree's hmm file and determine its length
+    :param args: 
+    :param update_tree: 
+    :return: The length (int value) of the HMM
+    """
+    hmm_file = args.mltreemap + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
+    try:
+        hmm = open(hmm_file, 'r')
+    except:
+        raise IOError("Unable to open " + hmm_file + " for reading! Exiting.")
+
+    line = hmm.readline()
+    length = 0
+    while line:
+        # LENG XXX
+        if re.match(r"^LENG\s+([0-9]+)", line):
+            length = int(line.split()[1])
+        line = hmm.readline()
+    if length > 0:
+        return length
+    else:
+        raise AssertionError("Unable to parse the HMM length from " + hmm_file + ". Exiting.")
+
+
+def align_ref_queries(args, new_ref_queries, update_tree):
+    """
+    
+    :param args: 
+    :param new_ref_queries: 
+    :return: 
+    """
+    alignments = update_tree.Output + "candidate_alignments.tsv"
+    align_cmd = [args.executables["blastp"]]
+    align_cmd += ["-query", new_ref_queries]
+    align_cmd += ["-db", args.mltreemap + os.sep + "data" + os.sep + "alignment_data" + os.sep + update_tree.COG + ".fa"]
+    align_cmd += ["-outfmt", str(6)]
+    align_cmd += ["-out", alignments]
+    align_cmd += ["-num_alignments", str(1)]
+
+    p_align = subprocess.Popen(' '.join(align_cmd), shell=True, preexec_fn=os.setsid)
+    p_align.wait()
+
+    return alignments
+
+
+def find_novel_refs(ref_candidate_alignments, aa_dictionary):
+    new_refs = dict()
+    try:
+        alignments = open(ref_candidate_alignments, 'r')
+    except:
+        raise IOError("Unable to open " + ref_candidate_alignments + " for reading! Exiting.")
+
+    line = alignments.readline()
+    while line:
+        fields = line.split("\t")
+        if float(fields[2]) <= 97.0:
+            query = '>' + fields[0]
+            new_refs[query] = aa_dictionary[query]
+        else:
+            pass
+        line = alignments.readline()
+
+    alignments.close()
+    return new_refs
 
 
 def format_read_fasta(args, duplicates=False):
@@ -3800,7 +3868,7 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
 
     usearch_command = [args.executables["usearch"]]
     usearch_command += ["-sortbylength", new_ref_seqs_fasta]
-    usearch_command += ["--output", update_tree.Output + "usearch_sorted.fasta"]
+    usearch_command += ["-fastaout", update_tree.Output + "usearch_sorted.fasta"]
     usearch_command += ["--log", update_tree.Output + os.sep + "usearch_sort.log"]
     usearch_command += ["1>", "/dev/null", "2>", "/dev/null"]
 
@@ -3868,42 +3936,24 @@ def swap_tree_names(tree, tree_swap_name, random_map, ref_tax_id_map):
     return
 
 
-def filter_short_sequences(query_fasta, length_threshold=110):
+def filter_short_sequences(aa_dictionary, length_threshold):
     """
-    Writes all sequences longer than length_threshold to a new FASTA file before performing MSA
-    :param query_fasta: FASTA file which may contain sequences shorter than length_threshold
+    Removes all sequences shorter than length_threshold from a dictionary
+    :param aa_dictionary: Dictionary containing all candidate reference sequences from a TreeSAPP analysis
     :param length_threshold: Minimum number of AA a sequence must contain to be included in further analyses
-    :return: name of a new FASTA file with only the long sequences
+    :return: dictionary with sequences only longer than length_threshold
     """
-    try:
-        fasta_in = open(query_fasta, 'r')
-    except:
-        raise IOError("Unable to open " + query_fasta + " for reading!")
+    long_queries = dict()
+    short_seqs = 0
+    sys.stdout.write("Removing all sequences shorter than " + str(length_threshold) + "\n")
+    sys.stdout.flush()
+    for seq in aa_dictionary:
+        if len(aa_dictionary[seq]) >= length_threshold:
+            long_queries[seq] = aa_dictionary[seq]
 
-    new_faa = '.'.join(query_fasta.split('.')[0:-1]) + "_" + str(length_threshold) + ".faa"
-    try:
-        fasta_out = open(new_faa, 'w')
-    except:
-        raise IOError("Unable to open " + query_fasta + " for reading!")
-
-    line = fasta_in.readline()
-    header = ""
-    sequence = ""
-    while line:
-        if line[0] == '>':
-            if len(sequence) > length_threshold:
-                fasta_out.write(header + "\n")
-                fasta_out.write(sequence + "\n")
-            header = line.strip()
-            sequence = ""
         else:
-            sequence += line.strip()
-        line = fasta_in.readline()
-
-    fasta_in.close()
-    fasta_out.close()
-
-    return new_faa
+            short_seqs += 1
+    return long_queries
 
 
 def align_reads_to_nucs(args):
@@ -4085,31 +4135,33 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
     return
 
 
-def update_func_tree_workflow(args, cog_list):
-    # TODO: Include a minimum length threshold for a sequence to be considered a new reference sequence
-    update_tree = CreateFuncTreeUtility(args.output, args.reftree)
+def update_func_tree_workflow(args, cog_list, ref_tree):
+    update_tree = CreateFuncTreeUtility(args.output, ref_tree)
     update_tree.find_cog_name(cog_list)
     update_tree.get_contigs_for_ref()
     aa_dictionary = get_new_ref_sequences(update_tree)
+    # Remove short sequences
+    hmm_length = get_hmm_length(args, update_tree)
+    aa_dictionary = filter_short_sequences(aa_dictionary, 0.2*hmm_length)
+
     new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
                          "_" + update_tree.COG + "_unaligned.fasta"
     write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
+    # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
+    ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
+    new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary)
+    write_new_fasta(new_refs, new_ref_seqs_fasta)
     ref_tax_id_map = update_tree.write_reference_names()
     for seq_name in update_tree.names:
         ref_tax_id_map[seq_name] = seq_name
     if args.uclust and len(aa_dictionary) > 1:
         cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
         query_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
-        # TODO: Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
     else:
         if len(aa_dictionary) == 1 and args.uclust:
             sys.stderr.write("WARNING: Not clustering new " + update_tree.COG + " since there is 1 sequence\n")
             sys.stderr.flush()
         query_fasta = new_ref_seqs_fasta
-
-    # Remove short sequences
-    # TODO: Make the length_threshold for filter_short_sequences adaptable to reference input
-    query_fasta = filter_short_sequences(query_fasta, 150)
 
     ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
     aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, query_fasta, args)
@@ -4244,7 +4296,8 @@ def main(argv):
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
-        update_func_tree_workflow(args, cog_list)
+        for marker in args.targets:
+            update_func_tree_workflow(args, cog_list, marker)
 
     delete_files(args, 5)
     sys.stdout.write("MLTreeMap has finished successfully.\n")
