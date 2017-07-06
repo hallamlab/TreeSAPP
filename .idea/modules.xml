@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/MLTreeMap.iml" filepath="$PROJECT_DIR$/.idea/MLTreeMap.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/TreeSAPP.iml" filepath="$PROJECT_DIR$/.idea/TreeSAPP.iml" />
     </modules>
   </component>
 </project>

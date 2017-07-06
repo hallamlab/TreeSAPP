@@ -8,7 +8,7 @@ import subprocess
 from mltreemap import os_type, is_exe, which
 
 
-class ReferenceSequence():
+class ReferenceSequence:
     def __init__(self):
         self.accession = ""
         self.description = ""
@@ -197,32 +197,21 @@ def create_new_fasta(code_name, fasta_dict, out_fasta, dictionary, dashes=True):
     out_fasta_handle = open(out_fasta, "w")
 
     for header in fasta_dict.keys():
-        header_type = get_header_format(header, code_name)
+        header_format_re = get_header_format(header, code_name)
         short_id = ""
-
-        if header_type == "ncbi":
-            header_match = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$", header)
-            accession = header_match.group(1)
-            for mltree_id in dictionary:
-                if dictionary[mltree_id].accession == accession:
-                    short_id = dictionary[mltree_id].short_id
-                    break
-        elif header_type == "fungene":
-            header_match = re.match("^>([A-Z0-9.]+)\s+coded_by=(.+),organism=(.+),definition=(.+)$", header)
-            accession = header_match.group(1)
-            coded_by = header_match.group(2)
+        sequence_info = header_format_re.match(header)
+        accession = sequence_info.group(1)
+        if len(sequence_info.groups()) > 2:
+            coded_by = sequence_info.group(2)
             for mltree_id in dictionary:
                 if dictionary[mltree_id].accession == accession and dictionary[mltree_id].locus == coded_by:
                     short_id = dictionary[mltree_id].short_id
                     break
-        elif header_type == "mltree":
-            header_match = re.match("^>(\d+)_" + re.escape(code_name), header)
-            mltree_id = header_match.group(1)
-            accession = mltree_id
-            short_id = dictionary[mltree_id].short_id
         else:
-            print "ERROR: Incorrect regex matching of header!"
-            sys.exit(3)
+            for mltree_id in dictionary:
+                if dictionary[mltree_id].accession == accession:
+                    short_id = dictionary[mltree_id].short_id
+                    break
 
         if short_id:
             out_fasta_handle.write(">%s\n" % short_id)
@@ -282,6 +271,8 @@ def read_uc_present_options(uc_file):
                 sys.stderr.write(num + ". " + candidates[num] + "\n")
             sys.stderr.flush()
             best = raw_input("Number of the best representative? ")
+            # Useful for testing - no need to pick which sequence name is best!
+            # best = str(1)
             while best not in candidates.keys():
                 best = raw_input("Invalid number. Number of the best representative? ")
             if best != str(1):
@@ -318,15 +309,29 @@ def get_header_format(header, code_name):
     :param code_name:
     :return:
     """
-    ncbi_re = re.compile(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$")
+    # The regular expressions with the accession and organism name grouped
+    gi_re = re.compile(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$")
+    dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")
+    emb_re = re.compile(">emb\|(.*)\|.*\[(.*)\]")
+    gb_re = re.compile(">gb\|(.*)\|.*\[(.*)\]")
+    ref_re = re.compile(">ref\|(.*)\|.*\[(.*)\]")
+    pdb_re = re.compile(">pdb\|(.*)\|(.*)$")
+    pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
+    sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
+    # TODO: Find the description field for the mltree_re
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
-    if ncbi_re.match(header):
-        return "ncbi"
-    if fungene_re.search(header):
-        return "fungene"
-    if mltree_re.match(header):
-        return "mltree"
+
+    header_format_regexi = [gi_re, dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re, fungene_re, mltree_re]
+    for regex in header_format_regexi:
+        if regex.match(header):
+            return regex
+    # if ncbi_gi_re.match(header):
+    #     return "ncbi"
+    # if fungene_re.search(header):
+    #     return "fungene"
+    # if mltree_re.match(header):
+    #     return "mltree"
     else:
         return None
 
@@ -349,51 +354,20 @@ def get_sequence_info(code_name, fasta_dict):
         mltree_id_accumulator += 1
         ref_seq = ReferenceSequence()
         ref_seq.sequence = fasta_dict[header]
-        header_format = get_header_format(header, code_name)
-        if header_format == "fungene":
-            accession, info = header[1:].split("  ")
-            ref_seq.accession = accession
-            fungene_info = re.match("^coded_by=(.+),organism=(.+),definition=(.+)$", info)
-            if fungene_info:
-                ref_seq.locus = fungene_info.group(1)
-                # organism = fungene_info.group(2)
-                # definition = fungene_info.group(3)
-                ref_seq.description = fungene_info.group(2)
-            else:
-                sys.stderr.write("ERROR: Failed to parse suspected header from FunGenes repository!.\n")
-                sys.stderr.write("Problem header: " + header + "\n")
-                sys.stderr.flush()
-                sys.exit()
-            short_id = mltree_id + '_' + code_name
-            ref_seq.short_id = short_id
-        elif header_format == "ncbi":
-            if re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\| (.*) \[(.*)\]$", header):
-                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\| (.*) \[(.*)\]$", header)
-                ref_seq.accession = ncbi_info.group(1)
-                ref_seq.description = ncbi_info.group(6)
-                # organism = ncbi_info.group(6)
-            elif re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: (.*;) .*", header):
-                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: (.*;) .*$", header)
-                ref_seq.accession = ncbi_info.group(1)
-                # definition = ncbi_info.group(5)
-                ref_seq.description = "Unclassified"
-            elif re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: Full=(.*)", header):
-                ncbi_info = re.match(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|.*: Full=(.*)$", header)
-                ref_seq.accession = ncbi_info.group(1)
-                # definition = ncbi_info.group(5)
-                ref_seq.description = "Unclassified"
-            else:
-                sys.stderr.write("ERROR: Failed to parse suspected header from Genbank!.\n")
-                sys.stderr.write("Problem header: " + header + "\n")
-                sys.stderr.flush()
-                sys.exit()
-            short_id = mltree_id + '_' + code_name
-            ref_seq.short_id = short_id
+        header_format_re = get_header_format(header, code_name)
+        if header_format_re is None:
+            raise AssertionError("Unable to parse header: " + header)
+        sequence_info = header_format_re.match(header)
+        if sequence_info:
+            ref_seq.accession = sequence_info.group(1)
+            ref_seq.description = sequence_info.group(2)
         else:
-            print "Unable to handle header:", header
+            print "Unable to handle header: ", header
             sys.exit()
 
         fasta_mltree_repl_dict[mltree_id] = ref_seq
+        short_id = mltree_id + '_' + code_name
+        ref_seq.short_id = short_id
 
     return fasta_mltree_repl_dict
 
@@ -494,8 +468,7 @@ def main():
     hmm_build_command = [args.executables["hmmbuild"]]
     hmm_build_command += ["-s", code_name + ".hmm"]
     hmm_build_command.append(fasta_mltree)
-    # hmm_build_command = "%s -s %s.hmm %s" %\
-    #                     (args.executables["hmmbuild"], code_name, fasta_mltree)
+
     hmmbuild_pro = subprocess.Popen(' '.join(hmm_build_command), shell=True, preexec_fn=os.setsid)
     hmmbuild_pro.wait()
 

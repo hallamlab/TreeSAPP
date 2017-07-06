@@ -4142,7 +4142,7 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     aa_dictionary = get_new_ref_sequences(update_tree)
     # Remove short sequences
     hmm_length = get_hmm_length(args, update_tree)
-    aa_dictionary = filter_short_sequences(aa_dictionary, 0.2*hmm_length)
+    aa_dictionary = filter_short_sequences(aa_dictionary, 0.5*hmm_length)
 
     new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
                          "_" + update_tree.COG + "_unaligned.fasta"

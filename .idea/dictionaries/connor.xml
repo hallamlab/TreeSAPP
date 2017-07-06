@@ -4,6 +4,9 @@
       <w>argparse</w>
       <w>contig</w>
       <w>contigs</w>
+      <w>malloc</w>
+      <w>newick</w>
+      <w>realloc</w>
     </words>
   </dictionary>
 </component>

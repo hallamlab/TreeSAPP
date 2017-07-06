@@ -375,7 +375,7 @@ sub optimize_node_recursively {
     }
 
     foreach my $child (sort { my $sort_value_a = $nr_terminal_children_per_child{$a};
-			      my $sort_value_b = $nr_terminal_children_per_child{$b};
+			      my $sort_value_b = 1 #$nr_terminal_children_per_child{$b};
 			      if ($sort_value_a == $sort_value_b) { $sort_value_a = $a; $sort_value_b = $b; }
 			      return $sort_value_a <=> $sort_value_b;
 			  } @children_this_node) {
