@@ -1,0 +1,36 @@
+1	Methylomonas methanica | 285027769
+2	Methylothermus subterraneus | 270288708
+3	marine metagenome | 529158423
+4	Methylacidiphilum kamchatkense | 217456805
+5	Methylomicrobium japanense | 89572591
+6	Nitrosospira briensis | 1732261
+7	Methyloprofundus sedimenti | 1169182835
+8	uncultured ammonia-oxidizing beta proteobacterium | 124491373
+9	Methylocaldum marinum | 586940998
+10	uncultured Methylocystis sp. GSC357 | 88909704
+11	Methylacidiphilum fumariolicum SolV | 156618676
+12	Methylocystis sp. SC2 | 401772585
+13	Methylocystis sp. ATCC 49242 | 322398197
+14	Nitrosococcus oceani ATCC 19707 | 2104719
+15	marine metagenome | 529158421
+16	Methylocaldum sp. T-025 | 134122723
+17	Methylomonas methanica MC09 | 333805788
+18	Methylomarinovum caldicuralii | 400132258
+19	Nitrosococcus halophilus Nc 4 | 291578765
+20	uncultured ammonia-oxidizing beta proteobacterium | 124491475
+21	Methylocystis sp. JTC3 | 631226518
+22	Methylocapsa acidiphila | 83423383
+23	Nitrosococcus watsonii C-113 | 6117982
+24	Methylosinus trichosporium OB3b | 296253650
+25	marine metagenome | 529158425
+26	Methylococcus capsulatus str. Bath | 66270661
+27	Methylomonas sp. LW13 | 285027764
+28	Methylacidiphilum infernorum V4 | 189184875
+29	Methylovulum miyakonense HT12 | 306921963
+30	Candidatus Methylomirabilis oxyfera | 258590833
+31	Methylacidiphilum fumariolicum SolV | 384525853
+32	Methylomarinum vadi | 223717931
+33	Methylacidiphilum kamchatkense | 217456773
+34	marine metagenome | 529158431
+35	Methylococcaceae bacterium SF-BR | 223717935
+36	Methylohalobius crimeensis 10Ki | 427190911
