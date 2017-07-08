@@ -81,7 +81,7 @@ mcrG	M0705	Methyl coenzyme M reductase gamma subunit
 #narI	D0103	nitrate reductase gamma subunit
 #napA	D0201	periplasmic nitrate reductase NapA
 #napB	D0202	cytochrome c-type protein NapB
-#nirK	D0301	nitrite reductase (NO-forming)
+nirK	D0301	nitrite reductase (NO-forming)
 #nirS	D0302	nitrite reductase (NO-forming) / hydroxylamine reductase
 #nrfA	D0401	nitrite reductase (cytochrome c-552)
 #norB	D0501	nitric oxide reductase subunit B
