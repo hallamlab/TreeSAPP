@@ -1,0 +1,348 @@
+1	Noviherbaspirillum sp. Root189 | 946115531
+2	Candidatus Accumulibacter sp. BA-92 | 589608699
+3	Mycobacterium xenopi RIVM700367 | 383336239
+4	Gammaproteobacteria bacterium SG8_30 | 931389749
+5	Rhizobacter sp. Root1221 | 945547630
+6	Lactobacillus ginsenosidimutans | 873923078
+7	Sphingobium sp. TKS | 998169288
+8	Ramlibacter tataouinensis | 1003117797
+9	Kingella kingae ATCC 23330 | 332970250
+10	Muricauda ruestringensis DSM 13258 | 343953259
+11	Shewanella woodyi ATCC 51908 | 169809717
+12	Campylobacter gracilis | 909717139
+13	Thalassomonas actiniarum | 765431946
+14	Candidatus Koribacter versatilis Ellin345 | 94549081
+15	Chroococcidiopsis thermalis PCC 7203 | 428006994
+16	Psychrobacter sp. PRwf-1 | 148570901
+17	Bacillus sp. FJAT-18017 | 925185398
+18	Saccharicrinis fermentans DSM 9555 = JCM 21142 | 588488549
+19	Dyella thiooxydans | 1026740086
+20	Mycobacterium intracellulare | 1038167146
+21	Acaryochloris marina MBIC11017 | 158309729
+22	Rugosibacter aromaticivorans | 761526933
+23	Haladaptatus paucihalophilus DX253 | 1110077209
+24	Candidatus Solibacter usitatus Ellin6076 | 116222307
+25	Ralstonia eutropha H16 | 32527006
+26	Estrella lausannensis | 871952974
+27	Campylobacter curvus 525.92 | 1063302204
+28	Bacillus sp. 17376 | 559166608
+29	Alcaligenaceae bacterium LMG 29303 | 1037121043
+30	Gloeocapsa sp. PCC 7428 | 428262672
+31	Legionella pneumophila subsp. pneumophila ATCC 43290 | 1145698649
+32	Pseudoalteromonas translucida KMM 520 | 961461195
+33	Anaeromyxobacter sp. K | 196170270
+34	Halogeometricum borinquense DSM 11551 | 312294779
+35	Vogesella sp. LIG4 | 1052698745
+36	Clostridium ultunense Esp | 452994258
+37	Pseudoalteromonas lipolytica SCSIO 04301 | 584418551
+38	Cecembia lonarensis LW9 | 405554870
+39	Duganella sp. Root1480D1 | 945890545
+40	Formosa agariphila KMM 3901 | 537740069
+41	Bacillus licheniformis | 1126606539
+42	Rheinheimera nanhaiensis E407-8 | 383704336
+43	Cellvibrio japonicus Ueda107 | 190684944
+44	Propionibacterium acidifaciens F0233 | 544243125
+45	Pseudomonas sp. CFII64 | 515427629
+46	Methylophaga aminisulfidivorans MP | 333788126
+47	Pyrodictium delaneyi | 941938072
+48	Corynebacterium pseudotuberculosis | 870599628
+49	Legionella feeleii | 962211742
+50	Janthinobacterium sp. HH01 | 444786415
+51	Haloferax elongans ATCC BAA-1513 | 445732981
+52	Cupriavidus basilensis | 752314807
+53	Kangiella koreensis DSM 16069 | 256794767
+54	Candidatus Halobonum tyrrellensis G22 | 556698502
+55	Pusillimonas sp. T7-7 | 330427206
+56	Candidatus Methylomirabilis oxyfera | 258590833
+57	Gallibacterium genomosp. 1 | 1041829236
+58	Chlorobi bacterium OLB7 | 1000296204
+59	Photobacterium damselae subsp. damselae | 1055856688
+60	Paraglaciecola polaris LMG 21857 | 410164546
+61	Paraglaciecola arctica BSs20135 | 410150613
+62	Frateuria sp. Soil773 | 946438617
+63	Gallionella sp. ShG14-8 | 1001836633
+64	Sphingobium sp. C100 | 566046266
+65	Haloarcula amylolytica JCM 13557 | 445774024
+66	Mycobacterium sp. E802 | 1038110172
+67	Osedax symbiont Rs1 | 515413569
+68	Veillonella dispar | 987374395
+69	Parcubacteria bacterium GW2011_GWA1_44_13 | 818693428
+70	Persephonella marina EX-H1 | 225644775
+71	Luteimonas sp. JM171 | 1060916168
+72	Pleurocapsa sp. PCC 7327 | 427977893
+73	gamma proteobacterium HdN1 | 301795385
+74	Omnitrophica bacterium OLB16 | 1000271172
+75	Wenyingzhuangia fucanilytica | 1049070564
+76	Janthinobacterium sp. B9-8 | 984915978
+77	Tetrasphaera australiensis Ben110 | 586943279
+78	Caulobacter segnis ATCC 21756 | 295429362
+79	Campylobacter concisus UNSW3 | 543202425
+80	Bacillus azotoformans LMG 9581 | 409934243
+81	Cellulophaga baltica NN016038 | 723618367
+82	Legionella parisiensis | 962255726
+83	Shewanella sp. ANA-3 | 117610791
+84	Bdellovibrio bacteriovorus str. Tiberius | 425858678
+85	Mycobacterium avium subsp. paratuberculosis S397 | 336459291
+86	Neisseria weaveri | 1028913308
+87	Pelistega sp. HM-7 | 564871093
+88	Woeseia oceani | 1041525582
+89	[Polyangium] brachysporum | 826168461
+90	Legionella quinlivanii | 962267341
+91	Chromobacterium subtsugae | 1040782115
+92	Herminiimonas arsenicoxydans | 133737197
+93	Anaeromyxobacter sp. PSR-1 | 775301252
+94	Sunxiuqinia dokdonensis | 918920032
+95	Gynuella sunshinyii YC6258 | 764033822
+96	Gemmata sp. SH-PL17 | 1015440974
+97	Sorangium cellulosum So ce56 | 161158851
+98	Zobellia galactanivorans | 339730808
+99	Alcaligenes faecalis subsp. faecalis NCIB 8687 | 393162732
+100	Psychrobacter sp. SHUES1 | 1032474334
+101	Lactobacillus fermentum | 930083756
+102	Corynebacterium diphtheriae bv. intermedius str. NCTC 5011 | 387981740
+103	Lactobacillus hokkaidonensis JCM 18461 | 716056622
+104	Haloferax denitrificans ATCC 35960 | 445756819
+105	Neisseria sp. KH1503 | 831387072
+106	Lacimicrobium alkaliphilum | 962030499
+107	Gluconobacter oxydans | 1003164162
+108	Acidiferrobacter thiooxydans | 1052247292
+109	Methylocystis sp. SC2 | 390189682
+110	Rhodanobacter sp. Root561 | 945915014
+111	Galbibacter marinus | 407744083
+112	Pusillimonas sp. T7-7 | 330427206
+113	Hydrogenophaga sp. Root209 | 946152535
+114	Actinoplanes awajinensis subsp. mycoplanecinus | 973279033
+115	Methylomonas koyamae | 1028393156
+116	Archangium gephyra | 827418478
+117	Rhodococcus equi | 1181093151
+118	Catenovulum agarivorans DS-2 | 584423479
+119	Capnocytophaga sp. oral taxon 380 str. F0488 | 429166521
+120	Legionella spiritensis | 962278111
+121	Albidiferax ferrireducens T118 | 89343559
+122	Legionella drozanskii LLAP-1 | 962199514
+123	Lactobacillus tucceti DSM 20183 | 948633658
+124	Limnochorda pilosa | 921142775
+125	Vulcanisaeta distributa DSM 14429 | 307549350
+126	Mycobacterium sinense | 1038541588
+127	Actinomyces sp. oral taxon 448 str. F0400 | 339884129
+128	Cystobacter fuscus DSM 2262 | 528053202
+129	Tetrasphaera japonica T1-X7 | 665500863
+130	Mariniradius saccharolyticus AK6 | 472840054
+131	Eikenella sp. NML02-A-017 | 1030160055
+132	Staphylococcus schleiferi | 928189965
+133	Sphingobium baderi | 959186210
+134	Halococcus thailandensis JCM 13552 | 445803223
+135	Rufibacter sp. DG31D | 887498678
+136	Parcubacteria bacterium GW2011_GWA1_47_8 | 818843092
+137	Moritella viscosa | 692309181
+138	Cardiobacterium hominis | 1047198199
+139	Brachybacterium faecium DSM 4810 | 256558041
+140	Arenimonas donghaensis DSM 18148 = HO3-R19 | 674772137
+141	Alicycliphilus denitrificans BC | 317115299
+142	Hydrogenobaculum sp. Y04AAS1 | 195931992
+143	Massilia sp. NR 4-1 | 909841042
+144	Kocuria flava | 970324016
+145	Neisseria subflava NJ9703 | 260533991
+146	Lactobacillus coryniformis subsp. torquens DSM 20004 = KCTC 3535 | 948653990
+147	Endozoicomonas elysicola | 658300938
+148	Bacteroidetes bacterium OLB12 | 1000259222
+149	Syntrophobacter fumaroxidans MPOB | 116696516
+150	Halopiger xanaduensis SH-6 | 335336085
+151	Synechocystis sp. PCC 6803 substr. GT-I | 359270229
+152	Caldivirga maquilingensis IC-167 | 157919427
+153	Legionella birminghamensis | 962182512
+154	Zhouia amylolytica AD3 | 568805122
+155	Candidatus Accumulibacter phosphatis clade IIA str. UW-1 | 257044187
+156	Epilithonimonas sp. J200 | 1028018939
+157	Pseudovibrio sp. WM33 | 1020207830
+158	Halosimplex carlsbadense 2-9-1 | 445674863
+159	Rhodanobacter sp. 115 | 388440411
+160	bacterium BRH_c32 | 974221150
+161	Rhodanobacter sp. 116-2 | 388446202
+162	Allochromatium vinosum DSM 180 | 288895136
+163	Chryseobacterium carnipullorum | 1110346635
+164	Omnitrophica bacterium OLB16 | 1000277834
+165	Massilia sp. Root418 | 945638435
+166	Marinobacter nanhaiticus D15-8W | 478769982
+167	Arthrospira platensis C1 | 406714812
+168	Parvibaculum lavamentivorans DS-1 | 154154406
+169	Shewanella loihica PV-4 | 126636230
+170	Natrialba taiwanensis DSM 12281 | 445643191
+171	Brachybacterium muris UCD-AY4 | 447380212
+172	Bathymodiolus azoricus thioautotrophic gill symbiont | 927434179
+173	Marinobacter sp. EhN04 | 1032121646
+174	Lactobacillus composti DSM 18527 = JCM 14202 | 948814978
+175	Oscillatoria nigro-viridis PCC 7112 | 428238862
+176	Geitlerinema sp. PCC 7407 | 427983362
+177	Polaromonas sp. CF318 | 398101063
+178	Vibrio sp. UCD-FRSSP16_10 | 1040449684
+179	Halorubrum lacusprofundi ATCC 49239 | 222451341
+180	Desulfomonile tiedjei DSM 6799 | 390621545
+181	Alcanivorax pacificus W11-5 | 407023199
+182	Prevotella sp. oral taxon 472 str. F0295 | 260633557
+183	Achromobacter sp. DMS1 | 918212218
+184	Haliscomenobacter hydrossis DSM 1100 | 332330813
+185	Bacillus sp. FJAT-18043 | 944253224
+186	Hydrogenophaga intermedia | 633888287
+187	Rhodanobacter sp. Root179 | 946105941
+188	Cupriavidus metallidurans CH34 | 93352797
+189	Flavobacterium piscis | 1044461851
+190	Sorangium cellulosum | 1005206299
+191	Caulobacter sp. Root1472 | 945880074
+192	Sphingomonas wittichii RW1 | 148498119
+193	Pelomonas sp. Root1444 | 945827054
+194	Cyanobacterium aponinum PCC 10605 | 428682694
+195	Tepidicaulis marinus | 665496257
+196	Massilia sp. Root1485 | 945893427
+197	Rhodospirillum centenum SW | 288926859
+198	Sulfurihydrogenibium azorense Az-Fu1 | 225643049
+199	Corynebacterium doosanense CAU 212 = DSM 45436 | 697777148
+200	Kangiella sediminilitoris | 1057914626
+201	Intrasporangium chromatireducens Q5-1 | 586971098
+202	Staphylococcus aureus | 996960555
+203	Sorangium cellulosum So ce56 | 161158851
+204	Arsenicicoccus sp. oral taxon 190 | 908724324
+205	Pyrobaculum calidifontis JCM 11548 | 126248349
+206	Burkholderia sp. H160 | 209503846
+207	Legionella jordanis | 962231498
+208	Halovivax asiaticus JCM 14624 | 445656385
+209	Anaeromyxobacter sp. Fw109-5 | 152026452
+210	Flavobacterium sp. TAB87 | 979232794
+211	Pyrobaculum ferrireducens | 356640791
+212	Fulvivirga imtechensis AK7 | 441439143
+213	Natrinema pellirubrum DSM 15624 | 445617030
+214	Lasius niger | 861642177
+215	Shewanella sediminis HAW-EB3 | 157315515
+216	Nitrosococcus watsonii C-113 | 299538682
+217	Paenibacillus sp. Leaf72 | 944766176
+218	Idiomarina woesei | 973974033
+219	Geobacter daltonii FRC-32 | 221562406
+220	Bacillus sp. 1NLA3E | 484574986
+221	Streptomyces fradiae | 649934144
+222	Aggregatibacter sp. oral taxon 458 str. W10330 | 541487250
+223	Legionella santicrucis | 962279692
+224	Natronococcus jeotgali DSM 18795 | 445606912
+225	Hyphomonas johnsonii MHS-2 | 630947431
+226	Caldisphaera lagunensis DSM 15908 | 429132784
+227	Idiomarina sp. MCCC 1A10513 | 683401756
+228	Mycobacterium sp. IS-1590 | 972103242
+229	Pseudoxanthomonas suwonensis 11-1 | 317464132
+230	Bacillus sp. 1NLA3E | 372453417
+231	Planctomyces sp. SH-PL62 | 1015454008
+232	Idiomarina abyssalis | 928501717
+233	Sulfolobus islandicus Y.G.57.14 | 228008532
+234	Pontibacter sp. BAB1700 | 394453176
+235	Stenotrophomonas daejeonensis | 947031027
+236	Staphylococcus agnetis | 951697248
+237	Phenylobacterium zucineum HLK1 | 196476886
+238	Burkholderia pseudomallei | 760220619
+239	Aquimarina sp. 22II-S11-z7 | 610625783
+240	Comamonas aquatica DA1877 | 594556559
+241	Brevundimonas sp. Root1423 | 945833270
+242	Cellvibrio sp. BR | 387936588
+243	gamma proteobacterium HdN1 | 301795385
+244	Niabella soli DSM 19437 | 373233307
+245	Sphingobium japonicum BiD32 | 482644720
+246	Propionibacterium acidipropionici | 1012282903
+247	Porphyromonadaceae bacterium ING2-E5B | 697632298
+248	Ralstonia sp. PBA | 392715953
+249	Rhizobiales bacterium NRL2 | 1037236364
+250	Methylophilus sp. Leaf414 | 945275322
+251	Lysobacter arseniciresistens ZS79 | 699269403
+252	Flavobacterium sp. 316 | 759872631
+253	Legionella cincinnatiensis | 962197959
+254	Natrialba aegyptia DSM 13077 | 445647222
+255	Fluoribacter bozemanae | 962184334
+256	Halobacterium hubeiense | 966204314
+257	Castellaniella defragrans 65Phen | 589264544
+258	Oscillatoria acuminata PCC 6304 | 427998918
+259	Halococcus salifodinae DSM 8989 | 445804551
+260	Woeseia oceani | 1041525582
+261	Rhodanobacter sp. Root627 | 945981877
+262	Candidatus Methylomirabilis oxyfera | 258590833
+263	Bacillus azotoformans MEV2011 | 656683400
+264	Achromobacter sp. AR476-2 | 1026292169
+265	Bacteriovorax sp. BAL6_X | 529051292
+266	Shewanella amazonensis SB2B | 119765642
+267	Mycobacterium kyorinense | 1038285478
+268	Legionella maceachernii | 1152151801
+269	Waddlia chondrophila 2032/99 | 337293968
+270	Anaeromyxobacter sp. Fw109-5 | 152026452
+271	Pyrobaculum oguniense TE7 | 375158415
+272	Chitinophaga pinensis DSM 2588 | 256033965
+273	Rhodanobacter sp. Root627 | 945978530
+274	Hahella chejuensis KCTC 2396 | 83630956
+275	Rhodanobacter sp. 115 | 388429498
+276	Mycobacterium sp. KMS | 119692146
+277	Mycobacterium sp. 1274756.6 | 1038418987
+278	Parachlamydia acanthamoebae UV-7 | 336478352
+279	Cesiribacter andamanensis AMV16 | 470229638
+280	Geobacter bemidjiensis Bem | 197085762
+281	Geobacillus stearothermophilus | 195183846
+282	Rhodopirellula europaea SH398 | 460269926
+283	Wenzhouxiangella marina | 906394962
+284	Flavobacterium daejeonense | 940669334
+285	Halococcus saccharolyticus DSM 5350 | 445795467
+286	Geobacter metallireducens RCH3 | 373559494
+287	Lysobacter dokdonensis DS-58 | 702086363
+288	Paenibacillus sp. LPB0068 | 1025923586
+289	Intrasporangium calvum DSM 43043 | 315587265
+290	Kyrpidia tusciae DSM 2912 | 295410288
+291	Propionibacterium freudenreichii | 732158509
+292	Sphingopyxis sp. 113P3 | 924524167
+293	Actinomyces radicidentis | 987450852
+294	Pseudomonas citronellolis | 1004374458
+295	Enhygromyxa salina | 747214543
+296	Legionella spiritensis | 962277625
+297	Legionella moravica | 962249209
+298	Sphingobium sp. TKS | 998163800
+299	Herbaspirillum frisingense GSF30 | 481870796
+300	Candidatus Methylomirabilis oxyfera | 258590833
+301	Sphingomonas wittichii RW1 | 148502970
+302	Propionibacterium acidipropionici ATCC 4875 | 410821238
+303	Shewanella frigidimarina | 979437415
+304	Janthinobacterium sp. CG23_2 | 962732407
+305	Haloterrigena salina JCM 13891 | 445661674
+306	Flavobacterium sp. F52 | 395436921
+307	Natronococcus amylolyticus DSM 10524 | 445601985
+308	Moraxella catarrhalis | 1034453212
+309	Shimwellia blattae DSM 4481 = NBRC 105725 | 403193085
+310	Oceanimonas sp. GK1 | 372983507
+311	Myroides marinus | 970595079
+312	Sphingobium baderi LL03 | 861977848
+313	Pseudoxanthomonas sp. Root630 | 945992022
+314	Solitalea canadensis DSM 3403 | 372004717
+315	Lactobacillus curieae | 723275549
+316	Neisseria bacilliformis ATCC BAA-1200 | 327462557
+317	Variovorax paradoxus | 827508228
+318	Bdellovibrio bacteriovorus | 1005822870
+319	Draconibacterium sediminis | 766983115
+320	Lysobacter sp. Root667 | 946019113
+321	Moraxella nonliquefaciens | 1041959476
+322	Lactobacillus kimchicus JCM 15530 | 948615288
+323	Paludibacter jiangxiensis | 1015805639
+324	Acidovorax sp. KKS102 | 407894523
+325	Rhizobacter sp. Root1238 | 945559406
+326	Brachybacterium sp. SW0106-09 | 926971214
+327	Photobacterium jeanii | 1032037322
+328	Thermoproteus uzoniensis 768-20 | 326946401
+329	Legionella erythra | 962209145
+330	Basilea psittacipulmonis DSM 24701 | 675107000
+331	Micromonospora halophytica | 1053000141
+332	Acidomonas methanolica NBRC 104435 | 602595264
+333	Arcobacter butzleri L353 | 822318177
+334	Pseudomonas sp. Root562 | 945934664
+335	Actinomyces naeslundii str. Howell 279 | 399902035
+336	Neisseria sp. 74A18 | 937492905
+337	Dyella jiangningensis | 612502010
+338	Ralstonia solanacearum | 1028442178
+339	Thiocystis violascens DSM 198 | 349791648
+340	Desulfovibrio sp. TomC | 732989356
+341	Rhizobacter sp. Root16D2 | 946061684
+342	Lactobacillus farciminis KCTC 3681 = DSM 20184 | 948631349
+343	Archangium gephyra | 827418478
+344	Marinobacter santoriniensis NKSG1 | 469612225
+345	Porphyromonas sp. oral taxon 279 str. F0450 | 402268985
+346	Haloterrigena turkmenica DSM 5511 | 284012950
+347	Acidilobus saccharovorans 345-15 | 302328214
+348	Streptomyces sp. F-3 | 1026352297

@@ -1,0 +1,34 @@
+1	Nitrosospira sp. Np39-19 | 2266997
+2	uncultured ammonia-oxidizing beta proteobacterium | 124491583
+3	uncultured ammonia-oxidizing beta proteobacterium | 124491565
+4	uncultured ammonia-oxidizing beta proteobacterium | 124110884
+5	uncultured ammonia-oxidizing beta proteobacterium | 124491477
+6	Nitrosomonas sp. Is79A3 | 338803667
+7	Nitrosomonas sp. JL21 | 19310209
+8	uncultured ammonia-oxidizing beta proteobacterium | 124491373
+9	uncultured ammonia-oxidizing beta proteobacterium | 124491375
+10	Nitrosospira multiformis | 3282756
+11	uncultured ammonia-oxidizing beta proteobacterium | 124431184
+12	uncultured ammonia-oxidizing bacterium | 443495898
+13	uncultured ammonia-oxidizing bacterium | 33187184
+14	Nitrosomonas eutropha C91 | 114307050
+15	uncultured ammonia-oxidizing beta proteobacterium | 124431172
+16	Nitrosomonas sp. AL212 | 325530400
+17	uncultured ammonia-oxidizing bacterium | 262217307
+18	Nitrosovibrio tenuis | 1732263
+19	uncultured ammonia-oxidizing bacterium | 262217309
+20	uncultured ammonia-oxidizing beta proteobacterium | 124491621
+21	uncultured ammonia-oxidizing beta proteobacterium | 124491415
+22	Nitrosospira multiformis ATCC 25196 | 1858014
+23	uncultured ammonia-oxidizing beta proteobacterium | 124491443
+24	uncultured ammonia-oxidizing beta proteobacterium | 124491535
+25	uncultured ammonia-oxidizing bacterium | 443495944
+26	uncultured ammonia-oxidizing beta proteobacterium | 149782935
+27	uncultured ammonia-oxidizing beta proteobacterium | 124431194
+28	Nitrosomonas sp. ENI-11 | 18447927
+29	uncultured ammonia-oxidizing beta proteobacterium | 124110893
+30	Nitrosomonas cryotolerans ATCC 49181 | 12620329
+31	uncultured ammonia-oxidizing bacterium | 443495928
+32	uncultured ammonia-oxidizing beta proteobacterium | 124431212
+33	uncultured ammonia-oxidizing beta proteobacterium | 124491429
+34	uncultured ammonia-oxidizing bacterium | 33187186
