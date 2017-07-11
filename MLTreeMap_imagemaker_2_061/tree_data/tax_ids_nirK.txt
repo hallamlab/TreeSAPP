@@ -1,78 +1,137 @@
-1	Neisseria mucosa ATCC 25996 | 257257211
-2	Roseovarius sp. 217 | 85668502
+1	Roseovarius sp. 217 | 85668502
+2	Thermobaculum terrenum ATCC BAA-798 | 269790643
 3	Halogeometricum borinquense DSM 11551 | 312294779
-4	Thermaerobacter subterraneus DSM 13965 | 313466788
-5	Sinorhizobium fredii USDA 257 | 390125223
-6	Chthoniobacter flavus Ellin428 | 196224511
-7	Mesorhizobium opportunistum WSM2075 | 336024847
-8	Rhodanobacter denitrificans | 459938263
-9	Halomicrobium mukohataei DSM 12286 | 257168392
-10	Halopiger xanaduensis SH-6 | 335336085
-11	Sphaerobacter thermophilus DSM 20745 | 269785296
-12	uncultured bacterium 1042 | 195541877
-13	uncultured bacterium 1062 | 195541913
-14	Ochrobactrum intermedium M86 | 443485868
-15	Haloterrigena turkmenica DSM 5511 | 284012950
-16	Taylorella equigenitalis MCE9 | 317108213
-17	Mesorhizobium amorphae CCNWGS0123 | 355533194
-18	Mesorhizobium alhagi CCNWXJ12-2 | 359249598
-19	Thermaerobacter marianensis DSM 12885 | 315590829
-20	Pseudomonas sp. G-179 | 3925388
-21	Mesorhizobium ciceri biovar biserrulae WSM1271 | 317171508
-22	Haloarcula marismortui | 8249445
-23	Pasteurella bettyae CCUG 2042 | 386905337
-24	Haloferax volcanii DS2 | 291370026
-25	Bradyrhizobium japonicum | 2597837
-26	Marinobacter sp. ELB17 | 126630264
-27	Bradyrhizobium sp. S23321 | 381356398
-28	Actinobacillus succinogenes 130Z | 150839411
-29	Haemophilus parainfluenzae | 1041985907
-30	Rhizobium sullae | 1488171
-31	Haloferax denitrificans ATCC 35960 | 445756819
-32	Neisseria sp. GT4A_CT1 | 348610226
-33	Chryseobacterium gleum ATCC 35910 | 300501745
-34	Sinorhizobium medicae WSM419 | 150031715
-35	Starkeya novella DSM 506 | 296926528
-36	Shewanella loihica PV-4 | 126636230
-37	Psychrobacter sp. 1501(2011) | 332978093
-38	Rhizobium etli CFN 42 | 86284836
-39	Phaeobacter gallaeciensis 2.10 | 161384245
-40	Shewanella denitrificans OS217 | 91713371
-41	Cardiobacterium hominis ATCC 15826 | 227072073
-42	Burkholderia thailandensis E254 | 695925210
-43	Kingella denitrificans ATCC 33394 | 324982192
-44	Taylorella asinigenitalis MCE3 | 347973256
-45	Neisseria meningitidis | 989835124
-46	Cardiobacterium valvarum F0432 | 364575382
-47	Neisseria elongata subsp. glycolytica ATCC 29315 | 747147039
-48	Bradyrhizobium japonicum | 736032532
-49	Neisseria meningitidis 65012 | 485300940
-50	uncultured bacterium 1116 | 195541952
-51	Neisseria bacilliformis ATCC BAA-1200 | 327462557
-52	Sinorhizobium fredii NGR234 | 227339586
-53	Brucella abortus str. 2308 A | 237787338
-54	Mesorhizobium australicum WSM2073 | 433663430
-55	Kingella oralis ATCC 51147 | 227466408
-56	Neisseria gonorrhoeae MU_NG17 | 830224971
-57	Sinorhizobium sp. NP1 | 221665269
-58	Rhodobacter sp. AKP1 | 428188335
-59	Haloferax mediterranei ATCC 33500 | 262264574
-60	Kingella kingae ATCC 23330 | 332970250
-61	Sinorhizobium meliloti | 1091405813
-62	Nitratireductor aquibiodomus RA22 | 389660973
-63	Alcaligenes faecalis subsp. faecalis NCIB 8687 | 393162732
-64	Natrinema pellirubrum DSM 15624 | 433304139
-65	Shewanella amazonensis SB2B | 119765642
-66	Roseobacter sp. SK209-2-6 | 126717960
-67	Neisseria subflava NJ9703 | 260533991
-68	Haemophilus parahaemolyticus | 1151589437
-69	Natronomonas pharaonis DSM 2160 | 76556520
-70	Neisseria meningitidis | 990010574
-71	Neisseria macacae ATCC 33926 | 339888157
-72	Neisseria weaveri LMG 5135 | 343970464
-73	Rhodobacter sphaeroides ATCC 17025 | 145554299
-74	Neisseria flavescens SK114 | 241319131
-75	Neisseria meningitidis M0579 | 325136630
-76	Agrobacterium tumefaciens CCNWGS0286 | 355537512
-77	Halorhabdus utahensis DSM 12940 | 256689853
-78	Halopiger xanaduensis SH-6 | 335336085
+4	Caulobacter segnis ATCC 21756 | 295429362
+5	Starkeya novella DSM 506 | 296926528
+6	Kangiella koreensis DSM 16069 | 256794767
+7	Pseudoalteromonas haloplanktis TAC125 | 76873893
+8	uncultured bacterium 1062 | 195541913
+9	uncultured bacterium 1114 | 195541984
+10	Capnocytophaga gingivalis ATCC 33624 | 228275423
+11	Chloroflexus aggregans DSM 9485 | 219541215
+12	Ochrobactrum anthropi ATCC 49188 | 151559234
+13	Marinobacter sp. ELB17 | 126630264
+14	Nitrosomonas sp. Is79A3 | 338803667
+15	Pseudomonas sp. BICA1-14 | 861575524
+16	Bradyrhizobium sp. ORS 278 | 146189981
+17	Aequorivita sublithincola DSM 14238 | 390418775
+18	Afipia sp. 1NLS2 | 298591814
+19	Pseudomonas mendocina NK-01 | 328915200
+20	Turneriella parva DSM 21527 | 390609540
+21	Burkholderia pseudomallei 576 | 217391700
+22	Rhodanobacter denitrificans | 292485871
+23	Capnocytophaga sputigena ATCC 33612 | 213955098
+24	Neisseria gonorrhoeae MU_NG17 | 830224971
+25	Natrinema pellirubrum DSM 15624 | 433304139
+26	Roseobacter sp. SK209-2-6 | 126717960
+27	Oceanimonas sp. GK1 | 372983507
+28	Leptospira biflexa serovar Patoc strain 'Patoc 1 (Paris)' | 167777849
+29	Neisseria weaveri LMG 5135 | 343970464
+30	Kingella kingae | 951285167
+31	Haemophilus pittmaniae HK 85 | 343392532
+32	Rhodothermus marinus DSM 4252 | 262333112
+33	Rhodanobacter sp. 115 | 388429498
+34	Pseudomonas entomophila L48 | 95101722
+35	Halopiger xanaduensis SH-6 | 335336085
+36	Sphaerobacter thermophilus DSM 20745 | 269785296
+37	uncultured bacterium 1042 | 195541877
+38	Sinorhizobium medicae WSM419 | 150031715
+39	Fusarium lichenicola | 284181757
+40	Capnocytophaga sp. oral taxon 329 str. F0087 | 725816530
+41	Flavobacterium johnsoniae | 1110451364
+42	Chloroflexus sp. Y-400-fl | 222447181
+43	Actinobacillus succinogenes 130Z | 150839411
+44	Nitratireductor aquibiodomus RA22 | 389660973
+45	Solitalea canadensis DSM 3403 | 379652114
+46	Salinisphaera shabanensis E1L3A | 334887032
+47	Cardiobacterium hominis ATCC 15826 | 227072073
+48	Nitrosomonas sp. AL212 | 325530400
+49	Pseudomonas sp. G-179 | 2773327
+50	Rhodobacter sphaeroides ATCC 17025 | 145554299
+51	Chthoniobacter flavus Ellin428 | 196224511
+52	Ralstonia pickettii | 355002696
+53	Muricauda ruestringensis DSM 13258 | 343953259
+54	Polaromonas naphthalenivorans CJ2 | 120591888
+55	Methylacidiphilum fumariolicum SolV | 384526690
+56	Neisseria meningitidis | 989917424
+57	Rhodopseudomonas palustris TIE-1 | 192282182
+58	Shewanella amazonensis SB2B | 119765642
+59	Neisseria subflava NJ9703 | 260533991
+60	Rhodopseudomonas palustris BisA53 | 115515977
+61	Methylotenera mobilis JLW8 | 253982053
+62	Haemophilus parahaemolyticus HK385 | 386908863
+63	Chromobacterium violaceum ATCC 12472 | 34105712
+64	Methylocella silvestris BL2 | 217501576
+65	Capnocytophaga sp. oral taxon 338 str. F0234 | 325691841
+66	Halopiger xanaduensis SH-6 | 335336085
+67	Pusillimonas sp. T7-7 | 330427206
+68	Mesorhizobium alhagi CCNWXJ12-2 | 359252328
+69	Mesorhizobium amorphae CCNWGS0123 | 355533194
+70	Thermaerobacter marianensis DSM 12885 | 315590829
+71	Imtechella halotolerans K1 | 383834384
+72	Rhodanobacter sp. 115 | 388429842
+73	Haloarcula marismortui | 8249445
+74	Pasteurella bettyae CCUG 2042 | 386905337
+75	Myroides odoratimimus CCUG 12901 | 371640849
+76	Coccidioides posadasii C735 delta SOWgp | 240107501
+77	Brucella melitensis NI | 349744168
+78	Shewanella loihica PV-4 | 126636230
+79	Mesorhizobium alhagi CCNWXJ12-2 | 359249598
+80	Shewanella denitrificans OS217 | 91713371
+81	Kingella denitrificans ATCC 33394 | 324982192
+82	Phaeobacter gallaeciensis BS107 | 161387473
+83	Chelativorans sp. BNC1 | 110283028
+84	Cardiobacterium valvarum F0432 | 364575382
+85	Haemophilus parainfluenzae ATCC 33392 | 325159736
+86	Maribacter sp. HTCC2170 | 304420054
+87	Actinobacillus minor NM305 | 240295756
+88	Rhodopseudomonas palustris TIE-1 | 192282182
+89	Sinorhizobium sp. NP1 | 221665269
+90	Azoarcus sp. KH32C | 358639587
+91	Pseudoxanthomonas suwonensis 11-1 | 317464132
+92	Neisseria elongata subsp. glycolytica ATCC 29315 | 264675849
+93	Ralstonia solanacearum PSI07 | 299076774
+94	Hyphomicrobium denitrificans 1NES1 | 353211072
+95	Chelativorans sp. BNC1 | 110283346
+96	Marivirga tractuosa DSM 4126 | 312940827
+97	Mesorhizobium australicum WSM2073 | 353198181
+98	Agrobacterium tumefaciens CCNWGS0286 | 355537512
+99	Pseudomonas chlororaphis O6 | 388554172
+100	Neisseria mucosa ATCC 25996 | 257257211
+101	Thermaerobacter subterraneus DSM 13965 | 313466788
+102	Taylorella equigenitalis 14/56 | 399114527
+103	Pseudomonas protegens Pf-5 | 68342549
+104	Azospirillum brasilense Sp245 | 356881273
+105	Nitrosococcus oceani C-27 | 672878985
+106	Halomicrobium mukohataei DSM 12286 | 257168392
+107	Flavobacteriaceae bacterium 3519-10 | 255340365
+108	Bizionia argentinensis JUB59 | 344048631
+109	Haloterrigena turkmenica DSM 5511 | 284012950
+110	Azospirillum sp. B510 | 288913807
+111	Ajellomyces capsulatus | 55925794
+112	Haloferax volcanii DS2 | 291370026
+113	Nitrosospira multiformis ATCC 25196 | 82409200
+114	Bradyrhizobium sp. S23321 | 381356398
+115	Rhizobium sullae | 1488171
+116	Hyphomicrobium denitrificans | 21623659
+117	Psychrobacter sp. 1501(2011) | 332978093
+118	Rhizobium etli CFN 42 | 86284836
+119	Rhodobacter sp. AKP1 | 428188335
+120	Alcaligenes sp. STC1 | 12597208
+121	Taylorella asinigenitalis MCE3 | 347973256
+122	Mesorhizobium ciceri | 1016905075
+123	Maritimibacter alkaliphilus HTCC2654 | 84667319
+124	Lautropia mirabilis ATCC 51599 | 319742450
+125	uncultured bacterium 1116 | 195541952
+126	Parvibaculum lavamentivorans DS-1 | 154154406
+127	Neisseria bacilliformis ATCC BAA-1200 | 327462557
+128	Chryseobacterium gleum ATCC 35910 | 300501745
+129	Kingella oralis ATCC 51147 | 227466408
+130	Belliella baltica DSM 15883 | 390415094
+131	Methylocystis sp. ATCC 49242 | 322395292
+132	Haloferax mediterranei ATCC 33500 | 262264574
+133	Alcaligenes faecalis subsp. faecalis NCIB 8687 | 393162732
+134	Actinobacillus ureae ATCC 25976 | 322120307
+135	Pusillimonas sp. T7-7 | 330427206
+136	Natronomonas pharaonis DSM 2160 | 76556520
+137	Halorhabdus utahensis DSM 12940 | 256689853
