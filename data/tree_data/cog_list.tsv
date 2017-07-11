@@ -88,7 +88,7 @@ norB	D0501	nitric oxide reductase subunit B
 #norC	D0502	nitric oxide reductase subunit C
 #nosZ	D0601	Nitrous-oxide reductase
 #amoA_AOA	N0101	Ammonia monooxygenase (Ammonia-oxidizing Archaea)
-amoA_AOB	N0102	Ammonia monooxygenase (Ammonia-oxidizing Bacteria)
+amoA_B	N0102	Ammonia monooxygenase (Ammonia-oxidizing Bacteria)
 #hao	N0200	hydroxylamine dehydrogenase
 #nxrB	N0301	Nitrite oxidoreductase subunit B
 #nifH	N0401	nitrogenase iron protein NifH (K02588)

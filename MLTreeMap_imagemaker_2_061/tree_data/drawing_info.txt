@@ -16,4 +16,4 @@ U0701	pufMKEG
 A0103	pmoA
 D0301	nirK
 D0501	norB
-N0102	amoA_AOB
+N0102	amoA_B
