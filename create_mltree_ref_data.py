@@ -35,7 +35,7 @@ def get_arguments():
                         required=False,
                         default=None)
     parser.add_argument("-c", "--code_name",
-                        help="Unique name to be used by TreeSAPP internally. NOTE: Must be >=5 characters.\n"
+                        help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
                              "Refer to the first column of 'cog_list.txt' under the '#functional cogs' section)",
                         required=True)
     parser.add_argument("-m", "--min_length",
@@ -56,10 +56,10 @@ def get_arguments():
     args = parser.parse_args()
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
 
-    # if len(args.code_name) < 5:
-    #     sys.stderr.write("ERROR: code_name must be >= 5 characters!\n")
-    #     sys.stderr.flush()
-    #     sys.exit(-1)
+    if len(args.code_name) > 6:
+        sys.stderr.write("ERROR: code_name must be <= 6 characters!\n")
+        sys.stderr.flush()
+        sys.exit(-1)
 
     return args
 

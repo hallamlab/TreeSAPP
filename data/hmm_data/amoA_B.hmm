@@ -1,13 +1,13 @@
 HMMER2.0  [2.4i]
-NAME  amoA_AOB
+NAME  amoA_B
 LENG  263
 ALPH  Amino
 RF    no
 CS    no
 MAP   yes
-COM   /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/sub_binaries/hmmbuild -s amoA_AOB.hmm amoA_AOB.fa
+COM   /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/sub_binaries/hmmbuild -s amoA_B.hmm amoA_B.fa
 NSEQ  34
-DATE  Sat Jul  8 15:03:24 2017
+DATE  Mon Jul 10 18:52:34 2017
 CKSUM 4042
 XT      -8455     -4      0      *  -8455     -4      0      * 
 NULT      -4  -8455

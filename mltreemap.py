@@ -1390,14 +1390,11 @@ def parse_blast_results(args, blast_table, cog_list):
                 sys.exit()
             direction = 'reverse'
 
-        # Trim COG name to last 7 characters of detailed COG name
-        # TK - This will be important to note in the user's manual,
-        # especially if we enable people to add their own COGs later
-        # TODO: Test if this limitation is necessary
+        # This limitation is so-far not necessary
         # result = reg_cog_id.match(temp_detailed_cog)
         # if result:
         #     tempCOG = result.group(1)
-        result = temp_detailed_cog.split('_')[1]
+        result = '_'.join(temp_detailed_cog.split('_')[1:])
         if result:
             tempCOG = result
         else:
@@ -1696,12 +1693,15 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
                 # Note: Genewise (gw) positions start with 1, blast positions with 0 ->
                 # thus differentiate between start_blast and start_gw
                 shortened_start_gw = len(shortened_sequence) + 1
-                count = -1
-                for nucleotide in sequence:
-                    count += 1
-                    if not count >= start_blast and count <= end_blast:
-                        continue
-                    shortened_sequence += nucleotide
+
+                # Changing the following to string slicing to shorten the sequence when dealing with large sequences:
+                # count = -1
+                # for nucleotide in sequence:
+                #     count += 1
+                #     if not count >= start_blast and count <= end_blast:
+                #         continue
+                #     shortened_sequence += nucleotide
+                shortened_sequence += sequence[start_blast:end_blast]
 
                 shortened_end_gw = len(shortened_sequence)
                 addition_factor = (start_blast + 1) - shortened_start_gw  # $start_B + 1 == $start_GW
@@ -1839,11 +1839,20 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
         for identifier in sorted(blast_hits_purified[contig].keys()):
             cog = blast_hits_purified[contig][identifier]['cog']
             if cog not in cog_hmms:
+                sys.stderr.write("WARNING: " + cog + " not found in " + hmm_dir + "\n")
+                sys.stderr.flush()
                 continue
 
             # Prepare the output file name, and store it
             genewise_outputfile = args.output_dir_var + contig + '_' + cog + '_genewise.txt'
-            genewise_outputfiles[contig][genewise_outputfile] = 1
+            # Check to see if this cog is already going to be searched for on this contig
+            if genewise_outputfile in genewise_outputfiles[contig]:
+                # if args.verbose:
+                #     sys.stderr.write("Skipping duplicate genewise command for " + cog + " on sequence " + contig + "\n")
+                #     sys.stderr.flush()
+                continue
+            else:
+                genewise_outputfiles[contig][genewise_outputfile] = 1
 
             # Prepare the Genewise command and run it
             genewise_command = [args.executables["genewise"], 
@@ -1875,6 +1884,7 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     # Return the list of output files for each contig
     if args.verbose:
         sys.stdout.write("done.\n")
+
     return genewise_outputfiles
 
 

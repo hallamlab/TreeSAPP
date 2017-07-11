@@ -1,2 +1,2 @@
-## amoA_AOB
+## amoA_B
 1 8 175 238 238 Bacteria
