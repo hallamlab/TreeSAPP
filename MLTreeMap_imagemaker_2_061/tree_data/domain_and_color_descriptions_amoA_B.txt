@@ -1,2 +1,2 @@
 ## amoA_B
-1 8 175 238 238 Bacteria
+13 14 175 238 238 Betaproteobacteria

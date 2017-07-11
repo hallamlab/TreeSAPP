@@ -1,2 +1,17 @@
 ## nirK
-46 74 175 238 238 Euryarchaeota
+56 129 166 189 219 Betaproteobacteria
+134 117 116 169 207 Gammaproteobacteria
+64 64 208 209 230 Alphaproteobacteria
+61 90 166 189 219 Betaproteobacteria
+28 20 199 233 192 Spirochaetia
+51 51 161 217 155 Verrucomicrobia
+45 45 49 163 84 Bacteroidetes
+93 91 4 90 141 Proteobacteria
+71 107 49 163 84 Bacteroidetes
+111 39 227 74 51 Eukarya
+113 94 4 90 141 Proteobacteria
+46 126 4 90 141 Proteobacteria
+101 2 116 196 118 Terrabacteria
+106 136 217 95 14 Archaea
+32 32 49 163 84 Bacteroidetes
+26 47 4 90 141 Proteobacteria
