@@ -341,15 +341,18 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
         for mltree_id in fasta_replace_dict:
             ref_seq = fasta_replace_dict[mltree_id]
             ref_seq.short_id = mltree_id + '_' + code_name
+            tmp_ref_def = re.sub('\)|\(', '', ref_seq.description) # Remove parentheses for comparisons
             # This `swappers` is actually cluster_dict
             # keys are rep. headers, values are list of identical sequence names
             for header in swappers.keys():
+                tmp_header = re.sub('\)|\(', '', header) # Remove parentheses for comparisons
                 # Need to check both keys and values since it is unknown whether the rep was selected or not
-                if re.search(ref_seq.description, header) and re.search(ref_seq.accession, header):
-                    ref_seq.sequence = fasta_dict[header]
+                if re.search(ref_seq.accession, header):
+                    if re.search(tmp_ref_def, tmp_header):
+                        ref_seq.sequence = fasta_dict[header]
                 if len(swappers[header]) > 0:
                     for constituent in swappers[header]:
-                        if re.search(ref_seq.description, constituent) and re.search(ref_seq.accession, constituent):
+                        if re.search(tmp_ref_def, constituent) and re.search(ref_seq.accession, constituent):
                             ref_seq.sequence = fasta_dict[header]
 
             if not ref_seq.sequence:
