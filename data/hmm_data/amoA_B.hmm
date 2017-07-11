@@ -7,7 +7,7 @@ CS    no
 MAP   yes
 COM   /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/sub_binaries/hmmbuild -s amoA_B.hmm amoA_B.fa
 NSEQ  34
-DATE  Mon Jul 10 18:52:34 2017
+DATE  Tue Jul 11 09:39:24 2017
 CKSUM 4042
 XT      -8455     -4      0      *  -8455     -4      0      * 
 NULT      -4  -8455
