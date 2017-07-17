@@ -271,7 +271,7 @@ def present_cluster_rep_options(cluster_dict):
             while best not in candidates.keys():
                 best = raw_input("Invalid number. Number of the best representative? ")
             if best != str(1):
-                swappers['>' + rep] = '>' + candidates[best]
+                swappers[rep] = candidates[best]
 
     return swappers
 
@@ -305,7 +305,10 @@ def get_header_format(header, code_name):
     :return:
     """
     # The regular expressions with the accession and organism name grouped
-    gi_re = re.compile(">gi\|(\d+)\|(\w+)\|(\S+(\.\d+)*)\|(.*)$")
+
+    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|\w.+\|(.*)$")
+    gi_prepend_proper_re = re.compile(">gi\|([0-9]+)\|[a-z]+\|[_A-Z0-9.]+\|.*\[(.*)\]$")
+    gi_prepend_mess_re = re.compile(">gi\|([0-9]+)\|pir\|\|(.*)$")
     dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")
     emb_re = re.compile(">emb\|(.*)\|.*\[(.*)\]")
     gb_re = re.compile(">gb\|(.*)\|.*\[(.*)\]")
@@ -317,7 +320,8 @@ def get_header_format(header, code_name):
     # TODO: Find the description field for the mltree_re
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
 
-    header_format_regexi = [gi_re, dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re, fungene_re, mltree_re]
+    header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re,
+                            fungene_re, mltree_re, gi_prepend_proper_re, gi_prepend_mess_re, gi_re]
     for regex in header_format_regexi:
         if regex.match(header):
             return regex
@@ -341,11 +345,11 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
         for mltree_id in fasta_replace_dict:
             ref_seq = fasta_replace_dict[mltree_id]
             ref_seq.short_id = mltree_id + '_' + code_name
-            tmp_ref_def = re.sub('\)|\(', '', ref_seq.description) # Remove parentheses for comparisons
+            tmp_ref_def = re.sub('\)|\(', '', ref_seq.description)  # Remove parentheses for comparisons
             # This `swappers` is actually cluster_dict
             # keys are rep. headers, values are list of identical sequence names
             for header in swappers.keys():
-                tmp_header = re.sub('\)|\(', '', header) # Remove parentheses for comparisons
+                tmp_header = re.sub('\)|\(', '', header)  # Remove parentheses for comparisons
                 # Need to check both keys and values since it is unknown whether the rep was selected or not
                 if re.search(ref_seq.accession, header):
                     if re.search(tmp_ref_def, tmp_header):
