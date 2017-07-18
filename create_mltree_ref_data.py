@@ -44,10 +44,9 @@ def get_arguments():
                         default=0,
                         type=int)
     parser.add_argument("-b", "--bootstraps",
-                        help="The number of bootstrap replicates RAxML should perform [ DEFAULT = 100 ]",
+                        help="The number of bootstrap replicates RAxML should perform [ DEFAULT = autoMR ]",
                         required=False,
-                        default=100,
-                        type=int)
+                        default="autoMR")
     parser.add_argument("-T", "--num_threads",
                         help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
                         required=False,
@@ -345,11 +344,11 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
         for mltree_id in fasta_replace_dict:
             ref_seq = fasta_replace_dict[mltree_id]
             ref_seq.short_id = mltree_id + '_' + code_name
-            tmp_ref_def = re.sub('\)|\(', '', ref_seq.description)  # Remove parentheses for comparisons
+            tmp_ref_def = re.sub('[)(]', '', ref_seq.description)  # Remove parentheses for comparisons
             # This `swappers` is actually cluster_dict
             # keys are rep. headers, values are list of identical sequence names
             for header in swappers.keys():
-                tmp_header = re.sub('\)|\(', '', header)  # Remove parentheses for comparisons
+                tmp_header = re.sub('[)(]', '', header)  # Remove parentheses for comparisons
                 # Need to check both keys and values since it is unknown whether the rep was selected or not
                 if re.search(ref_seq.accession, header):
                     if re.search(tmp_ref_def, tmp_header):
@@ -560,8 +559,8 @@ def main():
     if not os.path.exists(raxml_out):
         os.system("mkdir %s" % raxml_out)
 
-    raxml_command = "%s -f a -p 12345 -x 12345 -# %s -m PROTGAMMAWAG -s %s -n %s -w %s -T %s" %\
-                    (args.executables["raxmlHPC"], str(args.bootstraps), phylip_file, code_name,
+    raxml_command = "%s -f a -p 12345 -x 12345 -# %s -m PROTGAMMAAUTO -s %s -n %s -w %s -T %s" %\
+                    (args.executables["raxmlHPC"], args.bootstraps, phylip_file, code_name,
                      args.mltreemap + raxml_out, args.num_threads)
     os.system(raxml_command)
 
