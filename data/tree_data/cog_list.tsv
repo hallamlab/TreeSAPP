@@ -63,7 +63,7 @@ COG0552	C0552	phylogenetic_cogs
 #mtrG	M0606	Tetrahydro-methanopterin methyltransferase subunit G
 #mtrH	M0607	Tetrahydro-methanopterin methyltransferase subunit H
 mcrA	M0701	Methyl coenzyme M reductase alpha subunit
-#mcrB	M0702	Methyl coenzyme M reductase beta subunit
+mcrB	M0702	Methyl coenzyme M reductase beta subunit
 #mcrC	M0703	Methyl coenzyme M reductase subunit C
 #mcrD	M0704	Methyl coenzyme M reductase delta subunit
 mcrG	M0705	Methyl coenzyme M reductase gamma subunit
