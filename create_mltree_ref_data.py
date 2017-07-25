@@ -316,8 +316,14 @@ def get_header_format(header, code_name):
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
+    fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     # TODO: Find the description field for the mltree_re
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
+
+    if fungene_gi_bad.match(header):
+        sys.stderr.write("WARNING: Input sequences use FunGene 'GIs' which are often non-unique. "
+                         "For everyone's sanity, please download the same sequences with the `accno` instead.")
+        sys.exit()
 
     header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re,
                             fungene_re, mltree_re, gi_prepend_proper_re, gi_prepend_mess_re, gi_re]
