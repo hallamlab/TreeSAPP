@@ -95,6 +95,20 @@ def find_executables(args):
     return args
 
 
+def launch_write_command(cmd_list):
+    proc = subprocess.Popen(' '.join(cmd_list),
+                            shell=True,
+                            preexec_fn=os.setsid,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT)
+    stdout = proc.communicate()[0].decode("utf-8")
+    stdout = re.sub("\^M", "\r", stdout)
+    if stdout is None:
+        stdout = ""
+    proc.wait()
+    return stdout, proc.returncode
+
+
 def format_read_fasta(fasta_file, args):
     """
     Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
@@ -509,6 +523,8 @@ def main():
         sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
         sys.stderr.flush()
 
+    log = open(final_output_folder + "_log.txt", 'w')
+
     if args.uc:
         cluster_dict = read_uc(args.uc)
         if use_previous_names == 'n':
@@ -541,12 +557,14 @@ def main():
     muscle_align_command += ["-in", fasta_replaced_file]
     muscle_align_command += ["-out", fasta_replaced_align]
 
-    muscle_pro = subprocess.Popen(' '.join(muscle_align_command), shell=True, preexec_fn=os.setsid)
-    muscle_pro.wait()
-    if muscle_pro.returncode != 0:
+    stdout, muscle_pro_returncode = launch_write_command(muscle_align_command)
+
+    if muscle_pro_returncode != 0:
         sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["muscle"] +
                          " did not complete successfully! Command used:\n" + ' '.join(muscle_align_command) + "\n")
         sys.exit()
+
+    log.write("\n### MUSCLE ###\n" + stdout)
 
     fasta_mltree = code_name + ".fa"
 
@@ -560,12 +578,15 @@ def main():
     makeblastdb_command += ["-dbtype", "prot"]
     makeblastdb_command += ["-input_type", "fasta"]
 
-    makeblastdb_pro = subprocess.Popen(' '.join(makeblastdb_command), shell=True, preexec_fn=os.setsid)
-    makeblastdb_pro.wait()
-    if makeblastdb_pro.returncode != 0:
+    stdout, makeblastdb_pro_returncode = launch_write_command(makeblastdb_command)
+
+    if makeblastdb_pro_returncode != 0:
         sys.stderr.write("ERROR: BLAST database was unable to be made using " + args.executables["makeblastdb"] +
                          "! Command used:\n" + ' '.join(makeblastdb_command) + "\n")
         sys.exit()
+
+    if stdout:
+        log.write("\n### MAKEBLASTDB ###\n" + stdout)
 
     print "******************** BLAST DB for %s generated ********************\n" % code_name
 
@@ -575,13 +596,14 @@ def main():
     hmm_build_command += ["-s", code_name + ".hmm"]
     hmm_build_command.append(fasta_mltree)
 
-    hmmbuild_pro = subprocess.Popen(' '.join(hmm_build_command), shell=True, preexec_fn=os.setsid)
-    hmmbuild_pro.wait()
+    stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
 
-    if hmmbuild_pro.returncode != 0:
+    if hmmbuild_pro_returncode != 0:
         sys.stderr.write("ERROR: hmmbuild did not complete successfully for:\n")
         sys.stderr.write(' '.join(hmm_build_command) + "\n")
         sys.exit()
+
+    log.write("\n### HMMBUILD ###\n" + stdout)
 
     os.rename(code_name + ".hmm", final_output_folder + code_name + ".hmm")
 
@@ -591,7 +613,7 @@ def main():
     os.system(phylip_command)
 
     phylip_file = code_name + ".phy"
-    os.system('mv %s.phylip %s' % (fasta_mltree, phylip_file))
+    os.rename(fasta_mltree + ".phylip", phylip_file)
 
     raxml_out = "%s_phy_files" % code_name
 
@@ -602,10 +624,25 @@ def main():
                                                  "Please delete or rename and try again")
         sys.exit()
 
-    raxml_command = "%s -f a -p 12345 -x 12345 -# %s -m PROTGAMMAAUTO -s %s -n %s -w %s -T %s" %\
-                    (args.executables["raxmlHPC"], args.bootstraps, phylip_file, code_name,
-                     args.mltreemap + raxml_out, args.num_threads)
-    os.system(raxml_command)
+    raxml_command = [args.executables["raxmlHPC"]]
+    raxml_command += ["-f", "a"]
+    raxml_command += ["-p", "12345"]
+    raxml_command += ["-x", "12345"]
+    raxml_command += ["-#", args.bootstraps]
+    raxml_command += ["-m", "PROTGAMMAAUTO"]
+    raxml_command += ["-s", phylip_file]
+    raxml_command += ["-n", code_name]
+    raxml_command += ["-w", args.mltreemap + raxml_out]
+    raxml_command += ["-T", args.num_threads]
+
+    stdout, raxml_returncode = launch_write_command(raxml_command)
+
+    log.write(stdout)
+
+    if raxml_returncode != 0:
+        sys.stderr.write("ERROR: RAxML did not complete successfully! "
+                         "Look in " + args.mltreemap + raxml_out + "RAxML_info." + code_name + " for error message.")
+        sys.exit(3)
 
     tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, code_name)
     final_mltree = "%s_tree.txt" % code_name
