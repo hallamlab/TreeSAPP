@@ -95,16 +95,21 @@ def find_executables(args):
     return args
 
 
-def launch_write_command(cmd_list):
-    proc = subprocess.Popen(' '.join(cmd_list),
-                            shell=True,
-                            preexec_fn=os.setsid,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
-    stdout = proc.communicate()[0].decode("utf-8")
-    stdout = re.sub("\^M", "\r", stdout)
-    if stdout is None:
-        stdout = ""
+def launch_write_command(cmd_list, collect=True):
+    stdout = ""
+    if collect:
+        proc = subprocess.Popen(' '.join(cmd_list),
+                                shell=True,
+                                preexec_fn=os.setsid,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        stdout = proc.communicate()[0].decode("utf-8")
+        stdout = re.sub(r'\r', '\n', stdout)
+    else:
+        proc = subprocess.Popen(' '.join(cmd_list),
+                                shell=True,
+                                preexec_fn=os.setsid)
+
     proc.wait()
     return stdout, proc.returncode
 
@@ -524,6 +529,7 @@ def main():
         sys.stderr.flush()
 
     log = open(final_output_folder + "_log.txt", 'w')
+    log.write("Command used:\n" + ' '.join(sys.argv) + "\n\n")
 
     if args.uc:
         cluster_dict = read_uc(args.uc)
@@ -557,14 +563,12 @@ def main():
     muscle_align_command += ["-in", fasta_replaced_file]
     muscle_align_command += ["-out", fasta_replaced_align]
 
-    stdout, muscle_pro_returncode = launch_write_command(muscle_align_command)
+    stdout, muscle_pro_returncode = launch_write_command(muscle_align_command, False)
 
     if muscle_pro_returncode != 0:
         sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["muscle"] +
                          " did not complete successfully! Command used:\n" + ' '.join(muscle_align_command) + "\n")
         sys.exit()
-
-    log.write("\n### MUSCLE ###\n" + stdout)
 
     fasta_mltree = code_name + ".fa"
 
@@ -585,8 +589,7 @@ def main():
                          "! Command used:\n" + ' '.join(makeblastdb_command) + "\n")
         sys.exit()
 
-    if stdout:
-        log.write("\n### MAKEBLASTDB ###\n" + stdout)
+    log.write("\n### MAKEBLASTDB ###" + stdout)
 
     print "******************** BLAST DB for %s generated ********************\n" % code_name
 
@@ -603,9 +606,10 @@ def main():
         sys.stderr.write(' '.join(hmm_build_command) + "\n")
         sys.exit()
 
-    log.write("\n### HMMBUILD ###\n" + stdout)
+    log.write("\n### HMMBUILD ###\n\n" + stdout)
+    log.close()
 
-    os.rename(code_name + ".hmm", final_output_folder + code_name + ".hmm")
+    os.rename(code_name + ".hmm", final_output_folder + os.sep + code_name + ".hmm")
 
     print "******************** HMM file for %s generated ********************\n" % code_name
 
@@ -620,8 +624,8 @@ def main():
     if not os.path.exists(raxml_out):
         os.system("mkdir %s" % raxml_out)
     else:
-        sys.stderr.write("ERROR: " + raxml_out + " already exists from a previous run!"
-                                                 "Please delete or rename and try again")
+        sys.stderr.write("ERROR: " + raxml_out + " already exists from a previous run! "
+                                                 "Please delete or rename it and try again.\n")
         sys.exit()
 
     raxml_command = [args.executables["raxmlHPC"]]
@@ -635,9 +639,7 @@ def main():
     raxml_command += ["-w", args.mltreemap + raxml_out]
     raxml_command += ["-T", args.num_threads]
 
-    stdout, raxml_returncode = launch_write_command(raxml_command)
-
-    log.write(stdout)
+    stdout, raxml_returncode = launch_write_command(raxml_command, False)
 
     if raxml_returncode != 0:
         sys.stderr.write("ERROR: RAxML did not complete successfully! "
