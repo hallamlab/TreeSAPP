@@ -458,6 +458,31 @@ def swap_tree_names(tree_to_swap, final_mltree, code_name):
     return
 
 
+def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
+    try:
+        tree_txt = open(bipart_tree, 'r')
+    except IOError:
+        raise IOError("Unable to open " + bipart_tree + " for reading.")
+
+    tree = tree_txt.readline()
+    tree_txt.close()
+    for mltree_id_key in fasta_replace_dict.keys():
+        tree = re.sub('(' + mltree_id_key + "_" + code_name, '(' + fasta_replace_dict[mltree_id_key].description, tree)
+        tree = re.sub(',' + mltree_id_key + "_" + code_name, ',' + fasta_replace_dict[mltree_id_key].description, tree)
+
+    raxml_out = os.path.dirname(bipart_tree)
+    annotated_tree_name = raxml_out + os.sep + "RAxML_bipartitions_annotated." + code_name
+    try:
+        annotated_tree = open(annotated_tree_name, 'w')
+    except IOError:
+        raise IOError("Unable to open " + annotated_tree_name + " for writing!")
+
+    annotated_tree.write(tree)
+    annotated_tree.close()
+
+    return
+
+
 def main():
     args = get_arguments()
     args = find_executables(args)
@@ -476,6 +501,14 @@ def main():
         use_previous_names = 'n'
 
     fasta_replace_dict = dict()
+
+    final_output_folder = "MLTreeMap_files_%s" % code_name
+    if not os.path.exists(final_output_folder):
+        os.makedirs(final_output_folder)
+    else:
+        sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
+        sys.stderr.flush()
+
     if args.uc:
         cluster_dict = read_uc(args.uc)
         if use_previous_names == 'n':
@@ -507,8 +540,6 @@ def main():
     muscle_align_command = [args.executables["muscle"]]
     muscle_align_command += ["-in", fasta_replaced_file]
     muscle_align_command += ["-out", fasta_replaced_align]
-
-    # print muscle_align_command, "\n"
 
     muscle_pro = subprocess.Popen(' '.join(muscle_align_command), shell=True, preexec_fn=os.setsid)
     muscle_pro.wait()
@@ -552,6 +583,8 @@ def main():
         sys.stderr.write(' '.join(hmm_build_command) + "\n")
         sys.exit()
 
+    os.rename(code_name + ".hmm", final_output_folder + code_name + ".hmm")gi
+
     print "******************** HMM file for %s generated ********************\n" % code_name
 
     phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
@@ -564,6 +597,10 @@ def main():
 
     if not os.path.exists(raxml_out):
         os.system("mkdir %s" % raxml_out)
+    else:
+        sys.stderr.write("ERROR: " + raxml_out + " already exists from a previous run!"
+                                                 "Please delete or rename and try again")
+        sys.exit()
 
     raxml_command = "%s -f a -p 12345 -x 12345 -# %s -m PROTGAMMAAUTO -s %s -n %s -w %s -T %s" %\
                     (args.executables["raxmlHPC"], args.bootstraps, phylip_file, code_name,
@@ -575,14 +612,12 @@ def main():
     os.system("mv %s %s" % (phylip_file, raxml_out))
     os.system("rm %s" % fasta_replaced_file)
 
-    # TODO: Update the data/tree_data/cog_list.txt file with the new marker gene
     swap_tree_names(tree_to_swap, final_mltree, code_name)
-
-    final_output_folder = "MLTreeMap_files_%s" % code_name
-    os.system("mkdir %s" % final_output_folder)
 
     os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
     os.system("mv %s.hmm %s %s %s" % (code_name, tree_taxa_list, final_mltree, final_output_folder))
+
+    annotate_partition_tree(code_name, fasta_replace_dict, raxml_out + os.sep + "RAxML_bipartitions." + code_name)
 
     sys.stdout.write("Data for " + code_name + " has been generated succesfully.\n\n")
     sys.stdout.write("To integrate these data for use in TreeSAPP, the following steps must be performed:\n")
