@@ -583,7 +583,7 @@ def main():
         sys.stderr.write(' '.join(hmm_build_command) + "\n")
         sys.exit()
 
-    os.rename(code_name + ".hmm", final_output_folder + code_name + ".hmm")gi
+    os.rename(code_name + ".hmm", final_output_folder + code_name + ".hmm")
 
     print "******************** HMM file for %s generated ********************\n" % code_name
 
