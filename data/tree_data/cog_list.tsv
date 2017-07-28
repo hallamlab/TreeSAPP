@@ -105,5 +105,5 @@ phocryp	U0500	Photolyase/Cryptochrome
 dsr_v2	U0600	dissimilatory sulfite reductase
 pufMKEG	U0701	Reaction center complex of the purple bacteria
 bssA	U0801	Benzoylacetate:CoA ligase; Fumarate adding enzymes (bssA-nmsA-assA)
-p_a_moA U0900   Ammonia monooxygenase (Archaea) and particulate methane monoxygenase 
-hzo_hao U1000   hydrazine dehydrogenase (hzo) and hydroxylamine dehydrogenase
+p_a_moA	U0900	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase 
+hzo_hao	U1000	hydrazine dehydrogenase (hzo) and hydroxylamine dehydrogenase

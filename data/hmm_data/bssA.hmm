@@ -1,11 +1,11 @@
 HMMER2.0  [2.3.2]
-NAME  bssAref
+NAME  bssA
 LENG  507
 ALPH  Amino
 RF    no
 CS    no
 MAP   yes
-COM   hmmbuild -s bssAref.hmm bssAref.fa
+COM   hmmbuild -s bssA.hmm bssA.fa
 NSEQ  72
 DATE  Mon Jul  9 12:29:44 2012
 CKSUM 719

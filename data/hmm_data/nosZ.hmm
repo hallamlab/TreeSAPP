@@ -1,11 +1,11 @@
 HMMER2.0  [2.4i]
-NAME  nosZref
+NAME  nosZ
 LENG  647
 ALPH  Amino
 RF    no
 CS    no
 MAP   yes
-COM   ./sub_binaries/mac/hmmbuild -s data/hmm_data/nosZref.hmm data/alignment_data/nosZref.fa
+COM   ./sub_binaries/mac/hmmbuild -s data/hmm_data/nosZ.hmm data/alignment_data/nosZ.fa
 NSEQ  120
 DATE  Tue Jan 17 18:34:05 2017
 CKSUM 3234
