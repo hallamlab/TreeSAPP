@@ -1,0 +1,254 @@
+1	Aequorivita sublithincola DSM 14238 | 390418775
+2	Sulfurospirillum multivorans DSM 12446 | 584600637
+3	Dechloromonas aromatica RCB | 71845263
+4	Pseudomonas sp. 12M76_air | 674640828
+5	Rhizobium sp. AAP43 | 929658199
+6	Thiobacillus denitrificans | 979417600
+7	Shewanella loihica PV-4 | 126636230
+8	Flavobacteriales bacterium ALC-1 | 159877765
+9	Cellulophaga algicola DSM 14237 | 319420253
+10	Persephonella marina EX-H1 | 225644775
+11	Nitrospirae bacterium HCH-1 | 983032431
+12	Rhodospirillum centenum SW | 288926859
+13	Pseudovibrio axinellae | 1020190112
+14	Sutterella sp. CAG:397 | 524660897
+15	Marivirga tractuosa DSM 4126 | 312940827
+16	Caldilinea aerophila DSM 14535 = NBRC 104270 | 381381223
+17	Halogeometricum borinquense DSM 11551 | 312294075
+18	Flavobacteriaceae bacterium 3519-10 | 255340365
+19	Marinobacter sp. CP1 | 914748683
+20	Achromobacter sp. ATCC8750 | 928591299
+21	Haliscomenobacter hydrossis DSM 1100 | 332330813
+22	Ignavibacterium album JCM 16511 | 383800634
+23	Kiloniella spongiae | 827516981
+24	Thioploca ingrica | 686203164
+25	Burkholderia mallei | 1014628973
+26	Janthinobacterium lividum | 612081849
+27	Gemmatirosa kalamazoonesis | 575461033
+28	Anditalea andensis | 660634211
+29	Riemerella anatipestifer | 1039089110
+30	Thalassospira profundimaris | 1036252287
+31	Aquimarina sp. 22II-S11-z7 | 610625783
+32	Mesorhizobium sp. Root102 | 945440856
+33	Melioribacter roseus P3M-2 | 395810495
+34	Halorubrum distributum JCM 10118 | 445700705
+35	Citreicella sp. 357 | 384467072
+36	Halomonas sp. PBN3 | 550794501
+37	Pseudovibrio sp. Ad13 | 1020167362
+38	Mangrovimonas yunxiaonensis | 667812948
+39	Acidobacteria bacterium DSM 100886 | 1016914409
+40	Azoarcus sp. CIB | 909827107
+41	Sulfurimonas denitrificans DSM 1251 | 78496741
+42	Rhizobium sp. AC44/96 | 1046097940
+43	Natronococcus jeotgali DSM 18795 | 445606087
+44	Leptospira licerasiae str. MMD4847 | 404272806
+45	Pseudomonas mandelii PD30 | 633679319
+46	Halomonas chromatireducens | 985012000
+47	Paracoccus sp. SY | 735009021
+48	Dyadobacter fermentans DSM 18053 | 254946573
+49	Flavobacterium cauense R2A-7 | 558892091
+50	Opitutaceae bacterium TAV5 | 372475310
+51	Nitratifractor salsuginis DSM 16511 | 319418164
+52	Oleispira antarctica RB-8 | 508728691
+53	Roseovarius sp. TM1035 | 149144542
+54	Cardiobacterium hominis | 1047199078
+55	Methylobacterium sp. 4-46 | 168192641
+56	Ruegeria atlantica | 949486204
+57	Caenispirillum salinarum AK4 | 425877623
+58	Alphaproteobacteria bacterium BRH_c36 | 974215046
+59	Bacillus sp. FJAT-18017 | 925185398
+60	Thiohalorhabdus denitrificans | 939542217
+61	Sulfurimonas denitrificans DSM 1251 | 78496741
+62	Opitutus terrae PB90-1 | 177839040
+63	Alkalilimnicola ehrlichii MLHE-1 | 114225560
+64	Chlorobi bacterium NICIL-2 | 930685668
+65	Bacteroidetes bacterium OLB8 | 1000254222
+66	Marinobacter sp. BSs20148 | 399158375
+67	Campylobacter fetus subsp. fetus | 962425347
+68	Natronococcus amylolyticus DSM 10524 | 445601985
+69	Lutibacter sp. LP1 | 984740220
+70	Rhodobacteraceae bacterium HLUCCO07 | 938245465
+71	Chlorobi bacterium OLB5 | 1000287025
+72	Bosea sp. AAP35 | 929688746
+73	Thiolapillus brandeum | 574954108
+74	Sulfurimonas autotrophica DSM 16294 | 306978014
+75	Methylophaga nitratireducenticrescens | 757399687
+76	Hyphomicrobium nitrativorans NL23 | 563343116
+77	Pseudolabrys sp. Root1462 | 945845693
+78	Wolinella succinogenes | 46934821
+79	Ottowia sp. oral taxon 894 | 913015072
+80	Aliiroseovarius crassostreae | 937400509
+81	Halobacterium hubeiense | 966204314
+82	Pseudoalteromonas lipolytica SCSIO 04301 | 584419480
+83	Vitellibacter soesokkakensis | 1026683860
+84	Desulfitobacterium dehalogenans ATCC 51507 | 373237446
+85	Campylobacter showae CSUNSWCD | 421960191
+86	bacterium JGI-23 | 980034651
+87	Dechlorosoma suillum PS | 359353254
+88	Oleiphilus sp. HI0078 | 1024637574
+89	Afipia sp. 1NLS2 | 298589758
+90	Thauera sp. 28 | 410847181
+91	Natrinema altunense JCM 12890 | 445631008
+92	Niabella soli DSM 19437 | 570743502
+93	Microvirga vignae | 826092815
+94	Rhizobium sp. BR10423 | 983700003
+95	Chelatococcus sp. CO-6 | 919436391
+96	Myroides odoratimimus | 960512061
+97	Ramlibacter tataouinensis | 1003117797
+98	Halobacterium sp. DL1 | 573484043
+99	Pyrobaculum ferrireducens | 356640791
+100	Chryseobacterium antarcticum | 665764957
+101	halophilic archaeon DL31 | 344319636
+102	Owenweeksia hongkongensis DSM 17368 | 359346608
+103	Roseovarius indicus | 1032134990
+104	Bradyrhizobium japonicum | 3850613
+105	Bacillus azotoformans LMG 9581 | 409934243
+106	Shinella sp. GWS1 | 916348746
+107	Haloferax mediterranei ATCC 33500 | 445753718
+108	Desulfomonile tiedjei DSM 6799 | 390621545
+109	Chlorobi bacterium OLB6 | 1000272197
+110	bacterium CSP1-2 | 952344497
+111	Rhodothermaceae bacterium RA | 975068912
+112	Sphaerobacter thermophilus DSM 20745 | 269785296
+113	Reinekea sp. MED297 | 88776824
+114	Gramella forsetii KT0803 | 117576522
+115	Bradyrhizobium sp. ORS 375 | 365293777
+116	Zhouia amylolytica AD3 | 568802826
+117	Leadbetterella sp. JN14-9 | 936514700
+118	Brucella canis 04-2330-1 | 552140966
+119	Bacteroidetes bacterium OLB9 | 1000274131
+120	Rhodobacteraceae bacterium HLUCCA12 | 938271933
+121	Ruegeria pomeroyi DSS-3 | 56680476
+122	Denitrovibrio acetiphilus DSM 12809 | 290883107
+123	Pedobacter saltans DSM 12145 | 324971605
+124	Rhodothermus marinus DSM 4252 | 262333112
+125	Pseudomonas stutzeri TS44 | 387966948
+126	Pseudogulbenkiania sp. NH19 | 1021232695
+127	Colwellia psychrerythraea 34H | 71143482
+128	Castellaniella defragrans 65Phen | 589264544
+129	Geobacillus sp. G11MC16 | 196211240
+130	Imtechella halotolerans K1 | 383836966
+131	Rhodopseudomonas palustris | 1159067214
+132	Hahella chejuensis KCTC 2396 | 83630956
+133	Methylobacillus sp. MM2 | 1028603918
+134	Thauera sp. 63 | 410846351
+135	Ferroglobus placidus DSM 10642 | 288892655
+136	Cupriavidus nantongensis | 1010930018
+137	Candidatus Accumulibacter sp. BA-92 | 589610897
+138	Polymorphum gilvum SL003B-26A1 | 326411376
+139	Tenacibaculum soleae | 1046628339
+140	Muricauda lutaonensis | 787937220
+141	Methylocystis sp. SC2 | 390189923
+142	[Polyangium] brachysporum | 826168461
+143	Azoarcus sp. KH32C | 358635055
+144	Achromobacter xylosoxidans A8 | 310757913
+145	Azoarcus sp. PA01 | 922791676
+146	Pyrobaculum calidifontis JCM 11548 | 126248349
+147	Salinisphaera shabanensis E1L3A | 334887975
+148	Sulfitobacter mediterraneus | 618760543
+149	Chlorobi bacterium OLB4 | 1000241466
+150	Rhodanobacter sp. 115 | 388429498
+151	Leptospira biflexa serovar Patoc strain 'Patoc 1 (Ames)' | 167774246
+152	Flavobacterium sp. 316 | 759870352
+153	Nitratiruptor sp. SB155-2 | 151421614
+154	Kingella kingae | 951285167
+155	Aeromonas media WS | 407185480
+156	Armatimonadetes bacterium GXS | 980300453
+157	Dinoroseobacter shibae DFL 12 = DSM 16493 | 157910316
+158	Pontibacter sp. BAB1700 | 394453958
+159	Pseudomonas sp. BAY1663 | 588311507
+160	Leptothrix cholodnii SP-6 | 170774137
+161	Salinibacter ruber DSM 13855 | 83755449
+162	Magnetospira sp. QH-2 | 578035003
+163	Rubrivivax gelatinosus S1 | 260586483
+164	Sinorhizobium meliloti GR4 | 873267794
+165	Alcanivorax sp. KX64203 | 1015607432
+166	Thalassospira xiamenensis | 1016002317
+167	Dyella jiangningensis | 612502010
+168	Azospirillum brasilense | 210062907
+169	Salegentibacter mishustinae | 946824617
+170	Azoarcus olearius | 1042825487
+171	Hydrogenobacter thermophilus TK-6 | 308750927
+172	Desulfosporosinus meridiei DSM 13257 | 353542970
+173	Vibrio bivalvicida | 1028646935
+174	Sinorhizobium sp. Sb3 | 959963017
+175	Jannaschia sp. EhC01 | 1032101018
+176	Salipiger mucosus DSM 16094 | 528096179
+177	Leisingera aquaemixtae | 950337051
+178	Thioalkalivibrio sulfidophilus HL-EbGr7 | 219994503
+179	Arcticibacter svalbardensis MN12-7 | 507722920
+180	Magnetospirillum gryphiswaldense MSR-1 | 144897097
+181	Bacteroidetes bacterium OLB10 | 1000283314
+182	Halomonas sp. BC04 | 584380913
+183	Rhodobacter sp. CACIA14H1 | 562788582
+184	Acidobacteria bacterium OLB17 | 1000244025
+185	Janthinobacterium sp. CG23_2 | 955154556
+186	Halosimplex carlsbadense 2-9-1 | 445672238
+187	Rhizobiales bacterium NRL2 | 1037236364
+188	Pseudomonas sp. Ea RS28 | 1159171657
+189	Marinobacter sp. LQ44 | 953821776
+190	Massilia sp. Root418 | 945638435
+191	Candidatus Competibacter denitrificans Run_A_D11 | 590101998
+192	Rhodopseudomonas palustris | 763442314
+193	Pseudomonas aeruginosa | 928537794
+194	Bacillus azotoformans MEV2011 | 656680974
+195	Thauera linaloolentis 47Lol = DSM 12138 | 410847025
+196	Thioalkalivibrio nitratireducens DSM 14787 | 970069610
+197	Pannonibacter phragmitetus | 971238602
+198	Arenibacter sp. C-21 | 1050730671
+199	Bacteroidetes bacterium OLB12 | 1000261825
+200	Halobiforma lacisalsi AJ5 | 445781087
+201	Runella slithyformis DSM 19594 | 336303358
+202	Rhodobacter capsulatus B6 | 564873703
+203	Flavobacterium johnsoniae | 1052482819
+204	endosymbiont of Ridgeia piscesae | 952307480
+205	Ralstonia eutropha H16 | 32527006
+206	Steroidobacter denitrificans | 1002741593
+207	Chloroflexi bacterium CSP1-4 | 952340315
+208	Fulvivirga imtechensis AK7 | 441437390
+209	Hymenobacter sp. DG25B | 731479870
+210	Rhodanobacter thiooxydans LCS2 | 388446887
+211	Pelomonas sp. Root1444 | 945834489
+212	Ardenticatena | 1041165931
+213	Pseudomonas sp. TTU2014-066ASC | 953681777
+214	Acidovorax sp. JS42 | 120604516
+215	Gemmatimonas aurantiaca T-27 | 226088597
+216	Shinella sp. GWS1 | 916347342
+217	Hoeflea sp. IMCC20628 | 822663067
+218	Flavihumibacter sp. CACIAM 22H1 | 1012143962
+219	Duganella sp. Root336D2 | 945498171
+220	Psychroflexus torquis ATCC 700755 | 91185237
+221	Maritimibacter alkaliphilus HTCC2654 | 84667319
+222	Azospirillum amazonense Y2 | 346920564
+223	Flavisolibacter sp. LCS9 | 1028466201
+224	Aneurinibacillus migulanus | 922811093
+225	gamma proteobacterium HdN1 | 301795385
+226	Labrenzia aggregata | 1127444726
+227	Flammeovirgaceae bacterium 311 | 595614635
+228	Celeribacter baekdonensis B30 | 407200313
+229	Haloferax denitrificans ATCC 35960 | 445756538
+230	Bacillus azotoformans LMG 9581 | 409925954
+231	Sulfuritalea hydrogenivorans sk43H | 572099409
+232	Shimia sp. SK013 | 927699628
+233	Bacteroidetes bacterium oral taxon 272 str. F0290 | 527500591
+234	Rhodonellum psychrophilum GCM71 = DSM 17998 | 548770184
+235	Solitalea canadensis DSM 3403 | 379652114
+236	Acidovorax sp. Root275 | 946290598
+237	Thermomicrobium roseum DSM 5159 | 221157271
+238	Nitratireductor indicus C115 | 407428007
+239	Paracoccus denitrificans | 398932
+240	Sulfurimonas gotlandica GD1 | 372468323
+241	Mesorhizobium sp. Root172 | 946077586
+242	Pseudogulbenkiania ferrooxidans 2002 | 224603844
+243	Rufibacter sp. DG15C | 1001988277
+244	Niastella koreensis GR20-10 | 361057412
+245	Neisseria flavescens | 1016439841
+246	Desulfotomaculum ruminis DSM 2154 | 334089967
+247	Massilia sp. NR 4-1 | 909841042
+248	Haloarcula sp. CBA1115 | 749699433
+249	Bacillus boroniphilus JCM 21738 | 571145215
+250	Psychromonas ingrahamii 37 | 119862398
+251	Thiocapsa sp. KS1 | 971093991
+252	Acidovorax delafieldii 2AN | 241364711
+253	Osedax symbiont Rs2 | 515413675
+254	Chloroflexi bacterium OLB13 | 1000290891
