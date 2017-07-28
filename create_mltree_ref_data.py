@@ -5,6 +5,7 @@ import sys
 import os
 import re
 import subprocess
+from time import gmtime, strftime
 from mltreemap import os_type, is_exe, which
 
 
@@ -39,10 +40,14 @@ def get_arguments():
                              "Refer to the first column of 'cog_list.txt' under the '#functional cogs' section)",
                         required=True)
     parser.add_argument("-m", "--min_length",
-                        help="The minimum length of a protein to be used in building reference data. [ DEFAULT = 0 ]",
+                        help="The minimum length of a protein to be used in building reference data. [ DEFAULT = 10 ]",
                         required=False,
-                        default=0,
+                        default=10,
                         type=int)
+    parser.add_argument("-i", "--identity",
+                        help="The percent identity which the input sequences were clustered",
+                        required=True,
+                        type=str)
     parser.add_argument("-b", "--bootstraps",
                         help="The number of bootstrap replicates RAxML should perform [ DEFAULT = autoMR ]",
                         required=False,
@@ -486,7 +491,7 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
     tree = tree_txt.readline()
     tree_txt.close()
     for mltree_id_key in fasta_replace_dict.keys():
-        tree = re.sub('(' + mltree_id_key + "_" + code_name, '(' + fasta_replace_dict[mltree_id_key].description, tree)
+        tree = re.sub('\(' + mltree_id_key + "_" + code_name, '(' + fasta_replace_dict[mltree_id_key].description, tree)
         tree = re.sub(',' + mltree_id_key + "_" + code_name, ',' + fasta_replace_dict[mltree_id_key].description, tree)
 
     raxml_out = os.path.dirname(bipart_tree)
@@ -498,6 +503,46 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
 
     annotated_tree.write(tree)
     annotated_tree.close()
+
+    return
+
+
+def find_model_used(raxml_info_file):
+    model_statement_re = re.compile(r".* model: ([A-Z]+) likelihood.*")
+    model = ""
+    with open(raxml_info_file) as raxml_info:
+        for line in raxml_info:
+            if model_statement_re.search(line):
+                model = model_statement_re.search(line).group(1)
+                break
+            else:
+                pass
+
+    if model == "":
+        sys.stderr.write("WARNING: Unable to parse model used from " + raxml_info_file + "!")
+        sys.stderr.flush()
+    return model
+
+
+def update_build_parameters(args, code_name, aa_model):
+    """
+    Function to update the data/tree_data/ref_build_parameters.tsv file with information on this new reference sequence
+    Format of file is "code_name       denominator     aa_model        cluster_identity        last_updated"
+    :param args: 
+    :param code_name: 
+    :param aa_model: 
+    :return: 
+    """
+    param_file = args.mltreemap + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
+    try:
+        params = open(param_file, 'a')
+    except IOError:
+        raise IOError("Unable to open " + param_file + "for appending!")
+
+    date = strftime("%d_%b_%Y", gmtime())
+
+    build_list = [code_name, "Z1111", "PROTGAMMA" + aa_model, args.identity, date]
+    params.write("\t".join(build_list))
 
     return
 
@@ -528,7 +573,7 @@ def main():
         sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
         sys.stderr.flush()
 
-    log = open(final_output_folder + "_log.txt", 'w')
+    log = open("create_" + code_name + "_treesapp_data_log.txt", 'w')
     log.write("Command used:\n" + ' '.join(sys.argv) + "\n\n")
 
     if args.uc:
@@ -649,18 +694,21 @@ def main():
     tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, code_name)
     final_mltree = "%s_tree.txt" % code_name
     os.system("mv %s %s" % (phylip_file, raxml_out))
-    os.system("rm %s" % fasta_replaced_file)
+    os.system("rm %s %s" % (fasta_replaced_file, phylip_file + ".reduced"))
 
     swap_tree_names(tree_to_swap, final_mltree, code_name)
 
     os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
-    os.system("mv %s.hmm %s %s %s" % (code_name, tree_taxa_list, final_mltree, final_output_folder))
+    os.system("mv %s %s %s" % (tree_taxa_list, final_mltree, final_output_folder))
 
     annotate_partition_tree(code_name, fasta_replace_dict, raxml_out + os.sep + "RAxML_bipartitions." + code_name)
+    aa_model = find_model_used(raxml_out + os.sep + "RAxML_info." + code_name)
+    update_build_parameters(args, code_name, aa_model)
 
     sys.stdout.write("Data for " + code_name + " has been generated succesfully.\n\n")
     sys.stdout.write("To integrate these data for use in TreeSAPP, the following steps must be performed:\n")
-    sys.stdout.write("1. Modify data/tree_data/cog_list.tsv to include a properly formatted 'denominator' code\n")
+    sys.stdout.write("1. Include properly formatted 'denominator' codes "
+                     "in data/tree_data/cog_list.tsv and data/tree_data/ref_build_parameters.tsv\n")
     sys.stdout.write("2. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name + " data/tree_data/\n")
     sys.stdout.write("3. $ cp " + final_output_folder + os.sep + code_name + "_tree.txt data/tree_data/\n")
     sys.stdout.write("4. $ cp " + final_output_folder + os.sep + code_name + ".hmm data/hmm_data/\n")

@@ -2278,7 +2278,7 @@ def get_non_wag_cogs(args):
     """
     denominator = ""
     non_wag_cog_list = Autovivify()
-    non_wag_cogs_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'non_wag_cogs.txt'
+    non_wag_cogs_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
     try:
         cogin = open(non_wag_cogs_file, 'r')
     except IOError:
@@ -2286,11 +2286,8 @@ def get_non_wag_cogs(args):
 
     for line in cogin:
         line = line.strip()
-        if re.search(r'\A#(.+)', line):
-            denominator = re.search(r'\A#(.+)', line).group(1)
-        else:
-            cog, model = line.split('\t')
-            non_wag_cog_list[denominator][cog] = model
+        cog, denominator, model, pid, update = line.split('\t')
+        non_wag_cog_list[denominator][cog] = model
 
     cogin.close()
     return non_wag_cog_list
