@@ -1,0 +1,230 @@
+1	Desulfuromonas acetoxidans DSM 684 | EAT15955
+2	Sinorhizobium meliloti | CAA24526
+3	Zymomonas mobilis subsp. mobilis NCIMB 11163 | ACV75951
+4	Denitrovibrio acetiphilus DSM 12809 | ADD67822
+5	Zymomonas mobilis subsp. pomaceae ATCC 29192 | AEI37864
+6	Rubrivivax benzoatilyticus JA2 | EGJ10941
+7	Frankia alni ACN14a | CAJ65436
+8	uncultured microorganism | ADF27335
+9	Methanocella arvoryzae MRE50 | CAJ36850
+10	Spirochaeta thermophila DSM 6192 | ADN01326
+11	Desulfatibacillum alkenivorans AK-01 | ACL03220
+12	Methanobacterium ivanovii | CAA39548
+13	Rhizobium laguerreae | OOO49309
+14	Gluconacetobacter diazotrophicus PA1 5 | CAP54379
+15	Desulfovibrio fructosovorans JJ | EFL50986
+16	Marvinbryantia formatexigens DSM 14469 | EET62280
+17	uncultured bacterium | ACO36757
+18	Clostridium cellulovorans 743B | ADL52532
+19	Opitutaceae bacterium TAV4 | OAS38419
+20	Chlorobium phaeovibrioides DSM 265 | ABP37355
+21	Mesorhizobium loti | BAV50138
+22	Paenibacillus durus | CAD56229
+23	Alkaliphilus metalliredigens QYMF | ABR49651
+24	Desulfovibrio desulfuricans ND132 | EGB14507
+25	Mesorhizobium silamurunense | ACO56894
+26	Clostridium pasteurianum DSM 525 = ATCC 6013 | AJA51203
+27	Desulfitobacterium hafniense | CDX04521
+28	Desulfosporosinus orientis DSM 765 | AET70418
+29	Herbaspirillum seropedicae | AKN66281
+30	uncultured archaeon | BAF96803
+31	Methanosarcina mazei LYC | AKB67129
+32	Paenibacillus graminis | BAH23271
+33	Prosthecochloris aestuarii DSM 271 | ACF46645
+34	Mesorhizobium sp. ORS 3369 | ACX47348
+35	Rhodospirillum rubrum F11 | AEO47911
+36	Vibrio natriegens | ANQ24007
+37	Phaeospirillum molischianum DSM 120 | CCG41253
+38	Anaeromyxobacter sp. K | ACG74424
+39	Desulfovibrio magneticus RS-1 | BAH75547
+40	Desulfotomaculum carboxydivorans CO-1-SRB | AEF94001
+41	Phaeospirillum molischianum DSM 120 | CCG41425
+42	Ectothiorhodospira sp. PHS-1 | EHQ53242
+43	Desulfomicrobium baculatum DSM 4028 | ACU88952
+44	Pelosinus fermentans B4 | EIW20049
+45	Rhodospirillum rubrum | AAA26463
+46	Treponema saccharophilum DSM 2985 | EIC01336
+47	Methanosphaerula palustris E1-9c | ACL15934
+48	Clostridium acetobutylicum | OOL97073
+49	Clostridium lentocellum DSM 5427 | ADZ82193
+50	Desulfovibrio gigas | AAB09059
+51	Leptospirillum ferrooxidans C2-3 | BAM08067
+52	Ethanoligenens harbinense YUAN-3 | ADU27821
+53	Mesorhizobium huakuii | ABW96185
+54	Paludibacter propionicigenes WB4 | ADQ79512
+55	Acidithiobacillus ferrooxidans | AAA27374
+56	Cyanothece sp. PCC 7424 | ACK70547
+57	Syntrophobacter fumaroxidans MPOB | ABK16713
+58	Teredinibacter turnerae T7901 | ACR12580
+59	Clostridium beijerinckii | OOM50587
+60	Opitutaceae bacterium TAV5 | AHF89131
+61	Klebsiella pneumoniae | SAU20837
+62	Chloroherpeton thalassium ATCC 35110 | ACF14285
+63	Desulfotomaculum reducens MI-1 | ABO51325
+64	Thermocrinis albus DSM 14484 | ADC89059
+65	Treponema sp. JC4 | EID85177
+66	Clostridium kluyveri DSM 555 | EDK33087
+67	Coraliomargarita akajimensis DSM 45221 | ADE55852
+68	Nostoc sp. PCC 7120 | AAB65801
+69	Methanobacterium paludis | AEG19023
+70	Clostridium thermocellum AD2 | EIC09514
+71	Heliobacterium gestii | BAE02721
+72	Anaeromyxobacter sp. Fw109-5 | ABS27227
+73	Desulfovibrio sp. A2 | EGY24836
+74	Rhodospirillum centenum SW | ACJ01032
+75	Ruminococcus albus 8 | EGC02080
+76	Rhodomicrobium vannielii ATCC 17100 | ADP72548
+77	Candidatus Atelocyanobacterium thalassa isolate ALOHA | ACJ53724
+78	Paenibacillus abekawaensis | BAH24186
+79	Sulfuricurvum kujiense DSM 16994 | ADR34162
+80	Pseudomonas azotifigens | BAD90116
+81	Rhizobium leguminosarum | ABW96189
+82	Fischerella sp. UTEX 'LB 1931' | AAC64641
+83	Paludibacter propionicigenes WB4 | ADQ79569
+84	Clostridium papyrosolvens DSM 2782 | EGD46298
+85	Thermodesulfatator indicus DSM 15286 | AEH44920
+86	Desulfarculus baarsii DSM 2075 | ADK83816
+87	Methanoplanus petrolearius DSM 11571 | ADN35041
+88	Prevotella bryantii B14 | EFI72879
+89	Bradyrhizobium liaoningense | ABW96191
+90	Cyanothece sp. CCY0110 | EAZ92897
+91	Nostoc punctiforme PCC 73102 | ACC79763
+92	Methylosinus sp. 3S-1 | OBS53754
+93	uncultured bacterium | ACO36756
+94	Beijerinckia indica subsp. indica ATCC 9039 | ACB94126
+95	Novosphingobium sp. Rr 2-17 | EIZ79690
+96	Methanocella conradii HZ254 | AFC98913
+97	Dickeya dadantii Ech703 | ACS86387
+98	Amorphomonas oryzae | BAF48338
+99	Desulfovibrio salexigens DSM 2638 | ACS78514
+100	Methanothermobacter thermautotrophicus str. Delta H | AAB86034
+101	Thiocystis violascens DSM 198 | EGZ42772
+102	Clostridium pasteurianum DSM 525 = ATCC 6013 | KRU14129
+103	Desulfotomaculum kuznetsovii DSM 6115 | AEG16830
+104	Dethiobacter alkaliphilus AHT 1 | EEG76181
+105	Candidatus Desulforudis audaxviator MP104C | ACA58711
+106	Azotobacter chroococcum | AAA22140
+107	'Nostoc azollae' 0708 | ADI65368
+108	Chroococcidiopsis thermalis PCC 7203 | AAQ99146
+109	Clostridium ljungdahlii DSM 13528 | ADK13572
+110	Azorhizobium caulinodans ORS 571 | BAF75938
+111	Cyanothece sp. PCC 7425 | ACL44722
+112	Methylocella silvestris BL2 | ACK52517
+113	Methanothermococcus okinawensis IH1 | AEH07089
+114	Heliorestis daurensis | BAD80888
+115	Syntrophothermus lipocalidus DSM 12680 | ADI02873
+116	Geobacter bemidjiensis Bem | ACH39087
+117	Rhizobium vignae | AAX39398
+118	Frankia sp. EUN1f | EFC83885
+119	Azoarcus sp. KH32C | BAL23130
+120	delta proteobacterium MLMS-1 | EAT05949
+121	Desulfonatronospira thiodismutans ASO3-1 | EFI35493
+122	Sulfurospirillum barnesii SES-3 | AFL68336
+123	Methanococcus maripaludis C6 | ABX02614
+124	Polaromonas naphthalenivorans CJ2 | ABM37652
+125	Methanocaldococcus sp. FS406-22 | ADC68732
+126	Methanococcus aeolicus Nankai-3 | ABR57010
+127	Geobacter daltonii FRC-32 | ACM20925
+128	Thiorhodococcus drewsii AZ1 | EGV29506
+129	Rhodopseudomonas palustris BisB18 | ABD89986
+130	Holophaga foetida DSM 6591 | EHP11122
+131	Derxia gummosa | BAE15989
+132	Rhodobacter capsulatus | AAA26140
+133	Candidatus Azobacteroides pseudotrichonymphae genomovar. CFP2 | BAG83808
+134	Trichodesmium erythraeum IMS101 | ABG53144
+135	Dehalococcoides mccartyi | KSV17156
+136	Lyngbya sp. PCC 8106 | EAW37219
+137	Rhodomicrobium vannielii ATCC 17100 | ADP71189
+138	Clostridium kluyveri DSM 555 | EDK35089
+139	Acidithiobacillus sp. GGI-221 | EGQ63406
+140	Nostoc punctiforme PCC 73102 | ACC84196
+141	[Clostridium] clariflavum DSM 19732 | AEV68734
+142	Crocosphaera watsonii WH 0402 | CCQ67876
+143	Cupriavidus taiwanensis LMG 19424 | CAP64045
+144	Burkholderia xenovorans LB400 | AIP35553
+145	'Nostoc azollae' 0708 | ADI65308
+146	Bradyrhizobium sp. CCBAU 33039 | ABQ15153
+147	Spirochaeta smaragdinae DSM 11293 | ADK82110
+148	Methanosarcina barkeri | CAA39552
+149	uncultured microorganism | ADF27320
+150	Halorhodospira halophila | BAD93282
+151	Geobacter lovleyi SZ | ACD94940
+152	Dechloromonas aromatica RCB | AAZ46164
+153	Methylacidiphilum fumariolicum SolV | ADC97878
+154	Thermincola ferriacetica | KNZ69849
+155	Clostridium pasteurianum | CAA30360
+156	Sideroxydans lithotrophicus ES-1 | ADE11119
+157	mine drainage metagenome | CBI09901
+158	[Clostridium] clariflavum DSM 19732 | AEV67918
+159	Bradyrhizobium sp. NZP2309 | CAR47908
+160	Desulfomonile tiedjei DSM 6799 | AFM28066
+161	Methanoregula boonei 6A8 | ABS55660
+162	Paenibacillus polymyxa | ADM26623
+163	delta proteobacterium NaphS2 | EFK11139
+164	Rhizobium leguminosarum bv. trifolii | ABM47392
+165	Paraburkholderia unamae | ABO64213
+166	Geobacter sulfurreducens | AJY69087
+167	Rhodopseudomonas palustris BisB18 | ABD90206
+168	Caldicellulosiruptor hydrothermalis 108 | ADQ07853
+169	Magnetospirillum magneticum AMB-1 | BAE50378
+170	Treponema primitia ZAS-2 | AEF83597
+171	Pelobacter carbinolicus DSM 2380 | ABA89338
+172	Desulfobacca acetoxidans DSM 11109 | AEB08241
+173	Methylomonas methanica MC09 | AEF99883
+174	Mesorhizobium sp. SCAU2 | ACA79963
+175	Desulfurivibrio alkaliphilus AHT2 | ADH87119
+176	Magnetococcus marinus MC-1 | ABK43713
+177	Methylocystis sp. ATCC 49242 | EFX98811
+178	Desulfobacterium autotrophicum HRM2 | ACN14079
+179	Desulfotomaculum gibsoniae DSM 7213 | EHG05102
+180	Ilyobacter polytropus DSM 2926 | ADO83190
+181	Desulfosporosinus sp. OT | EGW37575
+182	uncultured Desulfobacterium sp. | CBX26830
+183	Rhizobium leguminosarum | ABW96195
+184	Methanothermococcus thermolithotrophicus | CAA32055
+185	Desulfovibrio vulgaris str. Hildenborough | AAS94434
+186	Synechococcus sp. JA-3-3Ab | ABC99975
+187	Ethanoligenens harbinense YUAN-3 | ADU27103
+188	Acetobacterium woodii DSM 1030 | AFA47588
+189	Pelosinus fermentans JBW45 | EIW47216
+190	Anabaena variabilis ATCC 29413 | AAA93020
+191	Thermodesulfovibrio yellowstonii DSM 11347 | ACI21914
+192	Methanosaeta concilii GP6 | AEB67436
+193	Desulfurispirillum indicum S5 | ADU65435
+194	Roseiflexus castenholzii DSM 13941 | ABU60076
+195	Thiorhodospira sibirica ATCC 700588 | EGZ49204
+196	Marichromatium purpuratum 984 | EGV20999
+197	Anabaena variabilis ATCC 29413 | ABA23658
+198	Desulfosporosinus meridiei DSM 13257 | EHC17365
+199	Clostridium ljungdahlii DSM 13528 | ADK15411
+200	Fibrobacter succinogenes subsp. succinogenes S85 | EER87422
+201	Azospirillum brasilense | OPH18782
+202	Oscillatoria sp. PCC 6506 | CBN57732
+203	Calditerrivibrio nitroreducens DSM 19672 | ADR18595
+204	Acetobacterium woodii DSM 1030 | AFA47495
+205	Rhodospirillum photometricum DSM 122 | CCG07116
+206	Methanosarcina siciliae T4/M | AKB29647
+207	Methylobacterium nodulans ORS 2060 | ACL58883
+208	Trichodesmium thiebautii | AAA77022
+209	Rhodopseudomonas palustris DX-1 | ADU44701
+210	Novosphingobium nitrogenifigens DSM 19370 | EGD60366
+211	Desulfotomaculum acetoxidans DSM 771 | ACV61909
+212	Candidatus Accumulibacter phosphatis clade IIA str. UW-1 | ACV37675
+213	Selenomonas ruminantium subsp. lactilytica TAM6421 | BAL84488
+214	Nostoc sp. PCC 7120 | BAB73411
+215	Frankia symbiont of Datisca glomerata | AEH10141
+216	Azotobacter vinelandii | AAA82508
+217	Thermoanaerobacterium thermosaccharolyticum DSM 571 | ADL69355
+218	uncultured bacterium | ACO36755
+219	Desulfovibrio africanus str. Walvis Bay | EGJ49116
+220	Desulfobulbus propionicus DSM 2032 | ADW19185
+221	Clostridium butyricum | ANF15875
+222	Syntrophobotulus glycolicus DSM 8271 | ADY57111
+223	Azotobacter vinelandii DJ | ACO76527
+224	Arcobacter nitrofigilis DSM 7299 | ADG91719
+225	uncultured bacterium | ACO36759
+226	Rhodobacter sp. SW2 | EEW25375
+227	Wolinella succinogenes | CAE10460
+228	Bradyrhizobium sp. CCBAU 23011 | ABV44662
+229	Azoarcus sp. BH72 | CAL93155
+230	Oscillochloris trichoides DG6 | EFO82066

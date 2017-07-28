@@ -18,3 +18,4 @@ D0301	nirK
 D0501	norB
 D0601	nosZ
 N0102	amoA_B
+N0401	nifH
