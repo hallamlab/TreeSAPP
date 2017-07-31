@@ -100,22 +100,27 @@ def find_executables(args):
     return args
 
 
-def launch_write_command(cmd_list, collect=True):
+def launch_write_command(cmd_list, collect_all=True):
+    """
+    Wrapper function for opening subprocesses through subprocess.Popen()
+    :param cmd_list: A list of strings forming a complete command call
+    :param collect_all: A flag determining whether stdout and stderr are returned 
+    via stdout or just stderr is returned leaving stdout to be written to the screen
+    :return: A string with stdout and/or stderr text and the returncode of the executable
+    """
     stdout = ""
-    if collect:
+    if collect_all:
         proc = subprocess.Popen(' '.join(cmd_list),
                                 shell=True,
                                 preexec_fn=os.setsid,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         stdout = proc.communicate()[0].decode("utf-8")
-        stdout = re.sub(r'\r', '\n', stdout)
     else:
         proc = subprocess.Popen(' '.join(cmd_list),
                                 shell=True,
                                 preexec_fn=os.setsid)
-
-    proc.wait()
+        proc.wait()
     return stdout, proc.returncode
 
 
@@ -134,6 +139,7 @@ def format_read_fasta(fasta_file, args):
     convert_upper = lambda pat: pat.group(1).upper()
     reg_aa_ambiguity = re.compile(r'[bjxzBJXZ-]')
     reg_amino = re.compile(r'[acdefghiklmnpqrstuvwyACDEFGHIKLMNPQRSTUVWY*]')
+    fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     substitutions = ""
     count_total = 0
     seq_count = 0
@@ -151,6 +157,11 @@ def format_read_fasta(fasta_file, args):
             sequence = ""
 
             header = line.strip()
+            if fungene_gi_bad.match(header):
+                sys.stderr.write("\nWARNING: Input sequences use 'GIs' which are obsolete and may be non-unique. "
+                                 "For everyone's sanity, please download sequences with the `accno` instead.\n")
+                sys.exit()
+
             num_headers += 1
 
         # Else, if the line is a sequence...
@@ -340,14 +351,8 @@ def get_header_format(header, code_name):
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
-    fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     # TODO: Find the description field for the mltree_re
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
-
-    if fungene_gi_bad.match(header):
-        sys.stderr.write("WARNING: Input sequences use FunGene 'GIs' which are often non-unique. "
-                         "For everyone's sanity, please download the same sequences with the `accno` instead.")
-        sys.exit()
 
     header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re,
                             fungene_re, mltree_re, gi_prepend_proper_re, gi_prepend_mess_re, gi_re]
