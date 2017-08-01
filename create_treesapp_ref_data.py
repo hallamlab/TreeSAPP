@@ -719,12 +719,12 @@ def main():
     sys.stdout.write("4. $ cp " + final_output_folder + os.sep + code_name + ".hmm data/hmm_data/\n")
     sys.stdout.write("5. $ cp " + final_output_folder + os.sep + code_name + ".fa* data/alignment_data/\n")
     sys.stdout.write("6. $ cp " + final_output_folder + os.sep + code_name +
-                     "_tree.txt MLTreeMap_imagemaker_2_061/tree_data/\n")
+                     "_tree.txt imagemaker_2_061/tree_data/\n")
     sys.stdout.write("7. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name +
-                     " MLTreeMap_imagemaker_2_061/tree_data/\n")
-    sys.stdout.write("8. Create a file called MLTreeMap_imagemaker_2_061/tree_data/domain_and_color_descriptions_" +
+                     " imagemaker_2_061/tree_data/\n")
+    sys.stdout.write("8. Create a file called imagemaker_2_061/tree_data/domain_and_color_descriptions_" +
                      code_name + ".txt to add colours to clades in the new reference tree.\n")
-    sys.stdout.write("9. Modify MLTreeMap_imagemaker_2_061/tree_data/drawing_info.txt following the obvious format\n")
+    sys.stdout.write("9. Modify imagemaker_2_061/tree_data/drawing_info.txt following the obvious format\n")
     sys.stdout.flush()
 
 main()

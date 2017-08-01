@@ -92,7 +92,7 @@ amoA_B	N0102	Ammonia monooxygenase (Ammonia-oxidizing Bacteria)
 #hao	N0200	hydroxylamine dehydrogenase
 #nxrB	N0301	Nitrite oxidoreductase subunit B
 nifH	N0401	nitrogenase iron protein NifH (K02588)
-#nifD	N0402	nitrogenase molybdenum-iron protein alpha chain (K02586)
+nifD	N0402	nitrogenase molybdenum-iron protein alpha chain (K02586)
 #hdh	A0000	hydrazine dehydrogenase (hzo)
 pmoA	A0103	Particulate methane monooxygenase
 COG1850	P0000	RuBisCO

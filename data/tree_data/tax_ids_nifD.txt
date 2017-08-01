@@ -1,0 +1,231 @@
+1	Thermincola potens JR | ADG81562
+2	Desulfomonile tiedjei DSM 6799 | AFM28069
+3	Ilyobacter polytropus DSM 2926 | ADO83185
+4	Methanobacterium congolense | SCG86486
+5	Desulfonatronospira thiodismutans ASO3-1 | EFI35496
+6	Holophaga foetida DSM 6591 | EHP11125
+7	Halorhodospira halochloris | BAU57914
+8	Sulfurovum sp. enrichment culture clone C5 | CUV65477
+9	Desulfovibrio sp. A2 | EGY24839
+10	Desulfatibacillum alkenivorans AK-01 | ACL03217
+11	Methanosarcina barkeri CM1 | AKJ38129
+12	Azoarcus sp. BH72 | AAG35587
+13	Heliobacterium modesticaldum Ice1 | ABZ83696
+14	Megasphaera cerevisiae DSM 20462 | SJZ88740
+15	Ilyobacter polytropus DSM 2926 | ADO83187
+16	Rhodospirillum centenum SW | ACJ01031
+17	Methanobacterium sp. 42_16 | KUK74877
+18	Thermodesulfovibrio aggregans | GAQ95546
+19	Neorhizobium galegae bv. orientalis | CDZ55350
+20	Clostridium beijerinckii | AQS04650
+21	Calditerrivibrio nitroreducens DSM 19672 | ADR18596
+22	Synechococcus sp. PCC 7335 | ABU63076
+23	Pseudobacteroides cellulosolvens ATCC 35603 = DSM 2933 | KNY30057
+24	Desulfovibrio sp. X2 | EPR42534
+25	Methanocaldococcus infernus ME | ADG12710
+26	Synechococcus sp. JA-3-3Ab | ABC99974
+27	Methanobrevibacter curvatus | KZX16085
+28	Caldicellulosiruptor hydrothermalis 108 | ADQ07848
+29	Oxobacter pfennigii | KPU45694
+30	[Clostridium] neopropionicum | KXL53126
+31	Pseudobacteroides cellulosolvens ATCC 35603 = DSM 2933 | KNY30055
+32	Trichodesmium erythraeum IMS101 | AAF82638
+33	[Clostridium] clariflavum DSM 19732 | AEV67923
+34	Methanothermococcus thermolithotrophicus | CAA32058
+35	Methanosarcina barkeri 3 | AKB83251
+36	Candidatus Contendobacter odensis Run_B_J11 | CDH46152
+37	Rhodovulum sp. PH10 | EJW09447
+38	Desulfovibrio desulfuricans ND132 | EGB14504
+39	Desulfovibrio vulgaris DP4 | ABM30104
+40	Azoarcus sp. CIB | AKU10610
+41	Clostridium pasteurianum BC1 | AGK98251
+42	Methanococcus maripaludis | AAC45515
+43	Methanosaeta harundinacea | KUK43369
+44	Methanoregula boonei 6A8 | ABS55663
+45	Clostridium kluyveri DSM 555 | EDK35086
+46	Syntrophobacter fumaroxidans MPOB | ABK16710
+47	Desulfotomaculum ruminis DSM 2154 | AEG61652
+48	[Clostridium] termitidis CT1112 | EMS71385
+49	Desulfobacterium autotrophicum HRM2 | ACN14082
+50	Thermoanaerobacterium thermosaccharolyticum M0795 | AGB19466
+51	Thiocapsa sp. KS1 | CRI63951
+52	Desulfotomaculum ruminis DSM 2154 | AEG61654
+53	Chlorobium luteolum DSM 273 | ABB24388
+54	Leptolyngbya sp. O-77 | BAU44876
+55	Clostridium homopropionicum | SFG27108
+56	Spirochaeta smaragdinae DSM 11293 | ADK82107
+57	[Clostridium] clariflavum DSM 19732 | AEV67921
+58	Clostridium aceticum | AKL94865
+59	Thermocrinis albus DSM 14484 | ADC89060
+60	Clostridium homopropionicum | SFG27031
+61	Clostridium sp. W14A | OCN00076
+62	Desulfotomaculum kuznetsovii DSM 6115 | AEG16827
+63	Rhizobium leguminosarum | KZB02794
+64	Methanoregula boonei 6A8 | ABS55665
+65	Acidithiobacillus sp. GGI-221 | EGQ60962
+66	delta proteobacterium NaphS2 | EFK11126
+67	Methanobacterium paludis | AEG19020
+68	Halanaerobium sp. T82-1 | KXS48848
+69	Chloroherpeton thalassium ATCC 35110 | ACF13496
+70	Anabaena variabilis ATCC 29413 | ABA23522
+71	Terrimicrobium sacchariphilum | GAT32890
+72	Methanoplanus petrolearius DSM 11571 | ADN35036
+73	Dickeya dadantii Ech703 | ACS86388
+74	Draconibacterium sediminis | KJF41780
+75	Klebsiella pneumoniae | CAA30571
+76	Desulfotomaculum gibsoniae DSM 7213 | EHG05099
+77	Desulfotomaculum acetoxidans DSM 771 | ACV61914
+78	Geofilum rubicundum JCM 15548 | GAO28556
+79	Clostridium sp. DMHC 10 | KOF57947
+80	Desulfurispirillum indicum S5 | ADU65436
+81	Rhodobacter sphaeroides KD131 | ACM03751
+82	Methanobacterium sp. Maddingley MBC34 | EKQ52076
+83	Moorella glycerini | CEP67403
+84	Methanobacterium formicicum | CEA13842
+85	Treponema azotonutricium ZAS-9 | AEF81090
+86	Methanolobus tindarius DSM 2278 | ETA68448
+87	Methanobacterium lacus | ADZ10628
+88	Arcticibacter svalbardensis MN12-7 | EOR94279
+89	Gluconacetobacter diazotrophicus PAl 5 | ACI51348
+90	Defluviimonas alba | AMY68801
+91	Clostridium beijerinckii | OOM37326
+92	Wolinella succinogenes | CAE10458
+93	Bacteroidales bacterium Barb4 | OAV68511
+94	Bacteroides graminisolvens DSM 19988 = JCM 15093 | GAK35365
+95	Methanoculleus marisnigri | KUK63657
+96	Thermosulfurimonas dismutans | OAQ21098
+97	Methanothermobacter thermautotrophicus str. Delta H | AAB86039
+98	Methanosphaerula palustris E1-9c | ACL15929
+99	Methanolobus psychrophilus R15 | AFV23554
+100	Dehalobacter sp. CF | AFV06016
+101	Desulfosporosinus sp. BRH_c37 | KUO77734
+102	Acetobacterium woodii DSM 1030 | AFA47583
+103	Methylacidiphilum fumariolicum SolV | ADC97879
+104	Rhodobacter sphaeroides ATCC 17029 | ABN77294
+105	Methanolobus psychrophilus R15 | AFV23552
+106	Pelosinus fermentans JBW45 | EIW47219
+107	Syntrophomonas zehnderi OL-4 | CFX70140
+108	Paenibacillus polymyxa | OBA08278
+109	Methanocaldococcus vulcanius M7 | ACX72724
+110	Methanobrevibacter cuticularis | KZX15553
+111	Frankia sp. Dg2 | SBW24785
+112	Clostridium magnum DSM 2767 | SHH38932
+113	Alkaliphilus metalliredigens QYMF | ABR49646
+114	Clostridium autoethanogenum DSM 10061 | ALU36933
+115	Methanocella arvoryzae MRE50 | CAJ36855
+116	Paenibacillus sp. FSL H7-0357 | AIQ20207
+117	Methanoculleus marisnigri | KUL05309
+118	Paenibacillus durus ATCC 35681 | AKG34370
+119	Magnetospirillum gryphiswaldense MSR-1 | CAM76159
+120	Desulfotomaculum acetoxidans DSM 771 | ACV61912
+121	Spirochaeta thermophila DSM 6192 | ADN01323
+122	Oxobacter pfennigii | KPU45692
+123	Syntrophobotulus glycolicus DSM 8271 | ADY57110
+124	Prosthecochloris sp. CIB 2401 | ANT65530
+125	Clostridium cellulovorans 743B | ADL52529
+126	Methanobacterium sp. Maddingley MBC34 | EKQ52078
+127	Rhodobacter capsulatus | AAA26141
+128	Desulfotomaculum sp. 46_80 | KUK63988
+129	Opitutaceae bacterium TAV5 | EHP33112
+130	Methanosarcina horonobensis HB-1 | AKB77185
+131	Anaeromyxobacter sp. K | ACG74425
+132	Desulfovibrio africanus PCS | EMG37096
+133	uncultured Desulfobacterium sp. | CBX26827
+134	Dethiobacter alkaliphilus AHT 1 | EEG76176
+135	Dethiobacter alkaliphilus AHT 1 | EEG76178
+136	Desulfatibacillum alkenivorans AK-01 | ACL03215
+137	Methanoplanus petrolearius DSM 11571 | ADN35038
+138	Desulfobacca acetoxidans DSM 11109 | AEB08244
+139	Rhodopseudomonas palustris BisB18 | ABD89985
+140	Rhodopseudomonas palustris BisB18 | ABD90205
+141	Pelosinus fermentans A11 | EIW25224
+142	Methanotorris igneus Kol 5 | AEF97277
+143	Geobacter lovleyi SZ | ACD94375
+144	Dehalogenimonas sp. WBC-2 | AKG53285
+145	Candidatus Desulforudis audaxviator MP104C | ACA58714
+146	Propionispora sp. 2/2-37 | CUH96905
+147	Methanosaeta concilii GP6 | AEB67441
+148	Caenispirillum salinarum AK4 | EKV30730
+149	Ethanoligenens harbinense YUAN-3 | ADU27824
+150	Frankia sp. Dg2 | SBW24723
+151	Frankia sp. Mrp182 | AAM63412
+152	Methanothermobacter marburgensis str. Marburg | ADL57758
+153	Desulfotomaculum gibsoniae DSM 7213 | AGL01835
+154	Peptococcaceae bacterium SCADC1_2_3 | KFI37817
+155	Clostridium bornimense | CDM70237
+156	Clostridium lentocellum DSM 5427 | ADZ82196
+157	Youngiibacter fragilis 232.1 | ETA80519
+158	Phormidium sp. OSCR | KPQ39022
+159	Dehalococcoides mccartyi | KSV17159
+160	Thermincola ferriacetica | KNZ69852
+161	Ethanoligenens harbinense YUAN-3 | ADU27098
+162	Saccharicrinis fermentans DSM 9555 = JCM 21142 | GAF04830
+163	Pleurocapsa sp. PCC 7327 | AFY79129
+164	Coraliomargarita akajimensis DSM 45221 | ADE55851
+165	Methanobrevibacter cuticularis | KZX15555
+166	Halorhodospira halophila SL1 | ABM61067
+167	Desulfovibrio sp. TomC | KHK04011
+168	Desulfarculus baarsii DSM 2075 | ADK83813
+169	Desulfovibrio fructosovorans JJ | EFL51953
+170	Symploca atlantica PCC 8002 | ABU63085
+171	Clostridium cellulovorans 743B | ADL52527
+172	Syntrophomonas zehnderi OL-4 | CFX70056
+173	Smithella sp. SC_K08D17 | KIE17806
+174	Candidatus Methanoperedens sp. BLZ1 | KPQ44825
+175	Clostridium papyrosolvens DSM 2782 | EGD46301
+176	Azospirillum brasilense | AIB12324
+177	Azotobacter chroococcum NCIMB 8003 | AJE19761
+178	Heliorestis daurensis | BAD80889
+179	uncultured Desulfofustis sp. PB-SRB1 | ESQ09230
+180	Paludibacter propionicigenes WB4 | ADQ79572
+181	Clostridium ljungdahlii | OAA86914
+182	Clostridium intestinale URNW | ERK29118
+183	Mesorhizobium sp. LNHC229A00 | ESY87224
+184	Acetobacterium bakii | KNZ41968
+185	Clostridium lentocellum DSM 5427 | ADZ82198
+186	Orenia sp. Z6 | OCL27246
+187	Dissulfuribacter thermophilus | OCC14795
+188	'Nostoc azollae' 0708 | ADI63609
+189	Desulfotomaculum reducens MI-1 | ABO51320
+190	Clostridium pasteurianum BC1 | AGK98253
+191	Clostridium sp. Maddingley MBC34-26 | EKQ52376
+192	Chlorobium limicola DSM 245 | ACD89763
+193	Clostridium ultunense Esp | CCQ92502
+194	Clostridium sp. W14A | OCN00195
+195	Desulfuromonas acetoxidans DSM 684 | EAT15954
+196	Clostridium acetobutylicum | OOM05356
+197	Vibrio natriegens | ANQ29458
+198	Orenia sp. Z6 | OCL27248
+199	Desulfocapsa sulfexigens DSM 10523 | AGF76921
+200	Methanobacterium paludis | AEG19018
+201	Acidithiobacillus ferrooxidans | AAA27375
+202	Methanothermobacter thermautotrophicus | CAA61221
+203	Methanosarcina mazei LYC | AKB67124
+204	Clostridium magnum DSM 2767 | SHH39031
+205	Methanobacterium congolense | SCG86484
+206	Methanosphaerula palustris E1-9c | ACL15931
+207	Methanocella arvoryzae MRE50 | CAJ36853
+208	Gracilibacter sp. BRH_c7a | KUO65806
+209	Thermoanaerobacterium thermosaccharolyticum M0795 | AGB19461
+210	Pelobacter carbinolicus DSM 2380 | ABA89339
+211	Clostridium sp. BNL1100 | AEY66765
+212	Methanocella conradii HZ254 | AFC98918
+213	Achromatium sp. WMS3 | KOR33597
+214	Clostridium pasteurianum | OMH20013
+215	Alteromonadaceae bacterium Bs08 | AIH07659
+216	Desulfovibrio gigas DSM 1382 = ATCC 19364 | AGW13130
+217	Methanothermococcus okinawensis IH1 | AEH07086
+218	Peptococcaceae bacterium CEB3 | KLU60896
+219	Methanococcus maripaludis C7 | ABR65173
+220	Clostridium butyricum | APF21439
+221	Methanosaeta concilii GP6 | AEB67439
+222	Ethanoligenens harbinense YUAN-3 | ADU27100
+223	Clostridium tyrobutyricum | ANP70751
+224	Syntrophobotulus glycolicus DSM 8271 | ADY57106
+225	Denitrovibrio acetiphilus DSM 12809 | ADD67823
+226	Sulfuricurvum kujiense DSM 16994 | ADR34160
+227	Rhodospirillum photometricum DSM 122 | CCG09209
+228	Roseiflexus sp. RS-1 | ABQ89606
+229	Megasphaera cerevisiae DSM 20462 | KMO85510
+230	Thermacetogenium phaeum DSM 12270 | AFV11098
+231	Propionispora sp. 2/2-37 | CUH96907
