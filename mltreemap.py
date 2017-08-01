@@ -24,6 +24,7 @@ try:
     import string
     import random
     from time import gmtime, strftime
+    from json import loads, load, dumps
     import _tree_parser
 except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
@@ -424,6 +425,60 @@ class CreateFuncTreeUtility:
         raxml_pro.wait()
 
         return
+
+
+class ItolJplace:
+    """
+    A class to hold all data relevant to a jplace file to be viewed in iTOL
+    """
+    placements = list()
+    fields = list()
+
+    def __init__(self):
+        self.name = ""
+        self.tree = ""
+        self.metadata = ""
+        self.version = ""
+
+    def summarize(self):
+        """
+        Prints a summary of the ItolJplace object (equivalent to a single marker) to stderr
+        Summary include the number of marks found, the tree used, and the tree-placement of each sequence identified
+        Written solely for testing purposes
+        :return:
+        """
+        sys.stderr.write(str(len(self.placements)) + " " + self.name + " sequences grafted. ")
+        sys.stderr.write("Reference tree:\n")
+        sys.stderr.write(self.tree + "\n")
+        sys.stderr.write("Here is the placement information:\n")
+        for d_place in self.placements:
+            for k, v in d_place.items():
+                if k == 'p':
+                    sys.stderr.write('\t' + str(v) + "\n")
+        sys.stderr.write("\n")
+        sys.stderr.flush()
+        return
+
+    def correct_decoding(self):
+        """
+        Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
+        Formatting and string conversion are also performed here
+        :return: 
+        """
+        new_placement_collection = []  # a list of dictionary-like strings
+        placement_string = ""  # e.g. {"p":[[226, -31067.028237, 0.999987, 0.012003, 2e-06]], "n":["query"]}
+        for d_place in self.placements:
+            dict_strings = list()  # e.g. "n":["query"]
+            for k, v in d_place.items():
+                dict_strings.append(dumps(k) + ':' + dumps(v))
+                placement_string = ', '.join(dict_strings)
+            new_placement_collection.append('{' + placement_string + '}')
+        self.placements = new_placement_collection
+
+        self.fields = [dumps(x) for x in self.fields]
+        return
+
+
 # Classes end
 
 
@@ -2276,7 +2331,6 @@ def get_non_wag_cogs(args):
     Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
     :param args: Command-line argument object returned by get_options and check_parser_arguments
     """
-    denominator = ""
     non_wag_cog_list = Autovivify()
     non_wag_cogs_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
     try:
@@ -2286,7 +2340,10 @@ def get_non_wag_cogs(args):
 
     for line in cogin:
         line = line.strip()
-        cog, denominator, model, pid, update = line.split('\t')
+        try:
+            cog, denominator, model, pid, update = line.split('\t')
+        except ValueError:
+            raise ValueError("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + line)
         non_wag_cog_list[denominator][cog] = model
 
     cogin.close()
@@ -3747,7 +3804,6 @@ def delete_files(args, section):
             files_to_be_deleted += glob.glob(args.output_dir_var + 'RAxML_entropy.*')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_info.txt')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_labelledTree.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.jplace')
             files_to_be_deleted += glob.glob(args.output_dir_var + 'RAxML_classificationLikelihoodWeights*')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy.reduced')
@@ -4232,6 +4288,142 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
         os.system('mv %s_uclust %s' % (update_tree.Output, project_folder))
 
 
+def jplace_parser(filename):
+    """
+    Parses the jplace file using the load function from the JSON library
+    :param filename: 
+    :return: 
+    """
+    itol_datum = ItolJplace()
+    with open(filename) as jplace:
+        jplace_dat = load(jplace, encoding="utf-8")
+        itol_datum.tree = jplace_dat["tree"]
+        # A list of strings
+        itol_datum.fields = [x.decode("utf-8") for x in jplace_dat["fields"]]
+        itol_datum.version = jplace_dat["version"]
+        itol_datum.metadata = jplace_dat["metadata"]
+        # A list of dictionaries of where the key is a string and the value is a list of lists
+        # Since
+        itol_datum.placements = jplace_dat["placements"]
+
+    return itol_datum
+
+
+def write_jplace(itol_datum, jplace_file):
+    """
+    A hacky function for writing jplace files with concatenated placements
+     which are also compatible with iTOL's jplace parser
+    :param itol_datum: A ItolJplace class object
+    :param jplace_file: 
+    :return: 
+    """
+    try:
+        jplace_out = open(jplace_file, 'w')
+    except IOError:
+        raise IOError("Unable to open " + jplace_file + " for writing! Exiting now.")
+
+    itol_datum.correct_decoding()
+    # itol_datum.summarize()
+
+    # Begin writing elements to the jplace file
+    jplace_out.write('{\n\t"tree": "')
+    jplace_out.write(itol_datum.tree + "\", \n")
+    jplace_out.write("\t\"placements\": [\n\t")
+    jplace_out.write(", ".join(itol_datum.placements))
+    jplace_out.write("\n\t],\n")
+    jplace_out.write("\t\"fields\": [\n\t")
+    jplace_out.write(", ".join(itol_datum.fields) + "\n\t]\n}")
+
+    jplace_out.close()
+    return
+
+
+def create_itol_labels(args, marker):
+    """
+    
+    :param args: 
+    :param marker: 
+    :return: 
+    """
+    itol_base_dir = args.output + 'iTOL_output' + os.sep
+    itol_label_file = itol_base_dir + os.sep + marker + os.sep + marker + "_labels.txt"
+    tax_ids_file = os.sep.join([args.mltreemap, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+
+    try:
+        label_f = open(itol_label_file, 'w')
+    except IOError:
+        raise IOError("Unable to open " + itol_label_file + " for writing! Exiting now.")
+
+    try:
+        tax_ids = open(tax_ids_file, 'r')
+    except IOError:
+        raise IOError("Unable to open " + tax_ids_file + " for reading!")
+
+    label_f.write("LABELS\nSEPARATOR COMMA\nDATA\n#NODE_ID,LABEL\n")
+    for line in tax_ids:
+        line = line.strip()
+        try:
+            number, translation = line.split('\t')
+        except ValueError:
+            sys.exit('ValueError: .split(\'\\t\') on ' + str(line))
+        label_f.write(number + ',' + translation + "\n")
+
+    tax_ids.close()
+    label_f.close()
+
+    return
+
+
+def produce_itol_inputs(args, cog_list):
+    """
+    Function to create outputs for the interactive tree of life (iTOL) webservice.
+    There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
+    :param args: 
+    :param cog_list:
+    :return: 
+    """
+    itol_base_dir = args.output + 'iTOL_output' + os.sep
+    os.mkdir(itol_base_dir)  # drwxr-xr-x
+    jplace_files = glob.glob(args.output_dir_var + '*.jplace')
+    jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})_.*")
+    itol_data = dict()
+    marker_map = dict()
+    # Use the jplace files to guide which markers iTOL outputs should be created for
+    for filename in jplace_files:
+        denominator = jplace_marker_re.match(filename).group(1)
+        if denominator not in marker_map:
+            for cog in cog_list["all_cogs"]:
+                if denominator == cog_list["all_cogs"][cog]:
+                    marker_map[denominator] = cog
+                    break
+        marker = marker_map[denominator]
+        if marker not in itol_data:
+            itol_data[marker] = jplace_parser(filename)
+            itol_data[marker].name = marker
+        else:
+            with open(filename) as jplace:
+                jplace_dat = load(jplace, encoding="utf-8")
+                itol_data[marker].placements = itol_data[marker].placements + jplace_dat["placements"]
+
+        if not os.path.exists(itol_base_dir + marker):
+            os.mkdir(itol_base_dir + marker)
+        os.remove(filename)
+
+    for denominator in marker_map:
+        marker = marker_map[denominator]
+        # Make a master jplace file from all jplace files for each marker
+        # Create a master .jplace file using each itol_datum in itol_data
+        master_jplace = itol_base_dir + os.sep + marker + os.sep + marker + "_complete_profile.jplace"
+        write_jplace(itol_data[marker], master_jplace)
+
+        # Create a labels file from the tax_ids_marker.txt
+        create_itol_labels(args, marker)
+        # make_itol_labels(args)
+        # Create a simple bar file based on the percentages of each marker identified
+        # Create a colour strip file to colour code the different clades
+    return
+
+
 def main(argv):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = get_options()
@@ -4299,6 +4491,7 @@ def main(argv):
         sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
         rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
         normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type)
+    produce_itol_inputs(args, cog_list)
     delete_files(args, 4)
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
