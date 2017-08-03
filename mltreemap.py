@@ -1376,16 +1376,18 @@ def collect_blast_outputs(args):
     :param args: Command-line argument object from get_options and check_parser_arguments
     Returns a list of non-empty BLAST results files.
     """
-    raw_blast_result = args.output_dir_var + path.basename(args.input) + "_formatted.BLAST_results_raw.txt"
-    if path.getsize(raw_blast_result) <= 0:
-        os.remove(raw_blast_result)
+    cog_blast_result = args.output_dir_var + path.basename(args.input) + "_formatted.BLAST_results_raw.txt"
+    rrna_blast_result = args.output_dir_var + path.basename(args.input) + "_formatted.rRNA_BLAST_results_raw.txt"
+    if path.getsize(cog_blast_result) <= 0 and path.getsize(rrna_blast_result) <= 0:
+        os.remove(cog_blast_result)
         sys.stdout.write("No marker genes detected in input! Exiting...\n")
         sys.exit(-4)
-    
-    return raw_blast_result
+    else:
+        blast_tables = [cog_blast_result, rrna_blast_result]
+    return blast_tables
 
 
-def parse_blast_results(args, blast_table, cog_list):
+def parse_blast_results(args, blast_tables, cog_list):
     """
     Returns an Autovivification of purified (eg. non-redundant) BLAST hits.
     :param args: Command-line argument object from get_options and check_parser_arguments
@@ -1400,78 +1402,79 @@ def parse_blast_results(args, blast_table, cog_list):
     # reg_cog_id = re.compile(r'.*(.{5})\Z')
     counter = 0
     purified_blast_hits = Autovivify()
-
-    try:
-        blast_results = open(blast_table, 'r')
-    except IOError:
-        sys.stderr.write("ERROR: Cannot open BLAST output file " + blast_table)
-        sys.exit(5)
-
     contigs = {}
-    identifier = 0
-    for line in blast_results:
-        # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
-        # Interpret the BLAST hit, and assign the details accordingly
-        temp_contig, temp_detailed_cog, _, _, _, _, temp_query_start, temp_query_end, temp_ref_start, temp_ref_end, _, temp_bitscore = line.split('\t')
-        temp_ref_end = int(temp_ref_end)
-        temp_ref_start = int(temp_ref_start)
-        temp_query_end = int(temp_query_end)
-        temp_query_start = int(temp_query_start)
-        temp_bitscore = float(temp_bitscore)
 
-        # Skip to next BLAST hit if bit score is less than user-defined minimum
-        if temp_bitscore <= args.bitscore:
-            continue
+    for blast_table in blast_tables:
+        try:
+            blast_results = open(blast_table, 'r')
+        except IOError:
+            sys.stderr.write("ERROR: Cannot open BLAST output file " + blast_table)
+            sys.exit(5)
 
-        # Determine the direction of the hit relative to the reference
-        direction = 'forward'
-        if temp_ref_start > temp_ref_end:
-            temp = temp_ref_start
-            temp_ref_start = temp_ref_end
-            temp_ref_end = temp
-            direction = 'reverse'
-        if temp_query_start > temp_query_end:
-            temp = temp_query_start
-            temp_query_start = temp_query_end
-            temp_query_end = temp
-            if direction == 'reverse':
-                sys.stderr.write("ERROR: Confusing BLAST result!\n")
-                sys.stderr.write("Please notify the authors about " +
-                                 temp_contig + ' at ' +
-                                 temp_detailed_cog +
-                                 " q(" + str(temp_query_end) + '..' + str(temp_query_start) + ")," +
-                                 " r(" + str(temp_ref_end) + '..' + str(temp_ref_start) + ")")
-                sys.stderr.flush()
-                sys.exit()
-            direction = 'reverse'
+        identifier = 0
+        for line in blast_results:
+            # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
+            # Interpret the BLAST hit, and assign the details accordingly
+            temp_contig, temp_detailed_cog, _, _, _, _, temp_query_start, temp_query_end, temp_ref_start, temp_ref_end, _, temp_bitscore = line.split('\t')
+            temp_ref_end = int(temp_ref_end)
+            temp_ref_start = int(temp_ref_start)
+            temp_query_end = int(temp_query_end)
+            temp_query_start = int(temp_query_start)
+            temp_bitscore = float(temp_bitscore)
 
-        # This limitation is so-far not necessary
-        # result = reg_cog_id.match(temp_detailed_cog)
-        # if result:
-        #     tempCOG = result.group(1)
-        result = '_'.join(temp_detailed_cog.split('_')[1:])
-        if result:
-            tempCOG = result
-        else:
-            sys.exit('ERROR: Could not detect the COG of sequence ' + temp_detailed_cog)
+            # Skip to next BLAST hit if bit score is less than user-defined minimum
+            if temp_bitscore <= args.bitscore:
+                continue
 
-        # Save contig details to the list
-        if temp_contig not in contigs:
-            contigs[temp_contig] = {}
+            # Determine the direction of the hit relative to the reference
+            direction = 'forward'
+            if temp_ref_start > temp_ref_end:
+                temp = temp_ref_start
+                temp_ref_start = temp_ref_end
+                temp_ref_end = temp
+                direction = 'reverse'
+            if temp_query_start > temp_query_end:
+                temp = temp_query_start
+                temp_query_start = temp_query_end
+                temp_query_end = temp
+                if direction == 'reverse':
+                    sys.stderr.write("ERROR: Confusing BLAST result!\n")
+                    sys.stderr.write("Please notify the authors about " +
+                                     temp_contig + ' at ' +
+                                     temp_detailed_cog +
+                                     " q(" + str(temp_query_end) + '..' + str(temp_query_start) + ")," +
+                                     " r(" + str(temp_ref_end) + '..' + str(temp_ref_start) + ")")
+                    sys.stderr.flush()
+                    sys.exit()
+                direction = 'reverse'
 
-        if identifier not in contigs[temp_contig]:
-            contigs[temp_contig][identifier] = {}
+            # This limitation is so-far not necessary
+            # result = reg_cog_id.match(temp_detailed_cog)
+            # if result:
+            #     tempCOG = result.group(1)
+            result = '_'.join(temp_detailed_cog.split('_')[1:])
+            if result:
+                tempCOG = result
+            else:
+                sys.exit('ERROR: Could not detect the COG of sequence ' + temp_detailed_cog)
 
-        contigs[temp_contig][identifier]['bitscore'] = temp_bitscore
-        contigs[temp_contig][identifier]['cog'] = tempCOG
-        contigs[temp_contig][identifier]['seq_start'] = temp_query_start
-        contigs[temp_contig][identifier]['seq_end'] = temp_query_end
-        contigs[temp_contig][identifier]['direction'] = direction
-        contigs[temp_contig][identifier]['validity'] = True
-        identifier += 1
+            # Save contig details to the list
+            if temp_contig not in contigs:
+                contigs[temp_contig] = {}
 
-    # Close the file
-    blast_results.close()
+            if identifier not in contigs[temp_contig]:
+                contigs[temp_contig][identifier] = {}
+
+            contigs[temp_contig][identifier]['bitscore'] = temp_bitscore
+            contigs[temp_contig][identifier]['cog'] = tempCOG
+            contigs[temp_contig][identifier]['seq_start'] = temp_query_start
+            contigs[temp_contig][identifier]['seq_end'] = temp_query_end
+            contigs[temp_contig][identifier]['direction'] = direction
+            contigs[temp_contig][identifier]['validity'] = True
+            identifier += 1
+
+        # Close the file
+        blast_results.close()
 
     # Purify the BLAST hits
     # For each contig sorted by their string-wise comparison...
@@ -4349,6 +4352,9 @@ def create_itol_labels(args, marker):
     itol_label_file = itol_base_dir + os.sep + marker + os.sep + marker + "_labels.txt"
     tax_ids_file = os.sep.join([args.mltreemap, "data", "tree_data", "tax_ids_" + marker + ".txt"])
 
+    if os.path.exists(itol_label_file):
+        return
+
     try:
         label_f = open(itol_label_file, 'w')
     except IOError:
@@ -4386,16 +4392,27 @@ def produce_itol_inputs(args, cog_list):
     os.mkdir(itol_base_dir)  # drwxr-xr-x
     jplace_files = glob.glob(args.output_dir_var + '*.jplace')
     jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})_.*")
+    jplace_cog_re = re.compile(r".*portableTree.([a-z])_.*")  # For the phylogenetic cogs
     itol_data = dict()
     marker_map = dict()
     # Use the jplace files to guide which markers iTOL outputs should be created for
     for filename in jplace_files:
-        denominator = jplace_marker_re.match(filename).group(1)
+        if jplace_marker_re.match(filename):
+            denominator = jplace_marker_re.match(filename).group(1)
+        elif jplace_cog_re.match(filename):
+            denominator = jplace_cog_re.match(filename).group(1)
+        else:
+            sys.stderr.write("Regular expression for parsing marker information from jplace files was unsuccessful!\n")
+            sys.stderr.write("The offending file name: " + filename)
+            sys.exit()
         if denominator not in marker_map:
-            for cog in cog_list["all_cogs"]:
-                if denominator == cog_list["all_cogs"][cog]:
-                    marker_map[denominator] = cog
-                    break
+            if denominator != 'p':
+                for cog in cog_list["all_cogs"]:
+                    if denominator == cog_list["all_cogs"][cog]:
+                        marker_map[denominator] = cog
+                        break
+            else:
+                marker_map[denominator] = "nr"
         marker = marker_map[denominator]
         if marker not in itol_data:
             itol_data[marker] = jplace_parser(filename)
@@ -4407,7 +4424,7 @@ def produce_itol_inputs(args, cog_list):
 
         if not os.path.exists(itol_base_dir + marker):
             os.mkdir(itol_base_dir + marker)
-        os.remove(filename)
+        # os.remove(filename)
 
     for denominator in marker_map:
         marker = marker_map[denominator]
@@ -4418,9 +4435,8 @@ def produce_itol_inputs(args, cog_list):
 
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(args, marker)
-        # make_itol_labels(args)
-        # Create a simple bar file based on the percentages of each marker identified
-        # Create a colour strip file to colour code the different clades
+        # TODO: Create a simple bar file based on the percentages of each marker identified
+        # TODO: Create a colour strip file to colour code the different clades
     return
 
 

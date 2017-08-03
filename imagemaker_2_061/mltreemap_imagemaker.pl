@@ -193,6 +193,11 @@ sub get_input_files {
                 my $filename_long = "$input$filename";
                 $denominator = "A" if (($denominator eq "R0018" || $denominator eq "R0016") && ($rRNA_display_option == 1));
                 $input_files{$denominator}{$filename_long} = $filename; 
+            }
+            if ($filename =~ /\A(.)_.*RAxML_.+.txt\Z/) {
+                my $denominator = $1;
+                my $filename_long = "$input$filename";
+                $input_files{$denominator}{$filename_long} = $filename; 
             }    
         }       
     }
