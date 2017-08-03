@@ -2353,7 +2353,7 @@ def get_non_wag_cogs(args):
     return non_wag_cog_list
 
 
-def concatenate_hmmalign_singlehits_files(args, hmmalign_singlehit_files, non_wag_cog_list):
+def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_list):
     """
     Concatenates the hmmalign files using the provided Autovivifications of hmmalign files and non-WAG COGs.
     :param args: Command-line argument object from get_options and check_parser_arguments
@@ -2632,7 +2632,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
     return phy_files
 
 
-def start_RAxML(args, phy_files, cog_list, models_to_be_used):
+def start_raxml(args, phy_files, cog_list, models_to_be_used):
     """
     Run RAxML using the provided Autovivifications of phy files and COGs, as well as the list of models used for each COG.
 
@@ -2909,6 +2909,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
         parse_log.flush()
 
         for f_contig in sorted(raxml_outfiles[denominator].keys()):
+            print f_contig
             # Update the progress bar
             acc += 1.0
             if acc >= step_proportion:
@@ -2927,6 +2928,7 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
                 # Maximum-likelihood analysis
                 classification_file = raxml_outfiles[denominator][f_contig]['classification']
                 labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
+                print classification_file
                 try:
                     RAxML_labelled_tree = open(labelled_tree_file, 'r')
                 except IOError:
@@ -4210,8 +4212,8 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     hmm_length = get_hmm_length(args, update_tree)
     aa_dictionary = filter_short_sequences(aa_dictionary, 0.5*hmm_length)
 
-    new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
-                         "_" + update_tree.COG + "_unaligned.fasta"
+    new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + "_" + \
+                         update_tree.COG + "_unaligned.fasta"
     write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
     # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
     ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
@@ -4489,14 +4491,14 @@ def main(argv):
             delete_files(args, 2)
             # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
             hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
-        concatenated_mfa_files, nrs_of_sequences, models_to_be_used = concatenate_hmmalign_singlehits_files(args,
-                                                                                                            hmmalign_singlehit_files,
-                                                                                                            non_wag_cog_list)
+        concatenated_mfa_files, nrs_of_sequences, models_to_be_used = cat_hmmalign_singlehit_files(args,
+                                                                                                   hmmalign_singlehit_files,
+                                                                                                   non_wag_cog_list)
         gblocks_files = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
         phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
         delete_files(args, 3)
         # STAGE 5: Run RAxML to compute the ML/MP estimations
-        raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_RAxML(args, phy_files,
+        raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_raxml(args, phy_files,
                                                                                          cog_list, models_to_be_used)
         tree_numbers_translation = read_species_translation_files(args, cog_list)
         final_raxml_output_files = parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
