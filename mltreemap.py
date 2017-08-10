@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-__author__ = "Connor Morgan-Lang, Kishori Konwar and Young Song"
+__author__ = "Connor Morgan-Lang and Kishori Konwar"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL"
 __version__ = "1.1.0"
@@ -25,6 +25,7 @@ try:
     import random
     from time import gmtime, strftime
     from json import loads, load, dumps
+    import copy
     import _tree_parser
 except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
@@ -448,11 +449,12 @@ class ItolJplace:
         :return:
         """
         sys.stderr.write(str(len(self.placements)) + " " + self.name + " sequences grafted. ")
-        sys.stderr.write("Reference tree:\n")
-        sys.stderr.write(self.tree + "\n")
+        # sys.stderr.write("Reference tree:\n")
+        # sys.stderr.write(self.tree + "\n")
         sys.stderr.write("Here is the placement information:\n")
-        for d_place in self.placements:
-            for k, v in d_place.items():
+        for pquery in self.placements:
+            placement = loads(pquery, encoding="utf-8")
+            for k, v in placement.items():
                 if k == 'p':
                     sys.stderr.write('\t' + str(v) + "\n")
         sys.stderr.write("\n")
@@ -478,6 +480,75 @@ class ItolJplace:
         self.fields = [dumps(x) for x in self.fields]
         return
 
+    def filter_min_weight_threshold(self, threshold=0.5):
+        """
+        Remove all placements with likelihood weight ratios less than threshold
+        :param threshold: The threshold which all placements with LWRs less than this are removed
+        :return:
+        """
+        x = 0
+        # Find the position of like_weight_ratio in the placements from fields descriptor
+        for field in self.fields:
+            if field == '"like_weight_ratio"':
+                break
+            else:
+                x += 1
+        if x == len(self.fields):
+            sys.stderr.write("Unable to find \"like_weight_ratio\" in the jplace string!\n")
+            sys.stderr.write("WARNING: Skipping filtering with `filter_min_weight_threshold`\n")
+            return
+        # Filter the placements
+        new_placement_collection = list()
+        placement_string = ""
+        for pquery in self.placements:
+            placement = loads(pquery, encoding="utf-8")
+            dict_strings = list()
+            if len(placement["p"]) > 1:
+                for k, v in placement.items():
+                    if k == 'p':
+                        # For debugging:
+                        # sys.stderr.write(str(v) + "\nRemoved:\n")
+                        acc = 0
+                        tmp_placements = copy.deepcopy(v)
+                        while acc < len(tmp_placements):
+                            candidate = tmp_placements[acc]
+                            if float(candidate[x]) < threshold:
+                                removed = tmp_placements.pop(acc)
+                                # For debugging:
+                                # sys.stderr.write("\t".join([self.name, str(removed[0]), str(float(removed[x]))]) + "\n")
+                            else:
+                                acc += 1
+                            sys.stderr.flush()
+                        # If no sequences met the filter, the first two will be returned and used for LCA
+                        if len(tmp_placements) == 0:
+                            v = v[0:2]
+                        else:
+                            v = tmp_placements
+                    dict_strings.append(dumps(k) + ':' + dumps(v))
+                    placement_string = ', '.join(dict_strings)
+                # Add the filtered placements back to the object.placements
+                new_placement_collection.append('{' + placement_string + '}')
+            else:
+                new_placement_collection.append(pquery)
+        self.placements = new_placement_collection
+        return
+
+    # def harmonize_placements(self, mltreemap_dir):
+    #     """
+    #     Often times, the placements field in a jplace file contains multiple possible tree locations.
+    #     In order to consolidate these into a single tree location, the LCA algorithm is utilized. The single internal
+    #     node which is the parent node of all possible placements is returned. Since all placements are valid, there is
+    #     no need to be uncertain about including all nodes when determining the lowest common ancestor
+    #     :return:
+    #     """
+    #     if len(self.placements) == 1:
+    #         return
+    #     else:
+    #         print self.name
+    #         reference_tree_file = os.sep.join([mltreemap_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
+    #         reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
+    #         # ancestral_node = _tree_parser._lca(reference_tree_elements, )
+    #     return
 
 # Classes end
 
@@ -529,6 +600,7 @@ def get_options():
                         help="Input is assembled consensus sequences so ORFs will be predicted instead of using blastx")
     parser.add_argument('-b', '--bootstraps', default=0, type=int,
                         help='the number of Bootstrap replicates [DEFAULT = 0]')
+    # TODO: remove this option and only use "-f e" for raxml
     parser.add_argument('-f', '--phylogeny', default='v', choices=['v', 'p'],
                         help='RAxML algorithm (v = Maximum Likelihood [DEFAULT]; p = Maximum Parsimony)')
     parser.add_argument('-g', '--gblocks', default=50, type=int,
@@ -2752,12 +2824,6 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
 
 def pparse_ref_trees(denominator_ref_tree_dict, args):
     ref_trees_dict = dict()
-    # Why so serial?
-    # for denominator in denominator_ref_tree_dict:
-    #     print denominator
-    #     reference_tree_file = denominator_ref_tree_dict[denominator]
-    #     marker,terminal_children_of_reference = read_and_understand_the_reference_tree(reference_tree_file,denominator)
-    #     ref_trees_dict[marker] = terminal_children_of_reference
 
     pool = Pool(processes=int(args.num_threads))
 
@@ -2909,7 +2975,6 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
         parse_log.flush()
 
         for f_contig in sorted(raxml_outfiles[denominator].keys()):
-            print f_contig
             # Update the progress bar
             acc += 1.0
             if acc >= step_proportion:
@@ -2928,7 +2993,6 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
                 # Maximum-likelihood analysis
                 classification_file = raxml_outfiles[denominator][f_contig]['classification']
                 labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
-                print classification_file
                 try:
                     RAxML_labelled_tree = open(labelled_tree_file, 'r')
                 except IOError:
@@ -3092,16 +3156,6 @@ def deconvolute_assignments(reference_tree_assignments):
 
 
 def read_and_understand_the_reference_tree(reference_tree_file, denominator):
-    # # Old and slow:
-    # reference_tree_elements = read_the_reference_tree(reference_tree_file)
-    # reference_tree_info = create_tree_info_hash()
-    # reference_tree_info = get_node_subtrees(reference_tree_elements, reference_tree_info)
-    # reference_tree_info = assign_parents_and_children(reference_tree_info, denominator)
-    # if reference_tree_info is None:
-    #     return denominator, None
-    # terminal_children_of_reference = build_terminal_children_strings_of_reference_nodes(reference_tree_info)
-    # return denominator, terminal_children_of_reference
-
     # Using the C++ _tree_parser extension:
     reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
     reference_tree_assignments = _tree_parser._get_parents_and_children(reference_tree_elements)
@@ -4314,10 +4368,11 @@ def jplace_parser(filename):
     return itol_datum
 
 
-def write_jplace(itol_datum, jplace_file):
+def write_jplace(args, itol_datum, jplace_file):
     """
     A hacky function for writing jplace files with concatenated placements
      which are also compatible with iTOL's jplace parser
+    :param args:
     :param itol_datum: A ItolJplace class object
     :param jplace_file: 
     :return: 
@@ -4328,6 +4383,9 @@ def write_jplace(itol_datum, jplace_file):
         raise IOError("Unable to open " + jplace_file + " for writing! Exiting now.")
 
     itol_datum.correct_decoding()
+    itol_datum.filter_min_weight_threshold(0.3)
+    # itol_datum.harmonize_placements(args.mltreemap)
+
     # itol_datum.summarize()
 
     # Begin writing elements to the jplace file
@@ -4336,6 +4394,7 @@ def write_jplace(itol_datum, jplace_file):
     jplace_out.write("\t\"placements\": [\n\t")
     jplace_out.write(", ".join(itol_datum.placements))
     jplace_out.write("\n\t],\n")
+    jplace_out.write("\t\"version\": " + str(itol_datum.version) + ",\n")
     jplace_out.write("\t\"fields\": [\n\t")
     jplace_out.write(", ".join(itol_datum.fields) + "\n\t]\n}")
 
@@ -4430,11 +4489,9 @@ def produce_itol_inputs(args, cog_list):
 
     for denominator in marker_map:
         marker = marker_map[denominator]
-        # Make a master jplace file from all jplace files for each marker
-        # Create a master .jplace file using each itol_datum in itol_data
+        # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + os.sep + marker + os.sep + marker + "_complete_profile.jplace"
-        write_jplace(itol_data[marker], master_jplace)
-
+        write_jplace(args, itol_data[marker], master_jplace)
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(args, marker)
         # TODO: Create a simple bar file based on the percentages of each marker identified
