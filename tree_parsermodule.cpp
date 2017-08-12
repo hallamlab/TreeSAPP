@@ -10,6 +10,7 @@ using namespace std;
 static PyObject *read_the_reference_tree(PyObject *self, PyObject *args);
 static PyObject *get_parents_and_children(PyObject *self, PyObject *args);
 static PyObject *build_subtrees_newick(PyObject *self, PyObject *args);
+static PyObject *lowest_common_ancestor(PyObject *self, PyObject *args);
 char *get_node_relationships(char *tree_string);
 char *split_tree_string(char *tree_string);
 
@@ -21,6 +22,8 @@ static char get_parents_and_children_docstring[] =
         "Stores the input tree as a binary search tree before recursively finding the children and parent of each node";
 static char build_subtrees_newick_docstring[] =
         "Reads the labelled, rooted tree and returns all subtrees in the tree";
+static char lowest_common_ancestor_docstring[] =
+        "Calculate lowest common ancestor for a set of nodes in a tree";
 
 static PyMethodDef module_methods[] = {
         {"_read_the_reference_tree",
@@ -35,6 +38,10 @@ static PyMethodDef module_methods[] = {
         build_subtrees_newick,
         METH_VARARGS,
         build_subtrees_newick_docstring},
+        {"_lowest_common_ancestor",
+        lowest_common_ancestor,
+        METH_VARARGS,
+        lowest_common_ancestor_docstring},
         {NULL, NULL, 0, NULL}
 };
 
@@ -75,6 +82,16 @@ void prepend_link(Link*& head, long newKey) {
     curr->key  = newKey;
     curr->next = head;
     head = curr;
+}
+
+
+TreeNode *& find(int key, TreeNode *& r) {
+    if (r == NULL) return r;
+    if (key < r->key)
+        return find(key, r->left);
+    if (key > r->key)
+        return find(key, r->right);
+    return r;
 }
 
 
@@ -153,7 +170,7 @@ char const *float_chars = "0.123456789";
 char const *real_number_chars = "-0123456789";
 
 /*
- Returns 1 is character sub is a substring of super, 0 otherwise
+ Returns 1 if character sub is a substring of super, 0 otherwise
  */
 int is_char_substr(char sub, const char * super) {
     int x = 0;
@@ -175,6 +192,10 @@ int get_char_array_length(char * char_array) {
     return x;
 }
 
+/*
+ * Append a character array (source) onto another character array (dest)
+ * start is the position to continue appending on dest
+ */
 int append_char_array(int start, char * source, char *&dest) {
     int i = 0;
     while (source[i])
@@ -187,6 +208,31 @@ char reverse_char_array(char * char_array, char *&flipped, int first, int last) 
         return '\0';
     flipped[first] = reverse_char_array(char_array, flipped, first+1, last-1);
     return char_array[last];
+}
+
+/*
+ * param comma_separated_string: a character array with commas
+ * return: a char** the elements stored as individual char arrays
+ */
+char **csv_to_list(char * comma_separated_string) {
+    int i = 0;
+    int j = 0;
+    int k = 0;
+    char** char_list = (char**) malloc (10 * sizeof(char*));
+
+    char_list[j] = (char*) malloc(10);
+    while (comma_separated_string[i]) {
+        if (comma_separated_string[i] == ',') {
+            char_list[j][k] = '\0';
+            i++; j++; k = 0;
+            char_list[j] = (char*) malloc(10);
+        }
+        char_list[j][k] = comma_separated_string[i];
+        i++; k++;
+    }
+    char_list[j][k] = '\0';
+    char_list[++j] = '\0';
+    return char_list;
 }
 
 
@@ -600,6 +646,70 @@ static PyObject *get_parents_and_children(PyObject *self, PyObject *args) {
     free(subtrees);
 
     return Py_BuildValue("s", children);
+}
+
+
+TreeNode* lca_helper(TreeNode* root, char** node_names, long& ancestor) {
+    // TODO: Finish this function for potential use
+    if (root == NULL) {
+        return root;
+    }
+    int x = 0;
+    bool all_contained = true;
+
+    while (node_names[x]) {
+        long query = atol(node_names[x]);
+        cout << query << "\t";
+        x++;
+    }
+    cout << endl;
+
+    lca_helper(root->left, node_names, ancestor);
+    lca_helper(root->right, node_names, ancestor);
+
+    while (node_names[x]) {
+        cout << root->key << endl;
+        long query = atol(node_names[x]);
+        if (!find(query, root))
+            all_contained = false;
+        x++;
+    }
+    cout << root->key << endl;
+
+    if (all_contained && ancestor == 0) {
+        ancestor = root->key;
+        cout << root->key << endl;
+    }
+    return root;
+
+}
+
+
+static PyObject *lowest_common_ancestor(PyObject *self, PyObject *args) {
+    char* tree_string;
+    char* leaves_strung;
+    long ancestor = 0;
+
+    if (!PyArg_ParseTuple(args, "ss", &tree_string, &leaves_strung)) {
+        return NULL;
+    }
+
+    // Get the node numbers to find LCA
+    char **leaves = csv_to_list(leaves_strung);
+
+    // Step 1: Load the tree
+    Link * linked_list = NULL;
+    load_linked_list(tree_string, linked_list);
+    // Step 2: Convert the linked-list to a tree structure
+    TreeNode* root = NULL;
+    std::stack<TreeNode*> merge;
+    load_tree_from_list(linked_list, root, merge);
+    // Step 3: lca will return the root node of the LCA node for which all leaves are children
+    lca_helper(root, leaves, ancestor);
+
+    free(leaves);
+    return Py_BuildValue("i", ancestor);
+
 }
 
 

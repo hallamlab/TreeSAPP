@@ -507,7 +507,7 @@ class ItolJplace:
                 for k, v in placement.items():
                     if k == 'p':
                         # For debugging:
-                        # sys.stderr.write(str(v) + "\nRemoved:\n")
+                        sys.stderr.write(str(v) + "\nRemoved:\n")
                         acc = 0
                         tmp_placements = copy.deepcopy(v)
                         while acc < len(tmp_placements):
@@ -515,7 +515,7 @@ class ItolJplace:
                             if float(candidate[x]) < threshold:
                                 removed = tmp_placements.pop(acc)
                                 # For debugging:
-                                # sys.stderr.write("\t".join([self.name, str(removed[0]), str(float(removed[x]))]) + "\n")
+                                sys.stderr.write("\t".join([self.name, str(removed[0]), str(float(removed[x]))]) + "\n")
                             else:
                                 acc += 1
                             sys.stderr.flush()
@@ -533,22 +533,90 @@ class ItolJplace:
         self.placements = new_placement_collection
         return
 
-    # def harmonize_placements(self, mltreemap_dir):
-    #     """
-    #     Often times, the placements field in a jplace file contains multiple possible tree locations.
-    #     In order to consolidate these into a single tree location, the LCA algorithm is utilized. The single internal
-    #     node which is the parent node of all possible placements is returned. Since all placements are valid, there is
-    #     no need to be uncertain about including all nodes when determining the lowest common ancestor
-    #     :return:
-    #     """
-    #     if len(self.placements) == 1:
-    #         return
-    #     else:
-    #         print self.name
-    #         reference_tree_file = os.sep.join([mltreemap_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
-    #         reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-    #         # ancestral_node = _tree_parser._lca(reference_tree_elements, )
-    #     return
+    def filter_max_weight_placement(self):
+        """
+        Removes all secondary placements of each pquery,
+        leaving only the placement with maximum likelihood_weight_ratio
+        :return:
+        """
+        x = 0
+        # Find the position of like_weight_ratio in the placements from fields descriptor
+        for field in self.fields:
+            if field == '"like_weight_ratio"':
+                break
+            else:
+                x += 1
+        if x == len(self.fields):
+            sys.stderr.write("Unable to find \"like_weight_ratio\" in the jplace string!\n")
+            sys.stderr.write("WARNING: Skipping filtering with `filter_min_weight_threshold`\n")
+            return
+
+        # Filter the placements
+        new_placement_collection = list()
+        placement_string = ""
+        for pquery in self.placements:
+            placement = loads(pquery, encoding="utf-8")
+            dict_strings = list()
+            max_lwr = 0
+            if len(placement["p"]) > 1:
+                for k, v in placement.items():
+                    if k == 'p':
+                        acc = 0
+                        tmp_placements = copy.deepcopy(v)
+                        while acc < len(tmp_placements):
+                            candidate = tmp_placements[acc]
+                            if float(candidate[x]) > max_lwr:
+                                v = [tmp_placements.pop(acc)]
+                                max_lwr = candidate[x]
+                            else:
+                                acc += 1
+                    dict_strings.append(dumps(k) + ':' + dumps(v))
+                    placement_string = ', '.join(dict_strings)
+                # Add the filtered placements back to the object.placements
+                new_placement_collection.append('{' + placement_string + '}')
+            else:
+                new_placement_collection.append(pquery)
+        self.placements = new_placement_collection
+        return
+
+    def create_jplace_node_map(self, mltreemap_dir):
+        # This will require the insertion_point_node_hash of each f_contig
+        # TODO: Finish this function
+        jplace_node_map = dict()
+        reference_tree_file = os.sep.join([mltreemap_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
+        reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
+        print reference_tree_elements
+        return jplace_node_map
+
+    def harmonize_placements(self, mltreemap_dir):
+        """
+        Often times, the placements field in a jplace file contains multiple possible tree locations.
+        In order to consolidate these into a single tree location, the LCA algorithm is utilized. The single internal
+        node which is the parent node of all possible placements is returned. Since all placements are valid, there is
+        no need to be uncertain about including all nodes when determining the lowest common ancestor
+        :return:
+        """
+        if self.name == "nr":
+            self.name = "COGrRNA"
+        reference_tree_file = os.sep.join([mltreemap_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
+        reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
+        singular_placements = list()
+        for pquery in self.placements:
+            placement = loads(pquery, encoding="utf-8")
+            dict_strings = list()
+            for k, v in placement.items():
+                if len(v) > 1:
+                    loci = list()
+                    for locus in v:
+                        loci.append(str(locus[0]))
+                    ancestral_node = _tree_parser._lowest_common_ancestor(reference_tree_elements, ','.join(loci))
+                    # Create a placement from the ancestor, and the first locus in loci fields
+                    v = [[ancestral_node, v[0][1], 1.0, 0, 0]]
+                dict_strings.append(dumps(k) + ':' + dumps(v))
+            singular_placements.append('{' + ','.join(dict_strings) + '}')
+
+        self.placements = singular_placements
+        return
 
 # Classes end
 
@@ -4383,8 +4451,8 @@ def write_jplace(args, itol_datum, jplace_file):
         raise IOError("Unable to open " + jplace_file + " for writing! Exiting now.")
 
     itol_datum.correct_decoding()
-    itol_datum.filter_min_weight_threshold(0.3)
-    # itol_datum.harmonize_placements(args.mltreemap)
+    # itol_datum.filter_min_weight_threshold(0.3)
+    itol_datum.filter_max_weight_placement()
 
     # itol_datum.summarize()
 
