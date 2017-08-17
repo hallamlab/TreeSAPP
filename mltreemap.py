@@ -434,6 +434,7 @@ class ItolJplace:
     """
     placements = list()
     fields = list()
+    node_map = dict()
 
     def __init__(self):
         self.name = ""
@@ -579,14 +580,43 @@ class ItolJplace:
         self.placements = new_placement_collection
         return
 
-    def create_jplace_node_map(self, mltreemap_dir):
-        # This will require the insertion_point_node_hash of each f_contig
-        # TODO: Finish this function
-        jplace_node_map = dict()
-        reference_tree_file = os.sep.join([mltreemap_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
-        reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-        print reference_tree_elements
-        return jplace_node_map
+    def create_jplace_node_map(self):
+        """
+        Loads a mapping between all nodes (internal and leaves) and all leaves
+        :return:
+        """
+        no_length_tree = re.sub(":[0-9.]+{", ":{", self.tree)
+        node_stack = list()
+        leaf_stack = list()
+        x = 0
+        num_buffer = ""
+        while x < len(no_length_tree):
+            c = no_length_tree[x]
+            if re.search(r"[0-9]", c):
+                while re.search(r"[0-9]", c):
+                    num_buffer += c
+                    x += 1
+                    c = no_length_tree[x]
+                node_stack.append([str(num_buffer)])
+                num_buffer = ""
+                x -= 1
+            elif c == ':':
+                # Append the most recent leaf
+                current_node, x = get_node(no_length_tree, x + 1)
+                self.node_map[current_node] = node_stack.pop()
+                leaf_stack.append(current_node)
+            elif c == ')':
+                # Set the child leaves to the leaves of the current node's two children
+                while c == ')' and x < len(no_length_tree):
+                    if no_length_tree[x + 1] == ';':
+                        break
+                    current_node, x = get_node(no_length_tree, x + 2)
+                    self.node_map[current_node] = self.node_map[leaf_stack.pop()] + self.node_map[leaf_stack.pop()]
+                    leaf_stack.append(current_node)
+                    x += 1
+                    c = no_length_tree[x]
+            x += 1
+        return
 
     def harmonize_placements(self, mltreemap_dir):
         """
@@ -3648,6 +3678,7 @@ def build_terminal_children_strings_of_reference_nodes(reference_tree_info):
 
 
 def compare_terminal_children_strings(terminal_children_of_assignments, terminal_children_of_reference, parse_log):
+    # TODO: Ran into an error here with Matano metagenome and mcrG (M0705)
     real_terminal_children_of_assignments = Autovivify()
     there_was_a_hit = 0
     parse_log.write("compare_terminal_children_strings\tstart: ")
@@ -4295,7 +4326,10 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
                 marker_rpkm_total += float(contig_rpkm_map[contig])
                 marker_rpkm_map[marker][placement] = 0
         for placement in marker_rpkm_map[marker]:
-            percentage = (placement_rpkm_map[placement]*100)/marker_rpkm_total
+            try:
+                percentage = (placement_rpkm_map[placement]*100)/marker_rpkm_total
+            except ZeroDivisionError:
+                percentage = 0
             marker_rpkm_map[marker][placement] = percentage
 
     for marker in marker_rpkm_map:
@@ -4509,27 +4543,105 @@ def create_itol_labels(args, marker):
     return
 
 
-def produce_itol_inputs(args, cog_list):
+def get_node(tree, pos):
+    node = ""
+    pos += 1
+    c = tree[pos]
+    while c != '}':
+        node += c
+        pos += 1
+        c = tree[pos]
+    return int(node), pos
+
+
+def generate_simplebar(args, rpkm_output_file, marker, contig_placement_map):
+    """
+    From the basic RPKM output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
+    :param args:
+    :param rpkm_output_file:
+    :param marker:
+    :param contig_placement_map:
+    :return:
+    """
+    leaf_rpkm_sums = dict()
+    itol_fpkm_file = args.output + "iTOL_output" + os.sep + marker + os.sep + marker + "_fpkm_simplebar.txt"
+
+    try:
+        rpkm_stats = open(rpkm_output_file)
+    except IOError:
+        sys.stderr.write("Unable to open " + rpkm_output_file + " for reading! Exiting now...\n")
+        sys.stderr.flush()
+        sys.exit(-9)
+
+    for line in rpkm_stats:
+        f_contig, rpkm = line.strip().split(',')
+        if float(rpkm) > 0:
+            contig, c_marker, position = f_contig.split('|')
+            if c_marker == marker and contig in contig_placement_map:
+                itol_datum = contig_placement_map[contig]
+                itol_datum.correct_decoding()
+                itol_datum.filter_max_weight_placement()
+                itol_datum.create_jplace_node_map()
+                for pquery in itol_datum.placements:
+                    placement = loads(pquery, encoding="utf-8")
+                    for k, v in placement.items():
+                        if k == 'p':
+                            for locus in v:
+                                jplace_node = locus[0]
+                                tree_leaves = itol_datum.node_map[jplace_node]
+                                for tree_leaf in tree_leaves:
+                                    if tree_leaf not in leaf_rpkm_sums.keys():
+                                        leaf_rpkm_sums[tree_leaf] = 0.0
+                                    leaf_rpkm_sums[tree_leaf] += float(rpkm)
+            else:
+                pass
+    rpkm_stats.close()
+
+    try:
+        itol_rpkm_out = open(itol_fpkm_file, 'w')
+    except IOError:
+        sys.stderr.write("Unable to open " + itol_fpkm_file + " for writing! Exiting now...\n")
+        sys.stderr.flush()
+        sys.exit(-10)
+
+    # Write the header
+    header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,FPKM\nCOLOR,#ff0000\n"
+    itol_rpkm_out.write(header)
+    # Write the RPKM sums for each leaf
+    itol_rpkm_out.write("DATA\n")
+    data_lines = [','.join([str(k), str(v)]) for k, v in leaf_rpkm_sums.items()]
+    itol_rpkm_out.write("\n".join(data_lines))
+
+    itol_rpkm_out.close()
+    return
+
+
+def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
     """
     Function to create outputs for the interactive tree of life (iTOL) webservice.
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
     :param args: 
     :param cog_list:
+    :param rpkm_output_file:
     :return: 
     """
     itol_base_dir = args.output + 'iTOL_output' + os.sep
-    os.mkdir(itol_base_dir)  # drwxr-xr-x
+    if not os.path.exists(itol_base_dir):
+        os.mkdir(itol_base_dir)  # drwxr-xr-x
     jplace_files = glob.glob(args.output_dir_var + '*.jplace')
-    jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})_.*")
-    jplace_cog_re = re.compile(r".*portableTree.([a-z])_.*")  # For the phylogenetic cogs
+    jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})_(.*).jplace")
+    jplace_cog_re = re.compile(r".*portableTree.([a-z])_(.*).jplace")  # For the phylogenetic cogs
+    contig_placement_map = dict()
     itol_data = dict()
     marker_map = dict()
     # Use the jplace files to guide which markers iTOL outputs should be created for
     for filename in jplace_files:
         if jplace_marker_re.match(filename):
             denominator = jplace_marker_re.match(filename).group(1)
+            contig = jplace_marker_re.match(filename).group(2)
         elif jplace_cog_re.match(filename):
             denominator = jplace_cog_re.match(filename).group(1)
+            contig = jplace_cog_re.match(filename).group(2)
         else:
             sys.stderr.write("Regular expression for parsing marker information from jplace files was unsuccessful!\n")
             sys.stderr.write("The offending file name: " + filename)
@@ -4553,6 +4665,8 @@ def produce_itol_inputs(args, cog_list):
 
         if not os.path.exists(itol_base_dir + marker):
             os.mkdir(itol_base_dir + marker)
+        # TODO: Make this more efficient than calling it jplace_parser twice
+        contig_placement_map[contig] = jplace_parser(filename)
         # os.remove(filename)
 
     for denominator in marker_map:
@@ -4563,6 +4677,8 @@ def produce_itol_inputs(args, cog_list):
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(args, marker)
         # TODO: Create a simple bar file based on the percentages of each marker identified
+        if args.rpkm:
+            generate_simplebar(args, rpkm_output_file, marker, contig_placement_map)
         # TODO: Create a colour strip file to colour code the different clades
     return
 
@@ -4634,7 +4750,9 @@ def main(argv):
         sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
         rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
         normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type)
-    produce_itol_inputs(args, cog_list)
+        produce_itol_inputs(args, cog_list, rpkm_output_file)
+    else:
+        produce_itol_inputs(args, cog_list)
     delete_files(args, 4)
     # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
