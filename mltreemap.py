@@ -1565,9 +1565,8 @@ def parse_blast_results(args, blast_tables, cog_list):
     :param cog_list: list of COGs included in analysis pipeline
     """
 
-    if args.verbose:
-        sys.stdout.write("Parsing BLAST results... ")
-        sys.stdout.flush()
+    sys.stdout.write("Parsing BLAST results... ")
+    sys.stdout.flush()
 
     # reg_cog_id = re.compile(r'.*(.{5})\Z')
     counter = 0
@@ -1757,8 +1756,7 @@ def parse_blast_results(args, blast_tables, cog_list):
                           purified_blast_hits[contig][identifier]['cog'] + '\t' + str(bitscore) + '\n')
 
         out.close()
-    if args.verbose:
-        sys.stdout.write("done.\n")
+    sys.stdout.write("done.\n")
     return purified_blast_hits
 
 
@@ -1821,9 +1819,8 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
     Returns an Autovivification mapping the contig to its sequence's start and end positions for Genewise.
     Returns a list of files to be run through Genewise.
     """
-    if args.verbose:
-        sys.stdout.write("Producing Genewise input files... ")
-        sys.stdout.flush()
+    sys.stdout.write("Producing Genewise input files... ")
+    sys.stdout.flush()
 
     flanking_length = 1000  # Recommended: 1000
     prae_contig_coordinates = Autovivify()
@@ -1954,8 +1951,7 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
         except:
             raise IOError("Can't create " + args.output_dir_var + contig_name + "_sequence_shortened.txt!")
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
+    sys.stdout.write("done.\n")
     return contig_coordinates, shortened_sequence_files, gene_coordinates
 
 
@@ -2039,9 +2035,8 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     max_size = 32767  # The actual size limit of a JoinableQueue
     task_list = list()
 
-    if args.verbose:
-        sys.stdout.write("Running Genewise... ")
-        sys.stdout.flush()
+    sys.stdout.write("Running Genewise... ")
+    sys.stdout.flush()
 
     mltreemap_dir = args.mltreemap + os.sep + 'data' + os.sep
     genewise_support = mltreemap_dir + os.sep + 'genewise_support_files' + os.sep
@@ -2110,8 +2105,7 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
         task_queue.join()
 
     # Return the list of output files for each contig
-    if args.verbose:
-        sys.stdout.write("done.\n")
+    sys.stdout.write("done.\n")
 
     return genewise_outputfiles
 
@@ -2125,9 +2119,8 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
     Returns an Autovivification mapping the summary files to each contig.
     """
 
-    if args.verbose:
-        sys.stdout.write("Parsing Genewise outputs... ")
-        sys.stdout.flush()
+    sys.stdout.write("Parsing Genewise outputs... ")
+    sys.stdout.flush()
 
     genewise_summary_files = Autovivify()
 
@@ -2311,9 +2304,8 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
         output.close()
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
     return genewise_summary_files
 
 
@@ -2448,9 +2440,8 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
 
     reference_data_prefix = args.reference_data_prefix
     hmmalign_singlehit_files = Autovivify()
-    if args.verbose:
-        sys.stdout.write("Running hmmalign... ")
-        sys.stdout.flush()
+    sys.stdout.write("Running hmmalign... ")
+    sys.stdout.flush()
 
     # Run hmmalign on each Genewise summary file
     for contig in sorted(genewise_summary_files.keys()):
@@ -2493,9 +2484,8 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                 line = line.strip()
 
             input.close()
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
     return hmmalign_singlehit_files
                    
 
@@ -2537,9 +2527,8 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
     models_to_be_used = {}
     nrs_of_sequences = {}
 
-    if args.verbose:
-        sys.stdout.write("Concatenating hmmalign files... ")
-        sys.stdout.flush()
+    sys.stdout.write("Concatenating hmmalign files... ")
+    sys.stdout.flush()
 
     for f_contig in sorted(hmmalign_singlehit_files.keys()):
         # Determine what type of gene is currently represented, or raise an error
@@ -2635,8 +2624,7 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
 
         output.close()
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
+    sys.stdout.write("done.\n")
 
     return concatenated_mfa_files, nrs_of_sequences, models_to_be_used
 
@@ -2648,11 +2636,11 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
     Returns a list of files resulting from Gblocks.
     """
 
+    sys.stdout.write("Running Gblocks... ")
+    sys.stdout.flush()
+
     gblocks_files = {}
-    if args.verbose:
-        sys.stdout.write("Running Gblocks... ")
-        sys.stdout.flush()
-    
+
     for f_contig in sorted(concatenated_mfa_files.keys()):
         concatenated_mfa_file = concatenated_mfa_files[f_contig]
         nr_of_sequences = nrs_of_sequences[f_contig]
@@ -2667,9 +2655,10 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
         os.system(' '.join(gblocks_command))
         if not os.path.isfile(gblocks_file):
             sys.exit("ERROR: " + gblocks_file + " was not successfully created! Check " + log)
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
+
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
     return gblocks_files
 
 
@@ -4676,10 +4665,22 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
         write_jplace(args, itol_data[marker], master_jplace)
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(args, marker)
-        # TODO: Create a simple bar file based on the percentages of each marker identified
+        # Copy the respective colours and styles files for each marker found to the itol_output directories
+        colors_styles = os.sep.join([args.mltreemap, "data", "iTOL_datasets", marker + "_colours_style.txt"])
+        colour_strip = os.sep.join([args.mltreemap, "data", "iTOL_datasets", marker + "_colour_strip.txt"])
+        try:
+            shutil.copy(colors_styles, itol_base_dir + os.sep + marker)
+        except IOError:
+            sys.stderr.write("WARNING: a colours_style.txt file does not yet exist for marker " + marker + "\n")
+            sys.stderr.flush()
+        try:
+            shutil.copy(colour_strip, itol_base_dir + os.sep + marker)
+        except IOError:
+            sys.stderr.write("WARNING: a colour_strip.txt file does not yet exist for marker " + marker + "\n")
+            sys.stderr.flush()
+
         if args.rpkm:
             generate_simplebar(args, rpkm_output_file, marker, contig_placement_map)
-        # TODO: Create a colour strip file to colour code the different clades
     return
 
 
