@@ -979,7 +979,6 @@ def create_cog_list(args):
         alignment_set = ''
     else:
         alignment_set = args.reftree
-    kind_of_cog = ''
 
     # For each line in the COG list file...
 
@@ -1155,7 +1154,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
 def get_hmm_length(args, update_tree):
     """
     Function to open the ref_tree's hmm file and determine its length
-    :param args: 
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param update_tree: 
     :return: The length (int value) of the HMM
     """
@@ -1180,15 +1179,18 @@ def get_hmm_length(args, update_tree):
 
 def align_ref_queries(args, new_ref_queries, update_tree):
     """
-    
-    :param args: 
-    :param new_ref_queries: 
+    Function queries the candidate set of proteins to be used for updating the tree against the reference set
+    The output feeds into find_novel_refs. Necessary to determine whether there are interesting new proteins or
+    just more of the same
+    :param args: Command-line argument object from get_options and check_parser_arguments
+    :param new_ref_queries:
+    :param update_tree:
     :return: 
     """
     alignments = update_tree.Output + "candidate_alignments.tsv"
     align_cmd = [args.executables["blastp"]]
     align_cmd += ["-query", new_ref_queries]
-    align_cmd += ["-db", args.mltreemap + os.sep + "data" + os.sep + "alignment_data" + os.sep + update_tree.COG + ".fa"]
+    align_cmd += ["-db", os.sep.join([args.mltreemap, "data",  "alignment_data",  update_tree.COG + ".fa"])]
     align_cmd += ["-outfmt", str(6)]
     align_cmd += ["-out", alignments]
     align_cmd += ["-num_alignments", str(1)]
@@ -1239,9 +1241,8 @@ def format_read_fasta(args, duplicates=False):
     reg_nuc = re.compile(r'[ACGT]')
     reg_nuc_ambiguity = re.compile(r'[XN]')
     reg_aa_ambiguity = re.compile(r'[BXZ]')
-    # reg_amino = re.compile(r'[acdefghiklmnpqrstvwyACDEFGHIKLMNPQRSTVWY*]')
     reg_amino = re.compile(r'[ACDEFGHIKLMNPQRSTVWY*]')
-    iupac_map = {'R': 'A', 'Y': 'C', 'S': 'G', 'W': 'A', 'K': 'G', 'M': 'A', 'B': 'C', 'D': 'A', 'H': 'A', 'V': 'A',}
+    iupac_map = {'R': 'A', 'Y': 'C', 'S': 'G', 'W': 'A', 'K': 'G', 'M': 'A', 'B': 'C', 'D': 'A', 'H': 'A', 'V': 'A'}
     substitutions = ""
     count_total = 0
     seq_count = 0
@@ -1300,7 +1301,8 @@ def format_read_fasta(args, duplicates=False):
                     for char in characters:
                         if not reg_nuc.search(char) and not reg_nuc_ambiguity.search(char):
                             if char not in iupac_map.keys():
-                                sys.stderr.write("ERROR: " + header.strip() + " contains unknown character: " + char + "\n")
+                                sys.stderr.write("ERROR: " + header.strip() +
+                                                 " contains unknown character: " + char + "\n")
                                 sys.exit()
                             else:
                                 substituted_chars += iupac_map[char]
@@ -1352,7 +1354,7 @@ def format_read_fasta(args, duplicates=False):
         sys.stdout.write("done.\n")
     
     if len(substitutions) > 0:
-        sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made!\n")
+        sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made.\n")
         sys.stderr.flush()
 
     if header_clash:
@@ -1561,7 +1563,7 @@ def parse_blast_results(args, blast_tables, cog_list):
     """
     Returns an Autovivification of purified (eg. non-redundant) BLAST hits.
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :param blast_table: file produced by BLAST alignment
+    :param blast_tables: file produced by BLAST alignment
     :param cog_list: list of COGs included in analysis pipeline
     """
 
@@ -1771,7 +1773,7 @@ def blastp_parser(args, blast_hits_purified):
 
     blastp_summary_files = Autovivify()
 
-    regHEADER = re.compile(r'\A>')
+    reg_header = re.compile(r'\A>')
 
     for contig in sorted(blast_hits_purified.keys()):
         output_file = args.output_dir_var + contig + '_blast_result_summary.txt'
@@ -1785,15 +1787,15 @@ def blastp_parser(args, blast_hits_purified):
             sequence_file = open(shortened_sequence_file, 'r')
         except IOError:
             sys.exit('ERROR: Could not open ' + shortened_sequence_file + '!\n')
-        flagSeq = 0
+        flag_seq = 0
         sequence = ''
 
         # Get the sequence from the shortened sequence file
         for line in sequence_file:
-            if regHEADER.search(line):
-                if flagSeq == 1:
+            if reg_header.search(line):
+                if flag_seq == 1:
                     sys.exit('ERROR: Unexpected multiple shortened sequences found!\n')
-                flagSeq = 1
+                flag_seq = 1
                 continue
             else:
                 line.strip()
@@ -1919,13 +1921,7 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
                 # thus differentiate between start_blast and start_gw
                 shortened_start_gw = len(shortened_sequence) + 1
 
-                # Changing the following to string slicing to shorten the sequence when dealing with large sequences:
-                # count = -1
-                # for nucleotide in sequence:
-                #     count += 1
-                #     if not count >= start_blast and count <= end_blast:
-                #         continue
-                #     shortened_sequence += nucleotide
+                # Shorten the sequence when dealing with large sequences:
                 shortened_sequence += sequence[start_blast:end_blast]
 
                 shortened_end_gw = len(shortened_sequence)
@@ -1958,14 +1954,14 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
 def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
     """
     Function to write the nucleotide sequences representing the BLAST alignment region for each hit in the fasta
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param gene_coordinates:
     :param formatted_fasta_dict:
     :return: nothing
     """
     # Header format:
     # >contig_name|marker_gene|start_end
-     # input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
+    # input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
     input_multi_fasta = path.basename(args.input)
     orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
     try:
@@ -2070,9 +2066,9 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
             genewise_outputfile = args.output_dir_var + contig + '_' + cog + '_genewise.txt'
             # Check to see if this cog is already going to be searched for on this contig
             if genewise_outputfile in genewise_outputfiles[contig]:
-                # if args.verbose:
-                #     sys.stderr.write("Skipping duplicate genewise command for " + cog + " on sequence " + contig + "\n")
-                #     sys.stderr.flush()
+                if args.verbose:
+                    sys.stderr.write("Skipping duplicate genewise command for " + cog + " on sequence " + contig + "\n")
+                    sys.stderr.flush()
                 continue
             else:
                 genewise_outputfiles[contig][genewise_outputfile] = 1
@@ -2306,10 +2302,11 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
     sys.stdout.write("done.\n")
     sys.stdout.flush()
+
     return genewise_summary_files
 
 
-def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files):
+def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files):
     """
     rRNA does not get translated into protein. Regardless, we want to take the
     rRNA and summarize it in a way that is parallel to the Genewise summary files.
@@ -2320,10 +2317,10 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
     Returns a list of the rRNA summary files.
     """
 
-# TK: ...the list of rRNA hit files is empty.
     sys.stdout.write("Retrieving rRNA hits... ")
     sys.stdout.flush()
-    contig_rRNA_coordinates = Autovivify()
+
+    contig_rrna_coordinates = Autovivify()
     rRNA_hit_files = {}
     
     for contig in sorted(blast_hits_purified.keys()):
@@ -2337,12 +2334,12 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
             end = blast_hits_purified[contig][identifier]["end"]
             cog = blast_hits_purified[contig][identifier]["cog"]
             direction = blast_hits_purified[contig][identifier]["direction"]
-            contig_rRNA_coordinates[contig][identifier]["start"] = start
-            contig_rRNA_coordinates[contig][identifier]["end"] = end
-            contig_rRNA_coordinates[contig][identifier]["cog"] = cog
-            contig_rRNA_coordinates[contig][identifier]["direction"] = direction
+            contig_rrna_coordinates[contig][identifier]["start"] = start
+            contig_rrna_coordinates[contig][identifier]["end"] = end
+            contig_rrna_coordinates[contig][identifier]["cog"] = cog
+            contig_rrna_coordinates[contig][identifier]["direction"] = direction
             outfile_name = args.output_dir_var + contig + '_rRNA_result_summary.txt'
-            contig_rRNA_coordinates[contig][identifier]["outfile"] = outfile_name
+            contig_rrna_coordinates[contig][identifier]["outfile"] = outfile_name
             genewise_summary_files[contig][outfile_name] = 1     
             try:
                 outfile = open(outfile_name, 'w')
@@ -2352,16 +2349,16 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
                 sys.exit(0)
 
     try:
-        input = open(args.input, 'r')
+        fasta_input = open(args.input, 'r')
     except IOError:
-        sys.stdout.write("ERROR: Can't create " + args.input + '!\n')
+        sys.stdout.write("ERROR: Can't open " + args.input + ' for reading!\n')
         sys.exit(0)
     contig_name = ''
     sequence = ''
 
     line = 'x'
     while line:
-        line = input.readline()
+        line = fasta_input.readline()
         line = line.strip()
         line = re.sub(r'\s', '_', line)
         searchmatch = re.search(r'\A>(.+)', line)
@@ -2370,21 +2367,19 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
             if not line:
                 sequence += line
 
-            if contig_name in contig_rRNA_coordinates:
-                sequence_length = len(sequence)
+            if contig_name in contig_rrna_coordinates:
                 # start searching for the information to shorten the file.
-                for identifier in sorted(contig_rRNA_coordinates[contig_name].keys()):
-                    start = contig_rRNA_coordinates[contig_name][identifier]["start"]
-                    end = contig_rRNA_coordinates[contig_name][identifier]["end"]
-                    cog = contig_rRNA_coordinates[contig_name][identifier]["cog"]
-                    direction = contig_rRNA_coordinates[contig_name][identifier]["direction"]
-                    outfile = contig_rRNA_coordinates[contig_name][identifier]['outfile']
-                    denominator = cog_list['all_cogs'][cog]
+                for identifier in sorted(contig_rrna_coordinates[contig_name].keys()):
+                    start = contig_rrna_coordinates[contig_name][identifier]["start"]
+                    end = contig_rrna_coordinates[contig_name][identifier]["end"]
+                    cog = contig_rrna_coordinates[contig_name][identifier]["cog"]
+                    direction = contig_rrna_coordinates[contig_name][identifier]["direction"]
+                    outfile = contig_rrna_coordinates[contig_name][identifier]['outfile']
                     count = -1
                     shortened_sequence = ""
                     for nucleotide in sequence: 
                         count += 1
-                        if not (count >= start and count <= end):
+                        if not (start <= count <= end):
                             continue
                         shortened_sequence += nucleotide
 
@@ -2426,9 +2421,10 @@ def get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary
                 sequence = ""
         else:
             sequence += line
-    input.close()
+    fasta_input.close()
     sys.stdout.write("done.\n")
-    return contig_rRNA_coordinates, rRNA_hit_files
+
+    return contig_rrna_coordinates, rRNA_hit_files
 
 
 def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
@@ -2448,12 +2444,12 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
 
         for genewise_summary_file in sorted(genewise_summary_files[contig].keys()):
             try:
-                input = open(genewise_summary_file, 'r')
+                genewise_output = open(genewise_summary_file, 'r')
             except IOError:
                 sys.stderr.write("ERROR: Can't open " + genewise_summary_file + "!\n")
                 sys.exit(0)
 
-            line = input.readline()
+            line = genewise_output.readline()
             line = line.strip()
 
             while line:
@@ -2480,10 +2476,10 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                                     genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
                 os.system(' '.join(hmmalign_command))
 
-                line = input.readline()
+                line = genewise_output.readline()
                 line = line.strip()
 
-            input.close()
+            genewise_output.close()
     sys.stdout.write("done.\n")
     sys.stdout.flush()
     return hmmalign_singlehit_files
@@ -2517,6 +2513,8 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
     """
     Concatenates the hmmalign files using the provided Autovivifications of hmmalign files and non-WAG COGs.
     :param args: Command-line argument object from get_options and check_parser_arguments
+    :param hmmalign_singlehit_files:
+    :param non_wag_cog_list:
     Returns a list of the files containing the concatenated hmmalign results.
     Returns a list of the model used for each file.
     Returns a list of the number of sequences found in each file.
@@ -2698,8 +2696,8 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
             else:
                 line = re.sub(r' ', '', line)
                 if seq_name == "":
-                    sys.stderr.write("ERROR: The Gblocks output " + gblocks_file + "is not in the required format.")
-                    sys.stderr.write("Please make sure that your versions of hmmalign and gblocks are compatible with MLTreeMap.")
+                    sys.stderr.write("ERROR: The Gblocks output " + gblocks_file + "is not in the required format!")
+                    sys.stderr.write("Ensure your versions of hmmalign and gblocks are compatible with TreeSAPP.")
                     sys.exit()
                 if seq_name in sequences_raw:
                     sequences_raw[seq_name] += line
@@ -2946,11 +2944,6 @@ def pparse_raxml_out_trees(labelled_trees, args):
     :return: Dictionary containing all parsed trees for each contig
     """
     raxml_tree_dict = dict()
-    # # Why so serial?
-    # for f_contig in labelled_trees:
-    #     tree_file = labelled_trees[f_contig]
-    #     f_contig, rooted_labelled_trees, insertion_point_node_hash = read_understand_and_reroot_the_labelled_tree(tree_file, f_contig)
-    #     raxml_tree_dict[f_contig] = [rooted_labelled_trees, insertion_point_node_hash]
 
     pool = Pool(processes=int(args.num_threads))
 
@@ -3864,16 +3857,6 @@ def available_cpu_count():
     except (KeyError, ValueError):
         pass
 
-    # jython
-    try:
-        from java.lang import Runtime
-        runtime = Runtime.getRuntime()
-        res = runtime.availableProcessors()
-        if res > 0:
-            return res
-    except ImportError:
-        pass
-
     # BSD
     try:
         sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'],
@@ -4362,6 +4345,7 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
     # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
     ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
+    # TODO: Update find_novel_refs to use the threshold used for building the original reference set
     new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary)
     write_new_fasta(new_refs, new_ref_seqs_fasta)
     ref_tax_id_map = update_tree.write_reference_names()
@@ -4727,7 +4711,7 @@ def main(argv):
                 formatted_fasta_dict.clear()
                 genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
                 genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
-                get_rRNA_hit_sequences(args, blast_hits_purified, cog_list, genewise_summary_files)
+                get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files)
             elif args.molecule == 'a':
                 genewise_summary_files = blastp_parser(args, blast_hits_purified)
             delete_files(args, 2)
