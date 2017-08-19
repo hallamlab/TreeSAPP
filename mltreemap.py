@@ -1369,7 +1369,7 @@ def format_read_fasta(args, duplicates=False):
 
     if args.verbose:
         sys.stdout.write("done.\n")
-        sys.stdout.write("Analyzing " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
+        sys.stdout.write("\tAnalyzing " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
 
     return formatted_fasta_dict
 
@@ -1519,7 +1519,8 @@ def run_blast(args, split_files, cog_list):
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tBLAST time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+        sys.stdout.write("\tBLAST time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return
 
@@ -2061,6 +2062,7 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
 
     max_size = 32767  # The actual size limit of a JoinableQueue
     task_list = list()
+    dups_skipped = 0
 
     sys.stdout.write("Running Genewise... ")
     sys.stdout.flush()
@@ -2100,9 +2102,10 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
             genewise_outputfile = args.output_dir_var + contig + '_' + cog + '_genewise.txt'
             # Check to see if this cog is already going to be searched for on this contig
             if genewise_outputfile in genewise_outputfiles[contig]:
-                if args.verbose:
-                    sys.stderr.write("Skipping duplicate genewise command for " + cog + " on sequence " + contig + "\n")
-                    sys.stderr.flush()
+                dups_skipped += 1
+                # if args.verbose:
+                #     sys.stderr.write("Skipping duplicate genewise command for " + cog + " on " + contig + "\n")
+                #     sys.stderr.flush()
                 continue
             else:
                 genewise_outputfiles[contig][genewise_outputfile] = 1
@@ -2134,15 +2137,17 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
         task_queue.close()
         task_queue.join()
 
-    # Return the list of output files for each contig
     sys.stdout.write("done.\n")
-
     if args.verbose:
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tGenewise time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+        sys.stdout.write("\tGenewise time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+        sys.stdout.write("\tGenewise was called " + str(num_tasks) + " times.\n")
+        sys.stdout.write("\t" + str(dups_skipped) + " duplicate Genewise calls were skipped.\n")
 
+    # Return the list of output files for each contig
     return genewise_outputfiles
 
 
@@ -2159,6 +2164,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
     sys.stdout.flush()
 
     genewise_summary_files = Autovivify()
+    valid_genewise_sequences = 0
 
     # For each contig analyzed by Genewise...
     for contig in sorted(genewise_outputfiles.keys()):
@@ -2337,11 +2343,15 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                          str(genewise_results[contig][count]['end']) + '\t' +
                          genewise_results[contig][count]['direction'] + '\t' +
                          genewise_results[contig][count]['sequence'] + '\n')
+            valid_genewise_sequences += 1
 
         output.close()
 
     sys.stdout.write("done.\n")
     sys.stdout.flush()
+
+    if args.verbose:
+        sys.stdout.write("\t" + str(valid_genewise_sequences) + " valid sequences after Genewise processing.\n\n")
 
     return genewise_summary_files
 
@@ -2362,6 +2372,10 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files):
 
     contig_rrna_coordinates = Autovivify()
     rRNA_hit_files = {}
+    rrna_seqs = 0
+
+    if args.verbose:
+        function_start_time = time.time()
     
     for contig in sorted(blast_hits_purified.keys()):
         # note: We skipped the Genewise step (we are dealing with rRNA) but we bring the rRNA files in the
@@ -2440,6 +2454,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files):
                                 nucleotide = 'c'
 
                             shortened_sequence += nucleotide
+                    rrna_seqs += 1
                     try:
                         out = open(outfile, 'a')
                         fprintf(out, '%s\t%s\t%s\t%s\t%s\n', cog, start, end, 'n/a', shortened_sequence)
@@ -2463,6 +2478,15 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files):
             sequence += line
     fasta_input.close()
     sys.stdout.write("done.\n")
+
+    if args.verbose:
+        function_end_time = time.time()
+        hours, remainder = divmod(function_end_time - function_start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\trRNA-identification time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+        sys.stdout.write("\t" + str(rrna_seqs) + " rRNA sequences found.\n\n")
+        sys.stdout.flush()
 
     return contig_rrna_coordinates, rRNA_hit_files
 
@@ -2530,7 +2554,8 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\thmmalign time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+        sys.stdout.write("\thmmalign time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return hmmalign_singlehit_files
                    
@@ -2714,7 +2739,8 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tGblocks time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+        sys.stdout.write("\tGblocks time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return gblocks_files
 
@@ -2862,6 +2888,7 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
         start_time = time.time()
 
     raxml_outfiles = Autovivify()
+    raxml_calls = 0
 
     bootstrap_replicates = args.bootstraps
     denominator_reference_tree_dict = dict()
@@ -2921,6 +2948,7 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
                           '>', str(output_dir) + str(f_contig) + '_RAxML.txt']
         raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
         raxml_pro.wait()
+        raxml_calls += 1
 
     # Rename the RAxML output files
 
@@ -2967,7 +2995,9 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tBLAST time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+        sys.stdout.write("\tRAxML time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+        sys.stdout.write("\tRAxML was called " + str(raxml_calls) + " times.\n")
 
     return raxml_outfiles, denominator_reference_tree_dict, len(phy_files.keys())
 
@@ -3038,13 +3068,18 @@ def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_trans
     :param tree_numbers_translation:
     :param raxml_outfiles:
     :param text_of_analysis_type:
+    :param num_raxml_outputs:
     :return: An Autovivification of the final RAxML output files.
     """
 
     raxml_option = args.phylogeny
+    raxml_placements = 0
 
     sys.stdout.write('Parsing the RAxML outputs...\n')
     sys.stdout.flush()
+
+    if args.verbose:
+        function_start_time = time.time()
 
     final_raxml_output_files = Autovivify()
 
@@ -3224,7 +3259,9 @@ def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_trans
             except IOError:
                 sys.exit('ERROR: Can\'t create ' + str(final_RAxML_filename) + '!\n')
             output.write(str(description_text) + '\n')
-            
+
+            raxml_placements += len(assignments.keys())
+
             for assignment in sorted(assignments.keys()):
                 assignment_target_string = final_assignment_target_strings[assignment]
                 weight = float(assignments[assignment])
@@ -3260,6 +3297,17 @@ def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_trans
 
     sys.stdout.write("-]%\n")
     parse_log.close()
+
+    if args.verbose:
+        function_end_time = time.time()
+        hours, remainder = divmod(function_end_time - function_start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tTree parsing time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+        sys.stdout.write("\t" + str(num_raxml_outputs) + " RAxML output files.\n")
+        sys.stdout.write("\t" + str(raxml_placements) + " sequences successfully inserted by RAxML.\n\n")
+        sys.stdout.flush()
+
     return final_raxml_output_files
 
 
