@@ -99,7 +99,7 @@ class NodeRetrieverWorker(Process):
 class CreateFuncTreeUtility:
     """
     Output is the directory to write the outputs for the updated tree
-    InputData is the path to the MLTReeMap output folder containing, various_outputs/ and final_RAxML_outputs/
+    InputData is the path to the TreeSAPP output folder containing, various_outputs/ and final_RAxML_outputs/
     RefTree is the second column in cog_list.tsv for the gene to update
     Cluster is a flag indicating whether the protein sequences for the RefTree in InputData is to be clustered at 97%
     """
@@ -213,9 +213,9 @@ class CreateFuncTreeUtility:
     def align_sequences(self, alignment_mode, ref_align, query_fasta, args):
         """
         Call MUSCLE to perform a multiple sequence alignment of the reference sequences and the
-        gene sequences identified by MLTreeMap
+        gene sequences identified by TreeSAPP
         :param alignment_mode:
-        :param query_fasta: Name of the FASTA file containing the MLTreeMap-identified genes
+        :param query_fasta: Name of the FASTA file containing the TreeSAPP-identified genes
         :param ref_align: FASTA file containing
         :return: Name of the FASTA file containing the MSA
         """
@@ -409,10 +409,7 @@ class CreateFuncTreeUtility:
 
         raxml_command = [args.executables["raxmlHPC"], '-m', model_to_be_used]
         # Run RAxML using multiple threads, if CPUs available
-        if args.num_threads:
-            raxml_command += ['-T', str(int(args.num_threads))]
-        else:
-            raxml_command += ['-T', '2']
+        raxml_command += ['-T', str(int(args.num_threads))]
         raxml_command += ['-s', phylip_file,
                           '-f', 'a',
                           '-x', str(12345),
@@ -618,7 +615,7 @@ class ItolJplace:
             x += 1
         return
 
-    def harmonize_placements(self, mltreemap_dir):
+    def harmonize_placements(self, treesapp_dir):
         """
         Often times, the placements field in a jplace file contains multiple possible tree locations.
         In order to consolidate these into a single tree location, the LCA algorithm is utilized. The single internal
@@ -628,7 +625,7 @@ class ItolJplace:
         """
         if self.name == "nr":
             self.name = "COGrRNA"
-        reference_tree_file = os.sep.join([mltreemap_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
+        reference_tree_file = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
         reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
         singular_placements = list()
         for pquery in self.placements:
@@ -726,11 +723,11 @@ def get_options():
                            help="Indicating whether the reads are paired-end (pe) or single-end (se)")
 
     update_tree = parser.add_argument_group('Update-tree options')
-    # mltreemap_output uses the output argument
-    # output will by mltreemap_output/update_tree
+    # treesapp_output uses the output argument
+    # output will by treesapp_output/update_tree
     update_tree.add_argument("--update_tree", action="store_true", default=False,
                              help="Flag indicating the reference tree specified by `--reftree` "
-                                  "is to be updated using the sequences found in MLTreeMap output")
+                                  "is to be updated using the sequences found in TreeSAPP output")
     update_tree.add_argument("--uclust", required=False, default=False, action="store_true",
                              help="Cluster sequences that mapped to the reference tree prior to updating")
     update_tree.add_argument("--gap_removal", required=False, default=False, action="store_true",
@@ -746,7 +743,7 @@ def get_options():
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true',  default=False,
                                     help='Prints a more verbose runtime log')
     miscellaneous_opts.add_argument("--check_trees", action="store_true", default=False,
-                                    help="Quality-check the reference trees before running MLTreeMap")
+                                    help="Quality-check the reference trees before running TreeSAPP")
     miscellaneous_opts.add_argument('-T', '--num_threads', default=2, type=int,
                                     help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 2]')
     miscellaneous_opts.add_argument('-d', '--delete', default=False, action="store_true",
@@ -775,9 +772,9 @@ def find_executables(args):
         dependencies.append("FGS+")
 
     if os_type() == "linux":
-        args.executables = args.mltreemap + "sub_binaries" + os.sep + "ubuntu"
+        args.executables = args.treesapp + "sub_binaries" + os.sep + "ubuntu"
     if os_type() == "mac":
-        args.executables = args.mltreemap + "sub_binaries" + os.sep + "mac"
+        args.executables = args.treesapp + "sub_binaries" + os.sep + "mac"
     elif os_type() == "win" or os_type() is None:
         sys.exit("ERROR: Unsupported OS")
 
@@ -785,8 +782,8 @@ def find_executables(args):
         if is_exe(args.executables + os.sep + dep):
             exec_paths[dep] = str(args.executables + os.sep + dep)
         # For rpkm and potentially other executables that are compiled ad hoc
-        elif is_exe(args.mltreemap + "sub_binaries" + os.sep + dep):
-            exec_paths[dep] = str(args.mltreemap + "sub_binaries" + os.sep + dep)
+        elif is_exe(args.treesapp + "sub_binaries" + os.sep + dep):
+            exec_paths[dep] = str(args.treesapp + "sub_binaries" + os.sep + dep)
         elif which(dep):
             exec_paths[dep] = which(dep)
         else:
@@ -819,12 +816,12 @@ def check_parser_arguments(parser):
     """
     Ensures the command-line arguments returned by argparse are sensical
     :param parser: object with parameters returned by argparse
-    :return 'args', a summary of MLTreeMap settings.
+    :return 'args', a summary of TreeSAPP settings.
     """
 
     # Ensure files contain more than 0 sequences
     args = parser.parse_args()
-    args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
 
     # Set the reference data file prefix and the reference tree name
     if args.reftree == 'g':
@@ -851,7 +848,7 @@ def check_parser_arguments(parser):
     # Notify the user that bootstraps cannot be used with the Maximum Parsimony settings of RAxML.
     if args.bootstraps > 1 and args.phylogeny == 'p':
         sys.stderr.write('WARNING: You intended to do ' + str(args.bootstraps) +
-                         ' bootstrap replicates. Bootstrapping is disabled in the parsimony mode of MLTreeMap.' +
+                         ' bootstrap replicates. Bootstrapping is disabled in the parsimony mode of TreeSAPP.' +
                          ' The pipeline will continue without bootstrapping.\n')
         sys.stderr.flush()
         args.bootstraps = 1
@@ -872,8 +869,8 @@ def check_parser_arguments(parser):
     args.output_dir_raxml = args.output + 'final_RAxML_outputs' + os.sep
     args.output_dir_final = args.output + 'final_outputs' + os.sep
 
-    mltreemap_dir = args.mltreemap + os.sep + 'data' + os.sep
-    genewise_support = mltreemap_dir + os.sep + 'genewise_support_files' + os.sep
+    treesapp_dir = args.treesapp + os.sep + 'data' + os.sep
+    genewise_support = treesapp_dir + os.sep + 'genewise_support_files' + os.sep
 
     if args.num_threads >= available_cpu_count():
         sys.stderr.write("WARNING: Number of threads specified is greater than those available! "
@@ -909,7 +906,7 @@ def check_previous_output(args):
     Prompts the user to determine how to deal with a pre-existing output directory.
     :rtype: Namespace object
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :return An updated version of 'args', a summary of MLTreeMap settings.
+    :return An updated version of 'args', a summary of TreeSAPP settings.
     """
 
     # delete previous output folders by force
@@ -919,7 +916,7 @@ def check_previous_output(args):
 
     args.skip = 'n'
     if path.exists(args.output):
-        sys.stdout.write("MLTreeMap output directory " + args.output + " already exists.\n")
+        sys.stdout.write("TreeSAPP output directory " + args.output + " already exists.\n")
         sys.stdout.flush()
         if args.update_tree:
             args.skip = get_response(args.py_version, "Should this be used for updating? [y|n]")
@@ -946,9 +943,9 @@ def check_previous_output(args):
                     if answer2 == 'y':
                         shutil.rmtree(args.output)
                     else:
-                        sys.exit('Exit MLTreeMap\n')
+                        sys.exit('Exit TreeSAPP\n')
                 elif answer == 2:
-                    sys.exit('Exit MLTreeMap\n')
+                    sys.exit('Exit TreeSAPP\n')
                 else:
                     args.output = get_response(args.py_version, 'Please enter the path to the new directory.\n')
     
@@ -964,7 +961,7 @@ def check_previous_output(args):
 
 def create_cog_list(args):
     """
-    Loads the MLTreeMap COG list file and check that the args.reftree exists
+    Loads the TreeSAPP COG list file and check that the args.reftree exists
     :param args: The command-line and default arguments object
     :return: An autovivification of the COGs in cog_list.tsv. This also includes their short-form name (termed
     denominator e.g. M0101, C0012, U0401) and a list of output text precursors based on the analysis type.
@@ -973,7 +970,7 @@ def create_cog_list(args):
     
     cog_list = Autovivify()
     text_of_analysis_type = Autovivify()
-    cog_list_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
+    cog_list_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
     cog_input_list = open(cog_list_file, 'r')
     if args.reftree not in ['i', 'p', 'g']:
         alignment_set = ''
@@ -1158,7 +1155,7 @@ def get_hmm_length(args, update_tree):
     :param update_tree: 
     :return: The length (int value) of the HMM
     """
-    hmm_file = args.mltreemap + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
+    hmm_file = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
     try:
         hmm = open(hmm_file, 'r')
     except:
@@ -1190,7 +1187,7 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     alignments = update_tree.Output + "candidate_alignments.tsv"
     align_cmd = [args.executables["blastp"]]
     align_cmd += ["-query", new_ref_queries]
-    align_cmd += ["-db", os.sep.join([args.mltreemap, "data",  "alignment_data",  update_tree.COG + ".fa"])]
+    align_cmd += ["-db", os.sep.join([args.treesapp, "data",  "alignment_data",  update_tree.COG + ".fa"])]
     align_cmd += ["-outfmt", str(6)]
     align_cmd += ["-out", alignments]
     align_cmd += ["-num_alignments", str(1)]
@@ -1350,8 +1347,6 @@ def format_read_fasta(args, duplicates=False):
 
     # Close the files
     fasta.close()
-    if args.verbose:
-        sys.stdout.write("done.\n")
     
     if len(substitutions) > 0:
         sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made.\n")
@@ -1372,13 +1367,17 @@ def format_read_fasta(args, duplicates=False):
             sys.stderr.write("Bailing out. ")
             sys.stderr.flush()
 
+    if args.verbose:
+        sys.stdout.write("done.\n")
+        sys.stdout.write("Analyzing " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
+
     return formatted_fasta_dict
 
 
 def build_hmm(msa_file, args):
     gene_family = ".".join(msa_file.split("/")[-1].split('.')[0:-1])
     sys.stdout.write("realigning sequences for " + gene_family)
-    hmm_output = args.mltreemap + "/data/hmm_data/" + gene_family + ".hmm"
+    hmm_output = args.treesapp + "/data/hmm_data/" + gene_family + ".hmm"
     if os.path.isfile(hmm_output):
         os.remove(hmm_output)
     command = [args.executables["hmmbuild"], "-s", "--verbose", hmm_output, msa_file, ">> /dev/null"]
@@ -1397,7 +1396,7 @@ def validate_inputs(args, cog_list):
     """
     sys.stdout.write("Testing validity of reference trees... ")
     sys.stdout.flush()
-    ref_trees = glob.glob(args.mltreemap + os.sep + "data/tree_data/*_tree.txt")
+    ref_trees = glob.glob(args.treesapp + os.sep + "data/tree_data/*_tree.txt")
     ref_tree_dict = dict()
     f_cogs = [cog.strip("_") for cog in cog_list["functional_cogs"].keys()]
     for tree_file in ref_trees:
@@ -1405,12 +1404,12 @@ def validate_inputs(args, cog_list):
         denominator = denominator.strip("_")
         if denominator in f_cogs:
             ref_tree_dict[denominator] = tree_file
-    ref_tree_dict['p'] = args.mltreemap + os.sep + "data/tree_data/MLTreeMap_reference.tree"
+    ref_tree_dict['p'] = args.treesapp + os.sep + "data/tree_data/MLTreeMap_reference.tree"
     status = pparse_ref_trees(denominator_ref_tree_dict=ref_tree_dict, args=args)
     if status is None:
         sys.exit()
     else:
-        sys.stdout.write("Reference trees appear to be formatted correctly. Continuing with MLTreeMap.\n")
+        sys.stdout.write("Reference trees appear to be formatted correctly. Continuing with TreeSAPP.\n")
         sys.stdout.flush()
     return
 
@@ -1426,10 +1425,13 @@ def run_blast(args, split_files, cog_list):
     sys.stdout.write("Running BLAST... ")
     sys.stdout.flush()
 
+    if args.verbose:
+        start_time = time.time()
+
     excluded_cogs = list()
 
     # For each file containing a maximum of the specified number of sequences...
-    alignment_data_dir = args.mltreemap + os.sep + \
+    alignment_data_dir = args.treesapp + os.sep + \
         'data' + os.sep + \
         args.reference_data_prefix + 'alignment_data' + os.sep
     try:
@@ -1456,10 +1458,10 @@ def run_blast(args, split_files, cog_list):
     db_aa += '"'
 
     if len(excluded_cogs) > 0:
-        with open(args.output+"mltreemap_BLAST_log.txt", 'w') as blast_log:
+        with open(args.output+"treesapp_BLAST_log.txt", 'w') as blast_log:
             blast_log.write("WARNING:\nThe following markers were excluded from the analysis since they were " +
                             "found in " + alignment_data_dir + " but not in " +
-                            args.mltreemap + "/data/tree_data/cog_list.tsv:\n")
+                            args.treesapp + "/data/tree_data/cog_list.tsv:\n")
             for ec in excluded_cogs:
                 blast_log.write(ec + "\n")
 
@@ -1512,6 +1514,14 @@ def run_blast(args, split_files, cog_list):
             os.system(blastp_command)
 
     sys.stdout.write("done.\n")
+
+    if args.verbose:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tBLAST time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+
+    return
 
 
 def predict_orfs(args):
@@ -1574,6 +1584,8 @@ def parse_blast_results(args, blast_tables, cog_list):
     counter = 0
     purified_blast_hits = Autovivify()
     contigs = {}
+    hit_logger = dict()
+    alignment_count = 0
 
     for blast_table in blast_tables:
         try:
@@ -1586,6 +1598,7 @@ def parse_blast_results(args, blast_tables, cog_list):
         for line in blast_results:
             # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
             # Interpret the BLAST hit, and assign the details accordingly
+            alignment_count += 1
             temp_contig, temp_detailed_cog, _, _, _, _, temp_query_start, temp_query_end, temp_ref_start, temp_ref_end, _, temp_bitscore = line.split('\t')
             temp_ref_end = int(temp_ref_end)
             temp_ref_start = int(temp_ref_start)
@@ -1717,9 +1730,12 @@ def parse_blast_results(args, blast_tables, cog_list):
                     if check_blast_result_raw_identifier > base_blast_result_raw_identifier:
                         contigs[contig][check_blast_result_raw_identifier]['validity'] = False
 
-        # Set validity to 0 if COG is not in list of MLTreeMap COGs
+        # Set validity to 0 if COG is not in list of TreeSAPP COGs
         if base_cog not in cog_list['all_cogs']:
             contigs[contig][base_blast_result_raw_identifier]['validity'] = False
+            if args.verbose:
+                sys.stderr.write("WARNING: " + base_cog + " not in list of TreeSAPP markers")
+                sys.stderr.flush()
 
         # Save purified hits for valid base hits
         for base_blast_result_raw_identifier in IDs:
@@ -1752,6 +1768,10 @@ def parse_blast_results(args, blast_tables, cog_list):
         # Print the (potentially reduced set of) BLAST results ordered by decreasing bitscore
         for bitscore in sorted(sorting_hash.keys(), reverse=True):
             for identifier in sorted(sorting_hash[bitscore]):
+                marker = purified_blast_hits[contig][identifier]['cog']
+                if marker not in hit_logger:
+                    hit_logger[marker] = 0
+                hit_logger[marker] += 1
                 out.write(contig + '\t' + str(purified_blast_hits[contig][identifier]['start']) + '\t' +
                           str(purified_blast_hits[contig][identifier]['end']) + '\t' +
                           str(purified_blast_hits[contig][identifier]['direction']) + '\t' +
@@ -1759,6 +1779,17 @@ def parse_blast_results(args, blast_tables, cog_list):
 
         out.close()
     sys.stdout.write("done.\n")
+
+    if args.verbose:
+        sys.stdout.write("\t" + str(alignment_count) + " intial BLAST alignments found.\n")
+        total = 0
+        for n in hit_logger.values():
+            total += n
+        sys.stdout.write("\t" + str(total) + " purified BLAST alignments:\n")
+        for marker in hit_logger:
+            sys.stdout.write("\t\t" + str(hit_logger[marker]) + " " + marker + "\n")
+        sys.stdout.flush()
+
     return purified_blast_hits
 
 
@@ -2034,9 +2065,12 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     sys.stdout.write("Running Genewise... ")
     sys.stdout.flush()
 
-    mltreemap_dir = args.mltreemap + os.sep + 'data' + os.sep
-    genewise_support = mltreemap_dir + os.sep + 'genewise_support_files' + os.sep
-    hmm_dir = mltreemap_dir + "hmm_data" + os.sep
+    if args.verbose:
+        start_time = time.time()
+
+    treesapp_dir = args.treesapp + os.sep + 'data' + os.sep
+    genewise_support = treesapp_dir + os.sep + 'genewise_support_files' + os.sep
+    hmm_dir = treesapp_dir + "hmm_data" + os.sep
 
     genewise_outputfiles = Autovivify()
 
@@ -2102,6 +2136,12 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
 
     # Return the list of output files for each contig
     sys.stdout.write("done.\n")
+
+    if args.verbose:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tGenewise time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
 
     return genewise_outputfiles
 
@@ -2279,7 +2319,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
         # Skip to next hit if there are no valid hits
         if count <= 0:
-            sys.stdout.write("Number of valid hits for " + contig + " = "  + str(count))
+            sys.stdout.write("Number of valid hits for " + contig + " = " + str(count))
             continue
 
         # Write the summary file
@@ -2439,6 +2479,9 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
     sys.stdout.write("Running hmmalign... ")
     sys.stdout.flush()
 
+    if args.verbose:
+        start_time = time.time()
+
     # Run hmmalign on each Genewise summary file
     for contig in sorted(genewise_summary_files.keys()):
 
@@ -2467,12 +2510,12 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                 except IOError:
                     sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
                     sys.exit(0)
-                mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
+                treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
                 hmmalign_command = [args.executables["hmmalign"], '--mapali',
-                                    mltreemap_resources + reference_data_prefix + 'alignment_data' +
+                                    treesapp_resources + reference_data_prefix + 'alignment_data' +
                                     os.sep + cog + '.fa',
                                     '--outformat', 'Clustal',
-                                    mltreemap_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
+                                    treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
                                     genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
                 os.system(' '.join(hmmalign_command))
 
@@ -2482,6 +2525,13 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
             genewise_output.close()
     sys.stdout.write("done.\n")
     sys.stdout.flush()
+
+    if args.verbose:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\thmmalign time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+
     return hmmalign_singlehit_files
                    
 
@@ -2491,7 +2541,7 @@ def get_non_wag_cogs(args):
     :param args: Command-line argument object returned by get_options and check_parser_arguments
     """
     non_wag_cog_list = Autovivify()
-    non_wag_cogs_file = args.mltreemap + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
+    non_wag_cogs_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
     try:
         cogin = open(non_wag_cogs_file, 'r')
     except IOError:
@@ -2637,6 +2687,9 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
     sys.stdout.write("Running Gblocks... ")
     sys.stdout.flush()
 
+    if args.verbose:
+        start_time = time.time()
+
     gblocks_files = {}
 
     for f_contig in sorted(concatenated_mfa_files.keys()):
@@ -2644,7 +2697,7 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
         nr_of_sequences = nrs_of_sequences[f_contig]
         min_flank_pos = int(nr_of_sequences * 0.55)
         gblocks_file = concatenated_mfa_file + "-gb"
-        log = args.output + os.sep + "mltreemap.gblocks_log.txt"
+        log = args.output + os.sep + "treesapp.gblocks_log.txt"
         gblocks_files[f_contig] = gblocks_file
         gblocks_command = [args.executables["Gblocks"], concatenated_mfa_file]
         gblocks_command += ['-t=p', '-s=y', '-u=n', '-p=t', '-b3=15',
@@ -2656,6 +2709,12 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
 
     sys.stdout.write("done.\n")
     sys.stdout.flush()
+
+    if args.verbose:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tGblocks time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
 
     return gblocks_files
 
@@ -2799,11 +2858,14 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
     sys.stdout.write("Running RAxML... coffee?\n")
     sys.stdout.flush()
 
+    if args.verbose:
+        start_time = time.time()
+
     raxml_outfiles = Autovivify()
 
     bootstrap_replicates = args.bootstraps
     denominator_reference_tree_dict = dict()
-    mltree_resources = args.mltreemap + os.sep + 'data' + os.sep
+    mltree_resources = args.treesapp + os.sep + 'data' + os.sep
     if os.path.isabs(args.output_dir_var):
         output_dir = args.output_dir_var
     else:
@@ -2850,10 +2912,7 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
         if bootstrap_replicates > 1:
             raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
         # Run RAxML using multiple threads, if CPUs available
-        if args.num_threads:
-            raxml_command += ['-T', str(int(args.num_threads))]
-        else:
-            raxml_command += ['-T', '2']
+        raxml_command += ['-T', str(int(args.num_threads))]
         raxml_command += ['-s', phy_file,
                           '-t', reference_tree_file,
                           '-f', str(raxml_option),
@@ -2901,8 +2960,14 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
                              str(raxml_outfiles[denominator][f_contig])]
             os.system(' '.join(move_command1))
         else:
-            sys.exit('ERROR: The chosen RAxML mode is invalid. This should have been noticed earlier by MLTreeMap.' +
+            sys.exit('ERROR: The chosen RAxML mode is invalid. This should have been noticed earlier by TreeSAPP.' +
                      'Please notify the authors\n')
+
+    if args.verbose:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tBLAST time required: " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
 
     return raxml_outfiles, denominator_reference_tree_dict, len(phy_files.keys())
 
@@ -2964,7 +3029,7 @@ def pparse_raxml_out_trees(labelled_trees, args):
     return raxml_tree_dict
 
 
-def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
+def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
                        raxml_outfiles, text_of_analysis_type, num_raxml_outputs):
     """
     Parse the RAxML output files.
@@ -2998,9 +3063,9 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
     acc = 0.0
 
     try:
-        parse_log = open(args.output + os.sep + "mltreemap_parse_RAxML_log.txt", 'w')
+        parse_log = open(args.output + os.sep + "treesapp_parse_RAxML_log.txt", 'w')
     except IOError:
-        sys.stderr.write("WARNING: Unable to open " + args.output + os.sep + "mltreemap_parse_RAxML_log.txt!")
+        sys.stderr.write("WARNING: Unable to open " + args.output + os.sep + "treesapp_parse_RAxML_log.txt!")
         sys.stderr.flush()
         parse_log = sys.stdout
 
@@ -3074,15 +3139,15 @@ def parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_trans
                 classification_file = raxml_outfiles[denominator][f_contig]['classification']
                 labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
                 try:
-                    RAxML_labelled_tree = open(labelled_tree_file, 'r')
+                    raxml_labelled_tree = open(labelled_tree_file, 'r')
                 except IOError:
                     sys.exit('ERROR: Can\'t open ' + str(labelled_tree_file) + '!\n')
 
-                for line in RAxML_labelled_tree:
+                for line in raxml_labelled_tree:
                     line = line.strip()
                     content_of_labelled_tree_file += str(line)
 
-                RAxML_labelled_tree.close()
+                raxml_labelled_tree.close()
                 if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
                     parse_log.write("Retrieving the labelled tree " + labelled_tree_file + "... ")
                     parse_log.flush()
@@ -3295,7 +3360,7 @@ def get_correct_mp_assignment(terminal_children_of_reference, mp_tree_file, assi
 
 def read_the_raxml_out_tree(labelled_tree_file):
     """
-    Reads the labelled_tree_file and reformats it for downstream interpretation
+    Reads and reformats the labelled_tree_file for downstream interpretation
     :param labelled_tree_file: RAxML output f_contig.originalRAxML_labelledTree.txt file in various_outputs directory
     :return: An easily interpretable labelled tree and a collection of
     """
@@ -3600,7 +3665,7 @@ def build_terminal_children_strings_of_assignments(rooted_trees, insertion_point
     :param rooted_trees: All possible rooted trees for a given tree (with sequence inserted)
     :param insertion_point_node_hash:
     :param assignments: The node that is inserted into the RAxML tree - found in *RAxML_classification.txt for f_contig
-    :param num_threads: Number of theads to use for parsing the subtrees of each node in parallel
+    :param num_threads: Number of threads to use for parsing the subtrees of each node in parallel
     :param parse_log: Name of the RAxML_output parse log file to write to
     :return:
     """
@@ -3759,29 +3824,29 @@ def read_species_translation_files(args, cog_list):
     translation_files = Autovivify()
     phylogenetic_denominator = args.reftree
     if phylogenetic_denominator == 'g':
-        translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
+        translation_files[phylogenetic_denominator] = args.treesapp + os.sep + \
                                                       'data' + os.sep + 'tree_data' + \
                                                       os.sep + 'tax_ids_geba_tree.txt'
     elif phylogenetic_denominator == 'i':
-        translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
+        translation_files[phylogenetic_denominator] = args.treesapp + os.sep + \
                                                       'data' + os.sep + 'tree_data' + \
                                                       os.sep + 'tax_ids_fungitr.txt'
     elif phylogenetic_denominator == 'p':
-        translation_files[phylogenetic_denominator] = args.mltreemap + os.sep + \
+        translation_files[phylogenetic_denominator] = args.treesapp + os.sep + \
                                                       'data' + os.sep + 'tree_data' + \
                                                       os.sep + 'tax_ids_nr.txt'
 
     for functional_cog in sorted(cog_list['functional_cogs'].keys()):
         denominator = cog_list['functional_cogs'][functional_cog]
         filename = 'tax_ids_' + str(functional_cog) + '.txt'
-        translation_files[denominator] = args.mltreemap + os.sep + \
+        translation_files[denominator] = args.treesapp + os.sep + \
                                          'data' + os.sep + 'tree_data' + \
                                          os.sep + filename
 
     for phylogenetic_rRNA_cog in sorted(cog_list['phylogenetic_rRNA_cogs'].keys()):
         denominator = cog_list['phylogenetic_rRNA_cogs'][phylogenetic_rRNA_cog]
         filename = 'tax_ids_' + str(phylogenetic_rRNA_cog) + '.txt'
-        translation_files[denominator] = args.mltreemap + os.sep + \
+        translation_files[denominator] = args.treesapp + os.sep + \
                                          'data' + os.sep + 'tree_data' + \
                                          os.sep + filename
 
@@ -3980,12 +4045,12 @@ def single_family_msa(args, cog_list, formatted_fasta_dict):
         except IOError:
             sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
             sys.exit(0)
-        mltreemap_resources = args.mltreemap + os.sep + 'data' + os.sep
+        treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
         hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
-                            mltreemap_resources + reference_data_prefix + 'alignment_data' +
+                            treesapp_resources + reference_data_prefix + 'alignment_data' +
                             os.sep + cog + '.fa',
                             '--outformat', 'Clustal',
-                            mltreemap_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
+                            treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
                             genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
         os.system(' '.join(hmmalign_command))
 
@@ -4007,7 +4072,7 @@ def execute_gblocks(args, aligned_fasta):
 
 def get_new_ref_sequences(update_tree):
     """
-    Function for retrieving the protein sequences from the MLTreeMap various_outputs
+    Function for retrieving the protein sequences from the TreeSAPP various_outputs
     :param update_tree: An instance of CreateFuncTreeUtility class
     :return: aa_dictionary is a dictionary of fasta sequences with headers as keys and protein sequences as values
     """
@@ -4171,7 +4236,7 @@ def align_reads_to_nucs(args):
     sam_file = rpkm_output_dir + '.'.join(os.path.basename(orf_nuc_fasta).split('.')[0:-1]) + ".sam"
     index_command = [args.executables["bwa"], "index"]
     index_command += [orf_nuc_fasta]
-    index_command += ["1>", "/dev/null", "2>", args.output + "mltreemap_bwa_index.stderr"]
+    index_command += ["1>", "/dev/null", "2>", args.output + "treesapp_bwa_index.stderr"]
 
     p_index = subprocess.Popen(' '.join(index_command), shell=True, preexec_fn=os.setsid)
     p_index.wait()
@@ -4193,7 +4258,7 @@ def align_reads_to_nucs(args):
     bwa_command.append(args.reads)
     if args.pairing == "pe" and args.reverse:
         bwa_command.append(args.reverse)
-    bwa_command += ["1>", sam_file, "2>", args.output + "mltreemap_bwa_mem.stderr"]
+    bwa_command += ["1>", sam_file, "2>", args.output + "treesapp_bwa_mem.stderr"]
 
     p_bwa = subprocess.Popen(' '.join(bwa_command), shell=True, preexec_fn=os.setsid)
     p_bwa.wait()
@@ -4486,7 +4551,7 @@ def create_itol_labels(args, marker):
     """
     itol_base_dir = args.output + 'iTOL_output' + os.sep
     itol_label_file = itol_base_dir + os.sep + marker + os.sep + marker + "_labels.txt"
-    tax_ids_file = os.sep.join([args.mltreemap, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+    tax_ids_file = os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"])
 
     if os.path.exists(itol_label_file):
         return
@@ -4650,8 +4715,8 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(args, marker)
         # Copy the respective colours and styles files for each marker found to the itol_output directories
-        colors_styles = os.sep.join([args.mltreemap, "data", "iTOL_datasets", marker + "_colours_style.txt"])
-        colour_strip = os.sep.join([args.mltreemap, "data", "iTOL_datasets", marker + "_colour_strip.txt"])
+        colors_styles = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colours_style.txt"])
+        colour_strip = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colour_strip.txt"])
         try:
             shutil.copy(colors_styles, itol_base_dir + os.sep + marker)
         except IOError:
@@ -4700,6 +4765,9 @@ def main(argv):
             run_blast(args, formatted_fasta_files, cog_list)
             raw_blast_results = collect_blast_outputs(args)
             blast_hits_purified = parse_blast_results(args, raw_blast_results, cog_list)
+            if args.verbose:
+                sys.stdout.write("\t" + str(len(blast_hits_purified.keys())) + "/" + str(len(formatted_fasta_dict)) +
+                                 " sequences contain putative markers.\n\n")
             delete_files(args, 1)
             # STAGE 3: Produce amino acid sequences based on the COGs found in the input sequence(s)
             genewise_summary_files = Autovivify()
@@ -4727,7 +4795,7 @@ def main(argv):
         raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_raxml(args, phy_files,
                                                                                          cog_list, models_to_be_used)
         tree_numbers_translation = read_species_translation_files(args, cog_list)
-        final_raxml_output_files = parse_RAxML_output(args, denominator_reference_tree_dict, tree_numbers_translation,
+        final_raxml_output_files = parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
                                                       raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
         concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
 
@@ -4739,14 +4807,13 @@ def main(argv):
     else:
         produce_itol_inputs(args, cog_list)
     delete_files(args, 4)
-    # TODO: Provide stats file with proportion of sequences detected to have marker genes, N50, map contigs to genes
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
         for marker in args.targets:
             update_func_tree_workflow(args, cog_list, marker)
 
     delete_files(args, 5)
-    sys.stdout.write("MLTreeMap has finished successfully.\n")
+    sys.stdout.write("TreeSAPP has finished successfully.\n")
     sys.stdout.flush()
 
 
