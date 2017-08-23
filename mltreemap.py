@@ -9,9 +9,6 @@ try:
     import argparse
     import sys
     import os
-    from os import path
-    from os import listdir
-    from os.path import isfile, join
     import errno
     import shutil
     import re
@@ -20,13 +17,19 @@ try:
     import signal
     import time
     import traceback
-    from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
+    import copy
     import string
     import random
+    from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
+    from os import path
+    from os import listdir
+    from os.path import isfile, join
+    from itertools import izip
     from time import gmtime, strftime
     from json import loads, load, dumps
-    import copy
+
     import _tree_parser
+    import _fasta_reader
 except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
     sys.stderr.write(traceback.print_exc(10))
@@ -709,8 +712,8 @@ def get_options():
                         help='A comma-separated list specifying which marker genes to query in input by'
                              ' the "denominator" column in data/tree_data/cog_list.tsv'
                              ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
-    parser.add_argument('-m', '--molecule', default='n', choices=['a', 'n'],
-                        help='the type of input sequences (a = Amino Acid; n = Nucleotide [DEFAULT])')
+    parser.add_argument('-m', '--molecule', default='nuc', choices=['prot', 'nuc'],
+                        help='the type of input sequences (prot = Protein; nuc = Nucleotide [DEFAULT])')
 
     rpkm_opts = parser.add_argument_group('RPKM options')
     rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
@@ -745,7 +748,8 @@ def get_options():
     miscellaneous_opts.add_argument("--check_trees", action="store_true", default=False,
                                     help="Quality-check the reference trees before running TreeSAPP")
     miscellaneous_opts.add_argument('-T', '--num_threads', default=2, type=int,
-                                    help='specifies the number of CPU threads to use in RAxML and BLAST [DEFAULT = 2]')
+                                    help='specifies the number of CPU threads to use in RAxML and BLAST '
+                                         'and processes throughout the pipeline [DEFAULT = 2]')
     miscellaneous_opts.add_argument('-d', '--delete', default=False, action="store_true",
                                     help='Delete intermediate file to save disk space\n'
                                          'Recommended for large metagenomes!')
@@ -1219,7 +1223,7 @@ def find_novel_refs(ref_candidate_alignments, aa_dictionary):
     return new_refs
 
 
-def format_read_fasta(args, duplicates=False):
+def format_read_fasta(args):
     """
     Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
     Ensures each sequence and sequence name is valid.
@@ -1227,148 +1231,17 @@ def format_read_fasta(args, duplicates=False):
     :param duplicates: A flag indicating the function should be duplicate-aware
     :return A list of the files produced from the input file.
     """
+    sys.stdout.write("Formatting " + args.input + " for pipeline... ")
+    sys.stdout.flush()
+
+    fasta_list = _fasta_reader._read_format_fasta(args.input, args.gblocks, args.output, args.molecule)
+    if not fasta_list:
+        sys.exit()
+    tmp_iterable = iter(fasta_list)
+    formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
+
+    sys.stdout.write("done.\n")
     if args.verbose:
-        sys.stdout.write("Formatting " + args.input + " for pipeline... ")
-        sys.stdout.flush()
-
-    fasta = open(args.input, 'r')
-    formatted_fasta_dict = dict()
-    header = ""
-    sequence = ""
-    reg_nuc = re.compile(r'[ACGT]')
-    reg_nuc_ambiguity = re.compile(r'[XN]')
-    reg_aa_ambiguity = re.compile(r'[BXZ]')
-    reg_amino = re.compile(r'[ACDEFGHIKLMNPQRSTVWY*]')
-    iupac_map = {'R': 'A', 'Y': 'C', 'S': 'G', 'W': 'A', 'K': 'G', 'M': 'A', 'B': 'C', 'D': 'A', 'H': 'A', 'V': 'A'}
-    substitutions = ""
-    count_total = 0
-    seq_count = 0
-    count_xn = 0
-    header_clash = False
-    num_headers = 0
-    if duplicates:
-        duplicate_headers = dict()
-    for line in fasta:
-        # If the line is a header...
-        if line[0] == '>':
-            if len(header) > 0:
-                if len(sequence) > args.gblocks:
-                    formatted_fasta_dict[header] = sequence
-                else:
-                    num_headers -= 1
-
-            sequence = ""
-            # Replace all non a-z, A-Z, 0-9, or . characters with a _
-            # Then replace the initial _ with a >
-            line = re.sub(r'[^a-zA-Z0-9.\r\n]', '_', line)
-            line = re.sub(r'\A_', '>', line)
-    
-            # Because RAxML can only work with file names having length <= 125,
-            # Ensure that the sequence name length is <= 100
-            if line.__len__() > 100:
-                line = line[0:100]
-    
-            header = line.strip()
-            while re.search(r'\.$', header):
-                header = header[:-1]
-            if duplicates:
-                if header in formatted_fasta_dict.keys():
-                    if header not in duplicate_headers.keys():
-                        duplicate_headers[header] = 1
-                    duplicate_headers[header] += 1
-                    header = header + "_" + str(duplicate_headers[header])
-            num_headers += 1
-
-        # Else, if the line is a sequence...
-        else:
-            characters = line.strip().upper()
-            if len(characters) == 0:
-                continue
-            # Remove all non-characters from the sequence
-            re.sub(r'[^a-zA-Z]', '', characters)
-    
-            # Count the number of {atcg} and {xn} in all the sequences
-            count_total += len(characters)
-
-            if args.molecule == 'n':
-                nucleotides = len(reg_nuc.findall(characters))
-                ambiguity = len(reg_nuc_ambiguity.findall(characters))
-                if (nucleotides + ambiguity) != len(characters):
-                    substituted_chars = ""
-                    for char in characters:
-                        if not reg_nuc.search(char) and not reg_nuc_ambiguity.search(char):
-                            if char not in iupac_map.keys():
-                                sys.stderr.write("ERROR: " + header.strip() +
-                                                 " contains unknown character: " + char + "\n")
-                                sys.exit()
-                            else:
-                                substituted_chars += iupac_map[char]
-                                substitutions += char
-                        else:
-                            substituted_chars += char
-                    characters = substituted_chars
-                else:
-                    seq_count += nucleotides
-                    count_xn += ambiguity
-            elif args.molecule == 'a':
-                aminos = len(reg_amino.findall(characters))
-                ambiguity = len(reg_aa_ambiguity.findall(characters))
-                if (aminos + ambiguity) != len(characters):
-                    sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters: ")
-                    unknown = ""
-                    for c in characters:
-                        if c not in "abcdefghiklmnpqrstvwxyzABCDEFGHIKLMNPQRSTVWXYZ":
-                            unknown += c
-                    sys.stderr.write(unknown + "\n")
-                    sys.exit()
-                else:
-                    seq_count += aminos
-                    count_xn += ambiguity
-            sequence += characters
-    formatted_fasta_dict[header] = sequence
-
-    # Check for duplicate headers and change them to make unique headers
-    if len(formatted_fasta_dict.keys()) != num_headers:
-        header_clash = True
-
-    if count_total == 0:
-        sys.exit('ERROR: Your input file appears to be corrupted. No sequences were found!\n')
-    
-    # Exit the program if all sequences are composed only of X or N
-    elif count_xn == count_total:
-        sys.exit('ERROR: Your sequence(s) contain only X or N!\n')
-    
-    # Exit the program if less than half of the characters are nucleotides
-    elif float(seq_count / float(count_total)) < 0.5:
-        if args.molecule == 'n':
-            sys.exit('ERROR: Your sequence(s) most likely contain no DNA!\n')
-        elif args.molecule == 'a':
-            sys.exit('ERROR: Your sequence(s) most likely contain no AA!\n')
-
-    # Close the files
-    fasta.close()
-    
-    if len(substitutions) > 0:
-        sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made.\n")
-        sys.stderr.flush()
-
-    if header_clash:
-        sys.stderr.write("ERROR: duplicate header names were detected in " + args.input + "!\n")
-        sys.stderr.flush()
-        response = raw_input("Do you want the headers to be renamed "
-                             "(The headers in the original input and formatted fasta will not match) [Y/N]?\n")
-        if response == 'Y':
-            sys.stderr.write("Formatting input FASTA with duplicates... ")
-            sys.stderr.flush()
-            formatted_fasta_dict = format_read_fasta(args, True)
-            sys.stderr.write("done.\n")
-            sys.stderr.flush()
-        else:
-            sys.stderr.write("Bailing out. ")
-            sys.stderr.flush()
-
-    if args.verbose:
-        sys.stdout.write("done.\n")
         sys.stdout.write("\tAnalyzing " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
 
     return formatted_fasta_dict
@@ -1481,7 +1354,7 @@ def run_blast(args, split_files, cog_list):
             blast_input_file_name = re.match(r'\A.+/(.+)\.fasta\Z', split_fasta).group(1)
 
         # Run the appropriate BLAST command(s) based on the input sequence type
-        if args.molecule == 'n':
+        if args.molecule == "nuc":
             blastx_command = args.executables["blastx"] + " " + \
                 '-query ' + split_fasta + ' ' + db_aa + ' ' + \
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
@@ -1502,7 +1375,7 @@ def run_blast(args, split_files, cog_list):
             blastn_command += " 2>/dev/null"
             os.system(blastn_command)
 
-        elif args.molecule == 'a':
+        elif args.molecule == "prot":
             blastp_command = args.executables["blastp"] + " " + \
                       '-query ' + split_fasta + ' ' + db_aa + ' ' + \
                       '-evalue 0.01 -max_target_seqs 20000 ' + \
@@ -1548,7 +1421,7 @@ def predict_orfs(args):
     # orf_fasta must be changed since FGS+ appends .faa to the output file name
     orf_fasta += ".faa"
     args.input = orf_fasta
-    args.molecule = "a"
+    args.molecule = "prot"
 
     return args
 
@@ -4797,7 +4670,6 @@ def main(argv):
 
     if args.skip == 'n':
         # Read and format the input FASTA
-        # TODO: Replace `format_read_fasta` with python extension
         formatted_fasta_dict = format_read_fasta(args)
         if re.match(r'\A.*\/(.*)', args.input):
             input_multi_fasta = os.path.basename(args.input)
@@ -4822,13 +4694,13 @@ def main(argv):
             contig_coordinates, shortened_sequence_files, gene_coordinates = make_genewise_inputs(args,
                                                                                                   blast_hits_purified,
                                                                                                   formatted_fasta_dict)
-            if args.molecule == 'n':
+            if args.molecule == "nuc":
                 write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
                 formatted_fasta_dict.clear()
                 genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
                 genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
                 get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files)
-            elif args.molecule == 'a':
+            elif args.molecule == "prot":
                 genewise_summary_files = blastp_parser(args, blast_hits_purified)
             delete_files(args, 2)
             # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
