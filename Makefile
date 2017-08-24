@@ -30,9 +30,11 @@ fgs:  $(FGS_OBJECTS) $(FGS_HEADERS)
 	gcc $(CFLAGS) $(FGS_OBJECTS) -o FGS+ $(FLAGS)
 
 clean:
-	rm -rf $(RPKM_OBJECTS) rpkm $(FGS_OBJECTS) FGS+
+	rm -rf $(RPKM_OBJECTS) rpkm sub_binaries/rpkm $(FGS_OBJECTS) FGS+ sub_binaries/FGS+ _tree_parser.so _fasta_reader.so
 
 install:
 	mv rpkm sub_binaries/
 	mv FGS+ sub_binaries/
+	python setup.py build_ext --inplace
 
+# hmmbuild, hmmalign, Gblocks, genewise, raxmlHPC, tree_parser

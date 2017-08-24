@@ -58,8 +58,12 @@ Fasta::~Fasta() {
     delete[] log_file;
 }
 
-char replace_whitespace(char it) {
+char replace_operators(char it) {
     if (it == ' ' || it == '\t')
+        it = '_';
+    if (it == '(' || it == ')')
+        it = '_';
+    if (it == ',' || it == '|')
         it = '_';
     return it;
 }
@@ -71,11 +75,12 @@ int Fasta::record_header( string line ) {
     */
     std::pair<std::set<string>::iterator,bool> ret;
     string new_header;
+
+    // Replace whitespace characters and other ASCII operators with underscores
+    transform(line.begin(), line.end(), line.begin(), replace_operators);
+
     // Because RAxML can only work with file names having length <= 125,
     // Ensure that the sequence name length is <= 100
-
-    transform(line.begin(), line.end(), line.begin(), replace_whitespace);
-
     if (line.length() > 100)
         new_header = line.substr(0,100);
     else
