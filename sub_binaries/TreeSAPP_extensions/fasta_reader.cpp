@@ -65,6 +65,8 @@ char replace_operators(char it) {
         it = '_';
     if (it == ',' || it == '|')
         it = '_';
+    if (it == ';')
+        it = '_';
     return it;
 }
 
@@ -138,7 +140,7 @@ int Fasta::record_sequence() {
     if (molecule == "prot")
         acceptable_characters.assign("ACDEFGHIKLMNPQRSTVWYBXZ");
     if (molecule == "nuc") {
-        acceptable_characters.assign("ACGT");
+        acceptable_characters.assign("ACGTU");
     }
 
     for (string::iterator it=sequence_buffer.begin(); it!=sequence_buffer.end(); ++it){
@@ -158,7 +160,7 @@ int Fasta::record_sequence() {
         }
         // Exit if the character is not a standard amino acid or nucleotide character
         else if (acceptable==std::string::npos) {
-            cerr << "ERROR: '" << *it << "' not an accepted character! ";
+            cerr << "\nERROR: '" << *it << "' not an accepted character! ";
             return 4;
         }
         pos++;

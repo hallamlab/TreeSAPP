@@ -15,6 +15,13 @@ The exectutables for the required softwares are included either in the TreeSAPP/
  directory or TreeSAPP/sub_binaries/ubuntu, depending on your OS.
 If these do not work out-of-the-box, instructions on installing the dependencies specific to your
  machine are included below. We currently support Red Hat Enterprise Linux, Ubuntu (14.04), and Mac OS (10.6-10.8).
+
+To finish installing in a local directory, use:
+```
+make
+make install
+```
+
 ### Downloading dependencies for Linux:
 
 #### RAxML:
@@ -74,7 +81,7 @@ To list all the options with brief help statements `./mltreemap.py -h`.
 
 To perform a basic run with only the required arguments:
 ```
-./mltreemap.py -i input.fasta -o ~/path/to/output/directory/
+./treesapp.py -i input.fasta -o ~/path/to/output/directory/
 ```
 Executables are automatically detected in both the $PATH and in the
 sub_binaries/mac or sub_binaries/ubuntu, depending on your OS. However, if your executables

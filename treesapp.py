@@ -2275,81 +2275,66 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files):
                 sys.stderr.write("ERROR: Can't create " + outfile_name + '!\n')
                 sys.exit(0)
 
-    try:
-        fasta_input = open(args.input, 'r')
-    except IOError:
-        sys.stdout.write("ERROR: Can't open " + args.input + ' for reading!\n')
-        sys.exit(0)
-    contig_name = ''
-    sequence = ''
+    # This overwrites the original log file
+    fasta_list = _fasta_reader._read_format_fasta(args.input, args.gblocks, args.output, 'nuc')
+    if not fasta_list:
+        sys.exit()
+    tmp_iterable = iter(fasta_list)
+    formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
 
-    line = 'x'
-    while line:
-        line = fasta_input.readline()
-        line = line.strip()
-        line = re.sub(r'\s', '_', line)
-        searchmatch = re.search(r'\A>(.+)', line)
+    for contig_name in formatted_fasta_dict:
+        sequence = formatted_fasta_dict[contig_name]
+        contig_name = contig_name[1:]
+        if contig_name in contig_rrna_coordinates:
+            # start searching for the information to shorten the file.
+            for identifier in sorted(contig_rrna_coordinates[contig_name].keys()):
+                start = contig_rrna_coordinates[contig_name][identifier]["start"]
+                end = contig_rrna_coordinates[contig_name][identifier]["end"]
+                cog = contig_rrna_coordinates[contig_name][identifier]["cog"]
+                direction = contig_rrna_coordinates[contig_name][identifier]["direction"]
+                outfile = contig_rrna_coordinates[contig_name][identifier]['outfile']
+                count = -1
+                shortened_sequence = ""
+                for nucleotide in sequence:
+                    count += 1
+                    if not (start <= count <= end):
+                        continue
+                    shortened_sequence += nucleotide
 
-        if searchmatch or not line:
-            if not line:
-                sequence += line
-
-            if contig_name in contig_rrna_coordinates:
-                # start searching for the information to shorten the file.
-                for identifier in sorted(contig_rrna_coordinates[contig_name].keys()):
-                    start = contig_rrna_coordinates[contig_name][identifier]["start"]
-                    end = contig_rrna_coordinates[contig_name][identifier]["end"]
-                    cog = contig_rrna_coordinates[contig_name][identifier]["cog"]
-                    direction = contig_rrna_coordinates[contig_name][identifier]["direction"]
-                    outfile = contig_rrna_coordinates[contig_name][identifier]['outfile']
-                    count = -1
+                if direction == 'reverse':
+                    # ok, our hit has been on the opposite strand of the reference.
+                    # to get a proper alignment, we thus have to produce a negative strand version of the input
+                    nucleotides2 = ''.join(reversed(shortened_sequence))
                     shortened_sequence = ""
-                    for nucleotide in sequence: 
-                        count += 1
-                        if not (start <= count <= end):
-                            continue
+                    nucleotides2 = nucleotides2.lower()
+                    for nucleotide in nucleotides2:
+                        if nucleotide == 't':
+                            nucleotide = 'a'
+                        elif nucleotide == 'a':
+                            nucleotide = 't'
+                        elif nucleotide == 'c':
+                            nucleotide = 'g'
+                        elif nucleotide == 'g':
+                            nucleotide = 'c'
+
                         shortened_sequence += nucleotide
-
-                    if direction == 'reverse':
-                        # ok, our hit has been on the opposite strand of the reference.
-                        # to get a proper alignment, we thus have to produce a negative strand version of the input
-                        nucleotides2 = ''.join(reversed(shortened_sequence))
-                        shortened_sequence = ""
-                        nucleotides2 = nucleotides2.lower()
-                        for nucleotide in nucleotides2:
-                            if nucleotide == 't':
-                                nucleotide = 'a'
-                            elif nucleotide == 'a':
-                                nucleotide = 't'
-                            elif nucleotide == 'c':
-                                nucleotide = 'g'
-                            elif nucleotide == 'g':
-                                nucleotide = 'c'
-
-                            shortened_sequence += nucleotide
-                    rrna_seqs += 1
-                    try:
-                        out = open(outfile, 'a')
-                        fprintf(out, '%s\t%s\t%s\t%s\t%s\n', cog, start, end, 'n/a', shortened_sequence)
-                        out.close()
-                    except IOError:
-                        sys.stderr.write("ERROR: Can't create " + outfile + '!\n')
-                        sys.exit(0)
-
+                rrna_seqs += 1
                 try:
-                    output_file = open(args.output_dir_var + contig_name + '_sequence.txt', 'w')
-                    fprintf(output_file, '>%s\n%s', contig_name, sequence)
-                    output_file.close()
+                    out = open(outfile, 'a')
+                    fprintf(out, '%s\t%s\t%s\t%s\t%s\n', cog, start, end, 'n/a', shortened_sequence)
+                    out.close()
                 except IOError:
-                    sys.stderr.write("ERROR: Can't create " + args.output_dir_var + contig_name + '_sequence.txt!\n')
+                    sys.stderr.write("ERROR: Can't create " + outfile + '!\n')
                     sys.exit(0)
 
-            if searchmatch:
-                contig_name = searchmatch.group(1)
-                sequence = ""
-        else:
-            sequence += line
-    fasta_input.close()
+            try:
+                output_file = open(args.output_dir_var + contig_name + '_sequence.txt', 'w')
+                fprintf(output_file, '>%s\n%s', contig_name, sequence)
+                output_file.close()
+            except IOError:
+                sys.stderr.write("ERROR: Can't create " + args.output_dir_var + contig_name + '_sequence.txt!\n')
+                sys.exit(0)
+
     sys.stdout.write("done.\n")
 
     if args.verbose:
