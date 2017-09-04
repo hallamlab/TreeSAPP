@@ -597,7 +597,7 @@ def main():
     muscle_align_command = [args.executables["muscle"]]
     muscle_align_command += ["-in", fasta_replaced_file]
     muscle_align_command += ["-out", fasta_replaced_align]
-    sys.exit()
+
     stdout, muscle_pro_returncode = launch_write_command(muscle_align_command, False)
 
     if muscle_pro_returncode != 0:
