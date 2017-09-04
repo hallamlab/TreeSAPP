@@ -675,14 +675,19 @@ def main():
 
     if args.molecule == "prot":
         raxml_command += ["-m", "PROTGAMMAAUTO"]
-    if args.molecule == "rrna":
+    elif args.molecule == "rrna" or args.molecule == "dna":
         raxml_command += ["-m", "GTRGAMMA"]
+    else:
+        sys.exit("ERROR: a substitution model could not be specified with the 'molecule' argument: " + args.molecule)
 
     stdout, raxml_returncode = launch_write_command(raxml_command, False)
 
     if raxml_returncode != 0:
         sys.stderr.write("ERROR: RAxML did not complete successfully! "
-                         "Look in " + args.mltreemap + raxml_out + "RAxML_info." + code_name + " for error message.\n")
+                         "Look in " + args.mltreemap + raxml_out + os.sep +
+                         "RAxML_info." + code_name + " for an error message.\n")
+        sys.stderr.write("RAxML command used:\n")
+        sys.stderr.write(' '.join(raxml_command) + "\n")
         sys.exit(3)
 
     tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, code_name)
