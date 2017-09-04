@@ -139,7 +139,7 @@ int Fasta::record_sequence() {
 
     if (molecule == "prot")
         acceptable_characters.assign("ACDEFGHIKLMNPQRSTVWYBXZ");
-    if (molecule == "nuc") {
+    if (molecule == "dna" || molecule == "rrna") {
         acceptable_characters.assign("ACGTU");
     }
 

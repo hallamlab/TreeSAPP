@@ -6,7 +6,7 @@ import os
 import re
 import subprocess
 from time import gmtime, strftime
-from mltreemap import os_type, is_exe, which
+from treesapp import os_type, is_exe, which, format_read_fasta
 
 
 class ReferenceSequence:
@@ -27,38 +27,56 @@ class ReferenceSequence:
 
 
 def get_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--fasta_file",
-                        help="FASTA file that will be used to create reference data for TreeSAPP",
-                        required=True)
-    parser.add_argument("-u", "--uc",
+    parser = argparse.ArgumentParser(add_help=False)
+    required_args = parser.add_argument_group("Required arguments")
+    required_args.add_argument("-i", "--fasta_input",
+                               help="FASTA file that will be used to create reference data for TreeSAPP",
+                               required=True)
+    required_args.add_argument("-c", "--code_name",
+                               help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
+                                    "(Refer to first column of 'cog_list.txt' under the '#functional cogs' section)",
+                               required=True)
+    required_args.add_argument("-p", "--identity",
+                               help="The percent identity which the input sequences were clustered",
+                               required=True,
+                               type=str)
+
+    optopt = parser.add_argument_group("Optional options")
+    optopt.add_argument("-u", "--uc",
                         help="The USEARCH cluster format file produced from clustering reference sequences",
                         required=False,
                         default=None)
-    parser.add_argument("-c", "--code_name",
-                        help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
-                             "Refer to the first column of 'cog_list.txt' under the '#functional cogs' section)",
-                        required=True)
-    parser.add_argument("-m", "--min_length",
-                        help="The minimum length of a protein to be used in building reference data. [ DEFAULT = 10 ]",
+    optopt.add_argument('-g', '--gblocks',
+                        help='minimal sequence length after Gblocks [DEFAULT = 50]',
                         required=False,
-                        default=10,
+                        default=50,
                         type=int)
-    parser.add_argument("-i", "--identity",
-                        help="The percent identity which the input sequences were clustered",
-                        required=True,
-                        type=str)
-    parser.add_argument("-b", "--bootstraps",
+    optopt.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna', 'rrna'],
+                        help='the type of input sequences (prot = Protein; nuc = Nucleotide [DEFAULT])')
+    optopt.add_argument("-b", "--bootstraps",
                         help="The number of bootstrap replicates RAxML should perform [ DEFAULT = autoMR ]",
                         required=False,
                         default="autoMR")
-    parser.add_argument("-T", "--num_threads",
+    optopt.add_argument("-T", "--num_threads",
                         help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
                         required=False,
-                        default=4)
+                        default=str(4),
+                        type=str)
+    optopt.add_argument("-h", "--help",
+                        action="help",
+                        help="show this help message and exit")
+    miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
+    miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
+                                    help='overwrites previously processed output folders')
+    miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
+                                    help='Prints a more verbose runtime log')
 
     args = parser.parse_args()
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+    # For compatibility with TreeSAPP's format_read_fasta function
+    args.min_length = args.gblocks
+    final_output_folder = "MLTreeMap_files_%s" % args.code_name
+    args.output = final_output_folder
 
     if len(args.code_name) > 6:
         sys.stderr.write("ERROR: code_name must be <= 6 characters!\n")
@@ -122,97 +140,6 @@ def launch_write_command(cmd_list, collect_all=True):
                                 preexec_fn=os.setsid)
         proc.wait()
     return stdout, proc.returncode
-
-
-def format_read_fasta(fasta_file, args):
-    """
-    Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
-    Ensures each sequence and sequence name is valid.
-    :param fasta_file: 
-    :param args: Command-line argument object from get_arguments
-    :return A list of the files produced from the input file.
-    """
-    fasta = open(fasta_file, 'r')
-    formatted_fasta_dict = dict()
-    header = ""
-    sequence = ""
-    convert_upper = lambda pat: pat.group(1).upper()
-    reg_aa_ambiguity = re.compile(r'[bjxzBJXZ-]')
-    reg_amino = re.compile(r'[acdefghiklmnpqrstuvwyACDEFGHIKLMNPQRSTUVWY*]')
-    fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
-    substitutions = ""
-    count_total = 0
-    seq_count = 0
-    count_xn = 0
-    num_headers = 0
-    for line in fasta:
-        # If the line is a header...
-        if line[0] == '>':
-            if len(header) > 0:
-                if len(sequence) > args.min_length:
-                    formatted_fasta_dict[header] = sequence
-                else:
-                    num_headers -= 1
-
-            sequence = ""
-
-            header = line.strip()
-            if fungene_gi_bad.match(header):
-                sys.stderr.write("\nWARNING: Input sequences use 'GIs' which are obsolete and may be non-unique. "
-                                 "For everyone's sanity, please download sequences with the `accno` instead.\n")
-                sys.exit()
-
-            num_headers += 1
-
-        # Else, if the line is a sequence...
-        else:
-            characters = line.strip()
-            if len(characters) == 0:
-                continue
-            # Remove all non-characters from the sequence
-            re.sub(r'[^a-zA-Z]', '', characters)
-
-            # Count the number of {atcg} and {xn} in all the sequences
-            count_total += len(characters)
-
-            characters = re.sub(r'([a-z])', convert_upper, characters)
-            aminos = len(reg_amino.findall(characters))
-            ambiguity = len(reg_aa_ambiguity.findall(characters))
-            if (aminos + ambiguity) != len(characters):
-                sys.stderr.write("ERROR: " + header.strip() + " contains unknown characters: ")
-                unknown = ""
-                for c in characters:
-                    if c not in "abcdefghiklmnpqrstvwxyzABCDEFGHIKLMNPQRSTVWXYZ":
-                        unknown += c
-                sys.stderr.write(unknown + "\n")
-                sys.exit()
-            else:
-                seq_count += aminos
-                count_xn += ambiguity
-            sequence += characters
-    formatted_fasta_dict[header] = sequence
-
-    # Check for duplicate headers
-    if len(formatted_fasta_dict.keys()) != num_headers:
-        sys.stderr.write("ERROR: duplicate header names were detected in " + fasta_file + "!\n")
-        sys.stderr.flush()
-        sys.exit(2)
-
-    if count_total == 0:
-        sys.exit('ERROR: Your input file appears to be corrupted. No sequences were found!\n')
-
-    # Exit the program if all sequences are composed only of X or N
-    elif count_xn == count_total:
-        sys.exit('ERROR: Your sequence(s) contain only X or N!\n')
-
-    if len(substitutions) > 0:
-        sys.stderr.write("WARNING: " + str(len(substitutions)) + " ambiguous character substitutions were made!\n")
-        sys.stderr.flush()
-
-    # Close the files
-    fasta.close()
-
-    return formatted_fasta_dict
 
 
 def create_new_fasta(out_fasta, ref_seq_dict, dashes=True):
@@ -310,6 +237,26 @@ def present_cluster_rep_options(cluster_dict):
     return swappers
 
 
+def reformat_headers(header_dict):
+    """
+    Imitate format_read_fasta header name reformatting
+    :param header_dict: Dictionary of old header : new header key : value pairs
+    :return:
+    """
+    swappers = dict()
+
+    def reformat_string(string):
+        if len(string) > 100:
+            string = string[0:100]
+
+        string = re.sub("\s|\(|\)|;", '_', string)
+        return string
+
+    for old, new in header_dict.items():
+        swappers[reformat_string(old)] = reformat_string(new)
+    return swappers
+
+
 def remove_dashes_from_msa(fasta_in, fasta_out):
     dashed_fasta = open(fasta_in, 'r')
     fasta = open(fasta_out, 'w')
@@ -353,9 +300,10 @@ def get_header_format(header, code_name):
     fungene_re = re.compile("^>([A-Z0-9.]+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
     # TODO: Find the description field for the mltree_re
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
+    silva_arb_re = re.compile("^>([A-Z0-9]+.[0-9]+.[0-9]+)_(.*)$")
 
     header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re,
-                            fungene_re, mltree_re, gi_prepend_proper_re, gi_prepend_mess_re, gi_re]
+                            fungene_re, mltree_re, gi_prepend_proper_re, gi_prepend_mess_re, gi_re, silva_arb_re]
     for regex in header_format_regexi:
         if regex.match(header):
             return regex
@@ -374,14 +322,16 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
     """
 
     print "******************** Generating information for formatting purposes ********************"
+    fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     mltree_id_accumulator = 1
+    swapped_headers = []
     if len(fasta_replace_dict.keys()) > 0:
         for mltree_id in fasta_replace_dict:
             ref_seq = fasta_replace_dict[mltree_id]
             ref_seq.short_id = mltree_id + '_' + code_name
             tmp_ref_def = re.sub('[)(\[\]]', '', ref_seq.description)  # Remove parentheses for comparisons
             # This `swappers` is actually cluster_dict
-            # keys are rep. headers, values are list of identical sequence names
+            # keys are representative headers, values are list of headers with identical sequences
             for header in swappers.keys():
                 tmp_header = re.sub('[)(\[\]]', '', header)  # Remove parentheses for comparisons
                 # Need to check both keys and values since it is unknown whether the rep was selected or not
@@ -398,11 +348,16 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
 
     else:  # if fasta_replace_dict needs to be populated, this is a new run
         for header in fasta_dict.keys():
+            if fungene_gi_bad.match(header):
+                sys.stderr.write("\nWARNING: Input sequences use 'GIs' which are obsolete and may be non-unique. "
+                                 "For everyone's sanity, please download sequences with the `accno` instead.\n")
+                sys.exit()
             mltree_id = str(mltree_id_accumulator)
             ref_seq = ReferenceSequence()
             ref_seq.sequence = fasta_dict[header]
             if swappers and header in swappers.keys():
                 header = swappers[header]
+                swapped_headers.append(header)
             header_format_re = get_header_format(header, code_name)
             if header_format_re is None:
                 raise AssertionError("Unable to parse header: " + header)
@@ -425,6 +380,12 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
             fasta_replace_dict[mltree_id] = ref_seq
 
             mltree_id_accumulator += 1
+        if len(swapped_headers) != len(swappers):
+            sys.stderr.write("ERROR: Some headers that were meant to be replaced could not be compared!\n")
+            for header in swappers.keys():
+                if header not in swapped_headers:
+                    print header
+            sys.exit()
 
     return fasta_replace_dict
 
@@ -552,14 +513,44 @@ def update_build_parameters(args, code_name, aa_model):
     return
 
 
+def reverse_complement(rrna_sequence):
+    comp = []
+    for c in rrna_sequence:
+        if c == 'A' or c == 'a':
+            comp.append('T')
+        if c == 'G' or c == 'g':
+            comp.append('C')
+        if c == 'U' or c == 'u' or c == 'T' or c == 't':
+            comp.append('A')
+        if c == 'C' or c == 'c':
+            comp.append('G')
+        else:
+            pass
+    rev_comp = ''.join(reversed(comp))
+    return rev_comp
+
+
 def main():
     args = get_arguments()
     args = find_executables(args)
 
-    input_fasta = args.fasta_file
-    fasta_dict = format_read_fasta(input_fasta, args)
     code_name = args.code_name
+    final_output_folder = "MLTreeMap_files_%s" % code_name
     tree_taxa_list = "tax_ids_%s.txt" % code_name
+
+    if not os.path.exists(final_output_folder):
+        os.makedirs(final_output_folder)
+    else:
+        sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
+        sys.stderr.flush()
+
+    if args.molecule == 'rrna':
+        args.molecule = 'dna'
+        fasta_dict = format_read_fasta(args)
+        for header in fasta_dict:
+            fasta_dict[header] = reverse_complement(fasta_dict[header])
+    else:
+        fasta_dict = format_read_fasta(args)
 
     if args.uc and os.path.exists(tree_taxa_list):
         use_previous_names = raw_input(tree_taxa_list + " found from a previous attempt. "
@@ -571,13 +562,6 @@ def main():
 
     fasta_replace_dict = dict()
 
-    final_output_folder = "MLTreeMap_files_%s" % code_name
-    if not os.path.exists(final_output_folder):
-        os.makedirs(final_output_folder)
-    else:
-        sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
-        sys.stderr.flush()
-
     log = open("create_" + code_name + "_treesapp_data_log.txt", 'w')
     log.write("Command used:\n" + ' '.join(sys.argv) + "\n\n")
 
@@ -585,6 +569,7 @@ def main():
         cluster_dict = read_uc(args.uc)
         if use_previous_names == 'n':
             swappers = present_cluster_rep_options(cluster_dict)
+            swappers = reformat_headers(swappers)
             fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers)
             write_tax_ids(fasta_replace_dict, tree_taxa_list)
         if use_previous_names == 'y':
@@ -612,7 +597,7 @@ def main():
     muscle_align_command = [args.executables["muscle"]]
     muscle_align_command += ["-in", fasta_replaced_file]
     muscle_align_command += ["-out", fasta_replaced_align]
-
+    sys.exit()
     stdout, muscle_pro_returncode = launch_write_command(muscle_align_command, False)
 
     if muscle_pro_returncode != 0:
@@ -693,7 +678,7 @@ def main():
 
     if raxml_returncode != 0:
         sys.stderr.write("ERROR: RAxML did not complete successfully! "
-                         "Look in " + args.mltreemap + raxml_out + "RAxML_info." + code_name + " for error message.")
+                         "Look in " + args.mltreemap + raxml_out + "RAxML_info." + code_name + " for error message.\n")
         sys.exit(3)
 
     tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, code_name)

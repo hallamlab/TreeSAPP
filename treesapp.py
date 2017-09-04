@@ -690,7 +690,7 @@ def get_options():
     """
     parser = argparse.ArgumentParser(description='Phylogenetically informed insertion of sequence into a reference tree'
                                                  ' using a Maximum Likelihood algorithm.')
-    parser.add_argument('-i', '--input', required=True,
+    parser.add_argument('-i', '--fasta_input', required=True,
                         help='Your sequence input file in FASTA format')
     parser.add_argument('-o', '--output', default='./output/', required=False,
                         help='output directory [DEFAULT = ./output/]')
@@ -712,8 +712,8 @@ def get_options():
                         help='A comma-separated list specifying which marker genes to query in input by'
                              ' the "denominator" column in data/tree_data/cog_list.tsv'
                              ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
-    parser.add_argument('-m', '--molecule', default='nuc', choices=['prot', 'nuc'],
-                        help='the type of input sequences (prot = Protein; nuc = Nucleotide [DEFAULT])')
+    parser.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna'],
+                        help='the type of input sequences (prot = Protein; dna = Nucleotide [DEFAULT])')
 
     rpkm_opts = parser.add_argument_group('RPKM options')
     rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
@@ -1231,10 +1231,10 @@ def format_read_fasta(args):
     :param duplicates: A flag indicating the function should be duplicate-aware
     :return A list of the files produced from the input file.
     """
-    sys.stdout.write("Formatting " + args.input + " for pipeline... ")
+    sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
     sys.stdout.flush()
 
-    fasta_list = _fasta_reader._read_format_fasta(args.input, args.gblocks, args.output, args.molecule)
+    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.gblocks, args.output, args.molecule)
     if not fasta_list:
         sys.exit()
     tmp_iterable = iter(fasta_list)
@@ -1354,7 +1354,7 @@ def run_blast(args, split_files, cog_list):
             blast_input_file_name = re.match(r'\A.+/(.+)\.fasta\Z', split_fasta).group(1)
 
         # Run the appropriate BLAST command(s) based on the input sequence type
-        if args.molecule == "nuc":
+        if args.molecule == "dna":
             blastx_command = args.executables["blastx"] + " " + \
                 '-query ' + split_fasta + ' ' + db_aa + ' ' + \
                 '-evalue 0.01 -max_target_seqs 20000 ' + \
@@ -1406,7 +1406,7 @@ def predict_orfs(args):
     """
     orf_fasta = args.output_dir_var + "ORFs"
     fgs_command = [args.executables["FGS+"]]
-    fgs_command += ['-s', args.input,
+    fgs_command += ['-s', args.fasta_input,
                     '-o', orf_fasta,
                     '-w', '0',
                     '-t', "454_10"]
@@ -1420,7 +1420,7 @@ def predict_orfs(args):
 
     # orf_fasta must be changed since FGS+ appends .faa to the output file name
     orf_fasta += ".faa"
-    args.input = orf_fasta
+    args.fasta_input = orf_fasta
     args.molecule = "prot"
 
     return args
@@ -1432,8 +1432,8 @@ def collect_blast_outputs(args):
     :param args: Command-line argument object from get_options and check_parser_arguments
     Returns a list of non-empty BLAST results files.
     """
-    cog_blast_result = args.output_dir_var + path.basename(args.input) + "_formatted.BLAST_results_raw.txt"
-    rrna_blast_result = args.output_dir_var + path.basename(args.input) + "_formatted.rRNA_BLAST_results_raw.txt"
+    cog_blast_result = args.output_dir_var + path.basename(args.fasta_input) + "_formatted.BLAST_results_raw.txt"
+    rrna_blast_result = args.output_dir_var + path.basename(args.fasta_input) + "_formatted.rRNA_BLAST_results_raw.txt"
     if path.getsize(cog_blast_result) <= 0 and path.getsize(rrna_blast_result) <= 0:
         os.remove(cog_blast_result)
         sys.stdout.write("No marker genes detected in input! Exiting...\n")
@@ -1866,8 +1866,8 @@ def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
     """
     # Header format:
     # >contig_name|marker_gene|start_end
-    # input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
-    input_multi_fasta = path.basename(args.input)
+    # input_multi_fasta = re.match(r'\A.*\/(.*)', args.fasta_input).group(1)
+    input_multi_fasta = path.basename(args.fasta_input)
     orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
     try:
         fna_output = open(orf_nuc_fasta, 'w')
@@ -2276,7 +2276,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files):
                 sys.exit(0)
 
     # This overwrites the original log file
-    fasta_list = _fasta_reader._read_format_fasta(args.input, args.gblocks, args.output, 'nuc')
+    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.gblocks, args.output, 'dna')
     if not fasta_list:
         sys.exit()
     tmp_iterable = iter(fasta_list)
@@ -4126,7 +4126,7 @@ def align_reads_to_nucs(args):
     :param args:
     :return: Path to the SAM file
     """
-    input_multi_fasta = re.match(r'\A.*\/(.*)', args.input).group(1)
+    input_multi_fasta = re.match(r'\A.*\/(.*)', args.fasta_input).group(1)
     orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
     rpkm_output_dir = args.output + "RPKM_outputs" + os.sep
     if not os.path.exists(rpkm_output_dir):
@@ -4656,10 +4656,10 @@ def main(argv):
     if args.skip == 'n':
         # Read and format the input FASTA
         formatted_fasta_dict = format_read_fasta(args)
-        if re.match(r'\A.*\/(.*)', args.input):
-            input_multi_fasta = os.path.basename(args.input)
+        if re.match(r'\A.*\/(.*)', args.fasta_input):
+            input_multi_fasta = os.path.basename(args.fasta_input)
         else:
-            input_multi_fasta = args.input
+            input_multi_fasta = args.fasta_input
         args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
         formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
         if args.reftree not in ['i', 'g', 'p']:
@@ -4679,7 +4679,7 @@ def main(argv):
             contig_coordinates, shortened_sequence_files, gene_coordinates = make_genewise_inputs(args,
                                                                                                   blast_hits_purified,
                                                                                                   formatted_fasta_dict)
-            if args.molecule == "nuc":
+            if args.molecule == "dna":
                 write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
                 formatted_fasta_dict.clear()
                 genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
