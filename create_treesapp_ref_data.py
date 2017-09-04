@@ -668,11 +668,15 @@ def main():
     raxml_command += ["-p", "12345"]
     raxml_command += ["-x", "12345"]
     raxml_command += ["-#", args.bootstraps]
-    raxml_command += ["-m", "PROTGAMMAAUTO"]
     raxml_command += ["-s", phylip_file]
     raxml_command += ["-n", code_name]
     raxml_command += ["-w", args.mltreemap + raxml_out]
     raxml_command += ["-T", args.num_threads]
+
+    if args.molecule == "prot":
+        raxml_command += ["-m", "PROTGAMMAAUTO"]
+    if args.molecule == "rrna":
+        raxml_command += ["-m", "GTRGAMMA"]
 
     stdout, raxml_returncode = launch_write_command(raxml_command, False)
 
