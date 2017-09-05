@@ -1,0 +1,18 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+195	range	rgb(153, 112, 171)	ANME-1
+68	range	rgb(0, 68, 27)	Methanosarcinales
+Methanopyrus_kandleri_|_1354836	range	rgba(245, 255, 0, 0.5)	Methanopyrus
+185	range	rgb(194, 165, 207)	Methanonatronarchaeia
+127	range	rgb(217, 240, 211)	Methanococcales
+132	range	rgb(217, 240, 211)	Methanococcales
+14	range	rgb(166, 219, 160)	Methanomassiliicoccales
+198	range	#762a83	Bathyarchaeota
+19	range	rgb(90, 174, 97)	Methanocellales
+147	range	#e7d4e8	Methanobacteriales
+177	range	#e7d4e8	Methanobacteriales
+107	range	rgb(27, 120, 55)	Methanomicrobiales
+198	branch	#000000	normal	1
+Candidatus_Bathyarchaeota_archaeon_BA2_|_939571869	branch	#000000	normal	1
+Candidatus_Bathyarchaeota_archaeon_BA1_|_939575380	branch	#000000	normal	1

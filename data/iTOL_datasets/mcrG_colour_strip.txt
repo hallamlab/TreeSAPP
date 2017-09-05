@@ -1,0 +1,18 @@
+DATASET_COLORSTRIP
+SEPARATOR TAB
+DATASET_LABEL	clade_colours
+STRIP_WIDTH	75
+MARGIN	0
+SHOW_INTERNAL	1
+DATA
+27|24	rgb(118, 42, 131)	Bathyarchaeota
+45|34	rgb(194, 165, 207)	Methanonatronarchaeia
+2|35	rgb(231, 212, 232)	Methanobacteriales
+47|23	rgb(231, 212, 232)	Methanobacteriales
+9|1	rgb(153, 112, 171)	ANME-1
+14|26	rgb(90, 174, 97)	Methanocellales
+22|7	rgb(217, 240, 211)	Methanococcales
+40|32	rgb(0, 68, 27)	Methanosarcinales
+15|5	rgb(166, 219, 160)	Methanomassiliicoccales
+46|25	rgb(27, 120, 55)	Methanomicrobiales
+28	rgba(245, 255, 0, 0.5)	Methanopyrus
