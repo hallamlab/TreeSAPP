@@ -138,9 +138,9 @@ int Fasta::record_sequence() {
     transform(sequence_buffer.begin(), sequence_buffer.end(), sequence_buffer.begin(), ::toupper);
 
     if (molecule == "prot")
-        acceptable_characters.assign("ACDEFGHIKLMNPQRSTVWYBXZ");
+        acceptable_characters.assign("ACDEFGHIKLMNPQRSTVWYBXZ.-");
     if (molecule == "dna" || molecule == "rrna") {
-        acceptable_characters.assign("ACGTU");
+        acceptable_characters.assign("ACGTU.-");
     }
 
     for (string::iterator it=sequence_buffer.begin(); it!=sequence_buffer.end(); ++it){

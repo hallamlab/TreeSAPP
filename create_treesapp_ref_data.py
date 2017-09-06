@@ -51,8 +51,15 @@ def get_arguments():
                         required=False,
                         default=50,
                         type=int)
-    optopt.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna', 'rrna'],
-                        help='the type of input sequences (prot = Protein; nuc = Nucleotide [DEFAULT])')
+    optopt.add_argument('-a', '--multiple_alignment',
+                        help='The FASTA input is also the multiple alignment file to be used. '
+                             'In this workflow, alignment with MUSCLE is skipped and this file is used instead.',
+                        action="store_true",
+                        default=False)
+    optopt.add_argument('-m', '--molecule',
+                        help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
+                        default='prot',
+                        choices=['prot', 'dna', 'rrna'])
     optopt.add_argument("-b", "--bootstraps",
                         help="The number of bootstrap replicates RAxML should perform [ DEFAULT = autoMR ]",
                         required=False,
@@ -142,12 +149,12 @@ def launch_write_command(cmd_list, collect_all=True):
     return stdout, proc.returncode
 
 
-def create_new_fasta(out_fasta, ref_seq_dict, dashes=True):
+def create_new_fasta(out_fasta, ref_seq_dict, dashes=False):
     """
     Writes a new FASTA file using a dictionary of ReferenceSequence class objects
     :param out_fasta: Name of the FASTA file to write to
     :param ref_seq_dict: Dictionary containing ReferenceSequence objects, numbers are keys
-    :param dashes: Flag indicating whether hyphens should be removed from sequences
+    :param dashes: Flag indicating whether hyphens should be retained from sequences
     :return:
     """
     out_fasta_handle = open(out_fasta, "w")
@@ -155,9 +162,10 @@ def create_new_fasta(out_fasta, ref_seq_dict, dashes=True):
 
     for mltree_id in sorted(ref_seq_dict, key=int):
         ref_seq = ref_seq_dict[mltree_id]
-        if dashes:
-            sequence = re.sub('-', '', ref_seq.sequence)
+        if dashes is False:
+            sequence = re.sub('[-.]', '', ref_seq.sequence)
         else:
+            # sequence = re.sub('\.', '', ref_seq.sequence)
             sequence = ref_seq.sequence
         out_fasta_handle.write(">" + ref_seq.short_id + "\n")
         out_fasta_handle.write(sequence + "\n")
@@ -270,7 +278,7 @@ def remove_dashes_from_msa(fasta_in, fasta_out):
                 sequence = ""
             fasta.write(line)
         else:
-            sequence += re.sub('-', '', line.strip())
+            sequence += re.sub('[-.]', '', line.strip())
         line = dashed_fasta.readline()
     fasta.write(sequence + "\n")
     dashed_fasta.close()
@@ -380,7 +388,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
             fasta_replace_dict[mltree_id] = ref_seq
 
             mltree_id_accumulator += 1
-        if len(swapped_headers) != len(swappers):
+        if swappers and len(swapped_headers) != len(swappers):
             sys.stderr.write("ERROR: Some headers that were meant to be replaced could not be compared!\n")
             for header in swappers.keys():
                 if header not in swapped_headers:
@@ -476,17 +484,22 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
 def find_model_used(raxml_info_file):
     model_statement_re = re.compile(r".* model: ([A-Z]+) likelihood.*")
     model = ""
+    command_line = ""
     with open(raxml_info_file) as raxml_info:
         for line in raxml_info:
             if model_statement_re.search(line):
                 model = model_statement_re.search(line).group(1)
                 break
+            elif re.match('^.*/raxml.*-m ([A-Z]+)$', line):
+                command_line = line
             else:
                 pass
-
     if model == "":
-        sys.stderr.write("WARNING: Unable to parse model used from " + raxml_info_file + "!")
-        sys.stderr.flush()
+        if command_line == "":
+            sys.stderr.write("WARNING: Unable to parse model used from " + raxml_info_file + "!\n")
+            sys.stderr.flush()
+        else:
+            model = re.match('^.*/raxml.*-m ([A-Z]+)$', command_line).group(1)
     return model
 
 
@@ -585,37 +598,45 @@ def main():
     print "******************** %s generated ********************\n" % tree_taxa_list
     
     fasta_replaced_file = code_name + ".fc.repl.fasta"
+    fasta_mltree = code_name + ".fa"
 
-    create_new_fasta(fasta_replaced_file, fasta_replace_dict)
+    if args.multiple_alignment:
+        create_new_fasta(fasta_replaced_file, fasta_replace_dict, True)
+    else:
+        create_new_fasta(fasta_replaced_file, fasta_replace_dict)
 
     print "************************** FASTA file, %s generated *************************\n" % fasta_replaced_file
 
     print "******************** Aligning the sequences using MUSCLE ********************\n"
 
-    fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
+    if args.multiple_alignment is False:
+        fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
 
-    muscle_align_command = [args.executables["muscle"]]
-    muscle_align_command += ["-in", fasta_replaced_file]
-    muscle_align_command += ["-out", fasta_replaced_align]
+        muscle_align_command = [args.executables["muscle"]]
+        muscle_align_command += ["-in", fasta_replaced_file]
+        muscle_align_command += ["-out", fasta_replaced_align]
 
-    stdout, muscle_pro_returncode = launch_write_command(muscle_align_command, False)
+        stdout, muscle_pro_returncode = launch_write_command(muscle_align_command, False)
 
-    if muscle_pro_returncode != 0:
-        sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["muscle"] +
-                         " did not complete successfully! Command used:\n" + ' '.join(muscle_align_command) + "\n")
-        sys.exit()
+        if muscle_pro_returncode != 0:
+            sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["muscle"] +
+                             " did not complete successfully! Command used:\n" + ' '.join(muscle_align_command) + "\n")
+            sys.exit()
+    else:
+        fasta_replaced_align = fasta_replaced_file
 
-    fasta_mltree = code_name + ".fa"
-
-    remove_dashes_from_msa(fasta_replaced_align, fasta_mltree)
+    remove_dashes_from_msa(fasta_replaced_file, fasta_mltree)
 
     print "******************** FASTA file, %s generated ********************\n" % fasta_mltree
 
     makeblastdb_command = [args.executables["makeblastdb"]]
     makeblastdb_command += ["-in", fasta_mltree]
     makeblastdb_command += ["-out", fasta_mltree]
-    makeblastdb_command += ["-dbtype", "prot"]
     makeblastdb_command += ["-input_type", "fasta"]
+    if args.molecule == "prot":
+        makeblastdb_command += ["-dbtype", "prot"]
+    else:
+        makeblastdb_command += ["-dbtype", "nucl"]
 
     stdout, makeblastdb_pro_returncode = launch_write_command(makeblastdb_command)
 
@@ -628,7 +649,7 @@ def main():
 
     print "******************** BLAST DB for %s generated ********************\n" % code_name
 
-    os.system("mv %s %s" % (fasta_replaced_align, fasta_mltree))
+    os.rename(fasta_replaced_align, fasta_mltree)
 
     hmm_build_command = [args.executables["hmmbuild"]]
     hmm_build_command += ["-s", code_name + ".hmm"]
@@ -636,13 +657,13 @@ def main():
 
     stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
 
+    log.write("\n### HMMBUILD ###\n\n" + stdout)
+    log.close()
+
     if hmmbuild_pro_returncode != 0:
         sys.stderr.write("ERROR: hmmbuild did not complete successfully for:\n")
         sys.stderr.write(' '.join(hmm_build_command) + "\n")
         sys.exit()
-
-    log.write("\n### HMMBUILD ###\n\n" + stdout)
-    log.close()
 
     os.rename(code_name + ".hmm", final_output_folder + os.sep + code_name + ".hmm")
 
@@ -693,7 +714,11 @@ def main():
     tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, code_name)
     final_mltree = "%s_tree.txt" % code_name
     os.system("mv %s %s" % (phylip_file, raxml_out))
-    os.system("rm %s %s" % (fasta_replaced_file, phylip_file + ".reduced"))
+
+    if os.path.exists(fasta_replaced_file):
+        os.remove(fasta_replaced_file)
+    if os.path.exists(phylip_file + ".reduced"):
+        os.remove(phylip_file + ".reduced")
 
     swap_tree_names(tree_to_swap, final_mltree, code_name)
 

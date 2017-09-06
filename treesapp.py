@@ -1228,7 +1228,6 @@ def format_read_fasta(args):
     Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
     Ensures each sequence and sequence name is valid.
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :param duplicates: A flag indicating the function should be duplicate-aware
     :return A list of the files produced from the input file.
     """
     sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
