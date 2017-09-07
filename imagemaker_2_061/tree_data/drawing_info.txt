@@ -20,3 +20,4 @@ D0601	nosZ
 N0102	amoA_B
 N0401	nifH
 N0402	nifD
+R2016	ArcSSU
