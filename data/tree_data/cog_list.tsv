@@ -40,7 +40,7 @@ COG0533	C0533	phylogenetic_cogs
 COG0541	C0541	phylogenetic_cogs
 COG0552	C0552	phylogenetic_cogs
 16srRNA	R0016	rRNA_marker
-16srRNA	R2016	rRNA_marker
+ArcSSU	R2016	rRNA_marker
 18srRNA	R0018	rRNA_marker
 #hdrA	M0001	Heterodisulfide reductase subunit A
 #hdrB	M0002	Heterodisulfide reductase subunit B

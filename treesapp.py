@@ -1225,10 +1225,9 @@ def find_novel_refs(ref_candidate_alignments, aa_dictionary):
 
 def format_read_fasta(args):
     """
-    Splits the input file into multiple files, each containing a maximum number of sequences as specified by the user.
-    Ensures each sequence and sequence name is valid.
+    Reads a FASTA file, ensuring each sequence and sequence name is valid.
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :return A list of the files produced from the input file.
+    :return A Python dictionary with headers as keys and sequences as values
     """
     sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
     sys.stdout.flush()
@@ -1319,7 +1318,7 @@ def run_blast(args, split_files, cog_list):
     for fasta in glob.glob(alignment_data_dir + "*fa"):
         cog = os.path.basename(fasta).split('.')[0]
         if cog in cog_list["all_cogs"].keys():
-            if re.match(r'.*rRNA\.fa\Z', fasta):
+            if cog in cog_list["phylogenetic_rRNA_cogs"]:
                 db_nt += fasta + ' '
             else:
                 db_aa += fasta + ' '
@@ -1718,7 +1717,7 @@ def blastp_parser(args, blast_hits_purified):
     return blastp_summary_files
 
 
-def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
+def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict, cog_list):
     """
     Takes an Autovivification of purified BLAST hits and uses these to produce the input files needed for Genewise.
 
@@ -1818,7 +1817,8 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
 
                 gene_coordinates[contig_name][start_blast][end_blast] = marker_gene
                 # Skip rRNA hits for now (we work with them later)
-                if re.search("rRNA", marker_gene):
+                # if re.search("rRNA", marker_gene):
+                if marker_gene in cog_list["phylogenetic_rRNA_cogs"]:
                     continue
 
                 # Note: Genewise (gw) positions start with 1, blast positions with 0 ->
@@ -1833,7 +1833,8 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict):
                 contig_coordinates[contig_name][shortened_start_gw][shortened_end_gw] = addition_factor
 
         # Skip rRNA hits for now (we work with them later)
-        if re.search("rRNA", marker_gene):
+        # re.search("rRNA", marker_gene):
+        if marker_gene in cog_list["phylogenetic_rRNA_cogs"]:
             continue
 
         try:
@@ -2228,7 +2229,8 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
     return genewise_summary_files
 
 
-def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files):
+def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, cog_list):
+    # TODO: It doesn't need to return anything; OR this function could return the contig_rrna_coordinates instead of writing files
     """
     rRNA does not get translated into protein. Regardless, we want to take the
     rRNA and summarize it in a way that is parallel to the Genewise summary files.
@@ -2253,7 +2255,8 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files):
         # note: We skipped the Genewise step (we are dealing with rRNA) but we bring the rRNA files in the
         # same structure as the Genewise summary files and bring them back into the ordinary pipeline.
         for identifier in sorted(blast_hits_purified[contig].keys()):
-            if not re.search("rRNA", blast_hits_purified[contig][identifier]['cog']):
+            # if not re.search("rRNA", blast_hits_purified[contig][identifier]['cog']):
+            if blast_hits_purified[contig][identifier]['cog'] not in cog_list["phylogenetic_rRNA_cogs"]:
                 continue
 
             start = blast_hits_purified[contig][identifier]["start"]
@@ -2356,6 +2359,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
     """
 
     reference_data_prefix = args.reference_data_prefix
+    treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
     hmmalign_singlehit_files = Autovivify()
     sys.stdout.write("Running hmmalign... ")
     sys.stdout.flush()
@@ -2391,13 +2395,14 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                 except IOError:
                     sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
                     sys.exit(0)
-                treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
+
                 hmmalign_command = [args.executables["hmmalign"], '--mapali',
                                     treesapp_resources + reference_data_prefix + 'alignment_data' +
                                     os.sep + cog + '.fa',
                                     '--outformat', 'Clustal',
                                     treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
                                     genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
+                # TODO: Run this using multiple processes
                 os.system(' '.join(hmmalign_command))
 
                 line = genewise_output.readline()
@@ -4677,13 +4682,14 @@ def main(argv):
             genewise_summary_files = Autovivify()
             contig_coordinates, shortened_sequence_files, gene_coordinates = make_genewise_inputs(args,
                                                                                                   blast_hits_purified,
-                                                                                                  formatted_fasta_dict)
+                                                                                                  formatted_fasta_dict,
+                                                                                                  cog_list)
             if args.molecule == "dna":
                 write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
                 formatted_fasta_dict.clear()
                 genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
                 genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
-                get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files)
+                get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, cog_list)
             elif args.molecule == "prot":
                 genewise_summary_files = blastp_parser(args, blast_hits_purified)
             delete_files(args, 2)
