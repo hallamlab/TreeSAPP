@@ -1,12 +1,26 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-import argparse
-import sys
-import os
-import re
-import subprocess
-from time import gmtime, strftime
-from treesapp import os_type, is_exe, which, format_read_fasta
+__author__ = "Connor Morgan-Lang"
+__maintainer__ = "Connor Morgan-Lang"
+__license__ = "GPL"
+__version__ = "0.0.2"
+
+try:
+    import argparse
+    import sys
+    import os
+    import re
+    import traceback
+    import subprocess
+    import Bio
+    from Bio import Entrez
+    from time import gmtime, strftime
+    from urllib import error
+    from treesapp import os_type, is_exe, which, format_read_fasta
+except ImportWarning:
+    sys.stderr.write("Could not load some user defined module functions")
+    sys.stderr.write(traceback.print_exc(10))
+    sys.exit(3)
 
 
 class ReferenceSequence:
@@ -234,11 +248,11 @@ def present_cluster_rep_options(cluster_dict):
             for num in sorted(candidates.keys(), key=int):
                 sys.stderr.write(num + ". " + candidates[num] + "\n")
             sys.stderr.flush()
-            best = raw_input("Number of the best representative? ")
+            best = input("Number of the best representative? ")
             # Useful for testing - no need to pick which sequence name is best!
             # best = str(1)
             while best not in candidates.keys():
-                best = raw_input("Invalid number. Number of the best representative? ")
+                best = input("Invalid number. Number of the best representative? ")
             if best != str(1):
                 swappers[rep] = candidates[best]
 
@@ -329,7 +343,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
     :return: fasta_replace_dict with a complete ReferenceSequence() value for every mltree_id key
     """
 
-    print "******************** Generating information for formatting purposes ********************"
+    sys.stdout.write("******************** Generating information for formatting purposes ********************" + "\n")
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     mltree_id_accumulator = 1
     swapped_headers = []
@@ -378,10 +392,10 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
                     # From FunGenes
                     ref_seq.accession = sequence_info.group(1)
                     ref_seq.locus = sequence_info.group(2)
-                    # ref_seq.organism = sequence_info.group(3)
+                    ref_seq.organism = re.sub(pattern="_", repl=" ", string=sequence_info.group(3))
                     ref_seq.description = sequence_info.group(3)
             else:
-                print "Unable to handle header: ", header
+                sys.stdout.write("Unable to handle header: " + header + "\n")
                 sys.exit()
 
             ref_seq.short_id = mltree_id + '_' + code_name
@@ -392,10 +406,55 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
             sys.stderr.write("ERROR: Some headers that were meant to be replaced could not be compared!\n")
             for header in swappers.keys():
                 if header not in swapped_headers:
-                    print header
+                    sys.stdout.write(header + "\n")
             sys.exit()
 
     return fasta_replace_dict
+
+
+def get_lineage(prot_accession):
+    """
+    Used to return the NCBI taxonomic lineage of the sequence
+    :param: prot_accession: The NCBI accession for the Protein database
+    :return: string representing the taxonomic lineage
+    """
+    # TODO: fix potential error PermissionError:
+    # [Errno 13] Permission denied: '/home/connor/.config/biopython/Bio/Entrez/XSDs'
+    # Fixed with `sudo chmod 777 .config/biopython/Bio/Entrez/`
+    if float(Bio.__version__) < 1.68:
+        # This is required due to a bug in earlier versions returning a URLError
+        raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
+                             str(Bio.__version__) + "is currently installed. Exiting now...")
+    Entrez.email = "c.morganlang@gmail.com"
+    # Test the internet connection:
+    try:
+        Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
+    except error.URLError:
+        raise AssertionError("ERROR: Unable to serve Entrez query. Are you connected to the internet?")
+
+    # Find the organism name from the accession ID
+    handle = Entrez.efetch(db="protein", id=str(prot_accession), retmode="xml")
+
+    try:
+        record = Entrez.read(handle)
+    except UnboundLocalError:
+        raise UnboundLocalError
+
+    lineage = ""
+    if len(record) >= 1:
+        if "GBSeq_organism" in record[0]:
+            organism = record[0]["GBSeq_organism"]
+            handle = Entrez.esearch(db="Taxonomy", term=organism, retmode="xml")
+            record = Entrez.read(handle)
+            org_id = record["IdList"][0]
+            handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
+            records = Entrez.read(handle)
+            lineage = records[0]["Lineage"]
+        else:
+            sys.stderr.write("WARNING: Unable to use 'GBSeq_organism' for " + str(prot_accession) + "\n")
+            sys.stderr.flush()
+
+    return lineage
 
 
 def write_tax_ids(fasta_replace_dict, tree_taxa_list):
@@ -405,12 +464,35 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list):
     :param tree_taxa_list: The name of the output file
     :return:
     """
+    # TODO: flesh out get_lineage to return the full lineage from root to leaf and write as last column
     tree_tax_list_handle = open(tree_taxa_list, "w")
     for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
-        tree_tax_list_handle.write("%s\t%s | %s\n" % (mltree_id_key,
-                                                      fasta_replace_dict[mltree_id_key].description,
-                                                      fasta_replace_dict[mltree_id_key].accession))
-
+        lineage = get_lineage(fasta_replace_dict[mltree_id_key].accession)
+        if not lineage:
+            # Unable to determine lineage from the accession provided,
+            # try to parse organism name from description
+            if fasta_replace_dict[mltree_id_key].organism:
+                try:
+                    handle = Entrez.esearch(db="Taxonomy",
+                                            term=fasta_replace_dict[mltree_id_key].organism,
+                                            retmode="xml")
+                    record = Entrez.read(handle)
+                    print("Backup record:", record)
+                    org_id = record["IdList"][0]
+                    handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
+                    records = Entrez.read(handle)
+                    lineage = records[0]["Lineage"]
+                except UnboundLocalError:
+                    lineage = ""
+            else:
+                lineage = ""
+        if lineage == "":
+            sys.stderr.write("WARNING: Unable to find lineage for sequence with following data:\n")
+            fasta_replace_dict[mltree_id_key].get_info()
+        tree_tax_list_handle.write("%s\t%s | %s\t%s\n" % (mltree_id_key,
+                                                          fasta_replace_dict[mltree_id_key].description,
+                                                          fasta_replace_dict[mltree_id_key].accession,
+                                                          lineage))
     tree_tax_list_handle.close()
     return
 
@@ -566,10 +648,10 @@ def main():
         fasta_dict = format_read_fasta(args)
 
     if args.uc and os.path.exists(tree_taxa_list):
-        use_previous_names = raw_input(tree_taxa_list + " found from a previous attempt. "
+        use_previous_names = input(tree_taxa_list + " found from a previous attempt. "
                                                         "Should it be used for this run? [y|n] ")
         while use_previous_names != "y" and use_previous_names != "n":
-            use_previous_names = raw_input("Incorrect response. Please input either 'y' or 'n'. ")
+            use_previous_names = input("Incorrect response. Please input either 'y' or 'n'. ")
     else:
         use_previous_names = 'n'
 
@@ -595,7 +677,7 @@ def main():
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict)
         write_tax_ids(fasta_replace_dict, tree_taxa_list)
 
-    print "******************** %s generated ********************\n" % tree_taxa_list
+    sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
     
     fasta_replaced_file = code_name + ".fc.repl.fasta"
     fasta_mltree = code_name + ".fa"
@@ -605,9 +687,9 @@ def main():
     else:
         create_new_fasta(fasta_replaced_file, fasta_replace_dict)
 
-    print "************************** FASTA file, %s generated *************************\n" % fasta_replaced_file
+    sys.stdout.write("************************** FASTA file, " + fasta_replaced_file + " generated *************************\n")
 
-    print "******************** Aligning the sequences using MUSCLE ********************\n"
+    sys.stdout.write("Aligning the sequences using MUSCLE... ")
 
     if args.multiple_alignment is False:
         fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
@@ -625,9 +707,11 @@ def main():
     else:
         fasta_replaced_align = fasta_replaced_file
 
+    sys.stdout.write("done.\n")
+
     remove_dashes_from_msa(fasta_replaced_file, fasta_mltree)
 
-    print "******************** FASTA file, %s generated ********************\n" % fasta_mltree
+    sys.stdout.write("******************** FASTA file, " + fasta_mltree + " generated ********************\n")
 
     makeblastdb_command = [args.executables["makeblastdb"]]
     makeblastdb_command += ["-in", fasta_mltree]
@@ -647,7 +731,7 @@ def main():
 
     log.write("\n### MAKEBLASTDB ###" + stdout)
 
-    print "******************** BLAST DB for %s generated ********************\n" % code_name
+    sys.stdout.write("******************** BLAST DB for %s generated ********************\n" % code_name)
 
     os.rename(fasta_replaced_align, fasta_mltree)
 
@@ -667,7 +751,7 @@ def main():
 
     os.rename(code_name + ".hmm", final_output_folder + os.sep + code_name + ".hmm")
 
-    print "******************** HMM file for %s generated ********************\n" % code_name
+    sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
 
     phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
     os.system(phylip_command)
