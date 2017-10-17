@@ -14,16 +14,19 @@ static PyObject *lowest_common_ancestor(PyObject *self, PyObject *args);
 char *get_node_relationships(char *tree_string);
 char *split_tree_string(char *tree_string);
 
-static char module_docstring[] =
-        "This module provides an interface for parsing Newick formatted trees using C from within MLTreeMap";
 static char read_the_reference_tree_docstring[] =
         "Reads the labelled_tree_file and reformats it for downstream interpretation";
-static char get_parents_and_children_docstring[] = 
+static char get_parents_and_children_docstring[] =
         "Stores the input tree as a binary search tree before recursively finding the children and parent of each node";
 static char build_subtrees_newick_docstring[] =
         "Reads the labelled, rooted tree and returns all subtrees in the tree";
 static char lowest_common_ancestor_docstring[] =
         "Calculate lowest common ancestor for a set of nodes in a tree";
+
+//static PyMethodDef module_methods[] = {
+//    {"error_out", (PyCFunction)error_out, METH_NOARGS, NULL},
+//    {NULL, NULL}
+//};
 
 static PyMethodDef module_methods[] = {
         {"_read_the_reference_tree",
@@ -45,11 +48,17 @@ static PyMethodDef module_methods[] = {
         {NULL, NULL, 0, NULL}
 };
 
-PyMODINIT_FUNC init_tree_parser(void) {
-    PyObject *m = Py_InitModule3("_tree_parser", module_methods, module_docstring);
-    if (m == NULL)
-        return;
-}
+struct module_state {
+    PyObject *error;
+};
+
+#if PY_MAJOR_VERSION >= 3
+#define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
+#else
+#define GETSTATE(m) (&_state)
+static struct module_state _state;
+#endif
+
 
 /**
   A tree node
@@ -746,4 +755,63 @@ static PyObject *build_subtrees_newick(PyObject *self, PyObject *args) {
     deleteList(linked_list);
 
     return Py_BuildValue("s", subtrees);
+}
+
+
+#if PY_MAJOR_VERSION >= 3
+
+static int module_traverse(PyObject *m, visitproc visit, void *arg) {
+    Py_VISIT(GETSTATE(m)->error);
+    return 0;
+}
+
+static int module_clear(PyObject *m) {
+    Py_CLEAR(GETSTATE(m)->error);
+    return 0;
+}
+
+static struct PyModuleDef module_def = {
+    PyModuleDef_HEAD_INIT,
+    "_tree_parser",     /* m_name */
+    "This module provides an interface for parsing Newick formatted trees using C from within TreeSAPP",  /* m_doc */
+    sizeof(struct module_state),                  /* m_size */
+    module_methods,    /* m_methods */
+    NULL,                /* m_reload */
+    module_traverse,                /* m_traverse */
+    module_clear,                /* m_clear */
+    NULL,                /* m_free */
+};
+
+#define INITERROR return NULL
+
+PyMODINIT_FUNC PyInit__tree_parser(void)
+
+#else
+#define INITERROR return
+
+PyMODINIT_FUNC
+init_tree_parser(void)
+#endif
+{
+#if PY_MAJOR_VERSION >= 3
+    PyObject *m = PyModule_Create(&module_def);
+#else
+    static char module_docstring[] =
+        "This module provides an interface for parsing Newick formatted trees using C from within TreeSAPP";
+    PyObject *m = Py_InitModule3("_tree_parser", module_methods, module_docstring);
+#endif
+
+    if (m == NULL)
+        INITERROR;
+    struct module_state *st = GETSTATE(m);
+
+    st->error = PyErr_NewException("_tree_parser.Error", NULL, NULL);
+    if (st->error == NULL) {
+        Py_DECREF(m);
+        INITERROR;
+    }
+
+#if PY_MAJOR_VERSION >= 3
+    return m;
+#endif
 }

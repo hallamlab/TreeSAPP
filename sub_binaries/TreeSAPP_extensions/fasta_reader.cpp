@@ -8,12 +8,6 @@
 
 #include "fasta_reader.hpp"
 
-PyMODINIT_FUNC init_fasta_reader(void) {
-    PyObject *m = Py_InitModule3("_fasta_reader", module_methods, module_docstring);
-    if (m == NULL)
-        return;
-}
-
 Fasta::Fasta(char * input, char * output_dir, char * molecule_type) {
     fasta_list = PyList_New(0);
     sequence_buffer.clear();

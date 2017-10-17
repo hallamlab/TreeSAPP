@@ -2,7 +2,7 @@ from distutils.core import setup, Extension
 
 setup(name='TreeSAPP_extend',
       version='0.1',
-      description='Newick tree parsing utilities for TreeSAPP',
+      description='Parsing utilities for TreeSAPP',
       author='Connor Morgan-Lang',
       author_email='c.morganlang@gmail.com',
       ext_modules=[Extension("_tree_parser", ["sub_binaries/TreeSAPP_extensions/tree_parsermodule.cpp"]),

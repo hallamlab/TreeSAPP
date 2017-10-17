@@ -1,4 +1,3 @@
-#!/usr/bin/python
 
 __author__ = "Connor Morgan-Lang and Kishori Konwar"
 __maintainer__ = "Connor Morgan-Lang"
@@ -24,7 +23,6 @@ try:
     from os import path
     from os import listdir
     from os.path import isfile, join
-    from itertools import izip
     from time import gmtime, strftime
     from json import loads, load, dumps
 
@@ -1083,7 +1081,7 @@ def calculate_overlap(info):
     check_end = info['check']['end']
 
     # Calculate the overlap based on the relative positioning of the base and check sequences
-    assert isinstance(base_end, (int, long, float, complex))
+    assert isinstance(base_end, (int, int, float, complex))
     if base_start <= check_start:
         if check_end >= base_end >= check_start:
             # Base     ----
@@ -1231,12 +1229,20 @@ def format_read_fasta(args):
     """
     sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
     sys.stdout.flush()
+    if sys.version_info > (2, 9):
+        py_version = 3
+    else:
+        py_version = 2
+        from itertools import izip
 
     fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.gblocks, args.output, args.molecule)
     if not fasta_list:
         sys.exit()
     tmp_iterable = iter(fasta_list)
-    formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
+    if py_version == 2:
+        formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
+    if py_version == 3:
+        formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
 
     sys.stdout.write("done.\n")
     if args.verbose:
@@ -2230,6 +2236,10 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
 
 def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, cog_list):
+    if args.py_version == 3:
+        izip = zip
+    else:
+        from itertools import izip
     # TODO: It doesn't need to return anything; OR this function could return the contig_rrna_coordinates instead of writing files
     """
     rRNA does not get translated into protein. Regardless, we want to take the
@@ -2911,11 +2921,26 @@ def pparse_raxml_out_trees(labelled_trees, args):
             sys.exit()
         raxml_tree_dict[f_contig] = [rooted_labelled_trees, insertion_point_node_hash]
 
+    def no_tree_handler(error):
+        sys.stderr.write("ERROR: ")
+        sys.stderr.flush()
+        print(error)
+        print("-->{}\n<--".format(error.__cause__))
+        pool.terminate()
+        sys.exit(5)
+
     for f_contig in labelled_trees:
         tree_file = labelled_trees[f_contig]
-        pool.apply_async(func=read_understand_and_reroot_the_labelled_tree,
-                         args=(tree_file, f_contig, ),
-                         callback=log_tree)
+        if args.py_version == 3:
+            pool.apply_async(func=read_understand_and_reroot_the_labelled_tree,
+                             args=(tree_file, f_contig, ),
+                             callback=log_tree,
+                             error_callback=no_tree_handler)
+        else:
+            pool.apply_async(func=read_understand_and_reroot_the_labelled_tree,
+                             args=(tree_file, f_contig, ),
+                             callback=log_tree)
+
     pool.close()
     pool.join()
     return raxml_tree_dict
@@ -3049,7 +3074,7 @@ def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_trans
                     parse_log.write("Retrieving the labelled tree " + labelled_tree_file + "... ")
                     parse_log.flush()
                     if f_contig not in raxml_tree_dict.keys():
-                        sys.exit("ERROR: " + f_contig + " is not found in not in raxml_tree_dict.keys():"
+                        sys.exit("ERROR: " + f_contig + " was not found in raxml_tree_dict.keys():"
                                                         " \n" + str(raxml_tree_dict.keys()))
                     rooted_labelled_trees, insertion_point_node_hash = raxml_tree_dict[f_contig]
 
@@ -3215,7 +3240,8 @@ def read_and_understand_the_reference_tree(reference_tree_file, denominator):
     reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
     reference_tree_assignments = _tree_parser._get_parents_and_children(reference_tree_elements)
     if reference_tree_assignments == "$":
-        print "Poison pill received from", denominator
+        sys.stderr.write("Poison pill received from " + denominator + "\n")
+        sys.stderr.flush()
         return denominator, None
     else:
         reference_tree_info, terminal_children_of_reference = deconvolute_assignments(reference_tree_assignments)
@@ -3237,7 +3263,8 @@ def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
     # Using the C++ _tree_parser extension:
     labelled_tree_assignments = _tree_parser._get_parents_and_children(labelled_tree_elements)
     if labelled_tree_assignments == "$":
-        print "Poison pill received from", f_contig
+        sys.stderr.write("Poison pill received from " + f_contig + "\n")
+        sys.stderr.flush()
         return [f_contig, None, insertion_point_node_hash]
     else:
         labelled_tree_info, terminal_children_of_labelled_tree = deconvolute_assignments(labelled_tree_assignments)
@@ -3310,31 +3337,35 @@ def read_the_raxml_out_tree(labelled_tree_file):
     tree_string = re.sub('\[', 'Q', tree_string)
 
     # Remove the branch lengths
-    tree_string = re.sub(":[.0-9]+Q", 'Q', tree_string)
+    try:
+        tree_string = re.sub(":[.0-9]+Q", 'Q', tree_string)
+    except AssertionError:
+        raise AssertionError("Unable to remove branch lengths!")
 
     while re.search(r'((\D(\d+))QI(\d+)])', tree_string):
         to_be_replaced = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(1)
         replacement = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(2)
         terminal_leaf = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(3)
         insertion_point = re.search(r'((\D(\d+))QI(\d+)])', tree_string).group(4)
-        if terminal_leaf <= 0:
-            sys.exit('ERROR: Your tree has terminal leaves with numbers <= 0. Please change them to positive values!\n')
+        if int(terminal_leaf) <= 0:
+            sys.stderr.write("ERROR: Your tree has terminal leaves with numbers <= 0. "
+                             "Please change them to positive values!\n")
+            sys.stderr.flush()
+            sys.exit(-1)
         insertion_point_node_hash[insertion_point] = terminal_leaf
         tree_string = re.sub(to_be_replaced, replacement, tree_string)
     count = -2
-
     while re.search(r'QI(\d+)]', tree_string):
         insertion_point_node_hash[re.search(r'QI(\d+)]', tree_string).group(1)] = count
         tree_string = re.sub(r'QI(\d+)]', str(count), tree_string, 1)
         count += -1
-    
+
     tree_string = re.sub('L', '(', tree_string)
     tree_string = re.sub('R', ')', tree_string)
     tree_string = re.sub('Q', '[', tree_string)
     # Remove these lines when using the C++ extension:
     # tree_elements = split_tree_string(tree_string)
     # return tree_elements, insertion_point_node_hash
-
     return tree_string, insertion_point_node_hash
 
 
@@ -3975,7 +4006,8 @@ def execute_gblocks(args, aligned_fasta):
     gblock_command = args.executables["Gblocks"] + \
         "%s -t=p -s=y -u=n -p=t -b3=15 -b4=3 -b5=h -b2=%s" % (aligned_fasta, min_flank_pos)
 
-    print gblock_command, "\n"
+    sys.stderr.write(gblock_command + "\n")
+    sys.stderr.flush()
 
     os.system(gblock_command)
 
@@ -4408,7 +4440,10 @@ def jplace_parser(filename):
         jplace_dat = load(jplace, encoding="utf-8")
         itol_datum.tree = jplace_dat["tree"]
         # A list of strings
-        itol_datum.fields = [x.decode("utf-8") for x in jplace_dat["fields"]]
+        if sys.version_info > (2, 9):
+            itol_datum.fields = jplace_dat["fields"]
+        else:
+            itol_datum.fields = [x.decode("utf-8") for x in jplace_dat["fields"]]
         itol_datum.version = jplace_dat["version"]
         itol_datum.metadata = jplace_dat["metadata"]
         # A list of dictionaries of where the key is a string and the value is a list of lists
