@@ -17,9 +17,9 @@ try:
     from time import gmtime, strftime
     from urllib import error
     from treesapp import os_type, is_exe, which, format_read_fasta
-except ImportWarning:
-    sys.stderr.write("Could not load some user defined module functions")
-    sys.stderr.write(traceback.print_exc(10))
+except ImportError:
+    sys.stderr.write("Could not load some user defined module functions:\n")
+    sys.stderr.write(str(traceback.print_exc(10)))
     sys.exit(3)
 
 
@@ -206,7 +206,7 @@ def read_uc(uc_file):
     cluster_dict = dict()
     try:
         uc = open(uc_file, 'r')
-    except:
+    except IOError:
         raise IOError("Unable to open " + uc_file + " for reading! Exiting...")
 
     line = uc.readline()
@@ -319,7 +319,7 @@ def get_header_format(header, code_name):
     pdb_re = re.compile(">pdb\|(.*)\|(.*)$")
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
-    fungene_re = re.compile("^>([A-Z0-9.]+)\s+coded_by=(.+),organism=(.+),definition=(.+)$")
+    fungene_re = re.compile("^>([A-Z0-9.]+)[_]+coded_by=(.+)_organism=(.+)_definition=(.+)$")
     # TODO: Find the description field for the mltree_re
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
     silva_arb_re = re.compile("^>([A-Z0-9]+.[0-9]+.[0-9]+)_(.*)$")
@@ -343,7 +343,8 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
     :return: fasta_replace_dict with a complete ReferenceSequence() value for every mltree_id key
     """
 
-    sys.stdout.write("******************** Generating information for formatting purposes ********************" + "\n")
+    sys.stdout.write("Extracting information from headers for formatting purposes... ")
+    sys.stdout.flush()
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     mltree_id_accumulator = 1
     swapped_headers = []
@@ -409,6 +410,9 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
                     sys.stdout.write(header + "\n")
             sys.exit()
 
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
     return fasta_replace_dict
 
 
@@ -424,7 +428,7 @@ def get_lineage(prot_accession):
     if float(Bio.__version__) < 1.68:
         # This is required due to a bug in earlier versions returning a URLError
         raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
-                             str(Bio.__version__) + "is currently installed. Exiting now...")
+                             str(Bio.__version__) + " is currently installed. Exiting now...")
     Entrez.email = "c.morganlang@gmail.com"
     # Test the internet connection:
     try:
@@ -465,6 +469,9 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list):
     :return:
     """
     # TODO: flesh out get_lineage to return the full lineage from root to leaf and write as last column
+    sys.stdout.write("Retrieving lineage information for each reference sequence... ")
+    sys.stdout.flush()
+
     tree_tax_list_handle = open(tree_taxa_list, "w")
     for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
         lineage = get_lineage(fasta_replace_dict[mltree_id_key].accession)
@@ -494,6 +501,10 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list):
                                                           fasta_replace_dict[mltree_id_key].accession,
                                                           lineage))
     tree_tax_list_handle.close()
+
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
     return
 
 
@@ -506,7 +517,7 @@ def read_tax_ids(tree_taxa_list):
     """
     try:
         tree_tax_list_handle = open(tree_taxa_list, 'r')
-    except:
+    except IOError:
         raise IOError("Unable to open " + tree_taxa_list + " for reading! Exiting.")
     fasta_replace_dict = dict()
     line = tree_tax_list_handle.readline()
@@ -648,10 +659,16 @@ def main():
         fasta_dict = format_read_fasta(args)
 
     if args.uc and os.path.exists(tree_taxa_list):
-        use_previous_names = input(tree_taxa_list + " found from a previous attempt. "
+        if sys.version_info > (2, 9):
+            use_previous_names = input(tree_taxa_list + " found from a previous attempt. "
                                                         "Should it be used for this run? [y|n] ")
-        while use_previous_names != "y" and use_previous_names != "n":
-            use_previous_names = input("Incorrect response. Please input either 'y' or 'n'. ")
+            while use_previous_names != "y" and use_previous_names != "n":
+                use_previous_names = input("Incorrect response. Please input either 'y' or 'n'. ")
+        else:
+            use_previous_names = raw_input(tree_taxa_list + " found from a previous attempt. "
+                                                            "Should it be used for this run? [y|n] ")
+            while use_previous_names != "y" and use_previous_names != "n":
+                use_previous_names = raw_input("Incorrect response. Please input either 'y' or 'n'. ")
     else:
         use_previous_names = 'n'
 
