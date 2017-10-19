@@ -77,8 +77,8 @@ int Fasta::record_header( string line ) {
 
     // Because RAxML can only work with file names having length <= 125,
     // Ensure that the sequence name length is <= 100
-    if (line.length() > 100)
-        new_header = line.substr(0,100);
+    if (line.length() > 110)
+        new_header = line.substr(0,110);
     else
         new_header = line;
     ret = header_base.insert(new_header);

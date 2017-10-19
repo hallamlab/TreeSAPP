@@ -268,8 +268,8 @@ def reformat_headers(header_dict):
     swappers = dict()
 
     def reformat_string(string):
-        if len(string) > 100:
-            string = string[0:100]
+        if len(string) > 110:
+            string = string[0:110]
 
         string = re.sub("\s|\(|\)|;", '_', string)
         return string
@@ -319,7 +319,7 @@ def get_header_format(header, code_name):
     pdb_re = re.compile(">pdb\|(.*)\|(.*)$")
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
-    fungene_re = re.compile("^>([A-Z0-9.]+)[_]+coded_by=(.+)_organism=(.+)_definition=(.+)$")
+    fungene_re = re.compile("^>([A-Z0-9.]+)[_]+coded_by=(.+)[_]+organism=(.+)[_]+definition=(.+)$")
     # TODO: Find the description field for the mltree_re
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
     silva_arb_re = re.compile("^>([A-Z0-9]+.[0-9]+.[0-9]+)_(.*)$")
@@ -695,7 +695,7 @@ def main():
         write_tax_ids(fasta_replace_dict, tree_taxa_list)
 
     sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
-    
+    sys.exit()
     fasta_replaced_file = code_name + ".fc.repl.fasta"
     fasta_mltree = code_name + ".fa"
 
