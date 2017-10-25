@@ -432,9 +432,7 @@ class ItolJplace:
     """
     A class to hold all data relevant to a jplace file to be viewed in iTOL
     """
-    placements = list()
     fields = list()
-    node_map = dict()
 
     def __init__(self):
         # Sequence name (from FASTA header)
@@ -445,10 +443,14 @@ class ItolJplace:
         self.tree = ""
         self.metadata = ""
         self.version = ""
-        # List of all child leaves identified by RAxML.
+        # List of lineages for each child identified by RAxML.
         self.lineage_list = list()
+        # The LCA taxonomy derived from lineage_list
+        self.lct = ""
         # Either the number of times that sequence was observed, or the FPKM of that sequence
-        self.abundance = float(1.0)
+        self.abundance = None
+        self.node_map = dict()
+        self.placements = list()
 
     def summarize(self):
         """
@@ -460,13 +462,11 @@ class ItolJplace:
         sys.stderr.write(str(len(self.placements)) + " " + self.name + " sequences grafted. ")
         # sys.stderr.write("Reference tree:\n")
         # sys.stderr.write(self.tree + "\n")
+        sys.stderr.write("\nFields:\n\t" + str(self.fields) + "\n")
         sys.stderr.write(self.contig_name + "\n")
         sys.stderr.write("Placement information:\n")
         for pquery in self.placements:
-            if sys.version_info > (2, 9):
-                placement = pquery
-            else:
-                placement = loads(pquery, encoding="utf-8")
+            placement = loads(pquery, encoding="utf-8")
             for k, v in placement.items():
                 if k == 'p':
                     sys.stderr.write('\t' + str(v) + "\n")
@@ -475,7 +475,14 @@ class ItolJplace:
             for lineage in self.lineage_list:
                 sys.stderr.write('\t' + str(lineage) + "\n")
         else:
-            sys.stderr.write("None.\n")
+            sys.stderr.write("\tNone.\n")
+        sys.stderr.write("Lowest common taxonomy:\n")
+        if self.lct:
+            sys.stderr.write("\t" + str(self.lct) + "\n")
+        else:
+            sys.stderr.write("\tNone.\n")
+        if self.abundance:
+            sys.stderr.write("Abundance:\n\t" + str(self.abundance) + "\n")
         sys.stderr.write("\n")
         sys.stderr.flush()
         return
@@ -489,11 +496,14 @@ class ItolJplace:
         new_placement_collection = []  # a list of dictionary-like strings
         placement_string = ""  # e.g. {"p":[[226, -31067.028237, 0.999987, 0.012003, 2e-06]], "n":["query"]}
         for d_place in self.placements:
-            dict_strings = list()  # e.g. "n":["query"]
-            for k, v in d_place.items():
-                dict_strings.append(dumps(k) + ':' + dumps(v))
-                placement_string = ', '.join(dict_strings)
-            new_placement_collection.append('{' + placement_string + '}')
+            if type(d_place) != str:
+                dict_strings = list()  # e.g. "n":["query"]
+                for k, v in d_place.items():
+                    dict_strings.append(dumps(k) + ':' + dumps(v))
+                    placement_string = ', '.join(dict_strings)
+                new_placement_collection.append('{' + placement_string + '}')
+            else:
+                new_placement_collection.append(d_place)
         self.placements = new_placement_collection
 
         self.fields = [dumps(x) for x in self.fields]
@@ -552,6 +562,20 @@ class ItolJplace:
         self.placements = new_placement_collection
         return
 
+    def sum_rpkms_per_node(self, leaf_rpkm_sums):
+        for pquery in self.placements:
+            placement = loads(pquery, encoding="utf-8")
+            for k, v in placement.items():
+                if k == 'p':
+                    for locus in v:
+                        jplace_node = locus[0]
+                        tree_leaves = self.node_map[jplace_node]
+                        for tree_leaf in tree_leaves:
+                            if tree_leaf not in leaf_rpkm_sums.keys():
+                                leaf_rpkm_sums[tree_leaf] = 0.0
+                            leaf_rpkm_sums[tree_leaf] += self.abundance
+        return leaf_rpkm_sums
+
     def filter_max_weight_placement(self):
         """
         Removes all secondary placements of each pquery,
@@ -567,7 +591,7 @@ class ItolJplace:
                 x += 1
         if x == len(self.fields):
             sys.stderr.write("Unable to find \"like_weight_ratio\" in the jplace string!\n")
-            sys.stderr.write("WARNING: Skipping filtering with `filter_min_weight_threshold`\n")
+            sys.stderr.write("WARNING: Skipping filtering with `filter_max_weight_placement`\n")
             return
 
         # Filter the placements
@@ -604,6 +628,7 @@ class ItolJplace:
         :return:
         """
         no_length_tree = re.sub(":[0-9.]+{", ":{", self.tree)
+        self.node_map.clear()
         node_stack = list()
         leaf_stack = list()
         x = 0
@@ -666,6 +691,19 @@ class ItolJplace:
         self.placements = singular_placements
         return
 
+    def clear_object(self):
+        placements = list()
+        fields = list()
+        node_map = dict()
+        self.contig_name = ""
+        self.name = ""
+        self.tree = ""
+        self.metadata = ""
+        self.version = ""
+        self.lineage_list = list()
+        self.lct = ""
+        self.abundance = None
+
 
 class TreeProtein(ItolJplace):
     """
@@ -697,11 +735,18 @@ class TreeLeafReference:
     Objects for each leaf in a tree
     """
     def __init__(self, number, description):
-        self.tree = ""
+        # self.tree = ""
         self.number = number
         self.description = description
         self.lineage = ""
         self.complete = False
+
+    def summarize_tree_leaf(self):
+        # sys.stderr.write("Tree:\n\t" + str(self.tree) + "\n")
+        sys.stderr.write("Leaf ID:\n\t" + str(self.number) + "\n")
+        sys.stderr.write("Description:\n\t" + str(self.description) + "\n")
+        if self.complete:
+            sys.stderr.write("Lineage:\n\t" + str(self.lineage) + "\n")
 
 
 # Classes end
@@ -4526,14 +4571,15 @@ def jplace_parser(filename):
         # Since
         itol_datum.placements = jplace_dat["placements"]
 
+    jplace_dat.clear()
+
     return itol_datum
 
 
-def write_jplace(args, itol_datum, jplace_file):
+def write_jplace(itol_datum, jplace_file):
     """
     A hacky function for writing jplace files with concatenated placements
      which are also compatible with iTOL's jplace parser
-    :param args:
     :param itol_datum: A ItolJplace class object
     :param jplace_file: 
     :return: 
@@ -4546,8 +4592,6 @@ def write_jplace(args, itol_datum, jplace_file):
     itol_datum.correct_decoding()
     # itol_datum.filter_min_weight_threshold(0.3)
     itol_datum.filter_max_weight_placement()
-
-    # itol_datum.summarize()
 
     # Begin writing elements to the jplace file
     jplace_out.write('{\n\t"tree": "')
@@ -4660,27 +4704,12 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
         for tree_sap in tree_protein_list:
             rpkm_values[tree_sap.contig_name] = 1.0
 
-    for contig in rpkm_values:
-        for tree_sap in tree_protein_list:
-            if tree_sap.contig_name == contig:
-                abundance = rpkm_values[contig]
-                tree_sap.abundance = abundance
-                tree_sap.correct_decoding()
-                tree_sap.filter_max_weight_placement()
-                tree_sap.create_jplace_node_map()
-                for pquery in tree_sap.placements:
-                    placement = loads(pquery, encoding="utf-8")
-                    for k, v in placement.items():
-                        if k == 'p':
-                            for locus in v:
-                                jplace_node = locus[0]
-                                tree_leaves = tree_sap.node_map[jplace_node]
-                                for tree_leaf in tree_leaves:
-                                    if tree_leaf not in leaf_rpkm_sums.keys():
-                                        leaf_rpkm_sums[tree_leaf] = 0.0
-                                    leaf_rpkm_sums[tree_leaf] += abundance
-            else:
-                pass
+    for tree_sap in tree_protein_list:
+        if tree_sap.contig_name in rpkm_values:
+            tree_sap.abundance = rpkm_values[tree_sap.contig_name]
+        else:
+            tree_sap.abundance = 0
+        leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
 
     try:
         itol_rpkm_out = open(itol_fpkm_file, 'w')
@@ -4702,14 +4731,131 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
     return tree_protein_list
 
 
-def write_tabular_output(args):
+def children_lineage(leaves, pquery, node_map):
+    """
+    From the jplace placement field ()
+    :param leaves:
+    :param pquery:
+    :param node_map:
+    :return:
+    """
+    children = list()
+    placement = loads(pquery, encoding="utf-8")
+    loci = placement['p']
+    for locus in loci:
+        jplace_node = locus[0]
+        tree_leaves = node_map[jplace_node]
+        for tree_leaf in tree_leaves:
+            # ref_leaf is a TreeLeafReference object
+            for ref_leaf in leaves:
+                if ref_leaf.number == tree_leaf:
+                    if ref_leaf.complete:
+                        children.append(ref_leaf.lineage)
+                    else:
+                        children.append(ref_leaf.description)
+    return children
+
+
+def lowest_common_taxonomy(children, lineage_complete):
+    """
+    Input is a list >= 2, potentially either a leaf string or NCBI lineage
+    :param children: List of all leaves for this sequence
+    :param lineage_complete: Boolean indicating whether lineage information is present for this reference
+    :return:
+    """
+    lineage_string = ""
+    lineages_considered = list()
+    if not lineage_complete:
+        lineage_string = "Lowest common ancestor of: "
+        lineage_string += ', '.join(children)
+    else:
+        # Actually have lineage information
+        max_ranks = 0
+        for child in children:
+            ranks = child.split("; ")
+            num_ranks = len(ranks)
+            if num_ranks > 3:
+                lineages_considered.append(ranks)
+            if num_ranks > max_ranks:
+                max_ranks = num_ranks
+        if len(lineages_considered) == 0:
+            sys.stderr.write("WARNING: all lineages were highly incomplete for ")
+        else:
+            hits = set()
+            consensus = ""
+            i = 0
+            while i < max_ranks:
+                hits.clear()
+                lineages_used = 0
+                for ranks in lineages_considered:
+                    if len(ranks) > i + 1:
+                        hits.add(ranks[i])
+                        lineages_used += 1
+                print("Hits considered: " + ','.join(hits))
+                # Want to ensure at least 50% of the children are having consensus input
+                if len(hits) == 1 and lineages_used >= float(len(lineages_considered)/2):
+                    consensus = str(hits.pop())
+                elif len(hits) > 1:
+                    i = max_ranks
+                i += 1
+                lineage_string = consensus
+
+    return lineage_string
+
+
+def write_tabular_output(args, tree_saps, tree_numbers_translation):
     """
     Fields:
-    Marker,Taxonomy,Abundance,Queries
+    Marker,Taxonomy,Query,Abundance
     :param args:
+    :param tree_saps: A dictionary containing TreeProtein objects
+    :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :return:
     """
     # TODO: Complete function to write a tabular file representing TreeSAPP assignments
+    mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
+    tab_out_string = "Marker\tTaxonomy\tQuery\tAbundance\n"
+    try:
+        tab_out = open(mapping_output, 'w')
+    except IOError:
+        sys.stderr.write(traceback.print_exc(10))
+        raise IOError("Unable to open " + mapping_output + " for writing! Exiting.")
+
+    for denominator in tree_saps:
+        # All the leaves for that tree [number, translation, lineage]
+        leaves = tree_numbers_translation[denominator]
+        lineage_complete = False
+        # Test if the reference set have lineage information
+        for leaf in leaves:
+            if leaf.complete:
+                lineage_complete = True
+                break
+
+        for tree_sap in tree_saps[denominator]:
+            if len(tree_sap.placements) > 1:
+                sys.stderr.write("WARNING: More than one placements for a single contig!\n")
+                sys.stderr.flush()
+                tree_sap.summarize()
+            tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
+            if len(tree_sap.lineage_list) == 0:
+                sys.stderr.write("ERROR: unable to find lineage information for marker " +
+                                 denominator + ", contig " + tree_sap.contig_name + "!\n")
+                sys.stderr.flush()
+            if len(tree_sap.lineage_list) == 1:
+                tree_sap.lct = tree_sap.lineage_list[0]
+            if len(tree_sap.lineage_list) > 1:
+                tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lineage_complete)
+                if not tree_sap.lct:
+                    sys.stderr.write(str(tree_sap.contig_name) + "\n")
+
+            # tree_sap.summarize()
+            tab_out_string += '\t'.join([tree_sap.name, 
+                                         tree_sap.lct, 
+                                         tree_sap.contig_name,
+                                         str(tree_sap.abundance)]) + "\n"
+    tab_out.write(tab_out_string)
+    tab_out.close()
+
     return
 
 
@@ -4753,6 +4899,8 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
                         break
             else:
                 marker_map[denominator] = "nr"
+
+        if denominator not in tree_saps:
             tree_saps[denominator] = list()
 
         marker = marker_map[denominator]
@@ -4771,17 +4919,23 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
                 jplace_dat = load(jplace, encoding="utf-8")
                 itol_data[marker].placements = itol_data[marker].placements + jplace_dat["placements"]
 
+        query_obj.correct_decoding()
+        query_obj.filter_max_weight_placement()
+        query_obj.create_jplace_node_map()
+        tree_saps[denominator].append(query_obj)
+
         if not os.path.exists(itol_base_dir + marker):
             os.mkdir(itol_base_dir + marker)
 
         # os.remove(filename)
-        tree_saps[denominator].append(query_obj)
 
-    for denominator in marker_map:
+    # Now that all the JPlace files have been loaded, generate the abundance stats for each marker
+    for denominator in tree_saps:
         marker = marker_map[denominator]
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + os.sep + marker + os.sep + marker + "_complete_profile.jplace"
-        write_jplace(args, itol_data[marker], master_jplace)
+        write_jplace(itol_data[marker], master_jplace)
+        itol_data[marker].clear_object()
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(args, marker)
         # Copy the respective colours and styles files for each marker found to the itol_output directories
@@ -4797,16 +4951,13 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
         except IOError:
             sys.stderr.write("WARNING: a colour_strip.txt file does not yet exist for marker " + marker + "\n")
             sys.stderr.flush()
-        # TODO: Create a simplebar file even if the RPKM file doesn't exist
 
-        tree_saps[denominator] = generate_simplebar(args,
-                                                    rpkm_output_file,
-                                                    marker,
-                                                    tree_saps[denominator])
-        # for tree_sap in tree_saps[denominator]:
-        #     tree_sap.summarize()
+        generate_simplebar(args,
+                           rpkm_output_file,
+                           marker,
+                           tree_saps[denominator])
 
-    return
+    return tree_saps
 
 
 def main(argv):
@@ -4871,7 +5022,6 @@ def main(argv):
         raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_raxml(args, phy_files,
                                                                                          cog_list, models_to_be_used)
         tree_numbers_translation = read_species_translation_files(args, cog_list)
-        # TODO: Make more OO by introducing class
         final_raxml_output_files = parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
                                                       raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
         concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
@@ -4880,10 +5030,11 @@ def main(argv):
         sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
         rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
         normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type)
-        produce_itol_inputs(args, cog_list, rpkm_output_file)
+        tree_saps = produce_itol_inputs(args, cog_list, rpkm_output_file)
     else:
-        produce_itol_inputs(args, cog_list)
-    write_tabular_output(args)
+        tree_saps = produce_itol_inputs(args, cog_list)
+
+    write_tabular_output(args, tree_saps, tree_numbers_translation)
     delete_files(args, 4)
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
