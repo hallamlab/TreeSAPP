@@ -28,15 +28,18 @@ class ReferenceSequence:
         self.accession = ""
         self.description = ""
         self.organism = ""
+        self.lineage = ""
         self.short_id = ""
         self.sequence = ""
         self.locus = ""
 
     def get_info(self):
-        sys.stdout.write("accession = " + self.accession + "\t")
-        sys.stdout.write("locus = " + self.locus + "\t")
-        sys.stdout.write("description = " + self.description + "\t")
-        sys.stdout.write("mltree_id = " + self.short_id + "\n")
+        info_string = ""
+        info_string += "accession = " + self.accession + ", " + "mltree_id = " + self.short_id + "\n"
+        info_string += "description = " + self.description + ", " + "locus = " + self.locus + "\n"
+        info_string += "organism = " + self.organism + "\n"
+        info_string += "lineage = " + self.lineage + "\n"
+        sys.stdout.write(info_string)
         sys.stdout.flush()
 
 
@@ -270,8 +273,8 @@ def reformat_headers(header_dict):
     def reformat_string(string):
         if len(string) > 110:
             string = string[0:110]
-
-        string = re.sub("\s|\(|\)|;", '_', string)
+        string = re.sub("\[|\]|\(|\)", '', string)
+        string = re.sub("\s|;|,", '_', string)
         return string
 
     for old, new in header_dict.items():
@@ -308,7 +311,7 @@ def get_header_format(header, code_name):
     :return:
     """
     # The regular expressions with the accession and organism name grouped
-
+    # Protein databases:
     gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|\w.+\|(.*)$")
     gi_prepend_proper_re = re.compile(">gi\|([0-9]+)\|[a-z]+\|[_A-Z0-9.]+\|.*\[(.*)\]$")
     gi_prepend_mess_re = re.compile(">gi\|([0-9]+)\|pir\|\|(.*)$")
@@ -320,17 +323,28 @@ def get_header_format(header, code_name):
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)[_]+coded_by=(.+)[_]+organism=(.+)[_]+definition=(.+)$")
-    # TODO: Find the description field for the mltree_re
+
+    # Nucleotide databases:
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
-    silva_arb_re = re.compile("^>([A-Z0-9]+.[0-9]+.[0-9]+)_(.*)$")
+    silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
+    refseq_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
+    nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
-    header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re,
-                            fungene_re, mltree_re, gi_prepend_proper_re, gi_prepend_mess_re, gi_re, silva_arb_re]
-    for regex in header_format_regexi:
+    header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re, fungene_re, mltree_re,
+                            gi_prepend_proper_re, gi_prepend_mess_re, gi_re, silva_arb_re, refseq_re, nr_re]
+    header_format_dbs = ["dbj", "emb", "gb", "pdb", "pir", "ref", "sp", "fungene",
+                         "mltree", "gi_proper", "gi_mess", "gi_re", "silva", "refseq", "nr"]
+
+    if len(header_format_dbs) != len(header_format_regexi):
+        raise AssertionError("ERROR: len(header_format_dbs) != len(header_format_regexi)\n")
+    i = 0
+    while i < len(header_format_regexi):
+        regex = header_format_regexi[i]
         if regex.match(header):
-            return regex
+            return regex, header_format_dbs[i]
+        i += 1
 
-    return None
+    return None, None
 
 
 def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
@@ -381,7 +395,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
             if swappers and header in swappers.keys():
                 header = swappers[header]
                 swapped_headers.append(header)
-            header_format_re = get_header_format(header, code_name)
+            header_format_re, header_db = get_header_format(header, code_name)
             if header_format_re is None:
                 raise AssertionError("Unable to parse header: " + header)
             sequence_info = header_format_re.match(header)
@@ -389,8 +403,12 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
                 if len(sequence_info.groups()) == 2:
                     ref_seq.accession = sequence_info.group(1)
                     ref_seq.description = sequence_info.group(2)
-                elif len(sequence_info.groups()) == 4:
-                    # From FunGenes
+                elif header_db == "silva":
+                    ref_seq.accession = sequence_info.group(1)
+                    ref_seq.locus = str(sequence_info.group(2)) + '-' + str(sequence_info.group(3))
+                    ref_seq.organism = sequence_info.group(4)
+                    ref_seq.description = sequence_info.group(4)
+                elif header_db == "fungene":
                     ref_seq.accession = sequence_info.group(1)
                     ref_seq.locus = sequence_info.group(2)
                     ref_seq.organism = re.sub(pattern="_", repl=" ", string=sequence_info.group(3))
@@ -404,7 +422,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
 
             mltree_id_accumulator += 1
         if swappers and len(swapped_headers) != len(swappers):
-            sys.stderr.write("ERROR: Some headers that were meant to be replaced could not be compared!\n")
+            sys.stderr.write("\nERROR: Some headers that were meant to be replaced could not be compared!\n")
             for header in swappers.keys():
                 if header not in swapped_headers:
                     sys.stdout.write(header + "\n")
@@ -416,10 +434,28 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
     return fasta_replace_dict
 
 
-def get_lineage(prot_accession):
+def query_entrez_taxonomy(search_term):
+    handle = Entrez.esearch(db="Taxonomy",
+                            term=search_term,
+                            retmode="xml")
+    record = Entrez.read(handle)
+    try:
+        org_id = record["IdList"][0]
+        handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
+        records = Entrez.read(handle)
+        lineage = str(records[0]["Lineage"])
+    except IndexError:
+        lineage = dict()
+        lineage['QueryTranslation'] = record['QueryTranslation']
+
+    return lineage
+
+
+def get_lineage(search_term, molecule_type):
     """
     Used to return the NCBI taxonomic lineage of the sequence
-    :param: prot_accession: The NCBI accession for the Protein database
+    :param: search_term: The NCBI search_term
+    :param: molecule_type: "dna", "rrna", "prot", or "tax - parsed from command line arguments
     :return: string representing the taxonomic lineage
     """
     # TODO: fix potential error PermissionError:
@@ -436,69 +472,95 @@ def get_lineage(prot_accession):
     except error.URLError:
         raise AssertionError("ERROR: Unable to serve Entrez query. Are you connected to the internet?")
 
-    # Find the organism name from the accession ID
-    handle = Entrez.efetch(db="protein", id=str(prot_accession), retmode="xml")
+    # Determine which database to search using the `molecule_type`
+    if molecule_type == "dna" or molecule_type == "rrna":
+        database = "nucleotide"
+    elif molecule_type == "prot":
+        database = "protein"
+    elif molecule_type == "tax":
+        database = "Taxonomy"
+    else:
+        sys.stderr.write("Welp. We're not sure how but the molecule type is not recognized!\n")
+        sys.stderr.write("Please create an issue on the GitHub page.")
+        sys.exit(8)
 
-    try:
-        record = Entrez.read(handle)
-    except UnboundLocalError:
-        raise UnboundLocalError
-
+    # Find the lineage from the search_term ID
     lineage = ""
-    if len(record) >= 1:
-        if "GBSeq_organism" in record[0]:
-            organism = record[0]["GBSeq_organism"]
-            handle = Entrez.esearch(db="Taxonomy", term=organism, retmode="xml")
+    if database in ["nucleotide", "protein"]:
+        handle = Entrez.efetch(db=database, id=str(search_term), retmode="xml")
+        try:
             record = Entrez.read(handle)
-            org_id = record["IdList"][0]
-            handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
-            records = Entrez.read(handle)
-            lineage = records[0]["Lineage"]
+        except UnboundLocalError:
+            raise UnboundLocalError
+
+        if len(record) >= 1:
+            try:
+                if "GBSeq_organism" in record[0]:
+                    organism = record[0]["GBSeq_organism"]
+                    lineage = query_entrez_taxonomy(organism)
+            except IndexError:
+                lineage = dict()
+                lineage['QueryTranslation'] = record['QueryTranslation']
         else:
-            sys.stderr.write("WARNING: Unable to use 'GBSeq_organism' for " + str(prot_accession) + "\n")
-            sys.stderr.flush()
+            # Lineage is already set to "". Just return and move on to the next attempt
+            pass
+    else:
+        try:
+            lineage = query_entrez_taxonomy(search_term)
+        except UnboundLocalError:
+            sys.stderr.write("WARNING: Unable to find Entrez taxonomy using organism name:\n\t")
+            sys.stderr.write(search_term + "\n")
 
     return lineage
 
 
-def write_tax_ids(fasta_replace_dict, tree_taxa_list):
+def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
     """
     Write the number, organism and accession ID, if possible
     :param fasta_replace_dict:
     :param tree_taxa_list: The name of the output file
+    :param molecule: "dna", "rrna", or "prot" - parsed from command line arguments
     :return:
     """
-    # TODO: flesh out get_lineage to return the full lineage from root to leaf and write as last column
     sys.stdout.write("Retrieving lineage information for each reference sequence... ")
     sys.stdout.flush()
 
     tree_tax_list_handle = open(tree_taxa_list, "w")
     for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
-        lineage = get_lineage(fasta_replace_dict[mltree_id_key].accession)
+        reference_sequence = fasta_replace_dict[mltree_id_key]
+        lineage = ""
+        strikes = 0
+        while strikes < 3:
+            if strikes == 0:
+                lineage = get_lineage(reference_sequence.accession, molecule)
+                if type(lineage) is str:
+                    # The query was successful
+                    strikes = 3
+            elif strikes == 1:
+                # Unable to determine lineage from the search_term provided,
+                # try to parse organism name from description
+                if reference_sequence.organism:
+                    lineage = get_lineage(reference_sequence.organism.split('_')[-2], "tax")
+                    if type(lineage) is str:
+                        # The query was successful
+                        lineage += '; ' + reference_sequence.organism.split('_')[-2]
+                        strikes = 3
+                # else:
+                #     # Organism information is not available, time to bail
+                #     strikes += 1
+            elif strikes == 2:
+                lineage = get_lineage(lineage, "tax")
+            if type(lineage) is dict:
+                # If 'QueryTranslation' is returned, use it for the final Entrez query
+                lineage = lineage['QueryTranslation'].split(' ')[0]
+                lineage = re.sub("\[All Names\]", '', lineage)
+            strikes += 1
         if not lineage:
-            # Unable to determine lineage from the accession provided,
-            # try to parse organism name from description
-            if fasta_replace_dict[mltree_id_key].organism:
-                try:
-                    handle = Entrez.esearch(db="Taxonomy",
-                                            term=fasta_replace_dict[mltree_id_key].organism,
-                                            retmode="xml")
-                    record = Entrez.read(handle)
-                    print("Backup record:", record)
-                    org_id = record["IdList"][0]
-                    handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
-                    records = Entrez.read(handle)
-                    lineage = records[0]["Lineage"]
-                except UnboundLocalError:
-                    lineage = ""
-            else:
-                lineage = ""
-        if lineage == "":
-            sys.stderr.write("WARNING: Unable to find lineage for sequence with following data:\n")
+            sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")
             fasta_replace_dict[mltree_id_key].get_info()
         tree_tax_list_handle.write("%s\t%s | %s\t%s\n" % (mltree_id_key,
-                                                          fasta_replace_dict[mltree_id_key].description,
-                                                          fasta_replace_dict[mltree_id_key].accession,
+                                                          reference_sequence.description,
+                                                          reference_sequence.accession,
                                                           lineage))
     tree_tax_list_handle.close()
 
@@ -522,10 +584,16 @@ def read_tax_ids(tree_taxa_list):
     fasta_replace_dict = dict()
     line = tree_tax_list_handle.readline()
     while line:
-        mltree_id_key, seq_info = line.strip().split("\t")
+        fields = line.strip().split("\t")
+        if len(fields) == 3:
+            mltree_id_key, seq_info, lineage = fields
+        else:
+            mltree_id_key, seq_info = fields
+            lineage = ""
         ref_seq = ReferenceSequence()
         ref_seq.description = seq_info.split(" | ")[0]
         ref_seq.accession = seq_info.split(" | ")[1]
+        ref_seq.lineage = lineage
         fasta_replace_dict[mltree_id_key] = ref_seq
         line = tree_tax_list_handle.readline()
     tree_tax_list_handle.close()
@@ -683,7 +751,7 @@ def main():
             swappers = present_cluster_rep_options(cluster_dict)
             swappers = reformat_headers(swappers)
             fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers)
-            write_tax_ids(fasta_replace_dict, tree_taxa_list)
+            write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
         if use_previous_names == 'y':
             fasta_replace_dict = read_tax_ids(tree_taxa_list)
             if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
@@ -692,10 +760,10 @@ def main():
     else:
         # args.uc is None and use_previous_names == 'n'
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict)
-        write_tax_ids(fasta_replace_dict, tree_taxa_list)
+        write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
 
     sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
-    sys.exit()
+
     fasta_replaced_file = code_name + ".fc.repl.fasta"
     fasta_mltree = code_name + ".fa"
 
@@ -703,8 +771,6 @@ def main():
         create_new_fasta(fasta_replaced_file, fasta_replace_dict, True)
     else:
         create_new_fasta(fasta_replaced_file, fasta_replace_dict)
-
-    sys.stdout.write("************************** FASTA file, " + fasta_replaced_file + " generated *************************\n")
 
     sys.stdout.write("Aligning the sequences using MUSCLE... ")
 
@@ -823,7 +889,10 @@ def main():
 
     swap_tree_names(tree_to_swap, final_mltree, code_name)
 
-    os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
+    if args.molecule == "prot":
+        os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
+    if args.molecule == "rrna" or args.molecule == "dna":
+        os.system("mv %s.fa %s.fa.n* %s" % (code_name, code_name, final_output_folder))
     os.system("mv %s %s %s" % (tree_taxa_list, final_mltree, final_output_folder))
 
     annotate_partition_tree(code_name, fasta_replace_dict, raxml_out + os.sep + "RAxML_bipartitions." + code_name)

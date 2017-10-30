@@ -55,13 +55,37 @@ Fasta::~Fasta() {
 char replace_operators(char it) {
     if (it == ' ' || it == '\t')
         it = '_';
-    if (it == '(' || it == ')')
-        it = '_';
+//    if (it == '(' || it == ')')
+//        it = '_';
     if (it == ',' || it == '|')
         it = '_';
     if (it == ';')
         it = '_';
     return it;
+}
+
+string erase_characters(string str, const char* targets) {
+    string purified;
+    bool match;
+    int i;
+    std::size_t k;
+    int j = 0;
+    // Get the size of targets
+    while (targets[j])
+        j++;
+    for (k = 0; k<str.length(); ++k) {
+        i = 0;
+        match = false;
+        while ( i < j ) {
+            if (str[k] == targets[i])
+                match = true;
+            i++;
+        }
+        if (!match)
+            purified += str[k];
+    }
+
+    return purified;
 }
 
 int Fasta::record_header( string line ) {
@@ -73,6 +97,7 @@ int Fasta::record_header( string line ) {
     string new_header;
 
     // Replace whitespace characters and other ASCII operators with underscores
+    line = erase_characters(line, "()[]");
     transform(line.begin(), line.end(), line.begin(), replace_operators);
 
     // Because RAxML can only work with file names having length <= 125,
