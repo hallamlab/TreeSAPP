@@ -3914,16 +3914,20 @@ def read_species_translation_files(args, cog_list):
         for line in cog_tax_ids:
             line = line.strip()
             try:
-                fields = line.split('\t')
+                fields = line.split("\t")
             except ValueError:
-                sys.exit('ValueError: .split(\'\\t\') on ' + str(line))
+                sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
+                                 " generated " + str(len(line.split("\t"))) + " fields.")
+                sys.exit(9)
             if len(fields) == 2:
                 number, translation = fields
                 lineage = ""
             elif len(fields) == 3:
                 number, translation, lineage = fields
             else:
-                raise ValueError('ValueError: .split(\'\\t\') on ' + str(line))
+                sys.stderr.write("ValueError: Unexpected number of fields in " + filename +
+                                 ".\nInvoked .split(\'\\t\') on line " + str(line))
+                raise ValueError
             leaf = TreeLeafReference(number, translation)
             if lineage:
                 leaf.lineage = lineage
@@ -4635,9 +4639,19 @@ def create_itol_labels(args, marker):
     for line in tax_ids:
         line = line.strip()
         try:
-            number, translation = line.split('\t')
+            fields = line.split("\t")
         except ValueError:
-            sys.exit('ValueError: .split(\'\\t\') on ' + str(line))
+            sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
+                             " generated " + str(len(line.split("\t"))) + " fields.")
+            sys.exit(9)
+        if len(fields) == 2:
+            number, translation = fields
+        elif len(fields) == 3:
+            number, translation, lineage = fields
+        else:
+            sys.stderr.write("ValueError: Unexpected number of fields in " + tax_ids_file +
+                             ".\nInvoked .split(\'\\t\') on line " + str(line))
+            raise ValueError
         label_f.write(number + ',' + translation + "\n")
 
     tax_ids.close()
@@ -4773,6 +4787,7 @@ def lowest_common_taxonomy(children, lineage_complete):
         max_ranks = 0
         for child in children:
             ranks = child.split("; ")
+            print("Ranks: ", ranks)
             num_ranks = len(ranks)
             if num_ranks > 3:
                 lineages_considered.append(ranks)
@@ -4781,24 +4796,41 @@ def lowest_common_taxonomy(children, lineage_complete):
         if len(lineages_considered) == 0:
             sys.stderr.write("WARNING: all lineages were highly incomplete for ")
         else:
-            hits = set()
-            consensus = ""
+            taxonomic_rank_depth = {0: "cellular organisms", 1: "Kingdom",
+                                    2: "Phylum", 3: "Class", 4: "Order",
+                                    5: "Family", 6: "Genus", 7: "Species"}
+            hits = dict()
+            consensus = list()
             i = 0
             while i < max_ranks:
                 hits.clear()
                 lineages_used = 0
+                elected = False
                 for ranks in lineages_considered:
+                    # If the ranks of this hit has not been exhausted (i.e. if it has a depth of 4 and max_ranks >= 5)
                     if len(ranks) > i + 1:
-                        hits.add(ranks[i])
+                        if ranks[i] not in hits.keys():
+                            hits[ranks[i]] = 0
+                        hits[ranks[i]] += 1
                         lineages_used += 1
-                print("Hits considered: " + ','.join(hits))
+                # LCA*:
+                # TODO: Integrate RAxML's likelihood weight ratio so the consensus requires majority likelihood
+                # for taxonomy in hits.keys():
+                #     if hits[taxonomy] >= float(len(lineages_considered)/2):
+                #         consensus.append(str(taxonomy))
+                #         elected = True
+
+                # LCA:
                 # Want to ensure at least 50% of the children are having consensus input
-                if len(hits) == 1 and lineages_used >= float(len(lineages_considered)/2):
-                    consensus = str(hits.pop())
-                elif len(hits) > 1:
+                if len(hits.keys()) == 1 and lineages_used >= float(len(lineages_considered)/2):
+                    consensus.append(list(hits.keys())[0])
+                    elected = True
+
+                # If there is no longer a consensus, break the loop
+                if not elected:
                     i = max_ranks
                 i += 1
-                lineage_string = consensus
+            lineage_string = "; ".join(consensus)
 
     return lineage_string
 
@@ -4832,6 +4864,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation):
                 break
 
         for tree_sap in tree_saps[denominator]:
+            print(tree_sap.contig_name)
             if len(tree_sap.placements) > 1:
                 sys.stderr.write("WARNING: More than one placements for a single contig!\n")
                 sys.stderr.flush()
