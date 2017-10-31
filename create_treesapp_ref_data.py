@@ -184,8 +184,7 @@ def create_new_fasta(out_fasta, ref_seq_dict, dashes=False):
         else:
             # sequence = re.sub('\.', '', ref_seq.sequence)
             sequence = ref_seq.sequence
-        out_fasta_handle.write(">" + ref_seq.short_id + "\n")
-        out_fasta_handle.write(sequence + "\n")
+        out_fasta_handle.write(">" + ref_seq.short_id + "\n" + sequence + "\n")
         num_seqs_written += 1
 
     out_fasta_handle.close()
@@ -353,7 +352,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
     :param code_name: code_name from the command-line parameters
     :param fasta_dict: a dictionary with headers as keys and sequences as values (returned by format_read_fasta)
     :param fasta_replace_dict:
-    :param swappers:
+    :param swappers: Either the dictionary containing representative clusters (keys) and their constituents (values)
     :return: fasta_replace_dict with a complete ReferenceSequence() value for every mltree_id key
     """
 
@@ -698,6 +697,9 @@ def reverse_complement(rrna_sequence):
             comp.append('A')
         if c == 'C' or c == 'c':
             comp.append('G')
+        # In the case input FASTA is a multiple alignment file
+        if c == '.' or c == '-':
+            comp.append(c)
         else:
             pass
     rev_comp = ''.join(reversed(comp))
@@ -753,6 +755,7 @@ def main():
             fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers)
             write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
         if use_previous_names == 'y':
+            # TODO: Debug this - not working properly with --multiple_alignment and -m dna
             fasta_replace_dict = read_tax_ids(tree_taxa_list)
             if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
                 raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
@@ -772,9 +775,8 @@ def main():
     else:
         create_new_fasta(fasta_replaced_file, fasta_replace_dict)
 
-    sys.stdout.write("Aligning the sequences using MUSCLE... ")
-
     if args.multiple_alignment is False:
+        sys.stdout.write("Aligning the sequences using MUSCLE... ")
         fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
 
         muscle_align_command = [args.executables["muscle"]]
@@ -787,10 +789,9 @@ def main():
             sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["muscle"] +
                              " did not complete successfully! Command used:\n" + ' '.join(muscle_align_command) + "\n")
             sys.exit()
+        sys.stdout.write("done.\n")
     else:
         fasta_replaced_align = fasta_replaced_file
-
-    sys.stdout.write("done.\n")
 
     remove_dashes_from_msa(fasta_replaced_file, fasta_mltree)
 
