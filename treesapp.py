@@ -509,11 +509,10 @@ class ItolJplace:
         self.fields = [dumps(x) for x in self.fields]
         return
 
-    def filter_min_weight_threshold(self, threshold=0.5):
+    def get_lwr_position_from_jplace_fields(self):
         """
-        Remove all placements with likelihood weight ratios less than threshold
-        :param threshold: The threshold which all placements with LWRs less than this are removed
-        :return:
+        Find the position in self.fields of 'like_weight_ratio'
+        :return: position in self.fields of 'like_weight_ratio'
         """
         x = 0
         # Find the position of like_weight_ratio in the placements from fields descriptor
@@ -525,6 +524,19 @@ class ItolJplace:
         if x == len(self.fields):
             sys.stderr.write("Unable to find \"like_weight_ratio\" in the jplace string!\n")
             sys.stderr.write("WARNING: Skipping filtering with `filter_min_weight_threshold`\n")
+            return None
+        return x
+
+    def filter_min_weight_threshold(self, threshold=0.3):
+        """
+        Remove all placements with likelihood weight ratios less than threshold
+        :param threshold: The threshold which all placements with LWRs less than this are removed
+        :return:
+        """
+        unclassified = 0
+        # Find the position of like_weight_ratio in the placements from fields descriptor
+        x = self.get_lwr_position_from_jplace_fields()
+        if not x:
             return
         # Filter the placements
         new_placement_collection = list()
@@ -536,7 +548,7 @@ class ItolJplace:
                 for k, v in placement.items():
                     if k == 'p':
                         # For debugging:
-                        sys.stderr.write(str(v) + "\nRemoved:\n")
+                        # sys.stderr.write(str(v) + "\nRemoved:\n")
                         acc = 0
                         tmp_placements = copy.deepcopy(v)
                         while acc < len(tmp_placements):
@@ -544,23 +556,24 @@ class ItolJplace:
                             if float(candidate[x]) < threshold:
                                 removed = tmp_placements.pop(acc)
                                 # For debugging:
-                                sys.stderr.write("\t".join([self.name, str(removed[0]), str(float(removed[x]))]) + "\n")
+                                # sys.stderr.write("\t".join([self.name, str(removed[0]), str(float(removed[x]))]) + "\n")
                             else:
                                 acc += 1
                             sys.stderr.flush()
-                        # If no sequences met the filter, the first two will be returned and used for LCA
-                        if len(tmp_placements) == 0:
-                            v = v[0:2]
-                        else:
+                        # If no placements met the likelihood filter then the sequence cannot be classified
+                        # Alternatively: first two will be returned and used for LCA - can test...
+                        if len(tmp_placements) > 0:
                             v = tmp_placements
-                    dict_strings.append(dumps(k) + ':' + dumps(v))
-                    placement_string = ', '.join(dict_strings)
+                            dict_strings.append(dumps(k) + ':' + dumps(v))
+                            placement_string = ', '.join(dict_strings)
+                        else:
+                            unclassified += 1
                 # Add the filtered placements back to the object.placements
                 new_placement_collection.append('{' + placement_string + '}')
             else:
                 new_placement_collection.append(pquery)
         self.placements = new_placement_collection
-        return
+        return unclassified
 
     def sum_rpkms_per_node(self, leaf_rpkm_sums):
         for pquery in self.placements:
@@ -673,18 +686,21 @@ class ItolJplace:
             self.name = "COGrRNA"
         reference_tree_file = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
         reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
+        lwr_pos = self.get_lwr_position_from_jplace_fields()
         singular_placements = list()
         for pquery in self.placements:
             placement = loads(pquery, encoding="utf-8")
             dict_strings = list()
             for k, v in placement.items():
                 if len(v) > 1:
+                    lwr_sum = 0
                     loci = list()
                     for locus in v:
-                        loci.append(str(locus[0]))
+                        lwr_sum += float(locus[lwr_pos])
+                        loci.append(str(self.node_map[locus[0]][0]))
                     ancestral_node = _tree_parser._lowest_common_ancestor(reference_tree_elements, ','.join(loci))
                     # Create a placement from the ancestor, and the first locus in loci fields
-                    v = [[ancestral_node, v[0][1], 1.0, 0, 0]]
+                    v = [[ancestral_node, v[0][1], round(lwr_sum, 2), 0, 0]]
                 dict_strings.append(dumps(k) + ':' + dumps(v))
             singular_placements.append('{' + ','.join(dict_strings) + '}')
 
@@ -4787,7 +4803,6 @@ def lowest_common_taxonomy(children, lineage_complete):
         max_ranks = 0
         for child in children:
             ranks = child.split("; ")
-            print("Ranks: ", ranks)
             num_ranks = len(ranks)
             if num_ranks > 3:
                 lineages_considered.append(ranks)
@@ -4844,7 +4859,6 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation):
     :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :return:
     """
-    # TODO: Complete function to write a tabular file representing TreeSAPP assignments
     mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
     tab_out_string = "Marker\tTaxonomy\tQuery\tAbundance\n"
     try:
@@ -4857,6 +4871,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation):
         # All the leaves for that tree [number, translation, lineage]
         leaves = tree_numbers_translation[denominator]
         lineage_complete = False
+        unclassified = 0
         # Test if the reference set have lineage information
         for leaf in leaves:
             if leaf.complete:
@@ -4864,28 +4879,33 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation):
                 break
 
         for tree_sap in tree_saps[denominator]:
-            print(tree_sap.contig_name)
             if len(tree_sap.placements) > 1:
                 sys.stderr.write("WARNING: More than one placements for a single contig!\n")
                 sys.stderr.flush()
                 tree_sap.summarize()
-            tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
-            if len(tree_sap.lineage_list) == 0:
-                sys.stderr.write("ERROR: unable to find lineage information for marker " +
-                                 denominator + ", contig " + tree_sap.contig_name + "!\n")
-                sys.stderr.flush()
-            if len(tree_sap.lineage_list) == 1:
-                tree_sap.lct = tree_sap.lineage_list[0]
-            if len(tree_sap.lineage_list) > 1:
-                tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lineage_complete)
-                if not tree_sap.lct:
-                    sys.stderr.write(str(tree_sap.contig_name) + "\n")
+            if tree_sap.placements[0] == '{}':
+                unclassified += 1
+            else:
+                tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
+                if len(tree_sap.lineage_list) == 0:
+                    sys.stderr.write("ERROR: unable to find lineage information for marker " +
+                                     denominator + ", contig " + tree_sap.contig_name + "!\n")
+                    sys.stderr.flush()
+                if len(tree_sap.lineage_list) == 1:
+                    tree_sap.lct = tree_sap.lineage_list[0]
+                if len(tree_sap.lineage_list) > 1:
+                    tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lineage_complete)
+                    if not tree_sap.lct:
+                        sys.stderr.write(str(tree_sap.contig_name) + "\n")
 
-            # tree_sap.summarize()
-            tab_out_string += '\t'.join([tree_sap.name, 
-                                         tree_sap.lct, 
-                                         tree_sap.contig_name,
-                                         str(tree_sap.abundance)]) + "\n"
+                # tree_sap.summarize()
+                tab_out_string += '\t'.join([tree_sap.name,
+                                             tree_sap.lct,
+                                             tree_sap.contig_name,
+                                             str(tree_sap.abundance)]) + "\n"
+        if args.verbose:
+            sys.stdout.write("\t" + str(unclassified) + " " + denominator + " sequences were not classified.\n")
+            sys.stdout.flush()
     tab_out.write(tab_out_string)
     tab_out.close()
 
@@ -4953,8 +4973,15 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
                 itol_data[marker].placements = itol_data[marker].placements + jplace_dat["placements"]
 
         query_obj.correct_decoding()
-        query_obj.filter_max_weight_placement()
+        # query_obj.filter_max_weight_placement()
+        unclassified = query_obj.filter_min_weight_threshold(0.1)
+
+        if unclassified > 0 and args.verbose:
+            sys.stderr.write("WARNING: " + query_obj.contig_name + " initially " + marker +
+                             " has been unclassified due to low likelihood weights\n")
+            sys.stderr.flush()
         query_obj.create_jplace_node_map()
+        query_obj.harmonize_placements(args.treesapp)
         tree_saps[denominator].append(query_obj)
 
         if not os.path.exists(itol_base_dir + marker):
