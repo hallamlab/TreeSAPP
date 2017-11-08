@@ -612,26 +612,27 @@ class ItolJplace:
         placement_string = ""
         for pquery in self.placements:
             placement = loads(pquery, encoding="utf-8")
-            dict_strings = list()
-            max_lwr = 0
-            if len(placement["p"]) > 1:
-                for k, v in placement.items():
-                    if k == 'p':
-                        acc = 0
-                        tmp_placements = copy.deepcopy(v)
-                        while acc < len(tmp_placements):
-                            candidate = tmp_placements[acc]
-                            if float(candidate[x]) > max_lwr:
-                                v = [tmp_placements.pop(acc)]
-                                max_lwr = candidate[x]
-                            else:
-                                acc += 1
-                    dict_strings.append(dumps(k) + ':' + dumps(v))
-                    placement_string = ', '.join(dict_strings)
-                # Add the filtered placements back to the object.placements
-                new_placement_collection.append('{' + placement_string + '}')
-            else:
-                new_placement_collection.append(pquery)
+            if placement:
+                dict_strings = list()
+                max_lwr = 0
+                if len(placement["p"]) > 1:
+                    for k, v in placement.items():
+                        if k == 'p':
+                            acc = 0
+                            tmp_placements = copy.deepcopy(v)
+                            while acc < len(tmp_placements):
+                                candidate = tmp_placements[acc]
+                                if float(candidate[x]) > max_lwr:
+                                    v = [tmp_placements.pop(acc)]
+                                    max_lwr = candidate[x]
+                                else:
+                                    acc += 1
+                        dict_strings.append(dumps(k) + ':' + dumps(v))
+                        placement_string = ', '.join(dict_strings)
+                    # Add the filtered placements back to the object.placements
+                    new_placement_collection.append('{' + placement_string + '}')
+                else:
+                    new_placement_collection.append(pquery)
         self.placements = new_placement_collection
         return
 
@@ -831,6 +832,12 @@ def get_options():
                              ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
     parser.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna'],
                         help='the type of input sequences (prot = Protein; dna = Nucleotide [DEFAULT])')
+    parser.add_argument("-l", "--min_likelihood", default=0.4, type=float,
+                        help="The minimum likelihood weight ratio required for a RAxML placement. "
+                             "[DEFAULT = 0.4]")
+    parser.add_argument("-P", "--placement_parser", default="best", type=str, choices=["best", "lca"],
+                        help="Algorithm used for parsing each sequence's potential RAxML placements. "
+                             "[DEFAULT = 'best']")
 
     rpkm_opts = parser.add_argument_group('RPKM options')
     rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
@@ -4883,7 +4890,9 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation):
                 sys.stderr.write("WARNING: More than one placements for a single contig!\n")
                 sys.stderr.flush()
                 tree_sap.summarize()
-            if tree_sap.placements[0] == '{}':
+            if not tree_sap.placements:
+                unclassified += 1
+            elif tree_sap.placements[0] == '{}':
                 unclassified += 1
             else:
                 tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
@@ -4973,15 +4982,17 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
                 itol_data[marker].placements = itol_data[marker].placements + jplace_dat["placements"]
 
         query_obj.correct_decoding()
-        # query_obj.filter_max_weight_placement()
-        unclassified = query_obj.filter_min_weight_threshold(0.1)
+        unclassified = query_obj.filter_min_weight_threshold(args.min_likelihood)
 
         if unclassified > 0 and args.verbose:
             sys.stderr.write("WARNING: " + query_obj.contig_name + " initially " + marker +
                              " has been unclassified due to low likelihood weights\n")
             sys.stderr.flush()
         query_obj.create_jplace_node_map()
-        query_obj.harmonize_placements(args.treesapp)
+        if args.placement_parser == "best":
+            query_obj.filter_max_weight_placement()
+        else:
+            query_obj.harmonize_placements(args.treesapp)
         tree_saps[denominator].append(query_obj)
 
         if not os.path.exists(itol_base_dir + marker):
