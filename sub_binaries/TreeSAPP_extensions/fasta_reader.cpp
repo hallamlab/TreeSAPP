@@ -88,7 +88,7 @@ string erase_characters(string str, const char* targets) {
     return purified;
 }
 
-int Fasta::record_header( string line ) {
+int Fasta::record_header( string line, std::size_t max_header_length) {
     /*
     * Function for inserting a header into the fasta_list
     * record_header additionally checks for duplicate headers and appends "_" + occurrence
@@ -101,9 +101,9 @@ int Fasta::record_header( string line ) {
     transform(line.begin(), line.end(), line.begin(), replace_operators);
 
     // Because RAxML can only work with file names having length <= 125,
-    // Ensure that the sequence name length is <= 100
-    if (line.length() > 110)
-        new_header = line.substr(0,109);
+    // Ensure that the sequence name length is <= 110
+    if (line.length() > max_header_length)
+        new_header = line.substr(0,max_header_length-1);
     else
         new_header = line;
     ret = header_base.insert(new_header);
@@ -204,7 +204,7 @@ int Fasta::record_sequence() {
         return 0;
 }
 
-int Fasta::parse_fasta(int min_length) {
+int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
     string line;
     std::string header;
     int status;
@@ -234,11 +234,11 @@ int Fasta::parse_fasta(int min_length) {
                     if (status == 2) {
                         sprintf(write_buffer, " %s\n", header.c_str());
                         parse_log->write(write_buffer, 2+header.length());
-                        record_header(header);
+                        record_header(header, max_header_length);
                         PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
                     }
                     else if (status < 2) {
-                        record_header(header);
+                        record_header(header, max_header_length);
                         PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
                     }
                 }
@@ -264,11 +264,11 @@ int Fasta::parse_fasta(int min_length) {
         if (status == 2) {
             sprintf(write_buffer, " %s\n", header.c_str());
             parse_log->write(write_buffer, 2+header.length());
-            record_header(header);
+            record_header(header, max_header_length);
             PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
         }
         else if (status < 2) {
-            record_header(header);
+            record_header(header, max_header_length);
             PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
         }
     }
@@ -289,8 +289,9 @@ static PyObject *read_format_fasta(PyObject *self, PyObject *args) {
     char * fasta_file;
     char * output_dir;
     int min_length;
+    std::size_t max_header_length;
     char * molecule;
-    if (!PyArg_ParseTuple(args, "siss", &fasta_file, &min_length, &output_dir, &molecule)) {
+    if (!PyArg_ParseTuple(args, "sissi", &fasta_file, &min_length, &output_dir, &molecule, &max_header_length)) {
         return NULL;
     }
     /*
@@ -299,7 +300,7 @@ static PyObject *read_format_fasta(PyObject *self, PyObject *args) {
     * Check for duplicate headers by looking through a sorted list. If duplicate found, append _N and insert
     */
     Fasta fasta_object(fasta_file, output_dir, molecule);
-    int return_status = fasta_object.parse_fasta(min_length);
+    int return_status = fasta_object.parse_fasta(min_length, max_header_length);
     if (return_status > 0)
         fasta_object.fasta_list = PyList_New(0);
     if (return_status == 1)

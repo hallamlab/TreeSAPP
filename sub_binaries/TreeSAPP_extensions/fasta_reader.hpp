@@ -102,7 +102,7 @@ PyMODINIT_FUNC init_fasta_reader(void)
 
 class Fasta {
 protected:
-    int record_header( std::string );
+    int record_header( std::string, std::size_t );
     int record_sequence();
 
 public:
@@ -128,7 +128,7 @@ public:
     ofstream *parse_log;
 
     // Class functions
-    int parse_fasta(int min_length);
+    int parse_fasta(int min_length, std::size_t max_header_length);
 //    int find_longest_contig();
 //    int writeNx(std::string output, bool verbose);
 };

@@ -1347,10 +1347,11 @@ def find_novel_refs(ref_candidate_alignments, aa_dictionary):
     return new_refs
 
 
-def format_read_fasta(args):
+def format_read_fasta(args, max_header_length=110):
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid.
     :param args: Command-line argument object from get_options and check_parser_arguments
+    :param max_header_length: The length of the header string before all characters after this length are removed
     :return A Python dictionary with headers as keys and sequences as values
     """
     sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
@@ -1361,7 +1362,11 @@ def format_read_fasta(args):
         py_version = 2
         from itertools import izip
 
-    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.gblocks, args.output, args.molecule)
+    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input,
+                                                  args.gblocks,
+                                                  args.output,
+                                                  args.molecule,
+                                                  max_header_length)
     if not fasta_list:
         sys.exit()
     tmp_iterable = iter(fasta_list)
