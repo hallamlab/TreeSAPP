@@ -765,6 +765,18 @@ class TreeLeafReference:
         if self.complete:
             sys.stderr.write("Lineage:\n\t" + str(self.lineage) + "\n")
 
+    class MarkerInfo:
+        """
+        Class serves to store information pertaining to each COG in data/tree_data/cog_list.tsv
+        """
+
+        def __init__(self, marker, denominator, description):
+            self.marker = marker
+            self.denominator = denominator  # alphanumeric unique ID, R0016 for example
+            self.marker_class = ""  # phylogenetic rRNA
+            self.num_reference_seqs = 0
+            self.description = description
+            self.analysis_type = ""
 
 # Classes end
 
@@ -888,7 +900,7 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign"]
+    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "mafft"]
 
     if args.rpkm:
         dependencies += ["bwa", "rpkm"]
@@ -1157,11 +1169,6 @@ def create_cog_list(args):
                              " not found in " + cog_list_file + "! Please use a valid reference tree ID!")
             sys.stderr.flush()
             sys.exit()
-    # elif args.reftree in ['i', 'g', 'p'] and args.update_tree:
-    #     sys.stderr.write("ERROR: Unable to update all reference trees at the same time! "
-    #                      "Please specify the reference tree to update with the '--reftree' argument and retry.\n")
-    #     sys.stderr.flush()
-    #     sys.exit()
 
     return cog_list, text_of_analysis_type
 
@@ -1347,25 +1354,26 @@ def find_novel_refs(ref_candidate_alignments, aa_dictionary):
     return new_refs
 
 
-def format_read_fasta(args, max_header_length=110):
+def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid.
+    :param fasta_input: Absolute path of the FASTA file to be read
+    :param molecule: Molecule type of the sequences [
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param max_header_length: The length of the header string before all characters after this length are removed
     :return A Python dictionary with headers as keys and sequences as values
     """
-    sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
-    sys.stdout.flush()
+
     if sys.version_info > (2, 9):
         py_version = 3
     else:
         py_version = 2
         from itertools import izip
 
-    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input,
+    fasta_list = _fasta_reader._read_format_fasta(fasta_input,
                                                   args.gblocks,
                                                   args.output,
-                                                  args.molecule,
+                                                  molecule,
                                                   max_header_length)
     if not fasta_list:
         sys.exit()
@@ -1374,10 +1382,6 @@ def format_read_fasta(args, max_header_length=110):
         formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
     if py_version == 3:
         formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
-
-    sys.stdout.write("done.\n")
-    if args.verbose:
-        sys.stdout.write("\tAnalyzing " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
 
     return formatted_fasta_dict
 
@@ -1492,7 +1496,7 @@ def run_blast(args, split_files, cog_list):
         if args.molecule == "dna":
             blastx_command = args.executables["blastx"] + " " + \
                 '-query ' + split_fasta + ' ' + db_aa + ' ' + \
-                '-evalue 0.01 -max_target_seqs 20000 ' + \
+                '-evalue 0.01 -max_target_seqs 100 ' + \
                 '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
                 blastx_command += '-num_threads ' + str(int(args.num_threads)) + ' '
@@ -1502,7 +1506,7 @@ def run_blast(args, split_files, cog_list):
 
             blastn_command = args.executables["blastn"] + " " + \
                 '-query ' + split_fasta + ' ' + db_nt + ' ' + \
-                '-evalue 0.01 -max_target_seqs 20000 ' + \
+                '-evalue 0.01 -max_target_seqs 100 ' + \
                 '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
                 blastn_command += '-num_threads ' + str(int(args.num_threads)) + ' '
@@ -1513,7 +1517,7 @@ def run_blast(args, split_files, cog_list):
         elif args.molecule == "prot":
             blastp_command = args.executables["blastp"] + " " + \
                       '-query ' + split_fasta + ' ' + db_aa + ' ' + \
-                      '-evalue 0.01 -max_target_seqs 20000 ' + \
+                      '-evalue 0.01 -max_target_seqs 100 ' + \
                       '-dbsize 1000000 -outfmt 6 '
             if args.num_threads:
                 blastp_command += '-num_threads ' + str(int(args.num_threads)) + ' '
@@ -2419,7 +2423,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
                 sys.exit(0)
 
     # This overwrites the original log file
-    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.gblocks, args.output, 'dna')
+    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.gblocks, args.output, 'dna', 110)
     if not fasta_list:
         sys.exit()
     tmp_iterable = iter(fasta_list)
@@ -2476,7 +2480,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
                 output_file.close()
             except IOError:
                 sys.stderr.write("ERROR: Can't create " + args.output_dir_var + contig_name + '_sequence.txt!\n')
-                sys.exit(0)
+                sys.exit(12)
 
     sys.stdout.write("done.\n")
 
@@ -2490,6 +2494,194 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
         sys.stdout.flush()
 
     return contig_rrna_coordinates, rRNA_hit_files
+
+
+def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions):
+    for f_contig in concatenated_mfa_files:
+        denominator = f_contig.split('_')[0]
+        if denominator not in ref_alignment_dimensions:
+            sys.stderr.write("ERROR: Unable to parse denominator code from " + f_contig + ".\n")
+            sys.exit(11)
+        ref_n_seqs, ref_seq_length = ref_alignment_dimensions[denominator]
+        for mfa_file in concatenated_mfa_files[f_contig]:
+            num_seqs, sequence_length = validate_multi_aligned_fasta_utility(mfa_file)
+            if num_seqs != ref_n_seqs+1:
+                raise AssertionError("Unexpected number of sequences in MSA for " + f_contig)
+            if ref_seq_length*1.5 < sequence_length:
+                sys.stderr.write("\tWARNING: multiple alignment of " + f_contig +
+                                 "\n\tcaused 150% increase in the number of columns:\n\t" +
+                                 str(ref_seq_length) + '->' + str(sequence_length) + "\n")
+    return
+
+
+def validate_multi_aligned_fasta_utility(fasta_file):
+    """
+    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+    :param fasta_file: Path of a multiple alignment in FASTA format
+    :return: tuple = (nrow, ncolumn)
+    """
+    try:
+        fasta_handler = open(fasta_file, 'r')
+    except IOError:
+        sys.stderr.write("ERROR: unable to open " + fasta_file + " for reading!\n")
+        sys.exit(13)
+    sequence = ""
+    sequence_length = 0
+    num_seqs = 0
+    line = fasta_handler.readline()
+    while line:
+        if line[0] == '>':
+            if sequence_length == 0:
+                sequence_length = len(sequence)
+            elif sequence_length != len(sequence) and sequence_length > 0:
+                sys.stderr.write("ERROR: Number of aligned columns is inconsistent in " + fasta_file + "!\n")
+                sys.exit(14)
+            sequence = ""
+            num_seqs += 1
+        else:
+            sequence += line
+        line = fasta_handler.readline()
+    fasta_handler.close()
+    return num_seqs, sequence_length
+
+
+def get_alignment_dims(args, cog_list):
+    alignment_dimensions_dict = dict()
+    alignment_data_dir = args.treesapp + os.sep + 'data' \
+                         + os.sep + args.reference_data_prefix \
+                         + 'alignment_data' + os.sep
+    try:
+        os.path.isdir(alignment_data_dir)
+    except IOError:
+        sys.stderr.write("ERROR: " + alignment_data_dir + "does not exist!")
+        sys.stderr.flush()
+        sys.exit()
+
+    for fasta in glob.glob(alignment_data_dir + "*fa"):
+        cog = os.path.basename(fasta).split('.')[0]
+        if cog in cog_list["all_cogs"].keys():
+            alignment_dimensions_dict[cog_list["all_cogs"][cog]] = (validate_multi_aligned_fasta_utility(fasta))
+    return alignment_dimensions_dict
+
+
+def multiple_alignments(args, genewise_summary_files, cog_list):
+    """
+    The most important inputs are the genewise summary files
+    :param args:
+    :param genewise_summary_files:
+    :param cog_list:
+    :return:
+    1. concatenated_mfa_files is a dictionary of contig: multi_fasta_alignments
+    (for example: {'R0016_GOUB3081.b1': './output/various_outputs/R0016_GOUB3081.b1.mfa'})
+    2. nrs_of_sequences is a dictionary of contig: number of reference sequences
+    (for example: {'R0016_GOUB3081.b1': 177})
+    3. models_to_be_used is a dictionary of contig: model to be used
+    (for example: {'R0016_GOUB3081.b1': 'GTRGAMMA'}
+    """
+    singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
+    # mfa_files = prepare_and_run_mafft(args, genewise_summary_files, cog_list)
+    non_wag_cog_list = get_non_wag_cogs(args)
+    # models_to_be_used = find_evolutionary_models(args, mfa_files, non_wag_cog_list)
+    models_to_be_used = find_evolutionary_models(args, singlehit_files, non_wag_cog_list)
+    concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)
+    return concatenated_mfa_files, models_to_be_used
+    # return mfa_files, models_to_be_used
+
+
+def find_evolutionary_models(args, singlehit_files, non_wag_cog_list):
+    models_to_be_used = dict()
+    for f_contig in sorted(singlehit_files.keys()):
+        if re.search(r'\A(.)', f_contig):
+            # An issue if there were denominators with underscores
+            denominator = f_contig.split('_')[0]
+        else:
+            sys.exit('ERROR: The analysis type could not be parsed from ' + f_contig + '!\n')
+
+        mfa_name_format = re.compile(re.escape(args.output_dir_var + os.sep + f_contig) + r"_(\w+)_\d+_\d+\.mfa$")
+
+        for alignment in sorted(singlehit_files[f_contig]):
+            # Determine the COG of the current alignment
+            if mfa_name_format.match(alignment.strip()):
+                cog = mfa_name_format.match(alignment.strip()).group(1)
+            else:
+                sys.stderr.write("ERROR: Unable to parse the COG ID from " + alignment + "\n")
+                sys.exit(12)
+            # Determine what type of gene is currently represented, or raise an error
+            if non_wag_cog_list[denominator][cog]:
+                model_to_be_used = non_wag_cog_list[denominator][cog]
+            else:
+                model_to_be_used = 'PROTGAMMAWAG'
+            models_to_be_used[f_contig] = model_to_be_used
+    return models_to_be_used
+
+
+def prepare_and_run_mafft(args, genewise_summary_files, cog_list):
+    reference_data_prefix = args.reference_data_prefix
+    treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
+    mafft_files = dict()
+    sys.stdout.write("Running MAFFT... ")
+    sys.stdout.flush()
+
+    if args.verbose:
+        start_time = time.time()
+
+    for contig in sorted(genewise_summary_files.keys()):
+
+        for genewise_summary_file in sorted(genewise_summary_files[contig].keys()):
+            try:
+                genewise_output = open(genewise_summary_file, 'r')
+            except IOError:
+                sys.stderr.write("ERROR: Can't open " + genewise_summary_file + "!\n")
+                sys.exit(0)
+
+            line = genewise_output.readline()
+            line = line.strip()
+
+            while line:
+                cog, start, end, _, sequence = line.split('\t')
+                denominator = cog_list["all_cogs"][cog]
+                f_contig = denominator + "_" + contig
+                if f_contig not in mafft_files:
+                    mafft_files[f_contig] = list()
+                genewise_singlehit_file = args.output_dir_var + os.sep + \
+                                          f_contig + '_' + cog + "_" + str(start) + "_" + str(end)
+                mafft_files[f_contig].append(genewise_singlehit_file + ".mfa")
+                genewise_singlehit_file_fa = genewise_singlehit_file + ".fa"
+                try:
+                    outfile = open(genewise_singlehit_file_fa, 'w')
+                    fprintf(outfile, '>query\n%s', sequence)
+                    outfile.close()
+                except IOError:
+                    sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
+                    sys.exit(0)
+
+                hmmalign_command = [args.executables["mafft"],
+                                    "--addfragments",
+                                    treesapp_resources + reference_data_prefix + 'alignment_data' + os.sep + cog + '.fa',
+                                    "--thread", str(args.num_threads),
+                                    "--keeplength",
+                                    "--maxiterate", str(100),
+                                    "--quiet",
+                                    genewise_singlehit_file_fa,
+                                    '>', genewise_singlehit_file + '.mfa']
+                # TODO: Run this using multiple processes
+                os.system(' '.join(hmmalign_command))
+
+                line = genewise_output.readline()
+                line = line.strip()
+
+            genewise_output.close()
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
+    if args.verbose:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tMAFFT time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+
+    return mafft_files
 
 
 def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
@@ -2587,12 +2779,11 @@ def get_non_wag_cogs(args):
     return non_wag_cog_list
 
 
-def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_list):
+def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     """
     Concatenates the hmmalign files using the provided Autovivifications of hmmalign files and non-WAG COGs.
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param hmmalign_singlehit_files:
-    :param non_wag_cog_list:
     Returns a list of the files containing the concatenated hmmalign results.
     Returns a list of the model used for each file.
     Returns a list of the number of sequences found in each file.
@@ -2600,7 +2791,6 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
 
     # For each type of gene...
     concatenated_mfa_files = {}
-    models_to_be_used = {}
     nrs_of_sequences = {}
 
     sys.stdout.write("Concatenating hmmalign files... ")
@@ -2609,17 +2799,12 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
     for f_contig in sorted(hmmalign_singlehit_files.keys()):
         # Determine what type of gene is currently represented, or raise an error
         sequences = dict()
-        model_to_be_used = ""
         query_sequence = ""
         parsing_order = dict()
         cog_rep_sequences = dict()
         acc = 0
-
-        if re.search(r'\A(.)', f_contig):
-            # An issue if there were denominators with underscores
-            denominator = f_contig.split('_')[0]
-        else:
-            sys.exit('ERROR: The analysis type could not be parsed from ' + f_contig + '!\n')
+        if f_contig not in concatenated_mfa_files:
+            concatenated_mfa_files[f_contig] = list()
 
         for hmmalign_singlehit_file in sorted(hmmalign_singlehit_files[f_contig].keys()):
             cog_len = 0
@@ -2639,10 +2824,6 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
             else:
                 sys.exit('\nERROR: The COG could not be parsed from ' + hmmalign_singlehit_file + '!\n')
 
-            if non_wag_cog_list[denominator][cog] and model_to_be_used != 'PROTGAMMAWAG':
-                model_to_be_used = non_wag_cog_list[denominator][cog]
-            else:
-                model_to_be_used = 'PROTGAMMAWAG'
             # Get sequence from file
             for _line in hmmalign_msa:
                 line = _line.strip()
@@ -2650,10 +2831,10 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
                     reached_data_part = True
                 if not reached_data_part:
                     continue
-                searchResult = re.search(r'\A(.+) (\S+)\Z', line)
-                if searchResult:
-                    name_long = searchResult.group(1)
-                    sequence_part = searchResult.group(2)
+                search_result = re.search(r'\A(.+) (\S+)\Z', line)
+                if search_result:
+                    name_long = search_result.group(1)
+                    sequence_part = search_result.group(2)
                     sequence_name = ''
                     if re.search(r'query', name_long):
                         query_sequence += sequence_part
@@ -2671,8 +2852,7 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
             parsing_order[acc] = cog, cog_len
             hmmalign_msa.close()
 
-        models_to_be_used[f_contig] = model_to_be_used
-        concatenated_mfa_files[f_contig] = args.output_dir_var + f_contig + '.mfa'
+        concatenated_mfa_files[f_contig].append(args.output_dir_var + f_contig + '.mfa')
         # Write to the output file
         try:
             output = open(args.output_dir_var + f_contig + '.mfa', 'w')
@@ -2702,10 +2882,10 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files, non_wag_cog_lis
 
     sys.stdout.write("done.\n")
 
-    return concatenated_mfa_files, nrs_of_sequences, models_to_be_used
+    return concatenated_mfa_files, nrs_of_sequences
 
 
-def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
+def start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions):
     """
     Runs Gblocks using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
 
@@ -2721,9 +2901,13 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
     gblocks_files = {}
 
     for f_contig in sorted(concatenated_mfa_files.keys()):
+        denominator = f_contig.split('_')[0]
         concatenated_mfa_file = concatenated_mfa_files[f_contig]
-        nr_of_sequences = nrs_of_sequences[f_contig]
-        min_flank_pos = int(nr_of_sequences * 0.55)
+        if len(concatenated_mfa_file) > 1:
+            sys.stderr.write("WARNING: more than a single alignment file generated for " + f_contig + "...\n")
+        concatenated_mfa_file = concatenated_mfa_file[0]
+        num_ref_sequences, align_len = ref_alignment_dimensions[denominator]
+        min_flank_pos = int((num_ref_sequences+1) * 0.55)
         gblocks_file = concatenated_mfa_file + "-gb"
         log = args.output + os.sep + "treesapp.gblocks_log.txt"
         gblocks_files[f_contig] = gblocks_file
@@ -2744,11 +2928,10 @@ def start_gblocks(args, concatenated_mfa_files, nrs_of_sequences):
         minutes, seconds = divmod(remainder, 60)
         sys.stdout.write("\tGblocks time required: " +
                          ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-
     return gblocks_files
 
 
-def produce_phy_file(args, gblocks_files, nrs_of_sequences):
+def produce_phy_file(args, gblocks_files, ref_alignment_dimensions):
     """
     Produces phy files from the provided list of Gblocks result files, and the number of sequences in each file.
 
@@ -2764,6 +2947,7 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
         do_not_continue = 0
         sequences_raw = Autovivify()
         gblocks_file = gblocks_files[f_contig]
+        denominator = f_contig.split('_')[0]
 
         try:
             input = open(gblocks_file, 'r')
@@ -2772,12 +2956,13 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
 
         for line in input:
             line = line.strip()
-            seq_name_search = re.search(r'\A>(.+)', line)
-            if seq_name_search:
-                seq_name = seq_name_search.group(1)
+            if not line:
+                continue
+            if line[0] == '>':
+                seq_name = line[1:].split('_')[0]
                 # Flag the user if the reference alignment contains the number -666, which is needed later in the code
                 if seq_name == -666:
-                    sys.exit('ERROR: Your reference alignment contains element with the number -666. ' +\
+                    sys.exit('ERROR: Your reference alignment contains element with the number -666. '
                              'Please change it, because this number is needed for internal purposes.\n')
                 if seq_name == 'query':
                     seq_name = -666
@@ -2853,7 +3038,8 @@ def produce_phy_file(args, gblocks_files, nrs_of_sequences):
             output = open(phy_file_name, 'w')
         except IOError:
             sys.exit('ERROR: Can\'t open ' + phy_file_name + '!\n')
-        nr_of_sequences = nrs_of_sequences[f_contig]
+        num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
+        nr_of_sequences = num_ref_seqs + 1
         output.write(' ' + str(nr_of_sequences) + '  ' + str(sequence_lengths[f_contig]) + '\n')
 
         for count in sorted(sequences_for_phy[f_contig].keys()):
@@ -5042,7 +5228,6 @@ def main(argv):
     args = check_parser_arguments(parser)
     args = check_previous_output(args)
     cog_list, text_of_analysis_type = create_cog_list(args)
-    non_wag_cog_list = get_non_wag_cogs(args)
     if args.check_trees:
         validate_inputs(args, cog_list)
 
@@ -5052,13 +5237,19 @@ def main(argv):
 
     if args.skip == 'n':
         # Read and format the input FASTA
-        formatted_fasta_dict = format_read_fasta(args)
+        sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
+        sys.stdout.flush()
+        formatted_fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+        sys.stdout.write("done.\n")
+        if args.verbose:
+            sys.stdout.write("\tAnalyzing " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
         if re.match(r'\A.*\/(.*)', args.fasta_input):
             input_multi_fasta = os.path.basename(args.fasta_input)
         else:
             input_multi_fasta = args.fasta_input
         args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
         formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
+        ref_alignment_dimensions = get_alignment_dims(args, cog_list)
         if args.reftree not in ['i', 'g', 'p']:
             cog_list, text_of_analysis_type = single_cog_list(args.reftree, cog_list, text_of_analysis_type)
             hmmalign_singlehit_files = single_family_msa(args, cog_list, formatted_fasta_dict)
@@ -5085,14 +5276,17 @@ def main(argv):
                 get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, cog_list)
             elif args.molecule == "prot":
                 genewise_summary_files = blastp_parser(args, blast_hits_purified)
+            else:
+                sys.exit("ERROR: `molecule` item in args has been incorrectly modified. This is issue worthy. Exiting.")
             delete_files(args, 2)
-            # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML/MP estimations
-            hmmalign_singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
-        concatenated_mfa_files, nrs_of_sequences, models_to_be_used = cat_hmmalign_singlehit_files(args,
-                                                                                                   hmmalign_singlehit_files,
-                                                                                                   non_wag_cog_list)
-        gblocks_files = start_gblocks(args, concatenated_mfa_files, nrs_of_sequences)
-        phy_files = produce_phy_file(args, gblocks_files, nrs_of_sequences)
+            # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML estimations
+        concatenated_mfa_files, models_to_be_used = multiple_alignments(args,
+                                                                        genewise_summary_files,
+                                                                        cog_list)
+        get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions)
+
+        gblocks_files = start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions)
+        phy_files = produce_phy_file(args, gblocks_files, ref_alignment_dimensions)
         delete_files(args, 3)
         # STAGE 5: Run RAxML to compute the ML/MP estimations
         raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_raxml(args, phy_files,

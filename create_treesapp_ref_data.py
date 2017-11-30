@@ -722,11 +722,11 @@ def main():
 
     if args.molecule == 'rrna':
         args.molecule = 'dna'
-        fasta_dict = format_read_fasta(args)
+        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
         for header in fasta_dict:
             fasta_dict[header] = reverse_complement(fasta_dict[header])
     else:
-        fasta_dict = format_read_fasta(args)
+        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
 
     if args.uc and os.path.exists(tree_taxa_list):
         if sys.version_info > (2, 9):
