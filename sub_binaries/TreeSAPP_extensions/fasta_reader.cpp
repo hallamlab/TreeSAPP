@@ -97,7 +97,7 @@ int Fasta::record_header( string line, std::size_t max_header_length) {
     string new_header;
 
     // Replace whitespace characters and other ASCII operators with underscores
-    line = erase_characters(line, "()[]");
+    line = erase_characters(line, "()[]/");
     transform(line.begin(), line.end(), line.begin(), replace_operators);
 
     // Because RAxML can only work with file names having length <= 125,
@@ -291,7 +291,7 @@ static PyObject *read_format_fasta(PyObject *self, PyObject *args) {
     int min_length;
     std::size_t max_header_length;
     char * molecule;
-    if (!PyArg_ParseTuple(args, "sissi", &fasta_file, &min_length, &output_dir, &molecule, &max_header_length)) {
+    if (!PyArg_ParseTuple(args, "sissn", &fasta_file, &min_length, &output_dir, &molecule, &max_header_length)) {
         return NULL;
     }
     /*

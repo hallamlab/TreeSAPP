@@ -1382,6 +1382,10 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
         formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
     if py_version == 3:
         formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
+    for header in formatted_fasta_dict.keys():
+        if len(header) > max_header_length:
+            sys.stderr.write(header, " is too long!\nThere is a bug in _read_format_fasta - please report!\n")
+            sys.exit()
 
     return formatted_fasta_dict
 
@@ -2496,7 +2500,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
     return contig_rrna_coordinates, rRNA_hit_files
 
 
-def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions):
+def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbosity):
     for f_contig in concatenated_mfa_files:
         denominator = f_contig.split('_')[0]
         if denominator not in ref_alignment_dimensions:
@@ -2507,9 +2511,9 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions):
             num_seqs, sequence_length = validate_multi_aligned_fasta_utility(mfa_file)
             if num_seqs != ref_n_seqs+1:
                 raise AssertionError("Unexpected number of sequences in MSA for " + f_contig)
-            if ref_seq_length*1.5 < sequence_length:
+            if verbosity and ref_seq_length*1.5 < sequence_length:
                 sys.stderr.write("\tWARNING: multiple alignment of " + f_contig +
-                                 "\n\tcaused 150% increase in the number of columns:\n\t" +
+                                 "\n\tcaused >150% increase in the number of columns:\n\t" +
                                  str(ref_seq_length) + '->' + str(sequence_length) + "\n")
     return
 
@@ -2578,14 +2582,14 @@ def multiple_alignments(args, genewise_summary_files, cog_list):
     3. models_to_be_used is a dictionary of contig: model to be used
     (for example: {'R0016_GOUB3081.b1': 'GTRGAMMA'}
     """
-    singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
-    # mfa_files = prepare_and_run_mafft(args, genewise_summary_files, cog_list)
     non_wag_cog_list = get_non_wag_cogs(args)
-    # models_to_be_used = find_evolutionary_models(args, mfa_files, non_wag_cog_list)
-    models_to_be_used = find_evolutionary_models(args, singlehit_files, non_wag_cog_list)
-    concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)
-    return concatenated_mfa_files, models_to_be_used
-    # return mfa_files, models_to_be_used
+    #mfa_files = prepare_and_run_mafft(args, genewise_summary_files, cog_list)  # mafft
+    #models_to_be_used = find_evolutionary_models(args, mfa_files, non_wag_cog_list)  # mafft
+    #return mfa_files, models_to_be_used  # mafft
+    singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)  # hmmalign
+    concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)  #hmmalign
+    models_to_be_used = find_evolutionary_models(args, singlehit_files, non_wag_cog_list)  # hmmalign
+    return concatenated_mfa_files, models_to_be_used  # hmmalign
 
 
 def find_evolutionary_models(args, singlehit_files, non_wag_cog_list):
@@ -2656,11 +2660,10 @@ def prepare_and_run_mafft(args, genewise_summary_files, cog_list):
                     sys.exit(0)
 
                 hmmalign_command = [args.executables["mafft"],
-                                    "--addfragments",
+                                    "--add",
                                     treesapp_resources + reference_data_prefix + 'alignment_data' + os.sep + cog + '.fa',
                                     "--thread", str(args.num_threads),
-                                    "--keeplength",
-                                    "--maxiterate", str(100),
+                                    "--maxiterate", str(1000),
                                     "--quiet",
                                     genewise_singlehit_file_fa,
                                     '>', genewise_singlehit_file + '.mfa']
@@ -5283,7 +5286,7 @@ def main(argv):
         concatenated_mfa_files, models_to_be_used = multiple_alignments(args,
                                                                         genewise_summary_files,
                                                                         cog_list)
-        get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions)
+        get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
 
         gblocks_files = start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions)
         phy_files = produce_phy_file(args, gblocks_files, ref_alignment_dimensions)
