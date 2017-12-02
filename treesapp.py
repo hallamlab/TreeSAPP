@@ -831,8 +831,10 @@ def get_options():
     # TODO: remove this option and only use "-f e" for raxml
     parser.add_argument('-f', '--phylogeny', default='v', choices=['v', 'p'],
                         help='RAxML algorithm (v = Maximum Likelihood [DEFAULT]; p = Maximum Parsimony)')
-    parser.add_argument('-g', '--gblocks', default=50, type=int,
-                        help='minimal sequence length after Gblocks [DEFAULT = 50]')
+    parser.add_argument("--filter_align", default=False, action="store_true",
+                        help="Flag to turn on position masking of the multiple sequence alignmnet [DEFAULT = False]")
+    parser.add_argument('-g', '--min_seq_length', default=50, type=int,
+                        help='minimal sequence length after alignment trimming [DEFAULT = 50]')
     parser.add_argument('-s', '--bitscore', default=60, type=int,
                         help='minimum bitscore for the blast hits [DEFAULT = 60]')
     parser.add_argument('-R', '--reftree', default='p', type=str,
@@ -1371,7 +1373,7 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
         from itertools import izip
 
     fasta_list = _fasta_reader._read_format_fasta(fasta_input,
-                                                  args.gblocks,
+                                                  args.min_seq_length,
                                                   args.output,
                                                   molecule,
                                                   max_header_length)
@@ -1384,7 +1386,7 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
         formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
     for header in formatted_fasta_dict.keys():
         if len(header) > max_header_length:
-            sys.stderr.write(header, " is too long!\nThere is a bug in _read_format_fasta - please report!\n")
+            sys.stderr.write(header + " is too long!\nThere is a bug in _read_format_fasta - please report!\n")
             sys.exit()
 
     return formatted_fasta_dict
@@ -2427,7 +2429,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
                 sys.exit(0)
 
     # This overwrites the original log file
-    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.gblocks, args.output, 'dna', 110)
+    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.min_seq_length, args.output, 'dna', 110)
     if not fasta_list:
         sys.exit()
     tmp_iterable = iter(fasta_list)
@@ -2583,13 +2585,10 @@ def multiple_alignments(args, genewise_summary_files, cog_list):
     (for example: {'R0016_GOUB3081.b1': 'GTRGAMMA'}
     """
     non_wag_cog_list = get_non_wag_cogs(args)
-    #mfa_files = prepare_and_run_mafft(args, genewise_summary_files, cog_list)  # mafft
-    #models_to_be_used = find_evolutionary_models(args, mfa_files, non_wag_cog_list)  # mafft
-    #return mfa_files, models_to_be_used  # mafft
-    singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)  # hmmalign
-    concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)  #hmmalign
-    models_to_be_used = find_evolutionary_models(args, singlehit_files, non_wag_cog_list)  # hmmalign
-    return concatenated_mfa_files, models_to_be_used  # hmmalign
+    singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
+    concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)
+    models_to_be_used = find_evolutionary_models(args, singlehit_files, non_wag_cog_list)
+    return concatenated_mfa_files, models_to_be_used
 
 
 def find_evolutionary_models(args, singlehit_files, non_wag_cog_list):
@@ -2617,74 +2616,6 @@ def find_evolutionary_models(args, singlehit_files, non_wag_cog_list):
                 model_to_be_used = 'PROTGAMMAWAG'
             models_to_be_used[f_contig] = model_to_be_used
     return models_to_be_used
-
-
-def prepare_and_run_mafft(args, genewise_summary_files, cog_list):
-    reference_data_prefix = args.reference_data_prefix
-    treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
-    mafft_files = dict()
-    sys.stdout.write("Running MAFFT... ")
-    sys.stdout.flush()
-
-    if args.verbose:
-        start_time = time.time()
-
-    for contig in sorted(genewise_summary_files.keys()):
-
-        for genewise_summary_file in sorted(genewise_summary_files[contig].keys()):
-            try:
-                genewise_output = open(genewise_summary_file, 'r')
-            except IOError:
-                sys.stderr.write("ERROR: Can't open " + genewise_summary_file + "!\n")
-                sys.exit(0)
-
-            line = genewise_output.readline()
-            line = line.strip()
-
-            while line:
-                cog, start, end, _, sequence = line.split('\t')
-                denominator = cog_list["all_cogs"][cog]
-                f_contig = denominator + "_" + contig
-                if f_contig not in mafft_files:
-                    mafft_files[f_contig] = list()
-                genewise_singlehit_file = args.output_dir_var + os.sep + \
-                                          f_contig + '_' + cog + "_" + str(start) + "_" + str(end)
-                mafft_files[f_contig].append(genewise_singlehit_file + ".mfa")
-                genewise_singlehit_file_fa = genewise_singlehit_file + ".fa"
-                try:
-                    outfile = open(genewise_singlehit_file_fa, 'w')
-                    fprintf(outfile, '>query\n%s', sequence)
-                    outfile.close()
-                except IOError:
-                    sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
-                    sys.exit(0)
-
-                hmmalign_command = [args.executables["mafft"],
-                                    "--add",
-                                    treesapp_resources + reference_data_prefix + 'alignment_data' + os.sep + cog + '.fa',
-                                    "--thread", str(args.num_threads),
-                                    "--maxiterate", str(1000),
-                                    "--quiet",
-                                    genewise_singlehit_file_fa,
-                                    '>', genewise_singlehit_file + '.mfa']
-                # TODO: Run this using multiple processes
-                os.system(' '.join(hmmalign_command))
-
-                line = genewise_output.readline()
-                line = line.strip()
-
-            genewise_output.close()
-    sys.stdout.write("done.\n")
-    sys.stdout.flush()
-
-    if args.verbose:
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tMAFFT time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-
-    return mafft_files
 
 
 def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
@@ -2904,16 +2835,19 @@ def start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions):
     gblocks_files = {}
 
     for f_contig in sorted(concatenated_mfa_files.keys()):
+        if f_contig not in gblocks_files:
+            gblocks_files[f_contig] = []
         denominator = f_contig.split('_')[0]
         concatenated_mfa_file = concatenated_mfa_files[f_contig]
         if len(concatenated_mfa_file) > 1:
             sys.stderr.write("WARNING: more than a single alignment file generated for " + f_contig + "...\n")
         concatenated_mfa_file = concatenated_mfa_file[0]
         num_ref_sequences, align_len = ref_alignment_dimensions[denominator]
-        min_flank_pos = int((num_ref_sequences+1) * 0.55)
+        # min_flank_pos = int((num_ref_sequences+1) * 0.55)
+        min_flank_pos = int((num_ref_sequences+1) * 0.2)
         gblocks_file = concatenated_mfa_file + "-gb"
         log = args.output + os.sep + "treesapp.gblocks_log.txt"
-        gblocks_files[f_contig] = gblocks_file
+        gblocks_files[f_contig].append(gblocks_file)
         gblocks_command = [args.executables["Gblocks"], concatenated_mfa_file]
         gblocks_command += ['-t=p', '-s=y', '-u=n', '-p=t', '-b3=15',
                             '-b4=3', '-b5=h', '-b2=' + str(min_flank_pos),
@@ -2934,7 +2868,7 @@ def start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions):
     return gblocks_files
 
 
-def produce_phy_file(args, gblocks_files, ref_alignment_dimensions):
+def produce_phy_file(args, mfa_files, ref_alignment_dimensions):
     """
     Produces phy files from the provided list of Gblocks result files, and the number of sequences in each file.
 
@@ -2945,123 +2879,123 @@ def produce_phy_file(args, gblocks_files, ref_alignment_dimensions):
     sequence_lengths = Autovivify()
 
     # Open each Gblocks result file
-    for f_contig in sorted(gblocks_files.keys()):
-        sequences_for_phy = Autovivify()
-        do_not_continue = 0
-        sequences_raw = Autovivify()
-        gblocks_file = gblocks_files[f_contig]
-        denominator = f_contig.split('_')[0]
+    for f_contig in sorted(mfa_files.keys()):
+        for aligned_fasta in mfa_files[f_contig]:
+            sequences_for_phy = Autovivify()
+            do_not_continue = 0
+            sequences_raw = Autovivify()
+            denominator = f_contig.split('_')[0]
+            print(aligned_fasta)
+            try:
+                input = open(aligned_fasta, 'r')
+            except IOError:
+                sys.exit('ERROR: Can\'t open ' + aligned_fasta + '!\n')
 
-        try:
-            input = open(gblocks_file, 'r')
-        except IOError:
-            sys.exit('ERROR: Can\'t open ' + gblocks_file + '!\n')
-
-        for line in input:
-            line = line.strip()
-            if not line:
-                continue
-            if line[0] == '>':
-                seq_name = line[1:].split('_')[0]
-                # Flag the user if the reference alignment contains the number -666, which is needed later in the code
-                if seq_name == -666:
-                    sys.exit('ERROR: Your reference alignment contains element with the number -666. '
-                             'Please change it, because this number is needed for internal purposes.\n')
-                if seq_name == 'query':
-                    seq_name = -666
-            else:
-                line = re.sub(r' ', '', line)
-                if seq_name == "":
-                    sys.stderr.write("ERROR: The Gblocks output " + gblocks_file + "is not in the required format!")
-                    sys.stderr.write("Ensure your versions of hmmalign and gblocks are compatible with TreeSAPP.")
-                    sys.exit()
-                if seq_name in sequences_raw:
-                    sequences_raw[seq_name] += line
+            for line in input:
+                line = line.strip()
+                if not line:
+                    continue
+                if line[0] == '>':
+                    seq_name = line[1:].split('_')[0]
+                    # Flag the user if the reference alignment contains the number -666, which is needed later in the code
+                    if seq_name == -666:
+                        sys.exit('ERROR: Your reference alignment contains element with the number -666. '
+                                 'Please change it, because this number is needed for internal purposes.\n')
+                    if seq_name == 'query':
+                        seq_name = -666
                 else:
-                    sequences_raw[seq_name] = line
+                    line = re.sub(r' ', '', line)
+                    if seq_name == "":
+                        sys.stderr.write("ERROR: The Gblocks output " + aligned_fasta + "is not in the required format!")
+                        sys.stderr.write("Ensure your versions of hmmalign and gblocks are compatible with TreeSAPP.")
+                        sys.exit()
+                    if seq_name in sequences_raw:
+                        sequences_raw[seq_name] += line
+                    else:
+                        sequences_raw[seq_name] = line
 
-        input.close()
+            input.close()
 
-        # Ensure the sequences contain only valid characters for RAxML
-        # for seq_name in sorted(sequences_raw.keys()):
-        for seq_name in sequences_raw.keys():
+            # Ensure the sequences contain only valid characters for RAxML
+            # for seq_name in sorted(sequences_raw.keys()):
+            for seq_name in sequences_raw.keys():
+                if do_not_continue == 1:
+                    continue
+                sequence = sequences_raw[seq_name]
+                count = 0
+                sequence_lengths[f_contig] = len(sequence)
+                sequence = re.sub(r'\.', 'X', sequence)
+                sequence = re.sub(r'\*', 'X', sequence)
+                sequence = re.sub('-', 'X', sequence)
+
+                if re.search(r'\AX+\Z', sequence):
+                    sequence = re.sub('X', 'V', sequence, 1)
+                if seq_name == -666:
+                    seq_dummy = re.sub('X', '', sequence)
+                    if len(seq_dummy) < args.min_seq_length:
+                        do_not_continue = 1
+                        exit_file_name = args.output_dir_var + f_contig + '_exit_after_Gblocks.txt'
+                        try:
+                            output = open(exit_file_name, 'w')
+                        except IOError:
+                            sys.exit('ERROR: Can\'t open ' + exit_file_name + '!\n')
+                        output.write('final alignment after gblocks is too short (<' + str(args.min_seq_length) + 'AAs) ' +
+                                     '-  insufficient number of marker gene residues in query sequence.\n')
+                        output.close()
+                        continue
+                #
+                # if sequence.count('X') > (0.99*len(sequence)) and seq_name != -666:
+                #     print "WARNING: More than 99% of", seq_name, "is unknown sequence!"
+                #     print "Removing it from further processing to prevent errors with RAxML."
+                #     do_not_continue = 1
+                #     exit_file_name = args.output_dir_var + f_contig + '_exit_after_Gblocks.txt'
+                #     try:
+                #         output = open(exit_file_name, 'w')
+                #     except IOError:
+                #         sys.exit('ERROR: Can\'t open ' + exit_file_name + '!\n')
+                #     output.write(seq_name + 'contained an insufficient number of marker gene residues in alignment ' +
+                #                  '- this would cause an error in Gblocks and RAxML.\n')
+                #     output.close()
+                #     continue
+
+                sub_sequences = re.findall(r'.{1,50}', sequence)
+
+                for sub_sequence in sub_sequences:
+                    sub_sequence = re.sub('U', 'T', sub_sequence)  # Got error from RAxML when encountering Uracil
+                    sequences_for_phy[f_contig][count][int(seq_name)] = sub_sequence
+                    count += 1
+
             if do_not_continue == 1:
                 continue
-            sequence = sequences_raw[seq_name]
-            count = 0
-            sequence_lengths[f_contig] = len(sequence)
-            sequence = re.sub(r'\.', 'X', sequence)
-            sequence = re.sub(r'\*', 'X', sequence)
-            sequence = re.sub('-', 'X', sequence)
 
-            if re.search(r'\AX+\Z', sequence):
-                sequence = re.sub('X', 'V', sequence, 1)
-            if seq_name == -666:
-                seq_dummy = re.sub('X', '', sequence)
-                if len(seq_dummy) < args.gblocks:
-                    do_not_continue = 1
-                    exit_file_name = args.output_dir_var + f_contig + '_exit_after_Gblocks.txt'
-                    try:
-                        output = open(exit_file_name, 'w')
-                    except IOError:
-                        sys.exit('ERROR: Can\'t open ' + exit_file_name + '!\n')
-                    output.write('final alignment after gblocks is too short (<' + str(args.gblocks) + 'AAs) ' +
-                                 '-  insufficient number of marker gene residues in query sequence.\n')
-                    output.close()
-                    continue
-            #
-            # if sequence.count('X') > (0.99*len(sequence)) and seq_name != -666:
-            #     print "WARNING: More than 99% of", seq_name, "is unknown sequence!"
-            #     print "Removing it from further processing to prevent errors with RAxML."
-            #     do_not_continue = 1
-            #     exit_file_name = args.output_dir_var + f_contig + '_exit_after_Gblocks.txt'
-            #     try:
-            #         output = open(exit_file_name, 'w')
-            #     except IOError:
-            #         sys.exit('ERROR: Can\'t open ' + exit_file_name + '!\n')
-            #     output.write(seq_name + 'contained an insufficient number of marker gene residues in alignment ' +
-            #                  '- this would cause an error in Gblocks and RAxML.\n')
-            #     output.close()
-            #     continue
+            # Write the sequences to the phy file
+            phy_file_name = args.output_dir_var + f_contig + '.phy'
+            phy_files[f_contig] = phy_file_name
+            try:
+                output = open(phy_file_name, 'w')
+            except IOError:
+                sys.exit('ERROR: Can\'t open ' + phy_file_name + '!\n')
+            num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
+            nr_of_sequences = num_ref_seqs + 1
+            output.write(' ' + str(nr_of_sequences) + '  ' + str(sequence_lengths[f_contig]) + '\n')
 
-            sub_sequences = re.findall(r'.{1,50}', sequence)
+            for count in sorted(sequences_for_phy[f_contig].keys()):
+                for seq_name in sorted(sequences_for_phy[f_contig][count].keys()):
+                    sequence_part = sequences_for_phy[f_contig][count][seq_name]
+                    if count == 0:
+                        print_seqname = seq_name
+                        if seq_name == -666:
+                            print_seqname = 'query'
+                        output.write(str(print_seqname))
+                        length = len(str(print_seqname))
+                        c = length
+                        while c < 10:
+                            output.write(' ')
+                            c += 1
+                    output.write(sequence_part + '\n')
 
-            for sub_sequence in sub_sequences:
-                sub_sequence = re.sub('U', 'T', sub_sequence)  # Got error from RAxML when encountering Uracil
-                sequences_for_phy[f_contig][count][int(seq_name)] = sub_sequence
-                count += 1
-
-        if do_not_continue == 1:
-            continue
-
-        # Write the sequences to the phy file
-        phy_file_name = args.output_dir_var + f_contig + '.phy'
-        phy_files[f_contig] = phy_file_name
-        try:
-            output = open(phy_file_name, 'w')
-        except IOError:
-            sys.exit('ERROR: Can\'t open ' + phy_file_name + '!\n')
-        num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
-        nr_of_sequences = num_ref_seqs + 1
-        output.write(' ' + str(nr_of_sequences) + '  ' + str(sequence_lengths[f_contig]) + '\n')
-
-        for count in sorted(sequences_for_phy[f_contig].keys()):
-            for seq_name in sorted(sequences_for_phy[f_contig][count].keys()):
-                sequence_part = sequences_for_phy[f_contig][count][seq_name]
-                if count == 0:
-                    print_seqname = seq_name
-                    if seq_name == -666:
-                        print_seqname = 'query'
-                    output.write(str(print_seqname))
-                    length = len(str(print_seqname))
-                    c = length
-                    while c < 10:
-                        output.write(' ')
-                        c += 1
-                output.write(sequence_part + '\n')
-
-            output.write('\n')
-        output.close()
+                output.write('\n')
+            output.close()
 
     return phy_files
 
@@ -5288,8 +5222,11 @@ def main(argv):
                                                                         cog_list)
         get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
 
-        gblocks_files = start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions)
-        phy_files = produce_phy_file(args, gblocks_files, ref_alignment_dimensions)
+        if args.filter_align:
+            mfa_files = start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions)
+        else:
+            mfa_files = concatenated_mfa_files
+        phy_files = produce_phy_file(args, mfa_files, ref_alignment_dimensions)
         delete_files(args, 3)
         # STAGE 5: Run RAxML to compute the ML/MP estimations
         raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_raxml(args, phy_files,
