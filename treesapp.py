@@ -902,7 +902,7 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "mafft"]
+    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "trimal"]
 
     if args.rpkm:
         dependencies += ["bwa", "rpkm"]
@@ -2819,6 +2819,51 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     return concatenated_mfa_files, nrs_of_sequences
 
 
+def trimal_alignments(args, concatenated_mfa_files):
+    """
+    Runs Gblocks using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
+
+    Returns a list of files resulting from Gblocks.
+    """
+
+    sys.stdout.write("Running TrimAl... ")
+    sys.stdout.flush()
+
+    if args.verbose:
+        start_time = time.time()
+
+    trimal_outputs = {}
+
+    for f_contig in sorted(concatenated_mfa_files.keys()):
+        if f_contig not in trimal_outputs:
+            trimal_outputs[f_contig] = []
+        concatenated_mfa_file = concatenated_mfa_files[f_contig]
+        if len(concatenated_mfa_file) > 1:
+            sys.stderr.write("WARNING: more than a single alignment file generated for " + f_contig + "...\n")
+        concatenated_mfa_file = concatenated_mfa_file[0]
+        trimal_file = concatenated_mfa_file + "-trimal"
+        log = args.output + os.sep + "treesapp.trimal_log.txt"
+        trimal_outputs[f_contig].append(trimal_file)
+        trimal_command = [args.executables["trimal"]]
+        trimal_command += ['-in', concatenated_mfa_file,
+                           '-out', trimal_file,
+                           '-gappyout', '>', log]
+        os.system(' '.join(trimal_command))
+        if not os.path.isfile(trimal_file):
+            sys.exit("ERROR: " + trimal_file + " was not successfully created! Check " + log)
+
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
+    if args.verbose:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tTrimaAl time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    return trimal_outputs
+
+
 def start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions):
     """
     Runs Gblocks using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
@@ -2885,7 +2930,6 @@ def produce_phy_file(args, mfa_files, ref_alignment_dimensions):
             do_not_continue = 0
             sequences_raw = Autovivify()
             denominator = f_contig.split('_')[0]
-            print(aligned_fasta)
             try:
                 input = open(aligned_fasta, 'r')
             except IOError:
@@ -5223,7 +5267,8 @@ def main(argv):
         get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
 
         if args.filter_align:
-            mfa_files = start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions)
+            # mfa_files = start_gblocks(args, concatenated_mfa_files, ref_alignment_dimensions)
+            mfa_files = trimal_alignments(args, concatenated_mfa_files)
         else:
             mfa_files = concatenated_mfa_files
         phy_files = produce_phy_file(args, mfa_files, ref_alignment_dimensions)
