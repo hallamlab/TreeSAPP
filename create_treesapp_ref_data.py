@@ -63,8 +63,8 @@ def get_arguments():
                         help="The USEARCH cluster format file produced from clustering reference sequences",
                         required=False,
                         default=None)
-    optopt.add_argument('-g', '--gblocks',
-                        help='minimal sequence length after Gblocks [DEFAULT = 50]',
+    optopt.add_argument('-l', '--min_seq_length',
+                        help='Minimal sequence length [DEFAULT = 50]',
                         required=False,
                         default=50,
                         type=int)
@@ -77,6 +77,9 @@ def get_arguments():
                         help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
                         default='prot',
                         choices=['prot', 'dna', 'rrna'])
+    optopt.add_argument('-r', "--rfam_cm",
+                        help="The covariance model of the RNA family being packaged. REQUIRED if molecule is rRNA!",
+                        default=None)
     optopt.add_argument("-b", "--bootstraps",
                         help="The number of bootstrap replicates RAxML should perform [ DEFAULT = autoMR ]",
                         required=False,
@@ -97,15 +100,17 @@ def get_arguments():
 
     args = parser.parse_args()
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-    # For compatibility with TreeSAPP's format_read_fasta function
-    args.min_length = args.gblocks
-    final_output_folder = "MLTreeMap_files_%s" % args.code_name
+    final_output_folder = "TreeSAPP_files_%s" % args.code_name
     args.output = final_output_folder
 
     if len(args.code_name) > 6:
         sys.stderr.write("ERROR: code_name must be <= 6 characters!\n")
         sys.stderr.flush()
         sys.exit(-1)
+
+    if args.rfam_cm is None and args.molecule == "rrna":
+        sys.stderr.write("ERROR: Covariance model file must be provided for rRNA data!\n")
+        sys.exit(-2)
 
     return args
 
@@ -117,7 +122,7 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["raxmlHPC", "makeblastdb", "muscle", "hmmbuild"]
+    dependencies = ["raxmlHPC", "makeblastdb", "muscle", "hmmbuild", "cmbuild", "cmalign"]
 
     if os_type() == "linux":
         args.executables = args.mltreemap + "sub_binaries" + os.sep + "ubuntu"
@@ -140,6 +145,191 @@ def find_executables(args):
 
     args.executables = exec_paths
     return args
+
+
+def read_phylip(phylip_input):
+    header_dict = dict()
+    alignment_dict = dict()
+    x = 0
+
+    try:
+        phylip = open(phylip_input, 'r')
+    except IOError:
+        raise IOError("ERROR: Unable to open the Phylip file (" + phylip_input + ") provided for reading!")
+
+    line = phylip.readline()
+    try:
+        num_sequences, aln_length = line.strip().split(' ')
+        num_sequences = int(num_sequences)
+        aln_length = int(aln_length)
+    except ValueError:
+        raise AssertionError("ERROR: Phylip file is not formatted correctly!\n"
+                             "Header line does not contain 2 space-separated fields "
+                             "(number of sequences and alignment length). Exiting now.\n")
+    line = phylip.readline()
+    while line:
+        line = line.strip()
+        if len(line.split()) == 2:
+            # This is the introduction set: header, sequence
+            header, sequence = line.split()
+            header_dict[x] = header
+            alignment_dict[x] = sequence
+            x += 1
+        elif 60 >= len(line) >= 1:
+            alignment_dict[x] += line
+            x += 1
+        elif line == "":
+            # Reset accumulator on blank lines
+            x = 0
+        else:
+            sys.exit(line + "\nERROR: Unexpected line in Phylip file.")
+
+        line = phylip.readline()
+
+        if x > num_sequences:
+            sys.stderr.write("\nERROR:\n"
+                             "Accumulator has exceeded the number of sequences in the file (according to header)!\n")
+            sys.exit()
+
+    # Check that the alignment length matches that in the header line
+    x = 0
+    while x < num_sequences-1:
+        if len(alignment_dict[x]) != aln_length:
+            sys.stderr.write("\nERROR:\n" + header_dict[x] +
+                             " sequence length exceeds the stated multiple alignment length (according to header)!\n")
+            sys.stderr.write("sequence length = " + str(len(alignment_dict[x])) +
+                             ", alignment length = " + str(aln_length) + "\n")
+            sys.exit()
+        else:
+            pass
+        x += 1
+
+    phylip.close()
+    return header_dict, alignment_dict
+
+
+def write_mfa(header_dict, alignment_dict, fasta_output):
+    fasta_string = ""
+
+    for entry in header_dict:
+        fasta_string += '>' + header_dict[entry] + "\n"
+        fasta_string += alignment_dict[entry] + "\n"
+
+    try:
+        fasta = open(fasta_output, 'w')
+    except IOError:
+        raise IOError("ERROR: Unable to open the FASTA file (" + fasta_output + ") provided for writing!")
+    fasta.write(fasta_string)
+    fasta.close()
+
+    return
+
+
+def get_headers(fasta_file):
+    original_headers = list()
+    try:
+        fasta = open(fasta_file, 'r')
+    except IOError:
+        raise IOError("ERROR: Unable to open the FASTA file (" + fasta_file + ") provided for reading!")
+    line = fasta.readline()
+    while line:
+        line = line.strip()
+        if line[0] == '>':
+            original_headers.append(line[1:])
+        else:
+            pass
+        line = fasta.readline()
+
+    fasta.close()
+    return original_headers
+
+
+def phylip_to_mfa(phylip_input, fasta_output, header_map):
+    header_dict, alignment_dict = read_phylip(phylip_input)
+    original_headers = get_headers(header_map)
+    x = 0
+    while x < len(header_dict.keys()):
+        changed = False
+        for header in original_headers:
+            if re.search("^" + re.escape(str(header_dict[x])), header):
+                header_dict[x] = header
+                changed = True
+        if changed is False:
+            sys.exit("ERROR: unable to find " + str(header_dict[x]) + " in " + header_map)
+        x += 1
+    write_mfa(header_dict, alignment_dict, fasta_output)
+
+
+def generate_cm_data(args):
+    """
+    Using the input unaligned FASTA file:
+     1. align the sequences using cmalign against a reference Rfam covariance model to generate a Stockholm file
+     2. use the Stockholm file (with secondary structure annotated) to build a covariance model
+     3. align the sequences using cmalign against a reference Rfam covariance model to generate an aligned fasta (AFA)
+    :param args:
+    :return:
+    """
+
+    sys.stdout.write("Running cmalign to build Stockholm file with secondary structure annotations... ")
+    sys.stdout.flush()
+
+    cmalign_base = [args.executables["cmalign"],
+                    "--mxsize", str(3084),
+                    "--informat", "FASTA",
+                    "--cpu", str(args.num_threads)]
+    # First, generate the stockholm file
+    cmalign_sto = cmalign_base + ["-o", args.code_name + ".sto"]
+    cmalign_sto += [args.rfam_cm, args.fasta_input]
+
+    stdout, cmalign_pro_returncode = launch_write_command(cmalign_sto)
+
+    if cmalign_pro_returncode != 0:
+        sys.stderr.write("ERROR: cmalign did not complete successfully for:\n")
+        sys.stderr.write(' '.join(cmalign_sto) + "\n")
+        sys.exit()
+
+    sys.stdout.write("done.\n")
+    sys.stdout.write("Running cmbuild... ")
+    sys.stdout.flush()
+
+    # Build the CM
+    cmbuild_command = [args.executables["cmbuild"]]
+    cmbuild_command += ["-n", args.code_name]
+    cmbuild_command += [args.code_name + ".cm", args.code_name + ".sto"]
+
+    stdout, cmbuild_pro_returncode = launch_write_command(cmbuild_command)
+
+    if cmbuild_pro_returncode != 0:
+        sys.stderr.write("ERROR: cmbuild did not complete successfully for:\n")
+        sys.stderr.write(' '.join(cmbuild_command) + "\n")
+        sys.exit()
+    os.rename(args.code_name + ".cm", args.output + os.sep + args.code_name + ".cm")
+    os.remove(args.code_name + ".sto")
+
+    sys.stdout.write("done.\n")
+    sys.stdout.write("Running cmalign to build MSA... ")
+    sys.stdout.flush()
+
+    # Generate the aligned FASTA file which will be used to build the BLAST database and tree with RAxML
+    aligned_fasta = ""
+    cmalign_afa = cmalign_base + ["--outformat", "Phylip"]
+    cmalign_afa += ["-o", args.code_name + ".phy"]
+    cmalign_afa += [args.rfam_cm, args.fasta_input]
+
+    stdout, cmalign_pro_returncode = launch_write_command(cmalign_afa)
+
+    if cmalign_pro_returncode != 0:
+        sys.stderr.write("ERROR: cmalign did not complete successfully for:\n")
+        sys.stderr.write(' '.join(cmalign_afa) + "\n")
+        sys.exit()
+
+    # Convert the Phylip file to an aligned FASTA file for downstream use
+    phylip_to_mfa(args.code_name + ".phy", args.code_name + ".mfa", args.fasta_input)
+
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
+    return aligned_fasta
 
 
 def launch_write_command(cmd_list, collect_all=True):
@@ -711,7 +901,7 @@ def main():
     args = find_executables(args)
 
     code_name = args.code_name
-    final_output_folder = "MLTreeMap_files_%s" % code_name
+    final_output_folder = args.output
     tree_taxa_list = "tax_ids_%s.txt" % code_name
 
     if not os.path.exists(final_output_folder):
@@ -719,14 +909,6 @@ def main():
     else:
         sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
         sys.stderr.flush()
-
-    if args.molecule == 'rrna':
-        args.molecule = 'dna'
-        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
-        for header in fasta_dict:
-            fasta_dict[header] = reverse_complement(fasta_dict[header])
-    else:
-        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
 
     if args.uc and os.path.exists(tree_taxa_list):
         if sys.version_info > (2, 9):
@@ -741,6 +923,8 @@ def main():
                 use_previous_names = raw_input("Incorrect response. Please input either 'y' or 'n'. ")
     else:
         use_previous_names = 'n'
+
+    fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
 
     fasta_replace_dict = dict()
 
@@ -774,6 +958,16 @@ def main():
         create_new_fasta(fasta_replaced_file, fasta_replace_dict, True)
     else:
         create_new_fasta(fasta_replaced_file, fasta_replace_dict)
+
+    if args.molecule == 'rrna':
+        aligned_fasta = generate_cm_data(args)
+        # args.molecule = 'dna'
+        args.multiple_alignment = True
+        args.fasta_input = aligned_fasta
+        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+        # Sequences must be reverse complemented since BLAST does not like uracil
+        # for header in fasta_dict:
+        #     fasta_dict[header] = reverse_complement(fasta_dict[header])
 
     if args.multiple_alignment is False:
         sys.stdout.write("Aligning the sequences using MUSCLE... ")
@@ -819,23 +1013,27 @@ def main():
 
     os.rename(fasta_replaced_align, fasta_mltree)
 
-    hmm_build_command = [args.executables["hmmbuild"]]
-    hmm_build_command += ["-s", code_name + ".hmm"]
-    hmm_build_command.append(fasta_mltree)
+    if args.molecule == "rrna":
+        # A .cm file has already been generated, no need for HMM
+        pass
+    else:
+        hmm_build_command = [args.executables["hmmbuild"]]
+        hmm_build_command += ["-s", code_name + ".hmm"]
+        hmm_build_command.append(fasta_mltree)
 
-    stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
+        stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
 
-    log.write("\n### HMMBUILD ###\n\n" + stdout)
-    log.close()
+        log.write("\n### HMMBUILD ###\n\n" + stdout)
+        log.close()
 
-    if hmmbuild_pro_returncode != 0:
-        sys.stderr.write("ERROR: hmmbuild did not complete successfully for:\n")
-        sys.stderr.write(' '.join(hmm_build_command) + "\n")
-        sys.exit()
+        if hmmbuild_pro_returncode != 0:
+            sys.stderr.write("ERROR: hmmbuild did not complete successfully for:\n")
+            sys.stderr.write(' '.join(hmm_build_command) + "\n")
+            sys.exit()
 
-    os.rename(code_name + ".hmm", final_output_folder + os.sep + code_name + ".hmm")
+        os.rename(code_name + ".hmm", final_output_folder + os.sep + code_name + ".hmm")
 
-    sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
+        sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
 
     phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
     os.system(phylip_command)
