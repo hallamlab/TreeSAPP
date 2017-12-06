@@ -9,6 +9,7 @@ try:
     import argparse
     import sys
     import os
+    import shutil
     import re
     import traceback
     import subprocess
@@ -244,23 +245,12 @@ def get_headers(fasta_file):
     return original_headers
 
 
-def phylip_to_mfa(phylip_input, fasta_output, header_map):
+def phylip_to_mfa(phylip_input, fasta_output):
     header_dict, alignment_dict = read_phylip(phylip_input)
-    original_headers = get_headers(header_map)
-    x = 0
-    while x < len(header_dict.keys()):
-        changed = False
-        for header in original_headers:
-            if re.search("^" + re.escape(str(header_dict[x])), header):
-                header_dict[x] = header
-                changed = True
-        if changed is False:
-            sys.exit("ERROR: unable to find " + str(header_dict[x]) + " in " + header_map)
-        x += 1
     write_mfa(header_dict, alignment_dict, fasta_output)
 
 
-def generate_cm_data(args):
+def generate_cm_data(args, unaligned_fasta):
     """
     Using the input unaligned FASTA file:
      1. align the sequences using cmalign against a reference Rfam covariance model to generate a Stockholm file
@@ -279,7 +269,7 @@ def generate_cm_data(args):
                     "--cpu", str(args.num_threads)]
     # First, generate the stockholm file
     cmalign_sto = cmalign_base + ["-o", args.code_name + ".sto"]
-    cmalign_sto += [args.rfam_cm, args.fasta_input]
+    cmalign_sto += [args.rfam_cm, unaligned_fasta]
 
     stdout, cmalign_pro_returncode = launch_write_command(cmalign_sto)
 
@@ -311,10 +301,10 @@ def generate_cm_data(args):
     sys.stdout.flush()
 
     # Generate the aligned FASTA file which will be used to build the BLAST database and tree with RAxML
-    aligned_fasta = ""
+    aligned_fasta = args.code_name + ".fc.repl.aligned.fasta"
     cmalign_afa = cmalign_base + ["--outformat", "Phylip"]
     cmalign_afa += ["-o", args.code_name + ".phy"]
-    cmalign_afa += [args.rfam_cm, args.fasta_input]
+    cmalign_afa += [args.rfam_cm, unaligned_fasta]
 
     stdout, cmalign_pro_returncode = launch_write_command(cmalign_afa)
 
@@ -324,7 +314,7 @@ def generate_cm_data(args):
         sys.exit()
 
     # Convert the Phylip file to an aligned FASTA file for downstream use
-    phylip_to_mfa(args.code_name + ".phy", args.code_name + ".mfa", args.fasta_input)
+    phylip_to_mfa(args.code_name + ".phy", aligned_fasta)
 
     sys.stdout.write("done.\n")
     sys.stdout.flush()
@@ -399,7 +389,7 @@ def read_uc(uc_file):
     try:
         uc = open(uc_file, 'r')
     except IOError:
-        raise IOError("Unable to open " + uc_file + " for reading! Exiting...")
+        raise IOError("Unable to open USEARCH cluster file " + uc_file + " for reading! Exiting...")
 
     line = uc.readline()
     # Find all clusters with multiple identical sequences
@@ -769,7 +759,7 @@ def read_tax_ids(tree_taxa_list):
     try:
         tree_tax_list_handle = open(tree_taxa_list, 'r')
     except IOError:
-        raise IOError("Unable to open " + tree_taxa_list + " for reading! Exiting.")
+        raise IOError("Unable to open taxa list " + tree_taxa_list + " for reading! Exiting.")
     fasta_replace_dict = dict()
     line = tree_tax_list_handle.readline()
     while line:
@@ -810,7 +800,7 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
     try:
         tree_txt = open(bipart_tree, 'r')
     except IOError:
-        raise IOError("Unable to open " + bipart_tree + " for reading.")
+        raise IOError("Unable to open RAxML bipartition tree " + bipart_tree + " for reading.")
 
     tree = tree_txt.readline()
     tree_txt.close()
@@ -823,7 +813,7 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
     try:
         annotated_tree = open(annotated_tree_name, 'w')
     except IOError:
-        raise IOError("Unable to open " + annotated_tree_name + " for writing!")
+        raise IOError("Unable to open the annotated RAxML tree " + annotated_tree_name + " for writing!")
 
     annotated_tree.write(tree)
     annotated_tree.close()
@@ -909,6 +899,8 @@ def main():
     else:
         sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
         sys.stderr.flush()
+        if os.path.exists(args.code_name + "_phy_files"):
+           shutil.rmtree(args.code_name + "_phy_files")
 
     if args.uc and os.path.exists(tree_taxa_list):
         if sys.version_info > (2, 9):
@@ -960,16 +952,10 @@ def main():
         create_new_fasta(fasta_replaced_file, fasta_replace_dict)
 
     if args.molecule == 'rrna':
-        aligned_fasta = generate_cm_data(args)
-        # args.molecule = 'dna'
+        fasta_replaced_align = generate_cm_data(args, fasta_replaced_file)
         args.multiple_alignment = True
-        args.fasta_input = aligned_fasta
-        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
-        # Sequences must be reverse complemented since BLAST does not like uracil
-        # for header in fasta_dict:
-        #     fasta_dict[header] = reverse_complement(fasta_dict[header])
-
-    if args.multiple_alignment is False:
+        # fasta_dict = format_read_fasta(aligned_fasta, args.molecule, args)
+    elif args.multiple_alignment is False:
         sys.stdout.write("Aligning the sequences using MUSCLE... ")
         fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
 
@@ -984,8 +970,10 @@ def main():
                              " did not complete successfully! Command used:\n" + ' '.join(muscle_align_command) + "\n")
             sys.exit()
         sys.stdout.write("done.\n")
-    else:
+    elif args.multiple_alignment and args.molecule != "rrna":
         fasta_replaced_align = fasta_replaced_file
+    else:
+        pass
 
     remove_dashes_from_msa(fasta_replaced_file, fasta_mltree)
 
