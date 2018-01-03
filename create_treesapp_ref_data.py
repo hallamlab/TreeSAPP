@@ -96,6 +96,9 @@ def get_arguments():
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
+    miscellaneous_opts.add_argument('--pc', action='store_true', default=False,
+                                    help='Prints the final commands to '
+                                         'complete installation for a provided `code_name`')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
 
@@ -257,9 +260,10 @@ def generate_cm_data(args, unaligned_fasta):
      2. use the Stockholm file (with secondary structure annotated) to build a covariance model
      3. align the sequences using cmalign against a reference Rfam covariance model to generate an aligned fasta (AFA)
     :param args:
+    :param unaligned_fasta:
     :return:
     """
-
+    # TODO: Ensure this function generates the necessary secondary structure information
     sys.stdout.write("Running cmalign to build Stockholm file with secondary structure annotations... ")
     sys.stdout.flush()
 
@@ -294,7 +298,11 @@ def generate_cm_data(args, unaligned_fasta):
         sys.stderr.write(' '.join(cmbuild_command) + "\n")
         sys.exit()
     os.rename(args.code_name + ".cm", args.output + os.sep + args.code_name + ".cm")
-    os.remove(args.code_name + ".sto")
+    if os.path.isfile(args.output + os.sep + args.code_name + ".sto"):
+        sys.stderr.write("WARNING: overwriting " + args.output + os.sep + args.code_name + ".sto")
+        sys.stderr.flush()
+        os.remove(args.output + os.sep + args.code_name + ".sto")
+    shutil.move(args.code_name + ".sto", args.output)
 
     sys.stdout.write("done.\n")
     sys.stdout.write("Running cmalign to build MSA... ")
@@ -394,6 +402,7 @@ def read_uc(uc_file):
     line = uc.readline()
     # Find all clusters with multiple identical sequences
     while line:
+        # TODO: Figure out why some are not added to cluster_dict
         cluster_type, _, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
         if cluster_type != "C":
             try:
@@ -403,9 +412,37 @@ def read_uc(uc_file):
             if cluster_type == "S":
                 cluster_dict['>' + header] = list()
             if cluster_type == "H" and identity == 100.0 and cigar == '=':
-                cluster_dict['>' + representative].append('>' + header)
+                cluster_dict['>' + representative].append(header)
         line = uc.readline()
     return cluster_dict
+
+
+def regenerate_cluster_rep_swaps(cluster_dict, fasta_replace_dict):
+    swappers = dict()
+    for rep in cluster_dict:
+        subs = cluster_dict[rep]
+        if len(subs) >= 1:
+            # If there is the possibility the header could have been swapped,
+            # check if the header is in fasta_replace_dict
+            for mltree_id in fasta_replace_dict:
+                if rep in swappers:
+                    break
+                ref_seq = fasta_replace_dict[mltree_id]
+                # This one has not been swapped for an identical sequence's header
+                if re.search(ref_seq.accession, rep):
+                    print("Unchanged: ", rep)
+                    break
+                else:
+                    # The original representative is no longer in the reference sequences
+                    # so it was replaced, with this sequence...
+                    subs = cluster_dict[rep]
+                    for candidate in subs:
+                        candidate_acc = candidate.split(' ')[0]
+                        if candidate_acc == ref_seq.accession:
+                            print("Changed: ", candidate)
+                            swappers[rep] = candidate
+                            break
+    return swappers
 
 
 def present_cluster_rep_options(cluster_dict):
@@ -532,7 +569,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
     :param code_name: code_name from the command-line parameters
     :param fasta_dict: a dictionary with headers as keys and sequences as values (returned by format_read_fasta)
     :param fasta_replace_dict:
-    :param swappers: Either the dictionary containing representative clusters (keys) and their constituents (values)
+    :param swappers: A dictionary containing representative clusters (keys) and their constituents (values)
     :return: fasta_replace_dict with a complete ReferenceSequence() value for every mltree_id key
     """
 
@@ -542,25 +579,27 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
     mltree_id_accumulator = 1
     swapped_headers = []
     if len(fasta_replace_dict.keys()) > 0:
-        for mltree_id in fasta_replace_dict:
+        for mltree_id in sorted(fasta_replace_dict):
             ref_seq = fasta_replace_dict[mltree_id]
             ref_seq.short_id = mltree_id + '_' + code_name
             tmp_ref_def = re.sub('[)(\[\]]', '', ref_seq.description)  # Remove parentheses for comparisons
-            # This `swappers` is actually cluster_dict
-            # keys are representative headers, values are list of headers with identical sequences
-            for header in swappers.keys():
-                tmp_header = re.sub('[)(\[\]]', '', header)  # Remove parentheses for comparisons
-                # Need to check both keys and values since it is unknown whether the rep was selected or not
+            for header in fasta_dict:
                 if re.search(ref_seq.accession, header):
-                    if re.search(tmp_ref_def, tmp_header):
+                    if re.search(tmp_ref_def, header):
                         ref_seq.sequence = fasta_dict[header]
-                if len(swappers[header]) > 0:
-                    for constituent in swappers[header]:
-                        if re.search(tmp_ref_def, constituent) and re.search(ref_seq.accession, constituent):
-                            ref_seq.sequence = fasta_dict[header]
-
+                    else:
+                        print("ERROR: Accession matched but not the definition")
             if not ref_seq.sequence:
-                sys.exit("Unable to find header for " + ref_seq.accession)
+                # Ensure the header isn't a value within the swappers dictionary
+                for original in swappers.keys():
+                    header = swappers[original]
+                    if re.search(ref_seq.accession, header) and re.search(tmp_ref_def, header):
+                        # It is and therefore the header was swapped last run
+                        ref_seq.sequence = fasta_dict[original]
+                        break
+                if not ref_seq.sequence:
+                    # Unable to find sequence in swappers too
+                    sys.exit("Unable to find header for " + ref_seq.accession)
 
     else:  # if fasta_replace_dict needs to be populated, this is a new run
         for header in fasta_dict.keys():
@@ -676,6 +715,8 @@ def get_lineage(search_term, molecule_type):
             try:
                 if "GBSeq_organism" in record[0]:
                     organism = record[0]["GBSeq_organism"]
+                    # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
+                    organism = re.sub('[)(\[\]]', '', organism)
                     lineage = query_entrez_taxonomy(organism)
             except IndexError:
                 lineage = dict()
@@ -704,9 +745,36 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
     sys.stdout.write("Retrieving lineage information for each reference sequence... ")
     sys.stdout.flush()
 
-    tree_tax_list_handle = open(tree_taxa_list, "w")
+    # Prepare for the progress bar
+    num_reference_sequences = len(fasta_replace_dict.keys())
+    if num_reference_sequences > 50:
+        progress_bar_width = 50
+        step_proportion = float(num_reference_sequences) / progress_bar_width
+    else:
+        progress_bar_width = num_reference_sequences
+        step_proportion = 1
+
+    sys.stdout.write("[%s ]" % (" " * progress_bar_width))
+    sys.stdout.write("%")
+    sys.stdout.write("\b" * (progress_bar_width + 3))
+    sys.stdout.flush()
+
+    acc = 0.0
+
+    taxa_searched = 0
+    tree_taxa_string = ""
     for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
         reference_sequence = fasta_replace_dict[mltree_id_key]
+        acc += 1.0
+        if acc >= step_proportion:
+            acc -= step_proportion
+            sys.stdout.write("-")
+            sys.stdout.flush()
+
+        if reference_sequence.lineage:
+            continue
+        else:
+            taxa_searched += 1
         lineage = ""
         strikes = 0
         while strikes < 3:
@@ -724,9 +792,9 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
                         # The query was successful
                         lineage += '; ' + reference_sequence.organism.split('_')[-2]
                         strikes = 3
-                # else:
-                #     # Organism information is not available, time to bail
-                #     strikes += 1
+                else:
+                    # Organism information is not available, time to bail
+                    strikes += 1
             elif strikes == 2:
                 lineage = get_lineage(lineage, "tax")
             if type(lineage) is dict:
@@ -737,13 +805,16 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
         if not lineage:
             sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")
             fasta_replace_dict[mltree_id_key].get_info()
-        tree_tax_list_handle.write("%s\t%s | %s\t%s\n" % (mltree_id_key,
-                                                          reference_sequence.description,
-                                                          reference_sequence.accession,
-                                                          lineage))
-    tree_tax_list_handle.close()
+        tree_taxa_string += "%s\t%s | %s\t%s\n" % (mltree_id_key,
+                                                   reference_sequence.description,
+                                                   reference_sequence.accession,
+                                                   lineage)
+    if taxa_searched == len(fasta_replace_dict.keys()):
+        tree_tax_list_handle = open(tree_taxa_list, "w")
+        tree_tax_list_handle.write(tree_taxa_string)
+        tree_tax_list_handle.close()
 
-    sys.stdout.write("done.\n")
+    sys.stdout.write("] done.\n")
     sys.stdout.flush()
 
     return
@@ -866,6 +937,25 @@ def update_build_parameters(args, code_name, aa_model):
     return
 
 
+def terminal_commands(final_output_folder, code_name):
+    sys.stdout.write("\nTo integrate these data for use in TreeSAPP, the following steps must be performed:\n")
+    sys.stdout.write("1. Include properly formatted 'denominator' codes "
+                     "in data/tree_data/cog_list.tsv and data/tree_data/ref_build_parameters.tsv\n")
+    sys.stdout.write("2. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name + " data/tree_data/\n")
+    sys.stdout.write("3. $ cp " + final_output_folder + os.sep + code_name + "_tree.txt data/tree_data/\n")
+    sys.stdout.write("4. $ cp " + final_output_folder + os.sep + code_name + ".hmm data/hmm_data/\n")
+    sys.stdout.write("5. $ cp " + final_output_folder + os.sep + code_name + ".fa* data/alignment_data/\n")
+    sys.stdout.write("6. $ cp " + final_output_folder + os.sep + code_name +
+                     "_tree.txt imagemaker_2_061/tree_data/\n")
+    sys.stdout.write("7. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name +
+                     " imagemaker_2_061/tree_data/\n")
+    sys.stdout.write("8. Create a file called imagemaker_2_061/tree_data/domain_and_color_descriptions_" +
+                     code_name + ".txt to add colours to clades in the new reference tree.\n")
+    sys.stdout.write("9. Modify imagemaker_2_061/tree_data/drawing_info.txt following the obvious format\n")
+    sys.stdout.flush()
+    return
+
+
 def reverse_complement(rrna_sequence):
     comp = []
     for c in rrna_sequence:
@@ -892,6 +982,10 @@ def main():
 
     code_name = args.code_name
     final_output_folder = args.output
+    if args.pc:
+        terminal_commands(final_output_folder, code_name)
+        sys.exit(0)
+
     tree_taxa_list = "tax_ids_%s.txt" % code_name
 
     if not os.path.exists(final_output_folder):
@@ -927,15 +1021,14 @@ def main():
         cluster_dict = read_uc(args.uc)
         if use_previous_names == 'n':
             swappers = present_cluster_rep_options(cluster_dict)
-            swappers = reformat_headers(swappers)
-            fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers)
-            write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
-        if use_previous_names == 'y':
-            # TODO: Debug this - not working properly with --multiple_alignment and -m dna
+        elif use_previous_names == 'y':
             fasta_replace_dict = read_tax_ids(tree_taxa_list)
             if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
                 raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
-            fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, cluster_dict)
+            swappers = regenerate_cluster_rep_swaps(cluster_dict, fasta_replace_dict)
+        swappers = reformat_headers(swappers)
+        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers)
+        write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
     else:
         # args.uc is None and use_previous_names == 'n'
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict)
@@ -1086,21 +1179,8 @@ def main():
     aa_model = find_model_used(raxml_out + os.sep + "RAxML_info." + code_name)
     update_build_parameters(args, code_name, aa_model)
 
-    sys.stdout.write("Data for " + code_name + " has been generated succesfully.\n\n")
-    sys.stdout.write("To integrate these data for use in TreeSAPP, the following steps must be performed:\n")
-    sys.stdout.write("1. Include properly formatted 'denominator' codes "
-                     "in data/tree_data/cog_list.tsv and data/tree_data/ref_build_parameters.tsv\n")
-    sys.stdout.write("2. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name + " data/tree_data/\n")
-    sys.stdout.write("3. $ cp " + final_output_folder + os.sep + code_name + "_tree.txt data/tree_data/\n")
-    sys.stdout.write("4. $ cp " + final_output_folder + os.sep + code_name + ".hmm data/hmm_data/\n")
-    sys.stdout.write("5. $ cp " + final_output_folder + os.sep + code_name + ".fa* data/alignment_data/\n")
-    sys.stdout.write("6. $ cp " + final_output_folder + os.sep + code_name +
-                     "_tree.txt imagemaker_2_061/tree_data/\n")
-    sys.stdout.write("7. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name +
-                     " imagemaker_2_061/tree_data/\n")
-    sys.stdout.write("8. Create a file called imagemaker_2_061/tree_data/domain_and_color_descriptions_" +
-                     code_name + ".txt to add colours to clades in the new reference tree.\n")
-    sys.stdout.write("9. Modify imagemaker_2_061/tree_data/drawing_info.txt following the obvious format\n")
-    sys.stdout.flush()
+    sys.stdout.write("Data for " + code_name + " has been generated successfully.\n")
+    terminal_commands(final_output_folder, code_name)
+
 
 main()

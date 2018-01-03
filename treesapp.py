@@ -49,14 +49,22 @@ class Autovivify(dict):
             return value
 
 
-class GenewiseWorker(Process):
+class CommandLineFarmer(Process):
     """
-    A worker that will launch genewise processes in its queue
+    A worker that will launch command-line jobs using multiple processes in its queue
     """
 
-    def __init__(self, task_queue):
+    def __init__(self, command, num_threads):
+        """
+        Instantiate a CommandLineFarmer object to oversee multiprocessing of command-line jobs
+        :param command:
+        :param num_threads:
+        """
         Process.__init__(self)
-        self.task_queue = task_queue
+        self.max_size = 32767  # The actual size limit of a JoinableQueue
+        self.task_queue = JoinableQueue(self.max_size)
+        self.master = command
+        self.num_threads = int(num_threads)
 
     def run(self):
         while True:
@@ -68,10 +76,36 @@ class GenewiseWorker(Process):
             p_genewise = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
             p_genewise.wait()
             if p_genewise.returncode != 0:
-                sys.stderr.write("ERROR: Genewise did not complete successfully for:\n")
+                sys.stderr.write("ERROR: " + self.master + " did not complete successfully for:\n")
                 sys.stderr.write(str(' '.join(next_task)))
                 sys.stderr.flush()
             self.task_queue.task_done()
+        return
+
+    def add_tasks_to_queue(self, task_list):
+        """
+        Function for adding commands from task_list to task_queue while ensuring space in the JoinableQueue
+        :param task_list: List of commands
+        :return: Nothing
+        """
+        num_tasks = len(task_list)
+    
+        task = task_list.pop()
+        while task:
+            if not self.task_queue.full():
+                self.task_queue.put(task)
+                if num_tasks > 1:
+                    task = task_list.pop()
+                    num_tasks -= 1
+                else:
+                    task = None
+
+        i = self.num_threads
+        while i:
+            if not self.task_queue.full():
+                self.task_queue.put(None)
+                i -= 1
+    
         return
 
 
@@ -902,13 +936,14 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC", "hmmalign", "trimal"]
+    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC",
+                    "hmmalign", "trimal", "cmalign", "cmsearch"]
 
     if args.rpkm:
         dependencies += ["bwa", "rpkm"]
 
     if args.update_tree:
-        dependencies += ["usearch", "muscle", "hmmbuild"]
+        dependencies += ["usearch", "muscle", "hmmbuild", "cmbuild"]
 
     if args.consensus:
         dependencies.append("FGS+")
@@ -1360,7 +1395,7 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid.
     :param fasta_input: Absolute path of the FASTA file to be read
-    :param molecule: Molecule type of the sequences [
+    :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param max_header_length: The length of the header string before all characters after this length are removed
     :return A Python dictionary with headers as keys and sequences as values
@@ -2003,6 +2038,20 @@ def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict, cog_li
     return contig_coordinates, shortened_sequence_files, gene_coordinates
 
 
+def subsequence(fasta_dictionary, contig_name, start, end):
+    """
+    Extracts a sub-sequence from `start` to `end` of `contig_name` in `fasta_dictionary`
+     with headers for keys and sequences as values. `contig_name` does not contain the '>' character
+    :param fasta_dictionary:
+    :param contig_name:
+    :param start:
+    :param end:
+    :return: A string representing the sub-sequence of interest
+    """
+    subseq = fasta_dictionary['>' + contig_name][start:end]
+    return subseq
+
+
 def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
     """
     Function to write the nucleotide sequences representing the BLAST alignment region for each hit in the fasta
@@ -2018,8 +2067,10 @@ def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
     orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
     try:
         fna_output = open(orf_nuc_fasta, 'w')
-    except:
+    except IOError:
         raise IOError("Unable to open " + orf_nuc_fasta + " for writing!")
+
+    output_fasta_string = ""
 
     for contig_name in gene_coordinates:
         start = 0
@@ -2029,8 +2080,11 @@ def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
             for coords_end in gene_coordinates[contig_name][coords_start].keys():
                 end = coords_end
                 cog = gene_coordinates[contig_name][coords_start][coords_end]
-                fna_output.write('>' + contig_name + '|' + cog + '|' + str(start) + '_' + str(end) + "\n")
-                fna_output.write(formatted_fasta_dict['>' + contig_name][start:end] + "\n")
+                output_fasta_string += '>' + contig_name + '|' + cog + '|' + str(start) + '_' + str(end) + "\n"
+                output_fasta_string += subsequence(formatted_fasta_dict, contig_name, start, end) + "\n"
+
+    fna_output.write(output_fasta_string)
+    fna_output.close()
 
     return
 
@@ -2043,35 +2097,6 @@ def fprintf(opened_file, fmt, *args):
     opened_file.write(fmt % args)
 
 
-def add_tasks_to_queue(task_list, task_queue, num_threads):
-    """
-    Function for adding genewise commands from task_list to task_queue while ensuring space in the JoinableQueue
-    :param task_list: List of genewise commands
-    :param task_queue: JoinableQueue object with a maximum size of 32767
-    :param num_threads: Number of threads to be used
-    :return: Nothing
-    """
-    num_tasks = len(task_list)
-
-    task = task_list.pop()
-    while task:
-        if not task_queue.full():
-            task_queue.put(task)
-            if num_tasks > 1:
-                task = task_list.pop()
-                num_tasks -= 1
-            else:
-                task = None
-
-    i = int(num_threads)
-    while i:
-        if not task_queue.full():
-            task_queue.put(None)
-            i -= 1
-
-    return
-
-
 def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     """
     Runs Genewise on the provided list of sequence files.
@@ -2080,7 +2105,6 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     Returns an Autovivification mapping the Genewise output files to each contig.
     """
 
-    max_size = 32767  # The actual size limit of a JoinableQueue
     task_list = list()
     dups_skipped = 0
 
@@ -2148,8 +2172,8 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
 
     num_tasks = len(task_list)
     if num_tasks > 0:
-        task_queue = JoinableQueue(max_size)
-        genewise_process_queues = [GenewiseWorker(task_queue) for i in range(int(args.num_threads))]
+        cl_worker = CommandLineFarmer()
+        genewise_process_queues = [CommandLineFarmer(task_queue) for i in range(int(args.num_threads))]
         for process in genewise_process_queues:
             process.start()
         add_tasks_to_queue(task_list, task_queue, args.num_threads)
@@ -2374,6 +2398,79 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
         sys.stdout.write("\t" + str(valid_genewise_sequences) + " valid sequences after Genewise processing.\n\n")
 
     return genewise_summary_files
+
+
+def parse_infernal_table(infernal_table):
+    """
+    Function to parse the `--tblout` file from Infernal, generating a list of sequence names
+    that meet pre-defined thresholds and their start and end positions on their contig
+    :return: A dictionary containing contig names, and the start and end positions of an rRNA sequence (tuple)
+    """
+
+    rrna_seqs = dict()
+
+    return rrna_seqs
+
+
+def extract_rrna_sequences(rrna_seqs, rrna_marker, fasta_dictionary):
+    """
+    TEMPLATE
+    :param rrna_seqs:
+    :param rrna_marker:
+    :return:
+    """
+    rrna_fasta_dict = dict()
+    for contig_name in rrna_seqs:
+        for coordinates in sorted(rrna_seqs[contig_name].keys()):
+            start, end = coordinates
+            rrna_fasta_dict['>' + contig_name + '|' + str(start) + '_' + str(end)] = subsequence(fasta_dictionary,
+                                                                                                 contig_name,
+                                                                                                 start,
+                                                                                                 end)
+    return rrna_fasta_dict
+
+
+def detect_ribrna_sequences(args, cog_list, formatted_fasta_dict):
+    """
+
+    :param args:
+    :param cog_list:
+    :param formatted_fasta_dict:
+    :return:
+    """
+    sys.stdout.write("Retrieving rRNA hits with Infernal... ")
+    sys.stdout.flush()
+
+    if args.verbose:
+        function_start_time = time.time()
+
+    num_rrna = 0
+
+    for rrna_marker in cog_list["phylogenetic_cogs"]:
+        cov_model = ""
+        infernal_table = ""
+
+        cmsearch_command = [args.executables["cmsearch"]]
+        cmsearch_command += ["--tblout", infernal_table]
+        cmsearch_command += ["--noali", "--cpu", str(args.num_threads)]
+        cmsearch_command += [cov_model, args.input]
+
+        rrna_seqs = parse_infernal_table(infernal_table)
+        num_rrna += len(rrna_seqs.values())
+        extract_rrna_sequences(rrna_seqs, rrna_marker, formatted_fasta_dict)
+
+    sys.stdout.write("done.\n")
+
+    if args.verbose:
+        function_end_time = time.time()
+        hours, remainder = divmod(function_end_time - function_start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\trRNA-identification time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+        sys.stdout.write("\t" + str(num_rrna) + " rRNA sequences found.\n\n")
+        sys.stdout.flush()
+
+    return
 
 
 def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, cog_list):
@@ -2648,6 +2745,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
             line = line.strip()
 
             while line:
+
                 cog, start, end, _, sequence = line.split('\t')
                 denominator = cog_list["all_cogs"][cog]
                 f_contig = denominator + "_" + contig
@@ -2662,15 +2760,23 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                 except IOError:
                     sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
                     sys.exit(0)
-
-                hmmalign_command = [args.executables["hmmalign"], '--mapali',
-                                    treesapp_resources + reference_data_prefix + 'alignment_data' +
-                                    os.sep + cog + '.fa',
-                                    '--outformat', 'Clustal',
-                                    treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
-                                    genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
+                # TODO: Remove this once 18s and general rRNA reference package creation is implemented
+                if cog in cog_list["phylogenetic_rRNA_cogs"] and cog in ["16srRNA", "16s", "16S", "SSU16"]:
+                    malign_command = [args.executables["cmalign"], '--mapali',
+                                      treesapp_resources + reference_data_prefix + 'alignment_data' +
+                                      os.sep + cog + '.sto',
+                                      '--outformat', 'Clustal',
+                                      treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.cm',
+                                      genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
+                else:
+                    malign_command = [args.executables["hmmalign"], '--mapali',
+                                      treesapp_resources + reference_data_prefix + 'alignment_data' +
+                                      os.sep + cog + '.fa',
+                                      '--outformat', 'Clustal',
+                                      treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
+                                      genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
                 # TODO: Run this using multiple processes
-                os.system(' '.join(hmmalign_command))
+                os.system(' '.join(malign_command))
 
                 line = genewise_output.readline()
                 line = line.strip()
@@ -2746,7 +2852,6 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
                 hmmalign_msa = open(hmmalign_singlehit_file, 'r')
             except IOError:
                 sys.exit('Can\'t open ' + hmmalign_singlehit_file + '!\n')
-            reached_data_part = False
             # Determine the best AA model
             if re.match(re.escape(args.output_dir_var + os.sep + f_contig) + r"_(\w+)_\d+_\d+\.mfa$",
                hmmalign_singlehit_file.strip()):
@@ -2761,8 +2866,7 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
             # Get sequence from file
             for _line in hmmalign_msa:
                 line = _line.strip()
-                if re.search(r'query', line):
-                    reached_data_part = True
+                reached_data_part = re.match(r'\A(.+) (\S+)\Z', line)
                 if not reached_data_part:
                     continue
                 search_result = re.search(r'\A(.+) (\S+)\Z', line)
@@ -5251,6 +5355,7 @@ def main(argv):
                                                                                                   cog_list)
             if args.molecule == "dna":
                 write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict)
+                # detect_ribrna_sequences(args, cog_list, formatted_fasta_dict)
                 formatted_fasta_dict.clear()
                 genewise_outputfiles = start_genewise(args, shortened_sequence_files, blast_hits_purified)
                 genewise_summary_files = parse_genewise_results(args, genewise_outputfiles, contig_coordinates)
