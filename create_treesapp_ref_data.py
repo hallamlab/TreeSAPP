@@ -467,9 +467,9 @@ def present_cluster_rep_options(cluster_dict):
             for num in sorted(candidates.keys(), key=int):
                 sys.stderr.write(num + ". " + candidates[num] + "\n")
             sys.stderr.flush()
-            # best = input("Number of the best representative? ")
+            best = input("Number of the best representative? ")
             # Useful for testing - no need to pick which sequence name is best!
-            best = str(1)
+            # best = str(1)
             while best not in candidates.keys():
                 best = input("Invalid number. Number of the best representative? ")
             if best != str(1):
@@ -612,7 +612,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
             ref_seq = ReferenceSequence()
             ref_seq.sequence = fasta_dict[header]
             if swappers and header in swappers.keys():
-                header = swappers[header]
+                header = '>' + swappers[header]
                 swapped_headers.append(header)
             header_format_re, header_db = get_header_format(header, code_name)
             if header_format_re is None:
