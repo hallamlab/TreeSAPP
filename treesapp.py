@@ -49,22 +49,11 @@ class Autovivify(dict):
             return value
 
 
-class CommandLineFarmer(Process):
-    """
-    A worker that will launch command-line jobs using multiple processes in its queue
-    """
-
-    def __init__(self, command, num_threads):
-        """
-        Instantiate a CommandLineFarmer object to oversee multiprocessing of command-line jobs
-        :param command:
-        :param num_threads:
-        """
+class CommandLineWorker(Process):
+    def __init__(self, task_queue, commander):
         Process.__init__(self)
-        self.max_size = 32767  # The actual size limit of a JoinableQueue
-        self.task_queue = JoinableQueue(self.max_size)
-        self.master = command
-        self.num_threads = int(num_threads)
+        self.task_queue = task_queue
+        self.master = commander
 
     def run(self):
         while True:
@@ -81,6 +70,26 @@ class CommandLineFarmer(Process):
                 sys.stderr.flush()
             self.task_queue.task_done()
         return
+
+
+class CommandLineFarmer():
+    """
+    A worker that will launch command-line jobs using multiple processes in its queue
+    """
+
+    def __init__(self, command, num_threads):
+        """
+        Instantiate a CommandLineFarmer object to oversee multiprocessing of command-line jobs
+        :param command:
+        :param num_threads:
+        """
+        self.max_size = 32767  # The actual size limit of a JoinableQueue
+        self.task_queue = JoinableQueue(self.max_size)
+        self.num_threads = int(num_threads)
+
+        genewise_process_queues = [CommandLineWorker(self.task_queue, command) for i in range(int(self.num_threads))]
+        for process in genewise_process_queues:
+            process.start()
 
     def add_tasks_to_queue(self, task_list):
         """
@@ -2172,14 +2181,11 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
 
     num_tasks = len(task_list)
     if num_tasks > 0:
-        cl_worker = CommandLineFarmer()
-        genewise_process_queues = [CommandLineFarmer(task_queue) for i in range(int(args.num_threads))]
-        for process in genewise_process_queues:
-            process.start()
-        add_tasks_to_queue(task_list, task_queue, args.num_threads)
+        cl_farmer = CommandLineFarmer("Genewise", args.num_threads)
+        cl_farmer.add_tasks_to_queue(task_list)
 
-        task_queue.close()
-        task_queue.join()
+        cl_farmer.task_queue.close()
+        cl_farmer.task_queue.join()
 
     sys.stdout.write("done.\n")
     if args.verbose:

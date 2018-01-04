@@ -39,7 +39,7 @@ COG0525	C0525	phylogenetic_cogs
 COG0533	C0533	phylogenetic_cogs
 COG0541	C0541	phylogenetic_cogs
 COG0552	C0552	phylogenetic_cogs
-16srRNA	R0016	rRNA_marker
+#16srRNA	R0016	rRNA_marker
 #16s	R1016	rRNA_marker
 SSU16	R1016	rRNA_marker
 ArcSSU	R2016	rRNA_marker
