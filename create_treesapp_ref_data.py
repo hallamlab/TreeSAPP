@@ -467,9 +467,9 @@ def present_cluster_rep_options(cluster_dict):
             for num in sorted(candidates.keys(), key=int):
                 sys.stderr.write(num + ". " + candidates[num] + "\n")
             sys.stderr.flush()
-            best = input("Number of the best representative? ")
+            # best = input("Number of the best representative? ")
             # Useful for testing - no need to pick which sequence name is best!
-            # best = str(1)
+            best = str(1)
             while best not in candidates.keys():
                 best = input("Invalid number. Number of the best representative? ")
             if best != str(1):
@@ -539,6 +539,7 @@ def get_header_format(header, code_name):
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)[_]+coded_by=(.+)[_]+organism=(.+)[_]+definition=(.+)$")
+    fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[_]+organism=(.+)[_]+definition=(.+)$")
 
     # Nucleotide databases:
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
@@ -546,9 +547,9 @@ def get_header_format(header, code_name):
     refseq_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
-    header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re, fungene_re, mltree_re,
+    header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re, fungene_re, fungene_trunc_re, mltree_re,
                             gi_prepend_proper_re, gi_prepend_mess_re, gi_re, silva_arb_re, refseq_re, nr_re]
-    header_format_dbs = ["dbj", "emb", "gb", "pdb", "pir", "ref", "sp", "fungene",
+    header_format_dbs = ["dbj", "emb", "gb", "pdb", "pir", "ref", "sp", "fungene", "fungene_truncated",
                          "mltree", "gi_proper", "gi_mess", "gi_re", "silva", "refseq", "nr"]
 
     if len(header_format_dbs) != len(header_format_regexi):
@@ -631,6 +632,10 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
                     ref_seq.locus = sequence_info.group(2)
                     ref_seq.organism = re.sub(pattern="_", repl=" ", string=sequence_info.group(3))
                     ref_seq.description = sequence_info.group(3)
+                elif header_db == "fungene_truncated":
+                    ref_seq.accession = sequence_info.group(1)
+                    ref_seq.organism = re.sub(pattern="_", repl=" ", string=sequence_info.group(2))
+                    ref_seq.description = sequence_info.group(3)
             else:
                 sys.stdout.write("Unable to handle header: " + header + "\n")
                 sys.exit()
@@ -679,6 +684,8 @@ def get_lineage(search_term, molecule_type):
     # TODO: fix potential error PermissionError:
     # [Errno 13] Permission denied: '/home/connor/.config/biopython/Bio/Entrez/XSDs'
     # Fixed with `sudo chmod 777 .config/biopython/Bio/Entrez/`
+    if not search_term:
+        raise AssertionError("ERROR: search_term for Entrez query is empty!\n")
     if float(Bio.__version__) < 1.68:
         # This is required due to a bug in earlier versions returning a URLError
         raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
@@ -787,7 +794,11 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
                 # Unable to determine lineage from the search_term provided,
                 # try to parse organism name from description
                 if reference_sequence.organism:
-                    lineage = get_lineage(reference_sequence.organism.split('_')[-2], "tax")
+                    try:
+                        taxon = reference_sequence.organism.split('_')[-2]
+                    except IndexError:
+                        taxon = reference_sequence.organism
+                    lineage = get_lineage(taxon, "tax")
                     if type(lineage) is str:
                         # The query was successful
                         lineage += '; ' + reference_sequence.organism.split('_')[-2]
