@@ -99,13 +99,15 @@ def get_arguments():
     miscellaneous_opts.add_argument('--pc', action='store_true', default=False,
                                     help='Prints the final commands to '
                                          'complete installation for a provided `code_name`')
+    miscellaneous_opts.add_argument('--add_lineage', action='store_true', default=False,
+                                    help='If the tax_ids file exists for the code_name,'
+                                         'the third, lineage, column is appended then exits, leaving all other files.')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
 
     args = parser.parse_args()
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-    final_output_folder = "TreeSAPP_files_%s" % args.code_name
-    args.output = final_output_folder
+    args.output = "TreeSAPP_files_%s" % args.code_name
 
     if len(args.code_name) > 6:
         sys.stderr.write("ERROR: code_name must be <= 6 characters!\n")
@@ -987,6 +989,16 @@ def reverse_complement(rrna_sequence):
     return rev_comp
 
 
+def update_tax_ids_with_lineage(args, final_output_folder, tree_taxa_list):
+    tax_ids_file = final_output_folder + os.sep + tree_taxa_list
+    if not os.path.exists(tax_ids_file):
+        sys.stderr.write("ERROR: Unable to find " + tax_ids_file + "!\n")
+        raise FileNotFoundError
+    fasta_replace_dict = read_tax_ids(tax_ids_file)
+    write_tax_ids(fasta_replace_dict, tax_ids_file, args.molecule)
+    return
+
+
 def main():
     args = get_arguments()
     args = find_executables(args)
@@ -998,6 +1010,11 @@ def main():
         sys.exit(0)
 
     tree_taxa_list = "tax_ids_%s.txt" % code_name
+
+    if args.add_lineage:
+        update_tax_ids_with_lineage(args, final_output_folder, tree_taxa_list)
+        terminal_commands(final_output_folder, code_name)
+        sys.exit(0)
 
     if not os.path.exists(final_output_folder):
         os.makedirs(final_output_folder)
@@ -1149,7 +1166,7 @@ def main():
     raxml_command += ["-#", args.bootstraps]
     raxml_command += ["-s", phylip_file]
     raxml_command += ["-n", code_name]
-    raxml_command += ["-w", args.mltreemap + raxml_out]
+    raxml_command += ["-w", raxml_out]
     raxml_command += ["-T", args.num_threads]
 
     if args.molecule == "prot":
@@ -1194,4 +1211,6 @@ def main():
     terminal_commands(final_output_folder, code_name)
 
 
-main()
+if __name__ == "__main__":
+    main()
+
