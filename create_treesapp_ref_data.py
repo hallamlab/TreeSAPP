@@ -414,7 +414,7 @@ def read_uc(uc_file):
             if cluster_type == "S":
                 cluster_dict['>' + header] = list()
             if cluster_type == "H" and identity == 100.0 and cigar == '=':
-                cluster_dict['>' + representative].append(header)
+                cluster_dict['>' + representative].append('>' + header)
         line = uc.readline()
     return cluster_dict
 
@@ -440,7 +440,7 @@ def regenerate_cluster_rep_swaps(cluster_dict, fasta_replace_dict):
                     subs = cluster_dict[rep]
                     for candidate in subs:
                         candidate_acc = candidate.split(' ')[0]
-                        if candidate_acc == ref_seq.accession:
+                        if candidate_acc == '>' + ref_seq.accession:
                             print("Changed: ", candidate)
                             swappers[rep] = candidate
                             break
@@ -489,10 +489,10 @@ def reformat_headers(header_dict):
     swappers = dict()
 
     def reformat_string(string):
-        if len(string) > 110:
-            string = string[0:110]
-        string = re.sub("\[|\]|\(|\)", '', string)
+        string = re.sub("\[|\]|\(|\)|\/|\\\\|'", '', string)
         string = re.sub("\s|;|,", '_', string)
+        if len(string) > 110:
+            string = string[0:109]
         return string
 
     for old, new in header_dict.items():
@@ -585,13 +585,15 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
         for mltree_id in sorted(fasta_replace_dict):
             ref_seq = fasta_replace_dict[mltree_id]
             ref_seq.short_id = mltree_id + '_' + code_name
-            tmp_ref_def = re.sub('[)(\[\]]', '', ref_seq.description)  # Remove parentheses for comparisons
+            tmp_ref_def = re.sub("[)(\[\]]|\/|\\\\|'", '', ref_seq.description)  # Remove parentheses for comparisons
             for header in fasta_dict:
                 if re.search(ref_seq.accession, header):
                     if re.search(tmp_ref_def, header):
                         ref_seq.sequence = fasta_dict[header]
                     else:
-                        print("ERROR: Accession matched but not the definition")
+                        sys.stderr.write("\nWARNING: " +
+                                         "accession (" + ref_seq.accession + ") matches, definition differs:\n")
+                        sys.stderr.write('"' + tmp_ref_def + "\" versus \"" + header + "\"\n")
             if not ref_seq.sequence:
                 # Ensure the header isn't a value within the swappers dictionary
                 for original in swappers.keys():
@@ -605,7 +607,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
                     sys.exit("Unable to find header for " + ref_seq.accession)
 
     else:  # if fasta_replace_dict needs to be populated, this is a new run
-        for header in fasta_dict.keys():
+        for header in sorted(fasta_dict.keys()):
             if fungene_gi_bad.match(header):
                 sys.stderr.write("\nWARNING: Input sequences use 'GIs' which are obsolete and may be non-unique. "
                                  "For everyone's sanity, please download sequences with the `accno` instead.\n")
@@ -614,7 +616,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
             ref_seq = ReferenceSequence()
             ref_seq.sequence = fasta_dict[header]
             if swappers and header in swappers.keys():
-                header = '>' + swappers[header]
+                header = swappers[header]
                 swapped_headers.append(header)
             header_format_re, header_db = get_header_format(header, code_name)
             if header_format_re is None:
@@ -1150,7 +1152,7 @@ def main():
     phylip_file = code_name + ".phy"
     os.rename(fasta_mltree + ".phylip", phylip_file)
 
-    raxml_out = "%s_phy_files" % code_name
+    raxml_out = args.mltreemap + code_name + "_phy_files"
 
     if not os.path.exists(raxml_out):
         os.system("mkdir %s" % raxml_out)
