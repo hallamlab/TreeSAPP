@@ -745,6 +745,25 @@ def get_lineage(search_term, molecule_type):
     return lineage
 
 
+def order_dict_by_lineage(fasta_replace_dict):
+    # Create a new dictionary with lineages as keys
+    lineage_dict = dict()
+    sorted_lineage_dict = dict()
+    for mltree_id in fasta_replace_dict:
+        ref_seq = fasta_replace_dict[mltree_id]
+        if ref_seq.lineage not in lineage_dict.keys():
+            # Values of the new dictionary are lists of ReferenceSequence instances
+            lineage_dict[ref_seq.lineage] = list()
+        lineage_dict[ref_seq.lineage].append(ref_seq)
+    mltree_key = 1
+    for lineage in sorted(lineage_dict.keys(), key=str):
+        for ref_seq in lineage_dict[lineage]:
+            sorted_lineage_dict[mltree_key] = ref_seq
+            mltree_key += 1
+
+    return sorted_lineage_dict
+
+
 def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
     """
     Write the number, organism and accession ID, if possible
@@ -774,7 +793,7 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
 
     taxa_searched = 0
     tree_taxa_string = ""
-    for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
+    for mltree_id_key in fasta_replace_dict.keys():
         reference_sequence = fasta_replace_dict[mltree_id_key]
         acc += 1.0
         if acc >= step_proportion:
@@ -820,17 +839,30 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
         if not lineage:
             sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")
             fasta_replace_dict[mltree_id_key].get_info()
-        tree_taxa_string += "%s\t%s | %s\t%s\n" % (mltree_id_key,
-                                                   reference_sequence.description,
+            lineage = "Unclassified"
+        reference_sequence.lineage = lineage
+        if not reference_sequence.organism:
+            reference_sequence.organism = reference_sequence.description
+
+    sys.stdout.write("] done.\n")
+    sys.stdout.flush()
+
+    fasta_replace_dict = order_dict_by_lineage(fasta_replace_dict)
+    for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
+        # Definitely will not uphold phylogenetic relationships but at least sequences
+        # will be in the right neighbourhood rather than ordered by their position in the FASTA file
+        reference_sequence = fasta_replace_dict[mltree_id_key]
+        tree_taxa_string += "%s\t%s | %s\t%s\n" % (str(mltree_id_key),
+                                                   reference_sequence.organism,
                                                    reference_sequence.accession,
-                                                   lineage)
+                                                   reference_sequence.lineage)
     if taxa_searched == len(fasta_replace_dict.keys()):
         tree_tax_list_handle = open(tree_taxa_list, "w")
         tree_tax_list_handle.write(tree_taxa_string)
         tree_tax_list_handle.close()
-
-    sys.stdout.write("] done.\n")
-    sys.stdout.flush()
+    else:
+        sys.stderr.write("ERROR: Not all sequences were queried against the NCBI taxonomy database!\n")
+        sys.exit(22)
 
     return
 
