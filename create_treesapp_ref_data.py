@@ -672,8 +672,29 @@ def query_entrez_taxonomy(search_term):
         records = Entrez.read(handle)
         lineage = str(records[0]["Lineage"])
     except IndexError:
-        lineage = dict()
-        lineage['QueryTranslation'] = record['QueryTranslation']
+        if 'QueryTranslation' in record.keys():
+            # If 'QueryTranslation' is returned, use it for the final Entrez query
+            lineage = record['QueryTranslation']
+            lineage = re.sub("\[All Names\].*", '', lineage)
+            lineage = re.sub('[()]', '', lineage)
+            for word in lineage.split(' '):
+                handle = Entrez.esearch(db="Taxonomy", term=word, retmode="xml")
+                record = Entrez.read(handle)
+                try:
+                    org_id = record["IdList"][0]
+                except IndexError:
+                    continue
+                handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
+                records = Entrez.read(handle)
+                lineage = str(records[0]["Lineage"])
+                if re.search("cellular organisms", lineage):
+                    break
+        else:
+            sys.stderr.write("ERROR: Unable to handle record returned by Entrez.efetch!\n")
+            sys.stderr.write("Database = Taxonomy\n")
+            sys.stderr.write("term = " + search_term + "\n")
+            sys.stderr.write("record = " + str(record) + "\n")
+            raise IndexError
 
     return lineage
 
@@ -730,13 +751,15 @@ def get_lineage(search_term, molecule_type):
                     organism = re.sub('[)(\[\]]', '', organism)
                     lineage = query_entrez_taxonomy(organism)
             except IndexError:
-                lineage = dict()
-                lineage['QueryTranslation'] = record['QueryTranslation']
+                for word in record['QueryTranslation']:
+                    lineage = query_entrez_taxonomy(word)
+                    print(lineage)
         else:
             # Lineage is already set to "". Just return and move on to the next attempt
             pass
     else:
         try:
+            print("Searching taxonomy database for " + search_term)
             lineage = query_entrez_taxonomy(search_term)
         except UnboundLocalError:
             sys.stderr.write("WARNING: Unable to find Entrez taxonomy using organism name:\n\t")
@@ -831,10 +854,6 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
                     strikes += 1
             elif strikes == 2:
                 lineage = get_lineage(lineage, "tax")
-            if type(lineage) is dict:
-                # If 'QueryTranslation' is returned, use it for the final Entrez query
-                lineage = lineage['QueryTranslation'].split(' ')[0]
-                lineage = re.sub("\[All Names\]", '', lineage)
             strikes += 1
         if not lineage:
             sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")

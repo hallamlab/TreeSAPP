@@ -1627,8 +1627,10 @@ def collect_blast_outputs(args):
         os.remove(cog_blast_result)
         sys.stdout.write("No marker genes detected in input! Exiting...\n")
         sys.exit(-4)
-    else:
-        blast_tables = [cog_blast_result, rrna_blast_result]
+    blast_tables = [cog_blast_result, rrna_blast_result]
+    for blast_out in blast_tables:
+        if not os.path.exists(blast_out):
+            blast_tables.pop()
     return blast_tables
 
 
@@ -1654,7 +1656,7 @@ def parse_blast_results(args, blast_tables, cog_list):
         try:
             blast_results = open(blast_table, 'r')
         except IOError:
-            sys.stderr.write("ERROR: Cannot open BLAST output file " + blast_table)
+            sys.stderr.write("\nERROR: Cannot open BLAST output file " + blast_table + "\n")
             sys.exit(5)
 
         identifier = 0
