@@ -36,7 +36,6 @@ nosetests.xml
 .pydevproject
 .idea/workspace.xml
 .idea*
-dev_utils/
 
 # Binaries
 sub_binaries/*RAxML*
