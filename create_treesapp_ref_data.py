@@ -531,7 +531,6 @@ def get_header_format(header, code_name):
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
-    print(header)
     gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|\w.+\|(.*)$")
     gi_prepend_proper_re = re.compile(">gi\|([0-9]+)\|[a-z]+\|[_A-Z0-9.]+\|.*\[(.*)\]$")
     gi_prepend_mess_re = re.compile(">gi\|([0-9]+)\|pir\|\|(.*)$")
@@ -599,6 +598,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
     :param code_name: code_name from the command-line parameters
     :param fasta_dict: a dictionary with headers as keys and sequences as values (returned by format_read_fasta)
     :param fasta_replace_dict:
+    :param header_map:
     :param swappers: A dictionary containing representative clusters (keys) and their constituents (values)
     :return: fasta_replace_dict with a complete ReferenceSequence() value for every mltree_id key
     """
@@ -648,7 +648,9 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
             if header in header_map:
                 original_header = header_map[header]
             else:
-                print("FAIL ", header)
+                sys.stderr.write("ERROR: unable to find " + header +
+                                 " in header_map (constructed from either the input FASTA or .uc file).\n")
+                sys.stderr.write("This is probably an error stemming from `reformat_string()`.\n")
                 sys.exit()
             header_format_re, header_db = get_header_format(original_header, code_name)
             if header_format_re is None:

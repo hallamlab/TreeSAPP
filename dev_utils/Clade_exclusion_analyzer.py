@@ -33,10 +33,11 @@ def get_arguments_():
                                help="tax_ids table for the TreeSAPP marker under investigation. "
                                     "Found in data/tree_data/tax_ids*.txt.",
                                required=True)
+    required_args.add_argument('-i', '--fasta_input',
+                               help='Your sequence input file (for TreeSAPP) in FASTA format',
+                               required=True)
 
     optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument('-i', '--fasta_input', required=False,
-                        help='Your sequence input file in FASTA format')
     optopt.add_argument('-o', '--output', default='./output/', required=False,
                         help='output directory [DEFAULT = ./output/]')
     optopt.add_argument('-m', '--molecule',
@@ -81,13 +82,14 @@ def read_table(assignment_file):
     # First line in the table containing data
     line = assignments_handle.readline()
     while line:
-        n_classified += 1
         fields = line.strip().split('\t')
         try:
             marker, classified, header, abundance = fields
-            if classified not in assignments:
-                assignments[classified] = list()
-            assignments[classified].append(header)
+            if classified:
+                n_classified += 1
+                if classified not in assignments:
+                    assignments[classified] = list()
+                assignments[classified].append(header)
         except ValueError:
             sys.stderr.write("ERROR: Unable to parse line:")
             sys.stderr.write(str(line))
@@ -98,7 +100,9 @@ def read_table(assignment_file):
     return assignments, n_classified
 
 
-def read_intermediate_assignments(tmp_file):
+def read_intermediate_assignments(args, tmp_file):
+    if args.verbose:
+        sys.stderr.write("NOTIFICATION: Reading " + tmp_file + " for saved intermediate data... ")
     assignments = dict()
     try:
         file_handler = open(tmp_file, 'r')
@@ -106,19 +110,24 @@ def read_intermediate_assignments(tmp_file):
         sys.stderr.write("ERROR: Unable to open " + tmp_file + " for reading!\n")
         raise OSError
     line = file_handler.readline()
-    line = line.strip()
     while line:
+        line = line.strip()
         ref, queries = line.split('\t')
         queries_list = queries.split(',')
         assignments[ref] = queries_list
         line = file_handler.readline()
 
     file_handler.close()
+    if args.verbose:
+        sys.stderr.write("done.\n")
+        sys.stderr.flush()
     return assignments
 
 
 def write_intermediate_assignments(args, assignments):
     tmp_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
+    if args.verbose:
+        sys.stderr.write("Saving intermediate data... ")
     try:
         file_handler = open(tmp_file, 'w')
     except OSError:
@@ -128,12 +137,17 @@ def write_intermediate_assignments(args, assignments):
     for ref, queries in assignments.items():
         cleaned_ref = clean_lineage_string(ref)
         if not cleaned_ref:
-            sys.stderr.write("WARNING: reference assignment is empty after cleaning the lineage:\n" + ref + "\n")
-        assignments_string += cleaned_ref + "\t"
-        assignments_string += ','.join(queries) + "\n"
+            if args.verbose:
+                sys.stderr.write("WARNING: reference assignment is empty after cleaning the lineage:\n" + ref + "\n")
+        else:
+            assignments_string += cleaned_ref + "\t"
+            assignments_string += ','.join(queries) + "\n"
 
     file_handler.write(assignments_string)
     file_handler.close()
+    if args.verbose:
+        sys.stderr.write("done.\n")
+        sys.stderr.flush()
     return
 
 
@@ -241,13 +255,15 @@ def determine_specificity(rank_assigned_dict):
         correct = 0
         incorrect = 0
         taxonomic_distance = dict()
-        for i in range(0, 7):
+        for i in range(0, 8):
             taxonomic_distance[i] = 0
         sys.stdout.write("\t" + rank + "\t")
         if len(rank_assigned_dict[rank]) == 0:
             sys.stdout.write("NA\n")
         else:
             for assignments in rank_assigned_dict[rank]:
+                # if rank == "Family":
+                #     print(assignments)
                 for classified in assignments:
                     optimal, query = assignments[classified]
                     if optimal == classified:
@@ -258,7 +274,7 @@ def determine_specificity(rank_assigned_dict):
                         incorrect += 1
                     taxonomic_distance[offset] += 1
             rank_total = correct + incorrect
-            sys.stderr.write(str(rank_total) + "\t")
+            sys.stdout.write(str(rank_total) + "\t")
             for dist in taxonomic_distance:
                 if taxonomic_distance[dist] > 0:
                     taxonomic_distance[dist] = str(round(float(taxonomic_distance[dist]/rank_total), 3))
@@ -352,19 +368,18 @@ def main():
     assignments, n_classified = read_table(args.assignment_table)
     tmp_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
     if os.path.exists(tmp_file):
-        pre_assignments = read_intermediate_assignments(tmp_file)
+        pre_assignments = read_intermediate_assignments(args, tmp_file)
+    fasta_headers = format_read_fasta(args.fasta_input, args.molecule, args, 1000).keys()
+    # Used for sensitivity
+    total_sequences = len(fasta_headers)
+    sys.stdout.write("Sensitivity = " + str(round(float(n_classified / total_sequences), 3)) + "\n")
     if len(pre_assignments) == len(assignments):
         assignments = pre_assignments
     else:
-        if args.fasta_input:
-            fasta_headers = format_read_fasta(args.fasta_input, args.molecule, args, 1000).keys()
-            # Used for sensitivity
-            total_sequences = len(fasta_headers)
-            sys.stdout.write("Sensitivity = " + str(round(float(n_classified/total_sequences), 3)) + "\n")
-            assignments = map_full_headers(fasta_headers, assignments, args.molecule)
-        # Get rid of some names, replace underscores with semi-colons
-        write_intermediate_assignments(args, assignments)
-        assignments = clean_classification_names(assignments)
+        assignments = map_full_headers(fasta_headers, assignments, args.molecule)
+    write_intermediate_assignments(args, assignments)
+    # Get rid of some names, replace underscores with semi-colons
+    assignments = clean_classification_names(assignments)
     # Load the reference lineages into a trie (prefix trie)
     taxonomic_tree = all_possible_assignments(args, args.tax_ids_table)
     # Identify at which rank each sequence's clade was excluded: [K,P,C,O,F,G,S]
@@ -372,8 +387,8 @@ def main():
     # Determine the specificity for each rank
     determine_specificity(rank_assigned_dict)
     # Remove the intermediate file since this run completed successfully
-    if os.path.exists(tmp_file):
-        os.remove(tmp_file)
+    # if os.path.exists(tmp_file):
+    #     os.remove(tmp_file)
 
 
 if __name__ == "__main__":
