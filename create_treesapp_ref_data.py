@@ -241,7 +241,7 @@ def get_headers(fasta_file):
     while line:
         line = line.strip()
         if line[0] == '>':
-            original_headers.append(line[1:])
+            original_headers.append(line)
         else:
             pass
         line = fasta.readline()
@@ -480,6 +480,14 @@ def present_cluster_rep_options(cluster_dict):
     return swappers
 
 
+def reformat_string(string):
+    string = re.sub("\[|\]|\(|\)|\/|\\\\|'", '', string)
+    string = re.sub("\s|;|,|\|", '_', string)
+    if len(string) > 110:
+        string = string[0:109]
+    return string
+
+
 def reformat_headers(header_dict):
     """
     Imitate format_read_fasta header name reformatting
@@ -487,13 +495,6 @@ def reformat_headers(header_dict):
     :return:
     """
     swappers = dict()
-
-    def reformat_string(string):
-        string = re.sub("\[|\]|\(|\)|\/|\\\\|'", '', string)
-        string = re.sub("\s|;|,", '_', string)
-        if len(string) > 110:
-            string = string[0:109]
-        return string
 
     for old, new in header_dict.items():
         swappers[reformat_string(old)] = reformat_string(new)
@@ -530,6 +531,7 @@ def get_header_format(header, code_name):
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
+    print(header)
     gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|\w.+\|(.*)$")
     gi_prepend_proper_re = re.compile(">gi\|([0-9]+)\|[a-z]+\|[_A-Z0-9.]+\|.*\[(.*)\]$")
     gi_prepend_mess_re = re.compile(">gi\|([0-9]+)\|pir\|\|(.*)$")
@@ -540,8 +542,8 @@ def get_header_format(header, code_name):
     pdb_re = re.compile(">pdb\|(.*)\|(.*)$")
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
-    fungene_re = re.compile("^>([A-Z0-9.]+)[_]+coded_by=(.+)[_]+organism=(.+)[_]+definition=(.+)$")
-    fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[_]+organism=(.+)[_]+definition=(.+)$")
+    fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
+    fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
 
     # Nucleotide databases:
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
@@ -566,7 +568,32 @@ def get_header_format(header, code_name):
     return None, None
 
 
-def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
+def map_good_headers_to_ugly(header_collection):
+    """
+    Pairs a "good" header (bad characters replaced) with an original header which is needed for parsing information
+    from the header (such as organism ID, description, locus) in the next stage
+    :param header_collection: A dictionary or list containing original, unmodified headers
+    :return:
+    """
+    header_map = dict()
+    if type(header_collection) is list:
+        # These are the headers from the input FASTA file
+        header_list = header_collection
+    elif type(header_collection) is dict:
+        # These are the headers from USEARCH's uc file
+        header_list = list(header_collection.keys())
+        for key in header_collection.keys():
+            header_list += header_collection[key]
+    else:
+        sys.stderr.write("ERROR: Unknown header_collection format! Expected list or dict.\n")
+        raise AssertionError
+
+    for original_header in sorted(header_list):
+        header_map[reformat_string(original_header)] = original_header
+    return header_map
+
+
+def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swappers=None):
     """
     This function is used to find the accession ID and description of each sequence from the FASTA file
     :param code_name: code_name from the command-line parameters
@@ -618,10 +645,15 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers=None):
             if swappers and header in swappers.keys():
                 header = swappers[header]
                 swapped_headers.append(header)
-            header_format_re, header_db = get_header_format(header, code_name)
+            if header in header_map:
+                original_header = header_map[header]
+            else:
+                print("FAIL ", header)
+                sys.exit()
+            header_format_re, header_db = get_header_format(original_header, code_name)
             if header_format_re is None:
                 raise AssertionError("Unable to parse header: " + header)
-            sequence_info = header_format_re.match(header)
+            sequence_info = header_format_re.match(original_header)
             if sequence_info:
                 if len(sequence_info.groups()) == 2:
                     ref_seq.accession = sequence_info.group(1)
@@ -1108,11 +1140,14 @@ def main():
                 raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
             swappers = regenerate_cluster_rep_swaps(cluster_dict, fasta_replace_dict)
         swappers = reformat_headers(swappers)
-        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, swappers)
+        header_map = map_good_headers_to_ugly(cluster_dict)
+        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swappers)
         write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
     else:
         # args.uc is None and use_previous_names == 'n'
-        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict)
+        original_headers = get_headers(args.fasta_input)
+        header_map = map_good_headers_to_ugly(original_headers)
+        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map)
         write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
 
     sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
