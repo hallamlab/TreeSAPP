@@ -45,7 +45,7 @@ class ReferenceSequence:
 
 
 def get_arguments():
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(add_help=False, formatter_class=argparse.RawTextHelpFormatter)
     required_args = parser.add_argument_group("Required arguments")
     required_args.add_argument("-i", "--fasta_input",
                                help="FASTA file that will be used to create reference data for TreeSAPP",
@@ -70,40 +70,49 @@ def get_arguments():
                         default=50,
                         type=int)
     optopt.add_argument('-a', '--multiple_alignment',
-                        help='The FASTA input is also the multiple alignment file to be used. '
+                        help='The FASTA input is also the multiple alignment file to be used.\n'
                              'In this workflow, alignment with MUSCLE is skipped and this file is used instead.',
                         action="store_true",
                         default=False)
     optopt.add_argument('-m', '--molecule',
-                        help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
+                        help='The type of input sequences:\n'
+                             'prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA',
                         default='prot',
                         choices=['prot', 'dna', 'rrna'])
     optopt.add_argument('-r', "--rfam_cm",
-                        help="The covariance model of the RNA family being packaged. REQUIRED if molecule is rRNA!",
+                        help="The covariance model of the RNA family being packaged.\n"
+                             "REQUIRED if molecule is rRNA!",
                         default=None)
     optopt.add_argument("-b", "--bootstraps",
-                        help="The number of bootstrap replicates RAxML should perform [ DEFAULT = autoMR ]",
+                        help="The number of bootstrap replicates RAxML should perform\n"
+                             "[ DEFAULT = autoMR ]",
                         required=False,
                         default="autoMR")
+    optopt.add_argument("-e", "--raxml_model",
+                        help="The evolutionary model for RAxML to use\n"
+                             "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",
+                        required=False,
+                        default=None)
     optopt.add_argument("-T", "--num_threads",
                         help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
                         required=False,
                         default=str(4),
                         type=str)
-    optopt.add_argument("-h", "--help",
-                        action="help",
-                        help="show this help message and exit")
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
-                                    help='overwrites previously processed output folders')
+                                    help='Overwrites previously processed output folders')
     miscellaneous_opts.add_argument('--pc', action='store_true', default=False,
-                                    help='Prints the final commands to '
-                                         'complete installation for a provided `code_name`')
+                                    help='Prints the final commands to complete\n'
+                                         'installation for a provided `code_name`')
     miscellaneous_opts.add_argument('--add_lineage', action='store_true', default=False,
-                                    help='If the tax_ids file exists for the code_name,'
-                                         'the third, lineage, column is appended then exits, leaving all other files.')
+                                    help='If the tax_ids file exists for the code_name,\n'
+                                         'the third (lineage) column is appended then exits,\n'
+                                         'leaving all other files.')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
+    miscellaneous_opts.add_argument("-h", "--help",
+                                    action="help",
+                                    help="Show this help message and exit")
 
     args = parser.parse_args()
     args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
@@ -117,6 +126,14 @@ def get_arguments():
     if args.rfam_cm is None and args.molecule == "rrna":
         sys.stderr.write("ERROR: Covariance model file must be provided for rRNA data!\n")
         sys.exit(-2)
+
+    # Check the RAxML model
+    raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALGF", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
+                    "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
+    if args.raxml_model not in raxml_models:
+        sys.stderr.write("ERROR: --raxml_model (" + args.raxml_model + ") not valid!\n")
+        sys.stderr.write("If this model is valid (not a typo), add if to `raxml_models` list and re-run.\n")
+        sys.exit(3)
 
     return args
 
