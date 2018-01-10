@@ -261,11 +261,10 @@ def generate_cm_data(args, unaligned_fasta):
      1. align the sequences using cmalign against a reference Rfam covariance model to generate a Stockholm file
      2. use the Stockholm file (with secondary structure annotated) to build a covariance model
      3. align the sequences using cmalign against a reference Rfam covariance model to generate an aligned fasta (AFA)
-    :param args:
+    :param args: command-line arguments objects
     :param unaligned_fasta:
     :return:
     """
-    # TODO: Ensure this function generates the necessary secondary structure information
     sys.stdout.write("Running cmalign to build Stockholm file with secondary structure annotations... ")
     sys.stdout.flush()
 
@@ -419,31 +418,60 @@ def read_uc(uc_file):
     return cluster_dict
 
 
-def regenerate_cluster_rep_swaps(cluster_dict, fasta_replace_dict):
+def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
+    """
+    Function to regenerate the swappers dictionary with the original headers as keys and
+    the new header (swapped in the previous attempt based on USEARCH's uc file) as a value
+    :param args: command-line arguments objects
+    :param cluster_dict: Dictionary where keys are centroid headers and values are headers of identical sequences
+    :param fasta_replace_dict: Immature (lacking sequences) dictionary with header information parsed from tax_ids file
+    :return:
+    """
     swappers = dict()
-    for rep in cluster_dict:
+    if args.verbose:
+        sys.stderr.write("Centroids with identical sequences in the unclustered input file:\n")
+    for rep in sorted(cluster_dict):
+        matched = False
         subs = cluster_dict[rep]
+        # If its entry in cluster_dict == 0 then there were no identical
+        # sequences and the header could not have been swapped
         if len(subs) >= 1:
             # If there is the possibility the header could have been swapped,
             # check if the header is in fasta_replace_dict
             for mltree_id in fasta_replace_dict:
-                if rep in swappers:
+                if matched:
                     break
                 ref_seq = fasta_replace_dict[mltree_id]
-                # This one has not been swapped for an identical sequence's header
+                # If the accession from the tax_ids file is the same as the representative
+                # this one has not been swapped for an identical sequence's header since it is in use
                 if re.search(ref_seq.accession, rep):
-                    print("Unchanged: ", rep)
+                    if args.verbose:
+                        sys.stderr.write("\tUnchanged: " + rep + "\n")
+                        matched = True
                     break
-                else:
-                    # The original representative is no longer in the reference sequences
-                    # so it was replaced, with this sequence...
-                    subs = cluster_dict[rep]
-                    for candidate in subs:
-                        candidate_acc = candidate.split(' ')[0]
-                        if candidate_acc == '>' + ref_seq.accession:
-                            print("Changed: ", candidate)
-                            swappers[rep] = candidate
-                            break
+                # The original representative is no longer in the reference sequences
+                # so it was replaced, with this sequence...
+                for candidate in subs:
+                    if rep in swappers or matched:
+                        break
+
+                    # parse the accession from the header
+                    header_format_re, header_db = get_header_format(candidate, args.code_name)
+                    sequence_info = header_format_re.match(candidate)
+                    if sequence_info:
+                        candidate_acc = sequence_info.group(1)
+                    else:
+                        sys.stdout.write("Unable to handle header: " + candidate + "\n")
+                        sys.exit()
+
+                    # Now compare...
+                    if candidate_acc == ref_seq.accession:
+                        if args.verbose:
+                            sys.stderr.write("\tChanged: " + candidate + "\n")
+                        swappers[rep] = candidate
+                        matched = True
+                        break
+            sys.stderr.flush()
     return swappers
 
 
@@ -531,7 +559,7 @@ def get_header_format(header, code_name):
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
-    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|\w.+\|(.*)$")
+    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|?\w.+\|(.*)$")
     gi_prepend_proper_re = re.compile(">gi\|([0-9]+)\|[a-z]+\|[_A-Z0-9.]+\|.*\[(.*)\]$")
     gi_prepend_mess_re = re.compile(">gi\|([0-9]+)\|pir\|\|(.*)$")
     dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")
@@ -550,6 +578,7 @@ def get_header_format(header, code_name):
     refseq_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
+    # Could replace this with a dictionary...
     header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re, fungene_re, fungene_trunc_re, mltree_re,
                             gi_prepend_proper_re, gi_prepend_mess_re, gi_re, silva_arb_re, refseq_re, nr_re]
     header_format_dbs = ["dbj", "emb", "gb", "pdb", "pir", "ref", "sp", "fungene", "fungene_truncated",
@@ -558,13 +587,20 @@ def get_header_format(header, code_name):
     if len(header_format_dbs) != len(header_format_regexi):
         raise AssertionError("ERROR: len(header_format_dbs) != len(header_format_regexi)\n")
     i = 0
+    header_format_re = None
+    header_db = None
     while i < len(header_format_regexi):
         regex = header_format_regexi[i]
         if regex.match(header):
-            return regex, header_format_dbs[i]
+            header_format_re = regex
+            header_db = header_format_dbs[i]
+            i = len(header_format_regexi)
         i += 1
 
-    return None, None
+    if header_format_re is None:
+        raise AssertionError("Unable to parse header: " + header)
+
+    return header_format_re, header_db
 
 
 def map_good_headers_to_ugly(header_collection):
@@ -592,6 +628,36 @@ def map_good_headers_to_ugly(header_collection):
     return header_map
 
 
+def return_sequence_info_groups(regex_match_groups, header_db, header):
+    accession = ""
+    description = ""
+    locus = ""
+    organism = ""
+    if regex_match_groups:
+        if len(regex_match_groups.groups()) == 2:
+            accession = regex_match_groups.group(1)
+            description = regex_match_groups.group(2)
+        elif header_db == "silva":
+            accession = regex_match_groups.group(1)
+            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
+            organism = regex_match_groups.group(4)
+            description = regex_match_groups.group(4)
+        elif header_db == "fungene":
+            accession = regex_match_groups.group(1)
+            locus = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
+            description = regex_match_groups.group(3)
+        elif header_db == "fungene_truncated":
+            accession = regex_match_groups.group(1)
+            organism = regex_match_groups.group(2)
+            description = regex_match_groups.group(3)
+    else:
+        sys.stdout.write("Unable to handle header: " + header + "\n")
+        sys.exit()
+
+    return accession, organism, locus, description
+
+
 def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swappers=None):
     """
     This function is used to find the accession ID and description of each sequence from the FASTA file
@@ -612,22 +678,26 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
         for mltree_id in sorted(fasta_replace_dict):
             ref_seq = fasta_replace_dict[mltree_id]
             ref_seq.short_id = mltree_id + '_' + code_name
-            tmp_ref_def = re.sub("[)(\[\]]|\/|\\\\|'", '', ref_seq.description)  # Remove parentheses for comparisons
             for header in fasta_dict:
+                original_header = header_map[header]
+                header_format_re, header_db = get_header_format(original_header, code_name)
+                sequence_info = header_format_re.match(original_header)
+                _, _, _, fasta_header_description = return_sequence_info_groups(sequence_info, header_db, header)
                 if re.search(ref_seq.accession, header):
-                    if re.search(tmp_ref_def, header):
+                    if re.search(reformat_string(ref_seq.description), reformat_string(fasta_header_description)):
                         ref_seq.sequence = fasta_dict[header]
                     else:
                         sys.stderr.write("\nWARNING: " +
                                          "accession (" + ref_seq.accession + ") matches, definition differs:\n")
-                        sys.stderr.write('"' + tmp_ref_def + "\" versus \"" + header + "\"\n")
+                        sys.stderr.write('"' + ref_seq.description + "\" versus \"" + original_header + "\"\n")
             if not ref_seq.sequence:
                 # Ensure the header isn't a value within the swappers dictionary
-                for original in swappers.keys():
-                    header = swappers[original]
-                    if re.search(ref_seq.accession, header) and re.search(tmp_ref_def, header):
+                for swapped in swappers.keys():
+                    header = swappers[swapped]
+                    original_header = header_map[header]
+                    if re.search(ref_seq.accession, header) and re.search(ref_seq.description, original_header):
                         # It is and therefore the header was swapped last run
-                        ref_seq.sequence = fasta_dict[original]
+                        ref_seq.sequence = fasta_dict[swapped]
                         break
                 if not ref_seq.sequence:
                     # Unable to find sequence in swappers too
@@ -650,33 +720,15 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
             else:
                 sys.stderr.write("ERROR: unable to find " + header +
                                  " in header_map (constructed from either the input FASTA or .uc file).\n")
-                sys.stderr.write("This is probably an error stemming from `reformat_string()`.\n")
+                sys.stderr.write("There is a chance this is due to the FASTA file and .uc being generated separately.\n")
+                # sys.stderr.write("This is probably an error stemming from `reformat_string()`.\n")
                 sys.exit()
             header_format_re, header_db = get_header_format(original_header, code_name)
-            if header_format_re is None:
-                raise AssertionError("Unable to parse header: " + header)
             sequence_info = header_format_re.match(original_header)
-            if sequence_info:
-                if len(sequence_info.groups()) == 2:
-                    ref_seq.accession = sequence_info.group(1)
-                    ref_seq.description = sequence_info.group(2)
-                elif header_db == "silva":
-                    ref_seq.accession = sequence_info.group(1)
-                    ref_seq.locus = str(sequence_info.group(2)) + '-' + str(sequence_info.group(3))
-                    ref_seq.organism = sequence_info.group(4)
-                    ref_seq.description = sequence_info.group(4)
-                elif header_db == "fungene":
-                    ref_seq.accession = sequence_info.group(1)
-                    ref_seq.locus = sequence_info.group(2)
-                    ref_seq.organism = re.sub(pattern="_", repl=" ", string=sequence_info.group(3))
-                    ref_seq.description = sequence_info.group(3)
-                elif header_db == "fungene_truncated":
-                    ref_seq.accession = sequence_info.group(1)
-                    ref_seq.organism = re.sub(pattern="_", repl=" ", string=sequence_info.group(2))
-                    ref_seq.description = sequence_info.group(3)
-            else:
-                sys.stdout.write("Unable to handle header: " + header + "\n")
-                sys.exit()
+            ref_seq.accession,\
+            ref_seq.organism,\
+            ref_seq.locus,\
+            ref_seq.description = return_sequence_info_groups(sequence_info, header_db, header)
 
             ref_seq.short_id = mltree_id + '_' + code_name
             fasta_replace_dict[mltree_id] = ref_seq
@@ -815,7 +867,10 @@ def order_dict_by_lineage(fasta_replace_dict):
     mltree_key = 1
     for lineage in sorted(lineage_dict.keys(), key=str):
         for ref_seq in lineage_dict[lineage]:
-            sorted_lineage_dict[mltree_key] = ref_seq
+            # Replace the mltree_id object
+            code = '_'.join(ref_seq.short_id.split('_')[1:])
+            ref_seq.short_id = str(mltree_key) + '_' + code
+            sorted_lineage_dict[str(mltree_key)] = ref_seq
             mltree_key += 1
 
     return sorted_lineage_dict
@@ -858,10 +913,10 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
             sys.stdout.write("-")
             sys.stdout.flush()
 
+        taxa_searched += 1
         if reference_sequence.lineage:
             continue
-        else:
-            taxa_searched += 1
+
         lineage = ""
         strikes = 0
         while strikes < 3:
@@ -914,10 +969,11 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
         tree_tax_list_handle.write(tree_taxa_string)
         tree_tax_list_handle.close()
     else:
-        sys.stderr.write("ERROR: Not all sequences were queried against the NCBI taxonomy database!\n")
+        sys.stderr.write("ERROR: Not all sequences (" + str(taxa_searched) + '/'
+                         + str(len(fasta_replace_dict.keys())) + ") were queried against the NCBI taxonomy database!\n")
         sys.exit(22)
 
-    return
+    return fasta_replace_dict
 
 
 def read_tax_ids(tree_taxa_list):
@@ -1018,7 +1074,7 @@ def update_build_parameters(args, code_name, aa_model):
     """
     Function to update the data/tree_data/ref_build_parameters.tsv file with information on this new reference sequence
     Format of file is "code_name       denominator     aa_model        cluster_identity        last_updated"
-    :param args: 
+    :param args: command-line arguments objects
     :param code_name: 
     :param aa_model: 
     :return: 
@@ -1109,7 +1165,7 @@ def main():
         sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
         sys.stderr.flush()
         if os.path.exists(args.code_name + "_phy_files"):
-           shutil.rmtree(args.code_name + "_phy_files")
+            shutil.rmtree(args.code_name + "_phy_files")
 
     if args.uc and os.path.exists(tree_taxa_list):
         if sys.version_info > (2, 9):
@@ -1134,23 +1190,25 @@ def main():
 
     if args.uc:
         cluster_dict = read_uc(args.uc)
+        header_map = map_good_headers_to_ugly(cluster_dict)
         if use_previous_names == 'n':
             swappers = present_cluster_rep_options(cluster_dict)
         elif use_previous_names == 'y':
             fasta_replace_dict = read_tax_ids(tree_taxa_list)
             if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
                 raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
-            swappers = regenerate_cluster_rep_swaps(cluster_dict, fasta_replace_dict)
+            swappers = regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict)
+        else:
+            sys.exit(2)
         swappers = reformat_headers(swappers)
-        header_map = map_good_headers_to_ugly(cluster_dict)
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swappers)
-        write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
+        fasta_replace_dict = write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
     else:
         # args.uc is None and use_previous_names == 'n'
         original_headers = get_headers(args.fasta_input)
         header_map = map_good_headers_to_ugly(original_headers)
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map)
-        write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
+        fasta_replace_dict = write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
 
     sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
 
