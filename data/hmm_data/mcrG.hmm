@@ -5,9 +5,9 @@ ALPH  Amino
 RF    no
 CS    no
 MAP   yes
-COM   /home/connor/Bioinformatics/Hallam_projects/MLTreeMap/sub_binaries/hmmbuild -s mcrG.hmm mcrG.fa
+COM   /home/cmorganlang/Hallam_projects/MLTreeMap/sub_binaries/hmmbuild -s mcrG.hmm mcrG.fa
 NSEQ  51
-DATE  Thu Jul  6 13:44:22 2017
+DATE  Tue Jan  9 11:01:36 2018
 CKSUM 2821
 XT      -8455     -4      0      *  -8455     -4      0      * 
 NULT      -4  -8455
