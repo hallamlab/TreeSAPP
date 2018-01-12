@@ -14,7 +14,8 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from treesapp import format_read_fasta
-from create_treesapp_ref_data import get_lineage
+from create_treesapp_ref_data import get_lineage, get_header_format, \
+    return_sequence_info_groups, map_good_headers_to_ugly, get_headers
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   2: "Phylum", 3: "Class", 4: "Order",
@@ -80,7 +81,9 @@ def read_table(assignment_file):
         sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
         raise AssertionError
     # First line in the table containing data
+    marker = ""
     line = assignments_handle.readline()
+    # TODO: allow for multiple markers to be analyzed
     while line:
         fields = line.strip().split('\t')
         try:
@@ -97,7 +100,7 @@ def read_table(assignment_file):
         line = assignments_handle.readline()
 
     assignments_handle.close()
-    return assignments, n_classified
+    return assignments, n_classified, marker
 
 
 def read_intermediate_assignments(args, tmp_file):
@@ -112,7 +115,11 @@ def read_intermediate_assignments(args, tmp_file):
     line = file_handler.readline()
     while line:
         line = line.strip()
-        ref, queries = line.split('\t')
+        try:
+            ref, queries = line.split('\t')
+        except ValueError:
+            sys.stderr.write("WARNING: " + tmp_file + " is incorrectly formatted. Regenerating instead.\n")
+            return assignments
         queries_list = queries.split(',')
         assignments[ref] = queries_list
         line = file_handler.readline()
@@ -240,14 +247,17 @@ def determine_offset(classified, optimal):
     return offset
 
 
-def determine_specificity(rank_assigned_dict):
+def determine_specificity(rank_assigned_dict, marker):
     """
     Correct if: optimal_assignment == query_lineage
     Correct if:
     :param rank_assigned_dict:
+    :param marker:
     :return:
     """
     sys.stdout.write("Clade-level specificities:\n")
+    clade_exclusion_strings = list()
+    clade_exclusion_tabular_string = ""
     for depth in sorted(rank_depth_map):
         rank = rank_depth_map[depth]
         if rank == "Cellular organisms":
@@ -275,13 +285,20 @@ def determine_specificity(rank_assigned_dict):
                     taxonomic_distance[offset] += 1
             rank_total = correct + incorrect
             sys.stdout.write(str(rank_total) + "\t")
+
             for dist in taxonomic_distance:
                 if taxonomic_distance[dist] > 0:
                     taxonomic_distance[dist] = str(round(float(taxonomic_distance[dist]/rank_total), 3))
                 else:
                     taxonomic_distance[dist] = str(0.0)
+                clade_exclusion_tabular_string += marker + "\t" + rank + "\t"
+                clade_exclusion_tabular_string += str(rank_total) + "\t"
+                clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist]) + "\t"
+                clade_exclusion_strings.append(clade_exclusion_tabular_string)
+                clade_exclusion_tabular_string = ""
             sys.stdout.write('\t'.join(taxonomic_distance.values()) + "\n")
-    return
+
+    return clade_exclusion_strings
 
 
 def clean_lineage_string(lineage):
@@ -313,7 +330,7 @@ def clean_classification_names(assignments):
     return cleaned_assignments
 
 
-def map_full_headers(fasta_headers, assignments, molecule_type):
+def map_full_headers(fasta_headers, header_map, assignments, molecule_type, code_name):
     """
     Since the headers used throughout the TreeSAPP pipeline are truncated,
     we read the FASTA file and use those headers instead of their short version
@@ -321,6 +338,7 @@ def map_full_headers(fasta_headers, assignments, molecule_type):
     :param fasta_headers: full-length headers that will replace those in assignments
     :param assignments: A dictionary of reference (lineage) and query names
     :param molecule_type: prot, nucl, or rrna? Parsed from command-line arguments
+    :param code_name: The marker (e.g. mcrA, pmoA_AOA, 16s) parsed from the assignments table
     :return: assignments with a full lineage for both reference (keys) and queries (values)
     """
     genome_position_re = re.compile("^([A-Z0-9._]+):.[0-9]+-[0-9]+[_]+.*")
@@ -328,6 +346,14 @@ def map_full_headers(fasta_headers, assignments, molecule_type):
     for ref, queries in assignments.items():
         full_assignments[ref] = list()
         for query in queries:
+            try:
+                original_header = header_map['>' + query]
+            except KeyError:
+                sys.stderr.write("ERROR: unable to find " + query +
+                                 " in header_map (constructed from either the input FASTA or .uc file).\n")
+                sys.stderr.write("This is probably an error stemming from `reformat_string()`.\n")
+                sys.exit(5)
+            # print(query, original_header)
             database = molecule_type
             query_fields = query.split('_')
             q_accession = query_fields[0]
@@ -337,7 +363,10 @@ def map_full_headers(fasta_headers, assignments, molecule_type):
                     q_accession = genome_position_re.match(query).group(1)
                     database = "dna"
                 else:
-                    q_accession = q_accession.split('.')[0]
+                    header_format_re, header_db = get_header_format(original_header, code_name)
+                    sequence_info = header_format_re.match(original_header)
+                    q_accession, _, _, _ = return_sequence_info_groups(sequence_info, header_db, original_header)
+                # print(q_accession)
                 lineage = get_lineage(q_accession, database)
                 full_assignments[ref].append(lineage)
             else:
@@ -360,23 +389,42 @@ def map_full_headers(fasta_headers, assignments, molecule_type):
     return full_assignments
 
 
+def write_performance_table(args, clade_exclusion_strings, sensitivity):
+    output = args.output + os.sep + "clade_exclusion_performance.tsv"
+    try:
+        output_handler = open(output, 'w')
+    except IOError:
+        sys.stderr.write("ERROR: Unable to open " + output + " for writing!")
+        raise IOError
+
+    for line in clade_exclusion_strings:
+        line += sensitivity + "\n"
+        output_handler.write(line)
+
+    output_handler.close()
+    return
+
+
 def main():
     args = get_arguments_()
     args.min_seq_length = 1
     # Load all the assignments from TreeSAPP output
     pre_assignments = dict()
-    assignments, n_classified = read_table(args.assignment_table)
+    assignments, n_classified, marker = read_table(args.assignment_table)
     tmp_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
     if os.path.exists(tmp_file):
         pre_assignments = read_intermediate_assignments(args, tmp_file)
     fasta_headers = format_read_fasta(args.fasta_input, args.molecule, args, 1000).keys()
     # Used for sensitivity
     total_sequences = len(fasta_headers)
-    sys.stdout.write("Sensitivity = " + str(round(float(n_classified / total_sequences), 3)) + "\n")
+    sensitivity = str(round(float(n_classified / total_sequences), 3))
+    sys.stdout.write("Sensitivity = " + sensitivity + "\n")
     if len(pre_assignments) == len(assignments):
         assignments = pre_assignments
     else:
-        assignments = map_full_headers(fasta_headers, assignments, args.molecule)
+        original_headers = get_headers(args.fasta_input)
+        header_map = map_good_headers_to_ugly(original_headers)
+        assignments = map_full_headers(fasta_headers, header_map, assignments, args.molecule, marker)
     write_intermediate_assignments(args, assignments)
     # Get rid of some names, replace underscores with semi-colons
     assignments = clean_classification_names(assignments)
@@ -385,7 +433,9 @@ def main():
     # Identify at which rank each sequence's clade was excluded: [K,P,C,O,F,G,S]
     rank_assigned_dict = identify_excluded_clade(args, assignments, taxonomic_tree)
     # Determine the specificity for each rank
-    determine_specificity(rank_assigned_dict)
+    clade_exclusion_strings = determine_specificity(rank_assigned_dict, marker)
+    # TODO: determine the diversity of the tested sequences
+    write_performance_table(args, clade_exclusion_strings, sensitivity)
     # Remove the intermediate file since this run completed successfully
     # if os.path.exists(tmp_file):
     #     os.remove(tmp_file)

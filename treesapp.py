@@ -66,7 +66,7 @@ class CommandLineWorker(Process):
             p_genewise.wait()
             if p_genewise.returncode != 0:
                 sys.stderr.write("ERROR: " + self.master + " did not complete successfully for:\n")
-                sys.stderr.write(str(' '.join(next_task)))
+                sys.stderr.write(str(' '.join(next_task)) + "\n")
                 sys.stderr.flush()
             self.task_queue.task_done()
         return
@@ -1426,8 +1426,11 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
     tmp_iterable = iter(fasta_list)
     if py_version == 2:
         formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
-    if py_version == 3:
+    elif py_version == 3:
         formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
+    else:
+        raise AssertionError("Unexpected Python version detected")
+
     for header in formatted_fasta_dict.keys():
         if len(header) > max_header_length:
             sys.stderr.write(header + " is too long!\nThere is a bug in _read_format_fasta - please report!\n")
@@ -2738,6 +2741,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
 
     if args.verbose:
         start_time = time.time()
+    task_list = list()
 
     # Run hmmalign on each Genewise summary file
     for contig in sorted(genewise_summary_files.keys()):
@@ -2784,12 +2788,22 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                                       treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
                                       genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
                 # TODO: Run this using multiple processes
+                # task_list.append(malign_command)
                 os.system(' '.join(malign_command))
 
                 line = genewise_output.readline()
                 line = line.strip()
 
             genewise_output.close()
+
+            # num_tasks = len(task_list)
+            # if num_tasks > 0:
+            #     cl_farmer = CommandLineFarmer("cmalign/hmmalign --mapali", args.num_threads)
+            #     cl_farmer.add_tasks_to_queue(task_list)
+            #
+            #     cl_farmer.task_queue.close()
+            #     cl_farmer.task_queue.join()
+
     sys.stdout.write("done.\n")
     sys.stdout.flush()
 

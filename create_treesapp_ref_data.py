@@ -130,7 +130,7 @@ def get_arguments():
     # Check the RAxML model
     raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALGF", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
                     "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
-    if args.raxml_model not in raxml_models:
+    if args.raxml_model and args.raxml_model not in raxml_models:
         sys.stderr.write("ERROR: --raxml_model (" + args.raxml_model + ") not valid!\n")
         sys.stderr.write("If this model is valid (not a typo), add if to `raxml_models` list and re-run.\n")
         sys.exit(3)
@@ -257,7 +257,7 @@ def get_headers(fasta_file):
     line = fasta.readline()
     while line:
         line = line.strip()
-        if line[0] == '>':
+        if line and line[0] == '>':
             original_headers.append(line)
         else:
             pass
@@ -526,10 +526,18 @@ def present_cluster_rep_options(cluster_dict):
 
 
 def reformat_string(string):
-    string = re.sub("\[|\]|\(|\)|\/|\\\\|'", '', string)
+    if string[0] == '>':
+        header = True
+    else:
+        header = False
+    string = re.sub("\[|\]|\(|\)|\/|\\\\|'|<|>", '', string)
+    if header:
+        string = '>' + string
     string = re.sub("\s|;|,|\|", '_', string)
     if len(string) > 110:
         string = string[0:109]
+    while string and string[-1] == '.':
+        string = string[:-1]
     return string
 
 
@@ -588,18 +596,20 @@ def get_header_format(header, code_name):
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
     fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
+    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
+    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) (.*) \[(.*)\]$")
 
     # Nucleotide databases:
-    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
     silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
     refseq_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
     # Could replace this with a dictionary...
-    header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re, fungene_re, fungene_trunc_re, mltree_re,
+    header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re,
+                            fungene_re, fungene_trunc_re, mltree_re, ncbi_ambiguous,
                             gi_prepend_proper_re, gi_prepend_mess_re, gi_re, silva_arb_re, refseq_re, nr_re]
     header_format_dbs = ["dbj", "emb", "gb", "pdb", "pir", "ref", "sp", "fungene", "fungene_truncated",
-                         "mltree", "gi_proper", "gi_mess", "gi_re", "silva", "refseq", "nr"]
+                         "mltree", "ncbi_ambig", "gi_proper", "gi_mess", "gi_re", "silva", "refseq", "nr"]
 
     if len(header_format_dbs) != len(header_format_regexi):
         raise AssertionError("ERROR: len(header_format_dbs) != len(header_format_regexi)\n")
@@ -654,6 +664,10 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
         if len(regex_match_groups.groups()) == 2:
             accession = regex_match_groups.group(1)
             description = regex_match_groups.group(2)
+        elif header_db in ["ncbi_ambig"]:
+            accession = regex_match_groups.group(1)
+            description = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
         elif header_db == "silva":
             accession = regex_match_groups.group(1)
             locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
@@ -891,6 +905,32 @@ def order_dict_by_lineage(fasta_replace_dict):
             mltree_key += 1
 
     return sorted_lineage_dict
+
+
+def summarize_reference_taxa(reference_dict):
+    # Not really interested in Cellular Organisms or Strains.
+    rank_depth_map = {1: "Kingdoms", 2: "Phyla", 3: "Classes", 4: "Orders", 5: "Families", 6: "Genera", 7: "Species"}
+    taxa_counts = dict()
+    for depth in rank_depth_map:
+        name = rank_depth_map[depth]
+        taxa_counts[name] = set()
+    for mltree_id_key in sorted(reference_dict.keys(), key=int):
+        lineage = reference_dict[mltree_id_key].lineage
+        position = 1
+        taxa = lineage.split('; ')
+        while position < len(taxa) and position < 8:
+            taxa_counts[rank_depth_map[position]].add(taxa[position])
+            position += 1
+    sys.stdout.write("Number of unique lineages:\n")
+    for depth in rank_depth_map:
+        rank = rank_depth_map[depth]
+        buffer = " "
+        while len(rank) + len(str(len(taxa_counts[rank]))) + len(buffer) < 12:
+            buffer += ' '
+        sys.stdout.write("\t" + rank + buffer + str(len(taxa_counts[rank])) + "\n")
+    sys.stdout.flush()
+
+    return
 
 
 def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
@@ -1228,6 +1268,9 @@ def main():
         fasta_replace_dict = write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
 
     sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
+
+    if args.verbose:
+        summarize_reference_taxa(fasta_replace_dict)
 
     fasta_replaced_file = code_name + ".fc.repl.fasta"
     fasta_mltree = code_name + ".fa"

@@ -55,8 +55,6 @@ Fasta::~Fasta() {
 char replace_operators(char it) {
     if (it == ' ' || it == '\t')
         it = '_';
-//    if (it == '(' || it == ')')
-//        it = '_';
     if (it == ',' || it == '|')
         it = '_';
     if (it == ';')
@@ -97,8 +95,10 @@ int Fasta::record_header( string line, std::size_t max_header_length) {
     string new_header;
 
     // Replace whitespace characters and other ASCII operators with underscores
-    line = erase_characters(line, "()[]/\\\\'");
+    line = erase_characters(line, "()[]/\\\\'<>");
     transform(line.begin(), line.end(), line.begin(), replace_operators);
+    // Add the '>' back to the front of the line since it was removed by erase_characters
+    line.insert(0, 1, '>');
 
     // Because RAxML can only work with file names having length <= 125,
     // Ensure that the sequence name length is <= 110
@@ -106,6 +106,16 @@ int Fasta::record_header( string line, std::size_t max_header_length) {
         new_header = line.substr(0,max_header_length-1);
     else
         new_header = line;
+
+    // Must remove period if it is the last character - BLAST ignores it causing problems downstream
+    if (new_header[new_header.length()-1] == '.') {
+        string tmp;
+        while (new_header[new_header.length()-1] == '.') {
+            tmp = new_header.substr(0, new_header.length()-1);
+            new_header = tmp;
+        }
+    }
+
     ret = header_base.insert(new_header);
     if (!ret.second) {
         int dup_num = 1;
