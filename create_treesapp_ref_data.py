@@ -526,7 +526,7 @@ def present_cluster_rep_options(cluster_dict):
 
 
 def reformat_string(string):
-    if string[0] == '>':
+    if string and string[0] == '>':
         header = True
     else:
         header = False
@@ -1377,7 +1377,9 @@ def main():
     raxml_command += ["-w", raxml_out]
     raxml_command += ["-T", args.num_threads]
 
-    if args.molecule == "prot":
+    if args.raxml_model:
+        raxml_command += ["-m", args.raxml_model]
+    elif args.molecule == "prot":
         raxml_command += ["-m", "PROTGAMMAAUTO"]
     elif args.molecule == "rrna" or args.molecule == "dna":
         raxml_command += ["-m", "GTRGAMMA"]
