@@ -663,6 +663,7 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
     if regex_match_groups:
         if len(regex_match_groups.groups()) == 2:
             accession = regex_match_groups.group(1)
+            organism = regex_match_groups.group(2)
             description = regex_match_groups.group(2)
         elif header_db in ["ncbi_ambig"]:
             accession = regex_match_groups.group(1)
@@ -713,20 +714,20 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
                 original_header = header_map[header]
                 header_format_re, header_db = get_header_format(original_header, code_name)
                 sequence_info = header_format_re.match(original_header)
-                _, _, _, fasta_header_description = return_sequence_info_groups(sequence_info, header_db, header)
+                _, fasta_header_organism, _, _ = return_sequence_info_groups(sequence_info, header_db, header)
                 if re.search(ref_seq.accession, header):
-                    if re.search(reformat_string(ref_seq.description), reformat_string(fasta_header_description)):
+                    if re.search(reformat_string(ref_seq.organism), reformat_string(fasta_header_organism)):
                         ref_seq.sequence = fasta_dict[header]
                     else:
                         sys.stderr.write("\nWARNING: " +
-                                         "accession (" + ref_seq.accession + ") matches, definition differs:\n")
-                        sys.stderr.write('"' + ref_seq.description + "\" versus \"" + original_header + "\"\n")
+                                         "accession (" + ref_seq.accession + ") matches, organism differs:\n")
+                        sys.stderr.write('"' + ref_seq.organism + "\" versus \"" + fasta_header_organism + "\"\n")
             if not ref_seq.sequence:
                 # Ensure the header isn't a value within the swappers dictionary
                 for swapped in swappers.keys():
                     header = swappers[swapped]
                     original_header = header_map[header]
-                    if re.search(ref_seq.accession, header) and re.search(ref_seq.description, original_header):
+                    if re.search(ref_seq.accession, header) and re.search(ref_seq.organism, original_header):
                         # It is and therefore the header was swapped last run
                         ref_seq.sequence = fasta_dict[swapped]
                         break
@@ -1054,7 +1055,7 @@ def read_tax_ids(tree_taxa_list):
             mltree_id_key, seq_info = fields
             lineage = ""
         ref_seq = ReferenceSequence()
-        ref_seq.description = seq_info.split(" | ")[0]
+        ref_seq.organism = seq_info.split(" | ")[0]
         ref_seq.accession = seq_info.split(" | ")[1]
         ref_seq.lineage = lineage
         fasta_replace_dict[mltree_id_key] = ref_seq
@@ -1089,8 +1090,8 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
     tree = tree_txt.readline()
     tree_txt.close()
     for mltree_id_key in fasta_replace_dict.keys():
-        tree = re.sub('\(' + mltree_id_key + "_" + code_name, '(' + fasta_replace_dict[mltree_id_key].description, tree)
-        tree = re.sub(',' + mltree_id_key + "_" + code_name, ',' + fasta_replace_dict[mltree_id_key].description, tree)
+        tree = re.sub('\(' + mltree_id_key + "_" + code_name, '(' + fasta_replace_dict[mltree_id_key].organism, tree)
+        tree = re.sub(',' + mltree_id_key + "_" + code_name, ',' + fasta_replace_dict[mltree_id_key].organism, tree)
 
     raxml_out = os.path.dirname(bipart_tree)
     annotated_tree_name = raxml_out + os.sep + "RAxML_bipartitions_annotated." + code_name
@@ -1351,7 +1352,7 @@ def main():
         os.rename(code_name + ".hmm", final_output_folder + os.sep + code_name + ".hmm")
 
         sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
-
+    sys.exit()
     phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
     os.system(phylip_command)
 
