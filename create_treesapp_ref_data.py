@@ -1352,7 +1352,7 @@ def main():
         os.rename(code_name + ".hmm", final_output_folder + os.sep + code_name + ".hmm")
 
         sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
-    sys.exit()
+
     phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
     os.system(phylip_command)
 
