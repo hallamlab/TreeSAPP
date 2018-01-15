@@ -5,14 +5,15 @@ STRIP_WIDTH	75
 MARGIN	0
 SHOW_INTERNAL	1
 DATA
-27|24	rgb(118, 42, 131)	Bathyarchaeota
-45|34	rgb(194, 165, 207)	Methanonatronarchaeia
-2|35	rgb(231, 212, 232)	Methanobacteriales
-47|23	rgb(231, 212, 232)	Methanobacteriales
-9|1	rgb(153, 112, 171)	ANME-1
-14|26	rgb(90, 174, 97)	Methanocellales
-22|7	rgb(217, 240, 211)	Methanococcales
-40|32	rgb(0, 68, 27)	Methanosarcinales
-15|5	rgb(166, 219, 160)	Methanomassiliicoccales
-46|25	rgb(27, 120, 55)	Methanomicrobiales
-28	rgba(245, 255, 0, 0.5)	Methanopyrus
+34|35	rgb(194,165,207)	Methanonatronarchaeia
+38|39	#543005	Bathyarchaeota
+14|17	#f5f5f5	Methanococcales
+9	#80cdc1	Methanobacteriales MtrG
+13	#c7eae5	Methanococcales MtrG
+36	#f6e8c3	Methanopyrus
+4|11	#8c510a	Methanobacteriales
+37|23	#dfc27d	Methanomassiliicoccales
+43|40	#bf812d	ANME-1
+20|18	#01665e	Methanocellales
+22|48	#003c30	Methanomicrobiales
+29|25	#35978f	Methanosarcinales
