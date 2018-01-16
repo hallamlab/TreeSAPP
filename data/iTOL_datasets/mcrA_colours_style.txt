@@ -1,14 +1,14 @@
 TREE_COLORS
 SEPARATOR TAB
 DATA
-96	range	rgb(0, 60, 48)	Methanomicrobiales
-316	range	rgb(199, 234, 229)	Methanococcales-MrtA
-Methanopyrus_kandleri_AV19_|_AAM01870	range	rgb(246, 232, 195)	Methanopyrus
-101	range	rgb(1, 102, 94)	Methanocellales
-311	range	rgb(128, 205, 193)	Methanobacteriales-MrtA
-225	range	rgb(140, 81, 10)	Methanobacteriales
-259	range	rgb(223, 194, 125)	Methanomassiliicoccales
-331	range	rgb(84, 48, 5)	Bathyarchaeota
-238	range	rgb(191, 129, 45)	ANME-1
-167	range	rgb(53, 151, 143)	Methanosarcinales
-282	range	rgb(245, 245, 245)	Methanococcales
+I324	range	rgb(84, 48, 5)	Bathyarchaeota
+I172	range	rgb(140, 81, 10)	Methanobacteriales
+I231	range	rgb(191, 129, 45)	ANME-1
+I244	range	rgb(223, 194, 125)	Methanomassiliicoccales
+41	range	rgb(246, 232, 195)	Methanopyrus
+I268	range	rgb(245, 245, 245)	Methanococcales
+I319	range	rgb(199, 234, 229)	Methanococcales-MrtA
+I290	range	rgb(128, 205, 193)	Methanobacteriales-MrtA
+I106	range	rgb(53, 151, 143)	Methanosarcinales
+I101	range	rgb(1, 102, 94)	Methanocellales
+I4	range	rgb(0, 60, 48)	Methanomicrobiales

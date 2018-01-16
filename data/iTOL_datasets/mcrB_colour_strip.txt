@@ -8,8 +8,8 @@ DATA
 93|94 #543005 Bathyarchaeota
 97|99 #bf812d ANME-1
 82|83 rgb(194,165,207) Methanonatronarchaeia
-81 #f6e8c3 Methanopyrus
-11|84 #8c510a Methanobacteriales
+84 #f6e8c3 Methanopyrus
+11|22 #8c510a Methanobacteriales
 31|25 #f5f5f5 Methanococcales
 23|28 #c7eae5 Methanococcales-MtrB
 17|19 #80cdc1 Methanobacteriales-MtrB

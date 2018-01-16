@@ -1,15 +1,15 @@
 TREE_COLORS
 SEPARATOR TAB
 DATA
-Candidatus_Bathyarchaeota_archaeon_BA1_|_KPV65185.1	range	rgb(118, 42, 131)	Bathyarchaeota
-Candidatus_Bathyarchaeota_archaeon_BA2_|_KPV61800.1	range	rgb(118, 42, 131)	Bathyarchaeota
-93	range	rgb(231, 212, 232)	Methanobacteriales
-80	range	rgb(231, 212, 232)	Methanobacteriales
-16	range	rgb(153, 112, 171)	ANME-1
-53	range	rgb(90, 174, 97)	Methanocellales
-86	range	rgb(217, 240, 211)	Methanococcales
-48	range	rgb(0, 68, 27)	Methanosarcinales
-60	range	rgb(194, 165, 207)	Methanonatronarchaeia
-3	range	rgb(166, 219, 160)	Methanomassiliicoccales
-25	range	rgb(27, 120, 55)	Methanomicrobiales
-Methanopyrus_kandleri_|_AAB02002.1	range	rgba(245, 255, 0, 0.5)	Methanopyrus
+I59	range	rgb(194, 165, 207)	Methanonatronarchaeia
+I98	range	rgb(84, 48, 5)	Bathyarchaeota
+I85	range	rgb(245, 245, 245)	Methanococcales
+9	range	rgb(128, 205, 193)	Methanobacteriales-MtrG
+13	range	rgb(199, 234, 229)	Methanococcales-MtrG
+36	range	rgb(246, 232, 195)	Methanopyrus
+I66	range	rgb(140, 81, 10)	Methanobacteriales
+I2	range	rgb(223, 194, 125)	Methanomassiliicoccales
+I6	range	rgb(191, 129, 45)	ANME-1
+I20	range	rgb(1, 102, 94)	Methanocellales
+I26	range	rgb(0, 60, 48)	Methanomicrobiales
+I35	range	rgb(53, 151, 143)	Methanosarcinales
