@@ -336,6 +336,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type, code
     we read the FASTA file and use those headers instead of their short version
     in case valuable information was discarded
     :param fasta_headers: full-length headers that will replace those in assignments
+    :param header_map:
     :param assignments: A dictionary of reference (lineage) and query names
     :param molecule_type: prot, nucl, or rrna? Parsed from command-line arguments
     :param code_name: The marker (e.g. mcrA, pmoA_AOA, 16s) parsed from the assignments table
@@ -397,8 +398,10 @@ def write_performance_table(args, clade_exclusion_strings, sensitivity):
         sys.stderr.write("ERROR: Unable to open " + output + " for writing!")
         raise IOError
 
+    output_name = os.path.dirname(args.output)
     for line in clade_exclusion_strings:
         line += sensitivity + "\n"
+        line = output_name + "\t" + line
         output_handler.write(line)
 
     output_handler.close()

@@ -1146,7 +1146,7 @@ def update_build_parameters(args, code_name, aa_model):
     date = strftime("%d_%b_%Y", gmtime())
 
     build_list = [code_name, "Z1111", "PROTGAMMA" + aa_model, args.identity, date]
-    params.write("\t".join(build_list))
+    params.write("\t".join(build_list) + "\n")
 
     return
 

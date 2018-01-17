@@ -5335,6 +5335,7 @@ def main(argv):
     args = check_parser_arguments(parser)
     args = check_previous_output(args)
     cog_list, text_of_analysis_type = create_cog_list(args)
+    tree_numbers_translation = read_species_translation_files(args, cog_list)
     if args.check_trees:
         validate_inputs(args, cog_list)
 
@@ -5403,7 +5404,6 @@ def main(argv):
         # STAGE 5: Run RAxML to compute the ML/MP estimations
         raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_raxml(args, phy_files,
                                                                                          cog_list, models_to_be_used)
-        tree_numbers_translation = read_species_translation_files(args, cog_list)
         final_raxml_output_files = parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
                                                       raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
         concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
