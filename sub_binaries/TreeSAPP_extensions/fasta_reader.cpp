@@ -166,10 +166,15 @@ int Fasta::record_sequence() {
 
     transform(sequence_buffer.begin(), sequence_buffer.end(), sequence_buffer.begin(), ::toupper);
 
-    if (molecule == "prot")
-        acceptable_characters.assign("ACDEFGHIKLMNPQRSTUVWYBXZ.-");
-    if (molecule == "dna" || molecule == "rrna") {
-        acceptable_characters.assign("ACGTU.-");
+    if (molecule == "prot") {
+        acceptable_characters.assign("-ACDEFGHIKLMNPQRSTUVWYBXZ.");
+    }
+    else if (molecule == "dna" || molecule == "rrna") {
+        acceptable_characters.assign("-ACGTU.");
+    }
+    else {
+        cerr << "ERROR: Unrecognized molecule. Unable to determine which characters to use." << endl;
+        return 5;
     }
 
     for (string::iterator it=sequence_buffer.begin(); it!=sequence_buffer.end(); ++it){
@@ -251,6 +256,8 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
                         record_header(header, max_header_length);
                         PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
                     }
+                    else
+                        return 5;
                 }
                 header = line;
                 sequence_buffer.clear();

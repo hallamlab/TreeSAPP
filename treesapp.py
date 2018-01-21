@@ -72,7 +72,7 @@ class CommandLineWorker(Process):
         return
 
 
-class CommandLineFarmer():
+class CommandLineFarmer:
     """
     A worker that will launch command-line jobs using multiple processes in its queue
     """
@@ -160,19 +160,22 @@ class CreateFuncTreeUtility:
 
         self.Output = self.InputData + os.sep + "updated_" + ref_tree + "_tree" + os.sep
         self.Denominator = ref_tree
+        self.marker_molecule = ""  # prot, dna, or rrna
         self.COG = ""
-        self.ContigDict = dict()
+        self.raxml_model = ""  # Rather than determining the best model again, use the one that was previously used
+        self.ContigDict = dict()  # Used for storing the final candidate reference sequences
         self.names = list()
-        self.ref_names = list()
+        self.header_id_map = dict()  # Used for mapping the original header of the sequence to internal numeric header
+        self.cluster_id = 0  # The percent similarity the original reference sequences were clustered at
         # Automatically remove the last attempt at updating the reference tree
         if os.path.isdir(self.Output):
             shutil.rmtree(self.Output)
         try:
             os.makedirs(self.Output)
-        except:
-            raise IOError("Unable to make the directory " + str(self.Output))
+        except IOError:
+            raise IOError("Unable to make the directory " + str(self.Output) + "\n")
 
-    def get_contigs_for_ref(self):
+    def get_raxml_files_for_ref(self):
         """
         Uses self.InputData to find all the RAxML_outputs for each protein sequence for self.RefTree
         :return: list of file names with a protein sequence of self.RefTree
@@ -192,76 +195,112 @@ class CreateFuncTreeUtility:
             if denominator == self.Denominator:
                 self.COG = cog
                 break
+        if not self.COG:
+            sys.stderr.write("ERROR: Invalid marker code provided! Unable to find matching gene in cog_list.txt!\n")
+            sys.exit(100)
         return
 
-    def write_reference_names(self):
-        """
-        Generate the mapping between reference taxa IDs and descriptions for the gene being updated
-        :return: Dictionary containing alignment_data names as keys and tax_ids descriptions as values
-        """
-        # TODO: Potentially replace this function with two class variables ref_names and new_names
-        ref_tax_id_map = {}
-
-        # Check to see whether we need to use the COG alignment files from GEBA
-        geba_ref_match = re.match("g_COG(\d+)", self.COG)
-
-        if geba_ref_match:
-            cog_number = geba_ref_match.group(1)
-            cog_id = "COG" + cog_number
-            ref_alignment_fasta = "data" + os.sep + "geba_alignment_data" + os.sep + cog_id + ".fa"
-            ref_alignment_handle = open(ref_alignment_fasta)
-        else:
-            cog_id = self.COG
-            ref_alignment_fasta = "data" + os.sep + "alignment_data" + os.sep + cog_id + ".fa"
-            ref_alignment_handle = open(ref_alignment_fasta)
-        ref_align_lines = ref_alignment_handle.readlines()
-
-        for line in ref_align_lines:
-            line = line.strip()
-            header_match = re.match("^>(\d+)_%s" % cog_id, line)
-
-            if header_match:
-                header_trimmed = re.sub("^>", "", line)
-                ref_tax_id_map[header_trimmed] = ""
-
-        ref_alignment_handle.close()
-
-        # Handle tax ids for COG here #
-        cog_input_match = re.match("COG\d+", self.COG)
-        geba_cog_match = re.match("g_COG\d+", self.COG)
-
-        if cog_input_match:
-            ref_tax_ids_handle = open("data/tree_data/tax_ids_nr.txt", "rb")
-        elif geba_cog_match:
-            ref_tax_ids_handle = open("data/tree_data/tax_ids_geba_tree.txt", "rb")
-        else:
-            ref_tax_ids_handle = open("data/tree_data/tax_ids_%s.txt" % self.COG, "rb")
-
-        ref_tax_ids_lines = ref_tax_ids_handle.readlines()
-
-        for each_ref_tax_ids_line in ref_tax_ids_lines:
-            each_ref_tax_ids_line = each_ref_tax_ids_line.strip()
-
-            ids_desc_match = re.match("(\S+)\t(\S+(\s+\S+)*)", each_ref_tax_ids_line)
-
-            if ids_desc_match:
-                num = ids_desc_match.group(1)
-                ref_id = num + "_" + cog_id
-                description = ids_desc_match.group(2)
-
-                if ref_id in ref_tax_id_map.keys():
-                    ref_tax_id_map[ref_id] = description
+    def find_marker_type(self, cog_list):
+        for marker_type in cog_list:
+            if marker_type == "all_cogs":
+                continue
+            if self.COG in cog_list[marker_type]:
+                if marker_type == "phylogenetic_rRNA_cogs":
+                    self.marker_molecule = "rrna"
+                elif marker_type == "functional_cogs":
+                    self.marker_molecule = "prot"
                 else:
-                    AssertionError("Unknown reference number " + str(ref_id) + " in " + ref_alignment_fasta)
+                    sys.stderr.write("ERROR: Unrecognized marker class: " + marker_type)
+                    sys.exit(101)
+                break
 
-        return ref_tax_id_map
+        return
 
-    def align_sequences(self, alignment_mode, ref_align, query_fasta, args):
+    def load_new_refs_fasta(self, args, centroids_fasta, ref_organism_lineage_info):
+        # Determine whether the numerical IDs are a series and sorted
+        acc = 0
+        ref_numeric_ids = list()
+        for leaf in ref_organism_lineage_info[self.Denominator]:
+            ref_numeric_ids.append(int(leaf.number))
+            acc += 1
+
+        # Read the FASTA to get headers and sequences
+        centroids_fasta_dict = format_read_fasta(centroids_fasta, self.marker_molecule, args)
+
+        # Create the final contig dictionary of new internal TreeSAPP headers (keys) and sequences (values)
+        additional = acc
+        for new_ref_seq in centroids_fasta_dict:
+            if acc == sorted(ref_numeric_ids, key=int)[-1]:
+                additional += 1
+                # These sequences form a series, therefore continue the series for new reference sequences
+                internal_id = '>' + str(additional) + '_' + self.COG
+            else:
+                rfive = ''.join(str(x) for x in random.sample(range(10), 5))
+                while rfive in ref_numeric_ids:
+                    rfive = ''.join(str(x) for x in random.sample(range(10), 5))
+                internal_id = '>' + rfive + '_' + self.COG
+            # Map the new reference headers to their numerical IDs
+            self.header_id_map[internal_id] = new_ref_seq
+            self.ContigDict[internal_id] = centroids_fasta_dict[new_ref_seq]
+
+        if additional == acc:
+            # The reference sequence identifiers are random
+            sys.stderr.write("WARNING: numerical TreeSAPP identifiers for " + self.Denominator +
+                             "are not in the format of a sequential series!\n")
+            sys.stderr.write("Generating random numerical unique identifiers for the new sequence(s).\n")
+            sys.stderr.flush()
+
+        if args.verbose:
+            sys.stdout.write("\t" + str(len(self.header_id_map)) + " new " + self.COG + " reference sequences.\n")
+
+        return
+
+    # def write_reference_names(self):
+    #     """
+    #     Generate the mapping between reference taxa IDs and descriptions for the gene being updated
+    #     :return: Dictionary containing alignment_data names as keys and tax_ids descriptions as values
+    #     """
+    #     # TODO: Potentially replace this function with two class variables ref_names and new_names
+    #
+    #     # Handle tax ids for COG here #
+    #     cog_input_match = re.match("COG\d+", self.COG)
+    #     geba_cog_match = re.match("g_COG\d+", self.COG)
+    #
+    #     if cog_input_match:
+    #         ref_tax_ids_handle = open("data/tree_data/tax_ids_nr.txt", "rb")
+    #     elif geba_cog_match:
+    #         ref_tax_ids_handle = open("data/tree_data/tax_ids_geba_tree.txt", "rb")
+    #     else:
+    #         ref_tax_ids_handle = open("data/tree_data/tax_ids_%s.txt" % self.COG, "rb")
+    #
+    #     ref_tax_ids_lines = ref_tax_ids_handle.readlines()
+    #
+    #     for each_ref_tax_ids_line in ref_tax_ids_lines:
+    #         each_ref_tax_ids_line = each_ref_tax_ids_line.strip()
+    #
+    #         ids_desc_match = re.match("(\S+)\t(\S+) | (\S+)\t(\S+)", each_ref_tax_ids_line)
+    #
+    #         if ids_desc_match:
+    #             num = ids_desc_match.group(1)
+    #             ref_id = num + "_" + cog_id
+    #             description = ids_desc_match.group(2)
+    #             accession = ids_desc_match.group(3)
+    #             lineage = ids_desc_match.group(4)
+    #
+    #             if ref_id in ref_tax_id_map.keys():
+    #                 ref_tax_id_map[ref_id] = description
+    #             else:
+    #                 AssertionError("Unknown reference number " + str(ref_id) + " in " + ref_alignment_fasta)
+    #
+    #     return ref_tax_id_map
+
+    def align_sequences(self, alignment_mode, ref_align, unaligned_ref_seqs, args):
         """
         Call MUSCLE to perform a multiple sequence alignment of the reference sequences and the
         gene sequences identified by TreeSAPP
-        :param alignment_mode:
-        :param query_fasta: Name of the FASTA file containing the TreeSAPP-identified genes
+        :param args:
+        :param unaligned_ref_seqs:
+        :param alignment_mode: d (default; re-do the MSA) or p (profile; use the reference MSA)
         :param ref_align: FASTA file containing
         :return: Name of the FASTA file containing the MSA
         """
@@ -271,20 +310,17 @@ class CreateFuncTreeUtility:
 
         # Default alignment #
         if alignment_mode == "d":
-            ref_align_gap_removed = self.write_unaligned_ref_fasta(ref_align)
-
-            self.scan_unaligned_ref_fasta(ref_align_gap_removed)
-            ref_align_gap_rm_scan = self.Output + self.COG + "_gap_rm_scan.fa"
-
-            concat_fasta = self.Output + self.COG + "_concat.fasta"
-            os.system('cat %s %s > %s' % (query_fasta, ref_align_gap_rm_scan, concat_fasta))
+            # Combine the reference and candidate sequence dictionaries
+            unaligned_ref_seqs.update(self.ContigDict)
+            ref_unaligned = self.Output + self.COG + "_gap_removed.fa"
+            write_new_fasta(unaligned_ref_seqs, ref_unaligned)
 
             aligned_fasta = self.Output + self.COG + "_d_aligned.fasta"
-            muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (concat_fasta, aligned_fasta)
+            muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (ref_unaligned, aligned_fasta)
 
         # Profile-Profile alignment #
         elif alignment_mode == "p":
-
+            query_fasta = self.Output + self.COG + "_query_unaligned.fasta"
             query_align = self.Output + self.COG + "_query_aligned.fasta"
 
             muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (query_fasta, query_align)
@@ -306,46 +342,46 @@ class CreateFuncTreeUtility:
 
         return aligned_fasta
 
-    def write_unaligned_ref_fasta(self, ref_align):
-        ref_align_gap_removed = self.Output + self.COG + "_gap_removed.fa"
-
-        ref_align_handle = open(ref_align, "rb")
-        ref_align_gap_rm_handle = open(ref_align_gap_removed, "w")
-
-        first_fas_line = ref_align_handle.readline()
-        first_fas_line = first_fas_line.strip()
-
-        first_header_match = re.match("^>", first_fas_line)
-
-        if first_header_match:
-            ref_align_gap_rm_handle.write(first_fas_line + "\n")
-
-        fasta_in_lines = ref_align_handle.readlines()
-
-        alignment_gap_removed = ""
-
-        for each_fas_line in fasta_in_lines:
-            each_fas_line = each_fas_line.strip()
-
-            fasta_header_match = re.match("^>", each_fas_line)
-
-            if fasta_header_match:
-                ref_align_gap_rm_handle.write(alignment_gap_removed + "\n")
-                ref_align_gap_rm_handle.write(each_fas_line + "\n")
-
-                alignment_gap_removed = ""
-            else:
-
-                alignment_gap_removed += each_fas_line
-
-                if re.search("[\-]+", alignment_gap_removed):
-                    alignment_gap_removed = re.sub("-", "", alignment_gap_removed)
-
-        ref_align_gap_rm_handle.write(alignment_gap_removed + "\n")
-
-        ref_align_gap_rm_handle.close()
-        ref_align_handle.close()
-        return ref_align_gap_removed
+    # def write_unaligned_ref_fasta(self, ref_align):
+    #     ref_align_gap_removed = self.Output + self.COG + "_gap_removed.fa"
+    #
+    #     ref_align_handle = open(ref_align, "rb")
+    #     ref_align_gap_rm_handle = open(ref_align_gap_removed, "w")
+    #
+    #     first_fas_line = ref_align_handle.readline()
+    #     first_fas_line = first_fas_line.strip()
+    #
+    #     first_header_match = re.match("^>", first_fas_line)
+    #
+    #     if first_header_match:
+    #         ref_align_gap_rm_handle.write(first_fas_line + "\n")
+    #
+    #     fasta_in_lines = ref_align_handle.readlines()
+    #
+    #     alignment_gap_removed = ""
+    #
+    #     for each_fas_line in fasta_in_lines:
+    #         each_fas_line = each_fas_line.strip()
+    #
+    #         fasta_header_match = re.match("^>", each_fas_line)
+    #
+    #         if fasta_header_match:
+    #             ref_align_gap_rm_handle.write(alignment_gap_removed + "\n")
+    #             ref_align_gap_rm_handle.write(each_fas_line + "\n")
+    #
+    #             alignment_gap_removed = ""
+    #         else:
+    #
+    #             alignment_gap_removed += each_fas_line
+    #
+    #             if re.search("[\-]+", alignment_gap_removed):
+    #                 alignment_gap_removed = re.sub("-", "", alignment_gap_removed)
+    #
+    #     ref_align_gap_rm_handle.write(alignment_gap_removed + "\n")
+    #
+    #     ref_align_gap_rm_handle.close()
+    #     ref_align_handle.close()
+    #     return ref_align_gap_removed
 
     def scan_unaligned_ref_fasta(self, ref_align_gap_removed):
         """
@@ -389,45 +425,45 @@ class CreateFuncTreeUtility:
         ref_align_handle.close()
         ref_align_scan_handle.close()
 
-    def randomize_fasta_id(self, fasta):
-        """
-        Create a random hash for every reference and new name
-        :param fasta: A FASTA file
-        :return: Name of fasta_random - the FASTA file with random identifiers
-        """
-        original_random_dict = {}
-        rfive_list = list()
-
-        fasta_handle = open(fasta, "rb")
-        fasta_lines = fasta_handle.readlines()
-
-        fasta_random = self.Output + self.COG + "_concat_rfive.fasta"
-        fasta_random_handle = open(fasta_random, "w")
-
-        for line in fasta_lines:
-            line = line.strip()
-            if line[0] == '>':
-                original_id = line[1:]
-                if original_id not in self.names:
-                    self.ref_names.append(original_id)
-                rfive_header = "ID"
-                rfive = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
-                while rfive in rfive_list:
-                    rfive = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
-                rfive_list.append(rfive)
-                rfive_header += rfive
-                original_random_dict[original_id] = rfive_header
-
-                fasta_random_handle.write('>' + rfive_header + "\n")
-            else:
-                fasta_random_handle.write(line + "\n")
-
-        assert len(set(original_random_dict.values())) == len(original_random_dict.values())
-
-        fasta_random_handle.close()
-        fasta_handle.close()
-        
-        return fasta_random, original_random_dict
+    # def randomize_fasta_id(self, fasta):
+    #     """
+    #     Create a random hash for every reference and new name
+    #     :param fasta: A FASTA file
+    #     :return: Name of fasta_random - the FASTA file with random identifiers
+    #     """
+    #     original_random_dict = {}
+    #     rfive_list = list()
+    #
+    #     fasta_handle = open(fasta, "rb")
+    #     fasta_lines = fasta_handle.readlines()
+    #
+    #     fasta_random = self.Output + self.COG + "_concat_rfive.fasta"
+    #     fasta_random_handle = open(fasta_random, "w")
+    #
+    #     for line in fasta_lines:
+    #         line = line.strip()
+    #         if line[0] == '>':
+    #             original_id = line[1:]
+    #             if original_id not in self.names:
+    #                 self.ref_names.append(original_id)
+    #             rfive_header = "ID"
+    #             rfive = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
+    #             while rfive in rfive_list:
+    #                 rfive = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
+    #             rfive_list.append(rfive)
+    #             rfive_header += rfive
+    #             original_random_dict[original_id] = rfive_header
+    #
+    #             fasta_random_handle.write('>' + rfive_header + "\n")
+    #         else:
+    #             fasta_random_handle.write(line + "\n")
+    #
+    #     assert len(set(original_random_dict.values())) == len(original_random_dict.values())
+    #
+    #     fasta_random_handle.close()
+    #     fasta_handle.close()
+    #
+    #     return fasta_random, original_random_dict
 
     def create_random_names(self, random_map, ref_tax_id_map):
         """
@@ -445,28 +481,36 @@ class CreateFuncTreeUtility:
 
         concat_rand_names_handle.close()
 
-    def execute_raxml(self, phylip_file, raxml_destination_folder, args, bootstraps=100):
+    def execute_raxml(self, phylip_file, raxml_destination_folder, args):
         os.makedirs(raxml_destination_folder)
-
-        if self.Denominator == "a":
-            model_to_be_used = "GTRGAMMA"
-        else:
-            model_to_be_used = "PROTGAMMAWAG"
-
-        raxml_command = [args.executables["raxmlHPC"], '-m', model_to_be_used]
+        # No difference between this command and that in create_treesapp_ref_data
+        raxml_command = [args.executables["raxmlHPC"], '-m', self.raxml_model]
         # Run RAxML using multiple threads, if CPUs available
         raxml_command += ['-T', str(int(args.num_threads))]
+        if args.bootstraps == 0:
+            nboot = "autoMR"
+        else:
+            nboot = str(args.bootstraps)
         raxml_command += ['-s', phylip_file,
                           '-f', 'a',
                           '-x', str(12345),
-                          '-#', str(bootstraps),
+                          '-#', nboot,
                           '-n', self.COG,
                           '-w', raxml_destination_folder,
-                          '-p', str(8),
-                          '>', raxml_destination_folder + os.sep + 'RAxML_log.txt']
+                          '-p', str(12345)] #,
+                          # '>', raxml_destination_folder + os.sep + 'RAxML_log.txt']
+
+        if args.verbose:
+            sys.stdout.write("RAxML command:\n\t" + ' '.join(raxml_command) + "\n")
+            sys.stdout.write("Inferring Maximum-Likelihood tree with RAxML... ")
+            sys.stdout.flush()
 
         raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
         raxml_pro.wait()
+
+        if args.verbose:
+            sys.stdout.write("done.\n")
+            sys.stdout.flush()
 
         return
 
@@ -1020,8 +1064,9 @@ def check_parser_arguments(parser):
         args.reference_data_prefix = ''
         args.reference_tree = 'MLTreeMap_reference.tree'
     else:
-        sys.stderr.write("ERROR: Unknown reftree specified : " + args.reftree + "!\n")
-        sys.exit()
+        # sys.stderr.write("ERROR: Unknown reftree specified : " + args.reftree + "!\n")
+        # sys.exit()
+        pass
 
     args.targets = args.targets.split(',')
     if args.targets != ['ALL']:
@@ -1212,7 +1257,7 @@ def create_cog_list(args):
     if args.reftree not in ['i', 'g', 'p']:
         if args.reftree not in cog_list['all_cogs'].values():
             sys.stderr.write("ERROR: " + args.reftree +
-                             " not found in " + cog_list_file + "! Please use a valid reference tree ID!")
+                             " not found in " + cog_list_file + "! Please use a valid reference tree ID!\n")
             sys.stderr.flush()
             sys.exit()
 
@@ -1301,7 +1346,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
 
     try:
         fa_out = open(fasta_name, 'w')
-    except:
+    except IOError:
         raise IOError("Unable to open " + fasta_name + " for writing!")
 
     for name in fasta_dict.keys():
@@ -1379,17 +1424,17 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     return alignments
 
 
-def find_novel_refs(ref_candidate_alignments, aa_dictionary):
+def find_novel_refs(ref_candidate_alignments, aa_dictionary, create_func_tree):
     new_refs = dict()
     try:
         alignments = open(ref_candidate_alignments, 'r')
-    except:
+    except IOError:
         raise IOError("Unable to open " + ref_candidate_alignments + " for reading! Exiting.")
 
     line = alignments.readline()
     while line:
         fields = line.split("\t")
-        if float(fields[2]) <= 97.0:
+        if float(fields[2]) <= create_func_tree.cluster_id:
             query = '>' + fields[0]
             new_refs[query] = aa_dictionary[query]
         else:
@@ -1439,15 +1484,19 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
     return formatted_fasta_dict
 
 
-def build_hmm(msa_file, args):
-    gene_family = ".".join(msa_file.split("/")[-1].split('.')[0:-1])
-    sys.stdout.write("realigning sequences for " + gene_family)
-    hmm_output = args.treesapp + "/data/hmm_data/" + gene_family + ".hmm"
+def build_hmm(args, msa_file, hmm_output):
+
+    sys.stdout.write("Building HMM... ")
+    sys.stdout.flush()
+
     if os.path.isfile(hmm_output):
         os.remove(hmm_output)
-    command = [args.executables["hmmbuild"], "-s", "--verbose", hmm_output, msa_file, ">> /dev/null"]
+    command = [args.executables["hmmbuild"], "-s", "--verbose", hmm_output, msa_file, "1>/dev/null", "2>/dev/null"]
     hmmbuild_process = subprocess.Popen(' '.join(command), shell=True, preexec_fn=os.setsid)
     hmmbuild_process.wait()
+
+    sys.stdout.write("done.\n")
+
     return
 
 
@@ -2816,7 +2865,7 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
 
     return hmmalign_singlehit_files
                    
-
+# TODO: replace this function with parse_ref_build_params
 def get_non_wag_cogs(args):
     """
     Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
@@ -4187,6 +4236,7 @@ def concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analy
 
 def read_species_translation_files(args, cog_list):
     """
+    :param args:
     :param cog_list: The list on COGs used for tre insertion
     :return: The taxonomic identifiers for each of the organisms in a tree for all trees
     """
@@ -4458,14 +4508,17 @@ def execute_gblocks(args, aligned_fasta):
     os.system(gblock_command)
 
 
-def get_new_ref_sequences(update_tree):
+def get_new_ref_sequences(args, update_tree):
     """
     Function for retrieving the protein sequences from the TreeSAPP various_outputs
+    :param args:
     :param update_tree: An instance of CreateFuncTreeUtility class
     :return: aa_dictionary is a dictionary of fasta sequences with headers as keys and protein sequences as values
     """
     aa_dictionary = dict()
     various_files = os.listdir(update_tree.InputData + os.sep + "various_outputs" + os.sep)
+
+    sys.stdout.write("Retrieving candidate reference sequences... ")
 
     for var_file in various_files:
         var_file_path = update_tree.InputData + os.sep + "various_outputs" + os.sep + var_file
@@ -4481,7 +4534,7 @@ def get_new_ref_sequences(update_tree):
                     aa_dictionary['>' + seq_name] = ""
                     try:
                         fasta = open(var_file_path, 'r')
-                    except:
+                    except IOError:
                         raise IOError("Unable to open " + var_file_path + " for reading!")
 
                     line = fasta.readline()
@@ -4500,16 +4553,21 @@ def get_new_ref_sequences(update_tree):
                     fasta.close()
 
                     if line_counter > 2:
-                        sys.stderr.write("ERROR: " + var_file_path + " contains more than 1 sequence when 1 is expected!")
+                        sys.stderr.write("ERROR: " + var_file_path + " contains multiple sequences when 1 is expected!")
                         sys.stderr.flush()
                         sys.exit()
+
+    sys.stdout.write("done.\n")
+    if args.verbose:
+        sys.stdout.write("\t" + str(len(aa_dictionary)) + " candidate " + update_tree.COG + " reference sequences.\n")
+    sys.stdout.flush()
 
     return aa_dictionary
 
 
 def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
     if args.verbose:
-        sys.stdout.write("Running usearch to cluster sequences at %s percent identity... " % str(args.uclust_identity))
+        sys.stdout.write("Clustering sequences at %s percent identity with USEARCH... " % str(update_tree.cluster_id))
         sys.stdout.flush()
 
     usearch_command = [args.executables["usearch"]]
@@ -4525,9 +4583,15 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
         sys.stderr.write(str(' '.join(usearch_command)))
         sys.stderr.flush()
 
+    uclust_id = "0." + str(int(update_tree.cluster_id))
+    try:
+        float(uclust_id)
+    except ValueError:
+        raise ValueError("Weird formatting of cluster_id: " + uclust_id + "\n")
+
     uclust_command = [args.executables["usearch"]]
     uclust_command += ["-cluster_fast", update_tree.Output + "usearch_sorted.fasta"]
-    uclust_command += ["--id", str(args.uclust_identity)]
+    uclust_command += ["--id", uclust_id]
     uclust_command += ["--centroids", update_tree.Output + "uclust_" + update_tree.COG + ".fasta"]
     uclust_command += ["--uc", update_tree.Output + "uclust_" + update_tree.COG + ".uc"]
     uclust_command += ["--log", update_tree.Output + os.sep + "usearch_cluster.log"]
@@ -4582,23 +4646,33 @@ def swap_tree_names(tree, tree_swap_name, random_map, ref_tax_id_map):
     return
 
 
-def filter_short_sequences(aa_dictionary, length_threshold):
+def filter_short_sequences(args, aa_dictionary, length_threshold):
     """
     Removes all sequences shorter than length_threshold from a dictionary
+    :param args:
     :param aa_dictionary: Dictionary containing all candidate reference sequences from a TreeSAPP analysis
     :param length_threshold: Minimum number of AA a sequence must contain to be included in further analyses
     :return: dictionary with sequences only longer than length_threshold
     """
     long_queries = dict()
     short_seqs = 0
-    sys.stdout.write("Removing all sequences shorter than " + str(length_threshold) + "\n")
-    sys.stdout.flush()
+    sys.stdout.write("Removing all sequences shorter than " + str(length_threshold) + " amino acids... ")
+
     for seq in aa_dictionary:
         if len(aa_dictionary[seq]) >= length_threshold:
             long_queries[seq] = aa_dictionary[seq]
-
         else:
             short_seqs += 1
+
+    sys.stdout.write("done.\n")
+    if args.verbose:
+        sys.stdout.write("\t" + str(short_seqs) + " were removed.\n")
+    sys.stdout.flush()
+    if len(long_queries.keys()) == 0:
+        sys.stderr.write("WARNING: No sequences passed the minimum length threshold!\n")
+        sys.stderr.write("Exiting now...\n")
+        sys.exit(22)
+
     return long_queries
 
 
@@ -4614,8 +4688,11 @@ def align_reads_to_nucs(args):
     if not os.path.exists(rpkm_output_dir):
         try:
             os.makedirs(rpkm_output_dir)
-        except:
-            raise IOError("Unable to make " + rpkm_output_dir)
+        except OSError:
+            if os.path.exists(rpkm_output_dir):
+                sys.stderr.write("WARNING: Overwriting files in " + rpkm_output_dir + ".\n")
+            else:
+                raise OSError("Unable to make " + rpkm_output_dir + "!\n")
 
     if args.verbose:
         sys.stdout.write("Aligning reads to ORFs with BWA MEM... ")
@@ -4784,84 +4861,134 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
     return
 
 
+def parse_ref_build_params(args, current_marker_code, create_func_tree):
+    """
+    Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
+    :param args: Command-line argument object returned by get_options and check_parser_arguments
+    :param current_marker_code: The code of the marker currently being updated (e.g. M0701)
+    :param create_func_tree: An instance of the CreateFuncTree class
+    """
+    ref_build_parameters = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
+    try:
+        param_handler = open(ref_build_parameters, 'r')
+    except IOError:
+        sys.exit('ERROR: Can\'t open ' + ref_build_parameters + '!\n')
+
+    for line in param_handler:
+        line = line.strip()
+        try:
+            cog, marker_code, model, pid, update = line.split('\t')
+        except ValueError:
+            raise ValueError("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + line)
+        if marker_code == current_marker_code:
+            try:
+                create_func_tree.cluster_id = float(pid)
+            except ValueError:
+                sys.stderr.write("WARNING: cluster percent identity in data/tree_data/ref_build_parameters.tsv "
+                                 "was ignored due to invalid value.\n Processing with uclust_identity.\n")
+                create_func_tree.cluster_id = float(args.uclust_identity)
+            create_func_tree.raxml_model = model
+
+    param_handler.close()
+
+    return
+
+
+def get_reference_sequence_dict(args, update_tree):
+    # Determine the name of the aligned FASTA with reference sequences
+    ref_alignment_fasta = "data" + os.sep + "alignment_data" + os.sep + update_tree.COG + ".fa"
+    # Read the FASTA to get headers and sequences
+    ref_fasta_dict = format_read_fasta(ref_alignment_fasta, update_tree.marker_molecule, args)
+    # Strip the '-'s since these will be re-aligned again
+    unaligned_ref_seqs = {header: re.sub('-', '', ref_fasta_dict[header]) for header in ref_fasta_dict}
+
+    return unaligned_ref_seqs
+
+
 def update_func_tree_workflow(args, cog_list, ref_tree):
+    # Load information essential to updating the reference data into a CreateFuncTreeUtility class object
     update_tree = CreateFuncTreeUtility(args.output, ref_tree)
     update_tree.find_cog_name(cog_list)
-    update_tree.get_contigs_for_ref()
-    aa_dictionary = get_new_ref_sequences(update_tree)
-    # Remove short sequences
-    hmm_length = get_hmm_length(args, update_tree)
-    aa_dictionary = filter_short_sequences(aa_dictionary, 0.5*hmm_length)
+    update_tree.find_marker_type(cog_list)
+    update_tree.get_raxml_files_for_ref()
 
-    new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + "_" + \
-                         update_tree.COG + "_unaligned.fasta"
+    # Get HMM, sequence, reference build, and taxonomic information for the original sequences
+    parse_ref_build_params(args, ref_tree, update_tree)
+    hmm_length = get_hmm_length(args, update_tree)
+    unaligned_ref_seqs = get_reference_sequence_dict(args, update_tree)
+    ref_organism_lineage_info = read_species_translation_files(args, cog_list)
+
+    # Set up the output directories
+    time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
+    project_folder = update_tree.Output + str(time_of_run) + os.sep
+    raxml_destination_folder = project_folder + "phy_files_%s" % update_tree.COG
+    final_tree_dir = project_folder + "final_tree_files" + os.sep
+    alignment_files_dir = project_folder + "alignment_files" + os.sep
+    os.makedirs(project_folder)
+    os.makedirs(final_tree_dir)
+    os.makedirs(alignment_files_dir)
+
+    # Begin finding and filtering the new candidate reference sequences
+    aa_dictionary = get_new_ref_sequences(args, update_tree)
+    aa_dictionary = filter_short_sequences(args, aa_dictionary, 0.5*hmm_length)
+    new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
+                         "_" + update_tree.COG + "_unaligned.fasta"
     write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
-    # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
+    # # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
     ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
-    # TODO: Update find_novel_refs to use the threshold used for building the original reference set
-    new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary)
+    # # Get the sequences that pass the similarity threshold
+    new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary, update_tree)
     write_new_fasta(new_refs, new_ref_seqs_fasta)
-    ref_tax_id_map = update_tree.write_reference_names()
-    for seq_name in update_tree.names:
-        ref_tax_id_map[seq_name] = seq_name
-    if args.uclust and len(aa_dictionary) > 1:
+    # ref_tax_id_map = update_tree.write_reference_names()
+    # for seq_name in update_tree.names:
+    #     ref_tax_id_map[seq_name] = seq_name
+    if args.uclust and len(new_refs.keys()) > 1:
         cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
-        query_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
+        centroids_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
     else:
         if len(aa_dictionary) == 1 and args.uclust:
             sys.stderr.write("WARNING: Not clustering new " + update_tree.COG + " since there is 1 sequence\n")
             sys.stderr.flush()
-        query_fasta = new_ref_seqs_fasta
+        centroids_fasta = new_ref_seqs_fasta
 
+    # The candidate set has been finalized. Begin rebuilding!
+    update_tree.load_new_refs_fasta(args, centroids_fasta, ref_organism_lineage_info)
     ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
-    aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, query_fasta, args)
-    fasta_random, original_random_dict = update_tree.randomize_fasta_id(aligned_fasta)
-    update_tree.create_random_names(original_random_dict, ref_tax_id_map)
+    aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, unaligned_ref_seqs, args)
+    # fasta_random, original_random_dict = update_tree.randomize_fasta_id(aligned_fasta)
+    # update_tree.create_random_names(original_random_dict, ref_tax_id_map)
 
     if args.gap_removal == "y":
         if args.verbose:
             sys.stdout.write("Executing Gblocks... ")
             sys.stdout.flush()
-        execute_gblocks(args, fasta_random)
+        execute_gblocks(args, aligned_fasta)
         if args.verbose:
             sys.stdout.write("done.\n")
             sys.stdout.flush()
-        os.system('cp %s-gb %s' % (fasta_random, fasta_random))
+        os.system('cp %s-gb %s' % (aligned_fasta, aligned_fasta))
 
-    os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % fasta_random)
+    hmm_file = update_tree.Output + os.sep + update_tree.COG + ".hmm"
+    build_hmm(args, aligned_fasta, hmm_file)
+
+    os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % aligned_fasta)
 
     phylip_file = update_tree.Output + "%s.phy" % update_tree.COG
-    os.system('mv %s.phylip %s' % (fasta_random, phylip_file))
+    os.system('mv %s.phylip %s' % (aligned_fasta, phylip_file))
 
-    time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
-    project_folder = update_tree.Output + str(time_of_run) + os.sep
-    os.makedirs(project_folder)
-    raxml_destination_folder = project_folder + "phy_files_%s" % update_tree.COG
-    final_tree_dir = project_folder + "final_tree_files" + os.sep
-    alignment_files_dir = project_folder + "alignment_files" + os.sep
-
-    if args.verbose:
-        sys.stdout.write("Executing RAxML... ")
-        sys.stdout.flush()
     update_tree.execute_raxml(phylip_file, raxml_destination_folder, args)
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
 
-    # Organize Output Files #
-
-    os.makedirs(final_tree_dir)
-    os.makedirs(alignment_files_dir)
-
+    # Organize outputs
     shutil.move(aligned_fasta, alignment_files_dir)
     shutil.move(phylip_file, alignment_files_dir)
+    shutil.move(hmm_file, alignment_files_dir)
 
     best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
     bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitions." + update_tree.COG
     best_tree_nameswap = final_tree_dir + update_tree.COG + "_best.tree"
     bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bootstrap.tree"
-    swap_tree_names(best_tree, best_tree_nameswap, original_random_dict, ref_tax_id_map)
-    swap_tree_names(bootstrap_tree, bootstrap_nameswap, original_random_dict, ref_tax_id_map)
+    # swap_tree_names(best_tree, best_tree_nameswap, original_random_dict, ref_tax_id_map)
+    # swap_tree_names(bootstrap_tree, bootstrap_nameswap, original_random_dict, ref_tax_id_map)
 
     prefix = update_tree.Output + update_tree.COG
     os.system('mv %s* %s' % (prefix, project_folder))
