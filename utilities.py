@@ -7,6 +7,7 @@ import Bio
 from Bio import Entrez
 from urllib import error
 
+from external_command_interface import launch_write_command
 
 def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
@@ -224,3 +225,71 @@ def get_lineage(search_term, molecule_type):
             sys.stderr.write(search_term + "\n")
 
     return lineage
+
+
+def remove_dashes_from_msa(fasta_in, fasta_out):
+    """
+    fasta_out is the new FASTA file written with no dashes (unaligned)
+    There are no line breaks in this file, whereas there may have been in fasta_in
+    :param fasta_in: Multiply-aligned FASTA file
+    :param fasta_out: FASTA file to write
+    :return:
+    """
+    dashed_fasta = open(fasta_in, 'r')
+    fasta = open(fasta_out, 'w')
+    sequence = ""
+
+    line = dashed_fasta.readline()
+    while line:
+        if line[0] == '>':
+            if sequence:
+                fasta.write(sequence + "\n")
+                sequence = ""
+            fasta.write(line)
+        else:
+            sequence += re.sub('[-.]', '', line.strip())
+        line = dashed_fasta.readline()
+    fasta.write(sequence + "\n")
+    dashed_fasta.close()
+    fasta.close()
+    return
+
+
+def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
+    """
+
+    :param args:
+    :param fasta: File to make a BLAST database for
+    :param molecule: 'prot' or 'nucl' - necessary argument for makeblastdb
+    :param prefix: prefix string for the output BLAST database
+    :param multiple: Flag indicating the input `fasta` is a MSA. Alignment information is removed prior to makeblastdb
+    :return:
+    """
+
+    # Remove the multiple alignment information from fasta_replaced_file and write to fasta_mltree
+    blastdb_out = prefix + ".fa"
+    if multiple:
+        if blastdb_out == fasta:
+            sys.stderr.write("ERROR: prefix.fa is the same as " + fasta + " and would be overwritten!\n")
+            sys.exit(11)
+        remove_dashes_from_msa(fasta, blastdb_out)
+        blastdb_in = blastdb_out
+    else:
+        blastdb_in = fasta
+
+    sys.stdout.write("Making the BLAST database for " + blastdb_in + "... ")
+
+    # Format the `makeblastdb` command
+    makeblastdb_command = [args.executables["makeblastdb"]]
+    makeblastdb_command += ["-in", blastdb_in]
+    makeblastdb_command += ["-out", blastdb_out]
+    makeblastdb_command += ["-input_type", "fasta"]
+    makeblastdb_command += ["-dbtype", molecule]
+
+    # Launch the command
+    stdout, makeblastdb_pro_returncode = launch_write_command(makeblastdb_command)
+
+    sys.stdout.write("done\n")
+    sys.stdout.flush()
+
+    return stdout, blastdb_out

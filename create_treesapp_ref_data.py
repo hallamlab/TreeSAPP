@@ -12,13 +12,14 @@ try:
     import shutil
     import re
     import traceback
-    import subprocess
 
     from time import gmtime, strftime
 
-    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_lineage
+    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_lineage, generate_blast_database
     from fasta import format_read_fasta, get_headers, get_header_format
     from classy import ReferenceSequence
+    from external_command_interface import launch_write_command
+
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
     sys.stderr.write(str(traceback.print_exc(10)))
@@ -278,30 +279,6 @@ def generate_cm_data(args, unaligned_fasta):
     return aligned_fasta
 
 
-def launch_write_command(cmd_list, collect_all=True):
-    """
-    Wrapper function for opening subprocesses through subprocess.Popen()
-    :param cmd_list: A list of strings forming a complete command call
-    :param collect_all: A flag determining whether stdout and stderr are returned 
-    via stdout or just stderr is returned leaving stdout to be written to the screen
-    :return: A string with stdout and/or stderr text and the returncode of the executable
-    """
-    stdout = ""
-    if collect_all:
-        proc = subprocess.Popen(' '.join(cmd_list),
-                                shell=True,
-                                preexec_fn=os.setsid,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
-        stdout = proc.communicate()[0].decode("utf-8")
-    else:
-        proc = subprocess.Popen(' '.join(cmd_list),
-                                shell=True,
-                                preexec_fn=os.setsid)
-        proc.wait()
-    return stdout, proc.returncode
-
-
 def create_new_fasta(out_fasta, ref_seq_dict, dashes=False):
     """
     Writes a new FASTA file using a dictionary of ReferenceSequence class objects
@@ -466,27 +443,6 @@ def reformat_headers(header_dict):
     for old, new in header_dict.items():
         swappers[reformat_string(old)] = reformat_string(new)
     return swappers
-
-
-def remove_dashes_from_msa(fasta_in, fasta_out):
-    dashed_fasta = open(fasta_in, 'r')
-    fasta = open(fasta_out, 'w')
-    sequence = ""
-
-    line = dashed_fasta.readline()
-    while line:
-        if line[0] == '>':
-            if sequence:
-                fasta.write(sequence + "\n")
-                sequence = ""
-            fasta.write(line)
-        else:
-            sequence += re.sub('[-.]', '', line.strip())
-        line = dashed_fasta.readline()
-    fasta.write(sequence + "\n")
-    dashed_fasta.close()
-    fasta.close()
-    return
 
 
 def map_good_headers_to_ugly(header_collection):
@@ -1057,31 +1013,13 @@ def main():
     else:
         pass
 
-    remove_dashes_from_msa(fasta_replaced_file, fasta_mltree)
-
-    sys.stdout.write("******************** FASTA file, " + fasta_mltree + " generated ********************\n")
-
-    makeblastdb_command = [args.executables["makeblastdb"]]
-    makeblastdb_command += ["-in", fasta_mltree]
-    makeblastdb_command += ["-out", fasta_mltree]
-    makeblastdb_command += ["-input_type", "fasta"]
-    if args.molecule == "prot":
-        makeblastdb_command += ["-dbtype", "prot"]
-    else:
-        makeblastdb_command += ["-dbtype", "nucl"]
-
-    stdout, makeblastdb_pro_returncode = launch_write_command(makeblastdb_command)
-
-    if makeblastdb_pro_returncode != 0:
-        sys.stderr.write("ERROR: BLAST database was unable to be made using " + args.executables["makeblastdb"] +
-                         "! Command used:\n" + ' '.join(makeblastdb_command) + "\n")
-        sys.exit()
+    stdout, blastdb = generate_blast_database(args, fasta_replaced_file, args.molecule, code_name)
 
     log.write("\n### MAKEBLASTDB ###" + stdout)
 
     sys.stdout.write("******************** BLAST DB for %s generated ********************\n" % code_name)
 
-    os.rename(fasta_replaced_align, fasta_mltree)
+    os.rename(fasta_replaced_align, blastdb)
 
     if args.molecule == "rrna":
         # A .cm file has already been generated, no need for HMM

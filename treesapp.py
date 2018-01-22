@@ -27,10 +27,11 @@ try:
     from os.path import isfile, join
     from time import gmtime, strftime
 
-    from utilities import Autovivify, os_type, which, find_executables
+    from utilities import Autovivify, os_type, which, find_executables, generate_blast_database
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein
     from fasta import format_read_fasta, get_headers, write_new_fasta
     from entish import create_tree_info_hash
+    from external_command_interface import launch_write_command
 
     import _tree_parser
     import _fasta_reader
@@ -450,8 +451,7 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     align_cmd += ["-out", alignments]
     align_cmd += ["-num_alignments", str(1)]
 
-    p_align = subprocess.Popen(' '.join(align_cmd), shell=True, preexec_fn=os.setsid)
-    p_align.wait()
+    launch_write_command(align_cmd)
 
     return alignments
 
@@ -484,9 +484,9 @@ def build_hmm(args, msa_file, hmm_output):
 
     if os.path.isfile(hmm_output):
         os.remove(hmm_output)
-    command = [args.executables["hmmbuild"], "-s", "--verbose", hmm_output, msa_file, "1>/dev/null", "2>/dev/null"]
-    hmmbuild_process = subprocess.Popen(' '.join(command), shell=True, preexec_fn=os.setsid)
-    hmmbuild_process.wait()
+    command = [args.executables["hmmbuild"], "-s", "--verbose", hmm_output, msa_file]
+
+    launch_write_command(command)
 
     sys.stdout.write("done.\n")
 
@@ -649,8 +649,8 @@ def predict_orfs(args):
     else:
         fgs_command += ['-p', '2']
     # fgs_command += ['-d', '1']
-    p_fgs = subprocess.Popen(' '.join(fgs_command), shell=True, preexec_fn=os.setsid)
-    p_fgs.wait()
+
+    launch_write_command(fgs_command)
 
     # orf_fasta must be changed since FGS+ appends .faa to the output file name
     orf_fasta += ".faa"
@@ -2284,8 +2284,9 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
                           '-n', str(f_contig),
                           '-w', str(output_dir),
                           '>', str(output_dir) + str(f_contig) + '_RAxML.txt']
-        raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
-        raxml_pro.wait()
+
+        launch_write_command(raxml_command)
+
         raxml_calls += 1
 
     # Rename the RAxML output files
@@ -3580,14 +3581,9 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
     usearch_command += ["-sortbylength", new_ref_seqs_fasta]
     usearch_command += ["-fastaout", update_tree.Output + "usearch_sorted.fasta"]
     usearch_command += ["--log", update_tree.Output + os.sep + "usearch_sort.log"]
-    usearch_command += ["1>", "/dev/null", "2>", "/dev/null"]
+    # usearch_command += ["1>", "/dev/null", "2>", "/dev/null"]
 
-    p_usort = subprocess.Popen(' '.join(usearch_command), shell=True, preexec_fn=os.setsid)
-    p_usort.wait()
-    if p_usort.returncode != 0:
-        sys.stderr.write("ERROR: usearch did not complete successfully for:\n")
-        sys.stderr.write(str(' '.join(usearch_command)))
-        sys.stderr.flush()
+    launch_write_command(usearch_command)
 
     uclust_id = "0." + str(int(update_tree.cluster_id))
     try:
@@ -3601,14 +3597,9 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
     uclust_command += ["--centroids", update_tree.Output + "uclust_" + update_tree.COG + ".fasta"]
     uclust_command += ["--uc", update_tree.Output + "uclust_" + update_tree.COG + ".uc"]
     uclust_command += ["--log", update_tree.Output + os.sep + "usearch_cluster.log"]
-    uclust_command += ["1>", "/dev/null", "2>", "/dev/null"]
+    # uclust_command += ["1>", "/dev/null", "2>", "/dev/null"]
 
-    p_uclust = subprocess.Popen(' '.join(uclust_command), shell=True, preexec_fn=os.setsid)
-    p_uclust.wait()
-    if p_uclust.returncode != 0:
-        sys.stderr.write("ERROR: usearch did not complete successfully for:\n")
-        sys.stderr.write(str(' '.join(uclust_command)))
-        sys.stderr.flush()
+    launch_write_command(uclust_command)
 
     if args.verbose:
         sys.stdout.write("done.\n")
@@ -3673,12 +3664,7 @@ def align_reads_to_nucs(args):
     index_command += [orf_nuc_fasta]
     index_command += ["1>", "/dev/null", "2>", args.output + "treesapp_bwa_index.stderr"]
 
-    p_index = subprocess.Popen(' '.join(index_command), shell=True, preexec_fn=os.setsid)
-    p_index.wait()
-    if p_index.returncode != 0:
-        sys.stderr.write("ERROR: bwa index did not complete successfully for:\n")
-        sys.stderr.write(str(' '.join(index_command)) + "\n")
-        sys.stderr.flush()
+    launch_write_command(index_command)
 
     bwa_command = [args.executables["bwa"], "mem"]
     bwa_command += ["-t", str(args.num_threads)]
@@ -3893,11 +3879,13 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
     project_folder = update_tree.Output + str(time_of_run) + os.sep
     raxml_destination_folder = project_folder + "phy_files_%s" % update_tree.COG
-    final_tree_dir = project_folder + "final_tree_files" + os.sep
-    alignment_files_dir = project_folder + "alignment_files" + os.sep
+    final_tree_dir = project_folder + "tree_data" + os.sep
+    alignment_files_dir = project_folder + "alignment_data" + os.sep
+    hmm_files_dir = project_folder + "hmm_data" + os.sep
     os.makedirs(project_folder)
     os.makedirs(final_tree_dir)
     os.makedirs(alignment_files_dir)
+    os.makedirs(hmm_files_dir)
 
     # Begin finding and filtering the new candidate reference sequences
     aa_dictionary = get_new_ref_sequences(args, update_tree)
@@ -3929,6 +3917,8 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
     aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, unaligned_ref_seqs, args)
 
+    generate_blast_database(args, aligned_fasta, update_tree.marker_molecule, alignment_files_dir + update_tree.COG)
+
     update_tree.update_tax_ids(args, ref_organism_lineage_info)
 
     if args.gap_removal == "y":
@@ -3957,8 +3947,8 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
 
     # Organize outputs
     shutil.move(aligned_fasta, alignment_files_dir + update_tree.COG + ".fa")
-    shutil.move(phylip_file, alignment_files_dir)
-    shutil.move(new_hmm_file, alignment_files_dir)
+    shutil.move(new_hmm_file, hmm_files_dir)
+    shutil.move(update_tree.Output + "tax_ids_" + update_tree.COG + ".txt", final_tree_dir)
 
     best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
     bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitions." + update_tree.COG
@@ -3970,13 +3960,19 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     prefix = update_tree.Output + update_tree.COG
     os.system('mv %s* %s' % (prefix, project_folder))
 
-    if args.uclust == "y":
-        os.system('mkdir %s_uclust' % update_tree.Output)
+    if args.uclust:
+        uclust_output_dir = prefix + "_uclust"
+        os.system('mkdir %s' % uclust_output_dir)
 
-        os.system('mv uclust_%s %s_uclust' % (update_tree.Output, update_tree.Output))
-        os.system('mv usort_%s %s_uclust' % (update_tree.Output, update_tree.Output))
+        os.system('mv %suclust_* %s' % (update_tree.Output, uclust_output_dir))
+        os.system('mv %susearch_* %s' % (update_tree.Output, uclust_output_dir))
 
-        os.system('mv %s_uclust %s' % (update_tree.Output, project_folder))
+    intermediate_files = [project_folder + update_tree.COG + ".phy", project_folder + update_tree.COG + ".phy.reduced"]
+    for useless_file in intermediate_files:
+        try:
+            os.remove(useless_file)
+        except OSError:
+            sys.stderr.write("WARNING: unable to remove intermediate file " + useless_file + "\n")
 
 
 def jplace_parser(filename):
