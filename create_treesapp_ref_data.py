@@ -13,35 +13,16 @@ try:
     import re
     import traceback
     import subprocess
-    import Bio
-    from Bio import Entrez
+
     from time import gmtime, strftime
-    from urllib import error
-    from treesapp import os_type, is_exe, which, format_read_fasta
+
+    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_lineage
+    from fasta import format_read_fasta, get_headers, get_header_format
+    from classy import ReferenceSequence
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
     sys.stderr.write(str(traceback.print_exc(10)))
     sys.exit(3)
-
-
-class ReferenceSequence:
-    def __init__(self):
-        self.accession = ""
-        self.description = ""
-        self.organism = ""
-        self.lineage = ""
-        self.short_id = ""
-        self.sequence = ""
-        self.locus = ""
-
-    def get_info(self):
-        info_string = ""
-        info_string += "accession = " + self.accession + ", " + "mltree_id = " + self.short_id + "\n"
-        info_string += "description = " + self.description + ", " + "locus = " + self.locus + "\n"
-        info_string += "organism = " + self.organism + "\n"
-        info_string += "lineage = " + self.lineage + "\n"
-        sys.stdout.write(info_string)
-        sys.stdout.flush()
 
 
 def get_arguments():
@@ -138,38 +119,6 @@ def get_arguments():
     return args
 
 
-def find_executables(args):
-    """
-    Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
-    :param args: command-line arguments objects
-    :return: exec_paths beings the absolute path to each executable
-    """
-    exec_paths = dict()
-    dependencies = ["raxmlHPC", "makeblastdb", "muscle", "hmmbuild", "cmbuild", "cmalign"]
-
-    if os_type() == "linux":
-        args.executables = args.mltreemap + "sub_binaries" + os.sep + "ubuntu"
-    if os_type() == "mac":
-        args.executables = args.mltreemap + "sub_binaries" + os.sep + "mac"
-    elif os_type() == "win" or os_type() is None:
-        sys.exit("ERROR: Unsupported OS")
-
-    for dep in dependencies:
-        if is_exe(args.executables + os.sep + dep):
-            exec_paths[dep] = str(args.executables + os.sep + dep)
-        # For rpkm and potentially other executables that are compiled ad hoc
-        elif is_exe(args.mltreemap + "sub_binaries" + os.sep + dep):
-            exec_paths[dep] = str(args.mltreemap + "sub_binaries" + os.sep + dep)
-        elif which(dep):
-            exec_paths[dep] = which(dep)
-        else:
-            sys.stderr.write("Could not find a valid executable for " + dep + ". ")
-            sys.exit("Bailing out.")
-
-    args.executables = exec_paths
-    return args
-
-
 def read_phylip(phylip_input):
     header_dict = dict()
     alignment_dict = dict()
@@ -246,25 +195,6 @@ def write_mfa(header_dict, alignment_dict, fasta_output):
     fasta.close()
 
     return
-
-
-def get_headers(fasta_file):
-    original_headers = list()
-    try:
-        fasta = open(fasta_file, 'r')
-    except IOError:
-        raise IOError("ERROR: Unable to open the FASTA file (" + fasta_file + ") provided for reading!")
-    line = fasta.readline()
-    while line:
-        line = line.strip()
-        if line and line[0] == '>':
-            original_headers.append(line)
-        else:
-            pass
-        line = fasta.readline()
-
-    fasta.close()
-    return original_headers
 
 
 def phylip_to_mfa(phylip_input, fasta_output):
@@ -473,7 +403,7 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
                         break
 
                     # parse the accession from the header
-                    header_format_re, header_db = get_header_format(candidate, args.code_name)
+                    header_format_re, header_db, header_molecule = get_header_format(candidate, args.code_name)
                     sequence_info = header_format_re.match(candidate)
                     if sequence_info:
                         candidate_acc = sequence_info.group(1)
@@ -525,22 +455,6 @@ def present_cluster_rep_options(cluster_dict):
     return swappers
 
 
-def reformat_string(string):
-    if string and string[0] == '>':
-        header = True
-    else:
-        header = False
-    string = re.sub("\[|\]|\(|\)|\/|\\\\|'|<|>", '', string)
-    if header:
-        string = '>' + string
-    string = re.sub("\s|;|,|\|", '_', string)
-    if len(string) > 110:
-        string = string[0:109]
-    while string and string[-1] == '.':
-        string = string[:-1]
-    return string
-
-
 def reformat_headers(header_dict):
     """
     Imitate format_read_fasta header name reformatting
@@ -573,61 +487,6 @@ def remove_dashes_from_msa(fasta_in, fasta_out):
     dashed_fasta.close()
     fasta.close()
     return
-
-
-def get_header_format(header, code_name):
-    """
-    Used to decipher which formatting style was used: NCBI, FunGenes, or other
-    :param header: A sequences header from a FASTA file
-    :param code_name:
-    :return:
-    """
-    # The regular expressions with the accession and organism name grouped
-    # Protein databases:
-    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|?\w.+\|(.*)$")
-    gi_prepend_proper_re = re.compile(">gi\|([0-9]+)\|[a-z]+\|[_A-Z0-9.]+\|.*\[(.*)\]$")
-    gi_prepend_mess_re = re.compile(">gi\|([0-9]+)\|pir\|\|(.*)$")
-    dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")
-    emb_re = re.compile(">emb\|(.*)\|.*\[(.*)\]")
-    gb_re = re.compile(">gb\|(.*)\|.*\[(.*)\]")
-    ref_re = re.compile(">ref\|(.*)\|.*\[(.*)\]")
-    pdb_re = re.compile(">pdb\|(.*)\|(.*)$")
-    pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
-    sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
-    fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
-    fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
-    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
-    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) (.*) \[(.*)\]$")
-
-    # Nucleotide databases:
-    silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
-    refseq_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
-    nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
-
-    # Could replace this with a dictionary...
-    header_format_regexi = [dbj_re, emb_re, gb_re, pdb_re, pir_re, ref_re, sp_re,
-                            fungene_re, fungene_trunc_re, mltree_re, ncbi_ambiguous,
-                            gi_prepend_proper_re, gi_prepend_mess_re, gi_re, silva_arb_re, refseq_re, nr_re]
-    header_format_dbs = ["dbj", "emb", "gb", "pdb", "pir", "ref", "sp", "fungene", "fungene_truncated",
-                         "mltree", "ncbi_ambig", "gi_proper", "gi_mess", "gi_re", "silva", "refseq", "nr"]
-
-    if len(header_format_dbs) != len(header_format_regexi):
-        raise AssertionError("ERROR: len(header_format_dbs) != len(header_format_regexi)\n")
-    i = 0
-    header_format_re = None
-    header_db = None
-    while i < len(header_format_regexi):
-        regex = header_format_regexi[i]
-        if regex.match(header):
-            header_format_re = regex
-            header_db = header_format_dbs[i]
-            i = len(header_format_regexi)
-        i += 1
-
-    if header_format_re is None:
-        raise AssertionError("Unable to parse header: " + header)
-
-    return header_format_re, header_db
 
 
 def map_good_headers_to_ugly(header_collection):
@@ -712,7 +571,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
             ref_seq.short_id = mltree_id + '_' + code_name
             for header in fasta_dict:
                 original_header = header_map[header]
-                header_format_re, header_db = get_header_format(original_header, code_name)
+                header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
                 sequence_info = header_format_re.match(original_header)
                 _, fasta_header_organism, _, _ = return_sequence_info_groups(sequence_info, header_db, header)
                 if re.search(ref_seq.accession, header):
@@ -755,7 +614,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
                 sys.stderr.write("There is a chance this is due to the FASTA file and .uc being generated separately.\n")
                 # sys.stderr.write("This is probably an error stemming from `reformat_string()`.\n")
                 sys.exit()
-            header_format_re, header_db = get_header_format(original_header, code_name)
+            header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
             sequence_info = header_format_re.match(original_header)
             ref_seq.accession,\
             ref_seq.organism,\
@@ -777,113 +636,6 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
     sys.stdout.flush()
 
     return fasta_replace_dict
-
-
-def query_entrez_taxonomy(search_term):
-    handle = Entrez.esearch(db="Taxonomy",
-                            term=search_term,
-                            retmode="xml")
-    record = Entrez.read(handle)
-    try:
-        org_id = record["IdList"][0]
-        handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
-        records = Entrez.read(handle)
-        lineage = str(records[0]["Lineage"])
-    except IndexError:
-        if 'QueryTranslation' in record.keys():
-            # If 'QueryTranslation' is returned, use it for the final Entrez query
-            lineage = record['QueryTranslation']
-            lineage = re.sub("\[All Names\].*", '', lineage)
-            lineage = re.sub('[()]', '', lineage)
-            for word in lineage.split(' '):
-                handle = Entrez.esearch(db="Taxonomy", term=word, retmode="xml")
-                record = Entrez.read(handle)
-                try:
-                    org_id = record["IdList"][0]
-                except IndexError:
-                    continue
-                handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
-                records = Entrez.read(handle)
-                lineage = str(records[0]["Lineage"])
-                if re.search("cellular organisms", lineage):
-                    break
-        else:
-            sys.stderr.write("ERROR: Unable to handle record returned by Entrez.efetch!\n")
-            sys.stderr.write("Database = Taxonomy\n")
-            sys.stderr.write("term = " + search_term + "\n")
-            sys.stderr.write("record = " + str(record) + "\n")
-            raise IndexError
-
-    return lineage
-
-
-def get_lineage(search_term, molecule_type):
-    """
-    Used to return the NCBI taxonomic lineage of the sequence
-    :param: search_term: The NCBI search_term
-    :param: molecule_type: "dna", "rrna", "prot", or "tax - parsed from command line arguments
-    :return: string representing the taxonomic lineage
-    """
-    # TODO: fix potential error PermissionError:
-    # [Errno 13] Permission denied: '/home/connor/.config/biopython/Bio/Entrez/XSDs'
-    # Fixed with `sudo chmod 777 .config/biopython/Bio/Entrez/`
-    if not search_term:
-        raise AssertionError("ERROR: search_term for Entrez query is empty!\n")
-    if float(Bio.__version__) < 1.68:
-        # This is required due to a bug in earlier versions returning a URLError
-        raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
-                             str(Bio.__version__) + " is currently installed. Exiting now...")
-    Entrez.email = "c.morganlang@gmail.com"
-    # Test the internet connection:
-    try:
-        Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
-    except error.URLError:
-        raise AssertionError("ERROR: Unable to serve Entrez query. Are you connected to the internet?")
-
-    # Determine which database to search using the `molecule_type`
-    if molecule_type == "dna" or molecule_type == "rrna":
-        database = "nucleotide"
-    elif molecule_type == "prot":
-        database = "protein"
-    elif molecule_type == "tax":
-        database = "Taxonomy"
-    else:
-        sys.stderr.write("Welp. We're not sure how but the molecule type is not recognized!\n")
-        sys.stderr.write("Please create an issue on the GitHub page.")
-        sys.exit(8)
-
-    # Find the lineage from the search_term ID
-    lineage = ""
-    if database in ["nucleotide", "protein"]:
-        handle = Entrez.efetch(db=database, id=str(search_term), retmode="xml")
-        try:
-            record = Entrez.read(handle)
-        except UnboundLocalError:
-            raise UnboundLocalError
-
-        if len(record) >= 1:
-            try:
-                if "GBSeq_organism" in record[0]:
-                    organism = record[0]["GBSeq_organism"]
-                    # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
-                    organism = re.sub('[)(\[\]]', '', organism)
-                    lineage = query_entrez_taxonomy(organism)
-            except IndexError:
-                for word in record['QueryTranslation']:
-                    lineage = query_entrez_taxonomy(word)
-                    print(lineage)
-        else:
-            # Lineage is already set to "". Just return and move on to the next attempt
-            pass
-    else:
-        try:
-            print("Searching taxonomy database for " + search_term)
-            lineage = query_entrez_taxonomy(search_term)
-        except UnboundLocalError:
-            sys.stderr.write("WARNING: Unable to find Entrez taxonomy using organism name:\n\t")
-            sys.stderr.write(search_term + "\n")
-
-    return lineage
 
 
 def order_dict_by_lineage(fasta_replace_dict):

@@ -14,19 +14,23 @@ try:
     import shutil
     import re
     import glob
-    import subprocess
     import signal
     import time
     import traceback
-    import copy
     import string
     import random
+    import subprocess
     from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
+    from json import loads, load
     from os import path
     from os import listdir
     from os.path import isfile, join
     from time import gmtime, strftime
-    from json import loads, load, dumps
+
+    from utilities import Autovivify, os_type, which, find_executables
+    from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein
+    from fasta import format_read_fasta, get_headers, write_new_fasta
+    from entish import create_tree_info_hash
 
     import _tree_parser
     import _fasta_reader
@@ -34,871 +38,6 @@ except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
     sys.stderr.write(traceback.print_exc(10))
     sys.exit(3)
-
-
-# Classes begin:
-
-class Autovivify(dict):
-    """In cases of Autovivify objects, enable the referencing of variables (and sub-variables)
-    without explicitly declaring those variables beforehand."""
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            value = self[item] = type(self)()
-            return value
-
-
-class CommandLineWorker(Process):
-    def __init__(self, task_queue, commander):
-        Process.__init__(self)
-        self.task_queue = task_queue
-        self.master = commander
-
-    def run(self):
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                self.task_queue.task_done()
-                break
-            p_genewise = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
-            p_genewise.wait()
-            if p_genewise.returncode != 0:
-                sys.stderr.write("ERROR: " + self.master + " did not complete successfully for:\n")
-                sys.stderr.write(str(' '.join(next_task)) + "\n")
-                sys.stderr.flush()
-            self.task_queue.task_done()
-        return
-
-
-class CommandLineFarmer:
-    """
-    A worker that will launch command-line jobs using multiple processes in its queue
-    """
-
-    def __init__(self, command, num_threads):
-        """
-        Instantiate a CommandLineFarmer object to oversee multiprocessing of command-line jobs
-        :param command:
-        :param num_threads:
-        """
-        self.max_size = 32767  # The actual size limit of a JoinableQueue
-        self.task_queue = JoinableQueue(self.max_size)
-        self.num_threads = int(num_threads)
-
-        genewise_process_queues = [CommandLineWorker(self.task_queue, command) for i in range(int(self.num_threads))]
-        for process in genewise_process_queues:
-            process.start()
-
-    def add_tasks_to_queue(self, task_list):
-        """
-        Function for adding commands from task_list to task_queue while ensuring space in the JoinableQueue
-        :param task_list: List of commands
-        :return: Nothing
-        """
-        num_tasks = len(task_list)
-    
-        task = task_list.pop()
-        while task:
-            if not self.task_queue.full():
-                self.task_queue.put(task)
-                if num_tasks > 1:
-                    task = task_list.pop()
-                    num_tasks -= 1
-                else:
-                    task = None
-
-        i = self.num_threads
-        while i:
-            if not self.task_queue.full():
-                self.task_queue.put(None)
-                i -= 1
-    
-        return
-
-
-class NodeRetrieverWorker(Process):
-    """
-    Doug Hellman's Consumer class for handling processes via queues
-    """
-
-    def __init__(self, task_queue, result_queue):
-        Process.__init__(self)
-        self.task_queue = task_queue
-        self.result_queue = result_queue
-
-    def run(self):
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                self.task_queue.task_done()
-                break
-            result = _tree_parser._build_subtrees_newick(next_task)
-            subtrees = subtrees_to_dictionary(result, create_tree_info_hash())
-            self.task_queue.task_done()
-            self.result_queue.put(subtrees)
-        return
-
-
-class CreateFuncTreeUtility:
-    """
-    Output is the directory to write the outputs for the updated tree
-    InputData is the path to the TreeSAPP output folder containing, various_outputs/ and final_RAxML_outputs/
-    RefTree is the second column in cog_list.tsv for the gene to update
-    Cluster is a flag indicating whether the protein sequences for the RefTree in InputData is to be clustered at 97%
-    """
-    def __init__(self, input_data, ref_tree):
-        if os.path.isabs(input_data):
-            self.InputData = input_data
-        else:
-            self.InputData = os.getcwd() + os.sep + input_data
-
-        if self.InputData[-1] == '/':
-            self.InputData = self.InputData[:-1]
-
-        self.Output = self.InputData + os.sep + "updated_" + ref_tree + "_tree" + os.sep
-        self.Denominator = ref_tree
-        self.marker_molecule = ""  # prot, dna, or rrna
-        self.COG = ""
-        self.raxml_model = ""  # Rather than determining the best model again, use the one that was previously used
-        self.ContigDict = dict()  # Used for storing the final candidate reference sequences
-        self.names = list()
-        self.header_id_map = dict()  # Used for mapping the original header of the sequence to internal numeric header
-        self.cluster_id = 0  # The percent similarity the original reference sequences were clustered at
-        # Automatically remove the last attempt at updating the reference tree
-        if os.path.isdir(self.Output):
-            shutil.rmtree(self.Output)
-        try:
-            os.makedirs(self.Output)
-        except IOError:
-            raise IOError("Unable to make the directory " + str(self.Output) + "\n")
-
-    def get_raxml_files_for_ref(self):
-        """
-        Uses self.InputData to find all the RAxML_outputs for each protein sequence for self.RefTree
-        :return: list of file names with a protein sequence of self.RefTree
-        """
-        raxml_outputs = os.listdir(self.InputData + os.sep + "final_RAxML_outputs" + os.sep)
-        for placement in raxml_outputs:
-            ref_tree = os.path.basename(placement).split('_')[0]
-            if ref_tree == self.Denominator:
-                suffix = re.sub("%s_" % ref_tree, '', placement)
-                predicted_orf = re.sub("_RAxML_parsed.txt", '', suffix)
-                self.names.append(predicted_orf)
-        return
-
-    def find_cog_name(self, cog_list):
-        for cog in cog_list["all_cogs"]:
-            denominator = cog_list["all_cogs"][cog]
-            if denominator == self.Denominator:
-                self.COG = cog
-                break
-        if not self.COG:
-            sys.stderr.write("ERROR: Invalid marker code provided! Unable to find matching gene in cog_list.txt!\n")
-            sys.exit(100)
-        return
-
-    def find_marker_type(self, cog_list):
-        for marker_type in cog_list:
-            if marker_type == "all_cogs":
-                continue
-            if self.COG in cog_list[marker_type]:
-                if marker_type == "phylogenetic_rRNA_cogs":
-                    self.marker_molecule = "rrna"
-                elif marker_type == "functional_cogs":
-                    self.marker_molecule = "prot"
-                else:
-                    sys.stderr.write("ERROR: Unrecognized marker class: " + marker_type)
-                    sys.exit(101)
-                break
-
-        return
-
-    def load_new_refs_fasta(self, args, centroids_fasta, ref_organism_lineage_info):
-        # Determine whether the numerical IDs are a series and sorted
-        acc = 0
-        ref_numeric_ids = list()
-        for leaf in ref_organism_lineage_info[self.Denominator]:
-            ref_numeric_ids.append(int(leaf.number))
-            acc += 1
-
-        # Read the FASTA to get headers and sequences
-        centroids_fasta_dict = format_read_fasta(centroids_fasta, self.marker_molecule, args)
-
-        # Create the final contig dictionary of new internal TreeSAPP headers (keys) and sequences (values)
-        additional = acc
-        for new_ref_seq in centroids_fasta_dict:
-            if acc == sorted(ref_numeric_ids, key=int)[-1]:
-                additional += 1
-                # These sequences form a series, therefore continue the series for new reference sequences
-                internal_id = '>' + str(additional) + '_' + self.COG
-            else:
-                rfive = ''.join(str(x) for x in random.sample(range(10), 5))
-                while rfive in ref_numeric_ids:
-                    rfive = ''.join(str(x) for x in random.sample(range(10), 5))
-                internal_id = '>' + rfive + '_' + self.COG
-            # Map the new reference headers to their numerical IDs
-            self.header_id_map[internal_id] = new_ref_seq
-            self.ContigDict[internal_id] = centroids_fasta_dict[new_ref_seq]
-
-        if additional == acc:
-            # The reference sequence identifiers are random
-            sys.stderr.write("WARNING: numerical TreeSAPP identifiers for " + self.Denominator +
-                             "are not in the format of a sequential series!\n")
-            sys.stderr.write("Generating random numerical unique identifiers for the new sequence(s).\n")
-            sys.stderr.flush()
-
-        if args.verbose:
-            sys.stdout.write("\t" + str(len(self.header_id_map)) + " new " + self.COG + " reference sequences.\n")
-
-        return
-
-    # def write_reference_names(self):
-    #     """
-    #     Generate the mapping between reference taxa IDs and descriptions for the gene being updated
-    #     :return: Dictionary containing alignment_data names as keys and tax_ids descriptions as values
-    #     """
-    #     # TODO: Potentially replace this function with two class variables ref_names and new_names
-    #
-    #     # Handle tax ids for COG here #
-    #     cog_input_match = re.match("COG\d+", self.COG)
-    #     geba_cog_match = re.match("g_COG\d+", self.COG)
-    #
-    #     if cog_input_match:
-    #         ref_tax_ids_handle = open("data/tree_data/tax_ids_nr.txt", "rb")
-    #     elif geba_cog_match:
-    #         ref_tax_ids_handle = open("data/tree_data/tax_ids_geba_tree.txt", "rb")
-    #     else:
-    #         ref_tax_ids_handle = open("data/tree_data/tax_ids_%s.txt" % self.COG, "rb")
-    #
-    #     ref_tax_ids_lines = ref_tax_ids_handle.readlines()
-    #
-    #     for each_ref_tax_ids_line in ref_tax_ids_lines:
-    #         each_ref_tax_ids_line = each_ref_tax_ids_line.strip()
-    #
-    #         ids_desc_match = re.match("(\S+)\t(\S+) | (\S+)\t(\S+)", each_ref_tax_ids_line)
-    #
-    #         if ids_desc_match:
-    #             num = ids_desc_match.group(1)
-    #             ref_id = num + "_" + cog_id
-    #             description = ids_desc_match.group(2)
-    #             accession = ids_desc_match.group(3)
-    #             lineage = ids_desc_match.group(4)
-    #
-    #             if ref_id in ref_tax_id_map.keys():
-    #                 ref_tax_id_map[ref_id] = description
-    #             else:
-    #                 AssertionError("Unknown reference number " + str(ref_id) + " in " + ref_alignment_fasta)
-    #
-    #     return ref_tax_id_map
-
-    def align_sequences(self, alignment_mode, ref_align, unaligned_ref_seqs, args):
-        """
-        Call MUSCLE to perform a multiple sequence alignment of the reference sequences and the
-        gene sequences identified by TreeSAPP
-        :param args:
-        :param unaligned_ref_seqs:
-        :param alignment_mode: d (default; re-do the MSA) or p (profile; use the reference MSA)
-        :param ref_align: FASTA file containing
-        :return: Name of the FASTA file containing the MSA
-        """
-        if args.verbose:
-            sys.stdout.write("Aligning the reference and identified " + self.COG + " sequences using MUSCLE... ")
-            sys.stdout.flush()
-
-        # Default alignment #
-        if alignment_mode == "d":
-            # Combine the reference and candidate sequence dictionaries
-            unaligned_ref_seqs.update(self.ContigDict)
-            ref_unaligned = self.Output + self.COG + "_gap_removed.fa"
-            write_new_fasta(unaligned_ref_seqs, ref_unaligned)
-
-            aligned_fasta = self.Output + self.COG + "_d_aligned.fasta"
-            muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (ref_unaligned, aligned_fasta)
-
-        # Profile-Profile alignment #
-        elif alignment_mode == "p":
-            query_fasta = self.Output + self.COG + "_query_unaligned.fasta"
-            query_align = self.Output + self.COG + "_query_aligned.fasta"
-
-            muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (query_fasta, query_align)
-
-            os.system(muscle_align_command)
-
-            aligned_fasta = self.Output + self.COG + "_p_aligned.fasta"
-            muscle_align_command = "muscle -profile -in1 %s -in2 %s -out %s 1>/dev/null 2>/dev/null" % \
-                                   (query_align, ref_align, aligned_fasta)
-
-        else:
-            sys.exit("ERROR: --alignment_mode was not properly assigned!")
-
-        os.system(muscle_align_command)
-
-        if args.verbose:
-            sys.stdout.write("done.\n")
-            sys.stdout.flush()
-
-        return aligned_fasta
-
-    # def write_unaligned_ref_fasta(self, ref_align):
-    #     ref_align_gap_removed = self.Output + self.COG + "_gap_removed.fa"
-    #
-    #     ref_align_handle = open(ref_align, "rb")
-    #     ref_align_gap_rm_handle = open(ref_align_gap_removed, "w")
-    #
-    #     first_fas_line = ref_align_handle.readline()
-    #     first_fas_line = first_fas_line.strip()
-    #
-    #     first_header_match = re.match("^>", first_fas_line)
-    #
-    #     if first_header_match:
-    #         ref_align_gap_rm_handle.write(first_fas_line + "\n")
-    #
-    #     fasta_in_lines = ref_align_handle.readlines()
-    #
-    #     alignment_gap_removed = ""
-    #
-    #     for each_fas_line in fasta_in_lines:
-    #         each_fas_line = each_fas_line.strip()
-    #
-    #         fasta_header_match = re.match("^>", each_fas_line)
-    #
-    #         if fasta_header_match:
-    #             ref_align_gap_rm_handle.write(alignment_gap_removed + "\n")
-    #             ref_align_gap_rm_handle.write(each_fas_line + "\n")
-    #
-    #             alignment_gap_removed = ""
-    #         else:
-    #
-    #             alignment_gap_removed += each_fas_line
-    #
-    #             if re.search("[\-]+", alignment_gap_removed):
-    #                 alignment_gap_removed = re.sub("-", "", alignment_gap_removed)
-    #
-    #     ref_align_gap_rm_handle.write(alignment_gap_removed + "\n")
-    #
-    #     ref_align_gap_rm_handle.close()
-    #     ref_align_handle.close()
-    #     return ref_align_gap_removed
-
-    def scan_unaligned_ref_fasta(self, ref_align_gap_removed):
-        """
-
-        :param ref_align_gap_removed:
-        :return:
-        """
-        ref_align_handle = open(ref_align_gap_removed, "rb")
-        ref_align_gap_rm_scan = self.Output + self.COG + "_gap_rm_scan.fa"
-
-        ref_align_scan_handle = open(ref_align_gap_rm_scan, "w")
-
-        fasta_map = {}
-
-        fasta_in_lines = ref_align_handle.readlines()
-
-        sequence_id = ""
-        sequence = ""
-
-        for each_fas_line in fasta_in_lines:
-            each_fas_line = each_fas_line.strip()
-
-            fasta_header_match = re.match("^>(\S+)", each_fas_line)
-
-            if fasta_header_match:
-                sequence_id = each_fas_line
-            else:
-                sequence = each_fas_line
-
-            fasta_map[sequence_id] = sequence
-
-        for each_sequence_id in fasta_map.keys():
-            each_sequence = fasta_map[each_sequence_id]
-
-            line_of_x = re.match("^X((X)+)*$", each_sequence)
-
-            if not line_of_x:
-                ref_align_scan_handle.write(each_sequence_id + "\n")
-                ref_align_scan_handle.write(each_sequence + "\n")
-
-        ref_align_handle.close()
-        ref_align_scan_handle.close()
-
-    # def randomize_fasta_id(self, fasta):
-    #     """
-    #     Create a random hash for every reference and new name
-    #     :param fasta: A FASTA file
-    #     :return: Name of fasta_random - the FASTA file with random identifiers
-    #     """
-    #     original_random_dict = {}
-    #     rfive_list = list()
-    #
-    #     fasta_handle = open(fasta, "rb")
-    #     fasta_lines = fasta_handle.readlines()
-    #
-    #     fasta_random = self.Output + self.COG + "_concat_rfive.fasta"
-    #     fasta_random_handle = open(fasta_random, "w")
-    #
-    #     for line in fasta_lines:
-    #         line = line.strip()
-    #         if line[0] == '>':
-    #             original_id = line[1:]
-    #             if original_id not in self.names:
-    #                 self.ref_names.append(original_id)
-    #             rfive_header = "ID"
-    #             rfive = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
-    #             while rfive in rfive_list:
-    #                 rfive = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))
-    #             rfive_list.append(rfive)
-    #             rfive_header += rfive
-    #             original_random_dict[original_id] = rfive_header
-    #
-    #             fasta_random_handle.write('>' + rfive_header + "\n")
-    #         else:
-    #             fasta_random_handle.write(line + "\n")
-    #
-    #     assert len(set(original_random_dict.values())) == len(original_random_dict.values())
-    #
-    #     fasta_random_handle.close()
-    #     fasta_handle.close()
-    #
-    #     return fasta_random, original_random_dict
-
-    def create_random_names(self, random_map, ref_tax_id_map):
-        """
-        Write the _concat_rand.names file which contains
-        :param random_map: A dictionary with keys from the MSA containing reference and query sequences
-        :param ref_tax_id_map: Dictionary with contig names and descriptions for reference sequences
-        :return:
-        """
-        concat_random_names = self.Output + self.COG + "_concat_rand.names"
-        concat_rand_names_handle = open(concat_random_names, "w")
-
-        for original_id in random_map.keys():
-            names_line = random_map[original_id] + "\t" + ref_tax_id_map[original_id] + "\n"
-            concat_rand_names_handle.write(names_line)
-
-        concat_rand_names_handle.close()
-
-    def execute_raxml(self, phylip_file, raxml_destination_folder, args):
-        os.makedirs(raxml_destination_folder)
-        # No difference between this command and that in create_treesapp_ref_data
-        raxml_command = [args.executables["raxmlHPC"], '-m', self.raxml_model]
-        # Run RAxML using multiple threads, if CPUs available
-        raxml_command += ['-T', str(int(args.num_threads))]
-        if args.bootstraps == 0:
-            nboot = "autoMR"
-        else:
-            nboot = str(args.bootstraps)
-        raxml_command += ['-s', phylip_file,
-                          '-f', 'a',
-                          '-x', str(12345),
-                          '-#', nboot,
-                          '-n', self.COG,
-                          '-w', raxml_destination_folder,
-                          '-p', str(12345)] #,
-                          # '>', raxml_destination_folder + os.sep + 'RAxML_log.txt']
-
-        if args.verbose:
-            sys.stdout.write("RAxML command:\n\t" + ' '.join(raxml_command) + "\n")
-            sys.stdout.write("Inferring Maximum-Likelihood tree with RAxML... ")
-            sys.stdout.flush()
-
-        raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
-        raxml_pro.wait()
-
-        if args.verbose:
-            sys.stdout.write("done.\n")
-            sys.stdout.flush()
-
-        return
-
-
-class ItolJplace:
-    """
-    A class to hold all data relevant to a jplace file to be viewed in iTOL
-    """
-    fields = list()
-
-    def __init__(self):
-        # Sequence name (from FASTA header)
-        self.contig_name = ""
-        # Code name of the tree it mapped to (e.g. mcrA)
-        self.name = ""
-        # NEWICK tree
-        self.tree = ""
-        self.metadata = ""
-        self.version = ""
-        # List of lineages for each child identified by RAxML.
-        self.lineage_list = list()
-        # The LCA taxonomy derived from lineage_list
-        self.lct = ""
-        # Either the number of times that sequence was observed, or the FPKM of that sequence
-        self.abundance = None
-        self.node_map = dict()
-        self.placements = list()
-
-    def summarize(self):
-        """
-        Prints a summary of the ItolJplace object (equivalent to a single marker) to stderr
-        Summary include the number of marks found, the tree used, and the tree-placement of each sequence identified
-        Written solely for testing purposes
-        :return:
-        """
-        sys.stderr.write(str(len(self.placements)) + " " + self.name + " sequences grafted. ")
-        # sys.stderr.write("Reference tree:\n")
-        # sys.stderr.write(self.tree + "\n")
-        sys.stderr.write("\nFields:\n\t" + str(self.fields) + "\n")
-        sys.stderr.write(self.contig_name + "\n")
-        sys.stderr.write("Placement information:\n")
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            for k, v in placement.items():
-                if k == 'p':
-                    sys.stderr.write('\t' + str(v) + "\n")
-        sys.stderr.write("Lineage information:\n")
-        if len(self.lineage_list) > 0:
-            for lineage in self.lineage_list:
-                sys.stderr.write('\t' + str(lineage) + "\n")
-        else:
-            sys.stderr.write("\tNone.\n")
-        sys.stderr.write("Lowest common taxonomy:\n")
-        if self.lct:
-            sys.stderr.write("\t" + str(self.lct) + "\n")
-        else:
-            sys.stderr.write("\tNone.\n")
-        if self.abundance:
-            sys.stderr.write("Abundance:\n\t" + str(self.abundance) + "\n")
-        sys.stderr.write("\n")
-        sys.stderr.flush()
-        return
-
-    def correct_decoding(self):
-        """
-        Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
-        Formatting and string conversion are also performed here
-        :return: 
-        """
-        new_placement_collection = []  # a list of dictionary-like strings
-        placement_string = ""  # e.g. {"p":[[226, -31067.028237, 0.999987, 0.012003, 2e-06]], "n":["query"]}
-        for d_place in self.placements:
-            if type(d_place) != str:
-                dict_strings = list()  # e.g. "n":["query"]
-                for k, v in d_place.items():
-                    dict_strings.append(dumps(k) + ':' + dumps(v))
-                    placement_string = ', '.join(dict_strings)
-                new_placement_collection.append('{' + placement_string + '}')
-            else:
-                new_placement_collection.append(d_place)
-        self.placements = new_placement_collection
-
-        self.fields = [dumps(x) for x in self.fields]
-        return
-
-    def get_lwr_position_from_jplace_fields(self):
-        """
-        Find the position in self.fields of 'like_weight_ratio'
-        :return: position in self.fields of 'like_weight_ratio'
-        """
-        x = 0
-        # Find the position of like_weight_ratio in the placements from fields descriptor
-        for field in self.fields:
-            if field == '"like_weight_ratio"':
-                break
-            else:
-                x += 1
-        if x == len(self.fields):
-            sys.stderr.write("Unable to find \"like_weight_ratio\" in the jplace string!\n")
-            sys.stderr.write("WARNING: Skipping filtering with `filter_min_weight_threshold`\n")
-            return None
-        return x
-
-    def filter_min_weight_threshold(self, threshold=0.3):
-        """
-        Remove all placements with likelihood weight ratios less than threshold
-        :param threshold: The threshold which all placements with LWRs less than this are removed
-        :return:
-        """
-        unclassified = 0
-        # Find the position of like_weight_ratio in the placements from fields descriptor
-        x = self.get_lwr_position_from_jplace_fields()
-        if not x:
-            return
-        # Filter the placements
-        new_placement_collection = list()
-        placement_string = ""
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            dict_strings = list()
-            if len(placement["p"]) > 1:
-                for k, v in placement.items():
-                    if k == 'p':
-                        # For debugging:
-                        # sys.stderr.write(str(v) + "\nRemoved:\n")
-                        acc = 0
-                        tmp_placements = copy.deepcopy(v)
-                        while acc < len(tmp_placements):
-                            candidate = tmp_placements[acc]
-                            if float(candidate[x]) < threshold:
-                                removed = tmp_placements.pop(acc)
-                                # For debugging:
-                                # sys.stderr.write("\t".join([self.name, str(removed[0]), str(float(removed[x]))]) + "\n")
-                            else:
-                                acc += 1
-                            sys.stderr.flush()
-                        # If no placements met the likelihood filter then the sequence cannot be classified
-                        # Alternatively: first two will be returned and used for LCA - can test...
-                        if len(tmp_placements) > 0:
-                            v = tmp_placements
-                            dict_strings.append(dumps(k) + ':' + dumps(v))
-                            placement_string = ', '.join(dict_strings)
-                        else:
-                            unclassified += 1
-                # Add the filtered placements back to the object.placements
-                new_placement_collection.append('{' + placement_string + '}')
-            else:
-                new_placement_collection.append(pquery)
-        self.placements = new_placement_collection
-        return unclassified
-
-    def sum_rpkms_per_node(self, leaf_rpkm_sums):
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            for k, v in placement.items():
-                if k == 'p':
-                    for locus in v:
-                        jplace_node = locus[0]
-                        tree_leaves = self.node_map[jplace_node]
-                        for tree_leaf in tree_leaves:
-                            if tree_leaf not in leaf_rpkm_sums.keys():
-                                leaf_rpkm_sums[tree_leaf] = 0.0
-                            leaf_rpkm_sums[tree_leaf] += self.abundance
-        return leaf_rpkm_sums
-
-    def filter_max_weight_placement(self):
-        """
-        Removes all secondary placements of each pquery,
-        leaving only the placement with maximum likelihood_weight_ratio
-        :return:
-        """
-        x = 0
-        # Find the position of like_weight_ratio in the placements from fields descriptor
-        for field in self.fields:
-            if field == '"like_weight_ratio"':
-                break
-            else:
-                x += 1
-        if x == len(self.fields):
-            sys.stderr.write("Unable to find \"like_weight_ratio\" in the jplace string!\n")
-            sys.stderr.write("WARNING: Skipping filtering with `filter_max_weight_placement`\n")
-            return
-
-        # Filter the placements
-        new_placement_collection = list()
-        placement_string = ""
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            if placement:
-                dict_strings = list()
-                max_lwr = 0
-                if len(placement["p"]) > 1:
-                    for k, v in placement.items():
-                        if k == 'p':
-                            acc = 0
-                            tmp_placements = copy.deepcopy(v)
-                            while acc < len(tmp_placements):
-                                candidate = tmp_placements[acc]
-                                if float(candidate[x]) > max_lwr:
-                                    v = [tmp_placements.pop(acc)]
-                                    max_lwr = candidate[x]
-                                else:
-                                    acc += 1
-                        dict_strings.append(dumps(k) + ':' + dumps(v))
-                        placement_string = ', '.join(dict_strings)
-                    # Add the filtered placements back to the object.placements
-                    new_placement_collection.append('{' + placement_string + '}')
-                else:
-                    new_placement_collection.append(pquery)
-        self.placements = new_placement_collection
-        return
-
-    def create_jplace_node_map(self):
-        """
-        Loads a mapping between all nodes (internal and leaves) and all leaves
-        :return:
-        """
-        no_length_tree = re.sub(":[0-9.]+{", ":{", self.tree)
-        self.node_map.clear()
-        node_stack = list()
-        leaf_stack = list()
-        x = 0
-        num_buffer = ""
-        while x < len(no_length_tree):
-            c = no_length_tree[x]
-            if re.search(r"[0-9]", c):
-                while re.search(r"[0-9]", c):
-                    num_buffer += c
-                    x += 1
-                    c = no_length_tree[x]
-                node_stack.append([str(num_buffer)])
-                num_buffer = ""
-                x -= 1
-            elif c == ':':
-                # Append the most recent leaf
-                current_node, x = get_node(no_length_tree, x + 1)
-                self.node_map[current_node] = node_stack.pop()
-                leaf_stack.append(current_node)
-            elif c == ')':
-                # Set the child leaves to the leaves of the current node's two children
-                while c == ')' and x < len(no_length_tree):
-                    if no_length_tree[x + 1] == ';':
-                        break
-                    current_node, x = get_node(no_length_tree, x + 2)
-                    self.node_map[current_node] = self.node_map[leaf_stack.pop()] + self.node_map[leaf_stack.pop()]
-                    leaf_stack.append(current_node)
-                    x += 1
-                    c = no_length_tree[x]
-            x += 1
-        return
-
-    def harmonize_placements(self, treesapp_dir):
-        """
-        Often times, the placements field in a jplace file contains multiple possible tree locations.
-        In order to consolidate these into a single tree location, the LCA algorithm is utilized. The single internal
-        node which is the parent node of all possible placements is returned. Since all placements are valid, there is
-        no need to be uncertain about including all nodes when determining the lowest common ancestor
-        :return:
-        """
-        if self.name == "nr":
-            self.name = "COGrRNA"
-        reference_tree_file = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
-        reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-        lwr_pos = self.get_lwr_position_from_jplace_fields()
-        singular_placements = list()
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            dict_strings = list()
-            for k, v in placement.items():
-                if len(v) > 1:
-                    lwr_sum = 0
-                    loci = list()
-                    for locus in v:
-                        lwr_sum += float(locus[lwr_pos])
-                        loci.append(str(self.node_map[locus[0]][0]))
-                    ancestral_node = _tree_parser._lowest_common_ancestor(reference_tree_elements, ','.join(loci))
-                    # Create a placement from the ancestor, and the first locus in loci fields
-                    v = [[ancestral_node, v[0][1], round(lwr_sum, 2), 0, 0]]
-                dict_strings.append(dumps(k) + ':' + dumps(v))
-            singular_placements.append('{' + ','.join(dict_strings) + '}')
-
-        self.placements = singular_placements
-        return
-
-    def clear_object(self):
-        placements = list()
-        fields = list()
-        node_map = dict()
-        self.contig_name = ""
-        self.name = ""
-        self.tree = ""
-        self.metadata = ""
-        self.version = ""
-        self.lineage_list = list()
-        self.lct = ""
-        self.abundance = None
-
-
-class TreeProtein(ItolJplace):
-    """
-    A class for sequences that were properly mapped to its gene tree.
-    While it mostly contains RAxML outputs,
-    several functions are used to make 'biological' sense out of these outputs.
-    """
-    def transfer(self, itol_jplace_object):
-        self.placements = itol_jplace_object.placements
-        self.tree = itol_jplace_object.tree
-        self.fields = itol_jplace_object.fields
-        self.version = itol_jplace_object.version
-        self.metadata = itol_jplace_object.metadata
-
-    def megan_lca(self):
-        """
-        Using the lineages of all leaves to which this sequence was mapped (n >= 1),
-        A lowest common ancestor is found at the point which these lineages converge.
-        This emulates the LCA algorithm employed by the MEtaGenome ANalyzer (MEGAN).
-        :return:
-        """
-        # cellular organisms; Kingdom; Phylum; Class; Order; Family; Genus; Species
-
-        return
-
-
-class TreeLeafReference:
-    """
-    Objects for each leaf in a tree
-    """
-    def __init__(self, number, description):
-        # self.tree = ""
-        self.number = number
-        self.description = description
-        self.lineage = ""
-        self.complete = False
-
-    def summarize_tree_leaf(self):
-        # sys.stderr.write("Tree:\n\t" + str(self.tree) + "\n")
-        sys.stderr.write("Leaf ID:\n\t" + str(self.number) + "\n")
-        sys.stderr.write("Description:\n\t" + str(self.description) + "\n")
-        if self.complete:
-            sys.stderr.write("Lineage:\n\t" + str(self.lineage) + "\n")
-
-    class MarkerInfo:
-        """
-        Class serves to store information pertaining to each COG in data/tree_data/cog_list.tsv
-        """
-
-        def __init__(self, marker, denominator, description):
-            self.marker = marker
-            self.denominator = denominator  # alphanumeric unique ID, R0016 for example
-            self.marker_class = ""  # phylogenetic rRNA
-            self.num_reference_seqs = 0
-            self.description = description
-            self.analysis_type = ""
-
-# Classes end
-
-
-def retrieve_data_size(aligned_fasta):
-    # TODO: Replace if possible (just counts number of sequences) and destroy
-    num_seqs = 0
-
-    fasta_file_handle = open(aligned_fasta, "rb")
-
-    fasta_lines = fasta_file_handle.readlines()
-
-    for each_fa_line in fasta_lines:
-        if re.search(">", each_fa_line):
-            num_seqs += 1
-
-    return num_seqs
-
-
-def os_type():
-    """Return the operating system of the user."""
-    x = sys.platform
-    if x:
-
-        hits = re.search(r'darwin', x, re.I)
-        if hits:
-            return 'mac'
-     
-        hits = re.search(r'win', x, re.I)
-        if hits:
-            return 'win'
-
-        hits = re.search(r'linux', x, re.I)
-        if hits:
-            return 'linux'
 
 
 def get_options(): 
@@ -915,7 +54,7 @@ def get_options():
                         help="Input is assembled consensus sequences so ORFs will be predicted instead of using blastx")
     parser.add_argument('-b', '--bootstraps', default=0, type=int,
                         help='the number of Bootstrap replicates [DEFAULT = 0]')
-    # TODO: remove this option and only use "-f e" for raxml
+    # TODO: remove this option and only use Maximum Likelihood (-f v) for RAxML
     parser.add_argument('-f', '--phylogeny', default='v', choices=['v', 'p'],
                         help='RAxML algorithm (v = Maximum Likelihood [DEFAULT]; p = Maximum Parsimony)')
     parser.add_argument("--filter_align", default=False, action="store_true",
@@ -982,66 +121,6 @@ def get_options():
     return parser
 
 
-def find_executables(args):
-    """
-    Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
-    :param args: command-line arguments objects
-    :return: exec_paths beings the absolute path to each executable
-    """
-    exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC",
-                    "hmmalign", "trimal", "cmalign", "cmsearch"]
-
-    if args.rpkm:
-        dependencies += ["bwa", "rpkm"]
-
-    if args.update_tree:
-        dependencies += ["usearch", "muscle", "hmmbuild", "cmbuild"]
-
-    if args.consensus:
-        dependencies.append("FGS+")
-
-    if os_type() == "linux":
-        args.executables = args.treesapp + "sub_binaries" + os.sep + "ubuntu"
-    if os_type() == "mac":
-        args.executables = args.treesapp + "sub_binaries" + os.sep + "mac"
-    elif os_type() == "win" or os_type() is None:
-        sys.exit("ERROR: Unsupported OS")
-
-    for dep in dependencies:
-        if is_exe(args.executables + os.sep + dep):
-            exec_paths[dep] = str(args.executables + os.sep + dep)
-        # For rpkm and potentially other executables that are compiled ad hoc
-        elif is_exe(args.treesapp + "sub_binaries" + os.sep + dep):
-            exec_paths[dep] = str(args.treesapp + "sub_binaries" + os.sep + dep)
-        elif which(dep):
-            exec_paths[dep] = which(dep)
-        else:
-            sys.stderr.write("Could not find a valid executable for " + dep + ". ")
-            sys.exit("Bailing out.")
-
-    args.executables = exec_paths
-    return args
-
-
-def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-
-def which(program):
-    fpath, fname = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path_element in os.environ["PATH"].split(os.pathsep):
-            path_element = path_element.strip('"')
-            exe_file = os.path.join(path_element, program)
-            if is_exe(exe_file):
-                return exe_file
-    return None
-
-
 def check_parser_arguments(parser):
     """
     Ensures the command-line arguments returned by argparse are sensical
@@ -1064,9 +143,8 @@ def check_parser_arguments(parser):
         args.reference_data_prefix = ''
         args.reference_tree = 'MLTreeMap_reference.tree'
     else:
-        # sys.stderr.write("ERROR: Unknown reftree specified : " + args.reftree + "!\n")
-        # sys.exit()
-        pass
+        args.reference_data_prefix = ''
+        args.reference_tree = args.reftree
 
     args.targets = args.targets.split(',')
     if args.targets != ['ALL']:
@@ -1277,13 +355,15 @@ def single_cog_list(reftree, cog_list, text_of_analysis_type):
 
     # Parse the cog_list
     for cog_type in cog_list:
-        for cog, denominator in cog_list[cog_type].iteritems():
+        for cog in cog_list[cog_type]:
+            denominator = cog_list[cog_type][cog]
             if denominator == reftree:
                 new_list[cog_type][cog] = denominator
                 break
 
     # Parse the text_of_analysis_type
-    for denominator, analysis in text_of_analysis_type.iteritems():
+    for denominator in text_of_analysis_type:
+        analysis = text_of_analysis_type[denominator]
         if denominator == reftree:
             single_text_analysis[denominator] = analysis
             break
@@ -1328,63 +408,15 @@ def calculate_overlap(info):
     return overlap 
 
 
-def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
-    """
-    Function for writing sequences stored in dictionary to file in FASTA format; optional filtering with headers list
-    :param fasta_dict: A dictionary containing headers as keys and sequences as values
-    :param fasta_name: Name of the FASTA file to write to
-    :param max_seqs: If not None, the maximum number of sequences to write to a single FASTA file
-    :param headers: Optional list of sequence headers. Only fasta_dict keys in headers will be written
-    :return:
-    """
-    split_files = list()
-    file_counter = 0
-    sequence_accumulator = 0
-
-    if max_seqs is not None:
-        fasta_name = fasta_name + '_' + str(max_seqs)
-
-    try:
-        fa_out = open(fasta_name, 'w')
-    except IOError:
-        raise IOError("Unable to open " + fasta_name + " for writing!")
-
-    for name in fasta_dict.keys():
-        seq = fasta_dict[name]
-        sequence_accumulator += 1
-        if max_seqs and sequence_accumulator > max_seqs:
-            # If input is to be split and number of sequences per file has been exceeded begin writing to new file
-            fa_out.close()
-            split_files.append(fasta_name)
-            file_counter += 1
-            sequence_accumulator = 1
-            fasta_name = re.sub(r'_d+$', '_' + str(file_counter), fasta_name)
-            fa_out = open(fasta_name, 'w')
-
-        if headers is None:
-            fa_out.write(name + "\n")
-            fa_out.write(seq + "\n")
-        elif name[1:] in headers:
-            fa_out.write(name + "\n")
-            fa_out.write(seq + "\n")
-
-    fa_out.close()
-    split_files.append(fasta_name)
-    file_counter += 1
-    return split_files
-
-
-def get_hmm_length(args, update_tree):
+def get_hmm_length(hmm_file):
     """
     Function to open the ref_tree's hmm file and determine its length
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param update_tree: 
+    :param hmm_file: The HMM file produced by hmmbuild to parse for the HMM length
     :return: The length (int value) of the HMM
     """
-    hmm_file = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
     try:
         hmm = open(hmm_file, 'r')
-    except:
+    except IOError:
         raise IOError("Unable to open " + hmm_file + " for reading! Exiting.")
 
     line = hmm.readline()
@@ -1443,45 +475,6 @@ def find_novel_refs(ref_candidate_alignments, aa_dictionary, create_func_tree):
 
     alignments.close()
     return new_refs
-
-
-def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
-    """
-    Reads a FASTA file, ensuring each sequence and sequence name is valid.
-    :param fasta_input: Absolute path of the FASTA file to be read
-    :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param max_header_length: The length of the header string before all characters after this length are removed
-    :return A Python dictionary with headers as keys and sequences as values
-    """
-
-    if sys.version_info > (2, 9):
-        py_version = 3
-    else:
-        py_version = 2
-        from itertools import izip
-
-    fasta_list = _fasta_reader._read_format_fasta(fasta_input,
-                                                  args.min_seq_length,
-                                                  args.output,
-                                                  molecule,
-                                                  max_header_length)
-    if not fasta_list:
-        sys.exit()
-    tmp_iterable = iter(fasta_list)
-    if py_version == 2:
-        formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
-    elif py_version == 3:
-        formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
-    else:
-        raise AssertionError("Unexpected Python version detected")
-
-    for header in formatted_fasta_dict.keys():
-        if len(header) > max_header_length:
-            sys.stderr.write(header + " is too long!\nThere is a bug in _read_format_fasta - please report!\n")
-            sys.exit()
-
-    return formatted_fasta_dict
 
 
 def build_hmm(args, msa_file, hmm_output):
@@ -1642,7 +635,7 @@ def run_blast(args, split_files, cog_list):
 def predict_orfs(args):
     """
     Predict ORFs from the input FASTA file using FragGeneScanPlus (FGS+)
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :return:
     """
     orf_fasta = args.output_dir_var + "ORFs"
@@ -2493,7 +1486,7 @@ def extract_rrna_sequences(rrna_seqs, rrna_marker, fasta_dictionary):
 def detect_ribrna_sequences(args, cog_list, formatted_fasta_dict):
     """
 
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param cog_list:
     :param formatted_fasta_dict:
     :return:
@@ -2730,7 +1723,7 @@ def get_alignment_dims(args, cog_list):
 def multiple_alignments(args, genewise_summary_files, cog_list):
     """
     The most important inputs are the genewise summary files
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param genewise_summary_files:
     :param cog_list:
     :return:
@@ -3942,11 +2935,6 @@ def split_tree_string(tree_string):
     return tree_elements
 
 
-def create_tree_info_hash():
-    tree_info = Autovivify()
-    return tree_info
-
-
 def get_node_subtrees(tree_elements, tree_info):
     # Replaced with _tree_parser._build_subtrees_newick and subtrees_to_dictionary
     return tree_info
@@ -4028,14 +3016,6 @@ def recursive_tree_builder(tree_info, node_infos, tree_string):
             tree_string += ')' + str(node)
 
     return tree_string
-
-
-def subtrees_to_dictionary(subtrees_string, tree_info):
-    subtree_list = subtrees_string.split(';')
-    for subtree in subtree_list:
-        node = subtree.split(')')[-1]
-        tree_info['subtree_of_node'][node] = subtree
-    return tree_info
 
 
 def parallel_subtree_node_retriever(rooted_trees, num_threads, parse_log):
@@ -4458,17 +3438,22 @@ def single_family_msa(args, cog_list, formatted_fasta_dict):
     hmmalign_singlehit_files = Autovivify()
     if args.verbose:
         sys.stdout.write("Running hmmalign... ")
+        sys.stdout.flush()
 
-    cog = cog_list["all_cogs"].keys()[0]
+    cog = list(cog_list["all_cogs"].keys())[0]
     denominator = cog_list["all_cogs"][cog]
 
     start = 0
 
     # Imitate the Genewise / blastp_summary_files output
+    oddly_long = False
     for contig in formatted_fasta_dict.keys():
         header = contig[1:]
         sequence = formatted_fasta_dict[contig]
         end = len(sequence)
+
+        if end > 3000:
+            oddly_long = True
 
         f_contig = denominator + "_" + header
         genewise_singlehit_file = args.output_dir_var + os.sep + \
@@ -4493,7 +3478,28 @@ def single_family_msa(args, cog_list, formatted_fasta_dict):
 
     if args.verbose:
         sys.stdout.write("done.\n")
+
+    if oddly_long:
+        sys.stderr.write("WARNING: These sequences look awfully long for a gene... "
+                         "are you sure you want to be running in this mode?\n")
+        sys.stderr.flush()
+
     return hmmalign_singlehit_files
+
+
+def retrieve_data_size(aligned_fasta):
+    # TODO: Replace if possible (just counts number of sequences) and destroy
+    num_seqs = 0
+
+    fasta_file_handle = open(aligned_fasta, "rb")
+
+    fasta_lines = fasta_file_handle.readlines()
+
+    for each_fa_line in fasta_lines:
+        if re.search(">", each_fa_line):
+            num_seqs += 1
+
+    return num_seqs
 
 
 def execute_gblocks(args, aligned_fasta):
@@ -4511,7 +3517,7 @@ def execute_gblocks(args, aligned_fasta):
 def get_new_ref_sequences(args, update_tree):
     """
     Function for retrieving the protein sequences from the TreeSAPP various_outputs
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param update_tree: An instance of CreateFuncTreeUtility class
     :return: aa_dictionary is a dictionary of fasta sequences with headers as keys and protein sequences as values
     """
@@ -4611,45 +3617,10 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
     return
 
 
-def swap_tree_names(tree, tree_swap_name, random_map, ref_tax_id_map):
-    """
-    Function used for replacing unique identifiers in a NEWICK tree file
-    :param tree:
-    :param tree_swap_name:
-    :param random_map:
-    :param ref_tax_id_map:
-    :return:
-    """
-    try:
-        old_tree = open(tree, 'r')
-    except:
-        raise IOError("Unable to open " + tree + " for reading!")
-    try:
-        new_tree = open(tree_swap_name, 'w')
-    except:
-        raise IOError("Unable to open " + tree_swap_name + " for writing!")
-
-    newick_tree = old_tree.readlines()
-    old_tree.close()
-
-    if len(newick_tree) > 1:
-        raise AssertionError("ERROR: " + tree + " should only contain one line of text to be a NEWICK tree!")
-    else:
-        newick_tree = str(newick_tree[0])
-
-    for node_id in random_map:
-        newick_tree = re.sub(random_map[node_id], ref_tax_id_map[node_id], newick_tree)
-
-    new_tree.write(newick_tree + "\n")
-    new_tree.close()
-
-    return
-
-
 def filter_short_sequences(args, aa_dictionary, length_threshold):
     """
     Removes all sequences shorter than length_threshold from a dictionary
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param aa_dictionary: Dictionary containing all candidate reference sequences from a TreeSAPP analysis
     :param length_threshold: Minimum number of AA a sequence must contain to be included in further analyses
     :return: dictionary with sequences only longer than length_threshold
@@ -4669,9 +3640,8 @@ def filter_short_sequences(args, aa_dictionary, length_threshold):
         sys.stdout.write("\t" + str(short_seqs) + " were removed.\n")
     sys.stdout.flush()
     if len(long_queries.keys()) == 0:
-        sys.stderr.write("WARNING: No sequences passed the minimum length threshold!\n")
-        sys.stderr.write("Exiting now...\n")
-        sys.exit(22)
+        sys.stderr.write("WARNING: No sequences passed the minimum length threshold! Skipping updating.\n")
+        return
 
     return long_queries
 
@@ -4679,7 +3649,7 @@ def filter_short_sequences(args, aa_dictionary, length_threshold):
 def align_reads_to_nucs(args):
     """
     Align the BLAST-predicted ORFs to the reads using BWA MEM
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :return: Path to the SAM file
     """
     input_multi_fasta = re.match(r'\A.*\/(.*)', args.fasta_input).group(1)
@@ -4742,7 +3712,7 @@ def align_reads_to_nucs(args):
 def run_rpkm(args, sam_file, orf_nuc_fasta):
     """
     Calculate RPKM values using the rpkm executable
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param sam_file:
     :param orf_nuc_fasta:
     :return: Path to the RPKM output csv file
@@ -4777,7 +3747,7 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
 def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param rpkm_output_file: CSV file containing contig names and RPKM values
     :return:
     """
@@ -4789,7 +3759,7 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
 
     try:
         rpkm_values = open(rpkm_output_file, 'r')
-    except:
+    except IOError:
         raise IOError("Unable to open " + rpkm_output_file + " for reading!")
     for line in rpkm_values:
         contig, rpkm = line.strip().split(',')
@@ -4806,7 +3776,7 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
         contig_name = '_'.join(re.sub("_RAxML_parsed.txt", '', raxml_contig_file).split('_')[1:])
         try:
             contig_placement = open(args.output_dir_raxml + raxml_contig_file, 'r')
-        except:
+        except IOError:
             raise IOError("Unable to open " + args.output_dir_raxml + raxml_contig_file + " for reading!")
         line = contig_placement.readline()
         while not line.startswith("Placement"):
@@ -4843,7 +3813,7 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
             shutil.move(final_output_file, args.output_dir_final + denominator + "_concatenated_counts.txt")
             try:
                 cat_output = open(final_output_file, 'w')
-            except:
+            except IOError:
                 raise IOError("Unable to open " + final_output_file + " for writing!")
 
             description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n\n'
@@ -4914,7 +3884,8 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
 
     # Get HMM, sequence, reference build, and taxonomic information for the original sequences
     parse_ref_build_params(args, ref_tree, update_tree)
-    hmm_length = get_hmm_length(args, update_tree)
+    ref_hmm_file = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
+    hmm_length = get_hmm_length(ref_hmm_file)
     unaligned_ref_seqs = get_reference_sequence_dict(args, update_tree)
     ref_organism_lineage_info = read_species_translation_files(args, cog_list)
 
@@ -4930,7 +3901,12 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
 
     # Begin finding and filtering the new candidate reference sequences
     aa_dictionary = get_new_ref_sequences(args, update_tree)
+    if len(aa_dictionary) == 0:
+        sys.stderr.write("WARNING: No new " + update_tree.COG + " sequences. Skipping update.\n")
+        return
     aa_dictionary = filter_short_sequences(args, aa_dictionary, 0.5*hmm_length)
+    if not aa_dictionary:
+        return
     new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
                          "_" + update_tree.COG + "_unaligned.fasta"
     write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
@@ -4939,9 +3915,6 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     # # Get the sequences that pass the similarity threshold
     new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary, update_tree)
     write_new_fasta(new_refs, new_ref_seqs_fasta)
-    # ref_tax_id_map = update_tree.write_reference_names()
-    # for seq_name in update_tree.names:
-    #     ref_tax_id_map[seq_name] = seq_name
     if args.uclust and len(new_refs.keys()) > 1:
         cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
         centroids_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
@@ -4955,8 +3928,8 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     update_tree.load_new_refs_fasta(args, centroids_fasta, ref_organism_lineage_info)
     ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
     aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, unaligned_ref_seqs, args)
-    # fasta_random, original_random_dict = update_tree.randomize_fasta_id(aligned_fasta)
-    # update_tree.create_random_names(original_random_dict, ref_tax_id_map)
+
+    update_tree.update_tax_ids(args, ref_organism_lineage_info)
 
     if args.gap_removal == "y":
         if args.verbose:
@@ -4968,8 +3941,12 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
             sys.stdout.flush()
         os.system('cp %s-gb %s' % (aligned_fasta, aligned_fasta))
 
-    hmm_file = update_tree.Output + os.sep + update_tree.COG + ".hmm"
-    build_hmm(args, aligned_fasta, hmm_file)
+    new_hmm_file = update_tree.Output + os.sep + update_tree.COG + ".hmm"
+    build_hmm(args, aligned_fasta, new_hmm_file)
+    new_hmm_length = get_hmm_length(new_hmm_file)
+    if args.verbose:
+        sys.stdout.write("\tOld HMM length = " + str(hmm_length) + "\n")
+        sys.stdout.write("\tNew HMM length = " + str(new_hmm_length) + "\n")
 
     os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % aligned_fasta)
 
@@ -4979,16 +3956,16 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     update_tree.execute_raxml(phylip_file, raxml_destination_folder, args)
 
     # Organize outputs
-    shutil.move(aligned_fasta, alignment_files_dir)
+    shutil.move(aligned_fasta, alignment_files_dir + update_tree.COG + ".fa")
     shutil.move(phylip_file, alignment_files_dir)
-    shutil.move(hmm_file, alignment_files_dir)
+    shutil.move(new_hmm_file, alignment_files_dir)
 
     best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
     bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitions." + update_tree.COG
-    best_tree_nameswap = final_tree_dir + update_tree.COG + "_best.tree"
+    best_tree_nameswap = final_tree_dir + update_tree.COG + "_tree.txt"
     bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bootstrap.tree"
-    # swap_tree_names(best_tree, best_tree_nameswap, original_random_dict, ref_tax_id_map)
-    # swap_tree_names(bootstrap_tree, bootstrap_nameswap, original_random_dict, ref_tax_id_map)
+    update_tree.swap_tree_names(best_tree, best_tree_nameswap)
+    update_tree.swap_tree_names(bootstrap_tree, bootstrap_nameswap)
 
     prefix = update_tree.Output + update_tree.COG
     os.system('mv %s* %s' % (prefix, project_folder))
@@ -5062,7 +4039,7 @@ def write_jplace(itol_datum, jplace_file):
 def create_itol_labels(args, marker):
     """
     
-    :param args: 
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param marker: 
     :return: 
     """
@@ -5108,17 +4085,6 @@ def create_itol_labels(args, marker):
     return
 
 
-def get_node(tree, pos):
-    node = ""
-    pos += 1
-    c = tree[pos]
-    while c != '}':
-        node += c
-        pos += 1
-        c = tree[pos]
-    return int(node), pos
-
-
 def read_rpkm(rpkm_output_file):
     """
     Simply read a csv - returning non-zero floats mapped to contig names
@@ -5148,7 +4114,7 @@ def read_rpkm(rpkm_output_file):
 def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
     """
     From the basic RPKM output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param rpkm_output_file:
     :param marker:
     :param tree_protein_list: A list of TreeProtein objects, for single sequences
@@ -5286,7 +4252,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation):
     """
     Fields:
     Marker,Taxonomy,Query,Abundance
-    :param args:
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param tree_saps: A dictionary containing TreeProtein objects
     :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :return:
@@ -5350,7 +4316,7 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
     """
     Function to create outputs for the interactive tree of life (iTOL) webservice.
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
-    :param args: 
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param cog_list:
     :param rpkm_output_file:
     :return: 

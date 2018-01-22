@@ -364,7 +364,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type, code
                     q_accession = genome_position_re.match(query).group(1)
                     database = "dna"
                 else:
-                    header_format_re, header_db = get_header_format(original_header, code_name)
+                    header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
                     sequence_info = header_format_re.match(original_header)
                     q_accession, _, _, _ = return_sequence_info_groups(sequence_info, header_db, original_header)
                 # print(q_accession)
