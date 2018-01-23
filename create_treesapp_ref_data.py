@@ -97,7 +97,7 @@ def get_arguments():
                                     help="Show this help message and exit")
 
     args = parser.parse_args()
-    args.mltreemap = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
     args.output = "TreeSAPP_files_%s" % args.code_name
 
     if len(args.code_name) > 6:
@@ -845,7 +845,7 @@ def update_build_parameters(args, code_name, aa_model):
     :param aa_model: 
     :return: 
     """
-    param_file = args.mltreemap + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
+    param_file = args.treesapp + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
     try:
         params = open(param_file, 'a')
     except IOError:
@@ -933,6 +933,7 @@ def main():
         if os.path.exists(args.code_name + "_phy_files"):
             shutil.rmtree(args.code_name + "_phy_files")
 
+    # TODO: Allow for the tax_ids from a previous run to be used even if a uc file isn't provided
     if args.uc and os.path.exists(tree_taxa_list):
         if sys.version_info > (2, 9):
             use_previous_names = input(tree_taxa_list + " found from a previous attempt. "
@@ -1043,13 +1044,13 @@ def main():
 
         sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
 
-    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.mltreemap, fasta_mltree)
+    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.treesapp, fasta_mltree)
     os.system(phylip_command)
 
     phylip_file = code_name + ".phy"
     os.rename(fasta_mltree + ".phylip", phylip_file)
 
-    raxml_out = args.mltreemap + code_name + "_phy_files"
+    raxml_out = args.treesapp + code_name + "_phy_files"
 
     if not os.path.exists(raxml_out):
         os.system("mkdir %s" % raxml_out)
@@ -1081,7 +1082,7 @@ def main():
 
     if raxml_returncode != 0:
         sys.stderr.write("ERROR: RAxML did not complete successfully! "
-                         "Look in " + args.mltreemap + raxml_out + os.sep +
+                         "Look in " + args.treesapp + raxml_out + os.sep +
                          "RAxML_info." + code_name + " for an error message.\n")
         sys.stderr.write("RAxML command used:\n")
         sys.stderr.write(' '.join(raxml_command) + "\n")

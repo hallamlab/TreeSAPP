@@ -9,6 +9,7 @@ from urllib import error
 
 from external_command_interface import launch_write_command
 
+
 def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
@@ -52,17 +53,21 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "raxmlHPC",
-                    "hmmalign", "trimal", "cmalign", "cmsearch", "makeblastdb", "muscle", "hmmbuild", "cmbuild"]
+    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "hmmalign", "raxmlHPC",
+                    "trimal", "cmalign", "cmsearch", "makeblastdb", "muscle", "hmmbuild", "cmbuild"]
 
-    if args.rpkm:
-        dependencies += ["bwa", "rpkm"]
+    # Extra executables necessary for certain modes of TreeSAPP
+    try:
+        if args.rpkm:
+            dependencies += ["bwa", "rpkm"]
 
-    if args.update_tree:
-        dependencies += ["usearch", "muscle", "hmmbuild", "cmbuild"]
+        if args.update_tree:
+            dependencies.append("usearch")
 
-    if args.consensus:
-        dependencies.append("FGS+")
+        if args.consensus:
+            dependencies.append("FGS+")
+    except AttributeError:
+        pass
 
     if os_type() == "linux":
         args.executables = args.treesapp + "sub_binaries" + os.sep + "ubuntu"
