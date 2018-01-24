@@ -153,11 +153,10 @@ def get_header_format(header, code_name):
                       "dna": {fungene_re: "fungene",
                               fungene_trunc_re: "fungene_truncated",
                               mltree_re: "mltree",
-                              genbank_exact_genome: "gen_genome",
-                              ncbi_ambiguous: "ncbi_ambig",
                               silva_arb_re: "silva",
                               refseq_re: "refseq",
-                              nr_re: "nr"}
+                              nr_re: "nr"},
+                      "ambig": {ncbi_ambiguous: "ncbi_ambig", genbank_exact_genome: "gen_genome"}
                       }
 
     header_format_re = None

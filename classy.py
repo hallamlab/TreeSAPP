@@ -175,8 +175,10 @@ class CreateFuncTreeUtility:
                     if len(taxonomic_lineage) >= 8:
                         description = ' '.join(taxonomic_lineage[6:8])
                     # We'll settle for the Phylum
+                    elif len(taxonomic_lineage) > 3:
+                        description = taxonomic_lineage[3]
                     else:
-                        description = taxonomic_lineage[2]
+                        description = taxonomic_lineage[-1]
                 except ValueError:
                     sys.stderr.write("WARNING: Attempt to parse species from lineage failed for:\n" + lineage + "\n")
                     description = sequence_info.group(2)

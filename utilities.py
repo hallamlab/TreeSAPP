@@ -182,7 +182,7 @@ def get_lineage(search_term, molecule_type):
         raise AssertionError("ERROR: Unable to serve Entrez query. Are you connected to the internet?")
 
     # Determine which database to search using the `molecule_type`
-    if molecule_type == "dna" or molecule_type == "rrna":
+    if molecule_type == "dna" or molecule_type == "rrna" or molecule_type == "ambig":
         database = "nucleotide"
     elif molecule_type == "prot":
         database = "protein"
@@ -195,18 +195,34 @@ def get_lineage(search_term, molecule_type):
 
     # Find the lineage from the search_term ID
     lineage = ""
+    ncbi_sequence_databases = ["nucleotide", "protein"]
+    handle = None
     if database in ["nucleotide", "protein"]:
         try:
             handle = Entrez.efetch(db=database, id=str(search_term), retmode="xml")
         except error.HTTPError:
-            sys.stderr.write("\nERROR: Bad Entrez.efetch request:\n"
-                             "id='" + str(search_term) + "' does not exist in database='" + database + "'\n")
-            sys.exit(9)
+            if molecule_type == "ambig":
+                x = 0
+                while handle is None and x < len(ncbi_sequence_databases):
+                    backup_db = ncbi_sequence_databases[x]
+                    if backup_db != database:
+                        try:
+                            handle = Entrez.efetch(db=backup_db, id=str(search_term), retmode="xml")
+                        except error.HTTPError:
+                            handle = None
+                    x += 1
+                if handle is None:
+                    sys.stderr.write("\nERROR: Bad Entrez.efetch request and all back-up searches failed for '" +
+                                     str(search_term) + "'\n")
+                    sys.exit(99)
+            else:
+                sys.stderr.write("\nERROR: Bad Entrez.efetch request:\n"
+                                 "id='" + str(search_term) + "' does not exist in database='" + database + "'\n")
+                sys.exit(9)
         try:
             record = Entrez.read(handle)
         except UnboundLocalError:
             raise UnboundLocalError
-
         if len(record) >= 1:
             try:
                 if "GBSeq_organism" in record[0]:

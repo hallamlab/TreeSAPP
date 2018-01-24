@@ -165,3 +165,7 @@
 165	Methanoculleus marisnigri | KUL02453	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
 166	Methanobrevibacter filiformis | KZX11644	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
 167	Methanobacterium petrolearium | BAI67093	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+168	Candidatus Methanomethyliaceae Candidatus Methanosuratus | MAGW01000233.1	cellular organisms; Archaea; TACK group; Candidatus Verstraetearchaeota; Candidatus Methanomethylia; Candidatus Methanomethyliales; Candidatus Methanomethyliaceae; Candidatus Methanosuratus
+169	Candidatus Methanomethyliaceae Candidatus Methanomethylicus | MAGT01000008.1	cellular organisms; Archaea; TACK group; Candidatus Verstraetearchaeota; Candidatus Methanomethylia; Candidatus Methanomethyliales; Candidatus Methanomethyliaceae; Candidatus Methanomethylicus
+170	Candidatus Methanomethyliaceae Candidatus Methanosuratus | MAGV01000073.1	cellular organisms; Archaea; TACK group; Candidatus Verstraetearchaeota; Candidatus Methanomethylia; Candidatus Methanomethyliales; Candidatus Methanomethyliaceae; Candidatus Methanosuratus
+171	Candidatus Methanomethyliaceae Candidatus Methanomethylicus | MAGU01000068.1	cellular organisms; Archaea; TACK group; Candidatus Verstraetearchaeota; Candidatus Methanomethylia; Candidatus Methanomethyliales; Candidatus Methanomethyliaceae; Candidatus Methanomethylicus

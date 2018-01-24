@@ -28,7 +28,11 @@ def launch_write_command(cmd_list, collect_all=True):
         proc.wait()
 
     # Ensure the command completed successfully
-    validate_success(proc.returncode, cmd_list)
+    if not validate_success(proc.returncode, cmd_list):
+        sys.stderr.write("\nOutput:\n")
+        sys.stderr.write(stdout)
+        sys.stderr.flush()
+        sys.exit(19)
 
     return stdout, proc.returncode
 
@@ -37,6 +41,6 @@ def validate_success(return_code, cmd_list):
     if return_code != 0:
         sys.stderr.write("ERROR: " + cmd_list[0] +
                          " did not complete successfully! Command used:\n" + ' '.join(cmd_list) + "\n")
-        sys.exit(1)
-
-    return
+        return 0
+    else:
+        return 1

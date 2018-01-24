@@ -3488,31 +3488,30 @@ def single_family_msa(args, cog_list, formatted_fasta_dict):
     return hmmalign_singlehit_files
 
 
-def retrieve_data_size(aligned_fasta):
-    # TODO: Replace if possible (just counts number of sequences) and destroy
-    num_seqs = 0
-
-    fasta_file_handle = open(aligned_fasta, "rb")
-
+def num_sequences_fasta(fasta):
+    fasta_file_handle = open(fasta, "r")
     fasta_lines = fasta_file_handle.readlines()
+    fasta_file_handle.close()
 
-    for each_fa_line in fasta_lines:
-        if re.search(">", each_fa_line):
+    num_seqs = 0
+    for fasta_line in fasta_lines:
+        if re.search("^>", fasta_line):
             num_seqs += 1
 
     return num_seqs
 
 
 def execute_gblocks(args, aligned_fasta):
-    data_size = retrieve_data_size(aligned_fasta)
+    data_size = num_sequences_fasta(aligned_fasta)
     min_flank_pos = str(0.55 * data_size)
-    gblock_command = args.executables["Gblocks"] + \
-        "%s -t=p -s=y -u=n -p=t -b3=15 -b4=3 -b5=h -b2=%s" % (aligned_fasta, min_flank_pos)
 
-    sys.stderr.write(gblock_command + "\n")
-    sys.stderr.flush()
+    gblocks_command = [args.executables["Gblocks"], aligned_fasta, "-b2=" + min_flank_pos,
+                       "-t=p", "-s=y", "-u=n" "-p=t", "-b3=15", "-b4=3", "-b5=h"]
 
-    os.system(gblock_command)
+    # The standard output is printed so users can see the difference in original and GBlocks alignments
+    os.system(' '.join(gblocks_command))
+
+    return
 
 
 def get_new_ref_sequences(args, update_tree):
@@ -3918,10 +3917,11 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, unaligned_ref_seqs, args)
 
     generate_blast_database(args, aligned_fasta, update_tree.marker_molecule, alignment_files_dir + update_tree.COG)
-
+    shutil.move(aligned_fasta, alignment_files_dir + update_tree.COG + ".fa")
+    aligned_fasta = alignment_files_dir + update_tree.COG + ".fa"
     update_tree.update_tax_ids(args, ref_organism_lineage_info)
 
-    if args.gap_removal == "y":
+    if args.gap_removal:
         if args.verbose:
             sys.stdout.write("Executing Gblocks... ")
             sys.stdout.flush()
@@ -3932,7 +3932,7 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
         os.system('cp %s-gb %s' % (aligned_fasta, aligned_fasta))
 
     new_hmm_file = update_tree.Output + os.sep + update_tree.COG + ".hmm"
-    build_hmm(args, aligned_fasta, new_hmm_file)
+    build_hmm(args, alignment_files_dir + update_tree.COG + ".fa", new_hmm_file)
     new_hmm_length = get_hmm_length(new_hmm_file)
     if args.verbose:
         sys.stdout.write("\tOld HMM length = " + str(hmm_length) + "\n")
@@ -3946,7 +3946,6 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     update_tree.execute_raxml(phylip_file, raxml_destination_folder, args)
 
     # Organize outputs
-    shutil.move(aligned_fasta, alignment_files_dir + update_tree.COG + ".fa")
     shutil.move(new_hmm_file, hmm_files_dir)
     shutil.move(update_tree.Output + "tax_ids_" + update_tree.COG + ".txt", final_tree_dir)
 
