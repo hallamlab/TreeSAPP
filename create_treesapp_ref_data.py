@@ -80,6 +80,17 @@ def get_arguments():
                         required=False,
                         default=str(4),
                         type=str)
+    optopt.add_argument("-s", "--screen",
+                        help="Keywords (taxonomic regular expressions) for including specific taxa in the tree.\n"
+                             "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
+                             "[ DEFAULT is no screen ]",
+                        default="",
+                        required=False)
+    optopt.add_argument("-f", "--filter",
+                        help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
+                             "[ DEFAULT is no filter ]",
+                        default="",
+                        required=False)
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='Overwrites previously processed output folders')
@@ -594,6 +605,59 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
     return fasta_replace_dict
 
 
+def screen_filter_taxa(args, fasta_replace_dict):
+    if args.screen == "" and args.filter == "":
+        return fasta_replace_dict
+    else:
+        if args.screen:
+            screen_terms = args.screen.split(',')
+        else:
+            screen_terms = ''
+        if args.filter:
+            filter_terms = args.filter.split(',')
+        else:
+            filter_terms = ''
+
+    purified_fasta_dict = dict()
+    num_filtered = 0
+    num_screened = 0
+
+    for mltree_id in fasta_replace_dict:
+        screen_pass = False
+        filter_pass = True
+        ref_seq = fasta_replace_dict[mltree_id]
+        # Screen
+        if len(screen_terms) > 0:
+            for term in screen_terms:
+                # If any term is found in the lineage, it will pass... unless it fails the filter
+                if re.search(term, ref_seq.lineage):
+                    screen_pass = True
+                    break
+        else:
+            screen_pass = True
+        # Filter
+        if len(filter_terms) > 0:
+            for term in filter_terms:
+                if re.search(term, ref_seq.lineage):
+                    filter_pass = False
+
+        if filter_pass and screen_pass:
+            purified_fasta_dict[mltree_id] = ref_seq
+        else:
+            if screen_pass is False:
+                num_screened += 1
+            if filter_pass is False:
+                num_filtered += 1
+
+    if args.verbose:
+        sys.stdout.write('\t' + str(num_screened) + " sequences removed after failing screen.\n")
+        sys.stdout.write('\t' + str(num_filtered) + " sequences removed after failing filter.\n")
+        sys.stdout.write('\t' + str(len(purified_fasta_dict.keys())) + " sequences retained for building tree.\n")
+        sys.stdout.flush()
+
+    return purified_fasta_dict
+
+
 def order_dict_by_lineage(fasta_replace_dict):
     # Create a new dictionary with lineages as keys
     lineage_dict = dict()
@@ -642,9 +706,10 @@ def summarize_reference_taxa(reference_dict):
     return
 
 
-def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
+def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
     """
     Write the number, organism and accession ID, if possible
+    :param args: command-line arguments objects, used for screen and filter regex
     :param fasta_replace_dict:
     :param tree_taxa_list: The name of the output file
     :param molecule: "dna", "rrna", or "prot" - parsed from command line arguments
@@ -721,15 +786,6 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
     sys.stdout.write("] done.\n")
     sys.stdout.flush()
 
-    fasta_replace_dict = order_dict_by_lineage(fasta_replace_dict)
-    for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
-        # Definitely will not uphold phylogenetic relationships but at least sequences
-        # will be in the right neighbourhood rather than ordered by their position in the FASTA file
-        reference_sequence = fasta_replace_dict[mltree_id_key]
-        tree_taxa_string += "%s\t%s | %s\t%s\n" % (str(mltree_id_key),
-                                                   reference_sequence.organism,
-                                                   reference_sequence.accession,
-                                                   reference_sequence.lineage)
     if taxa_searched == len(fasta_replace_dict.keys()):
         tree_tax_list_handle = open(tree_taxa_list, "w")
         tree_tax_list_handle.write(tree_taxa_string)
@@ -739,6 +795,20 @@ def write_tax_ids(fasta_replace_dict, tree_taxa_list, molecule):
                          + str(len(fasta_replace_dict.keys())) + ") were queried against the NCBI taxonomy database!\n")
         sys.exit(22)
 
+    fasta_replace_dict = order_dict_by_lineage(fasta_replace_dict)
+    if args.add_lineage:
+        if args.screen or args.filter:
+            sys.stderr.write("WARNING: Skipping taxonomic filtering and screening in `--add_lineage` mode.\n")
+    else:
+        fasta_replace_dict = screen_filter_taxa(args, fasta_replace_dict)
+    for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
+        # Definitely will not uphold phylogenetic relationships but at least sequences
+        # will be in the right neighbourhood rather than ordered by their position in the FASTA file
+        reference_sequence = fasta_replace_dict[mltree_id_key]
+        tree_taxa_string += "%s\t%s | %s\t%s\n" % (str(mltree_id_key),
+                                                   reference_sequence.organism,
+                                                   reference_sequence.accession,
+                                                   reference_sequence.lineage)
     return fasta_replace_dict
 
 
@@ -904,7 +974,7 @@ def update_tax_ids_with_lineage(args, final_output_folder, tree_taxa_list):
         sys.stderr.write("ERROR: Unable to find " + tax_ids_file + "!\n")
         raise FileNotFoundError
     fasta_replace_dict = read_tax_ids(tax_ids_file)
-    write_tax_ids(fasta_replace_dict, tax_ids_file, args.molecule)
+    write_tax_ids(args, fasta_replace_dict, tax_ids_file, args.molecule)
     return
 
 
@@ -969,16 +1039,16 @@ def main():
             sys.exit(2)
         swappers = reformat_headers(swappers)
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swappers)
-        fasta_replace_dict = write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
+        fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule)
     else:
         # args.uc is None and use_previous_names == 'n'
         original_headers = get_headers(args.fasta_input)
         header_map = map_good_headers_to_ugly(original_headers)
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map)
-        fasta_replace_dict = write_tax_ids(fasta_replace_dict, tree_taxa_list, args.molecule)
+        fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule)
 
     sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
-
+    sys.exit()
     if args.verbose:
         summarize_reference_taxa(fasta_replace_dict)
 
