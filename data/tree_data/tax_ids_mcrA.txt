@@ -169,3 +169,14 @@
 169	Candidatus Methanomethyliaceae Candidatus Methanomethylicus | MAGT01000008.1	cellular organisms; Archaea; TACK group; Candidatus Verstraetearchaeota; Candidatus Methanomethylia; Candidatus Methanomethyliales; Candidatus Methanomethyliaceae; Candidatus Methanomethylicus
 170	Candidatus Methanomethyliaceae Candidatus Methanosuratus | MAGV01000073.1	cellular organisms; Archaea; TACK group; Candidatus Verstraetearchaeota; Candidatus Methanomethylia; Candidatus Methanomethyliales; Candidatus Methanomethyliaceae; Candidatus Methanosuratus
 171	Candidatus Methanomethyliaceae Candidatus Methanomethylicus | MAGU01000068.1	cellular organisms; Archaea; TACK group; Candidatus Verstraetearchaeota; Candidatus Methanomethylia; Candidatus Methanomethyliales; Candidatus Methanomethyliaceae; Candidatus Methanomethylicus
+172	ANME-2 cluster Candidatus Syntrophoarchaeum | OFV67773.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; ANME-2 cluster; Candidatus Syntrophoarchaeum
+173	Methanonatronarchaeia | OUJ18544.1	cellular organisms; Archaea; Euryarchaeota; Methanonatronarchaeia; Methanonatronarchaeum
+174	ANME-2 cluster Candidatus Syntrophoarchaeum | OFV68676.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; ANME-2 cluster; Candidatus Syntrophoarchaeum
+175	ANME-2 cluster Candidatus Syntrophoarchaeum | OFV65760.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; ANME-2 cluster; Candidatus Syntrophoarchaeum
+176	ANME-2 cluster Candidatus Syntrophoarchaeum | OFV65745.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; ANME-2 cluster; Candidatus Syntrophoarchaeum
+177	ANME-2 cluster Candidatus Syntrophoarchaeum | OFV67021.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; ANME-2 cluster; Candidatus Syntrophoarchaeum
+178	ANME-2 cluster Candidatus Syntrophoarchaeum | OFV66176.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; ANME-2 cluster; Candidatus Syntrophoarchaeum
+179	ANME-2 cluster Candidatus Syntrophoarchaeum | OFV68281.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; ANME-2 cluster; Candidatus Syntrophoarchaeum
+180	Methanonatronarchaeia | OKY78426.1	cellular organisms; Archaea; Euryarchaeota; Methanonatronarchaeia; Candidatus Methanohalarchaeum
+181	Methanonatronarchaeia | OUJ18543.1	cellular organisms; Archaea; Euryarchaeota; Methanonatronarchaeia; Methanonatronarchaeum
+182	ANME-2 cluster Candidatus Syntrophoarchaeum | OFV67100.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; ANME-2 cluster; Candidatus Syntrophoarchaeum

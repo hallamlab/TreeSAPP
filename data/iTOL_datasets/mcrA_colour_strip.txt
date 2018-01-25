@@ -6,13 +6,30 @@ MARGIN 0
 SHOW_INTERNAL 1
 DATA
 49|144 #543005 Bathyarchaeota
-46|29 #8c510a Methanobacteriales
-79|42 #bf812d ANME-1
-72|142 #dfc27d Methanomassiliicoccales
-41 #f6e8c3 Methanopyrus
-25|127 #f5f5f5 Methanococcales
-12|33 #c7eae5 Methanococcales-MrtA
-155|66 #80cdc1 Methanobacteriales-MrtA
-107|99 #35978f Methanosarcinales
-152|88 #01665e Methanocellales
-91|74 #003c30 Methanomicrobiales
+#683C06
+175|176 #7D4808 Syntrophoarchaeum
+#91560D
+46|29 #A4681A Methanobacteriales
+#B77927
+168|171 #C68F3E Verstraetearchaeota
+#D1A75C
+79|42 #DDBF7A ANME-1
+#E6CE94
+180|173 #EFDCAE Methanonatronarchaeia
+#F5E8C6
+72|142 #F5EDD9 Methanomassiliicoccales
+#F5F2EB
+41 #ECF2F2 Methanopyrus
+#DBEEEC
+25|127 #CAEAE6 Methanococcales
+#B1E1DA
+12|33 #97D6CD Methanococcales-MrtA
+#7DCBBF
+155|66 #61B7AC Methanobacteriales-MrtA
+#45A39A
+107|99 #2D8F87 Methanosarcinales
+#1A7D75
+152|88 #066B63 Methanocellales
+#005B52
+#004B41
+91|74 #003C30 Methanomicrobiales

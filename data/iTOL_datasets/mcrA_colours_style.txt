@@ -1,14 +1,17 @@
 TREE_COLORS
 SEPARATOR TAB
 DATA
-I324	range	rgb(84, 48, 5)	Bathyarchaeota
-I172	range	rgb(140, 81, 10)	Methanobacteriales
-I231	range	rgb(191, 129, 45)	ANME-1
-I244	range	rgb(223, 194, 125)	Methanomassiliicoccales
-41	range	rgb(246, 232, 195)	Methanopyrus
-I268	range	rgb(245, 245, 245)	Methanococcales
-I319	range	rgb(199, 234, 229)	Methanococcales-MrtA
-I290	range	rgb(128, 205, 193)	Methanobacteriales-MrtA
-I106	range	rgb(53, 151, 143)	Methanosarcinales
-I101	range	rgb(1, 102, 94)	Methanocellales
-I4	range	rgb(0, 60, 48)	Methanomicrobiales
+I6	range	#543005	Bathyarchaeota
+I15	range	#7D4808	Syntrophoarchaeum
+I137	range	#A4681A	Methanobacteriales
+I130	range	#C68F3E	Verstraetearchaeota
+I117	range	#DDBF7A	ANME-1
+I91	range	#EFDCAE	Methanonatronarchaeia
+I96	range	#F5EDD9	Methanomassiliicoccales
+41	range	#ECF2F2	Methanopyrus
+I67	range	#CAEAE6	Methanococcales
+I62	range	#97D6CD	Methanococcales-MrtA
+I33	range	#61B7AC	Methanobacteriales-MrtA
+I195	range	#2D8F87	Methanosarcinales
+I358	range	#066B63	Methanocellales
+I261	range	#003C30	Methanomicrobiales
