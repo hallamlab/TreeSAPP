@@ -786,11 +786,7 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
     sys.stdout.write("] done.\n")
     sys.stdout.flush()
 
-    if taxa_searched == len(fasta_replace_dict.keys()):
-        tree_tax_list_handle = open(tree_taxa_list, "w")
-        tree_tax_list_handle.write(tree_taxa_string)
-        tree_tax_list_handle.close()
-    else:
+    if taxa_searched != len(fasta_replace_dict.keys()):
         sys.stderr.write("ERROR: Not all sequences (" + str(taxa_searched) + '/'
                          + str(len(fasta_replace_dict.keys())) + ") were queried against the NCBI taxonomy database!\n")
         sys.exit(22)
@@ -809,6 +805,10 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
                                                    reference_sequence.organism,
                                                    reference_sequence.accession,
                                                    reference_sequence.lineage)
+    tree_tax_list_handle = open(tree_taxa_list, "w")
+    tree_tax_list_handle.write(tree_taxa_string)
+    tree_tax_list_handle.close()
+
     return fasta_replace_dict
 
 
@@ -1048,7 +1048,7 @@ def main():
         fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule)
 
     sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
-    sys.exit()
+
     if args.verbose:
         summarize_reference_taxa(fasta_replace_dict)
 
