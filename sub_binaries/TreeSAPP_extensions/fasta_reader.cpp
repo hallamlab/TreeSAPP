@@ -167,7 +167,7 @@ int Fasta::record_sequence() {
     transform(sequence_buffer.begin(), sequence_buffer.end(), sequence_buffer.begin(), ::toupper);
 
     if (molecule == "prot") {
-        acceptable_characters.assign("-ACDEFGHIKLMNPQRSTUVWYBXZ.");
+        acceptable_characters.assign("ACDEFGHIKLMNPQRSTUVWYBXZ.-*");
     }
     else if (molecule == "dna" || molecule == "rrna") {
         acceptable_characters.assign("-ACGTU.");
@@ -188,13 +188,14 @@ int Fasta::record_sequence() {
             seq_ambiguity++;
         }
         // Replace ambiguity characters
-        else if (iupac_map.find(*it) != iupac_map.end()) {
+        else if (molecule == "dna" && iupac_map.find(*it) != iupac_map.end()) {
             purified_seq[pos] = iupac_map.find(*it)->second;
             replacements++;
         }
-        // Exit if the character is not a standard amino acid or nucleotide character
+        // Skip sequence if the character is not a standard amino acid or nucleotide character
         else if (acceptable==std::string::npos) {
-            cerr << "\nERROR: '" << *it << "' not an accepted character! ";
+            cerr << "\nWARNING: '" << *it << "' is not an accepted character! ";
+            free(purified_seq);
             return 4;
         }
         pos++;
@@ -236,17 +237,19 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
             ;
         else {
             if (line.at(0) == '>') {
+                // If the sequence is meets the length threshold, evaluate it's composition
                 if ( (signed)sequence_buffer.length() >= min_length ) {
                     status = record_sequence();
                     if (status == 4) {
-                        cerr << "Found in " << header << endl;
-                        return 4;
+                        cerr << "Skipping header:\n'" << header << "'" << endl;
+                        sprintf(write_buffer, "WARNING: Skipping %s due to bad character.\n", header.c_str());
+                        parse_log->write(write_buffer, 53+header.length());
                     }
-                    if (status == 3) {
+                    else if (status == 3) {
                         sprintf(write_buffer, "WARNING: Skipping %s due to >75%% ambiguity characters.\n", header.c_str());
                         parse_log->write(write_buffer, 53+header.length());
                     }
-                    if (status == 2) {
+                    else if (status == 2) {
                         sprintf(write_buffer, " %s\n", header.c_str());
                         parse_log->write(write_buffer, 2+header.length());
                         record_header(header, max_header_length);
@@ -271,14 +274,15 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
     if ( (signed)sequence_buffer.length() >= min_length ) {
         status = record_sequence();
         if (status == 4) {
-            cerr << "Found in " << header << endl;
-            return 4;
+            cerr << "Skipping " << header << endl;
+            sprintf(write_buffer, "WARNING: Skipping %s due to bad character.\n", header.c_str());
+            parse_log->write(write_buffer, 53+header.length());
         }
-        if (status == 3) {
+        else if (status == 3) {
             sprintf(write_buffer, "WARNING: Skipping %s due to >75%% ambiguity characters.\n", header.c_str());
             parse_log->write(write_buffer, 53+header.length());
         }
-        if (status == 2) {
+        else if (status == 2) {
             sprintf(write_buffer, " %s\n", header.c_str());
             parse_log->write(write_buffer, 2+header.length());
             record_header(header, max_header_length);
@@ -288,6 +292,8 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
             record_header(header, max_header_length);
             PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
         }
+        else
+            return 5;
     }
     // header_base.size() is assumed to be equal to N_contigs is everything was parsed properly...
     if ( (signed)header_base.size() != N_contigs )
