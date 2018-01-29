@@ -225,8 +225,12 @@ def identify_excluded_clade(args, assignment_dict, trie):
             if args.verbose and contained_taxonomy != ref_lineage:
                 sys.stdout.write("\tQuery lineage: " + query_lineage + ", ")
                 sys.stdout.write("Optimal lineage: " + contained_taxonomy + "\n")
-            rank_assigned_dict[rank_depth_map[len(contained_taxonomy.split("; ")) + 1]].append(
-                {ref_lineage: (contained_taxonomy, query_lineage)})
+            if len(contained_taxonomy.split("; ")) <= 7:
+                rank_assigned_dict[rank_depth_map[len(contained_taxonomy.split("; ")) + 1]].append(
+                    {ref_lineage: (contained_taxonomy, query_lineage)})
+            else:
+                sys.stderr.write("\tWARNING: number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n")
+                sys.stderr.write("\tThis sequence will be removed from clade exclusion calculations\n")
     return rank_assigned_dict
 
 
@@ -302,9 +306,18 @@ def determine_specificity(rank_assigned_dict, marker):
 
 
 def clean_lineage_string(lineage):
-    bad_strings = ["cellular organisms; ", "TACK group; ", "DPANN group; "]
+    bad_strings = ["cellular organisms; ", "delta/epsilon subdivisions; "]
     for bs in bad_strings:
         lineage = re.sub(bs, '', lineage)
+    # filter 'group'
+    if re.search('group; ', lineage):
+        reconstructed_lineage = ""
+        ranks = lineage.split("; ")
+        for rank in ranks:
+            if not re.search("group$", rank):
+                reconstructed_lineage = reconstructed_lineage + rank + '; '
+        reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
+        lineage = reconstructed_lineage
     return lineage
 
 
