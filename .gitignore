@@ -36,6 +36,9 @@ nosetests.xml
 .pydevproject
 .idea/workspace.xml
 .idea*
+TreeSAPP.Rproj
+.Rhistory
+.RData
 
 # Binaries
 sub_binaries/*RAxML*

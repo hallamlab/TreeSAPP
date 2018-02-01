@@ -73,9 +73,9 @@ def get_options():
                              ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
     parser.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna'],
                         help='the type of input sequences (prot = Protein; dna = Nucleotide [DEFAULT])')
-    parser.add_argument("-l", "--min_likelihood", default=0.4, type=float,
+    parser.add_argument("-l", "--min_likelihood", default=0.2, type=float,
                         help="The minimum likelihood weight ratio required for a RAxML placement. "
-                             "[DEFAULT = 0.4]")
+                             "[DEFAULT = 0.2]")
     parser.add_argument("-P", "--placement_parser", default="best", type=str, choices=["best", "lca"],
                         help="Algorithm used for parsing each sequence's potential RAxML placements. "
                              "[DEFAULT = 'best']")
@@ -668,14 +668,22 @@ def collect_blast_outputs(args):
     """
     cog_blast_result = args.output_dir_var + path.basename(args.fasta_input) + "_formatted.BLAST_results_raw.txt"
     rrna_blast_result = args.output_dir_var + path.basename(args.fasta_input) + "_formatted.rRNA_BLAST_results_raw.txt"
-    if path.getsize(cog_blast_result) <= 0 and path.getsize(rrna_blast_result) <= 0:
-        os.remove(cog_blast_result)
+
+    blast_tables = [cog_blast_result, rrna_blast_result]
+    total_size = 0
+    for blast_out in blast_tables:
+        if os.path.exists(blast_out):
+            total_size += path.getsize(blast_out)
+            if path.getsize(blast_out) <= 0:
+                os.remove(blast_out)
+                blast_tables.pop()
+        else:
+            blast_tables.pop()
+
+    if total_size <= 0:
         sys.stdout.write("No marker genes detected in input! Exiting...\n")
         sys.exit(-4)
-    blast_tables = [cog_blast_result, rrna_blast_result]
-    for blast_out in blast_tables:
-        if not os.path.exists(blast_out):
-            blast_tables.pop()
+
     return blast_tables
 
 

@@ -315,7 +315,7 @@ def clean_lineage_string(lineage):
         ranks = lineage.split("; ")
         for rank in ranks:
             if not re.search("group$", rank):
-                reconstructed_lineage = reconstructed_lineage + rank + '; '
+                reconstructed_lineage = reconstructed_lineage + str(rank) + '; '
         reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
         lineage = reconstructed_lineage
     return lineage
@@ -411,6 +411,7 @@ def write_performance_table(args, clade_exclusion_strings, sensitivity):
         sys.stderr.write("ERROR: Unable to open " + output + " for writing!")
         raise IOError
 
+    output_handler.write("# Input file for testing: " + args.fasta_input + "\n")
     output_name = os.path.dirname(args.output)
     for line in clade_exclusion_strings:
         line += sensitivity + "\n"
