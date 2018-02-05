@@ -82,13 +82,13 @@ mcrG	M0705	Methyl coenzyme M reductase gamma subunit
 #narG	D0101	nitrate reductase / nitrite oxidoreductase, alpha subunit
 #narH	D0102	nitrate reductase / nitrite oxidoreductase, beta subunit
 #narI	D0103	nitrate reductase gamma subunit
-#napA	D0201	periplasmic nitrate reductase NapA
+napA	D0201	periplasmic nitrate reductase NapA
 #napB	D0202	cytochrome c-type protein NapB
 nirK	D0301	nitrite reductase (NO-forming)
-#nirS	D0302	nitrite reductase (NO-forming) / hydroxylamine reductase
+nirS	D0302	nitrite reductase (NO-forming) / hydroxylamine reductase
 #nrfA	D0401	nitrite reductase (cytochrome c-552)
 norB	D0501	nitric oxide reductase subunit B
-#norC	D0502	nitric oxide reductase subunit C
+norC	D0502	nitric oxide reductase subunit C
 nosZ	D0601	Nitrous-oxide reductase
 #amoA_AOA	N0101	Ammonia monooxygenase (Ammonia-oxidizing Archaea)
 amoA_B	N0102	Ammonia monooxygenase (Ammonia-oxidizing Bacteria)

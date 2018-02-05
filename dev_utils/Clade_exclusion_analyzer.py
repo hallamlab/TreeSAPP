@@ -16,6 +16,7 @@ sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from treesapp import format_read_fasta
 from create_treesapp_ref_data import get_lineage, get_header_format, \
     return_sequence_info_groups, map_good_headers_to_ugly, get_headers
+from utilities import clean_lineage_string
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   2: "Phylum", 3: "Class", 4: "Order",
@@ -303,22 +304,6 @@ def determine_specificity(rank_assigned_dict, marker):
             sys.stdout.write('\t'.join(taxonomic_distance.values()) + "\n")
 
     return clade_exclusion_strings
-
-
-def clean_lineage_string(lineage):
-    bad_strings = ["cellular organisms; ", "delta/epsilon subdivisions; "]
-    for bs in bad_strings:
-        lineage = re.sub(bs, '', lineage)
-    # filter 'group'
-    if re.search('group; ', lineage):
-        reconstructed_lineage = ""
-        ranks = lineage.split("; ")
-        for rank in ranks:
-            if not re.search("group$", rank):
-                reconstructed_lineage = reconstructed_lineage + str(rank) + '; '
-        reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
-        lineage = reconstructed_lineage
-    return lineage
 
 
 def clean_classification_names(assignments):

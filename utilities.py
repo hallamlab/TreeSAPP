@@ -314,3 +314,19 @@ def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
     sys.stdout.flush()
 
     return stdout, blastdb_out
+
+
+def clean_lineage_string(lineage):
+    bad_strings = ["cellular organisms; ", "delta/epsilon subdivisions; "]
+    for bs in bad_strings:
+        lineage = re.sub(bs, '', lineage)
+    # filter 'group'
+    if re.search('group; ', lineage):
+        reconstructed_lineage = ""
+        ranks = lineage.split("; ")
+        for rank in ranks:
+            if not re.search("group$", rank):
+                reconstructed_lineage = reconstructed_lineage + str(rank) + '; '
+        reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
+        lineage = reconstructed_lineage
+    return lineage
