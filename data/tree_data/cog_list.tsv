@@ -58,13 +58,13 @@ COG0552	C0552	phylogenetic_cogs
 #mtdF	M0402	F420-dependent methylenetetrahydromethanopterin dehydrogenase
 #hmd	M0400	H2-forming methylenetetrahydromethanopterin dehydrogenase
 #mer	M0500	Methylene-tetrahydro-methanopterin reductase
-#mtrA	M0601	Tetrahydro-methanopterin methyltransferase subunit A
+MtrA	M0601	Tetrahydro-methanopterin methyltransferase subunit A
 #mtrB	M0602	Tetrahydro-methanopterin methyltransferase subunit B
-#mtrC	M0603	Tetrahydro-methanopterin methyltransferase subunit C
+MtrC	M0603	Tetrahydro-methanopterin methyltransferase subunit C
 #mtrD	M0604	Tetrahydro-methanopterin methyltransferase subunit D
 #mtrF	M0605	Tetrahydro-methanopterin methyltransferase subunit F
 #mtrG	M0606	Tetrahydro-methanopterin methyltransferase subunit G
-#mtrH	M0607	Tetrahydro-methanopterin methyltransferase subunit H
+MtrH	M0607	Tetrahydro-methanopterin methyltransferase subunit H
 mcrA	M0701	Methyl coenzyme M reductase alpha subunit
 mcrB	M0702	Methyl coenzyme M reductase beta subunit
 #mcrC	M0703	Methyl coenzyme M reductase subunit C

@@ -1,0 +1,175 @@
+1	Tetrahydromethanopterin S-methyltransferase subunit H [Lokiarchaeum sp. GC14_75] | KKK41437.1	cellular organisms; Archaea; Asgard group; Candidatus Lokiarchaeota; Lokiarchaeum
+2	Tetrahydromethanopterin S-methyltransferase subunit H [Lokiarchaeum sp. GC14_75] | KKK45369.1	cellular organisms; Archaea; Asgard group; Candidatus Lokiarchaeota; Lokiarchaeum
+3	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Lokiarchaeota archaeon CR_4] | OLS12715.1	cellular organisms; Archaea; Asgard group; Candidatus Lokiarchaeota; unclassified Lokiarchaeota
+4	Tetrahydromethanopterin S-methyltransferase [Candidatus Lokiarchaeota archaeon CR_4] | OLS14135.1	cellular organisms; Archaea; Asgard group; Candidatus Lokiarchaeota; unclassified Lokiarchaeota
+5	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Lokiarchaeota archaeon CR_4] | OLS12716.1	cellular organisms; Archaea; Asgard group; Candidatus Lokiarchaeota; unclassified Lokiarchaeota
+6	Tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Odinarchaeota archaeon LCB_4] | OLS17408.1	cellular organisms; Archaea; Asgard group; Candidatus Odinarchaeota
+7	Tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Thorarchaeota archaeon AB_25] | OLS23626.1	cellular organisms; Archaea; Asgard group; Candidatus Thorarchaeota
+8	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Thorarchaeota archaeon SMTZ1-83] | KXH71814.1	cellular organisms; Archaea; Asgard group; Candidatus Thorarchaeota
+9	Tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Thorarchaeota archaeon AB_25] | OLS29906.1	cellular organisms; Archaea; Asgard group; Candidatus Thorarchaeota
+10	hypothetical protein AM325_13930 [Candidatus Thorarchaeota archaeon SMTZ1-45] | KXH73541.1	cellular organisms; Archaea; Asgard group; Candidatus Thorarchaeota
+11	Tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Thorarchaeota archaeon AB_25] | OLS29908.1	cellular organisms; Archaea; Asgard group; Candidatus Thorarchaeota
+12	Archaeoglobus fulgidus | WP_010877523.1	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus
+13	Archaeoglobus sulfaticallidus | WP_015590219.1	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus
+14	Ferroglobus placidus | WP_012966232.1	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Ferroglobus
+15	Ferroglobus placidus | WP_012964671.1	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Ferroglobus
+16	Geoglobus acetivorans | WP_048092175.1	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Geoglobus
+17	Geoglobus ahangari | WP_048095380.1	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Geoglobus
+18	Methanobacterium paludis | WP_013826556.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+19	Methanobacterium formicicum | WP_048072484.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+20	Methanobacterium sp. MB1 | WP_023992793.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+21	tetrahydromethanopterin S-methyltransferase subunit H [Methanobacterium bryantii] | PAV02928.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+22	Methanobacterium formicicum | WP_004031291.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+23	Methanobacterium sp. SMA-27 | WP_048191616.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+24	N5-methyltetrahydromethanopterin:coenzyme M methyltransferase subunit H [Methanobacterium sp. Maddingley MBC34] | EKQ53870.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+25	Methanobacterium lacus | WP_013643964.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+26	tetrahydromethanopterin S-methyltransferase subunit H MtrH [Methanobrevibacter olleyae] | AMK15927.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+27	Methanobrevibacter ruminantium | WP_048812509.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+28	Methanobrevibacter arboriphilus | WP_080459566.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+29	tetrahydromethanopterin S-methyltransferase subunit H MtrH [Methanobrevibacter olleyae] | AMK15928.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+30	Methanobrevibacter wolinii | WP_042708247.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+31	Methanobrevibacter sp. AbM4 | WP_016359084.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+32	Methanobrevibacter wolinii | WP_042706839.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+33	tetrahydromethanopterin S-methyltransferase subunit H [Methanobrevibacter sp. YE315] | AMD18189.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+34	Methanobrevibacter oralis | WP_042691670.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+35	Methanobrevibacter sp. 87.7 | WP_088538855.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+36	Methanobrevibacter smithii | WP_019264525.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+37	Methanobrevibacter millerae | WP_058739900.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+38	tetrahydromethanopterin S-methyltransferase, subunit H [Methanobrevibacter gottschalkii] | SEK34364.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+39	Methanobrevibacter millerae | WP_058739991.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+40	N5-methyltetrahydromethanopterin:coenzyme M methyltransferase subunit H [Methanobrevibacter smithii DSM 2375] | EEE42034.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter; Methanobrevibacter smithii
+41	Methanosphaera cuniculi | WP_095608299.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanosphaera
+42	MtrH [Methanosphaera stadtmanae DSM 3091] | ABC56717.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanosphaera; Methanosphaera stadtmanae
+43	Methanothermobacter sp. CaT2 | WP_048175725.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanothermobacter
+44	Methanothermobacter marburgensis | WP_013296329.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanothermobacter
+45	Tetrahydromethanopterin S-methyltransferase subunit H [Methanobacteriaceae archaeon 41_258] | KUK01237.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; unclassified Methanobacteriaceae
+46	Methanothermus fervidus | WP_013413853.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanothermaceae; Methanothermus
+47	tetrahydromethanopterin S-methyltransferase subunit H [Methanobacteriales archaeon HGW-Methanobacteriales-1] | PKL66838.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; unclassified Methanobacteriales
+48	Methanocaldococcus bathoardescens | WP_048202030.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+49	Methanocaldococcus villosus | WP_017981118.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+50	Methanocaldococcus infernus | WP_013099689.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+51	Methanocaldococcus fervens | WP_015791501.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+52	Methanocaldococcus vulcanius | WP_012819571.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+53	tetrahydromethanopterin S-methyltransferase subunit H [Methanocaldococcus villosus KIN24-T80] | ENN96452.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus; Methanocaldococcus villosus
+54	Methanotorris igneus | WP_013799381.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanotorris
+55	Methanotorris formicicus | WP_007043975.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanotorris
+56	Methanococcus voltae | WP_013180521.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+57	Methanococcus vannielii | WP_011972686.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+58	Methanococcus maripaludis | WP_011977198.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+59	Methanococcus maripaludis | WP_011867788.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+60	Tetrahydromethanopterin S-methyltransferase subunit H | A6UWI0.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus; Methanococcus aeolicus
+61	Methanothermococcus thermolithotrophicus | WP_018153670.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanothermococcus
+62	Methanothermococcus okinawensis | WP_013867102.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanothermococcus
+63	Methanocella conradii | WP_014405537.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella
+64	Methanocella arvoryzae | WP_012035362.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella
+65	tetrahydromethanopterin S-methyltransferase subunit H [Methanocella paludicola SANAE] | BAI60618.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella; Methanocella paludicola
+66	Tetrahydromethanopterin S-methyltransferase, MtrH subunit [Methanocalculus sp. 52_23] | KUK70004.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanocalculaceae; Methanocalculus
+67	Methanocorpusculum labreanum | WP_011833920.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanocorpusculaceae; Methanocorpusculum
+68	tetrahydromethanopterin S-methyltransferase subunit H [Methanoculleus sp. SDB] | KQC05355.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+69	Methanoculleus sp. MH98A | WP_048114224.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+70	Methanoculleus sediminis | WP_048180287.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+71	Methanoculleus marisnigri | WP_011843448.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+72	Methanoculleus bourgensis | WP_014867643.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+73	Methanofollis liminatans | WP_004037733.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanofollis
+74	Methanogenium cariaci | WP_062396502.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanogenium
+75	Methanolacinia petrolearia | WP_013330472.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanolacinia
+76	Methanolacinia paynteri | WP_048152831.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanolacinia
+77	Methanomicrobium mobile | WP_042705986.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanomicrobium
+78	Methanoplanus limicola | WP_004076383.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoplanus
+79	Methanoplanus limicola | WP_004079627.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoplanus
+80	Methanoplanus limicola | WP_004077274.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoplanus
+81	Methanolinea tarda | WP_007314367.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanolinea
+82	Methanoregula boonei | WP_012106105.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+83	Methanoregula formicica | WP_015286575.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+84	Methanoregula boonei | WP_012106588.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+85	tetrahydromethanopterin S-methyltransferase subunit H [Methanoregula sp.] | PKG32860.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+86	Methanosphaerula palustris | WP_012618921.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanosphaerula
+87	Methanospirillum hungatei | WP_048067473.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanospirillaceae; Methanospirillum
+88	tetrahydromethanopterin S-methyltransferase subunit H [Methanomicrobiales archaeon HGW-Methanomicrobiales-3] | PKL64493.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales (miscellaneous)
+89	tetrahydromethanopterin S-methyltransferase subunit H [Methanomicrobiales archaeon HGW-Methanomicrobiales-1] | PKL69322.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales (miscellaneous)
+90	tetrahydromethanopterin S-methyltransferase subunit H [Methanomicrobiales archaeon HGW-Methanomicrobiales-2] | PKL62461.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales (miscellaneous)
+91	Candidatus Methanoperedens nitroreducens | WP_096206328.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+92	Candidatus Methanoperedens sp. BLZ2 | WP_097297524.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+93	Candidatus Methanoperedens nitroreducens | WP_048088866.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+94	Candidatus Methanoperedens nitroreducens | WP_048089349.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+95	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Methanoperedenaceae archaeon HGW-Methanoperedenaceae-1] | PKL53015.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; unclassified Candidatus Methanoperedenaceae
+96	Methanosaeta concilii | WP_013718858.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+97	tetrahydromethanopterin S-methyltransferase subunit H [Methanosaeta sp. NSM2] | OYV13695.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+98	Methanosaeta harundinacea | WP_014587628.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+99	Methanosaeta concilii | WP_013720266.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+100	Methanosaeta harundinacea | WP_014587021.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+101	Tetrahydromethanopterin S-methyltransferase, subunit H [Methanosaeta harundinacea] | KUK45190.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+102	tetrahydromethanopterin S-methyltransferase, MtrH subunit [Methanosaeta thermophila PT] | ABK15421.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix; Methanothrix thermoacetophila
+103	tetrahydromethanopterin S-methyltransferase, subunit H [Methanosaeta thermophila PT] | ABK15153.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix; Methanothrix thermoacetophila
+104	Methanococcoides burtonii | WP_011499569.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+105	Methanococcoides methylutens | WP_048193723.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+106	Methanococcoides burtonii | WP_011500243.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+107	Methanococcoides methylutens | WP_048195639.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+108	Methanococcoides vulcani | WP_091689581.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+109	Methanococcoides methylutens | WP_048204653.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+110	Methanohalobium evestigatum | WP_013194807.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalobium
+111	Methanohalobium evestigatum | WP_013195417.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalobium
+112	Methanohalophilus mahii | WP_013038220.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus
+113	tetrahydromethanopterin S-methyltransferase subunit H [Methanohalophilus portucalensis] | ATU08538.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus
+114	Methanolobus sp. YSF-03 | WP_094226800.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+115	Methanolobus vulcani | WP_091708898.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+116	Methanolobus psychrophilus | WP_015054092.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+117	Methanomethylovorans hollandica | WP_015325420.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanomethylovorans
+118	Methanosalsum zhilinae | WP_013898995.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosalsum
+119	Methanosalsum zhilinae | WP_013898056.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosalsum
+120	Methanosarcina acetivorans | WP_011020327.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+121	Methanosarcina horonobensis | WP_048138307.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+122	tetrahydromethanopterin S-methyltransferase subunit H [Methanosarcina sp. 2.H.T.1A.6] | KKG23033.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+123	Methanosarcina siciliae | WP_048169328.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+124	tetrahydromethanopterin S-methyltransferase subunit H [Methanosarcina mazei] | KKG90361.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+125	tetrahydromethanopterin S-methyltransferase subunit H [Methanosarcina sp. 2.H.T.1A.6] | KKG24603.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+126	Methanosarcina sp. MTP4 | WP_048181762.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+127	Methanosarcina sp. MTP4 | WP_048178214.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+128	Methanosarcina horonobensis | WP_048142517.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+129	Methanosarcina barkeri | WP_011307049.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+130	Methanosarcina spelaei | WP_095643275.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+131	Methanosarcina mazei | WP_048044604.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+132	Methanosarcina sp. Kolksee | WP_048153332.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+133	Tetrahydromethanopterin S-methyltransferase subunit H [Methanosarcina sp. WH1] | AKB21438.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+134	Methanosarcina flavescens | WP_054297813.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+135	Methanosarcina thermophila | WP_048166051.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+136	Methanosarcina lacustris | WP_048124074.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+137	Methanosarcina acetivorans | WP_011021807.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+138	tetrahydromethanopterin S-methyltransferase subunit H [Methanosarcina flavescens] | KPL46553.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+139	Methanosarcina lacustris | WP_048126690.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+140	Methanosarcina siciliae | WP_048172554.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+141	Methanosarcina vacuolata | WP_048118310.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+142	tetrahydromethanopterin S-methyltransferase subunit H [Methanosarcina barkeri CM1] | AKJ38597.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina barkeri
+143	tetrahydromethanopterin S-methyltransferase subunit H MtrH [Methanosarcina barkeri CM1] | AKJ39337.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina barkeri
+144	Methermicoccus shengliensis | WP_042687307.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methermicoccaceae; Methermicoccus
+145	Methermicoccus shengliensis | WP_042687020.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methermicoccaceae; Methermicoccus
+146	Methermicoccus shengliensis | WP_042685937.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methermicoccaceae; Methermicoccus
+147	tetrahydromethanopterin S-methyltransferase subunit H [Methanosarcinales archaeon ex4484_138] | OYT64289.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; GOM Arc I cluster
+148	tetrahydromethanopterin S-methyltransferase subunit H [ANME-1 cluster archaeon ex4572_4] | OYT67008.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; unclassified Methanomicrobia; ANME-1 cluster; unclassified ANME-1 cluster
+149	Tetrahydromethanopterin S-methyltransferase subunit H | O32869.2	cellular organisms; Archaea; Euryarchaeota; Methanopyri; Methanopyrales; Methanopyraceae; Methanopyrus; Methanopyrus kandleri
+150	tetrahydromethanopterin S-methyltransferase, subunit H [Thermoplasmatales archaeon SCGC AB-539-N05] | EMR73622.1	cellular organisms; Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales (miscellaneous)
+151	hypothetical protein AKJ49_00370 [candidate divison MSBL1 archaeon SCGC-AAA382A03] | KXB05637.1	cellular organisms; Archaea; Euryarchaeota; unclassified Euryarchaeota; candidate division MSBL1
+152	hypothetical protein AKJ40_03500 [candidate divison MSBL1 archaeon SCGC-AAA259M10] | KXA99285.1	cellular organisms; Archaea; Euryarchaeota; unclassified Euryarchaeota; candidate division MSBL1
+153	hypothetical protein AKJ40_01580 [candidate divison MSBL1 archaeon SCGC-AAA259M10] | KXB00257.1	cellular organisms; Archaea; Euryarchaeota; unclassified Euryarchaeota; candidate division MSBL1
+154	hypothetical protein AYK23_03540 [Euryarchaeota archaeon SG8-5] | KYK25513.1	cellular organisms; Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota (miscellaneous)
+155	hypothetical protein AC477_05475 [miscellaneous Crenarchaeota group-1 archaeon SG8-32-1] | KON29818.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; MCG-1
+156	hypothetical protein AC479_00325 [miscellaneous Crenarchaeota group-6 archaeon AD8-1] | KON34351.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; MCG-6
+157	hypothetical protein AC480_02295 [miscellaneous Crenarchaeota group archaeon SMTZ1-55] | KON29904.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+158	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon B26-1] | KYH38365.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+159	Tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon BA1] | KPV64368.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+160	Tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon BA1] | KPV62155.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+161	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon ex4484_231] | OYT48414.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+162	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon B24] | KYH37649.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+163	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon ex4484_135] | OYT51307.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+164	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon B63] | KYH42834.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+165	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon B25] | KYH38195.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+166	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon B24] | KYH37965.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+167	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon ex4484_231] | OYT48005.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+168	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon B23] | KYH39065.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+169	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon B24-2] | PDM26008.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+170	tetrahydromethanopterin S-methyltransferase subunit H [Candidatus Bathyarchaeota archaeon ex4484_40] | OYT43817.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+171	Tetrahydromethanopterin S-methyltransferase [Ignisphaera aggregans DSM 17230] | ADM27238.1	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Ignisphaera; Ignisphaera aggregans
+172	Staphylothermus marinus | WP_011838715.1	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Staphylothermus
+173	Staphylothermus hellenicus | WP_013142720.1	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Staphylothermus
+174	N(5)-methyl-tetrahydromethanopterin-coenzyme M methyltransferase subunit H [uncultured archaeon GZfos33E1] | AAU83735.1	cellular organisms; Archaea; environmental samples
+175	N(5)-methyl-tetrahydromethanopterin-coenzyme M methyltransferase subunit H [uncultured archaeon GZfos12E2] | AAU82252.1	cellular organisms; Archaea; environmental samples

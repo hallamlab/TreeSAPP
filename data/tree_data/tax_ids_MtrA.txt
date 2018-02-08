@@ -1,0 +1,217 @@
+1	Candidatus Thorarchaeota archaeon AB_25 | OLS29907.1	cellular organisms; Archaea; Asgard group; Candidatus Thorarchaeota
+2	Candidatus Thorarchaeota archaeon SMTZ1-83 | KXH71812.1	cellular organisms; Archaea; Asgard group; Candidatus Thorarchaeota
+3	Candidatus Thorarchaeota archaeon SMTZ1-45 | KXH73357.1	cellular organisms; Archaea; Asgard group; Candidatus Thorarchaeota
+4	Methanobacterium | WP_048081708.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae
+5	Methanobrevibacter | WP_016359087.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae
+6	Methanobacterium | WP_069583352.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae
+7	Methanobacterium | WP_048081706.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae
+8	Methanobacterium | WP_069583237.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae
+9	Methanobacterium lacus | WP_013643961.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+10	Methanobacterium sp. Maddingley MBC34 | EKQ52099.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+11	Methanobacterium congolense | WP_084789846.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+12	Methanobacterium sp. SMA-27 | WP_048191621.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+13	Methanobacterium sp. MB1 | WP_023991392.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+14	Methanobacterium formicicum | WP_004031286.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+15	Methanobacterium subterraneum | AUB60516.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+16	Methanobacterium bryantii | PAV05362.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+17	Methanobacterium formicicum | WP_081944584.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+18	Methanobacterium sp. MB1 | WP_023992796.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+19	Methanobacterium sp. A39 | OEC86906.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+20	Methanobacterium paludis | WP_013826559.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+21	Methanobrevibacter olleyae | AMK14676.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+22	Methanobrevibacter sp. YE315 | AMD18065.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+23	Methanobrevibacter millerae | WP_058738778.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+24	Methanobrevibacter millerae | WP_058739994.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+25	Methanobrevibacter wolinii | WP_042708328.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+26	Methanobrevibacter sp. 87.7 | OWT32326.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+27	Methanobrevibacter sp. 87.7 | OWT33237.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+28	Methanobrevibacter olleyae | AMK15931.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+29	Methanobrevibacter oralis | WP_042692396.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+30	Methanobrevibacter ruminantium | WP_012956717.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+31	Methanobrevibacter sp. YE315 | AMD18192.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+32	Methanobrevibacter oralis | WP_042692431.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+33	Methanobrevibacter olleyae | AMK15269.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+34	Methanobrevibacter oralis | WP_042691677.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+35	Methanobrevibacter arboriphilus | WP_080459568.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+36	Tetrahydromethanopterin S-methyltransferase subunit A 2 | D3E0P6.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter; Methanobrevibacter ruminantium
+37	Methanobrevibacter smithii ATCC 35061 | ABQ87215.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter; Methanobrevibacter smithii
+38	Methanosphaera cuniculi | WP_095608296.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanosphaera
+39	Methanosphaera stadtmanae DSM 3091 | ABC56714.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanosphaera; Methanosphaera stadtmanae
+40	Methanothermobacter marburgensis | WP_013296332.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanothermobacter
+41	Methanothermobacter sp. CaT2 | WP_052457352.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanothermobacter
+42	Methanothermobacter marburgensis | WP_013296240.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanothermobacter
+43	Methanobacteriaceae archaeon 41_258 | KUK01240.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; unclassified Methanobacteriaceae
+44	Methanothermus fervidus | WP_013413856.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanothermaceae; Methanothermus
+45	Methanothermus fervidus | WP_013413154.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanothermaceae; Methanothermus
+46	Methanobacteriales archaeon HGW-Methanobacteriales-1 | PKL66835.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; unclassified Methanobacteriales
+47	Methanobacteriales archaeon HGW-Methanobacteriales-2 | PKL72526.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; unclassified Methanobacteriales
+48	Methanobacteriales archaeon HGW-Methanobacteriales-2 | PKL71466.1	cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; unclassified Methanobacteriales
+49	Methanocaldococcus fervens | WP_015791499.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+50	Methanocaldococcus fervens | WP_015791498.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+51	Methanocaldococcus bathoardescens | WP_048202032.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+52	Methanocaldococcus infernus | WP_013099692.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+53	Methanocaldococcus jannaschii | WP_064496640.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+54	Methanocaldococcus villosus | WP_004590236.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+55	Methanotorris igneus | WP_013799378.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanotorris
+56	Methanotorris igneus | WP_013799379.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanotorris
+57	Methanotorris formicicus | WP_007043977.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanotorris
+58	Methanococcus maripaludis | WP_013999872.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+59	Methanococcus voltae | WP_013180518.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+60	Methanococcus maripaludis | WP_013999874.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+61	Methanococcus vannielii | WP_011972683.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+62	Methanococcus maripaludis | WP_013999873.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+63	Methanococcus vannielii | WP_011972684.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+64	Methanococcus maripaludis | WP_012193862.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+65	Methanococcus maripaludis | WP_011977196.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+66	Methanococcus voltae | WP_013180519.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+67	Methanococcus aeolicus | WP_011973982.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+68	Methanococcus aeolicus | WP_011973981.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+69	Methanothermococcus okinawensis | WP_013867105.1	cellular organisms; Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanothermococcus
+70	Methanocella conradii | WP_014405534.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella
+71	Methanocella arvoryzae | WP_012035364.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella
+72	Methanocella conradii | WP_014405556.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella
+73	Methanocella paludicola SANAE | BAI60750.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella; Methanocella paludicola
+74	Methanocella paludicola SANAE | BAI60615.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella; Methanocella paludicola
+75	Methanocorpusculum parvum | PAV08599.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanocorpusculaceae; Methanocorpusculum
+76	Methanocorpusculum labreanum | WP_011833923.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanocorpusculaceae; Methanocorpusculum
+77	Methanocorpusculum labreanum | WP_011833921.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanocorpusculaceae; Methanocorpusculum
+78	Methanoculleus bourgensis | WP_014867640.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+79	Methanoculleus sediminis | WP_048180290.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+80	Methanoculleus bourgensis | SAI88891.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+81	Methanoculleus sp. SDB | KQC05354.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+82	Methanoculleus sp. MAB1 | CVK33453.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+83	Methanoculleus marisnigri | WP_011843451.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+84	Methanofollis liminatans | WP_004037736.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanofollis
+85	Methanofollis liminatans | WP_004037734.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanofollis
+86	Methanogenium cariaci | WP_062396500.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanogenium
+87	Methanolacinia paynteri | WP_048152828.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanolacinia
+88	Methanolacinia paynteri | WP_048152830.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanolacinia
+89	Methanomicrobium mobile | WP_042705989.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanomicrobium
+90	Methanomicrobium mobile | WP_042705987.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanomicrobium
+91	Methanoplanus limicola | WP_004079630.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoplanus
+92	Methanoplanus limicola | WP_004079628.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoplanus
+93	Methanolinea tarda | WP_007314366.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanolinea
+94	Methanolinea sp. SDB | KQC09329.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanolinea
+95	Methanolinea tarda | WP_042689427.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanolinea
+96	Methanoregula sp. | PKG32859.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+97	Methanoregula formicica | WP_015286572.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+98	Methanoregula boonei | WP_012106106.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+99	Methanoregula boonei | WP_012106108.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+100	Methanosphaerula palustris | WP_012618920.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanosphaerula
+101	Methanosphaerula palustris | WP_012618918.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanosphaerula
+102	Methanospirillum hungatei | WP_011449137.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanospirillaceae; Methanospirillum
+103	Methanospirillum hungatei | WP_011449135.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanospirillaceae; Methanospirillum
+104	Methanomicrobiales archaeon HGW-Methanomicrobiales-3 | PKL64507.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales (miscellaneous)
+105	Methanomicrobiales archaeon HGW-Methanomicrobiales-5 | PKL57516.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales (miscellaneous)
+106	Methanomicrobiales archaeon HGW-Methanomicrobiales-1 | PKL69321.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales (miscellaneous)
+107	Candidatus Methanoperedens nitroreducens | SNQ61673.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+108	Candidatus Methanoperedens nitroreducens | WP_048088860.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+109	Candidatus Methanoperedens nitroreducens | KCZ72430.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+110	Candidatus Methanoperedens sp. BLZ2 | WP_097297527.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+111	Candidatus Methanoperedens sp. BLZ2 | WP_097297420.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+112	Candidatus Methanoperedenaceae archaeon HGW-Methanoperedenaceae-1 | PKL53018.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; unclassified Candidatus Methanoperedenaceae
+113	Methanosaeta concilii | WP_013718861.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+114	Methanosaeta sp. NSP1 | OYV09043.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+115	Methanosaeta sp. NSM2 | OYV13694.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+116	Methanothrix soehngenii | WP_013720265.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+117	Methanosaeta harundinacea | KUK97498.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+118	Methanosaeta sp. SDB | KQC12020.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+119	Methanosaeta harundinacea | WP_014587625.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+120	Methanosaeta sp. ASP1-2 | OYV07794.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+121	Methanosaeta harundinacea | WP_014586818.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+122	Methanosaeta thermophila PT | ABK15156.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix; Methanothrix thermoacetophila
+123	Methanosarcina | WP_048141268.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae
+124	Methanosarcina | WP_080941563.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae
+125	Methanosarcina | WP_082088044.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae
+126	Methanosarcina | WP_048154520.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae
+127	Methanococcoides vulcani | SES80056.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+128	Methanococcoides methylutens | WP_048195633.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+129	Methanococcoides vulcani | WP_091688065.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+130	Methanococcoides methylutens | WP_081955731.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+131	Methanococcoides burtonii | WP_011499572.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+132	Methanococcoides methylutens | WP_048206063.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+133	Methanococcoides methylutens MM1 | AKB84449.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides; Methanococcoides methylutens
+134	Methanohalobium evestigatum | WP_013194809.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalobium
+135	Methanohalobium evestigatum | WP_013195414.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalobium
+136	Methanohalophilus euhalobius | SNY22005.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus
+137	Methanohalophilus mahii | WP_013036877.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus
+138	Methanohalophilus euhalobius | WP_096712622.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus
+139	Methanohalophilus portucalensis | WP_072359037.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus
+140	Methanohalophilus portucalensis | ATU07459.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus
+141	Methanolobus profundi | WP_091932957.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+142	Methanolobus sp. YSF-03 | WP_094226803.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+143	Methanolobus tindarius | WP_023844725.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+144	Methanolobus psychrophilus | WP_015054095.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+145	Methanolobus sp. T82-4 | KXS44689.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+146	Methanolobus vulcani | WP_091708903.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+147	Methanolobus psychrophilus | WP_015052171.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+148	Methanomethylovorans hollandica | WP_015324321.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanomethylovorans
+149	Methanomethylovorans hollandica | WP_015325423.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanomethylovorans
+150	Methanosalsum zhilinae | WP_013898992.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosalsum
+151	Methanosalsum zhilinae | WP_013898057.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosalsum
+152	Methanosarcina sp. Kolksee | WP_048153398.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+153	Methanosarcina thermophila | WP_082086695.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+154	Methanosarcina horonobensis | WP_048137951.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+155	Methanosarcina flavescens | WP_054298306.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+156	Methanosarcina sp. 2.H.T.1A.3 | KKG16244.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+157	Methanosarcina sp. 1.H.A.2.2 | KKH47737.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+158	Methanosarcina flavescens | KPL47148.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+159	Methanosarcina sp. 1.H.T.1A.1 | WP_082106035.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+160	Methanosarcina mazei | WP_048040532.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+161	Methanosarcina thermophila | WP_048166809.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+162	Methanosarcina barkeri | WP_080942306.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+163	Methanosarcina sp. WH1 | AKB20463.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+164	Methanosarcina sp. MTP4 | WP_082090513.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+165	Methanosarcina mazei | KKH48085.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+166	Methanosarcina sp. Kolksee | AKB46486.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+167	Methanosarcina soligelidi | WP_048050793.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+168	Methanosarcina thermophila | WP_048167769.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+169	Methanosarcina lacustris | WP_084630542.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+170	Methanosarcina sp. MTP4 | WP_048181750.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+171	Methanosarcina barkeri | WP_048108286.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+172	Methanosarcina barkeri | WP_048177119.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+173	Methanosarcina sp. MTP4 | WP_048179456.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+174	Methanosarcina sp. 1.H.A.2.2 | KKH46436.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+175	Methanosarcina barkeri | WP_048105753.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+176	Methanosarcina barkeri | WP_011306268.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+177	Methanosarcina vacuolata | WP_084626172.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+178	Methanosarcina siciliae | WP_048169332.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+179	Methanosarcina barkeri str. Fusaro | AAZ71004.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina barkeri
+180	Methanosarcina horonobensis HB-1 = JCM 15518 | AKB77737.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina horonobensis
+181	Methanosarcina lacustris Z-7289 | AKB73336.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina lacustris
+182	Methanosarcina mazei LYC | AKB68200.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina mazei
+183	Methanosarcina mazei S-6 | AKB64242.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina mazei
+184	Methanosarcina siciliae HI350 | AKB32924.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina siciliae
+185	Methermicoccus shengliensis | WP_042687028.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methermicoccaceae; Methermicoccus
+186	Methermicoccus shengliensis | WP_042687807.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methermicoccaceae; Methermicoccus
+187	Methanosarcinales archaeon ex4572_44 | PHP46183.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; GOM Arc I cluster
+188	ANME-1 cluster archaeon ex4572_4 | OYT67006.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; unclassified Methanomicrobia; ANME-1 cluster; unclassified ANME-1 cluster
+189	Methanopyrus kandleri | CAA74771.1	cellular organisms; Archaea; Euryarchaeota; Methanopyri; Methanopyrales; Methanopyraceae; Methanopyrus
+190	Thermoplasmatales archaeon SG8-52-1 | KYK29410.1	cellular organisms; Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales (miscellaneous)
+191	Thermoplasmatales archaeon SCGC AB-539-N05 | EMR73621.1	cellular organisms; Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales (miscellaneous)
+192	Thermoplasmatales archaeon SM1-50 | KYK23934.1	cellular organisms; Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales (miscellaneous)
+193	Thermoplasmatales archaeon ex4572_165 | OYT28094.1	cellular organisms; Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales (miscellaneous)
+194	Thermoplasmatales archaeon SG8-52-2 | KYK20153.1	cellular organisms; Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales (miscellaneous)
+195	Thermoplasmatales archaeon SG8-52-3 | KYK30309.1	cellular organisms; Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales (miscellaneous)
+196	Euryarchaeota archaeon SG8-5 | KYK25512.1	cellular organisms; Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota (miscellaneous)
+197	Euryarchaeota archaeon CG01_land_8_20_14_3_00_38_12 | PIV70352.1	cellular organisms; Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota (miscellaneous)
+198	Candidatus Bathyarchaeota archaeon B25 | KYH38192.1	cellular organisms; Archaea; TACK group; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+199	Candidatus Nitrosoarchaeum koreensis | WP_007551609.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Candidatus Nitrosoarchaeum
+200	Candidatus Nitrosoarchaeum limnia SFB1 | EGG41671.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Candidatus Nitrosoarchaeum; Candidatus Nitrosoarchaeum limnia
+201	Candidatus Nitrosomarinus catalina | WP_086908247.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Candidatus Nitrosomarinus
+202	Candidatus Nitrosopumilus salaria | WP_008301170.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus
+203	Candidatus Nitrosopumilus adriaticus | WP_048114646.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus
+204	Candidatus Nitrosopumilus piranensis | AJM91417.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus
+205	Candidatus Nitrosopumilus koreensis AR1 | AFS81705.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus; Candidatus Nitrosopumilus koreensis
+206	Nitrosopumilus maritimus SCM1 | ABX13643.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus; Nitrosopumilus maritimus
+207	Nitrosopumilales archaeon CG_4_9_14_0_2_um_filter_34_16 | PJC50223.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; unclassified Nitrosopumilales
+208	Nitrosopumilales archaeon CG_4_9_14_0_8_um_filter_34_10 | PJB98389.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; unclassified Nitrosopumilales
+209	Nitrososphaera viennensis EN76 | AIC14620.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera; Nitrososphaera viennensis
+210	Nitrosotalea sp. CS | SMH72035.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; Candidatus Nitrosotalea
+211	Marine Group I thaumarchaeote SCGC AAA799-D11 | WP_048089705.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; Marine Group I
+212	Thaumarchaeota archaeon N4 | WP_048197292.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota (miscellaneous)
+213	Thaumarchaeota archaeon | PBO85893.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota (miscellaneous)
+214	Thaumarchaeota archaeon | PHY04136.1	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota (miscellaneous)
+215	uncultured archaeon GZfos12E2 | AAU82249.1	cellular organisms; Archaea; environmental samples
+216	uncultured archaeon GZfos34A6 | AAU83790.1	cellular organisms; Archaea; environmental samples
+217	uncultured archaeon GZfos33E1 | AAU83732.1	cellular organisms; Archaea; environmental samples
