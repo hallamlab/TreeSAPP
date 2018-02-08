@@ -634,7 +634,7 @@ def run_blast(args, split_files, cog_list):
 
 def predict_orfs(args):
     """
-    Predict ORFs from the input FASTA file using FragGeneScanPlus (FGS+)
+    Predict ORFs from the input FASTA file using Prodigal
     :param args: Command-line argument object from get_options and check_parser_arguments
     :return:
     """
@@ -643,13 +643,18 @@ def predict_orfs(args):
     fgs_command += ['-s', args.fasta_input,
                     '-o', orf_fasta,
                     '-w', '0',
-                    '-t', "454_10"]
-    if args.num_threads:
-        fgs_command += ['-p', str(int(args.num_threads))]
-    else:
-        fgs_command += ['-p', '2']
+                    '-r', os.sep.join([args.treesapp, "sub_binaries", "FragGeneScanPlus", "train"]),
+                    "-t", "illumina_1",
+                    '-p', str(1),
+                    '-d', str(1),
+                    '-m', str(2048)]
+    # if args.num_threads:
+    #     fgs_command += ['-p', str(int(args.num_threads))]
+    # else:
+    #     fgs_command += ['-p', '2']
     # fgs_command += ['-d', '1']
 
+    print(' '.join(fgs_command))
     launch_write_command(fgs_command)
 
     # orf_fasta must be changed since FGS+ appends .faa to the output file name

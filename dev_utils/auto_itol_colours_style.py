@@ -200,7 +200,7 @@ def get_colours(clades, palette):
     n_brewed = len(brewed)
     if n_clade > n_brewed:
         sys.stderr.write("ERROR: Number of clades (" + str(n_clade) + ") exceeds the number of colours in " +
-                         palette + "(" + str(n_brewed) + ")!\n")
+                         palette + " (" + str(n_brewed) + ")!\n")
         sys.stderr.write("\tUnfortunately we have hard-coded palettes and they do not scale.\n"
                          "\tWe are hoping to integrate a ColorBrewer API in the near future.\n"
                          "\tIn the meantime, would you please select a higher clade? Thank you!\n")

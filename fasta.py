@@ -132,12 +132,13 @@ def get_header_format(header, code_name):
     fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
     fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
+    refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")
 
     # Nucleotide databases:
     genbank_exact_genome = re.compile("^>([A-Z0-9]+\.[0-9]) (.*) \[(.*)\]$")
     ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) (.*)$")
     silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
-    refseq_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
+    refseq_nuc_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
     header_regexes = {"prot": {dbj_re: "dbj",
@@ -149,12 +150,13 @@ def get_header_format(header, code_name):
                                sp_re: "sp",
                                gi_re: "gi_re",
                                gi_prepend_proper_re: "gi_proper",
-                               gi_prepend_mess_re: "gi_mess"},
+                               gi_prepend_mess_re: "gi_mess",
+                               refseq_prot_re: "refseq_prot"},
                       "dna": {fungene_re: "fungene",
                               fungene_trunc_re: "fungene_truncated",
                               mltree_re: "mltree",
                               silva_arb_re: "silva",
-                              refseq_re: "refseq",
+                              refseq_nuc_re: "refseq_nuc",
                               nr_re: "nr"},
                       "ambig": {ncbi_ambiguous: "ncbi_ambig", genbank_exact_genome: "gen_genome"}
                       }

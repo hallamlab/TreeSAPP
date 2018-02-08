@@ -491,7 +491,7 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             accession = regex_match_groups.group(1)
             organism = regex_match_groups.group(2)
             description = regex_match_groups.group(2)
-        elif header_db in ["ncbi_ambig"]:
+        elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome"]:
             accession = regex_match_groups.group(1)
             description = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
@@ -510,8 +510,13 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             organism = regex_match_groups.group(2)
             description = regex_match_groups.group(3)
     else:
-        sys.stdout.write("Unable to handle header: " + header + "\n")
+        sys.stderr.write("Unable to handle header: " + header + "\n")
         sys.exit()
+
+    if not accession and not organism:
+        sys.stderr.write("ERROR: Insufficient information was loaded for header:\n" + header + "\n")
+        sys.stderr.write("regex_match: " + header_db + '\n')
+        sys.exit(33)
 
     return accession, organism, locus, description
 
@@ -586,7 +591,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
             ref_seq.accession,\
             ref_seq.organism,\
             ref_seq.locus,\
-            ref_seq.description = return_sequence_info_groups(sequence_info, header_db, header)
+            ref_seq.description = return_sequence_info_groups(sequence_info, header_db, original_header)
 
             ref_seq.short_id = mltree_id + '_' + code_name
             fasta_replace_dict[mltree_id] = ref_seq
@@ -752,6 +757,9 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
         strikes = 0
         while strikes < 3:
             if strikes == 0:
+                if not reference_sequence.accession:
+                    sys.stderr.write("WARNING: no accession available for Entrez query:\n")
+                    reference_sequence.get_info()
                 lineage = get_lineage(reference_sequence.accession, molecule)
                 if type(lineage) is str:
                     # The query was successful
