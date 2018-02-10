@@ -21,17 +21,55 @@ rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   8: "Strain"}
 
 
+class TaxaColours:
+    def __init__(self, tax_ids_table):
+        self.marker = re.match(".*tax_ids_(.*).txt$", tax_ids_table).group(1)
+        self.output = self.marker + "_colours_style.txt"
+        self.tax_ids_file = tax_ids_table
+        self.num_seqs = 0
+        self.num_taxa = 0
+        self.tree_leaves = list()
+        self.unique_clades = dict()
+
+    def get_clades(self, args, target_depth):
+        clades = dict()
+        lineages = list()
+        
+        for leaf in self.tree_leaves:
+            if leaf.lineage:
+                lineages.append(clean_lineage_string(leaf.lineage))
+
+        self.num_taxa = 0
+        for lineage in sorted(lineages):
+            lineage_path = lineage.split('; ')
+            if len(lineage_path) > target_depth:
+                if len(clades) == 0 and self.num_taxa == 0:
+                    clades[self.num_taxa] = lineage_path[target_depth]
+                elif clades[self.num_taxa] != lineage_path[target_depth]:
+                    self.num_taxa += 1
+                    clades[self.num_taxa] = lineage_path[target_depth]
+            else:
+                pass
+        self.num_taxa += 1
+        self.unique_clades = clades
+
+        if args.verbose:
+            sys.stdout.write("\t" + self.marker + ": " + str(self.num_taxa) + " unique clades.\n")
+
+        return
+
+
 def get_arguments():
     parser = argparse.ArgumentParser(add_help=False)
     required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument("-t", "--tax_ids_table",
+    required_args.add_argument("-t", "--tax_ids_table", nargs='+',
                                help="tax_ids table for the TreeSAPP marker under investigation. "
                                     "Found in data/tree_data/tax_ids*.txt.",
                                required=True)
 
     optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument('-r', "--rank", default="Class", required=False,
-                        help="The rank to generate unique colours for [ DEFAULT = 'Class' ]")
+    optopt.add_argument('-r', "--rank", default="Order", required=False,
+                        help="The rank to generate unique colours for [ DEFAULT = 'Order' ]")
     optopt.add_argument('-p', "--palette", default="BrBG",
                         help="The ColorBrewer palette to use. Currently supported:"
                              " 'BrBG', 'PRGn', 'Set3', 'Greys', 'Paired'. [ DEFAULT = BrBG ]")
@@ -46,15 +84,6 @@ def get_arguments():
     args = parser.parse_args()
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
 
-    if re.match(".*tax_ids_(.*).txt$", args.tax_ids_table):
-        args.marker = re.match(".*tax_ids_(.*).txt$", args.tax_ids_table).group(1)
-        args.output = args.marker + "_colours_style.txt"
-        if args.verbose:
-            sys.stdout.write("\tGenerating colour palette for " + args.marker + ".\n")
-    else:
-        sys.stderr.write("ERROR: name of tax_ids file is formatted oddly.\n")
-        sys.exit(2)
-
     if sys.version_info > (2, 9):
         args.py_version = 3
     else:
@@ -66,7 +95,7 @@ def get_arguments():
         sys.stderr.write(', '.join(palette_options) + "\n")
         sys.exit(4)
     else:
-        sys.stdout.write("\tUsing palette '" + args.palette + "' for styling.\n")
+        sys.stdout.write("Using palette '" + args.palette + "' for styling.\n")
         sys.stdout.flush()
 
     if args.rank not in rank_depth_map.values():
@@ -81,87 +110,70 @@ def get_arguments():
     return args
 
 
-def read_tax_ids_file(args, filename):
-    tree_leaves = list()
-    try:
-        if args.py_version == 3:
-            cog_tax_ids = open(filename, 'r', encoding='utf-8')
-        else:
-            cog_tax_ids = open(filename, 'r')
-    except IOError:
-        sys.exit('ERROR: Can\'t open ' + str(filename) + '!\n')
+def read_tax_ids_file(args, taxa_colours):
+    """
 
-    for line in cog_tax_ids:
-        line = line.strip()
+    :param args:
+    :param taxa_colours: A dictionary of TaxaColours instances
+    :return: 
+    """
+    for marker in taxa_colours:
+        ref = taxa_colours[marker]
         try:
-            fields = line.split("\t")
-        except ValueError:
-            sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
-                             " generated " + str(len(line.split("\t"))) + " fields.")
-            sys.exit(9)
-        if len(fields) == 2:
-            number, translation = fields
-            lineage = ""
-        elif len(fields) == 3:
-            number, translation, lineage = fields
-        else:
-            sys.stderr.write("ValueError: Unexpected number of fields in " + filename +
-                             ".\nInvoked .split(\'\\t\') on line " + str(line))
-            raise ValueError
-        leaf = TreeLeafReference(number, translation)
-        if lineage:
-            leaf.lineage = lineage
-            leaf.complete = True
-        tree_leaves.append(leaf)
+            if args.py_version == 3:
+                cog_tax_ids = open(ref.tax_ids_file, 'r', encoding='utf-8')
+            else:
+                cog_tax_ids = open(ref.tax_ids_file, 'r')
+        except IOError:
+            sys.exit('ERROR: Can\'t open ' + str(ref.tax_ids_file) + '!\n')
+        leaves = list()
+        for line in cog_tax_ids:
+            line = line.strip()
+            try:
+                fields = line.split("\t")
+            except ValueError:
+                sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
+                                 " generated " + str(len(line.split("\t"))) + " fields.")
+                sys.exit(9)
+            if len(fields) == 2:
+                number, translation = fields
+                lineage = ""
+            elif len(fields) == 3:
+                number, translation, lineage = fields
+            else:
+                sys.stderr.write("ValueError: Unexpected number of fields in " + ref.tax_ids_file +
+                                 ".\nInvoked .split(\'\\t\') on line " + str(line))
+                raise ValueError
+            leaf = TreeLeafReference(number, translation)
+            if lineage:
+                leaf.lineage = lineage
+                leaf.complete = True
+            leaves.append(leaf)
+        
+        ref.tree_leaves = leaves
+        cog_tax_ids.close()
+            
+    return taxa_colours
 
-    cog_tax_ids.close()
-    return tree_leaves
 
+def get_colours(args, taxa_colours, palette):
+    # TODO: find a decent API for colorbrewer so we are able to generate a palette on the fly
 
-def get_clades(args, tree_number_translations):
-    clades = dict()
-    lineages = list()
-    target_depth = 0
-    for depth in rank_depth_map:
-        if rank_depth_map[depth] == args.rank:
-            target_depth = depth
-            break
-    if target_depth == 0:
-        sys.stderr.write("ERROR: rank '" + args.rank + "' not accepted!\n")
-        sys.exit(3)
-
-    for leaf in tree_number_translations:
-        if leaf.lineage:
-            lineages.append(clean_lineage_string(leaf.lineage))
-
-    n_unique_clades = 0
-    for lineage in sorted(lineages):
-        lineage_path = lineage.split('; ')
-        if len(lineage_path) > target_depth:
-            if len(clades) == 0 and n_unique_clades == 0:
-                clades[n_unique_clades] = lineage_path[target_depth]
-            elif clades[n_unique_clades] != lineage_path[target_depth]:
-                n_unique_clades += 1
-                clades[n_unique_clades] = lineage_path[target_depth]
-        else:
-            pass
-    n_unique_clades += 1
+    clades = set()
+    for marker in taxa_colours:
+        ref = taxa_colours[marker]
+        for num in ref.unique_clades:
+            clades.add(ref.unique_clades[num])
 
     if len(clades) <= 1:
-        sys.stderr.write("ERROR: " + str(n_unique_clades) + " unique clade(s) identified at rank '" + args.rank + "'\n")
+        sys.stderr.write(
+            "ERROR: " + str(len(clades)) + " unique clade(s) identified at rank '" + args.rank + "'\n")
         sys.stderr.write("Consider changing rank to something more specific.\n"
                          "It may also be worth glancing at " + args.tax_ids_table + " to see if its okay.\n")
         sys.exit(4)
     else:
-        if args.verbose:
-            sys.stdout.write("\tIdentified " + str(n_unique_clades) + " unique clades at " + args.rank + " rank.\n")
-            sys.stdout.flush()
-
-    return clades
-
-
-def get_colours(clades, palette):
-    # TODO: find a decent API for colorbrewer so we are able to generate a palette on the fly
+        sys.stdout.write("Identified " + str(len(clades)) + " unique clades at " + args.rank + " rank.\n")
+        sys.stdout.flush()
 
     brbg = ["#543005", "#643906", "#744207", "#844C09", "#93570E", "#A16518", "#B07323",
             "#BF812C", "#C89343", "#D1A65A", "#DAB871", "#E2C786", "#E8D29A", "#EFDDAE",
@@ -206,16 +218,17 @@ def get_colours(clades, palette):
                          "\tIn the meantime, would you please select a higher clade? Thank you!\n")
         sys.exit(7)
     else:
+        colours_pre = list()
+        colours_suf = list()
         colours = list()
-        n = int(n_brewed / n_clade)
-        i = n
-        p = 0
-        while p < n_brewed and len(colours) < n_clade:
-            if i == n:
-                colours.append(brewed[p])
-                i = 0
+        i = 0
+        while i < n_brewed and len(colours) < n_clade:
+            if i % 2:
+                colours_pre.append(brewed[i])
+            else:
+                colours_suf.append(brewed[n_brewed-i-1])
             i += 1
-            p += 1
+            colours = colours_pre + colours_suf
 
     if len(colours) != n_clade:
         sys.stderr.write("ERROR: Bad colour parsing! len(colours) != number of clades.\n")
@@ -224,52 +237,129 @@ def get_colours(clades, palette):
     return colours
 
 
-def map_colours_to_taxa(clades, colours):
+def map_colours_to_taxa(clades, lineages, colours):
+    """
+    Function for mapping
+    :param clades:
+    :param lineages:
+    :param colours:
+    :return:
+    """
     palette_taxa_map = dict()
-    for level in sorted(clades, key=int):
-        taxon = clades[level]
-        palette_taxa_map[taxon] = colours[level]
+    alpha_sort_i = 0
+    num_clades = len(clades)
+    for lineage in sorted(lineages):
+        i = 0
+        while i < len(clades):
+            clade = clades[i]
+            if re.search(clean_lineage_string(clade), clean_lineage_string(lineage)):
+                palette_taxa_map[clade] = colours[alpha_sort_i]
+                clades.pop(i)
+                alpha_sort_i += 1
+                i = len(clades)
+            else:
+                pass
+            i += 1
+
+    if len(palette_taxa_map) != num_clades:
+        sys.stderr.write("ERROR: Some clades were not identified in the lineages provided!\n")
+        sys.stderr.write("Clades = " + str(num_clades) + "\nClades mapped = " + str(len(palette_taxa_map)) + "\n")
+        sys.stderr.write(str(clades) + "\n")
+        raise AssertionError
+
     return palette_taxa_map
 
 
-def write_colours_styles(args, colours, clades, tree_number_translations):
-    palette_taxa_map = map_colours_to_taxa(clades, colours)
+def write_colours_styles(args, colours, taxa_colours):
+
+    clades = set()
+    lineages = set()
+    for marker in taxa_colours:
+        ref = taxa_colours[marker]
+        for leaf in ref.tree_leaves:
+            lineages.add(leaf.lineage)
+        for num in ref.unique_clades:
+            clades.add(ref.unique_clades[num])
+
+    palette_taxa_map = map_colours_to_taxa(list(clades), list(lineages), colours)
 
     colours_style_header = "TREE_COLORS\nSEPARATOR TAB\nDATA\n"
-    colours_style_string = ""
-    for leaf in tree_number_translations:
-        colours_style_line = list()
-        for taxon in palette_taxa_map:
-            if re.search(taxon, leaf.lineage):
-                col = palette_taxa_map[taxon]
-                # colours_style_line = [str(leaf.number), "label", col, "bold", str(2)]
-                colours_style_line = [str(leaf.number), "range", col, taxon]
-                break
-        if len(colours_style_line) > 0:
-            colours_style_string += "\t".join(colours_style_line) + "\n"
 
-    try:
-        cs_handler = open(args.output, 'w')
-    except IOError:
-        sys.stderr.write("ERROR: Unable to open " + args.output + " for writing!\n")
-        raise IOError
+    colourless = set()
 
-    if args.verbose:
-        sys.stdout.write("\tOutput is available in " + args.output + ".\n")
+    for marker in taxa_colours:
+        colours_style_string = ""
+        ref = taxa_colours[marker]
+        for leaf in ref.tree_leaves:
+            coloured = False
+            colours_style_line = list()
+            for taxon in palette_taxa_map:
+                if re.search(taxon, leaf.lineage):
+                    col = palette_taxa_map[taxon]
+                    coloured = True
+                    colours_style_line = [str(leaf.number), "range", col, taxon]
+                    break
+            if len(colours_style_line) > 0:
+                colours_style_string += "\t".join(colours_style_line) + "\n"
+            if coloured is False:
+                colourless.add(leaf.lineage)
+        try:
+            cs_handler = open(ref.output, 'w')
+        except IOError:
+            sys.stderr.write("ERROR: Unable to open " + ref.output + " for writing!\n")
+            raise IOError
 
-    cs_handler.write(colours_style_header)
-    cs_handler.write(colours_style_string)
-    cs_handler.close()
+        sys.stdout.write("Output is available in " + ref.output + ".\n")
+        sys.stdout.write(str(len(colourless)) + " lineages were not assigned to a colour.\n")
+        if args.verbose:
+            for l in colourless:
+                sys.stderr.write("\t" + l + "\n")
+            sys.stderr.flush()
+
+        cs_handler.write(colours_style_header)
+        cs_handler.write(colours_style_string)
+        cs_handler.close()
 
     return
 
 
+def init_taxa_colours(args):
+    taxa_colours = dict()
+    for tax_ids_table in args.tax_ids_table:
+        if re.match(".*tax_ids_(.*).txt$", tax_ids_table):
+            ref = TaxaColours(tax_ids_table)
+            taxa_colours[ref.marker] = ref
+            if args.verbose:
+                sys.stdout.write("\tGenerating colour palette for " + ref.marker + ".\n")
+        else:
+            sys.stderr.write("ERROR: name of tax_ids file is formatted oddly.\n")
+            sys.exit(2)
+
+    return taxa_colours
+
+
+def find_rank_depth(args):
+    target_depth = 0
+    for depth in rank_depth_map:
+        if rank_depth_map[depth] == args.rank:
+            target_depth = depth - 1
+            break
+    if target_depth == 0:
+        sys.stderr.write("ERROR: rank '" + args.rank + "' not accepted!\n")
+        sys.exit(3)
+    return target_depth
+
+
 def main():
     args = get_arguments()
-    tree_number_translations = read_tax_ids_file(args, args.tax_ids_table)
-    clades = get_clades(args, tree_number_translations)
-    colours = get_colours(clades, args.palette)
-    write_colours_styles(args, colours, clades, tree_number_translations)
+    taxa_colours = init_taxa_colours(args)
+    taxa_colours = read_tax_ids_file(args, taxa_colours)
+    target_depth = find_rank_depth(args)
+    for marker in sorted(taxa_colours):
+        ref = taxa_colours[marker]
+        ref.get_clades(args, target_depth)
+    colours = get_colours(args, taxa_colours, args.palette)
+    write_colours_styles(args, colours, taxa_colours)
 
 
 if __name__ == "__main__":

@@ -317,7 +317,7 @@ def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
 
 
 def clean_lineage_string(lineage):
-    bad_strings = ["cellular organisms; ", "delta/epsilon subdivisions; "]
+    bad_strings = ["cellular organisms; ", "delta/epsilon subdivisions; ", "\(miscellaneous\)"]
     for bs in bad_strings:
         lineage = re.sub(bs, '', lineage)
     # filter 'group'

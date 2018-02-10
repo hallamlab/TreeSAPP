@@ -119,7 +119,7 @@
 119	Methanosarcina barkeri CM1 | AKJ39332.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina; Methanosarcina barkeri
 120	Methermicoccus shengliensis | WP_042687032.1	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methermicoccaceae; Methermicoccus
 121	Methanopyrus sp. KOL6 | WP_088335803.1	cellular organisms; Archaea; Euryarchaeota; Methanopyri; Methanopyrales; Methanopyraceae; Methanopyrus
-122	Tetrahydromethanopterin S-methyltransferase subunit C | O32865.1	cellular organisms; Archaea; Euryarchaeota; Methanopyri; Methanopyrales; Methanopyraceae; Methanopyrus; Methanopyrus kandleri
+122	Methanopyrus kandleri | O32865.1	cellular organisms; Archaea; Euryarchaeota; Methanopyri; Methanopyrales; Methanopyraceae; Methanopyrus; Methanopyrus kandleri
 123	uncultured archaeon GZfos33E1 | AAU83730.1	cellular organisms; Archaea; environmental samples
 124	uncultured archaeon GZfos12E2 | AAU82247.1	cellular organisms; Archaea; environmental samples
 125	uncultured archaeon | CBH38257.1	cellular organisms; Archaea; environmental samples
