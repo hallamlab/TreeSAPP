@@ -1,0 +1,39 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL Order
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+14 #490755 Archaeoglobales
+12 #490755 Archaeoglobales
+17|13 #490755 Archaeoglobales
+8|9 #6AB86F Thorarchaeota
+7|10 #6AB86F Thorarchaeota
+11 #6AB86F Thorarchaeota
+163|168 #50A65A Bathyarchaeota
+156|155 #50A65A Bathyarchaeota
+158 #50A65A Bathyarchaeota
+166 #50A65A Bathyarchaeota
+167|162 #50A65A Bathyarchaeota
+160 #50A65A Bathyarchaeota
+159|161 #50A65A Bathyarchaeota
+6 #f7f7f7 Odinarchaeota
+5|3 #d9f0d3 Lokiarchaeota
+4 #d9f0d3 Lokiarchaeota
+2|1 #d9f0d3 Lokiarchaeota
+75|84 #8D589D Methanomicrobiales
+146 #A985B9 Methanosarcinales
+147|94 #A985B9 Methanosarcinales
+140|144 #A985B9 Methanosarcinales
+124|145 #A985B9 Methanosarcinales
+171 #146A2F Desulfurococcales
+172|173 #146A2F Desulfurococcales
+152|151 #00441B Candidate Division MSBL1
+150 #C7ABD2 Thermoplasmatales
+175|148 #9A71AC ANME-1
+59|50 #71267E Methanococcales
+29|41 #5E176A Methanobacteriales
+149 #B899C7 Methanopyrales
+65|65 #803E8E Methanocellales
+73|86 #8D589D Methanomicrobiales

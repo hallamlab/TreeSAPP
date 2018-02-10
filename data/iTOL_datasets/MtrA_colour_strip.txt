@@ -1,0 +1,24 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL Order
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+7|41 #5E176A Methanobacteriales
+33|45 #5E176A Methanobacteriales
+64|68 #71267E Methanococcales
+72|73 #803E8E Methanocellales
+71|70 #803E8E Methanocellales
+103|77 #8D589D Methanomicrobiales
+185|117 #8D589D Methanomicrobiales
+146|112 #8D589D Methanomicrobiales
+157|165 #A985B9 Methanosarcinales
+187|109 #A985B9 Methanosarcinales
+183|186 #A985B9 Methanosarcinales
+189 #B899C7 Methanopyrales
+192|193 #C7ABD2 Thermoplasmatales
+206|199 #227E3B Nitrosopumilaceae
+198 #50A65A Bathyarchaeota
+3|2 #6AB86F Thorarchaeota
+217|188 #9A71AC ANME-1
