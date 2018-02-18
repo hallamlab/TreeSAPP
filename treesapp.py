@@ -30,7 +30,7 @@ try:
     from utilities import Autovivify, os_type, which, find_executables, generate_blast_database
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein
     from fasta import format_read_fasta, get_headers, write_new_fasta
-    from entish import create_tree_info_hash
+    from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree
     from external_command_interface import launch_write_command
 
     import _tree_parser
@@ -2682,56 +2682,6 @@ def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_trans
         sys.stdout.flush()
 
     return final_raxml_output_files
-
-
-def format_children_assignments(children_assignments, tree_info):
-    children_of_nodes = children_assignments.split(';')
-    for family_string in children_of_nodes:
-        parent, children = family_string.split('=')
-        for node in children.split(','):
-            tree_info['children_of_node'][parent][node] = 1
-    return tree_info
-
-
-def format_parent_assignments(parent_assignments, tree_info):
-    parents_of_nodes = parent_assignments.split(',')
-    for pair in parents_of_nodes:
-        node, parent = pair.split(':')
-        tree_info['parent_of_node'][node] = parent
-    return tree_info
-
-
-def format_subtrees(subtrees):
-    terminal_children_of_reference = Autovivify()
-    subtree_list = subtrees.split(',')
-    for subtree in subtree_list:
-        nodes = subtree.split(' ')
-        node_ints = [int(x) for x in nodes]
-        sorted_node_strings = [str(i) for i in sorted(node_ints)]
-        terminal_children_of_reference[' '.join(sorted_node_strings) + ' '] = 1
-    return terminal_children_of_reference
-
-
-def deconvolute_assignments(reference_tree_assignments):
-    tree_info = create_tree_info_hash()
-    children_assignments, parent_assignments, subtrees = reference_tree_assignments.strip().split('\n')
-    tree_info = format_children_assignments(children_assignments, tree_info)
-    tree_info = format_parent_assignments(parent_assignments, tree_info)
-    terminal_children_of_reference = format_subtrees(subtrees)
-    return tree_info, terminal_children_of_reference
-
-
-def read_and_understand_the_reference_tree(reference_tree_file, denominator):
-    # Using the C++ _tree_parser extension:
-    reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-    reference_tree_assignments = _tree_parser._get_parents_and_children(reference_tree_elements)
-    if reference_tree_assignments == "$":
-        sys.stderr.write("Poison pill received from " + denominator + "\n")
-        sys.stderr.flush()
-        return denominator, None
-    else:
-        reference_tree_info, terminal_children_of_reference = deconvolute_assignments(reference_tree_assignments)
-        return denominator, terminal_children_of_reference
 
 
 def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
