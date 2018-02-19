@@ -113,6 +113,11 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
 def get_header_format(header, code_name):
     """
     Used to decipher which formatting style was used: NCBI, FunGenes, or other
+    HOW TO ADD A NEW REGULAR EXPRESSION:
+        1. create a new compiled regex pattern, like below
+        2. add the name of the compiled regex pattern to the header_regexes dictionary
+        3. if the regex groups are new and complicated (parsing more than the accession and organism info),
+        alter return_sequence_info_groups in create_treesapp_ref_data to add another case
     :param header: A sequences header from a FASTA file
     :param code_name:
     :return:
@@ -132,6 +137,7 @@ def get_header_format(header, code_name):
     fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
     fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
+    treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")
     refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")
 
     # Nucleotide databases:
@@ -158,7 +164,9 @@ def get_header_format(header, code_name):
                               silva_arb_re: "silva",
                               refseq_nuc_re: "refseq_nuc",
                               nr_re: "nr"},
-                      "ambig": {ncbi_ambiguous: "ncbi_ambig", genbank_exact_genome: "gen_genome"}
+                      "ambig": {ncbi_ambiguous: "ncbi_ambig",
+                                genbank_exact_genome: "gen_genome",
+                                treesapp_re: "treesapp"}
                       }
 
     header_format_re = None

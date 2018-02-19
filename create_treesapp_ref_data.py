@@ -685,6 +685,64 @@ def order_dict_by_lineage(fasta_replace_dict):
     return sorted_lineage_dict
 
 
+def threshold(lst, confidence="low"):
+    """
+
+    :param lst:
+    :param confidence:
+    :return:
+    """
+    if confidence == "low":
+        # Majority calculation
+        index = round(len(lst)*0.51)-1
+    elif confidence == "medium":
+        # >=75% of the list is reported
+        index = round(len(lst)*0.75)-1
+    else:
+        # confidence is "high" and >=90% of the list is reported
+        index = round(len(lst)*0.9)-1
+    return sorted(lst, reverse=True)[index]
+
+
+def estimate_taxonomic_redundancy(args, reference_dict):
+    """
+
+    :param args:
+    :param reference_dict:
+    :return:
+    """
+    # TODO: Factor proximity of leaves in the tree into this measure
+    # For instance, if the two or so species of the same genus are in the tree,
+    # are they also beside each other in the same clade or are they located in different clusters?
+    lowest_reliable_rank = "Strain"
+    rank_depth_map = {1: "Kingdoms", 2: "Phyla", 3: "Classes", 4: "Orders", 5: "Families", 6: "Genera", 7: "Species"}
+    taxa_counts = dict()
+    for depth in rank_depth_map:
+        name = rank_depth_map[depth]
+        taxa_counts[name] = dict()
+    for mltree_id_key in sorted(reference_dict.keys(), key=int):
+        lineage = reference_dict[mltree_id_key].lineage
+        position = 1
+        taxa = lineage.split('; ')
+        while position < len(taxa) and position < 8:
+            if taxa[position] not in taxa_counts[rank_depth_map[position]]:
+                taxa_counts[rank_depth_map[position]][taxa[position]] = 0
+            taxa_counts[rank_depth_map[position]][taxa[position]] += 1
+            position += 1
+    for depth in rank_depth_map:
+        rank = rank_depth_map[depth]
+        redundancy = list()
+        for taxon in taxa_counts[rank]:
+            redundancy.append(taxa_counts[rank][taxon])
+        if threshold(redundancy, "medium") == 1:
+            lowest_reliable_rank = rank
+            break
+
+    sys.stdout.write("Lowest reliable rank for taxonomic classification is: " + lowest_reliable_rank + "\n")
+
+    return lowest_reliable_rank
+
+
 def summarize_reference_taxa(reference_dict):
     # Not really interested in Cellular Organisms or Strains.
     rank_depth_map = {1: "Kingdoms", 2: "Phyla", 3: "Classes", 4: "Orders", 5: "Families", 6: "Genera", 7: "Species"}
@@ -914,13 +972,14 @@ def find_model_used(raxml_info_file):
     return model
 
 
-def update_build_parameters(args, code_name, aa_model):
+def update_build_parameters(args, code_name, aa_model, lowest_reliable_rank):
     """
     Function to update the data/tree_data/ref_build_parameters.tsv file with information on this new reference sequence
     Format of file is "code_name       denominator     aa_model        cluster_identity        last_updated"
     :param args: command-line arguments objects
     :param code_name: 
-    :param aa_model: 
+    :param aa_model:
+    :param lowest_reliable_rank:
     :return: 
     """
     param_file = args.treesapp + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
@@ -931,7 +990,7 @@ def update_build_parameters(args, code_name, aa_model):
 
     date = strftime("%d_%b_%Y", gmtime())
 
-    build_list = [code_name, "Z1111", "PROTGAMMA" + aa_model, args.identity, date]
+    build_list = [code_name, "Z1111", "PROTGAMMA" + aa_model, args.identity, lowest_reliable_rank, date]
     params.write("\t".join(build_list) + "\n")
 
     return
@@ -1059,6 +1118,7 @@ def main():
 
     if args.verbose:
         summarize_reference_taxa(fasta_replace_dict)
+    lowest_reliable_rank = estimate_taxonomic_redundancy(args, fasta_replace_dict)
 
     fasta_replaced_file = code_name + ".fc.repl.fasta"
     fasta_mltree = code_name + ".fa"
@@ -1185,7 +1245,7 @@ def main():
 
     annotate_partition_tree(code_name, fasta_replace_dict, raxml_out + os.sep + "RAxML_bipartitions." + code_name)
     aa_model = find_model_used(raxml_out + os.sep + "RAxML_info." + code_name)
-    update_build_parameters(args, code_name, aa_model)
+    update_build_parameters(args, code_name, aa_model, lowest_reliable_rank)
 
     sys.stdout.write("Data for " + code_name + " has been generated successfully.\n")
     terminal_commands(final_output_folder, code_name)

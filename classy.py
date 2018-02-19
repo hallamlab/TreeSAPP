@@ -778,3 +778,17 @@ class NodeRetrieverWorker(Process):
             self.task_queue.task_done()
             self.result_queue.put(subtrees)
         return
+
+
+class MarkerBuild:
+    def __init__(self, build_param_line):
+        build_param_fields = build_param_line.split('\t')
+        if len(build_param_fields) != 6:
+            sys.stderr.write("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + build_param_line)
+            raise ValueError
+        self.cog = build_param_fields[0]
+        self.denominator = build_param_fields[1]
+        self.model = build_param_fields[2]
+        self.pid = build_param_fields[3]
+        self.lowest_confident_rank = build_param_fields[4]
+        self.update = build_param_fields[5]
