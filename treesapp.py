@@ -27,8 +27,8 @@ try:
     from os.path import isfile, join
     from time import gmtime, strftime
 
-    from utilities import Autovivify, os_type, which, find_executables, generate_blast_database
-    from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein
+    from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string
+    from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild
     from fasta import format_read_fasta, get_headers, write_new_fasta
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree
     from external_command_interface import launch_write_command
@@ -1733,7 +1733,7 @@ def get_alignment_dims(args, cog_list):
     return alignment_dimensions_dict
 
 
-def multiple_alignments(args, genewise_summary_files, cog_list):
+def multiple_alignments(args, genewise_summary_files, cog_list, marker_build_dict):
     """
     The most important inputs are the genewise summary files
     :param args: Command-line argument object from get_options and check_parser_arguments
@@ -1747,14 +1747,13 @@ def multiple_alignments(args, genewise_summary_files, cog_list):
     3. models_to_be_used is a dictionary of contig: model to be used
     (for example: {'R0016_GOUB3081.b1': 'GTRGAMMA'}
     """
-    non_wag_cog_list = get_non_wag_cogs(args)
     singlehit_files = prepare_and_run_hmmalign(args, genewise_summary_files, cog_list)
     concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)
-    models_to_be_used = find_evolutionary_models(args, singlehit_files, non_wag_cog_list)
+    models_to_be_used = find_evolutionary_models(args, singlehit_files, marker_build_dict)
     return concatenated_mfa_files, models_to_be_used
 
 
-def find_evolutionary_models(args, singlehit_files, non_wag_cog_list):
+def find_evolutionary_models(args, singlehit_files, marker_build_dict):
     models_to_be_used = dict()
     for f_contig in sorted(singlehit_files.keys()):
         if re.search(r'\A(.)', f_contig):
@@ -1773,8 +1772,8 @@ def find_evolutionary_models(args, singlehit_files, non_wag_cog_list):
                 sys.stderr.write("ERROR: Unable to parse the COG ID from " + alignment + "\n")
                 sys.exit(12)
             # Determine what type of gene is currently represented, or raise an error
-            if non_wag_cog_list[denominator][cog]:
-                model_to_be_used = non_wag_cog_list[denominator][cog]
+            if denominator in marker_build_dict:
+                model_to_be_used = marker_build_dict[denominator].model
             else:
                 model_to_be_used = 'PROTGAMMAWAG'
             models_to_be_used[f_contig] = model_to_be_used
@@ -1870,30 +1869,32 @@ def prepare_and_run_hmmalign(args, genewise_summary_files, cog_list):
                          ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return hmmalign_singlehit_files
-                   
-# TODO: replace this function with parse_ref_build_params
-def get_non_wag_cogs(args):
-    """
-    Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
-    :param args: Command-line argument object returned by get_options and check_parser_arguments
-    """
-    non_wag_cog_list = Autovivify()
-    non_wag_cogs_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
-    try:
-        cogin = open(non_wag_cogs_file, 'r')
-    except IOError:
-        sys.exit('ERROR: Can\'t open ' + non_wag_cogs_file + '!\n')
 
-    for line in cogin:
-        line = line.strip()
-        try:
-            cog, denominator, model, pid, update = line.split('\t')
-        except ValueError:
-            raise ValueError("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + line)
-        non_wag_cog_list[denominator][cog] = model
-
-    cogin.close()
-    return non_wag_cog_list
+#
+# # TODO: replace this function with parse_ref_build_params
+# def get_non_wag_cogs(args):
+#     """
+#     Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
+#     :param args: Command-line argument object returned by get_options and check_parser_arguments
+#     """
+#     non_wag_cog_list = Autovivify()
+#     non_wag_cogs_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
+#     try:
+#         cogin = open(non_wag_cogs_file, 'r')
+#     except IOError:
+#         sys.exit('ERROR: Can\'t open ' + non_wag_cogs_file + '!\n')
+#
+#     for line in cogin:
+#         line = line.strip()
+#         try:
+#             cog, denominator, model, pid, lowest_confident_rank, update = line.split('\t')
+#         except ValueError:
+#             sys.stderr.write("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + line)
+#             sys.exit(7)
+#         non_wag_cog_list[denominator][cog] = model
+#
+#     cogin.close()
+#     return non_wag_cog_list
 
 
 def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
@@ -3779,9 +3780,9 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
     return
 
 
-def parse_ref_build_params(args, current_marker_code, create_func_tree):
+def parse_ref_build_params(args, current_marker_code=None, create_func_tree=None):
     """
-    Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
+    Returns a dictionary of MarkerBuild objects storing information pertaining to the build parameters of each marker.
     :param args: Command-line argument object returned by get_options and check_parser_arguments
     :param current_marker_code: The code of the marker currently being updated (e.g. M0701)
     :param create_func_tree: An instance of the CreateFuncTree class
@@ -3792,24 +3793,25 @@ def parse_ref_build_params(args, current_marker_code, create_func_tree):
     except IOError:
         sys.exit('ERROR: Can\'t open ' + ref_build_parameters + '!\n')
 
+    marker_build_dict = dict()
     for line in param_handler:
         line = line.strip()
-        try:
-            cog, marker_code, model, pid, update = line.split('\t')
-        except ValueError:
-            raise ValueError("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + line)
-        if marker_code == current_marker_code:
-            try:
-                create_func_tree.cluster_id = float(pid)
-            except ValueError:
-                sys.stderr.write("WARNING: cluster percent identity in data/tree_data/ref_build_parameters.tsv "
-                                 "was ignored due to invalid value.\n Processing with uclust_identity.\n")
-                create_func_tree.cluster_id = float(args.uclust_identity)
-            create_func_tree.raxml_model = model
+        marker_build = MarkerBuild(line)
+        marker_build_dict[marker_build.denominator] = marker_build
+
+        if create_func_tree:
+            if marker_build.denominator == current_marker_code:
+                try:
+                    create_func_tree.cluster_id = float(marker_build.pid)
+                except ValueError:
+                    sys.stderr.write("WARNING: cluster percent identity in data/tree_data/ref_build_parameters.tsv "
+                                     "was ignored due to invalid value.\n Processing with uclust_identity.\n")
+                    create_func_tree.cluster_id = float(args.uclust_identity)
+                create_func_tree.raxml_model = marker_build.model
 
     param_handler.close()
 
-    return
+    return marker_build_dict
 
 
 def get_reference_sequence_dict(args, update_tree):
@@ -4167,9 +4169,6 @@ def lowest_common_taxonomy(children, lineage_complete):
         if len(lineages_considered) == 0:
             sys.stderr.write("WARNING: all lineages were highly incomplete for ")
         else:
-            taxonomic_rank_depth = {0: "cellular organisms", 1: "Kingdom",
-                                    2: "Phylum", 3: "Class", 4: "Order",
-                                    5: "Family", 6: "Genus", 7: "Species"}
             hits = dict()
             consensus = list()
             i = 0
@@ -4206,17 +4205,43 @@ def lowest_common_taxonomy(children, lineage_complete):
     return lineage_string
 
 
-def write_tabular_output(args, tree_saps, tree_numbers_translation):
+def lowest_confident_taxonomy(lct, marker_build_object):
+    """
+    Truncates the initial taxonomic assignment to the lowest rank with reasonable confidence.
+    This rank is determined during reference package construction using create_treesapp_ref_data,
+    based on the number of children in a branch.
+    :param lct: String for the taxonomic lineage ('; ' separated)
+    :param marker_build_object: Object of MarkerBuild clss
+    :return: String representing 'confident' taxonomic assignment for the sequence
+    """
+    taxonomic_rank_depth = {0: "Kingdoms", 1: "Phyla", 2: "Classes", 3: "Orders",
+                            4: "Families", 5: "Genera", 6: "Species"}
+    confident_assignment = list()
+
+    if marker_build_object.lowest_confident_rank not in list(taxonomic_rank_depth.values()):
+        raise AssertionError("Unable to find " + marker_build_object.lowest_confident_rank + " in taxonomic map!")
+    else:
+        purified_lineage_list = clean_lineage_string(lct).split("; ")
+        i = 0
+        while taxonomic_rank_depth[i] != marker_build_object.lowest_confident_rank and i < len(purified_lineage_list):
+            confident_assignment.append(purified_lineage_list[i])
+            i += 1
+
+    return "; ".join(confident_assignment)
+
+
+def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict):
     """
     Fields:
     Marker,Taxonomy,Query,Abundance
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param tree_saps: A dictionary containing TreeProtein objects
     :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
+    :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
     :return:
     """
     mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
-    tab_out_string = "Marker\tTaxonomy\tQuery\tAbundance\n"
+    tab_out_string = "Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\n"
     try:
         tab_out = open(mapping_output, 'w')
     except IOError:
@@ -4257,9 +4282,10 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation):
                         sys.stderr.write(str(tree_sap.contig_name) + "\n")
 
                 # tree_sap.summarize()
-                tab_out_string += '\t'.join([tree_sap.name,
-                                             tree_sap.lct,
-                                             tree_sap.contig_name,
+                tab_out_string += '\t'.join([tree_sap.contig_name,
+                                             tree_sap.name,
+                                             clean_lineage_string(tree_sap.lct),
+                                             lowest_confident_taxonomy(tree_sap.lct, marker_build_dict[denominator]),
                                              str(tree_sap.abundance)]) + "\n"
         if args.verbose:
             sys.stdout.write("\t" + str(unclassified) + " " + denominator + " sequences were not classified.\n")
@@ -4387,6 +4413,7 @@ def main(argv):
     args = check_previous_output(args)
     cog_list, text_of_analysis_type = create_cog_list(args)
     tree_numbers_translation = read_species_translation_files(args, cog_list)
+    marker_build_dict = parse_ref_build_params(args)
     if args.check_trees:
         validate_inputs(args, cog_list)
 
@@ -4442,7 +4469,7 @@ def main(argv):
             # STAGE 4: Run hmmalign and Gblocks to produce the MSAs required to perform the subsequent ML estimations
         concatenated_mfa_files, models_to_be_used = multiple_alignments(args,
                                                                         genewise_summary_files,
-                                                                        cog_list)
+                                                                        cog_list, marker_build_dict)
         get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
 
         if args.filter_align:
@@ -4467,7 +4494,7 @@ def main(argv):
     else:
         tree_saps = produce_itol_inputs(args, cog_list)
 
-    write_tabular_output(args, tree_saps, tree_numbers_translation)
+    write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict)
     delete_files(args, 4)
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
