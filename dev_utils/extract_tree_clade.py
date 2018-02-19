@@ -219,7 +219,8 @@ def write_cluster_fasta(args, clade_members, fasta_dict, tax_ids):
             for ref_tree_leaf in tax_ids:
                 if ref_tree_leaf.number == leaf:
                     accession = ref_tree_leaf.description.split(" | ")[1]
-                    header_string = '>' + accession + " [" + ref_tree_leaf.description.split(" | ")[0] + ']'
+                    header_string = '>' + accession + ' ' + cluster + " [" +\
+                                    ref_tree_leaf.description.split(" | ")[0] + ']'
                     break
             if header_string:
                 fasta_handler.write(header_string + "\n" + fasta_dict[leaf] + "\n")
