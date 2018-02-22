@@ -44,3 +44,18 @@ def validate_success(return_code, cmd_list):
         return 0
     else:
         return 1
+
+
+def setup_progress_bar(num_items):
+    if num_items > 100:
+        progress_bar_width = 100
+        step_proportion = float(num_items) / progress_bar_width
+    else:
+        progress_bar_width = num_items
+        step_proportion = 1
+
+    sys.stdout.write("[%s]" % (" " * progress_bar_width))
+    sys.stdout.write("\b" * (progress_bar_width+1))
+    sys.stdout.flush()
+
+    return step_proportion

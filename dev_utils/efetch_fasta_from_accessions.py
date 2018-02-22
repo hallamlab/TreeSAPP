@@ -3,9 +3,17 @@
 import time
 import re
 import sys
+import os
 import argparse
+import inspect
 from urllib import error
 from Bio import Entrez
+
+cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
+if cmd_folder not in sys.path:
+    sys.path.insert(0, cmd_folder)
+sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
+from external_command_interface import setup_progress_bar
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -95,21 +103,6 @@ def read_stockholm(args):
         sys.stdout.write(str(len(accessions)) + " accessions parsed from " + args.input + "\n")
 
     return accessions
-
-
-def setup_progress_bar(num_items):
-    if num_items > 100:
-        progress_bar_width = 100
-        step_proportion = float(num_items) / progress_bar_width
-    else:
-        progress_bar_width = num_items
-        step_proportion = 1
-
-    sys.stdout.write("[%s ]" % (" " * progress_bar_width))
-    sys.stdout.write("\b" * (progress_bar_width + 3))
-    sys.stdout.flush()
-
-    return step_proportion
 
 
 def parse_entrez_xml(args, xml_string):

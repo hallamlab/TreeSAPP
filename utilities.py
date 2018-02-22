@@ -127,9 +127,12 @@ def query_entrez_taxonomy(search_term):
     record = Entrez.read(handle)
     try:
         org_id = record["IdList"][0]
-        handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
-        records = Entrez.read(handle)
-        lineage = str(records[0]["Lineage"])
+        if org_id:
+            handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
+            records = Entrez.read(handle)
+            lineage = str(records[0]["Lineage"])
+        else:
+            return
     except IndexError:
         if 'QueryTranslation' in record.keys():
             # If 'QueryTranslation' is returned, use it for the final Entrez query

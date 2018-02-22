@@ -68,6 +68,9 @@ def get_arguments():
     else:
         args.py_version = 2
 
+    if not os.path.isdir(args.output):
+        os.makedirs(args.output)
+
     return args
 
 
@@ -204,9 +207,6 @@ def remove_dashes_from_msa_dict(fasta_dict):
 
 
 def write_cluster_fasta(args, clade_members, fasta_dict, tax_ids):
-    if not os.path.isdir(args.output):
-        os.makedirs(args.output)
-
     for cluster in clade_members:
         output_fasta = args.output + os.sep + args.prefix + str(cluster) + ".fasta"
         try:
