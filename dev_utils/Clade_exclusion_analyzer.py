@@ -227,7 +227,9 @@ def identify_excluded_clade(args, assignment_dict, trie, marker):
     These data are returned and sorted in the form of a dictionary.
     :param: assignment_dict:
     :param: trie: A pygtrie.StringTrie object containing all reference sequence lineages
-    :return: rank_assigned_dict; key is rank, values are tuples of optimal assignment and actual assignment
+    :return: rank_assigned_dict; key is rank, values are dictionaries with assigned (reference) lineage as key and
+    tuples of (optimal assignment, actual assignment) as values.
+    E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
     """
     rank_assigned_dict = dict()
     for depth in rank_depth_map:
@@ -255,6 +257,7 @@ def identify_excluded_clade(args, assignment_dict, trie, marker):
                 rank_assigned_dict[rank_depth_map[len(contained_taxonomy.split("; ")) + 1]].append(
                     {ref_lineage: (contained_taxonomy, query_lineage)})
             else:
+                # TODO: Fix the handling of this. Currently printed for strains when it shouldn't be
                 sys.stderr.write("\tWARNING: number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n")
                 sys.stderr.write("\tThis sequence will be removed from clade exclusion calculations\n")
     return rank_assigned_dict
@@ -277,16 +280,48 @@ def determine_offset(classified, optimal):
     return offset
 
 
+def summarize_taxonomic_diversity(query_lineages):
+    """
+    Function for summarizing the taxonomic diversity of a reference dataset by rank
+    :param query_lineages: A list of lineages represented in the test dataset sequences
+    :return:
+    """
+    # Not really interested in Cellular Organisms or Strains.
+    rank_depth_map = {0: "Kingdoms", 1: "Phyla", 2: "Classes", 3: "Orders", 4: "Families", 5: "Genera", 6: "Species"}
+    taxa_counts = dict()
+    for depth in rank_depth_map:
+        name = rank_depth_map[depth]
+        taxa_counts[name] = set()
+    for lineage in sorted(query_lineages):
+        position = 0
+        taxa = lineage.split('; ')
+        while position < len(taxa) and position < 7:
+            taxa_counts[rank_depth_map[position]].add(taxa[position])
+            position += 1
+    sys.stdout.write("Number of unique lineages:\n")
+    for depth in rank_depth_map:
+        rank = rank_depth_map[depth]
+        buffer = " "
+        while len(rank) + len(str(len(taxa_counts[rank]))) + len(buffer) < 12:
+            buffer += ' '
+        sys.stdout.write("\t" + rank + buffer + str(len(taxa_counts[rank])) + "\n")
+    sys.stdout.flush()
+
+    return
+
+
 def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
     """
     Correct if: optimal_assignment == query_lineage
     Correct if:
     :param rank_assigned_dict:
-    :param marker:
+    :param marker: Name of the marker currently being evaluated (e.g., nifHc1, mcrA)
+    :param clade_exclusion_strings: A list of strings that is appended to. Finally used for writing the tabular output.
     :return:
     """
-    sys.stdout.write("Clade-level specificities:\n")
+    sys.stdout.write("Clade-level specificities for " + marker + ":\n")
     clade_exclusion_tabular_string = ""
+    clades_tested = list()
     for depth in sorted(rank_depth_map):
         rank = rank_depth_map[depth]
         if rank == "Cellular organisms":
@@ -298,13 +333,18 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
             taxonomic_distance[i] = 0
         sys.stdout.write("\t" + rank + "\t")
         if len(rank_assigned_dict[rank]) == 0:
-            sys.stdout.write("NA\n")
+            sys.stdout.write("0\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n")
         else:
             for assignments in rank_assigned_dict[rank]:
                 # if rank == "Family":
                 #     print(assignments)
                 for classified in assignments:
+                    if classified.split("; ")[0] == "Cellular organisms":
+                        sys.stderr.write("ERROR: lineage string cleaning has gone awry somewhere. "
+                                         "The root rank should be a Kingdom (e.g. Bacteria or Archaea) but nope.\n")
+                        sys.exit(9)
                     optimal, query = assignments[classified]
+                    clades_tested.append(query)
                     if optimal == classified:
                         offset = 0
                         correct += 1
@@ -317,7 +357,7 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
 
             for dist in taxonomic_distance:
                 if taxonomic_distance[dist] > 0:
-                    taxonomic_distance[dist] = str(round(float(taxonomic_distance[dist]/rank_total), 3))
+                    taxonomic_distance[dist] = str(round(float((taxonomic_distance[dist]*100)/rank_total), 1))
                 else:
                     taxonomic_distance[dist] = str(0.0)
                 clade_exclusion_tabular_string += marker + "\t" + rank + "\t"
@@ -326,8 +366,83 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
                 clade_exclusion_strings.append(clade_exclusion_tabular_string)
                 clade_exclusion_tabular_string = ""
             sys.stdout.write('\t'.join(taxonomic_distance.values()) + "\n")
+    summarize_taxonomic_diversity(clades_tested)
 
     return clade_exclusion_strings
+
+
+def determine_containment(args, marker, rank_assigned_dict):
+    """
+    Determines the accuracy of sequence classifications of all sequences contained at different taxonomic ranks
+    :param args:
+    :param marker: Name of the marker currently being evaluated (e.g., nifHc1, mcrA)
+    :param rank_assigned_dict: key is rank, values are dictionaries with assigned (reference) lineage as key and
+    tuples of (optimal assignment, actual assignment) as values.
+    E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
+    """
+    sys.stdout.write("Clade-level containments for " + marker + ":\n")
+    sys.stdout.write("\tRank\t\tCorrect (%)\tTotal Evaluated\tToo Shallow (%)\n")
+    # Set up collection for this analysis
+    all_assignments = list()
+    for rank in rank_assigned_dict:
+        if len(rank_assigned_dict[rank]) > 0:
+            all_assignments += rank_assigned_dict[rank]
+    # Begin parsing through the depths
+    for depth in sorted(rank_depth_map):
+        rank = rank_depth_map[depth]
+        depth = depth - 1
+        if rank in ["Cellular organisms", "Kingdom", "Phylum", "Class", "Order", "Family", "Species", "Strain"]:
+            continue
+        correct = 0
+        incorrect = 0
+        too_shallow = 0
+        rank_total = 0
+        incorrect_assignments = dict()
+        sys.stdout.write("\t" + rank + "\t\t")
+        for assignments in all_assignments:
+            for classified in assignments:
+                rank_total += 1
+                optimal, query = assignments[classified]
+                classified_lineage = classified.split("; ")
+                query_lineage = query.split("; ")
+                if len(classified_lineage) > depth:
+                    # print("\nReference:\t", classified)
+                    # print("Query:\t\t", query)
+                    # print("Optimal:\t", optimal)
+                    try:
+                        if classified_lineage[depth] == query_lineage[depth]:
+                            correct += 1
+                            # print("Correct")
+                        else:
+                            # print("Incorrect - 1")
+                            if query not in incorrect_assignments.keys():
+                                incorrect_assignments[query] = 0
+                            incorrect_assignments[query] += 1
+                            incorrect += 1
+                    except IndexError:
+                        sys.stderr.write(str(depth) + " " + str(classified_lineage) + " " + str(query_lineage))
+                elif len(optimal.split("; ")) > depth:
+                    # print("\nReference:\t", classified)
+                    # print("Query:\t\t", query)
+                    # print("Optimal:\t", optimal)
+                    # print("Incorrect - 2")
+                    if query not in incorrect_assignments.keys():
+                        incorrect_assignments[query] = 0
+                    incorrect_assignments[query] += 1
+                    incorrect += 1
+                else:
+                    too_shallow += 1
+
+        # if incorrect == correct + incorrect:
+        #     print(incorrect_assignments)
+
+        sys.stdout.write(str(round((correct * 100) / (correct + incorrect), 0)) + "\t\t")
+        sys.stdout.write(str(rank_total) + "\t\t")
+        percentage_too_shallow = round(float((too_shallow * 100)/rank_total), 1)
+        sys.stdout.write(str(percentage_too_shallow) + "\n")
+    sys.stdout.write("\n")
+
+    return
 
 
 def clean_classification_names(assignments):
@@ -443,6 +558,31 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     return full_assignments
 
 
+def filter_queries_by_taxonomy(assignments):
+    """
+    Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
+    from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
+    Also removes taxonomies with "*nclassified" in their lineage
+    :param assignments:
+    :return:
+    """
+    deduplicated_assignments = dict()
+    unclassifieds = 0
+    for marker in assignments:
+        deduplicated_assignments[marker] = dict()
+        for ref in assignments[marker]:
+            deduplicated_assignments[marker][ref] = set()
+            for query_taxonomy in assignments[marker][ref]:
+                if re.search("nclassified", query_taxonomy):
+                    unclassifieds += 1
+                else:
+                    deduplicated_assignments[marker][ref].add(query_taxonomy)
+    if unclassifieds > 0:
+        sys.stdout.write(str(unclassifieds) + " query sequences with an unclassified NCBI taxonomy were removed.\n")
+
+    return deduplicated_assignments
+
+
 def write_performance_table(args, clade_exclusion_strings, sensitivity):
     output = args.output + os.sep + "clade_exclusion_performance.tsv"
     try:
@@ -487,6 +627,9 @@ def main():
         # Retrieve taxonomic lineage for each sequence from Entrez API or parsing the header
         assignments = map_full_headers(fasta_headers, header_map, assignments, args.molecule)
     write_intermediate_assignments(args, assignments)
+    # This function could be replaced by a set in map_full_headers but I'd rather perform this task explicitly,
+    # to make it more obvious this is being performed rather than hiding it with sets. Also easier to turn off :)
+    assignments = filter_queries_by_taxonomy(assignments)
     # Get rid of some names, replace underscores with semi-colons
     assignments = clean_classification_names(assignments)
     # Load the reference lineages into a trie (prefix trie)
@@ -503,7 +646,7 @@ def main():
             rank_assigned_dict = identify_excluded_clade(args, assignments, taxonomic_tree, marker)
             # Determine the specificity for each rank
             clade_exclusion_strings = determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings)
-    # TODO: determine the diversity of the tested sequences
+            determine_containment(args, marker, rank_assigned_dict)
     write_performance_table(args, clade_exclusion_strings, sensitivity)
     # Remove the intermediate file since this run completed successfully
     # if os.path.exists(tmp_file):
