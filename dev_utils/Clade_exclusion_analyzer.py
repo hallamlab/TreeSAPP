@@ -182,7 +182,8 @@ def all_possible_assignments(args, tax_ids_file):
         if re.match("^tax_ids_(.*).txt", file_name):
             marker = re.match("^tax_ids_(.*).txt", file_name).group(1)
         else:
-            sys.stderr.write("ERROR: Format of file name is unexpected. Unable to parse marker name! Exiting...\n")
+            sys.stderr.write("ERROR: Format of tax_ids file (" + tax_ids_file +
+                             ") is unexpected. Unable to parse marker name! Exiting...\n")
             sys.exit(7)
     else:
         raise IOError("File doesn't exist: " + tax_ids_file + "\n")
@@ -320,6 +321,7 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
     :return:
     """
     sys.stdout.write("Clade-level specificities for " + marker + ":\n")
+    sys.stdout.write("\tRank\tTotal Evaluated\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\tD=6\tD=7\n")
     clade_exclusion_tabular_string = ""
     clades_tested = list()
     for depth in sorted(rank_depth_map):
@@ -333,7 +335,7 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
             taxonomic_distance[i] = 0
         sys.stdout.write("\t" + rank + "\t")
         if len(rank_assigned_dict[rank]) == 0:
-            sys.stdout.write("0\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n")
+            sys.stdout.write("0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n")
         else:
             for assignments in rank_assigned_dict[rank]:
                 # if rank == "Family":
@@ -353,7 +355,7 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
                         incorrect += 1
                     taxonomic_distance[offset] += 1
             rank_total = correct + incorrect
-            sys.stdout.write(str(rank_total) + "\t")
+            sys.stdout.write(str(rank_total) + "\t\t")
 
             for dist in taxonomic_distance:
                 if taxonomic_distance[dist] > 0:
@@ -381,7 +383,7 @@ def determine_containment(args, marker, rank_assigned_dict):
     E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
     """
     sys.stdout.write("Clade-level containments for " + marker + ":\n")
-    sys.stdout.write("\tRank\t\tCorrect (%)\tTotal Evaluated\tToo Shallow (%)\n")
+    sys.stdout.write("\tRank\t\tTotal Evaluated\tCorrect (%)\tToo Shallow (%)\n")
     # Set up collection for this analysis
     all_assignments = list()
     for rank in rank_assigned_dict:
@@ -391,7 +393,7 @@ def determine_containment(args, marker, rank_assigned_dict):
     for depth in sorted(rank_depth_map):
         rank = rank_depth_map[depth]
         depth = depth - 1
-        if rank in ["Cellular organisms", "Kingdom", "Phylum", "Class", "Order", "Family", "Species", "Strain"]:
+        if rank in ["Cellular organisms", "Species", "Strain"]:
             continue
         correct = 0
         incorrect = 0
@@ -420,7 +422,9 @@ def determine_containment(args, marker, rank_assigned_dict):
                             incorrect_assignments[query] += 1
                             incorrect += 1
                     except IndexError:
-                        sys.stderr.write(str(depth) + " " + str(classified_lineage) + " " + str(query_lineage))
+                        too_shallow += 1
+                        # This indicates TreeSAPP placed the sequence too deep in the tree according to its NCBI lineage
+                        # sys.stderr.write(str(depth) + " " + str(classified_lineage) + " " + str(query_lineage) + "\n")
                 elif len(optimal.split("; ")) > depth:
                     # print("\nReference:\t", classified)
                     # print("Query:\t\t", query)
@@ -436,8 +440,8 @@ def determine_containment(args, marker, rank_assigned_dict):
         # if incorrect == correct + incorrect:
         #     print(incorrect_assignments)
 
-        sys.stdout.write(str(round((correct * 100) / (correct + incorrect), 0)) + "\t\t")
         sys.stdout.write(str(rank_total) + "\t\t")
+        sys.stdout.write(str(round((correct * 100) / (correct + incorrect), 0)) + "\t\t")
         percentage_too_shallow = round(float((too_shallow * 100)/rank_total), 1)
         sys.stdout.write(str(percentage_too_shallow) + "\n")
     sys.stdout.write("\n")
@@ -578,7 +582,9 @@ def filter_queries_by_taxonomy(assignments):
                 else:
                     deduplicated_assignments[marker][ref].add(query_taxonomy)
     if unclassifieds > 0:
-        sys.stdout.write(str(unclassifieds) + " query sequences with an unclassified NCBI taxonomy were removed.\n")
+        sys.stdout.write("\n\t" + str(unclassifieds) + " query sequences with unclassified taxonomies were removed.\n")
+        sys.stdout.write("This is not a problem, its just they have unclassified somewhere in their lineages\n"
+                         "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
 
     return deduplicated_assignments
 
