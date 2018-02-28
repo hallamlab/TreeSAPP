@@ -333,12 +333,14 @@ class ItolJplace:
         self.version = ""
         # List of lineages for each child identified by RAxML.
         self.lineage_list = list()
-        # The LCA taxonomy derived from lineage_list
-        self.lct = ""
-        # Either the number of times that sequence was observed, or the FPKM of that sequence
-        self.abundance = None
         self.node_map = dict()
         self.placements = list()
+        # The LCA taxonomy derived from lineage_list
+        self.lct = ""
+        self.lwr = 0
+        self.wtd = 0
+        # Either the number of times that sequence was observed, or the FPKM of that sequence
+        self.abundance = None
 
     def summarize(self):
         """
@@ -415,7 +417,7 @@ class ItolJplace:
             return None
         return x
 
-    def filter_min_weight_threshold(self, threshold=0.3):
+    def filter_min_weight_threshold(self, threshold=0.2):
         """
         Remove all placements with likelihood weight ratios less than threshold
         :param threshold: The threshold which all placements with LWRs less than this are removed
@@ -566,10 +568,9 @@ class ItolJplace:
     def harmonize_placements(self, treesapp_dir):
         """
         Often times, the placements field in a jplace file contains multiple possible tree locations.
-        In order to consolidate these into a single tree location, the LCA algorithm is utilized. The single internal
-        node which is the parent node of all possible placements is returned. Since all placements are valid, there is
-        no need to be uncertain about including all nodes when determining the lowest common ancestor
-        :return:
+        In order to consolidate these into a single tree location, the LCA algorithm is utilized.
+        Since all placements are valid, there is no need to be uncertain about including all nodes during LCA compute
+        :return: The single internal node which is the parent node of all possible placements is returned.
         """
         if self.name == "nr":
             self.name = "COGrRNA"
@@ -792,3 +793,11 @@ class MarkerBuild:
         self.pid = build_param_fields[3]
         self.lowest_confident_rank = build_param_fields[4]
         self.update = build_param_fields[5]
+
+    def check_rank(self):
+        taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
+
+        if self.lowest_confident_rank not in list(taxonomies):
+            raise AssertionError("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
+
+        return

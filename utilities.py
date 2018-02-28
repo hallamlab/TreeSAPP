@@ -204,7 +204,7 @@ def get_lineage(search_term, molecule_type):
         try:
             handle = Entrez.efetch(db=database, id=str(search_term), retmode="xml")
         except error.HTTPError:
-            if molecule_type == "ambig":
+            # if molecule_type == "ambig":
                 x = 0
                 while handle is None and x < len(ncbi_sequence_databases):
                     backup_db = ncbi_sequence_databases[x]
@@ -218,10 +218,9 @@ def get_lineage(search_term, molecule_type):
                     sys.stderr.write("\nERROR: Bad Entrez.efetch request and all back-up searches failed for '" +
                                      str(search_term) + "'\n")
                     sys.exit(99)
-            else:
-                sys.stderr.write("\nERROR: Bad Entrez.efetch request:\n"
-                                 "id='" + str(search_term) + "' does not exist in database='" + database + "'\n")
-                sys.exit(9)
+            # else:
+            #     sys.stderr.write("\nWARNING: Bad Entrez.efetch request:\n"
+            #                      "id='" + str(search_term) + "' does not exist in database='" + database + "'\n")
         try:
             record = Entrez.read(handle)
         except UnboundLocalError:

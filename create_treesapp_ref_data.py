@@ -769,6 +769,23 @@ def summarize_reference_taxa(reference_dict):
     return
 
 
+def check_lineage(lineage, organism_name):
+    """
+    Sometimes the NCBI lineage is incomplete.
+    Currently, this function uses organism_name to ideally add Species to the lineage
+    :param lineage: A semi-colon separated taxonomic lineage
+    :param organism_name: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
+    :return: A string with lineage information
+    """
+    proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
+    if proper_species_re.match(lineage.split("; ")[-1]):
+        return lineage
+    elif len(lineage.split("; ")) == 7 and proper_species_re.match(organism_name):
+        return lineage + "; " + organism_name
+    else:
+        return lineage
+
+
 def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
     """
     Write the number, organism and accession ID, if possible
@@ -845,9 +862,12 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
             sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")
             fasta_replace_dict[mltree_id_key].get_info()
             lineage = "Unclassified"
-        reference_sequence.lineage = lineage
-        if not reference_sequence.organism:
+        # TODO: test this
+        if reference_sequence.organism:
+            lineage = check_lineage(lineage, reference_sequence.organism)
+        else:
             reference_sequence.organism = reference_sequence.description
+        reference_sequence.lineage = lineage
 
     sys.stdout.write("] done.\n")
     sys.stdout.flush()
@@ -857,12 +877,13 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
                          + str(len(fasta_replace_dict.keys())) + ") were queried against the NCBI taxonomy database!\n")
         sys.exit(22)
 
-    fasta_replace_dict = order_dict_by_lineage(fasta_replace_dict)
     if args.add_lineage:
         if args.screen or args.filter:
             sys.stderr.write("WARNING: Skipping taxonomic filtering and screening in `--add_lineage` mode.\n")
     else:
+        fasta_replace_dict = order_dict_by_lineage(fasta_replace_dict)
         fasta_replace_dict = screen_filter_taxa(args, fasta_replace_dict)
+
     for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
         # Definitely will not uphold phylogenetic relationships but at least sequences
         # will be in the right neighbourhood rather than ordered by their position in the FASTA file
@@ -1035,13 +1056,39 @@ def reverse_complement(rrna_sequence):
     return rev_comp
 
 
-def update_tax_ids_with_lineage(args, final_output_folder, tree_taxa_list):
-    tax_ids_file = final_output_folder + os.sep + tree_taxa_list
+def update_tax_ids_with_lineage(args, tree_taxa_list):
+    tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + tree_taxa_list
     if not os.path.exists(tax_ids_file):
         sys.stderr.write("ERROR: Unable to find " + tax_ids_file + "!\n")
         raise FileNotFoundError
-    fasta_replace_dict = read_tax_ids(tax_ids_file)
-    write_tax_ids(args, fasta_replace_dict, tax_ids_file, args.molecule)
+    else:
+        fasta_replace_dict = read_tax_ids(tax_ids_file)
+        # Determine how many sequences already have lineage information:
+        lineage_info_complete = 0
+        for mltree_id_key in fasta_replace_dict:
+            ref_seq = fasta_replace_dict[mltree_id_key]
+            if ref_seq.lineage:
+                lineage_info_complete += 1
+        # There are some that are already complete. Should they be over-written?
+        if lineage_info_complete >= 1:
+            if sys.version_info > (2, 9):
+                overwrite_lineages = input(tree_taxa_list + " contains some sequences with complete lineages. "
+                                                            "Should they be over-written? [y|n] ")
+                while overwrite_lineages != "y" and overwrite_lineages != "n":
+                    overwrite_lineages = input("Incorrect response. Please input either 'y' or 'n'. ")
+            else:
+                overwrite_lineages = raw_input(tree_taxa_list + " contains some sequences with complete lineages."
+                                                                "Should they be over-written? [y|n] ")
+                while overwrite_lineages != "y" and overwrite_lineages != "n":
+                    overwrite_lineages = raw_input("Incorrect response. Please input either 'y' or 'n'. ")
+            if overwrite_lineages == 'y':
+                ref_seq_dict = dict()
+                for mltree_id_key in fasta_replace_dict:
+                    ref_seq = fasta_replace_dict[mltree_id_key]
+                    if ref_seq.lineage:
+                        ref_seq.lineage = ""
+                    ref_seq_dict[mltree_id_key] = ref_seq
+        write_tax_ids(args, fasta_replace_dict, tax_ids_file, args.molecule)
     return
 
 
@@ -1058,7 +1105,7 @@ def main():
     tree_taxa_list = "tax_ids_%s.txt" % code_name
 
     if args.add_lineage:
-        update_tax_ids_with_lineage(args, final_output_folder, tree_taxa_list)
+        update_tax_ids_with_lineage(args, tree_taxa_list)
         terminal_commands(final_output_folder, code_name)
         sys.exit(0)
 
