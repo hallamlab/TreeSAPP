@@ -91,6 +91,10 @@ def get_arguments():
                              "[ DEFAULT is no filter ]",
                         default="",
                         required=False)
+    optopt.add_argument("-o", "--output_dir",
+                        help="Path to a directory for all outputs [ DEFAULT = ./ ]",
+                        default="./",
+                        required=False)
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='Overwrites previously processed output folders')
@@ -109,7 +113,12 @@ def get_arguments():
 
     args = parser.parse_args()
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-    args.output = "TreeSAPP_files_%s" % args.code_name
+    if args.output_dir[0] != os.sep:
+        # The user didn't provide a full path
+        args.output_dir = os.getcwd() + os.sep + args.output_dir
+    if args.output_dir[-1] != os.sep:
+        args.output_dir += os.sep
+    args.output = args.output_dir + "TreeSAPP_files_%s" % args.code_name + os.sep
 
     if len(args.code_name) > 6:
         sys.stderr.write("ERROR: code_name must be <= 6 characters!\n")
@@ -1102,7 +1111,7 @@ def main():
         terminal_commands(final_output_folder, code_name)
         sys.exit(0)
 
-    tree_taxa_list = "tax_ids_%s.txt" % code_name
+    tree_taxa_list = args.output_dir + "tax_ids_%s.txt" % code_name
 
     if args.add_lineage:
         update_tax_ids_with_lineage(args, tree_taxa_list)
@@ -1110,7 +1119,12 @@ def main():
         sys.exit(0)
 
     if not os.path.exists(final_output_folder):
-        os.makedirs(final_output_folder)
+        try:
+            os.makedirs(final_output_folder, exist_ok=False)
+        except OSError:
+            sys.stderr.write("WARNING: Making all directories in path " + final_output_folder + "\n")
+            os.makedirs(final_output_folder, exist_ok=True)
+
     else:
         sys.stderr.write("WARNING: Output directory already exists. Previous outputs will be overwritten.\n")
         sys.stderr.flush()
@@ -1136,7 +1150,7 @@ def main():
 
     fasta_replace_dict = dict()
 
-    log = open("create_" + code_name + "_treesapp_data_log.txt", 'w')
+    log = open(args.output_dir + "create_" + code_name + "_treesapp_data_log.txt", 'w')
     log.write("Command used:\n" + ' '.join(sys.argv) + "\n\n")
 
     if args.uc:
@@ -1167,8 +1181,8 @@ def main():
         summarize_reference_taxa(fasta_replace_dict)
     lowest_reliable_rank = estimate_taxonomic_redundancy(args, fasta_replace_dict)
 
-    fasta_replaced_file = code_name + ".fc.repl.fasta"
-    fasta_mltree = code_name + ".fa"
+    fasta_replaced_file = args.output_dir + code_name + ".fc.repl.fasta"
+    fasta_mltree = args.output_dir + code_name + ".fa"
 
     if args.multiple_alignment:
         create_new_fasta(fasta_replaced_file, fasta_replace_dict, True)
@@ -1181,7 +1195,7 @@ def main():
         # fasta_dict = format_read_fasta(aligned_fasta, args.molecule, args)
     elif args.multiple_alignment is False:
         sys.stdout.write("Aligning the sequences using MUSCLE... ")
-        fasta_replaced_align = code_name + ".fc.repl.aligned.fasta"
+        fasta_replaced_align = args.output_dir + code_name + ".fc.repl.aligned.fasta"
 
         muscle_align_command = [args.executables["muscle"]]
         muscle_align_command += ["-in", fasta_replaced_file]
@@ -1199,7 +1213,7 @@ def main():
     else:
         pass
 
-    stdout, blastdb = generate_blast_database(args, fasta_replaced_file, args.molecule, code_name)
+    stdout, blastdb = generate_blast_database(args, fasta_replaced_file, args.molecule, args.output_dir + code_name)
 
     log.write("\n### MAKEBLASTDB ###" + stdout)
 
@@ -1212,7 +1226,7 @@ def main():
         pass
     else:
         hmm_build_command = [args.executables["hmmbuild"]]
-        hmm_build_command += ["-s", code_name + ".hmm"]
+        hmm_build_command += ["-s", final_output_folder + code_name + ".hmm"]
         hmm_build_command.append(fasta_mltree)
 
         stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
@@ -1225,17 +1239,15 @@ def main():
             sys.stderr.write(' '.join(hmm_build_command) + "\n")
             sys.exit()
 
-        os.rename(code_name + ".hmm", final_output_folder + os.sep + code_name + ".hmm")
-
         sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
 
     phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.treesapp, fasta_mltree)
     os.system(phylip_command)
 
-    phylip_file = code_name + ".phy"
+    phylip_file = args.output_dir + code_name + ".phy"
     os.rename(fasta_mltree + ".phylip", phylip_file)
 
-    raxml_out = args.treesapp + code_name + "_phy_files"
+    raxml_out = args.output_dir + code_name + "_phy_files"
 
     if not os.path.exists(raxml_out):
         os.system("mkdir %s" % raxml_out)
@@ -1281,13 +1293,17 @@ def main():
         os.remove(fasta_replaced_file)
     if os.path.exists(phylip_file + ".reduced"):
         os.remove(phylip_file + ".reduced")
+    if os.path.exists(final_output_folder + "fasta_reader_log.txt"):
+        os.remove(final_output_folder + "fasta_reader_log.txt")
 
     swap_tree_names(tree_to_swap, final_mltree, code_name)
 
     if args.molecule == "prot":
-        os.system("mv %s.fa %s.fa.p* %s" % (code_name, code_name, final_output_folder))
+        os.system("mv %s.fa %s.fa.p* %s" %
+                  (args.output_dir + code_name, args.output_dir + code_name, final_output_folder))
     if args.molecule == "rrna" or args.molecule == "dna":
-        os.system("mv %s.fa %s.fa.n* %s" % (code_name, code_name, final_output_folder))
+        os.system("mv %s.fa %s.fa.n* %s" %
+                  (args.output_dir + code_name, args.output_dir + code_name, final_output_folder))
     os.system("mv %s %s %s" % (tree_taxa_list, final_mltree, final_output_folder))
 
     annotate_partition_tree(code_name, fasta_replace_dict, raxml_out + os.sep + "RAxML_bipartitions." + code_name)
