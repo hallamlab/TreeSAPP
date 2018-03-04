@@ -485,16 +485,9 @@ class ItolJplace:
         leaving only the placement with maximum likelihood_weight_ratio
         :return:
         """
-        x = 0
         # Find the position of like_weight_ratio in the placements from fields descriptor
-        for field in self.fields:
-            if field == '"like_weight_ratio"':
-                break
-            else:
-                x += 1
-        if x == len(self.fields):
-            sys.stderr.write("Unable to find \"like_weight_ratio\" in the jplace string!\n")
-            sys.stderr.write("WARNING: Skipping filtering with `filter_max_weight_placement`\n")
+        x = self.get_lwr_position_from_jplace_fields()
+        if not x:
             return
 
         # Filter the placements

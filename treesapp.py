@@ -3793,10 +3793,15 @@ def parse_ref_build_params(args, current_marker_code=None, create_func_tree=None
     except IOError:
         sys.exit('ERROR: Can\'t open ' + ref_build_parameters + '!\n')
 
+    header_re = re.compile("code_name\tdenominator\taa_model\tcluster_identity\tlowest_confident_rank\tlast_updated$")
+
     marker_build_dict = dict()
     for line in param_handler:
+        if header_re.match(line):
+            continue
         line = line.strip()
         marker_build = MarkerBuild(line)
+        marker_build.check_rank()
         marker_build_dict[marker_build.denominator] = marker_build
 
         if create_func_tree:
@@ -4144,65 +4149,102 @@ def children_lineage(leaves, pquery, node_map):
     return children
 
 
-def lowest_common_taxonomy(children, lineage_complete):
+def lowest_common_taxonomy(children):
     """
     Input is a list >= 2, potentially either a leaf string or NCBI lineage
-    :param children: List of all leaves for this sequence
-    :param lineage_complete: Boolean indicating whether lineage information is present for this reference
+    :param children: Lineages of all leaves for this sequence
     :return:
     """
     lineage_string = ""
     lineages_considered = list()
-    if not lineage_complete:
-        lineage_string = "Lowest common ancestor of: "
-        lineage_string += ', '.join(children)
+    # Check that children have lineage information and discard those that don't have a known lineage
+    # (e.g. unclassified sequences; metagenomes; ecological metagenomes)
+    max_ranks = 0
+    for child in children:
+        child = clean_lineage_string(child)
+        ranks = child.split("; ")
+        num_ranks = len(ranks)
+        if num_ranks > 3:
+            lineages_considered.append(ranks)
+        if num_ranks > max_ranks:
+            max_ranks = num_ranks
+    if len(lineages_considered) == 0:
+        sys.stderr.write("WARNING: all lineages were highly incomplete for ")
     else:
-        # Actually have lineage information
-        max_ranks = 0
-        for child in children:
-            ranks = child.split("; ")
-            num_ranks = len(ranks)
-            if num_ranks > 3:
-                lineages_considered.append(ranks)
-            if num_ranks > max_ranks:
-                max_ranks = num_ranks
-        if len(lineages_considered) == 0:
-            sys.stderr.write("WARNING: all lineages were highly incomplete for ")
-        else:
-            hits = dict()
-            consensus = list()
-            i = 0
-            while i < max_ranks:
-                hits.clear()
-                lineages_used = 0
-                elected = False
-                for ranks in lineages_considered:
-                    # If the ranks of this hit has not been exhausted (i.e. if it has a depth of 4 and max_ranks >= 5)
-                    if len(ranks) > i + 1:
-                        if ranks[i] not in hits.keys():
-                            hits[ranks[i]] = 0
-                        hits[ranks[i]] += 1
-                        lineages_used += 1
-                # LCA*:
-                # TODO: Integrate RAxML's likelihood weight ratio so the consensus requires majority likelihood
-                # for taxonomy in hits.keys():
-                #     if hits[taxonomy] >= float(len(lineages_considered)/2):
-                #         consensus.append(str(taxonomy))
-                #         elected = True
-
-                # LCA:
-                # Want to ensure at least 50% of the children are having consensus input
-                if len(hits.keys()) == 1 and lineages_used >= float(len(lineages_considered)/2):
-                    consensus.append(list(hits.keys())[0])
+        hits = dict()
+        consensus = list()
+        # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
+        i = 0
+        print("Lineages considered: ", lineages_considered)
+        while i < max_ranks:
+            hits.clear()
+            lineages_used = 0
+            elected = False
+            for ranks in lineages_considered:
+                # If the ranks of this hit has not been exhausted (i.e. if it has a depth of 4 and max_ranks >= 5)
+                if len(ranks) > i:
+                    taxonomy = ranks[i]
+                    if taxonomy not in hits.keys():
+                        hits[taxonomy] = 0
+                    hits[taxonomy] += 1
+                    lineages_used += 1
+            # approximate LCA* (no entropy calculations):
+            for taxonomy in hits.keys():
+                if hits[taxonomy] > float(len(lineages_considered)/2):
+                    consensus.append(str(taxonomy))
                     elected = True
+                    print("Adding: ", taxonomy)
+                else:
+                    print("Break: ", taxonomy, hits[taxonomy], float(len(lineages_considered)/2))
 
-                # If there is no longer a consensus, break the loop
-                if not elected:
-                    i = max_ranks
-                i += 1
-            lineage_string = "; ".join(consensus)
+            # LCA:
+            # Want to ensure at least 50% of the children are having consensus input
+            # if len(hits.keys()) == 1 and lineages_used >= float(len(lineages_considered)/2):
+            # if len(hits.keys()) == 1:
+            #     consensus.append(list(hits.keys())[0])
+            #     elected = True
+
+            # If there is no longer a consensus, break the loop
+            if not elected:
+                i = max_ranks
+            i += 1
+        lineage_string = "; ".join(consensus)
 
     return lineage_string
+
+
+def compute_taxonomic_distance(lineage_list, common_ancestor):
+    """
+    Input is a list >= 2, potentially either a leaf string or NCBI lineage
+    :param lineage_list: Lineages of all leaves for this sequence
+    :param common_ancestor: The common ancestor for the elements in lineage_list
+    :return:
+    """
+    numerator = 0
+    max_dist = 7
+    lca_lineage = common_ancestor.split("; ")
+    for lineage in lineage_list:
+        # Compute the distance to common_ancestor
+        lineage_path = lineage.split("; ")
+        ref = lca_lineage
+        query = lineage_path
+        distance = 0
+        # Compare the last elements of each list to see if the lineage is equal
+        while ref[-1] != query[-1]:
+            if len(ref) > len(query):
+                ref = ref[:-1]
+            elif len(query) > len(ref):
+                query = query[:-1]
+            else:
+                # They are the same length, but disagree
+                query = query[:-1]
+                ref = ref[:-1]
+            distance += 1
+
+        numerator += 2**distance
+
+    wtd = round(float(numerator/(len(lineage_list) * 2**max_dist)), 5)
+    return wtd
 
 
 def lowest_confident_taxonomy(lct, marker_build_object):
@@ -4241,7 +4283,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
     :return:
     """
     mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
-    tab_out_string = "Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\n"
+    tab_out_string = "Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tLikelihood\tWTD\n"
     try:
         tab_out = open(mapping_output, 'w')
     except IOError:
@@ -4276,17 +4318,28 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
                     sys.stderr.flush()
                 if len(tree_sap.lineage_list) == 1:
                     tree_sap.lct = tree_sap.lineage_list[0]
+                    tree_sap.wtd = 0.0
                 if len(tree_sap.lineage_list) > 1:
-                    tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lineage_complete)
-                    if not tree_sap.lct:
-                        sys.stderr.write(str(tree_sap.contig_name) + "\n")
+                    # TODO: Integrate RAxML's likelihood weight ratio so the consensus requires majority likelihood
+                    if lineage_complete:
+                        tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list)
+                        if not tree_sap.lct:
+                            sys.stderr.write(str(tree_sap.contig_name) + "\n")
+                        else:
+                            tree_sap.wtd = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                    else:
+                        tree_sap.lct = "Lowest common ancestor of: "
+                        tree_sap.lct += ', '.join(tree_sap.lineage_list)
+                        tree_sap.wtd = 1
 
                 # tree_sap.summarize()
                 tab_out_string += '\t'.join([tree_sap.contig_name,
                                              tree_sap.name,
                                              clean_lineage_string(tree_sap.lct),
                                              lowest_confident_taxonomy(tree_sap.lct, marker_build_dict[denominator]),
-                                             str(tree_sap.abundance)]) + "\n"
+                                             str(tree_sap.abundance),
+                                             str(tree_sap.lwr),
+                                             str(tree_sap.wtd)]) + "\n"
         if args.verbose:
             sys.stdout.write("\t" + str(unclassified) + " " + denominator + " sequences were not classified.\n")
             sys.stdout.flush()
@@ -4294,6 +4347,27 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
     tab_out.close()
 
     return
+
+
+def jplace_likelihood_weight_ratio(pquery, position):
+    """
+    Determines the likelihood weight ratio (LWR) for a single placement. There may be multiple placements
+    (or 'pquery's) in a single .jplace file. Therefore, this function is usually looped over.
+    :param position: The position of "like_weight_ration" in the pquery fields
+    :return: The float(LWR) of a single placement
+    """
+    lwr = 0.0
+    placement = loads(str(pquery), encoding="utf-8")
+    for k, v in placement.items():
+        print(k, v)
+        if k == 'p':
+            acc = 0
+            while acc < len(v):
+                pquery_fields = v[acc]
+                lwr = float(pquery_fields[position])
+                acc += 1
+    print("LWR = " + str(lwr))
+    return lwr
 
 
 def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
@@ -4368,6 +4442,12 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
             query_obj.filter_max_weight_placement()
         else:
             query_obj.harmonize_placements(args.treesapp)
+        position = query_obj.get_lwr_position_from_jplace_fields()
+        if len(query_obj.placements) != 1:
+            sys.stderr.write("ERROR: Number of JPlace pqueries is " + str(len(query_obj.placements)) +
+                             " when only 1 is expected at this point.\n")
+            sys.exit(3)
+        query_obj.lwr = jplace_likelihood_weight_ratio(query_obj.placements[0], position)
         tree_saps[denominator].append(query_obj)
 
         if not os.path.exists(itol_base_dir + marker):
