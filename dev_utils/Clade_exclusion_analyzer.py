@@ -80,7 +80,8 @@ def read_table(assignment_file):
     n_classified = 0
     assignments_handle = open(assignment_file, 'r')
     # This is the header line
-    if not re.match("^Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance$", assignments_handle.readline()):
+    if not re.match("^Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tLikelihood\tWTD$",
+                    assignments_handle.readline()):
         sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
         raise AssertionError
 
@@ -89,7 +90,7 @@ def read_table(assignment_file):
     while line:
         fields = line.strip().split('\t')
         try:
-            header, marker, classified, rob_class, abundance = fields
+            header, marker, classified, rob_class, abundance, lwr, wtd = fields
             if marker and rob_class:
                 n_classified += 1
                 if marker not in assignments:
@@ -236,27 +237,29 @@ def identify_excluded_clade(args, assignment_dict, trie, marker):
     for depth in rank_depth_map:
         rank_assigned_dict[rank_depth_map[depth]] = list()
     if args.verbose:
-        sys.stdout.write("Unique taxonomies sequences were assigned = " + str(len(assignment_dict[marker].keys())) + "\n")
+        sys.stdout.write("Number of unique taxonomies that sequences were assigned to = " +
+                         str(len(assignment_dict[marker].keys())) + "\n")
     for ref_lineage in assignment_dict[marker]:
         if args.verbose:
             sys.stdout.write("Reference lineage: " + ref_lineage + "\n")
         for query_lineage in assignment_dict[marker][ref_lineage]:
-            if query_lineage == ref_lineage:
-                if args.verbose:
-                    sys.stdout.write("\tQuery lineage: " + query_lineage + ", ")
-                    sys.stdout.write("Optimal lineage: " + ref_lineage + "\n")
-                    sys.stdout.flush()
+            # if query_lineage == ref_lineage:
+            #     if args.verbose:
+            #         sys.stdout.write("\tQuery lineage: " + query_lineage + ", ")
+            #         sys.stdout.write("Optimal lineage: " + ref_lineage + "\n")
+            #         sys.stdout.flush()
             # While the query_lineage contains clades which are not in the reference trie,
             # remove the taxonomic rank and traverse again. Complexity: O(ln(n))
             contained_taxonomy = query_lineage
             while not trie.__contains__(contained_taxonomy) and len(contained_taxonomy.split('; ')) > 1:
                 contained_taxonomy = "; ".join(contained_taxonomy.split('; ')[:-1])
-            if args.verbose and contained_taxonomy != ref_lineage:
-                sys.stdout.write("\tQuery lineage: " + query_lineage + ", ")
-                sys.stdout.write("Optimal lineage: " + contained_taxonomy + "\n")
             if len(contained_taxonomy.split("; ")) <= 7:
-                rank_assigned_dict[rank_depth_map[len(contained_taxonomy.split("; ")) + 1]].append(
-                    {ref_lineage: (contained_taxonomy, query_lineage)})
+                rank_excluded = rank_depth_map[len(contained_taxonomy.split("; ")) + 1]
+                if args.verbose and contained_taxonomy != ref_lineage:
+                    sys.stdout.write("\tRank excluded: " + rank_excluded + "\n")
+                    sys.stdout.write("\t\tQuery lineage:   " + query_lineage + "\n")
+                    sys.stdout.write("\t\tOptimal lineage: " + contained_taxonomy + "\n")
+                rank_assigned_dict[rank_excluded].append({ref_lineage: (contained_taxonomy, query_lineage)})
             else:
                 # TODO: Fix the handling of this. Currently printed for strains when it shouldn't be
                 sys.stderr.write("\tWARNING: number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n")
@@ -562,6 +565,20 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     return full_assignments
 
 
+def get_unclassified_rank(pos, split_lineage):
+    """
+    Recursive function to retrieve the first rank at which the
+    :param pos:
+    :param split_lineage:
+    :return:
+    """
+    if re.search("nclassified", split_lineage[pos]):
+        return pos
+    else:
+        pos = get_unclassified_rank(pos+1, split_lineage)
+    return pos
+
+
 def filter_queries_by_taxonomy(assignments):
     """
     Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
@@ -572,18 +589,31 @@ def filter_queries_by_taxonomy(assignments):
     """
     deduplicated_assignments = dict()
     unclassifieds = 0
+    classified = 0
+    unique_query_taxonomies = 0
     for marker in assignments:
         deduplicated_assignments[marker] = dict()
         for ref in assignments[marker]:
             deduplicated_assignments[marker][ref] = set()
-            for query_taxonomy in assignments[marker][ref]:
+            for query_taxonomy in sorted(assignments[marker][ref]):
                 if re.search("nclassified", query_taxonomy):
-                    unclassifieds += 1
+                    # Remove taxonomic lineages that are unclassified at the Phylum level or higher
+                    unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
+                    if unclassified_depth > 3:
+                        deduplicated_assignments[marker][ref].add(query_taxonomy)
+                    else:
+                        unclassifieds += 1
                 else:
+                    classified += 1
                     deduplicated_assignments[marker][ref].add(query_taxonomy)
+            unique_query_taxonomies += len(deduplicated_assignments[marker][ref])
+
+    if classified != unique_query_taxonomies:
+        sys.stdout.write("\n\t" + str(classified - unique_query_taxonomies) + " duplicate query taxonomies removed.\n")
+
     if unclassifieds > 0:
-        sys.stdout.write("\n\t" + str(unclassifieds) + " query sequences with unclassified taxonomies were removed.\n")
-        sys.stdout.write("This is not a problem, its just they have unclassified somewhere in their lineages\n"
+        sys.stdout.write("\t" + str(unclassifieds) + " query sequences with unclassified taxonomies were removed.\n")
+        sys.stdout.write("This is not a problem, its just they have 'unclassified' somewhere in their lineages\n"
                          "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
 
     return deduplicated_assignments
