@@ -632,34 +632,35 @@ def run_blast(args, split_files, cog_list):
     return
 
 
+def run_prodigal(args, fasta_file, output_file):
+    prodigal_command = [args.executables["prodigal"]]
+    prodigal_command += ["-i", fasta_file]
+    prodigal_command += ["-a", output_file]
+    stdout, proc_code = launch_write_command(prodigal_command)
+
+    if proc_code != 0:
+        sys.stderr.write("ERROR: Prodigal did not complete successfully!\n")
+        sys.stderr.write("Command used:\n" + ' '.join(prodigal_command), "err", "\n")
+        sys.exit(3)
+    return
+
+
 def predict_orfs(args):
     """
     Predict ORFs from the input FASTA file using Prodigal
     :param args: Command-line argument object from get_options and check_parser_arguments
     :return:
     """
-    orf_fasta = args.output_dir_var + "ORFs"
-    fgs_command = [args.executables["FGS+"]]
-    fgs_command += ['-s', args.fasta_input,
-                    '-o', orf_fasta,
-                    '-w', '0',
-                    '-r', os.sep.join([args.treesapp, "sub_binaries", "FragGeneScanPlus", "train"]),
-                    "-t", "illumina_1",
-                    '-p', str(1),
-                    '-d', str(1),
-                    '-m', str(2048)]
-    # if args.num_threads:
-    #     fgs_command += ['-p', str(int(args.num_threads))]
-    # else:
-    #     fgs_command += ['-p', '2']
-    # fgs_command += ['-d', '1']
 
-    print(' '.join(fgs_command))
-    launch_write_command(fgs_command)
+    sys.stdout.write("Predicting open-reading frames in the genomes using Prodigal...")
+    sys.stdout.flush()
+
+    genome = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
+    genome_orfs_file = args.output_dir + genome + "_ORFs.faa"
+    run_prodigal(args, args.fasta_input, genome_orfs_file)
 
     # orf_fasta must be changed since FGS+ appends .faa to the output file name
-    orf_fasta += ".faa"
-    args.fasta_input = orf_fasta
+    args.fasta_input = genome_orfs_file
     args.molecule = "prot"
 
     return args
