@@ -3821,6 +3821,8 @@ def parse_ref_build_params(args, current_marker_code=None, create_func_tree=None
     for line in param_handler:
         if header_re.match(line):
             continue
+        if line[0] == '#':
+            continue
         line = line.strip()
         marker_build = MarkerBuild(line)
         marker_build.check_rank()
@@ -4299,11 +4301,12 @@ def lowest_confident_taxonomy(lct, marker_build_object):
     return "; ".join(confident_assignment)
 
 
-def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict):
+def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict):
     """
     Fields:
     Marker,Taxonomy,Query,Abundance
     :param args: Command-line argument object from get_options and check_parser_arguments
+    :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
     :param tree_saps: A dictionary containing TreeProtein objects
     :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
@@ -4321,7 +4324,6 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
         # All the leaves for that tree [number, translation, lineage]
         leaves = tree_numbers_translation[denominator]
         lineage_complete = False
-        unclassified = 0
         # Test if the reference set have lineage information
         for leaf in leaves:
             if leaf.complete:
@@ -4329,14 +4331,16 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
                 break
 
         for tree_sap in tree_saps[denominator]:
+            if tree_sap.name not in unclassified_counts.keys():
+                unclassified_counts[tree_sap.name] = 0
             if len(tree_sap.placements) > 1:
                 sys.stderr.write("WARNING: More than one placements for a single contig!\n")
                 sys.stderr.flush()
                 tree_sap.summarize()
             if not tree_sap.placements:
-                unclassified += 1
+                unclassified_counts[tree_sap.name] += 1
             elif tree_sap.placements[0] == '{}':
-                unclassified += 1
+                unclassified_counts[tree_sap.name] += 1
             else:
                 tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
                 if len(tree_sap.lineage_list) == 0:
@@ -4371,7 +4375,8 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
                                              str(tree_sap.lwr),
                                              str(tree_sap.wtd)]) + "\n"
         if args.verbose:
-            sys.stdout.write("\t" + str(unclassified) + " " + denominator + " sequences were not classified.\n")
+            sys.stdout.write("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
+                             " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n")
             sys.stdout.flush()
     tab_out.write(tab_out_string)
     tab_out.close()
@@ -4398,12 +4403,13 @@ def jplace_likelihood_weight_ratio(pquery, position):
     return lwr
 
 
-def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
+def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=None):
     """
     Function to create outputs for the interactive tree of life (iTOL) webservice.
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param cog_list:
+    :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
     :param rpkm_output_file:
     :return: 
     """
@@ -4449,6 +4455,9 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
         jplace_data = jplace_parser(filename)
         query_obj.transfer(jplace_data)
 
+        if not os.path.exists(itol_base_dir + marker):
+            os.mkdir(itol_base_dir + marker)
+
         if marker not in itol_data:
             itol_data[marker] = jplace_data
             itol_data[marker].name = marker
@@ -4462,32 +4471,39 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
         unclassified = query_obj.filter_min_weight_threshold(args.min_likelihood)
 
         if unclassified > 0 and args.verbose:
-            sys.stderr.write("WARNING: " + query_obj.contig_name + " initially " + marker +
-                             " has been unclassified due to low likelihood weights\n")
+            if marker not in unclassified_counts.keys():
+                unclassified_counts[marker] = 0
+            unclassified_counts[marker] += 1
+            sys.stderr.write("WARNING: a putative " + marker +
+                             " sequence has been unclassified due to low placement likelihood weights. More info:\n")
             sys.stderr.flush()
+            query_obj.summarize()
+            continue
         query_obj.create_jplace_node_map()
         if args.placement_parser == "best":
             query_obj.filter_max_weight_placement()
         else:
             query_obj.harmonize_placements(args.treesapp)
         position = query_obj.get_lwr_position_from_jplace_fields()
-        if len(query_obj.placements) != 1:
+        if unclassified == 0 and len(query_obj.placements) != 1:
             sys.stderr.write("ERROR: Number of JPlace pqueries is " + str(len(query_obj.placements)) +
                              " when only 1 is expected at this point.\n")
+            query_obj.summarize()
             sys.exit(3)
         query_obj.lwr = jplace_likelihood_weight_ratio(query_obj.placements[0], position)
         tree_saps[denominator].append(query_obj)
 
-        if not os.path.exists(itol_base_dir + marker):
-            os.mkdir(itol_base_dir + marker)
-
+        # I have decided to not remove the original JPlace files since some may find these useful
         # os.remove(filename)
 
     # Now that all the JPlace files have been loaded, generate the abundance stats for each marker
     for denominator in tree_saps:
+        if len(tree_saps[denominator]) == 0:
+            # No sequences that were mapped met the minimum likelihood weight ration threshold. Skipping!
+            continue
         marker = marker_map[denominator]
         # Make a master jplace file from the set of placements in all jplace files for each marker
-        master_jplace = itol_base_dir + os.sep + marker + os.sep + marker + "_complete_profile.jplace"
+        master_jplace = itol_base_dir + marker + os.sep + marker + "_complete_profile.jplace"
         write_jplace(itol_data[marker], master_jplace)
         itol_data[marker].clear_object()
         # Create a labels file from the tax_ids_marker.txt
@@ -4496,12 +4512,12 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
         colors_styles = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colours_style.txt"])
         colour_strip = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colour_strip.txt"])
         try:
-            shutil.copy(colors_styles, itol_base_dir + os.sep + marker)
+            shutil.copy(colors_styles, itol_base_dir + marker)
         except IOError:
             sys.stderr.write("WARNING: a colours_style.txt file does not yet exist for marker " + marker + "\n")
             sys.stderr.flush()
         try:
-            shutil.copy(colour_strip, itol_base_dir + os.sep + marker)
+            shutil.copy(colour_strip, itol_base_dir + marker)
         except IOError:
             sys.stderr.write("WARNING: a colour_strip.txt file does not yet exist for marker " + marker + "\n")
             sys.stderr.flush()
@@ -4511,7 +4527,7 @@ def produce_itol_inputs(args, cog_list, rpkm_output_file=None):
                            marker,
                            tree_saps[denominator])
 
-    return tree_saps
+    return tree_saps, unclassified_counts
 
 
 def main(argv):
@@ -4522,6 +4538,7 @@ def main(argv):
     cog_list, text_of_analysis_type = create_cog_list(args)
     tree_numbers_translation = read_species_translation_files(args, cog_list)
     marker_build_dict = parse_ref_build_params(args)
+    unclassified_counts = dict()
     if args.check_trees:
         validate_inputs(args, cog_list)
 
@@ -4598,11 +4615,11 @@ def main(argv):
         sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
         rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
         normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type)
-        tree_saps = produce_itol_inputs(args, cog_list, rpkm_output_file)
+        tree_saps, unclassified_counts = produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file)
     else:
-        tree_saps = produce_itol_inputs(args, cog_list)
+        tree_saps, unclassified_counts = produce_itol_inputs(args, cog_list, unclassified_counts)
 
-    write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict)
+    write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict)
     delete_files(args, 4)
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:

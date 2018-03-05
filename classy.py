@@ -355,11 +355,16 @@ class ItolJplace:
         # sys.stderr.write(self.tree + "\n")
         sys.stderr.write("JPlace fields:\n\t" + str(self.fields) + "\n")
         sys.stderr.write("Placement information:\n")
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            for k, v in placement.items():
-                if k == 'p':
-                    sys.stderr.write('\t' + str(v) + "\n")
+        if not self.placements:
+            sys.stderr.write("\tNone.\n")
+        elif self.placements[0] == '{}':
+            sys.stderr.write("\tNone.\n")
+        else:
+            for pquery in self.placements:
+                placement = loads(pquery, encoding="utf-8")
+                for k, v in placement.items():
+                    if k == 'p':
+                        sys.stderr.write('\t' + str(v) + "\n")
         sys.stderr.write("Non-redundant lineages of child nodes:\n")
         if len(self.lineage_list) > 0:
             for lineage in sorted(set(self.lineage_list)):
