@@ -65,7 +65,7 @@ def find_executables(args):
             dependencies.append("usearch")
 
         if args.consensus:
-            dependencies.append("FGS+")
+            dependencies.append("prodigal")
     except AttributeError:
         pass
 

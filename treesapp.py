@@ -201,6 +201,12 @@ def check_parser_arguments(parser):
             sys.stderr.write("ERROR: File containing reverse reads provided but forward mates file missing!")
             sys.exit()
 
+    if args.consensus and args.molecule == "prot":
+        sys.stderr.write("WARNING: Consensus mode was specified with molecule type of protein. This is confusing.\n")
+        sys.stderr.write("ORF-prediction with Prodigal will be skipped! Carrying on...\n")
+        sys.stderr.flush()
+        args.consensus = False
+
     return args
 
 
@@ -632,10 +638,13 @@ def run_blast(args, split_files, cog_list):
     return
 
 
-def run_prodigal(args, fasta_file, output_file):
+def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
     prodigal_command = [args.executables["prodigal"]]
     prodigal_command += ["-i", fasta_file]
+    prodigal_command += ["-p", "meta"]
     prodigal_command += ["-a", output_file]
+    if nucleotide_orfs:
+        prodigal_command += ["-d", nucleotide_orfs]
     stdout, proc_code = launch_write_command(prodigal_command)
 
     if proc_code != 0:
@@ -652,16 +661,28 @@ def predict_orfs(args):
     :return:
     """
 
-    sys.stdout.write("Predicting open-reading frames in the genomes using Prodigal...")
+    sys.stdout.write("Predicting open-reading frames in the genomes using Prodigal... ")
     sys.stdout.flush()
 
+    start_time = time.time()
+
     genome = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
-    genome_orfs_file = args.output_dir + genome + "_ORFs.faa"
-    run_prodigal(args, args.fasta_input, genome_orfs_file)
+    genome_orfs_file = args.output_dir_final + genome + "_ORFs.faa"
+    genome_nuc_genes_file = args.output_dir_final + genome + "_ORFs.fna"
+    run_prodigal(args, args.fasta_input, genome_orfs_file, genome_nuc_genes_file)
 
     # orf_fasta must be changed since FGS+ appends .faa to the output file name
     args.fasta_input = genome_orfs_file
     args.molecule = "prot"
+
+    sys.stdout.write("done.\n")
+
+    if args.verbose and start_time:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tProdigal time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return args
 
@@ -4504,7 +4525,7 @@ def main(argv):
     if args.check_trees:
         validate_inputs(args, cog_list)
 
-    if args.consensus:
+    if args.consensus and args.molecule == "dna":
         args = predict_orfs(args)
         # TODO: Test this functionality and compare to standard
 
