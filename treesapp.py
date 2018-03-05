@@ -4143,9 +4143,9 @@ def children_lineage(leaves, pquery, node_map):
             for ref_leaf in leaves:
                 if ref_leaf.number == tree_leaf:
                     if ref_leaf.complete:
-                        children.append(ref_leaf.lineage)
+                        children.append(clean_lineage_string(ref_leaf.lineage))
                     else:
-                        children.append(ref_leaf.description)
+                        children.append(clean_lineage_string(ref_leaf.description))
     return children
 
 
@@ -4161,7 +4161,7 @@ def lowest_common_taxonomy(children):
     # (e.g. unclassified sequences; metagenomes; ecological metagenomes)
     max_ranks = 0
     for child in children:
-        child = clean_lineage_string(child)
+        # child = clean_lineage_string(child)
         ranks = child.split("; ")
         num_ranks = len(ranks)
         if num_ranks > 3:
@@ -4175,7 +4175,7 @@ def lowest_common_taxonomy(children):
         consensus = list()
         # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
         i = 0
-        print("Lineages considered: ", lineages_considered)
+        # print("Lineages considered: ", lineages_considered)
         while i < max_ranks:
             hits.clear()
             lineages_used = 0
@@ -4193,9 +4193,6 @@ def lowest_common_taxonomy(children):
                 if hits[taxonomy] > float(len(lineages_considered)/2):
                     consensus.append(str(taxonomy))
                     elected = True
-                    print("Adding: ", taxonomy)
-                else:
-                    print("Break: ", taxonomy, hits[taxonomy], float(len(lineages_considered)/2))
 
             # LCA:
             # Want to ensure at least 50% of the children are having consensus input
@@ -4221,6 +4218,7 @@ def compute_taxonomic_distance(lineage_list, common_ancestor):
     :return:
     """
     numerator = 0
+    status = 0
     max_dist = 7
     lca_lineage = common_ancestor.split("; ")
     for lineage in lineage_list:
@@ -4230,21 +4228,28 @@ def compute_taxonomic_distance(lineage_list, common_ancestor):
         query = lineage_path
         distance = 0
         # Compare the last elements of each list to see if the lineage is equal
-        while ref[-1] != query[-1]:
-            if len(ref) > len(query):
-                ref = ref[:-1]
-            elif len(query) > len(ref):
-                query = query[:-1]
-            else:
-                # They are the same length, but disagree
-                query = query[:-1]
-                ref = ref[:-1]
-            distance += 1
+        try:
+            while ref[-1] != query[-1]:
+                if len(ref) > len(query):
+                    ref = ref[:-1]
+                elif len(query) > len(ref):
+                    query = query[:-1]
+                else:
+                    # They are the same length, but disagree
+                    query = query[:-1]
+                    ref = ref[:-1]
+                distance += 1
+        except IndexError:
+            sys.stderr.write("\tWARNING: Taxonomic lineages didn't converge between " +
+                             common_ancestor + " and " + lineage + ".\n")
+            sys.stderr.write("\tTaxonomic distance set to length of LCA lineage (" + str(len(lca_lineage)) + ").\n")
+            distance = len(lca_lineage)
+            status += 1
 
         numerator += 2**distance
 
     wtd = round(float(numerator/(len(lineage_list) * 2**max_dist)), 5)
-    return wtd
+    return wtd, status
 
 
 def lowest_confident_taxonomy(lct, marker_build_object):
@@ -4326,7 +4331,10 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
                         if not tree_sap.lct:
                             sys.stderr.write(str(tree_sap.contig_name) + "\n")
                         else:
-                            tree_sap.wtd = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                            # print(tree_sap.contig_name)
+                            tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                            if status > 0:
+                                tree_sap.summarize()
                     else:
                         tree_sap.lct = "Lowest common ancestor of: "
                         tree_sap.lct += ', '.join(tree_sap.lineage_list)
@@ -4359,14 +4367,12 @@ def jplace_likelihood_weight_ratio(pquery, position):
     lwr = 0.0
     placement = loads(str(pquery), encoding="utf-8")
     for k, v in placement.items():
-        print(k, v)
         if k == 'p':
             acc = 0
             while acc < len(v):
                 pquery_fields = v[acc]
                 lwr = float(pquery_fields[position])
                 acc += 1
-    print("LWR = " + str(lwr))
     return lwr
 
 
