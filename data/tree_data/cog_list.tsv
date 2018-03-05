@@ -79,7 +79,7 @@ mcrG	M0705	Methyl coenzyme M reductase gamma subunit
 #fae	M1000	Formaldehyde activating enzyme
 #fch	M1100	Methenyltetrahydrofolate cyclohydrolase
 #fhs	M1200	Formyltetrahydrofolate synthetase
-#narG	D0101	nitrate reductase / nitrite oxidoreductase, alpha subunit
+narG	D0101	nitrate reductase / nitrite oxidoreductase, alpha subunit
 #narH	D0102	nitrate reductase / nitrite oxidoreductase, beta subunit
 #narI	D0103	nitrate reductase gamma subunit
 napA	D0201	periplasmic nitrate reductase NapA
