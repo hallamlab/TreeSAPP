@@ -349,20 +349,20 @@ class ItolJplace:
         Written solely for testing purposes
         :return:
         """
-        sys.stderr.write(str(len(self.placements)) + " " + self.name + " sequences grafted. ")
+        sys.stderr.write("\nInformation for query sequence '" + self.contig_name + "'\n")
+        sys.stderr.write(str(len(self.placements)) + " sequence(s) grafted onto the " + self.name + " tree.\n")
         # sys.stderr.write("Reference tree:\n")
         # sys.stderr.write(self.tree + "\n")
-        sys.stderr.write("\nFields:\n\t" + str(self.fields) + "\n")
-        sys.stderr.write(self.contig_name + "\n")
+        sys.stderr.write("JPlace fields:\n\t" + str(self.fields) + "\n")
         sys.stderr.write("Placement information:\n")
         for pquery in self.placements:
             placement = loads(pquery, encoding="utf-8")
             for k, v in placement.items():
                 if k == 'p':
                     sys.stderr.write('\t' + str(v) + "\n")
-        sys.stderr.write("Lineage information:\n")
+        sys.stderr.write("Non-redundant lineages of child nodes:\n")
         if len(self.lineage_list) > 0:
-            for lineage in self.lineage_list:
+            for lineage in sorted(set(self.lineage_list)):
                 sys.stderr.write('\t' + str(lineage) + "\n")
         else:
             sys.stderr.write("\tNone.\n")
