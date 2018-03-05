@@ -95,6 +95,7 @@ amoA_B	N0102	Ammonia monooxygenase (Ammonia-oxidizing Bacteria)
 #hao	N0200	hydroxylamine dehydrogenase
 #nxrB	N0301	Nitrite oxidoreductase subunit B
 #nifH	N0401	nitrogenase iron protein NifH (K02588)
+nifH1t	N0411	nitrogenase iron protein NifH (K02588)
 nifHc2	N0421	nitrogenase iron protein NifH (K02588)
 nifHc3	N0431	nitrogenase iron protein NifH (K02588)
 nifHc4	N0441	nitrogenase iron protein NifH (K02588)
