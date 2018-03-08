@@ -1,0 +1,32 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+7|61 #6f3f07 Halobacteria
+39 #E4CA8C Bacilli
+110|109 #DBBB75 Clostridia
+5 #F5F5F5 Sphingobacteriia
+44|81 #10746C Deltaproteobacteria
+14 #E0C481 Bacteroidetes Order II. Incertae sedis
+91 #F5E8C4 Cytophagia
+46 #F5E8C4 Cytophagia
+13 #E7D098 Bacteroidia
+35 #F5F0E4 Saprospiria
+23|36 #F5ECD4 Flavobacteriia
+31|103 #F5ECD4 Flavobacteriia
+65 #C8EAE5 Ignavibacteria
+63 #B2E1DA Gemmatimonadetes
+75|78 #C28734 Aquificae
+50|84 #814A09 Thermoprotei
+32|33 #EDF3F2 Thermomicrobia
+64|107 #10746C Deltaproteobacteria
+58|89 #20847C Epsilonproteobacteria
+111 #D6B168 Deferribacteres
+2|87 #003C30 Betaproteobacteria
+93 #00493E Gammaproteobacteria
+17|83 #00493E Gammaproteobacteria
+112|70 #004237 Alphaproteobacteria
+82|80 #003C30 Betaproteobacteria

@@ -1,0 +1,24 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+6 #E0C481 Bacteroidetes Order II. Incertae sedis
+1|4 #6f3f07 Halobacteria
+113|114 #DEEFED Chloroflexia
+116|117 #DBBB75 Clostridia
+9|12 #F5ECD4 Flavobacteriia
+18 #F5F5F5 Sphingobacteriia
+67|68 #003C30 Betaproteobacteria
+91|94 #003C30 Betaproteobacteria
+86|77 #003C30 Betaproteobacteria
+66|70 #003C30 Betaproteobacteria
+92|93 #003C30 Betaproteobacteria
+72|74 #003C30 Betaproteobacteria
+37|121 #004237 Alphaproteobacteria
+57|58 #004237 Alphaproteobacteria
+60|64 #003C30 Betaproteobacteria
+95|103 #00493E Gammaproteobacteria
+98|99 #00493E Gammaproteobacteria

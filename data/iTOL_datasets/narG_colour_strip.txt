@@ -1,0 +1,124 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+# | #E0C481 Bacteroidetes Order II. Incertae sedis
+# | #6f3f07 Halobacteria
+# | #DEEFED Chloroflexia
+# | #F5ECD4 Flavobacteriia
+# | #F5F5F5 Sphingobacteriia
+# | #003C30 Betaproteobacteria
+# | #003C30 Betaproteobacteria
+# | #004237 Alphaproteobacteria
+# | #004237 Alphaproteobacteria
+# | #003C30 Betaproteobacteria
+# | #00493E Gammaproteobacteria
+2|3 #6F3F07 Halobacteria
+14 #D7EDEA unclassified Chlorobi
+308 #9A5E14 Bacteria candidate phyla
+11|12 #D6B168 Deferribacteres
+1 #5D3505 Archaeoglobi
+124|126 #10746C Deltaproteobacteria
+133 #10746C Deltaproteobacteria
+247|249 #EBD6A3 Deinococci
+310 #9A5E14 Bacteria candidate phyla
+26 #004237 Alphaproteobacteria
+83 #00493E Gammaproteobacteria
+246 #F5F2EC unclassified Chloroflexi
+132 #10746C Deltaproteobacteria
+128|128 #10746C Deltaproteobacteria
+123 #10746C Deltaproteobacteria
+10 #CC9C4E Chrysiogenetes
+312 #663A06 prokaryotic environmental samples
+16 #54ADA3 unclassified Candidatus Omnitrophica
+9 #B37625 unclassified Acidobacteria
+313 #543005 ecological metagenomes
+65 #003C30 Betaproteobacteria
+15 #D7EDEA unclassified Chlorobi
+6|4 #814A09 Thermoprotei
+7|5 #814A09 Thermoprotei
+17|18 #005046 Acidithiobacillia
+110 #00493E Gammaproteobacteria
+114 #00493E Gammaproteobacteria
+72 #003C30 Betaproteobacteria
+111 #00493E Gammaproteobacteria
+115 #00493E Gammaproteobacteria
+241 #60B6AC Coriobacteriia
+80 #00493E Gammaproteobacteria
+91 #00493E Gammaproteobacteria
+300 #DBBB75 Clostridia
+13 #E7D098 Bacteroidia
+62 #003C30 Betaproteobacteria
+37 #004237 Alphaproteobacteria
+103 #00493E Gammaproteobacteria
+71 #003C30 Betaproteobacteria
+67 #003C30 Betaproteobacteria
+54|55 #003C30 Betaproteobacteria
+46 #003C30 Betaproteobacteria
+49 #003C30 Betaproteobacteria
+61 #003C30 Betaproteobacteria
+39 #004237 Alphaproteobacteria
+99 #00493E Gammaproteobacteria
+68|70 #003C30 Betaproteobacteria
+47 #003C30 Betaproteobacteria
+22 #004237 Alphaproteobacteria
+76|79 #00493E Gammaproteobacteria
+81 #00493E Gammaproteobacteria
+84|104 #00493E Gammaproteobacteria
+112 #00493E Gammaproteobacteria
+113 #00493E Gammaproteobacteria
+116 #00493E Gammaproteobacteria
+117 #00493E Gammaproteobacteria
+118 #00493E Gammaproteobacteria
+30 #004237 Alphaproteobacteria
+66 #003C30 Betaproteobacteria
+74|75 #003C30 Betaproteobacteria
+51 #003C30 Betaproteobacteria
+63|64 #003C30 Betaproteobacteria
+56|60 #003C30 Betaproteobacteria
+52|53 #003C30 Betaproteobacteria
+50 #003C30 Betaproteobacteria
+48 #003C30 Betaproteobacteria
+45 #003C30 Betaproteobacteria
+82 #00493E Gammaproteobacteria
+105 #00493E Gammaproteobacteria
+38 #004237 Alphaproteobacteria
+20 #004237 Alphaproteobacteria
+43 #004237 Alphaproteobacteria
+34 #004237 Alphaproteobacteria
+23 #004237 Alphaproteobacteria
+31 #004237 Alphaproteobacteria
+28 #004237 Alphaproteobacteria
+40 #004237 Alphaproteobacteria
+95 #00493E Gammaproteobacteria
+44 #004237 Alphaproteobacteria
+33 #004237 Alphaproteobacteria
+42 #004237 Alphaproteobacteria
+27 #004237 Alphaproteobacteria
+35 #004237 Alphaproteobacteria
+41 #004237 Alphaproteobacteria
+36 #004237 Alphaproteobacteria
+24 #004237 Alphaproteobacteria
+29 #004237 Alphaproteobacteria
+25 #004237 Alphaproteobacteria
+19 #004237 Alphaproteobacteria
+21 #004237 Alphaproteobacteria
+32 #004237 Alphaproteobacteria
+121|122 #10746C Deltaproteobacteria
+130|131 #10746C Deltaproteobacteria
+119|120 #10746C Deltaproteobacteria
+282|263 #E4CA8C Bacilli
+266|280 #E4CA8C Bacilli
+270|264 #E4CA8C Bacilli
+297 #DBBB75 Clostridia
+298 #DBBB75 Clostridia
+311 #784508 Metazoa
+305 #C79141 Negativicutes
+301|307 #C79141 Negativicutes
+267|252 #E4CA8C Bacilli
+295|281 #E4CA8C Bacilli
+242|243 #78C7BC Rubrobacteria
+200|245 #48A49B Actinobacteria

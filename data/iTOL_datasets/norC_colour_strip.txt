@@ -1,0 +1,55 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+162 #00493E Gammaproteobacteria
+42 #004237 Alphaproteobacteria
+15 #E6F1EF unclassified Bacteroidetes
+215 #E4CA8C Bacilli
+166 #00493E Gammaproteobacteria
+163 #00493E Gammaproteobacteria
+167 #00493E Gammaproteobacteria
+165 #00493E Gammaproteobacteria
+164 #00493E Gammaproteobacteria
+161|158 #00493E Gammaproteobacteria
+168 #00493E Gammaproteobacteria
+117 #004237 Alphaproteobacteria
+133|135 #003C30 Betaproteobacteria
+55|31 #004237 Alphaproteobacteria
+26|39 #004237 Alphaproteobacteria
+112|115 #004237 Alphaproteobacteria
+69|51 #004237 Alphaproteobacteria
+120 #004237 Alphaproteobacteria
+119 #004237 Alphaproteobacteria
+118 #004237 Alphaproteobacteria
+134|137 #003C30 Betaproteobacteria
+155|147 #00493E Gammaproteobacteria
+122 #003C30 Betaproteobacteria
+203|202 #20847C Epsilonproteobacteria
+196|169 #00493E Gammaproteobacteria
+191|157 #00493E Gammaproteobacteria
+144|129 #003C30 Betaproteobacteria
+143|142 #003C30 Betaproteobacteria
+124|130 #003C30 Betaproteobacteria
+211 #31938B Spirochaetia
+210 #31938B Spirochaetia
+10|6 #F5ECD4 Flavobacteriia
+4 #F5E8C4 Cytophagia
+1 #B37625 unclassified Acidobacteria
+139|140 #003C30 Betaproteobacteria
+187|177 #00493E Gammaproteobacteria
+127|123 #003C30 Betaproteobacteria
+219|220 #C79141 Negativicutes
+218|216 #DBBB75 Clostridia
+17|16 #E6F1EF unclassified Bacteroidetes
+8 #F5ECD4 Flavobacteriia
+5 #F5ECD4 Flavobacteriia
+212 #BDE6E0 Ardenticatenia
+213|214 #EBD6A3 Deinococci
+19|20 #187C74 Methylacidiphilae
+2|3 #C28734 Aquificae
+209|204 #20847C Epsilonproteobacteria
+192 #00493E Gammaproteobacteria
