@@ -1,0 +1,49 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+116|109 #00493E Gammaproteobacteria
+15|22 #004237 Alphaproteobacteria
+177|178 #A6DCD4 Anaerolineae
+187 #9A5E14 Bacteria candidate phyla
+5 #298B83 Planctomycetia
+175 #10746C Deltaproteobacteria
+180|182 #EBD6A3 Deinococci
+4 #E0C481 Bacteroidetes Order II. Incertae sedis
+1|3 #C28734 Aquificae
+176 #20847C Epsilonproteobacteria
+69 #003C30 Betaproteobacteria
+38 #004237 Alphaproteobacteria
+36|34 #004237 Alphaproteobacteria
+31 #004237 Alphaproteobacteria
+37 #004237 Alphaproteobacteria
+92|95 #003C30 Betaproteobacteria
+75|73 #003C30 Betaproteobacteria
+86|90 #003C30 Betaproteobacteria
+79|82 #003C30 Betaproteobacteria
+159|156 #00493E Gammaproteobacteria
+45 #003C30 Betaproteobacteria
+32|18 #004237 Alphaproteobacteria
+171 #00493E Gammaproteobacteria
+98 #003C30 Betaproteobacteria
+174 #00574D Hydrogenophilalia
+80|77 #003C30 Betaproteobacteria
+60|54 #003C30 Betaproteobacteria
+88|74 #003C30 Betaproteobacteria
+167 #00493E Gammaproteobacteria
+70|97 #003C30 Betaproteobacteria
+64|51 #003C30 Betaproteobacteria
+6 #005046 Acidithiobacillia
+100 #003C30 Betaproteobacteria
+101 #003C30 Betaproteobacteria
+8 #005046 Acidithiobacillia
+102 #003C30 Betaproteobacteria
+166|173 #00493E Gammaproteobacteria
+7 #005046 Acidithiobacillia
+168 #00493E Gammaproteobacteria
+72|71 #003C30 Betaproteobacteria
+104|103 #00493E Gammaproteobacteria
+124|137 #00493E Gammaproteobacteria
