@@ -841,11 +841,12 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
         strikes = 0
         while strikes < 3:
             if strikes == 0:
-                if not reference_sequence.accession:
+                if reference_sequence.accession:
+                    lineage = get_lineage(reference_sequence.accession, molecule)
+                else:
                     sys.stderr.write("WARNING: no accession available for Entrez query:\n")
                     reference_sequence.get_info()
-                lineage = get_lineage(reference_sequence.accession, molecule)
-                if type(lineage) is str:
+                if type(lineage) is str and len(lineage) > 0:
                     # The query was successful
                     strikes = 3
             elif strikes == 1:
@@ -853,13 +854,16 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
                 # try to parse organism name from description
                 if reference_sequence.organism:
                     try:
-                        taxon = reference_sequence.organism.split('_')[-2]
+                        taxon = ' '.join(reference_sequence.organism.split('_')[:2])
                     except IndexError:
                         taxon = reference_sequence.organism
                     lineage = get_lineage(taxon, "tax")
-                    if type(lineage) is str:
+                    if type(lineage) is str and len(lineage) > 0:
                         # The query was successful
-                        lineage += '; ' + reference_sequence.organism.split('_')[-2]
+                        # try:
+                        #     lineage += '; ' + reference_sequence.organism.split('_')[-2]
+                        # except IndexError:
+                        #     lineage += '; ' + reference_sequence.organism
                         strikes = 3
                 else:
                     # Organism information is not available, time to bail
@@ -929,9 +933,12 @@ def read_tax_ids(tree_taxa_list):
             mltree_id_key, seq_info = fields
             lineage = ""
         ref_seq = ReferenceSequence()
-        ref_seq.organism = seq_info.split(" | ")[0]
-        ref_seq.accession = seq_info.split(" | ")[1]
-        ref_seq.lineage = lineage
+        try:
+            ref_seq.organism = seq_info.split(" | ")[0]
+            ref_seq.accession = seq_info.split(" | ")[1]
+            ref_seq.lineage = lineage
+        except IndexError:
+            ref_seq.organism = seq_info
         fasta_replace_dict[mltree_id_key] = ref_seq
         line = tree_tax_list_handle.readline()
     tree_tax_list_handle.close()
@@ -1066,7 +1073,7 @@ def reverse_complement(rrna_sequence):
 
 
 def update_tax_ids_with_lineage(args, tree_taxa_list):
-    tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + tree_taxa_list
+    tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + "tax_ids_%s.txt" % args.code_name
     if not os.path.exists(tax_ids_file):
         sys.stderr.write("ERROR: Unable to find " + tax_ids_file + "!\n")
         raise FileNotFoundError
