@@ -4115,7 +4115,10 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
     if args.rpkm:
         all_rpkm_values = read_rpkm(rpkm_output_file)
         # Filter out RPKMs for contigs not associated with the marker of interest
-        rpkm_values = all_rpkm_values[marker]
+        if marker in all_rpkm_values:
+            rpkm_values = all_rpkm_values[marker]
+        else:
+            rpkm_values = dict()
     else:
         rpkm_values = dict()
         for tree_sap in tree_protein_list:
