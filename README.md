@@ -8,6 +8,8 @@ A python pipeline for identifying marker genes in a metagenome and grafting sequ
 
 ## Download and installation:
 
+For an easy introduction to TreeSAPP, please refer to the [GCP tutorial]().
+
 ```
 git clone git@github.com:hallamlab/TreeSAPP.git
 ```
