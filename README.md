@@ -8,7 +8,8 @@ A python pipeline for identifying marker genes in a metagenome and grafting sequ
 
 ## Download and installation:
 
-For an easy introduction to TreeSAPP, please refer to the [GCP tutorial]().
+For an easy introduction to TreeSAPP, please refer to the [GCP tutorial](https://github.com/hallamlab/TreeSAPP/blob/fastsearch/GCP_tutorial.md).
+Otherwise, carry on.
 
 ```
 git clone git@github.com:hallamlab/TreeSAPP.git
@@ -91,17 +92,9 @@ are together elsewhere, TreeSAPP can be directed to them with `--executables`.
 If WISECONFIGDIR is not already set, treesapp.py will exit and provide you with the correct command to
 add this to you environment.
 
-### Using imagemaker_2_061/mltreemap_imagemaker.pl
 
-We packaged the original MLTreeMap perl code with TreeSAPP for continuity's sake
+### Other tutorials of interest
 
-To use it, some perl dependencies may need to be installed. For instance, the commands
-```
-cpan
-install "SVG"
-install "Math::Trig"
-```
-may be necessary. Two perl module files (\*.pm) are included in imagemaker_2_061/lib: NEWICK_tree.pm and MLTreeMap_ml_svg_visualizer.pm.
-These will need to be copied to somewhere in your perl path (such as /usr/lib/perl5/) to allow mltreemap_imagemaker.pl to work anywhere
-on your machine.  
+- [Building reference packages]()
+- [Evaluating classification accuracy]()
 
