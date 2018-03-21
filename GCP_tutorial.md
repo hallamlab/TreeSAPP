@@ -3,20 +3,59 @@
 This tutorial is meant to allow people to run TreeSAPP in the cloud with as few installation steps as possible
 and without the worry of interfering with current software installations.
 
-__Note__: this page is incomplete but the commands listed below will work.
-I will be adding additional details on connecting to data buckets and selecting an appropriate
-instance for TreeSAPP analyses.
+__Note__: this page is a work in progress.
+I will be adding additional details on connecting to data buckets and more!
 
-
-## Installation:
+## Account setup:
 
 Begin by creating a new instance on [Google Cloud Platform](https://cloud.google.com/).
-If you do not already have an account you will need to create an account. Forunately, Google does offer
-student accounts with free compute time to familiarize yourself with the platform!
+If you do not already have an account you will need to create an account (quick guide [here]()).
 
-My cloud instance is running Ubuntu 16.04 with 24 CPUs and 22Gb of RAM.
+To create a new instance, navigate to your GCP "Dashboard" within the "Console".
+It should look something like this:
 
-Once you have this instance started, log on to the node via `ssh`.
+![dash_pic](/home/connor/Pictures/MICB425_treesapp/dashboard.png "Caption")
+
+Under the "Resources" tile, select "Compute Engine".
+At the top of this new page, there will be a dashboard with a "CREATE INSTANCE" tab. Here is where it gets interesting!
+
+Pick a name and zone (I chose 'us-west1-b'). Now is the first of two important options: Machine type.
+TreeSAPP has relatively low RAM requirements but does benefit greatly from parallelization.
+I suggest either one of the 8 or 16 high CPU options (code named n1-highcpu-8 or n1-highcpu-16, respectively)
+from the dropdown menu for simplicity, though feel free to create a custom type to suite your needs.
+You do not want to deploy a container to this instance. The second important option is the "Boot disk":
+I recommend selecting "Ubuntu 16.04 LTS" since TreeSAPP is known to work with this OS.
+Keeping the disk type "Standard persistent disk", increase the Size to 40 Gb.
+Finally, change the access scope from "Allow default access" to "Allow full access to all Cloud APIs".
+
+You may have noticed an estimated cost on the right side of the page.
+This is an estimated cost for running the instance continuously for a whole month.
+Fortunately, Google does offer $300 USD in free compute time to familiarize yourself with the platform!
+Click the "Create" button at the bottom of the page to spin up this instance.
+
+## Connecting to the instance
+
+This is relatively straightforward once Google's GCP utility suite, gsutil, is installed.
+Here is the [link](https://cloud.google.com/storage/docs/gsutil_install) to the quick installation guide.
+
+Once this is installed, the command to connect to your server is:
+`gcloud compute ssh my_instance` where my_instance is the name you chose while creating your instance.
+
+## Buckets of fun
+
+GCP does not appreciate storing data on their compute servers. For this reason
+they have implemented data storage on specialized storage servers.
+We are able to create a partition on their storage servers that meet our needs,
+and these partitions are called buckets.
+
+You can create a bucket in the GCP console by navigating to Products & services (top left menu icon),
+then Storage. This will bring you to a page where you can create a bucket.
+
+Once you have a bucket, these can be easily mounted to a compute instance using `gcsfuse`.
+`gcsfuse` does not come pre-installed,
+though the [process is trivial](https://github.com/GoogleCloudPlatform/gcsfuse/blob/master/docs/installing.md).
+
+## Installation:
 
 From here, it is just a matter of downloading and installing the dependencies of TreeSAPP
 before compiling TreeSAPP itself.
@@ -58,3 +97,13 @@ For more information on the parameters available, use `~/TreeSAPP/treesapp.p -h`
 
 This section will describe how to mount a "bucket" for your data to your compute instance in the case you selected
 a small hard disk to save money (which I suggest).
+
+
+## Finishing up
+
+When you are finished processing all your samples, make sure you STOP your instance
+so you don't continue incurring charges from google to your credit card
+(or at least it stops chewing up your free compute time!). To do this, navigate back to your "Compute Engine" console,
+selectyour instance and hit the "STOP" button at the top of your page.
+ It may take up to a minute to successfully shut it down and I suggest making sure it does.
+That's it!
