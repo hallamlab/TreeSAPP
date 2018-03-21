@@ -69,9 +69,10 @@ before compiling TreeSAPP itself.
 7. `sudo apt-get install infernal`
 8. `sudo apt-get install ncbi-blast+`
 9. `sudo apt-get install default-jre-headless`
-10. `wget https://www.drive5.com/muscle/downloads3.8.31/muscle3.8.31_i86linux64.tar.gz; tar xzf muscle3.8.31_i86linux64.tar.gz; mv muscle3.8.31_i86linux64 sub_binaries/muscle; rm muscle*gz`
-11. `tar xzf sub_binaries/hmmer-2.4i.tar.gz; cd hmmer-2.4i/; ./configure; make; make install; cp src/hmmbuild ../sub_binaries/; cd -`
-12. `wget http://trimal.cgenomics.org/_media/trimal.v1.2rev59.tar.gz; tar xzf trimal.v1.2rev59.tar.gz; rm trimal.v1.2rev59.tar.gz; cd trimAl/source/; make; sudo ln -s /home/connor/TreeSAPP/sub_binaries/trimAl/source/trimal /usr/bin/`
+10. `sudo apt-get bwa`
+11. `wget https://www.drive5.com/muscle/downloads3.8.31/muscle3.8.31_i86linux64.tar.gz; tar xzf muscle3.8.31_i86linux64.tar.gz; mv muscle3.8.31_i86linux64 sub_binaries/muscle; rm muscle*gz`
+12. `tar xzf sub_binaries/hmmer-2.4i.tar.gz; cd hmmer-2.4i/; ./configure; make; make install; cp src/hmmbuild ../sub_binaries/; cd -`
+13. `wget http://trimal.cgenomics.org/_media/trimal.v1.2rev59.tar.gz; tar xzf trimal.v1.2rev59.tar.gz; rm trimal.v1.2rev59.tar.gz; cd trimAl/source/; make; sudo ln -s /home/connor/TreeSAPP/sub_binaries/trimAl/source/trimal /usr/bin/`
 
 If something did not complete successfully please create an issue on the GitHUb page!
 As I mentioned, this was successful using Ubuntu 16.04 but the basics should work for most other operating systems supported by GCP.
