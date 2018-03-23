@@ -87,6 +87,8 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
 
     for name in fasta_dict.keys():
         seq = fasta_dict[name]
+        if name[0] != '>':
+            name = '>' + name
         sequence_accumulator += 1
         if max_seqs and sequence_accumulator > max_seqs:
             # If input is to be split and number of sequences per file has been exceeded begin writing to new file
@@ -110,7 +112,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     return split_files
 
 
-def get_header_format(header, code_name):
+def get_header_format(header, code_name=""):
     """
     Used to decipher which formatting style was used: NCBI, FunGenes, or other
     HOW TO ADD A NEW REGULAR EXPRESSION:
