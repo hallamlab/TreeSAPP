@@ -23,4 +23,4 @@ install:
 	mv rpkm sub_binaries/
 	python3 setup.py build_ext --inplace
 
-# hmmbuild, hmmalign, Gblocks, genewise, raxmlHPC, tree_parser
+# hmmbuild, hmmalign, raxmlHPC, tree_parser

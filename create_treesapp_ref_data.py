@@ -53,7 +53,7 @@ def get_arguments():
                         type=int)
     optopt.add_argument('-a', '--multiple_alignment',
                         help='The FASTA input is also the multiple alignment file to be used.\n'
-                             'In this workflow, alignment with MUSCLE is skipped and this file is used instead.',
+                             'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
                         action="store_true",
                         default=False)
     optopt.add_argument('-m', '--molecule',
@@ -1027,7 +1027,11 @@ def update_build_parameters(args, code_name, aa_model, lowest_reliable_rank):
 
     date = strftime("%d_%b_%Y", gmtime())
 
-    build_list = [code_name, "Z1111", "PROTGAMMA" + aa_model, args.identity, lowest_reliable_rank, date]
+    # TODO: Include a column for the molecule type
+    if args.molecule == "prot":
+        build_list = [code_name, "Z1111", "PROTGAMMA" + aa_model, args.identity, lowest_reliable_rank, date]
+    else:
+        build_list = [code_name, "Z1111", "GTRGAMMA", args.identity, lowest_reliable_rank, date]
     params.write("\t".join(build_list) + "\n")
 
     return
@@ -1040,14 +1044,6 @@ def terminal_commands(final_output_folder, code_name):
     sys.stdout.write("2. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name + " data/tree_data/\n")
     sys.stdout.write("3. $ cp " + final_output_folder + os.sep + code_name + "_tree.txt data/tree_data/\n")
     sys.stdout.write("4. $ cp " + final_output_folder + os.sep + code_name + ".hmm data/hmm_data/\n")
-    sys.stdout.write("5. $ cp " + final_output_folder + os.sep + code_name + ".fa* data/alignment_data/\n")
-    sys.stdout.write("6. $ cp " + final_output_folder + os.sep + code_name +
-                     "_tree.txt imagemaker_2_061/tree_data/\n")
-    sys.stdout.write("7. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name +
-                     " imagemaker_2_061/tree_data/\n")
-    sys.stdout.write("8. Create a file called imagemaker_2_061/tree_data/domain_and_color_descriptions_" +
-                     code_name + ".txt to add colours to clades in the new reference tree.\n")
-    sys.stdout.write("9. Modify imagemaker_2_061/tree_data/drawing_info.txt following the obvious format\n")
     sys.stdout.flush()
     return
 
@@ -1189,7 +1185,7 @@ def main():
     lowest_reliable_rank = estimate_taxonomic_redundancy(args, fasta_replace_dict)
 
     fasta_replaced_file = args.output_dir + code_name + ".fc.repl.fasta"
-    fasta_mltree = args.output_dir + code_name + ".fa"
+    multiple_alignment_fasta = args.output_dir + code_name + ".fa"
 
     if args.multiple_alignment:
         create_new_fasta(fasta_replaced_file, fasta_replace_dict, True)
@@ -1201,18 +1197,20 @@ def main():
         args.multiple_alignment = True
         # fasta_dict = format_read_fasta(aligned_fasta, args.molecule, args)
     elif args.multiple_alignment is False:
-        sys.stdout.write("Aligning the sequences using MUSCLE... ")
+        sys.stdout.write("Aligning the sequences using MAFFT... ")
         fasta_replaced_align = args.output_dir + code_name + ".fc.repl.aligned.fasta"
 
-        muscle_align_command = [args.executables["muscle"]]
-        muscle_align_command += ["-in", fasta_replaced_file]
-        muscle_align_command += ["-out", fasta_replaced_align]
+        mafft_align_command = [args.executables["mafft"]]
+        mafft_align_command += ["--maxiterate", str(1000)]
+        mafft_align_command += ["--thread", str(args.num_threads)]
+        mafft_align_command.append("--localpair")
+        mafft_align_command += [fasta_replaced_file + '>' + fasta_replaced_align]
 
-        stdout, muscle_pro_returncode = launch_write_command(muscle_align_command, False)
+        stdout, muscle_pro_returncode = launch_write_command(mafft_align_command, False)
 
         if muscle_pro_returncode != 0:
             sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["muscle"] +
-                             " did not complete successfully! Command used:\n" + ' '.join(muscle_align_command) + "\n")
+                             " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
             sys.exit()
         sys.stdout.write("done.\n")
     elif args.multiple_alignment and args.molecule != "rrna":
@@ -1220,13 +1218,13 @@ def main():
     else:
         pass
 
-    stdout, blastdb = generate_blast_database(args, fasta_replaced_file, args.molecule, args.output_dir + code_name)
+    # stdout, blastdb = generate_blast_database(args, fasta_replaced_file, args.molecule, args.output_dir + code_name)
+    #
+    # log.write("\n### MAKEBLASTDB ###" + stdout)
+    #
+    # sys.stdout.write("******************** BLAST DB for %s generated ********************\n" % code_name)
 
-    log.write("\n### MAKEBLASTDB ###" + stdout)
-
-    sys.stdout.write("******************** BLAST DB for %s generated ********************\n" % code_name)
-
-    os.rename(fasta_replaced_align, blastdb)
+    os.rename(fasta_replaced_align, multiple_alignment_fasta)
 
     if args.molecule == "rrna":
         # A .cm file has already been generated, no need for HMM
@@ -1234,7 +1232,7 @@ def main():
     else:
         hmm_build_command = [args.executables["hmmbuild"]]
         hmm_build_command += ["-s", final_output_folder + code_name + ".hmm"]
-        hmm_build_command.append(fasta_mltree)
+        hmm_build_command.append(multiple_alignment_fasta)
 
         stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
 
@@ -1248,11 +1246,11 @@ def main():
 
         sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
 
-    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.treesapp, fasta_mltree)
+    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.treesapp, multiple_alignment_fasta)
     os.system(phylip_command)
 
     phylip_file = args.output_dir + code_name + ".phy"
-    os.rename(fasta_mltree + ".phylip", phylip_file)
+    os.rename(multiple_alignment_fasta + ".phylip", phylip_file)
 
     raxml_out = args.output_dir + code_name + "_phy_files"
 
@@ -1305,12 +1303,9 @@ def main():
 
     swap_tree_names(tree_to_swap, final_mltree, code_name)
 
-    if args.molecule == "prot":
-        os.system("mv %s.fa %s.fa.p* %s" %
-                  (args.output_dir + code_name, args.output_dir + code_name, final_output_folder))
-    if args.molecule == "rrna" or args.molecule == "dna":
-        os.system("mv %s.fa %s.fa.n* %s" %
-                  (args.output_dir + code_name, args.output_dir + code_name, final_output_folder))
+    # Move the FASTA file to the final output directory
+    os.system("mv %s.fa %s" % (args.output_dir + code_name, final_output_folder))
+    # Move the tax_ids and tree file to the final output directory
     os.system("mv %s %s %s" % (tree_taxa_list, final_mltree, final_output_folder))
 
     annotate_partition_tree(code_name, fasta_replace_dict, raxml_out + os.sep + "RAxML_bipartitions." + code_name)
