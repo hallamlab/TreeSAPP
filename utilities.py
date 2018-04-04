@@ -11,7 +11,7 @@ from external_command_interface import launch_write_command
 
 
 def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+    return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
 
 def which(program):
@@ -53,8 +53,10 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "hmmalign", "raxmlHPC",
-                    "trimal", "cmalign", "cmsearch", "makeblastdb", "muscle", "hmmbuild", "cmbuild"]
+    dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "trimal",
+                    "cmalign", "cmsearch", "cmbuild", "mafft"]
+    # old_dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "makeblastdb", "muscle"]
+    # dependencies += old_dependencies
 
     # Extra executables necessary for certain modes of TreeSAPP
     try:
@@ -63,9 +65,6 @@ def find_executables(args):
 
         if args.update_tree:
             dependencies.append("usearch")
-
-        if args.consensus:
-            dependencies.append("prodigal")
     except AttributeError:
         pass
 

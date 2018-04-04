@@ -799,3 +799,22 @@ class MarkerBuild:
             raise AssertionError("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
 
         return
+
+
+class HmmMatch:
+    def __init__(self):
+        self.genome = ""  # Name of the input file (Metagenome, SAG, MAG, or isolate genome)
+        self.target_hmm = ""  # Name of the HMM aligned to
+        self.orf = ""  # Name of the ORF, or more generally contig sequence
+        self.hmm_len = 0  # Length of the hidden Markov model
+        self.start = 0  # Alignment start position on the contig
+        self.end = 0  # Alignment start position on the contig
+        self.seq_len = 0  # Length of the query sequence
+
+    def print_info(self):
+        sys.stdout.write("Info for " + str(self.orf) + " in " + self.genome + ":\n")
+        sys.stdout.write("\tHMM = " + self.target_hmm + "\n")
+        sys.stdout.write("\tSequence length = " + str(self.seq_len) + "\n")
+        sys.stdout.write("\tAligned length = " + str(self.end - self.start) + "\n")
+        sys.stdout.write("\tHMM length = " + str(self.hmm_len) + "\n")
+        return
