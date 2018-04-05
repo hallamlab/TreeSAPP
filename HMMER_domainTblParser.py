@@ -5,7 +5,6 @@ import sys
 import re
 import argparse
 import math
-from classy import HmmMatch
 
 
 def get_options():
@@ -68,6 +67,25 @@ def format_hmmer_domtbl_line(line):
             stat += c
     stats.append(str(stat))
     return stats
+
+
+class HmmMatch:
+    def __init__(self):
+        self.genome = ""  # Name of the input file (Metagenome, SAG, MAG, or isolate genome)
+        self.target_hmm = ""  # Name of the HMM aligned to
+        self.orf = ""  # Name of the ORF, or more generally contig sequence
+        self.hmm_len = 0  # Length of the hidden Markov model
+        self.start = 0  # Alignment start position on the contig
+        self.end = 0  # Alignment start position on the contig
+        self.seq_len = 0  # Length of the query sequence
+
+    def print_info(self):
+        sys.stdout.write("Info for " + str(self.orf) + " in " + self.genome + ":\n")
+        sys.stdout.write("\tHMM = " + self.target_hmm + "\n")
+        sys.stdout.write("\tSequence length = " + str(self.seq_len) + "\n")
+        sys.stdout.write("\tAligned length = " + str(self.end - self.start) + "\n")
+        sys.stdout.write("\tHMM length = " + str(self.hmm_len) + "\n")
+        return
 
 
 class DomainTableParser(object):
@@ -275,27 +293,3 @@ def write_quality_matches_fasta(args, complete_gene_hits, fasta_dict):
         output_handler.close()
 
     return
-
-#
-# def main():
-#     """
-#     Drive the instantiation of the class and
-#     further filtering of each of the hits
-#     """
-#     args = get_options()
-#     dom_table = DomainTableParser(args.input)
-#     if args.verbose:
-#         sys.stdout.write("\tReading HMMER domain table... ")
-#         sys.stdout.flush()
-#     dom_table.read_domtbl_lines()
-#     if args.verbose:
-#         sys.stdout.write("done.\n")
-#     purified_matches, num_dropped, hmm_size_dict = filter_poor_hits(args, dom_table)
-#     complete_gene_hits = filter_incomplete_hits(args, purified_matches, num_dropped, hmm_size_dict)
-#     if args.fasta_in:
-#         fasta_dict = read_fasta(args)
-#         write_quality_matches_fasta(args, complete_gene_hits, fasta_dict)
-#
-#
-# if __name__ == "__main__":
-#     main()

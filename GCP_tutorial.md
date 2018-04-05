@@ -62,17 +62,21 @@ before compiling TreeSAPP itself.
 
 1. `sudo apt-get update; sudo apt-get install python3-pip`
 2. `sudo pip3 install numpy biopython`
-3. `git clone https://github.com/hallamlab/TreeSAPP.git; cd TreeSAPP; make; make install`
+3. `git clone https://github.com/hallamlab/TreeSAPP.git; cd TreeSAPP;
+ git checkout fastsearch; make; make install; git checkout master`
 4. `tar xzf sub_binaries/wise2.2.0.tar.gz; cd wise2.2.0/src/; make all`
 5. `mv bin/genewise ~/TreeSAPP/sub_binaries/; cd ~/TreeSAPP/; rm -r wise2.2.0/`
-6. `tar xzf sub_binaries/Gblocks_Linux_0.91b.tar.Z; cp Gblocks_0.91b/Gblocks sub_binaries/; rm -r Gblocks_*`
-7. `sudo apt-get install infernal`
-8. `sudo apt-get install ncbi-blast+`
-9. `sudo apt-get install default-jre-headless`
-10. `sudo apt-get bwa`
-11. `wget https://www.drive5.com/muscle/downloads3.8.31/muscle3.8.31_i86linux64.tar.gz; tar xzf muscle3.8.31_i86linux64.tar.gz; mv muscle3.8.31_i86linux64 sub_binaries/muscle; rm muscle*gz`
-12. `tar xzf sub_binaries/hmmer-2.4i.tar.gz; cd hmmer-2.4i/; ./configure; make; make install; cp src/hmmbuild ../sub_binaries/; cd -`
-13. `wget http://trimal.cgenomics.org/_media/trimal.v1.2rev59.tar.gz; tar xzf trimal.v1.2rev59.tar.gz; rm trimal.v1.2rev59.tar.gz; cd trimAl/source/; make; sudo ln -s /home/connor/TreeSAPP/sub_binaries/trimAl/source/trimal /usr/bin/`
+6. `tar xzf sub_binaries/Gblocks_Linux_0.91b.tar.Z;
+cp Gblocks_0.91b/Gblocks sub_binaries/; rm -r Gblocks_*`
+7. `sudo apt-get install infernal ncbi-blast+ default-jre-headless bwa`
+8. `wget https://www.drive5.com/muscle/downloads3.8.31/muscle3.8.31_i86linux64.tar.gz;
+tar xzf muscle3.8.31_i86linux64.tar.gz;
+mv muscle3.8.31_i86linux64 sub_binaries/muscle; rm muscle*gz`
+9. `tar xzf sub_binaries/hmmer-2.4i.tar.gz; cd hmmer-2.4i/; ./configure; make; sudo make install; cp src/hmmbuild ../sub_binaries/; cd -`
+10. `wget http://trimal.cgenomics.org/_media/trimal.v1.2rev59.tar.gz;
+tar xzf trimal.v1.2rev59.tar.gz; rm trimal.v1.2rev59.tar.gz;
+cd trimAl/source/; make; mv trimal /home/connor/TreeSAPP/sub_binaries/;
+sudo ln -s /home/connor/TreeSAPP/sub_binaries/trimal /usr/bin/; cd`
 
 If something did not complete successfully please create an issue on the GitHUb page!
 As I mentioned, this was successful using Ubuntu 16.04 but the basics should work for most other operating systems supported by GCP.

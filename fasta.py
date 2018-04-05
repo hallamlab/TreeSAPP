@@ -4,6 +4,7 @@ import sys
 import re
 
 import _fasta_reader
+from utilities import median
 
 
 def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
@@ -190,3 +191,50 @@ def get_header_format(header, code_name=""):
     return header_format_re, header_db, header_molecule
 
 
+def summarize_fasta_sequences(fasta_file):
+    try:
+        fasta_handler = open(fasta_file, 'r')
+    except IOError:
+        sys.stderr.write("ERROR: Unable to open " + fasta_file + " for reading!\n")
+        sys.exit(17)
+
+    num_headers = 0
+    longest = 0
+    shortest = 0
+    sequence = None
+    sequence_lengths = []
+    line = fasta_handler.readline()
+    while line:
+        if line[0] == '>':
+            num_headers += 1
+            if sequence is not None:
+                if longest == 0 and shortest == 0:
+                    longest = len(sequence)
+                    shortest = len(sequence)
+                if len(sequence) > longest:
+                    longest = len(sequence)
+                if len(sequence) < shortest:
+                    shortest = len(sequence)
+                else:
+                    pass
+                sequence_lengths.append(len(sequence))
+            sequence = ""
+        else:
+            sequence += line.strip()
+        line = fasta_handler.readline()
+    # Log the last sequence in the file
+    if longest == 0 and shortest == 0:
+        longest = len(sequence)
+        shortest = len(sequence)
+    if len(sequence) > longest:
+        longest = len(sequence)
+    if len(sequence) < shortest:
+        shortest = len(sequence)
+    sequence_lengths.append(len(sequence))
+
+    sys.stdout.write("Number of sequences: " + str(num_headers) + "\n")
+    sys.stdout.write("Longest sequence length: " + str(longest) + "\n")
+    sys.stdout.write("Shortest sequence length: " + str(shortest) + "\n")
+    sys.stdout.write("Mean sequence length: " + str(round(sum(sequence_lengths)/num_headers, 1)) + "\n")
+    sys.stdout.write("Median sequence length: " + str(median(sequence_lengths)) + "\n")
+    return

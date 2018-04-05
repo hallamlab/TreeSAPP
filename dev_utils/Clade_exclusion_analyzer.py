@@ -32,7 +32,7 @@ def get_arguments_():
     required_args = parser.add_argument_group("Required arguments")
     required_args.add_argument('-o', '--output',
                                required=True,
-                               help='TreeSAPP output directory from a previous analysis or clade exlclusion analysis')
+                               help='TreeSAPP output directory from a previous analysis or clade exclusion analysis')
     required_args.add_argument('-i', '--fasta_input',
                                help='Your sequence input file (for TreeSAPP) in FASTA format',
                                required=True)
@@ -697,7 +697,7 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats):
         if re.search("nclassified", query_taxonomy):
             # Remove taxonomic lineages that are unclassified at the Phylum level or higher
             unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
-            if unclassified_depth > 3 and len(deduplicated_lineages[query_taxonomy]) < max_cluster_size:
+            if unclassified_depth > 4 and len(deduplicated_lineages[query_taxonomy]) < max_cluster_size:
                 deduplicated_lineages[query_taxonomy].append(ref_seq.accession)
                 num_rep_seqs += 1
             else:
@@ -930,6 +930,7 @@ def main():
     taxonomic_filter_stats["Classified"] = 0
     taxonomic_filter_stats["Unique_taxa"] = 0
 
+    # TODO: fix bug where marker_contig_map.tsv is missing when accession_lineage_map present
     # Checkpoint one: does anything exist?
     # If not, begin by downloading lineage information for each sequence accession
     if not extant and not accessions_downloaded and not taxa_filter and not classified:
@@ -974,9 +975,11 @@ def main():
                              "-o", treesapp_output_dir,
                              "-m", args.molecule,
                              "-T", str(4),
+                             "--filter_align",
                              "--verbose",
                              "--overwrite",
                              "--delete"]
+        sys.stdout.write("Command used:\n" + ' '.join(treesapp_commands) + "\n")
         launch_write_command(treesapp_commands, False)
         classified = True
 

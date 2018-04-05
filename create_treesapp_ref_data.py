@@ -15,8 +15,8 @@ try:
 
     from time import gmtime, strftime
 
-    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_lineage, generate_blast_database
-    from fasta import format_read_fasta, get_headers, get_header_format
+    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_lineage, parse_domain_tables
+    from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences
     from classy import ReferenceSequence
     from external_command_interface import launch_write_command
 
@@ -42,6 +42,10 @@ def get_arguments():
                                type=str)
 
     optopt = parser.add_argument_group("Optional options")
+    optopt.add_argument("-d", "--domain",
+                        help="An HMM profile representing a specific domain."
+                             "Domains will be excised from input sequences based on hmmsearch alignments.",
+                        required=False, default=None)
     optopt.add_argument("-u", "--uc",
                         help="The USEARCH cluster format file produced from clustering reference sequences",
                         required=False,
@@ -299,7 +303,7 @@ def generate_cm_data(args, unaligned_fasta):
     return aligned_fasta
 
 
-def create_new_fasta(out_fasta, ref_seq_dict, dashes=False):
+def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
     """
     Writes a new FASTA file using a dictionary of ReferenceSequence class objects
     :param out_fasta: Name of the FASTA file to write to
@@ -332,6 +336,36 @@ def create_new_fasta(out_fasta, ref_seq_dict, dashes=False):
     return
 
 
+def hmmsearch_input_references(args, fasta_replaced_file):
+    """
+    Function for searching a fasta file with an hmm profile
+    :param args:
+    :param fasta_replaced_file:
+    :return:
+    """
+    # Find the name of the HMM. Use it to name the output file
+    rp_marker = re.sub(".hmm", '', os.path.basename(args.domain))
+    domtbl = args.output_dir + rp_marker + "_to_ORFs_domtbl.txt"
+
+    # Basic hmmsearch command
+    hmmsearch_command_base = [args.executables["hmmsearch"]]
+    hmmsearch_command_base += ["--cpu", str(args.num_threads)]
+    hmmsearch_command_base.append("--noali")
+    # Customize the command for this input and HMM
+    final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
+    final_hmmsearch_command += [args.domain, fasta_replaced_file]
+    stdout, ret_code = launch_write_command(final_hmmsearch_command)
+
+    # Check to ensure the job finished properly
+    if ret_code != 0:
+        sys.stderr.write("ERROR: hmmsearch did not complete successfully!\n")
+        sys.stderr.write(stdout + "\n")
+        sys.stderr.write("Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
+        sys.exit()
+
+    return [domtbl]
+
+
 def read_uc(uc_file):
     """
     Function to read a USEARCH cluster (.uc) file
@@ -360,6 +394,33 @@ def read_uc(uc_file):
                 cluster_dict['>' + representative].append('>' + header)
         line = uc.readline()
     return cluster_dict
+
+
+def extract_hmm_matches(args, hmm_matches, fasta_dict):
+    sys.stdout.write("Extracting the quality-controlled protein sequences... ")
+    sys.stdout.flush()
+    marker_gene_dict = dict()
+    for marker in hmm_matches:
+        if len(hmm_matches.keys()) > 1:
+            sys.stderr.write("ERROR: Number of markers found from HMM alignments is >1\n")
+            sys.stderr.write("Does your HMM file contain more than 1 profile?\n")
+            sys.exit()
+        if marker not in marker_gene_dict:
+            marker_gene_dict[marker] = dict()
+
+        for hmm_match in hmm_matches[marker]:
+            # Now for the header format to be used in the bulk FASTA:
+            # >contig_name|marker_gene|start_end
+            bulk_header = '>' + hmm_match.orf
+            ref_seq = fasta_dict[re.sub('_' + re.escape(args.code_name), '', hmm_match.orf)]
+            marker_gene_dict[marker][bulk_header] = ref_seq.sequence[hmm_match.start:hmm_match.end+1]
+    sys.stdout.write("done.\n")
+
+    # Now write a single FASTA file with all identified markers
+    for marker in marker_gene_dict:
+        bulk_output_fasta = args.output_dir + marker + "_hmm_purified.fasta"
+        write_new_fasta(marker_gene_dict[marker], bulk_output_fasta)
+    return bulk_output_fasta
 
 
 def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
@@ -1146,10 +1207,14 @@ def main():
                                                             "Should it be used for this run? [y|n] ")
             while use_previous_names != "y" and use_previous_names != "n":
                 use_previous_names = raw_input("Incorrect response. Please input either 'y' or 'n'. ")
+    elif os.path.exists(tree_taxa_list):
+        use_previous_names = 'y'
     else:
         use_previous_names = 'n'
 
     fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+
+    # summarize_fasta_sequences(args.fasta_input)
 
     fasta_replace_dict = dict()
 
@@ -1172,6 +1237,10 @@ def main():
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swappers)
         fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule)
     else:
+        if os.path.exists(tree_taxa_list) and use_previous_names == 'y':
+            fasta_replace_dict = read_tax_ids(tree_taxa_list)
+            if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
+                raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
         # args.uc is None and use_previous_names == 'n'
         original_headers = get_headers(args.fasta_input)
         header_map = map_good_headers_to_ugly(original_headers)
@@ -1188,9 +1257,18 @@ def main():
     multiple_alignment_fasta = args.output_dir + code_name + ".fa"
 
     if args.multiple_alignment:
-        create_new_fasta(fasta_replaced_file, fasta_replace_dict, True)
+        create_new_ref_fasta(fasta_replaced_file, fasta_replace_dict, True)
     else:
-        create_new_fasta(fasta_replaced_file, fasta_replace_dict)
+        create_new_ref_fasta(fasta_replaced_file, fasta_replace_dict)
+
+    if args.domain:
+        sys.stdout.write("Searching for domain sequences... ")
+        hmm_domtbl_files = hmmsearch_input_references(args, fasta_replaced_file)
+        sys.stdout.write("done.\n")
+        hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
+        hmm_purified_fasta = extract_hmm_matches(args, hmm_matches, fasta_replace_dict)
+        os.rename(hmm_purified_fasta, fasta_replaced_file)
+        summarize_fasta_sequences(fasta_replaced_file)
 
     if args.molecule == 'rrna':
         fasta_replaced_align = generate_cm_data(args, fasta_replaced_file)
@@ -1229,6 +1307,9 @@ def main():
     if args.molecule == "rrna":
         # A .cm file has already been generated, no need for HMM
         pass
+    elif args.domain:
+        sys.stdout.write("Copying domain HMM to reference package\n")
+        shutil.copyfile(args.domain, final_output_folder + code_name + ".hmm")
     else:
         hmm_build_command = [args.executables["hmmbuild"]]
         hmm_build_command += ["-s", final_output_folder + code_name + ".hmm"]
