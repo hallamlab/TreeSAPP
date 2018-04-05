@@ -413,7 +413,7 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
             # >contig_name|marker_gene|start_end
             bulk_header = '>' + hmm_match.orf
             ref_seq = fasta_dict[re.sub('_' + re.escape(args.code_name), '', hmm_match.orf)]
-            marker_gene_dict[marker][bulk_header] = ref_seq.sequence[hmm_match.start:hmm_match.end+1]
+            marker_gene_dict[marker][bulk_header] = ref_seq.sequence[hmm_match.start-1:hmm_match.end]
     sys.stdout.write("done.\n")
 
     # Now write a single FASTA file with all identified markers
@@ -421,6 +421,61 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
         bulk_output_fasta = args.output_dir + marker + "_hmm_purified.fasta"
         write_new_fasta(marker_gene_dict[marker], bulk_output_fasta)
     return bulk_output_fasta
+
+
+def hmm_pile(hmm_matches):
+    """
+    Function to inspect the placement of query sequences on the reference HMM
+    :param hmm_matches:
+    :return:
+    """
+    hmm_bins = dict()
+    window_size = 10
+
+    for marker in hmm_matches:
+        for hmm_match in hmm_matches[marker]:
+            # Initialize the hmm_bins directory using the HMM profile length
+            if not hmm_bins:
+                i = 1
+                hmm_length = int(hmm_match.hmm_len)
+                while i < hmm_length:
+                    if i+window_size-1 > hmm_length:
+                        hmm_bins[(i, hmm_length)] = 0
+                    else:
+                        hmm_bins[(i, i+window_size-1)] = 0
+                    i += window_size
+            # Skip ahead to the HMM profile position where the query sequence began aligning
+            for bin_start, bin_end in hmm_bins:
+                if hmm_match.pstart <= bin_start and hmm_match.pend >= bin_end:
+                    hmm_bins[(bin_start, bin_end)] += 1
+                else:
+                    pass
+        # TODO: write some ascii art visualizing the HMM profile coverage (pile-up)
+        low_coverage_start = 0
+        low_coverage_stop = 0
+        maximum_coverage = 0
+        sys.stdout.write("Low coverage HMM windows (start-stop):\n")
+        for window in sorted(hmm_bins.keys()):
+            height = hmm_bins[window]
+            if height > maximum_coverage:
+                maximum_coverage = height
+            if height < len(hmm_matches[marker])/2:
+                begin, end = window
+                if low_coverage_start == low_coverage_stop:
+                    low_coverage_start = begin
+                    low_coverage_stop = end
+                else:
+                    low_coverage_stop = end
+            elif height > len(hmm_matches[marker])/2 and low_coverage_stop != 0:
+                sys.stdout.write("\t" + str(low_coverage_start) + '-' + str(low_coverage_stop) + "\n")
+                low_coverage_start = 0
+                low_coverage_stop = 0
+            else:
+                pass
+        if low_coverage_stop != low_coverage_start:
+            sys.stdout.write("\t" + str(low_coverage_start) + "-end\n")
+        sys.stdout.write("Maximum coverage = " + str(maximum_coverage) + " sequences\n")
+    return
 
 
 def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
@@ -1269,6 +1324,7 @@ def main():
         hmm_purified_fasta = extract_hmm_matches(args, hmm_matches, fasta_replace_dict)
         os.rename(hmm_purified_fasta, fasta_replaced_file)
         summarize_fasta_sequences(fasta_replaced_file)
+        hmm_pile(hmm_matches)
 
     if args.molecule == 'rrna':
         fasta_replaced_align = generate_cm_data(args, fasta_replaced_file)

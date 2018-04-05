@@ -76,7 +76,9 @@ class HmmMatch:
         self.orf = ""  # Name of the ORF, or more generally contig sequence
         self.hmm_len = 0  # Length of the hidden Markov model
         self.start = 0  # Alignment start position on the contig
-        self.end = 0  # Alignment start position on the contig
+        self.end = 0  # Alignment end position on the contig
+        self.pstart = 0  # Alignment start position on the hmm profile
+        self.pend = 0  # Alignment end position on the hmm profile
         self.seq_len = 0  # Length of the query sequence
 
     def print_info(self):
@@ -148,6 +150,8 @@ class DomainTableParser(object):
         self.alignments['Eval'] = float(hit[6])  # Full-sequence E-value (in the case a sequence alignment is split)
         self.alignments['num'] = int(hit[9])  # HMMER is able to detect whether there are multi-hits
         self.alignments['of'] = int(hit[10])  # This is the number of multi-hits for a query
+        self.alignments['pstart'] = int(hit[15])
+        self.alignments['pend'] = int(hit[16])
         self.alignments['qstart'] = int(hit[17])
         self.alignments['qend'] = int(hit[18])
         self.alignments['acc'] = float(hit[21])
@@ -189,6 +193,8 @@ def filter_poor_hits(args, dom_table, lines_parsed, multimatches, num_dropped, n
                     hmm_match.seq_len = data['query_len']
                     hmm_match.orf = data['query']
                     hmm_match.start = data['qstart']
+                    hmm_match.pstart = int(data['pstart'])
+                    hmm_match.pend = int(data['pend'])
                 elif data['hmm_name'] == previous_target and query_header_strand == previous_query_len:
                     # Same HMM (target) and the same ORF (query)
                     # If this is a single HMM for a single genome, then this is a fragmented alignment
