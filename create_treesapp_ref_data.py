@@ -17,7 +17,7 @@ try:
 
     from utilities import os_type, is_exe, which, find_executables, reformat_string, get_lineage, parse_domain_tables
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences
-    from classy import ReferenceSequence
+    from classy import ReferenceSequence, Header
     from external_command_interface import launch_write_command
 
 except ImportError:
@@ -396,14 +396,14 @@ def read_uc(uc_file):
     return cluster_dict
 
 
-def extract_hmm_matches(args, hmm_matches, fasta_dict):
+def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
     sys.stdout.write("Extracting the quality-controlled protein sequences... ")
     sys.stdout.flush()
     marker_gene_dict = dict()
     for marker in hmm_matches:
         if len(hmm_matches.keys()) > 1:
             sys.stderr.write("ERROR: Number of markers found from HMM alignments is >1\n")
-            sys.stderr.write("Does your HMM file contain more than 1 profile?\n")
+            sys.stderr.write("Does your HMM file contain more than 1 profile? TreeSAPP is unprepared for this.\n")
             sys.exit()
         if marker not in marker_gene_dict:
             marker_gene_dict[marker] = dict()
@@ -411,16 +411,20 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
         for hmm_match in hmm_matches[marker]:
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
-            bulk_header = '>' + hmm_match.orf
-            ref_seq = fasta_dict[re.sub('_' + re.escape(args.code_name), '', hmm_match.orf)]
-            marker_gene_dict[marker][bulk_header] = ref_seq.sequence[hmm_match.start-1:hmm_match.end]
+            sequence = ""
+            bulk_header = ""
+            for num in header_registry:
+                if hmm_match.orf == header_registry[num].first_split[1:]:
+                    sequence = fasta_dict[header_registry[num].formatted]
+                    bulk_header = header_registry[num].original
+                    break
+            if sequence:
+                marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
+            else:
+                sys.stderr.write("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
+                sys.exit()
     sys.stdout.write("done.\n")
-
-    # Now write a single FASTA file with all identified markers
-    for marker in marker_gene_dict:
-        bulk_output_fasta = args.output_dir + marker + "_hmm_purified.fasta"
-        write_new_fasta(marker_gene_dict[marker], bulk_output_fasta)
-    return bulk_output_fasta
+    return marker_gene_dict[marker]
 
 
 def hmm_pile(hmm_matches):
@@ -430,7 +434,7 @@ def hmm_pile(hmm_matches):
     :return:
     """
     hmm_bins = dict()
-    window_size = 10
+    window_size = 2
 
     for marker in hmm_matches:
         for hmm_match in hmm_matches[marker]:
@@ -581,31 +585,6 @@ def reformat_headers(header_dict):
     return swappers
 
 
-def map_good_headers_to_ugly(header_collection):
-    """
-    Pairs a "good" header (bad characters replaced) with an original header which is needed for parsing information
-    from the header (such as organism ID, description, locus) in the next stage
-    :param header_collection: A dictionary or list containing original, unmodified headers
-    :return:
-    """
-    header_map = dict()
-    if type(header_collection) is list:
-        # These are the headers from the input FASTA file
-        header_list = header_collection
-    elif type(header_collection) is dict:
-        # These are the headers from USEARCH's uc file
-        header_list = list(header_collection.keys())
-        for key in header_collection.keys():
-            header_list += header_collection[key]
-    else:
-        sys.stderr.write("ERROR: Unknown header_collection format! Expected list or dict.\n")
-        raise AssertionError
-
-    for original_header in sorted(header_list):
-        header_map[reformat_string(original_header)] = original_header
-    return header_map
-
-
 def return_sequence_info_groups(regex_match_groups, header_db, header):
     accession = ""
     description = ""
@@ -646,13 +625,13 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
     return accession, organism, locus, description
 
 
-def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swappers=None):
+def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers=None):
     """
     This function is used to find the accession ID and description of each sequence from the FASTA file
     :param code_name: code_name from the command-line parameters
     :param fasta_dict: a dictionary with headers as keys and sequences as values (returned by format_read_fasta)
     :param fasta_replace_dict:
-    :param header_map:
+    :param header_registry:
     :param swappers: A dictionary containing representative clusters (keys) and their constituents (values)
     :return: fasta_replace_dict with a complete ReferenceSequence() value for every mltree_id key
     """
@@ -660,14 +639,14 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
     sys.stdout.write("Extracting information from headers for formatting purposes... ")
     sys.stdout.flush()
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
-    mltree_id_accumulator = 1
     swapped_headers = []
     if len(fasta_replace_dict.keys()) > 0:
         for mltree_id in sorted(fasta_replace_dict):
             ref_seq = fasta_replace_dict[mltree_id]
             ref_seq.short_id = mltree_id + '_' + code_name
             for header in fasta_dict:
-                original_header = header_map[header]
+                # Find the matching header in the header_registry
+                original_header = header_registry[mltree_id].original
                 header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
                 sequence_info = header_format_re.match(original_header)
                 _, fasta_header_organism, _, _ = return_sequence_info_groups(sequence_info, header_db, header)
@@ -679,10 +658,22 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
                                          "accession (" + ref_seq.accession + ") matches, organism differs:\n")
                         sys.stderr.write('"' + ref_seq.organism + "\" versus \"" + fasta_header_organism + "\"\n")
             if not ref_seq.sequence:
+                # TODO: test this case (uc file provided, both fresh attempt and re-attempt)
                 # Ensure the header isn't a value within the swappers dictionary
                 for swapped in swappers.keys():
                     header = swappers[swapped]
-                    original_header = header_map[header]
+                    original_header = ""
+                    # Find the original header of the swapped header
+                    for num in header_registry:
+                        if header_registry[num].first_split[1:] == header:
+                            original_header = header_registry[num].original
+                        elif re.search(header_registry[num].first_split[1:], header):
+                            original_header = header_registry[num].original
+                        else:
+                            pass
+                    if not original_header:
+                        sys.stderr.write("ERROR: Unable to find the original header for " + header + "\n")
+                        sys.exit(17)
                     if re.search(ref_seq.accession, header) and re.search(ref_seq.organism, original_header):
                         # It is and therefore the header was swapped last run
                         ref_seq.sequence = fasta_dict[swapped]
@@ -697,17 +688,26 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
                 sys.stderr.write("\nWARNING: Input sequences use 'GIs' which are obsolete and may be non-unique. "
                                  "For everyone's sanity, please download sequences with the `accno` instead.\n")
                 sys.exit()
-            mltree_id = str(mltree_id_accumulator)
+
+            # Try to find the original header in header_registry
+            original_header = ""
+            mltree_id = ""
+            for num in header_registry:
+                if header == header_registry[num].formatted:
+                    original_header = header_registry[num].original
+                    mltree_id = str(num)
+                    break
             ref_seq = ReferenceSequence()
             ref_seq.sequence = fasta_dict[header]
+
             if swappers and header in swappers.keys():
                 header = swappers[header]
                 swapped_headers.append(header)
-            if header in header_map:
-                original_header = header_map[header]
+            if original_header and mltree_id:
+                pass
             else:
-                sys.stderr.write("ERROR: unable to find " + header +
-                                 " in header_map (constructed from either the input FASTA or .uc file).\n")
+                sys.stderr.write("\nERROR: unable to find the header:\n\t" + header +
+                                 "\nin header_map (constructed from either the input FASTA or .uc file).\n")
                 sys.stderr.write("There is a chance this is due to the FASTA file and .uc being generated separately.\n")
                 # sys.stderr.write("This is probably an error stemming from `reformat_string()`.\n")
                 sys.exit()
@@ -721,7 +721,6 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swa
             ref_seq.short_id = mltree_id + '_' + code_name
             fasta_replace_dict[mltree_id] = ref_seq
 
-            mltree_id_accumulator += 1
         if swappers and len(swapped_headers) != len(swappers):
             sys.stderr.write("\nERROR: Some headers that were meant to be replaced could not be compared!\n")
             for header in swappers.keys():
@@ -1164,6 +1163,42 @@ def terminal_commands(final_output_folder, code_name):
     return
 
 
+def register_headers(args, header_list):
+    header_registry = dict()
+    acc = 1
+    for header in header_list:
+        new_header = Header(header)
+        new_header.formatted = reformat_string(header)
+        new_header.treesapp_name = str(acc) + "_" + args.code_name
+        new_header.first_split = header.split()[0]
+        header_registry[str(acc)] = new_header
+        acc += 1
+    return header_registry
+
+
+def arrange_header_numeric_identifiers(header_registry, fasta_replace_dict):
+    rearranged_header_registry = dict()
+    accessions = list()
+    for lineage_sorted_num in fasta_replace_dict:
+        accession = fasta_replace_dict[lineage_sorted_num].accession
+        if accession in accessions:
+            sys.stderr.write("Uh oh... duplicate accession identifiers found! "
+                             "TreeSAPP is not currently able to handle this situation. Bailing out!\n")
+            sys.exit(17)
+        else:
+            accessions.append(accession)
+        matched = False
+        for accession_sorted_num in header_registry:
+            if header_registry[accession_sorted_num].first_split[1:] == accession:
+                rearranged_header_registry[lineage_sorted_num] = header_registry[accession_sorted_num]
+                matched = True
+                break
+        if not matched:
+            sys.stderr.write("ERROR: Unable to map " + accession + " to an accession in the header_registry!\n")
+            sys.exit(17)
+    return rearranged_header_registry
+
+
 def reverse_complement(rrna_sequence):
     comp = []
     for c in rrna_sequence:
@@ -1251,58 +1286,79 @@ def main():
             shutil.rmtree(args.code_name + "_phy_files")
 
     # TODO: Allow for the tax_ids from a previous run to be used even if a uc file isn't provided
-    if args.uc and os.path.exists(tree_taxa_list):
+    if os.path.exists(tree_taxa_list):
         if sys.version_info > (2, 9):
-            use_previous_names = input(tree_taxa_list + " found from a previous attempt. "
+            use_previous_names = input(os.path.basename(tree_taxa_list) + " found from a previous attempt. "
                                                         "Should it be used for this run? [y|n] ")
             while use_previous_names != "y" and use_previous_names != "n":
                 use_previous_names = input("Incorrect response. Please input either 'y' or 'n'. ")
         else:
-            use_previous_names = raw_input(tree_taxa_list + " found from a previous attempt. "
+            use_previous_names = raw_input(os.path.basename(tree_taxa_list) + " found from a previous attempt. "
                                                             "Should it be used for this run? [y|n] ")
             while use_previous_names != "y" and use_previous_names != "n":
                 use_previous_names = raw_input("Incorrect response. Please input either 'y' or 'n'. ")
-    elif os.path.exists(tree_taxa_list):
-        use_previous_names = 'y'
     else:
         use_previous_names = 'n'
 
     fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+    header_registry = register_headers(args, get_headers(args.fasta_input))
 
-    # summarize_fasta_sequences(args.fasta_input)
+    if args.domain:
+        hmm_purified_fasta = args.output_dir + args.code_name + "_hmm_purified.fasta"
+        if os.path.isfile(hmm_purified_fasta) and use_previous_names == 'y':
+            sys.stdout.write("Using " + hmm_purified_fasta + " from a previous attempt.\n")
+        else:
+            sys.stdout.write("Searching for domain sequences... ")
+            sys.stdout.flush()
+            hmm_domtbl_files = hmmsearch_input_references(args, args.fasta_input)
+            sys.stdout.write("done.\n")
+            hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
+            marker_gene_dict = extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
+            write_new_fasta(marker_gene_dict, hmm_purified_fasta)
+            summarize_fasta_sequences(hmm_purified_fasta)
+            hmm_pile(hmm_matches)
+
+        fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args)
+        header_registry = register_headers(args, get_headers(hmm_purified_fasta))
+        # Point all further operations to the HMM purified FASTA file as the original input
+        args.fasta_input = hmm_purified_fasta
 
     fasta_replace_dict = dict()
+    # The header_registry needs to be re-aligned to the identifiers in the tax_ids file
+    # since these were sorted by taxonomic lineage
+    if os.path.exists(tree_taxa_list) and use_previous_names == 'y':
+        fasta_replace_dict = read_tax_ids(tree_taxa_list)
+        if len(header_registry) != len(fasta_replace_dict):
+            sys.stderr.write("ERROR: Number of headers in " + args.fasta_input +
+                             " is not equal to the number of reference taxa in " + tree_taxa_list + "\n")
+            sys.exit(3)
+        header_registry = arrange_header_numeric_identifiers(header_registry, fasta_replace_dict)
 
     log = open(args.output_dir + "create_" + code_name + "_treesapp_data_log.txt", 'w')
     log.write("Command used:\n" + ' '.join(sys.argv) + "\n\n")
 
     if args.uc:
         cluster_dict = read_uc(args.uc)
-        header_map = map_good_headers_to_ugly(cluster_dict)
         if use_previous_names == 'n':
             swappers = present_cluster_rep_options(cluster_dict)
         elif use_previous_names == 'y':
-            fasta_replace_dict = read_tax_ids(tree_taxa_list)
             if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
                 raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
             swappers = regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict)
         else:
             sys.exit(2)
         swappers = reformat_headers(swappers)
-        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map, swappers)
+        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers)
         fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule)
     else:
         if os.path.exists(tree_taxa_list) and use_previous_names == 'y':
-            fasta_replace_dict = read_tax_ids(tree_taxa_list)
             if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
                 raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
         # args.uc is None and use_previous_names == 'n'
-        original_headers = get_headers(args.fasta_input)
-        header_map = map_good_headers_to_ugly(original_headers)
-        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_map)
+        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry)
         fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule)
 
-    sys.stdout.write("******************** " + tree_taxa_list + " generated ********************\n")
+    sys.stdout.write("Generated the taxonomic lineage map " + tree_taxa_list + "\n")
 
     if args.verbose:
         summarize_reference_taxa(fasta_replace_dict)
@@ -1315,16 +1371,6 @@ def main():
         create_new_ref_fasta(fasta_replaced_file, fasta_replace_dict, True)
     else:
         create_new_ref_fasta(fasta_replaced_file, fasta_replace_dict)
-
-    if args.domain:
-        sys.stdout.write("Searching for domain sequences... ")
-        hmm_domtbl_files = hmmsearch_input_references(args, fasta_replaced_file)
-        sys.stdout.write("done.\n")
-        hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
-        hmm_purified_fasta = extract_hmm_matches(args, hmm_matches, fasta_replace_dict)
-        os.rename(hmm_purified_fasta, fasta_replaced_file)
-        summarize_fasta_sequences(fasta_replaced_file)
-        hmm_pile(hmm_matches)
 
     if args.molecule == 'rrna':
         fasta_replaced_align = generate_cm_data(args, fasta_replaced_file)
@@ -1363,12 +1409,9 @@ def main():
     if args.molecule == "rrna":
         # A .cm file has already been generated, no need for HMM
         pass
-    elif args.domain:
-        sys.stdout.write("Copying domain HMM to reference package\n")
-        shutil.copyfile(args.domain, final_output_folder + code_name + ".hmm")
     else:
         hmm_build_command = [args.executables["hmmbuild"]]
-        hmm_build_command += ["-s", final_output_folder + code_name + ".hmm"]
+        hmm_build_command.append(final_output_folder + code_name + ".hmm")
         hmm_build_command.append(multiple_alignment_fasta)
 
         stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)

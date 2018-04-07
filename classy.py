@@ -799,3 +799,11 @@ class MarkerBuild:
             raise AssertionError("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
 
         return
+
+
+class Header:
+    def __init__(self, header):
+        self.original = header
+        self.formatted = ""
+        self.treesapp_name = ""
+        self.first_split = ""
