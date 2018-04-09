@@ -208,8 +208,8 @@ def check_parser_arguments(parser):
         args.consensus = False
 
     # Parameterizing the hmmsearch output parsing:
-    args.min_acc = 0.8
-    args.min_e = 0.1
+    args.min_acc = 0.7
+    args.min_e = 0.01
     args.perc_aligned = 20
 
     return args
@@ -791,7 +791,7 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict, cog_list):
             except IOError:
                 sys.stderr.write('Can\'t create ' + marker_query_fa + '\n')
                 sys.exit(0)
-            sequence = fasta_dict['>' + hmm_match.orf][hmm_match.start:hmm_match.end+1]
+            sequence = fasta_dict['>' + hmm_match.orf][hmm_match.start-1:hmm_match.end]
             fprintf(outfile, '>query\n%s', sequence)
             outfile.close()
 

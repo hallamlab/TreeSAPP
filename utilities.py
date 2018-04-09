@@ -339,8 +339,8 @@ def parse_domain_tables(args, hmm_domtbl_files):
     # Check if the HMM filtering thresholds have been set
     if not hasattr(args, "min_e"):
         args.min_e = 0.01
-        args.min_acc = 0.7
-        args.perc_aligned = 70
+        args.min_acc = 0.6
+        args.perc_aligned = 60
     # Print some stuff to inform the user what they're running and what thresholds are being used.
     if args.verbose:
         sys.stdout.write("Filtering HMM alignments using the following thresholds:\n")

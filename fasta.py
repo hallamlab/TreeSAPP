@@ -86,7 +86,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     except IOError:
         raise IOError("Unable to open " + fasta_name + " for writing!")
 
-    for name in fasta_dict.keys():
+    for name in sorted(fasta_dict.keys()):
         seq = fasta_dict[name]
         if name[0] != '>':
             name = '>' + name
@@ -232,9 +232,9 @@ def summarize_fasta_sequences(fasta_file):
         shortest = len(sequence)
     sequence_lengths.append(len(sequence))
 
-    sys.stdout.write("Number of sequences: " + str(num_headers) + "\n")
-    sys.stdout.write("Longest sequence length: " + str(longest) + "\n")
-    sys.stdout.write("Shortest sequence length: " + str(shortest) + "\n")
-    sys.stdout.write("Mean sequence length: " + str(round(sum(sequence_lengths)/num_headers, 1)) + "\n")
-    sys.stdout.write("Median sequence length: " + str(median(sequence_lengths)) + "\n")
+    sys.stdout.write("\tNumber of sequences: " + str(num_headers) + "\n")
+    sys.stdout.write("\tLongest sequence length: " + str(longest) + "\n")
+    sys.stdout.write("\tShortest sequence length: " + str(shortest) + "\n")
+    sys.stdout.write("\tMean sequence length: " + str(round(sum(sequence_lengths)/num_headers, 1)) + "\n")
+    sys.stdout.write("\tMedian sequence length: " + str(median(sequence_lengths)) + "\n")
     return
