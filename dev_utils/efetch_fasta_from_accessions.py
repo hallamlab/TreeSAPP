@@ -71,7 +71,11 @@ def read_accession_list(args):
         line = list_handler.readline()
         
     list_handler.close()
-    
+
+    if args.verbose:
+        sys.stdout.write("done.\n")
+        sys.stdout.write(str(len(accessions)) + " accessions parsed from " + args.input + "\n")
+
     return accessions
 
 
@@ -155,6 +159,7 @@ def fetch_sequences(args, accessions):
     :return:
     """
     fasta_string = ""
+    alternative_molecule = ""
     Entrez.email = "A.N.Other@example.com"
 
     if args.verbose:
@@ -170,6 +175,11 @@ def fetch_sequences(args, accessions):
         sys.stdout.write("Fetching sequences from Entrez. Here is a sweet progress bar:\n")
         sys.stdout.flush()
 
+    for mol in ["protein", "nucleotide"]:
+        if mol != args.molecule_in:
+            alternative_molecule = mol
+            break
+
     step_proportion = setup_progress_bar(len(accessions))
     acc = 0.0
     skipped_seqs = 0
@@ -179,7 +189,18 @@ def fetch_sequences(args, accessions):
             sys.stderr.write("\tWARNING: Blank accession ID found for unknown sequence.\n")
 
         if args.molecule_in == args.seq_out:
-            handle = Entrez.efetch(db=args.molecule_in, id=str(accession), rettype="fasta", retmode="text")
+            try:
+                handle = Entrez.efetch(db=args.molecule_in, id=str(accession), rettype="fasta", retmode="text")
+            except error.HTTPError:
+                # Accession ID is for another database, so try and find the correct accession
+                genbank_handle = Entrez.efetch(db=alternative_molecule, id=str(accession), rettype="gb", retmode="text")
+                gb_record = genbank_handle.read()
+                if args.molecule_in == "protein":
+                    accession = re.search("protein_id=\"(.*)\"", gb_record).group(1)
+                else:
+                    print("New territory. Figure this out!")
+                    print(gb_record)
+                handle = Entrez.efetch(db=args.molecule_in, id=str(accession), rettype="fasta", retmode="text")
             fasta_seq = handle.read()
             if fasta_seq == "":
                 sys.stderr.write("\tEntrez server returned empty fasta sequence for "
