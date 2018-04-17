@@ -60,14 +60,16 @@ def find_executables(args):
     # dependencies += old_dependencies
 
     # Extra executables necessary for certain modes of TreeSAPP
-    try:
-        if args.rpkm:
-            dependencies += ["bwa", "rpkm"]
+    if hasattr(args, "rpkm") and args.rpkm:
+        dependencies += ["bwa", "rpkm"]
 
+    if hasattr(args, "update_tree"):
         if args.update_tree:
             dependencies.append("usearch")
-    except AttributeError:
-        pass
+
+    if hasattr(args, "cluster"):
+        if args.cluster:
+            dependencies.append("usearch")
 
     if os_type() == "linux":
         args.executables = args.treesapp + "sub_binaries" + os.sep + "ubuntu"
@@ -178,6 +180,7 @@ def get_lineage(search_term, molecule_type):
         raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
                              str(Bio.__version__) + " is currently installed. Exiting now...")
     Entrez.email = "c.morganlang@gmail.com"
+    Entrez.tool = "treesapp"
     # Test the internet connection:
     try:
         Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
@@ -340,7 +343,7 @@ def parse_domain_tables(args, hmm_domtbl_files):
     if not hasattr(args, "min_e"):
         args.min_e = 0.01
         args.min_acc = 0.6
-        args.perc_aligned = 60
+        args.perc_aligned = 80
     # Print some stuff to inform the user what they're running and what thresholds are being used.
     if args.verbose:
         sys.stdout.write("Filtering HMM alignments using the following thresholds:\n")
@@ -373,6 +376,16 @@ def parse_domain_tables(args, hmm_domtbl_files):
             num_matches += 1
 
     sys.stdout.write("done.\n")
+
+    if num_matches == 0 and num_dropped == 0:
+        sys.stderr.write("\tWARNING: No alignments found!\n")
+        sys.stderr.write("TreeSAPP is exiting now.\n")
+        sys.exit(11)
+    if num_matches == 0 and num_dropped > 0:
+        sys.stderr.write("\tWARNING: No alignments met the quality cut-offs!\n")
+        sys.stderr.write("TreeSAPP is exiting now.\n")
+        sys.exit(13)
+
     sys.stdout.write("\tNumber of markers identified:\n")
     for marker in hmm_matches:
         sys.stdout.write("\t\t" + marker + "\t" + str(len(hmm_matches[marker])) + "\n")

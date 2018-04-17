@@ -37,13 +37,24 @@ def get_arguments():
                                     "(Refer to first column of 'cog_list.txt' under the '#functional cogs' section)",
                                required=True)
     required_args.add_argument("-p", "--identity",
-                               help="The percent identity which the input sequences were clustered",
+                               help="Fractional identity value (between 0.50 and 1.0)\n"
+                                    "the input sequences were clustered at.",
                                required=True,
                                type=str)
 
     optopt = parser.add_argument_group("Optional options")
+    optopt.add_argument('-a', '--multiple_alignment',
+                        help='The FASTA input is also the multiple alignment file to be used.\n'
+                             'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
+                        action="store_true",
+                        default=False)
+    optopt.add_argument("--cluster",
+                        help="Flag indicating usearch should be used to cluster sequences\n"
+                             "at the fractional similarity indicated by `-p`.",
+                        action="store_true",
+                        default=False)
     optopt.add_argument("-d", "--domain",
-                        help="An HMM profile representing a specific domain."
+                        help="An HMM profile representing a specific domain.\n"
                              "Domains will be excised from input sequences based on hmmsearch alignments.",
                         required=False, default=None)
     optopt.add_argument("-u", "--uc",
@@ -51,15 +62,10 @@ def get_arguments():
                         required=False,
                         default=None)
     optopt.add_argument('-l', '--min_seq_length',
-                        help='Minimal sequence length [DEFAULT = 50]',
+                        help='Minimal sequence length [DEFAULT = 100]',
                         required=False,
-                        default=50,
+                        default=100,
                         type=int)
-    optopt.add_argument('-a', '--multiple_alignment',
-                        help='The FASTA input is also the multiple alignment file to be used.\n'
-                             'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
-                        action="store_true",
-                        default=False)
     optopt.add_argument('-m', '--molecule',
                         help='The type of input sequences:\n'
                              'prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA',
@@ -141,6 +147,13 @@ def get_arguments():
         sys.stderr.write("If this model is valid (not a typo), add if to `raxml_models` list and re-run.\n")
         sys.exit(3)
 
+    if args.cluster:
+        if args.multiple_alignment:
+            sys.exit("ERROR: --cluster and --multiple_alignment are mutually exclusive!\n")
+        if args.uc:
+            sys.exit("ERROR: --cluster and --uc are mutually exclusive!\n")
+        if not 0.5 < float(args.identity) < 1.0:
+            sys.exit("ERROR: --identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
     return args
 
 
@@ -364,6 +377,28 @@ def hmmsearch_input_references(args, fasta_replaced_file):
         sys.exit()
 
     return [domtbl]
+
+
+def uclust_sequences(args):
+    uclust_prefix = args.output + \
+                    '.'.join(os.path.basename(args.fasta_input).split('.')[0:-1]) + \
+                    "_uclust" + args.identity
+
+    uclust_cmd = [args.executables["usearch"]]
+    uclust_cmd += ["-cluster_fast", args.fasta_input]
+    uclust_cmd += ["-id", args.identity]
+    uclust_cmd += ["-sort", "length"]
+    uclust_cmd += ["-centroids", uclust_prefix + ".fa"]
+    uclust_cmd += ["--uc", uclust_prefix + ".uc"]
+
+    stdout, returncode = launch_write_command(uclust_cmd)
+
+    if returncode != 0:
+        sys.stderr.write("ERROR: usearch did not complete successfully! Command used:\n")
+        sys.stderr.write(' '.join(uclust_cmd) + "\n")
+        sys.exit(13)
+
+    return uclust_prefix
 
 
 def read_uc(uc_file):
@@ -1169,7 +1204,7 @@ def register_headers(args, header_list):
     for header in header_list:
         new_header = Header(header)
         new_header.formatted = reformat_string(header)
-        new_header.treesapp_name = str(acc) + "_" + args.code_name
+        # new_header.treesapp_name = str(acc) + "_" + args.code_name
         new_header.first_split = header.split()[0]
         header_registry[str(acc)] = new_header
         acc += 1
@@ -1289,19 +1324,16 @@ def main():
     if os.path.exists(tree_taxa_list):
         if sys.version_info > (2, 9):
             use_previous_names = input(os.path.basename(tree_taxa_list) + " found from a previous attempt. "
-                                                        "Should it be used for this run? [y|n] ")
+                                                                          "Should it be used for this run? [y|n] ")
             while use_previous_names != "y" and use_previous_names != "n":
                 use_previous_names = input("Incorrect response. Please input either 'y' or 'n'. ")
         else:
             use_previous_names = raw_input(os.path.basename(tree_taxa_list) + " found from a previous attempt. "
-                                                            "Should it be used for this run? [y|n] ")
+                                                                              "Should it be used for this run? [y|n] ")
             while use_previous_names != "y" and use_previous_names != "n":
                 use_previous_names = raw_input("Incorrect response. Please input either 'y' or 'n'. ")
     else:
         use_previous_names = 'n'
-
-    fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
-    header_registry = register_headers(args, get_headers(args.fasta_input))
 
     if args.domain:
         hmm_purified_fasta = args.output_dir + args.code_name + "_hmm_purified.fasta"
@@ -1313,6 +1345,10 @@ def main():
             hmm_domtbl_files = hmmsearch_input_references(args, args.fasta_input)
             sys.stdout.write("done.\n")
             hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
+            # If we're screening a massive fasta file, we don't want to read every sequence - just those with hits
+            # TODO: Implement a screening procedure in _fasta_reader._read_format_fasta()
+            fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+            header_registry = register_headers(args, get_headers(args.fasta_input))
             marker_gene_dict = extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
             write_new_fasta(marker_gene_dict, hmm_purified_fasta)
             summarize_fasta_sequences(hmm_purified_fasta)
@@ -1322,6 +1358,19 @@ def main():
         header_registry = register_headers(args, get_headers(hmm_purified_fasta))
         # Point all further operations to the HMM purified FASTA file as the original input
         args.fasta_input = hmm_purified_fasta
+    else:
+        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+        header_registry = register_headers(args, get_headers(args.fasta_input))
+
+    # Optionally cluster the input sequences using USEARCH at the specified identity
+    if args.cluster:
+        sys.stdout.write("Clustering sequences with UCLUST... ")
+        uclust_prefix = uclust_sequences(args)
+        sys.stdout.write("done.\n")
+        fasta_dict = format_read_fasta(uclust_prefix + ".fa", args.molecule, args)
+        sys.stdout.write("\t" + str(len(fasta_dict.keys())) + " sequence clusters\n")
+        header_registry = register_headers(args, get_headers(uclust_prefix + ".fa"))
+        args.fasta_input = uclust_prefix + ".fa"
 
     fasta_replace_dict = dict()
     # The header_registry needs to be re-aligned to the identifiers in the tax_ids file
@@ -1397,12 +1446,6 @@ def main():
         fasta_replaced_align = fasta_replaced_file
     else:
         pass
-
-    # stdout, blastdb = generate_blast_database(args, fasta_replaced_file, args.molecule, args.output_dir + code_name)
-    #
-    # log.write("\n### MAKEBLASTDB ###" + stdout)
-    #
-    # sys.stdout.write("******************** BLAST DB for %s generated ********************\n" % code_name)
 
     os.rename(fasta_replaced_align, multiple_alignment_fasta)
 
