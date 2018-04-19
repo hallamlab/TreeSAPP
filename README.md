@@ -7,7 +7,7 @@ Connor Morgan-Lang, Kishori M. Konwar, Zachary Armstrong, Young C. Song, and Ste
 A python pipeline for identifying and mapping marker gene sequences onto reference phylogenetic trees.
  Here is a workflow diagram:
 
-![alt text]()
+![alt text](https://github.com/hallamlab/TreeSAPP/blob/fastsearch/dev_utils/pipeline_figure_horizontal.png)
 
 ## Download and installation:
 
