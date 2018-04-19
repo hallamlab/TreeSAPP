@@ -1,86 +1,67 @@
 # TreeSAPP: Tree-based Sensitive and Accurate Phylogenetic Profiling
 
-Connor Morgan-Lang, Kishori M. Konwar, Young C. Song, and Steven J. Hallam
+Connor Morgan-Lang, Kishori M. Konwar, Zachary Armstrong, Young C. Song, and Steven J. Hallam
 
 ## Overview:
 
-A python pipeline for identifying marker genes in a metagenome and grafting sequences onto reference phylogenetic trees.
+A python pipeline for identifying and mapping marker gene sequences onto reference phylogenetic trees.
+ Here is a workflow diagram:
+
+![alt text]()
 
 ## Download and installation:
 
-For an easy introduction to TreeSAPP, please refer to the [GCP tutorial](https://github.com/hallamlab/TreeSAPP/blob/fastsearch/GCP_tutorial.md).
-Otherwise, carry on.
+Otherwise, carry on. The first command will clone the TreeSAPP repository
+from the GitHub page while the second and third compile C++ and Python extensions
+required by the pipeline.
 
 ```
 git clone git@github.com:hallamlab/TreeSAPP.git
-```
-The exectutables for the required softwares are included either in the TreeSAPP/sub_binaries/mac
- directory or TreeSAPP/sub_binaries/ubuntu, depending on your OS.
-If these do not work out-of-the-box, instructions on installing the dependencies specific to your
- machine are included below. We currently support Red Hat Enterprise Linux, Ubuntu (14.04), and Mac OS (10.6-10.8).
-
-To finish installing in a local directory, use:
-```
 make
 make install
 ```
 
-### Downloading dependencies for Linux:
+### Downloading dependencies:
 
-#### RAxML:
-A simple `git clone` of their [github page](https://github.com/stamatak/standard-RAxML) should work 
+If you do not already have the dependencies for TreeSAPP installed on your computer,
+ we've listed how to easily download and install each one below. Good luck!
+
+#### RAxML
+A simple `git clone` of their [GitHub page](https://github.com/stamatak/standard-RAxML) should work
 for Linux and Mac operating systems. From here, consult the README file in the standard-RAxML directory for
 installation instructions using make.
 We have tested several versions and found no problems from V.7.1 to the most recent release as of 
 December 1st, 2015. However, the executable MUST be named `raxmlHPC` or it will not be found by TreeSAPP!
 If you find an incompatibility please notify us through the Issues feed!
 
-#### Gblocks:
-For Linux/x86:
-```
-cd path/to/TreeSAPP/sub_binaries/
-tar xzf Gblocks_Linux_0.91b.tar.Z
-rm Gblocks
-ln -s Gblocks_0.91b/Gblocks ./
-```
-
-If you get a segmentation fault, try the executable in Gblocks_Linux64_0.91b.tar.Z.
-
-#### Genewise:
-On Ubuntu you can install the wise package with apt-get:
-```
-sudo apt-get install wise
-```
-Or try to install wise from source
-```
-wget http://www.ebi.ac.uk/~birney/wise2/wise2.4.1.tar.gz
-tar xzf wise2.4.1.tar.gz
-rm wise2.4.1.tar.gz
-cd wise2.4.1/src/
-make all
-```
-If you have problems involving `getline` being previously declared in sqio.c,
-use your text editor of choice to replace all instances of `getline` with a new function name such as `getline_new`.
-Other installation issues may be taken care of elsewhere. We also suggest changing line 25 in wise2.4.1/src/makefile
-and line 84 in wise2.4.1/src/dynlibsrc/makefile from `CC = cc` to `CC = gcc` to make compilation more smooth on modern
-systems.
-
-For RHEL 7, we have included the source rpm file in ~/TreeSAPP/sub_binaries/wise2-2.2.0-14.el7.src.rpm. You can install this file as root with:
-```
-sudo rpmbuild --rebuild wise2-2.2.0-14.el7.src.rpm
-rpm -ivv /root/rpmbuild/RPMS/x86_64/wise2-2.2.0-14.el7.x86_64.rpm
-rpm -ql wise2
-```
-NOTE: the paths may not be identical here, but the commands to build the source rpm, install it, and locate the genewise binary are standard. 
-
 #### HMMER
-hmmalign is the only HMMER module required by TreeSAPP, but HMMER3 is incompatible with this
-version of TreeSAPP. HMMER 2.4 works and can be downloaded from
-http://hmmer.janelia.org/download.html.
+TreeSAPP uses HMMER for identifying marker gene sequences in proteins and genomes.
+The latest version (HMMER3.1b2) is available at http://hmmer.org/.
+Download it from there and follow their installation guide under DOCUMENTATION.
+
+#### Prodigal
+Prodigal (version 2.6.3) can be downloaded from the [GitHub page](https://github.com/hyattpd/Prodigal).
+Follow the [installation guide](https://github.com/hyattpd/Prodigal/wiki/installation) on their GitHub wiki to install.
+There is an upcoming version 3 so these links may become outdated soon!
+
+#### trimal
+The software and installation instructions are available on the
+[trimAl GitHub](https://github.com/scapella/trimal).
+
+#### MAFFT
+ MAFFT multiple alignment software is only required for creating and updating reference packages,
+ it is not a part of the main workflow. Therefore, feel free to skip installing MAFFT unless you plan on
+ doing either one of those tasks. If not, here is the [MAFFT webpage](https://mafft.cbrc.jp/alignment/software/).
+ Download and installation instructions are available from there.
+
+#### Finishing up
+I hope that wasn't too painful. If you think you have installed everything, try running TreeSAPP!
+It will check for the required executables up front and you will be
+quickly notified if some are missing, or at least TreeSAPP is unable to find them.
 
 ### Running TreeSAPP
 
-To list all the options with brief help statements `./mltreemap.py -h`.
+To list all the options with brief help statements `./treesapp.py -h`.
 
 To perform a basic run with only the required arguments:
 ```
@@ -89,12 +70,16 @@ To perform a basic run with only the required arguments:
 Executables are automatically detected in both the $PATH and in the
 sub_binaries/mac or sub_binaries/ubuntu, depending on your OS. However, if your executables
 are together elsewhere, TreeSAPP can be directed to them with `--executables`.
-If WISECONFIGDIR is not already set, treesapp.py will exit and provide you with the correct command to
-add this to you environment.
 
 
 ### Other tutorials of interest
 
+For an easy introduction to TreeSAPP,
+please refer to the [Google Cloud Platform tutorial](https://github.com/hallamlab/TreeSAPP/blob/fastsearch/GCP_tutorial.md).
+
+Yet to come:
+
 - [Building reference packages]()
 - [Evaluating classification accuracy]()
+- [Annotating extra features]()
 
