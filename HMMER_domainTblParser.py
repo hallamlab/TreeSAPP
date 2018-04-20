@@ -150,6 +150,7 @@ class DomainTableParser(object):
         self.alignments['Eval'] = float(hit[6])  # Full-sequence E-value (in the case a sequence alignment is split)
         self.alignments['num'] = int(hit[9])  # HMMER is able to detect whether there are multi-hits
         self.alignments['of'] = int(hit[10])  # This is the number of multi-hits for a query
+        self.alignments['cEval'] = float(hit[11])  # conditional E-value
         self.alignments['pstart'] = int(hit[15])
         self.alignments['pend'] = int(hit[16])
         self.alignments['qstart'] = int(hit[17])
@@ -178,7 +179,7 @@ def filter_poor_hits(args, dom_table, lines_parsed, multimatches, num_dropped, n
         data = dom_table.alignments
 
         # NOW FILTER
-        if data['acc'] >= min_acc and data['Eval'] <= min_e:
+        if data['acc'] >= min_acc and data['cEval'] <= min_e:
                 # Construct tuples with valuable information for the second filtering stage
                 query_header_strand = (data['query'], data['desc'])
                 # ali_len = data['qend'] - data['qstart']

@@ -54,10 +54,8 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "trimal",
-                    "cmalign", "cmsearch", "cmbuild", "mafft"]
+    dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "trimal"]
     # old_dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "makeblastdb", "muscle"]
-    # dependencies += old_dependencies
 
     # Extra executables necessary for certain modes of TreeSAPP
     if hasattr(args, "rpkm") and args.rpkm:
@@ -66,10 +64,14 @@ def find_executables(args):
     if hasattr(args, "update_tree"):
         if args.update_tree:
             dependencies.append("usearch")
+            dependencies.append("mafft")
 
     if hasattr(args, "cluster"):
         if args.cluster:
             dependencies.append("usearch")
+
+    if args.molecule == "rrna":
+        dependencies += ["cmalign", "cmsearch", "cmbuild"]
 
     if os_type() == "linux":
         args.executables = args.treesapp + "sub_binaries" + os.sep + "ubuntu"
