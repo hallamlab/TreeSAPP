@@ -152,16 +152,9 @@ def check_parser_arguments(parser):
         for marker in args.targets:
             if not re.match('[A-Z][0-9]{4}', marker):
                 sys.stderr.write("ERROR: Incorrect format for target: " + str(marker) +
-                                 "\nRefer to column 'Denominator' in cog_list.tsv for identifiers that can be used.")
+                                 "\nRefer to column 'Denominator' in " + args.treesapp + "data/tree_data/" +
+                                 "cog_list.tsv for identifiers that can be used.\n")
                 sys.exit()
-
-    # Notify the user that bootstraps cannot be used with the Maximum Parsimony settings of RAxML.
-    if args.bootstraps > 1 and args.phylogeny == 'p':
-        sys.stderr.write('WARNING: You intended to do ' + str(args.bootstraps) +
-                         ' bootstrap replicates. Bootstrapping is disabled in the parsimony mode of TreeSAPP.' +
-                         ' The pipeline will continue without bootstrapping.\n')
-        sys.stderr.flush()
-        args.bootstraps = 1
 
     args = find_executables(args)
 
@@ -182,16 +175,11 @@ def check_parser_arguments(parser):
     treesapp_dir = args.treesapp + os.sep + 'data' + os.sep
     genewise_support = treesapp_dir + os.sep + 'genewise_support_files' + os.sep
 
-    if args.num_threads >= available_cpu_count():
+    if args.num_threads > available_cpu_count():
         sys.stderr.write("WARNING: Number of threads specified is greater than those available! "
                          "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         sys.stderr.flush()
         args.num_threads = available_cpu_count()
-
-    # TODO: make this solution a bit better
-    if os.getenv("WISECONFIGDIR") is None:
-        sys.stderr.write("ERROR: $WISECONFIGDIR not set! Copy-and-paste the following line into your terminal:\n")
-        sys.exit("export WISECONFIGDIR=" + genewise_support + os.sep + "wisecfg")
 
     if args.rpkm:
         if not args.reads:
@@ -292,7 +280,7 @@ def create_cog_list(args):
     cog_list = Autovivify()
     text_of_analysis_type = Autovivify()
     cog_list_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
-    cog_input_list = open(cog_list_file, 'r')
+    cog_input_list = open(cog_list_file, 'r', encoding="latin1")
     if args.reftree not in ['i', 'p', 'g']:
         alignment_set = ''
     else:
@@ -783,8 +771,8 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict, cog_list):
         for hmm_match in hmm_matches[marker]:
             denominator = cog_list["all_cogs"][hmm_match.target_hmm]
             f_contig = denominator + "_" + hmm_match.orf
-            marker_query_fa = args.output_dir_var + f_contig + '_' + hmm_match.target_hmm + "_" + \
-                              str(hmm_match.start) + "_" + str(hmm_match.end) + ".fa"
+            marker_query_fa = args.output_dir_var + f_contig + '_' + \
+                              str(hmm_match.start) + "_" + str(hmm_match.end) + "_" + hmm_match.target_hmm + ".fa"
             hmmalign_input_fastas.append(marker_query_fa)
             try:
                 outfile = open(marker_query_fa, 'w')
@@ -1884,7 +1872,7 @@ def multiple_alignments(args, single_query_sequence_files, cog_list, marker_buil
     """
     The most important inputs are the genewise summary files
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :param genewise_summary_files:
+    :param single_query_sequence_files:
     :param cog_list:
     :param marker_build_dict:
     :return:
@@ -1935,11 +1923,12 @@ def prepare_and_run_hmmalign(args, single_query_fasta_files, cog_list):
         start_time = time.time()
     # task_list = list()
 
-    # Run hmmalign on each Genewise summary file
+    # Run hmmalign on each fasta file
     for query_sequence_file in sorted(single_query_fasta_files):
-        file_name_info = re.match("^([A-Z][0-9]{4})_(.*)_([A-Za-z0-9]+)_(\d+)_(\d+).fa$",
+        file_name_info = re.match("^([A-Z][0-9]{4})_(.*)_(\d+)_(\d+)_([A-Za-z0-9_]+).fa$",
                                   os.path.basename(query_sequence_file))
-        denominator, contig, cog, start, stop = file_name_info.groups()
+        denominator, contig, start, stop, cog = file_name_info.groups()
+
         query_multiple_alignment = re.sub(".fa$", ".cl", query_sequence_file)
 
         # TODO: Remove this once 18s and general rRNA reference package creation is implemented
@@ -2028,7 +2017,7 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
 
     for clustal_mfa_file in sorted(hmmalign_singlehit_files):
         # Determine what type of gene is currently represented, or raise an error
-        file_name_info = re.match("^([A-Z][0-9]{4}_.*)_(\w+)_\d+_\d+.cl$",
+        file_name_info = re.match("^([A-Z][0-9]{4}_.*)_\d+_\d+_([A-Za-z0-9_]+).cl$",
                                   os.path.basename(clustal_mfa_file))
         if file_name_info:
             f_contig, cog = file_name_info.groups()
@@ -2144,9 +2133,11 @@ def trimal_alignments(args, concatenated_mfa_files):
         trimal_command += ['-in', concatenated_mfa_file,
                            '-out', trimal_file,
                            '-automated1', '>', log]
-        os.system(' '.join(trimal_command))
-        if not os.path.isfile(trimal_file):
-            sys.exit("ERROR: " + trimal_file + " was not successfully created! Check " + log)
+        stdout, return_code = launch_write_command(trimal_command)
+        if return_code != 0:
+            sys.stderr.write("ERROR: trimal did not complete successfully!\n")
+            sys.stderr.write("trimal output:\n" + stdout + "\n")
+            sys.exit(39)
 
     sys.stdout.write("done.\n")
     sys.stdout.flush()
@@ -4040,7 +4031,6 @@ def jplace_parser(filename):
         itol_datum.version = jplace_dat["version"]
         itol_datum.metadata = jplace_dat["metadata"]
         # A list of dictionaries of where the key is a string and the value is a list of lists
-        # Since
         itol_datum.placements = jplace_dat["placements"]
 
     jplace_dat.clear()
