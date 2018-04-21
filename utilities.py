@@ -64,11 +64,11 @@ def find_executables(args):
     if hasattr(args, "update_tree"):
         if args.update_tree:
             dependencies.append("usearch")
-            dependencies.append("mafft")
 
-    if hasattr(args, "cluster"):
+    if hasattr(args, "cluster") or hasattr(args, "multiple_alignment"):
         if args.cluster:
             dependencies.append("usearch")
+        dependencies.append("mafft")
 
     if args.molecule == "rrna":
         dependencies += ["cmalign", "cmsearch", "cmbuild"]

@@ -42,38 +42,58 @@ def get_arguments():
                                required=True,
                                type=str)
 
+    seqop_args = parser.add_argument_group("Sequence operation arguments")
+    seqop_args.add_argument("--cluster",
+                            help="Flag indicating usearch should be used to cluster sequences\n"
+                                 "at the fractional similarity indicated by identity (`-p`)",
+                            action="store_true",
+                            default=False)
+    seqop_args.add_argument("--multiple_alignment",
+                            help='The FASTA input is also the multiple alignment file to be used.\n'
+                                 'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
+                            action="store_true",
+                            default=False)
+    seqop_args.add_argument("--trim_align",
+                            help="Flag indicating trimAl should be used to trim the non-conserved\n"
+                                 "alignment positions in the multiple sequence alignment.\n"
+                                 "`-gt 0.02` is invoked for 'soft trimming'",
+                            action="store_true",
+                            default=False)
+    seqop_args.add_argument("-d", "--domain",
+                            help="An HMM profile representing a specific domain.\n"
+                                 "Domains will be excised from input sequences based on hmmsearch alignments.",
+                            required=False, default=None)
+    seqop_args.add_argument('-l', '--min_seq_length',
+                            help='Minimal sequence length [DEFAULT = 100]',
+                            required=False,
+                            default=100,
+                            type=int)
+    seqop_args.add_argument('-m', '--molecule',
+                            help='The type of input sequences:\n'
+                                 'prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA',
+                            default='prot',
+                            choices=['prot', 'dna', 'rrna'])
+    seqop_args.add_argument('-r', "--rfam_cm",
+                            help="The covariance model of the RNA family being packaged.\n"
+                                 "REQUIRED if molecule is rRNA!",
+                            default=None)
+    seqop_args.add_argument("-s", "--screen",
+                            help="Keywords (taxonomic regular expressions) for including specific taxa in the tree.\n"
+                                 "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
+                                 "[ DEFAULT is no screen ]",
+                            default="",
+                            required=False)
+    seqop_args.add_argument("-f", "--filter",
+                            help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
+                                 "[ DEFAULT is no filter ]",
+                            default="",
+                            required=False)
+
     optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument('-a', '--multiple_alignment',
-                        help='The FASTA input is also the multiple alignment file to be used.\n'
-                             'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
-                        action="store_true",
-                        default=False)
-    optopt.add_argument("--cluster",
-                        help="Flag indicating usearch should be used to cluster sequences\n"
-                             "at the fractional similarity indicated by `-p`.",
-                        action="store_true",
-                        default=False)
-    optopt.add_argument("-d", "--domain",
-                        help="An HMM profile representing a specific domain.\n"
-                             "Domains will be excised from input sequences based on hmmsearch alignments.",
-                        required=False, default=None)
     optopt.add_argument("-u", "--uc",
-                        help="The USEARCH cluster format file produced from clustering reference sequences",
+                        help="The USEARCH cluster format file produced from clustering reference sequences.\n"
+                             "This can be used for selecting representative headers from identical sequences.",
                         required=False,
-                        default=None)
-    optopt.add_argument('-l', '--min_seq_length',
-                        help='Minimal sequence length [DEFAULT = 100]',
-                        required=False,
-                        default=100,
-                        type=int)
-    optopt.add_argument('-m', '--molecule',
-                        help='The type of input sequences:\n'
-                             'prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA',
-                        default='prot',
-                        choices=['prot', 'dna', 'rrna'])
-    optopt.add_argument('-r', "--rfam_cm",
-                        help="The covariance model of the RNA family being packaged.\n"
-                             "REQUIRED if molecule is rRNA!",
                         default=None)
     optopt.add_argument("-b", "--bootstraps",
                         help="The number of bootstrap replicates RAxML should perform\n"
@@ -85,27 +105,15 @@ def get_arguments():
                              "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",
                         required=False,
                         default=None)
-    optopt.add_argument("-T", "--num_threads",
-                        help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
-                        required=False,
-                        default=str(4),
-                        type=str)
-    optopt.add_argument("-s", "--screen",
-                        help="Keywords (taxonomic regular expressions) for including specific taxa in the tree.\n"
-                             "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
-                             "[ DEFAULT is no screen ]",
-                        default="",
-                        required=False)
-    optopt.add_argument("-f", "--filter",
-                        help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
-                             "[ DEFAULT is no filter ]",
-                        default="",
-                        required=False)
     optopt.add_argument("-o", "--output_dir",
                         help="Path to a directory for all outputs [ DEFAULT = ./ ]",
                         default="./",
                         required=False)
+
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
+    miscellaneous_opts.add_argument("-h", "--help",
+                                    action="help",
+                                    help="Show this help message and exit")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='Overwrites previously processed output folders')
     miscellaneous_opts.add_argument('--pc', action='store_true', default=False,
@@ -115,11 +123,13 @@ def get_arguments():
                                     help='If the tax_ids file exists for the code_name,\n'
                                          'the third (lineage) column is appended then exits,\n'
                                          'leaving all other files.')
+    miscellaneous_opts.add_argument("-T", "--num_threads",
+                                    help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
+                                    required=False,
+                                    default=str(4),
+                                    type=str)
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
-    miscellaneous_opts.add_argument("-h", "--help",
-                                    action="help",
-                                    help="Show this help message and exit")
 
     args = parser.parse_args()
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
@@ -1096,6 +1106,34 @@ def read_tax_ids(tree_taxa_list):
     return fasta_replace_dict
 
 
+def trim_multiple_alignment(args, mfa_file):
+    """
+    Runs trimal using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
+
+    Returns a list of files resulting from trimal.
+    """
+
+    sys.stdout.write("Running TrimAl... ")
+    sys.stdout.flush()
+
+    trimal_file = mfa_file + "-trimal"
+    log = args.output + os.sep + "treesapp.trimal_log.txt"
+    trimal_command = [args.executables["trimal"]]
+    trimal_command += ['-in', mfa_file,
+                       '-out', trimal_file,
+                       '-gt', str(0.02), '>', log]
+    stdout, return_code = launch_write_command(trimal_command)
+    if return_code != 0:
+        sys.stderr.write("ERROR: trimal did not complete successfully!\n")
+        sys.stderr.write("trimal output:\n" + stdout + "\n")
+        sys.exit(39)
+
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
+    return trimal_file
+
+
 def swap_tree_names(tree_to_swap, final_mltree, code_name):
     original_tree = open(tree_to_swap, 'r')
     raxml_tree = open(final_mltree, 'w')
@@ -1447,7 +1485,12 @@ def main():
     else:
         pass
 
-    os.rename(fasta_replaced_align, multiple_alignment_fasta)
+    if args.trim_align:
+        trimal_file = trim_multiple_alignment(args, fasta_replaced_align)
+        os.rename(trimal_file, multiple_alignment_fasta)
+        os.remove(fasta_replaced_align)
+    else:
+        os.rename(fasta_replaced_align, multiple_alignment_fasta)
 
     if args.molecule == "rrna":
         # A .cm file has already been generated, no need for HMM
