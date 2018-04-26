@@ -442,6 +442,13 @@ def read_uc(uc_file):
 
 
 def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
+    """
+    Function for slicing sequences guided by alignment co-ordinates.
+    :param hmm_matches: Dictionary containing a list HmmMatch() objects as values for each 'marker' key
+    :param fasta_dict: A dictionary with headers as keys and sequences as values
+    :param header_registry: A list of Header() objects, each used to map various header formats to each other
+    :return:
+    """
     sys.stdout.write("Extracting the quality-controlled protein sequences... ")
     sys.stdout.flush()
     marker_gene_dict = dict()
@@ -460,10 +467,19 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
             bulk_header = ""
             for num in header_registry:
                 if hmm_match.orf == header_registry[num].first_split[1:]:
-                    sequence = fasta_dict[header_registry[num].formatted]
-                    bulk_header = header_registry[num].original
+                    query_names = header_registry[num]
+                    sequence = fasta_dict[query_names.formatted]
+                    if hmm_match.of > 1:
+                        query_names.post_align = \
+                            ' '.join([query_names.first_split, str(hmm_match.num) + '.' + str(hmm_match.of), re.sub(re.escape(query_names.first_split), '', query_names.original)])
+                    else:
+                        query_names.post_align = query_names.original
+                    bulk_header = query_names.post_align
                     break
             if sequence:
+                if bulk_header in marker_gene_dict[marker]:
+                    sys.stderr.write("WARNING: " + bulk_header + " being overwritten by an alternative alignment!\n")
+                    hmm_match.print_info()
                 marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
             else:
                 sys.stderr.write("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
@@ -483,7 +499,7 @@ def hmm_pile(hmm_matches):
 
     for marker in hmm_matches:
         for hmm_match in hmm_matches[marker]:
-            # Initialize the hmm_bins directory using the HMM profile length
+            # Initialize the hmm_bins using the HMM profile length
             if not hmm_bins:
                 i = 1
                 hmm_length = int(hmm_match.hmm_len)
@@ -499,7 +515,6 @@ def hmm_pile(hmm_matches):
                     hmm_bins[(bin_start, bin_end)] += 1
                 else:
                     pass
-        # TODO: write some ascii art visualizing the HMM profile coverage (pile-up)
         low_coverage_start = 0
         low_coverage_stop = 0
         maximum_coverage = 0
