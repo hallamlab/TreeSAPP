@@ -650,6 +650,7 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
     description = ""
     locus = ""
     organism = ""
+    lineage = ""
     if regex_match_groups:
         if len(regex_match_groups.groups()) == 2:
             accession = regex_match_groups.group(1)
@@ -662,7 +663,7 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
         elif header_db == "silva":
             accession = regex_match_groups.group(1)
             locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
-            organism = regex_match_groups.group(4)
+            lineage = regex_match_groups.group(4)
             description = regex_match_groups.group(4)
         elif header_db == "fungene":
             accession = regex_match_groups.group(1)
@@ -673,6 +674,10 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             accession = regex_match_groups.group(1)
             organism = regex_match_groups.group(2)
             description = regex_match_groups.group(3)
+        elif header_db == "custom":
+            description = regex_match_groups.group(1)
+            lineage = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
     else:
         sys.stderr.write("Unable to handle header: " + header + "\n")
         sys.exit()
@@ -682,7 +687,7 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
         sys.stderr.write("regex_match: " + header_db + '\n')
         sys.exit(33)
 
-    return accession, organism, locus, description
+    return accession, organism, locus, description, lineage
 
 
 def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers=None):
@@ -709,7 +714,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
                 original_header = header_registry[mltree_id].original
                 header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
                 sequence_info = header_format_re.match(original_header)
-                _, fasta_header_organism, _, _ = return_sequence_info_groups(sequence_info, header_db, header)
+                _, fasta_header_organism, _, _, _ = return_sequence_info_groups(sequence_info, header_db, header)
                 if re.search(ref_seq.accession, header):
                     if re.search(reformat_string(ref_seq.organism), reformat_string(fasta_header_organism)):
                         ref_seq.sequence = fasta_dict[header]
@@ -774,9 +779,10 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
             header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
             sequence_info = header_format_re.match(original_header)
             ref_seq.accession,\
-            ref_seq.organism,\
-            ref_seq.locus,\
-            ref_seq.description = return_sequence_info_groups(sequence_info, header_db, original_header)
+                ref_seq.organism,\
+                ref_seq.locus,\
+                ref_seq.description,\
+                ref_seq.lineage = return_sequence_info_groups(sequence_info, header_db, original_header)
 
             ref_seq.short_id = mltree_id + '_' + code_name
             fasta_replace_dict[mltree_id] = ref_seq

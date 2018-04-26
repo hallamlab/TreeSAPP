@@ -150,6 +150,13 @@ def get_header_format(header, code_name=""):
     refseq_nuc_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
+    # Custom fasta header with taxonomy:
+    # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
+    # There are no character restrictions on the first and third groups
+    # The lineage must be formatted like:
+    #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+    custom_tax = re.compile("^>(.*) lineage=(.*) \[(.*)\]$")
+
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
                                gb_re: "gb",
@@ -169,7 +176,8 @@ def get_header_format(header, code_name=""):
                               nr_re: "nr"},
                       "ambig": {ncbi_ambiguous: "ncbi_ambig",
                                 genbank_exact_genome: "gen_genome",
-                                treesapp_re: "treesapp"}
+                                treesapp_re: "treesapp",
+                                custom_tax: "custom"}
                       }
 
     header_format_re = None
@@ -186,7 +194,7 @@ def get_header_format(header, code_name=""):
                 pass
 
     if header_format_re is None:
-        raise AssertionError("Unable to parse header: " + header)
+        raise AssertionError("Unable to parse header '" + header + "'\n")
 
     return header_format_re, header_db, header_molecule
 

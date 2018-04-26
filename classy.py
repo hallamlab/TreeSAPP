@@ -806,4 +806,5 @@ class Header:
         self.original = header
         self.formatted = ""
         self.treesapp_name = ""
+        self.post_align = ""
         self.first_split = ""
