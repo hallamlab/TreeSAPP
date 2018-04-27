@@ -197,8 +197,8 @@ def check_parser_arguments(parser):
 
     # Parameterizing the hmmsearch output parsing:
     args.min_acc = 0.7
-    args.min_e = 0.01
-    args.perc_aligned = 20
+    args.min_e = 0.0001
+    args.perc_aligned = 15
 
     return args
 
@@ -4555,19 +4555,20 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
         itol_data[marker].clear_object()
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(args, marker)
+
+        annotation_style_files = glob.glob(os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "*"]))
         # Copy the respective colours and styles files for each marker found to the itol_output directories
-        colors_styles = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colours_style.txt"])
+        colours_styles = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colours_style.txt"])
         colour_strip = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colour_strip.txt"])
-        try:
-            shutil.copy(colors_styles, itol_base_dir + marker)
-        except IOError:
+        if colours_styles not in annotation_style_files:
             sys.stderr.write("WARNING: a colours_style.txt file does not yet exist for marker " + marker + "\n")
             sys.stderr.flush()
-        try:
-            shutil.copy(colour_strip, itol_base_dir + marker)
-        except IOError:
+        if colour_strip not in annotation_style_files:
             sys.stderr.write("WARNING: a colour_strip.txt file does not yet exist for marker " + marker + "\n")
             sys.stderr.flush()
+
+        for annotation_file in annotation_style_files:
+            shutil.copy(annotation_file, itol_base_dir + marker)
 
         generate_simplebar(args,
                            rpkm_output_file,
