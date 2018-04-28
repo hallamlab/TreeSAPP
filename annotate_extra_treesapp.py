@@ -15,6 +15,7 @@ if cmd_folder not in sys.path:
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from entish import get_node
 from treesapp import parse_ref_build_params, jplace_parser
+from classy import TreeProtein
 
 
 def get_arguments():
@@ -229,7 +230,6 @@ def parse_clades_from_tree(args, jplace_tree_string, clusters):
     """
     clade_members = dict()
     leaf_annotation_map = dict()
-    # all_annotated_leaves_map = dict()
     leaves_in_clusters = set()
 
     internal_node_map = create_node_map(jplace_tree_string)
@@ -247,36 +247,20 @@ def parse_clades_from_tree(args, jplace_tree_string, clusters):
             for inode in internal_node_map:
                 clade = internal_node_map[inode]
                 if start in clade:
-                    if start == end:
-                        clade_members[cluster].add(inode)
                     warm_front[len(clade)] = clade
             for size in sorted(warm_front, key=int):
                 if end in warm_front[size]:
                     leaf_annotation_map[cluster] += warm_front[size]
                     break
 
-    # # Intersect the clusters for sequences that map near the root
-    # for primary_cluster in leaf_annotation_map:
-    #     all_annotated_leaves_map[primary_cluster] = leaf_annotation_map[primary_cluster]
-    #     for secondary_cluster in leaf_annotation_map:
-    #         if primary_cluster == secondary_cluster:
-    #             continue
-    #         hybrid = sorted([primary_cluster, secondary_cluster])
-    #         if ','.join(hybrid) not in all_annotated_leaves_map:
-    #             clade_members[','.join(hybrid)] = set()
-    #             all_annotated_leaves_map[','.join(hybrid)] = leaf_annotation_map[primary_cluster] + leaf_annotation_map[secondary_cluster]
-
     # Map the internal nodes (from Jplace tree string) to the cluster names
     for cluster in clade_members:
         for inode in internal_node_map:
-            contained = True
             for leaf in internal_node_map[inode]:
-                if leaf not in leaf_annotation_map[cluster]:
-                    contained = False
+                if leaf in leaf_annotation_map[cluster]:
+                    clade_members[cluster].add(str(inode))
+                    leaves_in_clusters.add(str(inode))
                     break
-            if contained:
-                clade_members[cluster].add(str(inode))
-                leaves_in_clusters.add(str(inode))
 
     if args.verbose:
         sys.stdout.write("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
@@ -300,6 +284,7 @@ def parse_clades_from_tree(args, jplace_tree_string, clusters):
 
 
 def map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files_to_parse, master_dat):
+    # TODO: Consider including the internal nodes the sequence was mapped to in the classification table for consistency
     num_unclassified = 0
     for jplace in jplace_files_to_parse:
         file_name = os.path.basename(jplace)
@@ -312,13 +297,15 @@ def map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files
         for data_type in marker_tree_info:
             if marker in marker_tree_info[data_type]:
                 metadata_placement = set()
+                query_obj = TreeProtein()
                 itol_datum = jplace_parser(jplace)
-                for pquery in itol_datum.placements:
-                    for placement in pquery['p']:
-                        node = str(placement[0])
-                        for group in marker_tree_info[data_type][marker]:
-                            if node in marker_tree_info[data_type][marker][group]:
-                                metadata_placement.add(group)
+                query_obj.transfer(itol_datum)
+                query_obj.correct_decoding()
+                query_obj.filter_max_weight_placement()
+                for node in query_obj.list_placements():
+                    for group in marker_tree_info[data_type][marker]:
+                        if node in marker_tree_info[data_type][marker][group]:
+                            metadata_placement.add(group)
 
                 if len(metadata_placement) == 0:
                     metadata_placement.add("Unknown")

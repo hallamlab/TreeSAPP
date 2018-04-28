@@ -382,6 +382,22 @@ class ItolJplace:
         sys.stderr.flush()
         return
 
+    def list_placements(self):
+        """
+        Returns a list of all the nodes contained in placements
+        :return:
+        """
+        nodes = list()
+        for d_place in self.placements:
+            if type(d_place) == str:
+                for k, v in loads(d_place).items():
+                    if k == 'p':
+                        for pquery in v:
+                            nodes.append(str(pquery[0]))
+            else:
+                raise AssertionError("Unable to handle type " + type(d_place) + "\n")
+        return nodes
+
     def correct_decoding(self):
         """
         Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
@@ -422,7 +438,7 @@ class ItolJplace:
             return None
         return x
 
-    def filter_min_weight_threshold(self, threshold=0.2):
+    def filter_min_weight_threshold(self, threshold=0.1):
         """
         Remove all placements with likelihood weight ratios less than threshold
         :param threshold: The threshold which all placements with LWRs less than this are removed
