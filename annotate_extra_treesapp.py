@@ -13,7 +13,7 @@ cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(insp
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from entish import read_and_understand_the_reference_tree
+from entish import get_node
 from treesapp import parse_ref_build_params, jplace_parser
 
 
@@ -179,48 +179,135 @@ def read_colours_file(args, annotation_file):
     return clusters
 
 
-def parse_clades_from_tree(args, denominator, tree_file, clusters):
+def create_node_map(jplace_tree_string):
     """
-    clusters is a dictionary with the cluster names for keys and a tuple containing leaf boundaries as values
+    Loads a mapping between all nodes (internal and leaves) and all leaves
+    :return:
+    """
+    no_length_tree = re.sub(":[0-9.]+{", ":{", jplace_tree_string)
+    node_map = dict()
+    node_stack = list()
+    leaf_stack = list()
+    x = 0
+    num_buffer = ""
+    while x < len(no_length_tree):
+        c = no_length_tree[x]
+        if re.search(r"[0-9]", c):
+            while re.search(r"[0-9]", c):
+                num_buffer += c
+                x += 1
+                c = no_length_tree[x]
+            node_stack.append([str(num_buffer)])
+            num_buffer = ""
+            x -= 1
+        elif c == ':':
+            # Append the most recent leaf
+            current_node, x = get_node(no_length_tree, x + 1)
+            node_map[current_node] = node_stack.pop()
+            leaf_stack.append(current_node)
+        elif c == ')':
+            # Set the child leaves to the leaves of the current node's two children
+            while c == ')' and x < len(no_length_tree):
+                if no_length_tree[x + 1] == ';':
+                    break
+                current_node, x = get_node(no_length_tree, x + 2)
+                node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
+                leaf_stack.append(current_node)
+                x += 1
+                c = no_length_tree[x]
+        x += 1
+    return node_map
+
+
+def parse_clades_from_tree(args, jplace_tree_string, clusters):
+    """
+
     :param args:
-    :param denominator:
-    :param clusters:
+    :param jplace_tree_string:
+    :param clusters: Dictionary with the cluster names for keys and a tuple containing leaf boundaries as values
     :return:
     """
     clade_members = dict()
-    terminal_children_clades = list()
-    leaves_in_clusters = 0
+    leaf_annotation_map = dict()
+    # all_annotated_leaves_map = dict()
+    leaves_in_clusters = set()
 
-    denominator, terminal_children = read_and_understand_the_reference_tree(tree_file, denominator)
+    internal_node_map = create_node_map(jplace_tree_string)
 
-    for clade in terminal_children.keys():
-        terminal_children_clades.append([x for x in clade.strip().split(' ')])
+    # TODO: Make this code more efficient because it currently isn't but it works. Everything is small so no pressure.
+    # Create a dictionary to map the cluster name (e.g. Function, Activity, Class, etc) to the leaf nodes
     for cluster in clusters.keys():
-        clade_members[cluster] = list()
+        if cluster not in leaf_annotation_map:
+            leaf_annotation_map[cluster] = list()
+            clade_members[cluster] = set()
         for frond_tips in clusters[cluster]:
             start, end = frond_tips
             # Find the minimum set that includes both start and end
             warm_front = dict()
-            for clade in terminal_children_clades:
+            for inode in internal_node_map:
+                clade = internal_node_map[inode]
                 if start in clade:
+                    if start == end:
+                        clade_members[cluster].add(inode)
                     warm_front[len(clade)] = clade
             for size in sorted(warm_front, key=int):
                 if end in warm_front[size]:
-                    leaves_in_clusters += len(warm_front[size])
-                    clade_members[cluster] += warm_front[size]
+                    leaf_annotation_map[cluster] += warm_front[size]
                     break
 
+    # # Intersect the clusters for sequences that map near the root
+    # for primary_cluster in leaf_annotation_map:
+    #     all_annotated_leaves_map[primary_cluster] = leaf_annotation_map[primary_cluster]
+    #     for secondary_cluster in leaf_annotation_map:
+    #         if primary_cluster == secondary_cluster:
+    #             continue
+    #         hybrid = sorted([primary_cluster, secondary_cluster])
+    #         if ','.join(hybrid) not in all_annotated_leaves_map:
+    #             clade_members[','.join(hybrid)] = set()
+    #             all_annotated_leaves_map[','.join(hybrid)] = leaf_annotation_map[primary_cluster] + leaf_annotation_map[secondary_cluster]
+
+    # Map the internal nodes (from Jplace tree string) to the cluster names
+    for cluster in clade_members:
+        for inode in internal_node_map:
+            contained = True
+            for leaf in internal_node_map[inode]:
+                if leaf not in leaf_annotation_map[cluster]:
+                    contained = False
+                    break
+            if contained:
+                clade_members[cluster].add(str(inode))
+                leaves_in_clusters.add(str(inode))
+
     if args.verbose:
-        sys.stdout.write("\tCaptured " + str(leaves_in_clusters) + " leaves in clusters.\n")
+        sys.stdout.write("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
+
+    diff = len(internal_node_map) - len(leaves_in_clusters)
+    if diff != 0:
+        unannotated = list()
+        sys.stderr.write("WARNING: the following internal nodes were not mapped to annotation groups:\n")
+        for inode in internal_node_map:
+            contained = False
+            for cluster in clade_members:
+                if str(inode) in clade_members[cluster]:
+                    contained = True
+                    break
+            if not contained:
+                unannotated.append(str(inode))
+        sys.stderr.write("\t" + ', '.join(unannotated) + "\n")
+        sys.stderr.flush()
 
     return clade_members
 
 
 def map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files_to_parse, master_dat):
+    num_unclassified = 0
     for jplace in jplace_files_to_parse:
         file_name = os.path.basename(jplace)
         jplace_info = re.match("RAxML_portableTree.([A-Z][0-9]{4})_(.*).jplace", file_name)
         gene_code, contig_name = jplace_info.groups()
+        if contig_name not in master_dat.keys():
+            num_unclassified += 1
+            continue
         marker = marker_build_dict[gene_code].cog
         for data_type in marker_tree_info:
             if marker in marker_tree_info[data_type]:
@@ -232,7 +319,12 @@ def map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files
                         for group in marker_tree_info[data_type][marker]:
                             if node in marker_tree_info[data_type][marker][group]:
                                 metadata_placement.add(group)
-                master_dat[contig_name][data_type] = ','.join(metadata_placement)
+
+                if len(metadata_placement) == 0:
+                    metadata_placement.add("Unknown")
+                master_dat[contig_name][data_type] = ';'.join(sorted(metadata_placement))
+    if num_unclassified > 0:
+        sys.stdout.write("Number of placed sequences that were unclassified: " + str(num_unclassified) + "\n")
     return master_dat
 
 
@@ -290,6 +382,7 @@ def main():
     unique_markers_annotated = set()
     marker_tree_info = dict()
     jplace_files_to_parse = list()
+    jplace_tree_strings = dict()
     marker_build_dict = parse_ref_build_params(args)
     master_dat, field_order = parse_marker_classification_table(args)
     # structure of master dat:
@@ -323,7 +416,7 @@ def main():
         field_order[field_acc] = new_datum
         field_acc += 1
 
-    # Load the query sequence annotations from
+    # Load the query sequence annotations
     for data_type in marker_subgroups:
         if data_type not in marker_tree_info:
             marker_tree_info[data_type] = dict()
@@ -331,13 +424,13 @@ def main():
             for jplace in jplace_files:
                 if re.match(re.escape(var_dir) + "RAxML_portableTree." + re.escape(gene_code) + "_.*.jplace", jplace):
                     jplace_files_to_parse.append(jplace)
+                if gene_code not in jplace_tree_strings:
+                    jplace_tree_strings[gene_code] = jplace_parser(jplace).tree
 
             marker = marker_build_dict[gene_code].cog
             if marker in marker_subgroups[data_type]:
-                tree_file = os.sep.join([args.treesapp, "data", "tree_data", marker + "_tree.txt"])
                 marker_tree_info[data_type][marker] = parse_clades_from_tree(args,
-                                                                             gene_code,
-                                                                             tree_file,
+                                                                             jplace_tree_strings[gene_code],
                                                                              marker_subgroups[data_type][marker])
             else:
                 pass
