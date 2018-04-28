@@ -8,14 +8,14 @@ import pygtrie
 import re
 import os
 import inspect
+from random import randint
 
 cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from fasta import format_read_fasta, write_new_fasta
-from create_treesapp_ref_data import get_lineage, get_header_format, \
-    return_sequence_info_groups, map_good_headers_to_ugly, get_headers
+from fasta import format_read_fasta, write_new_fasta, get_headers
+from create_treesapp_ref_data import get_lineage, get_header_format, return_sequence_info_groups, register_headers
 from utilities import clean_lineage_string
 from external_command_interface import setup_progress_bar
 from classy import ReferenceSequence
@@ -37,8 +37,7 @@ def get_arguments_():
                                help='Your sequence input file (for TreeSAPP) in FASTA format',
                                required=True)
     required_args.add_argument("-r", "--reference_markers",
-                               help="tax_ids table for the TreeSAPP marker under investigation. "
-                                    "Found in data/tree_data/tax_ids*.txt.",
+                               help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)",
                                required=True,
                                nargs='+')
 
@@ -47,15 +46,19 @@ def get_arguments_():
                         help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
                         default='prot',
                         choices=['prot', 'dna', 'rrna'])
-    optopt.add_argument("-h", "--help",
-                        action="help",
-                        help="Show this help message and exit")
+    optopt.add_argument("-l", "--length",
+                        required=False, type=int, default=0,
+                        help="Arbitrarily slice the input sequences to this length. "
+                             "Useful for testing classification accuracy for fragments.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
+    miscellaneous_opts.add_argument("-h", "--help",
+                                    action="help",
+                                    help="Show this help message and exit")
 
     args = parser.parse_args()
 
@@ -73,7 +76,7 @@ def get_arguments_():
     return args
 
 
-def read_table(assignment_file):
+def read_marker_classification_table(assignment_file):
     """
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
@@ -600,7 +603,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
                 else:
                     header_format_re, header_db, header_molecule = get_header_format(original_header)
                     sequence_info = header_format_re.match(original_header)
-                    q_accession, _, _, _ = return_sequence_info_groups(sequence_info, header_db, original_header)
+                    q_accession, _, _, _, _ = return_sequence_info_groups(sequence_info, header_db, original_header)
                 # print(q_accession)
                 entrez_query_list.append((q_accession, database))
                 marker_assignments[robust_classification].append(q_accession)
@@ -808,7 +811,7 @@ def write_performance_table(args, clade_exclusion_strings, sensitivity):
 def correct_accession(description):
     header_format_re, header_db, header_molecule = get_header_format(description)
     sequence_info = header_format_re.match(description)
-    accession, _, _, _ = return_sequence_info_groups(sequence_info, header_db, description)
+    accession, _, _, _, _ = return_sequence_info_groups(sequence_info, header_db, description)
     return accession
 
 
@@ -836,11 +839,11 @@ def build_entrez_queries(test_sequences, molecule_type):
     return entrez_query_list
 
 
-def load_ref_seqs(fasta_dict, header_map=None):
+def load_ref_seqs(fasta_dict, header_registry=None):
     """
     Function for loading a fasta-formatted dictionary into ReferenceSequence objects
     :param fasta_dict:
-    :param header_map: An optional dictionary mapping formatted header strings to original headers (from fasta_reader)
+    :param header_registry: An optional dictionary of Header objects
     :return:
     """
     ref_seq_list = list()
@@ -849,13 +852,15 @@ def load_ref_seqs(fasta_dict, header_map=None):
         ref_seq = ReferenceSequence()
         ref_seq.accession = accession  # Could be incorrect, still needs to be edited in build_entrez_queries
         ref_seq.sequence = fasta_dict[header]
-        if header_map:
+        if header_registry:
             # format of header_map: header_map[reformat_string(original_header)] = original_header
             # This is used to recover the real accession ID later on
-            try:
-                ref_seq.description = header_map[header]  # data required for correct_accessions
-            except KeyError:
-                sys.exit("ERROR: unable to find " + header + " in header_map!\n")
+            for num_id in header_registry:
+                if header_registry[num_id].formatted == header:
+                    ref_seq.description = header_registry[num_id].original
+            if ref_seq.description == "":
+                sys.stderr.write("ERROR: unable to find " + header + " in header_map!\n")
+                sys.exit(13)
 
             if re.search("Bacteria\|Archaea", header):
                 # TODO: test this. Assuming taxonomic lineage immediately follows sequence accession
@@ -914,16 +919,25 @@ def main():
 
     # Load FASTA data
     fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args, 110)
-    original_headers = get_headers(args.fasta_input)
-    header_map = map_good_headers_to_ugly(original_headers)
+    if args.length:
+        for seq_id in fasta_dict:
+            if len(fasta_dict[seq_id]) < args.length:
+                sys.stderr.write("WARNING: " + seq_id + " sequence is shorter than " + str(args.length))
+            else:
+                max_stop = len(fasta_dict[seq_id]) - args.length
+                random_start = randint(0, max_stop)
+                fasta_dict[seq_id] = fasta_dict[seq_id][random_start:random_start+args.length]
+    header_registry = register_headers(args, get_headers(args.fasta_input))
     # Load the query test sequences as ReferenceSequence objects
-    test_ref_sequences = load_ref_seqs(fasta_dict, header_map)
+    test_ref_sequences = load_ref_seqs(fasta_dict, header_registry)
     complete_ref_sequences = list()
     for ref_seq in test_ref_sequences:
         ref_seq.accession = correct_accession(ref_seq.description)
         complete_ref_sequences.append(ref_seq)
     test_ref_sequences.clear()
 
+    n_classified = 0
+    marker_assignments = {}
     # Set up a dictionary for tracking the taxonomic filtering
     taxonomic_filter_stats = dict()
     taxonomic_filter_stats["Unclassified"] = 0
@@ -987,7 +1001,7 @@ def main():
     if extant and accessions_downloaded and taxa_filter and classified:
         sys.stdout.write("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
         if os.path.isfile(classification_table):
-            assignments, n_classified = read_table(classification_table)
+            assignments, n_classified = read_marker_classification_table(classification_table)
         else:
             sys.stderr.write("\nERROR: marker_contig_map.tsv is missing from output directory!\n")
             sys.stderr.write("Please remove this directory and re-run.\n")
@@ -1001,7 +1015,7 @@ def main():
     if extant and not taxa_filter and classified:
         sys.stdout.write("Outputs from a previous unsupervised TreeSAPP analysis found.\n")
         # Read the classification table
-        assignments, n_classified = read_table(classification_table)
+        assignments, n_classified = read_marker_classification_table(classification_table)
         redownload = True
 
         # if os.path.isfile(inter_class_file):
@@ -1058,6 +1072,13 @@ def main():
         sys.stdout.write("This is not a problem, its just they have 'unclassified' somewhere in their lineages\n"
                          "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
 
+    if n_classified == 0 and marker_assignments == {}:
+        sys.stderr.write("\nERROR: Outputs from previous TreeSAPP or "
+                         "Clade-exclusion analysis were incorrectly inferred to be present. Oopsie!\n")
+        sys.stderr.write("The developer(s) should be made aware of this - "
+                         "please post an issue to the GitHub page with your command used. Thanks!\n")
+        sys.exit()
+
     sensitivity = str(round(float(n_classified / total_sequences), 3))
     sys.stdout.write("Sensitivity = " + sensitivity + "\n")
 
@@ -1071,6 +1092,10 @@ def main():
     clade_exclusion_strings = list()
     tax_ids_tables = list()
     for marker in args.reference_markers:
+        # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
+        if re.match("[A-Z][0-9]{4}", marker):
+            sys.stderr.write("ERROR: Wrong format for the reference marker provided: " + marker + "\n")
+            sys.exit(9)
         tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + "tax_ids_" + marker + ".txt"
         if os.path.exists(tax_ids_file):
             tax_ids_tables.append(tax_ids_file)
