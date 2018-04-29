@@ -2111,7 +2111,9 @@ def trimal_alignments(args, concatenated_mfa_files):
     Returns a list of files resulting from trimal.
     """
 
-    sys.stdout.write("Running TrimAl with the `-automated1` setting... ")
+    # settings = ['-automated1']
+    settings = ['-gt', '0.02']
+    sys.stdout.write("Running TrimAl with the '" + ' '.join(settings) + "' setting... ")
     sys.stdout.flush()
 
     if args.verbose:
@@ -2131,8 +2133,9 @@ def trimal_alignments(args, concatenated_mfa_files):
         trimal_outputs[f_contig].append(trimal_file)
         trimal_command = [args.executables["trimal"]]
         trimal_command += ['-in', concatenated_mfa_file,
-                           '-out', trimal_file,
-                           '-automated1', '>', log]
+                           '-out', trimal_file]
+        trimal_command += settings
+        trimal_command += ['>', log]
         stdout, return_code = launch_write_command(trimal_command)
         if return_code != 0:
             sys.stderr.write("ERROR: trimal did not complete successfully!\n")
@@ -2199,6 +2202,12 @@ def produce_phy_file(args, mfa_files, ref_alignment_dimensions):
 
     phy_files = Autovivify()
     sequence_lengths = Autovivify()
+    seq_name = ''
+    discarded_seqs = 0
+
+    if args.verbose:
+        sys.stdout.write("Converting FASTA multiple alignment files to Phylip... ")
+        sys.stdout.flush()
 
     # Open each alignment file
     for f_contig in sorted(mfa_files.keys()):
@@ -2254,6 +2263,7 @@ def produce_phy_file(args, mfa_files, ref_alignment_dimensions):
                     seq_dummy = re.sub('X', '', sequence)
                     if len(seq_dummy) < args.min_seq_length:
                         do_not_continue = 1
+                        discarded_seqs += 1
                         exit_file_name = args.output_dir_var + f_contig + '_exit_after_trimal.txt'
                         try:
                             output = open(exit_file_name, 'w')
@@ -2302,6 +2312,11 @@ def produce_phy_file(args, mfa_files, ref_alignment_dimensions):
 
                 output.write('\n')
             output.close()
+
+    if args.verbose:
+        sys.stdout.write("done.\n")
+        sys.stderr.write("\tSequences <" + str(args.min_seq_length) + " AA removed:\t" + str(discarded_seqs) + "\n")
+        sys.stdout.flush()
 
     return phy_files
 
@@ -4360,7 +4375,7 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
     :return:
     """
     mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
-    tab_out_string = "Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tLikelihood\tWTD\n"
+    tab_out_string = "Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD\n"
     try:
         tab_out = open(mapping_output, 'w')
     except IOError:
@@ -4419,6 +4434,8 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                                              clean_lineage_string(tree_sap.lct),
                                              lowest_confident_taxonomy(tree_sap.lct, marker_build_dict[denominator]),
                                              str(tree_sap.abundance),
+                                             str(tree_sap.inode),
+                                             str(tree_sap.likelihood),
                                              str(tree_sap.lwr),
                                              str(tree_sap.wtd)]) + "\n"
         if args.verbose:
@@ -4431,10 +4448,11 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
     return
 
 
-def jplace_likelihood_weight_ratio(pquery, position):
+def pquery_likelihood_weight_ratio(pquery, position):
     """
     Determines the likelihood weight ratio (LWR) for a single placement. There may be multiple placements
     (or 'pquery's) in a single .jplace file. Therefore, this function is usually looped over.
+    :param pquery:
     :param position: The position of "like_weight_ration" in the pquery fields
     :return: The float(LWR) of a single placement
     """
@@ -4531,13 +4549,14 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
             query_obj.filter_max_weight_placement()
         else:
             query_obj.harmonize_placements(args.treesapp)
-        position = query_obj.get_lwr_position_from_jplace_fields()
         if unclassified == 0 and len(query_obj.placements) != 1:
             sys.stderr.write("ERROR: Number of JPlace pqueries is " + str(len(query_obj.placements)) +
                              " when only 1 is expected at this point.\n")
             query_obj.summarize()
             sys.exit(3)
-        query_obj.lwr = jplace_likelihood_weight_ratio(query_obj.placements[0], position)
+        query_obj.get_inode()
+        query_obj.get_placement_lwr()
+        query_obj.get_placement_likelihood()
         tree_saps[denominator].append(query_obj)
 
         # I have decided to not remove the original JPlace files since some may find these useful

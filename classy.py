@@ -323,24 +323,26 @@ class ItolJplace:
     fields = list()
 
     def __init__(self):
-        # Sequence name (from FASTA header)
-        self.contig_name = ""
-        # Code name of the tree it mapped to (e.g. mcrA)
-        self.name = ""
-        # NEWICK tree
-        self.tree = ""
-        self.metadata = ""
-        self.version = ""
-        # List of lineages for each child identified by RAxML.
-        self.lineage_list = list()
-        self.node_map = dict()
-        self.placements = list()
-        # The LCA taxonomy derived from lineage_list
-        self.lct = ""
-        self.lwr = 0
+        self.contig_name = ""  # Sequence name (from FASTA header)
+        self.name = ""  # Code name of the tree it mapped to (e.g. mcrA)
+        self.abundance = None  # Either the number of occurences, or the FPKM of that sequence
+        self.node_map = dict()  # A dictionary mapping internal nodes (Jplace) to all leaf nodes
+        ##
+        # Taxonomic information:
+        ##
+        self.lineage_list = list()  # List containing each child's lineage
         self.wtd = 0
-        # Either the number of times that sequence was observed, or the FPKM of that sequence
-        self.abundance = None
+        self.lct = ""  # The LCA taxonomy derived from lineage_list
+        ##
+        # Information derived from Jplace pqueries:
+        ##
+        self.placements = list()
+        self.lwr = 0  # Likelihood weight ratio of an individual placement
+        self.likelihood = 0
+        self.inode = ""
+        self.tree = ""  # NEWICK tree
+        self.metadata = ""
+        self.version = ""  # Jplace version
 
     def summarize(self):
         """
@@ -360,11 +362,16 @@ class ItolJplace:
         elif self.placements[0] == '{}':
             sys.stderr.write("\tNone.\n")
         else:
-            for pquery in self.placements:
-                placement = loads(pquery, encoding="utf-8")
-                for k, v in placement.items():
-                    if k == 'p':
-                        sys.stderr.write('\t' + str(v) + "\n")
+            if self.likelihood and self.lwr and self.inode:
+                sys.stderr.write("\tInternal node\t" + str(self.inode) + "\n")
+                sys.stderr.write("\tLikelihood\t" + str(self.likelihood) + "\n")
+                sys.stderr.write("\tL.W.R\t\t" + str(self.lwr) + "\n")
+            else:
+                for pquery in self.placements:
+                    placement = loads(pquery, encoding="utf-8")
+                    for k, v in placement.items():
+                        if k == 'p':
+                            sys.stderr.write('\t' + str(v) + "\n")
         sys.stderr.write("Non-redundant lineages of child nodes:\n")
         if len(self.lineage_list) > 0:
             for lineage in sorted(set(self.lineage_list)):
@@ -420,23 +427,54 @@ class ItolJplace:
         self.fields = [dumps(x) for x in self.fields]
         return
 
-    def get_lwr_position_from_jplace_fields(self):
+    def get_field_position_from_jplace_fields(self, field_name):
         """
         Find the position in self.fields of 'like_weight_ratio'
         :return: position in self.fields of 'like_weight_ratio'
         """
         x = 0
-        # Find the position of like_weight_ratio in the placements from fields descriptor
+        # Find the position of field_name in the placements from fields descriptor
+        quoted_field = '"' + field_name + '"'
         for field in self.fields:
-            if field == '"like_weight_ratio"':
+            if str(field) == quoted_field:
                 break
             else:
                 x += 1
         if x == len(self.fields):
-            sys.stderr.write("Unable to find \"like_weight_ratio\" in the jplace string!\n")
+            sys.stderr.write("Unable to find '" + field_name + "' in the jplace string!\n")
             sys.stderr.write("WARNING: Skipping filtering with `filter_min_weight_threshold`\n")
             return None
         return x
+
+    def get_jplace_element(self, element_name):
+        """
+        Determines the element value (e.g. likelihood, edge_num) for a single placement.
+        There may be multiple placements (or 'pquery's) in a single .jplace file.
+        Therefore, this function is usually looped over.
+        """
+        position = self.get_field_position_from_jplace_fields(element_name)
+        placement = loads(self.placements[0], encoding="utf-8")
+        element_value = None
+        for k, v in placement.items():
+            if k == 'p':
+                acc = 0
+                while acc < len(v):
+                    pquery_fields = v[acc]
+                    element_value = pquery_fields[position]
+                    acc += 1
+        return element_value
+
+    def get_inode(self):
+        self.inode = str(self.get_jplace_element("edge_num"))
+        return
+
+    def get_placement_lwr(self):
+        self.lwr = float(self.get_jplace_element("like_weight_ratio"))
+        return
+
+    def get_placement_likelihood(self):
+        self.likelihood = float(self.get_jplace_element("likelihood"))
+        return
 
     def filter_min_weight_threshold(self, threshold=0.1):
         """
@@ -446,7 +484,7 @@ class ItolJplace:
         """
         unclassified = 0
         # Find the position of like_weight_ratio in the placements from fields descriptor
-        x = self.get_lwr_position_from_jplace_fields()
+        x = self.get_field_position_from_jplace_fields("like_weight_ratio")
         if not x:
             return
         # Filter the placements
@@ -467,7 +505,8 @@ class ItolJplace:
                             if float(candidate[x]) < threshold:
                                 removed = tmp_placements.pop(acc)
                                 # For debugging:
-                                # sys.stderr.write("\t".join([self.name, str(removed[0]), str(float(removed[x]))]) + "\n")
+                                # sys.stderr.write("\t".join([self.name, str(removed[0]),
+                                #                             str(float(removed[x]))]) + "\n")
                             else:
                                 acc += 1
                             sys.stderr.flush()
@@ -482,8 +521,10 @@ class ItolJplace:
                 # Add the filtered placements back to the object.placements
                 new_placement_collection.append('{' + placement_string + '}')
             else:
+                # If there is only one placement, the LWR is 1.0 so no filtering required!
                 new_placement_collection.append(pquery)
-        self.placements = new_placement_collection
+        if unclassified == 0:
+            self.placements = new_placement_collection
         return unclassified
 
     def sum_rpkms_per_node(self, leaf_rpkm_sums):
@@ -503,11 +544,11 @@ class ItolJplace:
     def filter_max_weight_placement(self):
         """
         Removes all secondary placements of each pquery,
-        leaving only the placement with maximum likelihood_weight_ratio
+        leaving only the placement with maximum like_weight_ratio
         :return:
         """
         # Find the position of like_weight_ratio in the placements from fields descriptor
-        x = self.get_lwr_position_from_jplace_fields()
+        x = self.get_field_position_from_jplace_fields("like_weight_ratio")
         if not x:
             return
 
@@ -590,7 +631,7 @@ class ItolJplace:
             self.name = "COGrRNA"
         reference_tree_file = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
         reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-        lwr_pos = self.get_lwr_position_from_jplace_fields()
+        lwr_pos = self.get_field_position_from_jplace_fields("like_weight_ratio")
         singular_placements = list()
         for pquery in self.placements:
             placement = loads(pquery, encoding="utf-8")
