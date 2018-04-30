@@ -2111,7 +2111,7 @@ def trimal_alignments(args, concatenated_mfa_files):
     Returns a list of files resulting from trimal.
     """
 
-    # settings = ['-automated1']
+    # settings = ['-automated1']  # Good for building trees but removes too many positions for sequence insertions
     settings = ['-gt', '0.02']
     sys.stdout.write("Running TrimAl with the '" + ' '.join(settings) + "' setting... ")
     sys.stdout.flush()
@@ -3259,6 +3259,43 @@ def concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analy
         sys.stdout.flush()
 
 
+def tax_ids_file_to_leaves(args, tax_ids_file):
+    tree_leaves = list()
+    try:
+        if args.py_version == 3:
+            cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
+        else:
+            cog_tax_ids = open(tax_ids_file, 'r')
+    except IOError:
+        sys.exit('ERROR: Can\'t open ' + str(tax_ids_file) + '!\n')
+
+    for line in cog_tax_ids:
+        line = line.strip()
+        try:
+            fields = line.split("\t")
+        except ValueError:
+            sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
+                             " generated " + str(len(line.split("\t"))) + " fields.")
+            sys.exit(9)
+        if len(fields) == 2:
+            number, translation = fields
+            lineage = ""
+        elif len(fields) == 3:
+            number, translation, lineage = fields
+        else:
+            sys.stderr.write("ValueError: Unexpected number of fields in " + tax_ids_file +
+                             ".\nInvoked .split(\'\\t\') on line " + str(line))
+            raise ValueError
+        leaf = TreeLeafReference(number, translation)
+        if lineage:
+            leaf.lineage = lineage
+            leaf.complete = True
+        tree_leaves.append(leaf)
+
+    cog_tax_ids.close()
+    return tree_leaves
+
+
 def read_species_translation_files(args, cog_list):
     """
     :param args:
@@ -3297,40 +3334,8 @@ def read_species_translation_files(args, cog_list):
                                          os.sep + filename
 
     for denominator in sorted(translation_files.keys()):
-        tree_numbers_translation[denominator] = list()
         filename = translation_files[denominator]
-        try:
-            if args.py_version == 3:
-                cog_tax_ids = open(filename, 'r', encoding='utf-8')
-            else:
-                cog_tax_ids = open(filename, 'r')
-        except IOError:
-            sys.exit('ERROR: Can\'t open ' + str(filename) + '!\n')
-
-        for line in cog_tax_ids:
-            line = line.strip()
-            try:
-                fields = line.split("\t")
-            except ValueError:
-                sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
-                                 " generated " + str(len(line.split("\t"))) + " fields.")
-                sys.exit(9)
-            if len(fields) == 2:
-                number, translation = fields
-                lineage = ""
-            elif len(fields) == 3:
-                number, translation, lineage = fields
-            else:
-                sys.stderr.write("ValueError: Unexpected number of fields in " + filename +
-                                 ".\nInvoked .split(\'\\t\') on line " + str(line))
-                raise ValueError
-            leaf = TreeLeafReference(number, translation)
-            if lineage:
-                leaf.lineage = lineage
-                leaf.complete = True
-            tree_numbers_translation[denominator].append(leaf)
-
-        cog_tax_ids.close()
+        tree_numbers_translation[denominator] = tax_ids_file_to_leaves(args, filename)
 
     return tree_numbers_translation
 
