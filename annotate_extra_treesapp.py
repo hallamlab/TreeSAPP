@@ -14,7 +14,7 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from entish import get_node
-from treesapp import parse_ref_build_params, jplace_parser
+from treesapp import parse_ref_build_params, jplace_parser, tax_ids_file_to_leaves
 from classy import TreeProtein
 
 
@@ -130,6 +130,10 @@ def parse_marker_classification_table(args):
     classifications.close()
     # for query in master_dat:
     #     print(master_dat[query])
+
+    if args.verbose:
+        sys.stdout.write("\tClassifications read:\t" + str(len(master_dat.keys())) + "\n")
+
     return master_dat, field_order
 
 
@@ -148,36 +152,126 @@ def read_colours_file(args, annotation_file):
         sys.exit()
 
     clusters = dict()
+    field_sep = ''
+    internal_nodes = True
 
-    range_line = re.compile("^(\d+)\|(\d+)\srange\s.*\)\s(.*)$")
-    single_node = re.compile("^(\d+)\srange\s.*\)\s(.*)$")
     line = style_handler.readline()
     # Skip the header
-    while line and not range_line.match(line):
+    while line.strip() != "DATA":
+        header_fields = line.strip().split(' ')
+        if header_fields[0] == "SEPARATOR":
+            if header_fields[1] == "SPACE":
+                field_sep = ' '
+            elif header_fields[1] == "TAB":
+                field_sep = '\t'
+            else:
+                sys.stderr.write("ERROR: Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
+                sys.stderr.flush()
+                sys.exit()
         line = style_handler.readline()
+    # For RGB
+    range_line_rgb = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
+                                "range" + re.escape(field_sep) +
+                                ".*\)" + re.escape(field_sep) +
+                                "(.*)$")
+    single_node_rgb = re.compile("^(\d+)" + re.escape(field_sep) +
+                                 "range" + re.escape(field_sep) +
+                                 ".*\)" + re.escape(field_sep) +
+                                 "(.*)$")
+    lone_node_rgb = re.compile("^(.*)" + re.escape(field_sep) +
+                               "range" + re.escape(field_sep) +
+                               ".*\)" + re.escape(field_sep) +
+                               "(.*)$")
+
+    # For hexadecimal
+    range_line = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
+                            "range" + re.escape(field_sep) +
+                            "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
+                            "(.*)$")
+    single_node = re.compile("^(\d+)" + re.escape(field_sep) +
+                             "range" + re.escape(field_sep) +
+                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
+                             "(.*)$")
+    lone_node = re.compile("^(.*)" + re.escape(field_sep) +
+                           "range" + re.escape(field_sep) +
+                           "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
+                           "(.*)$")
+
     # Begin parsing the data from 4 columns
+    line = style_handler.readline().strip()
     while line:
-        style_data = range_line.match(line)
-        if style_data:
-            description = style_data.group(3)
-            if description not in clusters.keys():
-                clusters[description] = list()
-            clusters[description].append((style_data.group(1), style_data.group(2)))
+        if range_line.match(line):
+            style_data = range_line.match(line)
+            start, end, description = style_data.groups()
+            internal_nodes = False
+        elif range_line_rgb.match(line):
+            style_data = range_line_rgb.match(line)
+            start, end, description = style_data.groups()
+            internal_nodes = False
         elif single_node.match(line):
-            node, description = single_node.match(line).groups()
-            clusters[description].append((node, node))
+            style_data = single_node.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+        elif single_node_rgb.match(line):
+            style_data = single_node_rgb.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+        elif lone_node.match(line):
+            style_data = lone_node.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+        elif lone_node_rgb.match(line):
+            style_data = lone_node_rgb.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
         else:
-            sys.stderr.write("WARNING: Unrecognized line formatting in " + annotation_file + ":\n")
+            sys.stderr.write("ERROR: Unrecognized line formatting in " + annotation_file + ":\n")
             sys.stderr.write(line + "\n")
-            sys.stderr.write("The annotations in this line will be skipped...\n")
-        line = style_handler.readline()
+            sys.exit()
+
+        description = style_data.groups()[-1]
+        if description not in clusters.keys():
+            clusters[description] = list()
+        clusters[description].append((start, end))
+
+        line = style_handler.readline().strip()
+
     style_handler.close()
 
     if args.verbose:
         sys.stdout.write("\tParsed " + str(len(clusters)) +
                          " clades from " + annotation_file + "\n")
 
-    return clusters
+    return clusters, internal_nodes
+
+
+def names_for_nodes(clusters, node_map, taxa_map):
+    """
+    This function is used to convert from a string name of a leaf (e.g. Methylocapsa_acidiphila_|_CAJ01617)
+    to an internal node number when all other nodes are internal nodes. Because consistent parsing is preferred!
+    :param clusters:
+    :param node_map:
+    :param taxa_map:
+    :return:
+    """
+    node_only_clusters = dict()
+    for annotation in clusters:
+        node_only_clusters[annotation] = list()
+        for inodes in clusters[annotation]:
+            node_1, node_2 = inodes
+            try:
+                int(node_1)
+            except ValueError:
+                # print(node_1)
+                for leaf in taxa_map:
+                    if re.sub(' ', '_', leaf.description) == node_1:
+                        leaf_node = leaf.number
+                        for inode_key, clade_value in node_map.items():
+                            if clade_value[0] == leaf_node:
+                                node_1 = inode_key
+                                break
+                        break
+                    else:
+                        pass
+                # print(node_1)
+            node_only_clusters[annotation].append((node_1, node_2))
+    return node_only_clusters
 
 
 def create_node_map(jplace_tree_string):
@@ -220,12 +314,14 @@ def create_node_map(jplace_tree_string):
     return node_map
 
 
-def parse_clades_from_tree(args, jplace_tree_string, clusters):
+def parse_clades_from_tree(args, jplace_tree_string, clusters, marker, internal_nodes):
     """
 
     :param args:
     :param jplace_tree_string:
     :param clusters: Dictionary with the cluster names for keys and a tuple containing leaf boundaries as values
+    :param marker:
+    :param internal_nodes: Boolean determining whether all nodes in annotation file were internal (True) or not (False)
     :return:
     """
     clade_members = dict()
@@ -234,24 +330,34 @@ def parse_clades_from_tree(args, jplace_tree_string, clusters):
 
     internal_node_map = create_node_map(jplace_tree_string)
 
+    if internal_nodes:
+        tax_ids_file = os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+        taxa_map = tax_ids_file_to_leaves(args, tax_ids_file)
+        clusters = names_for_nodes(clusters, internal_node_map, taxa_map)
+
     # TODO: Make this code more efficient because it currently isn't but it works. Everything is small so no pressure.
     # Create a dictionary to map the cluster name (e.g. Function, Activity, Class, etc) to the leaf nodes
     for cluster in clusters.keys():
         if cluster not in leaf_annotation_map:
             leaf_annotation_map[cluster] = list()
             clade_members[cluster] = set()
-        for frond_tips in clusters[cluster]:
-            start, end = frond_tips
-            # Find the minimum set that includes both start and end
-            warm_front = dict()
-            for inode in internal_node_map:
-                clade = internal_node_map[inode]
-                if start in clade:
-                    warm_front[len(clade)] = clade
-            for size in sorted(warm_front, key=int):
-                if end in warm_front[size]:
-                    leaf_annotation_map[cluster] += warm_front[size]
-                    break
+        if internal_nodes:
+            for inodes in clusters[cluster]:
+                annotation_inode, _ = inodes  # Just take the first, they should both be identical
+                leaf_annotation_map[cluster] += internal_node_map[int(annotation_inode)]
+        else:
+            for frond_tips in clusters[cluster]:
+                start, end = frond_tips
+                # Find the minimum set that includes both start and end
+                warm_front = dict()
+                for inode in internal_node_map:
+                    clade = internal_node_map[inode]
+                    if start in clade:
+                        warm_front[len(clade)] = clade
+                for size in sorted(warm_front, key=int):
+                    if end in warm_front[size]:
+                        leaf_annotation_map[cluster] += warm_front[size]
+                        break
 
     # Map the internal nodes (from Jplace tree string) to the cluster names
     for cluster in clade_members:
@@ -370,6 +476,7 @@ def main():
     marker_tree_info = dict()
     jplace_files_to_parse = list()
     jplace_tree_strings = dict()
+    internal_nodes = dict()
     marker_build_dict = parse_ref_build_params(args)
     master_dat, field_order = parse_marker_classification_table(args)
     # structure of master dat:
@@ -389,7 +496,8 @@ def main():
         if marker and data_type:
             if data_type not in marker_subgroups:
                 marker_subgroups[data_type] = dict()
-            marker_subgroups[data_type][marker] = read_colours_file(args, annot_f)
+                internal_nodes[data_type] = dict()
+            marker_subgroups[data_type][marker], internal_nodes[data_type][marker] = read_colours_file(args, annot_f)
         else:
             sys.stderr.write("ERROR: Unable to parse the marker and/or annotation type from " + annot_f + "\n")
             sys.exit()
@@ -418,7 +526,9 @@ def main():
             if marker in marker_subgroups[data_type]:
                 marker_tree_info[data_type][marker] = parse_clades_from_tree(args,
                                                                              jplace_tree_strings[gene_code],
-                                                                             marker_subgroups[data_type][marker])
+                                                                             marker_subgroups[data_type][marker],
+                                                                             marker,
+                                                                             internal_nodes[data_type][marker])
             else:
                 pass
     marker_subgroups.clear()

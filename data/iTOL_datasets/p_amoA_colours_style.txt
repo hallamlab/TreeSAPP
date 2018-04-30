@@ -1,0 +1,81 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+1	range	#5D3505	Nitrosopumilaceae
+2	range	#6F3F07	Candidatus Nitrosocaldales
+3	range	#814A09	Nitrososphaerales
+4	range	#814A09	Nitrososphaerales
+5	range	#814A09	Nitrososphaerales
+6	range	#92570E	Candidatus Nitrosopelagicus
+7	range	#A36619	Candidatus Nitrosotalea
+8	range	#B37625	Candidatus Nitrosotenuis
+9	range	#C28734	Marine Group I
+10	range	#003C30	unclassified Thaumarchaeota 
+11	range	#00493E	Methylacidiphilales
+12	range	#00493E	Methylacidiphilales
+13	range	#00493E	Methylacidiphilales
+14	range	#00493E	Methylacidiphilales
+15	range	#00493E	Methylacidiphilales
+16	range	#00574D	Rhizobiales
+17	range	#00574D	Rhizobiales
+18	range	#00574D	Rhizobiales
+19	range	#00574D	Rhizobiales
+20	range	#00574D	Rhizobiales
+21	range	#00645C	unclassified Alphaproteobacteria
+22	range	#10746C	Nitrosomonadales
+23	range	#10746C	Nitrosomonadales
+24	range	#10746C	Nitrosomonadales
+25	range	#10746C	Nitrosomonadales
+26	range	#10746C	Nitrosomonadales
+27	range	#10746C	Nitrosomonadales
+28	range	#10746C	Nitrosomonadales
+29	range	#10746C	Nitrosomonadales
+30	range	#10746C	Nitrosomonadales
+31	range	#10746C	Nitrosomonadales
+32	range	#10746C	Nitrosomonadales
+33	range	#10746C	Nitrosomonadales
+34	range	#10746C	Nitrosomonadales
+35	range	#10746C	Nitrosomonadales
+36	range	#10746C	Nitrosomonadales
+37	range	#20847C	Cellvibrionales
+38	range	#20847C	Cellvibrionales
+39	range	#31938B	Chromatiales
+40	range	#31938B	Chromatiales
+41	range	#31938B	Chromatiales
+42	range	#48A49B	Methylococcales
+43	range	#48A49B	Methylococcales
+44	range	#48A49B	Methylococcales
+45	range	#48A49B	Methylococcales
+46	range	#48A49B	Methylococcales
+47	range	#48A49B	Methylococcales
+48	range	#48A49B	Methylococcales
+49	range	#48A49B	Methylococcales
+50	range	#48A49B	Methylococcales
+51	range	#48A49B	Methylococcales
+52	range	#48A49B	Methylococcales
+53	range	#48A49B	Methylococcales
+54	range	#48A49B	Methylococcales
+55	range	#48A49B	Methylococcales
+56	range	#48A49B	Methylococcales
+57	range	#48A49B	Methylococcales
+58	range	#48A49B	Methylococcales
+59	range	#48A49B	Methylococcales
+60	range	#48A49B	Methylococcales
+61	range	#48A49B	Methylococcales
+62	range	#48A49B	Methylococcales
+63	range	#48A49B	Methylococcales
+64	range	#48A49B	Methylococcales
+65	range	#48A49B	Methylococcales
+66	range	#48A49B	Methylococcales
+67	range	#48A49B	Methylococcales
+68	range	#48A49B	Methylococcales
+69	range	#48A49B	Methylococcales
+70	range	#48A49B	Methylococcales
+71	range	#48A49B	Methylococcales
+72	range	#48A49B	Methylococcales
+73	range	#48A49B	Methylococcales
+74	range	#48A49B	Methylococcales
+75	range	#48A49B	Methylococcales
+76	range	#48A49B	Methylococcales
+77	range	#48A49B	Methylococcales
+78	range	#48A49B	Methylococcales
