@@ -1,4 +1,4 @@
-# TreeSAPP: Tree-based Sensitive and Accurate Phylogenetic Profiling
+# TreeSAPP: Tree-based Sensitive and Accurate Protein Profiler
 
 Connor Morgan-Lang, Kishori M. Konwar, Zachary Armstrong, Young C. Song, and Steven J. Hallam
 
