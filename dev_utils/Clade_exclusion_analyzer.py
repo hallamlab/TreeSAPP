@@ -1007,15 +1007,19 @@ def main():
 
     # Checkpoint three: We have accessions linked to taxa, and sequences to analyze with TreeSAPP, but not classified
     if extant and accessions_downloaded and taxa_filter and not classified:
-        sys.stdout.write("Analyzing the representative sequences with TreeSAPP.\n")
+        sys.stdout.write("Analyzing the " + str(total_sequences) + " representative sequences with TreeSAPP.\n")
         # Run TreeSAPP against the provided tax_ids file and the unique taxa FASTA file
+        if args.length:
+            min_seq_length = str(min(args.length - 10, 50))
+        else:
+            min_seq_length = str(50)
         treesapp_commands = ["./treesapp.py", "-i", test_rep_taxa_fasta,
                              "-o", treesapp_output_dir,
                              "-m", args.molecule,
                              "-T", str(4),
                              "--filter_align",
                              "--min_likelihood", str(0.1),
-                             "--min_seq_length", str(args.length - 10),
+                             "--min_seq_length", min_seq_length,
                              "--verbose",
                              "--overwrite",
                              "--delete"]
