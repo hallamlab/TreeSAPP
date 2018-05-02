@@ -1,3 +1,0 @@
-## fungitr
-41 23 255 225 225 Basidiomycota
-47 12 210 195 195 Ascomycota

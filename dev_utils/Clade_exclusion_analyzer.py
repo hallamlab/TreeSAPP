@@ -8,16 +8,18 @@ import pygtrie
 import re
 import os
 import inspect
+from random import randint
 
 cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from treesapp import format_read_fasta
-from create_treesapp_ref_data import get_lineage, get_header_format, \
-    return_sequence_info_groups, map_good_headers_to_ugly, get_headers
+from fasta import format_read_fasta, write_new_fasta, get_headers
+from create_treesapp_ref_data import get_lineage, get_header_format, return_sequence_info_groups, register_headers
 from utilities import clean_lineage_string
-from external_command_interface import setup_progress_bar
+from external_command_interface import setup_progress_bar, launch_write_command
+from classy import ReferenceSequence
+from treesapp import parse_ref_build_params
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   2: "Phylum", 3: "Class", 4: "Order",
@@ -28,37 +30,43 @@ rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
 def get_arguments_():
     parser = argparse.ArgumentParser(add_help=False)
     required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument("-a", "--assignment_table",
-                               help="Tabular file containing each sequence's phylogenetic origin"
-                                    " and its TreeSAPP assignment.",
-                               required=True)
-    required_args.add_argument("-t", "--tax_ids_table",
-                               help="tax_ids table for the TreeSAPP marker under investigation. "
-                                    "Found in data/tree_data/tax_ids*.txt.",
+    required_args.add_argument('-o', '--output',
                                required=True,
-                               nargs='+')
+                               help='TreeSAPP output directory from a previous analysis or clade exclusion analysis')
     required_args.add_argument('-i', '--fasta_input',
                                help='Your sequence input file (for TreeSAPP) in FASTA format',
                                required=True)
+    required_args.add_argument("-r", "--reference_markers",
+                               help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)",
+                               required=True,
+                               nargs='+')
 
     optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument('-o', '--output', default='./output/', required=False,
-                        help='output directory [DEFAULT = ./output/]')
     optopt.add_argument('-m', '--molecule',
                         help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
                         default='prot',
                         choices=['prot', 'dna', 'rrna'])
-    optopt.add_argument("-h", "--help",
-                        action="help",
-                        help="Show this help message and exit")
+    optopt.add_argument("-l", "--length",
+                        required=False, type=int, default=0,
+                        help="Arbitrarily slice the input sequences to this length. "
+                             "Useful for testing classification accuracy for fragments.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
+    miscellaneous_opts.add_argument("-h", "--help",
+                                    action="help",
+                                    help="Show this help message and exit")
 
     args = parser.parse_args()
+
+    if args.output[-1] != os.sep:
+        args.output += os.sep
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep + ".." + os.sep
+
+    args.min_seq_length = 1
 
     if sys.version_info > (2, 9):
         args.py_version = 3
@@ -68,7 +76,7 @@ def get_arguments_():
     return args
 
 
-def read_table(assignment_file):
+def read_marker_classification_table(assignment_file):
     """
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
@@ -80,7 +88,7 @@ def read_table(assignment_file):
     n_classified = 0
     assignments_handle = open(assignment_file, 'r')
     # This is the header line
-    if not re.match("^Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tLikelihood\tWTD$",
+    if not re.match("^Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
                     assignments_handle.readline()):
         sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
         raise AssertionError
@@ -90,7 +98,7 @@ def read_table(assignment_file):
     while line:
         fields = line.strip().split('\t')
         try:
-            header, marker, classified, rob_class, abundance, lwr, wtd = fields
+            header, marker, classified, rob_class, abundance, inode, likelihood, lwr, wtd = fields
             if marker and rob_class:
                 n_classified += 1
                 if marker not in assignments:
@@ -108,15 +116,15 @@ def read_table(assignment_file):
     return assignments, n_classified
 
 
-def read_intermediate_assignments(args, tmp_file):
+def read_intermediate_assignments(args, inter_class_file):
     if args.verbose:
-        sys.stderr.write("NOTIFICATION: Reading " + tmp_file + " for saved intermediate data... ")
+        sys.stderr.write("Reading " + inter_class_file + " for saved intermediate data... ")
     assignments = dict()
     n_saved = 0
     try:
-        file_handler = open(tmp_file, 'r')
+        file_handler = open(inter_class_file, 'r')
     except OSError:
-        sys.stderr.write("ERROR: Unable to open " + tmp_file + " for reading!\n")
+        sys.stderr.write("ERROR: Unable to open " + inter_class_file + " for reading!\n")
         raise OSError
     line = file_handler.readline()
     while line:
@@ -124,7 +132,7 @@ def read_intermediate_assignments(args, tmp_file):
         try:
             marker, ref, queries = line.split('\t')
         except ValueError:
-            sys.stderr.write("\tWARNING: " + tmp_file + " is incorrectly formatted so regenerating instead.\n")
+            sys.stderr.write("\tWARNING: " + inter_class_file + " is incorrectly formatted so regenerating instead.\n")
             sys.stderr.write("Violating line with " + str(len(line.split('\t'))) + " elements:\n" + line + "\n")
             return assignments, n_saved
         queries_list = queries.split(',')
@@ -143,13 +151,13 @@ def read_intermediate_assignments(args, tmp_file):
 
 
 def write_intermediate_assignments(args, assignments):
-    tmp_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
+    inter_class_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
     if args.verbose:
         sys.stderr.write("Saving intermediate data... ")
     try:
-        file_handler = open(tmp_file, 'w')
+        file_handler = open(inter_class_file, 'w')
     except OSError:
-        sys.stderr.write("ERROR: Unable to open " + tmp_file + " for writing!\n")
+        sys.stderr.write("ERROR: Unable to open " + inter_class_file + " for writing!\n")
         raise OSError
     assignments_string = ""
     for marker in assignments.keys():
@@ -476,6 +484,93 @@ def clean_classification_names(assignments):
     return cleaned_assignments
 
 
+def download_taxonomic_lineage_for_queries(entrez_query_list):
+
+    sys.stdout.write("Downloading lineage information for each sequence accession from Entrez\n")
+
+    num_queries = len(entrez_query_list)
+    download_accumulator = 0
+    full_assignments = dict()
+    if num_queries > 1:
+        step_proportion = setup_progress_bar(num_queries)
+        acc = 0.0
+        # for ref in entrez_query_list:
+        #     if ref not in full_assignments:
+        #         full_assignments[ref] = list()
+        #     for entrez_query in entrez_query_list[ref]:
+        for entrez_query in entrez_query_list:
+            q_accession, database = entrez_query
+            lineage = get_lineage(q_accession, database)
+            if lineage:
+                full_assignments[q_accession] = lineage
+                download_accumulator += 1
+
+            # Update the progress bar
+            acc += 1.0
+            if acc >= step_proportion:
+                acc -= step_proportion
+                sys.stdout.write('-')
+                sys.stdout.flush()
+        if acc > 1:
+            sys.stdout.write('-')
+        sys.stdout.write("]\n")
+    else:
+        sys.stderr.write("ERROR: No accessions could be parsed from the FASTA headers.\n")
+        sys.exit(11)
+
+    sys.stdout.write("\t" + str(download_accumulator) + " taxonomic lineages downloaded\n")
+
+    return full_assignments
+
+
+def finalize_ref_seq_lineages(test_ref_sequences, accession_lineages):
+    for ref_seq in test_ref_sequences:
+        if not ref_seq.lineage:
+            try:
+                ref_seq.lineage = accession_lineages[ref_seq.accession]
+            except KeyError:
+                sys.stderr.write("ERROR: Lineage information was not retrieved for " + ref_seq.accession + "!\n")
+        else:
+            pass
+    return test_ref_sequences
+
+
+def write_accession_lineage_map(mapping_file, ref_seq_list):
+    """
+    Function for writing a map of NCBI accession IDs to their respective taxonomic lineages
+     using a list of ReferenceSequence objects
+    :param mapping_file: Name of a file to write these data
+    :param ref_seq_list: A list of ReferenceSequence objects
+    :return:
+    """
+    try:
+        map_file_handler = open(mapping_file, 'w')
+    except IOError:
+        sys.stderr.write("ERROR: Unable to open " + mapping_file, " for writing!\n")
+        sys.exit()
+
+    for ref_seq in ref_seq_list:
+        map_file_handler.write(ref_seq.accession + "\t" + ref_seq.lineage + "\n")
+
+    return
+
+
+def read_accession_taxa_map(mapping_file, ref_seqs_list):
+    try:
+        map_file_handler = open(mapping_file, 'r')
+    except IOError:
+        sys.stderr.write("ERROR: Unable to open " + mapping_file, " for reading!\n")
+        sys.exit()
+
+    for line in map_file_handler:
+        accession, lineage = line.strip().split("\t")
+        for ref_seq in ref_seqs_list:
+            if ref_seq.accession == accession:
+                ref_seq.lineage = lineage
+
+    return ref_seqs_list
+
+
 def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     """
     Since the headers used throughout the TreeSAPP pipeline are truncated,
@@ -488,81 +583,92 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     :return: assignments with a full lineage for both reference (keys) and queries (values)
     """
     genome_position_re = re.compile("^([A-Z0-9._]+):.[0-9]+-[0-9]+[_]+.*")
-    full_assignments = dict()
-    for marker in assignments.keys():
-        full_assignments[marker] = dict()
-        entrez_query_list = dict()
-        num_queries = 0
-        for robust_classification in assignments[marker].keys():
-            full_assignments[marker][robust_classification] = list()
-            entrez_query_list[robust_classification] = list()
-            for query in assignments[marker][robust_classification]:
-                try:
-                    original_header = header_map['>' + query]
-                except KeyError:
-                    sys.stderr.write("ERROR: unable to find " + query +
-                                     " in header_map (constructed from either the input FASTA or .uc file).\n")
-                    sys.stderr.write("This is probably an error stemming from `reformat_string()`.\n")
-                    sys.exit(5)
-                # print(query, original_header)
-                database = molecule_type
-                query_fields = query.split('_')
-                q_accession = query_fields[0]
-                if not re.search("Bacteria\|Archaea", query):
-                    # Check for genomic coordinates, indicating these genes will be in the 'nucleotide' database
-                    if genome_position_re.match(query):
-                        q_accession = genome_position_re.match(query).group(1)
-                        database = "dna"
-                    else:
-                        header_format_re, header_db, header_molecule = get_header_format(original_header, marker)
-                        sequence_info = header_format_re.match(original_header)
-                        q_accession, _, _, _ = return_sequence_info_groups(sequence_info, header_db, original_header)
-                    # print(q_accession)
-                    entrez_query_list[robust_classification].append((q_accession, database))
-                    num_queries += 1
+    marker_assignments = dict()
+    entrez_query_list = list()
+    num_queries = 0
+    for robust_classification in assignments.keys():
+        marker_assignments[robust_classification] = list()
+        for query in assignments[robust_classification]:
+            try:
+                original_header = header_map['>' + query]
+            except KeyError:
+                sys.stderr.write("ERROR: unable to find " + query +
+                                 " in header_map (constructed from either the input FASTA or .uc file).\n")
+                sys.stderr.write("This is probably an error stemming from `reformat_string()`.\n")
+                sys.exit(5)
+            # print(query, original_header)
+            database = molecule_type
+            q_accession = ""
+            if not re.search("Bacteria\|Archaea", query):
+                # Check for genomic coordinates, indicating these genes will be in the 'nucleotide' database
+                if genome_position_re.match(query):
+                    q_accession = genome_position_re.match(query).group(1)
+                    database = "dna"
                 else:
-                    n_match = 0
-                    for header in fasta_headers:
-                        f_accession = header[1:].split('_')[0]
-                        # Useful for headers containing the full lineage
-                        if q_accession == f_accession:
-                            full_assignments[marker][robust_classification].append('_'.join(header.split('_')[1:]))
-                            n_match += 1
-                        else:
-                            pass
-                    if n_match == 0:
-                        sys.stderr.write("ERROR: Unable to find matching header for " + query + " in fasta!\n")
-                        sys.exit(2)
-                    elif n_match > 1:
-                        sys.stderr.write("ERROR: headers with identical accessions were identified in fasta!\n")
-                        sys.stderr.write("Offending accession: " + q_accession + "\n")
-                    sys.exit(3)
+                    header_format_re, header_db, header_molecule = get_header_format(original_header)
+                    sequence_info = header_format_re.match(original_header)
+                    q_accession, _, _, _, _ = return_sequence_info_groups(sequence_info, header_db, original_header)
+                # print(q_accession)
+                entrez_query_list.append((q_accession, database))
+                marker_assignments[robust_classification].append(q_accession)
+                num_queries += 1
+            else:
+                n_match = 0
+                for header in fasta_headers:
+                    f_accession = header[1:].split('_')[0]
+                    # Useful for headers containing the full lineage
+                    if q_accession == f_accession:
+                        marker_assignments[robust_classification].append('_'.join(header.split('_')[1:]))
+                        n_match += 1
+                    else:
+                        pass
+                if n_match == 0:
+                    sys.stderr.write("ERROR: Unable to find matching header for " + query + " in fasta!\n")
+                    sys.exit(2)
+                elif n_match > 1:
+                    sys.stderr.write("ERROR: headers with identical accessions were identified in fasta!\n")
+                    sys.stderr.write("Offending accession: " + q_accession + "\n")
+                sys.exit(3)
 
-        if num_queries > 1:
-            sys.stdout.write("Downloading lineage information for " + marker + ":\n")
-            step_proportion = setup_progress_bar(num_queries)
-            acc = 0.0
-            for ref in entrez_query_list:
-                for entrez_query in entrez_query_list[ref]:
-                    q_accession, database = entrez_query
-                    lineage = get_lineage(q_accession, database)
-                    if lineage:
-                        full_assignments[marker][ref].append(lineage)
+    return marker_assignments, entrez_query_list
 
-                    # Update the progress bar
-                    acc += 1.0
-                    if acc >= step_proportion:
-                        acc -= step_proportion
-                        sys.stdout.write('-')
-                        sys.stdout.flush()
-            if acc > 1:
-                sys.stdout.write('-')
-            sys.stdout.write("]\n")
-        else:
-            sys.stderr.write("ERROR: No accessions could be parsed from the FASTA headers.\n")
-            sys.exit(11)
 
-    return full_assignments
+def assign_lineages(complete_ref_seqs, assignments):
+    """
+
+    :param assignments:
+    :param complete_ref_seqs:
+    :return: lineages_list = full_assignments[marker][ref_classification]
+    """
+    for marker in assignments:
+        for robust_classification in assignments[marker]:
+            tmp_lineage_list = []
+            for accession in assignments[marker][robust_classification]:
+                for ref_seq in complete_ref_seqs:
+                    if ref_seq.accession == accession:
+                        tmp_lineage_list.append(ref_seq.lineage)
+            assignments[marker][robust_classification] = tmp_lineage_list
+    return assignments
+
+
+def map_headers_to_lineage(assignments, ref_sequences):
+    """
+    The alternative function to map_full_headers. Using ReferenceSequence objects,
+    :param assignments:
+    :param ref_sequences:
+    :return:
+    """
+    lineage_assignments = dict()
+    for marker in assignments:
+        lineage_assignments[marker] = dict()
+        for assigned_lineage in assignments[marker].keys():
+            classified_headers = assignments[marker][assigned_lineage]
+            lineage_assignments[marker][assigned_lineage] = list()
+            for query in classified_headers:
+                for ref_seq in ref_sequences:
+                    if ref_seq.accession == query:
+                        lineage_assignments[marker][assigned_lineage].append(ref_seq.lineage)
+    return lineage_assignments
 
 
 def get_unclassified_rank(pos, split_lineage):
@@ -579,44 +685,125 @@ def get_unclassified_rank(pos, split_lineage):
     return pos
 
 
-def filter_queries_by_taxonomy(assignments):
+def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cluster_size=5):
     """
     Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
     from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
     Also removes taxonomies with "*nclassified" in their lineage
-    :param assignments:
+    :param ref_seqs_list: A dictionary mapping accessions to lineages that need to be filtered
+    :param taxonomic_filter_stats: A dictionary for tracking the number sequences filtered, those unique, etc.
+    :param max_cluster_size: The maximum number of sequences representing a taxonomic cluster
+    :return: dereplicated_lineages dict with lineages mapping to a single accession
+    """
+    good_classified_lineages = dict()
+    dereplicated_lineages = dict()
+    num_rep_seqs = 0
+    for ref_seq in ref_seqs_list:
+        query_taxonomy = ref_seq.lineage
+        if query_taxonomy not in good_classified_lineages:
+            good_classified_lineages[query_taxonomy] = list()
+        if re.search("nclassified", query_taxonomy):
+            # Remove taxonomic lineages that are unclassified at the Phylum level or higher
+            unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
+            if unclassified_depth > 4:
+                good_classified_lineages[query_taxonomy].append(ref_seq.accession)
+            else:
+                taxonomic_filter_stats["Unclassified"] += 1
+        else:
+            taxonomic_filter_stats["Classified"] += 1
+            good_classified_lineages[query_taxonomy].append(ref_seq.accession)
+
+    # In order to maintain consistency among multiple runs with the same input
+    # a separate loop is required for sorting
+    taxonomic_filter_stats["Max"] = 0
+    taxonomic_filter_stats["Min"] = 1000
+    taxonomic_filter_stats["Mean"] = 0
+    for query_taxonomy in good_classified_lineages:
+        dereplicated_lineages[query_taxonomy] = list()
+        i = 0
+        lineage_candidates = sorted(good_classified_lineages[query_taxonomy])
+        while i < len(lineage_candidates) and i < max_cluster_size:
+            dereplicated_lineages[query_taxonomy].append(lineage_candidates[i])
+            i += 1
+
+        # Generate stats on the taxonomic clusters
+        cluster_size = len(dereplicated_lineages[query_taxonomy])
+        num_rep_seqs += cluster_size
+        if cluster_size == 0:
+            # This is a taxonomic lineage removed by the "Unclassified" filter
+            continue
+        if cluster_size > taxonomic_filter_stats["Max"]:
+            taxonomic_filter_stats["Max"] = cluster_size
+        if cluster_size < taxonomic_filter_stats["Min"]:
+            taxonomic_filter_stats["Min"] = cluster_size
+        taxonomic_filter_stats["Mean"] = round(float(num_rep_seqs / len(dereplicated_lineages)), 2)
+
+    taxonomic_filter_stats["Unique_taxa"] += len(dereplicated_lineages)
+
+    sys.stdout.write("\t" + str(num_rep_seqs) + " representative sequences will be used for TreeSAPP analysis.\n")
+    sys.stdout.flush()
+
+    sys.stdout.write("Representative sequence stats:\n\t")
+    sys.stdout.write("Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t")
+    sys.stdout.write("Minimum representative sequences for a taxon " + str(taxonomic_filter_stats["Min"]) + "\n\t")
+    sys.stdout.write("Mean representative sequences for a taxon " + str(taxonomic_filter_stats["Mean"]) + "\n")
+
+    return dereplicated_lineages, taxonomic_filter_stats
+
+
+def select_rep_seqs(deduplicated_assignments, test_sequences):
+    """
+    Function for creating a fasta-formatted dict from the accessions representing unique taxa in the test sequences
+    :param deduplicated_assignments:
+    :param test_sequences:
     :return:
     """
-    deduplicated_assignments = dict()
+    deduplicated_fasta_dict = dict()
+    for lineage in sorted(deduplicated_assignments):
+        for accession in deduplicated_assignments[lineage]:
+            matched = False
+            for ref_seq in test_sequences:
+                if ref_seq.accession == accession:
+                    deduplicated_fasta_dict[accession] = ref_seq.sequence
+                    matched = True
+            if not matched:
+                sys.stderr.write("ERROR: Unable to find accession (" + accession + ") in accession-lineage map\n")
+    return deduplicated_fasta_dict
+
+
+def filter_queries_by_taxonomy(taxonomic_lineages):
+    """
+    Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
+    from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
+    Also removes taxonomies with "*nclassified" in their lineage
+    :param taxonomic_lineages: A list of lineages that need to be filtered
+    :return: A list that contains no more than 3 of each query taxonomy (arbitrarily normalized) and counts
+    """
     unclassifieds = 0
     classified = 0
     unique_query_taxonomies = 0
-    for marker in assignments:
-        deduplicated_assignments[marker] = dict()
-        for ref in assignments[marker]:
-            deduplicated_assignments[marker][ref] = set()
-            for query_taxonomy in sorted(assignments[marker][ref]):
-                if re.search("nclassified", query_taxonomy):
-                    # Remove taxonomic lineages that are unclassified at the Phylum level or higher
-                    unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
-                    if unclassified_depth > 3:
-                        deduplicated_assignments[marker][ref].add(query_taxonomy)
-                    else:
-                        unclassifieds += 1
-                else:
-                    classified += 1
-                    deduplicated_assignments[marker][ref].add(query_taxonomy)
-            unique_query_taxonomies += len(deduplicated_assignments[marker][ref])
+    lineage_enumerator = dict()
+    normalized_lineages = list()
+    for query_taxonomy in sorted(taxonomic_lineages):
+        can_classify = True
+        if re.search("nclassified", query_taxonomy):
+            # Remove taxonomic lineages that are unclassified at the Phylum level or higher
+            unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
+            if unclassified_depth <= 3:
+                can_classify = False
 
-    if classified != unique_query_taxonomies:
-        sys.stdout.write("\n\t" + str(classified - unique_query_taxonomies) + " duplicate query taxonomies removed.\n")
+        if can_classify:
+            if query_taxonomy not in lineage_enumerator:
+                lineage_enumerator[query_taxonomy] = 0
+                classified += 1
+            if lineage_enumerator[query_taxonomy] < 3:
+                normalized_lineages.append(query_taxonomy)
+            lineage_enumerator[query_taxonomy] += 1
+        else:
+            unclassifieds += 1
+    unique_query_taxonomies += len(lineage_enumerator)
 
-    if unclassifieds > 0:
-        sys.stdout.write("\t" + str(unclassifieds) + " query sequences with unclassified taxonomies were removed.\n")
-        sys.stdout.write("This is not a problem, its just they have 'unclassified' somewhere in their lineages\n"
-                         "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
-
-    return deduplicated_assignments
+    return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
 
 def write_performance_table(args, clade_exclusion_strings, sensitivity):
@@ -638,41 +825,332 @@ def write_performance_table(args, clade_exclusion_strings, sensitivity):
     return
 
 
+def correct_accession(description):
+    header_format_re, header_db, header_molecule = get_header_format(description)
+    sequence_info = header_format_re.match(description)
+    accession, _, _, _, _ = return_sequence_info_groups(sequence_info, header_db, description)
+    return accession
+
+
+def build_entrez_queries(test_sequences, molecule_type):
+    """
+    Function to create data collections to fulfill entrez query searches
+    :param test_sequences: A list of ReferenceSequence objects - lineage information to be filled
+    :param molecule_type:
+    :return: dictionary with
+    """
+    genome_position_re = re.compile("^([A-Z0-9._]+):.[0-9]+-[0-9]+[ ]+.*")
+    entrez_query_list = list()
+    for ref_seq in test_sequences:
+        database = molecule_type
+        if not ref_seq.lineage:
+            # Check for genomic coordinates, indicating these genes will be in the 'nucleotide' database
+            # TODO: test this with the unformatted headers
+            if genome_position_re.match(ref_seq.description):
+                q_accession = genome_position_re.match(ref_seq.description).group(1)
+                database = "dna"
+            else:
+                q_accession = ref_seq.accession
+            entrez_query_list.append((q_accession, database))
+
+    return entrez_query_list
+
+
+def load_ref_seqs(fasta_dict, header_registry=None):
+    """
+    Function for loading a fasta-formatted dictionary into ReferenceSequence objects
+    :param fasta_dict:
+    :param header_registry: An optional dictionary of Header objects
+    :return:
+    """
+    ref_seq_list = list()
+    for header in fasta_dict.keys():
+        accession = header[1:].split('_')
+        ref_seq = ReferenceSequence()
+        ref_seq.accession = accession  # Could be incorrect, still needs to be edited in build_entrez_queries
+        ref_seq.sequence = fasta_dict[header]
+        if header_registry:
+            # format of header_map: header_map[reformat_string(original_header)] = original_header
+            # This is used to recover the real accession ID later on
+            for num_id in header_registry:
+                if header_registry[num_id].formatted == header:
+                    ref_seq.description = header_registry[num_id].original
+            if ref_seq.description == "":
+                sys.stderr.write("ERROR: unable to find " + header + " in header_map!\n")
+                sys.exit(13)
+
+            if re.search("Bacteria\|Archaea", header):
+                # TODO: test this. Assuming taxonomic lineage immediately follows sequence accession
+                ref_seq.lineage = ' '.join(header.split(' ')[1:])
+
+        # Lineage, organism, and description data are still potentially missing at this point
+        ref_seq_list.append(ref_seq)
+    return ref_seq_list
+
+
 def main():
+    """
+    Different ways to run this script:
+        1. Provide it a FASTA file for which it will determine the taxonomic lineage for each sequence
+         and run all taxonomic representative sequences with TreeSAPP then analyze via clade exclusion
+        2. Run TreeSAPP on a set of sequences then provide Clade_exclusion_analyzer.py with the output directory
+         and the input FASTA file analyzed. No taxonomic filtering will be performed.
+    :return:
+    """
     args = get_arguments_()
-    args.min_seq_length = 1
-    # Load all the assignments from TreeSAPP output
-    tmp_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
-    if os.path.exists(tmp_file):
-        pre_assignments, n_saved = read_intermediate_assignments(args, tmp_file)
+    if args.verbose:
+        sys.stdout.write("\nBeginning clade exclusion analysis\n")
+        sys.stdout.flush()
+
+    ##
+    # Define locations of files TreeSAPP outputs
+    ##
+    inter_class_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
+    accession_map_file = args.output + os.sep + "accession_id_lineage_map.tsv"
+    test_rep_taxa_fasta = args.output + os.sep + "representative_taxa_sequences.fasta"
+    # Determine the analysis stage and user's intentions with four booleans
+    # Working with a pre-existing TreeSAPP output directory
+    if os.path.exists(args.output):
+        extant = True
+        sys.stdout.write("The output directory has been detected.\n")
     else:
-        n_saved = 0
-        pre_assignments = dict()
-    assignments, n_classified = read_table(args.assignment_table)
-    fasta_headers = format_read_fasta(args.fasta_input, args.molecule, args, 10000).keys()
-    # Used for sensitivity
-    total_sequences = len(fasta_headers)
+        extant = False
+    taxa_filter = False  # Whether the test sequences were screened for redundant taxa
+    accessions_downloaded = False  # Whether the accessions have been downloaded from Entrez
+    classified = False  # Has TreeSAPP been completed for these sequences?
+    treesapp_output_dir = args.output + "TreeSAPP_output" + os.sep
+    if extant:
+        if os.path.isfile(accession_map_file):
+            accessions_downloaded = True
+        if os.path.isfile(test_rep_taxa_fasta):
+            taxa_filter = True
+            args.output = treesapp_output_dir
+    else:
+        os.makedirs(args.output)
+        args.output = treesapp_output_dir
+
+    if not os.path.isdir(treesapp_output_dir):
+        os.makedirs(treesapp_output_dir)
+
+    classification_table = args.output + os.sep + "final_outputs" + os.sep + "marker_contig_map.tsv"
+    if os.path.isfile(classification_table):
+        classified = True
+
+    # Load FASTA data
+    fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args, 110)
+    if args.length:
+        for seq_id in fasta_dict:
+            if len(fasta_dict[seq_id]) < args.length:
+                sys.stderr.write("WARNING: " + seq_id + " sequence is shorter than " + str(args.length))
+            else:
+                max_stop = len(fasta_dict[seq_id]) - args.length
+                random_start = randint(0, max_stop)
+                fasta_dict[seq_id] = fasta_dict[seq_id][random_start:random_start+args.length]
+    header_registry = register_headers(args, get_headers(args.fasta_input))
+    # Load the query test sequences as ReferenceSequence objects
+    test_ref_sequences = load_ref_seqs(fasta_dict, header_registry)
+    complete_ref_sequences = list()
+    for ref_seq in test_ref_sequences:
+        ref_seq.accession = correct_accession(ref_seq.description)
+        complete_ref_sequences.append(ref_seq)
+    test_ref_sequences.clear()
+
+    if args.verbose:
+        sys.stdout.write("\tNumber of input sequences =\t" + str(len(complete_ref_sequences)) + "\n")
+        sys.stdout.flush()
+
+    n_classified = 0
+    marker_assignments = {}
+    # Set up a dictionary for tracking the taxonomic filtering
+    taxonomic_filter_stats = dict()
+    taxonomic_filter_stats["Unclassified"] = 0
+    taxonomic_filter_stats["Classified"] = 0
+    taxonomic_filter_stats["Unique_taxa"] = 0
+
+    # TODO: fix bug where marker_contig_map.tsv is missing when accession_lineage_map present
+    # Checkpoint one: does anything exist?
+    # If not, begin by downloading lineage information for each sequence accession
+    if not extant and not accessions_downloaded and not taxa_filter and not classified:
+        # User hasn't analyzed anything, sequences will be taxonomically screened then analyzed
+        # NOTE: This is only supported for analyzing a single marker gene
+        extant = True
+        entrez_query_list = build_entrez_queries(complete_ref_sequences, args.molecule)
+        if len(entrez_query_list) > 0:
+            accession_lineage_map = download_taxonomic_lineage_for_queries(entrez_query_list)
+        else:
+            sys.stdout.write("No sequences with lineage information that needs to be downloaded from Entrez.\n")
+            accession_lineage_map = dict()
+        complete_ref_sequences = finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
+        write_accession_lineage_map(accession_map_file, complete_ref_sequences)
+        accessions_downloaded = True
+    elif extant and accessions_downloaded:
+        # File being read should contain accessions mapped to their lineages for all sequences in input FASTA
+        complete_ref_sequences = read_accession_taxa_map(accession_map_file, complete_ref_sequences)
+
+    # Checkpoint two: Do we have accessions? Are the sequences filtered by taxonomy or are the sequences classified?
+    if extant and accessions_downloaded and not taxa_filter and not classified:
+        sys.stdout.write("Selecting representative sequences for each taxon from downloaded lineage information.\n")
+
+        # Filter the sequences from redundant taxonomic lineages, picking up to 5 representative sequences
+        representative_seqs, taxonomic_filter_stats = pick_taxonomic_representatives(complete_ref_sequences,
+                                                                                     taxonomic_filter_stats)
+        deduplicated_fasta_dict = select_rep_seqs(representative_seqs, complete_ref_sequences)
+        total_sequences = len(deduplicated_fasta_dict.keys())
+        write_new_fasta(deduplicated_fasta_dict, test_rep_taxa_fasta)
+        taxa_filter = True
+    elif extant and accessions_downloaded and taxa_filter:
+        deduplicated_fasta_dict = format_read_fasta(test_rep_taxa_fasta, args.molecule, args)
+        total_sequences = len(deduplicated_fasta_dict.keys())
+    else:
+
+        total_sequences = len(fasta_dict)
+
+    # Checkpoint three: We have accessions linked to taxa, and sequences to analyze with TreeSAPP, but not classified
+    if extant and accessions_downloaded and taxa_filter and not classified:
+        sys.stdout.write("Analyzing the " + str(total_sequences) + " representative sequences with TreeSAPP.\n")
+        # Run TreeSAPP against the provided tax_ids file and the unique taxa FASTA file
+        if args.length:
+            min_seq_length = str(min(args.length - 10, 50))
+        else:
+            min_seq_length = str(50)
+        treesapp_commands = ["./treesapp.py", "-i", test_rep_taxa_fasta,
+                             "-o", treesapp_output_dir,
+                             "-m", args.molecule,
+                             "-T", str(4),
+                             "--filter_align",
+                             "--min_likelihood", str(0.1),
+                             "--min_seq_length", min_seq_length,
+                             "--verbose",
+                             "--overwrite",
+                             "--delete"]
+        sys.stdout.write("Command used:\n" + ' '.join(treesapp_commands) + "\n")
+        launch_write_command(treesapp_commands, False)
+        classified = True
+
+    # Checkpoint four: everything has been prepared, only need to parse the classifications and map lineages
+    if extant and accessions_downloaded and taxa_filter and classified:
+        sys.stdout.write("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
+        if os.path.isfile(classification_table):
+            assignments, n_classified = read_marker_classification_table(classification_table)
+        else:
+            sys.stderr.write("\nERROR: marker_contig_map.tsv is missing from output directory '" +
+                             os.path.basename(classification_table) +"'\n")
+            sys.stderr.write("Please remove this directory and re-run.\n")
+            sys.exit(3)
+        marker_assignments = map_headers_to_lineage(assignments, complete_ref_sequences)
+
+    # In the case of a prior TreeSAPP analysis without taxonomic sequence filtering (external of Clade_exclusion)
+    # User is just interested in seeing the clade exclusion analysis results again
+    if extant and not taxa_filter and classified:
+        sys.stdout.write("Outputs from a previous unsupervised TreeSAPP analysis found.\n")
+        # Read the classification table
+        assignments, n_classified = read_marker_classification_table(classification_table)
+        redownload = True
+        sys.exit("Untested.\n")
+
+        # if os.path.isfile(inter_class_file):
+        #     pre_assignments, n_saved = read_intermediate_assignments(args, inter_class_file)
+
+        if accessions_downloaded and len(complete_ref_sequences) == len(fasta_dict):
+            # Accessions have already been loaded into complete_ref_sequences above
+            sys.stdout.write("Using accessions that have been previously downloaded.\n")
+            for marker in assignments:
+                for rob_class in assignments[marker]:
+                    bad_headers = assignments[marker][rob_class]
+                    assignments[marker][rob_class] = [correct_accession('>' + header) for header in bad_headers]
+            assignments = assign_lineages(complete_ref_sequences, assignments)
+            redownload = False
+
+        if redownload:
+            # Retrieve taxonomic lineage for each sequence from Entrez API or parsing the header
+            # Only necessary if the outputs are from an externally-generated TreeSAPP analysis
+            full_assignments = dict()
+            for marker in assignments.keys():
+                full_assignments[marker], entrez_query_list = map_full_headers(fasta_dict.keys(), header_map,
+                                                                               assignments[marker], args.molecule)
+                if len(entrez_query_list) > 0:
+                    accession_lineage_map = download_taxonomic_lineage_for_queries(entrez_query_list)
+                    complete_ref_sequences = finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
+
+            assignments = assign_lineages(complete_ref_sequences, full_assignments)
+            write_accession_lineage_map(accession_map_file, complete_ref_sequences)
+
+        # This function could be replaced by a set in map_full_headers but I'd rather perform this task explicitly,
+        # to make it obvious this is being performed rather than hiding it with sets. Also easier to turn off :)
+        marker_assignments = dict()
+        for marker in assignments:
+            marker_assignments[marker] = dict()
+            for ref in assignments[marker]:
+                lineages_list = assignments[marker][ref]
+                marker_assignments[marker][ref], i, j, k = filter_queries_by_taxonomy(lineages_list)
+                taxonomic_filter_stats["Unclassified"] += i
+                taxonomic_filter_stats["Classified"] += j
+                taxonomic_filter_stats["Unique_taxa"] += k
+
+    ##
+    # On to the standard clade-exclusion analysis...
+    ##
+    if taxonomic_filter_stats["Classified"] != taxonomic_filter_stats["Unique_taxa"]:
+        sys.stdout.write(
+            "\n\t" + str(taxonomic_filter_stats["Classified"] - taxonomic_filter_stats["Unique_taxa"]) +
+            " duplicate query taxonomies removed.\n")
+
+    if taxonomic_filter_stats["Unclassified"] > 0:
+        sys.stdout.write(
+            "\t" + str(taxonomic_filter_stats["Unclassified"]) +
+            " query sequences with unclassified taxonomies were removed.\n")
+        sys.stdout.write("This is not a problem, its just they have 'unclassified' somewhere in their lineages\n"
+                         "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
+
+    if n_classified == 0 and marker_assignments == {}:
+        sys.stderr.write("\nERROR: Outputs from previous TreeSAPP or "
+                         "Clade-exclusion analysis were incorrectly inferred to be present. Oopsie!\n")
+        sys.stderr.write("The developer(s) should be made aware of this - "
+                         "please post an issue to the GitHub page with your command used. Thanks!\n")
+        sys.exit()
+
     sensitivity = str(round(float(n_classified / total_sequences), 3))
     sys.stdout.write("Sensitivity = " + sensitivity + "\n")
-    if n_classified == n_saved:
-        sys.stdout.write("Using taxonomic lineage information previously downloaded.\n")
-        assignments = pre_assignments
-    else:
-        original_headers = get_headers(args.fasta_input)
-        header_map = map_good_headers_to_ugly(original_headers)
-        # Retrieve taxonomic lineage for each sequence from Entrez API or parsing the header
-        assignments = map_full_headers(fasta_headers, header_map, assignments, args.molecule)
-    write_intermediate_assignments(args, assignments)
-    # This function could be replaced by a set in map_full_headers but I'd rather perform this task explicitly,
-    # to make it more obvious this is being performed rather than hiding it with sets. Also easier to turn off :)
-    assignments = filter_queries_by_taxonomy(assignments)
+
+    # Write the intermediate classifications to a file
+    write_intermediate_assignments(args, marker_assignments)
+
     # Get rid of some names, replace underscores with semi-colons
-    assignments = clean_classification_names(assignments)
+    assignments = clean_classification_names(marker_assignments)
+
     # Load the reference lineages into a trie (prefix trie)
     clade_exclusion_strings = list()
-    for table in args.tax_ids_table:
-        taxonomic_tree, marker = all_possible_assignments(args, table)
-        if marker not in assignments.keys():
+    # tax_ids_tables = list()
+    marker_build_dict = parse_ref_build_params(args)
+
+    for name in args.reference_markers:
+        # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
+        if re.match("[A-Z][0-9]{4}", name):
+            code_name = name
+            marker = marker_build_dict[code_name].cog
+        elif len(name) <= 6:
+            # Assuming the provided name is a short gene name (e.g. mcrA, nifH)
+            marker = name
+            code_name = ""
+            for denominator in marker_build_dict:
+                if marker_build_dict[denominator].cog == marker:
+                    code_name = denominator
+                    break
+            if not code_name:
+                sys.stderr.write("ERROR: Unable to identify the gene name from the code name '" + code_name + "'.\n")
+                sys.stderr.flush()
+                sys.exit()
+        else:
+            sys.stderr.write("ERROR: Wrong format for the reference code_name provided: " + name + "\n")
+            sys.exit(9)
+
+        tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + "tax_ids_" + marker + ".txt"
+        if os.path.exists(tax_ids_file):
+            taxonomic_tree, marker = all_possible_assignments(args, tax_ids_file)
+        else:
+            sys.stderr.write("ERROR: Unable to find taxonomy IDs table: " + tax_ids_file + "\n")
+            sys.exit(3)
+        if code_name not in assignments.keys() and marker not in assignments.keys():
             sys.stderr.write("WARNING: You provided a tax_ids file for " + marker +
                              " but no sequences were classified for this marker. "
                              "Everything else is okay, don't worry.\n")
@@ -684,9 +1162,6 @@ def main():
             clade_exclusion_strings = determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings)
             determine_containment(args, marker, rank_assigned_dict)
     write_performance_table(args, clade_exclusion_strings, sensitivity)
-    # Remove the intermediate file since this run completed successfully
-    # if os.path.exists(tmp_file):
-    #     os.remove(tmp_file)
 
 
 if __name__ == "__main__":

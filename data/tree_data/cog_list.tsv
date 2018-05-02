@@ -40,9 +40,6 @@ COG0533	C0533	phylogenetic_cogs
 COG0541	C0541	phylogenetic_cogs
 COG0552	C0552	phylogenetic_cogs
 #16srRNA	R0016	rRNA_marker
-#16s	R1016	rRNA_marker
-#SSU16	R1016	rRNA_marker
-#ArcSSU	R2016	rRNA_marker
 #18srRNA	R0018	rRNA_marker
 #hdrA	M0001	Heterodisulfide reductase subunit A
 #hdrB	M0002	Heterodisulfide reductase subunit B
@@ -59,16 +56,10 @@ COG0552	C0552	phylogenetic_cogs
 #hmd	M0400	H2-forming methylenetetrahydromethanopterin dehydrogenase
 #mer	M0500	Methylene-tetrahydro-methanopterin reductase
 MtrA	M0601	Tetrahydro-methanopterin methyltransferase subunit A
-#mtrB	M0602	Tetrahydro-methanopterin methyltransferase subunit B
 MtrC	M0603	Tetrahydro-methanopterin methyltransferase subunit C
-#mtrD	M0604	Tetrahydro-methanopterin methyltransferase subunit D
-#mtrF	M0605	Tetrahydro-methanopterin methyltransferase subunit F
-#mtrG	M0606	Tetrahydro-methanopterin methyltransferase subunit G
 MtrH	M0607	Tetrahydro-methanopterin methyltransferase subunit H
 mcrA	M0701	Methyl coenzyme M reductase alpha subunit
 mcrB	M0702	Methyl coenzyme M reductase beta subunit
-#mcrC	M0703	Methyl coenzyme M reductase subunit C
-#mcrD	M0704	Methyl coenzyme M reductase delta subunit
 mcrG	M0705	Methyl coenzyme M reductase gamma subunit
 #cdhA	M0801	acetyl-CoA decarbonylase/synthase alpha subunit
 #cdhB	M0802	acetyl-CoA decarbonylase/synthase epsilon subunit
@@ -90,8 +81,6 @@ nirS	D0302	nitrite reductase (NO-forming) / hydroxylamine reductase
 norB	D0501	nitric oxide reductase subunit B
 norC	D0502	nitric oxide reductase subunit C
 nosZ	D0601	Nitrous-oxide reductase
-#amoA_AOA	N0101	Ammonia monooxygenase (Ammonia-oxidizing Archaea)
-amoA_B	N0102	Ammonia monooxygenase (Ammonia-oxidizing Bacteria)
 #hao	N0200	hydroxylamine dehydrogenase
 #nxrB	N0301	Nitrite oxidoreductase subunit B
 nifD	N0401	nitrogenase molybdenum-iron protein alpha chain (K02586)
@@ -101,16 +90,16 @@ nifD	N0401	nitrogenase molybdenum-iron protein alpha chain (K02586)
 #nifHc3	N0431	nitrogenase iron protein NifH (K02588)
 #nifHc4	N0441	nitrogenase iron protein NifH (K02588)
 #hdh	A0000	hydrazine dehydrogenase (hzo)
-pmoA	A0103	Particulate methane monooxygenase
-COG1850	P0000	RuBisCO
+#COG1850	P0000	RuBisCO
 #aprAB	U0101	adenosine-5'-phosphosulfate (APS) reductase alpha-beta subunits
 #ackA	U0201	Acetate-kinase
 #prx1	U0301	Bacterial Peroxidase Family
 #prx2	U0302	Animal/Plant/Fungal/Bacterial Peroxidase Family
 #qmoABC	U0401	Quinone-interacting membrane-bound oxidoreductase alpha/beta/gamma subunit
-phocryp	U0500	Photolyase/Cryptochrome
-dsr_v2	U0600	dissimilatory sulfite reductase
+#phocryp	U0500	Photolyase/Cryptochrome
+#dsr_v2	U0600	dissimilatory sulfite reductase
 pufMKEG	U0701	Reaction center complex of the purple bacteria
-bssA	U0801	Benzoylacetate:CoA ligase; Fumarate adding enzymes (bssA-nmsA-assA)
-p_a_moA	U0900	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase 
-hzo_hao	U1000	hydrazine dehydrogenase (hzo) and hydroxylamine dehydrogenase
+#bssA	U0801	Benzoylacetate:CoA ligase; Fumarate adding enzymes (bssA-nmsA-assA)
+p_amoA	N0102	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase 
+#hzo_hao	U1000	hydrazine dehydrogenase (hzo) and hydroxylamine dehydrogenase
+GH36	C0036	CAZy family 36: α-galactosidase (EC 3.2.1.22); α-N-acetylgalactosaminidase (EC 3.2.1.49); stachyose synthase (EC 2.4.1.67); raffinose synthase (EC 2.4.1.82)

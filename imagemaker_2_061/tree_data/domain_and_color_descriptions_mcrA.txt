@@ -1,3 +1,0 @@
-## mcrA
-49 144 255 153 51 Bathyarchaeota
-46 74 175 238 238 Euryarchaeota

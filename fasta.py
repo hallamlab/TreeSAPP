@@ -4,6 +4,7 @@ import sys
 import re
 
 import _fasta_reader
+from utilities import median
 
 
 def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
@@ -85,8 +86,10 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     except IOError:
         raise IOError("Unable to open " + fasta_name + " for writing!")
 
-    for name in fasta_dict.keys():
+    for name in sorted(fasta_dict.keys()):
         seq = fasta_dict[name]
+        if name[0] != '>':
+            name = '>' + name
         sequence_accumulator += 1
         if max_seqs and sequence_accumulator > max_seqs:
             # If input is to be split and number of sequences per file has been exceeded begin writing to new file
@@ -110,7 +113,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     return split_files
 
 
-def get_header_format(header, code_name):
+def get_header_format(header, code_name=""):
     """
     Used to decipher which formatting style was used: NCBI, FunGenes, or other
     HOW TO ADD A NEW REGULAR EXPRESSION:
@@ -147,6 +150,13 @@ def get_header_format(header, code_name):
     refseq_nuc_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
+    # Custom fasta header with taxonomy:
+    # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
+    # There are no character restrictions on the first and third groups
+    # The lineage must be formatted like:
+    #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+    custom_tax = re.compile("^>(.*) lineage=(.*) \[(.*)\]$")
+
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
                                gb_re: "gb",
@@ -166,7 +176,8 @@ def get_header_format(header, code_name):
                               nr_re: "nr"},
                       "ambig": {ncbi_ambiguous: "ncbi_ambig",
                                 genbank_exact_genome: "gen_genome",
-                                treesapp_re: "treesapp"}
+                                treesapp_re: "treesapp",
+                                custom_tax: "custom"}
                       }
 
     header_format_re = None
@@ -183,8 +194,55 @@ def get_header_format(header, code_name):
                 pass
 
     if header_format_re is None:
-        raise AssertionError("Unable to parse header: " + header)
+        raise AssertionError("Unable to parse header '" + header + "'\n")
 
     return header_format_re, header_db, header_molecule
 
 
+def summarize_fasta_sequences(fasta_file):
+    try:
+        fasta_handler = open(fasta_file, 'r')
+    except IOError:
+        sys.stderr.write("ERROR: Unable to open " + fasta_file + " for reading!\n")
+        sys.exit(17)
+
+    num_headers = 0
+    longest = 0
+    shortest = 0
+    sequence = None
+    sequence_lengths = []
+    line = fasta_handler.readline()
+    while line:
+        if line[0] == '>':
+            num_headers += 1
+            if sequence is not None:
+                if longest == 0 and shortest == 0:
+                    longest = len(sequence)
+                    shortest = len(sequence)
+                if len(sequence) > longest:
+                    longest = len(sequence)
+                if len(sequence) < shortest:
+                    shortest = len(sequence)
+                else:
+                    pass
+                sequence_lengths.append(len(sequence))
+            sequence = ""
+        else:
+            sequence += line.strip()
+        line = fasta_handler.readline()
+    # Log the last sequence in the file
+    if longest == 0 and shortest == 0:
+        longest = len(sequence)
+        shortest = len(sequence)
+    if len(sequence) > longest:
+        longest = len(sequence)
+    if len(sequence) < shortest:
+        shortest = len(sequence)
+    sequence_lengths.append(len(sequence))
+
+    sys.stdout.write("\tNumber of sequences: " + str(num_headers) + "\n")
+    sys.stdout.write("\tLongest sequence length: " + str(longest) + "\n")
+    sys.stdout.write("\tShortest sequence length: " + str(shortest) + "\n")
+    sys.stdout.write("\tMean sequence length: " + str(round(sum(sequence_lengths)/num_headers, 1)) + "\n")
+    sys.stdout.write("\tMedian sequence length: " + str(median(sequence_lengths)) + "\n")
+    return
