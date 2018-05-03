@@ -686,9 +686,32 @@ class TreeProtein(ItolJplace):
         This emulates the LCA algorithm employed by the MEtaGenome ANalyzer (MEGAN).
         :return:
         """
-        # cellular organisms; Kingdom; Phylum; Class; Order; Family; Genus; Species
+        # If there is only one child, return the joined string
+        if len(self.lineage_list) == 1:
+            return "; ".join(self.lineage_list[0])
 
-        return
+        listed_lineages = [lineage.strip().split("; ") for lineage in self.lineage_list]
+        max_depth = max([len(lineage) for lineage in listed_lineages])
+        lca_set = set()
+        lca_lineage_strings = list()
+        i = 0
+        while i < max_depth:
+            contributors = 0
+            for lineage in sorted(listed_lineages):
+                try:
+                    lca_set.add(lineage[i])
+                    contributors += 1
+                except IndexError:
+                    pass
+
+            if len(lca_set) == 1 and contributors == len(listed_lineages):
+                lca_lineage_strings.append(list(lca_set)[0])
+                i += 1
+                lca_set.clear()
+            else:
+                i = max_depth
+
+        return "; ".join(lca_lineage_strings)
 
 
 class TreeLeafReference:

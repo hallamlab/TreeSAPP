@@ -4240,11 +4240,51 @@ def children_lineage(leaves, pquery, node_map):
     return children
 
 
-def lowest_common_taxonomy(children):
+def disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_list):
+    lca_depth = 0
+    max_depth = max([len(lineage) for lineage in lineages_list])
+    nucleus = float(len(lineages_list)/taxonomic_counts[megan_lca])
+    vote_weights = dict()
+    taxonomic_tree = dict()
+    subtree_taxonomic_counts = dict()
+    vote_weights[megan_lca] = nucleus
+    taxonomic_tree[megan_lca] = set()
+
+    # Find the depth of the LCA
+    while "; ".join(lineages_list[0][:lca_depth]) != megan_lca:
+        lca_depth += 1
+
+    # Load the taxonomic subtree into a dictionary
+    while lca_depth < max_depth:
+        for lineage in lineages_list:
+            taxonomic_lineage = "; ".join(lineage[0:lca_depth+1])
+            parent = "; ".join(lineage[0:lca_depth])
+            if parent == taxonomic_lineage:
+                continue
+            if taxonomic_lineage not in taxonomic_tree:
+                taxonomic_tree[taxonomic_lineage] = set()
+            if taxonomic_lineage not in subtree_taxonomic_counts:
+                subtree_taxonomic_counts[taxonomic_lineage] = 0
+            subtree_taxonomic_counts[taxonomic_lineage] += 1
+            taxonomic_tree[parent].add(taxonomic_lineage)
+        lca_depth += 1
+
+    # Calculate the vote weights for each taxonomic lineage based on it's parent's and polyphyly
+    for node in sorted(taxonomic_tree, key=lambda x: x.count(';')):
+        children = taxonomic_tree[node]
+        n_taxa_split = len(children)
+        for child in children:
+            taxa_portion = float(subtree_taxonomic_counts[child]/taxonomic_counts[child])
+            vote_weights[child] = vote_weights[node] * float(taxa_portion/n_taxa_split)
+
+    return vote_weights, taxonomic_tree, nucleus/2
+
+
+def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA*"):
     """
     Input is a list >= 2, potentially either a leaf string or NCBI lineage
     :param children: Lineages of all leaves for this sequence
-    :return:
+    :return: string - represent the consensus lineage for that node
     """
     lineage_string = ""
     lineages_considered = list()
@@ -4259,44 +4299,57 @@ def lowest_common_taxonomy(children):
             lineages_considered.append(ranks)
         if num_ranks > max_ranks:
             max_ranks = num_ranks
+    # print("Lineages considered: ", lineages_considered)
     if len(lineages_considered) == 0:
         sys.stderr.write("WARNING: all lineages were highly incomplete for ")
     else:
-        hits = dict()
-        consensus = list()
-        # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
-        i = 0
-        # print("Lineages considered: ", lineages_considered)
-        while i < max_ranks:
-            hits.clear()
-            lineages_used = 0
-            elected = False
-            for ranks in lineages_considered:
-                # If the ranks of this hit has not been exhausted (i.e. if it has a depth of 4 and max_ranks >= 5)
-                if len(ranks) > i:
-                    taxonomy = ranks[i]
-                    if taxonomy not in hits.keys():
-                        hits[taxonomy] = 0
-                    hits[taxonomy] += 1
-                    lineages_used += 1
+        if algorithm == "MEGAN":
+            # Already calculated by tree_sap.megan_lca()
+            lineage_string = megan_lca
+        elif algorithm == "LCA*":
             # approximate LCA* (no entropy calculations):
-            for taxonomy in hits.keys():
-                if hits[taxonomy] > float(len(lineages_considered)/2):
-                    consensus.append(str(taxonomy))
-                    elected = True
+            hits = dict()
+            consensus = list()
+            # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
+            i = 0
+            while i < max_ranks:
+                hits.clear()
+                lineages_used = 0
+                elected = False
+                for ranks in lineages_considered:
+                    # If the ranks of this hit has not been exhausted (i.e. if it has a depth of 4 and max_ranks >= 5)
+                    if len(ranks) > i:
+                        taxonomy = ranks[i]
+                        if taxonomy not in hits.keys():
+                            hits[taxonomy] = 0
+                        hits[taxonomy] += 1
+                        lineages_used += 1
+                for taxonomy in hits.keys():
+                    if hits[taxonomy] > float(len(lineages_considered)/2):
+                        consensus.append(str(taxonomy))
+                        elected = True
 
-            # LCA:
-            # Want to ensure at least 50% of the children are having consensus input
-            # if len(hits.keys()) == 1 and lineages_used >= float(len(lineages_considered)/2):
-            # if len(hits.keys()) == 1:
-            #     consensus.append(list(hits.keys())[0])
-            #     elected = True
+                # If there is no longer a consensus, break the loop
+                if not elected:
+                    i = max_ranks
+                i += 1
+            lineage_string = "; ".join(consensus)
+        elif algorithm == "LCAp":
+            lineage_string = megan_lca
+            vote_weights, t_tree, majority = disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_considered)
+            for parent in sorted(t_tree, key=lambda x: x.count(';')):
+                if len(t_tree[parent]) == 0:
+                    break
+                children = t_tree[parent]
+                for child in children:
+                    if vote_weights[child] > majority:
+                        lineage_string = child
+                    else:
+                        pass
 
-            # If there is no longer a consensus, break the loop
-            if not elected:
-                i = max_ranks
-            i += 1
-        lineage_string = "; ".join(consensus)
+        else:
+            sys.stderr.write("ERROR: common ancestor algorithm '" + algorithm + "' is not known.\n")
+            sys.exit(33)
 
     return lineage_string
 
@@ -4368,6 +4421,21 @@ def lowest_confident_taxonomy(lct, marker_build_object):
     return "; ".join(confident_assignment)
 
 
+def enumerate_taxonomic_lineages(lineage_list):
+    rank = 1
+    taxonomic_counts = dict()
+    while rank < 9:
+        for lineage in lineage_list:
+            if len(lineage) < rank:
+                continue
+            taxonomy = "; ".join(lineage[:rank])
+            if taxonomy not in taxonomic_counts:
+                taxonomic_counts[taxonomy] = 0
+            taxonomic_counts[taxonomy] += 1
+        rank += 1
+    return taxonomic_counts
+
+
 def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict):
     """
     Fields:
@@ -4391,11 +4459,13 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
         # All the leaves for that tree [number, translation, lineage]
         leaves = tree_numbers_translation[denominator]
         lineage_complete = False
+        lineage_list = list()
         # Test if the reference set have lineage information
         for leaf in leaves:
+            lineage_list.append(clean_lineage_string(leaf.lineage).split('; '))
             if leaf.complete:
                 lineage_complete = True
-                break
+        taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
         for tree_sap in tree_saps[denominator]:
             if tree_sap.name not in unclassified_counts.keys():
@@ -4420,7 +4490,10 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                 if len(tree_sap.lineage_list) > 1:
                     # TODO: Integrate RAxML's likelihood weight ratio so the consensus requires majority likelihood
                     if lineage_complete:
-                        tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list)
+                        lca = tree_sap.megan_lca()
+                        # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
+                        tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
+
                         if not tree_sap.lct:
                             sys.stderr.write(str(tree_sap.contig_name) + "\n")
                         else:
@@ -4483,6 +4556,13 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
     :param rpkm_output_file:
     :return: 
     """
+
+    sys.stdout.write('Parsing the RAxML outputs... ')
+    sys.stdout.flush()
+
+    if args.verbose:
+        function_start_time = time.time()
+
     itol_base_dir = args.output + 'iTOL_output' + os.sep
     if not os.path.exists(itol_base_dir):
         os.mkdir(itol_base_dir)  # drwxr-xr-x
@@ -4495,6 +4575,7 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
     # tree_saps contain individual a single JPlace output for each protein (N == 1)
     tree_saps = dict()
     # Use the jplace files to guide which markers iTOL outputs should be created for
+    classified_seqs = 0
     for filename in jplace_files:
         if jplace_marker_re.match(filename):
             denominator = jplace_marker_re.match(filename).group(1)
@@ -4563,9 +4644,22 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
         query_obj.get_placement_lwr()
         query_obj.get_placement_likelihood()
         tree_saps[denominator].append(query_obj)
+        classified_seqs += 1
 
         # I have decided to not remove the original JPlace files since some may find these useful
         # os.remove(filename)
+
+    sys.stdout.write("done.\n")
+
+    if args.verbose:
+        function_end_time = time.time()
+        hours, remainder = divmod(function_end_time - function_start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tTree parsing time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+        sys.stdout.write("\t" + str(len(jplace_files)) + " RAxML output files.\n")
+        sys.stdout.write("\t" + str(classified_seqs) + " sequences classified by TreeSAPP.\n\n")
+        sys.stdout.flush()
 
     # Now that all the JPlace files have been loaded, generate the abundance stats for each marker
     for denominator in tree_saps:
@@ -4657,12 +4751,11 @@ def main(argv):
         phy_files = produce_phy_file(args, mfa_files, ref_alignment_dimensions)
         delete_files(args, 3)
 
-        # STAGE 5: Run RAxML to compute the ML/MP estimations
-        raxml_outfiles, denominator_reference_tree_dict, num_raxml_outputs = start_raxml(args, phy_files,
-                                                                                         cog_list, models_to_be_used)
-        final_raxml_output_files = parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
-                                                      raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
-        concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
+        # STAGE 5: Run RAxML to compute the ML estimations
+        start_raxml(args, phy_files, cog_list, models_to_be_used)
+        # final_raxml_output_files = parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
+        #                                               raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
+        # concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
 
     if args.rpkm:
         sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
