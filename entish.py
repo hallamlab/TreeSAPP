@@ -1,6 +1,7 @@
 __author__ = 'Connor Morgan-Lang'
 
 import sys
+import re
 import _tree_parser
 from utilities import Autovivify
 
@@ -27,6 +28,51 @@ def subtrees_to_dictionary(subtrees_string, tree_info):
 def create_tree_info_hash():
     tree_info = Autovivify()
     return tree_info
+
+
+def create_tree_internal_node_map(tree_string):
+    """
+    Loads a mapping between all nodes (internal and leaves) and all leaves
+    :return:
+    """
+
+    def get_node(tree, pos):
+        node = ""
+        pos += 1
+        c = tree[pos]
+        while not re.match("\d", c):
+            pos += 1
+            c = tree[pos]
+        while re.match("\d", c):
+            node += c
+            pos += 1
+            c = tree[pos]
+        return node, pos
+
+    tree_string = re.sub("-\d+", '-', tree_string)
+    internal_node_counter = 0
+    node_map = dict()
+    node_stack = list()  # This stack handles the sibling nodes
+    x = 0
+    while x < len(tree_string):
+        c = tree_string[x]
+        if re.match("\d", c):
+            num_buffer, x = get_node(tree_string, x - 1)
+            node_map[internal_node_counter] = [str(num_buffer)]
+            node_stack.append(internal_node_counter)
+            internal_node_counter += 1
+            x -= 1
+        elif c == ')':
+            while c == ')' and x < len(tree_string):
+                if tree_string[x + 1] == ';':
+                    break
+                node_map[internal_node_counter] = node_map[node_stack.pop()] + node_map[node_stack.pop()]
+                node_stack.append(internal_node_counter)
+                internal_node_counter += 1
+                x += 1
+                c = tree_string[x]
+        x += 1
+    return node_map
 
 
 def format_children_assignments(children_assignments, tree_info):
@@ -66,10 +112,18 @@ def deconvolute_assignments(reference_tree_assignments):
     return tree_info, terminal_children_of_reference
 
 
+def read_and_map_internal_nodes_from_newick_tree(reference_tree_file, denominator):
+    # Using the C++ _tree_parser extension:
+    reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
+    internal_node_map = create_tree_internal_node_map(reference_tree_elements)
+    return internal_node_map
+
+
 def read_and_understand_the_reference_tree(reference_tree_file, denominator):
     # Using the C++ _tree_parser extension:
     reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
     reference_tree_assignments = _tree_parser._get_parents_and_children(reference_tree_elements)
+    print(reference_tree_assignments)
     if reference_tree_assignments == "$":
         sys.stderr.write("Poison pill received from " + denominator + "\n")
         sys.stderr.flush()

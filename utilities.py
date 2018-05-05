@@ -418,3 +418,163 @@ def median(lst):
             return sorted(lst)[n//2]
     else:
             return sum(sorted(lst)[n//2-1:n//2+1])/2.0
+
+
+def read_colours_file(args, annotation_file):
+    """
+    Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
+    marker and data_type.
+    :param args:
+    :param annotation_file:
+    :return: A dictionary of lists where each list is populated by tuples with start and end leaves
+    """
+    try:
+        style_handler = open(annotation_file, 'r')
+    except IOError:
+        sys.stderr.write("ERROR: Unable to open " + annotation_file + " for reading!\n")
+        sys.exit()
+
+    clusters = dict()
+    field_sep = ''
+    internal_nodes = True
+
+    line = style_handler.readline()
+    # Skip the header
+    while line.strip() != "DATA":
+        header_fields = line.strip().split(' ')
+        if header_fields[0] == "SEPARATOR":
+            if header_fields[1] == "SPACE":
+                field_sep = ' '
+            elif header_fields[1] == "TAB":
+                field_sep = '\t'
+            else:
+                sys.stderr.write("ERROR: Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
+                sys.stderr.flush()
+                sys.exit()
+        line = style_handler.readline()
+    # For RGB
+    range_line_rgb = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
+                                "range" + re.escape(field_sep) +
+                                ".*\)" + re.escape(field_sep) +
+                                "(.*)$")
+    single_node_rgb = re.compile("^(\d+)" + re.escape(field_sep) +
+                                 "range" + re.escape(field_sep) +
+                                 ".*\)" + re.escape(field_sep) +
+                                 "(.*)$")
+    lone_node_rgb = re.compile("^(.*)" + re.escape(field_sep) +
+                               "range" + re.escape(field_sep) +
+                               ".*\)" + re.escape(field_sep) +
+                               "(.*)$")
+
+    # For hexadecimal
+    range_line = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
+                            "range" + re.escape(field_sep) +
+                            "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
+                            "(.*)$")
+    single_node = re.compile("^(\d+)" + re.escape(field_sep) +
+                             "range" + re.escape(field_sep) +
+                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
+                             "(.*)$")
+    lone_node = re.compile("^(.*)" + re.escape(field_sep) +
+                           "range" + re.escape(field_sep) +
+                           "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
+                           "(.*)$")
+
+    # Begin parsing the data from 4 columns
+    line = style_handler.readline().strip()
+    while line:
+        if range_line.match(line):
+            style_data = range_line.match(line)
+            start, end, description = style_data.groups()
+            internal_nodes = False
+        elif range_line_rgb.match(line):
+            style_data = range_line_rgb.match(line)
+            start, end, description = style_data.groups()
+            internal_nodes = False
+        elif single_node.match(line):
+            style_data = single_node.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+        elif single_node_rgb.match(line):
+            style_data = single_node_rgb.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+        elif lone_node.match(line):
+            style_data = lone_node.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+        elif lone_node_rgb.match(line):
+            style_data = lone_node_rgb.match(line)
+            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+        else:
+            sys.stderr.write("ERROR: Unrecognized line formatting in " + annotation_file + ":\n")
+            sys.stderr.write(line + "\n")
+            sys.exit()
+
+        description = style_data.groups()[-1]
+        if description not in clusters.keys():
+            clusters[description] = list()
+        clusters[description].append((start, end))
+
+        line = style_handler.readline().strip()
+
+    style_handler.close()
+
+    if args.verbose:
+        sys.stdout.write("\tParsed " + str(len(clusters)) +
+                         " clades from " + annotation_file + "\n")
+
+    return clusters, internal_nodes
+
+
+def convert_outer_to_inner_nodes(clusters, internal_node_map):
+    leaf_annotation_map = dict()
+    for cluster in clusters.keys():
+        if cluster not in leaf_annotation_map:
+            leaf_annotation_map[cluster] = list()
+        for frond_tips in clusters[cluster]:
+            start, end = frond_tips
+            # Find the minimum set that includes both start and end
+            warm_front = dict()
+            # Add all the potential internal nodes
+            for inode in internal_node_map:
+                clade = internal_node_map[inode]
+                if start in clade:
+                    warm_front[inode] = clade
+            for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
+                if end in warm_front[inode]:
+                    leaf_annotation_map[cluster].append(inode)
+                    break
+    return leaf_annotation_map
+
+
+def annotate_internal_nodes(args, internal_node_map, clusters):
+    """
+    A function for mapping the clusters to all internal nodes of the tree.
+    It also adds overlapping functional annotations for deep internal nodes and ensures all the leaves are annotated.
+    :param args:
+    :param internal_node_map: A dictionary mapping the internal nodes (keys) to the leaf nodes (values)
+    :param clusters: Dictionary with the cluster names for keys and a tuple containing leaf boundaries as values
+    :return: A dictionary of the annotation (AKA group) as keys and internal nodes as values
+    """
+    annotated_clade_members = dict()
+    leaf_group_members = dict()
+    leaves_in_clusters = set()
+
+    # Create a dictionary to map the cluster name (e.g. Function, Activity, Class, etc) to all the leaf nodes
+    for annotation in clusters.keys():
+        if annotation not in annotated_clade_members:
+            annotated_clade_members[annotation] = set()
+        if annotation not in leaf_group_members:
+            leaf_group_members[annotation] = set()
+        for i_node in internal_node_map:
+            if i_node in clusters[annotation]:
+                for leaf in internal_node_map[i_node]:
+                    leaf_group_members[annotation].add(leaf)
+                    leaves_in_clusters.add(leaf)
+        # Find the set of internal nodes that are children of this annotated clade
+        for i_node in internal_node_map:
+            if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
+                annotated_clade_members[annotation].add(i_node)
+
+    if args.verbose:
+        sys.stdout.write("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
+
+    return annotated_clade_members, leaves_in_clusters

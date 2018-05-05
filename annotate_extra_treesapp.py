@@ -16,6 +16,7 @@ sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from entish import get_node
 from treesapp import parse_ref_build_params, jplace_parser, tax_ids_file_to_leaves
 from classy import TreeProtein
+from utilities import read_colours_file, annotate_internal_nodes, convert_outer_to_inner_nodes
 
 
 def get_arguments():
@@ -36,13 +37,13 @@ def get_arguments():
                                help="The TreeSAPP output directory.",
                                required=True)
 
-    optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument('-n', '--names',
-                        help='The names corresponding to each of the colours_style files.'
-                             ' Provide a comma-separated list if multiple colours_style files.',
-                        required=False,
-                        default=None,
-                        nargs='+')
+    # optopt = parser.add_argument_group("Optional options")
+    # optopt.add_argument('-n', '--names',
+    #                     help='The names corresponding to each of the colours_style files.'
+    #                          ' Provide a comma-separated list if multiple colours_style files.',
+    #                     required=False,
+    #                     default=None,
+    #                     nargs='+')
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('-v', '--verbose',
@@ -137,110 +138,6 @@ def parse_marker_classification_table(args):
     return master_dat, field_order
 
 
-def read_colours_file(args, annotation_file):
-    """
-    Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
-    marker and data_type.
-    :param args:
-    :param annotation_file:
-    :return: A dictionary of lists where each list is populated by tuples with start and end leaves
-    """
-    try:
-        style_handler = open(annotation_file, 'r')
-    except IOError:
-        sys.stderr.write("ERROR: Unable to open " + annotation_file + " for reading!\n")
-        sys.exit()
-
-    clusters = dict()
-    field_sep = ''
-    internal_nodes = True
-
-    line = style_handler.readline()
-    # Skip the header
-    while line.strip() != "DATA":
-        header_fields = line.strip().split(' ')
-        if header_fields[0] == "SEPARATOR":
-            if header_fields[1] == "SPACE":
-                field_sep = ' '
-            elif header_fields[1] == "TAB":
-                field_sep = '\t'
-            else:
-                sys.stderr.write("ERROR: Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
-                sys.stderr.flush()
-                sys.exit()
-        line = style_handler.readline()
-    # For RGB
-    range_line_rgb = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
-                                "range" + re.escape(field_sep) +
-                                ".*\)" + re.escape(field_sep) +
-                                "(.*)$")
-    single_node_rgb = re.compile("^(\d+)" + re.escape(field_sep) +
-                                 "range" + re.escape(field_sep) +
-                                 ".*\)" + re.escape(field_sep) +
-                                 "(.*)$")
-    lone_node_rgb = re.compile("^(.*)" + re.escape(field_sep) +
-                               "range" + re.escape(field_sep) +
-                               ".*\)" + re.escape(field_sep) +
-                               "(.*)$")
-
-    # For hexadecimal
-    range_line = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
-                            "range" + re.escape(field_sep) +
-                            "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                            "(.*)$")
-    single_node = re.compile("^(\d+)" + re.escape(field_sep) +
-                             "range" + re.escape(field_sep) +
-                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                             "(.*)$")
-    lone_node = re.compile("^(.*)" + re.escape(field_sep) +
-                           "range" + re.escape(field_sep) +
-                           "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                           "(.*)$")
-
-    # Begin parsing the data from 4 columns
-    line = style_handler.readline().strip()
-    while line:
-        if range_line.match(line):
-            style_data = range_line.match(line)
-            start, end, description = style_data.groups()
-            internal_nodes = False
-        elif range_line_rgb.match(line):
-            style_data = range_line_rgb.match(line)
-            start, end, description = style_data.groups()
-            internal_nodes = False
-        elif single_node.match(line):
-            style_data = single_node.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif single_node_rgb.match(line):
-            style_data = single_node_rgb.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node.match(line):
-            style_data = lone_node.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node_rgb.match(line):
-            style_data = lone_node_rgb.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        else:
-            sys.stderr.write("ERROR: Unrecognized line formatting in " + annotation_file + ":\n")
-            sys.stderr.write(line + "\n")
-            sys.exit()
-
-        description = style_data.groups()[-1]
-        if description not in clusters.keys():
-            clusters[description] = list()
-        clusters[description].append((start, end))
-
-        line = style_handler.readline().strip()
-
-    style_handler.close()
-
-    if args.verbose:
-        sys.stdout.write("\tParsed " + str(len(clusters)) +
-                         " clades from " + annotation_file + "\n")
-
-    return clusters, internal_nodes
-
-
 def names_for_nodes(clusters, node_map, taxa_map):
     """
     This function is used to convert from a string name of a leaf (e.g. Methylocapsa_acidiphila_|_CAJ01617)
@@ -314,83 +211,7 @@ def create_node_map(jplace_tree_string):
     return node_map
 
 
-def parse_clades_from_tree(args, jplace_tree_string, clusters, marker, internal_nodes):
-    """
-
-    :param args:
-    :param jplace_tree_string:
-    :param clusters: Dictionary with the cluster names for keys and a tuple containing leaf boundaries as values
-    :param marker:
-    :param internal_nodes: Boolean determining whether all nodes in annotation file were internal (True) or not (False)
-    :return:
-    """
-    clade_members = dict()
-    leaf_annotation_map = dict()
-    leaves_in_clusters = set()
-
-    internal_node_map = create_node_map(jplace_tree_string)
-
-    if internal_nodes:
-        tax_ids_file = os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"])
-        taxa_map = tax_ids_file_to_leaves(args, tax_ids_file)
-        clusters = names_for_nodes(clusters, internal_node_map, taxa_map)
-
-    # TODO: Make this code more efficient because it currently isn't but it works. Everything is small so no pressure.
-    # Create a dictionary to map the cluster name (e.g. Function, Activity, Class, etc) to the leaf nodes
-    for cluster in clusters.keys():
-        if cluster not in leaf_annotation_map:
-            leaf_annotation_map[cluster] = list()
-            clade_members[cluster] = set()
-        if internal_nodes:
-            for inodes in clusters[cluster]:
-                annotation_inode, _ = inodes  # Just take the first, they should both be identical
-                leaf_annotation_map[cluster] += internal_node_map[int(annotation_inode)]
-        else:
-            for frond_tips in clusters[cluster]:
-                start, end = frond_tips
-                # Find the minimum set that includes both start and end
-                warm_front = dict()
-                for inode in internal_node_map:
-                    clade = internal_node_map[inode]
-                    if start in clade:
-                        warm_front[len(clade)] = clade
-                for size in sorted(warm_front, key=int):
-                    if end in warm_front[size]:
-                        leaf_annotation_map[cluster] += warm_front[size]
-                        break
-
-    # Map the internal nodes (from Jplace tree string) to the cluster names
-    for cluster in clade_members:
-        for inode in internal_node_map:
-            for leaf in internal_node_map[inode]:
-                if leaf in leaf_annotation_map[cluster]:
-                    clade_members[cluster].add(str(inode))
-                    leaves_in_clusters.add(str(inode))
-                    break
-
-    if args.verbose:
-        sys.stdout.write("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
-
-    diff = len(internal_node_map) - len(leaves_in_clusters)
-    if diff != 0:
-        unannotated = list()
-        sys.stderr.write("WARNING: the following internal nodes were not mapped to annotation groups:\n")
-        for inode in internal_node_map:
-            contained = False
-            for cluster in clade_members:
-                if str(inode) in clade_members[cluster]:
-                    contained = True
-                    break
-            if not contained:
-                unannotated.append(str(inode))
-        sys.stderr.write("\t" + ', '.join(unannotated) + "\n")
-        sys.stderr.flush()
-
-    return clade_members
-
-
 def map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files_to_parse, master_dat):
-    # TODO: Consider including the internal nodes the sequence was mapped to in the classification table for consistency
     num_unclassified = 0
     for jplace in jplace_files_to_parse:
         file_name = os.path.basename(jplace)
@@ -410,7 +231,7 @@ def map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files
                 query_obj.filter_max_weight_placement()
                 for node in query_obj.list_placements():
                     for group in marker_tree_info[data_type][marker]:
-                        if node in marker_tree_info[data_type][marker][group]:
+                        if int(node) in marker_tree_info[data_type][marker][group]:
                             metadata_placement.add(group)
 
                 if len(metadata_placement) == 0:
@@ -524,11 +345,31 @@ def main():
 
             marker = marker_build_dict[gene_code].cog
             if marker in marker_subgroups[data_type]:
-                marker_tree_info[data_type][marker] = parse_clades_from_tree(args,
-                                                                             jplace_tree_strings[gene_code],
-                                                                             marker_subgroups[data_type][marker],
-                                                                             marker,
-                                                                             internal_nodes[data_type][marker])
+                # Create the dictionary mapping an internal node to all child nodes
+                internal_node_map = create_node_map(jplace_tree_strings[gene_code])
+
+                # Routine for exchanging any organism designations for their respective node number
+                tax_ids_file = os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+                taxa_map = tax_ids_file_to_leaves(args, tax_ids_file)
+                clusters = names_for_nodes(marker_subgroups[data_type][marker], internal_node_map, taxa_map)
+
+                if not internal_nodes[data_type][marker]:
+                    # Convert the leaf node ranges to internal nodes for consistency
+                    clusters = convert_outer_to_inner_nodes(clusters, internal_node_map)
+
+                marker_tree_info[data_type][marker], leaves_in_clusters = annotate_internal_nodes(args,
+                                                                                                  internal_node_map,
+                                                                                                  clusters)
+                diff = len(taxa_map) - len(leaves_in_clusters)
+                if diff != 0:
+                    unannotated = set()
+                    sys.stderr.write("WARNING: the following leaf nodes were not mapped to annotation groups:\n")
+                    for inode in internal_node_map:
+                        for leaf in internal_node_map[inode]:
+                            if leaf not in leaves_in_clusters:
+                                unannotated.add(str(leaf))
+                    sys.stderr.write("\t" + ', '.join(unannotated) + "\n")
+                    sys.stderr.flush()
             else:
                 pass
     marker_subgroups.clear()
