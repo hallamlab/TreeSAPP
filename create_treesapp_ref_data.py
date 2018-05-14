@@ -95,6 +95,10 @@ def get_arguments():
                              "This can be used for selecting representative headers from identical sequences.",
                         required=False,
                         default=None)
+    optopt.add_argument("--fast",
+                        help="A flag indicating the tree should be built rapidly, using FastTree.",
+                        required=False,
+                        action="store_true", default=False)
     optopt.add_argument("-b", "--bootstraps",
                         help="The number of bootstrap replicates RAxML should perform\n"
                              "[ DEFAULT = autoMR ]",
@@ -1183,8 +1187,8 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
         tree = re.sub('\(' + mltree_id_key + "_" + code_name, '(' + fasta_replace_dict[mltree_id_key].organism, tree)
         tree = re.sub(',' + mltree_id_key + "_" + code_name, ',' + fasta_replace_dict[mltree_id_key].organism, tree)
 
-    raxml_out = os.path.dirname(bipart_tree)
-    annotated_tree_name = raxml_out + os.sep + "RAxML_bipartitions_annotated." + code_name
+    tree_output_dir = os.path.dirname(bipart_tree)
+    annotated_tree_name = tree_output_dir + os.sep + "RAxML_bipartitions_annotated." + code_name
     try:
         annotated_tree = open(annotated_tree_name, 'w')
     except IOError:
@@ -1291,6 +1295,82 @@ def arrange_header_numeric_identifiers(header_registry, fasta_replace_dict):
             sys.stderr.write("ERROR: Unable to map " + accession + " to an accession in the header_registry!\n")
             sys.exit(17)
     return rearranged_header_registry
+
+
+def construct_tree(args, multiple_alignment_file):
+    """
+    Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
+    :param args:
+    :param multiple_alignment_file:
+    :return:
+    """
+    tree_output_dir = args.output_dir + args.code_name + "_phy_files"
+
+    # Decide on the command to build the tree, make some directories and files when necessary
+    if args.fast:
+        tree_build_cmd = [args.executables["FastTree"]]
+        if args.molecule == "rrna" or args.molecule == "dna":
+            tree_build_cmd += ["-nt", "-gtr"]
+        else:
+            tree_build_cmd += ["-lg", "-wag"]
+        tree_build_cmd += ["-out", tree_output_dir + os.sep + args.code_name + "_tree.txt"]
+        tree_build_cmd.append(multiple_alignment_file)
+        tree_builder = "FastTree"
+    else:
+        tree_build_cmd = [args.executables["raxmlHPC"]]
+        tree_build_cmd += ["-f", "a"]
+        tree_build_cmd += ["-p", "12345"]
+        tree_build_cmd += ["-x", "12345"]
+        tree_build_cmd += ["-#", args.bootstraps]
+        tree_build_cmd += ["-s", multiple_alignment_file]
+        tree_build_cmd += ["-n", args.code_name]
+        tree_build_cmd += ["-w", tree_output_dir]
+        tree_build_cmd += ["-T", args.num_threads]
+
+        if args.raxml_model:
+            tree_build_cmd += ["-m", args.raxml_model]
+        elif args.molecule == "prot":
+            tree_build_cmd += ["-m", "PROTGAMMAAUTO"]
+        elif args.molecule == "rrna" or args.molecule == "dna":
+            tree_build_cmd += ["-m", "GTRGAMMA"]
+        else:
+            sys.exit(
+                "ERROR: a substitution model could not be specified with the 'molecule' argument: " + args.molecule)
+        tree_builder = "RAxML"
+
+    # Ensure the tree from a previous run isn't going to be over-written
+    if not os.path.exists(tree_output_dir):
+        os.system("mkdir %s" % tree_output_dir)
+    else:
+        sys.stderr.write("ERROR: " + tree_output_dir + " already exists from a previous run! "
+                                                       "Please delete or rename it and try again.\n")
+        sys.exit()
+
+    if args.fast:
+        sys.stdout.write("Building Approximately-Maximum-Likelihood tree with FastTree... ")
+        stdout, returncode = launch_write_command(tree_build_cmd, True)
+        with open(tree_output_dir + os.sep + "FastTree_info." + args.code_name, 'w') as fast_info:
+            fast_info.write(stdout + "\n")
+        sys.stdout.write("done.\n")
+        sys.stdout.flush()
+    else:
+        stdout, returncode = launch_write_command(tree_build_cmd, False)
+
+    if returncode != 0:
+        sys.stderr.write("ERROR: " + tree_builder + " did not complete successfully! "
+                         "Look in " + tree_output_dir + os.sep +
+                         tree_builder + "_info." + args.code_name + " for an error message.\n")
+        sys.stderr.write(tree_builder + " command used:\n")
+        sys.stderr.write(' '.join(tree_build_cmd) + "\n")
+        sys.exit(3)
+
+    if not args.fast:
+        tree_to_swap = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
+        final_mltree = "%s_tree.txt" % args.code_name
+        os.system("mv %s %s" % (multiple_alignment_file, tree_output_dir))
+        swap_tree_names(tree_to_swap, final_mltree, args.code_name)
+
+    return tree_output_dir
 
 
 def reverse_complement(rrna_sequence):
@@ -1533,53 +1613,14 @@ def main():
 
         sys.stdout.write("******************** HMM file for %s generated ********************\n" % code_name)
 
-    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.treesapp, multiple_alignment_fasta)
+    # Create the Phylip multiple alignment file
+    phylip_command = "java -cp %s/sub_binaries/readseq.jar run -a -f=12 %s" % (args.treesapp,
+                                                                               multiple_alignment_fasta)
     os.system(phylip_command)
-
-    phylip_file = args.output_dir + code_name + ".phy"
+    phylip_file = args.output_dir + args.code_name + ".phy"
     os.rename(multiple_alignment_fasta + ".phylip", phylip_file)
 
-    raxml_out = args.output_dir + code_name + "_phy_files"
-
-    if not os.path.exists(raxml_out):
-        os.system("mkdir %s" % raxml_out)
-    else:
-        sys.stderr.write("ERROR: " + raxml_out + " already exists from a previous run! "
-                                                 "Please delete or rename it and try again.\n")
-        sys.exit()
-
-    raxml_command = [args.executables["raxmlHPC"]]
-    raxml_command += ["-f", "a"]
-    raxml_command += ["-p", "12345"]
-    raxml_command += ["-x", "12345"]
-    raxml_command += ["-#", args.bootstraps]
-    raxml_command += ["-s", phylip_file]
-    raxml_command += ["-n", code_name]
-    raxml_command += ["-w", raxml_out]
-    raxml_command += ["-T", args.num_threads]
-
-    if args.raxml_model:
-        raxml_command += ["-m", args.raxml_model]
-    elif args.molecule == "prot":
-        raxml_command += ["-m", "PROTGAMMAAUTO"]
-    elif args.molecule == "rrna" or args.molecule == "dna":
-        raxml_command += ["-m", "GTRGAMMA"]
-    else:
-        sys.exit("ERROR: a substitution model could not be specified with the 'molecule' argument: " + args.molecule)
-
-    stdout, raxml_returncode = launch_write_command(raxml_command, False)
-
-    if raxml_returncode != 0:
-        sys.stderr.write("ERROR: RAxML did not complete successfully! "
-                         "Look in " + args.treesapp + raxml_out + os.sep +
-                         "RAxML_info." + code_name + " for an error message.\n")
-        sys.stderr.write("RAxML command used:\n")
-        sys.stderr.write(' '.join(raxml_command) + "\n")
-        sys.exit(3)
-
-    tree_to_swap = "%s/RAxML_bestTree.%s" % (raxml_out, code_name)
-    final_mltree = "%s_tree.txt" % code_name
-    os.system("mv %s %s" % (phylip_file, raxml_out))
+    tree_output_dir = construct_tree(args, phylip_file)
 
     if os.path.exists(fasta_replaced_file):
         os.remove(fasta_replaced_file)
@@ -1588,16 +1629,20 @@ def main():
     if os.path.exists(final_output_folder + "fasta_reader_log.txt"):
         os.remove(final_output_folder + "fasta_reader_log.txt")
 
-    swap_tree_names(tree_to_swap, final_mltree, code_name)
-
     # Move the FASTA file to the final output directory
     os.system("mv %s.fa %s" % (args.output_dir + code_name, final_output_folder))
     # Move the tax_ids and tree file to the final output directory
-    os.system("mv %s %s %s" % (tree_taxa_list, final_mltree, final_output_folder))
+    os.system("mv %s %s_tree.txt %s" % (tree_taxa_list, args.code_name, final_output_folder))
 
-    annotate_partition_tree(code_name, fasta_replace_dict, raxml_out + os.sep + "RAxML_bipartitions." + code_name)
-    aa_model = find_model_used(raxml_out + os.sep + "RAxML_info." + code_name)
-    update_build_parameters(args, code_name, aa_model, lowest_reliable_rank)
+    if args.fast:
+        if args.molecule == "prot":
+            model = "lg"
+        else:
+            model = "gtrgamma"
+    else:
+        annotate_partition_tree(code_name, fasta_replace_dict, tree_output_dir + os.sep + "RAxML_bipartitions." + code_name)
+        model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + code_name)
+    update_build_parameters(args, code_name, model, lowest_reliable_rank)
 
     sys.stdout.write("Data for " + code_name + " has been generated successfully.\n")
     terminal_commands(final_output_folder, code_name)
