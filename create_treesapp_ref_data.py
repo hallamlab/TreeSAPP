@@ -1571,7 +1571,10 @@ def main():
         mafft_align_command = [args.executables["mafft"]]
         mafft_align_command += ["--maxiterate", str(1000)]
         mafft_align_command += ["--thread", str(args.num_threads)]
-        mafft_align_command.append("--localpair")
+        if args.fast:
+            mafft_align_command.append("--auto")
+        else:
+            mafft_align_command.append("--localpair")
         mafft_align_command += [fasta_replaced_file + '>' + fasta_replaced_align]
 
         stdout, muscle_pro_returncode = launch_write_command(mafft_align_command, False)
