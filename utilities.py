@@ -181,11 +181,18 @@ def prep_for_entrez_query():
 def parse_lineage_from_record(record):
     accession = ""
     lineage = ""
+    versioned = ""
+    accession_keys = ["GBSeq_locus", "GBSeq_primary-accession"]
+    version_keys = ["GBInterval_accession", "GBSeq_accession-version"]
     if len(record) >= 1:
         try:
-            for accession_key in ["GBSeq_primary-accession", "GBInterval_accession"]:
+            for accession_key in accession_keys:
                 if accession_key in record:
                     accession = record[accession_key]
+                    break
+            for version_key in version_keys:
+                if version_key in record:
+                    versioned = record[version_key]
                     break
             if "GBSeq_organism" in record:
                 organism = record["GBSeq_organism"]
@@ -199,7 +206,7 @@ def parse_lineage_from_record(record):
     else:
         # Lineage is already set to "". Just return and move on to the next attempt
         pass
-    return accession, lineage
+    return accession, versioned, lineage
 
 
 def get_multiple_lineages(search_term_list, molecule_type):
@@ -211,6 +218,7 @@ def get_multiple_lineages(search_term_list, molecule_type):
     :return: A dictionary mapping accession IDs (keys) to lineages (values)
     """
     accession_lineage_map = dict()
+    all_accessions = set()
     if not search_term_list:
         raise AssertionError("ERROR: search_term for Entrez query is empty!\n")
     if float(Bio.__version__) < 1.68:
@@ -236,9 +244,10 @@ def get_multiple_lineages(search_term_list, molecule_type):
     handle = Entrez.efetch(db=database, id=','.join([str(sid) for sid in search_term_list]), retmode="xml")
     records = Entrez.read(handle)
     for record in records:
-        accession, lineage = parse_lineage_from_record(record)
-        accession_lineage_map[accession] = lineage
-    return accession_lineage_map
+        accession, versioned, lineage = parse_lineage_from_record(record)
+        accession_lineage_map[(accession, versioned)] = lineage
+        all_accessions.update([accession, versioned])
+    return accession_lineage_map, all_accessions
 
 
 def check_lineage(lineage, organism_name):

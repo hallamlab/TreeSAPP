@@ -1011,7 +1011,7 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
             sys.stderr.write("WARNING: no accession available for Entrez query:\n")
             reference_sequence.get_info()
     # Query the Entrez server using Entrez.efetch
-    accession_lineage_map = get_multiple_lineages(accession_query_list, molecule)
+    accession_lineage_map, all_accessions = get_multiple_lineages(accession_query_list, molecule)
 
     sys.stdout.write("done.\n")
     sys.stdout.flush()
@@ -1023,19 +1023,23 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
     sys.stdout.write("\b" * (progress_bar_width + 3))
     sys.stdout.flush()
 
-    # Find the lineage searches that failed and recover using a more careful approach
+    # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identifed
     for mltree_id_key in fasta_replace_dict.keys():
         reference_sequence = fasta_replace_dict[mltree_id_key]
-        if reference_sequence.accession in accession_lineage_map.keys():
-            if accession_lineage_map[reference_sequence.accession] != "":
-                reference_sequence.lineage = accession_lineage_map[reference_sequence.accession]
-                acc += 1.0
-                if acc >= step_proportion:
-                    acc -= step_proportion
-                    sys.stdout.write("-")
-                    sys.stdout.flush()
-            else:
-                failed_accession_queries.append(reference_sequence)
+        if reference_sequence.accession in all_accessions:
+            for tuple_key in accession_lineage_map:
+                accession, versioned = tuple_key
+                if reference_sequence.accession == accession or reference_sequence.accession == versioned:
+                    if accession_lineage_map[tuple_key] == "":
+                        failed_accession_queries.append(reference_sequence)
+                    else:
+                        # The query was successful! Add it and increment
+                        reference_sequence.lineage = accession_lineage_map[tuple_key]
+                        acc += 1.0
+                        if acc >= step_proportion:
+                            acc -= step_proportion
+                            sys.stdout.write("-")
+                            sys.stdout.flush()
     # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
     # Failing this, lineages will be set to "Unclassified"
     if len(failed_accession_queries) > 0:
@@ -1515,6 +1519,7 @@ def main():
             if formatted_header not in fasta_dict:
                 # Add the missing sequence to fasta_dict and header_registry
                 fasta_dict[formatted_header] = important_seqs[formatted_header]
+                # Search for the numeric key for the header to be added in dictionary of important headers
                 new_header = ""
                 for seq_acc in important_headers:
                     if important_headers[seq_acc].formatted == formatted_header:
