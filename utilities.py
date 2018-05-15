@@ -167,6 +167,149 @@ def query_entrez_taxonomy(search_term):
     return lineage
 
 
+def prep_for_entrez_query():
+    Entrez.email = "c.morganlang@gmail.com"
+    Entrez.tool = "treesapp"
+    # Test the internet connection:
+    try:
+        Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
+    except error.URLError:
+        raise AssertionError("ERROR: Unable to serve Entrez query. Are you connected to the internet?")
+    return
+
+
+def parse_lineage_from_record(record):
+    accession = ""
+    lineage = ""
+    if len(record) >= 1:
+        try:
+            for accession_key in ["GBSeq_primary-accession", "GBInterval_accession"]:
+                if accession_key in record:
+                    accession = record[accession_key]
+                    break
+            if "GBSeq_organism" in record:
+                organism = record["GBSeq_organism"]
+                # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
+                organism = re.sub('[)(\[\]]', '', organism)
+                lineage = query_entrez_taxonomy(organism)
+        except IndexError:
+            for word in record['QueryTranslation']:
+                lineage = query_entrez_taxonomy(word)
+                print(lineage)
+    else:
+        # Lineage is already set to "". Just return and move on to the next attempt
+        pass
+    return accession, lineage
+
+
+def get_multiple_lineages(search_term_list, molecule_type):
+    """
+
+    :param search_term_list:
+    :param molecule_type: "dna", "rrna", "prot", or "tax - parsed from command line arguments
+    :return: string representing the taxonomic lineage
+    :return: A dictionary mapping accession IDs (keys) to lineages (values)
+    """
+    accession_lineage_map = dict()
+    if not search_term_list:
+        raise AssertionError("ERROR: search_term for Entrez query is empty!\n")
+    if float(Bio.__version__) < 1.68:
+        # This is required due to a bug in earlier versions returning a URLError
+        raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
+                             str(Bio.__version__) + " is currently installed. Exiting now...")
+
+    # Do some semi-important stuff
+    prep_for_entrez_query()
+
+    # Determine which database to search using the `molecule_type`
+    if molecule_type == "dna" or molecule_type == "rrna" or molecule_type == "ambig":
+        database = "nucleotide"
+    elif molecule_type == "prot":
+        database = "protein"
+    elif molecule_type == "tax":
+        database = "Taxonomy"
+    else:
+        sys.stderr.write("Welp. We're not sure how but the molecule type is not recognized!\n")
+        sys.stderr.write("Please create an issue on the GitHub page.")
+        sys.exit(8)
+
+    handle = Entrez.efetch(db=database, id=','.join([str(sid) for sid in search_term_list]), retmode="xml")
+    records = Entrez.read(handle)
+    for record in records:
+        accession, lineage = parse_lineage_from_record(record)
+        accession_lineage_map[accession] = lineage
+    return accession_lineage_map
+
+
+def check_lineage(lineage, organism_name):
+    """
+    Sometimes the NCBI lineage is incomplete.
+    Currently, this function uses organism_name to ideally add Species to the lineage
+    :param lineage: A semi-colon separated taxonomic lineage
+    :param organism_name: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
+    :return: A string with lineage information
+    """
+    proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
+    if proper_species_re.match(lineage.split("; ")[-1]):
+        return lineage
+    elif len(lineage.split("; ")) == 7 and proper_species_re.match(organism_name):
+        return lineage + "; " + organism_name
+    else:
+        return lineage
+
+
+def get_lineage_robust(reference_sequence_list, molecule):
+    accession_lineage_map = dict()
+
+    for reference_sequence in reference_sequence_list:
+        strikes = 0
+        lineage = ""
+        while strikes < 3:
+            if strikes == 0:
+                if reference_sequence.accession:
+                    lineage = get_lineage(reference_sequence.accession, molecule)
+                else:
+                    sys.stderr.write("WARNING: no accession available for Entrez query:\n")
+                    reference_sequence.get_info()
+                if type(lineage) is str and len(lineage) > 0:
+                    # The query was successful
+                    strikes = 3
+            elif strikes == 1:
+                # Unable to determine lineage from the search_term provided,
+                # try to parse organism name from description
+                if reference_sequence.organism:
+                    try:
+                        taxon = ' '.join(reference_sequence.organism.split('_')[:2])
+                    except IndexError:
+                        taxon = reference_sequence.organism
+                    lineage = get_lineage(taxon, "tax")
+                    if type(lineage) is str and len(lineage) > 0:
+                        # The query was successful
+                        # try:
+                        #     lineage += '; ' + reference_sequence.organism.split('_')[-2]
+                        # except IndexError:
+                        #     lineage += '; ' + reference_sequence.organism
+                        strikes = 3
+                else:
+                    # Organism information is not available, time to bail
+                    strikes += 1
+            elif strikes == 2:
+                lineage = get_lineage(lineage, "tax")
+            strikes += 1
+        if not lineage:
+            sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")
+            reference_sequence.get_info()
+            lineage = "Unclassified"
+        # TODO: test this
+        if reference_sequence.organism:
+            lineage = check_lineage(lineage, reference_sequence.organism)
+        else:
+            reference_sequence.organism = reference_sequence.description
+        reference_sequence.lineage = lineage
+        accession_lineage_map[reference_sequence.accession] = lineage
+    return accession_lineage_map
+
+
 def get_lineage(search_term, molecule_type):
     """
     Used to return the NCBI taxonomic lineage of the sequence

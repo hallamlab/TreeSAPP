@@ -15,7 +15,7 @@ try:
 
     from time import gmtime, strftime
 
-    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_lineage, parse_domain_tables
+    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_multiple_lineages, get_lineage_robust, parse_domain_tables
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences
     from classy import ReferenceSequence, Header
     from external_command_interface import launch_write_command
@@ -88,6 +88,10 @@ def get_arguments():
                                  "[ DEFAULT is no filter ]",
                             default="",
                             required=False)
+    seqop_args.add_argument("-g", "--guarantee",
+                            help="A FASTA file that need to be included in the tree after all clustering and filtering",
+                            default=None,
+                            required=False)
 
     optopt = parser.add_argument_group("Optional options")
     optopt.add_argument("-u", "--uc",
@@ -113,6 +117,10 @@ def get_arguments():
                         help="Path to a directory for all outputs [ DEFAULT = ./ ]",
                         default="./",
                         required=False)
+    optopt.add_argument("-n", "--taxa_norm",
+                        help="BETA: Perform taxonomic normalization on the provided sequences.\n"
+                             "A comma-separated argument with the Rank (e.g. Phylum) and\n"
+                             "number of representatives is required.\n")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument("-h", "--help",
@@ -963,23 +971,6 @@ def summarize_reference_taxa(reference_dict):
     return
 
 
-def check_lineage(lineage, organism_name):
-    """
-    Sometimes the NCBI lineage is incomplete.
-    Currently, this function uses organism_name to ideally add Species to the lineage
-    :param lineage: A semi-colon separated taxonomic lineage
-    :param organism_name: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
-    :return: A string with lineage information
-    """
-    proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
-    if proper_species_re.match(lineage.split("; ")[-1]):
-        return lineage
-    elif len(lineage.split("; ")) == 7 and proper_species_re.match(organism_name):
-        return lineage + "; " + organism_name
-    else:
-        return lineage
-
-
 def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
     """
     Write the number, organism and accession ID, if possible
@@ -1001,73 +992,70 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
         progress_bar_width = num_reference_sequences
         step_proportion = 1
 
+    acc = 0.0
+
+    taxa_searched = 0
+    tree_taxa_string = ""
+    accession_query_list = list()
+    failed_accession_queries = list()
+
+    # Load the list of accessions that need to be queried
+    for mltree_id_key in fasta_replace_dict.keys():
+        reference_sequence = fasta_replace_dict[mltree_id_key]
+        if reference_sequence.lineage:
+            taxa_searched += 1
+            continue
+        if reference_sequence.accession:
+            accession_query_list.append(reference_sequence.accession)
+        else:
+            sys.stderr.write("WARNING: no accession available for Entrez query:\n")
+            reference_sequence.get_info()
+    # Query the Entrez server using Entrez.efetch
+    accession_lineage_map = get_multiple_lineages(accession_query_list, molecule)
+
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+    taxa_searched += len(accession_lineage_map.keys())
+
+    sys.stdout.write("Loading and quality-controlling Entrez data:\n")
     sys.stdout.write("[%s ]" % (" " * progress_bar_width))
     sys.stdout.write("%")
     sys.stdout.write("\b" * (progress_bar_width + 3))
     sys.stdout.flush()
 
-    acc = 0.0
-
-    taxa_searched = 0
-    tree_taxa_string = ""
+    # Find the lineage searches that failed and recover using a more careful approach
     for mltree_id_key in fasta_replace_dict.keys():
         reference_sequence = fasta_replace_dict[mltree_id_key]
-        acc += 1.0
-        if acc >= step_proportion:
-            acc -= step_proportion
-            sys.stdout.write("-")
-            sys.stdout.flush()
-
-        taxa_searched += 1
-        if reference_sequence.lineage:
-            continue
-
-        lineage = ""
-        strikes = 0
-        while strikes < 3:
-            if strikes == 0:
-                if reference_sequence.accession:
-                    lineage = get_lineage(reference_sequence.accession, molecule)
+        if reference_sequence.accession in accession_lineage_map.keys():
+            if accession_lineage_map[reference_sequence.accession] != "":
+                reference_sequence.lineage = accession_lineage_map[reference_sequence.accession]
+                acc += 1.0
+                if acc >= step_proportion:
+                    acc -= step_proportion
+                    sys.stdout.write("-")
+                    sys.stdout.flush()
+            else:
+                failed_accession_queries.append(reference_sequence)
+    # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
+    # Failing this, lineages will be set to "Unclassified"
+    if len(failed_accession_queries) > 0:
+        accession_lineage_map = get_lineage_robust(failed_accession_queries, molecule)
+        for mltree_id_key in fasta_replace_dict.keys():
+            reference_sequence = fasta_replace_dict[mltree_id_key]
+            if not reference_sequence.lineage and reference_sequence.accession in accession_lineage_map.keys():
+                if accession_lineage_map[reference_sequence.accession] != "":
+                    reference_sequence.lineage = accession_lineage_map[reference_sequence.accession]
+                    acc += 1.0
+                    if acc >= step_proportion:
+                        acc -= step_proportion
+                        sys.stdout.write("-")
+                        sys.stdout.flush()
                 else:
-                    sys.stderr.write("WARNING: no accession available for Entrez query:\n")
+                    sys.stderr.write("ERROR: lineage is '' for " + reference_sequence.accession + ". More info:\n")
                     reference_sequence.get_info()
-                if type(lineage) is str and len(lineage) > 0:
-                    # The query was successful
-                    strikes = 3
-            elif strikes == 1:
-                # Unable to determine lineage from the search_term provided,
-                # try to parse organism name from description
-                if reference_sequence.organism:
-                    try:
-                        taxon = ' '.join(reference_sequence.organism.split('_')[:2])
-                    except IndexError:
-                        taxon = reference_sequence.organism
-                    lineage = get_lineage(taxon, "tax")
-                    if type(lineage) is str and len(lineage) > 0:
-                        # The query was successful
-                        # try:
-                        #     lineage += '; ' + reference_sequence.organism.split('_')[-2]
-                        # except IndexError:
-                        #     lineage += '; ' + reference_sequence.organism
-                        strikes = 3
-                else:
-                    # Organism information is not available, time to bail
-                    strikes += 1
-            elif strikes == 2:
-                lineage = get_lineage(lineage, "tax")
-            strikes += 1
-        if not lineage:
-            sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")
-            fasta_replace_dict[mltree_id_key].get_info()
-            lineage = "Unclassified"
-        # TODO: test this
-        if reference_sequence.organism:
-            lineage = check_lineage(lineage, reference_sequence.organism)
-        else:
-            reference_sequence.organism = reference_sequence.description
-        reference_sequence.lineage = lineage
+                    sys.exit(11)
 
-    sys.stdout.write("] done.\n")
+    sys.stdout.write("]%\n")
     sys.stdout.flush()
 
     if taxa_searched != len(fasta_replace_dict.keys()):
@@ -1308,12 +1296,13 @@ def construct_tree(args, multiple_alignment_file):
 
     # Decide on the command to build the tree, make some directories and files when necessary
     if args.fast:
+        tree_to_swap = tree_output_dir + os.sep + args.code_name + "_tree.txt"
         tree_build_cmd = [args.executables["FastTree"]]
         if args.molecule == "rrna" or args.molecule == "dna":
             tree_build_cmd += ["-nt", "-gtr"]
         else:
             tree_build_cmd += ["-lg", "-wag"]
-        tree_build_cmd += ["-out", tree_output_dir + os.sep + args.code_name + "_tree.txt"]
+        tree_build_cmd += ["-out", tree_to_swap]
         tree_build_cmd.append(multiple_alignment_file)
         tree_builder = "FastTree"
     else:
@@ -1337,6 +1326,7 @@ def construct_tree(args, multiple_alignment_file):
             sys.exit(
                 "ERROR: a substitution model could not be specified with the 'molecule' argument: " + args.molecule)
         tree_builder = "RAxML"
+        tree_to_swap = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
 
     # Ensure the tree from a previous run isn't going to be over-written
     if not os.path.exists(tree_output_dir):
@@ -1348,6 +1338,7 @@ def construct_tree(args, multiple_alignment_file):
 
     if args.fast:
         sys.stdout.write("Building Approximately-Maximum-Likelihood tree with FastTree... ")
+        sys.stdout.flush()
         stdout, returncode = launch_write_command(tree_build_cmd, True)
         with open(tree_output_dir + os.sep + "FastTree_info." + args.code_name, 'w') as fast_info:
             fast_info.write(stdout + "\n")
@@ -1365,10 +1356,10 @@ def construct_tree(args, multiple_alignment_file):
         sys.exit(3)
 
     if not args.fast:
-        tree_to_swap = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
-        final_mltree = "%s_tree.txt" % args.code_name
         os.system("mv %s %s" % (multiple_alignment_file, tree_output_dir))
-        swap_tree_names(tree_to_swap, final_mltree, args.code_name)
+
+    final_mltree = args.output_dir + os.sep + args.code_name + "_tree.txt"
+    swap_tree_names(tree_to_swap, final_mltree, args.code_name)
 
     return tree_output_dir
 
@@ -1511,6 +1502,31 @@ def main():
         header_registry = register_headers(args, get_headers(uclust_prefix + ".fa"))
         args.fasta_input = uclust_prefix + ".fa"
 
+    if args.guarantee:
+        # TODO: Decide on compatibility with args.uc and use_previous_names == 'y' (currently not supported)
+        if not os.path.isfile(args.guarantee):
+            sys.stderr.write("ERROR: file '" + args.guarantee + "' does not exist!\n")
+            sys.exit(3)
+        important_seqs = format_read_fasta(args.guarantee, args.molecule, args)
+        important_headers = register_headers(args, get_headers(args.guarantee))
+
+        # Check to see if any of these sequences are in the final FASTA file to be aligned
+        for formatted_header in important_seqs.keys():
+            if formatted_header not in fasta_dict:
+                # Add the missing sequence to fasta_dict and header_registry
+                fasta_dict[formatted_header] = important_seqs[formatted_header]
+                new_header = ""
+                for seq_acc in important_headers:
+                    if important_headers[seq_acc].formatted == formatted_header:
+                        new_header = important_headers[seq_acc]
+                        break
+                if not new_header:
+                    sys.stderr.write("ERROR: Unable to find '" + formatted_header + "' in header registry!\n")
+                    sys.exit(5)
+                # Find the leaf node number of the last sequence in the header registry, then +1
+                acc = int(sorted(header_registry.keys(), key=int)[-1]) + 1
+                header_registry[str(acc)] = new_header
+
     fasta_replace_dict = dict()
     # The header_registry needs to be re-aligned to the identifiers in the tax_ids file
     # since these were sorted by taxonomic lineage
@@ -1566,6 +1582,7 @@ def main():
         # fasta_dict = format_read_fasta(aligned_fasta, args.molecule, args)
     elif args.multiple_alignment is False:
         sys.stdout.write("Aligning the sequences using MAFFT... ")
+        sys.stdout.flush()
         fasta_replaced_align = args.output_dir + code_name + ".fc.repl.aligned.fasta"
 
         mafft_align_command = [args.executables["mafft"]]
@@ -1575,12 +1592,13 @@ def main():
             mafft_align_command.append("--auto")
         else:
             mafft_align_command.append("--localpair")
-        mafft_align_command += [fasta_replaced_file + '>' + fasta_replaced_align]
+        mafft_align_command += [fasta_replaced_file, '1>' + fasta_replaced_align]
+        mafft_align_command += ["2>", "/dev/null"]
 
-        stdout, muscle_pro_returncode = launch_write_command(mafft_align_command, False)
+        stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
 
-        if muscle_pro_returncode != 0:
-            sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["muscle"] +
+        if mafft_proc_returncode != 0:
+            sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["mafft"] +
                              " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
             sys.exit()
         sys.stdout.write("done.\n")
@@ -1635,7 +1653,8 @@ def main():
     # Move the FASTA file to the final output directory
     os.system("mv %s.fa %s" % (args.output_dir + code_name, final_output_folder))
     # Move the tax_ids and tree file to the final output directory
-    os.system("mv %s %s_tree.txt %s" % (tree_taxa_list, args.code_name, final_output_folder))
+    os.system("mv %s %s" % (tree_taxa_list, final_output_folder))
+    os.rename(args.output_dir + args.code_name + "_tree.txt", final_output_folder + args.code_name + "_tree.txt")
 
     if args.fast:
         if args.molecule == "prot":
