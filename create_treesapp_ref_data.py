@@ -971,17 +971,16 @@ def summarize_reference_taxa(reference_dict):
     return
 
 
-def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
+def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule, log_file_handle):
     """
     Write the number, organism and accession ID, if possible
     :param args: command-line arguments objects, used for screen and filter regex
     :param fasta_replace_dict:
     :param tree_taxa_list: The name of the output file
     :param molecule: "dna", "rrna", or "prot" - parsed from command line arguments
+    :param log_file_handle: A file handler object for the log
     :return:
     """
-    sys.stdout.write("Retrieving lineage information for each reference sequence... ")
-    sys.stdout.flush()
 
     # Prepare for the progress bar
     num_reference_sequences = len(fasta_replace_dict.keys())
@@ -1004,65 +1003,78 @@ def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule):
         reference_sequence = fasta_replace_dict[mltree_id_key]
         if reference_sequence.lineage:
             taxa_searched += 1
+            acc += 1.0
             continue
-        if reference_sequence.accession:
+        elif reference_sequence.accession:
             accession_query_list.append(reference_sequence.accession)
         else:
             sys.stderr.write("WARNING: no accession available for Entrez query:\n")
             reference_sequence.get_info()
     # Query the Entrez server using Entrez.efetch
-    accession_lineage_map, all_accessions = get_multiple_lineages(accession_query_list, molecule)
-
-    sys.stdout.write("done.\n")
-    sys.stdout.flush()
-    taxa_searched += len(accession_lineage_map.keys())
+    log_file_handle.write("Sending " + str(len(accession_query_list)) + " Entrez.efetch queries to NCBI server.\n")
+    accession_lineage_map, all_accessions = get_multiple_lineages(sorted(accession_query_list), molecule, log_file_handle)
 
     sys.stdout.write("Loading and quality-controlling Entrez data:\n")
     sys.stdout.write("[%s ]" % (" " * progress_bar_width))
     sys.stdout.write("%")
     sys.stdout.write("\b" * (progress_bar_width + 3))
+    while acc >= step_proportion:
+        acc -= step_proportion
+        sys.stdout.write("-")
     sys.stdout.flush()
 
-    # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identifed
+    if (len(accession_lineage_map.keys()) + taxa_searched) != len(fasta_replace_dict):
+        # Records were not returned for all sequences. Time to figure out which ones!
+        log_file_handle.write("WARNING: Entrez did not return a record for every accession queried.\n")
+        log_file_handle.write("Don't worry, though. We'll figure out which ones are missing.\n")
+        log_file_handle.write("\tDownloaded\t" + str(len(accession_lineage_map.keys())) + "\n")
+        log_file_handle.write("\tProvided\t" + str(taxa_searched) + "\n")
+        log_file_handle.write("\tTotal\t\t" + str(len(fasta_replace_dict)) + "\n")
+
+    # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
     for mltree_id_key in fasta_replace_dict.keys():
         reference_sequence = fasta_replace_dict[mltree_id_key]
-        if reference_sequence.accession in all_accessions:
-            for tuple_key in accession_lineage_map:
-                accession, versioned = tuple_key
-                if reference_sequence.accession == accession or reference_sequence.accession == versioned:
-                    if accession_lineage_map[tuple_key] == "":
-                        failed_accession_queries.append(reference_sequence)
-                    else:
-                        # The query was successful! Add it and increment
-                        reference_sequence.lineage = accession_lineage_map[tuple_key]
-                        acc += 1.0
-                        if acc >= step_proportion:
-                            acc -= step_proportion
-                            sys.stdout.write("-")
-                            sys.stdout.flush()
+        if not reference_sequence.lineage:
+            if reference_sequence.accession in all_accessions:
+                taxa_searched += 1
+                for tuple_key in accession_lineage_map:
+                    accession, versioned = tuple_key
+                    if reference_sequence.accession == accession or reference_sequence.accession == versioned:
+                        if accession_lineage_map[tuple_key]["lineage"] == "":
+                            failed_accession_queries.append(reference_sequence)
+                        else:
+                            # The query was successful! Add it and increment
+                            reference_sequence.lineage = accession_lineage_map[tuple_key]["lineage"]
+                            acc += 1.0
+                            if acc >= step_proportion:
+                                acc -= step_proportion
+                                sys.stdout.write("-")
+                                sys.stdout.flush()
+            else:
+                failed_accession_queries.append(reference_sequence)
+    # For debugging:
+    # print("Currently searched:", taxa_searched)
+
     # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
-    # Failing this, lineages will be set to "Unclassified"
+    # Failing this, lineages will be set to "Unknown"
     if len(failed_accession_queries) > 0:
-        accession_lineage_map = get_lineage_robust(failed_accession_queries, molecule)
-        for mltree_id_key in fasta_replace_dict.keys():
-            reference_sequence = fasta_replace_dict[mltree_id_key]
-            if not reference_sequence.lineage and reference_sequence.accession in accession_lineage_map.keys():
-                if accession_lineage_map[reference_sequence.accession] != "":
-                    reference_sequence.lineage = accession_lineage_map[reference_sequence.accession]
-                    acc += 1.0
-                    if acc >= step_proportion:
-                        acc -= step_proportion
-                        sys.stdout.write("-")
-                        sys.stdout.flush()
-                else:
-                    sys.stderr.write("ERROR: lineage is '' for " + reference_sequence.accession + ". More info:\n")
-                    reference_sequence.get_info()
-                    sys.exit(11)
+        failed_reference_sequences = get_lineage_robust(failed_accession_queries, molecule)
+        for reference_sequence in failed_reference_sequences:
+            if reference_sequence.lineage != "":
+                acc += 1.0
+                if acc >= step_proportion:
+                    acc -= step_proportion
+                    sys.stdout.write("-")
+            else:
+                log_file_handle.write("WARNING: Unable to determine the taxonomic lineage for " +
+                                      reference_sequence.accession + "\n")
+                reference_sequence.lineage = "Unknown"
+            taxa_searched += 1
 
     sys.stdout.write("]%\n")
     sys.stdout.flush()
 
-    if taxa_searched != len(fasta_replace_dict.keys()):
+    if taxa_searched < len(fasta_replace_dict.keys()):
         sys.stderr.write("ERROR: Not all sequences (" + str(taxa_searched) + '/'
                          + str(len(fasta_replace_dict.keys())) + ") were queried against the NCBI taxonomy database!\n")
         sys.exit(22)
@@ -1558,14 +1570,14 @@ def main():
             sys.exit(2)
         swappers = reformat_headers(swappers)
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers)
-        fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule)
+        fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule, log)
     else:
         if os.path.exists(tree_taxa_list) and use_previous_names == 'y':
             if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
                 raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
         # args.uc is None and use_previous_names == 'n'
         fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry)
-        fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule)
+        fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule, log)
 
     sys.stdout.write("Generated the taxonomic lineage map " + tree_taxa_list + "\n")
 

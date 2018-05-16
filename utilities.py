@@ -7,6 +7,7 @@ import Bio
 from Bio import Entrez
 from urllib import error
 from HMMER_domainTblParser import filter_incomplete_hits, filter_poor_hits, DomainTableParser, format_split_alignments
+import time
 
 from external_command_interface import launch_write_command
 
@@ -126,6 +127,18 @@ class Autovivify(dict):
             return value
 
 
+def multiple_query_entrez_taxonomy(search_term_set):
+    """
+    Function for submitting multiple queries using Entrez.efetch to the 'Taxonomy' database.
+    :param search_term_set: Inputs are a set of organism names (based off their accession records)
+    :return: A dictionary mapping each of the unique organism names in search_term_set to a full taxonomic lineage
+    """
+    search_term_result_map = dict()
+    for search_term in search_term_set:
+        search_term_result_map[search_term] = query_entrez_taxonomy(search_term)
+    return search_term_result_map
+
+
 def query_entrez_taxonomy(search_term):
     handle = Entrez.esearch(db="Taxonomy",
                             term=search_term,
@@ -178,44 +191,87 @@ def prep_for_entrez_query():
     return
 
 
-def parse_lineage_from_record(record):
+def parse_accessions_from_entrez_xml(record):
     accession = ""
-    lineage = ""
     versioned = ""
     accession_keys = ["GBSeq_locus", "GBSeq_primary-accession"]
     version_keys = ["GBInterval_accession", "GBSeq_accession-version"]
+    for accession_key in accession_keys:
+        if accession_key in record:
+            accession = record[accession_key]
+            break
+    for version_key in version_keys:
+        if version_key in record:
+            versioned = record[version_key]
+            break
+    return accession, versioned
+
+
+def parse_organism_from_entrez_xml(record):
+    organism = ""
     if len(record) >= 1:
         try:
-            for accession_key in accession_keys:
-                if accession_key in record:
-                    accession = record[accession_key]
-                    break
-            for version_key in version_keys:
-                if version_key in record:
-                    versioned = record[version_key]
-                    break
+            if "GBSeq_organism" in record:
+                organism = record["GBSeq_organism"]
+                # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
+                organism = re.sub('[)(\[\]]', '', organism)
+        except IndexError:
+            sys.stderr.write("WARNING: 'GBSeq_organism' not found in Entrez record.\n")
+    else:
+        pass
+    return organism
+
+
+def parse_lineage_from_record(record):
+    lineage = ""
+    if len(record) >= 1:
+        try:
             if "GBSeq_organism" in record:
                 organism = record["GBSeq_organism"]
                 # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
                 organism = re.sub('[)(\[\]]', '', organism)
                 lineage = query_entrez_taxonomy(organism)
         except IndexError:
+            sys.stderr.write("WARNING: 'GBSeq_organism' not found in Entrez record.\n")
             for word in record['QueryTranslation']:
                 lineage = query_entrez_taxonomy(word)
                 print(lineage)
     else:
         # Lineage is already set to "". Just return and move on to the next attempt
         pass
-    return accession, versioned, lineage
+    return lineage
 
 
-def get_multiple_lineages(search_term_list, molecule_type):
+def xml_parser(xml_record, term):
+    """
+    Recursive function for parsing individual xml records
+    :param xml_record:
+    :param term:
+    :return:
+    """
+    # TODO: Finish this off - would be great for consistently extracting data from xml
+    value = None
+    if type(xml_record) == str:
+        return value
+    if term not in xml_record.keys():
+        for record in xml_record:
+            value = xml_parser(record, term)
+            if value:
+                return value
+            else:
+                continue
+    else:
+        return xml_record[term]
+    return value
+
+
+def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
     """
 
     :param search_term_list:
     :param molecule_type: "dna", "rrna", "prot", or "tax - parsed from command line arguments
-    :return: string representing the taxonomic lineage
-    :return: A dictionary mapping accession IDs (keys) to lineages (values)
+    :param log_file_handler: A file handler object for the log
+    :return: A dictionary mapping accession IDs (keys) to organisms and lineages (values)
     """
     accession_lineage_map = dict()
     all_accessions = set()
@@ -241,12 +297,63 @@ def get_multiple_lineages(search_term_list, molecule_type):
         sys.stderr.write("Please create an issue on the GitHub page.")
         sys.exit(8)
 
-    handle = Entrez.efetch(db=database, id=','.join([str(sid) for sid in search_term_list]), retmode="xml")
-    records = Entrez.read(handle)
-    for record in records:
-        accession, versioned, lineage = parse_lineage_from_record(record)
-        accession_lineage_map[(accession, versioned)] = lineage
+    sys.stdout.write("Retrieving Entrez " + database + " records for each reference sequence... ")
+    sys.stdout.flush()
+
+    # Must be cautious with this first query since some accessions are not in the Entrez database anymore
+    # and return with `urllib.error.HTTPError: HTTP Error 502: Bad Gateway`
+    master_records = []
+    chunk_size = 60
+    log_file_handler.write("\nEntrez.efetch query time for sequences (minutes:seconds):\n")
+    for i in range(0, len(search_term_list), chunk_size):
+        start_time = time.time()
+        chunk = search_term_list[i:i+chunk_size]
+        try:
+            handle = Entrez.efetch(db=database, id=','.join([str(sid) for sid in chunk]), retmode="xml")
+            # for sid in chunk:
+            #     handle = Entrez.efetch(db=database, id=sid, retmode="xml")
+            master_records += Entrez.read(handle)
+        except:
+            log_file_handler.write("WARNING: Unable to parse XML data from Entrez.efetch! "
+                                   "It is either potentially corrupted or cannot be found in the database.\n")
+            log_file_handler.write("Offending accessions from this batch:\n")
+            for sid in chunk:
+                try:
+                    handle = Entrez.efetch(db=database, id=sid, retmode="xml")
+                    record = Entrez.read(handle)
+                    master_records.append(record[0])
+                except:
+                    log_file_handler.write("\t" + str(sid) + "\n")
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        log_file_handler.write("\t" + str(i) + ' - ' + str(i+chunk_size) + "\t" +
+                               ':'.join([str(minutes), str(round(seconds, 2))]) + "\n")
+
+    sys.stdout.write("done.\n")
+    log_file_handler.write("\n")
+    sys.stdout.write("Retrieving lineage information for each sequence from Entrez... ")
+    sys.stdout.flush()
+
+    unique_organisms = set()
+    # Instantiate the master_records for linking each organism to accessions, and empty fields
+    for record in master_records:
+        accession, versioned = parse_accessions_from_entrez_xml(record)
+        accession_lineage_map[(accession, versioned)] = dict()
+        accession_lineage_map[(accession, versioned)]["organism"] = parse_organism_from_entrez_xml(record)
+        accession_lineage_map[(accession, versioned)]["lineage"] = ""
         all_accessions.update([accession, versioned])
+
+    for tuple_key in accession_lineage_map.keys():
+        unique_organisms.add(accession_lineage_map[tuple_key]["organism"])
+
+    organism_lineage_map = multiple_query_entrez_taxonomy(unique_organisms)
+    for tuple_key in accession_lineage_map:
+        organism_name = accession_lineage_map[tuple_key]["organism"]
+        accession_lineage_map[tuple_key]["lineage"] = organism_lineage_map[organism_name]
+
+    sys.stdout.write("done.\n")
+
     return accession_lineage_map, all_accessions
 
 
@@ -268,7 +375,7 @@ def check_lineage(lineage, organism_name):
 
 
 def get_lineage_robust(reference_sequence_list, molecule):
-    accession_lineage_map = dict()
+    failed_reference_sequences = list()
 
     for reference_sequence in reference_sequence_list:
         strikes = 0
@@ -308,15 +415,15 @@ def get_lineage_robust(reference_sequence_list, molecule):
         if not lineage:
             sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")
             reference_sequence.get_info()
-            lineage = "Unclassified"
+            lineage = ""
         # TODO: test this
         if reference_sequence.organism:
             lineage = check_lineage(lineage, reference_sequence.organism)
         else:
             reference_sequence.organism = reference_sequence.description
         reference_sequence.lineage = lineage
-        accession_lineage_map[reference_sequence.accession] = lineage
-    return accession_lineage_map
+        failed_reference_sequences.append(reference_sequence)
+    return failed_reference_sequences
 
 
 def get_lineage(search_term, molecule_type):
@@ -374,12 +481,9 @@ def get_lineage(search_term, molecule_type):
                             handle = None
                     x += 1
                 if handle is None:
-                    sys.stderr.write("\nERROR: Bad Entrez.efetch request and all back-up searches failed for '" +
-                                     str(search_term) + "'\n")
-                    sys.exit(99)
-            # else:
-            #     sys.stderr.write("\nWARNING: Bad Entrez.efetch request:\n"
-            #                      "id='" + str(search_term) + "' does not exist in database='" + database + "'\n")
+                    # sys.stderr.write("\nWARNING: Bad Entrez.efetch request and all back-up searches failed for '" +
+                    #                  str(search_term) + "'\n")
+                    return lineage
         try:
             record = Entrez.read(handle)
         except UnboundLocalError:
@@ -400,7 +504,7 @@ def get_lineage(search_term, molecule_type):
             pass
     else:
         try:
-            print("Searching taxonomy database for " + search_term)
+            # sys.stderr.write("WARNING: Searching taxonomy database for '" + search_term + "'\n")
             lineage = query_entrez_taxonomy(search_term)
         except UnboundLocalError:
             sys.stderr.write("WARNING: Unable to find Entrez taxonomy using organism name:\n\t")
