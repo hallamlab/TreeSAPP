@@ -190,11 +190,20 @@ def fetch_sequences(args, accessions):
 
         if args.molecule_in == args.seq_out:
             try:
-                handle = Entrez.efetch(db=args.molecule_in, id=str(accession), rettype="fasta", retmode="text")
+                handle = Entrez.efetch(db=args.molecule_in,
+                                       id=str(accession),
+                                       rettype="fasta",
+                                       retmode="text")
             except error.HTTPError:
                 # Accession ID is for another database, so try and find the correct accession
-                genbank_handle = Entrez.efetch(db=alternative_molecule, id=str(accession), rettype="gb", retmode="text")
-                gb_record = genbank_handle.read()
+                try:
+                    genbank_handle = Entrez.efetch(db=alternative_molecule,
+                                                   id=str(accession),
+                                                   rettype="gb",
+                                                   retmode="text")
+                    gb_record = genbank_handle.read()
+                except error.HTTPError:
+                    sys.exit("\nERROR: Unable to fetch information from NCBi for accession: " + str(accession) + "\n")
                 if args.molecule_in == "protein":
                     accession = re.search("protein_id=\"(.*)\"", gb_record).group(1)
                 else:
@@ -217,7 +226,7 @@ def fetch_sequences(args, accessions):
                     sys.stderr.write("\tSequence: " + str(fasta_seq[2]) + "\n")
                     sys.stderr.write("\tRecord: " + str(fasta_seq[3]) + "\n")
             elif fasta_seq == "":
-                sys.stderr.write("Entrez record for " + accession + " is empty! Skiping...\n")
+                sys.stderr.write("Entrez record for " + accession + " is empty! Skipping...\n")
 
         if fasta_seq and fasta_seq[0] == '>':
             fasta_string += fasta_seq.strip() + "\n"

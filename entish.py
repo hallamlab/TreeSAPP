@@ -123,7 +123,6 @@ def read_and_understand_the_reference_tree(reference_tree_file, denominator):
     # Using the C++ _tree_parser extension:
     reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
     reference_tree_assignments = _tree_parser._get_parents_and_children(reference_tree_elements)
-    print(reference_tree_assignments)
     if reference_tree_assignments == "$":
         sys.stderr.write("Poison pill received from " + denominator + "\n")
         sys.stderr.flush()

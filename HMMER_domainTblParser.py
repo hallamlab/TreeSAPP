@@ -88,13 +88,15 @@ class HmmMatch:
 
     def print_info(self):
         sys.stdout.write("Info for " + str(self.orf) + " in " + self.genome + ":\n")
-        sys.stdout.write("\tHMM = " + self.target_hmm + "\n")
+        sys.stdout.write("\tHMM = " + self.target_hmm)
+        sys.stdout.write(", length = " + str(self.hmm_len) + "\n")
         sys.stdout.write("\tSequence length = " + str(self.seq_len) + "\n")
         sys.stdout.write("\tAligned length = " + str(self.end - self.start) + "\n")
         sys.stdout.write("\tAlignment start = " + str(self.start) + ", alignment stop = " + str(self.end) + "\n")
         sys.stdout.write("\tProfile start = " + str(self.pstart) + ", profile stop = " + str(self.pend) + "\n")
         sys.stdout.write("\tNumber " + str(self.num) + " of " + str(self.of) + "\n")
-        sys.stdout.write("\tHMM length = " + str(self.hmm_len) + "\n")
+        sys.stdout.write("\tcE-value = " + str(self.ceval) + "\n")
+        sys.stdout.write("\tacc = " + str(self.acc) + "\n")
         return
 
 
@@ -225,12 +227,16 @@ def scaffold_subalignments(fragmented_alignment_data):
                         if base_aln.num > 1:
                             base_aln.num = min([base_aln.num, projected_aln.num])
                         base_aln.of -= 1
+                        base_aln.ceval = min([base_aln.ceval, projected_aln.ceval])
                         fragmented_alignment_data.pop(j)
                         j -= 1
                 else:
                     pass
             j += 1
         i += 1
+        # # For debugging:
+        # for aln in fragmented_alignment_data:
+        #     aln.print_info()
     return fragmented_alignment_data
 
 
