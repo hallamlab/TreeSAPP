@@ -84,7 +84,7 @@ nosZ	D0601	Nitrous-oxide reductase
 #hao	N0200	hydroxylamine dehydrogenase
 #nxrB	N0301	Nitrite oxidoreductase subunit B
 nifD	N0401	nitrogenase molybdenum-iron protein alpha chain (K02586)
-#nifH	N0402	nitrogenase iron protein NifH (K02588)
+nifH	N0402	nitrogenase iron protein NifH (K02588)
 #hdh	A0000	hydrazine dehydrogenase (hzo)
 #COG1850	P0000	RuBisCO
 #aprAB	U0101	adenosine-5'-phosphosulfate (APS) reductase alpha-beta subunits
