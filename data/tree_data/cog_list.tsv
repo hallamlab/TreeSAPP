@@ -95,6 +95,7 @@ dsrB	S0002	Dissimilatory sulfite reductase beta subunit [EC:1.8.99.5]
 pufMKEG	U0701	Reaction center complex of the purple bacteria
 #bssA	U0801	Benzoylacetate:CoA ligase; Fumarate adding enzymes (bssA-nmsA-assA)
 p_amoA	N0102	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase 
+hzs	A0100	Hydrazine synthase (hzs)
 hzao	A0012	hydrazine dehydrogenase (hzo/hdh) and hydroxylamine dehydrogenase (hao)
 GH36	C0036	CAZy family 36: α-galactosidase (EC 3.2.1.22); α-N-acetylgalactosaminidase (EC 3.2.1.49); stachyose synthase (EC 2.4.1.67); raffinose synthase (EC 2.4.1.82)
 GH31	C0031	Glycoside hydrolase family 31

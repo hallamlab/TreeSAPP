@@ -1,0 +1,44 @@
+1	hydrazine synthase subunit A [Candidatus Brocadia sinica] | KXK32732.1	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Candidatus Brocadiales; Candidatus Brocadiaceae; Candidatus Brocadia
+2	hydrazine synthase subunit A, partial [Candidatus Brocadia fulgida] | AEW50030.1	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Candidatus Brocadiales; Candidatus Brocadiaceae; Candidatus Brocadia
+3	hydrazine synthase subunit A [Candidatus Jettenia asiatica] | AEW50031.1	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Candidatus Brocadiales; Candidatus Brocadiaceae; Candidatus Jettenia
+4	peptidase S24-like domain protein [Candidatus Scalindua sp. husup-a2] | GAX62845.1	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Candidatus Brocadiales; Candidatus Brocadiaceae; Candidatus Scalindua
+5	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61958.1	cellular organisms; Bacteria; environmental samples
+6	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50017.1	cellular organisms; Bacteria; environmental samples
+7	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61946.1	cellular organisms; Bacteria; environmental samples
+8	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50007.1	cellular organisms; Bacteria; environmental samples
+9	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61971.1	cellular organisms; Bacteria; environmental samples
+10	hydrazine synthase subunit A, partial [anaerobic ammonium-oxidizing bacterium enrichment culture] | ALI93542.1	cellular organisms; Bacteria; environmental samples
+11	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone cc30A_22d] | AEW49994.1	cellular organisms; Bacteria; environmental samples
+12	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50008.1	cellular organisms; Bacteria; environmental samples
+13	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61959.1	cellular organisms; Bacteria; environmental samples
+14	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone BS11] | AEW50004.1	cellular organisms; Bacteria; environmental samples
+15	hydrazine synthase subunit A, partial [anaerobic ammonium-oxidizing bacterium enrichment culture] | ALI93539.1	cellular organisms; Bacteria; environmental samples
+16	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone BS6] | AEW50002.1	cellular organisms; Bacteria; environmental samples
+17	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone BS10] | AEW50003.1	cellular organisms; Bacteria; environmental samples
+18	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61968.1	cellular organisms; Bacteria; environmental samples
+19	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61956.1	cellular organisms; Bacteria; environmental samples
+20	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61955.1	cellular organisms; Bacteria; environmental samples
+21	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61951.1	cellular organisms; Bacteria; environmental samples
+22	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone BS18] | AEW50005.1	cellular organisms; Bacteria; environmental samples
+23	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61948.1	cellular organisms; Bacteria; environmental samples
+24	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61945.1	cellular organisms; Bacteria; environmental samples
+25	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61966.1	cellular organisms; Bacteria; environmental samples
+26	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61965.1	cellular organisms; Bacteria; environmental samples
+27	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61954.1	cellular organisms; Bacteria; environmental samples
+28	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61957.1	cellular organisms; Bacteria; environmental samples
+29	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AKD44178.1	cellular organisms; Bacteria; environmental samples
+30	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50014.1	cellular organisms; Bacteria; environmental samples
+31	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone cc2B_139d] | AEW50001.1	cellular organisms; Bacteria; environmental samples
+32	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61963.1	cellular organisms; Bacteria; environmental samples
+33	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone BS23] | AEW50006.1	cellular organisms; Bacteria; environmental samples
+34	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50016.1	cellular organisms; Bacteria; environmental samples
+35	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50015.1	cellular organisms; Bacteria; environmental samples
+36	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50013.1	cellular organisms; Bacteria; environmental samples
+37	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61952.1	cellular organisms; Bacteria; environmental samples
+38	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone cc5B_87d] | AEW50000.1	cellular organisms; Bacteria; environmental samples
+39	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61967.1	cellular organisms; Bacteria; environmental samples
+40	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50027.1	cellular organisms; Bacteria; environmental samples
+41	hydrazine synthase subunit A, partial [anammox bacterium enrichment culture clone cc4A_87d] | AEW49996.1	cellular organisms; Bacteria; environmental samples
+42	hydrazine synthase subunit A, partial [uncultured anaerobic ammonium-oxidizing bacterium] | AEW50012.1	cellular organisms; Bacteria; environmental samples
+43	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61973.1	cellular organisms; Bacteria; environmental samples
+44	hydrazine synthase subunit A, partial [uncultured bacterium] | ATP61950.1	cellular organisms; Bacteria; environmental samples
