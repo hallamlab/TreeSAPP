@@ -27,7 +27,7 @@ try:
     from os.path import isfile, join
     from time import gmtime, strftime
 
-    from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string, parse_domain_tables
+    from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string, parse_domain_tables, reformat_string
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild
     from fasta import format_read_fasta, get_headers, write_new_fasta
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree
@@ -779,8 +779,8 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict, cog_list):
             except IOError:
                 sys.stderr.write('Can\'t create ' + marker_query_fa + '\n')
                 sys.exit(0)
-            sequence = fasta_dict['>' + hmm_match.orf][hmm_match.start-1:hmm_match.end]
-            fprintf(outfile, '>query\n%s', sequence)
+            full_sequence = fasta_dict[reformat_string('>' + hmm_match.orf + '_' + hmm_match.desc)]
+            fprintf(outfile, '>query\n%s', full_sequence[hmm_match.start-1:hmm_match.end])
             outfile.close()
 
             # Now for the header format to be used in the bulk FASTA:
@@ -788,7 +788,7 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict, cog_list):
             bulk_header = '>' + hmm_match.orf + '|' +\
                           hmm_match.target_hmm + '|' +\
                           str(hmm_match.start) + '_' + str(hmm_match.end)
-            marker_gene_dict[marker][bulk_header] = fasta_dict['>' + hmm_match.orf]
+            marker_gene_dict[marker][bulk_header] = full_sequence
     sys.stdout.write("done.\n")
 
     # Now write a single FASTA file with all identified markers
