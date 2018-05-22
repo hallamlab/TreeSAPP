@@ -1,0 +1,303 @@
+1	Archaeoglobus fulgidus | AEY99618	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus fulgidus
+2	Archaeoglobus profundus DSM 5631 | ADB57212	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus profundus
+3	Archaeoglobus sulfaticallidus PM70-1 | AGK60920	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus sulfaticallidus
+4	Archaeoglobus veneficus SNP6 | AEA47941	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus veneficus
+5	Chlorobium chlorochromatii CaD3 | ABB29203	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Chlorobi; Chlorobia; Chlorobiales; Chlorobiaceae; Chlorobium/Pelodictyon group; Chlorobium; Chlorobium chlorochromatii
+6	Chlorobium phaeobacteroides BS1 | ACE04773	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Chlorobi; Chlorobia; Chlorobiales; Chlorobiaceae; Chlorobium/Pelodictyon group; Chlorobium; Chlorobium phaeobacteroides
+7	Prosthecochloris vibrioformis | BAJ17556	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Chlorobi; Chlorobia; Chlorobiales; Chlorobiaceae; Prosthecochloris
+8	Gemmatimonas sp. SG8_17 | KPJ93666	cellular organisms; Bacteria; FCB group; Gemmatimonadetes; Gemmatimonadetes; Gemmatimonadales; Gemmatimonadaceae; Gemmatimonas
+9	Thermodesulfovibrio aggregans | GAQ94481	cellular organisms; Bacteria; Nitrospirae; Nitrospira; Nitrospirales; Nitrospiraceae; Thermodesulfovibrio; Thermodesulfovibrio aggregans
+10	Nitrospira bacterium SM23_35 | KPK45187	cellular organisms; Bacteria; Nitrospirae; Nitrospira; unclassified Nitrospira
+11	Nitrospirae bacterium HCH-1 | KWT91779	cellular organisms; Bacteria; Nitrospirae; unclassified Nitrospirae
+12	Acidithiobacillales bacterium SG8_45 | KPK12507	cellular organisms; Bacteria; Proteobacteria; Acidithiobacillia; Acidithiobacillales; unclassified Acidithiobacillales
+13	Magnetococcus marinus MC-1 | ABK44658	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Magnetococcales; Magnetococcaceae; Magnetococcus; Magnetococcus marinus
+14	Rhodomicrobium vannielii ATCC 17100 | ADP69878	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Hyphomicrobiaceae; Rhodomicrobium; Rhodomicrobium vannielii
+15	Ruegeria sp. ZGT118 | KUJ80506	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Ruegeria
+16	Magnetospira sp. QH-2 | CCQ74003	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Magnetospira
+17	Magnetospirillum marisnigri | OAN50577	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Magnetospirillum; Magnetospirillum marisnigri
+18	Burkholderiales bacterium GJ-E10 | BAP87437	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; unclassified Burkholderiales; unclassified Burkholderiales (miscellaneous)
+19	Ferriphaselus amnicola | GAO32864	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Gallionellaceae; Ferriphaselus; Ferriphaselus amnicola
+20	Sulfuricella denitrificans skB26 | BAN36517	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Gallionellaceae; Sulfuricella; Sulfuricella denitrificans
+21	Sulfuritalea hydrogenivorans sk43H | BAO29242	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Sterolibacteriaceae; Sulfuritalea; Sulfuritalea hydrogenivorans
+22	Thiobacillus denitrificans | KVW96767	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Thiobacillaceae; Thiobacillus; Thiobacillus denitrificans
+23	Betaproteobacteria bacterium SG8_41 | KPK18703	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; unclassified Betaproteobacteria; unclassified Betaproteobacteria (miscellaneous)
+24	Acidiferrobacter thiooxydans | OCX43803	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Acidiferrobacterales; Acidiferrobacteraceae; Acidiferrobacter; Acidiferrobacter thiooxydans
+25	Sulfuricaulis limicola | BAV32579	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Acidiferrobacterales; Acidiferrobacteraceae; Sulfuricaulis; Sulfuricaulis limicola
+26	Marichromatium purpuratum 984 | AHF04303	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Marichromatium; Marichromatium purpuratum
+27	Alkalilimnicola ehrlichii MLHE-1 | ABI57000	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Ectothiorhodospiraceae; Alkalilimnicola; Alkalilimnicola ehrlichii
+28	Halorhodospira halophila SL1 | ABM62716	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Ectothiorhodospiraceae; Halorhodospira; Halorhodospira halophila
+29	Thioalkalivibrio nitratireducens DSM 14787 | AGA33429	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Ectothiorhodospiraceae; Thioalkalivibrio; Thioalkalivibrio nitratireducens
+30	Thioalkalivibrio sulfidiphilus HL-EbGr7 | ACL73266	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Ectothiorhodospiraceae; Thioalkalivibrio; Thioalkalivibrio sulfidiphilus
+31	Thioploca ingrica | BAP54909	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Thiotrichaceae; Thioploca; Thioploca ingrica
+32	uncultured gamma proteobacterium | CDL72803	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; environmental samples
+33	Candidatus Thioglobus autotrophicus | ALE52093	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; Candidatus Thioglobus
+34	Sedimenticola thiotaurini | AKH21806	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; Sedimenticola
+35	Thiolapillus brandeum | BAO45370	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; Thiolapillus
+36	Candidatus Desulfofervidus auxilii | AMM41967	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Candidatus Desulfofervidaceae; Candidatus Desulfofervidus
+37	Desulfarculus baarsii DSM 2075 | ADK84329	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfarculales; Desulfarculaceae; Desulfarculus; Desulfarculus baarsii
+38	Desulfocarbo indianensis | KMY67317	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfarculales; Desulfarculaceae; Desulfocarbo
+39	Dethiosulfatarculus sandiegensis | KIX11065	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfarculales; Desulfarculaceae; Dethiosulfatarculus
+40	Candidatus Magnetoglobus multicellularis str. Araruama | ETR70948	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Candidatus Magnetoglobus; Candidatus Magnetoglobus multicellularis
+41	Desulfatibacillum alkenivorans AK-01 | ACL05980	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfatibacillum; Desulfatibacillum alkenivorans
+42	Desulfatiferula olefinivorans | ABH03460	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfatiferula
+43	uncultured Desulfobacterium sp. | CBX29255	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfobacterium; environmental samples
+44	Desulfobacula toluolica Tol2 | CAD29755	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfobacula; Desulfobacula toluolica
+45	Desulfobotulus sapovorans | AAC24110	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfobotulus
+46	Desulfococcus multivorans | AOY59589	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfococcus
+47	Desulfococcus oleovorans Hxd3 | ABW68473	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfococcus; Desulfococcus oleovorans
+48	Desulfofaba gelida | AAK83202	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfofaba
+49	Candidatus Electronema palustris | AMR60625	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Candidatus Electronema
+50	Desulfobulbus propionicus DSM 2032 | ADW19074	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Desulfobulbus; Desulfobulbus propionicus
+51	Desulfocapsa sulfexigens DSM 10523 | AGF78192	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Desulfocapsa; Desulfocapsa sulfexigens
+52	uncultured Desulfofustis sp. PB-SRB1 | ESQ11442	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Desulfofustis; environmental samples
+53	Desulforhopalus vacuolatus | AAK83204	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Desulforhopalus
+54	Desulfotalea psychrophila LSv54 | CAG35527	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Desulfotalea; Desulfotalea psychrophila
+55	Desulfurivibrio alkaliphilus AHT2 | ADH85008	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Desulfurivibrio; Desulfurivibrio alkaliphilus
+56	Desulfobacterales bacterium SG8_35_2 | KPK27003	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; unclassified Desulfobacterales
+57	Desulfohalobium retbaense DSM 5692 | ACV67547	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfohalobiaceae; Desulfohalobium; Desulfohalobium retbaense
+58	Desulfohalophilus alkaliarsenatis | AFJ04155	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfohalobiaceae; Desulfohalophilus
+59	Desulfonatronospira thiodismutans ASO3-1 | EFI33663	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfohalobiaceae; Desulfonatronospira; Desulfonatronospira thiodismutans
+60	Desulfonauticus sp. 38_4375 | KUJ96767	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfohalobiaceae; Desulfonauticus
+61	Desulfomicrobium baculatum DSM 4028 | ACU88407	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfomicrobiaceae; Desulfomicrobium; Desulfomicrobium baculatum
+62	Desulfoplanes formicivorans | GAU08054	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfomicrobiaceae; Desulfoplanes
+63	Desulfonatronum lacustre DSM 10312 | AAL57452	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfonatronaceae; Desulfonatronum; Desulfonatronum lacustre
+64	Bilophila wadsworthia 3_1_6 | EFV44051	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Bilophila; Bilophila wadsworthia
+65	Desulfovibrio cuneatus | BAB55568	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+66	Desulfovibrio desulfuricans subsp. desulfuricans | AAK83200	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+67	Desulfovibrio longus | BAB55574	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+68	Desulfovibrio halophilus | AAQ05952	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+69	Desulfovibrio fairfieldensis | AMD91199	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+70	Desulfovibrio africanus PCS | EMG35958	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio africanus
+71	Desulfovibrio alaskensis G20 | ABB37328	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio alaskensis
+72	Desulfovibrio alkalitolerans DSM 16529 | EPR32899	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio alkalitolerans
+73	Desulfovibrio gigas DSM 1382 = ATCC 19364 | AGW12594	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio gigas
+74	Desulfovibrio magneticus RS-1 | BAH73852	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio magneticus
+75	Desulfovibrio salexigens DSM 2638 | ACS78854	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio salexigens
+76	Desulfovibrio sp. JC271 | OBQ52447	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Halodesulfovibrio
+77	Pseudodesulfovibrio indicus | AMK12841	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Pseudodesulfovibrio
+78	Desulfovibrio piezophilus C1TLV30 | CCH49861	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Pseudodesulfovibrio; Pseudodesulfovibrio piezophilus
+79	Desulfurella acetivorans A63 | AHF97345	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfurellales; Desulfurellaceae; Desulfurella; Desulfurella acetivorans
+80	Desulfobacca acetoxidans DSM 11109 | AEB09471	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophaceae; Desulfobacca; Desulfobacca acetoxidans
+81	Desulfomonile tiedjei DSM 6799 | AFM24266	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophaceae; Desulfomonile; Desulfomonile tiedjei
+82	Desulfovirga adipica | AAK83198	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophobacteraceae; Desulfovirga
+83	Syntrophobacter sp. DG_60 | KPJ63980	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophobacteraceae; Syntrophobacter
+84	Syntrophobacter fumaroxidans MPOB | ABK19709	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophobacteraceae; Syntrophobacter; Syntrophobacter fumaroxidans
+85	Thermodesulforhabdus norvegica | CAC36213	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophobacteraceae; Thermodesulforhabdus
+86	Dissulfuribacter thermophilus | OCC16505	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; Dissulfuribacter; Dissulfuribacter thermophilus
+87	uncultured SAR324 cluster bacterium | AGC09533	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; SAR324 cluster; environmental samples
+88	Deltaproteobacteria bacterium SM23_61 | KPK87764	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; unclassified Deltaproteobacteria (miscellaneous)
+89	delta proteobacterium NaphS2 | EFK09905	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; unclassified Deltaproteobacteria (miscellaneous)
+90	Deltaproteobacteria bacterium SG8_13 | KPJ76947	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; unclassified Deltaproteobacteria (miscellaneous)
+91	Olavius ilvae Delta 3 endosymbiont | AAY97996	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; unclassified Deltaproteobacteria (miscellaneous)
+92	sulfate-reducing bacterium oXyS1 | AAQ05960	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; unclassified Deltaproteobacteria (miscellaneous)
+93	sulfate-reducing bacterium AK-01 | AAK48717	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; unclassified Deltaproteobacteria (miscellaneous)
+94	Coriobacteriaceae bacterium 68-1-3 | AJC12063	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Coriobacteriales; Coriobacteriaceae; unclassified Coriobacteriaceae
+95	Gordonibacter pamelaeae 7-10-1-b | CBL04171	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Gordonibacter; Gordonibacter pamelaeae
+96	Gracilibacter sp. BRH_c7a | KUO62648	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Gracilibacteraceae; Gracilibacter
+97	Candidatus Desulforudis audaxviator MP104C | ACA60687	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Candidatus Desulforudis; Candidatus Desulforudis audaxviator
+98	Desulfitibacter sp. BRH_c19 | KUO52807	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfitibacter
+99	Desulfitobacterium dichloroeliminans LMG P-21439 | AGA67792	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfitobacterium; Desulfitobacterium dichloroeliminans
+100	Desulfosporosinus acididurans | KLU67804	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfosporosinus
+101	Desulfosporosinus meridiei DSM 13257 | AFQ44482	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfosporosinus; Desulfosporosinus meridiei
+102	Desulfotomaculum sp. LMa1 | OAT80833	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum
+103	Desulfotomaculum gibsoniae DSM 7213 | AGL03888	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum gibsoniae
+104	Desulfotomaculum kuznetsovii DSM 6115 | AEG16972	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum kuznetsovii
+105	Desulfotomaculum nigrificans CO-1-SRB | AEF95483	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum nigrificans
+106	Pelotomaculum propionicicum | BAD05998	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Pelotomaculum
+107	anaerobic bacterium sk.prop8 | AAU95494	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; unclassified Peptococcaceae
+108	Peptococcaceae bacterium CEB3 | KLU61520	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; unclassified Peptococcaceae
+109	Syntrophomonas zehnderi OL-4 | CFX70780	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Syntrophomonadaceae; Syntrophomonas; Syntrophomonas zehnderi
+110	Clostridiales bacterium PH28_bin88 | KKM09747	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; unclassified Clostridiales (miscellaneous)
+111	Carboxydothermus hydrogenoformans Z-2901 | ABB15878	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Carboxydothermus; Carboxydothermus hydrogenoformans
+112	Ammonifex degensii KC4 | ACX53170	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella group; Ammonifex; Ammonifex degensii
+113	Moorella thermoacetica | AOQ24331	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella group; Moorella
+114	Moorella sp. 60_41 | KUK12289	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella group; Moorella
+115	Thermodesulfobium narugense DSM 14796 | AEE14983	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermodesulfobiaceae; Thermodesulfobium; Thermodesulfobium narugense
+116	Acetonema longum DSM 6540 | EGO65655	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Acetonema; Acetonema longum
+117	Thermosinus carboxydivorans Nor1 | EAX47853	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Thermosinus; Thermosinus carboxydivorans
+118	Caldimicrobium thiodismutans | BAU22845	cellular organisms; Bacteria; Thermodesulfobacteria; Thermodesulfobacteria; Thermodesulfobacteriales; Thermodesulfobacteriaceae; Caldimicrobium; Caldimicrobium thiodismutans
+119	Thermodesulfatator indicus DSM 15286 | AEH44286	cellular organisms; Bacteria; Thermodesulfobacteria; Thermodesulfobacteria; Thermodesulfobacteriales; Thermodesulfobacteriaceae; Thermodesulfatator; Thermodesulfatator indicus
+120	Thermodesulfobacterium commune | KUK19186	cellular organisms; Bacteria; Thermodesulfobacteria; Thermodesulfobacteria; Thermodesulfobacteriales; Thermodesulfobacteriaceae; Thermodesulfobacterium; Thermodesulfobacterium commune
+121	Thermodesulfobacterium geofontis OPF15 | AEH23487	cellular organisms; Bacteria; Thermodesulfobacteria; Thermodesulfobacteria; Thermodesulfobacteriales; Thermodesulfobacteriaceae; Thermodesulfobacterium; Thermodesulfobacterium geofontis
+122	uncultured bacterium | AAQ56687	cellular organisms; Bacteria; environmental samples
+123	uncultured sulfate-reducing bacterium | ACN81659	cellular organisms; Bacteria; environmental samples
+124	uncultured bacterium | AHK06569	cellular organisms; Bacteria; environmental samples
+125	uncultured sulfate-reducing bacterium | ABK90778	cellular organisms; Bacteria; environmental samples
+126	uncultured sulfate-reducing bacterium | ABK90746	cellular organisms; Bacteria; environmental samples
+127	uncultured bacterium | BAG68271	cellular organisms; Bacteria; environmental samples
+128	uncultured sulfate-reducing bacterium | ABK90766	cellular organisms; Bacteria; environmental samples
+129	uncultured sulfate-reducing bacterium | AHF20350	cellular organisms; Bacteria; environmental samples
+130	uncultured sulfate-reducing bacterium | BAF34626	cellular organisms; Bacteria; environmental samples
+131	uncultured sulfate-reducing bacterium | AAX84573	cellular organisms; Bacteria; environmental samples
+132	uncultured bacterium | AMQ24238	cellular organisms; Bacteria; environmental samples
+133	uncultured sulfate-reducing bacterium | ACN81705	cellular organisms; Bacteria; environmental samples
+134	uncultured sulfate-reducing bacterium | CAL64129	cellular organisms; Bacteria; environmental samples
+135	uncultured sulfate-reducing bacterium | AHF20276	cellular organisms; Bacteria; environmental samples
+136	uncultured sulfate-reducing bacterium | ABK90792	cellular organisms; Bacteria; environmental samples
+137	uncultured sulfate-reducing bacterium | ABK90760	cellular organisms; Bacteria; environmental samples
+138	uncultured sulfate-reducing bacterium | AFH41545	cellular organisms; Bacteria; environmental samples
+139	uncultured sulfate-reducing bacterium | AAX84577	cellular organisms; Bacteria; environmental samples
+140	uncultured bacterium | AFJ15546	cellular organisms; Bacteria; environmental samples
+141	uncultured sulfate-reducing bacterium | AFB35526	cellular organisms; Bacteria; environmental samples
+142	bacterium enrichment culture | AIZ01120	cellular organisms; Bacteria; environmental samples
+143	uncultured sulfate-reducing bacterium | CAJ84881	cellular organisms; Bacteria; environmental samples
+144	uncultured sulfate-reducing bacterium | CAJ84837	cellular organisms; Bacteria; environmental samples
+145	uncultured sulfate-reducing bacterium | AAQ79823	cellular organisms; Bacteria; environmental samples
+146	uncultured sulfate-reducing bacterium | BAD05881	cellular organisms; Bacteria; environmental samples
+147	uncultured sulfate-reducing bacterium | ABK90734	cellular organisms; Bacteria; environmental samples
+148	uncultured bacterium | BAG68269	cellular organisms; Bacteria; environmental samples
+149	uncultured sulfate-reducing bacterium | ABK90762	cellular organisms; Bacteria; environmental samples
+150	uncultured sulfate-reducing bacterium | AHF20252	cellular organisms; Bacteria; environmental samples
+151	uncultured sulfate-reducing bacterium | AHF20284	cellular organisms; Bacteria; environmental samples
+152	uncultured sulfate-reducing bacterium | ABK90722	cellular organisms; Bacteria; environmental samples
+153	uncultured bacterium | AAQ56688	cellular organisms; Bacteria; environmental samples
+154	uncultured sulfate-reducing bacterium | ABK90758	cellular organisms; Bacteria; environmental samples
+155	uncultured sulfate-reducing bacterium | CAJ84877	cellular organisms; Bacteria; environmental samples
+156	uncultured sulfate-reducing bacterium | ABK90724	cellular organisms; Bacteria; environmental samples
+157	uncultured bacterium | EKD36005	cellular organisms; Bacteria; environmental samples
+158	uncultured sulfate-reducing bacterium | ADH43225	cellular organisms; Bacteria; environmental samples
+159	uncultured sulfate-reducing bacterium | AAK61964	cellular organisms; Bacteria; environmental samples
+160	uncultured bacterium | AAQ56686	cellular organisms; Bacteria; environmental samples
+161	uncultured sulfate-reducing bacterium | AAO38157	cellular organisms; Bacteria; environmental samples
+162	uncultured sulfate-reducing bacterium | BAF34630	cellular organisms; Bacteria; environmental samples
+163	uncultured bacterium ws085G8 | AFI78679	cellular organisms; Bacteria; environmental samples
+164	uncultured sulfate-reducing bacterium | AHF20314	cellular organisms; Bacteria; environmental samples
+165	uncultured sulfate-reducing bacterium | AFH41559	cellular organisms; Bacteria; environmental samples
+166	uncultured sulfate-reducing bacterium | BAD05893	cellular organisms; Bacteria; environmental samples
+167	uncultured sulfate-reducing bacterium | AAV68690	cellular organisms; Bacteria; environmental samples
+168	uncultured sulfate-reducing bacterium | ACN81691	cellular organisms; Bacteria; environmental samples
+169	uncultured sulfate-reducing bacterium | ACN81665	cellular organisms; Bacteria; environmental samples
+170	uncultured bacterium | AAX21304	cellular organisms; Bacteria; environmental samples
+171	uncultured sulfate-reducing bacterium | AHF20356	cellular organisms; Bacteria; environmental samples
+172	uncultured sulfate-reducing bacterium | ABK90810	cellular organisms; Bacteria; environmental samples
+173	uncultured sulfate-reducing bacterium | CAL64113	cellular organisms; Bacteria; environmental samples
+174	uncultured sulfate-reducing bacterium | ABK90666	cellular organisms; Bacteria; environmental samples
+175	uncultured bacterium | AHK06645	cellular organisms; Bacteria; environmental samples
+176	uncultured bacterium | ALB34905	cellular organisms; Bacteria; environmental samples
+177	uncultured sulfate-reducing bacterium | CAJ84855	cellular organisms; Bacteria; environmental samples
+178	uncultured sulfate-reducing bacterium | CAJ84847	cellular organisms; Bacteria; environmental samples
+179	uncultured sulfate-reducing bacterium | AHF20288	cellular organisms; Bacteria; environmental samples
+180	uncultured sulfate-reducing bacterium | ABK90750	cellular organisms; Bacteria; environmental samples
+181	uncultured bacterium | AAQ56683	cellular organisms; Bacteria; environmental samples
+182	uncultured sulfate-reducing bacterium | AAO38119	cellular organisms; Bacteria; environmental samples
+183	uncultured bacterium | AHK06571	cellular organisms; Bacteria; environmental samples
+184	uncultured sulfate-reducing bacterium | AFB35501	cellular organisms; Bacteria; environmental samples
+185	uncultured sulfate-reducing bacterium | AAX84575	cellular organisms; Bacteria; environmental samples
+186	uncultured sulfate-reducing bacterium | CAJ31163	cellular organisms; Bacteria; environmental samples
+187	uncultured sulfate-reducing bacterium | CAJ84875	cellular organisms; Bacteria; environmental samples
+188	uncultured sulfate-reducing bacterium | AAY27768	cellular organisms; Bacteria; environmental samples
+189	uncultured sulfate-reducing bacterium | AHF20328	cellular organisms; Bacteria; environmental samples
+190	uncultured bacterium ws633F6 | AFI78583	cellular organisms; Bacteria; environmental samples
+191	uncultured sulfate-reducing bacterium | ACN81679	cellular organisms; Bacteria; environmental samples
+192	uncultured bacterium | AAQ56696	cellular organisms; Bacteria; environmental samples
+193	uncultured bacterium | AAX21289	cellular organisms; Bacteria; environmental samples
+194	uncultured sulfate-reducing bacterium | CAR81716	cellular organisms; Bacteria; environmental samples
+195	uncultured sulfate-reducing bacterium | AFH41555	cellular organisms; Bacteria; environmental samples
+196	uncultured bacterium | AHK06679	cellular organisms; Bacteria; environmental samples
+197	uncultured sulfate-reducing bacterium | AFH41549	cellular organisms; Bacteria; environmental samples
+198	uncultured bacterium | AHK06627	cellular organisms; Bacteria; environmental samples
+199	uncultured sulfate-reducing bacterium | AAK61963	cellular organisms; Bacteria; environmental samples
+200	uncultured sulfate-reducing bacterium | CAJ31125	cellular organisms; Bacteria; environmental samples
+201	uncultured bacterium | AHK06719	cellular organisms; Bacteria; environmental samples
+202	uncultured bacterium | AHK06665	cellular organisms; Bacteria; environmental samples
+203	uncultured bacterium | AMQ24239	cellular organisms; Bacteria; environmental samples
+204	uncultured sulfate-reducing bacterium | ABK90680	cellular organisms; Bacteria; environmental samples
+205	uncultured sulfate-reducing bacterium | ABK90780	cellular organisms; Bacteria; environmental samples
+206	uncultured sulfate-reducing bacterium | AAK61959	cellular organisms; Bacteria; environmental samples
+207	uncultured sulfate-reducing bacterium | ACN81655	cellular organisms; Bacteria; environmental samples
+208	uncultured sulfate-reducing bacterium | ACN81649	cellular organisms; Bacteria; environmental samples
+209	uncultured sulfate-reducing bacterium | AAY27782	cellular organisms; Bacteria; environmental samples
+210	uncultured sulfate-reducing bacterium | ABK90748	cellular organisms; Bacteria; environmental samples
+211	uncultured sulfate-reducing bacterium | ABK90764	cellular organisms; Bacteria; environmental samples
+212	uncultured sulfate-reducing bacterium | AHF20352	cellular organisms; Bacteria; environmental samples
+213	uncultured sulfate-reducing bacterium | ABK90736	cellular organisms; Bacteria; environmental samples
+214	uncultured sulfate-reducing bacterium | AHF20326	cellular organisms; Bacteria; environmental samples
+215	uncultured bacterium | CCH35763	cellular organisms; Bacteria; environmental samples
+216	uncultured bacterium | AAN07087	cellular organisms; Bacteria; environmental samples
+217	uncultured sulfate-reducing bacterium | AHF20258	cellular organisms; Bacteria; environmental samples
+218	uncultured bacterium | AAX21273	cellular organisms; Bacteria; environmental samples
+219	uncultured sulfate-reducing bacterium | ABK90768	cellular organisms; Bacteria; environmental samples
+220	uncultured sulfate-reducing bacterium | ABK90708	cellular organisms; Bacteria; environmental samples
+221	uncultured sulfate-reducing bacterium | CAL64115	cellular organisms; Bacteria; environmental samples
+222	uncultured bacterium | BAG68273	cellular organisms; Bacteria; environmental samples
+223	uncultured sulfate-reducing bacterium | ACN81685	cellular organisms; Bacteria; environmental samples
+224	uncultured sulfate-reducing bacterium | AHF20354	cellular organisms; Bacteria; environmental samples
+225	uncultured sulfate-reducing bacterium | BAE96414	cellular organisms; Bacteria; environmental samples
+226	uncultured sulfate-reducing bacterium | ABK90784	cellular organisms; Bacteria; environmental samples
+227	uncultured sulfate-reducing bacterium | ACN81689	cellular organisms; Bacteria; environmental samples
+228	uncultured bacterium | AHK06700	cellular organisms; Bacteria; environmental samples
+229	uncultured sulfate-reducing bacterium | ADH43226	cellular organisms; Bacteria; environmental samples
+230	uncultured sulfate-reducing bacterium | AAY27772	cellular organisms; Bacteria; environmental samples
+231	uncultured bacterium | AAX21263	cellular organisms; Bacteria; environmental samples
+232	uncultured bacterium | AHK06579	cellular organisms; Bacteria; environmental samples
+233	uncultured bacterium | AHK06653	cellular organisms; Bacteria; environmental samples
+234	uncultured bacterium | AAX21262	cellular organisms; Bacteria; environmental samples
+235	uncultured sulfate-reducing bacterium | AHF20260	cellular organisms; Bacteria; environmental samples
+236	uncultured sulfate-reducing bacterium | BAE96432	cellular organisms; Bacteria; environmental samples
+237	uncultured sulfate-reducing bacterium | AHF20290	cellular organisms; Bacteria; environmental samples
+238	uncultured bacterium | AMQ24242	cellular organisms; Bacteria; environmental samples
+239	uncultured bacterium BAC13K9BAC | AAY89968	cellular organisms; Bacteria; environmental samples
+240	uncultured bacterium | AHK06685	cellular organisms; Bacteria; environmental samples
+241	uncultured sulfate-reducing bacterium | ABO21850	cellular organisms; Bacteria; environmental samples
+242	uncultured bacterium | AAQ56692	cellular organisms; Bacteria; environmental samples
+243	uncultured sulfate-reducing bacterium | AAQ79825	cellular organisms; Bacteria; environmental samples
+244	uncultured bacterium | ACP30527	cellular organisms; Bacteria; environmental samples
+245	uncultured sulfate-reducing bacterium | AFH41547	cellular organisms; Bacteria; environmental samples
+246	uncultured bacterium | AHK06595	cellular organisms; Bacteria; environmental samples
+247	uncultured sulfate-reducing bacterium | ACN81651	cellular organisms; Bacteria; environmental samples
+248	uncultured sulfate-reducing bacterium | ACN81647	cellular organisms; Bacteria; environmental samples
+249	uncultured bacterium | ACQ73026	cellular organisms; Bacteria; environmental samples
+250	uncultured bacterium | BAG68263	cellular organisms; Bacteria; environmental samples
+251	uncultured bacterium | AHK06651	cellular organisms; Bacteria; environmental samples
+252	uncultured bacterium | ACQ73014	cellular organisms; Bacteria; environmental samples
+253	uncultured sulfate-reducing bacterium | ACN81663	cellular organisms; Bacteria; environmental samples
+254	uncultured sulfate-reducing bacterium | ABK90742	cellular organisms; Bacteria; environmental samples
+255	uncultured bacterium | AHK06563	cellular organisms; Bacteria; environmental samples
+256	uncultured sulfate-reducing bacterium | CAJ84885	cellular organisms; Bacteria; environmental samples
+257	uncultured bacterium | AHK06623	cellular organisms; Bacteria; environmental samples
+258	uncultured sulfate-reducing bacterium | AAV68659	cellular organisms; Bacteria; environmental samples
+259	uncultured bacterium | AHK06661	cellular organisms; Bacteria; environmental samples
+260	uncultured sulfate-reducing bacterium | ABK90798	cellular organisms; Bacteria; environmental samples
+261	uncultured sulfate-reducing bacterium | ACN81703	cellular organisms; Bacteria; environmental samples
+262	uncultured sulfate-reducing bacterium | ABO21842	cellular organisms; Bacteria; environmental samples
+263	uncultured sulfate-reducing bacterium | ACN81669	cellular organisms; Bacteria; environmental samples
+264	uncultured sulfate-reducing bacterium | CAJ31213	cellular organisms; Bacteria; environmental samples
+265	uncultured bacterium | AHK06597	cellular organisms; Bacteria; environmental samples
+266	uncultured sulfate-reducing bacterium | ABK90726	cellular organisms; Bacteria; environmental samples
+267	uncultured sulfate-reducing bacterium | AHF20340	cellular organisms; Bacteria; environmental samples
+268	bacterium CSP1-6 | KRT71373	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; Candidatus Rokubacteria
+269	bacterium CSP1-6 | KRT71375	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; Candidatus Rokubacteria
+270	bacterium AR1201 | ABD57229	cellular organisms; Bacteria; unclassified Bacteria; unclassified Bacteria (miscellaneous)
+271	uncultured bacterium | AAQ56682	cellular organisms; Bacteria; unclassified Bacteria; unclassified Bacteria (miscellaneous)
+272	uncultured microorganism | AJA06230	unclassified sequences; environmental samples
+273	uncultured prokaryote | ABD46837	unclassified sequences; environmental samples; prokaryotic environmental samples
+274	uncultured prokaryote | AAO61101	unclassified sequences; environmental samples; prokaryotic environmental samples
+275	uncultured prokaryote | AEZ49840	unclassified sequences; environmental samples; prokaryotic environmental samples
+276	uncultured prokaryote | AAX28857	unclassified sequences; environmental samples; prokaryotic environmental samples
+277	uncultured prokaryote | AAO61115	unclassified sequences; environmental samples; prokaryotic environmental samples
+278	uncultured prokaryote | ABM16941	unclassified sequences; environmental samples; prokaryotic environmental samples
+279	uncultured prokaryote | ABD46881	unclassified sequences; environmental samples; prokaryotic environmental samples
+280	uncultured prokaryote | AEZ49782	unclassified sequences; environmental samples; prokaryotic environmental samples
+281	uncultured prokaryote | ABD46871	unclassified sequences; environmental samples; prokaryotic environmental samples
+282	uncultured prokaryote | AAX28863	unclassified sequences; environmental samples; prokaryotic environmental samples
+283	uncultured prokaryote | AEZ49832	unclassified sequences; environmental samples; prokaryotic environmental samples
+284	uncultured prokaryote | AFI98600	unclassified sequences; environmental samples; prokaryotic environmental samples
+285	uncultured prokaryote | CAY20572	unclassified sequences; environmental samples; prokaryotic environmental samples
+286	uncultured prokaryote | ABD46845	unclassified sequences; environmental samples; prokaryotic environmental samples
+287	uncultured prokaryote | AAO61117	unclassified sequences; environmental samples; prokaryotic environmental samples
+288	uncultured prokaryote | AEK94608	unclassified sequences; environmental samples; prokaryotic environmental samples
+289	uncultured prokaryote | AAX28865	unclassified sequences; environmental samples; prokaryotic environmental samples
+290	uncultured prokaryote | AAO61109	unclassified sequences; environmental samples; prokaryotic environmental samples
+291	uncultured prokaryote | AFI98620	unclassified sequences; environmental samples; prokaryotic environmental samples
+292	uncultured prokaryote | AFI98614	unclassified sequences; environmental samples; prokaryotic environmental samples
+293	uncultured prokaryote | AEK94604	unclassified sequences; environmental samples; prokaryotic environmental samples
+294	uncultured prokaryote | ABD46843	unclassified sequences; environmental samples; prokaryotic environmental samples
+295	uncultured prokaryote | AAY20996	unclassified sequences; environmental samples; prokaryotic environmental samples
+296	uncultured prokaryote | AFI98576	unclassified sequences; environmental samples; prokaryotic environmental samples
+297	uncultured prokaryote | AAX28855	unclassified sequences; environmental samples; prokaryotic environmental samples
+298	uncultured prokaryote | ACI31439	unclassified sequences; environmental samples; prokaryotic environmental samples
+299	uncultured prokaryote | AEK94612	unclassified sequences; environmental samples; prokaryotic environmental samples
+300	uncultured prokaryote | AAO61119	unclassified sequences; environmental samples; prokaryotic environmental samples
+301	mine drainage metagenome | CBI10300	unclassified sequences; metagenomes; ecological metagenomes
+302	marine sediment metagenome | GAG18477	unclassified sequences; metagenomes; ecological metagenomes
+303	marine sediment metagenome | KKM27118	unclassified sequences; metagenomes; ecological metagenomes

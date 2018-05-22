@@ -75,29 +75,27 @@ narG	D0101	nitrate reductase / nitrite oxidoreductase, alpha subunit
 #narI	D0103	nitrate reductase gamma subunit
 napA	D0201	periplasmic nitrate reductase NapA
 #napB	D0202	cytochrome c-type protein NapB
+nirA	A0001	ferredoxin-nitrite reductase [EC:1.7.7.1]
 nirK	D0301	nitrite reductase (NO-forming)
 nirS	D0302	nitrite reductase (NO-forming) / hydroxylamine reductase
-#nrfA	D0401	nitrite reductase (cytochrome c-552)
+nrfA	D0401	nitrite reductase (cytochrome c-552)
 norB	D0501	nitric oxide reductase subunit B
 norC	D0502	nitric oxide reductase subunit C
 nosZ	D0601	Nitrous-oxide reductase
-#hao	N0200	hydroxylamine dehydrogenase
 #nxrB	N0301	Nitrite oxidoreductase subunit B
 nifD	N0401	nitrogenase molybdenum-iron protein alpha chain (K02586)
 nifH	N0402	nitrogenase iron protein NifH (K02588)
-#hdh	A0000	hydrazine dehydrogenase (hzo)
-#COG1850	P0000	RuBisCO
 #aprAB	U0101	adenosine-5'-phosphosulfate (APS) reductase alpha-beta subunits
 #ackA	U0201	Acetate-kinase
 #prx1	U0301	Bacterial Peroxidase Family
 #prx2	U0302	Animal/Plant/Fungal/Bacterial Peroxidase Family
 #qmoABC	U0401	Quinone-interacting membrane-bound oxidoreductase alpha/beta/gamma subunit
 #phocryp	U0500	Photolyase/Cryptochrome
-#dsr_v2	U0600	dissimilatory sulfite reductase
+dsrB	S0002	Dissimilatory sulfite reductase beta subunit [EC:1.8.99.5]
 pufMKEG	U0701	Reaction center complex of the purple bacteria
 #bssA	U0801	Benzoylacetate:CoA ligase; Fumarate adding enzymes (bssA-nmsA-assA)
 p_amoA	N0102	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase 
-#hzo_hao	U1000	hydrazine dehydrogenase (hzo) and hydroxylamine dehydrogenase
+hzao	A0012	hydrazine dehydrogenase (hzo/hdh) and hydroxylamine dehydrogenase (hao)
 GH36	C0036	CAZy family 36: α-galactosidase (EC 3.2.1.22); α-N-acetylgalactosaminidase (EC 3.2.1.49); stachyose synthase (EC 2.4.1.67); raffinose synthase (EC 2.4.1.82)
 GH31	C0031	Glycoside hydrolase family 31
 CO_dh	C1000	Carbon monoxide dehydrogenase (EC 1.2.7.4)
