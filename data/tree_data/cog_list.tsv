@@ -1,44 +1,44 @@
 #Marker	Denominator	Description
-COG0012	C0012	phylogenetic_cogs
-COG0016	C0016	phylogenetic_cogs
-COG0018	C0018	phylogenetic_cogs
-COG0048	C0048	phylogenetic_cogs
-COG0049	C0049	phylogenetic_cogs
-COG0052	C0052	phylogenetic_cogs
-COG0080	C0080	phylogenetic_cogs
-COG0081	C0081	phylogenetic_cogs
-COG0085	C0085	phylogenetic_cogs
-COG0087	C0087	phylogenetic_cogs
-COG0088	C0088	phylogenetic_cogs
-COG0090	C0090	phylogenetic_cogs
-COG0091	C0091	phylogenetic_cogs
-COG0092	C0092	phylogenetic_cogs
-COG0093	C0093	phylogenetic_cogs
-COG0094	C0094	phylogenetic_cogs
-COG0096	C0096	phylogenetic_cogs
-COG0097	C0097	phylogenetic_cogs
-COG0098	C0098	phylogenetic_cogs
-COG0099	C0099	phylogenetic_cogs
-COG0100	C0100	phylogenetic_cogs
-COG0102	C0102	phylogenetic_cogs
-COG0103	C0103	phylogenetic_cogs
-COG0124	C0124	phylogenetic_cogs
-COG0172	C0172	phylogenetic_cogs
-COG0184	C0184	phylogenetic_cogs
-COG0185	C0185	phylogenetic_cogs
-COG0186	C0186	phylogenetic_cogs
-COG0197	C0197	phylogenetic_cogs
-COG0200	C0200	phylogenetic_cogs
-COG0201	C0201	phylogenetic_cogs
-COG0202	C0202	phylogenetic_cogs
-COG0215	C0215	phylogenetic_cogs
-COG0256	C0256	phylogenetic_cogs
-COG0495	C0495	phylogenetic_cogs
-COG0522	C0522	phylogenetic_cogs
-COG0525	C0525	phylogenetic_cogs
-COG0533	C0533	phylogenetic_cogs
-COG0541	C0541	phylogenetic_cogs
-COG0552	C0552	phylogenetic_cogs
+#COG0012	C0012	phylogenetic_cogs
+#COG0016	C0016	phylogenetic_cogs
+#COG0018	C0018	phylogenetic_cogs
+#COG0048	C0048	phylogenetic_cogs
+#COG0049	C0049	phylogenetic_cogs
+#COG0052	C0052	phylogenetic_cogs
+#COG0080	C0080	phylogenetic_cogs
+#COG0081	C0081	phylogenetic_cogs
+#COG0085	C0085	phylogenetic_cogs
+#COG0087	C0087	phylogenetic_cogs
+#COG0088	C0088	phylogenetic_cogs
+#COG0090	C0090	phylogenetic_cogs
+#COG0091	C0091	phylogenetic_cogs
+#COG0092	C0092	phylogenetic_cogs
+#COG0093	C0093	phylogenetic_cogs
+#COG0094	C0094	phylogenetic_cogs
+#COG0096	C0096	phylogenetic_cogs
+#COG0097	C0097	phylogenetic_cogs
+#COG0098	C0098	phylogenetic_cogs
+#COG0099	C0099	phylogenetic_cogs
+#COG0100	C0100	phylogenetic_cogs
+#COG0102	C0102	phylogenetic_cogs
+#COG0103	C0103	phylogenetic_cogs
+#COG0124	C0124	phylogenetic_cogs
+#COG0172	C0172	phylogenetic_cogs
+#COG0184	C0184	phylogenetic_cogs
+#COG0185	C0185	phylogenetic_cogs
+#COG0186	C0186	phylogenetic_cogs
+#COG0197	C0197	phylogenetic_cogs
+#COG0200	C0200	phylogenetic_cogs
+#COG0201	C0201	phylogenetic_cogs
+#COG0202	C0202	phylogenetic_cogs
+#COG0215	C0215	phylogenetic_cogs
+#COG0256	C0256	phylogenetic_cogs
+#COG0495	C0495	phylogenetic_cogs
+#COG0522	C0522	phylogenetic_cogs
+#COG0525	C0525	phylogenetic_cogs
+#COG0533	C0533	phylogenetic_cogs
+#COG0541	C0541	phylogenetic_cogs
+#COG0552	C0552	phylogenetic_cogs
 #16srRNA	R0016	rRNA_marker
 #18srRNA	R0018	rRNA_marker
 #hdrA	M0001	Heterodisulfide reductase subunit A
@@ -91,6 +91,7 @@ nifH	N0402	nitrogenase iron protein NifH (K02588)
 #prx2	U0302	Animal/Plant/Fungal/Bacterial Peroxidase Family
 #qmoABC	U0401	Quinone-interacting membrane-bound oxidoreductase alpha/beta/gamma subunit
 #phocryp	U0500	Photolyase/Cryptochrome
+dsrA	S0001	Dissimilatory sulfite reductase alpha subunit [EC:1.8.99.5]
 dsrB	S0002	Dissimilatory sulfite reductase beta subunit [EC:1.8.99.5]
 pufMKEG	U0701	Reaction center complex of the purple bacteria
 #bssA	U0801	Benzoylacetate:CoA ligase; Fumarate adding enzymes (bssA-nmsA-assA)

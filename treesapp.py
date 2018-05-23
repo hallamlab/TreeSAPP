@@ -779,7 +779,10 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict, cog_list):
             except IOError:
                 sys.stderr.write('Can\'t create ' + marker_query_fa + '\n')
                 sys.exit(0)
-            full_sequence = fasta_dict[reformat_string('>' + hmm_match.orf + '_' + hmm_match.desc)]
+            if hmm_match.desc != '-':
+                full_sequence = fasta_dict[reformat_string('>' + hmm_match.orf + '_' + hmm_match.desc)]
+            else:
+                full_sequence = fasta_dict[reformat_string('>' + hmm_match.orf)]
             fprintf(outfile, '>query\n%s', full_sequence[hmm_match.start-1:hmm_match.end])
             outfile.close()
 
@@ -1927,7 +1930,12 @@ def prepare_and_run_hmmalign(args, single_query_fasta_files, cog_list):
     for query_sequence_file in sorted(single_query_fasta_files):
         file_name_info = re.match("^([A-Z][0-9]{4})_(.*)_(\d+)_(\d+)_([A-Za-z0-9_]+).fa$",
                                   os.path.basename(query_sequence_file))
-        denominator, contig, start, stop, cog = file_name_info.groups()
+        if file_name_info:
+            denominator, contig, start, stop, cog = file_name_info.groups()
+        else:
+            sys.stderr.write("ERROR: Unable to parse information from file name:"
+                             + "\n" + str(query_sequence_file) + "\n")
+            sys.exit()
 
         query_multiple_alignment = re.sub(".fa$", ".cl", query_sequence_file)
 
