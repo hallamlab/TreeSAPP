@@ -598,7 +598,28 @@ def clean_lineage_string(lineage):
     return lineage
 
 
-def parse_domain_tables(args, hmm_domtbl_files):
+def best_match(matches):
+    """
+    Function for finding the best alignment in a list of HmmMatch() objects
+    The best match is based off of the full sequence score
+    :param matches: A list of HmmMatch() objects
+    :return: The best HmmMatch
+    """
+    # TODO: Incorporate the alignment intervals to allow for proteins with multiple different functional domains
+    # Code currently only permits multi-domains of the same gene
+    best_target_hmm = ""
+    best_alignment = None
+    top_score = 0
+    for match in matches:
+        # match.print_info()
+        if match.full_score > top_score:
+            best_alignment = match
+            best_target_hmm = match.target_hmm
+            top_score = match.full_score
+    return best_target_hmm, best_alignment
+
+
+def parse_domain_tables(args, hmm_domtbl_files, log=None):
     # Check if the HMM filtering thresholds have been set
     if not hasattr(args, "min_e"):
         args.min_e = 0.01
@@ -619,6 +640,7 @@ def parse_domain_tables(args, hmm_domtbl_files):
     glued = 0
     multi_alignments = 0  # matches of the same query to a different HMM (>1 lines)
     hmm_matches = dict()
+    orf_gene_map = dict()
 
     # TODO: Capture multimatches across multiple domain table files
     for domtbl_file in hmm_domtbl_files:
@@ -632,12 +654,42 @@ def parse_domain_tables(args, hmm_domtbl_files):
                                                                                                         raw_alignments)
         purified_matches, dropped = filter_poor_hits(args, distinct_matches, dropped)
         complete_gene_hits, dropped = filter_incomplete_hits(args, purified_matches, dropped)
+        # for match in complete_gene_hits:
+        #     match.genome = reference
+        #     if match.target_hmm not in hmm_matches.keys():
+        #         hmm_matches[match.target_hmm] = list()
+        #     hmm_matches[match.target_hmm].append(match)
+        #     seqs_identified += 1
+
         for match in complete_gene_hits:
             match.genome = reference
+            if match.orf not in orf_gene_map:
+                orf_gene_map[match.orf] = dict()
+            orf_gene_map[match.orf][match.target_hmm] = match
             if match.target_hmm not in hmm_matches.keys():
                 hmm_matches[match.target_hmm] = list()
-            hmm_matches[match.target_hmm].append(match)
-            seqs_identified += 1
+
+    for orf in orf_gene_map:
+        if len(orf_gene_map[orf]) == 1:
+            target_hmm = list(orf_gene_map[orf].keys())[0]
+            hmm_matches[target_hmm].append(orf_gene_map[orf][target_hmm])
+        else:
+            optional_matches = [orf_gene_map[orf][target_hmm] for target_hmm in orf_gene_map[orf]]
+            target_hmm, match = best_match(optional_matches)
+            hmm_matches[target_hmm].append(match)
+            multi_alignments += 1
+            dropped += (len(optional_matches) - 1)
+
+            if log:
+                dropped_annotations = list()
+                for optional in optional_matches:
+                    if optional.target_hmm != target_hmm:
+                        dropped_annotations.append(optional.target_hmm)
+                log.write("HMM search annotations for " + orf + ":\n")
+                log.write("\tRetained\t" + target_hmm + "\n")
+                log.write("\tDropped\t" + ','.join(dropped_annotations) + "\n")
+
+        seqs_identified += 1
 
     sys.stdout.write("done.\n")
 
@@ -651,7 +703,7 @@ def parse_domain_tables(args, hmm_domtbl_files):
         sys.exit(13)
 
     sys.stdout.write("\tNumber of markers identified:\n")
-    for marker in hmm_matches:
+    for marker in sorted(hmm_matches):
         sys.stdout.write("\t\t" + marker + "\t" + str(len(hmm_matches[marker])) + "\n")
         # For debugging:
         # for match in hmm_matches[marker]:

@@ -85,6 +85,7 @@ class HmmMatch:
         self.desc = ""
         self.acc = 0.0
         self.ceval = 0.0
+        self.full_score = 0
 
     def print_info(self):
         sys.stdout.write("Info for " + str(self.orf) + " in " + self.genome + ":\n")
@@ -97,6 +98,7 @@ class HmmMatch:
         sys.stdout.write("\tNumber " + str(self.num) + " of " + str(self.of) + "\n")
         sys.stdout.write("\tcE-value = " + str(self.ceval) + "\n")
         sys.stdout.write("\tacc = " + str(self.acc) + "\n")
+        sys.stdout.write("\tfull score = " + str(self.full_score) + "\n")
         return
 
 
@@ -158,6 +160,7 @@ class DomainTableParser(object):
         self.alignments['hmm_name'] = str(hit[3])
         self.alignments['hmm_len'] = str(hit[5])
         self.alignments['Eval'] = float(hit[6])  # Full-sequence E-value (in the case a sequence alignment is split)
+        self.alignments['full_score'] = float(hit[7])  # Full-sequence score
         self.alignments['num'] = int(hit[9])  # HMMER is able to detect whether there are multi-hits
         self.alignments['of'] = int(hit[10])  # This is the number of multi-hits for a query
         self.alignments['cEval'] = float(hit[11])  # conditional E-value
@@ -320,6 +323,7 @@ def format_split_alignments(domain_table, num_fragmented, glued, multi_alignment
         hmm_match.hmm_len = data['hmm_len']
         hmm_match.seq_len = data['query_len']
         hmm_match.orf = data['query']
+        hmm_match.desc = data['desc']
         hmm_match.start = data['qstart']
         hmm_match.end = data['qend']
         hmm_match.pstart = data['pstart']
@@ -327,8 +331,8 @@ def format_split_alignments(domain_table, num_fragmented, glued, multi_alignment
         hmm_match.num = data['num']
         hmm_match.of = data['of']
         hmm_match.acc = data['acc']
-        hmm_match.desc = data['desc']
         hmm_match.ceval = data['cEval']
+        hmm_match.full_score = data['full_score']
 
         raw_alignments += 1
         # Finish off "old business" (sub-alignments)

@@ -4734,15 +4734,22 @@ def main(argv):
         ref_alignment_dimensions = get_alignment_dims(args, cog_list)
 
         if args.consensus and args.molecule == "dna":
+            # TODO: split input into num_threads chunks and process them with Prodigal separately
             # args.fasta_input is set to the predicted ORF protein sequences and args.molecule set to "prot"
             # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly
             args = predict_orfs(args)
             formatted_fasta_dict = format_read_fasta(args.formatted_input_file, args.molecule, args)
 
         # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
+        hmm_search_log = args.output + os.sep + "hmm_search_log.txt"
+
+        log_handler = open(hmm_search_log, 'w')
+
         hmm_domtbl_files = hmmsearch_orfs(args, cog_list, marker_build_dict)
-        hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
+        hmm_matches = parse_domain_tables(args, hmm_domtbl_files, log_handler)
         hmmalign_inputs = extract_hmm_matches(args, hmm_matches, formatted_fasta_dict, cog_list)
+
+        log_handler.close()
 
         # STAGE 4: Run hmmalign, and optionally trimal, to produce the MSAs required to for the ML estimations
         concatenated_mfa_files, models_to_be_used = multiple_alignments(args,
