@@ -40,7 +40,8 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
 
     for header in formatted_fasta_dict.keys():
         if len(header) > max_header_length:
-            sys.stderr.write(header + " is too long!\nThere is a bug in _read_format_fasta - please report!\n")
+            sys.stderr.write(header + " is too long (" + str(len(header)) + ")!\n")
+            sys.stderr.write("There is a bug in _read_format_fasta - please report!\n")
             sys.exit()
 
     return formatted_fasta_dict

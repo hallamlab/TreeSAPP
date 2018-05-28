@@ -118,19 +118,22 @@ int Fasta::record_header( string line, std::size_t max_header_length) {
 
     ret = header_base.insert(new_header);
     if (!ret.second) {
+        new_header = new_header.substr(0, max_header_length - 4);
+        string redundant_header;
         int dup_num = 1;
         char buffer [10];
 
         string num_buffer;
         sprintf(buffer, "%d", dup_num);
-        new_header = line + "_" + num_buffer.assign(buffer);
-        ret = header_base.insert(new_header);
+        redundant_header = new_header + "_" + num_buffer.assign(buffer);
+        ret = header_base.insert(redundant_header);
         while (!ret.second) {
             dup_num++;
             sprintf(buffer, "%d", dup_num);
-            new_header = line + "_" + num_buffer.assign(buffer);
-            ret = header_base.insert(new_header);
+            redundant_header = new_header + "_" + num_buffer.assign(buffer);
+            ret = header_base.insert(redundant_header);
         }
+        new_header = redundant_header;
         sprintf(write_buffer, "WARNING: Duplicate header (%s) replaced with %s\n", line.c_str(), new_header.c_str());
         parse_log->write(write_buffer, 44+line.length()+new_header.length());
     }
