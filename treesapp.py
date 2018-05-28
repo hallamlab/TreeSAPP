@@ -195,6 +195,10 @@ def check_parser_arguments(parser):
         sys.stderr.flush()
         args.consensus = False
 
+    if args.molecule == "prot" and args.rpkm:
+        sys.stderr.write("ERROR: Unable to calculate RPKM values for protein sequences.\n")
+        sys.exit()
+
     # Parameterizing the hmmsearch output parsing:
     args.min_acc = 0.7
     args.min_e = 0.0001
@@ -662,12 +666,11 @@ def predict_orfs(args):
     genome = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
     genome_orfs_file = args.output_dir_final + genome + "_ORFs.faa"
     genome_nuc_genes_file = args.output_dir_final + genome + "_ORFs.fna"
-    run_prodigal(args, args.formatted_input_file, genome_orfs_file, genome_nuc_genes_file)
+    run_prodigal(args, args.fasta_input, genome_orfs_file, genome_nuc_genes_file)
 
     # orf_fasta must be changed since FGS+ appends .faa to the output file name
-    args.formatted_input_file = genome_orfs_file
+    args.fasta_input = genome_orfs_file
     args.nucleotide_orfs = genome_nuc_genes_file
-    args.molecule = "prot"
 
     sys.stdout.write("done.\n")
 
@@ -770,7 +773,11 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict, cog_list):
 
         for hmm_match in hmm_matches[marker]:
             denominator = cog_list["all_cogs"][hmm_match.target_hmm]
-            f_contig = denominator + "_" + hmm_match.orf
+            if hmm_match.desc != '-':
+                contig_name = hmm_match.orf + '_' + hmm_match.desc
+            else:
+                contig_name = hmm_match.orf
+            f_contig = denominator + "_" + contig_name
             marker_query_fa = args.output_dir_var + f_contig + '_' + \
                               str(hmm_match.start) + "_" + str(hmm_match.end) + "_" + hmm_match.target_hmm + ".fa"
             hmmalign_input_fastas.append(marker_query_fa)
@@ -779,16 +786,13 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict, cog_list):
             except IOError:
                 sys.stderr.write('Can\'t create ' + marker_query_fa + '\n')
                 sys.exit(0)
-            if hmm_match.desc != '-':
-                full_sequence = fasta_dict[reformat_string('>' + hmm_match.orf + '_' + hmm_match.desc)]
-            else:
-                full_sequence = fasta_dict[reformat_string('>' + hmm_match.orf)]
+            full_sequence = fasta_dict[reformat_string('>' + contig_name)]
             fprintf(outfile, '>query\n%s', full_sequence[hmm_match.start-1:hmm_match.end])
             outfile.close()
 
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
-            bulk_header = '>' + hmm_match.orf + '|' +\
+            bulk_header = '>' + contig_name + '|' +\
                           hmm_match.target_hmm + '|' +\
                           str(hmm_match.start) + '_' + str(hmm_match.end)
             marker_gene_dict[marker][bulk_header] = full_sequence
@@ -2524,253 +2528,253 @@ def pparse_raxml_out_trees(labelled_trees, args):
     pool.close()
     pool.join()
     return raxml_tree_dict
-
-
-def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
-                       raxml_outfiles, text_of_analysis_type, num_raxml_outputs):
-    """
-    Parse the RAxML output files.
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param denominator_reference_tree_dict:
-    :param tree_numbers_translation: A dictionary containing a list of TreeLeafReference objects
-    :param raxml_outfiles:
-    :param text_of_analysis_type:
-    :param num_raxml_outputs:
-    :return: An Autovivification of the final RAxML output files.
-    """
-
-    raxml_option = 'v'
-    raxml_placements = 0
-
-    sys.stdout.write('Parsing the RAxML outputs...\n')
-    sys.stdout.flush()
-
-    if args.verbose:
-        function_start_time = time.time()
-
-    final_raxml_output_files = Autovivify()
-
-    if num_raxml_outputs > 50:
-        progress_bar_width = 50
-        step_proportion = float(num_raxml_outputs) / progress_bar_width
-    else:
-        progress_bar_width = num_raxml_outputs
-        step_proportion = 1
-
-    sys.stdout.write("[%s ]" % (" " * progress_bar_width))
-    sys.stdout.write("%")
-    sys.stdout.write("\b" * (progress_bar_width + 3))
-    sys.stdout.flush()
-
-    acc = 0.0
-
-    try:
-        parse_log = open(args.output + os.sep + "treesapp_parse_RAxML_log.txt", 'w')
-    except IOError:
-        sys.stderr.write("WARNING: Unable to open " + args.output + os.sep + "treesapp_parse_RAxML_log.txt!")
-        sys.stderr.flush()
-        parse_log = sys.stdout
-
-    parse_log.write("Parsing each gene reference tree file found in the input sequences in parallel...")
-    parse_log.flush()
-    terminal_children_strings_of_ref_denominators = pparse_ref_trees(denominator_reference_tree_dict, args)
-    parse_log.write(" done.\n")
-    if terminal_children_strings_of_ref_denominators is None:
-        sys.exit()
-    parse_log.write(time.ctime() + "\n")
-
-    if sorted(denominator_reference_tree_dict.keys()) != sorted(terminal_children_strings_of_ref_denominators.keys()):
-        sys.stderr.write("input: " + str(denominator_reference_tree_dict.keys()) + "\n")
-        sys.stderr.write("output: " + str(terminal_children_strings_of_ref_denominators.keys()) + "\n")
-        sys.exit("ERROR: Not all of the reference trees were parsed!")
-
-    for denominator in sorted(raxml_outfiles.keys()):
-        description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
-
-        # Retrieve the parsed reference tree from the dictionary of parsed reference trees
-        if args.verbose:
-            parse_log.write("Retrieving the reference tree for " + denominator + "... ")
-        terminal_children_strings_of_reference = terminal_children_strings_of_ref_denominators[denominator]
-        if args.verbose:
-            parse_log.write("done.\n")
-
-        content_of_previous_labelled_tree_file = ''
-        previous_f_contig = ""
-        rooted_labelled_trees = ''
-        insertion_point_node_hash = ''
-        final_assignment_target_strings = Autovivify()
-
-        # Parse all labelled tree files for denominator in parallel
-        labelled_tree_files = dict()
-        for f_contig in raxml_outfiles[denominator].keys():
-            if not os.path.isfile(raxml_outfiles[denominator][f_contig]['labelled_tree']):
-                parse_log.write("WARNING: " + str(raxml_outfiles[denominator][f_contig]['labelled_tree']) +
-                                "was included in RAxML output files but is not a file. Continuing...\n")
-            else:
-                labelled_tree_files[f_contig] = raxml_outfiles[denominator][f_contig]['labelled_tree']
-
-        parse_log.write("Parsing the " + str(len(labelled_tree_files.keys())) +
-                        " trees for " + denominator + " in parallel... ")
-        start_time = time.time()
-        parse_log.flush()
-        raxml_tree_dict = pparse_raxml_out_trees(labelled_tree_files, args)
-        end_time = time.time()
-        parse_log.write("done.\n")
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        parse_log.write("Parsing required " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
-        parse_log.flush()
-
-        for f_contig in sorted(raxml_outfiles[denominator].keys()):
-            # Update the progress bar
-            acc += 1.0
-            if acc >= step_proportion:
-                acc -= step_proportion
-                time.sleep(0.1)
-                sys.stdout.write("-")
-                sys.stdout.flush()
-
-            denominator = ''
-            if re.search(r'\A(.)', f_contig):
-                denominator = f_contig.split('_')[0]
-            content_of_labelled_tree_file = ''
-            assignments = Autovivify()
-
-            if raxml_option == 'v':
-                # Maximum-likelihood analysis
-                classification_file = raxml_outfiles[denominator][f_contig]['classification']
-                labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
-                try:
-                    raxml_labelled_tree = open(labelled_tree_file, 'r')
-                except IOError:
-                    sys.exit('ERROR: Can\'t open ' + str(labelled_tree_file) + '!\n')
-
-                for line in raxml_labelled_tree:
-                    line = line.strip()
-                    content_of_labelled_tree_file += str(line)
-
-                raxml_labelled_tree.close()
-                if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
-                    parse_log.write("Retrieving the labelled tree " + labelled_tree_file + "... ")
-                    parse_log.flush()
-                    if f_contig not in raxml_tree_dict.keys():
-                        sys.exit("ERROR: " + f_contig + " was not found in raxml_tree_dict.keys():"
-                                                        " \n" + str(raxml_tree_dict.keys()))
-                    rooted_labelled_trees, insertion_point_node_hash = raxml_tree_dict[f_contig]
-
-                    parse_log.write("done.\n")
-                    parse_log.flush()
-                    final_assignment_target_strings = Autovivify()
-                    nr_of_assignments = 0  # This does not exist in the original MLTreeMap perl code
-                else:
-                    if args.verbose:
-                        parse_log.write("Identical RAxML classifications between" + str(f_contig) +
-                                        "and" + previous_f_contig + "!")
-
-                new_assignments = Autovivify()
-                at_least_one_new_assignment = 0
-                try:
-                    RAxML_classification = open(classification_file, 'r')
-                except IOError:
-                    sys.exit('ERROR: Can\'t open ' + str(classification_file) + '!\n')
-
-                for line in RAxML_classification:
-                    line = line.strip()
-                    query, insertion_point_l, weight = line.split(' ')[0:3]
-                    assignment = ''
-                    if re.search(r'I(\d+)', insertion_point_l):
-                        assignment = re.search(r'I(\d+)', insertion_point_l).group(1)
-                    assignments[assignment] = weight
-                    if assignment not in final_assignment_target_strings.keys():
-                        new_assignments[assignment] = 1
-                        at_least_one_new_assignment = 1
-                        final_assignment_target_strings[assignment] = ""
-                        nr_of_assignments += 1
-
-                RAxML_classification.close()
-                if at_least_one_new_assignment > 0:
-                    parse_log.write("identifying the terminal children of each assignment for " + f_contig + "... ")
-                    parse_log.write(time.ctime() + "\n")
-                    parse_log.flush()
-                    prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(
-                        terminal_children_strings_of_reference,
-                        rooted_labelled_trees,
-                        insertion_point_node_hash,
-                        new_assignments,
-                        args.num_threads,
-                        parse_log)
-                    parse_log.write("done.\n")
-
-                    for assignment in sorted(prae_assignment_target_strings.keys()):
-                        assignment_target_string = prae_assignment_target_strings[assignment]
-                        final_assignment_target_strings[assignment] = assignment_target_string
-
-                parse_log.write("Finished parsing " + f_contig + "'s RAxML output at " + time.ctime() + "\n")
-
-            final_RAxML_filename = str(args.output_dir_raxml) + str(f_contig) + '_RAxML_parsed.txt'
-            final_raxml_output_files[denominator][final_RAxML_filename] = 1
-            
-            try:
-                output = open(final_RAxML_filename, 'w')
-            except IOError:
-                sys.exit('ERROR: Can\'t create ' + str(final_RAxML_filename) + '!\n')
-            output.write(str(description_text) + '\n')
-
-            raxml_placements += len(assignments.keys())
-
-            for assignment in sorted(assignments.keys()):
-                # TODO: Convert to function, use function for TreeProtein queries
-                assignment_target_string = final_assignment_target_strings[assignment]
-                weight = float(assignments[assignment])
-                relative_weight = float(weight * 100.0 / float(nr_of_assignments))
-                assignment_terminal_targets = assignment_target_string.split(' ')
-                nr_of_terminal_targets = len(assignment_terminal_targets) - 1
-                output.write('Placement weight ' + '%.2f' % relative_weight + '%: Assignment of query to ')
-                if not nr_of_terminal_targets == 1:
-                    output.write('the lowest common ancestor of ')
-                count = 1
-
-                while count <= nr_of_terminal_targets:
-                    assignment_terminal_target = assignment_terminal_targets[count - 1]
-                    for leaf in tree_numbers_translation[denominator]:
-                        if assignment_terminal_target == leaf.number:
-                            name_of_terminal_target = leaf.description
-                            break
-                        else:
-                            pass
-                    try:
-                        name_of_terminal_target
-                    except NameError:
-                        sys.exit('ERROR: ' + str(assignment_terminal_target) +
-                                 ' could not be located in the tree with the denominator ' +
-                                 str(denominator) + '!\n')
-                    output.write(str(name_of_terminal_target) + ' (' + str(assignment_terminal_target) + ')')
-                    if count < nr_of_terminal_targets - 1:
-                        output.write(', ')
-                    if count == nr_of_terminal_targets - 1:
-                        output.write(' and ')
-                    if count == nr_of_terminal_targets:
-                        output.write('.\n')
-                    count += 1
-
-            output.close()
-            content_of_previous_labelled_tree_file = content_of_labelled_tree_file
-            previous_f_contig = f_contig
-
-    sys.stdout.write("-]%\n")
-    parse_log.close()
-
-    if args.verbose:
-        function_end_time = time.time()
-        hours, remainder = divmod(function_end_time - function_start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tTree parsing time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-        sys.stdout.write("\t" + str(num_raxml_outputs) + " RAxML output files.\n")
-        sys.stdout.write("\t" + str(raxml_placements) + " sequences successfully inserted by RAxML.\n\n")
-        sys.stdout.flush()
-
-    return final_raxml_output_files
+#
+#
+# def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
+#                        raxml_outfiles, text_of_analysis_type, num_raxml_outputs):
+#     """
+#     Parse the RAxML output files.
+#     :param args: Command-line argument object from get_options and check_parser_arguments
+#     :param denominator_reference_tree_dict:
+#     :param tree_numbers_translation: A dictionary containing a list of TreeLeafReference objects
+#     :param raxml_outfiles:
+#     :param text_of_analysis_type:
+#     :param num_raxml_outputs:
+#     :return: An Autovivification of the final RAxML output files.
+#     """
+#
+#     raxml_option = 'v'
+#     raxml_placements = 0
+#
+#     sys.stdout.write('Parsing the RAxML outputs...\n')
+#     sys.stdout.flush()
+#
+#     if args.verbose:
+#         function_start_time = time.time()
+#
+#     final_raxml_output_files = Autovivify()
+#
+#     if num_raxml_outputs > 50:
+#         progress_bar_width = 50
+#         step_proportion = float(num_raxml_outputs) / progress_bar_width
+#     else:
+#         progress_bar_width = num_raxml_outputs
+#         step_proportion = 1
+#
+#     sys.stdout.write("[%s ]" % (" " * progress_bar_width))
+#     sys.stdout.write("%")
+#     sys.stdout.write("\b" * (progress_bar_width + 3))
+#     sys.stdout.flush()
+#
+#     acc = 0.0
+#
+#     try:
+#         parse_log = open(args.output + os.sep + "treesapp_parse_RAxML_log.txt", 'w')
+#     except IOError:
+#         sys.stderr.write("WARNING: Unable to open " + args.output + os.sep + "treesapp_parse_RAxML_log.txt!")
+#         sys.stderr.flush()
+#         parse_log = sys.stdout
+#
+#     parse_log.write("Parsing each gene reference tree file found in the input sequences in parallel...")
+#     parse_log.flush()
+#     terminal_children_strings_of_ref_denominators = pparse_ref_trees(denominator_reference_tree_dict, args)
+#     parse_log.write(" done.\n")
+#     if terminal_children_strings_of_ref_denominators is None:
+#         sys.exit()
+#     parse_log.write(time.ctime() + "\n")
+#
+#     if sorted(denominator_reference_tree_dict.keys()) != sorted(terminal_children_strings_of_ref_denominators.keys()):
+#         sys.stderr.write("input: " + str(denominator_reference_tree_dict.keys()) + "\n")
+#         sys.stderr.write("output: " + str(terminal_children_strings_of_ref_denominators.keys()) + "\n")
+#         sys.exit("ERROR: Not all of the reference trees were parsed!")
+#
+#     for denominator in sorted(raxml_outfiles.keys()):
+#         description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
+#
+#         # Retrieve the parsed reference tree from the dictionary of parsed reference trees
+#         if args.verbose:
+#             parse_log.write("Retrieving the reference tree for " + denominator + "... ")
+#         terminal_children_strings_of_reference = terminal_children_strings_of_ref_denominators[denominator]
+#         if args.verbose:
+#             parse_log.write("done.\n")
+#
+#         content_of_previous_labelled_tree_file = ''
+#         previous_f_contig = ""
+#         rooted_labelled_trees = ''
+#         insertion_point_node_hash = ''
+#         final_assignment_target_strings = Autovivify()
+#
+#         # Parse all labelled tree files for denominator in parallel
+#         labelled_tree_files = dict()
+#         for f_contig in raxml_outfiles[denominator].keys():
+#             if not os.path.isfile(raxml_outfiles[denominator][f_contig]['labelled_tree']):
+#                 parse_log.write("WARNING: " + str(raxml_outfiles[denominator][f_contig]['labelled_tree']) +
+#                                 "was included in RAxML output files but is not a file. Continuing...\n")
+#             else:
+#                 labelled_tree_files[f_contig] = raxml_outfiles[denominator][f_contig]['labelled_tree']
+#
+#         parse_log.write("Parsing the " + str(len(labelled_tree_files.keys())) +
+#                         " trees for " + denominator + " in parallel... ")
+#         start_time = time.time()
+#         parse_log.flush()
+#         raxml_tree_dict = pparse_raxml_out_trees(labelled_tree_files, args)
+#         end_time = time.time()
+#         parse_log.write("done.\n")
+#         hours, remainder = divmod(end_time - start_time, 3600)
+#         minutes, seconds = divmod(remainder, 60)
+#         parse_log.write("Parsing required " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
+#         parse_log.flush()
+#
+#         for f_contig in sorted(raxml_outfiles[denominator].keys()):
+#             # Update the progress bar
+#             acc += 1.0
+#             if acc >= step_proportion:
+#                 acc -= step_proportion
+#                 time.sleep(0.1)
+#                 sys.stdout.write("-")
+#                 sys.stdout.flush()
+#
+#             denominator = ''
+#             if re.search(r'\A(.)', f_contig):
+#                 denominator = f_contig.split('_')[0]
+#             content_of_labelled_tree_file = ''
+#             assignments = Autovivify()
+#
+#             if raxml_option == 'v':
+#                 # Maximum-likelihood analysis
+#                 classification_file = raxml_outfiles[denominator][f_contig]['classification']
+#                 labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
+#                 try:
+#                     raxml_labelled_tree = open(labelled_tree_file, 'r')
+#                 except IOError:
+#                     sys.exit('ERROR: Can\'t open ' + str(labelled_tree_file) + '!\n')
+#
+#                 for line in raxml_labelled_tree:
+#                     line = line.strip()
+#                     content_of_labelled_tree_file += str(line)
+#
+#                 raxml_labelled_tree.close()
+#                 if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
+#                     parse_log.write("Retrieving the labelled tree " + labelled_tree_file + "... ")
+#                     parse_log.flush()
+#                     if f_contig not in raxml_tree_dict.keys():
+#                         sys.exit("ERROR: " + f_contig + " was not found in raxml_tree_dict.keys():"
+#                                                         " \n" + str(raxml_tree_dict.keys()))
+#                     rooted_labelled_trees, insertion_point_node_hash = raxml_tree_dict[f_contig]
+#
+#                     parse_log.write("done.\n")
+#                     parse_log.flush()
+#                     final_assignment_target_strings = Autovivify()
+#                     nr_of_assignments = 0  # This does not exist in the original MLTreeMap perl code
+#                 else:
+#                     if args.verbose:
+#                         parse_log.write("Identical RAxML classifications between" + str(f_contig) +
+#                                         "and" + previous_f_contig + "!")
+#
+#                 new_assignments = Autovivify()
+#                 at_least_one_new_assignment = 0
+#                 try:
+#                     RAxML_classification = open(classification_file, 'r')
+#                 except IOError:
+#                     sys.exit('ERROR: Can\'t open ' + str(classification_file) + '!\n')
+#
+#                 for line in RAxML_classification:
+#                     line = line.strip()
+#                     query, insertion_point_l, weight = line.split(' ')[0:3]
+#                     assignment = ''
+#                     if re.search(r'I(\d+)', insertion_point_l):
+#                         assignment = re.search(r'I(\d+)', insertion_point_l).group(1)
+#                     assignments[assignment] = weight
+#                     if assignment not in final_assignment_target_strings.keys():
+#                         new_assignments[assignment] = 1
+#                         at_least_one_new_assignment = 1
+#                         final_assignment_target_strings[assignment] = ""
+#                         nr_of_assignments += 1
+#
+#                 RAxML_classification.close()
+#                 if at_least_one_new_assignment > 0:
+#                     parse_log.write("identifying the terminal children of each assignment for " + f_contig + "... ")
+#                     parse_log.write(time.ctime() + "\n")
+#                     parse_log.flush()
+#                     prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(
+#                         terminal_children_strings_of_reference,
+#                         rooted_labelled_trees,
+#                         insertion_point_node_hash,
+#                         new_assignments,
+#                         args.num_threads,
+#                         parse_log)
+#                     parse_log.write("done.\n")
+#
+#                     for assignment in sorted(prae_assignment_target_strings.keys()):
+#                         assignment_target_string = prae_assignment_target_strings[assignment]
+#                         final_assignment_target_strings[assignment] = assignment_target_string
+#
+#                 parse_log.write("Finished parsing " + f_contig + "'s RAxML output at " + time.ctime() + "\n")
+#
+#             final_RAxML_filename = str(args.output_dir_raxml) + str(f_contig) + '_RAxML_parsed.txt'
+#             final_raxml_output_files[denominator][final_RAxML_filename] = 1
+#
+#             try:
+#                 output = open(final_RAxML_filename, 'w')
+#             except IOError:
+#                 sys.exit('ERROR: Can\'t create ' + str(final_RAxML_filename) + '!\n')
+#             output.write(str(description_text) + '\n')
+#
+#             raxml_placements += len(assignments.keys())
+#
+#             for assignment in sorted(assignments.keys()):
+#                 # TODO: Convert to function, use function for TreeProtein queries
+#                 assignment_target_string = final_assignment_target_strings[assignment]
+#                 weight = float(assignments[assignment])
+#                 relative_weight = float(weight * 100.0 / float(nr_of_assignments))
+#                 assignment_terminal_targets = assignment_target_string.split(' ')
+#                 nr_of_terminal_targets = len(assignment_terminal_targets) - 1
+#                 output.write('Placement weight ' + '%.2f' % relative_weight + '%: Assignment of query to ')
+#                 if not nr_of_terminal_targets == 1:
+#                     output.write('the lowest common ancestor of ')
+#                 count = 1
+#
+#                 while count <= nr_of_terminal_targets:
+#                     assignment_terminal_target = assignment_terminal_targets[count - 1]
+#                     for leaf in tree_numbers_translation[denominator]:
+#                         if assignment_terminal_target == leaf.number:
+#                             name_of_terminal_target = leaf.description
+#                             break
+#                         else:
+#                             pass
+#                     try:
+#                         name_of_terminal_target
+#                     except NameError:
+#                         sys.exit('ERROR: ' + str(assignment_terminal_target) +
+#                                  ' could not be located in the tree with the denominator ' +
+#                                  str(denominator) + '!\n')
+#                     output.write(str(name_of_terminal_target) + ' (' + str(assignment_terminal_target) + ')')
+#                     if count < nr_of_terminal_targets - 1:
+#                         output.write(', ')
+#                     if count == nr_of_terminal_targets - 1:
+#                         output.write(' and ')
+#                     if count == nr_of_terminal_targets:
+#                         output.write('.\n')
+#                     count += 1
+#
+#             output.close()
+#             content_of_previous_labelled_tree_file = content_of_labelled_tree_file
+#             previous_f_contig = f_contig
+#
+#     sys.stdout.write("-]%\n")
+#     parse_log.close()
+#
+#     if args.verbose:
+#         function_end_time = time.time()
+#         hours, remainder = divmod(function_end_time - function_start_time, 3600)
+#         minutes, seconds = divmod(remainder, 60)
+#         sys.stdout.write("\tTree parsing time required: " +
+#                          ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+#         sys.stdout.write("\t" + str(num_raxml_outputs) + " RAxML output files.\n")
+#         sys.stdout.write("\t" + str(raxml_placements) + " sequences successfully inserted by RAxML.\n\n")
+#         sys.stdout.flush()
+#
+#     return final_raxml_output_files
 
 
 def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
@@ -3695,6 +3699,40 @@ def filter_short_sequences(args, aa_dictionary, length_threshold):
     return long_queries
 
 
+def write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta):
+    """
+    Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
+    :param tree_saps: A dictionary of gene_codes as keys and TreeSap objects as values
+    :param nuc_orfs_formatted_dict:
+    :param orf_nuc_fasta:
+    :return: nothing
+    """
+    # Header format:
+    # >contig_name | marker_gene
+    try:
+        fna_output = open(orf_nuc_fasta, 'w')
+    except IOError:
+        raise IOError("Unable to open " + orf_nuc_fasta + " for writing!")
+
+    output_fasta_string = ""
+
+    for denominator in tree_saps:
+        for placed_sequence in tree_saps[denominator]:
+            if '>' + placed_sequence.contig_name not in nuc_orfs_formatted_dict:
+                sys.stderr.write("ERROR: Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n")
+                sys.stderr.write("Example headers in the predicted ORFs file:\n\t")
+                sys.stderr.write('\n\t'.join(list(nuc_orfs_formatted_dict.keys())[:6]) + "\n")
+                sys.exit(45)
+            else:
+                output_fasta_string += '>' + placed_sequence.contig_name + ' | ' + placed_sequence.name + "\n"
+                output_fasta_string += nuc_orfs_formatted_dict['>' + placed_sequence.contig_name] + "\n"
+
+    fna_output.write(output_fasta_string)
+    fna_output.close()
+
+    return
+
+
 def align_reads_to_nucs(args):
     """
     Align the BLAST-predicted ORFs to the reads using BWA MEM
@@ -4554,14 +4592,12 @@ def pquery_likelihood_weight_ratio(pquery, position):
     return lwr
 
 
-def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=None):
+def parse_raxml_output(args, cog_list, unclassified_counts):
     """
-    Function to create outputs for the interactive tree of life (iTOL) webservice.
-    There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param cog_list:
     :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
-    :param rpkm_output_file:
     :return: 
     """
 
@@ -4571,9 +4607,6 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
     if args.verbose:
         function_start_time = time.time()
 
-    itol_base_dir = args.output + 'iTOL_output' + os.sep
-    if not os.path.exists(itol_base_dir):
-        os.mkdir(itol_base_dir)  # drwxr-xr-x
     jplace_files = glob.glob(args.output_dir_var + '*.jplace')
     jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})_(.*).jplace")
     jplace_cog_re = re.compile(r".*portableTree.([a-z])_(.*).jplace")  # For the phylogenetic cogs
@@ -4613,9 +4646,6 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
         query_obj.name = marker
         jplace_data = jplace_parser(filename)
         query_obj.transfer(jplace_data)
-
-        if not os.path.exists(itol_base_dir + marker):
-            os.mkdir(itol_base_dir + marker)
 
         if marker not in itol_data:
             itol_data[marker] = jplace_data
@@ -4669,12 +4699,32 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
         sys.stdout.write("\t" + str(classified_seqs) + " sequences classified by TreeSAPP.\n\n")
         sys.stdout.flush()
 
+    return tree_saps, itol_data, marker_map, unclassified_counts
+
+
+def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file=None):
+    """
+    Function to create outputs for the interactive tree of life (iTOL) webservice.
+    There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
+    :param args:
+    :param tree_saps:
+    :param marker_map:
+    :param itol_data:
+    :param rpkm_output_file:
+    :return:
+    """
+    itol_base_dir = args.output + 'iTOL_output' + os.sep
+    if not os.path.exists(itol_base_dir):
+        os.mkdir(itol_base_dir)  # drwxr-xr-x
     # Now that all the JPlace files have been loaded, generate the abundance stats for each marker
     for denominator in tree_saps:
         if len(tree_saps[denominator]) == 0:
             # No sequences that were mapped met the minimum likelihood weight ration threshold. Skipping!
             continue
         marker = marker_map[denominator]
+        if not os.path.exists(itol_base_dir + marker):
+            os.mkdir(itol_base_dir + marker)
+
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + marker + os.sep + marker + "_complete_profile.jplace"
         write_jplace(itol_data[marker], master_jplace)
@@ -4701,7 +4751,7 @@ def produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file=No
                            marker,
                            tree_saps[denominator])
 
-    return tree_saps, unclassified_counts
+    return
 
 
 def main(argv):
@@ -4717,10 +4767,14 @@ def main(argv):
         validate_inputs(args, cog_list)
 
     if args.skip == 'n':
-        # Read and format the input FASTA
+        # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
+        if args.molecule == "dna":
+            # TODO: split input into num_threads chunks and process them with Prodigal separately
+            # args.fasta_input is set to the predicted ORF protein sequences
+            args = predict_orfs(args)
         sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
         sys.stdout.flush()
-        formatted_fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+        formatted_fasta_dict = format_read_fasta(args.fasta_input, "prot", args)
         sys.stdout.write("done.\n")
         if args.verbose:
             sys.stdout.write("\tTreeSAPP will analyze the "
@@ -4732,13 +4786,6 @@ def main(argv):
         args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
         formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
         ref_alignment_dimensions = get_alignment_dims(args, cog_list)
-
-        if args.consensus and args.molecule == "dna":
-            # TODO: split input into num_threads chunks and process them with Prodigal separately
-            # args.fasta_input is set to the predicted ORF protein sequences and args.molecule set to "prot"
-            # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly
-            args = predict_orfs(args)
-            formatted_fasta_dict = format_read_fasta(args.formatted_input_file, args.molecule, args)
 
         # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
         hmm_search_log = args.output + os.sep + "hmm_search_log.txt"
@@ -4771,14 +4818,33 @@ def main(argv):
         # final_raxml_output_files = parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
         #                                               raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
         # concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
+    tree_saps, itol_data, marker_map, unclassified_counts = parse_raxml_output(args, cog_list, unclassified_counts)
+
+    if args.molecule == "dna":
+        sample_name = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
+        orf_nuc_fasta = args.output_dir_final + sample_name + "_classified_seqs.fna"
+        if not os.path.isfile(orf_nuc_fasta):
+            sys.stdout.write("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
+            sys.stdout.flush()
+            genome_nuc_genes_file = args.output_dir_final + sample_name + ".fna"
+            if os.path.isfile(genome_nuc_genes_file):
+                nuc_orfs_formatted_dict = format_read_fasta(genome_nuc_genes_file, 'dna', args)
+                write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta)
+                sys.stdout.write("done.\n")
+                sys.stdout.flush()
+            else:
+                sys.stderr.write("failed.\nWARNING: Unable to read '" + genome_nuc_genes_file + "'.\n")
+                sys.stderr.write("Cannot create the nucleotide FASTA file of classified sequences!\n")
+    else:
+        pass
 
     if args.rpkm:
         sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
         rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
         normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type)
-        tree_saps, unclassified_counts = produce_itol_inputs(args, cog_list, unclassified_counts, rpkm_output_file)
+        produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file)
     else:
-        tree_saps, unclassified_counts = produce_itol_inputs(args, cog_list, unclassified_counts)
+        produce_itol_inputs(args, tree_saps, marker_map, itol_data)
 
     write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict)
     delete_files(args, 4)
