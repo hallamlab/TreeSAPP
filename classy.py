@@ -351,43 +351,44 @@ class ItolJplace:
         Written solely for testing purposes
         :return:
         """
-        sys.stderr.write("\nInformation for query sequence '" + self.contig_name + "'\n")
-        sys.stderr.write(str(len(self.placements)) + " sequence(s) grafted onto the " + self.name + " tree.\n")
-        # sys.stderr.write("Reference tree:\n")
-        # sys.stderr.write(self.tree + "\n")
-        sys.stderr.write("JPlace fields:\n\t" + str(self.fields) + "\n")
-        sys.stderr.write("Placement information:\n")
+        summary_string = ""
+        summary_string += "\nInformation for query sequence '" + self.contig_name + "'\n"
+        summary_string += str(len(self.placements)) + " sequence(s) grafted onto the " + self.name + " tree.\n"
+        # summary_string += "Reference tree:\n")
+        # summary_string += self.tree + "\n")
+        summary_string += "JPlace fields:\n\t" + str(self.fields) + "\n"
+        summary_string += "Placement information:\n"
         if not self.placements:
-            sys.stderr.write("\tNone.\n")
+            summary_string += "\tNone.\n"
         elif self.placements[0] == '{}':
-            sys.stderr.write("\tNone.\n")
+            summary_string += "\tNone.\n"
         else:
             if self.likelihood and self.lwr and self.inode:
-                sys.stderr.write("\tInternal node\t" + str(self.inode) + "\n")
-                sys.stderr.write("\tLikelihood\t" + str(self.likelihood) + "\n")
-                sys.stderr.write("\tL.W.R\t\t" + str(self.lwr) + "\n")
+                summary_string += "\tInternal node\t" + str(self.inode) + "\n"
+                summary_string += "\tLikelihood\t" + str(self.likelihood) + "\n"
+                summary_string += "\tL.W.R\t\t" + str(self.lwr) + "\n"
             else:
                 for pquery in self.placements:
                     placement = loads(pquery, encoding="utf-8")
                     for k, v in placement.items():
                         if k == 'p':
-                            sys.stderr.write('\t' + str(v) + "\n")
-        sys.stderr.write("Non-redundant lineages of child nodes:\n")
+                            summary_string += '\t' + str(v) + "\n"
+        summary_string += "Non-redundant lineages of child nodes:\n"
         if len(self.lineage_list) > 0:
             for lineage in sorted(set(self.lineage_list)):
-                sys.stderr.write('\t' + str(lineage) + "\n")
+                summary_string += '\t' + str(lineage) + "\n"
         else:
-            sys.stderr.write("\tNone.\n")
-        sys.stderr.write("Lowest common taxonomy:\n")
+            summary_string += "\tNone.\n"
+        summary_string += "Lowest common taxonomy:\n"
         if self.lct:
-            sys.stderr.write("\t" + str(self.lct) + "\n")
+            summary_string += "\t" + str(self.lct) + "\n"
         else:
-            sys.stderr.write("\tNone.\n")
+            summary_string += "\tNone.\n"
         if self.abundance:
-            sys.stderr.write("Abundance:\n\t" + str(self.abundance) + "\n")
-        sys.stderr.write("\n")
+            summary_string += "Abundance:\n\t" + str(self.abundance) + "\n"
+        summary_string += "\n"
         sys.stderr.flush()
-        return
+        return summary_string
 
     def list_placements(self):
         """

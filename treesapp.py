@@ -3733,14 +3733,14 @@ def write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_f
     return
 
 
-def align_reads_to_nucs(args):
+def align_reads_to_nucs(args, reference_fasta):
     """
     Align the BLAST-predicted ORFs to the reads using BWA MEM
     :param args: Command-line argument object from get_options and check_parser_arguments
+    :param reference_fasta: A FASTA file containing the sequences to be aligned to
     :return: Path to the SAM file
     """
     input_multi_fasta = re.match(r'\A.*\/(.*)', args.fasta_input).group(1)
-    orf_nuc_fasta = args.output_dir_var + '.'.join(input_multi_fasta.split('.')[:-1]) + "_genes.fna"
     rpkm_output_dir = args.output + "RPKM_outputs" + os.sep
     if not os.path.exists(rpkm_output_dir):
         try:
@@ -3755,9 +3755,9 @@ def align_reads_to_nucs(args):
         sys.stdout.write("Aligning reads to ORFs with BWA MEM... ")
         sys.stdout.flush()
 
-    sam_file = rpkm_output_dir + '.'.join(os.path.basename(orf_nuc_fasta).split('.')[0:-1]) + ".sam"
+    sam_file = rpkm_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
     index_command = [args.executables["bwa"], "index"]
-    index_command += [orf_nuc_fasta]
+    index_command += [reference_fasta]
     index_command += ["1>", "/dev/null", "2>", args.output + "treesapp_bwa_index.stderr"]
 
     launch_write_command(index_command)
@@ -3771,7 +3771,7 @@ def align_reads_to_nucs(args):
     elif args.pairing == "se":
         bwa_command += ["-S", "-P"]
 
-    bwa_command.append(orf_nuc_fasta)
+    bwa_command.append(reference_fasta)
     bwa_command.append(args.reads)
     if args.pairing == "pe" and args.reverse:
         bwa_command.append(args.reverse)
@@ -3788,7 +3788,7 @@ def align_reads_to_nucs(args):
         sys.stdout.write("done.\n")
         sys.stdout.flush()
 
-    return sam_file, orf_nuc_fasta
+    return sam_file
 
 
 def run_rpkm(args, sam_file, orf_nuc_fasta):
@@ -4603,7 +4603,12 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
 
     sys.stdout.write('Parsing the RAxML outputs... ')
     sys.stdout.flush()
-
+    try:
+        parse_log = open(args.output + os.sep + "treesapp_parse_RAxML_log.txt", 'w')
+    except IOError:
+        sys.stderr.write("WARNING: Unable to open " + args.output + os.sep + "treesapp_parse_RAxML_log.txt!")
+        sys.stderr.flush()
+        parse_log = sys.stdout
     if args.verbose:
         function_start_time = time.time()
 
@@ -4663,10 +4668,9 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
             if marker not in unclassified_counts.keys():
                 unclassified_counts[marker] = 0
             unclassified_counts[marker] += 1
-            sys.stderr.write("WARNING: a putative " + marker +
-                             " sequence has been unclassified due to low placement likelihood weights. More info:\n")
-            sys.stderr.flush()
-            query_obj.summarize()
+            parse_log.write("WARNING: a putative " + marker +
+                            " sequence has been unclassified due to low placement likelihood weights. More info:\n")
+            parse_log.write(query_obj.summarize())
             continue
         query_obj.create_jplace_node_map()
         if args.placement_parser == "best":
@@ -4676,7 +4680,7 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
         if unclassified == 0 and len(query_obj.placements) != 1:
             sys.stderr.write("ERROR: Number of JPlace pqueries is " + str(len(query_obj.placements)) +
                              " when only 1 is expected at this point.\n")
-            query_obj.summarize()
+            sys.stderr.write(query_obj.summarize())
             sys.exit(3)
         query_obj.get_inode()
         query_obj.get_placement_lwr()
@@ -4698,6 +4702,8 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
         sys.stdout.write("\t" + str(len(jplace_files)) + " RAxML output files.\n")
         sys.stdout.write("\t" + str(classified_seqs) + " sequences classified by TreeSAPP.\n\n")
         sys.stdout.flush()
+
+    parse_log.close()
 
     return tree_saps, itol_data, marker_map, unclassified_counts
 
@@ -4820,13 +4826,14 @@ def main(argv):
         # concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
     tree_saps, itol_data, marker_map, unclassified_counts = parse_raxml_output(args, cog_list, unclassified_counts)
 
+    abundance_file = None
     if args.molecule == "dna":
-        sample_name = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
+        sample_name = '.'.join(os.path.basename(re.sub("_ORFs", '', args.fasta_input)).split('.')[:-1])
         orf_nuc_fasta = args.output_dir_final + sample_name + "_classified_seqs.fna"
         if not os.path.isfile(orf_nuc_fasta):
             sys.stdout.write("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
             sys.stdout.flush()
-            genome_nuc_genes_file = args.output_dir_final + sample_name + ".fna"
+            genome_nuc_genes_file = args.output_dir_final + sample_name + "_ORFs.fna"
             if os.path.isfile(genome_nuc_genes_file):
                 nuc_orfs_formatted_dict = format_read_fasta(genome_nuc_genes_file, 'dna', args)
                 write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta)
@@ -4835,19 +4842,17 @@ def main(argv):
             else:
                 sys.stderr.write("failed.\nWARNING: Unable to read '" + genome_nuc_genes_file + "'.\n")
                 sys.stderr.write("Cannot create the nucleotide FASTA file of classified sequences!\n")
+        if args.rpkm:
+            sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
+            abundance_file = run_rpkm(args, sam_file, orf_nuc_fasta)
+            normalize_rpkm_values(args, abundance_file, cog_list, text_of_analysis_type)
     else:
         pass
 
-    if args.rpkm:
-        sam_file, orf_nuc_fasta = align_reads_to_nucs(args)
-        rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
-        normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type)
-        produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file)
-    else:
-        produce_itol_inputs(args, tree_saps, marker_map, itol_data)
-
+    produce_itol_inputs(args, tree_saps, marker_map, itol_data, abundance_file)
     write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict)
     delete_files(args, 4)
+
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
         for marker in args.targets:
