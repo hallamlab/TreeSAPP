@@ -1,0 +1,9 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+1473	range	#4fca4f	Cluster 3
+1299	range	rgba(28, 60, 221, 0.75)	Cluster 1
+1389	range	#a42222	Cluster 2
+64	range	rgba(208, 111, 251, 0.61)	pCluster 5
+135	range	#ff8000	Cluster 4
+308	range	rgba(148, 27, 200, 0.87)	pCluster 6

@@ -1,0 +1,11 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+155|1	range	rgba(50, 181, 50, 0.68)	hao
+48|41	range	rgba(50, 181, 50, 0.68)	hao
+65|119	range	rgba(50, 181, 50, 0.68)	hao
+42|197	range	rgba(50, 181, 50, 0.68)	hao
+145|109	range	rgba(50, 181, 50, 0.68)	hao
+111|149	range	rgba(50, 181, 50, 0.68)	hao
+238|52	range	rgba(50, 181, 50, 0.68)	hao
+225|236	range	rgba(82, 103, 212, 0.75)	hzo
