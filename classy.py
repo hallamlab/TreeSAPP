@@ -387,7 +387,6 @@ class ItolJplace:
         if self.abundance:
             summary_string += "Abundance:\n\t" + str(self.abundance) + "\n"
         summary_string += "\n"
-        sys.stderr.flush()
         return summary_string
 
     def list_placements(self):

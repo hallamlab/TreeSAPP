@@ -76,11 +76,12 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     :return:
     """
     split_files = list()
-    file_counter = 0
+    file_counter = 1
     sequence_accumulator = 0
+    fasta_string = ""
 
     if max_seqs is not None:
-        fasta_name = fasta_name + '_' + str(max_seqs)
+        fasta_name = fasta_name + '_' + str(file_counter) + ".fasta"
 
     try:
         fa_out = open(fasta_name, 'w')
@@ -94,23 +95,25 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
         sequence_accumulator += 1
         if max_seqs and sequence_accumulator > max_seqs:
             # If input is to be split and number of sequences per file has been exceeded begin writing to new file
+            fa_out.write(fasta_string)
             fa_out.close()
+            fasta_string = ""
             split_files.append(fasta_name)
             file_counter += 1
             sequence_accumulator = 1
-            fasta_name = re.sub(r'_d+$', '_' + str(file_counter), fasta_name)
+            fasta_name = re.sub("_\d+.fasta$", '_' + str(file_counter) + ".fasta", fasta_name)
             fa_out = open(fasta_name, 'w')
 
+        # Only write the records specified in `headers`, or all records if `headers` isn't provided
         if headers is None:
-            fa_out.write(name + "\n")
-            fa_out.write(seq + "\n")
+            fasta_string += name + "\n" + seq + "\n"
         elif name[1:] in headers:
-            fa_out.write(name + "\n")
-            fa_out.write(seq + "\n")
+            fasta_string += name + "\n" + seq + "\n"
 
+    fa_out.write(fasta_string)
     fa_out.close()
     split_files.append(fasta_name)
-    file_counter += 1
+
     return split_files
 
 

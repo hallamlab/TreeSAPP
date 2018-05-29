@@ -51,8 +51,8 @@ def get_options():
                         help='Your sequence input file in FASTA format')
     parser.add_argument('-o', '--output', default='./output/', required=False,
                         help='output directory [DEFAULT = ./output/]')
-    parser.add_argument('-c', '--consensus', default=False, action="store_true",
-                        help="Input is assembled consensus sequences so ORFs will be predicted instead of using blastx")
+    parser.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
+                        help="Sample composition being either a single organism or a metagenome.")
     parser.add_argument('-b', '--bootstraps', default=0, type=int,
                         help='the number of Bootstrap replicates [DEFAULT = 0]')
     # TODO: remove this option and only use Maximum Likelihood (-f v) for RAxML
@@ -62,8 +62,6 @@ def get_options():
                         help="Flag to turn on position masking of the multiple sequence alignmnet [DEFAULT = False]")
     parser.add_argument('-g', '--min_seq_length', default=50, type=int,
                         help='minimal sequence length after alignment trimming [DEFAULT = 50]')
-    # parser.add_argument('-s', '--min_acc', default=60, type=int,
-    #                     help='minimum bitscore for the blast hits [DEFAULT = 60]')
     parser.add_argument('-R', '--reftree', default='p', type=str,
                         help='Reference tree (p = MLTreeMap reference phylogenetic tree [DEFAULT])'
                              ' Change to code to map query sequences to specific phylogenetic tree.')
@@ -188,12 +186,6 @@ def check_parser_arguments(parser):
         if args.reverse and not args.reads:
             sys.stderr.write("ERROR: File containing reverse reads provided but forward mates file missing!")
             sys.exit()
-
-    if args.consensus and args.molecule == "prot":
-        sys.stderr.write("WARNING: Consensus mode was specified with molecule type of protein. This is confusing.\n")
-        sys.stderr.write("ORF-prediction with Prodigal will be skipped! Carrying on...\n")
-        sys.stderr.flush()
-        args.consensus = False
 
     if args.molecule == "prot" and args.rpkm:
         sys.stderr.write("ERROR: Unable to calculate RPKM values for protein sequences.\n")
@@ -663,16 +655,53 @@ def predict_orfs(args):
 
     start_time = time.time()
 
-    genome = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
-    genome_orfs_file = args.output_dir_final + genome + "_ORFs.faa"
-    genome_nuc_genes_file = args.output_dir_final + genome + "_ORFs.fna"
-    run_prodigal(args, args.fasta_input, genome_orfs_file, genome_nuc_genes_file)
+    sample_prefix = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
+    if args.num_threads > 1 and args.composition == "meta":
+        # Split the input FASTA into num_threads files to run Prodigal in parallel
+        input_fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+        n_seqs = len(input_fasta_dict.keys())
+        chunk_size = int(n_seqs / args.num_threads) + (n_seqs % args.num_threads)
+        split_files = write_new_fasta(input_fasta_dict,
+                                      args.output_dir_var + sample_prefix,
+                                      chunk_size)
+    else:
+        split_files = [args.fasta_input]
 
-    # orf_fasta must be changed since FGS+ appends .faa to the output file name
-    args.fasta_input = genome_orfs_file
-    args.nucleotide_orfs = genome_nuc_genes_file
+    task_list = list()
+    for fasta_chunk in split_files:
+        chunk_prefix = args.output_dir_final + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
+        prodigal_command = [args.executables["prodigal"]]
+        prodigal_command += ["-i", fasta_chunk]
+        prodigal_command += ["-p", args.composition]
+        prodigal_command += ["-a", chunk_prefix + "_ORFs.faa"]
+        prodigal_command += ["-d", chunk_prefix + "_ORFs.fna"]
+        prodigal_command += ["1>/dev/null", "2>/dev/null"]
+        task_list.append(prodigal_command)
+
+    num_tasks = len(task_list)
+    if num_tasks > 0:
+        cl_farmer = CommandLineFarmer("Prodigal -p " + args.composition, args.num_threads)
+        cl_farmer.add_tasks_to_queue(task_list)
+
+        cl_farmer.task_queue.close()
+        cl_farmer.task_queue.join()
+
+    # Concatenate outputs
+    aa_orfs_file = args.output_dir_final + sample_prefix + "_ORFs.faa"
+    nuc_orfs_file = args.output_dir_final + sample_prefix + "_ORFs.fna"
+    if not os.path.isfile(aa_orfs_file) and not os.path.isfile(nuc_orfs_file):
+        tmp_prodigal_aa_orfs = glob.glob(args.output_dir_final + sample_prefix + "*_ORFs.faa")
+        tmp_prodigal_nuc_orfs = glob.glob(args.output_dir_final + sample_prefix + "*_ORFs.fna")
+        os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + aa_orfs_file)
+        os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + nuc_orfs_file)
+        intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
+        for tmp_file in intermediate_files:
+            os.remove(tmp_file)
 
     sys.stdout.write("done.\n")
+
+    args.fasta_input = aa_orfs_file
+    args.nucleotide_orfs = nuc_orfs_file
 
     if args.verbose and start_time:
         end_time = time.time()
@@ -3708,7 +3737,7 @@ def write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_f
     :return: nothing
     """
     # Header format:
-    # >contig_name | marker_gene
+    # >contig_name|marker_gene
     try:
         fna_output = open(orf_nuc_fasta, 'w')
     except IOError:
@@ -3724,7 +3753,7 @@ def write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_f
                 sys.stderr.write('\n\t'.join(list(nuc_orfs_formatted_dict.keys())[:6]) + "\n")
                 sys.exit(45)
             else:
-                output_fasta_string += '>' + placed_sequence.contig_name + ' | ' + placed_sequence.name + "\n"
+                output_fasta_string += '>' + placed_sequence.contig_name + '|' + placed_sequence.name + "\n"
                 output_fasta_string += nuc_orfs_formatted_dict['>' + placed_sequence.contig_name] + "\n"
 
     fna_output.write(output_fasta_string)
@@ -3831,6 +3860,8 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
     Recalculates the percentages for each marker gene final output based on the RPKM values
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param rpkm_output_file: CSV file containing contig names and RPKM values
+    :param cog_list:
+    :param text_of_analysis_type:
     :return:
     """
     contig_rpkm_map = dict()
@@ -3845,7 +3876,7 @@ def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_typ
         raise IOError("Unable to open " + rpkm_output_file + " for reading!")
     for line in rpkm_values:
         contig, rpkm = line.strip().split(',')
-        name, marker, start_end = contig.split('|')
+        name, marker = contig.split('|')
 
         contig_rpkm_map[name] = rpkm
         if marker not in marker_contig_map:
@@ -4202,7 +4233,7 @@ def read_rpkm(rpkm_output_file):
     for line in rpkm_stats:
         f_contig, rpkm = line.strip().split(',')
         if float(rpkm) > 0:
-            contig, c_marker, position = f_contig.split('|')
+            contig, c_marker = f_contig.split('|')
             if c_marker not in rpkm_values:
                 rpkm_values[c_marker] = dict()
             rpkm_values[c_marker][contig] = float(rpkm)
