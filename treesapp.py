@@ -3211,7 +3211,6 @@ def build_terminal_children_strings_of_reference_nodes(reference_tree_info):
 
 
 def compare_terminal_children_strings(terminal_children_of_assignments, terminal_children_of_reference, parse_log):
-    # TODO: Ran into an error here with Matano metagenome and mcrG (M0705)
     real_terminal_children_of_assignments = Autovivify()
     there_was_a_hit = 0
     parse_log.write("compare_terminal_children_strings\tstart: ")
@@ -3505,6 +3504,8 @@ def delete_files(args, section):
                 files_to_be_deleted += glob.glob(args.output + "RPKM_outputs" + os.sep + "*.sam")
         if section == 5:
             files_to_be_deleted += glob.glob(args.output_dir_var + '*_exit_after_trimal.txt')
+            files_to_be_deleted += glob.glob(args.output_dir_var + '*.mfa-trimal')
+            files_to_be_deleted += glob.glob(args.output_dir_var + '*.cl')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*_RAxML.txt')
             files_to_be_deleted += glob.glob(args.output_dir_var + 'RAxML_entropy.*')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_info.txt')
@@ -3512,6 +3513,9 @@ def delete_files(args, section):
             files_to_be_deleted += glob.glob(args.output_dir_var + 'RAxML_classificationLikelihoodWeights*')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy')
             files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy.reduced')
+            files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_classification.txt')
+            # Need this for annotate_extra_treesapp.py
+            # files_to_be_deleted += glob.glob(args.output_dir_var + '*.jplace')
 
     for useless_file in files_to_be_deleted:
         if path.exists(useless_file):
@@ -4682,15 +4686,17 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
         query_obj.name = marker
         jplace_data = jplace_parser(filename)
         query_obj.transfer(jplace_data)
+        jplace_data.name_placed_sequence(contig)
 
         if marker not in itol_data:
             itol_data[marker] = jplace_data
             itol_data[marker].name = marker
         else:
             # If a JPlace file for that tree has already been parsed, just append the placements
-            with open(filename) as jplace:
-                jplace_dat = load(jplace, encoding="utf-8")
-                itol_data[marker].placements = itol_data[marker].placements + jplace_dat["placements"]
+            itol_data[marker].placements = itol_data[marker].placements + jplace_data.placements
+            # with open(filename) as jplace:
+            #     jplace_dat = load(jplace, encoding="utf-8")
+            #     itol_data[marker].placements = itol_data[marker].placements + jplace_dat["placements"]
 
         query_obj.correct_decoding()
         unclassified = query_obj.filter_min_weight_threshold(args.min_likelihood)
@@ -4806,7 +4812,6 @@ def main(argv):
     if args.skip == 'n':
         # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
         if args.molecule == "dna":
-            # TODO: split input into num_threads chunks and process them with Prodigal separately
             # args.fasta_input is set to the predicted ORF protein sequences
             args = predict_orfs(args)
         sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")

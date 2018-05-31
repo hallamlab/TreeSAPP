@@ -427,6 +427,17 @@ class ItolJplace:
         self.fields = [dumps(x) for x in self.fields]
         return
 
+    def name_placed_sequence(self, seq_name):
+        new_placement_collection = dict()
+        for d_place in self.placements:
+            for key, value in d_place.items():
+                if key == 'n':
+                    new_placement_collection['n'] = [seq_name]
+                else:
+                    new_placement_collection[key] = value
+        self.placements = [new_placement_collection]
+        return
+
     def get_field_position_from_jplace_fields(self, field_name):
         """
         Find the position in self.fields of 'like_weight_ratio'
