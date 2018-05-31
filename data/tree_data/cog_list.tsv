@@ -100,6 +100,7 @@ hzs	A0100	Hydrazine synthase (hzs)
 hzao	A0012	hydrazine dehydrogenase (hzo/hdh) and hydroxylamine dehydrogenase (hao)
 GH36	C0036	CAZy family 36: α-galactosidase (EC 3.2.1.22); α-N-acetylgalactosaminidase (EC 3.2.1.49); stachyose synthase (EC 2.4.1.67); raffinose synthase (EC 2.4.1.82)
 GH31	C0031	Glycoside hydrolase family 31
+GH109	C0109	Glycoside hydrolase family 109
 CO_dh	C1000	Carbon monoxide dehydrogenase (EC 1.2.7.4)
 RBsCO	C2000	Ribulose-1,5-bisphosphate carboxylase/oxygenase (EC 4.1.1.39)
 OGFOxy	C3000	2-oxoglutarate (2OG) and Fe(II)-dependent oxygenase superfamily

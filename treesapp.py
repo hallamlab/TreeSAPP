@@ -4530,6 +4530,8 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
     """
     mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
     sample_name = os.path.basename(args.output)
+    if not sample_name:
+        sample_name = args.output.split(os.sep)[-2]
     tab_out_string = "Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD\n"
     try:
         tab_out = open(mapping_output, 'w')
