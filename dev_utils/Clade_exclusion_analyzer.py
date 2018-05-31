@@ -88,7 +88,7 @@ def read_marker_classification_table(assignment_file):
     n_classified = 0
     assignments_handle = open(assignment_file, 'r')
     # This is the header line
-    if not re.match("^Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
+    if not re.match("^Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
                     assignments_handle.readline()):
         sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
         raise AssertionError

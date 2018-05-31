@@ -4529,7 +4529,8 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
     :return:
     """
     mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
-    tab_out_string = "Query\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD\n"
+    sample_name = os.path.basename(args.output)
+    tab_out_string = "Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD\n"
     try:
         tab_out = open(mapping_output, 'w')
     except IOError:
@@ -4588,7 +4589,8 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                         tree_sap.wtd = 1
 
                 # tree_sap.summarize()
-                tab_out_string += '\t'.join([tree_sap.contig_name,
+                tab_out_string += '\t'.join([sample_name,
+                                             tree_sap.contig_name,
                                              tree_sap.name,
                                              clean_lineage_string(tree_sap.lct),
                                              lowest_confident_taxonomy(tree_sap.lct, marker_build_dict[denominator]),
