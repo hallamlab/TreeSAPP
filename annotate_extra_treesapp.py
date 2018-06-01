@@ -340,8 +340,8 @@ def main():
             for jplace in jplace_files:
                 if re.match(re.escape(var_dir) + "RAxML_portableTree." + re.escape(gene_code) + "_.*.jplace", jplace):
                     jplace_files_to_parse.append(jplace)
-                if gene_code not in jplace_tree_strings:
-                    jplace_tree_strings[gene_code] = jplace_parser(jplace).tree
+                    if gene_code not in jplace_tree_strings:
+                        jplace_tree_strings[gene_code] = jplace_parser(jplace).tree
 
             marker = marker_build_dict[gene_code].cog
             if marker in marker_subgroups[data_type]:
@@ -368,7 +368,7 @@ def main():
                         for leaf in internal_node_map[inode]:
                             if leaf not in leaves_in_clusters:
                                 unannotated.add(str(leaf))
-                    sys.stderr.write("\t" + ', '.join(unannotated) + "\n")
+                    sys.stderr.write("\t" + ', '.join(sorted(unannotated, key=int)) + "\n")
                     sys.stderr.flush()
             else:
                 pass
