@@ -30,7 +30,7 @@ try:
     from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string, parse_domain_tables, reformat_string
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild
     from fasta import format_read_fasta, get_headers, write_new_fasta
-    from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree
+    from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree, get_node
     from external_command_interface import launch_write_command, setup_progress_bar
 
     import _tree_parser
@@ -4749,6 +4749,70 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
     return tree_saps, itol_data, marker_map, unclassified_counts
 
 
+def add_bipartitions(itol_datum, bipartition_file):
+    """
+    Adds bootstrap values read from a NEWICK tree-file where they are indicated by values is square-brackets
+    and inserts them into a JPlace-formatted NEWICK tree (Internal nodes in curly braces are required)
+    :param itol_datum: An ItolJplace object
+    :param bipartition_file: Path to file containing the bootstrapped tree
+    :return: Updated ItolJPlace object
+    """
+    with open(bipartition_file) as bootstrap_tree_handler:
+        bootstrap_tree = bootstrap_tree_handler.readline().strip()
+        no_length_tree = re.sub(":[0-9.]+", '', bootstrap_tree)
+        node_stack = list()
+        internal_node_bipart_map = dict()
+        x = 0
+        i_node = 0
+        num_buffer = ""
+        while x < len(no_length_tree):
+            c = no_length_tree[x]
+            if c == '[':
+                x += 1
+                c = no_length_tree[x]
+                while re.search(r"[0-9]", c):
+                    num_buffer += c
+                    x += 1
+                    c = no_length_tree[x]
+                bootstrap = num_buffer
+                num_buffer = ""
+                x -= 1
+                internal_node_bipart_map[node_stack.pop()] = bootstrap
+            elif re.search(r"[0-9]", c):
+                while re.search(r"[0-9]", c):
+                    x += 1
+                    c = no_length_tree[x]
+                node_stack.append(str(i_node))
+                i_node += 1
+                x -= 1
+            elif c == ')':
+                node_stack.append(str(i_node))
+                i_node += 1
+            x += 1
+    x = 0
+    bootstrapped_jplace_tree = ''
+    num_buffer = ''
+    while x < len(itol_datum.tree):
+        c = itol_datum.tree[x]
+        if c == '{':
+            x += 1
+            c = itol_datum.tree[x]
+            while re.search(r"[0-9]", c):
+                num_buffer += c
+                x += 1
+                c = itol_datum.tree[x]
+            if num_buffer in internal_node_bipart_map.keys():
+                bootstrapped_jplace_tree += '[' + internal_node_bipart_map[num_buffer] + ']'
+            bootstrapped_jplace_tree += '{' + num_buffer
+            num_buffer = ''
+            x -= 1
+        else:
+            bootstrapped_jplace_tree += c
+        x += 1
+    itol_datum.tree = bootstrapped_jplace_tree
+    return itol_datum
+
+
 def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file=None):
     """
     Function to create outputs for the interactive tree of life (iTOL) webservice.
@@ -4771,6 +4835,10 @@ def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file
         marker = marker_map[denominator]
         if not os.path.exists(itol_base_dir + marker):
             os.mkdir(itol_base_dir + marker)
+
+        bipartition_file = os.sep.join([args.treesapp, "data", "tree_data", marker + "_bipartitions.txt"])
+        if os.path.isfile(bipartition_file):
+            itol_data[marker] = add_bipartitions(itol_data[marker], bipartition_file)
 
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + marker + os.sep + marker + "_complete_profile.jplace"
