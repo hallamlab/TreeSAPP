@@ -8,6 +8,8 @@ import pygtrie
 import re
 import os
 import inspect
+import shutil
+from glob import glob
 from random import randint
 
 cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
@@ -52,6 +54,8 @@ def get_arguments_():
                              "Useful for testing classification accuracy for fragments.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
+    miscellaneous_opts.add_argument("--graftm", default=None, required=False,
+                                    help="The path to a GraftM package. Classifications performed using GraftM.")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
@@ -66,6 +70,10 @@ def get_arguments_():
         args.output += os.sep
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep + ".." + os.sep
 
+    if args.overwrite:
+        if os.path.exists(args.output):
+            shutil.rmtree(args.output)
+
     args.min_seq_length = 1
 
     if sys.version_info > (2, 9):
@@ -76,36 +84,20 @@ def get_arguments_():
     return args
 
 
-def read_marker_classification_table(assignment_file):
-    """
-    Function for reading the tabular assignments file (currently marker_contig_map.tsv)
-    Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
-    (leaving 1 for marker name and 4 for numerical abundance)
-    :param assignment_file: Path to the file containing sequence phylogenetic origin and assignment
-    :return: dictionary whose keys are phylogenetic origin and values are lists of TreeSAPP assignments
-    """
+def read_graftm_classifications(assignment_file):
     assignments = dict()
     n_classified = 0
     assignments_handle = open(assignment_file, 'r')
-    # This is the header line
-    if not re.match("^Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
-                    assignments_handle.readline()):
-        sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
-        raise AssertionError
-
-    # First line in the table containing data
     line = assignments_handle.readline()
     while line:
         fields = line.strip().split('\t')
         try:
-            header, marker, classified, rob_class, abundance, inode, likelihood, lwr, wtd = fields
-            if marker and rob_class:
+            header, classified = fields
+            if header and classified:
                 n_classified += 1
-                if marker not in assignments:
-                    assignments[marker] = dict()
-                if rob_class not in assignments[marker]:
-                    assignments[marker][rob_class] = list()
-                assignments[marker][rob_class].append(header)
+                if classified not in assignments:
+                    assignments[classified] = list()
+                assignments[classified].append(header)
         except ValueError:
             sys.stderr.write("ERROR: Unable to parse line:")
             sys.stderr.write(str(line))
@@ -113,6 +105,52 @@ def read_marker_classification_table(assignment_file):
         line = assignments_handle.readline()
 
     assignments_handle.close()
+    return assignments, n_classified
+
+
+def read_marker_classification_table(assignment_file, marker=None):
+    """
+    Function for reading the tabular assignments file (currently marker_contig_map.tsv)
+    Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
+    (leaving 1 for marker name and 4 for numerical abundance)
+    :param assignment_file: Path to the file containing sequence phylogenetic origin and assignment
+    :param marker: Optionally, the marker name can be explicitly provided. Necessary when analyzing GraftM outputs
+    :return: dictionary whose keys are phylogenetic origin and values are lists of TreeSAPP assignments
+    """
+    assignments = dict()
+    n_classified = 0
+    if re.match(r".*_read_tax.tsv$", assignment_file):
+        # This is a GraftM classification table
+        marker_assignments, n_classified = read_graftm_classifications(assignment_file)
+        assignments[marker] = marker_assignments
+    else:
+        assignments_handle = open(assignment_file, 'r')
+        # This is the header line
+        if not re.match("^Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
+                        assignments_handle.readline()):
+            sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
+            raise AssertionError
+
+        # First line in the table containing data
+        line = assignments_handle.readline()
+        while line:
+            fields = line.strip().split('\t')
+            try:
+                _, header, marker, _, rob_class, _, _, _, _, _ = fields
+                if marker and rob_class:
+                    n_classified += 1
+                    if marker not in assignments:
+                        assignments[marker] = dict()
+                    if rob_class not in assignments[marker]:
+                        assignments[marker][rob_class] = list()
+                    assignments[marker][rob_class].append(header)
+            except ValueError:
+                sys.stderr.write("ERROR: Unable to parse line:\n")
+                sys.stderr.write(str(line))
+                sys.exit(1)
+            line = assignments_handle.readline()
+
+        assignments_handle.close()
     return assignments, n_classified
 
 
@@ -184,18 +222,47 @@ def write_intermediate_assignments(args, assignments):
     return
 
 
+def grab_graftm_taxa(tax_ids_file):
+    taxonomic_tree = pygtrie.StringTrie(separator='; ')
+    with open(tax_ids_file) as tax_ids:
+        header = tax_ids.readline().strip()
+        if header != "tax_id,parent_id,rank,tax_name,root,kingdom,phylum,class,order,family,genus,species":
+            raise AssertionError("ERROR: Unable to handle format of " + tax_ids_file + "!")
+        line = tax_ids.readline().strip()
+        while line:
+            try:
+                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_ = line.split(',')
+            except IndexError:
+                raise AssertionError("ERROR: Unexpected format of line in " + tax_ids_file + ":\n" + line)
+            ranks = [k_, p_, c_, o_, f_, g_, s_]
+            lineage_list = []
+            for rank in ranks:
+                if rank:
+                    lineage_list.append(rank)
+            lineage = clean_lineage_string('; '.join(lineage_list))
+            i = 0
+            ranks = len(lineage)
+            while i < len(lineage):
+                taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
+                i += 1
+
+            line = tax_ids.readline().strip()
+
+    return taxonomic_tree
+
+
 def all_possible_assignments(args, tax_ids_file):
     taxonomic_tree = pygtrie.StringTrie(separator='; ')
-    if os.path.exists(tax_ids_file):
-        file_name = os.path.basename(tax_ids_file)
-        if re.match("^tax_ids_(.*).txt", file_name):
-            marker = re.match("^tax_ids_(.*).txt", file_name).group(1)
-        else:
-            sys.stderr.write("ERROR: Format of tax_ids file (" + tax_ids_file +
-                             ") is unexpected. Unable to parse marker name! Exiting...\n")
-            sys.exit(7)
-    else:
-        raise IOError("File doesn't exist: " + tax_ids_file + "\n")
+    # if os.path.exists(tax_ids_file):
+    #     file_name = os.path.basename(tax_ids_file)
+    #     if re.match("^tax_ids_(.*).txt", file_name):
+    #         marker = re.match("^tax_ids_(.*).txt", file_name).group(1)
+    #     else:
+    #         sys.stderr.write("ERROR: Format of tax_ids file (" + tax_ids_file +
+    #                          ") is unexpected. Unable to parse marker name! Exiting...\n")
+    #         sys.exit(7)
+    # else:
+    #     raise IOError("File doesn't exist: " + tax_ids_file + "\n")
     try:
         if args.py_version == 3:
             cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
@@ -227,7 +294,7 @@ def all_possible_assignments(args, tax_ids_file):
             i += 1
 
     cog_tax_ids.close()
-    return taxonomic_tree, marker
+    return taxonomic_tree
 
 
 def identify_excluded_clade(args, assignment_dict, trie, marker):
@@ -932,7 +999,14 @@ def main():
     if not os.path.isdir(treesapp_output_dir):
         os.makedirs(treesapp_output_dir)
 
-    classification_table = args.output + os.sep + "final_outputs" + os.sep + "marker_contig_map.tsv"
+    if args.graftm:
+        graftm_files = glob(args.output + os.sep + "*" + os.sep + "*_read_tax.tsv")
+        if len(graftm_files) == 1:
+            classification_table = glob(args.output + os.sep + "*" + os.sep + "*_read_tax.tsv")[0]
+        else:
+            classification_table = ''
+    else:
+        classification_table = args.output + os.sep + "final_outputs" + os.sep + "marker_contig_map.tsv"
     if os.path.isfile(classification_table):
         classified = True
 
@@ -966,6 +1040,16 @@ def main():
     taxonomic_filter_stats["Unclassified"] = 0
     taxonomic_filter_stats["Classified"] = 0
     taxonomic_filter_stats["Unique_taxa"] = 0
+
+    if args.graftm:
+        gpkg_re_match = re.match("[0-9.]+.*\.(\w+)\.gpkg", os.path.basename(args.graftm))
+        marker = gpkg_re_match.group(1)
+        # try:
+        #     marker = gpkg_re_match.group(1)
+        # except:
+        #     raise Exception("ERROR: Unable to parse marker from GraftM package name: " + args.graftm + "\n")
+    else:
+        marker = None
 
     # TODO: fix bug where marker_contig_map.tsv is missing when accession_lineage_map present
     # Checkpoint one: does anything exist?
@@ -1013,28 +1097,46 @@ def main():
             min_seq_length = str(min(args.length - 10, 50))
         else:
             min_seq_length = str(50)
-        treesapp_commands = ["./treesapp.py", "-i", test_rep_taxa_fasta,
-                             "-o", treesapp_output_dir,
-                             "-m", args.molecule,
-                             "-T", str(4),
-                             "--filter_align",
-                             "--min_likelihood", str(0.1),
-                             "--min_seq_length", min_seq_length,
-                             "--verbose",
-                             "--overwrite",
-                             "--delete"]
-        sys.stdout.write("Command used:\n" + ' '.join(treesapp_commands) + "\n")
-        launch_write_command(treesapp_commands, False)
+
+        if args.graftm:
+            classify_command = ["graftM", "graft"]
+            classify_command += ["--forward", test_rep_taxa_fasta]
+            classify_command += ["--graftm_package", args.graftm]
+            classify_command += ["--threads", str(4)]
+            classify_command += ["--assignment_method", "pplacer"]
+            # classify_command += ["--assignment_method", "kraken"]
+            classify_command += ["--search_method", "hmmsearch"]
+            # classify_command += ["--search_method", "kraken"]
+            classify_command += ["--output_directory", treesapp_output_dir]
+            classify_command += ["--input_sequence_type", "aminoacid"]
+            classify_command.append("--force")
+
+            graftm_prefix = '.'.join(os.path.basename(test_rep_taxa_fasta).split('.')[:-1])
+            classification_table = os.sep.join([args.output, graftm_prefix, graftm_prefix + "_read_tax.tsv"])
+
+        else:
+            classify_command = ["./treesapp.py", "-i", test_rep_taxa_fasta,
+                                "-o", treesapp_output_dir,
+                                "-m", args.molecule,
+                                "-T", str(4),
+                                "--filter_align",
+                                "--min_likelihood", str(0.1),
+                                "--min_seq_length", min_seq_length,
+                                "--verbose",
+                                "--overwrite",
+                                "--delete"]
+        sys.stdout.write("Command used:\n" + ' '.join(classify_command) + "\n")
+        launch_write_command(classify_command, False)
         classified = True
 
     # Checkpoint four: everything has been prepared, only need to parse the classifications and map lineages
     if extant and accessions_downloaded and taxa_filter and classified:
         sys.stdout.write("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
         if os.path.isfile(classification_table):
-            assignments, n_classified = read_marker_classification_table(classification_table)
+            assignments, n_classified = read_marker_classification_table(classification_table, marker)
         else:
             sys.stderr.write("\nERROR: marker_contig_map.tsv is missing from output directory '" +
-                             os.path.basename(classification_table) +"'\n")
+                             os.path.basename(classification_table) + "'\n")
             sys.stderr.write("Please remove this directory and re-run.\n")
             sys.exit(3)
         marker_assignments = map_headers_to_lineage(assignments, complete_ref_sequences)
@@ -1144,9 +1246,15 @@ def main():
             sys.stderr.write("ERROR: Wrong format for the reference code_name provided: " + name + "\n")
             sys.exit(9)
 
-        tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + "tax_ids_" + marker + ".txt"
+        if args.graftm:
+            tax_ids_file = glob(os.sep.join([args.graftm, "*refpkg", "*_taxonomy.csv"]))[0]
+        else:
+            tax_ids_file = os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"])
         if os.path.exists(tax_ids_file):
-            taxonomic_tree, marker = all_possible_assignments(args, tax_ids_file)
+            if args.graftm:
+                taxonomic_tree = grab_graftm_taxa(tax_ids_file)
+            else:
+                taxonomic_tree = all_possible_assignments(args, tax_ids_file)
         else:
             sys.stderr.write("ERROR: Unable to find taxonomy IDs table: " + tax_ids_file + "\n")
             sys.exit(3)
