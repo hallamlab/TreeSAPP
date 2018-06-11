@@ -64,7 +64,7 @@ def find_executables(args):
 
     if hasattr(args, "update_tree"):
         if args.update_tree:
-            dependencies.append("usearch")
+            dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]
 
     if hasattr(args, "cluster") or hasattr(args, "multiple_alignment") or hasattr(args, "fast"):
         if args.cluster:
@@ -355,6 +355,51 @@ def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
     sys.stdout.write("done.\n")
 
     return accession_lineage_map, all_accessions
+
+
+def return_sequence_info_groups(regex_match_groups, header_db, header):
+    accession = ""
+    description = ""
+    locus = ""
+    organism = ""
+    lineage = ""
+    if regex_match_groups:
+        if len(regex_match_groups.groups()) == 2:
+            accession = regex_match_groups.group(1)
+            organism = regex_match_groups.group(2)
+            description = regex_match_groups.group(2)
+        elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome"]:
+            accession = regex_match_groups.group(1)
+            description = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
+        elif header_db == "silva":
+            accession = regex_match_groups.group(1)
+            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
+            lineage = regex_match_groups.group(4)
+            description = regex_match_groups.group(4)
+        elif header_db == "fungene":
+            accession = regex_match_groups.group(1)
+            locus = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
+            description = regex_match_groups.group(3)
+        elif header_db == "fungene_truncated":
+            accession = regex_match_groups.group(1)
+            organism = regex_match_groups.group(2)
+            description = regex_match_groups.group(3)
+        elif header_db == "custom":
+            description = regex_match_groups.group(1)
+            lineage = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
+    else:
+        sys.stderr.write("Unable to handle header: " + header + "\n")
+        sys.exit()
+
+    if not accession and not organism:
+        sys.stderr.write("ERROR: Insufficient information was loaded for header:\n" + header + "\n")
+        sys.stderr.write("regex_match: " + header_db + '\n')
+        sys.exit(33)
+
+    return accession, organism, locus, description, lineage
 
 
 def check_lineage(lineage, organism_name):

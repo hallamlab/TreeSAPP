@@ -15,8 +15,10 @@ try:
 
     from time import gmtime, strftime
 
-    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_multiple_lineages, get_lineage_robust, parse_domain_tables
-    from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences
+    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_multiple_lineages, \
+        get_lineage_robust, parse_domain_tables, return_sequence_info_groups
+    from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
+        trim_multiple_alignment
     from classy import ReferenceSequence, Header
     from external_command_interface import launch_write_command
 
@@ -343,7 +345,7 @@ def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
     Writes a new FASTA file using a dictionary of ReferenceSequence class objects
     :param out_fasta: Name of the FASTA file to write to
     :param ref_seq_dict: Dictionary containing ReferenceSequence objects, numbers are keys
-    :param dashes: Flag indicating whether hyphens should be retained from sequences
+    :param dashes: Flag indicating whether hyphens should be retained in sequences
     :return:
     """
     out_fasta_handle = open(out_fasta, "w")
@@ -655,51 +657,6 @@ def reformat_headers(header_dict):
     for old, new in header_dict.items():
         swappers[reformat_string(old)] = reformat_string(new)
     return swappers
-
-
-def return_sequence_info_groups(regex_match_groups, header_db, header):
-    accession = ""
-    description = ""
-    locus = ""
-    organism = ""
-    lineage = ""
-    if regex_match_groups:
-        if len(regex_match_groups.groups()) == 2:
-            accession = regex_match_groups.group(1)
-            organism = regex_match_groups.group(2)
-            description = regex_match_groups.group(2)
-        elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome"]:
-            accession = regex_match_groups.group(1)
-            description = regex_match_groups.group(2)
-            organism = regex_match_groups.group(3)
-        elif header_db == "silva":
-            accession = regex_match_groups.group(1)
-            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
-            lineage = regex_match_groups.group(4)
-            description = regex_match_groups.group(4)
-        elif header_db == "fungene":
-            accession = regex_match_groups.group(1)
-            locus = regex_match_groups.group(2)
-            organism = regex_match_groups.group(3)
-            description = regex_match_groups.group(3)
-        elif header_db == "fungene_truncated":
-            accession = regex_match_groups.group(1)
-            organism = regex_match_groups.group(2)
-            description = regex_match_groups.group(3)
-        elif header_db == "custom":
-            description = regex_match_groups.group(1)
-            lineage = regex_match_groups.group(2)
-            organism = regex_match_groups.group(3)
-    else:
-        sys.stderr.write("Unable to handle header: " + header + "\n")
-        sys.exit()
-
-    if not accession and not organism:
-        sys.stderr.write("ERROR: Insufficient information was loaded for header:\n" + header + "\n")
-        sys.stderr.write("regex_match: " + header_db + '\n')
-        sys.exit(33)
-
-    return accession, organism, locus, description, lineage
 
 
 def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers=None):
@@ -1133,34 +1090,6 @@ def read_tax_ids(tree_taxa_list):
     tree_tax_list_handle.close()
 
     return fasta_replace_dict
-
-
-def trim_multiple_alignment(args, mfa_file):
-    """
-    Runs trimal using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
-
-    Returns a list of files resulting from trimal.
-    """
-
-    sys.stdout.write("Running TrimAl... ")
-    sys.stdout.flush()
-
-    trimal_file = mfa_file + "-trimal"
-    log = args.output + os.sep + "treesapp.trimal_log.txt"
-    trimal_command = [args.executables["trimal"]]
-    trimal_command += ['-in', mfa_file,
-                       '-out', trimal_file,
-                       '-gt', str(0.02), '>', log]
-    stdout, return_code = launch_write_command(trimal_command)
-    if return_code != 0:
-        sys.stderr.write("ERROR: trimal did not complete successfully!\n")
-        sys.stderr.write("trimal output:\n" + stdout + "\n")
-        sys.exit(39)
-
-    sys.stdout.write("done.\n")
-    sys.stdout.flush()
-
-    return trimal_file
 
 
 def swap_tree_names(tree_to_swap, final_mltree, code_name):

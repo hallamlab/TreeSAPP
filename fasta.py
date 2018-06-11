@@ -2,9 +2,10 @@ __author__ = 'Connor Morgan-Lang'
 
 import sys
 import re
+import os
 
 import _fasta_reader
-from utilities import median
+from utilities import median, launch_write_command
 
 
 def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
@@ -80,6 +81,16 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     sequence_accumulator = 0
     fasta_string = ""
 
+    # Check for '>' leading sequence names. Strip them if present.
+    if headers:
+        side_chevy = headers[0][0] == '>'
+        for header in headers:
+            state = header[0] == '>'
+            if state is not side_chevy:
+                raise AssertionError("ERROR: inconsistent header names in headers list object")
+        if side_chevy:
+            headers = [header[1:] for header in headers]
+
     if max_seqs is not None:
         fasta_name = fasta_name + '_' + str(file_counter) + ".fasta"
 
@@ -109,6 +120,8 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
             fasta_string += name + "\n" + seq + "\n"
         elif name[1:] in headers:
             fasta_string += name + "\n" + seq + "\n"
+        else:
+            sequence_accumulator -= 1
 
     fa_out.write(fasta_string)
     fa_out.close()
@@ -250,3 +263,32 @@ def summarize_fasta_sequences(fasta_file):
     sys.stdout.write("\tMean sequence length: " + str(round(sum(sequence_lengths)/num_headers, 1)) + "\n")
     sys.stdout.write("\tMedian sequence length: " + str(median(sequence_lengths)) + "\n")
     return
+
+
+def trim_multiple_alignment(args, mfa_file):
+    """
+    Soft MSA trimming using TrimAl on a single multiple sequence alignment file.
+    :param args: an object created by argparse's parse_args(). MUST contain 'output', and 'executables' in Namespace
+    :param mfa_file: Name of a MSA file
+    Returns file name of the TrimAl output
+    """
+
+    sys.stdout.write("Running TrimAl... ")
+    sys.stdout.flush()
+
+    trimal_file = mfa_file + "-trimal"
+    log = args.output + os.sep + "treesapp.trimal_log.txt"
+    trimal_command = [args.executables["trimal"]]
+    trimal_command += ['-in', mfa_file,
+                       '-out', trimal_file,
+                       '-gt', str(0.02), '>', log]
+    stdout, return_code = launch_write_command(trimal_command)
+    if return_code != 0:
+        sys.stderr.write("ERROR: trimal did not complete successfully!\n")
+        sys.stderr.write("trimal output:\n" + stdout + "\n")
+        sys.exit(39)
+
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
+    return trimal_file

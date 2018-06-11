@@ -11,8 +11,9 @@ from multiprocessing import Process, JoinableQueue
 from json import loads, dumps
 
 from fasta import format_read_fasta, get_headers, write_new_fasta, get_header_format
-from utilities import reformat_string, get_lineage
+from utilities import reformat_string, get_lineage, return_sequence_info_groups
 from entish import get_node, create_tree_info_hash, subtrees_to_dictionary
+from external_command_interface import launch_write_command
 
 import _tree_parser
 
@@ -130,11 +131,12 @@ class CreateFuncTreeUtility:
 
         return
 
-    def update_tax_ids(self, args, ref_organism_lineage_info):
+    def update_tax_ids(self, args, ref_organism_lineage_info, assignments):
         """
         Write the number, organism and accession ID, if possible
         :param args:
-        :param ref_organism_lineage_info:
+        :param ref_organism_lineage_info: A dictionary mapping the
+        :param assignments: A dictionary containing marker name as keys, and header: [lineages] mappings as values
         :return:
         """
         sys.stdout.write("Writing updated tax_ids file... ")
@@ -142,6 +144,7 @@ class CreateFuncTreeUtility:
 
         tree_taxa_string = ""
         original_to_formatted_header_map = dict()
+        unclassified_seqs = list()
 
         if self.Denominator not in ref_organism_lineage_info.keys():
             raise ValueError(self.Denominator + " not included in data from tax_ids files!\n")
@@ -163,31 +166,60 @@ class CreateFuncTreeUtility:
             num_id = reference[1:].split('_')[0]
             reformatted_header = self.header_id_map[reference]
             header = original_to_formatted_header_map[reformatted_header]
+            header_format_re, header_db, header_molecule = '', '', ''
+            description, lineage, accession = '', '', ''
             # Check to see if this header contains an accession value or if it is a contig name with no useful info
-            header_format_re, header_db, header_molecule = get_header_format(header, self.Denominator)
-            sequence_info = header_format_re.match(header)
-            if sequence_info:
-                candidate_acc = sequence_info.group(1)
-                lineage = get_lineage(candidate_acc, header_molecule)
-                try:
-                    taxonomic_lineage = lineage.split('; ')
-                    # Try to get the species name
-                    if len(taxonomic_lineage) >= 8:
-                        description = ' '.join(taxonomic_lineage[6:8])
-                    # We'll settle for the Phylum
-                    elif len(taxonomic_lineage) > 3:
-                        description = taxonomic_lineage[3]
+            try:
+                header_format_re, header_db, header_molecule = get_header_format(header, self.Denominator)
+            except AssertionError:
+                # Just a contig name, so it will need to be formatted with explicit lineage
+                for candidate_header_name in assignments[self.COG]:
+                    if header == candidate_header_name:
+                        assigned_lineage = assignments[self.COG][candidate_header_name]
+                        # Determine if this is a cellular organism or not
+                        if assigned_lineage.split(';')[0] in ["Bacteria", "Archaea", "Eukaryota"]:
+                            assigned_lineage = "cellular organisms; " + assigned_lineage
+                        annotated_header = ' '.join([header,
+                                                     "lineage=" + assigned_lineage,
+                                                     "[" + self.InputData.split(os.sep)[-1],
+                                                     assigned_lineage.split(';')[-1] + "]"])
+                        header_format_re, header_db, header_molecule = get_header_format(annotated_header, self.Denominator)
+                        header = annotated_header
+                        break
+                if not header_format_re:
+                    unclassified_seqs.append(header)
+            if header_format_re and header_db and header_molecule:
+                sequence_info = header_format_re.match(header)
+                if sequence_info:
+                    accession, organism, locus, description, lineage = return_sequence_info_groups(sequence_info, header_db, header)
+                    if lineage:
+                        pass
+                    elif accession:
+                        lineage = get_lineage(accession, header_molecule)
+                        try:
+                            taxonomic_lineage = lineage.split('; ')
+                            # Try to get the species name
+                            if len(taxonomic_lineage) >= 8:
+                                description = ' '.join(taxonomic_lineage[6:8])
+                            # We'll settle for the Phylum
+                            elif len(taxonomic_lineage) > 3:
+                                description = taxonomic_lineage[3]
+                            else:
+                                description = taxonomic_lineage[-1]
+                        except ValueError:
+                            sys.stderr.write("WARNING: Attempt to parse species from lineage failed for:\n" + lineage + "\n")
+                            description = sequence_info.group(2)
+                        description = description + " | " + accession
                     else:
-                        description = taxonomic_lineage[-1]
-                except ValueError:
-                    sys.stderr.write("WARNING: Attempt to parse species from lineage failed for:\n" + lineage + "\n")
-                    description = sequence_info.group(2)
-                description = description + " | " + candidate_acc
+                        sys.stderr.write("ERROR: TreeSAPP is unsure what to do with header '" + header + "'\n")
+                        raise AssertionError()
             else:
                 # This sequence is probably an uninformative contig name
                 lineage = ";"
                 description = self.InputData.split('/')[-1]
 
+            if not description or not lineage:
+                sys.stderr.write("WARNING: description is unavailable for sequence '" + header + "'\n")
             tree_taxa_string += num_id + "\t" + description + "\t" + lineage + "\n"
 
         # Write the new TreeSAPP numerical IDs, descriptions and lineages
@@ -230,51 +262,44 @@ class CreateFuncTreeUtility:
 
         return
 
-    def align_sequences(self, alignment_mode, ref_align, unaligned_ref_seqs, args):
+    def align_multiple_sequences(self, unaligned_ref_seqs, args):
         """
-        Call MUSCLE to perform a multiple sequence alignment of the reference sequences and the
+        Call MAFFT to perform a multiple sequence alignment of the reference sequences and the
         gene sequences identified by TreeSAPP
         :param args: Command-line argument object from get_options and check_parser_arguments
         :param unaligned_ref_seqs:
-        :param alignment_mode: d (default; re-do the MSA) or p (profile; use the reference MSA)
         :param ref_align: FASTA file containing
         :return: Name of the FASTA file containing the MSA
         """
-        if len(self.ContigDict) <= 1 and args.alignment_mode == "p":
-            alignment_mode = "d"
-            sys.stderr.write("WARNING: Default multiple alignment since only a single new reference sequence.\n")
 
         if args.verbose:
-            sys.stdout.write("Aligning the reference and identified " + self.COG + " sequences using MUSCLE... ")
+            sys.stdout.write("Aligning the reference and identified " + self.COG + " sequences using MAFFT... ")
             sys.stdout.flush()
 
-        # Default alignment #
-        if alignment_mode == "d":
-            # Combine the reference and candidate sequence dictionaries
-            unaligned_ref_seqs.update(self.ContigDict)
-            ref_unaligned = self.Output + self.COG + "_gap_removed.fa"
-            write_new_fasta(unaligned_ref_seqs, ref_unaligned)
+        # Combine the reference and candidate sequence dictionaries
+        unaligned_ref_seqs.update(self.ContigDict)
+        ref_unaligned = self.Output + self.COG + "_gap_removed.fa"
+        write_new_fasta(unaligned_ref_seqs, ref_unaligned)
 
-            aligned_fasta = self.Output + self.COG + "_d_aligned.fasta"
-            muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (ref_unaligned, aligned_fasta)
+        aligned_fasta = self.Output + self.COG + "_d_aligned.fasta"
 
-        # Profile-Profile alignment #
-        elif alignment_mode == "p":
-            query_fasta = self.Output + self.COG + "_query_unaligned.fasta"
-            query_align = self.Output + self.COG + "_query_aligned.fasta"
-
-            muscle_align_command = "muscle -in %s -out %s 1>/dev/null 2>/dev/null" % (query_fasta, query_align)
-
-            os.system(muscle_align_command)
-
-            aligned_fasta = self.Output + self.COG + "_p_aligned.fasta"
-            muscle_align_command = "muscle -profile -in1 %s -in2 %s -out %s 1>/dev/null 2>/dev/null" % \
-                                   (query_align, ref_align, aligned_fasta)
-
+        mafft_align_command = [args.executables["mafft"]]
+        mafft_align_command += ["--maxiterate", str(1000)]
+        mafft_align_command += ["--thread", str(args.num_threads)]
+        if len(self.ContigDict) > 700:
+            mafft_align_command.append("--auto")
         else:
-            sys.exit("ERROR: --alignment_mode was not properly assigned!")
+            mafft_align_command.append("--localpair")
+        mafft_align_command += [ref_unaligned, '1>' + aligned_fasta]
+        mafft_align_command += ["2>", "/dev/null"]
 
-        os.system(muscle_align_command)
+        stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
+
+        if mafft_proc_returncode != 0:
+            sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["mafft"] +
+                             " did not complete successfully! Command used:\n" + ' '.join(
+                mafft_align_command) + "\n")
+            sys.exit()
 
         if args.verbose:
             sys.stdout.write("done.\n")

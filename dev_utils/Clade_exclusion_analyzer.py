@@ -17,8 +17,8 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from fasta import format_read_fasta, write_new_fasta, get_headers
-from create_treesapp_ref_data import get_header_format, return_sequence_info_groups, register_headers
-from utilities import clean_lineage_string, get_lineage
+from create_treesapp_ref_data import get_header_format, register_headers
+from utilities import clean_lineage_string, get_lineage, return_sequence_info_groups
 from external_command_interface import setup_progress_bar, launch_write_command
 from classy import ReferenceSequence
 from treesapp import parse_ref_build_params

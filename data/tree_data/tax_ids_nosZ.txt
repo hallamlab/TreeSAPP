@@ -1,10 +1,10 @@
-1	Bac22 | 	Cellular organisms; Bacteria
-2	ZA3312c | 	Cellular organisms; Bacteria; Marinimicrobia AB16; Arctic96B-7; A714017; ZA3312c
-3	SHBH1141 | 	Cellular organisms; Bacteria; Marinimicrobia; SHBH1141
-4	SAR324 | 	Cellular organisms; Bacteria; Proteobacteria; Deltaproteobacteria; unclassified Deltaproteobacteria; SAR324 cluster
-5	EPSILON | 	Cellular organisms; Bacteria; Proteobacteria; Epsilonproteobacteria
-6	GAMMA | 	Cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
-7	SUP05 | 	Cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; Candidatus Thioglobus
+1	Bac22 | 	cellular organisms; Bacteria
+2	ZA3312c | 	cellular organisms; Bacteria; Marinimicrobia AB16; Arctic96B-7; A714017; ZA3312c
+3	SHBH1141 | 	cellular organisms; Bacteria; Marinimicrobia; SHBH1141
+4	SAR324 | 	cellular organisms; Bacteria; Proteobacteria; Deltaproteobacteria; unclassified Deltaproteobacteria; SAR324 cluster
+5	EPSILON | 	cellular organisms; Bacteria; Proteobacteria; Epsilonproteobacteria
+6	GAMMA | 	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+7	SUP05 | 	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; Candidatus Thioglobus
 8	Ferroglobus placidus DSM 10642 | ADC64316	cellular organisms; Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Ferroglobus; Ferroglobus placidus
 9	Haloarcula marismortui ATCC 43049 | AAV45430	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Haloarculaceae; Haloarcula; Haloarcula marismortui
 10	Halogeometricum borinquense DSM 11551 | ADQ68580	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Haloferacales; Haloferacaceae; Halogeometricum; Halogeometricum borinquense

@@ -27,9 +27,11 @@ try:
     from os.path import isfile, join
     from time import gmtime, strftime
 
-    from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string, parse_domain_tables, reformat_string
-    from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild
-    from fasta import format_read_fasta, get_headers, write_new_fasta
+    from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string,\
+        parse_domain_tables, reformat_string
+    from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
+        TreeLeafReference, TreeProtein, MarkerBuild
+    from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree, get_node
     from external_command_interface import launch_write_command, setup_progress_bar
 
@@ -98,8 +100,8 @@ def get_options():
                              help="Cluster sequences that mapped to the reference tree prior to updating")
     # update_tree.add_argument("--gap_removal", required=False, default=False, action="store_true",
     #                          help="Remove minor gaps using Gblocks?")
-    update_tree.add_argument("-u", "--uclust_identity", required=False, default=0.97, type=float,
-                             help="Sequence identity value to be used in uclust [DEFAULT = 0.97]")
+    # update_tree.add_argument("-u", "--uclust_identity", required=False, default=0.97, type=float,
+    #                          help="Sequence identity value to be used in uclust [DEFAULT = 0.97]")
     update_tree.add_argument("-a", "--alignment_mode", required=False, default='d', type=str, choices=['d', 'p'],
                              help="Alignment mode: 'd' for default and 'p' for profile-profile alignment")
 
@@ -224,13 +226,13 @@ def check_previous_output(args):
         sys.stdout.write("TreeSAPP output directory " + args.output + " already exists.\n")
         sys.stdout.flush()
         if args.update_tree:
-            args.skip = get_response(args.py_version, "Should this be used for updating? [y|n]")
+            args.skip = get_response(args.py_version, "Should this be used for updating? [y|n] ")
             while not args.skip == 'y' and not args.skip == 'n':
-                args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n]")
+                args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n] ")
         elif args.rpkm:
-            args.skip = get_response(args.py_version, "Should this be used for RPKM calculation? [y|n]")
+            args.skip = get_response(args.py_version, "Should this be used for RPKM calculation? [y|n] ")
             while not args.skip == 'y' and not args.skip == 'n':
-                args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n]")
+                args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n] ")
         else:
             # Prompt the user to deal with the pre-existing output directory
             while os.path.isdir(args.output):
@@ -242,7 +244,7 @@ def check_previous_output(args):
                 if answer == 1:
                     sys.stdout.write('Do you really want to overwrite the old output directory?\n')
                     sys.stdout.write('All data in it will be lost!\n')
-                    answer2 = get_response(args.py_version, 'Yes [y] or no [n]?\n')
+                    answer2 = get_response(args.py_version, 'Yes [y] or no [n]? \n')
                     while not answer2 == 'y' and not answer2 == 'n':
                         answer2 = get_response(args.py_version, 'Invalid input. Please choose y or n.\n')
                     if answer2 == 'y':
@@ -439,14 +441,34 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     :return: 
     """
     alignments = update_tree.Output + "candidate_alignments.tsv"
+
+    ref_fasta = os.sep.join([args.treesapp, "data",  "alignment_data",  update_tree.COG + ".fa"])
+    db_prefix = update_tree.Output + os.sep + update_tree.COG
+    # Make a temporary BLAST database to see what is novel
+    # Needs a path to write the temporary unaligned FASTA file
+    generate_blast_database(args, ref_fasta, "prot", db_prefix)
+
+    if args.verbose:
+        sys.stdout.write("Aligning the candidate sequences to the current reference sequences using blastp... ")
+        sys.stdout.flush()
+
     align_cmd = [args.executables["blastp"]]
     align_cmd += ["-query", new_ref_queries]
-    align_cmd += ["-db", os.sep.join([args.treesapp, "data",  "alignment_data",  update_tree.COG + ".fa"])]
+    align_cmd += ["-db", db_prefix + ".fa"]
     align_cmd += ["-outfmt", str(6)]
     align_cmd += ["-out", alignments]
     align_cmd += ["-num_alignments", str(1)]
 
     launch_write_command(align_cmd)
+
+    # Remove the temporary BLAST database
+    db_suffixes = ['', ".phr", ".pin", "psq"]
+    for db_file in db_suffixes:
+        if os.path.isfile(db_prefix + ".fa" + db_file):
+            os.remove(db_prefix + ".fa" + db_file)
+
+    if args.verbose:
+        sys.stdout.write("done.\n")
 
     return alignments
 
@@ -479,7 +501,7 @@ def build_hmm(args, msa_file, hmm_output):
 
     if os.path.isfile(hmm_output):
         os.remove(hmm_output)
-    command = [args.executables["hmmbuild"], "-s", "--verbose", hmm_output, msa_file]
+    command = [args.executables["hmmbuild"], hmm_output, msa_file]
 
     launch_write_command(command)
 
@@ -3610,54 +3632,77 @@ def num_sequences_fasta(fasta):
 #     return
 
 
+def read_marker_classification_table(assignment_file):
+    """
+    Function for reading the tabular assignments file (currently marker_contig_map.tsv)
+    Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
+    (leaving 1 for marker name and 4 for numerical abundance)
+    :param assignment_file: Path to the file containing sequence phylogenetic origin and assignment
+    :return: dictionary whose keys are phylogenetic origin and values are lists of TreeSAPP assignments
+    """
+    assignments = dict()
+    n_classified = 0
+    assignments_handle = open(assignment_file, 'r')
+    # This is the header line
+    if not re.match("^Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
+                    assignments_handle.readline()):
+        sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
+        raise AssertionError
+
+    # First line in the table containing data
+    line = assignments_handle.readline()
+    while line:
+        fields = line.strip().split('\t')
+        try:
+            _, header, marker, lineage, _, _, _, _, _, _ = fields
+            header = '>' + header
+            if marker and lineage:
+                n_classified += 1
+                if marker not in assignments:
+                    assignments[marker] = dict()
+                if header in assignments[marker]:
+                    raise AssertionError("ERROR: multiple " + marker + " annotations for " + header[1:] + '.')
+                assignments[marker][header] = lineage
+        except ValueError:
+            sys.stderr.write("ERROR: Unable to parse line:\n")
+            sys.stderr.write(str(line))
+            sys.exit(1)
+        line = assignments_handle.readline()
+
+    assignments_handle.close()
+    return assignments, n_classified
+
+
 def get_new_ref_sequences(args, update_tree):
     """
-    Function for retrieving the protein sequences from the TreeSAPP various_outputs
+    Function for retrieving the protein sequences from the TreeSAPP hmm-purified outputs
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param update_tree: An instance of CreateFuncTreeUtility class
     :return: aa_dictionary is a dictionary of fasta sequences with headers as keys and protein sequences as values
     """
-    aa_dictionary = dict()
-    various_files = os.listdir(update_tree.InputData + os.sep + "various_outputs" + os.sep)
-
     sys.stdout.write("Retrieving candidate reference sequences... ")
 
-    for var_file in various_files:
-        var_file_path = update_tree.InputData + os.sep + "various_outputs" + os.sep + var_file
-        prefix = var_file.split('_')[0]
-        if prefix == update_tree.Denominator:
-            # Pull out the contig ID between the denominator and the COG ID for those that are in final_RAxML_outputs/
-            orf_fa = re.match("%s_(\S+)_%s(_\d+)*.fa" % (update_tree.Denominator, update_tree.COG), var_file)
-            if orf_fa:
-                suffix = re.sub("%s_" % update_tree.Denominator, '', var_file)
-                seq_name = re.sub("_%s(_\d+)*.fa" % update_tree.COG, '', suffix)
-                if seq_name in update_tree.names:
-                    line_counter = 0
-                    aa_dictionary['>' + seq_name] = ""
-                    try:
-                        fasta = open(var_file_path, 'r')
-                    except IOError:
-                        raise IOError("Unable to open " + var_file_path + " for reading!")
-
-                    line = fasta.readline()
-                    if line[0] != '>':
-                        sys.stderr.write("ERROR: first line in " + var_file_path + " is not a proper FASTA file!")
-                        sys.stderr.flush()
-                        sys.exit()
-                    # TODO: Include line to quality-check the sequences prior to saving in aa_dictionary
-                    while line:
-                        line_counter += 1
-                        if line[0] == '>':
-                            pass
-                        else:
-                            aa_dictionary['>' + seq_name] = line.strip()
-                        line = fasta.readline()
-                    fasta.close()
-
-                    if line_counter > 2:
-                        sys.stderr.write("ERROR: " + var_file_path + " contains multiple sequences when 1 is expected!")
-                        sys.stderr.flush()
-                        sys.exit()
+    candidate_fa = update_tree.InputData + os.sep + "final_outputs" + os.sep + update_tree.COG + "_hmm_purified.fasta"
+    aa_dictionary = dict()
+    if os.path.isfile(candidate_fa):
+        candidate_fa_handler = open(candidate_fa, 'r')
+        sequence = ""
+        header = ""
+        line = candidate_fa_handler.readline().strip()
+        while line:
+            if line[0] == '>':
+                if header and sequence:
+                    aa_dictionary[header] = sequence
+                header = line.split('|')[0]
+                sequence = ""
+            else:
+                sequence += line.strip()
+            line = candidate_fa_handler.readline().strip()
+        candidate_fa_handler.close()
+        aa_dictionary[header] = sequence
+    else:
+        sys.stderr.write("ERROR: file necessary for updating the reference tree (" + candidate_fa + ") is missing!\n")
+        raise AssertionError(7)
 
     sys.stdout.write("done.\n")
     if args.verbose:
@@ -3955,13 +4000,15 @@ def parse_ref_build_params(args, current_marker_code=None, create_func_tree=None
     :param current_marker_code: The code of the marker currently being updated (e.g. M0701)
     :param create_func_tree: An instance of the CreateFuncTree class
     """
-    ref_build_parameters = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
+    ref_build_parameters = args.treesapp + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
     try:
         param_handler = open(ref_build_parameters, 'r')
     except IOError:
         sys.exit('ERROR: Can\'t open ' + ref_build_parameters + '!\n')
 
     header_re = re.compile("code_name\tdenominator\taa_model\tcluster_identity\tlowest_confident_rank\tlast_updated$")
+    if not header_re.match(param_handler.readline().strip()):
+        raise AssertionError("ERROR: Header of '" + ref_build_parameters + "' is unexpected!")
 
     marker_build_dict = dict()
     for line in param_handler:
@@ -3979,9 +4026,8 @@ def parse_ref_build_params(args, current_marker_code=None, create_func_tree=None
                 try:
                     create_func_tree.cluster_id = float(marker_build.pid)
                 except ValueError:
-                    sys.stderr.write("WARNING: cluster percent identity in data/tree_data/ref_build_parameters.tsv "
-                                     "was ignored due to invalid value.\n Processing with uclust_identity.\n")
-                    create_func_tree.cluster_id = float(args.uclust_identity)
+                    raise ValueError("ERROR: cluster percent identity '" + marker_build.pid + "' in " +
+                                         ref_build_parameters + " is an invalid value.\n")
                 create_func_tree.raxml_model = marker_build.model
 
     param_handler.close()
@@ -4005,7 +4051,6 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     update_tree = CreateFuncTreeUtility(args.output, ref_tree)
     update_tree.find_cog_name(cog_list)
     update_tree.find_marker_type(cog_list)
-    update_tree.get_raxml_files_for_ref()
 
     # Get HMM, sequence, reference build, and taxonomic information for the original sequences
     parse_ref_build_params(args, ref_tree, update_tree)
@@ -4021,6 +4066,7 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     final_tree_dir = project_folder + "tree_data" + os.sep
     alignment_files_dir = project_folder + "alignment_data" + os.sep
     hmm_files_dir = project_folder + "hmm_data" + os.sep
+    classification_table = update_tree.InputData + os.sep + "final_outputs" + os.sep + "marker_contig_map.tsv"
     os.makedirs(project_folder)
     os.makedirs(final_tree_dir)
     os.makedirs(alignment_files_dir)
@@ -4028,18 +4074,23 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
 
     # Begin finding and filtering the new candidate reference sequences
     aa_dictionary = get_new_ref_sequences(args, update_tree)
+    assignments, n_classified = read_marker_classification_table(classification_table)
     if len(aa_dictionary) == 0:
         sys.stderr.write("WARNING: No new " + update_tree.COG + " sequences. Skipping update.\n")
+        return
+    if n_classified == 0 or update_tree.COG not in assignments.keys():
+        sys.stderr.write("WARNING: No " + update_tree.COG + " sequences were classified. Skipping update.\n")
         return
     aa_dictionary = filter_short_sequences(args, aa_dictionary, 0.5*hmm_length)
     if not aa_dictionary:
         return
     new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
                          "_" + update_tree.COG + "_unaligned.fasta"
-    write_new_fasta(aa_dictionary, new_ref_seqs_fasta)
-    # # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
+    # Write only the sequences that have been properly classified
+    write_new_fasta(aa_dictionary, new_ref_seqs_fasta, None, list(assignments[update_tree.COG].keys()))
+    # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
     ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
-    # # Get the sequences that pass the similarity threshold
+    # Get the sequences that pass the similarity threshold
     new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary, update_tree)
     write_new_fasta(new_refs, new_ref_seqs_fasta)
     if args.uclust and len(new_refs.keys()) > 1:
@@ -4053,23 +4104,12 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
 
     # The candidate set has been finalized. Begin rebuilding!
     update_tree.load_new_refs_fasta(args, centroids_fasta, ref_organism_lineage_info)
-    ref_align = "data/alignment_data/" + update_tree.COG + ".fa"
-    aligned_fasta = update_tree.align_sequences(args.alignment_mode, ref_align, unaligned_ref_seqs, args)
+    aligned_fasta = update_tree.align_multiple_sequences(unaligned_ref_seqs, args)
+    trimal_file = trim_multiple_alignment(args, aligned_fasta)
 
-    generate_blast_database(args, aligned_fasta, update_tree.marker_molecule, alignment_files_dir + update_tree.COG)
-    shutil.move(aligned_fasta, alignment_files_dir + update_tree.COG + ".fa")
+    shutil.move(trimal_file, alignment_files_dir + update_tree.COG + ".fa")
     aligned_fasta = alignment_files_dir + update_tree.COG + ".fa"
-    update_tree.update_tax_ids(args, ref_organism_lineage_info)
-
-    # if args.gap_removal:
-    #     if args.verbose:
-    #         sys.stdout.write("Executing TrimAl... ")
-    #         sys.stdout.flush()
-    #     execute_gblocks(args, aligned_fasta)
-    #     if args.verbose:
-    #         sys.stdout.write("done.\n")
-    #         sys.stdout.flush()
-    #     os.system('cp %s-gb %s' % (aligned_fasta, aligned_fasta))
+    update_tree.update_tax_ids(args, ref_organism_lineage_info, assignments)
 
     new_hmm_file = update_tree.Output + os.sep + update_tree.COG + ".hmm"
     build_hmm(args, alignment_files_dir + update_tree.COG + ".fa", new_hmm_file)
