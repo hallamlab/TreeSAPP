@@ -3,6 +3,7 @@ __author__ = 'Connor Morgan-Lang'
 import sys
 import re
 import _tree_parser
+import os
 from utilities import Autovivify
 
 
@@ -130,3 +131,29 @@ def read_and_understand_the_reference_tree(reference_tree_file, denominator):
     else:
         reference_tree_info, terminal_children_of_reference = deconvolute_assignments(reference_tree_assignments)
         return denominator, terminal_children_of_reference
+
+
+def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
+    try:
+        tree_txt = open(bipart_tree, 'r')
+    except IOError:
+        raise IOError("Unable to open RAxML bipartition tree " + bipart_tree + " for reading.")
+
+    tree = tree_txt.readline()
+    tree_txt.close()
+    for mltree_id_key in fasta_replace_dict.keys():
+        tree = re.sub('\(' + mltree_id_key + "_" + code_name, '(' + fasta_replace_dict[mltree_id_key].organism, tree)
+        tree = re.sub(',' + mltree_id_key + "_" + code_name, ',' + fasta_replace_dict[mltree_id_key].organism, tree)
+
+    tree_output_dir = os.path.dirname(bipart_tree)
+    annotated_tree_name = tree_output_dir + os.sep + "RAxML_bipartitions_annotated." + code_name
+    try:
+        annotated_tree = open(annotated_tree_name, 'w')
+    except IOError:
+        raise IOError("Unable to open the annotated RAxML tree " + annotated_tree_name + " for writing!")
+
+    annotated_tree.write(tree)
+    annotated_tree.close()
+
+    return
+

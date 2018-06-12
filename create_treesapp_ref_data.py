@@ -21,6 +21,7 @@ try:
         trim_multiple_alignment
     from classy import ReferenceSequence, Header
     from external_command_interface import launch_write_command
+    from entish import annotate_partition_tree
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
@@ -1105,31 +1106,6 @@ def swap_tree_names(tree_to_swap, final_mltree, code_name):
     raxml_tree.write(new_tree)
 
     raxml_tree.close()
-    return
-
-
-def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
-    try:
-        tree_txt = open(bipart_tree, 'r')
-    except IOError:
-        raise IOError("Unable to open RAxML bipartition tree " + bipart_tree + " for reading.")
-
-    tree = tree_txt.readline()
-    tree_txt.close()
-    for mltree_id_key in fasta_replace_dict.keys():
-        tree = re.sub('\(' + mltree_id_key + "_" + code_name, '(' + fasta_replace_dict[mltree_id_key].organism, tree)
-        tree = re.sub(',' + mltree_id_key + "_" + code_name, ',' + fasta_replace_dict[mltree_id_key].organism, tree)
-
-    tree_output_dir = os.path.dirname(bipart_tree)
-    annotated_tree_name = tree_output_dir + os.sep + "RAxML_bipartitions_annotated." + code_name
-    try:
-        annotated_tree = open(annotated_tree_name, 'w')
-    except IOError:
-        raise IOError("Unable to open the annotated RAxML tree " + annotated_tree_name + " for writing!")
-
-    annotated_tree.write(tree)
-    annotated_tree.close()
-
     return
 
 
