@@ -30,9 +30,10 @@ try:
     from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string,\
         parse_domain_tables, reformat_string
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
-        TreeLeafReference, TreeProtein, MarkerBuild
+        TreeLeafReference, TreeProtein, MarkerBuild, ReferenceSequence
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment
-    from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree, get_node
+    from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
+        get_node, annotate_partition_tree
     from external_command_interface import launch_write_command, setup_progress_bar
 
     import _tree_parser
@@ -462,7 +463,7 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     launch_write_command(align_cmd)
 
     # Remove the temporary BLAST database
-    db_suffixes = ['', ".phr", ".pin", "psq"]
+    db_suffixes = ['', ".phr", ".pin", ".psq"]
     for db_file in db_suffixes:
         if os.path.isfile(db_prefix + ".fa" + db_file):
             os.remove(db_prefix + ".fa" + db_file)
@@ -3617,19 +3618,6 @@ def num_sequences_fasta(fasta):
             num_seqs += 1
 
     return num_seqs
-#
-#
-# def execute_gblocks(args, aligned_fasta):
-#     data_size = num_sequences_fasta(aligned_fasta)
-#     min_flank_pos = str(0.55 * data_size)
-#
-#     gblocks_command = [args.executables["Gblocks"], aligned_fasta, "-b2=" + min_flank_pos,
-#                        "-t=p", "-s=y", "-u=n" "-p=t", "-b3=15", "-b4=3", "-b5=h"]
-#
-#     # The standard output is printed so users can see the difference in original and GBlocks alignments
-#     os.system(' '.join(gblocks_command))
-#
-#     return
 
 
 def read_marker_classification_table(assignment_file):
@@ -4130,11 +4118,14 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     shutil.move(update_tree.Output + "tax_ids_" + update_tree.COG + ".txt", final_tree_dir)
 
     best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
-    bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitions." + update_tree.COG
+    bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitionsBranchLabels." + update_tree.COG
     best_tree_nameswap = final_tree_dir + update_tree.COG + "_tree.txt"
-    bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bootstrap.tree"
+    bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bipartitions.txt"
     update_tree.swap_tree_names(best_tree, best_tree_nameswap)
     update_tree.swap_tree_names(bootstrap_tree, bootstrap_nameswap)
+    annotate_partition_tree(update_tree.COG,
+                            update_tree.master_reference_index,
+                            raxml_destination_folder + os.sep + "RAxML_bipartitions." + update_tree.COG)
 
     prefix = update_tree.Output + update_tree.COG
     os.system('mv %s* %s' % (prefix, project_folder))
@@ -4146,7 +4137,9 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
         os.system('mv %suclust_* %s' % (update_tree.Output, uclust_output_dir))
         os.system('mv %susearch_* %s' % (update_tree.Output, uclust_output_dir))
 
-    intermediate_files = [project_folder + update_tree.COG + ".phy", project_folder + update_tree.COG + ".phy.reduced"]
+    intermediate_files = [project_folder + update_tree.COG + ".phy",
+                          project_folder + update_tree.COG + "_gap_removed.fa",
+                          project_folder + update_tree.COG + "_d_aligned.fasta"]
     for useless_file in intermediate_files:
         try:
             os.remove(useless_file)

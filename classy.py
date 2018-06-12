@@ -42,6 +42,7 @@ class CreateFuncTreeUtility:
         self.ContigDict = dict()  # Used for storing the final candidate reference sequences
         self.names = list()
         self.header_id_map = dict()  # Used for mapping the original header of the sequence to internal numeric header
+        self.master_reference_index = dict()  # Used for storing ReferenceSequence objects, indexed by numeric IDs
         self.cluster_id = 0  # The percent similarity the original reference sequences were clustered at
         # Automatically remove the last attempt at updating the reference tree
         if os.path.isdir(self.Output):
@@ -98,6 +99,12 @@ class CreateFuncTreeUtility:
         ref_numeric_ids = list()
         for leaf in ref_organism_lineage_info[self.Denominator]:
             ref_numeric_ids.append(int(leaf.number))
+            ref_seq = ReferenceSequence()
+            ref_seq.lineage = leaf.lineage
+            ref_seq.organism = leaf.description.split(' | ')[0]
+            ref_seq.accession = leaf.description.split(' | ')[1]
+            ref_seq.short_id = '>' + leaf.number + '_' + self.COG
+            self.master_reference_index[leaf.number] = ref_seq
             acc += 1
 
         # Read the FASTA to get headers and sequences
@@ -115,9 +122,13 @@ class CreateFuncTreeUtility:
                 while rfive in ref_numeric_ids:
                     rfive = ''.join(str(x) for x in random.sample(range(10), 5))
                 internal_id = '>' + rfive + '_' + self.COG
+            ref_seq = ReferenceSequence()
+            ref_seq.short_id = internal_id
             # Map the new reference headers to their numerical IDs
             self.header_id_map[internal_id] = new_ref_seq
             self.ContigDict[internal_id] = centroids_fasta_dict[new_ref_seq]
+            ref_seq.sequence = centroids_fasta_dict[new_ref_seq]
+            self.master_reference_index[str(additional)] = ref_seq
 
         if additional == acc:
             # The reference sequence identifiers are random
@@ -167,7 +178,7 @@ class CreateFuncTreeUtility:
             reformatted_header = self.header_id_map[reference]
             header = original_to_formatted_header_map[reformatted_header]
             header_format_re, header_db, header_molecule = '', '', ''
-            description, lineage, accession = '', '', ''
+            description, lineage, accession, organism = '', '', '', ''
             # Check to see if this header contains an accession value or if it is a contig name with no useful info
             try:
                 header_format_re, header_db, header_molecule = get_header_format(header, self.Denominator)
@@ -181,7 +192,8 @@ class CreateFuncTreeUtility:
                             assigned_lineage = "cellular organisms; " + assigned_lineage
                         annotated_header = ' '.join([header,
                                                      "lineage=" + assigned_lineage,
-                                                     "[" + self.InputData.split(os.sep)[-1],
+                                                     "[" + re.sub('>', '', header),
+                                                     self.InputData.split(os.sep)[-1],
                                                      assigned_lineage.split(';')[-1] + "]"])
                         header_format_re, header_db, header_molecule = get_header_format(annotated_header, self.Denominator)
                         header = annotated_header
@@ -209,18 +221,22 @@ class CreateFuncTreeUtility:
                         except ValueError:
                             sys.stderr.write("WARNING: Attempt to parse species from lineage failed for:\n" + lineage + "\n")
                             description = sequence_info.group(2)
-                        description = description + " | " + accession
                     else:
                         sys.stderr.write("ERROR: TreeSAPP is unsure what to do with header '" + header + "'\n")
                         raise AssertionError()
             else:
                 # This sequence is probably an uninformative contig name
-                lineage = ";"
+                lineage = "unclassified sequences; "
                 description = self.InputData.split('/')[-1]
 
             if not description or not lineage:
                 sys.stderr.write("WARNING: description is unavailable for sequence '" + header + "'\n")
-            tree_taxa_string += num_id + "\t" + description + "\t" + lineage + "\n"
+            tree_taxa_string += num_id + "\t" + description + " | " + accession + "\t" + lineage + "\n"
+            self.master_reference_index[num_id].organism = organism
+            self.master_reference_index[num_id].description = description
+            self.master_reference_index[num_id].accession = accession
+            self.master_reference_index[num_id].lineage = lineage
+            self.master_reference_index[num_id].get_info()
 
         # Write the new TreeSAPP numerical IDs, descriptions and lineages
         tree_taxa_list = self.Output + "tax_ids_" + self.COG + ".txt"
