@@ -156,6 +156,7 @@ def get_header_format(header, code_name=""):
     sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
     fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
+    fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
     treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")
     refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")
@@ -196,6 +197,10 @@ def get_header_format(header, code_name=""):
                                 treesapp_re: "treesapp",
                                 custom_tax: "custom"}
                       }
+
+    if fungene_gi_bad.match(header):
+        sys.stderr.write("WARNING: " + header + " uses GI numbers which are now unsupported by the NCBI! ")
+        sys.stderr.write("Consider switching to Accession.Version identifiers instead.\n")
 
     header_format_re = None
     header_db = None

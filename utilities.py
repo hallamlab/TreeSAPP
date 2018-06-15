@@ -265,6 +265,64 @@ def xml_parser(xml_record, term):
     return value
 
 
+def verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects,
+                               taxa_searched, molecule, log_file_handle):
+    """
+    Function used for parsing records returned by Bio.Entrez.efetch queries and identifying inconsistencies
+    between the search terms and the results
+    :param accession_lineage_map: A dictionary mapping accession.versionID tuples to taxonomic lineages
+    :param taxa_searched: An integer for tracking number of accessions queried (currently number of lineages provided)
+    :param molecule: Type of molecule (prot, dna, rrna) used for choosing the Entrez database to query
+    :param log_file_handle: A handle for the log file for recording warnings and stats
+    :return:
+    """
+    failed_accession_queries = list()
+    if (len(accession_lineage_map.keys()) + taxa_searched) != len(fasta_record_objects):
+        # Records were not returned for all sequences. Time to figure out which ones!
+        log_file_handle.write("WARNING: Entrez did not return a record for every accession queried.\n")
+        log_file_handle.write("Don't worry, though. We'll figure out which ones are missing.\n")
+    log_file_handle.write("Entrez.efetch query stats:\n")
+    log_file_handle.write("\tDownloaded\t" + str(len(accession_lineage_map.keys())) + "\n")
+    log_file_handle.write("\tProvided\t" + str(taxa_searched) + "\n")
+    log_file_handle.write("\tTotal\t\t" + str(len(fasta_record_objects)) + "\n\n")
+
+    # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
+    for mltree_id_key in fasta_record_objects.keys():
+        reference_sequence = fasta_record_objects[mltree_id_key]
+        if not reference_sequence.lineage:
+            if reference_sequence.accession in all_accessions:
+                taxa_searched += 1
+                for tuple_key in accession_lineage_map:
+                    accession, versioned = tuple_key
+                    if reference_sequence.accession == accession or reference_sequence.accession == versioned:
+                        if accession_lineage_map[tuple_key]["lineage"] == "":
+                            failed_accession_queries.append(reference_sequence)
+                        else:
+                            # The query was successful! Add it and increment
+                            reference_sequence.lineage = accession_lineage_map[tuple_key]["lineage"]
+            else:
+                failed_accession_queries.append(reference_sequence)
+    # For debugging:
+    # print("Currently searched:", taxa_searched)
+
+    # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
+    # Failing this, lineages will be set to "Unknown"
+    if len(failed_accession_queries) > 0:
+        failed_reference_sequences = get_lineage_robust(failed_accession_queries, molecule)
+        for reference_sequence in failed_reference_sequences:
+            if reference_sequence.lineage == "":
+                log_file_handle.write("WARNING: Unable to determine the taxonomic lineage for " +
+                                      reference_sequence.accession + "\n")
+                reference_sequence.lineage = "Unknown"
+            taxa_searched += 1
+
+    if taxa_searched < len(fasta_record_objects.keys()):
+        sys.stderr.write("ERROR: Not all sequences (" + str(taxa_searched) + '/'
+                         + str(len(fasta_record_objects)) + ") were queried against the NCBI taxonomy database!\n")
+        sys.exit(22)
+    return fasta_record_objects
+
+
 def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
     """
 
@@ -304,7 +362,7 @@ def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
     # and return with `urllib.error.HTTPError: HTTP Error 502: Bad Gateway`
     master_records = []
     chunk_size = 60
-    log_file_handler.write("\nEntrez.efetch query time for sequences (minutes:seconds):\n")
+    log_file_handler.write("\nEntrez.efetch query time for accessions (minutes:seconds):\n")
     for i in range(0, len(search_term_list), chunk_size):
         start_time = time.time()
         chunk = search_term_list[i:i+chunk_size]
@@ -313,6 +371,7 @@ def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
             # for sid in chunk:
             #     handle = Entrez.efetch(db=database, id=sid, retmode="xml")
             master_records += Entrez.read(handle)
+        # Broad exception clause but THE NUMBER OF POSSIBLE ERRORS IS TOO DAMN HIGH!
         except:
             log_file_handler.write("WARNING: Unable to parse XML data from Entrez.efetch! "
                                    "It is either potentially corrupted or cannot be found in the database.\n")
@@ -335,6 +394,7 @@ def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
     sys.stdout.write("Retrieving lineage information for each sequence from Entrez... ")
     sys.stdout.flush()
 
+    start_time = time.time()
     unique_organisms = set()
     # Instantiate the master_records for linking each organism to accessions, and empty fields
     for record in master_records:
@@ -353,6 +413,12 @@ def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
         accession_lineage_map[tuple_key]["lineage"] = organism_lineage_map[organism_name]
 
     sys.stdout.write("done.\n")
+
+    end_time = time.time()
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    log_file_handler.write("Entrez.efetch query time for lineages (minutes:seconds): ")
+    log_file_handler.write(':'.join([str(minutes), str(round(seconds, 2))]) + "\n\n")
 
     return accession_lineage_map, all_accessions
 

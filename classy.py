@@ -236,7 +236,6 @@ class CreateFuncTreeUtility:
             self.master_reference_index[num_id].description = description
             self.master_reference_index[num_id].accession = accession
             self.master_reference_index[num_id].lineage = lineage
-            self.master_reference_index[num_id].get_info()
 
         # Write the new TreeSAPP numerical IDs, descriptions and lineages
         tree_taxa_list = self.Output + "tax_ids_" + self.COG + ".txt"
@@ -807,6 +806,9 @@ class ReferenceSequence:
         self.short_id = ""
         self.sequence = ""
         self.locus = ""
+        self.cluster_rep = False
+        self.cluster_rep_similarity = 0
+        self.cluster_lca = None
 
     def get_info(self):
         info_string = ""
@@ -940,3 +942,10 @@ class Header:
         self.treesapp_name = ""
         self.post_align = ""
         self.first_split = ""
+
+
+class Cluster:
+    def __init__(self, rep_name):
+        self.representative = rep_name
+        self.members = list()
+        self.lca = ''

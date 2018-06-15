@@ -16,12 +16,13 @@ try:
     from time import gmtime, strftime
 
     from utilities import os_type, is_exe, which, find_executables, reformat_string, get_multiple_lineages, \
-        get_lineage_robust, parse_domain_tables, return_sequence_info_groups
+        get_lineage_robust, parse_domain_tables, return_sequence_info_groups, verify_lineage_information
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
         trim_multiple_alignment
-    from classy import ReferenceSequence, Header
+    from classy import ReferenceSequence, Header, Cluster
     from external_command_interface import launch_write_command
     from entish import annotate_partition_tree
+    from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
@@ -92,38 +93,40 @@ def get_arguments():
                             default="",
                             required=False)
     seqop_args.add_argument("-g", "--guarantee",
-                            help="A FASTA file that need to be included in the tree after all clustering and filtering",
+                            help="A FASTA file containing sequences that need to be included \n"
+                                 "in the tree after all clustering and filtering",
                             default=None,
                             required=False)
 
     optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument("-u", "--uc",
-                        help="The USEARCH cluster format file produced from clustering reference sequences.\n"
-                             "This can be used for selecting representative headers from identical sequences.",
-                        required=False,
-                        default=None)
-    optopt.add_argument("--fast",
-                        help="A flag indicating the tree should be built rapidly, using FastTree.",
-                        required=False,
-                        action="store_true", default=False)
     optopt.add_argument("-b", "--bootstraps",
                         help="The number of bootstrap replicates RAxML should perform\n"
                              "[ DEFAULT = autoMR ]",
-                        required=False,
-                        default="autoMR")
+                        required=False, default="autoMR")
     optopt.add_argument("-e", "--raxml_model",
                         help="The evolutionary model for RAxML to use\n"
                              "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",
-                        required=False,
-                        default=None)
+                        required=False, default=None)
     optopt.add_argument("-o", "--output_dir",
                         help="Path to a directory for all outputs [ DEFAULT = ./ ]",
-                        default="./",
-                        required=False)
-    optopt.add_argument("-n", "--taxa_norm",
+                        default="./", required=False)
+    optopt.add_argument("-u", "--uc",
+                        help="The USEARCH cluster format file produced from clustering reference sequences.\n"
+                             "This can be used for selecting representative headers from identical sequences.",
+                        required=False, default=None)
+    optopt.add_argument("--taxa_lca",
+                        help="Set taxonomy of representative sequences to LCA of cluster member's taxa.\n"
+                             "[ --cluster or --uc REQUIRED ]",
+                        default=False, required=False,
+                        action="store_true")
+    optopt.add_argument("--taxa_norm",
                         help="BETA: Perform taxonomic normalization on the provided sequences.\n"
                              "A comma-separated argument with the Rank (e.g. Phylum) and\n"
                              "number of representatives is required.\n")
+    optopt.add_argument("--fast",
+                        help="A flag indicating the tree should be built rapidly, using FastTree.",
+                        default=False, required=False,
+                        action="store_true")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument("-h", "--help",
@@ -138,6 +141,8 @@ def get_arguments():
                                     help='If the tax_ids file exists for the code_name,\n'
                                          'the third (lineage) column is appended then exits,\n'
                                          'leaving all other files.')
+    miscellaneous_opts.add_argument("--headless", action="store_true", default=False,
+                                    help="Do not require any user input.")
     miscellaneous_opts.add_argument("-T", "--num_threads",
                                     help="The number of threads for RAxML to use [ DEFAULT = 4 ]",
                                     required=False,
@@ -178,7 +183,25 @@ def get_arguments():
         if args.uc:
             sys.exit("ERROR: --cluster and --uc are mutually exclusive!\n")
         if not 0.5 < float(args.identity) < 1.0:
-            sys.exit("ERROR: --identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+            if 0.5 < float(args.identity)/100 < 1.0:
+                args.identity = str(float(args.identity)/100)
+                sys.stderr.write("WARNING: --identity  set to " + args.identity + " for compatibility with USEARCH \n")
+            else:
+                sys.exit("ERROR: --identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+
+    if args.taxa_lca:
+        if not args.cluster and not args.uc:
+            sys.stderr.write("ERROR: Unable to perform LCA for representatives without clustering information: "
+                             "either with a provided UCLUST file or by clustering within the pipeline.\n")
+            sys.exit(3)
+
+    if args.guarantee:
+        if not args.uc and not args.cluster:
+            sys.stderr.write("ERROR: --guarantee used but without clustering there is no reason for it.\n")
+            sys.stderr.write("Include all sequences in " + args.guarantee +
+                             " in " + args.fasta_input + " and re-run without --guarantee\n")
+            sys.exit()
+
     return args
 
 
@@ -404,13 +427,13 @@ def hmmsearch_input_references(args, fasta_replaced_file):
     return [domtbl]
 
 
-def uclust_sequences(args):
+def uclust_sequences(args, fasta_input):
     uclust_prefix = args.output + \
-                    '.'.join(os.path.basename(args.fasta_input).split('.')[0:-1]) + \
+                    '.'.join(os.path.basename(fasta_input).split('.')[0:-1]) + \
                     "_uclust" + args.identity
 
     uclust_cmd = [args.executables["usearch"]]
-    uclust_cmd += ["-cluster_fast", args.fasta_input]
+    uclust_cmd += ["-cluster_fast", fasta_input]
     uclust_cmd += ["-id", args.identity]
     uclust_cmd += ["-sort", "length"]
     uclust_cmd += ["-centroids", uclust_prefix + ".fa"]
@@ -433,6 +456,7 @@ def read_uc(uc_file):
     :return: Dictionary where keys are representative cluster headers and the values are headers of identical sequences
     """
     cluster_dict = dict()
+    rep_len_map = dict()
     try:
         uc = open(uc_file, 'r')
     except IOError:
@@ -441,17 +465,16 @@ def read_uc(uc_file):
     line = uc.readline()
     # Find all clusters with multiple identical sequences
     while line:
-        # TODO: Figure out why some are not added to cluster_dict
-        cluster_type, _, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
-        if cluster_type != "C":
-            try:
-                identity = float(identity)
-            except ValueError:
-                identity = "*"
-            if cluster_type == "S":
-                cluster_dict['>' + header] = list()
-            if cluster_type == "H" and identity == 100.0 and cigar == '=':
-                cluster_dict['>' + representative].append('>' + header)
+        cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
+        if cluster_type == "S":
+            cluster_dict[num_id] = Cluster('>' + header)
+            rep_len_map['>' + header] = length
+        elif cluster_type == "H":
+            cluster_dict[num_id].members.append(['>' + header, identity])
+        elif cluster_type == "C":
+            pass
+        else:
+            raise AssertionError("ERROR: Unexpected cluster type '" + str(cluster_type) + "' in " + uc_file + "\n")
         line = uc.readline()
     return cluster_dict
 
@@ -614,37 +637,72 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
     return swappers
 
 
-def present_cluster_rep_options(cluster_dict):
+def finalize_cluster_reps(cluster_dict, refseq_objects, header_registry):
+    for cluster_id in sorted(cluster_dict, key=int):
+        cluster_info = cluster_dict[cluster_id]
+        for treesapp_id in sorted(refseq_objects, key=int):
+            if header_registry[treesapp_id].formatted == cluster_info.representative:
+                refseq_objects[treesapp_id].cluster_rep_similarity = '*'
+                refseq_objects[treesapp_id].cluster_rep = True
+                refseq_objects[treesapp_id].cluster_lca = cluster_info.lca
+    return refseq_objects
+
+
+def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, important_seqs=None):
     """
     Present the headers of identical sequences to user for them to decide on representative header
     :param cluster_dict: dictionary from read_uc(uc_file)
+    :param refseq_objects:
+    :param header_registry:
+    :param important_seqs: If --guarantee is provided, a dictionary mapping headers to seqs from format_read_fasta()
     :return:
     """
-    swappers = dict()
+    if not important_seqs:
+        important_seqs = dict()
     candidates = dict()
-
-    for rep in cluster_dict:
+    for cluster_id in sorted(cluster_dict, key=int):
+        cluster_info = cluster_dict[cluster_id]
+        acc = 1
         candidates.clear()
-        subs = cluster_dict[rep]
-        if len(subs) >= 1:
-            sys.stderr.write("Found multiple identical sequences in cluster file:\n")
-            candidates[str(1)] = rep
-            acc = 2
-            for candidate in subs:
-                candidates[str(acc)] = candidate
+        for num_id in sorted(refseq_objects, key=int):
+            if header_registry[num_id].formatted == cluster_info.representative:
+                refseq_objects[num_id].cluster_rep_similarity = '*'
+                candidates[str(acc)] = refseq_objects[num_id]
                 acc += 1
+                break
+        if acc != 2:
+            raise AssertionError("Unable to find " + cluster_info.representative + " in ReferenceSequence objects!")
+
+        if len(cluster_info.members) >= 1 and cluster_info.representative not in important_seqs.keys():
+            for cluster_member_info in cluster_info.members:
+                for treesapp_id in sorted(refseq_objects, key=int):
+                    formatted_header = header_registry[treesapp_id].formatted
+                    if formatted_header == cluster_member_info[0]:
+                        refseq_objects[treesapp_id].cluster_rep_similarity = cluster_member_info[1]
+                        candidates[str(acc)] = refseq_objects[treesapp_id]
+                        acc += 1
+                        break
+
+            sys.stderr.write("Sequences in '" + cluster_info.lca + "' cluster:\n")
             for num in sorted(candidates.keys(), key=int):
-                sys.stderr.write(num + ". " + candidates[num] + "\n")
+                sys.stderr.write("\t" + num + ". ")
+                sys.stderr.write('\t'.join([candidates[num].organism + " | " + candidates[num].accession + "\t",
+                                            str(len(candidates[num].sequence)) + "bp",
+                                            str(candidates[num].cluster_rep_similarity)]) + "\n")
             sys.stderr.flush()
+
             best = input("Number of the best representative? ")
             # Useful for testing - no need to pick which sequence name is best!
             # best = str(1)
             while best not in candidates.keys():
                 best = input("Invalid number. Number of the best representative? ")
-            if best != str(1):
-                swappers[rep] = candidates[best]
+            candidates[best].cluster_rep = True
+            candidates[best].cluster_lca = cluster_info.lca
+        else:
+            refseq_objects[num_id].cluster_rep = True
+            refseq_objects[num_id].cluster_lca = cluster_info.lca
 
-    return swappers
+    return refseq_objects
 
 
 def reformat_headers(header_dict):
@@ -658,6 +716,32 @@ def reformat_headers(header_dict):
     for old, new in header_dict.items():
         swappers[reformat_string(old)] = reformat_string(new)
     return swappers
+
+
+def get_header_info(header_registry, code_name):
+    sys.stdout.write("Extracting information from headers... ")
+    sys.stdout.flush()
+    fasta_record_objects = dict()
+    for treesapp_id in sorted(header_registry.keys(), key=int):
+        original_header = header_registry[treesapp_id].original
+        formatted_header = header_registry[treesapp_id].formatted
+        header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
+        sequence_info = header_format_re.match(original_header)
+        accession, organism, locus, description, lineage = return_sequence_info_groups(sequence_info,
+                                                                                       header_db,
+                                                                                       formatted_header)
+        ref_seq = ReferenceSequence()
+        ref_seq.organism = organism
+        ref_seq.accession = accession
+        ref_seq.lineage = lineage
+        ref_seq.description = description
+        ref_seq.locus = locus
+        ref_seq.short_id = '>' + treesapp_id + '_' + code_name
+        fasta_record_objects[treesapp_id] = ref_seq
+
+    sys.stdout.write("done.\n")
+
+    return fasta_record_objects
 
 
 def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers=None):
@@ -823,24 +907,30 @@ def screen_filter_taxa(args, fasta_replace_dict):
     return purified_fasta_dict
 
 
-def order_dict_by_lineage(fasta_replace_dict):
+def order_dict_by_lineage(fasta_object_dict):
     # Create a new dictionary with lineages as keys
     lineage_dict = dict()
     sorted_lineage_dict = dict()
-    for mltree_id in fasta_replace_dict:
-        ref_seq = fasta_replace_dict[mltree_id]
+    for treesapp_id in fasta_object_dict:
+        ref_seq = fasta_object_dict[treesapp_id]
+        # Skip the redundant sequences that are not cluster representatives
+        if not ref_seq.cluster_rep:
+            continue
         if ref_seq.lineage not in lineage_dict.keys():
             # Values of the new dictionary are lists of ReferenceSequence instances
             lineage_dict[ref_seq.lineage] = list()
         lineage_dict[ref_seq.lineage].append(ref_seq)
-    mltree_key = 1
+    # Now re-write the fasta_object_dict, but the numeric keys are now sorted by lineage
+    #  AND it doesn't contain redundant fasta objects
+    num_key = 1
     for lineage in sorted(lineage_dict.keys(), key=str):
         for ref_seq in lineage_dict[lineage]:
-            # Replace the mltree_id object
-            code = '_'.join(ref_seq.short_id.split('_')[1:])
-            ref_seq.short_id = str(mltree_key) + '_' + code
-            sorted_lineage_dict[str(mltree_key)] = ref_seq
-            mltree_key += 1
+            if ref_seq.cluster_rep:
+                # Replace the treesapp_id object
+                code = '_'.join(ref_seq.short_id.split('_')[1:])
+                ref_seq.short_id = str(num_key) + '_' + code
+                sorted_lineage_dict[str(num_key)] = ref_seq
+                num_key += 1
 
     return sorted_lineage_dict
 
@@ -903,160 +993,98 @@ def estimate_taxonomic_redundancy(args, reference_dict):
     return lowest_reliable_rank
 
 
-def summarize_reference_taxa(reference_dict):
+def summarize_reference_taxa(args, reference_dict):
+    taxonomic_summary_string = ""
     # Not really interested in Cellular Organisms or Strains.
     rank_depth_map = {1: "Kingdoms", 2: "Phyla", 3: "Classes", 4: "Orders", 5: "Families", 6: "Genera", 7: "Species"}
     taxa_counts = dict()
+    unclassifieds = 0
+
     for depth in rank_depth_map:
         name = rank_depth_map[depth]
         taxa_counts[name] = set()
-    for mltree_id_key in sorted(reference_dict.keys(), key=int):
-        lineage = reference_dict[mltree_id_key].lineage
+    for num_id in sorted(reference_dict.keys(), key=int):
+        if args.taxa_lca:
+            lineage = reference_dict[num_id].cluster_lca
+        else:
+            lineage = reference_dict[num_id].lineage
+        if re.search("unclassified", lineage, re.IGNORECASE):
+            unclassifieds += 1
         position = 1
         taxa = lineage.split('; ')
         while position < len(taxa) and position < 8:
             taxa_counts[rank_depth_map[position]].add(taxa[position])
             position += 1
-    sys.stdout.write("Number of unique lineages:\n")
+    taxonomic_summary_string += "Number of unique lineages:\n"
     for depth in rank_depth_map:
         rank = rank_depth_map[depth]
         buffer = " "
         while len(rank) + len(str(len(taxa_counts[rank]))) + len(buffer) < 12:
             buffer += ' '
-        sys.stdout.write("\t" + rank + buffer + str(len(taxa_counts[rank])) + "\n")
-    sys.stdout.flush()
+        taxonomic_summary_string += "\t" + rank + buffer + str(len(taxa_counts[rank])) + "\n"
+    # Report number of "Unclassified" lineages
+    taxonomic_summary_string += "Unclassified lineages account for " +\
+                                str(unclassifieds) + '/' + str(len(reference_dict.keys())) + ' (' +\
+                                str(round(float(unclassifieds/len(reference_dict.keys())), 1)) + "%) references.\n"
 
-    return
+    return taxonomic_summary_string
 
 
-def write_tax_ids(args, fasta_replace_dict, tree_taxa_list, molecule, log_file_handle):
+def gather_query_list(fasta_record_objects, create_log_handle):
+    num_lineages_provided = 0
+    query_accession_list = list()
+    # Only need to download the lineage information for those sequences that don't have it encoded in their header
+    for num_id in fasta_record_objects:
+        if fasta_record_objects[num_id].lineage:
+            num_lineages_provided += 1
+        else:
+            if fasta_record_objects[num_id].accession:
+                query_accession_list.append(fasta_record_objects[num_id].accession)
+            else:
+                create_log_handle.write("WARNING: Neither accession or lineage available for " +
+                                        fasta_record_objects[num_id].description + "\n")
+    return query_accession_list, num_lineages_provided
+
+
+def write_tax_ids(args, fasta_replace_dict, tax_ids_file):
     """
     Write the number, organism and accession ID, if possible
-    :param args: command-line arguments objects, used for screen and filter regex
-    :param fasta_replace_dict:
-    :param tree_taxa_list: The name of the output file
-    :param molecule: "dna", "rrna", or "prot" - parsed from command line arguments
-    :param log_file_handle: A file handler object for the log
-    :return:
+    :param args: command-line arguments object
+    :param fasta_replace_dict: Dictionary mapping numbers (internal treesapp identifiers) to ReferenceSequence objects
+    :param tax_ids_file: The name of the output file
+    :return: Nothing
     """
 
-    # Prepare for the progress bar
-    num_reference_sequences = len(fasta_replace_dict.keys())
-    if num_reference_sequences > 50:
-        progress_bar_width = 50
-        step_proportion = float(num_reference_sequences) / progress_bar_width
-    else:
-        progress_bar_width = num_reference_sequences
-        step_proportion = 1
-
-    acc = 0.0
-
-    taxa_searched = 0
     tree_taxa_string = ""
-    accession_query_list = list()
-    failed_accession_queries = list()
-
-    # Load the list of accessions that need to be queried
-    for mltree_id_key in fasta_replace_dict.keys():
-        reference_sequence = fasta_replace_dict[mltree_id_key]
-        if reference_sequence.lineage:
-            taxa_searched += 1
-            acc += 1.0
-            continue
-        elif reference_sequence.accession:
-            accession_query_list.append(reference_sequence.accession)
-        else:
-            sys.stderr.write("WARNING: no accession available for Entrez query:\n")
-            reference_sequence.get_info()
-    # Query the Entrez server using Entrez.efetch
-    log_file_handle.write("Sending " + str(len(accession_query_list)) + " Entrez.efetch queries to NCBI server.\n")
-    accession_lineage_map, all_accessions = get_multiple_lineages(sorted(accession_query_list), molecule, log_file_handle)
-
-    sys.stdout.write("Loading and quality-controlling Entrez data:\n")
-    sys.stdout.write("[%s ]" % (" " * progress_bar_width))
-    sys.stdout.write("%")
-    sys.stdout.write("\b" * (progress_bar_width + 3))
-    while acc >= step_proportion:
-        acc -= step_proportion
-        sys.stdout.write("-")
-    sys.stdout.flush()
-
-    if (len(accession_lineage_map.keys()) + taxa_searched) != len(fasta_replace_dict):
-        # Records were not returned for all sequences. Time to figure out which ones!
-        log_file_handle.write("WARNING: Entrez did not return a record for every accession queried.\n")
-        log_file_handle.write("Don't worry, though. We'll figure out which ones are missing.\n")
-        log_file_handle.write("\tDownloaded\t" + str(len(accession_lineage_map.keys())) + "\n")
-        log_file_handle.write("\tProvided\t" + str(taxa_searched) + "\n")
-        log_file_handle.write("\tTotal\t\t" + str(len(fasta_replace_dict)) + "\n")
-
-    # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
-    for mltree_id_key in fasta_replace_dict.keys():
-        reference_sequence = fasta_replace_dict[mltree_id_key]
-        if not reference_sequence.lineage:
-            if reference_sequence.accession in all_accessions:
-                taxa_searched += 1
-                for tuple_key in accession_lineage_map:
-                    accession, versioned = tuple_key
-                    if reference_sequence.accession == accession or reference_sequence.accession == versioned:
-                        if accession_lineage_map[tuple_key]["lineage"] == "":
-                            failed_accession_queries.append(reference_sequence)
-                        else:
-                            # The query was successful! Add it and increment
-                            reference_sequence.lineage = accession_lineage_map[tuple_key]["lineage"]
-                            acc += 1.0
-                            if acc >= step_proportion:
-                                acc -= step_proportion
-                                sys.stdout.write("-")
-                                sys.stdout.flush()
-            else:
-                failed_accession_queries.append(reference_sequence)
-    # For debugging:
-    # print("Currently searched:", taxa_searched)
-
-    # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
-    # Failing this, lineages will be set to "Unknown"
-    if len(failed_accession_queries) > 0:
-        failed_reference_sequences = get_lineage_robust(failed_accession_queries, molecule)
-        for reference_sequence in failed_reference_sequences:
-            if reference_sequence.lineage != "":
-                acc += 1.0
-                if acc >= step_proportion:
-                    acc -= step_proportion
-                    sys.stdout.write("-")
-            else:
-                log_file_handle.write("WARNING: Unable to determine the taxonomic lineage for " +
-                                      reference_sequence.accession + "\n")
-                reference_sequence.lineage = "Unknown"
-            taxa_searched += 1
-
-    sys.stdout.write("]%\n")
-    sys.stdout.flush()
-
-    if taxa_searched < len(fasta_replace_dict.keys()):
-        sys.stderr.write("ERROR: Not all sequences (" + str(taxa_searched) + '/'
-                         + str(len(fasta_replace_dict.keys())) + ") were queried against the NCBI taxonomy database!\n")
-        sys.exit(22)
-
-    if args.add_lineage:
-        if args.screen or args.filter:
-            sys.stderr.write("WARNING: Skipping taxonomic filtering and screening in `--add_lineage` mode.\n")
-    else:
-        fasta_replace_dict = order_dict_by_lineage(fasta_replace_dict)
-        fasta_replace_dict = screen_filter_taxa(args, fasta_replace_dict)
+    no_lineage = 0
+    warning_string = ""
 
     for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
         # Definitely will not uphold phylogenetic relationships but at least sequences
         # will be in the right neighbourhood rather than ordered by their position in the FASTA file
         reference_sequence = fasta_replace_dict[mltree_id_key]
-        tree_taxa_string += "%s\t%s | %s\t%s\n" % (str(mltree_id_key),
-                                                   reference_sequence.organism,
-                                                   reference_sequence.accession,
-                                                   reference_sequence.lineage)
-    tree_tax_list_handle = open(tree_taxa_list, "w")
+        if args.taxa_lca:
+            lineage = reference_sequence.cluster_lca
+        else:
+            lineage = reference_sequence.lineage
+        if not lineage:
+            no_lineage += 1
+            lineage = ''
+            print(reference_sequence.accession, lineage)
+
+        tree_taxa_string += "\t".join([str(mltree_id_key),
+                                      reference_sequence.organism + " | " + reference_sequence.accession,
+                                       lineage]) + "\n"
+
+    # Write the tree_taxa_string to the tax_ids file
+    tree_tax_list_handle = open(tax_ids_file, "w")
     tree_tax_list_handle.write(tree_taxa_string)
     tree_tax_list_handle.close()
 
-    return fasta_replace_dict
+    if no_lineage > 0:
+        warning_string += "WARNING: " + str(no_lineage) + " reference sequences did not have an associated lineage!\n"
+
+    return warning_string
 
 
 def read_tax_ids(tree_taxa_list):
@@ -1337,11 +1365,15 @@ def update_tax_ids_with_lineage(args, tree_taxa_list):
                     if ref_seq.lineage:
                         ref_seq.lineage = ""
                     ref_seq_dict[mltree_id_key] = ref_seq
-        write_tax_ids(args, fasta_replace_dict, tax_ids_file, args.molecule)
+        # write_tax_ids(args, fasta_replace_dict, tax_ids_file, args.molecule)
     return
 
 
 def main():
+    # TODO: Record each external software command and version in log
+    ##
+    # STAGE 0: PARAMETERIZE - retrieve command line arguments, query user about settings if necessary
+    ##
     args = get_arguments()
     args = find_executables(args)
 
@@ -1353,10 +1385,11 @@ def main():
 
     tree_taxa_list = args.output_dir + "tax_ids_%s.txt" % code_name
 
-    if args.add_lineage:
-        update_tax_ids_with_lineage(args, tree_taxa_list)
-        terminal_commands(final_output_folder, code_name)
-        sys.exit(0)
+    # TODO: Restore this functionality
+    # if args.add_lineage:
+    #     update_tax_ids_with_lineage(args, tree_taxa_list)
+    #     terminal_commands(final_output_folder, code_name)
+    #     sys.exit(0)
 
     if not os.path.exists(final_output_folder):
         try:
@@ -1371,24 +1404,15 @@ def main():
         if os.path.exists(args.code_name + "_phy_files"):
             shutil.rmtree(args.code_name + "_phy_files")
 
-    # TODO: Allow for the tax_ids from a previous run to be used even if a uc file isn't provided
-    if os.path.exists(tree_taxa_list):
-        if sys.version_info > (2, 9):
-            use_previous_names = input(os.path.basename(tree_taxa_list) + " found from a previous attempt. "
-                                                                          "Should it be used for this run? [y|n] ")
-            while use_previous_names != "y" and use_previous_names != "n":
-                use_previous_names = input("Incorrect response. Please input either 'y' or 'n'. ")
-        else:
-            use_previous_names = raw_input(os.path.basename(tree_taxa_list) + " found from a previous attempt. "
-                                                                              "Should it be used for this run? [y|n] ")
-            while use_previous_names != "y" and use_previous_names != "n":
-                use_previous_names = raw_input("Incorrect response. Please input either 'y' or 'n'. ")
-    else:
-        use_previous_names = 'n'
+    create_log_handle = open(args.output_dir + "create_" + code_name + "_treesapp_data_log.txt", 'w')
+    create_log_handle.write("Command used:\n" + ' '.join(sys.argv) + "\n\n")
 
+    ##
+    # STAGE 2: FILTER - begin filtering sequences by homology and taxonomy
+    ##
     if args.domain:
         hmm_purified_fasta = args.output_dir + args.code_name + "_hmm_purified.fasta"
-        if os.path.isfile(hmm_purified_fasta) and use_previous_names == 'y':
+        if os.path.isfile(hmm_purified_fasta):
             sys.stdout.write("Using " + hmm_purified_fasta + " from a previous attempt.\n")
         else:
             sys.stdout.write("Searching for domain sequences... ")
@@ -1407,89 +1431,197 @@ def main():
 
         fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args)
         header_registry = register_headers(args, get_headers(hmm_purified_fasta))
-        # Point all further operations to the HMM purified FASTA file as the original input
+        # Point all future operations to the HMM purified FASTA file as the original input
         args.fasta_input = hmm_purified_fasta
     else:
         fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
         header_registry = register_headers(args, get_headers(args.fasta_input))
 
-    # Optionally cluster the input sequences using USEARCH at the specified identity
-    if args.cluster:
-        sys.stdout.write("Clustering sequences with UCLUST... ")
-        uclust_prefix = uclust_sequences(args)
-        sys.stdout.write("done.\n")
-        fasta_dict = format_read_fasta(uclust_prefix + ".fa", args.molecule, args)
-        sys.stdout.write("\t" + str(len(fasta_dict.keys())) + " sequence clusters\n")
-        header_registry = register_headers(args, get_headers(uclust_prefix + ".fa"))
-        args.fasta_input = uclust_prefix + ".fa"
-
+    ##
+    # If there are sequences that needs to be guaranteed to be included,
+    #  add them now as its easier to work with more sequences than repeat everything
+    ##
     if args.guarantee:
-        # TODO: Decide on compatibility with args.uc and use_previous_names == 'y' (currently not supported)
         if not os.path.isfile(args.guarantee):
             sys.stderr.write("ERROR: file '" + args.guarantee + "' does not exist!\n")
             sys.exit(3)
         important_seqs = format_read_fasta(args.guarantee, args.molecule, args)
         important_headers = register_headers(args, get_headers(args.guarantee))
+        fasta_dict.update(important_seqs)
+        acc = max([int(x) for x in header_registry.keys()])
+        for num_id in sorted(important_headers, key=int):
+            acc += 1
+            header_registry[str(acc)] = important_headers[num_id]
+    else:
+        important_seqs = None
 
-        # Check to see if any of these sequences are in the final FASTA file to be aligned
-        for formatted_header in important_seqs.keys():
-            if formatted_header not in fasta_dict:
-                # Add the missing sequence to fasta_dict and header_registry
-                fasta_dict[formatted_header] = important_seqs[formatted_header]
-                # Search for the numeric key for the header to be added in dictionary of important headers
-                new_header = ""
-                for seq_acc in important_headers:
-                    if important_headers[seq_acc].formatted == formatted_header:
-                        new_header = important_headers[seq_acc]
-                        break
-                if not new_header:
-                    sys.stderr.write("ERROR: Unable to find '" + formatted_header + "' in header registry!\n")
-                    sys.exit(5)
-                # Find the leaf node number of the last sequence in the header registry, then +1
-                acc = int(sorted(header_registry.keys(), key=int)[-1]) + 1
-                header_registry[str(acc)] = new_header
+    ##
+    # Determine the format of each sequence name (header) and pull important info (e.g. accession, lineage)
+    ##
+    fasta_record_objects = get_header_info(header_registry, code_name)
 
-    fasta_replace_dict = dict()
-    # The header_registry needs to be re-aligned to the identifiers in the tax_ids file
-    # since these were sorted by taxonomic lineage
-    if os.path.exists(tree_taxa_list) and use_previous_names == 'y':
-        fasta_replace_dict = read_tax_ids(tree_taxa_list)
-        if len(header_registry) != len(fasta_replace_dict):
-            sys.stderr.write("ERROR: Number of headers in " + args.fasta_input +
-                             " is not equal to the number of reference taxa in " + tree_taxa_list + "\n")
-            sys.exit(3)
-        header_registry = arrange_header_numeric_identifiers(header_registry, fasta_replace_dict)
+    ##
+    # TODO: Read lineages corresponding to accessions for each sequence if available, otherwise download them
+    ##
+    query_accession_list, num_lineages_provided = gather_query_list(fasta_record_objects, create_log_handle)
+    accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list,
+                                                                  args.molecule,
+                                                                  create_log_handle)
+    # TODO: Save this information to a file, like in Clade_exclusion_analyzer
+    # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
+    fasta_record_objects = verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects,
+                                                      num_lineages_provided, args.molecule, create_log_handle)
 
-    log = open(args.output_dir + "create_" + code_name + "_treesapp_data_log.txt", 'w')
-    log.write("Command used:\n" + ' '.join(sys.argv) + "\n\n")
+    ##
+    # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
+    ##
+    if args.add_lineage:
+        if args.screen or args.filter:
+            sys.stderr.write("WARNING: Skipping taxonomic filtering and screening in `--add_lineage` mode.\n")
+    else:
+        fasta_record_objects = screen_filter_taxa(args, fasta_record_objects)
 
+    if len(fasta_record_objects.keys()) < 2:
+        sys.stderr.write("ERROR: " + str(len(fasta_record_objects)) + " sequences post-homology + taxonomy filtering\n")
+        sys.exit(11)
+    # Add the respective protein or nucleotide sequence string to each ReferenceSequence object
+    for num_id in fasta_record_objects:
+        refseq_object = fasta_record_objects[num_id]
+        treesapp_id = refseq_object.short_id[1:].split('_')[0]
+        refseq_object.sequence = fasta_dict[header_registry[treesapp_id].formatted]
+    # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
+    filtered_fasta_dict = dict()
+    filtered_fasta_name = args.output + '.'.join(os.path.basename(args.fasta_input).split('.')[0:-1]) + "_filtered.fa"
+    for num_id in fasta_record_objects:
+        refseq_object = fasta_record_objects[num_id]
+        formatted_header = header_registry[num_id].formatted
+        filtered_fasta_dict[formatted_header] = refseq_object.sequence
+    write_new_fasta(filtered_fasta_dict, filtered_fasta_name)
+
+    ##
+    # Optionally cluster the input sequences using USEARCH at the specified identity
+    ##
+    if args.cluster:
+        sys.stdout.write("Clustering sequences with UCLUST... ")
+        uclust_prefix = uclust_sequences(args, filtered_fasta_name)
+        sys.stdout.write("done.\n")
+        cluster_fasta_dict = format_read_fasta(uclust_prefix + ".fa", args.molecule, args)
+        if args.verbose:
+            sys.stdout.write("\t" + str(len(cluster_fasta_dict.keys())) + " sequence clusters\n")
+        create_log_handle.write(str(len(cluster_fasta_dict.keys())) + " sequence clusters\n\n")
+        args.fasta_input = uclust_prefix + ".fa"
+        args.uc = uclust_prefix + ".uc"
+
+    ##
+    # Read the uc file if present
+    ##
     if args.uc:
         cluster_dict = read_uc(args.uc)
-        if use_previous_names == 'n':
-            swappers = present_cluster_rep_options(cluster_dict)
-        elif use_previous_names == 'y':
-            if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
-                raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
-            swappers = regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict)
-        else:
-            sys.exit(2)
-        swappers = reformat_headers(swappers)
-        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers)
-        fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule, log)
+        ##
+        # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
+        ##
+        for cluster_id in sorted(cluster_dict, key=int):
+            members = [cluster_dict[cluster_id].representative]
+            # format of member list is: [header, identity, member_seq_length/representative_seq_length]
+            members += [member[0] for member in cluster_dict[cluster_id].members]
+            lineages = list()
+            for num_id in fasta_record_objects:
+                if header_registry[num_id].formatted in members:
+                    lineages.append(fasta_record_objects[num_id].lineage)
+            cleaned_lineages = clean_lineage_list(lineages)
+            cluster_dict[cluster_id].lca = megan_lca(cleaned_lineages)
+            # For debugging
+            # if len(lineages) != len(cleaned_lineages):
+            #     print("Before:")
+            #     for l in lineages:
+            #         print(l)
+            #     print("After:")
+            #     for l in cleaned_lineages:
+            #         print(l)
+            # print("LCA:", lca)
     else:
-        if os.path.exists(tree_taxa_list) and use_previous_names == 'y':
-            if len(fasta_replace_dict.keys()) != len(fasta_dict.keys()):
-                raise AssertionError("Number of sequences in new FASTA input and " + tree_taxa_list + " are not equal!")
-        # args.uc is None and use_previous_names == 'n'
-        fasta_replace_dict = get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry)
-        fasta_replace_dict = write_tax_ids(args, fasta_replace_dict, tree_taxa_list, args.molecule, log)
+        cluster_dict = None
+
+    ##
+    # Swap sequences in 'guarantee' for the representatives, creating new clusters
+    ##
+    if args.guarantee and args.uc:
+        # We don't want to make the tree redundant so instead of simply adding the sequences in guarantee,
+        #  we will swap them for their respective representative sequences.
+        # All important sequences become representative, even if multiple are in the same cluster
+        num_swaps = 0
+        nonredundant_guarantee_cluster_dict = dict()  # Will be used to replace cluster_dict
+        expanded_cluster_id = 0
+        for cluster_id in sorted(cluster_dict, key=int):
+            if len(cluster_dict[cluster_id].members) == 0:
+                nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+            else:
+                contains_important_seq = False
+                # The case where a member of a cluster is a guaranteed sequence, but not the representative
+                representative = cluster_dict[cluster_id].representative
+                for member in cluster_dict[cluster_id].members:
+                    if member[0] in important_seqs.keys():
+                        nonredundant_guarantee_cluster_dict[expanded_cluster_id] = Cluster(member[0])
+                        nonredundant_guarantee_cluster_dict[expanded_cluster_id].members = []
+                        nonredundant_guarantee_cluster_dict[expanded_cluster_id].lca = cluster_dict[cluster_id].lca
+                        expanded_cluster_id += 1
+                        contains_important_seq = True
+                if contains_important_seq and representative not in important_seqs.keys():
+                    num_swaps += 1
+                elif contains_important_seq and representative in important_seqs.keys():
+                    # So there is no opportunity for the important representative sequence to be swapped, clear members
+                    cluster_dict[cluster_id].members = []
+                    nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+                else:
+                    nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+            expanded_cluster_id += 1
+        cluster_dict = nonredundant_guarantee_cluster_dict
+
+    # TODO: Taxonomic normalization
+
+    ##
+    # Set the cluster-specific values for ReferenceSequence objects
+    ##
+    if args.uc and not args.headless:
+        # Allow user to select the representative sequence based on organism name, sequence length and similarity
+        fasta_record_objects = present_cluster_rep_options(cluster_dict,
+                                                           fasta_record_objects,
+                                                           header_registry,
+                                                           important_seqs)
+    elif args.uc and args.headless:
+        finalize_cluster_reps(cluster_dict, fasta_record_objects, header_registry)
+    else:
+        for num_id in fasta_record_objects:
+            fasta_record_objects[num_id].cluster_rep = True
+            # fasta_record_objects[num_id].cluster_lca is left empty
+
+    ##
+    # Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
+    # Remove the cluster members since they will no longer be used
+    ##
+    fasta_replace_dict = order_dict_by_lineage(fasta_record_objects)
+    # header_registry needs to be re-aligned to the fasta_record short identifiers after sorting by taxonomic lineage
+    # header_registry = arrange_header_numeric_identifiers(header_registry, fasta_replace_dict)
+
+    # For debugging. This is the finalized set of reference sequences:
+    # for num_id in sorted(fasta_replace_dict, key=int):
+    #     fasta_replace_dict[num_id].get_info()
+
+    warnings = write_tax_ids(args, fasta_replace_dict, tree_taxa_list)
+    if warnings:
+        create_log_handle.write(warnings)
 
     sys.stdout.write("Generated the taxonomic lineage map " + tree_taxa_list + "\n")
-
+    # TODO: Estimate the taxonomic rank sequences were clustered to. Does each represent a Species, Genus, Family, etc.
+    taxonomic_summary = summarize_reference_taxa(args, fasta_replace_dict)
+    create_log_handle.write(taxonomic_summary)
     if args.verbose:
-        summarize_reference_taxa(fasta_replace_dict)
+        sys.stdout.write(taxonomic_summary)
     lowest_reliable_rank = estimate_taxonomic_redundancy(args, fasta_replace_dict)
 
+    ##
+    # Perform multiple sequence alignment and tree-building
+    ##
     fasta_replaced_file = args.output_dir + code_name + ".fc.repl.fasta"
     multiple_alignment_fasta = args.output_dir + code_name + ".fa"
 
@@ -1546,8 +1678,8 @@ def main():
 
         stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
 
-        log.write("\n### HMMBUILD ###\n\n" + stdout)
-        log.close()
+        create_log_handle.write("\n### HMMBUILD ###\n\n" + stdout)
+        create_log_handle.close()
 
         if hmmbuild_pro_returncode != 0:
             sys.stderr.write("ERROR: hmmbuild did not complete successfully for:\n")
