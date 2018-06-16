@@ -11,9 +11,10 @@ from multiprocessing import Process, JoinableQueue
 from json import loads, dumps
 
 from fasta import format_read_fasta, get_headers, write_new_fasta, get_header_format
-from utilities import reformat_string, get_lineage, return_sequence_info_groups
+from utilities import reformat_string, return_sequence_info_groups
 from entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from external_command_interface import launch_write_command
+from entrez_utils import get_lineage
 
 import _tree_parser
 

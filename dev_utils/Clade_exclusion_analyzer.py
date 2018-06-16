@@ -18,10 +18,11 @@ if cmd_folder not in sys.path:
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from fasta import format_read_fasta, write_new_fasta, get_headers
 from create_treesapp_ref_data import get_header_format, register_headers
-from utilities import clean_lineage_string, get_lineage, return_sequence_info_groups
+from utilities import clean_lineage_string, return_sequence_info_groups
 from external_command_interface import setup_progress_bar, launch_write_command
 from classy import ReferenceSequence
 from treesapp import parse_ref_build_params
+from entrez_utils import get_lineage, read_accession_taxa_map, write_accession_lineage_map
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   2: "Phylum", 3: "Class", 4: "Order",
@@ -602,42 +603,6 @@ def finalize_ref_seq_lineages(test_ref_sequences, accession_lineages):
     return test_ref_sequences
 
 
-def write_accession_lineage_map(mapping_file, ref_seq_list):
-    """
-    Function for writing a map of NCBI accession IDs to their respective taxonomic lineages
-     using a list of ReferenceSequence objects
-    :param mapping_file: Name of a file to write these data
-    :param ref_seq_list: A list of ReferenceSequence objects
-    :return:
-    """
-    try:
-        map_file_handler = open(mapping_file, 'w')
-    except IOError:
-        sys.stderr.write("ERROR: Unable to open " + mapping_file, " for writing!\n")
-        sys.exit()
-
-    for ref_seq in ref_seq_list:
-        map_file_handler.write(ref_seq.accession + "\t" + ref_seq.lineage + "\n")
-
-    return
-
-
-def read_accession_taxa_map(mapping_file, ref_seqs_list):
-    try:
-        map_file_handler = open(mapping_file, 'r')
-    except IOError:
-        sys.stderr.write("ERROR: Unable to open " + mapping_file, " for reading!\n")
-        sys.exit()
-
-    for line in map_file_handler:
-        accession, lineage = line.strip().split("\t")
-        for ref_seq in ref_seqs_list:
-            if ref_seq.accession == accession:
-                ref_seq.lineage = lineage
-
-    return ref_seqs_list
-
-
 def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     """
     Since the headers used throughout the TreeSAPP pipeline are truncated,
@@ -1065,11 +1030,12 @@ def main():
             sys.stdout.write("No sequences with lineage information that needs to be downloaded from Entrez.\n")
             accession_lineage_map = dict()
         complete_ref_sequences = finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
-        write_accession_lineage_map(accession_map_file, complete_ref_sequences)
+        write_accession_lineage_map(accession_map_file, accession_lineage_map)
         accessions_downloaded = True
     elif extant and accessions_downloaded:
         # File being read should contain accessions mapped to their lineages for all sequences in input FASTA
-        complete_ref_sequences = read_accession_taxa_map(accession_map_file, complete_ref_sequences)
+        read_accession_lineage_dict = read_accession_taxa_map(accession_map_file)
+        complete_ref_sequences = finalize_ref_seq_lineages(complete_ref_sequences, read_accession_lineage_dict)
 
     # Checkpoint two: Do we have accessions? Are the sequences filtered by taxonomy or are the sequences classified?
     if extant and accessions_downloaded and not taxa_filter and not classified:

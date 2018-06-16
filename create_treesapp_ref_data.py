@@ -15,14 +15,17 @@ try:
 
     from time import gmtime, strftime
 
-    from utilities import os_type, is_exe, which, find_executables, reformat_string, get_multiple_lineages, \
-        get_lineage_robust, parse_domain_tables, return_sequence_info_groups, verify_lineage_information
+    from utilities import os_type, is_exe, which, find_executables, reformat_string, parse_domain_tables,\
+        return_sequence_info_groups
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
         trim_multiple_alignment
     from classy import ReferenceSequence, Header, Cluster
     from external_command_interface import launch_write_command
     from entish import annotate_partition_tree
     from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
+    from entrez_utils import get_multiple_lineages, get_lineage_robust, verify_lineage_information,\
+        read_accession_taxa_map, write_accession_lineage_map
+
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
@@ -1369,6 +1372,27 @@ def update_tax_ids_with_lineage(args, tree_taxa_list):
     return
 
 
+def finalize_ref_seq_lineages(fasta_record_objects, accession_lineages):
+    """
+    Adds lineage information from accession_lineages to fasta_record_objects
+    :param fasta_record_objects: dict() indexed by TreeSAPP numeric identifiers mapped to ReferenceSequence instances
+    :param accession_lineages: a dictionary mapping {accession: lineage}
+    :return:
+    """
+    for treesapp_id in fasta_record_objects:
+        ref_seq = fasta_record_objects[treesapp_id]
+        if not ref_seq.lineage:
+            try:
+                ref_seq.lineage = accession_lineages[ref_seq.accession]
+            except KeyError:
+                sys.stderr.write("ERROR: Lineage information was not retrieved for " + ref_seq.accession + "!\n")
+                sys.stderr.write("Please remove the output directory and restart.\n")
+                sys.exit(3)
+        else:
+            pass
+    return fasta_record_objects
+
+
 def main():
     # TODO: Record each external software command and version in log
     ##
@@ -1384,6 +1408,7 @@ def main():
         sys.exit(0)
 
     tree_taxa_list = args.output_dir + "tax_ids_%s.txt" % code_name
+    accession_map_file = args.output + os.sep + "accession_id_lineage_map.tsv"
 
     # TODO: Restore this functionality
     # if args.add_lineage:
@@ -1461,16 +1486,27 @@ def main():
     fasta_record_objects = get_header_info(header_registry, code_name)
 
     ##
-    # TODO: Read lineages corresponding to accessions for each sequence if available, otherwise download them
+    # Read lineages corresponding to accessions for each sequence if available, otherwise download them
     ##
     query_accession_list, num_lineages_provided = gather_query_list(fasta_record_objects, create_log_handle)
-    accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list,
-                                                                  args.molecule,
-                                                                  create_log_handle)
-    # TODO: Save this information to a file, like in Clade_exclusion_analyzer
+    if os.path.isfile(accession_map_file):
+        sys.stdout.write("Reading cached lineages in '" + accession_map_file + "'... ")
+        sys.stdout.flush()
+        accession_lineage_map = read_accession_taxa_map(accession_map_file)
+        sys.stdout.write("done.\n")
+    else:
+        accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list,
+                                                                      args.molecule,
+                                                                      create_log_handle)
+        # Download lineages separately for those accessions that failed
+        # Map proper accession to lineage from the tuple keys (accession, accession.version)
+        #  in accession_lineage_map returned by get_multiple_lineages.
+        fasta_record_objects, accession_lineage_map = verify_lineage_information(accession_lineage_map, all_accessions,
+                                                                                 fasta_record_objects, num_lineages_provided,
+                                                                                 args.molecule, create_log_handle)
+        write_accession_lineage_map(accession_map_file, accession_lineage_map)
     # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
-    fasta_record_objects = verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects,
-                                                      num_lineages_provided, args.molecule, create_log_handle)
+    finalize_ref_seq_lineages(fasta_record_objects, accession_lineage_map)
 
     ##
     # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
@@ -1526,6 +1562,7 @@ def main():
             members += [member[0] for member in cluster_dict[cluster_id].members]
             lineages = list()
             for num_id in fasta_record_objects:
+                # TODO: Methanobrevibacter smithii cluster_lca is cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae
                 if header_registry[num_id].formatted in members:
                     lineages.append(fasta_record_objects[num_id].lineage)
             cleaned_lineages = clean_lineage_list(lineages)
@@ -1694,7 +1731,7 @@ def main():
     os.system(phylip_command)
     phylip_file = args.output_dir + args.code_name + ".phy"
     os.rename(multiple_alignment_fasta + ".phylip", phylip_file)
-
+    sys.exit()
     tree_output_dir = construct_tree(args, phylip_file)
 
     if os.path.exists(fasta_replaced_file):
