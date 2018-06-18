@@ -3,7 +3,7 @@
 __author__ = "Connor Morgan-Lang"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL"
-__version__ = "0.0.2"
+__version__ = "0.1.0"
 
 try:
     import argparse
@@ -1562,20 +1562,19 @@ def main():
             members += [member[0] for member in cluster_dict[cluster_id].members]
             lineages = list()
             for num_id in fasta_record_objects:
-                # TODO: Methanobrevibacter smithii cluster_lca is cellular organisms; Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae
                 if header_registry[num_id].formatted in members:
                     lineages.append(fasta_record_objects[num_id].lineage)
             cleaned_lineages = clean_lineage_list(lineages)
             cluster_dict[cluster_id].lca = megan_lca(cleaned_lineages)
             # For debugging
-            # if len(lineages) != len(cleaned_lineages):
+            # if len(lineages) != len(cleaned_lineages) and len(lineages) > 1:
             #     print("Before:")
             #     for l in lineages:
             #         print(l)
             #     print("After:")
             #     for l in cleaned_lineages:
             #         print(l)
-            # print("LCA:", lca)
+            #     print("LCA:", cluster_dict[cluster_id].lca)
     else:
         cluster_dict = None
 
@@ -1731,7 +1730,6 @@ def main():
     os.system(phylip_command)
     phylip_file = args.output_dir + args.code_name + ".phy"
     os.rename(multiple_alignment_fasta + ".phylip", phylip_file)
-    sys.exit()
     tree_output_dir = construct_tree(args, phylip_file)
 
     if os.path.exists(fasta_replaced_file):
