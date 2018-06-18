@@ -1463,6 +1463,19 @@ def main():
         header_registry = register_headers(args, get_headers(args.fasta_input))
 
     ##
+    # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
+    ##
+    if len(fasta_dict.keys()) != len(header_registry):
+        sync_header_registry = dict()
+        create_log_handle.write("WARNING: The following sequences have been excluded from downstream analyses:\n")
+        for num_id in header_registry:
+            if header_registry[num_id].formatted not in fasta_dict:
+                create_log_handle.write(header_registry[num_id].original + "\n")
+            else:
+                sync_header_registry[num_id] = header_registry[num_id]
+        header_registry = sync_header_registry
+
+    ##
     # If there are sequences that needs to be guaranteed to be included,
     #  add them now as its easier to work with more sequences than repeat everything
     ##
