@@ -49,6 +49,11 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
 
 
 def get_headers(fasta_file):
+    """
+    Reads a FASTA file and returns a list of all headers it found in the file. No reformatting or filtering performed.
+    :param fasta_file: Path to the FASTA file to be read.
+    :return:
+    """
     original_headers = list()
     try:
         fasta = open(fasta_file, 'r')

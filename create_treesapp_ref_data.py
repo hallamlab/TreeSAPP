@@ -431,7 +431,7 @@ def hmmsearch_input_references(args, fasta_replaced_file):
 
 
 def uclust_sequences(args, fasta_input):
-    uclust_prefix = args.output + \
+    uclust_prefix = args.output_dir + \
                     '.'.join(os.path.basename(fasta_input).split('.')[0:-1]) + \
                     "_uclust" + args.identity
 
@@ -1278,7 +1278,10 @@ def construct_tree(args, multiple_alignment_file):
             sys.exit(
                 "ERROR: a substitution model could not be specified with the 'molecule' argument: " + args.molecule)
         tree_builder = "RAxML"
-        tree_to_swap = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
+        raw_newick_tree = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
+        bootstrap_tree = tree_output_dir + os.sep + "RAxML_bipartitionsBranchLabels." + args.code_name
+        final_mltree = args.output_dir + os.sep + args.code_name + "_tree.txt"
+        bootstrap_nameswap = args.output_dir + os.sep + args.code_name + "_bipartitions.txt"
 
     # Ensure the tree from a previous run isn't going to be over-written
     if not os.path.exists(tree_output_dir):
@@ -1309,9 +1312,8 @@ def construct_tree(args, multiple_alignment_file):
 
     if not args.fast:
         os.system("mv %s %s" % (multiple_alignment_file, tree_output_dir))
-
-    final_mltree = args.output_dir + os.sep + args.code_name + "_tree.txt"
-    swap_tree_names(tree_to_swap, final_mltree, args.code_name)
+        swap_tree_names(raw_newick_tree, final_mltree, args.code_name)
+        swap_tree_names(bootstrap_tree, bootstrap_nameswap, args.code_name)
 
     return tree_output_dir
 
@@ -1408,7 +1410,7 @@ def main():
         sys.exit(0)
 
     tree_taxa_list = args.output_dir + "tax_ids_%s.txt" % code_name
-    accession_map_file = args.output + os.sep + "accession_id_lineage_map.tsv"
+    accession_map_file = args.output_dir + os.sep + "accession_id_lineage_map.tsv"
 
     # TODO: Restore this functionality
     # if args.add_lineage:
@@ -1540,7 +1542,7 @@ def main():
         refseq_object.sequence = fasta_dict[header_registry[treesapp_id].formatted]
     # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
     filtered_fasta_dict = dict()
-    filtered_fasta_name = args.output + '.'.join(os.path.basename(args.fasta_input).split('.')[0:-1]) + "_filtered.fa"
+    filtered_fasta_name = args.output_dir + '.'.join(os.path.basename(args.fasta_input).split('.')[0:-1]) + "_filtered.fa"
     for num_id in fasta_record_objects:
         refseq_object = fasta_record_objects[num_id]
         formatted_header = header_registry[num_id].formatted
@@ -1756,7 +1758,10 @@ def main():
     os.system("mv %s.fa %s" % (args.output_dir + code_name, final_output_folder))
     # Move the tax_ids and tree file to the final output directory
     os.system("mv %s %s" % (tree_taxa_list, final_output_folder))
-    os.rename(args.output_dir + args.code_name + "_tree.txt", final_output_folder + args.code_name + "_tree.txt")
+    os.rename(args.output_dir + args.code_name + "_tree.txt",
+              final_output_folder + args.code_name + "_tree.txt")
+    os.rename(args.output_dir + args.code_name + "_bipartitions.txt",
+              final_output_folder + args.code_name + "_bipartitions.txt")
 
     if args.fast:
         if args.molecule == "prot":

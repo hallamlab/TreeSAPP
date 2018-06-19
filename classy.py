@@ -944,6 +944,11 @@ class Header:
         self.post_align = ""
         self.first_split = ""
 
+    def get_info(self):
+        info_string = "TreeSAPP ID = '" + self.treesapp_name + "'\tPrefix = '" + self.first_split + "'\n"
+        info_string += "Original =  " + self.original + "\nFormatted = " + self.formatted
+        return info_string
+
 
 class Cluster:
     def __init__(self, rep_name):
