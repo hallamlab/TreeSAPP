@@ -12,7 +12,7 @@ The script we will need to use for this tutorial is `create_treesapp_ref_data.py
 build all the reference packages available. The most basic usage of this pipeline
 is visualized below:
 
-![alt text](https://github.com/hallamlab/TreeSAPP/blob/fastsearch/dev_utils/Create_TreeSAPP_RefPkg_pipeline.png)
+![alt text](https://github.com/hallamlab/TreeSAPP/blob/master/dev_utils/Create_TreeSAPP_RefPkg_pipeline.png)
 
 As you can see `create_treesapp_ref_data.py` depends on several other open source software.
 Many of these are also dependencies of `treesapp.py` (e.g. HMMER, RAxML)
