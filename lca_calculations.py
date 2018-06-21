@@ -3,7 +3,7 @@ __author__ = 'Connor Morgan-Lang'
 
 import sys
 import re
-from utilities import median
+from utilities import median, clean_lineage_string
 
 
 def disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_list):
@@ -85,6 +85,7 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
     """
     Input is a list >= 2, potentially either a leaf string or NCBI lineage
     :param children: Lineages of all leaves for this sequence
+    :param algorithm: A string indicating what lowest common ancestor algorithm should be used [ MEGAN | LCA* | LCAp ]
     :return: string - represent the consensus lineage for that node
     """
     lineage_string = ""
@@ -100,7 +101,8 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
             lineages_considered.append(ranks)
         if num_ranks > max_ranks:
             max_ranks = num_ranks
-    # print("Lineages considered: ", lineages_considered)
+    # print("All children:", children)
+    # print("Lineages considered:", lineages_considered)
     if len(lineages_considered) == 0:
         sys.stderr.write("WARNING: all lineages were highly incomplete for ")
     else:
@@ -111,8 +113,7 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
             # approximate LCA* (no entropy calculations):
             hits = dict()
             consensus = list()
-            # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
-            i = 0
+            i = 0  # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
             while i < max_ranks:
                 hits.clear()
                 lineages_used = 0

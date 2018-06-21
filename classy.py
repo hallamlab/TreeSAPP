@@ -580,6 +580,12 @@ class ItolJplace:
         return unclassified
 
     def sum_rpkms_per_node(self, leaf_rpkm_sums):
+        """
+        Function that adds the RPKM value of a contig to the node it was placed.
+        For contigs mapping to internal nodes: the proportional RPKM assigned is summed for all children.
+        :param leaf_rpkm_sums: A dictionary mapping tree leaf numbers to abundances (RPKM sums)
+        :return: dict()
+        """
         for pquery in self.placements:
             placement = loads(pquery, encoding="utf-8")
             for k, v in placement.items():
@@ -587,10 +593,11 @@ class ItolJplace:
                     for locus in v:
                         jplace_node = locus[0]
                         tree_leaves = self.node_map[jplace_node]
+                        normalized_abundance = float(self.abundance/len(tree_leaves))
                         for tree_leaf in tree_leaves:
                             if tree_leaf not in leaf_rpkm_sums.keys():
                                 leaf_rpkm_sums[tree_leaf] = 0.0
-                            leaf_rpkm_sums[tree_leaf] += self.abundance
+                            leaf_rpkm_sums[tree_leaf] += normalized_abundance
         return leaf_rpkm_sums
 
     def filter_max_weight_placement(self):

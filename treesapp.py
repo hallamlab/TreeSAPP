@@ -3893,9 +3893,10 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
     return rpkm_output_file
 
 
-def normalize_rpkm_values(args, rpkm_output_file, cog_list, text_of_analysis_type):
+def summarize_placements_rpkm(args, rpkm_output_file, cog_list, text_of_analysis_type):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
+    Recapitulates MLTreeMap standard out summary
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param rpkm_output_file: CSV file containing contig names and RPKM values
     :param cog_list:
@@ -4289,7 +4290,7 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
     :return:
     """
     leaf_rpkm_sums = dict()
-    itol_fpkm_file = args.output + "iTOL_output" + os.sep + marker + os.sep + marker + "_abundance_simplebar.txt"
+    itol_rpkm_file = args.output + "iTOL_output" + os.sep + marker + os.sep + marker + "_abundance_simplebar.txt"
 
     if args.rpkm:
         all_rpkm_values = read_rpkm(rpkm_output_file)
@@ -4311,14 +4312,14 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
         leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
 
     try:
-        itol_rpkm_out = open(itol_fpkm_file, 'w')
+        itol_rpkm_out = open(itol_rpkm_file, 'w')
     except IOError:
-        sys.stderr.write("Unable to open " + itol_fpkm_file + " for writing! Exiting now...\n")
+        sys.stderr.write("Unable to open " + itol_rpkm_file + " for writing! Exiting now...\n")
         sys.stderr.flush()
         sys.exit(-10)
 
     # Write the header
-    header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,FPKM\nCOLOR,#ff0000\n"
+    header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,RPKM\nCOLOR,#ff0000\n"
     itol_rpkm_out.write(header)
     # Write the RPKM sums for each leaf
     itol_rpkm_out.write("DATA\n")
@@ -4807,9 +4808,6 @@ def main(argv):
 
         # STAGE 5: Run RAxML to compute the ML estimations
         start_raxml(args, phy_files, cog_list, models_to_be_used)
-        # final_raxml_output_files = parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
-        #                                               raxml_outfiles, text_of_analysis_type, num_raxml_outputs)
-        # concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type)
     tree_saps, itol_data, marker_map, unclassified_counts = parse_raxml_output(args, cog_list, unclassified_counts)
 
     abundance_file = None
@@ -4831,7 +4829,7 @@ def main(argv):
         if args.rpkm:
             sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
             abundance_file = run_rpkm(args, sam_file, orf_nuc_fasta)
-            normalize_rpkm_values(args, abundance_file, cog_list, text_of_analysis_type)
+            summarize_placements_rpkm(args, abundance_file, cog_list, text_of_analysis_type)
     else:
         pass
 
