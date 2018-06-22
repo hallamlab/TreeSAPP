@@ -189,8 +189,7 @@ def read_intermediate_assignments(args, inter_class_file):
     return assignments, n_saved
 
 
-def write_intermediate_assignments(args, assignments):
-    inter_class_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
+def write_intermediate_assignments(args, inter_class_file, assignments):
     if args.verbose:
         sys.stderr.write("Saving intermediate data... ")
     try:
@@ -838,12 +837,11 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
 
-def write_performance_table(args, clade_exclusion_strings, sensitivity):
-    output = args.output + os.sep + "clade_exclusion_performance.tsv"
+def write_performance_table(args, performance_table, clade_exclusion_strings, sensitivity):
     try:
-        output_handler = open(output, 'w')
+        output_handler = open(performance_table, 'w')
     except IOError:
-        sys.stderr.write("ERROR: Unable to open " + output + " for writing!")
+        sys.stderr.write("ERROR: Unable to open " + performance_table + " for writing!")
         raise IOError
 
     output_handler.write("# Input file for testing: " + args.fasta_input + "\n")
@@ -940,6 +938,7 @@ def main():
     inter_class_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
     accession_map_file = args.output + os.sep + "accession_id_lineage_map.tsv"
     test_rep_taxa_fasta = args.output + os.sep + "representative_taxa_sequences.fasta"
+    performance_table = args.output + os.sep + "clade_exclusion_performance.tsv"
     # Determine the analysis stage and user's intentions with four booleans
     # Working with a pre-existing TreeSAPP output directory
     if os.path.exists(args.output):
@@ -1181,7 +1180,7 @@ def main():
     sys.stdout.write("Sensitivity = " + sensitivity + "\n")
 
     # Write the intermediate classifications to a file
-    write_intermediate_assignments(args, marker_assignments)
+    write_intermediate_assignments(args, inter_class_file, marker_assignments)
 
     # Get rid of some names, replace underscores with semi-colons
     assignments = clean_classification_names(marker_assignments)
@@ -1235,7 +1234,7 @@ def main():
             # Determine the specificity for each rank
             clade_exclusion_strings = determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings)
             determine_containment(args, marker, rank_assigned_dict)
-    write_performance_table(args, clade_exclusion_strings, sensitivity)
+    write_performance_table(args, performance_table, clade_exclusion_strings, sensitivity)
 
 
 if __name__ == "__main__":
