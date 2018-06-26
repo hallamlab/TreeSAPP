@@ -108,6 +108,9 @@ def get_options():
                              help="Alignment mode: 'd' for default and 'p' for profile-profile alignment")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
+    miscellaneous_opts.add_argument("--reclassify", action="store_true", default=False,
+                                    help="Flag indicating current outputs should be used to generate "
+                                         "all outputs downstream of phylogenetic placement.")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true',  default=False,
@@ -221,24 +224,46 @@ def check_previous_output(args):
     # delete previous output folders by force
     if args.overwrite:
         if path.exists(args.output):
+            sys.stderr.write("\tWARNING: Removing previous outputs in '" + args.output + "'.\n")
+            sys.stderr.write("\tYou have 3 seconds to hit Ctrl-C before this proceeds... ")
+            sys.stderr.flush()
+            time.sleep(3)
+            sys.stderr.write("boom.\n")
             shutil.rmtree(args.output)
 
     args.skip = 'n'
     if path.exists(args.output):
-        sys.stdout.write("TreeSAPP output directory " + args.output + " already exists.\n")
+        workflows = list()
+        sys.stdout.write("TreeSAPP output directory '" + args.output + "' already exists... ")
         sys.stdout.flush()
         if args.update_tree:
-            args.skip = get_response(args.py_version, "Should this be used for updating? [y|n] ")
-            while not args.skip == 'y' and not args.skip == 'n':
-                args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n] ")
+            if os.path.isfile(args.output_dir_final + os.sep + "marker_contig_map.tsv"):
+                args.skip = 'y'
+                workflows.append("updating")
+            else:
+                sys.stderr.write("WARNING: update-tree impossible as " + args.output + " is missing input files.\n")
+                sys.stderr.flush()
         elif args.rpkm:
-            args.skip = get_response(args.py_version, "Should this be used for RPKM calculation? [y|n] ")
-            while not args.skip == 'y' and not args.skip == 'n':
-                args.skip = get_response(args.py_version, "Invalid response. Should this be used for updating? [y|n] ")
+            if os.path.isfile(args.reads) and os.path.isfile(args.output_dir_final + os.sep + "marker_contig_map.tsv"):
+                args.skip = 'y'
+                workflows.append("calculating RPKM")
+            else:
+                sys.stderr.write("WARNING: RPKM impossible as " + args.output + " is missing input files.\n")
+                sys.stderr.flush()
+        elif args.reclassify:
+            if os.path.isdir(args.output_dir_var):
+                jplace_files = glob.glob(args.output_dir_var + os.sep + "*jplace")
+                if len(jplace_files) >= 1:
+                    args.skip = 'y'
+                    workflows.append("reclassifying")
+                else:
+                    sys.stderr.write("WARNING: reclassify impossible as " + args.output + " is missing input files.\n")
+                    sys.stderr.flush()
+
         else:
             # Prompt the user to deal with the pre-existing output directory
             while os.path.isdir(args.output):
-                sys.stdout.write('Overwrite [1], quit [2], or change directory [3]?\n')
+                sys.stdout.write('\nOverwrite [1], quit [2], or change directory [3]?\n')
                 answer = int(get_response(args.py_version))
 
                 while not answer == 1 and not answer == 2 and not answer == 3:
@@ -257,6 +282,9 @@ def check_previous_output(args):
                     sys.exit('Exit TreeSAPP\n')
                 else:
                     args.output = get_response(args.py_version, 'Please enter the path to the new directory.\n')
+        if len(workflows) >= 1:
+            sys.stdout.write(','.join(workflows) + ".\n")
+            sys.stdout.flush()
     
     # Create the output directories
     if not os.path.isdir(args.output):
@@ -4749,6 +4777,8 @@ def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file
 
 
 def main(argv):
+    sys.stdout.write("\n\tBeginning TreeSAPP analysis\n\n")
+    sys.stdout.flush()
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = get_options()
     args = check_parser_arguments(parser)
