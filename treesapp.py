@@ -2197,6 +2197,57 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     return concatenated_mfa_files, nrs_of_sequences
 
 
+def filter_multiple_alignments(args, concatenated_mfa_files):
+    """
+    Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
+
+    Returns a list of files resulting from BMGE.
+    """
+
+    sys.stdout.write("Running BMGE... ")
+    sys.stdout.flush()
+
+    if args.verbose:
+        start_time = time.time()
+
+    bmge_outputs = {}
+
+    for f_contig in sorted(concatenated_mfa_files.keys()):
+        if f_contig not in bmge_outputs:
+            bmge_outputs[f_contig] = []
+        concatenated_mfa_file = concatenated_mfa_files[f_contig]
+        if len(concatenated_mfa_file) > 1:
+            sys.stderr.write("WARNING: more than a single alignment file generated for " + f_contig + "...\n")
+        concatenated_mfa_file = concatenated_mfa_file[0]
+        bmge_file = concatenated_mfa_file + "-bmge"
+        log = args.output + os.sep + "treesapp.bmge_log.txt"
+        bmge_outputs[f_contig].append(bmge_file)
+        bmge_command = ["java", "-jar", args.executables["BMGE.jar"]]
+        if args.molecule == "prot":
+            bmge_command += ["-t", "AA"]
+        else:
+            bmge_command += ["-t", "DNA"]
+        bmge_command += ['-i', concatenated_mfa_file,
+                         '-of', bmge_file]
+        bmge_command += ['>', log]
+        stdout, return_code = launch_write_command(bmge_command)
+        if return_code != 0:
+            sys.stderr.write("ERROR: BMGE did not complete successfully!\n")
+            sys.stderr.write("BMGE output:\n" + stdout + "\n")
+            sys.exit(39)
+
+    sys.stdout.write("done.\n")
+    sys.stdout.flush()
+
+    if args.verbose:
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tBMGE time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    return bmge_outputs
+
+
 def trimal_alignments(args, concatenated_mfa_files):
     """
     Runs trimal using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
@@ -2449,7 +2500,10 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
             for cog in sorted(cog_list['all_cogs'].keys()):
                 if not cog_list['all_cogs'][cog] == denominator:
                     continue
-                reference_tree_file = mltree_resources + 'tree_data' + os.sep + cog + '_tree.txt'
+                if os.path.isfile(mltree_resources + 'tree_data' + os.sep + cog + "_RAxML_result.PARAMS"):
+                    reference_tree_file = mltree_resources + 'tree_data' + os.sep + cog + "_RAxML_result.PARAMS"
+                else:
+                    reference_tree_file = mltree_resources + 'tree_data' + os.sep + cog + '_tree.txt'
                 break
 
         # Determine the output file names, and remove any pre-existing output files
@@ -2479,10 +2533,13 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
         raxml_command = [args.executables["raxmlHPC"], '-m', model_to_be_used]
         if bootstrap_replicates > 1:
             raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
+        if os.path.isfile(mltree_resources + 'tree_data' + os.sep + cog + "_RAxML_binaryModelParameters.PARAMS"):
+            raxml_command += ["-R", mltree_resources + 'tree_data' + os.sep + cog + "_RAxML_binaryModelParameters.PARAMS"]
         # Run RAxML using multiple threads, if CPUs available
         raxml_command += ['-T', str(int(args.num_threads))]
         raxml_command += ['-s', phy_file,
                           '-t', reference_tree_file,
+                          '-G', str(0.2),
                           '-f', str(raxml_option),
                           '-n', str(f_contig),
                           '-w', str(output_dir),
@@ -4828,7 +4885,8 @@ def main(argv):
         get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
 
         if args.filter_align:
-            mfa_files = trimal_alignments(args, concatenated_mfa_files)
+            # mfa_files = trimal_alignments(args, concatenated_mfa_files)
+            mfa_files = filter_multiple_alignments(args, concatenated_mfa_files)
             if args.verbose:
                 evaluate_trimming_performace(mfa_files)
         else:
