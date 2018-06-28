@@ -31,7 +31,7 @@ try:
         parse_domain_tables, reformat_string
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, MarkerBuild, ReferenceSequence
-    from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment
+    from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, annotate_partition_tree
     from external_command_interface import launch_write_command, setup_progress_bar
@@ -1994,6 +1994,19 @@ def find_evolutionary_models(args, mfa_files, marker_build_dict):
     return models_to_be_used
 
 
+def prepare_and_run_papara(args, single_query_fasta_files, cog_list):
+    """
+
+    :param args:
+    :param single_query_fasta_files:
+    :param cog_list:
+    :return:
+    """
+
+    produce_phy_file()
+    return complete_multiple_alignments
+
+
 def prepare_and_run_hmmalign(args, single_query_fasta_files, cog_list):
     """
     Runs hmmalign using the provided COG list and summary of Genewise files.
@@ -2205,6 +2218,12 @@ def filter_multiple_alignments(args, concatenated_mfa_files):
     """
 
     sys.stdout.write("Running BMGE... ")
+    if args.molecule == "prot":
+        bmge_settings = ["-t", "AA", "-m", "BLOSUM62"]
+    else:
+        bmge_settings = ["-t", "DNA"]
+        sys.stdout.write("Running BMGE with settings '" + ' '.join(bmge_settings) + "'... ")
+
     sys.stdout.flush()
 
     if args.verbose:
@@ -2227,6 +2246,7 @@ def filter_multiple_alignments(args, concatenated_mfa_files):
             bmge_command += ["-t", "AA"]
         else:
             bmge_command += ["-t", "DNA"]
+        bmge_command += bmge_settings
         bmge_command += ['-i', concatenated_mfa_file,
                          '-of', bmge_file]
         bmge_command += ['>', log]
@@ -2337,16 +2357,29 @@ def evaluate_trimming_performace(mfa_files):
     return
 
 
-def produce_phy_file(args, mfa_files, ref_alignment_dimensions):
-    """
-    Produces phy files from the provided list of alignment files, and the number of sequences in each file.
+def reformat_fasta_to_phy(fasta_dict):
+    phy_dict = Autovivify()
+    for seq_name in fasta_dict:
+        sequence = fasta_dict[seq_name]
+        sub_sequences = re.findall(r'.{1,50}', sequence)
+        count = 0
+        for sub_sequence in sub_sequences:
+            phy_dict[count][int(seq_name)] = sub_sequence
+            count += 1
+    return phy_dict
 
-    Returns an Autovivification containing the names of the produced phy files.
+
+def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
+    """
+    Produces phy files from the provided list of alignment files
+    :param args:
+    :param mfa_files:
+    :param ref_alignment_dimensions:
+    :return: Dictionary containing the names of the produced phy files mapped to its f_contig
     """
 
-    phy_files = Autovivify()
-    sequence_lengths = Autovivify()
-    seq_name = ''
+    phy_files = dict()
+    sequence_lengths = dict()
     discarded_seqs = 0
 
     if args.verbose:
@@ -2355,107 +2388,94 @@ def produce_phy_file(args, mfa_files, ref_alignment_dimensions):
 
     # Open each alignment file
     for f_contig in sorted(mfa_files.keys()):
+        denominator = f_contig.split('_')[0]
+        # Prepare the phy file for writing
+        phy_file_name = args.output_dir_var + f_contig + '.phy'
+        try:
+            phy_output = open(phy_file_name, 'w')
+        except IOError:
+            sys.exit('ERROR: Can\'t open ' + phy_file_name + '!\n')
+        num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
+        nr_of_sequences = num_ref_seqs + 1
+
         for aligned_fasta in mfa_files[f_contig]:
-            sequences_for_phy = Autovivify()
+            aligned_fasta_dict = read_fasta_to_dict(aligned_fasta)
+            sequences_for_phy = dict()
             do_not_continue = 0
-            sequences_raw = Autovivify()
-            denominator = f_contig.split('_')[0]
-            try:
-                alignment_handler = open(aligned_fasta, 'r')
-            except IOError:
-                sys.exit('ERROR: Can\'t open ' + aligned_fasta + '!\n')
 
-            for line in alignment_handler:
-                line = line.strip()
-                if not line:
-                    continue
-                if line[0] == '>':
-                    seq_name = line[1:].split('_')[0]
-                    # Notify user if the reference alignment contains the number -666, which is needed later in the code
-                    if seq_name == -666:
-                        sys.exit('ERROR: Your reference alignment contains element with the number -666. '
-                                 'Please change it, because this number is needed for internal purposes.\n')
-                    if seq_name == 'query':
-                        seq_name = -666
-                else:
-                    line = re.sub(r' ', '', line)
-                    if seq_name == "":
-                        sys.stderr.write("ERROR: Aligned FASTA file " + aligned_fasta + "is not properly formatted!")
-                        sys.exit()
-                    if seq_name in sequences_raw:
-                        sequences_raw[seq_name] += line
-                    else:
-                        sequences_raw[seq_name] = line
+            for name in sorted(aligned_fasta_dict.keys()):
+                seq_name = name.strip()
+                seq_name = seq_name.split('_')[0]
 
-            alignment_handler.close()
-
-            # Ensure the sequences contain only valid characters for RAxML
-            # for seq_name in sorted(sequences_raw.keys()):
-            for seq_name in sequences_raw.keys():
-                if do_not_continue == 1:
-                    continue
-                sequence = sequences_raw[seq_name]
-                count = 0
+                sequence = aligned_fasta_dict[name]
+                sequence = re.sub(r' ', '', sequence)
                 sequence_lengths[f_contig] = len(sequence)
+                # Ensure the sequences contain only valid characters for RAxML
                 sequence = re.sub(r'\.', 'X', sequence)
                 sequence = re.sub(r'\*', 'X', sequence)
                 sequence = re.sub('-', 'X', sequence)
-
-                if re.search(r'\AX+\Z', sequence):
-                    sequence = re.sub('X', 'V', sequence, 1)
-                if seq_name == -666:
+                # Notify user if the reference alignment contains the number -666, which is needed later in the code
+                if seq_name == 'query':
+                    # This is necessary for a numerical sort to keep order in the phy file and so the query is first
+                    seq_name = -666
                     seq_dummy = re.sub('X', '', sequence)
                     if len(seq_dummy) < args.min_seq_length:
                         do_not_continue = 1
                         discarded_seqs += 1
                         exit_file_name = args.output_dir_var + f_contig + '_exit_after_trimal.txt'
                         try:
-                            output = open(exit_file_name, 'w')
+                            log_output = open(exit_file_name, 'w')
                         except IOError:
                             sys.exit('ERROR: Can\'t open ' + exit_file_name + '!\n')
-                        output.write('final alignment after trimming is too short (<' + str(args.min_seq_length) + ') ' +
-                                     '-  insufficient number of marker gene residues in query sequence.\n')
-                        output.close()
+                        log_output.write(
+                            'final alignment after trimming is too short (<' + str(args.min_seq_length) + ') ' +
+                            '-  insufficient number of non-ambiguity/alignment characters in query sequence.\n')
+                        log_output.close()
                         continue
+                elif seq_name == str(-666):
+                    sys.exit('ERROR: Your reference alignment contains element with the number -666. '
+                             'Please change it, because this number is needed for internal purposes.\n')
 
-                sub_sequences = re.findall(r'.{1,50}', sequence)
+                if re.search(r'\AX+\Z', sequence):
+                    sequence = re.sub('X', 'V', sequence, 1)
 
-                for sub_sequence in sub_sequences:
-                    sub_sequence = re.sub('U', 'T', sub_sequence)  # Got error from RAxML when encountering Uracil
-                    sequences_for_phy[f_contig][count][int(seq_name)] = sub_sequence
-                    count += 1
+                if args.molecule != "prot":
+                    sequence = re.sub('U', 'T', sequence)  # Got error from RAxML when encountering Uracil
+
+                sequences_for_phy[seq_name] = sequence
 
             if do_not_continue == 1:
                 continue
 
             # Write the sequences to the phy file
-            phy_file_name = args.output_dir_var + f_contig + '.phy'
-            phy_files[f_contig] = phy_file_name
-            try:
-                output = open(phy_file_name, 'w')
-            except IOError:
-                sys.exit('ERROR: Can\'t open ' + phy_file_name + '!\n')
-            num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
-            nr_of_sequences = num_ref_seqs + 1
-            output.write(' ' + str(nr_of_sequences) + '  ' + str(sequence_lengths[f_contig]) + '\n')
-
-            for count in sorted(sequences_for_phy[f_contig].keys()):
-                for seq_name in sorted(sequences_for_phy[f_contig][count].keys()):
-                    sequence_part = sequences_for_phy[f_contig][count][seq_name]
+            phy_dict = reformat_fasta_to_phy(sequences_for_phy)
+            phy_string = ' ' + str(nr_of_sequences) + '  ' + str(sequence_lengths[f_contig]) + '\n'
+            for count in sorted(phy_dict.keys(), key=int):
+                for seq_name in sorted(phy_dict[count].keys()):
+                    sequence_part = phy_dict[count][seq_name]
                     if count == 0:
-                        print_seqname = seq_name
                         if seq_name == -666:
                             print_seqname = 'query'
-                        output.write(str(print_seqname))
+                        else:
+                            print_seqname = seq_name
+                        phy_string += str(print_seqname)
                         length = len(str(print_seqname))
                         c = length
                         while c < 10:
-                            output.write(' ')
+                            phy_string += ' '
                             c += 1
-                    output.write(sequence_part + '\n')
+                    phy_string += sequence_part + '\n'
 
-                output.write('\n')
-            output.close()
+                phy_string += '\n'
+
+            phy_output.write(phy_string)
+            phy_output.close()
+            if f_contig in phy_files:
+                sys.stderr.write("ERROR: File name overwrite for " + phy_file_name + ".\n")
+                sys.stderr.write(
+                    "The developers need to think harder... this was not initially anticipated. Apologies!\n")
+                sys.exit(11)
+            phy_files[f_contig] = phy_file_name
 
     if args.verbose:
         sys.stdout.write("done.\n")
@@ -4891,7 +4911,7 @@ def main(argv):
                 evaluate_trimming_performace(mfa_files)
         else:
             mfa_files = concatenated_mfa_files
-        phy_files = produce_phy_file(args, mfa_files, ref_alignment_dimensions)
+        phy_files = produce_phy_files(args, mfa_files, ref_alignment_dimensions)
         delete_files(args, 3)
 
         # STAGE 5: Run RAxML to compute the ML estimations
