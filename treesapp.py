@@ -2557,16 +2557,18 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
     for f_contig in sorted(mfa_files.keys()):
         denominator = f_contig.split('_')[0]
         # Prepare the phy file for writing
-        phy_file_name = args.output_dir_var + f_contig + '.phy'
-        try:
-            phy_output = open(phy_file_name, 'w')
-        except IOError:
-            sys.exit('ERROR: Can\'t open ' + phy_file_name + '!\n')
         num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
         nr_of_sequences = num_ref_seqs
+        if f_contig not in phy_files.keys():
+            phy_files[f_contig] = list()
 
         for aligned_fasta in mfa_files[f_contig]:
+            phy_file_name = re.sub(".mfa", ".phy", aligned_fasta)
             aligned_fasta_dict = read_fasta_to_dict(aligned_fasta)
+            if aligned_fasta == phy_file_name and not aligned_fasta_dict:
+                # Input is a Phylip-formatted file. Add it to phy_files and continue.
+                phy_files[f_contig].append(phy_file_name)
+                continue
             sequences_for_phy = dict()
             do_not_continue = 0
 
@@ -2636,14 +2638,9 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
 
                 phy_string += '\n'
 
-            phy_output.write(phy_string)
-            phy_output.close()
-            if f_contig in phy_files:
-                sys.stderr.write("ERROR: File name overwrite for " + phy_file_name + ".\n")
-                sys.stderr.write(
-                    "The developers need to think harder... this was not initially anticipated. Apologies!\n")
-                sys.exit(11)
-            phy_files[f_contig] = phy_file_name
+            with open(phy_file_name, 'w') as phy_output:
+                phy_output.write(phy_string)
+            phy_files[f_contig].append(phy_file_name)
 
     if args.verbose:
         sys.stdout.write("done.\n")
@@ -2669,8 +2666,7 @@ def start_raxml(args, phy_files, marker_build_dict):
     raxml_outfiles = Autovivify()
     raxml_calls = 0
 
-    # Maximum-likelihood analyses
-    raxml_option = 'v'
+    # Maximum-likelihood sequence placement analyses
     bootstrap_replicates = args.bootstraps
     denominator_reference_tree_dict = dict()
     mltree_resources = args.treesapp + os.sep + 'data' + os.sep
@@ -2681,98 +2677,91 @@ def start_raxml(args, phy_files, marker_build_dict):
     for f_contig in sorted(phy_files.keys()):
         # Establish the reference tree file to be used for this contig
         reference_tree_file = mltree_resources + 'tree_data' + os.sep + args.reference_tree
-        phy_file = phy_files[f_contig]
-        file_name_info = re.match("^([A-Z][0-9]{4})_(.*)$", os.path.basename(f_contig))
-        if file_name_info:
-            denominator, contig = file_name_info.groups()
-        else:
-            raise AssertionError("Unable to parse information from:\n\t" + str(f_contig) + "\n")
-        ref_marker = marker_build_dict[denominator]
-        if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
-            if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"):
-                reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"
+        f_contig_phy_files = phy_files[f_contig]
+        for phy_file in f_contig_phy_files:
+            file_name_info = re.match("^([A-Z][0-9]{4})_(.*)$", os.path.basename(f_contig))
+            if file_name_info:
+                denominator, contig = file_name_info.groups()
             else:
-                reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + '_tree.txt'
+                raise AssertionError("Unable to parse information from:\n\t" + str(f_contig) + "\n")
+            ref_marker = marker_build_dict[denominator]
+            if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
+                if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"):
+                    reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"
+                else:
+                    reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + '_tree.txt'
 
-        # Determine the output file names, and remove any pre-existing output files
-        if type(denominator) is not str:
-            sys.exit("ERROR: " + str(denominator) + " is not string but " + str(type(denominator)))
-        if type(reference_tree_file) is not str:
-            sys.exit("ERROR: " + str(reference_tree_file) + " is not string but " + str(type(reference_tree_file)))
+            query_name = re.sub(".phy.*$", '', os.path.basename(phy_file))
+            # Determine the output file names, and remove any pre-existing output files
+            if type(denominator) is not str:
+                sys.exit("ERROR: " + str(denominator) + " is not string but " + str(type(denominator)))
+            if type(reference_tree_file) is not str:
+                sys.exit("ERROR: " + str(reference_tree_file) + " is not string but " + str(type(reference_tree_file)))
 
-        if len(reference_tree_file) == 0:
-            sys.exit("ERROR: could not find reference tree for " + denominator)
-        if denominator not in denominator_reference_tree_dict.keys():
-            denominator_reference_tree_dict[denominator] = reference_tree_file
-        raxml_files = [output_dir + 'RAxML_info.' + f_contig,
-                       output_dir + 'RAxML_labelledTree.' + f_contig,
-                       output_dir + 'RAxML_classification.' + f_contig]
+            if len(reference_tree_file) == 0:
+                sys.exit("ERROR: could not find reference tree for " + denominator)
+            if denominator not in denominator_reference_tree_dict.keys():
+                denominator_reference_tree_dict[denominator] = reference_tree_file
+            raxml_files = [output_dir + 'RAxML_info.' + query_name,
+                           output_dir + 'RAxML_labelledTree.' + query_name,
+                           output_dir + 'RAxML_classification.' + query_name]
 
-        for raxml_file in raxml_files:
-            try:
-                shutil.rmtree(raxml_file) 
-            except OSError:
-                pass
+            for raxml_file in raxml_files:
+                try:
+                    shutil.rmtree(raxml_file)
+                except OSError:
+                    pass
 
-        if ref_marker.model is None:
-            raise AssertionError("No best AA model could be detected for the ML step!")
-        # Set up the command to run RAxML
-        raxml_command = [args.executables["raxmlHPC"], '-m', ref_marker.model]
-        if bootstrap_replicates > 1:
-            raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
-        if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
-                          "_RAxML_binaryModelParameters.PARAMS"):
-            raxml_command += ["-R", mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
-                              "_RAxML_binaryModelParameters.PARAMS"]
-        # Run RAxML using multiple threads, if CPUs available
-        raxml_command += ['-T', str(int(args.num_threads))]
-        raxml_command += ['-s', phy_file,
-                          '-t', reference_tree_file,
-                          '-G', str(0.2),
-                          '-f', str(raxml_option),
-                          '-n', str(f_contig),
-                          '-w', str(output_dir),
-                          '>', str(output_dir) + str(f_contig) + '_RAxML.txt']
+            if ref_marker.model is None:
+                raise AssertionError("No best AA model could be detected for the ML step!")
+            # Set up the command to run RAxML
+            raxml_command = [args.executables["raxmlHPC"], '-m', ref_marker.model]
+            if bootstrap_replicates > 1:
+                raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
+            if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
+                              "_RAxML_binaryModelParameters.PARAMS"):
+                raxml_command += ["-R", mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
+                                  "_RAxML_binaryModelParameters.PARAMS"]
+            # Run RAxML using multiple threads, if CPUs available
+            raxml_command += ['-T', str(int(args.num_threads))]
+            raxml_command += ['-s', phy_file,
+                              '-t', reference_tree_file,
+                              '-G', str(0.2),
+                              '-f', 'v',
+                              '-n', str(query_name),
+                              '-w', str(output_dir),
+                              '>', str(output_dir) + str(query_name) + '_RAxML.txt']
 
-        launch_write_command(raxml_command)
+            launch_write_command(raxml_command)
 
-        raxml_calls += 1
+            raxml_calls += 1
 
-    # Rename the RAxML output files
-
-    for f_contig in sorted(phy_files.keys()):
-        denominator = ''
-        if re.match(r'\A(.)', f_contig):
-            denominator = f_contig.split('_')[0]
-        move_command = ['mv', str(output_dir) + 'RAxML_info.' + str(f_contig),
-                        str(output_dir) + str(f_contig) + '.RAxML_info.txt']
-        if os.path.exists(str(output_dir) + 'RAxML_info.' + str(f_contig)):
-            os.system(' '.join(move_command))
-        if raxml_option == 'v':
-            raxml_outfiles[denominator][f_contig]['classification'] = str(output_dir) + \
-                                                                      str(f_contig) + \
-                                                                      '.RAxML_classification.txt'
-            raxml_outfiles[denominator][f_contig]['labelled_tree'] = str(output_dir) + \
-                                                                     str(f_contig) + \
-                                                                     '.originalRAxML_labelledTree.txt'
-            move_command1 = ['mv', str(output_dir) + 'RAxML_classification.' + str(f_contig),
-                             str(raxml_outfiles[denominator][f_contig]['classification'])]
-            move_command2 = ['mv', str(output_dir) + 'RAxML_originalLabelledTree.' + str(f_contig),
-                             str(raxml_outfiles[denominator][f_contig]['labelled_tree'])]
-            remove_command = ['rm', str(output_dir) + 'RAxML_labelledTree.' + str(f_contig)]
-            if os.path.exists(str(output_dir) + 'RAxML_classification.' + str(f_contig)):
+            # Rename the RAxML output files
+            move_command = ['mv', str(output_dir) + 'RAxML_info.' + str(query_name),
+                            str(output_dir) + str(query_name) + '.RAxML_info.txt']
+            if os.path.exists(str(output_dir) + 'RAxML_info.' + str(query_name)):
+                os.system(' '.join(move_command))
+            raxml_outfiles[denominator][query_name]['classification'] = str(output_dir) + \
+                                                                        str(query_name) + \
+                                                                        '.RAxML_classification.txt'
+            raxml_outfiles[denominator][query_name]['labelled_tree'] = str(output_dir) + \
+                                                                       str(query_name) + \
+                                                                       '.originalRAxML_labelledTree.txt'
+            move_command1 = ['mv', str(output_dir) + 'RAxML_classification.' + str(query_name),
+                             str(raxml_outfiles[denominator][query_name]['classification'])]
+            move_command2 = ['mv', str(output_dir) + 'RAxML_originalLabelledTree.' + str(query_name),
+                             str(raxml_outfiles[denominator][query_name]['labelled_tree'])]
+            remove_command = ['rm', str(output_dir) + 'RAxML_labelledTree.' + str(query_name)]
+            if os.path.exists(str(output_dir) + 'RAxML_classification.' + str(query_name)):
                 os.system(' '.join(move_command1))
-            if os.path.exists(str(output_dir) + 'RAxML_originalLabelledTree.' + str(f_contig)):
+            if os.path.exists(str(output_dir) + 'RAxML_originalLabelledTree.' + str(query_name)):
                 os.system(' '.join(move_command2))
-            if os.path.exists(str(output_dir) + 'RAxML_labelledTree.' + str(f_contig)):
+            if os.path.exists(str(output_dir) + 'RAxML_labelledTree.' + str(query_name)):
                 os.system(' '.join(remove_command))
             else:
-                sys.stderr.write("Some files were not successfully created for " + str(f_contig) + "\n")
-                sys.stderr.write("Check " + str(output_dir) + str(f_contig) + "_RAxML.txt for an error!\n")
+                sys.stderr.write("Some files were not successfully created for " + str(query_name) + "\n")
+                sys.stderr.write("Check " + str(output_dir) + str(query_name) + "_RAxML.txt for an error!\n")
                 sys.exit("Bailing out!")
-        else:
-            sys.exit('ERROR: The chosen RAxML mode is invalid. This should have been noticed earlier by TreeSAPP.' +
-                     'Please notify the authors\n')
 
     if args.verbose:
         end_time = time.time()
