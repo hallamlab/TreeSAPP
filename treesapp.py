@@ -1937,6 +1937,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
 
 
 def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbosity, file_type="phylip"):
+    alignment_length_dict = dict()
     for f_contig in concatenated_mfa_files:
         denominator = f_contig.split('_')[0]
         if denominator not in ref_alignment_dimensions:
@@ -1951,13 +1952,14 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
             else:
                 raise AssertionError("File type '" + file_type + "' is not recognized.")
 
+            alignment_length_dict[mfa_file] = sequence_length
             if num_seqs != ref_n_seqs+1:
                 raise AssertionError("Unexpected number of sequences in MSA for " + f_contig)
             if verbosity and ref_seq_length*1.5 < sequence_length:
                 sys.stderr.write("\tWARNING: multiple alignment of " + f_contig +
                                  "\n\tcaused >150% increase in the number of columns:\n\t" +
                                  str(ref_seq_length) + '->' + str(sequence_length) + "\n")
-    return
+    return alignment_length_dict
 
 
 def validate_phylip_utility(phylip_file):
@@ -2374,7 +2376,7 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     return concatenated_mfa_files, nrs_of_sequences
 
 
-def filter_multiple_alignments(args, concatenated_mfa_files, tool="BMGE"):
+def filter_multiple_alignments(args, concatenated_mfa_files, tool="bmge"):
     """
     Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
     :param args:
@@ -2404,7 +2406,7 @@ def filter_multiple_alignments(args, concatenated_mfa_files, tool="BMGE"):
         if len(concatenated_mfa_file) > 1:
             sys.stderr.write("WARNING: more than a single alignment file generated for " + f_contig + "...\n")
         concatenated_mfa_file = concatenated_mfa_file[0]
-        bmge_file = concatenated_mfa_file + "-bmge"
+        bmge_file = concatenated_mfa_file + "-" + tool
         log = args.output + os.sep + "treesapp.bmge_log.txt"
         bmge_outputs[f_contig].append(bmge_file)
         bmge_command = ["java", "-jar", args.executables["BMGE.jar"]]
@@ -2484,37 +2486,36 @@ def trimal_alignments(args, concatenated_mfa_files):
     return trimal_outputs
 
 
-def evaluate_trimming_performace(mfa_files):
+def evaluate_trimming_performace(mfa_files, alignment_length_dict, suffix, file_type="fasta"):
+    """
+
+    :param mfa_files: A dictionary mapping f_contigs to a list of trimmed alignment files
+    :param suffix: The name of the tool that was appended to the original, untrimmed or unmasked alignment files
+    :param file_type: Type of the file that was outputted by tool
+    :return: None
+    """
     trimmed_length_dict = dict()
     for f_contig in sorted(mfa_files.keys()):
         denominator = f_contig.split('_')[0]
         if denominator not in trimmed_length_dict:
             trimmed_length_dict[denominator] = list()
-        for aligned_fasta in mfa_files[f_contig]:
-            num_ref_seqs, raw_align_len = validate_multi_aligned_fasta_utility(aligned_fasta)
-            trimmed_seq_length = 0
-            try:
-                alignment_handler = open(aligned_fasta, 'r')
-            except IOError:
-                sys.exit('ERROR: Can\'t open ' + aligned_fasta + '!\n')
+        for multi_align in mfa_files[f_contig]:
+            if file_type == "fasta":
+                num_seqs, trimmed_seq_length = validate_multi_aligned_fasta_utility(multi_align)
+            elif file_type == "phylip":
+                num_seqs, trimmed_seq_length = validate_phylip_utility(multi_align)
+            else:
+                raise AssertionError("File type '" + file_type + "' is not recognized.")
 
-            # Find the number of columns in the trimmed multiple sequence alignment
-            for line in alignment_handler:
-                line = line.strip()
-                if not line:
-                    continue
-                if line[0] == '>' and trimmed_seq_length == 0:
-                    pass
-                elif line[0] == '>' and trimmed_seq_length > 0:
-                    diff = raw_align_len - trimmed_seq_length
-                    if diff < 0:
-                        sys.stderr.write("WARNING: MSA length increased after trimal processing for " + f_contig + "\n")
-                    else:
-                        # Only read the first sequence line. Other abnormalities will be caught later
-                        trimmed_length_dict[denominator].append(diff)
-                        break
-                else:
-                    trimmed_seq_length += len(line.strip())
+            original_multi_align = re.sub('-' + suffix, '', multi_align)
+            raw_align_len = alignment_length_dict[original_multi_align]
+            diff = raw_align_len - trimmed_seq_length
+            if diff < 0:
+                sys.stderr.write("WARNING: MSA length increased after " + suffix + " processing for " + f_contig + "\n")
+            else:
+                # Only read the first sequence line. Other abnormalities will be caught later
+                trimmed_length_dict[denominator].append(diff)
+                break
 
     sys.stdout.write("\tAverage columns removed:\n")
     for denominator in trimmed_length_dict:
@@ -5056,13 +5057,14 @@ def main(argv):
         # STAGE 4: Run hmmalign, and optionally trimal, to produce the MSAs required to for the ML estimations
         create_ref_phy_files(args, hmmalign_inputs, marker_build_dict, ref_alignment_dimensions)
         concatenated_mfa_files = multiple_alignments(args, hmmalign_inputs, marker_build_dict)
-        get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
+        alignment_length_dict = get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
 
         if args.filter_align:
             # mfa_files = trimal_alignments(args, concatenated_mfa_files)
-            mfa_files = filter_multiple_alignments(args, concatenated_mfa_files)
+            tool = "bmge"
+            mfa_files = filter_multiple_alignments(args, concatenated_mfa_files, tool)
             if args.verbose:
-                evaluate_trimming_performace(mfa_files)
+                evaluate_trimming_performace(mfa_files, alignment_length_dict, tool)
         else:
             mfa_files = concatenated_mfa_files
         phy_files = produce_phy_files(args, mfa_files, ref_alignment_dimensions)
