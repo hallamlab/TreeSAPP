@@ -933,6 +933,9 @@ class MarkerBuild:
         self.pid = build_param_fields[3]
         self.lowest_confident_rank = build_param_fields[4]
         self.update = build_param_fields[5]
+        self.description = ""
+        self.kind = ""
+        self.molecule = "prot"
 
     def check_rank(self):
         taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]

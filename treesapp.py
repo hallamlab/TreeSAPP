@@ -224,8 +224,8 @@ def check_previous_output(args):
     # delete previous output folders by force
     if args.overwrite:
         if path.exists(args.output):
-            sys.stderr.write("\tWARNING: Removing previous outputs in '" + args.output + "'.\n")
-            sys.stderr.write("\tYou have 3 seconds to hit Ctrl-C before this proceeds... ")
+            sys.stderr.write("WARNING: Removing previous outputs in '" + args.output + "'.")
+            sys.stderr.write(" You have 3 seconds to hit Ctrl-C before this proceeds... ")
             sys.stderr.flush()
             time.sleep(3)
             sys.stderr.write("boom.\n")
@@ -296,6 +296,56 @@ def check_previous_output(args):
     return args
 
 
+def parse_cog_list(args, marker_build_dict):
+    """
+    Loads the TreeSAPP COG list file into marker_build_dict and check that the args.reftree exists
+    :param args: The command-line and default arguments object
+    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
+    :return: marker_build_dict with updated information
+    """
+    cog_list_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
+    cog_input_list = open(cog_list_file, 'r', encoding="latin1")
+    if args.reftree not in ['i', 'p', 'g']:
+        alignment_set = ''
+    else:
+        alignment_set = args.reftree
+    # Load lines from the COG list file and close
+    cog_list_lines = [x.strip() for x in cog_input_list.readlines()]
+    # Close the COG list file
+    cog_input_list.close()
+
+    for marker_input in cog_list_lines:
+        if re.match(r'\A#', marker_input):
+            continue
+
+        if not re.match(r'\w+\t[A-Z][0-9]{4}\t\w+', marker_input):
+            sys.stderr.write("ERROR: entry in cog_list.tsv is incorrectly formatted! Violating line:\n")
+            sys.stderr.write(str(marker_input) + "\n")
+            sys.stderr.flush()
+            sys.exit()
+
+        marker, denominator, description = marker_input.split("\t")
+        if args.targets != ["ALL"] and denominator not in args.targets:
+            continue
+
+        for ref_code in marker_build_dict:
+            if denominator == ref_code:
+                marker_build_dict[denominator].description = description
+                if description == "phylogenetic_cogs":
+                    marker_build_dict[denominator].kind = "phylogenetic_cogs"
+                elif description == "rRNA_marker":
+                    marker_build_dict[denominator].kind = "phylogenetic_rRNA_cogs"
+                else:
+                    marker_build_dict[denominator].kind = "functional_cogs"
+
+    if args.reftree not in ['i', 'g', 'p'] and args.reftree not in marker_build_dict.keys():
+        sys.stderr.write("ERROR: " + args.reftree + " not found in " + cog_list_file +
+                         "! Please use a valid reference tree ID!\n")
+        sys.stderr.flush()
+        sys.exit()
+    return marker_build_dict
+
+
 def create_cog_list(args):
     """
     Loads the TreeSAPP COG list file and check that the args.reftree exists
@@ -304,7 +354,6 @@ def create_cog_list(args):
     denominator e.g. M0101, C0012, U0401) and a list of output text precursors based on the analysis type.
     The denominator is equal to the command-line reference tree specifier argument (p, g, or i) if phylogenetic COGs
     """
-    
     cog_list = Autovivify()
     text_of_analysis_type = Autovivify()
     cog_list_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
@@ -540,24 +589,23 @@ def build_hmm(args, msa_file, hmm_output):
     return
 
 
-def validate_inputs(args, cog_list):
+def validate_inputs(args, marker_build_dict):
     """
     This function filters the files in data/alignment_data/ for sequences that are entirely ambiguity characters
     or if there are any sequences in the MSA that are not the consistent length
     :param args: the command-line and default options
-    :param cog_list: Dictionary containing cog identifiers sorted into their classes
+    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
     :return: list of files that were edited
     """
     sys.stdout.write("Testing validity of reference trees... ")
     sys.stdout.flush()
     ref_trees = glob.glob(args.treesapp + os.sep + "data/tree_data/*_tree.txt")
     ref_tree_dict = dict()
-    f_cogs = [cog.strip("_") for cog in cog_list["functional_cogs"].keys()]
     for tree_file in ref_trees:
-        denominator = os.path.basename(tree_file).strip("_tree.txt")
-        denominator = denominator.strip("_")
-        if denominator in f_cogs:
-            ref_tree_dict[denominator] = tree_file
+        marker = os.path.basename(tree_file).strip("_tree.txt").strip("_")
+        for denominator in marker_build_dict:
+            if marker_build_dict[denominator].cog == marker:
+                ref_tree_dict[denominator] = tree_file
     ref_tree_dict['p'] = args.treesapp + os.sep + "data/tree_data/MLTreeMap_reference.tree"
     status = pparse_ref_trees(denominator_ref_tree_dict=ref_tree_dict, args=args)
     if status is None:
@@ -1888,7 +1936,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
     return contig_rrna_coordinates, rRNA_hit_files
 
 
-def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbosity):
+def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbosity, file_type="phylip"):
     for f_contig in concatenated_mfa_files:
         denominator = f_contig.split('_')[0]
         if denominator not in ref_alignment_dimensions:
@@ -1896,7 +1944,13 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
             sys.exit(11)
         ref_n_seqs, ref_seq_length = ref_alignment_dimensions[denominator]
         for mfa_file in concatenated_mfa_files[f_contig]:
-            num_seqs, sequence_length = validate_multi_aligned_fasta_utility(mfa_file)
+            if file_type == "fasta":
+                num_seqs, sequence_length = validate_multi_aligned_fasta_utility(mfa_file)
+            elif file_type == "phylip":
+                num_seqs, sequence_length = validate_phylip_utility(mfa_file)
+            else:
+                raise AssertionError("File type '" + file_type + "' is not recognized.")
+
             if num_seqs != ref_n_seqs+1:
                 raise AssertionError("Unexpected number of sequences in MSA for " + f_contig)
             if verbosity and ref_seq_length*1.5 < sequence_length:
@@ -1904,6 +1958,35 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
                                  "\n\tcaused >150% increase in the number of columns:\n\t" +
                                  str(ref_seq_length) + '->' + str(sequence_length) + "\n")
     return
+
+
+def validate_phylip_utility(phylip_file):
+    """
+    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+    :param phylip_file: Path of a multiple alignment in Phylip format
+    :return: tuple = (nrow, ncolumn)
+    """
+    try:
+        handler = open(phylip_file, 'r')
+    except IOError:
+        sys.stderr.write("ERROR: unable to open " + phylip_file + " for reading!\n")
+        sys.exit(13)
+    header = handler.readline()
+    num_seqs, sequence_length = [int(x) for x in header.split(' ')]
+    seq_counter = 0
+    line = handler.readline()
+    while line:
+        line = line.strip()
+        seq_name, sequence = re.sub('\s+', ',', line).split(',')
+        if len(sequence) != sequence_length:
+            raise AssertionError("Number of aligned columns is inconsistent in " + phylip_file + "!\n")
+        seq_counter += 1
+        line = handler.readline()
+    handler.close()
+
+    if num_seqs != seq_counter:
+        raise AssertionError("Number of sequences in " + phylip_file + " is inconsistent with header!\n")
+    return num_seqs, sequence_length
 
 
 def validate_multi_aligned_fasta_utility(fasta_file):
@@ -1922,6 +2005,7 @@ def validate_multi_aligned_fasta_utility(fasta_file):
     num_seqs = 0
     line = fasta_handler.readline()
     while line:
+        line = line.strip()
         if line[0] == '>':
             if sequence_length == 0:
                 sequence_length = len(sequence)
@@ -1956,12 +2040,11 @@ def get_alignment_dims(args, cog_list):
     return alignment_dimensions_dict
 
 
-def multiple_alignments(args, single_query_sequence_files, cog_list, marker_build_dict):
+def multiple_alignments(args, single_query_sequence_files, marker_build_dict):
     """
     The most important inputs are the genewise summary files
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param single_query_sequence_files:
-    :param cog_list:
     :param marker_build_dict:
     :return:
     1. concatenated_mfa_files is a dictionary of contig: multi_fasta_alignments
@@ -1971,40 +2054,121 @@ def multiple_alignments(args, single_query_sequence_files, cog_list, marker_buil
     3. models_to_be_used is a dictionary of contig: model to be used
     (for example: {'R0016_GOUB3081.b1': 'GTRGAMMA'}
     """
-    singlehit_files = prepare_and_run_hmmalign(args, single_query_sequence_files, cog_list)
-    concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)
-    models_to_be_used = find_evolutionary_models(args, concatenated_mfa_files, marker_build_dict)
-    return concatenated_mfa_files, models_to_be_used
+    singlehit_files = prepare_and_run_papara(args, single_query_sequence_files, marker_build_dict)
+    # singlehit_files = prepare_and_run_hmmalign(args, single_query_sequence_files, cog_list)
+    # concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)
+    return singlehit_files
 
 
-def find_evolutionary_models(args, mfa_files, marker_build_dict):
-    models_to_be_used = dict()
-    for f_contig in sorted(mfa_files.keys()):
-        if re.search(r'\A(.)', f_contig):
-            # An issue if there were denominators with underscores
-            denominator = f_contig.split('_')[0]
-        else:
-            sys.exit('ERROR: The 5-character marker code name could not be parsed from ' + f_contig + '!\n')
-        # Determine what type of gene is currently represented, or raise an error
-        if denominator in marker_build_dict:
-            model_to_be_used = marker_build_dict[denominator].model
-        else:
-            model_to_be_used = 'PROTGAMMAWAG'
-        models_to_be_used[f_contig] = model_to_be_used
-    return models_to_be_used
-
-
-def prepare_and_run_papara(args, single_query_fasta_files, cog_list):
+def create_ref_phy_files(args, single_query_fasta_files, marker_build_dict, ref_alignment_dimensions):
     """
-
+    Creates a phy file for every reference marker that was matched by a query sequence
     :param args:
     :param single_query_fasta_files:
-    :param cog_list:
+    :param marker_build_dict:
     :return:
     """
+    treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
 
-    produce_phy_file()
-    return complete_multiple_alignments
+    # Convert the reference sequence alignments to .phy files for every marker identified
+    for query_fasta in single_query_fasta_files:
+        denominator = os.path.basename(query_fasta).split('_')[0]
+        ref_alignment_phy = args.output_dir_var + denominator + ".phy"
+        if os.path.isfile(ref_alignment_phy):
+            continue
+        aligned_fasta = treesapp_resources + "alignment_data" + os.sep + marker_build_dict[denominator].cog + ".fa"
+
+        num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
+        aligned_fasta_dict = read_fasta_to_dict(aligned_fasta)
+        dict_for_phy = dict()
+        for seq_name in aligned_fasta_dict:
+            dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
+        phy_dict = reformat_fasta_to_phy(dict_for_phy)
+
+        # PaPaRa is EXTREMELY particular about the input of its Phylip file. Don't mess.
+        with open(ref_alignment_phy, 'w') as phy_output:
+            phy_string = ' ' + str(num_ref_seqs) + ' ' + str(ref_align_len) + '\n'
+            for count in sorted(phy_dict.keys(), key=int):
+                for seq_name in sorted(phy_dict[count].keys()):
+                    sequence_part = re.sub('X', '-', phy_dict[count][seq_name])
+                    if count == 0:
+                        phy_string += str(seq_name)
+                        length = len(str(seq_name))
+                        c = length
+                        while c < 11:
+                            phy_string += ' '
+                            c += 1
+                    else:
+                        phy_string += 11*' '
+                    phy_string += ' '.join(re.findall(r'.{1,10}', sequence_part)) + '\n'
+                phy_string += "\n"
+
+            phy_output.write(phy_string)
+
+    return
+
+
+def prepare_and_run_papara(args, single_query_fasta_files, marker_build_dict):
+    """
+    Uses the Parsimony-based Phylogeny-aware short Read Alignment (PaPaRa) tool
+    :param args:
+    :param single_query_fasta_files:
+    :param marker_build_dict:
+    :return:
+    """
+    treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
+    query_alignment_files = dict()
+    sys.stdout.write("Running PaPaRa... ")
+    sys.stdout.flush()
+    # TODO: Parallelize
+    start_time = time.time()
+
+    # Convert the reference sequence alignments to .phy files for every marker identified
+    for query_fasta in single_query_fasta_files:
+        file_name_info = re.match("^([A-Z][0-9]{4})_(.*)_(\d+)_(\d+)_([A-Za-z0-9_]+).fa$",
+                                  os.path.basename(query_fasta))
+        if file_name_info:
+            denominator, contig, start, stop, cog = file_name_info.groups()
+            f_contig = denominator + '_' + contig
+        else:
+            raise AssertionError("Unable to parse information from file name:" + "\n" + str(query_fasta) + "\n")
+
+        query_multiple_alignment = re.sub(".fa$", ".phy", query_fasta)
+        ref_marker = marker_build_dict[denominator]
+        tree_file = treesapp_resources + "tree_data" + os.sep + ref_marker.cog + "_tree.txt"
+        ref_alignment_phy = args.output_dir_var + denominator + ".phy"
+        if not os.path.isfile(ref_alignment_phy):
+            raise AssertionError("ERROR: Phylip file '" + ref_alignment_phy + "' not found.")
+
+        papara_command = [args.executables["papara"]]
+        papara_command += ["-t", tree_file]
+        papara_command += ["-s", ref_alignment_phy]
+        papara_command += ["-q", query_fasta]
+        if ref_marker.molecule == "prot":
+            papara_command.append("-a")
+
+        stdout, ret_code = launch_write_command(papara_command)
+        if ret_code != 0:
+            sys.stderr.write("ERROR: PaPaRa did not complete successfully!\n")
+            sys.stderr.write("Command used:\n" + ' '.join(papara_command) + "\n")
+            sys.exit(3)
+        os.rename("papara_alignment.default", query_multiple_alignment)
+        if f_contig not in query_alignment_files:
+            query_alignment_files[f_contig] = []
+        query_alignment_files[f_contig].append(query_multiple_alignment)
+
+    sys.stdout.write("done.\n")
+    os.remove("papara_log.default")
+    os.remove("papara_quality.default")
+
+    end_time = time.time()
+    if args.verbose:
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        sys.stdout.write("\tPaPaRa time required: " +
+                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+
+    return query_alignment_files
 
 
 def prepare_and_run_hmmalign(args, single_query_fasta_files, cog_list):
@@ -2210,19 +2374,21 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     return concatenated_mfa_files, nrs_of_sequences
 
 
-def filter_multiple_alignments(args, concatenated_mfa_files):
+def filter_multiple_alignments(args, concatenated_mfa_files, tool="BMGE"):
     """
     Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
-
-    Returns a list of files resulting from BMGE.
+    :param args:
+    :param concatenated_mfa_files: A dictionary containing f_contig keys mapping to a FASTA or Phylip sequential file
+    :param tool:
+    :return: A list of files resulting from BMGE multiple sequence alignment masking.
     """
-
-    sys.stdout.write("Running BMGE... ")
+    # TODO: Parallelize with multiprocessing
+    # TODO: Incorporate TrimAl as another option, rather than having a separate function
     if args.molecule == "prot":
         bmge_settings = ["-t", "AA", "-m", "BLOSUM62"]
     else:
         bmge_settings = ["-t", "DNA"]
-        sys.stdout.write("Running BMGE with settings '" + ' '.join(bmge_settings) + "'... ")
+    sys.stdout.write("Running BMGE with settings '" + ' '.join(bmge_settings) + "'... ")
 
     sys.stdout.flush()
 
@@ -2396,7 +2562,7 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
         except IOError:
             sys.exit('ERROR: Can\'t open ' + phy_file_name + '!\n')
         num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
-        nr_of_sequences = num_ref_seqs + 1
+        nr_of_sequences = num_ref_seqs
 
         for aligned_fasta in mfa_files[f_contig]:
             aligned_fasta_dict = read_fasta_to_dict(aligned_fasta)
@@ -2417,6 +2583,7 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
                 # Notify user if the reference alignment contains the number -666, which is needed later in the code
                 if seq_name == 'query':
                     # This is necessary for a numerical sort to keep order in the phy file and so the query is first
+                    nr_of_sequences += 1
                     seq_name = -666
                     seq_dummy = re.sub('X', '', sequence)
                     if len(seq_dummy) < args.min_seq_length:
@@ -2485,7 +2652,7 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
     return phy_files
 
 
-def start_raxml(args, phy_files, cog_list, models_to_be_used):
+def start_raxml(args, phy_files, marker_build_dict):
     """
     Run RAxML using the provided Autovivifications of phy files and COGs, as well as the list of models used for each COG.
 
@@ -2514,17 +2681,17 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
         # Establish the reference tree file to be used for this contig
         reference_tree_file = mltree_resources + 'tree_data' + os.sep + args.reference_tree
         phy_file = phy_files[f_contig]
-        if re.search(r'\A(.)', f_contig):
-            denominator = f_contig.split('_')[0]
+        file_name_info = re.match("^([A-Z][0-9]{4})_(.*)$", os.path.basename(f_contig))
+        if file_name_info:
+            denominator, contig = file_name_info.groups()
+        else:
+            raise AssertionError("Unable to parse information from:\n\t" + str(f_contig) + "\n")
+        ref_marker = marker_build_dict[denominator]
         if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
-            for cog in sorted(cog_list['all_cogs'].keys()):
-                if not cog_list['all_cogs'][cog] == denominator:
-                    continue
-                if os.path.isfile(mltree_resources + 'tree_data' + os.sep + cog + "_RAxML_result.PARAMS"):
-                    reference_tree_file = mltree_resources + 'tree_data' + os.sep + cog + "_RAxML_result.PARAMS"
-                else:
-                    reference_tree_file = mltree_resources + 'tree_data' + os.sep + cog + '_tree.txt'
-                break
+            if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"):
+                reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"
+            else:
+                reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + '_tree.txt'
 
         # Determine the output file names, and remove any pre-existing output files
         if type(denominator) is not str:
@@ -2546,15 +2713,16 @@ def start_raxml(args, phy_files, cog_list, models_to_be_used):
             except OSError:
                 pass
 
-        model_to_be_used = models_to_be_used[f_contig]
-        if model_to_be_used is None:
-            sys.exit('ERROR: No best AA model could be detected for the ML step!\n')
+        if ref_marker.model is None:
+            raise AssertionError("No best AA model could be detected for the ML step!")
         # Set up the command to run RAxML
-        raxml_command = [args.executables["raxmlHPC"], '-m', model_to_be_used]
+        raxml_command = [args.executables["raxmlHPC"], '-m', ref_marker.model]
         if bootstrap_replicates > 1:
             raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
-        if os.path.isfile(mltree_resources + 'tree_data' + os.sep + cog + "_RAxML_binaryModelParameters.PARAMS"):
-            raxml_command += ["-R", mltree_resources + 'tree_data' + os.sep + cog + "_RAxML_binaryModelParameters.PARAMS"]
+        if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
+                          "_RAxML_binaryModelParameters.PARAMS"):
+            raxml_command += ["-R", mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
+                              "_RAxML_binaryModelParameters.PARAMS"]
         # Run RAxML using multiple threads, if CPUs available
         raxml_command += ['-T', str(int(args.num_threads))]
         raxml_command += ['-s', phy_file,
@@ -3465,42 +3633,28 @@ def tax_ids_file_to_leaves(args, tax_ids_file):
     return tree_leaves
 
 
-def read_species_translation_files(args, cog_list):
+def read_species_translation_files(args, marker_build_dict):
     """
     :param args:
-    :param cog_list: The list on COGs used for tre insertion
+    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
     :return: The taxonomic identifiers for each of the organisms in a tree for all trees
     """
 
     tree_numbers_translation = Autovivify()
     translation_files = Autovivify()
     phylogenetic_denominator = args.reftree
+    tree_resources_dir = os.sep.join([args.treesapp, "data", "tree_data"]) + os.sep
     if phylogenetic_denominator == 'g':
-        translation_files[phylogenetic_denominator] = args.treesapp + os.sep + \
-                                                      'data' + os.sep + 'tree_data' + \
-                                                      os.sep + 'tax_ids_geba_tree.txt'
+        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_geba_tree.txt'
     elif phylogenetic_denominator == 'i':
-        translation_files[phylogenetic_denominator] = args.treesapp + os.sep + \
-                                                      'data' + os.sep + 'tree_data' + \
-                                                      os.sep + 'tax_ids_fungitr.txt'
+        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_fungitr.txt'
     elif phylogenetic_denominator == 'p':
-        translation_files[phylogenetic_denominator] = args.treesapp + os.sep + \
-                                                      'data' + os.sep + 'tree_data' + \
-                                                      os.sep + 'tax_ids_nr.txt'
+        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_nr.txt'
 
-    for functional_cog in sorted(cog_list['functional_cogs'].keys()):
-        denominator = cog_list['functional_cogs'][functional_cog]
-        filename = 'tax_ids_' + str(functional_cog) + '.txt'
-        translation_files[denominator] = args.treesapp + os.sep + \
-                                         'data' + os.sep + 'tree_data' + \
-                                         os.sep + filename
-
-    for phylogenetic_rRNA_cog in sorted(cog_list['phylogenetic_rRNA_cogs'].keys()):
-        denominator = cog_list['phylogenetic_rRNA_cogs'][phylogenetic_rRNA_cog]
-        filename = 'tax_ids_' + str(phylogenetic_rRNA_cog) + '.txt'
-        translation_files[denominator] = args.treesapp + os.sep + \
-                                         'data' + os.sep + 'tree_data' + \
-                                         os.sep + filename
+    for denominator in sorted(marker_build_dict.keys()):
+        marker_build_obj = marker_build_dict[denominator]
+        filename = 'tax_ids_' + str(marker_build_obj.cog) + '.txt'
+        translation_files[denominator] = tree_resources_dir + filename
 
     for denominator in sorted(translation_files.keys()):
         filename = translation_files[denominator]
@@ -4860,13 +5014,14 @@ def main(argv):
     parser = get_options()
     args = check_parser_arguments(parser)
     args = check_previous_output(args)
-    cog_list, text_of_analysis_type = create_cog_list(args)
-    tree_numbers_translation = read_species_translation_files(args, cog_list)
     marker_build_dict = parse_ref_build_params(args)
+    marker_build_dict = parse_cog_list(args, marker_build_dict)
+    cog_list, text_of_analysis_type = create_cog_list(args)
+    tree_numbers_translation = read_species_translation_files(args, marker_build_dict)
     unclassified_counts = dict()
     if args.check_trees:
-        validate_inputs(args, cog_list)
-
+        validate_inputs(args, marker_build_dict)
+    # TODO: Finish replacing cog_list with marker_build_dict
     if args.skip == 'n':
         # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
         if args.molecule == "dna":
@@ -4899,9 +5054,8 @@ def main(argv):
         log_handler.close()
 
         # STAGE 4: Run hmmalign, and optionally trimal, to produce the MSAs required to for the ML estimations
-        concatenated_mfa_files, models_to_be_used = multiple_alignments(args,
-                                                                        hmmalign_inputs,
-                                                                        cog_list, marker_build_dict)
+        create_ref_phy_files(args, hmmalign_inputs, marker_build_dict, ref_alignment_dimensions)
+        concatenated_mfa_files = multiple_alignments(args, hmmalign_inputs, marker_build_dict)
         get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
 
         if args.filter_align:
@@ -4915,7 +5069,7 @@ def main(argv):
         delete_files(args, 3)
 
         # STAGE 5: Run RAxML to compute the ML estimations
-        start_raxml(args, phy_files, cog_list, models_to_be_used)
+        start_raxml(args, phy_files, marker_build_dict)
     tree_saps, itol_data, marker_map, unclassified_counts = parse_raxml_output(args, cog_list, unclassified_counts)
 
     abundance_file = None
