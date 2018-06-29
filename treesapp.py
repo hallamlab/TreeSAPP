@@ -4728,7 +4728,7 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                                              str(tree_sap.inode),
                                              str(tree_sap.likelihood),
                                              str(tree_sap.lwr),
-                                             str(tree_sap.wtd)]) + "\n"
+                                             str(tree_sap.seq_len)]) + "\n"
         if args.verbose:
             sys.stdout.write("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
                              " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n")
@@ -4780,8 +4780,8 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
         function_start_time = time.time()
 
     jplace_files = glob.glob(args.output_dir_var + '*.jplace')
-    jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})_(.*).jplace")
-    jplace_cog_re = re.compile(r".*portableTree.([a-z])_(.*).jplace")  # For the phylogenetic cogs
+    jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})_(.*)_(\d+)_(\d+)_[A-Za-z0-9_]+.jplace$")
+    jplace_phylocog_re = re.compile(r".*portableTree.([a-z])_(.*)_(\d+)_(\d+)_[A-Za-z0-9_]+.jplace$")
     itol_data = dict()
     # marker_map holds the JPlace outputs for all proteins of a marker identified (N >= 1)
     marker_map = dict()
@@ -4790,16 +4790,20 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
     # Use the jplace files to guide which markers iTOL outputs should be created for
     classified_seqs = 0
     for filename in jplace_files:
-        if jplace_marker_re.match(filename):
-            denominator = jplace_marker_re.match(filename).group(1)
-            contig = jplace_marker_re.match(filename).group(2)
-        elif jplace_cog_re.match(filename):
-            denominator = jplace_cog_re.match(filename).group(1)
-            contig = jplace_cog_re.match(filename).group(2)
-        else:
-            sys.stderr.write("Regular expression for parsing marker information from jplace files was unsuccessful!\n")
-            sys.stderr.write("The offending file name: " + filename)
-            sys.exit()
+        file_name_info = None
+        for jplace_pattern in [jplace_marker_re, jplace_phylocog_re]:
+            if jplace_pattern.match(filename):
+                file_name_info = jplace_pattern.match(filename)
+                break
+        if not file_name_info:
+            sys.stderr.write("\nRegex parsing marker information from jplace files was unsuccessful!\n")
+            raise AssertionError("The offending file name: " + filename)
+
+        denominator = file_name_info.group(1)
+        contig = file_name_info.group(2)
+        start = file_name_info.group(3)
+        end = file_name_info.group(4)
+
         if denominator not in marker_map:
             if denominator != 'p':
                 for cog in cog_list["all_cogs"]:
@@ -4816,6 +4820,7 @@ def parse_raxml_output(args, cog_list, unclassified_counts):
         query_obj = TreeProtein()
         query_obj.contig_name = contig
         query_obj.name = marker
+        query_obj.seq_len = int(end) - int(start)
         jplace_data = jplace_parser(filename)
         query_obj.transfer(jplace_data)
         jplace_data.name_placed_sequence(contig)

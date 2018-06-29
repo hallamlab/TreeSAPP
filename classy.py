@@ -368,6 +368,7 @@ class ItolJplace:
         self.name = ""  # Code name of the tree it mapped to (e.g. mcrA)
         self.abundance = None  # Either the number of occurences, or the FPKM of that sequence
         self.node_map = dict()  # A dictionary mapping internal nodes (Jplace) to all leaf nodes
+        self.seq_len = 0
         ##
         # Taxonomic information:
         ##
