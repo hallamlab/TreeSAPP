@@ -411,7 +411,7 @@ class ItolJplace:
                 summary_string += "\tL.W.R\t\t" + str(self.lwr) + "\n"
             else:
                 for pquery in self.placements:
-                    placement = loads(pquery, encoding="utf-8")
+                    placement = loads(str(pquery), encoding="utf-8")
                     for k, v in placement.items():
                         if k == 'p':
                             summary_string += '\t' + str(v) + "\n"
@@ -729,8 +729,7 @@ class ItolJplace:
 class TreeProtein(ItolJplace):
     """
     A class for sequences that were properly mapped to its gene tree.
-    While it mostly contains RAxML outputs,
-    several functions are used to make 'biological' sense out of these outputs.
+    While it mostly contains RAxML outputs, functions are used to make 'biological' sense out of these outputs.
     """
     def transfer(self, itol_jplace_object):
         self.placements = itol_jplace_object.placements
