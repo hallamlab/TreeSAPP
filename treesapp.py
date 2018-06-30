@@ -890,7 +890,7 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
     :param args:
     :param hmm_matches:
     :param fasta_dict:
-    :return: List of files that go on to placement stage, dictionary mapping numeric indices to contig names
+    :return: List of files that go on to placement stage, dictionary mapping marker-specific numbers to contig names
     """
     sys.stdout.write("Extracting the quality-controlled protein sequences... ")
     sys.stdout.flush()
@@ -898,6 +898,8 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
     marker_gene_dict = dict()
     numeric_contig_index = dict()
     for marker in hmm_matches:
+        if marker not in numeric_contig_index.keys():
+            numeric_contig_index[marker] = dict()
         numeric_decrementor = -1
         trim_homolog_fasta_string = ""
         if marker not in marker_gene_dict:
@@ -917,7 +919,8 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
             else:
                 contig_name = hmm_match.orf
             # Add the query sequence to the index map
-            numeric_contig_index[numeric_decrementor] = contig_name
+            orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
+            numeric_contig_index[marker][numeric_decrementor] = contig_name + '_' + orf_coordinates
             # Add the FASTA record of the trimmed sequence
             full_sequence = fasta_dict[reformat_string('>' + contig_name)]
             trim_homolog_fasta_string += '>' + str(numeric_decrementor) + "\n" +\
@@ -927,7 +930,7 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
             # >contig_name|marker_gene|start_end
             bulk_header = '>' + contig_name + '|' +\
                           hmm_match.target_hmm + '|' +\
-                          str(hmm_match.start) + '_' + str(hmm_match.end)
+                          orf_coordinates
             marker_gene_dict[marker][bulk_header] = full_sequence[hmm_match.start-1:hmm_match.end]
             numeric_decrementor -= 1
 
@@ -2604,12 +2607,8 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
                 for seq_name in sorted(phy_dict[count].keys()):
                     sequence_part = phy_dict[count][seq_name]
                     if count == 0:
-                        if int(seq_name) < 0:
-                            print_seqname = str(seq_name) + '_query'
-                        else:
-                            print_seqname = seq_name
-                        phy_string += str(print_seqname)
-                        length = len(str(print_seqname))
+                        phy_string += str(seq_name)
+                        length = len(str(seq_name))
                         c = length
                         while c < 10:
                             phy_string += ' '
@@ -4410,75 +4409,62 @@ def parse_raxml_output(args, marker_build_dict, unclassified_counts):
         function_start_time = time.time()
 
     jplace_files = glob.glob(args.output_dir_var + '*.jplace')
-    jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})(.*).jplace$")
-    jplace_phylocog_re = re.compile(r".*portableTree.([a-z])(.*).jplace$")
+    jplace_collection = organize_jplace_files(jplace_files)
     itol_data = dict()  # contains all pqueries, indexed by marker name (e.g. McrA, nosZ, 16srRNA)
     tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
     # Use the jplace files to guide which markers iTOL outputs should be created for
     classified_seqs = 0
-    for filename in jplace_files:
-        file_name_info = None
-        for jplace_pattern in [jplace_marker_re, jplace_phylocog_re]:
-            if jplace_pattern.match(filename):
-                file_name_info = jplace_pattern.match(filename)
-                break
-        if not file_name_info:
-            sys.stderr.write("\nRegex parsing marker information from jplace files was unsuccessful!\n")
-            raise AssertionError("The offending file name: " + filename)
-
-        denominator = file_name_info.group(1)
-        description = file_name_info.group(2)
+    for denominator in jplace_collection:
         marker = marker_build_dict[denominator].cog
-
         if denominator not in tree_saps:
             tree_saps[denominator] = list()
+        for filename in jplace_collection[denominator]:
+            # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
+            jplace_data = jplace_parser(filename)
+            # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
+            tree_placement_queries = demultiplex_pqueries(jplace_data)
+            # Filter the placements, determine the likelihood associated with the harmonized placement
+            for pquery in tree_placement_queries:
+                pquery.name = marker
+                unclassified = pquery.filter_min_weight_threshold(args.min_likelihood)
+                if unclassified > 0 and args.verbose:
+                    if marker not in unclassified_counts.keys():
+                        unclassified_counts[marker] = 0
+                    unclassified_counts[marker] += 1
+                    parse_log.write("WARNING: a putative " + marker +
+                                    " sequence has been unclassified due to low placement likelihood weights. "
+                                    "More info:\n")
+                    parse_log.write(pquery.summarize())
+                    continue
+                if re.match(".*_(\d+)_(\d+)$", pquery.contig_name):
+                    start, end = re.match(".*_(\d+)_(\d+)$", pquery.contig_name).groups()
+                    pquery.seq_len = int(end) - int(start)
+                    pquery.contig_name = re.sub(r"_(\d+)_(\d+)$", '', pquery.contig_name)
+                pquery.create_jplace_node_map()
+                if args.placement_parser == "best":
+                    pquery.filter_max_weight_placement()
+                else:
+                    pquery.harmonize_placements(args.treesapp)
+                if unclassified == 0 and len(pquery.placements) != 1:
+                    sys.stderr.write("ERROR: Number of JPlace pqueries is " + str(len(pquery.placements)) +
+                                     " when only 1 is expected at this point.\n")
+                    sys.stderr.write(pquery.summarize())
+                    sys.exit(3)
+                pquery.get_inode()
+                pquery.get_placement_lwr()
+                pquery.get_placement_likelihood()
+                tree_saps[denominator].append(pquery)
+                classified_seqs += 1
 
-        # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
-        jplace_data = jplace_parser(filename)
-        # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
-        tree_placement_queries = demultiplex_pqueries(jplace_data)
-        # Filter the placements, determine the likelihood associated with the harmonized placement
-        for pquery in tree_placement_queries:
-            pquery.name = marker
-            unclassified = pquery.filter_min_weight_threshold(args.min_likelihood)
-            if unclassified > 0 and args.verbose:
-                if marker not in unclassified_counts.keys():
-                    unclassified_counts[marker] = 0
-                unclassified_counts[marker] += 1
-                parse_log.write("WARNING: a putative " + marker +
-                                " sequence has been unclassified due to low placement likelihood weights. More info:\n")
-                parse_log.write(pquery.summarize())
-                continue
-            pquery.create_jplace_node_map()
-            if args.placement_parser == "best":
-                pquery.filter_max_weight_placement()
+            if marker not in itol_data:
+                itol_data[marker] = jplace_data
+                itol_data[marker].name = marker
             else:
-                pquery.harmonize_placements(args.treesapp)
-            if unclassified == 0 and len(pquery.placements) != 1:
-                sys.stderr.write("ERROR: Number of JPlace pqueries is " + str(len(pquery.placements)) +
-                                 " when only 1 is expected at this point.\n")
-                sys.stderr.write(pquery.summarize())
-                sys.exit(3)
-            pquery.get_inode()
-            pquery.get_placement_lwr()
-            pquery.get_placement_likelihood()
-            tree_saps[denominator].append(pquery)
-            classified_seqs += 1
+                # If a JPlace file for that tree has already been parsed, just append the placements
+                itol_data[marker].placements = itol_data[marker].placements + jplace_data.placements
 
-        # TODO: Perform these steps in a subsequent function with the numeric_index map
-        # pquery.seq_len = int(end) - int(start)
-        # pquery.contig_name = contig
-        # jplace_data.name_placed_sequence(contig)
-
-        if marker not in itol_data:
-            itol_data[marker] = jplace_data
-            itol_data[marker].name = marker
-        else:
-            # If a JPlace file for that tree has already been parsed, just append the placements
-            itol_data[marker].placements = itol_data[marker].placements + jplace_data.placements
-
-        # I have decided to not remove the original JPlace files since some may find these useful
-        # os.remove(filename)
+            # I have decided to not remove the original JPlace files since some may find these useful
+            # os.remove(filename)
 
     sys.stdout.write("done.\n")
 
@@ -4618,6 +4604,7 @@ def main(argv):
 
         # STAGE 5: Run RAxML to compute the ML estimations
         start_raxml(args, phy_files, marker_build_dict)
+        sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)
     tree_saps, itol_data, unclassified_counts = parse_raxml_output(args, marker_build_dict, unclassified_counts)
 
     abundance_file = None
