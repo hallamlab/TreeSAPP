@@ -484,7 +484,7 @@ class ItolJplace:
         for d_place in self.placements:
             for key, value in d_place.items():
                 if key == 'n':
-                    self.contig_name = value
+                    self.contig_name = value[0]
         return
 
     def get_field_position_from_jplace_fields(self, field_name):
@@ -501,8 +501,7 @@ class ItolJplace:
             else:
                 x += 1
         if x == len(self.fields):
-            sys.stderr.write("Unable to find '" + field_name + "' in the jplace string!\n")
-            sys.stderr.write("WARNING: Skipping filtering with `filter_min_weight_threshold`\n")
+            sys.stderr.write("WARNING: unable to find '" + field_name + "' in the jplace \"field\" string!\n")
             return None
         return x
 
@@ -699,6 +698,8 @@ class ItolJplace:
         reference_tree_file = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
         reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
         lwr_pos = self.get_field_position_from_jplace_fields("like_weight_ratio")
+        if not lwr_pos:
+            return
         singular_placements = list()
         for pquery in self.placements:
             placement = loads(pquery, encoding="utf-8")

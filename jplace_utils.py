@@ -5,7 +5,7 @@ import re
 import glob
 import os
 from classy import ItolJplace, TreeProtein
-from json import load, loads
+from json import load, loads, dumps
 from utilities import clean_lineage_string
 
 
@@ -113,12 +113,24 @@ def write_jplace(itol_datum, jplace_file):
     jplace_out.write('{\n\t"tree": "')
     jplace_out.write(itol_datum.tree + "\", \n")
     jplace_out.write("\t\"placements\": [\n\t")
-    jplace_out.write(", ".join(itol_datum.placements))
+    # The [] is lost from 'n': ["query"] during loads
+    new_placement_collection = list()
+    for d_place in itol_datum.placements:
+        dict_strings = list()
+        for k, v in loads(d_place).items():
+            if k == 'n':
+                dict_strings.append(dumps(k) + ":[" + dumps(v) + "]")
+            elif k == 'p':
+                dict_strings.append(dumps(k) + ":" + dumps(v))
+            else:
+                raise AssertionError("Unrecognized key '" + str(k) + "' in Jplace \"placements\".")
+        new_placement_collection.append('{' + ', '.join(dict_strings) + '}')
+    jplace_out.write(",\n\t".join(new_placement_collection))
     jplace_out.write("\n\t],\n")
     jplace_out.write("\t\"metadata\": " + re.sub('\'', '"', str(itol_datum.metadata)) + ",\n")
     jplace_out.write("\t\"version\": " + str(itol_datum.version) + ",\n")
     jplace_out.write("\t\"fields\": [\n\t")
-    jplace_out.write(", ".join(itol_datum.fields) + "\n\t]\n}")
+    jplace_out.write(", ".join(itol_datum.fields) + "\n\t]\n}\n")
 
     jplace_out.close()
     return
