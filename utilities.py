@@ -3,7 +3,7 @@ __author__ = 'Connor Morgan-Lang'
 import os
 import re
 import sys
-from HMMER_domainTblParser import filter_incomplete_hits, filter_poor_hits, DomainTableParser, format_split_alignments
+import subprocess
 
 from external_command_interface import launch_write_command
 
@@ -42,6 +42,109 @@ def os_type():
         hits = re.search(r'linux', x, re.I)
         if hits:
             return 'linux'
+
+
+def available_cpu_count():
+    """ Number of available virtual or physical CPUs on this system, i.e.
+    user/real as output by time(1) when called with an optimally scaling
+    userspace-only program"""
+
+    # cpuset
+    # cpuset may restrict the number of *available* processors
+    try:
+        m = re.search(r'(?m)^Cpus_allowed:\s*(.*)$',
+                      open('/proc/self/status').read())
+        if m:
+            res = bin(int(m.group(1).replace(',', ''), 16)).count('1')
+            if res > 0:
+                return res
+    except IOError:
+        pass
+
+    # Python 2.6+
+    try:
+        import multiprocessing
+        return multiprocessing.cpu_count()
+    except (ImportError, NotImplementedError):
+        pass
+
+    # http://code.google.com/p/psutil/
+    try:
+        import psutil
+        return psutil.NUM_CPUS
+    except (ImportError, AttributeError):
+        pass
+
+    # POSIX
+    try:
+        res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
+
+        if res > 0:
+            return res
+    except (AttributeError, ValueError):
+        pass
+
+    # Windows
+    try:
+        res = int(os.environ['NUMBER_OF_PROCESSORS'])
+
+        if res > 0:
+            return res
+    except (KeyError, ValueError):
+        pass
+
+    # BSD
+    try:
+        sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'],
+                                  stdout=subprocess.PIPE)
+        scStdout = sysctl.communicate()[0]
+        res = int(scStdout)
+
+        if res > 0:
+            return res
+    except (OSError, ValueError):
+        pass
+
+    # Linux
+    try:
+        res = open('/proc/cpuinfo').read().count('processor\t:')
+
+        if res > 0:
+            return res
+    except IOError:
+        pass
+
+    # Solaris
+    try:
+        pseudoDevices = os.listdir('/devices/pseudo/')
+        res = 0
+        for pd in pseudoDevices:
+            if re.match(r'^cpuid@[0-9]+$', pd):
+                res += 1
+
+        if res > 0:
+            return res
+    except OSError:
+        pass
+
+    # Other UNIXes (heuristic)
+    try:
+        try:
+            dmesg = open('/var/run/dmesg.boot').read()
+        except IOError:
+            dmesgProcess = subprocess.Popen(['dmesg'], stdout=subprocess.PIPE)
+            dmesg = dmesgProcess.communicate()[0]
+
+        res = 0
+        while '\ncpu' + str(res) + ':' in dmesg:
+            res += 1
+
+        if res > 0:
+            return res
+    except OSError:
+        pass
+
+    raise Exception('Can not determine number of CPUs on this system')
 
 
 def find_executables(args):
@@ -121,29 +224,6 @@ class Autovivify(dict):
         except KeyError:
             value = self[item] = type(self)()
             return value
-
-
-def xml_parser(xml_record, term):
-    """
-    Recursive function for parsing individual xml records
-    :param xml_record:
-    :param term:
-    :return:
-    """
-    # TODO: Finish this off - would be great for consistently extracting data from xml
-    value = None
-    if type(xml_record) == str:
-        return value
-    if term not in xml_record.keys():
-        for record in xml_record:
-            value = xml_parser(record, term)
-            if value:
-                return value
-            else:
-                continue
-    else:
-        return xml_record[term]
-    return value
 
 
 def return_sequence_info_groups(regex_match_groups, header_db, header):
@@ -276,128 +356,6 @@ def clean_lineage_string(lineage):
     return lineage
 
 
-def best_match(matches):
-    """
-    Function for finding the best alignment in a list of HmmMatch() objects
-    The best match is based off of the full sequence score
-    :param matches: A list of HmmMatch() objects
-    :return: The best HmmMatch
-    """
-    # TODO: Incorporate the alignment intervals to allow for proteins with multiple different functional domains
-    # Code currently only permits multi-domains of the same gene
-    best_target_hmm = ""
-    best_alignment = None
-    top_score = 0
-    for match in matches:
-        # match.print_info()
-        if match.full_score > top_score:
-            best_alignment = match
-            best_target_hmm = match.target_hmm
-            top_score = match.full_score
-    return best_target_hmm, best_alignment
-
-
-def parse_domain_tables(args, hmm_domtbl_files, log=None):
-    # Check if the HMM filtering thresholds have been set
-    if not hasattr(args, "min_e"):
-        args.min_e = 0.01
-        args.min_acc = 0.6
-        args.perc_aligned = 80
-    # Print some stuff to inform the user what they're running and what thresholds are being used.
-    if args.verbose:
-        sys.stdout.write("Filtering HMM alignments using the following thresholds:\n")
-        sys.stdout.write("\tMinimum E-value = " + str(args.min_e) + "\n")
-        sys.stdout.write("\tMinimum acc = " + str(args.min_acc) + "\n")
-        sys.stdout.write("\tMinimum percentage of the HMM covered = " + str(args.perc_aligned) + "%\n")
-    sys.stdout.write("Parsing domain tables generated by HMM searches for high-quality matches... ")
-
-    raw_alignments = 0
-    seqs_identified = 0
-    dropped = 0
-    fragmented = 0
-    glued = 0
-    multi_alignments = 0  # matches of the same query to a different HMM (>1 lines)
-    hmm_matches = dict()
-    orf_gene_map = dict()
-
-    # TODO: Capture multimatches across multiple domain table files
-    for domtbl_file in hmm_domtbl_files:
-        rp_marker, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
-        domain_table = DomainTableParser(domtbl_file)
-        domain_table.read_domtbl_lines()
-        distinct_matches, fragmented, glued, multi_alignments, raw_alignments = format_split_alignments(domain_table,
-                                                                                                        fragmented,
-                                                                                                        glued,
-                                                                                                        multi_alignments,
-                                                                                                        raw_alignments)
-        purified_matches, dropped = filter_poor_hits(args, distinct_matches, dropped)
-        complete_gene_hits, dropped = filter_incomplete_hits(args, purified_matches, dropped)
-        # for match in complete_gene_hits:
-        #     match.genome = reference
-        #     if match.target_hmm not in hmm_matches.keys():
-        #         hmm_matches[match.target_hmm] = list()
-        #     hmm_matches[match.target_hmm].append(match)
-        #     seqs_identified += 1
-
-        for match in complete_gene_hits:
-            match.genome = reference
-            if match.orf not in orf_gene_map:
-                orf_gene_map[match.orf] = dict()
-            orf_gene_map[match.orf][match.target_hmm] = match
-            if match.target_hmm not in hmm_matches.keys():
-                hmm_matches[match.target_hmm] = list()
-
-    for orf in orf_gene_map:
-        if len(orf_gene_map[orf]) == 1:
-            target_hmm = list(orf_gene_map[orf].keys())[0]
-            hmm_matches[target_hmm].append(orf_gene_map[orf][target_hmm])
-        else:
-            optional_matches = [orf_gene_map[orf][target_hmm] for target_hmm in orf_gene_map[orf]]
-            target_hmm, match = best_match(optional_matches)
-            hmm_matches[target_hmm].append(match)
-            multi_alignments += 1
-            dropped += (len(optional_matches) - 1)
-
-            if log:
-                dropped_annotations = list()
-                for optional in optional_matches:
-                    if optional.target_hmm != target_hmm:
-                        dropped_annotations.append(optional.target_hmm)
-                log.write("HMM search annotations for " + orf + ":\n")
-                log.write("\tRetained\t" + target_hmm + "\n")
-                log.write("\tDropped\t" + ','.join(dropped_annotations) + "\n")
-
-        seqs_identified += 1
-
-    sys.stdout.write("done.\n")
-
-    if seqs_identified == 0 and dropped == 0:
-        sys.stderr.write("\tWARNING: No alignments found!\n")
-        sys.stderr.write("TreeSAPP is exiting now.\n")
-        sys.exit(11)
-    if seqs_identified == 0 and dropped > 0:
-        sys.stderr.write("\tWARNING: No alignments met the quality cut-offs!\n")
-        sys.stderr.write("TreeSAPP is exiting now.\n")
-        sys.exit(13)
-
-    sys.stdout.write("\tNumber of markers identified:\n")
-    for marker in sorted(hmm_matches):
-        sys.stdout.write("\t\t" + marker + "\t" + str(len(hmm_matches[marker])) + "\n")
-        # For debugging:
-        # for match in hmm_matches[marker]:
-        #     match.print_info()
-    if args.verbose:
-        sys.stdout.write("\tInitial alignments:\t" + str(raw_alignments) + "\n")
-        sys.stdout.write("\tAlignments discarded:\t" + str(dropped) + "\n")
-        sys.stdout.write("\tFragmented alignments:\t" + str(fragmented) + "\n")
-        sys.stdout.write("\tAlignments scaffolded:\t" + str(glued) + "\n")
-        sys.stdout.write("\tMulti-alignments:\t" + str(multi_alignments) + "\n")
-        sys.stdout.write("\tSequences identified:\t" + str(seqs_identified) + "\n")
-
-    sys.stdout.flush()
-    return hmm_matches
-
-
 def median(lst):
     n = len(lst)
     if n < 1:
@@ -406,110 +364,6 @@ def median(lst):
             return sorted(lst)[n//2]
     else:
             return sum(sorted(lst)[n//2-1:n//2+1])/2.0
-
-
-def read_colours_file(args, annotation_file):
-    """
-    Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
-    marker and data_type.
-    :param args:
-    :param annotation_file:
-    :return: A dictionary of lists where each list is populated by tuples with start and end leaves
-    """
-    try:
-        style_handler = open(annotation_file, 'r')
-    except IOError:
-        sys.stderr.write("ERROR: Unable to open " + annotation_file + " for reading!\n")
-        sys.exit()
-
-    clusters = dict()
-    field_sep = ''
-    internal_nodes = True
-
-    line = style_handler.readline()
-    # Skip the header
-    while line.strip() != "DATA":
-        header_fields = line.strip().split(' ')
-        if header_fields[0] == "SEPARATOR":
-            if header_fields[1] == "SPACE":
-                field_sep = ' '
-            elif header_fields[1] == "TAB":
-                field_sep = '\t'
-            else:
-                sys.stderr.write("ERROR: Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
-                sys.stderr.flush()
-                sys.exit()
-        line = style_handler.readline()
-    # For RGB
-    range_line_rgb = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
-                                "range" + re.escape(field_sep) +
-                                ".*\)" + re.escape(field_sep) +
-                                "(.*)$")
-    single_node_rgb = re.compile("^(\d+)" + re.escape(field_sep) +
-                                 "range" + re.escape(field_sep) +
-                                 ".*\)" + re.escape(field_sep) +
-                                 "(.*)$")
-    lone_node_rgb = re.compile("^(.*)" + re.escape(field_sep) +
-                               "range" + re.escape(field_sep) +
-                               ".*\)" + re.escape(field_sep) +
-                               "(.*)$")
-
-    # For hexadecimal
-    range_line = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
-                            "range" + re.escape(field_sep) +
-                            "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                            "(.*)$")
-    single_node = re.compile("^(\d+)" + re.escape(field_sep) +
-                             "range" + re.escape(field_sep) +
-                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                             "(.*)$")
-    lone_node = re.compile("^(.*)" + re.escape(field_sep) +
-                           "range" + re.escape(field_sep) +
-                           "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                           "(.*)$")
-
-    # Begin parsing the data from 4 columns
-    line = style_handler.readline().strip()
-    while line:
-        if range_line.match(line):
-            style_data = range_line.match(line)
-            start, end, description = style_data.groups()
-            internal_nodes = False
-        elif range_line_rgb.match(line):
-            style_data = range_line_rgb.match(line)
-            start, end, description = style_data.groups()
-            internal_nodes = False
-        elif single_node.match(line):
-            style_data = single_node.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif single_node_rgb.match(line):
-            style_data = single_node_rgb.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node.match(line):
-            style_data = lone_node.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node_rgb.match(line):
-            style_data = lone_node_rgb.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        else:
-            sys.stderr.write("ERROR: Unrecognized line formatting in " + annotation_file + ":\n")
-            sys.stderr.write(line + "\n")
-            sys.exit()
-
-        description = style_data.groups()[-1]
-        if description not in clusters.keys():
-            clusters[description] = list()
-        clusters[description].append((start, end))
-
-        line = style_handler.readline().strip()
-
-    style_handler.close()
-
-    if args.verbose:
-        sys.stdout.write("\tParsed " + str(len(clusters)) +
-                         " clades from " + annotation_file + "\n")
-
-    return clusters, internal_nodes
 
 
 def convert_outer_to_inner_nodes(clusters, internal_node_map):

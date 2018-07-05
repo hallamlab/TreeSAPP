@@ -20,6 +20,7 @@ try:
     import string
     import random
     import subprocess
+    from ete3 import Tree
     from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
     from os import path
     from os import listdir
@@ -27,15 +28,17 @@ try:
     from time import gmtime, strftime
 
     from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string,\
-        parse_domain_tables, reformat_string
+        reformat_string, available_cpu_count
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
-        TreeLeafReference, TreeProtein, MarkerBuild, ReferenceSequence
+        TreeLeafReference, TreeProtein, ReferenceSequence
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, annotate_partition_tree
     from external_command_interface import launch_write_command, setup_progress_bar
     from lca_calculations import *
     from jplace_utils import *
+    from file_parsers import *
+    from phylo_dist import *
 
     import _tree_parser
     import _fasta_reader
@@ -294,158 +297,6 @@ def check_previous_output(args):
         os.mkdir(args.output_dir_final)
 
     return args
-
-
-def parse_cog_list(args, marker_build_dict):
-    """
-    Loads the TreeSAPP COG list file into marker_build_dict and check that the args.reftree exists
-    :param args: The command-line and default arguments object
-    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
-    :return: marker_build_dict with updated information
-    """
-    cog_list_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
-    cog_input_list = open(cog_list_file, 'r', encoding="latin1")
-    if args.reftree not in ['i', 'p', 'g']:
-        alignment_set = ''
-    else:
-        alignment_set = args.reftree
-    # Load lines from the COG list file and close
-    cog_list_lines = [x.strip() for x in cog_input_list.readlines()]
-    # Close the COG list file
-    cog_input_list.close()
-
-    for marker_input in cog_list_lines:
-        if re.match(r'\A#', marker_input):
-            continue
-
-        if not re.match(r'\w+\t[A-Z][0-9]{4}\t\w+', marker_input):
-            sys.stderr.write("ERROR: entry in cog_list.tsv is incorrectly formatted! Violating line:\n")
-            sys.stderr.write(str(marker_input) + "\n")
-            sys.stderr.flush()
-            sys.exit()
-
-        marker, denominator, description = marker_input.split("\t")
-        if args.targets != ["ALL"] and denominator not in args.targets:
-            continue
-
-        for ref_code in marker_build_dict:
-            if denominator == ref_code:
-                marker_build_dict[denominator].description = description
-                if description == "phylogenetic_cogs":
-                    marker_build_dict[denominator].kind = "phylogenetic_cogs"
-                elif description == "rRNA_marker":
-                    marker_build_dict[denominator].kind = "phylogenetic_rRNA_cogs"
-                else:
-                    marker_build_dict[denominator].kind = "functional_cogs"
-
-    if args.reftree not in ['i', 'g', 'p'] and args.reftree not in marker_build_dict.keys():
-        sys.stderr.write("ERROR: " + args.reftree + " not found in " + cog_list_file +
-                         "! Please use a valid reference tree ID!\n")
-        sys.stderr.flush()
-        sys.exit()
-    return marker_build_dict
-
-
-def create_cog_list(args):
-    """
-    Loads the TreeSAPP COG list file and check that the args.reftree exists
-    :param args: The command-line and default arguments object
-    :return: An autovivification of the COGs in cog_list.tsv. This also includes their short-form name (termed
-    denominator e.g. M0101, C0012, U0401) and a list of output text precursors based on the analysis type.
-    The denominator is equal to the command-line reference tree specifier argument (p, g, or i) if phylogenetic COGs
-    """
-    cog_list = Autovivify()
-    text_of_analysis_type = Autovivify()
-    cog_list_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
-    cog_input_list = open(cog_list_file, 'r', encoding="latin1")
-    if args.reftree not in ['i', 'p', 'g']:
-        alignment_set = ''
-    else:
-        alignment_set = args.reftree
-
-    # For each line in the COG list file...
-
-    cog_list_lines = [x.strip() for x in cog_input_list.readlines()]
-    # Close the COG list file
-    cog_input_list.close()
-
-    for cog_input in cog_list_lines:
-        # Get the kind of COG if cog_input is a header line
-        if re.match(r'\A#', cog_input):
-            continue
-
-        if not re.match(r'\w+\t[A-Z][0-9]{4}\t\w+', cog_input):
-            sys.stderr.write("ERROR: entry in cog_list.tsv is incorrectly formatted! Violating line:\n")
-            sys.stderr.write(str(cog_input) + "\n")
-            sys.stderr.flush()
-            sys.exit()
-
-        marker, denominator, description = cog_input.split("\t")
-        if args.targets != ["ALL"] and denominator not in args.targets:
-            continue
-        if description == "phylogenetic_cogs":
-            kind_of_cog = "phylogenetic_cogs"
-        elif description == "rRNA_marker":
-            kind_of_cog = "phylogenetic_rRNA_cogs"
-        else:
-            kind_of_cog = "functional_cogs"
-
-        # Add data to COG list based on the kind of COG it is
-        if kind_of_cog == 'phylogenetic_cogs':
-            cog_list[kind_of_cog][marker] = alignment_set
-            cog_list['all_cogs'][marker] = alignment_set
-            text_inset = ''
-            if alignment_set == 'g':
-                text_inset = ' based on the GEBA reference'
-            if alignment_set == 'i':
-                text_inset = ' focusing only on fungi'
-            text_of_analysis_type[alignment_set] = 'Phylogenetic analysis' + text_inset + ':'
-        elif kind_of_cog == 'phylogenetic_rRNA_cogs':
-            cog_list[kind_of_cog][marker] = denominator
-            cog_list['all_cogs'][marker] = denominator
-            text_of_analysis_type[denominator] = 'Phylogenetic analysis, ' + description + ':'
-        elif kind_of_cog == 'functional_cogs':
-            cog_list[kind_of_cog][marker] = denominator
-            cog_list['all_cogs'][marker] = denominator
-            text_of_analysis_type[denominator] = 'Functional analysis, ' + description + ':'
-
-    if args.reftree not in ['i', 'g', 'p']:
-        if args.reftree not in cog_list['all_cogs'].values():
-            sys.stderr.write("ERROR: " + args.reftree +
-                             " not found in " + cog_list_file + "! Please use a valid reference tree ID!\n")
-            sys.stderr.flush()
-            sys.exit()
-
-    return cog_list, text_of_analysis_type
-
-
-def single_cog_list(reftree, cog_list, text_of_analysis_type):
-    """
-    Copies the relevant information from the cog_list and text_of_analysis_type to new dictionaries
-    :param reftree: The reference gene family
-    :param cog_list: The vivification of cog names, reference names, and their respective type
-    :param text_of_analysis_type: Mapping of cogs and analysis type based on their type
-    :return: Pared down versions of cog_list and text_of_analysis_type containing only information of gene
-    """
-    new_list = Autovivify()
-    single_text_analysis = Autovivify()
-
-    # Parse the cog_list
-    for cog_type in cog_list:
-        for cog in cog_list[cog_type]:
-            denominator = cog_list[cog_type][cog]
-            if denominator == reftree:
-                new_list[cog_type][cog] = denominator
-                break
-
-    # Parse the text_of_analysis_type
-    for denominator in text_of_analysis_type:
-        analysis = text_of_analysis_type[denominator]
-        if denominator == reftree:
-            single_text_analysis[denominator] = analysis
-            break
-
-    return new_list, single_text_analysis
 
 
 def calculate_overlap(info):
@@ -813,8 +664,7 @@ def predict_orfs(args):
     return args
 
 
-def hmmsearch_orfs(args, cog_list, marker_build_dict):
-    # TODO: integrate marker molecule type information to decide whether the HMM analyzes the protein or DNA ORFs
+def hmmsearch_orfs(args, marker_build_dict):
     hmm_domtbl_files = list()
     nucl_target_hmm_files = list()
     prot_target_hmm_files = list()
@@ -831,14 +681,18 @@ def hmmsearch_orfs(args, cog_list, marker_build_dict):
         sys.exit()
     hmm_files = glob.glob(hmm_dir + "*.hmm")
 
+    all_markers = [marker_build_dict[marker_code].cog for marker_code in marker_build_dict]
+
     # Filter the HMM files to only the target markers
     for hmm_profile in hmm_files:
         marker = os.path.basename(hmm_profile).split('.')[0]
-        if marker in cog_list["all_cogs"].keys():
-            if marker in cog_list["phylogenetic_rRNA_cogs"]:
-                nucl_target_hmm_files.append(hmm_profile)
-            else:
-                prot_target_hmm_files.append(hmm_profile)
+        if marker in all_markers:
+            for marker_code in marker_build_dict:
+                ref_marker = marker_build_dict[marker_code]
+                if ref_marker.molecule == "prot":
+                    prot_target_hmm_files.append(hmm_profile)
+                else:
+                    nucl_target_hmm_files.append(hmm_profile)
         else:
             excluded_markers.append(marker)
 
@@ -2030,7 +1884,7 @@ def validate_multi_aligned_fasta_utility(fasta_file):
     return num_seqs, sequence_length
 
 
-def get_alignment_dims(args, cog_list):
+def get_alignment_dims(args, marker_build_dict):
     alignment_dimensions_dict = dict()
     alignment_data_dir = args.treesapp + os.sep + 'data' \
                          + os.sep + args.reference_data_prefix \
@@ -2042,10 +1896,14 @@ def get_alignment_dims(args, cog_list):
         sys.stderr.flush()
         sys.exit()
 
+    all_markers = [marker_build_dict[marker_code].cog for marker_code in marker_build_dict]
+
     for fasta in glob.glob(alignment_data_dir + "*fa"):
         cog = os.path.basename(fasta).split('.')[0]
-        if cog in cog_list["all_cogs"].keys():
-            alignment_dimensions_dict[cog_list["all_cogs"][cog]] = (validate_multi_aligned_fasta_utility(fasta))
+        if cog in all_markers:
+            for marker_code in marker_build_dict:
+                if marker_build_dict[marker_code].cog == cog:
+                    alignment_dimensions_dict[marker_code] = (validate_multi_aligned_fasta_utility(fasta))
     return alignment_dimensions_dict
 
 
@@ -2380,7 +2238,7 @@ def filter_multiple_alignments(args, concatenated_mfa_files, tool="bmge"):
     # TODO: Parallelize with multiprocessing
     # TODO: Incorporate TrimAl as another option, rather than having a separate function
     if args.molecule == "prot":
-        bmge_settings = ["-t", "AA", "-m", "BLOSUM62"]
+        bmge_settings = ["-t", "AA", "-m", "BLOSUM90"]
     else:
         bmge_settings = ["-t", "DNA"]
     sys.stdout.write("Running BMGE with settings '" + ' '.join(bmge_settings) + "'... ")
@@ -3253,239 +3111,6 @@ def compare_terminal_children_strings(terminal_children_of_assignments, terminal
     return real_terminal_children_of_assignments
 
 
-def concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type):
-    if args.verbose:
-        sys.stdout.write("Concatenating the RAxML outputs for each marker gene class...\n")
-    output_directory_final = args.output_dir_final
-    
-    for denominator in sorted(final_raxml_output_files.keys()):
-        nr_of_files = 0
-        assignments = Autovivify()
-        description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
-        final_output_file_name = str(output_directory_final) + str(denominator) + '_concatenated_RAxML_outputs.txt'
-        
-        for final_RAxML_output_file in sorted(final_raxml_output_files[denominator].keys()):
-            nr_of_files += 1
-            try:
-                final_raxml_output = open(final_RAxML_output_file, 'r')
-            except IOError:
-                sys.exit('ERROR: Can\'t open ' + str(final_RAxML_output_file) + '!\n')
-            
-            for line in final_raxml_output:
-                line = line.strip()
-                if re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line):
-                    weight = float(re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line).group(1))
-                    assignment = re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line).group(2)
-                    if assignment in assignments.keys():
-                        assignments[assignment] += weight
-                    else:
-                        assignments[assignment] = weight
-                else:
-                    continue
-
-            final_raxml_output.close()
-
-        assignments_with_relative_weights = Autovivify()
-
-        for assignment in sorted(assignments.keys(), reverse=True):
-            weight = assignments[assignment]
-            relative_weight = weight / float(nr_of_files)
-            assignments_with_relative_weights[relative_weight][assignment] = 1
-
-        try:
-            output = open(final_output_file_name, 'w')
-        except IOError:
-            sys.exit('ERROR: Can\'t create ' + str(final_output_file_name) + '!\n')
-        if args.verbose:
-            sys.stdout.write(str(denominator) + '_ results concatenated:\n')
-        output.write(str(description_text) + '\n')
-        sum_of_relative_weights = 0
-
-        for relative_weight in sorted(assignments_with_relative_weights.keys(), reverse=True):
-
-            for assignment in sorted(assignments_with_relative_weights[relative_weight].keys(), reverse=True):
-                sum_of_relative_weights += relative_weight
-                sys.stdout.write('Placement weight ')
-                sys.stdout.write('%.2f' % relative_weight + "%: ")
-                sys.stdout.write(assignment + "\n")
-                output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n')
-
-        output.close()
-        sys.stdout.write('_' + str(denominator) + '_ sum of placement weights (should be 100): ')
-        sys.stdout.write(str(int(sum_of_relative_weights + 0.5)) + "\n")
-        sys.stdout.flush()
-
-
-def tax_ids_file_to_leaves(args, tax_ids_file):
-    tree_leaves = list()
-    try:
-        if args.py_version == 3:
-            cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
-        else:
-            cog_tax_ids = open(tax_ids_file, 'r')
-    except IOError:
-        sys.exit('ERROR: Can\'t open ' + str(tax_ids_file) + '!\n')
-
-    for line in cog_tax_ids:
-        line = line.strip()
-        try:
-            fields = line.split("\t")
-        except ValueError:
-            sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
-                             " generated " + str(len(line.split("\t"))) + " fields.")
-            sys.exit(9)
-        if len(fields) == 2:
-            number, translation = fields
-            lineage = ""
-        elif len(fields) == 3:
-            number, translation, lineage = fields
-        else:
-            sys.stderr.write("ValueError: Unexpected number of fields in " + tax_ids_file +
-                             ".\nInvoked .split(\'\\t\') on line " + str(line))
-            raise ValueError
-        leaf = TreeLeafReference(number, translation)
-        if lineage:
-            leaf.lineage = lineage
-            leaf.complete = True
-        tree_leaves.append(leaf)
-
-    cog_tax_ids.close()
-    return tree_leaves
-
-
-def read_species_translation_files(args, marker_build_dict):
-    """
-    :param args:
-    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
-    :return: The taxonomic identifiers for each of the organisms in a tree for all trees
-    """
-
-    tree_numbers_translation = Autovivify()
-    translation_files = Autovivify()
-    phylogenetic_denominator = args.reftree
-    tree_resources_dir = os.sep.join([args.treesapp, "data", "tree_data"]) + os.sep
-    if phylogenetic_denominator == 'g':
-        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_geba_tree.txt'
-    elif phylogenetic_denominator == 'i':
-        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_fungitr.txt'
-    elif phylogenetic_denominator == 'p':
-        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_nr.txt'
-
-    for denominator in sorted(marker_build_dict.keys()):
-        marker_build_obj = marker_build_dict[denominator]
-        filename = 'tax_ids_' + str(marker_build_obj.cog) + '.txt'
-        translation_files[denominator] = tree_resources_dir + filename
-
-    for denominator in sorted(translation_files.keys()):
-        filename = translation_files[denominator]
-        tree_numbers_translation[denominator] = tax_ids_file_to_leaves(args, filename)
-
-    return tree_numbers_translation
-
-
-def available_cpu_count():
-    """ Number of available virtual or physical CPUs on this system, i.e.
-    user/real as output by time(1) when called with an optimally scaling
-    userspace-only program"""
-
-    # cpuset
-    # cpuset may restrict the number of *available* processors
-    try:
-        m = re.search(r'(?m)^Cpus_allowed:\s*(.*)$',
-                      open('/proc/self/status').read())
-        if m:
-            res = bin(int(m.group(1).replace(',', ''), 16)).count('1')
-            if res > 0:
-                return res
-    except IOError:
-        pass
-
-    # Python 2.6+
-    try:
-        import multiprocessing
-        return multiprocessing.cpu_count()
-    except (ImportError, NotImplementedError):
-        pass
-
-    # http://code.google.com/p/psutil/
-    try:
-        import psutil
-        return psutil.NUM_CPUS
-    except (ImportError, AttributeError):
-        pass
-
-    # POSIX
-    try:
-        res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-
-        if res > 0:
-            return res
-    except (AttributeError, ValueError):
-        pass
-
-    # Windows
-    try:
-        res = int(os.environ['NUMBER_OF_PROCESSORS'])
-
-        if res > 0:
-            return res
-    except (KeyError, ValueError):
-        pass
-
-    # BSD
-    try:
-        sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'],
-                                  stdout=subprocess.PIPE)
-        scStdout = sysctl.communicate()[0]
-        res = int(scStdout)
-
-        if res > 0:
-            return res
-    except (OSError, ValueError):
-        pass
-
-    # Linux
-    try:
-        res = open('/proc/cpuinfo').read().count('processor\t:')
-
-        if res > 0:
-            return res
-    except IOError:
-        pass
-
-    # Solaris
-    try:
-        pseudoDevices = os.listdir('/devices/pseudo/')
-        res = 0
-        for pd in pseudoDevices:
-            if re.match(r'^cpuid@[0-9]+$', pd):
-                res += 1
-
-        if res > 0:
-            return res
-    except OSError:
-        pass
-
-    # Other UNIXes (heuristic)
-    try:
-        try:
-            dmesg = open('/var/run/dmesg.boot').read()
-        except IOError:
-            dmesgProcess = subprocess.Popen(['dmesg'], stdout=subprocess.PIPE)
-            dmesg = dmesgProcess.communicate()[0]
-
-        res = 0
-        while '\ncpu' + str(res) + ':' in dmesg:
-            res += 1
-
-        if res > 0:
-            return res
-    except OSError:
-        pass
-
-    raise Exception('Can not determine number of CPUs on this system')
-
-
 def delete_files(args, section):
     files_to_be_deleted = []
     if args.delete:
@@ -3872,14 +3497,14 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
     return rpkm_output_file
 
 
-def summarize_placements_rpkm(args, rpkm_output_file, cog_list, text_of_analysis_type):
+def summarize_placements_rpkm(args, rpkm_output_file, marker_build_dict):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
     Recapitulates MLTreeMap standard out summary
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param rpkm_output_file: CSV file containing contig names and RPKM values
-    :param cog_list:
-    :param text_of_analysis_type:
+    :type marker_build_dict: dict
+    :param marker_build_dict:
     :return:
     """
     contig_rpkm_map = dict()
@@ -3936,18 +3561,24 @@ def summarize_placements_rpkm(args, rpkm_output_file, cog_list, text_of_analysis
             marker_rpkm_map[marker][placement] = percentage
 
     for marker in marker_rpkm_map:
-        denominator = cog_list['all_cogs'][marker]
+        ref_marker = None
+        for marker_code in marker_build_dict:
+            if marker_build_dict[marker_code].cog == marker:
+                ref_marker = marker_build_dict[marker_code]
+                break
+        if not ref_marker:
+            raise AssertionError("Unable to map marker '" + marker + "' to a MarkerBuild instance.")
 
-        final_output_file = args.output_dir_final + str(denominator) + "_concatenated_RAxML_outputs.txt"
+        final_output_file = args.output_dir_final + str(ref_marker.denominator) + "_concatenated_RAxML_outputs.txt"
         # Not all of the genes predicted will have made it to the RAxML stage
         if os.path.isfile(final_output_file):
-            shutil.move(final_output_file, args.output_dir_final + denominator + "_concatenated_counts.txt")
+            shutil.move(final_output_file, args.output_dir_final + ref_marker.denominator + "_concatenated_counts.txt")
             try:
                 cat_output = open(final_output_file, 'w')
             except IOError:
                 raise IOError("Unable to open " + final_output_file + " for writing!")
 
-            description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n\n'
+            description_text = '# ' + str(ref_marker.kind) + '\n\n'
             cat_output.write(description_text)
 
             for placement in sorted(marker_rpkm_map[marker].keys(), reverse=True):
@@ -3962,48 +3593,6 @@ def summarize_placements_rpkm(args, rpkm_output_file, cog_list, text_of_analysis
     return
 
 
-def parse_ref_build_params(args, current_marker_code=None, create_func_tree=None):
-    """
-    Returns a dictionary of MarkerBuild objects storing information pertaining to the build parameters of each marker.
-    :param args: Command-line argument object returned by get_options and check_parser_arguments
-    :param current_marker_code: The code of the marker currently being updated (e.g. M0701)
-    :param create_func_tree: An instance of the CreateFuncTree class
-    """
-    ref_build_parameters = args.treesapp + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
-    try:
-        param_handler = open(ref_build_parameters, 'r')
-    except IOError:
-        sys.exit('ERROR: Can\'t open ' + ref_build_parameters + '!\n')
-
-    header_re = re.compile("code_name\tdenominator\taa_model\tcluster_identity\tlowest_confident_rank\tlast_updated$")
-    if not header_re.match(param_handler.readline().strip()):
-        raise AssertionError("ERROR: Header of '" + ref_build_parameters + "' is unexpected!")
-
-    marker_build_dict = dict()
-    for line in param_handler:
-        if header_re.match(line):
-            continue
-        if line[0] == '#':
-            continue
-        line = line.strip()
-        marker_build = MarkerBuild(line)
-        marker_build.check_rank()
-        marker_build_dict[marker_build.denominator] = marker_build
-
-        if create_func_tree:
-            if marker_build.denominator == current_marker_code:
-                try:
-                    create_func_tree.cluster_id = float(marker_build.pid)
-                except ValueError:
-                    raise ValueError("ERROR: cluster percent identity '" + marker_build.pid + "' in " +
-                                         ref_build_parameters + " is an invalid value.\n")
-                create_func_tree.raxml_model = marker_build.model
-
-    param_handler.close()
-
-    return marker_build_dict
-
-
 def get_reference_sequence_dict(args, update_tree):
     # Determine the name of the aligned FASTA with reference sequences
     ref_alignment_fasta = "data" + os.sep + "alignment_data" + os.sep + update_tree.COG + ".fa"
@@ -4015,18 +3604,17 @@ def get_reference_sequence_dict(args, update_tree):
     return unaligned_ref_seqs
 
 
-def update_func_tree_workflow(args, cog_list, ref_tree):
+def update_func_tree_workflow(args, ref_marker: MarkerBuild):
+
     # Load information essential to updating the reference data into a CreateFuncTreeUtility class object
-    update_tree = CreateFuncTreeUtility(args.output, ref_tree)
-    update_tree.find_cog_name(cog_list)
-    update_tree.find_marker_type(cog_list)
+    update_tree = CreateFuncTreeUtility(args.output, ref_marker.denominator)
 
     # Get HMM, sequence, reference build, and taxonomic information for the original sequences
-    parse_ref_build_params(args, ref_tree, update_tree)
     ref_hmm_file = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
     hmm_length = get_hmm_length(ref_hmm_file)
     unaligned_ref_seqs = get_reference_sequence_dict(args, update_tree)
-    ref_organism_lineage_info = read_species_translation_files(args, cog_list)
+    # read_species_translation_files expects the entire marker_build_dict, so we're making a mock one
+    ref_organism_lineage_info = read_species_translation_files(args, {ref_marker.denominator: ref_marker})
 
     # Set up the output directories
     time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
@@ -4548,12 +4136,10 @@ def main(argv):
     args = check_previous_output(args)
     marker_build_dict = parse_ref_build_params(args)
     marker_build_dict = parse_cog_list(args, marker_build_dict)
-    cog_list, text_of_analysis_type = create_cog_list(args)
     tree_numbers_translation = read_species_translation_files(args, marker_build_dict)
     unclassified_counts = dict()
     if args.check_trees:
         validate_inputs(args, marker_build_dict)
-    # TODO: Finish replacing cog_list with marker_build_dict
     if args.skip == 'n':
         # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
         if args.molecule == "dna":
@@ -4572,14 +4158,14 @@ def main(argv):
             input_multi_fasta = args.fasta_input
         args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
         formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
-        ref_alignment_dimensions = get_alignment_dims(args, cog_list)
+        ref_alignment_dimensions = get_alignment_dims(args, marker_build_dict)
 
         # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
         hmm_search_log = args.output + os.sep + "hmm_search_log.txt"
 
         log_handler = open(hmm_search_log, 'w')
 
-        hmm_domtbl_files = hmmsearch_orfs(args, cog_list, marker_build_dict)
+        hmm_domtbl_files = hmmsearch_orfs(args, marker_build_dict)
         hmm_matches = parse_domain_tables(args, hmm_domtbl_files, log_handler)
         hmmalign_inputs, numeric_contig_index = extract_hmm_matches(args, hmm_matches, formatted_fasta_dict)
 
@@ -4626,18 +4212,28 @@ def main(argv):
         if args.rpkm:
             sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
             abundance_file = run_rpkm(args, sam_file, orf_nuc_fasta)
-            summarize_placements_rpkm(args, abundance_file, cog_list, text_of_analysis_type)
+            summarize_placements_rpkm(args, abundance_file, marker_build_dict)
     else:
         pass
 
+    # # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
+    # for denominator in tree_saps:
+    #     jplace_tree = tree_saps[denominator][0].tree
+    #     leaf_taxa_map = dict()
+    #     for taxa_leaf in tree_numbers_translation[denominator]:
+    #         leaf_taxa_map[taxa_leaf.number] = taxa_leaf.lineage
+    #     ete_tree = Tree(jplace_tree)
+    #     tree_nodes = prune_branches(ete_tree, leaf_taxa_map)
+    #     branch_distances = find_branch_distances(tree_nodes)
+    #     bound_taxonomic_branch_distances(branch_distances, leaf_taxa_map)
     produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, abundance_file)
     write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict)
     delete_files(args, 4)
 
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
-        for marker in args.targets:
-            update_func_tree_workflow(args, cog_list, marker)
+        for marker_code in args.targets:
+            update_func_tree_workflow(args, marker_build_dict[marker_code])
 
     delete_files(args, 5)
     sys.stdout.write("TreeSAPP has finished successfully.\n")

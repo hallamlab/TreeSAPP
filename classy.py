@@ -19,6 +19,31 @@ from entrez_utils import get_lineage
 import _tree_parser
 
 
+class MarkerBuild:
+    def __init__(self, build_param_line):
+        build_param_fields = build_param_line.split('\t')
+        if len(build_param_fields) != 6:
+            sys.stderr.write("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + build_param_line)
+            raise ValueError
+        self.cog = build_param_fields[0]
+        self.denominator = build_param_fields[1]
+        self.model = build_param_fields[2]
+        self.pid = build_param_fields[3]
+        self.lowest_confident_rank = build_param_fields[4]
+        self.update = build_param_fields[5]
+        self.description = ""
+        self.kind = ""
+        self.molecule = "prot"
+
+    def check_rank(self):
+        taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
+
+        if self.lowest_confident_rank not in list(taxonomies):
+            raise AssertionError("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
+
+        return
+
+
 class CreateFuncTreeUtility:
     """
     Output is the directory to write the outputs for the updated tree
@@ -26,7 +51,7 @@ class CreateFuncTreeUtility:
     RefTree is the second column in cog_list.tsv for the gene to update
     Cluster is a flag indicating whether the protein sequences for the RefTree in InputData is to be clustered at 97%
     """
-    def __init__(self, input_data, ref_tree):
+    def __init__(self, input_data, ref_marker: MarkerBuild):
         if os.path.isabs(input_data):
             self.InputData = input_data
         else:
@@ -35,16 +60,16 @@ class CreateFuncTreeUtility:
         if self.InputData[-1] == '/':
             self.InputData = self.InputData[:-1]
 
-        self.Output = self.InputData + os.sep + "updated_" + ref_tree + "_tree" + os.sep
-        self.Denominator = ref_tree
-        self.marker_molecule = ""  # prot, dna, or rrna
-        self.COG = ""
-        self.raxml_model = ""  # Rather than determining the best model again, use the one that was previously used
+        self.Output = self.InputData + os.sep + "updated_" + ref_marker.denominator + "_tree" + os.sep
+        self.Denominator = ref_marker.denominator
+        self.marker_molecule = ref_marker.molecule  # prot, dna, or rrna
+        self.COG = ref_marker.cog
+        self.raxml_model = ref_marker.model  # Use the original model rather than determining the best model again
         self.ContigDict = dict()  # Used for storing the final candidate reference sequences
         self.names = list()
         self.header_id_map = dict()  # Used for mapping the original header of the sequence to internal numeric header
         self.master_reference_index = dict()  # Used for storing ReferenceSequence objects, indexed by numeric IDs
-        self.cluster_id = 0  # The percent similarity the original reference sequences were clustered at
+        self.cluster_id = ref_marker.pid  # The percent similarity the original reference sequences were clustered at
         # Automatically remove the last attempt at updating the reference tree
         if os.path.isdir(self.Output):
             shutil.rmtree(self.Output)
@@ -65,33 +90,6 @@ class CreateFuncTreeUtility:
                 suffix = re.sub("%s_" % ref_tree, '', placement)
                 predicted_orf = re.sub("_RAxML_parsed.txt", '', suffix)
                 self.names.append(predicted_orf)
-        return
-
-    def find_cog_name(self, cog_list):
-        for cog in cog_list["all_cogs"]:
-            denominator = cog_list["all_cogs"][cog]
-            if denominator == self.Denominator:
-                self.COG = cog
-                break
-        if not self.COG:
-            sys.stderr.write("ERROR: Invalid marker code provided! Unable to find matching gene in cog_list.txt!\n")
-            sys.exit(100)
-        return
-
-    def find_marker_type(self, cog_list):
-        for marker_type in cog_list:
-            if marker_type == "all_cogs":
-                continue
-            if self.COG in cog_list[marker_type]:
-                if marker_type == "phylogenetic_rRNA_cogs":
-                    self.marker_molecule = "rrna"
-                elif marker_type == "functional_cogs":
-                    self.marker_molecule = "prot"
-                else:
-                    sys.stderr.write("ERROR: Unrecognized marker class: " + marker_type)
-                    sys.exit(101)
-                break
-
         return
 
     def load_new_refs_fasta(self, args, centroids_fasta, ref_organism_lineage_info):
@@ -926,31 +924,6 @@ class NodeRetrieverWorker(Process):
             subtrees = subtrees_to_dictionary(result, create_tree_info_hash())
             self.task_queue.task_done()
             self.result_queue.put(subtrees)
-        return
-
-
-class MarkerBuild:
-    def __init__(self, build_param_line):
-        build_param_fields = build_param_line.split('\t')
-        if len(build_param_fields) != 6:
-            sys.stderr.write("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + build_param_line)
-            raise ValueError
-        self.cog = build_param_fields[0]
-        self.denominator = build_param_fields[1]
-        self.model = build_param_fields[2]
-        self.pid = build_param_fields[3]
-        self.lowest_confident_rank = build_param_fields[4]
-        self.update = build_param_fields[5]
-        self.description = ""
-        self.kind = ""
-        self.molecule = "prot"
-
-    def check_rank(self):
-        taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
-
-        if self.lowest_confident_rank not in list(taxonomies):
-            raise AssertionError("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
-
         return
 
 

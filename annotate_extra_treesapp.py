@@ -14,9 +14,10 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from entish import get_node
-from treesapp import parse_ref_build_params, jplace_parser, tax_ids_file_to_leaves
+from jplace_utils import jplace_parser
 from classy import TreeProtein
-from utilities import read_colours_file, annotate_internal_nodes, convert_outer_to_inner_nodes
+from utilities import annotate_internal_nodes, convert_outer_to_inner_nodes
+from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves, read_colours_file
 
 
 def get_arguments():
@@ -350,7 +351,7 @@ def main():
 
                 # Routine for exchanging any organism designations for their respective node number
                 tax_ids_file = os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"])
-                taxa_map = tax_ids_file_to_leaves(args, tax_ids_file)
+                taxa_map = tax_ids_file_to_leaves(tax_ids_file)
                 clusters = names_for_nodes(marker_subgroups[data_type][marker], internal_node_map, taxa_map)
 
                 if not internal_nodes[data_type][marker]:

@@ -21,7 +21,7 @@ from create_treesapp_ref_data import get_header_format, register_headers
 from utilities import clean_lineage_string, return_sequence_info_groups
 from external_command_interface import setup_progress_bar, launch_write_command
 from classy import ReferenceSequence
-from treesapp import parse_ref_build_params
+from file_parsers import parse_ref_build_params
 from entrez_utils import get_lineage, read_accession_taxa_map, write_accession_lineage_map
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
@@ -733,13 +733,13 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
         query_taxonomy = ref_seq.lineage
         if query_taxonomy not in good_classified_lineages:
             good_classified_lineages[query_taxonomy] = list()
-        if re.search("nclassified", query_taxonomy):
-            # Remove taxonomic lineages that are unclassified at the Phylum level or higher
-            unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
-            if unclassified_depth > 4:
-                good_classified_lineages[query_taxonomy].append(ref_seq.accession)
-            else:
-                taxonomic_filter_stats["Unclassified"] += 1
+        if re.search("unclassified|environmental sample", query_taxonomy, re.IGNORECASE):
+            # # Remove taxonomic lineages that are unclassified at the Phylum level or higher
+            # unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
+            # if unclassified_depth > 4:
+            #     good_classified_lineages[query_taxonomy].append(ref_seq.accession)
+            # else:
+            taxonomic_filter_stats["Unclassified"] += 1
         else:
             taxonomic_filter_stats["Classified"] += 1
             good_classified_lineages[query_taxonomy].append(ref_seq.accession)
@@ -817,7 +817,7 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     normalized_lineages = list()
     for query_taxonomy in sorted(taxonomic_lineages):
         can_classify = True
-        if re.search("nclassified", query_taxonomy):
+        if re.search("unclassified", query_taxonomy, re.IGNORECASE):
             # Remove taxonomic lineages that are unclassified at the Phylum level or higher
             unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
             if unclassified_depth <= 3:
@@ -1086,6 +1086,7 @@ def main():
                                 "-T", str(4),
                                 "--filter_align",
                                 "--min_likelihood", str(0.1),
+                                "--placement_parser", "lca",
                                 "--min_seq_length", min_seq_length,
                                 "--verbose",
                                 "--overwrite",
