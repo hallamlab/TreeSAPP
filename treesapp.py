@@ -668,8 +668,6 @@ def hmmsearch_orfs(args, marker_build_dict):
     hmm_domtbl_files = list()
     nucl_target_hmm_files = list()
     prot_target_hmm_files = list()
-    # TODO: do something with excluded_markers
-    excluded_markers = list()
 
     # Find all of the available HMM profile files
     hmm_dir = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep
@@ -681,25 +679,23 @@ def hmmsearch_orfs(args, marker_build_dict):
         sys.exit()
     hmm_files = glob.glob(hmm_dir + "*.hmm")
 
-    all_markers = [marker_build_dict[marker_code].cog for marker_code in marker_build_dict]
-
-    # Filter the HMM files to only the target markers
-    for hmm_profile in hmm_files:
-        marker = os.path.basename(hmm_profile).split('.')[0]
-        if marker in all_markers:
-            for marker_code in marker_build_dict:
-                ref_marker = marker_build_dict[marker_code]
-                if ref_marker.molecule == "prot":
-                    prot_target_hmm_files.append(hmm_profile)
-                else:
-                    nucl_target_hmm_files.append(hmm_profile)
-        else:
-            excluded_markers.append(marker)
-
     if len(hmm_files) == 0:
         sys.stderr.write("ERROR: Directory containing HMM files is empty,"
                          " or at least contains no files with a '.hmm' extension.\n")
         sys.exit(9)
+
+    # Filter the HMM files to only the target markers
+    for marker_code in marker_build_dict:
+        ref_marker = marker_build_dict[marker_code]
+        hmm_profile = hmm_dir + ref_marker.cog + ".hmm"
+        if hmm_profile not in hmm_files:
+            raise AssertionError("Unable to locate HMM-profile for " + ref_marker.cog + "(" + marker_code + ").")
+        else:
+            if ref_marker.molecule == "prot":
+                prot_target_hmm_files.append(hmm_profile)
+            else:
+                nucl_target_hmm_files.append(hmm_profile)
+
     acc = 0.0
     sys.stdout.write("Searching for marker proteins in ORFs using hmmsearch.\n")
     step_proportion = setup_progress_bar(len(prot_target_hmm_files) + len(nucl_target_hmm_files))
@@ -3842,29 +3838,24 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
     return tree_protein_list
 
 
-def lowest_confident_taxonomy(lct, marker_build_object):
+def lowest_confident_taxonomy(lct, depth):
     """
-    Truncates the initial taxonomic assignment to the lowest rank with reasonable confidence.
-    This rank is determined during reference package construction using create_treesapp_ref_data,
-    based on the number of children in a branch.
+    Truncates the initial taxonomic assignment to rank of depth.
     :param lct: String for the taxonomic lineage ('; ' separated)
-    :param marker_build_object: Object of MarkerBuild clss
+    :param depth: The recommended depth to truncate the taxonomy
     :return: String representing 'confident' taxonomic assignment for the sequence
     """
-    taxonomic_rank_depth = {0: "Kingdoms", 1: "Phyla", 2: "Classes", 3: "Orders",
-                            4: "Families", 5: "Genera", 6: "Species"}
-    confident_assignment = list()
 
-    if marker_build_object.lowest_confident_rank not in list(taxonomic_rank_depth.values()):
-        raise AssertionError("Unable to find " + marker_build_object.lowest_confident_rank + " in taxonomic map!")
+    purified_lineage_list = clean_lineage_string(lct).split("; ")
+    confident_assignment = "; ".join(purified_lineage_list[:depth])
+    # For debugging
+    rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+    if depth > len(purified_lineage_list):
+        print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
     else:
-        purified_lineage_list = clean_lineage_string(lct).split("; ")
-        i = 0
-        while taxonomic_rank_depth[i] != marker_build_object.lowest_confident_rank and i < len(purified_lineage_list):
-            confident_assignment.append(purified_lineage_list[i])
-            i += 1
+        print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
 
-    return "; ".join(confident_assignment)
+    return confident_assignment
 
 
 def enumerate_taxonomic_lineages(lineage_list):
@@ -3893,6 +3884,7 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
     :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
     :return:
     """
+    leaf_taxa_map = dict()
     mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
     sample_name = os.path.basename(args.output)
     if not sample_name:
@@ -3914,7 +3906,12 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
             lineage_list.append(clean_lineage_string(leaf.lineage).split('; '))
             if leaf.complete:
                 lineage_complete = True
+            leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
+
+        # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
+        tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
+        taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
 
         for tree_sap in tree_saps[denominator]:
             if tree_sap.name not in unclassified_counts.keys():
@@ -3929,6 +3926,22 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                 unclassified_counts[tree_sap.name] += 1
             else:
                 tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
+                distal_length = float(tree_sap.get_jplace_element("distal_length"))
+                # Find the length of the edge this sequence was placed onto
+                edge_length = find_edge_length(tree_sap.tree, tree_sap.inode)
+                # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
+                node_dist = edge_length - distal_length
+                leaf_children = tree_sap.node_map[int(tree_sap.inode)]
+                if len(leaf_children) > 1:
+                    # We need to find the LCA in the Tree instance to find the distances to tips for ete3
+                    lca_node = tree.get_common_ancestor(leaf_children)
+                    tip_distances = parent_to_tip_distances(lca_node, leaf_children)
+                    tree_sap.avg_evo_dist = float(sum(tip_distances)) / len(tip_distances) + node_dist
+                else:
+                    tree_sap.avg_evo_dist = node_dist
+                # Based on the calculated distance from the leaves, what rank is most appropriate?
+                recommended_rank = rank_recommender(tree_sap.avg_evo_dist, taxonomic_rank_intervals)
+
                 if len(tree_sap.lineage_list) == 0:
                     sys.stderr.write("ERROR: unable to find lineage information for marker " +
                                      denominator + ", contig " + tree_sap.contig_name + "!\n")
@@ -3937,12 +3950,10 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                     tree_sap.lct = tree_sap.lineage_list[0]
                     tree_sap.wtd = 0.0
                 if len(tree_sap.lineage_list) > 1:
-                    # TODO: Integrate RAxML's likelihood weight ratio so the consensus requires majority likelihood
                     if lineage_complete:
                         lca = tree_sap.megan_lca()
                         # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
                         tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
-
                         if not tree_sap.lct:
                             sys.stderr.write(str(tree_sap.contig_name) + "\n")
                         else:
@@ -3960,7 +3971,7 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                                              tree_sap.contig_name,
                                              tree_sap.name,
                                              clean_lineage_string(tree_sap.lct),
-                                             lowest_confident_taxonomy(tree_sap.lct, marker_build_dict[denominator]),
+                                             lowest_confident_taxonomy(tree_sap.lct, recommended_rank),
                                              str(tree_sap.abundance),
                                              str(tree_sap.inode),
                                              str(tree_sap.likelihood),
@@ -4038,9 +4049,9 @@ def parse_raxml_output(args, marker_build_dict, unclassified_counts):
                                      " when only 1 is expected at this point.\n")
                     sys.stderr.write(pquery.summarize())
                     sys.exit(3)
-                pquery.get_inode()
-                pquery.get_placement_lwr()
-                pquery.get_placement_likelihood()
+                pquery.inode = str(pquery.get_jplace_element("edge_num"))
+                pquery.lwr = float(pquery.get_jplace_element("like_weight_ratio"))
+                pquery.likelihood = float(pquery.get_jplace_element("likelihood"))
                 tree_saps[denominator].append(pquery)
                 classified_seqs += 1
 
@@ -4216,16 +4227,6 @@ def main(argv):
     else:
         pass
 
-    # # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
-    # for denominator in tree_saps:
-    #     jplace_tree = tree_saps[denominator][0].tree
-    #     leaf_taxa_map = dict()
-    #     for taxa_leaf in tree_numbers_translation[denominator]:
-    #         leaf_taxa_map[taxa_leaf.number] = taxa_leaf.lineage
-    #     ete_tree = Tree(jplace_tree)
-    #     tree_nodes = prune_branches(ete_tree, leaf_taxa_map)
-    #     branch_distances = find_branch_distances(tree_nodes)
-    #     bound_taxonomic_branch_distances(branch_distances, leaf_taxa_map)
     produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, abundance_file)
     write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict)
     delete_files(args, 4)

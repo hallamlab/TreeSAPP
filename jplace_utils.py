@@ -248,3 +248,18 @@ def add_bipartitions(itol_datum, bipartition_file):
         x += 1
     itol_datum.tree = bootstrapped_jplace_tree
     return itol_datum
+
+
+def find_edge_length(jplace_tree: str, node: str):
+    """
+    Parses a Newick-formatted tree with depth-first-search internal nodes enveloped by curly braces
+    :param jplace_tree: Newick tree
+    :param node: The number of an internal node
+    :return: float
+    """
+    edge_component = re.search(r':([0-9.]+)\{' + re.escape(node) + '}', jplace_tree)
+    if edge_component:
+        edge_length = float(edge_component.group(1))
+    else:
+        raise AssertionError("Unable to find node '" + node + "' in JPlace-formatted tree.")
+    return edge_length

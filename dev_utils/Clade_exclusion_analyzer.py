@@ -1189,6 +1189,7 @@ def main():
     # Load the reference lineages into a trie (prefix trie)
     clade_exclusion_strings = list()
     # tax_ids_tables = list()
+    args.targets = ["ALL"]
     marker_build_dict = parse_ref_build_params(args)
 
     for name in args.reference_markers:
@@ -1205,9 +1206,7 @@ def main():
                     code_name = denominator
                     break
             if not code_name:
-                sys.stderr.write("ERROR: Unable to identify the gene name from the code name '" + code_name + "'.\n")
-                sys.stderr.flush()
-                sys.exit()
+                raise AssertionError("Unable to identify the gene name from the code name '" + name + "'.")
         else:
             sys.stderr.write("ERROR: Wrong format for the reference code_name provided: " + name + "\n")
             sys.exit(9)

@@ -379,6 +379,7 @@ class ItolJplace:
         self.placements = list()
         self.lwr = 0  # Likelihood weight ratio of an individual placement
         self.likelihood = 0
+        self.avg_evo_dist = 0.0
         self.inode = ""
         self.tree = ""  # NEWICK tree
         self.metadata = ""
@@ -520,18 +521,6 @@ class ItolJplace:
                     element_value = pquery_fields[position]
                     acc += 1
         return element_value
-
-    def get_inode(self):
-        self.inode = str(self.get_jplace_element("edge_num"))
-        return
-
-    def get_placement_lwr(self):
-        self.lwr = float(self.get_jplace_element("like_weight_ratio"))
-        return
-
-    def get_placement_likelihood(self):
-        self.likelihood = float(self.get_jplace_element("likelihood"))
-        return
 
     def filter_min_weight_threshold(self, threshold=0.1):
         """
