@@ -491,3 +491,25 @@ def read_accession_taxa_map(mapping_file):
     map_file_handler.close()
     return accession_lineage_map
 
+
+def build_entrez_queries(fasta_record_objects: dict, log_handle):
+    """
+    Function to create data collections to fulfill entrez query searches
+    :param fasta_record_objects: A list of ReferenceSequence objects - lineage information to be filled
+    :param log_handle: The file handler for writing runtime errors and warnings
+    :return: List containing accessions to query Entrez
+    """
+    num_lineages_provided = 0
+    entrez_query_list = list()
+    for num_id in fasta_record_objects:
+        ref_seq = fasta_record_objects[num_id]
+        # Only need to download the lineage information for those sequences that don't have it encoded in their header
+        if ref_seq.lineage:
+            num_lineages_provided += 1
+        else:
+            if ref_seq.accession:
+                entrez_query_list.append(ref_seq.accession)
+            else:
+                log_handle.write("WARNING: Neither accession or lineage available for " + ref_seq.description + "\n")
+    return entrez_query_list, num_lineages_provided
+

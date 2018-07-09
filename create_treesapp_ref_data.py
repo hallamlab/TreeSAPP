@@ -15,8 +15,7 @@ try:
 
     from time import gmtime, strftime
 
-    from utilities import os_type, is_exe, which, find_executables, reformat_string, parse_domain_tables,\
-        return_sequence_info_groups
+    from utilities import os_type, is_exe, which, find_executables, reformat_string, return_sequence_info_groups
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
         trim_multiple_alignment
     from classy import ReferenceSequence, Header, Cluster
@@ -24,8 +23,8 @@ try:
     from entish import annotate_partition_tree
     from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
     from entrez_utils import get_multiple_lineages, get_lineage_robust, verify_lineage_information,\
-        read_accession_taxa_map, write_accession_lineage_map
-
+        read_accession_taxa_map, write_accession_lineage_map, build_entrez_queries
+    from file_parsers import parse_domain_tables
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
@@ -721,7 +720,7 @@ def reformat_headers(header_dict):
     return swappers
 
 
-def get_header_info(header_registry, code_name):
+def get_header_info(header_registry, code_name=''):
     sys.stdout.write("Extracting information from headers... ")
     sys.stdout.flush()
     fasta_record_objects = dict()
@@ -1031,22 +1030,6 @@ def summarize_reference_taxa(args, reference_dict):
                                 str(round(float(unclassifieds/len(reference_dict.keys())), 1)) + "%) references.\n"
 
     return taxonomic_summary_string
-
-
-def gather_query_list(fasta_record_objects, create_log_handle):
-    num_lineages_provided = 0
-    query_accession_list = list()
-    # Only need to download the lineage information for those sequences that don't have it encoded in their header
-    for num_id in fasta_record_objects:
-        if fasta_record_objects[num_id].lineage:
-            num_lineages_provided += 1
-        else:
-            if fasta_record_objects[num_id].accession:
-                query_accession_list.append(fasta_record_objects[num_id].accession)
-            else:
-                create_log_handle.write("WARNING: Neither accession or lineage available for " +
-                                        fasta_record_objects[num_id].description + "\n")
-    return query_accession_list, num_lineages_provided
 
 
 def write_tax_ids(args, fasta_replace_dict, tax_ids_file):
@@ -1381,15 +1364,27 @@ def finalize_ref_seq_lineages(fasta_record_objects, accession_lineages):
     :param accession_lineages: a dictionary mapping {accession: lineage}
     :return:
     """
+    proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
     for treesapp_id in fasta_record_objects:
         ref_seq = fasta_record_objects[treesapp_id]
         if not ref_seq.lineage:
             try:
-                ref_seq.lineage = accession_lineages[ref_seq.accession]
+                lineage = accession_lineages[ref_seq.accession]
             except KeyError:
                 sys.stderr.write("ERROR: Lineage information was not retrieved for " + ref_seq.accession + "!\n")
                 sys.stderr.write("Please remove the output directory and restart.\n")
                 sys.exit(3)
+            # Add the species designation since it is often not included in the sequence record's lineage
+            lr = lineage.split("; ")
+            if proper_species_re.match(lr[-1]):
+                ref_seq.lineage = lineage
+            elif len(lr) == 7 and proper_species_re.match(ref_seq.organism):
+                ref_seq.lineage = lineage + "; " + ref_seq.organism
+            elif ref_seq.organism not in lr and len(lr) <= 6 and re.match("^[A-Z][a-z]+$", ref_seq.organism):
+                ref_seq.lineage = lineage + "; " + ref_seq.organism
+            else:
+                ref_seq.lineage = lineage
+            # print(','.join([lineage, "organism: " + ref_seq.organism, "\n", "Final: " + ref_seq.lineage]))
         else:
             pass
     return fasta_record_objects
@@ -1503,7 +1498,7 @@ def main():
     ##
     # Read lineages corresponding to accessions for each sequence if available, otherwise download them
     ##
-    query_accession_list, num_lineages_provided = gather_query_list(fasta_record_objects, create_log_handle)
+    query_accession_list, num_lineages_provided = build_entrez_queries(fasta_record_objects, create_log_handle)
     if os.path.isfile(accession_map_file):
         sys.stdout.write("Reading cached lineages in '" + accession_map_file + "'... ")
         sys.stdout.flush()
