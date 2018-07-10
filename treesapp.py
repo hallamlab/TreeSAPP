@@ -3849,11 +3849,11 @@ def lowest_confident_taxonomy(lct, depth):
     purified_lineage_list = clean_lineage_string(lct).split("; ")
     confident_assignment = "; ".join(purified_lineage_list[:depth])
     # For debugging
-    rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
-    if clean_lineage_string(lct) == confident_assignment:
-        print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
-    else:
-        print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
+    # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+    # if clean_lineage_string(lct) == confident_assignment:
+    #     print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
+    # else:
+    #     print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
 
     return confident_assignment
 
@@ -3928,18 +3928,19 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
             else:
                 tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
                 distal_length = float(tree_sap.get_jplace_element("distal_length"))
+                pendant_length = float(tree_sap.get_jplace_element("pendant_length"))
                 # Find the length of the edge this sequence was placed onto
-                edge_length = find_edge_length(tree_sap.tree, tree_sap.inode)
+                # edge_length = find_edge_length(tree_sap.tree, tree_sap.inode)
                 # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
-                node_dist = edge_length - distal_length
+                node_dist = distal_length + pendant_length
                 leaf_children = tree_sap.node_map[int(tree_sap.inode)]
                 if len(leaf_children) > 1:
                     # We need to find the LCA in the Tree instance to find the distances to tips for ete3
                     lca_node = tree.get_common_ancestor(leaf_children)
                     tip_distances = parent_to_tip_distances(lca_node, leaf_children)
-                    tree_sap.avg_evo_dist = float(sum(tip_distances)) / len(tip_distances) + node_dist
+                    tree_sap.avg_evo_dist = round(float(sum(tip_distances)) / len(tip_distances) + node_dist, 4)
                 else:
-                    tree_sap.avg_evo_dist = node_dist
+                    tree_sap.avg_evo_dist = round(node_dist, 4)
                 # Based on the calculated distance from the leaves, what rank is most appropriate?
                 recommended_rank = rank_recommender(tree_sap.avg_evo_dist, taxonomic_rank_intervals)
 

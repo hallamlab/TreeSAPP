@@ -15,7 +15,7 @@ import numpy as np
 __author__ = 'Connor Morgan-Lang'
 
 
-def confidence_interval(data, confidence=0.90):
+def confidence_interval(data, confidence=0.80):
     a = 1.0*np.array(data)
     n = len(a)
     m, se = np.mean(a), stats.sem(a)

@@ -1065,13 +1065,13 @@ def main():
                                 "-o", treesapp_output_dir,
                                 "-m", args.molecule,
                                 "-T", str(4),
-                                "--filter_align",
-                                "--min_likelihood", str(0.1),
-                                "--placement_parser", "lca",
                                 "--min_seq_length", min_seq_length,
                                 "--verbose",
+                                "--filter_align",
                                 "--overwrite",
                                 "--delete"]
+                                # "--min_likelihood", str(0.1),
+                                # "--placement_parser", "lca",
         sys.stdout.write("Command used:\n" + ' '.join(classify_command) + "\n")
         launch_write_command(classify_command, False)
         classified = True
