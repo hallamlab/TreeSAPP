@@ -5,7 +5,6 @@ import re
 from ete3 import Tree
 from file_parsers import tax_ids_file_to_leaves
 from utilities import clean_lineage_string
-from numpy import median
 
 from scipy import stats
 import scipy as sp
@@ -100,11 +99,14 @@ def prune_branches(tree: Tree, leaf_taxa_map: dict, rank="Genus"):
     return pruned_nodes
 
 
-def parent_to_tip_distances(parent: Tree, children: Tree):
+def parent_to_tip_distances(parent: Tree, children: Tree, estimate=False):
     """
-
-    :param parent:
-    :param children:
+    Function utilizing ete3's tree object for calculating distances between a reference node (parent)
+     and query nodes (children).
+    The `estimate` flag will cause the parent's edge length to be included in the distance calculation.
+    :param parent: A reference node Tree instance
+    :param children: A list of query nodes, also Tree instances
+    :param estimate: Boolean indicating whether these distances are to be used for estimating the edge length ranges
     :return: list() of all branch distances between the parent node and the tips
     """
     branch_distances = list()
@@ -118,6 +120,8 @@ def parent_to_tip_distances(parent: Tree, children: Tree):
             distal_length = parent.get_distance(str(child_node))
         else:
             raise AssertionError("Cannot handle type '" + type(child_node) + "' for child.")
+        if estimate:
+            distal_length += parent.dist
         branch_distances.append(distal_length)
     return branch_distances
 
@@ -144,9 +148,9 @@ def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
                 lca_nodes[depth].append(lca)
                 if depth+1 in lca_nodes:
                     if lca not in lca_nodes[depth+1]:
-                        taxonomic_rank_distances[rank] += parent_to_tip_distances(lca, clade)
+                        taxonomic_rank_distances[rank] += parent_to_tip_distances(lca, clade, True)
                 else:
-                    taxonomic_rank_distances[rank] += parent_to_tip_distances(lca, clade)
+                    taxonomic_rank_distances[rank] += parent_to_tip_distances(lca, clade, True)
         if len(taxonomic_rank_distances[rank]) >= 5:
             min_dist, max_dist = confidence_interval(taxonomic_rank_distances[rank])
             taxonomic_rank_intervals[rank] = (round(min_dist, 4), round(max_dist, 4))

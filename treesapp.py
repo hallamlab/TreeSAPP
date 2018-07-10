@@ -2234,7 +2234,7 @@ def filter_multiple_alignments(args, concatenated_mfa_files, tool="bmge"):
     # TODO: Parallelize with multiprocessing
     # TODO: Incorporate TrimAl as another option, rather than having a separate function
     if args.molecule == "prot":
-        bmge_settings = ["-t", "AA", "-m", "BLOSUM90"]
+        bmge_settings = ["-t", "AA", "-m", "BLOSUM62"]
     else:
         bmge_settings = ["-t", "DNA"]
     sys.stdout.write("Running BMGE with settings '" + ' '.join(bmge_settings) + "'... ")
@@ -3850,7 +3850,7 @@ def lowest_confident_taxonomy(lct, depth):
     confident_assignment = "; ".join(purified_lineage_list[:depth])
     # For debugging
     rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
-    if depth > len(purified_lineage_list):
+    if clean_lineage_string(lct) == confident_assignment:
         print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
     else:
         print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
@@ -3912,6 +3912,7 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
         # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
         taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
+        print(taxonomic_rank_intervals)
 
         for tree_sap in tree_saps[denominator]:
             if tree_sap.name not in unclassified_counts.keys():
