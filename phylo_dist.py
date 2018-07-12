@@ -4,7 +4,7 @@ import sys
 import re
 from ete3 import Tree
 from file_parsers import tax_ids_file_to_leaves
-from utilities import clean_lineage_string
+from utilities import clean_lineage_string, median
 
 from scipy import stats
 import scipy as sp
@@ -15,7 +15,7 @@ import numpy as np
 __author__ = 'Connor Morgan-Lang'
 
 
-def confidence_interval(data, confidence=0.80):
+def confidence_interval(data, confidence=0.95):
     a = 1.0*np.array(data)
     n = len(a)
     m, se = np.mean(a), stats.sem(a)
@@ -140,6 +140,7 @@ def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
         monophyletic_clades = prune_branches(tree, leaf_taxa_map, rank)
         for lineage in monophyletic_clades:
             for para_group in monophyletic_clades[lineage]:
+                edge_lengths = []
                 clade = monophyletic_clades[lineage][para_group]
                 if len(clade) == 1:
                     # Unable to calculate distance with a single leaf
@@ -147,16 +148,51 @@ def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
                 lca = clade[0].get_common_ancestor(clade[1:])
                 lca_nodes[depth].append(lca)
                 if depth+1 in lca_nodes:
+                    # Ensure this parent node wasn't already used to estimate the previous rank's bounds
                     if lca not in lca_nodes[depth+1]:
-                        taxonomic_rank_distances[rank] += parent_to_tip_distances(lca, clade, True)
+                        edge_lengths = parent_to_tip_distances(lca, clade, True)
                 else:
-                    taxonomic_rank_distances[rank] += parent_to_tip_distances(lca, clade, True)
+                    edge_lengths += parent_to_tip_distances(lca, clade, True)
+                taxonomic_rank_distances[rank] += edge_lengths
         if len(taxonomic_rank_distances[rank]) >= 5:
             min_dist, max_dist = confidence_interval(taxonomic_rank_distances[rank])
             taxonomic_rank_intervals[rank] = (round(min_dist, 4), round(max_dist, 4))
         else:
             taxonomic_rank_intervals[rank] = ()
     return taxonomic_rank_intervals
+
+
+def validate_rank_intervals(taxonomic_rank_intervals):
+    """
+    Placeholder, for now.
+        This idea has been abandoned but a similar function will be required soon.
+    :param taxonomic_rank_intervals:
+    :return:
+    """
+    validated_intervals = dict()
+    ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
+    ci_ranges = [max_ci-min_ci for min_ci, max_ci in taxonomic_rank_intervals.values()]
+    ci_maxes = [max_ci for min_ci, max_ci in taxonomic_rank_intervals.values()]
+    p_min = p_max = 1
+    for depth in sorted(ranks):
+        rank = ranks[depth]
+        if rank not in taxonomic_rank_intervals:
+            if depth == 1:
+                min_ci = max(ci_maxes)
+                max_ci = min_ci + median(ci_ranges)
+            else:
+                max_ci = p_min
+                min_ci = max_ci - median(ci_ranges)
+        else:
+            min_ci, max_ci = taxonomic_rank_intervals[rank]
+            # Fix the ranges with CIs that exceed the previous rank's CIs
+            if max_ci > p_min:
+                max_ci = p_min
+                min_ci = max_ci - median(ci_ranges)
+        p_min, p_max = min_ci, max_ci
+        validated_intervals[rank] = (min_ci, max_ci)
+        # Fill in those that are missing; estimate the length corresponding to a rank's range
+    return validated_intervals
 
 
 def main(args: list):

@@ -973,7 +973,7 @@ def main():
     taxonomic_filter_stats["Unique_taxa"] = 0
 
     if args.graftm:
-        gpkg_re_match = re.match("[0-9.]+.*\.(\w+)\.gpkg", os.path.basename(args.graftm))
+        gpkg_re_match = re.match(".*\.(\w+)\.gpkg", os.path.basename(args.graftm))
         marker = gpkg_re_match.group(1)
         # try:
         #     marker = gpkg_re_match.group(1)
@@ -1070,8 +1070,6 @@ def main():
                                 "--filter_align",
                                 "--overwrite",
                                 "--delete"]
-                                # "--min_likelihood", str(0.1),
-                                # "--placement_parser", "lca",
         sys.stdout.write("Command used:\n" + ' '.join(classify_command) + "\n")
         launch_write_command(classify_command, False)
         classified = True

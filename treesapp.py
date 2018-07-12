@@ -3912,7 +3912,8 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
         # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
         taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
-        print(taxonomic_rank_intervals)
+        # For debugging:
+        # print(taxonomic_rank_intervals)
 
         for tree_sap in tree_saps[denominator]:
             if tree_sap.name not in unclassified_counts.keys():
