@@ -28,7 +28,7 @@ try:
     from time import gmtime, strftime
 
     from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string,\
-        reformat_string, available_cpu_count
+        reformat_string, available_cpu_count, write_phy_file, reformat_fasta_to_phy
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, ReferenceSequence
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
@@ -60,11 +60,6 @@ def get_options():
                         help='output directory [DEFAULT = ./output/]')
     parser.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
                         help="Sample composition being either a single organism or a metagenome.")
-    parser.add_argument('-b', '--bootstraps', default=0, type=int,
-                        help='the number of Bootstrap replicates [DEFAULT = 0]')
-    # TODO: remove this option and only use Maximum Likelihood (-f v) for RAxML
-    # parser.add_argument('-f', '--phylogeny', default='v', choices=['v', 'p'],
-    #                     help='RAxML algorithm (v = Maximum Likelihood [DEFAULT]; p = Maximum Parsimony)')
     parser.add_argument("--filter_align", default=False, action="store_true",
                         help="Flag to turn on position masking of the multiple sequence alignmnet [DEFAULT = False]")
     parser.add_argument('-g', '--min_seq_length', default=50, type=int,
@@ -1958,26 +1953,7 @@ def create_ref_phy_files(args, single_query_fasta_files, marker_build_dict, ref_
             dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
         phy_dict = reformat_fasta_to_phy(dict_for_phy)
 
-        # PaPaRa is EXTREMELY particular about the input of its Phylip file. Don't mess.
-        with open(ref_alignment_phy, 'w') as phy_output:
-            phy_string = ' ' + str(num_ref_seqs) + ' ' + str(ref_align_len) + '\n'
-            for count in sorted(phy_dict.keys(), key=int):
-                for seq_name in sorted(phy_dict[count].keys()):
-                    sequence_part = re.sub('X', '-', phy_dict[count][seq_name])
-                    if count == 0:
-                        phy_string += str(seq_name)
-                        length = len(str(seq_name))
-                        c = length
-                        while c < 11:
-                            phy_string += ' '
-                            c += 1
-                    else:
-                        phy_string += 11*' '
-                    phy_string += ' '.join(re.findall(r'.{1,10}', sequence_part)) + '\n'
-                phy_string += "\n"
-
-            phy_output.write(phy_string)
-
+        write_phy_file(ref_alignment_phy, phy_dict, (num_ref_seqs, ref_align_len))
     return
 
 
@@ -2372,18 +2348,6 @@ def evaluate_trimming_performace(mfa_files, alignment_length_dict, suffix, file_
     return
 
 
-def reformat_fasta_to_phy(fasta_dict):
-    phy_dict = Autovivify()
-    for seq_name in fasta_dict:
-        sequence = fasta_dict[seq_name]
-        sub_sequences = re.findall(r'.{1,50}', sequence)
-        count = 0
-        for sub_sequence in sub_sequences:
-            phy_dict[count][int(seq_name)] = sub_sequence
-            count += 1
-    return phy_dict
-
-
 def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
     """
     Produces phy files from the provided list of alignment files
@@ -2502,7 +2466,6 @@ def start_raxml(args, phy_files, marker_build_dict):
     raxml_calls = 0
 
     # Maximum-likelihood sequence placement analyses
-    bootstrap_replicates = args.bootstraps
     denominator_reference_tree_dict = dict()
     mltree_resources = args.treesapp + os.sep + 'data' + os.sep
     if os.path.isabs(args.output_dir_var):
@@ -2547,8 +2510,6 @@ def start_raxml(args, phy_files, marker_build_dict):
                 raise AssertionError("No best AA model could be detected for the ML step!")
             # Set up the command to run RAxML
             raxml_command = [args.executables["raxmlHPC"], '-m', ref_marker.model]
-            if bootstrap_replicates > 1:
-                raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
             if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
                               "_RAxML_binaryModelParameters.PARAMS"):
                 raxml_command += ["-R", mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
