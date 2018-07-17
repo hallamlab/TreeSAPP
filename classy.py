@@ -7,6 +7,7 @@ import re
 import random
 import copy
 import subprocess
+import logging
 from multiprocessing import Process, JoinableQueue
 from json import loads, dumps
 
@@ -935,3 +936,65 @@ class Cluster:
         self.representative = rep_name
         self.members = list()
         self.lca = ''
+
+
+class MyFormatter(logging.Formatter):
+
+    error_fmt = "%(levelname)s - %(module)s, line %(lineno)d:\n%(message)s"
+    warning_fmt = "%(levelname)s:\n%(message)s"
+    debug_fmt = "%(asctime)s\n%(message)s"
+    info_fmt = "%(message)s"
+
+    def __init__(self):
+        super().__init__(fmt="%(levelname)s: %(message)s",
+                         datefmt="%d/%m %H:%M:%S")
+
+    def format(self, record):
+
+        # Save the original format configured by the user
+        # when the logger formatter was instantiated
+        format_orig = self._style._fmt
+
+        # Replace the original format with one customized by logging level
+        if record.levelno == logging.DEBUG:
+            self._style._fmt = MyFormatter.debug_fmt
+
+        elif record.levelno == logging.INFO:
+            self._style._fmt = MyFormatter.info_fmt
+
+        elif record.levelno == logging.ERROR:
+            self._style._fmt = MyFormatter.error_fmt
+
+        elif record.levelno == logging.WARNING:
+            self._style._fmt = MyFormatter.warning_fmt
+
+        # Call the original formatter class to do the grunt work
+        result = logging.Formatter.format(self, record)
+
+        # Restore the original format configured by the user
+        self._style._fmt = format_orig
+
+        return result
+
+
+def prep_logging(log_file_name, verbosity):
+    logging.basicConfig(level=logging.DEBUG,
+                        filename=log_file_name,
+                        filemode='w',
+                        datefmt="%d/%m %H:%M:%S",
+                        format="%(asctime)s %(levelname)s:\n%(message)s")
+    if verbosity:
+        logging_level = logging.DEBUG
+    else:
+        logging_level = logging.INFO
+
+    # Set the console handler normally writing to stdout/stderr
+    ch = logging.StreamHandler()
+    ch.setLevel(logging_level)
+    ch.terminator = ''
+
+    formatter = MyFormatter()
+    ch.setFormatter(formatter)
+    logging.getLogger('').addHandler(ch)
+
+    return
