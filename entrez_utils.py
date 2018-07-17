@@ -4,6 +4,7 @@ import sys
 import time
 import re
 import Bio
+import logging
 from Bio import Entrez
 from urllib import error
 
@@ -143,20 +144,22 @@ def check_lineage(lineage, organism_name):
         return lineage
 
 
-def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
+def get_multiple_lineages(search_term_list, molecule_type):
     """
 
     :param search_term_list:
     :param molecule_type: "dna", "rrna", "prot", or "tax - parsed from command line arguments
-    :param log_file_handler: A file handler object for the log
     :return: A dictionary mapping accession IDs (keys) to organisms and lineages (values)
     """
     accession_lineage_map = dict()
     all_accessions = set()
     if not search_term_list:
+        logging.error("search_term for Entrez query is empty")
         raise AssertionError("ERROR: search_term for Entrez query is empty!\n")
     if float(Bio.__version__) < 1.68:
         # This is required due to a bug in earlier versions returning a URLError
+        logging.error("version of biopython needs to be >=1.68! " +
+                      str(Bio.__version__) + " is currently installed. Exiting now...")
         raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
                              str(Bio.__version__) + " is currently installed. Exiting now...")
 
@@ -180,37 +183,39 @@ def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
 
     # Must be cautious with this first query since some accessions are not in the Entrez database anymore
     # and return with `urllib.error.HTTPError: HTTP Error 502: Bad Gateway`
-    master_records = []
+    master_records = list()
+    durations = list()
     chunk_size = 60
-    log_file_handler.write("\nEntrez.efetch query time for accessions (minutes:seconds):\n")
+
     for i in range(0, len(search_term_list), chunk_size):
         start_time = time.time()
         chunk = search_term_list[i:i+chunk_size]
         try:
             handle = Entrez.efetch(db=database, id=','.join([str(sid) for sid in chunk]), retmode="xml")
-            # for sid in chunk:
-            #     handle = Entrez.efetch(db=database, id=sid, retmode="xml")
             master_records += Entrez.read(handle)
         # Broad exception clause but THE NUMBER OF POSSIBLE ERRORS IS TOO DAMN HIGH!
         except:
-            log_file_handler.write("WARNING: Unable to parse XML data from Entrez.efetch! "
-                                   "It is either potentially corrupted or cannot be found in the database.\n")
-            log_file_handler.write("Offending accessions from this batch:\n")
+            bad_sids = list()
             for sid in chunk:
                 try:
                     handle = Entrez.efetch(db=database, id=sid, retmode="xml")
                     record = Entrez.read(handle)
                     master_records.append(record[0])
                 except:
-                    log_file_handler.write("\t" + str(sid) + "\n")
+                    bad_sids.append("\t" + str(sid))
+
+            logging.warning("Unable to parse XML data from Entrez.efetch! "
+                            "It is either potentially corrupted or cannot be found in the database.\n"
+                            "Offending accessions from this batch:\n" + "\n".join(bad_sids))
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
-        log_file_handler.write("\t" + str(i) + ' - ' + str(i+chunk_size) + "\t" +
-                               ':'.join([str(minutes), str(round(seconds, 2))]) + "\n")
+        durations.append(str(i) + ' - ' + str(i+chunk_size) + "\t" + ':'.join([str(minutes), str(round(seconds, 2))]))
 
     sys.stdout.write("done.\n")
-    log_file_handler.write("\n")
+
+    logging.info("Entrez.efetch query time for accessions (minutes:seconds):\n\t" + "\n\t".join(durations) + "\n")
+
     sys.stdout.write("Retrieving lineage information for each sequence from Entrez... ")
     sys.stdout.flush()
 
@@ -237,8 +242,8 @@ def get_multiple_lineages(search_term_list, molecule_type, log_file_handler):
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    log_file_handler.write("Entrez.efetch query time for lineages (minutes:seconds): ")
-    log_file_handler.write(':'.join([str(minutes), str(round(seconds, 2))]) + "\n\n")
+    logging.debug("Entrez.efetch query time for lineages (minutes:seconds): " +
+                  ':'.join([str(minutes), str(round(seconds, 2))]) + "\n\n")
 
     return accession_lineage_map, all_accessions
 
@@ -381,26 +386,26 @@ def get_lineage_robust(reference_sequence_list, molecule):
     return accession_lineage_map
 
 
-def verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects,
-                               taxa_searched, molecule, log_file_handle):
+def verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects, taxa_searched, molecule):
     """
     Function used for parsing records returned by Bio.Entrez.efetch queries and identifying inconsistencies
     between the search terms and the results
     :param accession_lineage_map: A dictionary mapping accession.versionID tuples to taxonomic lineages
+    :param all_accessions:
+    :param fasta_record_objects:
     :param taxa_searched: An integer for tracking number of accessions queried (currently number of lineages provided)
     :param molecule: Type of molecule (prot, dna, rrna) used for choosing the Entrez database to query
-    :param log_file_handle: A handle for the log file for recording warnings and stats
     :return:
     """
     failed_accession_queries = list()
     if (len(accession_lineage_map.keys()) + taxa_searched) != len(fasta_record_objects):
         # Records were not returned for all sequences. Time to figure out which ones!
-        log_file_handle.write("WARNING: Entrez did not return a record for every accession queried.\n")
-        log_file_handle.write("Don't worry, though. We'll figure out which ones are missing.\n")
-    log_file_handle.write("Entrez.efetch query stats:\n")
-    log_file_handle.write("\tDownloaded\t" + str(len(accession_lineage_map.keys())) + "\n")
-    log_file_handle.write("\tProvided\t" + str(taxa_searched) + "\n")
-    log_file_handle.write("\tTotal\t\t" + str(len(fasta_record_objects)) + "\n\n")
+        logging.warning("Entrez did not return a record for every accession queried.\n "
+                        "Don't worry, though. We'll figure out which ones are missing.\n")
+    logging.debug("Entrez.efetch query stats:\n"
+                  "\tDownloaded\t" + str(len(accession_lineage_map.keys())) + "\n" +
+                  "\tProvided\t" + str(taxa_searched) + "\n" +
+                  "\tTotal\t\t" + str(len(fasta_record_objects)) + "\n\n")
 
     # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
     unambiguous_accession_lineage_map = dict()
@@ -425,18 +430,18 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
     # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
     # Failing this, lineages will be set to "Unclassified"
     if len(failed_accession_queries) > 0:
-        log_file_handle.write("Missed records:\n")
+        misses_strings = list()
         accession_lineage_map = get_lineage_robust(failed_accession_queries, molecule)
         for reference_sequence in failed_accession_queries:
             lineage = accession_lineage_map[reference_sequence.accession]
             if lineage == "":
-                log_file_handle.write("WARNING: Unable to determine the taxonomic lineage for " +
-                                      reference_sequence.accession + "\n")
+                logging.warning("WARNING: Unable to determine the taxonomic lineage for " +
+                                reference_sequence.accession + "\n")
                 lineage = "Unclassified"
             taxa_searched += 1
             unambiguous_accession_lineage_map[reference_sequence.accession] = lineage
-            log_file_handle.write("Accession=" + reference_sequence.accession + "\t")
-            log_file_handle.write("Lineage=" + lineage + "\n")
+            misses_strings.append("Accession=" + reference_sequence.accession + "\t" + "Lineage=" + lineage)
+        logging.debug("Missed records:\n" + "\n".join(misses_strings))
 
     if taxa_searched < len(fasta_record_objects.keys()):
         sys.stderr.write("ERROR: Not all sequences (" + str(taxa_searched) + '/'
@@ -492,15 +497,15 @@ def read_accession_taxa_map(mapping_file):
     return accession_lineage_map
 
 
-def build_entrez_queries(fasta_record_objects: dict, log_handle):
+def build_entrez_queries(fasta_record_objects: dict):
     """
     Function to create data collections to fulfill entrez query searches
     :param fasta_record_objects: A list of ReferenceSequence objects - lineage information to be filled
-    :param log_handle: The file handler for writing runtime errors and warnings
     :return: List containing accessions to query Entrez
     """
     num_lineages_provided = 0
     entrez_query_list = list()
+    unavailable = list()
     for num_id in fasta_record_objects:
         ref_seq = fasta_record_objects[num_id]
         # Only need to download the lineage information for those sequences that don't have it encoded in their header
@@ -510,6 +515,8 @@ def build_entrez_queries(fasta_record_objects: dict, log_handle):
             if ref_seq.accession:
                 entrez_query_list.append(ref_seq.accession)
             else:
-                log_handle.write("WARNING: Neither accession or lineage available for " + ref_seq.description + "\n")
+                unavailable.append(ref_seq.description)
+    if len(unavailable) > 0:
+        logging.warning("Neither accession or lineage available for:\n\t" + "\n\t".join(unavailable))
     return entrez_query_list, num_lineages_provided
 
