@@ -37,17 +37,18 @@ def get_options():
     return args
 
 
-def train_placement_distances(fasta_dict, ref_fasta_dict, ref_tree, ref_taxa_map,
-                              accession_lineage_map, output_dir, molecule):
+def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_file: str, tax_ids_file: str,
+                              accession_lineage_map: dict, output_dir: str, molecule: str):
     """
-
-    :param fasta_dict:
-    :param ref_fasta_dict:
-    :param ref_tree:
-    :param ref_taxa_map:
-    :param accession_lineage_map:
-    :param output_dir:
-    :param molecule:
+    Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
+    yielding an estimate of placement distances corresponding to taxonomic ranks.
+    :param fasta_dict: A dictionary with headers as keys and sequences as values for all potential reference sequences
+    :param ref_fasta_dict: A dictionary with headers as keys and sequences as values containing only reference sequences
+    :param ref_tree_file: A Newick-formatted phylogenetic tree with branch length distances (no internal nodes)
+    :param tax_ids_file: A tabular file created by create_treesapp_ref_data.py
+    :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
+    :param output_dir: Path to directory for writing intermediate files
+    :param molecule: Molecule type [prot | dna | rrna]
     :return:
     """
 
@@ -63,6 +64,11 @@ def train_placement_distances(fasta_dict, ref_fasta_dict, ref_tree, ref_taxa_map
     temp_query_fasta_file = "queries.fasta"
     query_multiple_alignment = "papara_queries_aligned.phy"
 
+    # Read the tree as ete3 Tree instance
+    ref_tree = Tree(ref_tree_file)
+    # Read the taxonomic map; the final sequences used to build the tree are inferred from this
+    ref_taxa_map = tax_ids_file_to_leaves(tax_ids_file)
+
     bmge_file = "sub_binaries" + os.sep + "BMGE.jar"
     if not os.path.exists(bmge_file):
         raise FileNotFoundError("Cannot find " + bmge_file)
@@ -73,6 +79,8 @@ def train_placement_distances(fasta_dict, ref_fasta_dict, ref_tree, ref_taxa_map
         else:
             leaf_taxa_map[ref_seq.number] = ref_seq.lineage
 
+    # Remove duplicate sequences to prevent biasing the distance estimates
+    fasta_dict = deduplicate_fasta_sequences(fasta_dict)
     for seq_name in fasta_dict.keys():
         fasta_dict[seq_name.split(" ")[0]] = fasta_dict.pop(seq_name)
 
@@ -181,17 +189,10 @@ def main():
     prep_logging("placement_trainer_log.txt", False)
     # Read in the original fasta file
     fasta_dict = read_fasta_to_dict(args.fasta)
-    # Remove duplicate sequences to prevent biasing the distance estimates
-    fasta_dict = deduplicate_fasta_sequences(fasta_dict)
     ref_fasta_dict = read_fasta_to_dict(args.ref_seqs)
-
-    # Read the taxonomic map; the final sequences used to build the tree are inferred from this
-    ref_taxa_map = tax_ids_file_to_leaves(args.taxa_map)
     accession_lineage_map = read_accession_taxa_map(args.lineages)
-    # Read the tree as ete3 Tree instance
-    ref_tree = Tree(args.tree)
-    # Determine all sequences in the original FASTA file that were not used as representatives
-    train_placement_distances(fasta_dict, ref_fasta_dict, ref_tree, ref_taxa_map, accession_lineage_map, ".", "prot")
+
+    train_placement_distances(fasta_dict, ref_fasta_dict, args.tree, args.taxa_map, accession_lineage_map, ".", "prot")
 
 
 if __name__ == "__main__":

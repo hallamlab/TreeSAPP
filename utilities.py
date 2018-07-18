@@ -4,7 +4,7 @@ import os
 import re
 import sys
 import subprocess
-
+import logging
 from external_command_interface import launch_write_command
 
 
@@ -144,7 +144,7 @@ def available_cpu_count():
     except OSError:
         pass
 
-    raise Exception('Can not determine number of CPUs on this system')
+    logging.error('Can not determine number of CPUs on this system')
 
 
 def find_executables(args):
@@ -191,8 +191,8 @@ def find_executables(args):
         elif which(dep):
             exec_paths[dep] = which(dep)
         else:
-            sys.stderr.write("Could not find a valid executable for " + dep + ". ")
-            sys.exit("Bailing out.")
+            logging.error("Could not find a valid executable for " + dep + ". ")
+            sys.exit(13)
 
     args.executables = exec_paths
     return args
@@ -260,13 +260,13 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
     else:
-        sys.stderr.write("Unable to handle header: " + header + "\n")
-        sys.exit()
+        logging.error("Unable to handle header: " + header + "\n")
+        sys.exit(13)
 
     if not accession and not organism:
-        sys.stderr.write("ERROR: Insufficient information was loaded for header:\n" + header + "\n")
-        sys.stderr.write("regex_match: " + header_db + '\n')
-        sys.exit(33)
+        logging.error("Insufficient information was loaded for header:\n" +
+                      header + "\n" + "regex_match: " + header_db + '\n')
+        sys.exit(13)
 
     return accession, organism, locus, description, lineage
 
@@ -314,14 +314,14 @@ def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
     blastdb_out = prefix + ".fa"
     if multiple:
         if blastdb_out == fasta:
-            sys.stderr.write("ERROR: prefix.fa is the same as " + fasta + " and would be overwritten!\n")
-            sys.exit(11)
+            logging.error("prefix.fa is the same as " + fasta + " and would be overwritten!\n")
+            sys.exit(13)
         remove_dashes_from_msa(fasta, blastdb_out)
         blastdb_in = blastdb_out
     else:
         blastdb_in = fasta
 
-    sys.stdout.write("Making the BLAST database for " + blastdb_in + "... ")
+    logging.info("Making the BLAST database for " + blastdb_in + "... ")
 
     # Format the `makeblastdb` command
     makeblastdb_command = [args.executables["makeblastdb"]]
@@ -333,8 +333,7 @@ def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
     # Launch the command
     stdout, makeblastdb_pro_returncode = launch_write_command(makeblastdb_command)
 
-    sys.stdout.write("done\n")
-    sys.stdout.flush()
+    logging.info("done\n")
 
     return stdout, blastdb_out
 
@@ -416,7 +415,70 @@ def annotate_internal_nodes(args, internal_node_map, clusters):
             if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
                 annotated_clade_members[annotation].add(i_node)
 
-    if args.verbose:
-        sys.stdout.write("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
+    logging.debug("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
 
     return annotated_clade_members, leaves_in_clusters
+
+
+def reformat_fasta_to_phy(fasta_dict):
+    phy_dict = dict()
+    for seq_name in fasta_dict:
+        sequence = fasta_dict[seq_name]
+        sub_sequences = re.findall(r'.{1,50}', sequence)
+        count = 0
+        for sub_sequence in sub_sequences:
+            if count not in phy_dict:
+                phy_dict[count] = dict()
+            phy_dict[count][int(seq_name)] = sub_sequence
+            count += 1
+    return phy_dict
+
+
+def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
+    """
+    Writes a Phylip-formatted alignment file
+    PaPaRa is EXTREMELY particular about the input of its Phylip file. Don't mess.
+    :param phy_output_file: File path to write the Phylip file
+    :param phy_dict: Dictionary of sequences to write
+    :param alignment_dims: Tuple containing (num_seqs, alignment_len)
+    :return:
+    """
+    if not alignment_dims:
+        seq_chunks = [len(aligned_seq) for aligned_seq in phy_dict.values()]
+        if min(seq_chunks) != max(seq_chunks):
+            logging.error("Inconsistent number of sequences in Phylip dictionary keys.")
+        num_seqs = seq_chunks[0]
+        aligned_seqs = dict()
+        for seq_chunk in phy_dict.keys():
+            for seq_name in phy_dict[seq_chunk].keys():
+                if seq_name not in aligned_seqs:
+                    aligned_seqs[seq_name] = ""
+                aligned_seqs[seq_name] += phy_dict[seq_chunk][seq_name]
+        aligned_seq_lengths = [len(aligned_seqs[aligned_seq]) for aligned_seq in aligned_seqs.keys()]
+        if min(aligned_seq_lengths) != max(aligned_seq_lengths):
+            logging.error("Lengths of aligned sequences are heterogeneous.")
+        alignment_len = aligned_seq_lengths[0]
+        aligned_seqs.clear()
+        seq_chunks.clear()
+    else:
+        num_seqs, alignment_len = alignment_dims
+
+    with open(phy_output_file, 'w') as phy_output:
+        phy_string = ' ' + str(num_seqs) + ' ' + str(alignment_len) + '\n'
+        for count in sorted(phy_dict.keys(), key=int):
+            for seq_name in sorted(phy_dict[count].keys()):
+                sequence_part = re.sub('X', '-', phy_dict[count][seq_name])
+                if count == 0:
+                    phy_string += str(seq_name)
+                    length = len(str(seq_name))
+                    c = length
+                    while c < 11:
+                        phy_string += ' '
+                        c += 1
+                else:
+                    phy_string += 11*' '
+                phy_string += ' '.join(re.findall(r'.{1,10}', sequence_part)) + '\n'
+            phy_string += "\n"
+
+        phy_output.write(phy_string)
+    return
