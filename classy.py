@@ -108,7 +108,7 @@ class CreateFuncTreeUtility:
             acc += 1
 
         # Read the FASTA to get headers and sequences
-        centroids_fasta_dict = format_read_fasta(centroids_fasta, self.marker_molecule, args)
+        centroids_fasta_dict = format_read_fasta(centroids_fasta, self.marker_molecule, args.output)
 
         # Create the final contig dictionary of new internal TreeSAPP headers (keys) and sequences (values)
         additional = acc
@@ -311,10 +311,9 @@ class CreateFuncTreeUtility:
         stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
 
         if mafft_proc_returncode != 0:
-            sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["mafft"] +
-                             " did not complete successfully! Command used:\n" + ' '.join(
-                mafft_align_command) + "\n")
-            sys.exit()
+            logging.error("Multiple sequence alignment using " + args.executables["mafft"] +
+                          " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
+            sys.exit(17)
 
         if args.verbose:
             sys.stdout.write("done.\n")

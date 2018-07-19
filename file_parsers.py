@@ -20,12 +20,12 @@ def parse_ref_build_params(args):
         param_handler = open(ref_build_parameters, 'r')
     except IOError:
         logging.error("\tUnable to open " + ref_build_parameters + " for reading.\n")
-        sys.exit(3)
+        sys.exit(5)
 
     header_re = re.compile("code_name\tdenominator\taa_model\tcluster_identity\tlowest_confident_rank\tlast_updated$")
     if not header_re.match(param_handler.readline().strip()):
         logging.error("Header of '" + ref_build_parameters + "' is unexpected!")
-        sys.exit(3)
+        sys.exit(5)
 
     logging.info("Reading build parameters of reference markers.\n")
     skipped_lines = []
@@ -71,7 +71,7 @@ def parse_cog_list(args, marker_build_dict):
         if not re.match(r'\w+\t[A-Z][0-9]{4}\t\w+', marker_input):
             message = "Entry in cog_lit.tsv is incorrectly formatted! Violating line:\n" + str(marker_input)
             logging.error(message)
-            sys.exit(3)
+            sys.exit(5)
 
         marker, denominator, description = marker_input.split("\t")
         if args.targets != ["ALL"] and denominator not in args.targets:
@@ -89,7 +89,7 @@ def parse_cog_list(args, marker_build_dict):
 
     if args.reftree not in ['i', 'g', 'p'] and args.reftree not in marker_build_dict.keys():
         logging.error(args.reftree + " not found in " + cog_list_file + "! Please use a valid reference tree ID!\n")
-        sys.exit(3)
+        sys.exit(5)
     return marker_build_dict
 
 
@@ -184,10 +184,10 @@ def parse_domain_tables(args, hmm_domtbl_files):
 
     if seqs_identified == 0 and dropped == 0:
         logging.warning("No alignments found! TreeSAPP is exiting now.\n")
-        sys.exit(11)
+        sys.exit(5)
     if seqs_identified == 0 and dropped > 0:
         logging.warning("No alignments met the quality cut-offs! TreeSAPP is exiting now.\n")
-        sys.exit(13)
+        sys.exit(5)
 
     alignment_stat_string = "\tNumber of markers identified:\n"
     for marker in sorted(hmm_matches):
@@ -315,24 +315,25 @@ def tax_ids_file_to_leaves(tax_ids_file):
         else:
             cog_tax_ids = open(tax_ids_file, 'r')
     except IOError:
-        sys.exit('ERROR: Can\'t open ' + str(tax_ids_file) + '!\n')
+        logging.error("Unable to open " + tax_ids_file + "\n")
+        sys.exit(5)
 
     for line in cog_tax_ids:
         line = line.strip()
         try:
             fields = line.split("\t")
         except ValueError:
-            sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
-                             " generated " + str(len(line.split("\t"))) + " fields.")
-            sys.exit(9)
+            logging.error('ValueError: .split(\'\\t\') on ' + str(line) +
+                          " generated " + str(len(line.split("\t"))) + " fields.\n")
+            sys.exit(5)
         if len(fields) == 2:
             number, translation = fields
             lineage = ""
         elif len(fields) == 3:
             number, translation, lineage = fields
         else:
-            sys.stderr.write("ValueError: Unexpected number of fields in " + tax_ids_file +
-                             ".\nInvoked .split(\'\\t\') on line " + str(line))
+            logging.error("ValueError: Unexpected number of fields in " + tax_ids_file +
+                          ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
             raise ValueError
         leaf = TreeLeafReference(number, translation)
         if lineage:

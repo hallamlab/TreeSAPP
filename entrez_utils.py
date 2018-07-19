@@ -53,11 +53,11 @@ def query_entrez_taxonomy(search_term):
                 if re.search("cellular organisms", lineage):
                     break
         else:
-            sys.stderr.write("ERROR: Unable to handle record returned by Entrez.efetch!\n")
-            sys.stderr.write("Database = Taxonomy\n")
-            sys.stderr.write("term = " + search_term + "\n")
-            sys.stderr.write("record = " + str(record) + "\n")
-            raise IndexError
+            logging.error("Unable to handle record returned by Entrez.efetch!\n" +
+                          "Database = Taxonomy\n" +
+                          "term = " + search_term + "\n" +
+                          "record = " + str(record) + "\n")
+            sys.exit(9)
 
     return lineage
 
@@ -87,7 +87,7 @@ def parse_organism_from_entrez_xml(record):
                 # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
                 organism = re.sub('[)(\[\]]', '', organism)
         except IndexError:
-            sys.stderr.write("WARNING: 'GBSeq_organism' not found in Entrez record.\n")
+            logging.warning("'GBSeq_organism' not found in Entrez record.\n")
     else:
         pass
     return organism
@@ -103,10 +103,8 @@ def parse_lineage_from_record(record):
                 organism = re.sub('[)(\[\]]', '', organism)
                 lineage = query_entrez_taxonomy(organism)
         except IndexError:
-            sys.stderr.write("WARNING: 'GBSeq_organism' not found in Entrez record.\n")
-            for word in record['QueryTranslation']:
-                lineage = query_entrez_taxonomy(word)
-                print(lineage)
+            logging.warning("'GBSeq_organism' not found in Entrez record.\n" +
+                            "\n".join([query_entrez_taxonomy(word) for word in record['QueryTranslation']]))
     else:
         # Lineage is already set to "". Just return and move on to the next attempt
         pass
@@ -114,16 +112,15 @@ def parse_lineage_from_record(record):
 
 
 def prep_for_entrez_query():
-    sys.stdout.write("Preparing Bio.Entrez for NCBI queries... ")
-    sys.stdout.flush()
+    logging.info("Preparing Bio.Entrez for NCBI queries... ")
     Entrez.email = "c.morganlang@gmail.com"
     Entrez.tool = "treesapp"
     # Test the internet connection:
     try:
         Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
     except error.URLError:
-        raise AssertionError("ERROR: Unable to serve Entrez query. Are you connected to the internet?")
-    sys.stdout.write("done.\n")
+        logging.error("Unable to serve Entrez query. Are you connected to the internet?")
+    logging.info("done.\n")
     return
 
 
@@ -174,12 +171,11 @@ def get_multiple_lineages(search_term_list, molecule_type):
     elif molecule_type == "tax":
         database = "Taxonomy"
     else:
-        sys.stderr.write("Welp. We're not sure how but the molecule type is not recognized!\n")
-        sys.stderr.write("Please create an issue on the GitHub page.")
-        sys.exit(8)
+        logging.error("Welp. We're not sure how but the molecule type is not recognized!\n" +
+                      "Please create an issue on the GitHub page.")
+        sys.exit(9)
 
-    sys.stdout.write("Retrieving Entrez " + database + " records for each reference sequence... ")
-    sys.stdout.flush()
+    logging.info("Retrieving Entrez " + database + " records for each reference sequence... ")
 
     # Must be cautious with this first query since some accessions are not in the Entrez database anymore
     # and return with `urllib.error.HTTPError: HTTP Error 502: Bad Gateway`
@@ -212,12 +208,12 @@ def get_multiple_lineages(search_term_list, molecule_type):
         minutes, seconds = divmod(remainder, 60)
         durations.append(str(i) + ' - ' + str(i+chunk_size) + "\t" + ':'.join([str(minutes), str(round(seconds, 2))]))
 
-    sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
-    logging.info("Entrez.efetch query time for accessions (minutes:seconds):\n\t" + "\n\t".join(durations) + "\n")
+    logging.debug("Entrez.efetch query time for accessions (minutes:seconds):\n\t" +
+                  "\n\t".join(durations) + "\n")
 
-    sys.stdout.write("Retrieving lineage information for each sequence from Entrez... ")
-    sys.stdout.flush()
+    logging.info("Retrieving lineage information for each sequence from Entrez... ")
 
     start_time = time.time()
     unique_organisms = set()
@@ -237,13 +233,13 @@ def get_multiple_lineages(search_term_list, molecule_type):
         organism_name = accession_lineage_map[tuple_key]["organism"]
         accession_lineage_map[tuple_key]["lineage"] = organism_lineage_map[organism_name]
 
-    sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    logging.debug("Entrez.efetch query time for lineages (minutes:seconds): " +
-                  ':'.join([str(minutes), str(round(seconds, 2))]) + "\n\n")
+    logging.debug("Entrez.efetch query time for lineages (minutes:seconds):\n" +
+                  ':'.join([str(minutes), str(round(seconds, 2))]) + "\n")
 
     return accession_lineage_map, all_accessions
 
@@ -280,9 +276,9 @@ def get_lineage(search_term, molecule_type):
     elif molecule_type == "tax":
         database = "Taxonomy"
     else:
-        sys.stderr.write("Welp. We're not sure how but the molecule type is not recognized!\n")
-        sys.stderr.write("Please create an issue on the GitHub page.")
-        sys.exit(8)
+        logging.error("Welp. We're not sure how but the molecule type is not recognized!\n" +
+                      "Please create an issue on the GitHub page.")
+        sys.exit(9)
 
     # Find the lineage from the search_term ID
     lineage = ""
@@ -303,8 +299,6 @@ def get_lineage(search_term, molecule_type):
                             handle = None
                     x += 1
                 if handle is None:
-                    # sys.stderr.write("\nWARNING: Bad Entrez.efetch request and all back-up searches failed for '" +
-                    #                  str(search_term) + "'\n")
                     return lineage
         try:
             record = Entrez.read(handle)
@@ -326,11 +320,9 @@ def get_lineage(search_term, molecule_type):
             pass
     else:
         try:
-            # sys.stderr.write("WARNING: Searching taxonomy database for '" + search_term + "'\n")
             lineage = query_entrez_taxonomy(search_term)
         except UnboundLocalError:
-            sys.stderr.write("WARNING: Unable to find Entrez taxonomy using organism name:\n\t")
-            sys.stderr.write(search_term + "\n")
+            logging.warning("Unable to find Entrez taxonomy using organism name:\n\t" + search_term + "\n")
 
     return lineage
 
@@ -346,8 +338,8 @@ def get_lineage_robust(reference_sequence_list, molecule):
                 if reference_sequence.accession:
                     lineage = get_lineage(reference_sequence.accession, molecule)
                 else:
-                    sys.stderr.write("WARNING: no accession available for Entrez query:\n")
-                    reference_sequence.get_info()
+                    logging.warning("No accession available for Entrez query:\n" +
+                                    reference_sequence.get_info())
                 if type(lineage) is str and len(lineage) > 0:
                     # The query was successful
                     strikes = 3
@@ -374,8 +366,8 @@ def get_lineage_robust(reference_sequence_list, molecule):
                 lineage = get_lineage(lineage, "tax")
             strikes += 1
         if not lineage:
-            sys.stderr.write("\nWARNING: Unable to find lineage for sequence with following data:\n")
-            reference_sequence.get_info()
+            logging.warning("Unable to find lineage for sequence with following data:\n" +
+                            reference_sequence.get_info())
             lineage = ""
         # TODO: test this
         if reference_sequence.organism:
@@ -400,7 +392,7 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
     failed_accession_queries = list()
     if (len(accession_lineage_map.keys()) + taxa_searched) != len(fasta_record_objects):
         # Records were not returned for all sequences. Time to figure out which ones!
-        logging.warning("Entrez did not return a record for every accession queried.\n "
+        logging.warning("Entrez did not return a record for every accession queried.\n"
                         "Don't worry, though. We'll figure out which ones are missing.\n")
     logging.debug("Entrez.efetch query stats:\n"
                   "\tDownloaded\t" + str(len(accession_lineage_map.keys())) + "\n" +
@@ -424,8 +416,6 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
                             unambiguous_accession_lineage_map[reference_sequence.accession] = accession_lineage_map[tuple_key]["lineage"]
             else:
                 failed_accession_queries.append(reference_sequence)
-    # For debugging:
-    # print("Currently searched:", taxa_searched)
 
     # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
     # Failing this, lineages will be set to "Unclassified"
@@ -440,13 +430,13 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
                 lineage = "Unclassified"
             taxa_searched += 1
             unambiguous_accession_lineage_map[reference_sequence.accession] = lineage
-            misses_strings.append("Accession=" + reference_sequence.accession + "\t" + "Lineage=" + lineage)
-        logging.debug("Missed records:\n" + "\n".join(misses_strings))
+            misses_strings.append("\tAccession=" + reference_sequence.accession + ", " + "Lineage=" + lineage)
+        logging.debug("Recovered records:\n" + "\n".join(misses_strings) + "\n")
 
     if taxa_searched < len(fasta_record_objects.keys()):
-        sys.stderr.write("ERROR: Not all sequences (" + str(taxa_searched) + '/'
-                         + str(len(fasta_record_objects)) + ") were queried against the NCBI taxonomy database!\n")
-        sys.exit(22)
+        logging.error("Not all sequences (" + str(taxa_searched) + '/'
+                      + str(len(fasta_record_objects)) + ") were queried against the NCBI taxonomy database!\n")
+        sys.exit(9)
 
     return fasta_record_objects, unambiguous_accession_lineage_map
 
@@ -462,8 +452,8 @@ def write_accession_lineage_map(mapping_file, accession_lineage_map):
     try:
         map_file_handler = open(mapping_file, 'w')
     except IOError:
-        sys.stderr.write("ERROR: Unable to open " + mapping_file, " for writing!\n")
-        sys.exit()
+        logging.error("Unable to open " + mapping_file, " for writing!\n")
+        sys.exit(9)
 
     for accession in accession_lineage_map:
         map_file_handler.write(accession + "\t" + accession_lineage_map[accession] + "\n")
@@ -482,8 +472,8 @@ def read_accession_taxa_map(mapping_file):
     try:
         map_file_handler = open(mapping_file, 'r')
     except IOError:
-        sys.stderr.write("ERROR: Unable to open " + mapping_file, " for reading!\n")
-        sys.exit()
+        logging.error("Unable to open " + mapping_file, " for reading!\n")
+        sys.exit(9)
 
     accession_lineage_map = dict()
     for line in map_file_handler:
@@ -491,7 +481,8 @@ def read_accession_taxa_map(mapping_file):
         if accession not in accession_lineage_map:
             accession_lineage_map[accession] = lineage
         else:
-            raise AssertionError("ERROR: " + accession + " present in " + mapping_file + " multiple times!")
+            logging.error(accession + " present in " + mapping_file + " multiple times!")
+            sys.exit(9)
 
     map_file_handler.close()
     return accession_lineage_map

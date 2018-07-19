@@ -16,17 +16,17 @@ __author__ = 'Connor Morgan-Lang'
 
 
 def confidence_interval(data, confidence=0.95):
-    a = 1.0*np.array(data)
+    a = 1.0 * np.array(data)
     n = len(a)
     m, se = np.mean(a), stats.sem(a)
-    h = se * sp.stats.t._ppf((1+confidence)/2., n-1)
-    return m-h, m+h
+    h = se * sp.stats.t._ppf((1 + confidence) / 2., n - 1)
+    return round(float(m - h), 4), round(float(m + h), 4)
 
 
 def rank_recommender(phylogenetic_distance: float, taxonomic_rank_intervals: dict):
     ranks = ["Kingdom", "Phylum", "Class", "Order",
              "Family", "Genus", "Species", "Strain"]
-    depth = 1  # Start at Phylum
+    depth = 2  # Start at Class
     while depth < 7:
         rank = ranks[depth]
         if taxonomic_rank_intervals[rank]:
@@ -147,9 +147,9 @@ def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
                     continue
                 lca = clade[0].get_common_ancestor(clade[1:])
                 lca_nodes[depth].append(lca)
-                if depth+1 in lca_nodes:
+                if depth + 1 in lca_nodes:
                     # Ensure this parent node wasn't already used to estimate the previous rank's bounds
-                    if lca not in lca_nodes[depth+1]:
+                    if lca not in lca_nodes[depth + 1]:
                         edge_lengths = parent_to_tip_distances(lca, clade, True)
                 else:
                     edge_lengths += parent_to_tip_distances(lca, clade, True)
@@ -169,6 +169,26 @@ def validate_rank_intervals(taxonomic_rank_intervals):
     :param taxonomic_rank_intervals:
     :return:
     """
+    # # As inclusive as possible and alignment trimming, 95% placement distance range
+    # validated_intervals = {"Class": (0.4383, 0.509),
+    #                        "Order": (0.3835, 0.4673),
+    #                        "Family": (0.1854, 0.2183),
+    #                        "Genus": (0.1383, 0.1637),
+    #                        "Species": (0.0652, 0.0972)}
+    # # Filtering those queries where a taxonomic ancestor is not present, 95% placement distance range
+    # validated_intervals = {"Class": (0.4391, 0.5094),
+    #                        "Order": (0.4759, 0.6276),
+    #                        "Family": (0.1792, 0.2056),
+    #                        "Genus": (0.1187, 0.1403),
+    #                        "Species": (0.0447, 0.0935)}
+    # # Optimized above - now need to automate via smoothing function?
+    # validated_intervals = {"Class": (0.4391, 0.5094),
+    #                        "Order": (0.206, 0.4390),
+    #                        "Family": (0.13, 0.2056),
+    #                        "Genus": (0.1187, 0.1403),
+    #                        "Species": (0.0447, 0.0935)}
+    # return validated_intervals
+
     validated_intervals = dict()
     ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
     ci_ranges = [max_ci-min_ci for min_ci, max_ci in taxonomic_rank_intervals.values()]
@@ -204,6 +224,7 @@ def main(args: list):
     # Read the NEWICK-formatted phylogenetic tree
     tree = Tree(newick_tree_file)
     taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
+    # taxonomic_rank_intervals = validate_rank_intervals(taxonomic_rank_intervals)
     sys.stdout.write("Rank\tMin.   - Max.\n")
     ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
     for depth in sorted(ranks, key=int, reverse=True):

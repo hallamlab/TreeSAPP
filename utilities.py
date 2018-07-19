@@ -180,7 +180,8 @@ def find_executables(args):
     if os_type() == "mac":
         args.executables = args.treesapp + "sub_binaries" + os.sep + "mac"
     elif os_type() == "win" or os_type() is None:
-        sys.exit("ERROR: Unsupported OS")
+        logging.error("Unsupported OS")
+        sys.exit(13)
 
     for dep in dependencies:
         if is_exe(args.executables + os.sep + dep):
