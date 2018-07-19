@@ -42,6 +42,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     """
     Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
     yielding an estimate of placement distances corresponding to taxonomic ranks.
+
     :param fasta_dict: A dictionary with headers as keys and sequences as values for all potential reference sequences
     :param ref_fasta_dict: A dictionary with headers as keys and sequences as values containing only reference sequences
     :param ref_tree_file: A Newick-formatted phylogenetic tree with branch length distances (no internal nodes)
@@ -49,8 +50,11 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
     :param output_dir: Path to directory for writing intermediate files
     :param molecule: Molecule type [prot | dna | rrna]
+
     :return:
     """
+
+    logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
 
     leaf_taxa_map = dict()
     taxonomic_placement_distances = dict()
@@ -97,7 +101,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
         for taxonomy in unique_taxonomic_lineages:
-            logging.debug(taxonomy + ":\n")
+            logging.debug("Testing placements for " + taxonomy + ":\n")
             # Clear collections
             taxonomy_filtered_query_seqs.clear()
             dict_for_phy.clear()
@@ -105,7 +109,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
 
             optimal_lca_taxonomy = "; ".join(taxonomy.split("; ")[:-1])
             if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages if tl != taxonomy]:
-                logging.warning("target '" + optimal_lca_taxonomy + "' not found in pruned tree.\n")
+                logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not found in pruned tree.\n")
                 continue
 
             # Write query FASTA containing sequences belonging to `taxonomy`
@@ -113,21 +117,21 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                 # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
                 if re.search(taxonomy, accession_lineage_map[seq_name]) and seq_name in fasta_dict:
                     taxonomy_filtered_query_seqs[seq_name] = fasta_dict[seq_name]
+            logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
             if len(taxonomy_filtered_query_seqs) == 0:
-                logging.warning(str(len(taxonomy_filtered_query_seqs)) + " query sequences.\n")
                 continue
-            else:
-                logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
             write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
 
             for key in ref_fasta_dict.keys():
                 node = key.split('_')[0]
-                # Node with truncated lineages are not in `leaf_trimmed_taxa_map`
+                # Node with truncated and/or unclassified lineages are not in `leaf_trimmed_taxa_map`
                 if node in leaf_trimmed_taxa_map and not re.match(taxonomy, leaf_trimmed_taxa_map[node]):
+                    dict_for_phy[node] = ref_fasta_dict[key]
+                elif node not in leaf_trimmed_taxa_map:
                     dict_for_phy[node] = ref_fasta_dict[key]
                 else:
                     leaves_excluded += 1
-            logging.debug("\t" + str(leaves_excluded) + "sequences pruned from tree.\n")
+            logging.debug("\t" + str(leaves_excluded) + " sequences pruned from tree.\n")
 
             # Write the reference MSA with sequences of `taxonomy` removed
             phy_dict = reformat_fasta_to_phy(dict_for_phy)
@@ -145,7 +149,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                                        temp_tree_file, temp_ref_phylip_file, temp_query_fasta_file,
                                        "prot")
             os.rename("papara_alignment.default", query_multiple_alignment)
-            logging.debug("PaPaRa:\n" + str(papara_stdout) + "\n")
+            logging.debug(str(papara_stdout) + "\n")
 
             query_filtered_multiple_alignment = trim_multiple_alignment(bmge_file, query_multiple_alignment,
                                                                         molecule, "BMGE")
@@ -169,13 +173,13 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                         for placement in info:
                             distance = float(placement[3]) + float(placement[4])
                             taxonomic_placement_distances[rank].append(distance)
-            stats_string = "RANK: " + rank + "\n"
-            stats_string += "\tSamples = " + str(len(taxonomic_placement_distances[rank])) + "\n"
-            stats_string += "\tMedian = " + str(round(median(taxonomic_placement_distances[rank]), 4)) + "\n"
-            stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
-                                                    len(taxonomic_placement_distances[rank]), 4)) + "\n"
-            logging.debug(stats_string)
             os.system("rm papara_* RAxML*")
+        stats_string = "RANK: " + rank + "\n"
+        stats_string += "\tSamples = " + str(len(taxonomic_placement_distances[rank])) + "\n"
+        stats_string += "\tMedian = " + str(round(median(taxonomic_placement_distances[rank]), 4)) + "\n"
+        stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
+                                                len(taxonomic_placement_distances[rank]), 4)) + "\n"
+        logging.debug(stats_string)
         rank_distance_ranges[rank] = confidence_interval(taxonomic_placement_distances[rank], 0.95)
         sys.stdout.write('-')
         sys.stdout.flush()
