@@ -911,7 +911,7 @@ def order_dict_by_lineage(fasta_object_dict):
     for treesapp_id in fasta_object_dict:
         ref_seq = fasta_object_dict[treesapp_id]
         if ref_seq.accession in accessions:
-            logging.error("Uh oh... duplicate accession identifiers found! " +
+            logging.error("Uh oh... duplicate accession identifiers '" + ref_seq.accession + "' found! " +
                           "TreeSAPP is not currently able to handle this situation.\n" +
                           "Please remove one all of the redundant records and restart.\n")
             sys.exit(13)
@@ -1029,7 +1029,7 @@ def summarize_reference_taxa(args, reference_dict):
     # Report number of "Unclassified" lineages
     taxonomic_summary_string += "Unclassified lineages account for " +\
                                 str(unclassifieds) + '/' + str(len(reference_dict.keys())) + ' (' +\
-                                str(round(float(unclassifieds/len(reference_dict.keys())), 1)) + "%) references.\n"
+                                str(round(float(unclassifieds*100)/len(reference_dict.keys()), 1)) + "%) references.\n"
 
     return taxonomic_summary_string
 
@@ -1169,6 +1169,9 @@ def update_build_parameters(args, code_name, sub_model, lowest_reliable_rank, ra
 
     date = strftime("%d_%b_%Y", gmtime())
 
+    for rank in rank_dists:
+        rank_dists[rank] = ','.join([str(dist) for dist in rank_dists[rank]])
+
     if args.molecule == "prot":
         phylo_model = "PROTGAMMA" + sub_model
     else:
@@ -1205,14 +1208,13 @@ def register_headers(args, header_list):
     return header_registry
 
 
-def construct_tree(args, multiple_alignment_file):
+def construct_tree(args, multiple_alignment_file, tree_output_dir):
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
     :param args:
     :param multiple_alignment_file:
     :return:
     """
-    tree_output_dir = args.output_dir + args.code_name + "_phy_files"
 
     # Decide on the command to build the tree, make some directories and files when necessary
     if args.fast:
@@ -1283,7 +1285,7 @@ def construct_tree(args, multiple_alignment_file):
         swap_tree_names(raw_newick_tree, final_mltree, args.code_name)
         swap_tree_names(bootstrap_tree, bootstrap_nameswap, args.code_name)
 
-    return tree_output_dir
+    return
 
 
 def reverse_complement(rrna_sequence):
@@ -1399,6 +1401,7 @@ def main():
         sys.exit(0)
 
     # Names of files to be created
+    tree_output_dir = args.output_dir + args.code_name + "_phy_files"
     tree_taxa_list = args.final_output_dir + "tax_ids_%s.txt" % code_name
     accession_map_file = args.output_dir + os.sep + "accession_id_lineage_map.tsv"
     hmm_purified_fasta = args.output_dir + args.code_name + "_hmm_purified.fasta"
@@ -1422,13 +1425,13 @@ def main():
         except OSError:
             logging.warning("Making all directories in path " + args.final_output_dir + "\n")
             os.makedirs(args.final_output_dir, exist_ok=True)
-
     else:
-        logging.warning("Output directory already exists." +
+        logging.warning("Output directory already exists. " +
                         "You have 10 seconds to hit Ctrl-C before previous outputs will be overwritten.\n")
         sleep(10)
-        if os.path.exists(args.output_dir + args.code_name + "_phy_files"):
-            shutil.rmtree(args.output_dir + args.code_name + "_phy_files")
+        # Comment out to skip tree-building
+        if os.path.exists(tree_output_dir):
+            shutil.rmtree(tree_output_dir)
 
     ##
     # STAGE 2: FILTER - begin filtering sequences by homology and taxonomy
@@ -1457,6 +1460,7 @@ def main():
     else:
         fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
         header_registry = register_headers(args, get_headers(args.fasta_input))
+    unprocessed_fasta_dict = read_fasta_to_dict(args.fasta_input)
 
     ##
     # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
@@ -1726,7 +1730,11 @@ def main():
             dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
     phy_dict = reformat_fasta_to_phy(dict_for_phy)
     write_phy_file(phylip_file, phy_dict)
-    tree_output_dir = construct_tree(args, phylip_file)
+
+    ##
+    # Build the tree using RAxML
+    ##
+    construct_tree(args, phylip_file, tree_output_dir)
 
     if os.path.exists(ref_fasta_file):
         os.remove(ref_fasta_file)
@@ -1750,12 +1758,13 @@ def main():
     else:
         annotate_partition_tree(code_name, fasta_replace_dict, tree_output_dir + os.sep + "RAxML_bipartitions." + code_name)
         model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + code_name)
-    rank_distance_ranges = train_placement_distances(fasta_dict=fasta_dict, ref_fasta_dict=aligned_fasta_dict,
+    rank_distance_ranges = train_placement_distances(fasta_dict=unprocessed_fasta_dict,
+                                                     ref_fasta_dict=aligned_fasta_dict,
                                                      ref_tree_file=args.final_output_dir + args.code_name + "_tree.txt",
                                                      tax_ids_file=tree_taxa_list,
                                                      accession_lineage_map=accession_lineage_map,
                                                      molecule=args.molecule, output_dir=args.output_dir)
-    print(rank_distance_ranges)
+    # print(rank_distance_ranges)
     update_build_parameters(args, code_name, model, lowest_reliable_rank, rank_distance_ranges)
 
     logging.info("Data for " + code_name + " has been generated successfully.\n")
