@@ -243,7 +243,7 @@ def check_previous_output(args):
                     sys.stderr.flush()
         else:
             # Warn user then remove all main output directories, leaving log in output
-            logging.warning("Removing previous outputs in '" + args.output + "'." +
+            logging.warning("Removing previous outputs in '" + args.output + "'. " +
                             "You have 10 seconds to hit Ctrl-C before this proceeds... ")
             time.sleep(10)
             for output_dir in main_output_dirs:
@@ -3685,8 +3685,8 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
     try:
         tab_out = open(mapping_output, 'w')
     except IOError:
-        sys.stderr.write(traceback.print_exc(10))
-        raise IOError("Unable to open " + mapping_output + " for writing! Exiting.")
+        logging.error("Unable to open " + mapping_output + " for writing!\n")
+        sys.exit(3)
 
     for denominator in tree_saps:
         # All the leaves for that tree [number, translation, lineage]
@@ -3703,18 +3703,16 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
 
         # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
-        taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
-        # taxonomic_rank_intervals = validate_rank_intervals(taxonomic_rank_intervals)
-        # For debugging:
+        # taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
+        # # For debugging:
         # print(taxonomic_rank_intervals)
 
         for tree_sap in tree_saps[denominator]:
             if tree_sap.name not in unclassified_counts.keys():
                 unclassified_counts[tree_sap.name] = 0
             if len(tree_sap.placements) > 1:
-                sys.stderr.write("WARNING: More than one placements for a single contig!\n")
-                sys.stderr.flush()
-                tree_sap.summarize()
+                logging.warning("More than one placements for a single contig:\n" +
+                                tree_sap.summarize())
             if not tree_sap.placements:
                 unclassified_counts[tree_sap.name] += 1
             elif tree_sap.placements[0] == '{}':
@@ -3736,12 +3734,12 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                 else:
                     tree_sap.avg_evo_dist = round(node_dist, 4)
                 # Based on the calculated distance from the leaves, what rank is most appropriate?
-                recommended_rank = rank_recommender(tree_sap.avg_evo_dist, taxonomic_rank_intervals)
+                recommended_rank = rank_recommender(tree_sap.avg_evo_dist, marker_build_dict[denominator].distances)
 
                 if len(tree_sap.lineage_list) == 0:
-                    sys.stderr.write("ERROR: unable to find lineage information for marker " +
-                                     denominator + ", contig " + tree_sap.contig_name + "!\n")
-                    sys.stderr.flush()
+                    logging.error("Unable to find lineage information for marker " +
+                                  denominator + ", contig " + tree_sap.contig_name + "!\n")
+                    sys.exit(3)
                 if len(tree_sap.lineage_list) == 1:
                     tree_sap.lct = tree_sap.lineage_list[0]
                     tree_sap.wtd = 0.0
@@ -3751,7 +3749,8 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                         # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
                         tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
                         if not tree_sap.lct:
-                            sys.stderr.write(str(tree_sap.contig_name) + "\n")
+                            logging.debug("All lineages were highly incomplete for " +
+                                          str(tree_sap.contig_name) + "\n")
                         else:
                             # print(tree_sap.contig_name)
                             tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)

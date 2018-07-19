@@ -123,6 +123,7 @@ def get_headers(fasta_file):
 def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     """
     Function for writing sequences stored in dictionary to file in FASTA format; optional filtering with headers list
+
     :param fasta_dict: A dictionary containing headers as keys and sequences as values
     :param fasta_name: Name of the FASTA file to write to
     :param max_seqs: If not None, the maximum number of sequences to write to a single FASTA file

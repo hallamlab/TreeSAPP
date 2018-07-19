@@ -153,14 +153,14 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
 
             query_filtered_multiple_alignment = trim_multiple_alignment(bmge_file, query_multiple_alignment,
                                                                         molecule, "BMGE")
-            query_name = re.sub("; | ", '_', taxonomy)
+            query_name = re.sub(' ', '_', taxonomy.split("; ")[-1])
             launch_write_command(["raxmlHPC",
                                   "-m", "PROTGAMMALG",
                                   "-p", str(12345),
                                   '-T', str(4),
                                   '-s', query_filtered_multiple_alignment,
                                   '-t', temp_tree_file,
-                                  '-G', str(0.2),
+                                  '-G', str(0.1),
                                   '-f', 'v',
                                   '-n', query_name,
                                   '>', 'RAxML.txt'])

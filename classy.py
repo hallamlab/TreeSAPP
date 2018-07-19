@@ -23,24 +23,45 @@ import _tree_parser
 class MarkerBuild:
     def __init__(self, build_param_line):
         build_param_fields = build_param_line.split('\t')
-        if len(build_param_fields) != 6:
-            sys.stderr.write("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + build_param_line)
-            raise ValueError
+        if len(build_param_fields) != 12:
+            logging.error("Incorrect number of values (" + str(len(build_param_fields)) +
+                          ") in ref_build_parameters.tsv. Line:\n" + build_param_line)
+            sys.exit(17)
+
         self.cog = build_param_fields[0]
         self.denominator = build_param_fields[1]
-        self.model = build_param_fields[2]
-        self.pid = build_param_fields[3]
-        self.lowest_confident_rank = build_param_fields[4]
-        self.update = build_param_fields[5]
+        self.molecule = build_param_fields[2]
+        self.model = build_param_fields[3]
+        self.pid = build_param_fields[4]
+        self.lowest_confident_rank = build_param_fields[-2]
+        self.update = build_param_fields[-1]
         self.description = ""
         self.kind = ""
-        self.molecule = "prot"
+        self.distances = {}
+
+    def load_rank_distances(self, build_param_line):
+        build_param_fields = build_param_line.split("\t")
+        ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
+        field = 5
+        rank = 2
+        while field < 10:
+            dist_field = build_param_fields[field]
+            range = dist_field.split(',')
+            if len(range) != 2:
+                self.distances = {}
+                return 1
+            else:
+                self.distances[ranks[rank]] = tuple(float(x) for x in range)
+            field += 1
+            rank += 1
+        return 0
 
     def check_rank(self):
         taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
 
         if self.lowest_confident_rank not in list(taxonomies):
-            raise AssertionError("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
+            logging.error("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
+            sys.exit(17)
 
         return
 
@@ -77,7 +98,8 @@ class CreateFuncTreeUtility:
         try:
             os.makedirs(self.Output)
         except IOError:
-            raise IOError("Unable to make the directory " + str(self.Output) + "\n")
+            logging.error("Unable to make the directory " + str(self.Output) + "\n")
+            sys.exit(17)
 
     def get_raxml_files_for_ref(self):
         """
@@ -132,13 +154,11 @@ class CreateFuncTreeUtility:
 
         if additional == acc:
             # The reference sequence identifiers are random
-            sys.stderr.write("WARNING: numerical TreeSAPP identifiers for " + self.Denominator +
-                             "are not in the format of a sequential series!\n")
-            sys.stderr.write("Generating random numerical unique identifiers for the new sequence(s).\n")
-            sys.stderr.flush()
+            logging.warning("Numerical TreeSAPP identifiers for " + self.Denominator +
+                            "are not in the format of a sequential series!\n" +
+                            "Generating random numerical unique identifiers for the new sequence(s).\n")
 
-        if args.verbose:
-            sys.stdout.write("\t" + str(len(self.header_id_map)) + " new " + self.COG + " reference sequences.\n")
+        logging.debug("\t" + str(len(self.header_id_map)) + " new " + self.COG + " reference sequences.\n")
 
         return
 
@@ -150,8 +170,7 @@ class CreateFuncTreeUtility:
         :param assignments: A dictionary containing marker name as keys, and header: [lineages] mappings as values
         :return:
         """
-        sys.stdout.write("Writing updated tax_ids file... ")
-        sys.stdout.flush()
+        logging.info("Writing updated tax_ids file... ")
 
         tree_taxa_string = ""
         original_to_formatted_header_map = dict()
@@ -165,7 +184,7 @@ class CreateFuncTreeUtility:
             if leaf.lineage:
                 tree_taxa_string += '\t'.join([str(leaf.number), leaf.description, leaf.lineage]) + "\n"
             else:
-                sys.stderr.write("Unable to retrieve lineage information for sequence " + str(leaf.number) + "\n")
+                logging.debug("Unable to retrieve lineage information for sequence " + str(leaf.number) + "\n")
 
         # Build a map of original headers to formatted ones
         original_candidate_headers = get_headers(args.fasta_input)
@@ -219,18 +238,18 @@ class CreateFuncTreeUtility:
                             else:
                                 description = taxonomic_lineage[-1]
                         except ValueError:
-                            sys.stderr.write("WARNING: Attempt to parse species from lineage failed for:\n" + lineage + "\n")
+                            logging.warning("Attempt to parse species from lineage failed for:\n" + lineage + "\n")
                             description = sequence_info.group(2)
                     else:
-                        sys.stderr.write("ERROR: TreeSAPP is unsure what to do with header '" + header + "'\n")
-                        raise AssertionError()
+                        logging.error("TreeSAPP is unsure what to do with header '" + header + "'\n")
+                        sys.exit(17)
             else:
                 # This sequence is probably an uninformative contig name
                 lineage = "unclassified sequences; "
                 description = self.InputData.split('/')[-1]
 
             if not description or not lineage:
-                sys.stderr.write("WARNING: description is unavailable for sequence '" + header + "'\n")
+                logging.warning("Description is unavailable for sequence '" + header + "'\n")
             tree_taxa_string += num_id + "\t" + description + " | " + accession + "\t" + lineage + "\n"
             self.master_reference_index[num_id].organism = organism
             self.master_reference_index[num_id].description = description
@@ -243,8 +262,7 @@ class CreateFuncTreeUtility:
         tree_tax_list_handle.write(tree_taxa_string)
         tree_tax_list_handle.close()
 
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
+        logging.info("done.\n")
 
         return
 
@@ -288,8 +306,7 @@ class CreateFuncTreeUtility:
         """
 
         if args.verbose:
-            sys.stdout.write("Aligning the reference and identified " + self.COG + " sequences using MAFFT... ")
-            sys.stdout.flush()
+            logging.info("Aligning the reference and identified " + self.COG + " sequences using MAFFT... ")
 
         # Combine the reference and candidate sequence dictionaries
         unaligned_ref_seqs.update(self.ContigDict)
@@ -315,9 +332,7 @@ class CreateFuncTreeUtility:
                           " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
             sys.exit(17)
 
-        if args.verbose:
-            sys.stdout.write("done.\n")
-            sys.stdout.flush()
+        logging.info("done.\n")
 
         return aligned_fasta
 
@@ -334,23 +349,18 @@ class CreateFuncTreeUtility:
         raxml_command += ['-s', phylip_file,
                           '-f', 'a',
                           '-x', str(12345),
+                          '-p', str(12345),
                           '-#', nboot,
                           '-n', self.COG,
-                          '-w', raxml_destination_folder,
-                          '-p', str(12345)] #,
-                          # '>', raxml_destination_folder + os.sep + 'RAxML_log.txt']
+                          '-w', raxml_destination_folder]
 
-        if args.verbose:
-            sys.stdout.write("RAxML command:\n\t" + ' '.join(raxml_command) + "\n")
-            sys.stdout.write("Inferring Maximum-Likelihood tree with RAxML... ")
-            sys.stdout.flush()
+        logging.debug("RAxML command:\n\t" + ' '.join(raxml_command) + "\n")
+        logging.info("Building Maximum-Likelihood tree with RAxML")
 
         raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
         raxml_pro.wait()
 
-        if args.verbose:
-            sys.stdout.write("done.\n")
-            sys.stdout.flush()
+        # logging.info("done.\n")
 
         return
 
@@ -443,7 +453,8 @@ class ItolJplace:
                         for pquery in v:
                             nodes.append(str(pquery[0]))
             else:
-                raise AssertionError("Unable to handle type " + type(d_place) + "\n")
+                logging.error("Unable to handle type " + type(d_place) + "\n")
+                sys.exit(17)
         return nodes
 
     def correct_decoding(self):
@@ -500,7 +511,7 @@ class ItolJplace:
             else:
                 x += 1
         if x == len(self.fields):
-            sys.stderr.write("WARNING: unable to find '" + field_name + "' in the jplace \"field\" string!\n")
+            logging.warning("Unable to find '" + field_name + "' in the jplace \"field\" string!\n")
             return None
         return x
 
@@ -555,7 +566,7 @@ class ItolJplace:
                                 #                             str(float(removed[x]))]) + "\n")
                             else:
                                 acc += 1
-                            sys.stderr.flush()
+                            # sys.stderr.flush()
                         # If no placements met the likelihood filter then the sequence cannot be classified
                         # Alternatively: first two will be returned and used for LCA - can test...
                         if len(tmp_placements) > 0:
@@ -780,11 +791,13 @@ class TreeLeafReference:
         self.complete = False
 
     def summarize_tree_leaf(self):
-        # sys.stderr.write("Tree:\n\t" + str(self.tree) + "\n")
-        sys.stderr.write("Leaf ID:\n\t" + str(self.number) + "\n")
-        sys.stderr.write("Description:\n\t" + str(self.description) + "\n")
+        summary_string = "Leaf ID:\n\t" + str(self.number) + "\n" +\
+                         "Description:\n\t" + str(self.description) + "\n"
+
+        # summary_string += "Tree:\n\t" + str(self.tree) + "\n"
         if self.complete:
-            sys.stderr.write("Lineage:\n\t" + str(self.lineage) + "\n")
+            summary_string += "Lineage:\n\t" + str(self.lineage) + "\n"
+        logging.debug(summary_string)
 
     class MarkerInfo:
         """
@@ -814,13 +827,17 @@ class ReferenceSequence:
         self.cluster_lca = None
 
     def get_info(self):
+        """
+        Returns a string with the ReferenceSequence instance's current fields
+
+        :return: str
+        """
         info_string = ""
         info_string += "accession = " + self.accession + ", " + "mltree_id = " + self.short_id + "\n"
         info_string += "description = " + self.description + ", " + "locus = " + self.locus + "\n"
         info_string += "organism = " + self.organism + "\n"
         info_string += "lineage = " + self.lineage + "\n"
-        sys.stdout.write(info_string)
-        sys.stdout.flush()
+        return info_string
 
 
 class CommandLineWorker(Process):
@@ -836,12 +853,11 @@ class CommandLineWorker(Process):
                 # Poison pill means shutdown
                 self.task_queue.task_done()
                 break
-            p_genewise = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
-            p_genewise.wait()
-            if p_genewise.returncode != 0:
-                sys.stderr.write("ERROR: " + self.master + " did not complete successfully for:\n")
-                sys.stderr.write(str(' '.join(next_task)) + "\n")
-                sys.stderr.flush()
+            p_instance = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
+            p_instance.wait()
+            if p_instance.returncode != 0:
+                logging.error(self.master + " did not complete successfully for:\n" +
+                              str(' '.join(next_task)) + "\n")
             self.task_queue.task_done()
         return
 

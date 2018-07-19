@@ -22,13 +22,16 @@ def parse_ref_build_params(args):
         logging.error("\tUnable to open " + ref_build_parameters + " for reading.\n")
         sys.exit(5)
 
-    header_re = re.compile("code_name\tdenominator\taa_model\tcluster_identity\tlowest_confident_rank\tlast_updated$")
+    header_re = re.compile("^name\tcode\tmolecule\tsub_model\tcluster_identity\t"
+                           "class_dist\torder_dist\tfamily_dist\tgenus_dist\tspecies_dist\t"
+                           "lowest_confident_rank\tdate$")
     if not header_re.match(param_handler.readline().strip()):
         logging.error("Header of '" + ref_build_parameters + "' is unexpected!")
         sys.exit(5)
 
-    logging.info("Reading build parameters of reference markers.\n")
+    logging.info("Reading build parameters of reference markers... ")
     skipped_lines = []
+    missing_info = []
     marker_build_dict = dict()
     for line in param_handler:
         if header_re.match(line):
@@ -38,15 +41,21 @@ def parse_ref_build_params(args):
             skipped_lines.append(line)
             continue
         marker_build = MarkerBuild(line)
-        marker_build.check_rank()
         if args.targets != ["ALL"] and marker_build.denominator not in args.targets:
             skipped_lines.append(line)
         else:
             marker_build_dict[marker_build.denominator] = marker_build
-
+            if marker_build.load_rank_distances(line) > 0:
+                missing_info.append(marker_build)
+            marker_build.check_rank()
     param_handler.close()
 
-    logging.debug("Skipped the following lines:\n\t" + "\n\t".join(skipped_lines) + "\n")
+    logging.info("done.\n")
+
+    logging.debug("Rank distance information missing for:\n\t" +
+                  "\n\t".join([mb.cog + '-' + mb.denominator for mb in missing_info]) + "\n")
+    logging.debug("Skipped the following lines:\n\t" +
+                  "\n\t".join(skipped_lines) + "\n")
     return marker_build_dict
 
 

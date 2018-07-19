@@ -1756,7 +1756,9 @@ def main():
         else:
             model = "gtrgamma"
     else:
-        annotate_partition_tree(code_name, fasta_replace_dict, tree_output_dir + os.sep + "RAxML_bipartitions." + code_name)
+        annotate_partition_tree(code_name,
+                                fasta_replace_dict,
+                                tree_output_dir + os.sep + "RAxML_bipartitions." + code_name)
         model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + code_name)
     rank_distance_ranges = train_placement_distances(fasta_dict=unprocessed_fasta_dict,
                                                      ref_fasta_dict=aligned_fasta_dict,
@@ -1764,7 +1766,6 @@ def main():
                                                      tax_ids_file=tree_taxa_list,
                                                      accession_lineage_map=accession_lineage_map,
                                                      molecule=args.molecule, output_dir=args.output_dir)
-    # print(rank_distance_ranges)
     update_build_parameters(args, code_name, model, lowest_reliable_rank, rank_distance_ranges)
 
     logging.info("Data for " + code_name + " has been generated successfully.\n")

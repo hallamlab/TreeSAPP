@@ -10,7 +10,7 @@ from scipy import stats
 import scipy as sp
 import numpy as np
 
-# TODO: replace mean_confidence_interval to remove scipy and numpy dependency
+# TODO: replace confidence_interval to remove scipy and numpy dependency
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -23,18 +23,30 @@ def confidence_interval(data, confidence=0.95):
     return round(float(m - h), 4), round(float(m + h), 4)
 
 
-def rank_recommender(phylogenetic_distance: float, taxonomic_rank_intervals: dict):
+def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict):
+    """
+    Determines the rank depth (for example Class == 2) a taxonomic lineage should be truncated to
+     based on which rank distance range (in taxonomic_rank_intervals) phylo_dist falls into
+    
+    :param phylo_dist: Float < 1.0 representing the branch distance from the nearest node
+    :param taxonomic_rank_intervals: Dictionary with rank keys (e.g. Class) and distance ranges (min, max) as values
+    :return: int
+    """    
     ranks = ["Kingdom", "Phylum", "Class", "Order",
              "Family", "Genus", "Species", "Strain"]
+
+    if not taxonomic_rank_intervals:
+        return 7
+
     depth = 2  # Start at Class
     while depth < 7:
         rank = ranks[depth]
         if taxonomic_rank_intervals[rank]:
             min_dist, max_dist = taxonomic_rank_intervals[rank]
-            if min_dist < phylogenetic_distance < max_dist:
+            if min_dist < phylo_dist < max_dist:
                 depth += 1
                 break
-            elif phylogenetic_distance > max_dist:
+            elif phylo_dist > max_dist:
                 break
         depth += 1
     return depth
@@ -55,9 +67,10 @@ def trim_lineages_to_rank(leaf_taxa_map, rank):
     return trimmed_lineage_map
 
 
-def prune_branches(tree: Tree, leaf_taxa_map: dict, rank="Genus"):
+def prune_branches(tree, leaf_taxa_map: dict, rank="Genus"):
     """
     Function for removing leaves of unclassified and polyphyletic lineages
+
     :type tree: Tree()
     :param tree: An Environment for Tree Exploration (ETE) Tree object
     :param leaf_taxa_map: A dictionary mapping tree leaf number keys to NCBI lineage strings
