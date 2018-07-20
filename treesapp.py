@@ -3633,6 +3633,7 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
 def lowest_confident_taxonomy(lct, depth):
     """
     Truncates the initial taxonomic assignment to rank of depth.
+
     :param lct: String for the taxonomic lineage ('; ' separated)
     :param depth: The recommended depth to truncate the taxonomy
     :return: String representing 'confident' taxonomic assignment for the sequence
@@ -3701,13 +3702,20 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
             leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
-        # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
+
+        # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
+
+        max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold
+
         # taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
         # # For debugging:
         # print(taxonomic_rank_intervals)
 
         for tree_sap in tree_saps[denominator]:
+            # TODO: test classifications using the placement tree, rather than the reference tree
+            # tree = Tree(re.sub("\{\d+\}", '', tree_sap.tree))
+
             if tree_sap.name not in unclassified_counts.keys():
                 unclassified_counts[tree_sap.name] = 0
             if len(tree_sap.placements) > 1:
@@ -3726,13 +3734,36 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
                 # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
                 node_dist = distal_length + pendant_length
                 leaf_children = tree_sap.node_map[int(tree_sap.inode)]
+                # TODO: test the difference between avg_evo_dist using tip_distances and not
                 if len(leaf_children) > 1:
                     # We need to find the LCA in the Tree instance to find the distances to tips for ete3
                     lca_node = tree.get_common_ancestor(leaf_children)
+                    parent = tree.get_common_ancestor(leaf_children)
                     tip_distances = parent_to_tip_distances(lca_node, leaf_children)
                     tree_sap.avg_evo_dist = round(float(sum(tip_distances)) / len(tip_distances) + node_dist, 4)
                 else:
+                    tree_leaf = tree.get_leaves_by_name(leaf_children[0])[0]
+                    sister = tree_leaf.get_sisters()[0]
+                    parent = tree_leaf.get_common_ancestor(sister)
                     tree_sap.avg_evo_dist = round(node_dist, 4)
+
+                # max_dist_threshold equals the maximum path length from root to tip in its clade,
+                # and discard this placement as a false positive if the avg_evo_dist exceeds this value
+                if tree_sap.avg_evo_dist > max_dist_threshold:
+                    unclassified_counts[tree_sap.name] += 1
+                    continue
+
+                # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
+                clade_tip_distances = list()
+                neighbour = parent.get_sisters()[0]
+                ancestor = parent.get_common_ancestor(neighbour)
+                for leaf in ancestor.get_leaf_names():
+                    clade_tip_distances.append(ancestor.get_distance(leaf))
+                # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
+                if tree_sap.avg_evo_dist > max(clade_tip_distances):
+                    unclassified_counts[tree_sap.name] += 1
+                    continue
+
                 # Based on the calculated distance from the leaves, what rank is most appropriate?
                 recommended_rank = rank_recommender(tree_sap.avg_evo_dist, marker_build_dict[denominator].distances)
 
@@ -3816,7 +3847,7 @@ def parse_raxml_output(args, marker_build_dict, unclassified_counts):
                     if marker not in unclassified_counts.keys():
                         unclassified_counts[marker] = 0
                     unclassified_counts[marker] += 1
-                    logging.debug("WARNING: a putative " + marker +
+                    logging.debug("A putative " + marker +
                                   " sequence has been unclassified due to low placement likelihood weights. " +
                                   "More info:\n" +
                                   pquery.summarize())
@@ -3831,9 +3862,9 @@ def parse_raxml_output(args, marker_build_dict, unclassified_counts):
                 else:
                     pquery.harmonize_placements(args.treesapp)
                 if unclassified == 0 and len(pquery.placements) != 1:
-                    sys.stderr.write("ERROR: Number of JPlace pqueries is " + str(len(pquery.placements)) +
-                                     " when only 1 is expected at this point.\n")
-                    sys.stderr.write(pquery.summarize())
+                    logging.error("Number of JPlace pqueries is " + str(len(pquery.placements)) +
+                                  " when only 1 is expected at this point.\n" +
+                                  pquery.summarize())
                     sys.exit(3)
                 pquery.inode = str(pquery.get_jplace_element("edge_num"))
                 pquery.lwr = float(pquery.get_jplace_element("like_weight_ratio"))
