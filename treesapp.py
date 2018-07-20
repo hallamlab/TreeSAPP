@@ -706,14 +706,6 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
         if marker not in marker_gene_dict:
             marker_gene_dict[marker] = dict()
 
-        marker_query_fa = args.output_dir_var + marker + "_hmm_purified.faa"
-        try:
-            homolog_seq_fasta = open(marker_query_fa, 'w')
-        except IOError:
-            logging.error("Unable to open " + marker_query_fa + " for writing.\n")
-            sys.exit(3)
-        hmmalign_input_fastas.append(marker_query_fa)
-
         for hmm_match in hmm_matches[marker]:
             if hmm_match.desc != '-':
                 contig_name = hmm_match.orf + '_' + hmm_match.desc
@@ -736,8 +728,16 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
             numeric_decrementor -= 1
 
         # Write all the homologs to the FASTA file
-        homolog_seq_fasta.write(trim_homolog_fasta_string)
-        homolog_seq_fasta.close()
+        if trim_homolog_fasta_string:
+            marker_query_fa = args.output_dir_var + marker + "_hmm_purified.faa"
+            try:
+                homolog_seq_fasta = open(marker_query_fa, 'w')
+            except IOError:
+                logging.error("Unable to open " + marker_query_fa + " for writing.\n")
+                sys.exit(3)
+            hmmalign_input_fastas.append(marker_query_fa)
+            homolog_seq_fasta.write(trim_homolog_fasta_string)
+            homolog_seq_fasta.close()
     logging.info("done.\n")
 
     # Now write a single FASTA file with all identified markers
