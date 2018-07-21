@@ -390,6 +390,7 @@ class ItolJplace:
         self.lwr = 0  # Likelihood weight ratio of an individual placement
         self.likelihood = 0
         self.avg_evo_dist = 0.0
+        self.classified = True
         self.inode = ""
         self.tree = ""  # NEWICK tree
         self.metadata = ""
@@ -461,6 +462,7 @@ class ItolJplace:
         """
         Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
         Formatting and string conversion are also performed here
+
         :return:
         """
         new_placement_collection = []  # a list of dictionary-like strings
@@ -476,7 +478,13 @@ class ItolJplace:
                 new_placement_collection.append(d_place)
         self.placements = new_placement_collection
 
-        self.fields = [dumps(x) for x in self.fields]
+        decoded_fields = list()
+        for field in self.fields:
+            if not re.match('".*"', field):
+                decoded_fields.append(dumps(field))
+            else:
+                decoded_fields.append(field)
+        self.fields = decoded_fields
         return
 
     def rename_placed_sequence(self, seq_name):
@@ -539,7 +547,6 @@ class ItolJplace:
         :param threshold: The threshold which all placements with LWRs less than this are removed
         :return:
         """
-        unclassified = 0
         # Find the position of like_weight_ratio in the placements from fields descriptor
         x = self.get_field_position_from_jplace_fields("like_weight_ratio")
         if not x:
@@ -574,15 +581,15 @@ class ItolJplace:
                             dict_strings.append(dumps(k) + ':' + dumps(v))
                             placement_string = ', '.join(dict_strings)
                         else:
-                            unclassified += 1
+                            self.classified = False
                 # Add the filtered placements back to the object.placements
                 new_placement_collection.append('{' + placement_string + '}')
             else:
                 # If there is only one placement, the LWR is 1.0 so no filtering required!
                 new_placement_collection.append(pquery)
-        if unclassified == 0:
+        if self.classified:
             self.placements = new_placement_collection
-        return unclassified
+        return
 
     def sum_rpkms_per_node(self, leaf_rpkm_sums):
         """

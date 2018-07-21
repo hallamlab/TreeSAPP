@@ -4,6 +4,7 @@ import sys
 import re
 import glob
 import os
+import logging
 from classy import ItolJplace, TreeProtein
 from json import load, loads, dumps
 from utilities import clean_lineage_string
@@ -92,22 +93,59 @@ def demultiplex_pqueries(jplace_data):
     return tree_placement_queries
 
 
-def write_jplace(itol_datum, jplace_file):
+def filter_jplace_data(jplace_data: ItolJplace, tree_saps: list):
+    """
+    Removes unclassified pqueries from the placements element in jplace_data
+
+    :param jplace_data:
+    :param tree_saps: List of TreeProtein objects
+    :return:
+    """
+    jplace_data.correct_decoding()
+    jplace_data.filter_max_weight_placement()
+    new_placement_collection = list()
+    for d_place in jplace_data.placements:
+        dict_strings = list()
+        classified = False
+        for k, v in loads(d_place).items():
+            if k == 'n':
+                # Find the TreeProtein that matches the placement (same contig name)
+                for sapling in tree_saps:
+                    if re.match(re.escape(sapling.contig_name) + "_\d+_\d+", v[0]):
+                        # If the TreeProtein is classified, flag to append
+                        classified = sapling.classified
+                dict_strings.append(dumps(k) + ":" + dumps(v))
+            elif k == 'p':
+                dict_strings.append(dumps(k) + ":" + dumps(v))
+            else:
+                logging.error("Unrecognized key '" + str(k) + "' in Jplace \"placements\".")
+                sys.exit(9)
+        if classified:
+            new_placement_collection.append('{' + ', '.join(dict_strings) + '}')
+    jplace_data.placements = new_placement_collection
+    return jplace_data
+
+
+def write_jplace(itol_datum: ItolJplace, jplace_file: str):
     """
     A hacky function for writing jplace files with concatenated placements
      which are also compatible with iTOL's jplace parser
+
     :param itol_datum: A ItolJplace class object
-    :param jplace_file:
+    :param jplace_file: A JPlace file path to write to
     :return:
     """
+
+    if len(itol_datum.placements) == 0:
+        return
+
     try:
         jplace_out = open(jplace_file, 'w')
     except IOError:
-        raise IOError("Unable to open " + jplace_file + " for writing! Exiting now.")
+        logging.error("Unable to open " + jplace_file + " for writing.\n")
+        sys.exit(9)
 
     itol_datum.correct_decoding()
-    # itol_datum.filter_min_weight_threshold(0.3)
-    # itol_datum.filter_max_weight_placement()
 
     # Begin writing elements to the jplace file
     jplace_out.write('{\n\t"tree": "')
@@ -123,7 +161,8 @@ def write_jplace(itol_datum, jplace_file):
             elif k == 'p':
                 dict_strings.append(dumps(k) + ":" + dumps(v))
             else:
-                raise AssertionError("Unrecognized key '" + str(k) + "' in Jplace \"placements\".")
+                logging.error("Unrecognized key '" + str(k) + "' in Jplace \"placements\".")
+                sys.exit(9)
         new_placement_collection.append('{' + ', '.join(dict_strings) + '}')
     jplace_out.write(",\n\t".join(new_placement_collection))
     jplace_out.write("\n\t],\n")
@@ -190,6 +229,7 @@ def add_bipartitions(itol_datum, bipartition_file):
     """
     Adds bootstrap values read from a NEWICK tree-file where they are indicated by values is square-brackets
     and inserts them into a JPlace-formatted NEWICK tree (Internal nodes in curly braces are required)
+
     :param itol_datum: An ItolJplace object
     :param bipartition_file: Path to file containing the bootstrapped tree
     :return: Updated ItolJPlace object

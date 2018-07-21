@@ -244,7 +244,7 @@ def check_previous_output(args):
         else:
             # Warn user then remove all main output directories, leaving log in output
             logging.warning("Removing previous outputs in '" + args.output + "'. " +
-                            "You have 10 seconds to hit Ctrl-C before this proceeds... ")
+                            "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
             time.sleep(10)
             for output_dir in main_output_dirs:
                 shutil.rmtree(output_dir)
@@ -429,6 +429,7 @@ def validate_inputs(args, marker_build_dict):
 def run_blast(args, split_files, cog_list):
     """
     Runs the BLAST algorithm on each of the split input files.
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param cog_list: Dictionary containing cog identifiers sorted into their classes
     :param split_files: List of all files that need to be individually used for BLAST calls
@@ -554,6 +555,7 @@ def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
 def predict_orfs(args):
     """
     Predict ORFs from the input FASTA file using Prodigal
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :return:
     """
@@ -689,6 +691,7 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
         One has numeric index headers and is used for downstream phylogenetic placement
         The second contains the actual contig headers with marker, start, and end positions included
     The negative integers (or numeric indexes) are stored in a dictionary and returned
+
     :param args:
     :param hmm_matches:
     :param fasta_dict:
@@ -3177,26 +3180,30 @@ def write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_f
     """
     # Header format:
     # >contig_name|marker_gene
-    try:
-        fna_output = open(orf_nuc_fasta, 'w')
-    except IOError:
-        raise IOError("Unable to open " + orf_nuc_fasta + " for writing!")
 
     output_fasta_string = ""
 
     for denominator in tree_saps:
         for placed_sequence in tree_saps[denominator]:
-            if '>' + placed_sequence.contig_name not in nuc_orfs_formatted_dict:
-                sys.stderr.write("ERROR: Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n")
-                sys.stderr.write("Example headers in the predicted ORFs file:\n\t")
-                sys.stderr.write('\n\t'.join(list(nuc_orfs_formatted_dict.keys())[:6]) + "\n")
-                sys.exit(45)
-            else:
-                output_fasta_string += '>' + placed_sequence.contig_name + '|' + placed_sequence.name + "\n"
-                output_fasta_string += nuc_orfs_formatted_dict['>' + placed_sequence.contig_name] + "\n"
+            if placed_sequence.classified:
+                if '>' + placed_sequence.contig_name not in nuc_orfs_formatted_dict:
+                    logging.error("Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n" +
+                                  "Example headers in the predicted ORFs file:\n\t" +
+                                  '\n\t'.join(list(nuc_orfs_formatted_dict.keys())[:6]) + "\n")
+                    sys.exit(3)
+                else:
+                    output_fasta_string += '>' + placed_sequence.contig_name + '|' + placed_sequence.name + "\n"
+                    output_fasta_string += nuc_orfs_formatted_dict['>' + placed_sequence.contig_name] + "\n"
 
-    fna_output.write(output_fasta_string)
-    fna_output.close()
+    if output_fasta_string:
+        try:
+            fna_output = open(orf_nuc_fasta, 'w')
+        except IOError:
+            logging.error("Unable to open " + orf_nuc_fasta + " for writing!")
+            sys.exit(3)
+
+        fna_output.write(output_fasta_string)
+        fna_output.close()
 
     return
 
@@ -3582,6 +3589,7 @@ def read_rpkm(rpkm_output_file):
 def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
     """
     From the basic RPKM output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param rpkm_output_file:
     :param marker:
@@ -3604,28 +3612,30 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
             rpkm_values[tree_sap.contig_name] = 1.0
 
     for tree_sap in tree_protein_list:
-        if tree_sap.contig_name in rpkm_values:
-            tree_sap.abundance = rpkm_values[tree_sap.contig_name]
-        else:
-            tree_sap.abundance = 0
-        leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
+        if tree_sap.classified:
+            if tree_sap.contig_name in rpkm_values:
+                tree_sap.abundance = rpkm_values[tree_sap.contig_name]
+            else:
+                tree_sap.abundance = 0
+            leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
 
-    try:
-        itol_rpkm_out = open(itol_rpkm_file, 'w')
-    except IOError:
-        sys.stderr.write("Unable to open " + itol_rpkm_file + " for writing! Exiting now...\n")
-        sys.stderr.flush()
-        sys.exit(-10)
+    # Only make the file if there is something to write
+    if len(leaf_rpkm_sums.keys()) > 0:
+        try:
+            itol_rpkm_out = open(itol_rpkm_file, 'w')
+        except IOError:
+            logging.error("Unable to open " + itol_rpkm_file + " for writing.\n")
+            sys.exit(3)
 
-    # Write the header
-    header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,RPKM\nCOLOR,#ff0000\n"
-    itol_rpkm_out.write(header)
-    # Write the RPKM sums for each leaf
-    itol_rpkm_out.write("DATA\n")
-    data_lines = [','.join([str(k), str(v)]) for k, v in leaf_rpkm_sums.items()]
-    itol_rpkm_out.write("\n".join(data_lines))
+        # Write the header
+        header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,RPKM\nCOLOR,#ff0000\n"
+        itol_rpkm_out.write(header)
+        # Write the RPKM sums for each leaf
+        itol_rpkm_out.write("DATA\n")
+        data_lines = [','.join([str(k), str(v)]) for k, v in leaf_rpkm_sums.items()]
+        itol_rpkm_out.write("\n".join(data_lines))
 
-    itol_rpkm_out.close()
+        itol_rpkm_out.close()
 
     return tree_protein_list
 
@@ -3666,12 +3676,87 @@ def enumerate_taxonomic_lineages(lineage_list):
     return taxonomic_counts
 
 
-def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict):
+def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
     """
-    Fields:
-    Marker,Taxonomy,Query,Abundance
+    Determines the total distance of each placement from its branch point on the tree
+    and removes the placement if the distance is deemed too great
+
     :param args: Command-line argument object from get_options and check_parser_arguments
+    :param tree_saps: A dictionary containing TreeProtein objects
+    :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
     :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
+    :return:
+    """
+    for denominator in tree_saps:
+        tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
+
+        # max_dist_threshold equals the maximum path length from root to tip in its clade
+        max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold, but good for first pass
+
+        for tree_sap in tree_saps[denominator]:
+            # TODO: test classifications using the placement tree, rather than the reference tree
+            # tree = Tree(re.sub("\{\d+\}", '', tree_sap.tree))
+            if tree_sap.name not in unclassified_counts.keys():
+                unclassified_counts[tree_sap.name] = 0
+            if not tree_sap.placements:
+                unclassified_counts[tree_sap.name] += 1
+            elif len(tree_sap.placements) > 1:
+                logging.warning("More than one placement for a single contig:\n" +
+                                tree_sap.summarize())
+                tree_sap.classified = False
+                continue
+            elif tree_sap.placements[0] == '{}':
+                unclassified_counts[tree_sap.name] += 1
+                tree_sap.classified = False
+                continue
+
+            distal_length = float(tree_sap.get_jplace_element("distal_length"))
+            pendant_length = float(tree_sap.get_jplace_element("pendant_length"))
+            # Find the length of the edge this sequence was placed onto
+            # edge_length = find_edge_length(tree_sap.tree, tree_sap.inode)
+            node_dist = distal_length + pendant_length
+            leaf_children = tree_sap.node_map[int(tree_sap.inode)]
+            # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
+            if len(leaf_children) > 1:
+                # We need to find the LCA in the Tree instance to find the distances to tips for ete3
+                lca_node = tree.get_common_ancestor(leaf_children)
+                parent = tree.get_common_ancestor(leaf_children)
+                tip_distances = parent_to_tip_distances(lca_node, leaf_children)
+                tree_sap.avg_evo_dist = round(float(sum(tip_distances)) / len(tip_distances) + node_dist, 4)
+            else:
+                tree_leaf = tree.get_leaves_by_name(leaf_children[0])[0]
+                sister = tree_leaf.get_sisters()[0]
+                parent = tree_leaf.get_common_ancestor(sister)
+                tree_sap.avg_evo_dist = round(node_dist, 4)
+
+            # Discard this placement as a false positive if the avg_evo_dist exceeds max_dist_threshold
+            if tree_sap.avg_evo_dist > max_dist_threshold:
+                unclassified_counts[tree_sap.name] += 1
+                tree_sap.classified = False
+                continue
+
+            # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
+            clade_tip_distances = list()
+            neighbour = parent.get_sisters()[0]
+            ancestor = parent.get_common_ancestor(neighbour)
+            for leaf in ancestor.get_leaf_names():
+                clade_tip_distances.append(ancestor.get_distance(leaf))
+            # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
+            if tree_sap.avg_evo_dist > max(clade_tip_distances):
+                unclassified_counts[tree_sap.name] += 1
+                tree_sap.classified = False
+                continue
+        logging.debug("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
+                      " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n")
+
+    return
+
+
+def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict):
+    """
+
+
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param tree_saps: A dictionary containing TreeProtein objects
     :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
@@ -3702,121 +3787,59 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
             leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
-        tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
-
-        # Determine the branch distance boundaries (confidence intervals) for Phylum -> Genus taxonomic ranks
-
-        max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold
-
-        # taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
-        # # For debugging:
-        # print(taxonomic_rank_intervals)
-
         for tree_sap in tree_saps[denominator]:
-            # TODO: test classifications using the placement tree, rather than the reference tree
-            # tree = Tree(re.sub("\{\d+\}", '', tree_sap.tree))
+            tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
 
-            if tree_sap.name not in unclassified_counts.keys():
-                unclassified_counts[tree_sap.name] = 0
-            if len(tree_sap.placements) > 1:
-                logging.warning("More than one placements for a single contig:\n" +
-                                tree_sap.summarize())
-            if not tree_sap.placements:
-                unclassified_counts[tree_sap.name] += 1
-            elif tree_sap.placements[0] == '{}':
-                unclassified_counts[tree_sap.name] += 1
-            else:
-                tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
-                distal_length = float(tree_sap.get_jplace_element("distal_length"))
-                pendant_length = float(tree_sap.get_jplace_element("pendant_length"))
-                # Find the length of the edge this sequence was placed onto
-                # edge_length = find_edge_length(tree_sap.tree, tree_sap.inode)
-                # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
-                node_dist = distal_length + pendant_length
-                leaf_children = tree_sap.node_map[int(tree_sap.inode)]
-                # TODO: test the difference between avg_evo_dist using tip_distances and not
-                if len(leaf_children) > 1:
-                    # We need to find the LCA in the Tree instance to find the distances to tips for ete3
-                    lca_node = tree.get_common_ancestor(leaf_children)
-                    parent = tree.get_common_ancestor(leaf_children)
-                    tip_distances = parent_to_tip_distances(lca_node, leaf_children)
-                    tree_sap.avg_evo_dist = round(float(sum(tip_distances)) / len(tip_distances) + node_dist, 4)
-                else:
-                    tree_leaf = tree.get_leaves_by_name(leaf_children[0])[0]
-                    sister = tree_leaf.get_sisters()[0]
-                    parent = tree_leaf.get_common_ancestor(sister)
-                    tree_sap.avg_evo_dist = round(node_dist, 4)
+            # Based on the calculated distance from the leaves, what rank is most appropriate?
+            recommended_rank = rank_recommender(tree_sap.avg_evo_dist, marker_build_dict[denominator].distances)
 
-                # max_dist_threshold equals the maximum path length from root to tip in its clade,
-                # and discard this placement as a false positive if the avg_evo_dist exceeds this value
-                if tree_sap.avg_evo_dist > max_dist_threshold:
-                    unclassified_counts[tree_sap.name] += 1
-                    continue
-
-                # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
-                clade_tip_distances = list()
-                neighbour = parent.get_sisters()[0]
-                ancestor = parent.get_common_ancestor(neighbour)
-                for leaf in ancestor.get_leaf_names():
-                    clade_tip_distances.append(ancestor.get_distance(leaf))
-                # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
-                if tree_sap.avg_evo_dist > max(clade_tip_distances):
-                    unclassified_counts[tree_sap.name] += 1
-                    continue
-
-                # Based on the calculated distance from the leaves, what rank is most appropriate?
-                recommended_rank = rank_recommender(tree_sap.avg_evo_dist, marker_build_dict[denominator].distances)
-
-                if len(tree_sap.lineage_list) == 0:
-                    logging.error("Unable to find lineage information for marker " +
-                                  denominator + ", contig " + tree_sap.contig_name + "!\n")
-                    sys.exit(3)
-                if len(tree_sap.lineage_list) == 1:
-                    tree_sap.lct = tree_sap.lineage_list[0]
-                    tree_sap.wtd = 0.0
-                if len(tree_sap.lineage_list) > 1:
-                    if lineage_complete:
-                        lca = tree_sap.megan_lca()
-                        # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
-                        tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
-                        if not tree_sap.lct:
-                            logging.debug("All lineages were highly incomplete for " +
-                                          str(tree_sap.contig_name) + "\n")
-                        else:
-                            # print(tree_sap.contig_name)
-                            tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
-                            if status > 0:
-                                tree_sap.summarize()
+            if len(tree_sap.lineage_list) == 0:
+                logging.error("Unable to find lineage information for marker " +
+                              denominator + ", contig " + tree_sap.contig_name + "!\n")
+                sys.exit(3)
+            if len(tree_sap.lineage_list) == 1:
+                tree_sap.lct = tree_sap.lineage_list[0]
+                tree_sap.wtd = 0.0
+            if len(tree_sap.lineage_list) > 1:
+                if lineage_complete:
+                    lca = tree_sap.megan_lca()
+                    # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
+                    tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
+                    if not tree_sap.lct:
+                        logging.debug("All lineages were highly incomplete for " +
+                                      str(tree_sap.contig_name) + "\n")
                     else:
-                        tree_sap.lct = "Lowest common ancestor of: "
-                        tree_sap.lct += ', '.join(tree_sap.lineage_list)
-                        tree_sap.wtd = 1
+                        # print(tree_sap.contig_name)
+                        tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                        if status > 0:
+                            tree_sap.summarize()
+                else:
+                    tree_sap.lct = "Lowest common ancestor of: "
+                    tree_sap.lct += ', '.join(tree_sap.lineage_list)
+                    tree_sap.wtd = 1
 
-                # tree_sap.summarize()
-                tab_out_string += '\t'.join([sample_name,
-                                             tree_sap.contig_name,
-                                             tree_sap.name,
-                                             clean_lineage_string(tree_sap.lct),
-                                             lowest_confident_taxonomy(tree_sap.lct, recommended_rank),
-                                             str(tree_sap.abundance),
-                                             str(tree_sap.inode),
-                                             str(tree_sap.likelihood),
-                                             str(tree_sap.lwr),
-                                             str(tree_sap.seq_len)]) + "\n"
-        logging.debug("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
-                      " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n")
+            # tree_sap.summarize()
+            tab_out_string += '\t'.join([sample_name,
+                                         tree_sap.contig_name,
+                                         tree_sap.name,
+                                         clean_lineage_string(tree_sap.lct),
+                                         lowest_confident_taxonomy(tree_sap.lct, recommended_rank),
+                                         str(tree_sap.abundance),
+                                         str(tree_sap.inode),
+                                         str(tree_sap.likelihood),
+                                         str(tree_sap.lwr),
+                                         str(tree_sap.seq_len)]) + "\n"
     tab_out.write(tab_out_string)
     tab_out.close()
 
     return
 
 
-def parse_raxml_output(args, marker_build_dict, unclassified_counts):
+def parse_raxml_output(args, marker_build_dict):
     """
 
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param marker_build_dict:
-    :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
     :return: 
     """
 
@@ -3828,12 +3851,15 @@ def parse_raxml_output(args, marker_build_dict, unclassified_counts):
     jplace_collection = organize_jplace_files(jplace_files)
     itol_data = dict()  # contains all pqueries, indexed by marker name (e.g. McrA, nosZ, 16srRNA)
     tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
+    unclassified_counts = dict()  # A dictionary tracking the number of putative markers that were not classified
     # Use the jplace files to guide which markers iTOL outputs should be created for
     classified_seqs = 0
     for denominator in jplace_collection:
         marker = marker_build_dict[denominator].cog
         if denominator not in tree_saps:
             tree_saps[denominator] = list()
+        if marker not in unclassified_counts.keys():
+            unclassified_counts[marker] = 0
         for filename in jplace_collection[denominator]:
             # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
             jplace_data = jplace_parser(filename)
@@ -3842,10 +3868,8 @@ def parse_raxml_output(args, marker_build_dict, unclassified_counts):
             # Filter the placements, determine the likelihood associated with the harmonized placement
             for pquery in tree_placement_queries:
                 pquery.name = marker
-                unclassified = pquery.filter_min_weight_threshold(args.min_likelihood)
-                if unclassified > 0 and args.verbose:
-                    if marker not in unclassified_counts.keys():
-                        unclassified_counts[marker] = 0
+                pquery.filter_min_weight_threshold(args.min_likelihood)
+                if not pquery.classified:
                     unclassified_counts[marker] += 1
                     logging.debug("A putative " + marker +
                                   " sequence has been unclassified due to low placement likelihood weights. " +
@@ -3861,7 +3885,7 @@ def parse_raxml_output(args, marker_build_dict, unclassified_counts):
                     pquery.filter_max_weight_placement()
                 else:
                     pquery.harmonize_placements(args.treesapp)
-                if unclassified == 0 and len(pquery.placements) != 1:
+                if pquery.classified and len(pquery.placements) != 1:
                     logging.error("Number of JPlace pqueries is " + str(len(pquery.placements)) +
                                   " when only 1 is expected at this point.\n" +
                                   pquery.summarize())
@@ -3899,6 +3923,7 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
     """
     Function to create outputs for the interactive tree of life (iTOL) webservice.
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
+
     :param args:
     :param tree_saps:
     :param marker_build_dict:
@@ -3924,6 +3949,7 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
 
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + marker + os.sep + marker + "_complete_profile.jplace"
+        itol_data[marker] = filter_jplace_data(itol_data[marker], tree_saps[denominator])
         write_jplace(itol_data[marker], master_jplace)
         itol_data[marker].clear_object()
         # Create a labels file from the tax_ids_marker.txt
@@ -3960,7 +3986,6 @@ def main(argv):
     marker_build_dict = parse_ref_build_params(args)
     marker_build_dict = parse_cog_list(args, marker_build_dict)
     tree_numbers_translation = read_species_translation_files(args, marker_build_dict)
-    unclassified_counts = dict()
     if args.check_trees:
         validate_inputs(args, marker_build_dict)
     if args.skip == 'n':
@@ -4004,7 +4029,8 @@ def main(argv):
         # STAGE 5: Run RAxML to compute the ML estimations
         start_raxml(args, phy_files, marker_build_dict)
         sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)
-    tree_saps, itol_data, unclassified_counts = parse_raxml_output(args, marker_build_dict, unclassified_counts)
+    tree_saps, itol_data, unclassified_counts = parse_raxml_output(args, marker_build_dict)
+    filter_placements(args, tree_saps, marker_build_dict, unclassified_counts)
 
     abundance_file = None
     if args.molecule == "dna":
@@ -4027,8 +4053,8 @@ def main(argv):
     else:
         pass
 
+    write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict)
     produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, abundance_file)
-    write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict)
     delete_files(args, 4)
 
     # STAGE 6: Optionally update the reference tree
