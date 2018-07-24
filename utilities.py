@@ -238,6 +238,14 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             accession = regex_match_groups.group(1)
             organism = regex_match_groups.group(2)
             description = regex_match_groups.group(2)
+        if header_db == "gi_proper":
+            accession = regex_match_groups.group(2)
+            description = regex_match_groups.group(3)
+            organism = regex_match_groups.group(4)
+        if header_db in ["gi_re", "gi_mess", "pdb"]:
+            accession = regex_match_groups.group(1)
+            description = regex_match_groups.group(2)
+            organism = ""
         elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome"]:
             accession = regex_match_groups.group(1)
             description = regex_match_groups.group(2)
@@ -257,9 +265,10 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             organism = regex_match_groups.group(2)
             description = regex_match_groups.group(3)
         elif header_db == "custom":
-            description = regex_match_groups.group(1)
+            accession = regex_match_groups.group(1)
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
+            description = regex_match_groups.group(3)
     else:
         logging.error("Unable to handle header: " + header + "\n")
         sys.exit(13)

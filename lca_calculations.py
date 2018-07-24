@@ -47,11 +47,13 @@ def disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_list):
     return vote_weights, taxonomic_tree, nucleus/2
 
 
-def megan_lca(lineage_list):
+def megan_lca(lineage_list: list):
     """
     Using the lineages of all leaves to which this sequence was mapped (n >= 1),
     A lowest common ancestor is found at the point which these lineages converge.
     This emulates the LCA algorithm employed by the MEtaGenome ANalyzer (MEGAN).
+
+    :param lineage_list: List of '; '-separated lineage strings
     :return:
     """
     # If there is only one child, return the joined string
@@ -78,6 +80,9 @@ def megan_lca(lineage_list):
             lca_set.clear()
         else:
             i = max_depth
+    if len(lca_lineage_strings) == 0:
+        logging.debug("Empty LCA from lineages:\n\t" + "\n\t".join(lineage_list) + "\n")
+        lca_lineage_strings.append("Unclassified")
 
     return "; ".join(lca_lineage_strings)
 

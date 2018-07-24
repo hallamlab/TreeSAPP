@@ -65,8 +65,10 @@ def query_entrez_taxonomy(search_term):
 def parse_accessions_from_entrez_xml(record):
     accession = ""
     versioned = ""
+    alternatives = list()
     accession_keys = ["GBSeq_locus", "GBSeq_primary-accession"]
     version_keys = ["GBInterval_accession", "GBSeq_accession-version"]
+    alternate_keys = ["GBSeq_other-seqids"]
     for accession_key in accession_keys:
         if accession_key in record:
             accession = record[accession_key]
@@ -75,7 +77,14 @@ def parse_accessions_from_entrez_xml(record):
         if version_key in record:
             versioned = record[version_key]
             break
-    return accession, versioned
+    for alt_key in alternate_keys:
+        if alt_key in record:
+            for alt in record[alt_key]:
+                try:
+                    alternatives.append(re.search("\|+(.*)$", alt).group(1))
+                except AttributeError:
+                    logging.debug("Unable to parse alternative accession from string: '" + str(record[alt_key]) + "'\n")
+    return accession, versioned, alternatives
 
 
 def parse_organism_from_entrez_xml(record):
@@ -141,27 +150,19 @@ def check_lineage(lineage, organism_name):
         return lineage
 
 
-def get_multiple_lineages(search_term_list, molecule_type):
+def query_entrez_accessions(search_term_list, molecule_type):
     """
 
     :param search_term_list:
     :param molecule_type: "dna", "rrna", "prot", or "tax - parsed from command line arguments
     :return: A dictionary mapping accession IDs (keys) to organisms and lineages (values)
     """
-    accession_lineage_map = dict()
-    all_accessions = set()
-    if not search_term_list:
-        logging.error("search_term for Entrez query is empty")
-        raise AssertionError("ERROR: search_term for Entrez query is empty!\n")
+
     if float(Bio.__version__) < 1.68:
         # This is required due to a bug in earlier versions returning a URLError
-        logging.error("version of biopython needs to be >=1.68! " +
-                      str(Bio.__version__) + " is currently installed. Exiting now...")
-        raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
-                             str(Bio.__version__) + " is currently installed. Exiting now...")
-
-    # Do some semi-important stuff
-    prep_for_entrez_query()
+        logging.error("Version of biopython needs to be >=1.68! " +
+                      str(Bio.__version__) + " is currently installed.\n")
+        sys.exit(9)
 
     # Determine which database to search using the `molecule_type`
     if molecule_type == "dna" or molecule_type == "rrna" or molecule_type == "ambig":
@@ -175,13 +176,11 @@ def get_multiple_lineages(search_term_list, molecule_type):
                       "Please create an issue on the GitHub page.")
         sys.exit(9)
 
-    logging.info("Retrieving Entrez " + database + " records for each reference sequence... ")
-
     # Must be cautious with this first query since some accessions are not in the Entrez database anymore
     # and return with `urllib.error.HTTPError: HTTP Error 502: Bad Gateway`
     master_records = list()
     durations = list()
-    chunk_size = 60
+    chunk_size = 90
 
     for i in range(0, len(search_term_list), chunk_size):
         start_time = time.time()
@@ -201,33 +200,81 @@ def get_multiple_lineages(search_term_list, molecule_type):
                     bad_sids.append("\t" + str(sid))
 
             logging.warning("Unable to parse XML data from Entrez.efetch! "
-                            "It is either potentially corrupted or cannot be found in the database.\n"
-                            "Offending accessions from this batch:\n" + "\n".join(bad_sids))
+                            "Either the XML is corrupted or the query terms cannot be found in the database.\n"
+                            "Offending accessions from this batch:\n" + "\n".join(bad_sids) + "\n")
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
         minutes, seconds = divmod(remainder, 60)
         durations.append(str(i) + ' - ' + str(i+chunk_size) + "\t" + ':'.join([str(minutes), str(round(seconds, 2))]))
 
-    logging.info("done.\n")
-
     logging.debug("Entrez.efetch query time for accessions (minutes:seconds):\n\t" +
                   "\n\t".join(durations) + "\n")
+    return master_records
 
-    logging.info("Retrieving lineage information for each sequence from Entrez... ")
 
-    start_time = time.time()
+def get_multiple_lineages(search_term_list: list, molecule_type: str):
+    if not search_term_list:
+        logging.error("Search_term for Entrez query is empty\n")
+        sys.exit(9)
+
+    # Do some semi-important stuff
+    prep_for_entrez_query()
+
+    logging.info("Retrieving Entrez records for each reference sequence... ")
+    accession_lineage_map = dict()
+    all_accessions = set()
     unique_organisms = set()
-    # Instantiate the master_records for linking each organism to accessions, and empty fields
-    for record in master_records:
-        accession, versioned = parse_accessions_from_entrez_xml(record)
-        accession_lineage_map[(accession, versioned)] = dict()
-        accession_lineage_map[(accession, versioned)]["organism"] = parse_organism_from_entrez_xml(record)
-        accession_lineage_map[(accession, versioned)]["lineage"] = ""
-        all_accessions.update([accession, versioned])
+    updated_accessions = dict()
+    attempt = 1
+    while attempt < 3:
+        if len(search_term_list) == 0:
+            break
+
+        logging.debug("ATTEMPT " + str(attempt) + ':' +
+                      "\n\tNumber of search terms = " + str(len(search_term_list)) + "\n")
+        records_batch = query_entrez_accessions(search_term_list, molecule_type)
+
+        # Instantiate the master_records for linking each organism to accessions, and empty fields
+        for record in records_batch:
+            accession, versioned, alt = parse_accessions_from_entrez_xml(record)
+            if not accession and not versioned:
+                logging.debug("Neither accession nor accession.version parsed from:\n" + str(record) + "\n")
+                continue
+            elif accession not in search_term_list and versioned not in search_term_list:
+                for alt_key in alt:
+                    if alt_key in search_term_list:
+                        versioned = alt_key
+                    updated_accessions[alt_key] = (accession, versioned)
+            accession_lineage_map[(accession, versioned)] = dict()
+            accession_lineage_map[(accession, versioned)]["organism"] = parse_organism_from_entrez_xml(record)
+            accession_lineage_map[(accession, versioned)]["lineage"] = ""
+            all_accessions.update([accession, versioned])
+
+        # Tolerance for failed Entrez accession queries
+        rescued = 0
+        success = 0
+        x = 0
+        while x < len(search_term_list):
+            if search_term_list[x] in all_accessions:
+                search_term_list.pop(x)
+                success += 1
+            elif search_term_list[x] in updated_accessions:
+                search_term_list.pop(x)
+                rescued += 1
+            else:
+                x += 1
+        logging.debug("ATTEMPT " + str(attempt) + ":" +
+                      "\n\tQueries mapped ideally = " + str(success) +
+                      "\n\tQueries mapped with alternative accessions = " + str(rescued) + "\n")
+        attempt += 1
 
     for tuple_key in accession_lineage_map.keys():
         unique_organisms.add(accession_lineage_map[tuple_key]["organism"])
 
+    logging.info("done.\n")
+
+    logging.info("Retrieving lineage information for each sequence from Entrez... ")
+    start_time = time.time()
     organism_lineage_map = multiple_query_entrez_taxonomy(unique_organisms)
     for tuple_key in accession_lineage_map:
         organism_name = accession_lineage_map[tuple_key]["organism"]
@@ -337,6 +384,7 @@ def get_lineage_robust(reference_sequence_list, molecule):
             if strikes == 0:
                 if reference_sequence.accession:
                     lineage = get_lineage(reference_sequence.accession, molecule)
+                    print(1, lineage)
                 else:
                     logging.warning("No accession available for Entrez query:\n" +
                                     reference_sequence.get_info())
@@ -352,6 +400,7 @@ def get_lineage_robust(reference_sequence_list, molecule):
                     except IndexError:
                         taxon = reference_sequence.organism
                     lineage = get_lineage(taxon, "tax")
+                    print(2, lineage)
                     if type(lineage) is str and len(lineage) > 0:
                         # The query was successful
                         # try:
@@ -364,6 +413,7 @@ def get_lineage_robust(reference_sequence_list, molecule):
                     strikes += 1
             elif strikes == 2:
                 lineage = get_lineage(lineage, "tax")
+                print(3, lineage)
             strikes += 1
         if not lineage:
             logging.warning("Unable to find lineage for sequence with following data:\n" +
@@ -372,6 +422,7 @@ def get_lineage_robust(reference_sequence_list, molecule):
         # TODO: test this
         if reference_sequence.organism:
             lineage = check_lineage(lineage, reference_sequence.organism)
+            print(4, lineage)
         else:
             reference_sequence.organism = reference_sequence.description
         accession_lineage_map[reference_sequence.accession] = lineage
@@ -382,6 +433,7 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
     """
     Function used for parsing records returned by Bio.Entrez.efetch queries and identifying inconsistencies
     between the search terms and the results
+
     :param accession_lineage_map: A dictionary mapping accession.versionID tuples to taxonomic lineages
     :param all_accessions:
     :param fasta_record_objects:
@@ -414,6 +466,8 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
                         else:
                             # The query was successful! Add it and increment
                             unambiguous_accession_lineage_map[reference_sequence.accession] = accession_lineage_map[tuple_key]["lineage"]
+                        if not reference_sequence.organism and accession_lineage_map[tuple_key]["organism"]:
+                            reference_sequence.organism = accession_lineage_map[tuple_key]["organism"]
             else:
                 failed_accession_queries.append(reference_sequence)
 
@@ -491,11 +545,12 @@ def read_accession_taxa_map(mapping_file):
 def build_entrez_queries(fasta_record_objects: dict):
     """
     Function to create data collections to fulfill entrez query searches
+
     :param fasta_record_objects: A list of ReferenceSequence objects - lineage information to be filled
-    :return: List containing accessions to query Entrez
+    :return: Set containing unique accessions to query Entrez
     """
     num_lineages_provided = 0
-    entrez_query_list = list()
+    entrez_query_list = set()
     unavailable = list()
     for num_id in fasta_record_objects:
         ref_seq = fasta_record_objects[num_id]
@@ -504,10 +559,11 @@ def build_entrez_queries(fasta_record_objects: dict):
             num_lineages_provided += 1
         else:
             if ref_seq.accession:
-                entrez_query_list.append(ref_seq.accession)
+                entrez_query_list.add(ref_seq.accession)
             else:
                 unavailable.append(ref_seq.description)
     if len(unavailable) > 0:
-        logging.warning("Neither accession or lineage available for:\n\t" + "\n\t".join(unavailable))
-    return entrez_query_list, num_lineages_provided
+        logging.warning("Neither accession nor lineage available for:\n\t" +
+                        "\n\t".join(unavailable))
+    return list(entrez_query_list), num_lineages_provided
 

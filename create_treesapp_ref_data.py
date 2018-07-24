@@ -903,6 +903,30 @@ def screen_filter_taxa(args, fasta_replace_dict):
     return purified_fasta_dict
 
 
+def remove_duplicate_records(fasta_record_objects):
+    nonredundant_record_dict = dict()
+    accessions = dict()
+    dups = False
+    for treesapp_id in fasta_record_objects:
+        ref_seq = fasta_record_objects[treesapp_id]
+        if ref_seq.accession not in accessions:
+            accessions[ref_seq.accession] = 0
+            nonredundant_record_dict[treesapp_id] = ref_seq
+        else:
+            dups = True
+        accessions[ref_seq.accession] += 1
+    if dups:
+        logging.warning("Rendundant accessions have been detected in your input FASTA.\n" +
+                        "The duplicates have been removed leaving a single copy for further analysis.\n" +
+                        "Please view the log file for the list of redundant accessions and their copy numbers.\n")
+        msg = ["Redundant accessions found and copies:\n"]
+        for acc in accessions:
+            if accessions[acc] > 1:
+                msg.append("\n" + acc + "\t" + str(accessions[acc]) + "\n")
+        logging.debug(msg)
+    return nonredundant_record_dict
+
+
 def order_dict_by_lineage(fasta_object_dict):
     # Create a new dictionary with lineages as keys
     lineage_dict = dict()
@@ -911,9 +935,9 @@ def order_dict_by_lineage(fasta_object_dict):
     for treesapp_id in fasta_object_dict:
         ref_seq = fasta_object_dict[treesapp_id]
         if ref_seq.accession in accessions:
-            logging.error("Uh oh... duplicate accession identifiers '" + ref_seq.accession + "' found! " +
-                          "TreeSAPP is not currently able to handle this situation.\n" +
-                          "Please remove one all of the redundant records and restart.\n")
+            logging.error("Uh oh... duplicate accession identifiers '" + ref_seq.accession + "' found!\n" +
+                          "TreeSAPP should have removed these by now. " +
+                          "Please alert the developers so they can cobble a fix together.\n")
             sys.exit(13)
         else:
             accessions.append(ref_seq.accession)
@@ -1347,6 +1371,7 @@ def update_tax_ids_with_lineage(args, tree_taxa_list):
 def finalize_ref_seq_lineages(fasta_record_objects, accession_lineages):
     """
     Adds lineage information from accession_lineages to fasta_record_objects
+
     :param fasta_record_objects: dict() indexed by TreeSAPP numeric identifiers mapped to ReferenceSequence instances
     :param accession_lineages: a dictionary mapping {accession: lineage}
     :return:
@@ -1358,8 +1383,8 @@ def finalize_ref_seq_lineages(fasta_record_objects, accession_lineages):
             try:
                 lineage = accession_lineages[ref_seq.accession]
             except KeyError:
-                sys.stderr.write("ERROR: Lineage information was not retrieved for " + ref_seq.accession + "!\n")
-                sys.stderr.write("Please remove the output directory and restart.\n")
+                logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
+                              "Please remove the output directory and restart.\n")
                 sys.exit(3)
             # Add the species designation since it is often not included in the sequence record's lineage
             lr = lineage.split("; ")
@@ -1533,6 +1558,9 @@ def main():
     if len(fasta_record_objects.keys()) < 2:
         logging.error(str(len(fasta_record_objects)) + " sequences post-homology + taxonomy filtering\n")
         sys.exit(11)
+
+    fasta_record_objects = remove_duplicate_records(fasta_record_objects)
+
     # Add the respective protein or nucleotide sequence string to each ReferenceSequence object
     for num_id in fasta_record_objects:
         refseq_object = fasta_record_objects[num_id]

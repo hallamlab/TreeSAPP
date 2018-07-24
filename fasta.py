@@ -194,15 +194,16 @@ def get_header_format(header, code_name=""):
         2. add the name of the compiled regex pattern to the header_regexes dictionary
         3. if the regex groups are new and complicated (parsing more than the accession and organism info),
         alter return_sequence_info_groups in create_treesapp_ref_data to add another case
+
     :param header: A sequences header from a FASTA file
     :param code_name:
     :return:
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
-    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|?\w.+\|(.*)$")
-    gi_prepend_proper_re = re.compile(">gi\|([0-9]+)\|[a-z]+\|[_A-Z0-9.]+\|.*\[(.*)\]$")
-    gi_prepend_mess_re = re.compile(">gi\|([0-9]+)\|pir\|\|(.*)$")
+    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);.*$")
+    gi_prepend_proper_re = re.compile(">gi\|(\d+)\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")
+    gi_prepend_mess_re = re.compile(">gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-\()]+)$")
     dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")
     emb_re = re.compile(">emb\|(.*)\|.*\[(.*)\]")
     gb_re = re.compile(">gb\|(.*)\|.*\[(.*)\]")
@@ -214,22 +215,23 @@ def get_header_format(header, code_name=""):
     fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
-    treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")
+    # treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")  # Conflicting
     refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")
 
     # Nucleotide databases:
-    genbank_exact_genome = re.compile("^>([A-Z0-9]+\.[0-9]) (.*) \[(.*)\]$")
-    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) (.*)$")
     silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
     refseq_nuc_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
+    # Ambiguous:
+    genbank_exact_genome = re.compile("^>([A-Z0-9]+\.[0-9]) (.*) \[(.*)\]$")
+    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) ([A-Za-z1-9 _-]+)$")
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
     # There are no character restrictions on the first and third groups
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
-    custom_tax = re.compile("^>(.*) lineage=(.*) \[(.*)\]$")
+    custom_tax = re.compile("^>(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
@@ -250,7 +252,7 @@ def get_header_format(header, code_name=""):
                               nr_re: "nr"},
                       "ambig": {ncbi_ambiguous: "ncbi_ambig",
                                 genbank_exact_genome: "gen_genome",
-                                treesapp_re: "treesapp",
+                                # treesapp_re: "treesapp",
                                 custom_tax: "custom"}
                       }
 
@@ -261,15 +263,21 @@ def get_header_format(header, code_name=""):
     header_format_re = None
     header_db = None
     header_molecule = None
+    format_matches = list()
     for molecule in header_regexes:
         for regex in header_regexes[molecule]:
             if regex.match(header):
                 header_format_re = regex
                 header_db = header_regexes[molecule][regex]
                 header_molecule = molecule
-                break
+                format_matches.append(header_db)
             else:
                 pass
+    if len(format_matches) > 1:
+        logging.error("Header '" + header + "' matches multiple potential formats:\n\t" +
+                      ", ".join(format_matches) + "\n" +
+                      "TreeSAPP is unable to parse necessary information properly.\n")
+        sys.exit(5)
 
     if header_format_re is None:
         logging.error("Unable to parse header '" + header + "'\n")
@@ -332,9 +340,10 @@ def summarize_fasta_sequences(fasta_file):
 def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
     """
     Trims the multiple sequence alignment using either BMGE or trimAl
-    :param executable:
+
+    :param executable: Path to the executable of `tool`
     :param mfa_file: Name of a MSA file
-    :param molecule:
+    :param molecule: prot | dna
     :param tool: Name of the software to use for trimming [BMGE|trimAl]
     Returns file name of the trimmed multiple alignment file in FASTA format
     """
