@@ -904,27 +904,27 @@ def screen_filter_taxa(args, fasta_replace_dict):
 
 
 def remove_duplicate_records(fasta_record_objects):
-    nonredundant_record_dict = dict()
+    nr_record_dict = dict()
     accessions = dict()
     dups = False
     for treesapp_id in fasta_record_objects:
         ref_seq = fasta_record_objects[treesapp_id]
         if ref_seq.accession not in accessions:
             accessions[ref_seq.accession] = 0
-            nonredundant_record_dict[treesapp_id] = ref_seq
+            nr_record_dict[treesapp_id] = ref_seq
         else:
             dups = True
         accessions[ref_seq.accession] += 1
     if dups:
-        logging.warning("Rendundant accessions have been detected in your input FASTA.\n" +
+        logging.warning("Redundant accessions have been detected in your input FASTA.\n" +
                         "The duplicates have been removed leaving a single copy for further analysis.\n" +
                         "Please view the log file for the list of redundant accessions and their copy numbers.\n")
-        msg = ["Redundant accessions found and copies:\n"]
+        msg = "Redundant accessions found and copies:"
         for acc in accessions:
             if accessions[acc] > 1:
-                msg.append("\n" + acc + "\t" + str(accessions[acc]) + "\n")
+                msg += "\n" + acc + "\t" + str(accessions[acc]) + "\n"
         logging.debug(msg)
-    return nonredundant_record_dict
+    return nr_record_dict
 
 
 def order_dict_by_lineage(fasta_object_dict):
@@ -1219,13 +1219,12 @@ def terminal_commands(final_output_folder, code_name):
     return
 
 
-def register_headers(args, header_list):
+def register_headers(header_list):
     header_registry = dict()
     acc = 1
     for header in header_list:
         new_header = Header(header)
         new_header.formatted = reformat_string(header)
-        # new_header.treesapp_name = str(acc) + "_" + args.code_name
         new_header.first_split = header.split()[0]
         header_registry[str(acc)] = new_header
         acc += 1
@@ -1472,19 +1471,19 @@ def main():
             # If we're screening a massive fasta file, we don't want to read every sequence - just those with hits
             # TODO: Implement a screening procedure in _fasta_reader._read_format_fasta()
             fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
-            header_registry = register_headers(args, get_headers(args.fasta_input))
+            header_registry = register_headers(get_headers(args.fasta_input))
             marker_gene_dict = extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
             write_new_fasta(marker_gene_dict, hmm_purified_fasta)
             summarize_fasta_sequences(hmm_purified_fasta)
             hmm_pile(hmm_matches)
 
         fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args.output_dir)
-        header_registry = register_headers(args, get_headers(hmm_purified_fasta))
+        header_registry = register_headers(get_headers(hmm_purified_fasta))
         # Point all future operations to the HMM purified FASTA file as the original input
         args.fasta_input = hmm_purified_fasta
     else:
         fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
-        header_registry = register_headers(args, get_headers(args.fasta_input))
+        header_registry = register_headers(get_headers(args.fasta_input))
     unprocessed_fasta_dict = read_fasta_to_dict(args.fasta_input)
 
     ##
@@ -1511,7 +1510,7 @@ def main():
             logging.error("File '" + args.guarantee + "' does not exist!\n")
             sys.exit(3)
         important_seqs = format_read_fasta(args.guarantee, args.molecule, args.output_dir)
-        important_headers = register_headers(args, get_headers(args.guarantee))
+        important_headers = register_headers(get_headers(args.guarantee))
         fasta_dict.update(important_seqs)
         acc = max([int(x) for x in header_registry.keys()])
         for num_id in sorted(important_headers, key=int):
@@ -1762,7 +1761,9 @@ def main():
     ##
     # Build the tree using RAxML
     ##
+    logging.info("Building phylogenetic tree with RAxML... ")
     construct_tree(args, phylip_file, tree_output_dir)
+    logging.info("done.\n")
 
     if os.path.exists(ref_fasta_file):
         os.remove(ref_fasta_file)
