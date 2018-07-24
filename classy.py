@@ -299,9 +299,9 @@ class CreateFuncTreeUtility:
         """
         Call MAFFT to perform a multiple sequence alignment of the reference sequences and the
         gene sequences identified by TreeSAPP
+
         :param args: Command-line argument object from get_options and check_parser_arguments
         :param unaligned_ref_seqs:
-        :param ref_align: FASTA file containing
         :return: Name of the FASTA file containing the MSA
         """
 
@@ -951,6 +951,44 @@ class Header:
         info_string = "TreeSAPP ID = '" + self.treesapp_name + "'\tPrefix = '" + self.first_split + "'\n"
         info_string += "Original =  " + self.original + "\nFormatted = " + self.formatted
         return info_string
+
+
+def register_headers(header_list):
+    header_registry = dict()
+    acc = 1
+    for header in header_list:
+        new_header = Header(header)
+        new_header.formatted = reformat_string(header)
+        new_header.first_split = header.split()[0]
+        header_registry[str(acc)] = new_header
+        acc += 1
+    return header_registry
+
+
+def get_header_info(header_registry, code_name=''):
+    sys.stdout.write("Extracting information from headers... ")
+    sys.stdout.flush()
+    fasta_record_objects = dict()
+    for treesapp_id in sorted(header_registry.keys(), key=int):
+        original_header = header_registry[treesapp_id].original
+        formatted_header = header_registry[treesapp_id].formatted
+        header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
+        sequence_info = header_format_re.match(original_header)
+        accession, organism, locus, description, lineage = return_sequence_info_groups(sequence_info,
+                                                                                       header_db,
+                                                                                       formatted_header)
+        ref_seq = ReferenceSequence()
+        ref_seq.organism = organism
+        ref_seq.accession = accession
+        ref_seq.lineage = lineage
+        ref_seq.description = description
+        ref_seq.locus = locus
+        ref_seq.short_id = '>' + treesapp_id + '_' + code_name
+        fasta_record_objects[treesapp_id] = ref_seq
+
+    sys.stdout.write("done.\n")
+
+    return fasta_record_objects
 
 
 class Cluster:

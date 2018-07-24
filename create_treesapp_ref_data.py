@@ -20,7 +20,7 @@ try:
         reformat_fasta_to_phy, write_phy_file
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
         trim_multiple_alignment, read_fasta_to_dict
-    from classy import ReferenceSequence, Header, Cluster, prep_logging
+    from classy import ReferenceSequence, Header, Cluster, prep_logging, register_headers, get_header_info
     from external_command_interface import launch_write_command
     from entish import annotate_partition_tree
     from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
@@ -720,35 +720,10 @@ def reformat_headers(header_dict):
     return swappers
 
 
-def get_header_info(header_registry, code_name=''):
-    sys.stdout.write("Extracting information from headers... ")
-    sys.stdout.flush()
-    fasta_record_objects = dict()
-    for treesapp_id in sorted(header_registry.keys(), key=int):
-        original_header = header_registry[treesapp_id].original
-        formatted_header = header_registry[treesapp_id].formatted
-        header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
-        sequence_info = header_format_re.match(original_header)
-        accession, organism, locus, description, lineage = return_sequence_info_groups(sequence_info,
-                                                                                       header_db,
-                                                                                       formatted_header)
-        ref_seq = ReferenceSequence()
-        ref_seq.organism = organism
-        ref_seq.accession = accession
-        ref_seq.lineage = lineage
-        ref_seq.description = description
-        ref_seq.locus = locus
-        ref_seq.short_id = '>' + treesapp_id + '_' + code_name
-        fasta_record_objects[treesapp_id] = ref_seq
-
-    sys.stdout.write("done.\n")
-
-    return fasta_record_objects
-
-
 def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers=None):
     """
     This function is used to find the accession ID and description of each sequence from the FASTA file
+
     :param code_name: code_name from the command-line parameters
     :param fasta_dict: a dictionary with headers as keys and sequences as values (returned by format_read_fasta)
     :param fasta_replace_dict:
@@ -1219,21 +1194,10 @@ def terminal_commands(final_output_folder, code_name):
     return
 
 
-def register_headers(header_list):
-    header_registry = dict()
-    acc = 1
-    for header in header_list:
-        new_header = Header(header)
-        new_header.formatted = reformat_string(header)
-        new_header.first_split = header.split()[0]
-        header_registry[str(acc)] = new_header
-        acc += 1
-    return header_registry
-
-
 def construct_tree(args, multiple_alignment_file, tree_output_dir):
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
+
     :param args:
     :param multiple_alignment_file:
     :return:

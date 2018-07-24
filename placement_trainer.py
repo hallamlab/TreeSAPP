@@ -7,15 +7,17 @@ import logging
 import re
 from ete3 import Tree
 
-from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment
+from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment,\
+    format_read_fasta
 from file_parsers import tax_ids_file_to_leaves
 from utilities import reformat_fasta_to_phy, write_phy_file, median
-from entrez_utils import read_accession_taxa_map
+from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
+    write_accession_lineage_map, verify_lineage_information
 from phylo_dist import trim_lineages_to_rank, confidence_interval
 from external_command_interface import launch_write_command, setup_progress_bar
 from jplace_utils import jplace_parser
 from treesapp import run_papara
-from classy import prep_logging
+from classy import prep_logging, register_headers, get_header_info, get_headers
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -29,10 +31,11 @@ def get_options():
                         help="The tax_ids file generated from the marker's reference package.")
     parser.add_argument("-t", "--tree", required=True,
                         help="The Newick formatted tree generated from the marker's reference package.")
-    parser.add_argument("-l", "--lineages", required=True,
-                        help="The accession lineage map downloaded during reference package generation.")
     parser.add_argument("-r", "--ref_seqs", required=True,
                         help="A FASTA file containing the aligned reference sequences.")
+    parser.add_argument("-l", "--lineages",
+                        help="The accession lineage map downloaded during reference package generation.",
+                        required=False)
     args = parser.parse_args()
     return args
 
@@ -84,9 +87,11 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             leaf_taxa_map[ref_seq.number] = ref_seq.lineage
 
     # Remove duplicate sequences to prevent biasing the distance estimates
-    fasta_dict = deduplicate_fasta_sequences(fasta_dict)
-    for seq_name in fasta_dict.keys():
-        fasta_dict[seq_name.split(" ")[0]] = fasta_dict.pop(seq_name)
+    nr_fasta_dict = deduplicate_fasta_sequences(fasta_dict)
+    fasta_dict = dict()
+    for seq_name in nr_fasta_dict.keys():
+        fasta_dict[seq_name.split(" ")[0]] = nr_fasta_dict[seq_name]
+    nr_fasta_dict.clear()
 
     setup_progress_bar(len(taxonomic_ranks))
     # For each rank from Class to Species (Kingdom & Phylum-level classifications to be inferred by LCA):
@@ -168,19 +173,32 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             jplace_file = "RAxML_portableTree." + query_name + ".jplace"
             jplace_data = jplace_parser(jplace_file)
             for pquery in jplace_data.placements:
+                top_lwr = 0
+                distance = 100
                 for name, info in pquery.items():
                     if name == 'p':
                         for placement in info:
-                            distance = float(placement[3]) + float(placement[4])
-                            taxonomic_placement_distances[rank].append(distance)
+                            # Only record the best placement's distance
+                            lwr = float(placement[2])
+                            if lwr > top_lwr:
+                                top_lwr = lwr
+                                distance = float(placement[3]) + float(placement[4])
+                if distance == 100:
+                    logging.error("Distance was not updated while parsing placements.\n")
+                    sys.exit(19)
+                taxonomic_placement_distances[rank].append(distance)
             os.system("rm papara_* RAxML*")
-        stats_string = "RANK: " + rank + "\n"
-        stats_string += "\tSamples = " + str(len(taxonomic_placement_distances[rank])) + "\n"
-        stats_string += "\tMedian = " + str(round(median(taxonomic_placement_distances[rank]), 4)) + "\n"
-        stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
-                                                len(taxonomic_placement_distances[rank]), 4)) + "\n"
-        logging.debug(stats_string)
-        rank_distance_ranges[rank] = confidence_interval(taxonomic_placement_distances[rank], 0.95)
+        if len(taxonomic_placement_distances[rank]) == 0:
+            logging.debug("No samples available for " + rank + ".\n")
+            rank_distance_ranges[rank] = 0.0, 0.0
+        else:
+            stats_string = "RANK: " + rank + "\n"
+            stats_string += "\tSamples = " + str(len(taxonomic_placement_distances[rank])) + "\n"
+            stats_string += "\tMedian = " + str(round(median(taxonomic_placement_distances[rank]), 4)) + "\n"
+            stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
+                                                    len(taxonomic_placement_distances[rank]), 4)) + "\n"
+            logging.debug(stats_string)
+            rank_distance_ranges[rank] = confidence_interval(taxonomic_placement_distances[rank], 0.95)
         sys.stdout.write('-')
         sys.stdout.flush()
     sys.stdout.write("-]\n")
@@ -190,13 +208,38 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
 
 def main():
     args = get_options()
+    molecule = "prot"
+    sys.stdout.write("\n##\t\t\tEstimate taxonomic rank placement distances\t\t\t##\n")
     prep_logging("placement_trainer_log.txt", False)
+    if args.lineages:
+        accession_lineage_map = read_accession_taxa_map(args.lineages)
+    else:
+        header_registry = register_headers(get_headers(args.fasta))
+        fasta_record_objects = get_header_info(header_registry)
+        query_accession_list, num_lineages_provided = build_entrez_queries(fasta_record_objects)
+        accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list, molecule)
+        fasta_record_objects, accession_lineage_map = verify_lineage_information(accession_lineage_map,
+                                                                                 all_accessions,
+                                                                                 fasta_record_objects,
+                                                                                 num_lineages_provided,
+                                                                                 molecule)
+        write_accession_lineage_map("placement_trainer_accession_lineage_map.tsv", accession_lineage_map)
+
     # Read in the original fasta file
     fasta_dict = read_fasta_to_dict(args.fasta)
     ref_fasta_dict = read_fasta_to_dict(args.ref_seqs)
-    accession_lineage_map = read_accession_taxa_map(args.lineages)
 
-    train_placement_distances(fasta_dict, ref_fasta_dict, args.tree, args.taxa_map, accession_lineage_map, ".", "prot")
+    rank_distance_ranges = train_placement_distances(fasta_dict,
+                                                     ref_fasta_dict,
+                                                     args.tree,
+                                                     args.taxa_map,
+                                                     accession_lineage_map,
+                                                     ".", molecule)
+
+    ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
+    for rank in ranks:
+        if rank in rank_distance_ranges:
+            sys.stdout.write("'" + rank + "': " + str(rank_distance_ranges[rank]) + "\n")
 
 
 if __name__ == "__main__":

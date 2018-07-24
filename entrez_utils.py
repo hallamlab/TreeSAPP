@@ -12,6 +12,7 @@ from urllib import error
 def multiple_query_entrez_taxonomy(search_term_set):
     """
     Function for submitting multiple queries using Entrez.efetch to the 'Taxonomy' database.
+
     :param search_term_set: Inputs are a set of organism names (based off their accession records)
     :return: A dictionary mapping each of the unique organism names in search_term_set to a full taxonomic lineage
     """
@@ -384,7 +385,6 @@ def get_lineage_robust(reference_sequence_list, molecule):
             if strikes == 0:
                 if reference_sequence.accession:
                     lineage = get_lineage(reference_sequence.accession, molecule)
-                    print(1, lineage)
                 else:
                     logging.warning("No accession available for Entrez query:\n" +
                                     reference_sequence.get_info())
@@ -400,7 +400,6 @@ def get_lineage_robust(reference_sequence_list, molecule):
                     except IndexError:
                         taxon = reference_sequence.organism
                     lineage = get_lineage(taxon, "tax")
-                    print(2, lineage)
                     if type(lineage) is str and len(lineage) > 0:
                         # The query was successful
                         # try:
@@ -413,7 +412,6 @@ def get_lineage_robust(reference_sequence_list, molecule):
                     strikes += 1
             elif strikes == 2:
                 lineage = get_lineage(lineage, "tax")
-                print(3, lineage)
             strikes += 1
         if not lineage:
             logging.warning("Unable to find lineage for sequence with following data:\n" +
@@ -422,7 +420,6 @@ def get_lineage_robust(reference_sequence_list, molecule):
         # TODO: test this
         if reference_sequence.organism:
             lineage = check_lineage(lineage, reference_sequence.organism)
-            print(4, lineage)
         else:
             reference_sequence.organism = reference_sequence.description
         accession_lineage_map[reference_sequence.accession] = lineage
@@ -499,6 +496,7 @@ def write_accession_lineage_map(mapping_file, accession_lineage_map):
     """
     Function for writing a map of NCBI accession IDs to their respective taxonomic lineages
      using a list of ReferenceSequence objects
+
     :param mapping_file: Name of a file to write these data
     :param accession_lineage_map: A dictionary mapping accessions to lineages
     :return:

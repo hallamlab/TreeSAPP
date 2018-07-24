@@ -210,7 +210,7 @@ def get_header_format(header, code_name=""):
     ref_re = re.compile(">ref\|(.*)\|.*\[(.*)\]")
     pdb_re = re.compile(">pdb\|(.*)\|(.*)$")
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
-    sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
+    sp_re = re.compile(">sp\|(.*)\|.*Full=(.*);.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
     fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
