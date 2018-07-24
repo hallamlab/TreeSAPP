@@ -7,7 +7,6 @@ from file_parsers import tax_ids_file_to_leaves
 from utilities import clean_lineage_string, median
 
 from scipy import stats
-import scipy as sp
 import numpy as np
 
 # TODO: replace confidence_interval to remove scipy and numpy dependency
@@ -16,11 +15,12 @@ __author__ = 'Connor Morgan-Lang'
 
 
 def confidence_interval(data, confidence=0.95):
+    m = 2
     a = 1.0 * np.array(data)
-    n = len(a)
-    m, se = np.mean(a), stats.sem(a)
-    h = se * sp.stats.t._ppf((1 + confidence) / 2., n - 1)
-    return round(float(m - h), 4), round(float(m + h), 4)
+    # reject outliers
+    data = a[abs(a - np.mean(a)) < m * np.std(a)]
+    dat_mean, dat_var, dat_std = stats.bayes_mvs(data, confidence)
+    return round(dat_mean.minmax[0], 4), round(dat_mean.minmax[1], 4)
 
 
 def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict):

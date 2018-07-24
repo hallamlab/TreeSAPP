@@ -19,11 +19,11 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from fasta import format_read_fasta, write_new_fasta, get_headers
-from create_treesapp_ref_data import get_header_format, register_headers, finalize_ref_seq_lineages, get_header_info
+from create_treesapp_ref_data import get_header_format, finalize_ref_seq_lineages
 from utilities import clean_lineage_string, return_sequence_info_groups
 from external_command_interface import setup_progress_bar, launch_write_command
 from file_parsers import parse_ref_build_params
-from classy import prep_logging
+from classy import prep_logging, get_header_info, register_headers
 from entrez_utils import get_lineage, read_accession_taxa_map, write_accession_lineage_map,\
     build_entrez_queries, get_multiple_lineages, verify_lineage_information
 
@@ -900,6 +900,7 @@ def main():
          and run all taxonomic representative sequences with TreeSAPP then analyze via clade exclusion
         2. Run TreeSAPP on a set of sequences then provide Clade_exclusion_analyzer.py with the output directory
          and the input FASTA file analyzed. No taxonomic filtering will be performed.
+
     :return:
     """
     args = get_arguments_()
