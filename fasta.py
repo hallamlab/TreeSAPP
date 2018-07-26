@@ -217,6 +217,7 @@ def get_header_format(header, code_name=""):
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
     # treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")  # Conflicting
     refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")
+    genbank_prot_re = re.compile("^>([A-Z]{3}[0-9]{5}\.?[0-9]?) (.*) \[(.*)\]$")
 
     # Nucleotide databases:
     silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
@@ -224,7 +225,7 @@ def get_header_format(header, code_name=""):
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
     # Ambiguous:
-    genbank_exact_genome = re.compile("^>([A-Z0-9]+\.[0-9]) (.*) \[(.*)\]$")
+    genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) (.*) \[(.*)\]$")
     ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) ([A-Za-z1-9 _-]+)$")
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
@@ -243,7 +244,8 @@ def get_header_format(header, code_name=""):
                                gi_re: "gi_re",
                                gi_prepend_proper_re: "gi_proper",
                                gi_prepend_mess_re: "gi_mess",
-                               refseq_prot_re: "refseq_prot"},
+                               refseq_prot_re: "refseq_prot",
+                               genbank_prot_re: "gen_prot"},
                       "dna": {fungene_re: "fungene",
                               fungene_trunc_re: "fungene_truncated",
                               mltree_re: "mltree",

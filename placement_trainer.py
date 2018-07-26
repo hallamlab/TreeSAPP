@@ -7,8 +7,7 @@ import logging
 import re
 from ete3 import Tree
 
-from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment,\
-    format_read_fasta
+from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment
 from file_parsers import tax_ids_file_to_leaves
 from utilities import reformat_fasta_to_phy, write_phy_file, median
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
@@ -36,12 +35,14 @@ def get_options():
     parser.add_argument("-l", "--lineages",
                         help="The accession lineage map downloaded during reference package generation.",
                         required=False)
+    parser.add_argument("-o", "--output_dir", required=False, default='.',
+                        help="Path to directory for writing outputs.")
     args = parser.parse_args()
     return args
 
 
 def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_file: str, tax_ids_file: str,
-                              accession_lineage_map: dict, output_dir: str, molecule: str):
+                              accession_lineage_map: dict, molecule: str):
     """
     Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
     yielding an estimate of placement distances corresponding to taxonomic ranks.
@@ -51,7 +52,6 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     :param ref_tree_file: A Newick-formatted phylogenetic tree with branch length distances (no internal nodes)
     :param tax_ids_file: A tabular file created by create_treesapp_ref_data.py
     :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
-    :param output_dir: Path to directory for writing intermediate files
     :param molecule: Molecule type [prot | dna | rrna]
 
     :return:
@@ -88,7 +88,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
 
     # Remove duplicate sequences to prevent biasing the distance estimates
     nr_fasta_dict = deduplicate_fasta_sequences(fasta_dict)
-    fasta_dict = dict()
+    fasta_dict.clear()
     for seq_name in nr_fasta_dict.keys():
         fasta_dict[seq_name.split(" ")[0]] = nr_fasta_dict[seq_name]
     nr_fasta_dict.clear()
@@ -113,7 +113,8 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             leaves_excluded = 0
 
             optimal_lca_taxonomy = "; ".join(taxonomy.split("; ")[:-1])
-            if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages if tl != taxonomy]:
+            if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages if
+                                            tl != taxonomy]:
                 logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not found in pruned tree.\n")
                 continue
 
@@ -203,11 +204,15 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
         sys.stdout.flush()
     sys.stdout.write("-]\n")
     os.system("rm taxonomy_filtered_ref_seqs.phy queries.fasta tmp_tree.txt")
-    return rank_distance_ranges
+    return rank_distance_ranges, taxonomic_placement_distances
 
 
 def main():
     args = get_options()
+
+    if not os.path.isdir(args.output_dir):
+        os.makedirs(args.output_dir)
+
     molecule = "prot"
     sys.stdout.write("\n##\t\t\tEstimate taxonomic rank placement distances\t\t\t##\n")
     prep_logging("placement_trainer_log.txt", False)
@@ -223,23 +228,30 @@ def main():
                                                                                  fasta_record_objects,
                                                                                  num_lineages_provided,
                                                                                  molecule)
-        write_accession_lineage_map("placement_trainer_accession_lineage_map.tsv", accession_lineage_map)
+        write_accession_lineage_map(args.output_dir + os.sep + "placement_trainer_accession_lineage_map.tsv",
+                                    accession_lineage_map)
 
     # Read in the original fasta file
     fasta_dict = read_fasta_to_dict(args.fasta)
     ref_fasta_dict = read_fasta_to_dict(args.ref_seqs)
 
-    rank_distance_ranges = train_placement_distances(fasta_dict,
-                                                     ref_fasta_dict,
-                                                     args.tree,
-                                                     args.taxa_map,
-                                                     accession_lineage_map,
-                                                     ".", molecule)
-
-    ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
-    for rank in ranks:
-        if rank in rank_distance_ranges:
-            sys.stdout.write("'" + rank + "': " + str(rank_distance_ranges[rank]) + "\n")
+    rank_distance_ranges, taxonomic_placement_distances = train_placement_distances(fasta_dict,
+                                                                                    ref_fasta_dict,
+                                                                                    args.tree,
+                                                                                    args.taxa_map,
+                                                                                    accession_lineage_map,
+                                                                                    molecule)
+    with open(args.output_dir + os.sep + "placement_trainer_results.txt", 'w') as out_handler:
+        trained_string = ""
+        ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
+        for rank in ranks:
+            trained_string += "# " + rank + "\n"
+            if rank in taxonomic_placement_distances:
+                trained_string += str(taxonomic_placement_distances[rank]) + "\n"
+            if rank in rank_distance_ranges:
+                trained_string += ','.join([str(dist) for dist in rank_distance_ranges[rank]]) + "\n"
+            trained_string += "\n"
+        out_handler.write(trained_string)
 
 
 if __name__ == "__main__":

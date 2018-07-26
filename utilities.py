@@ -246,7 +246,7 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             accession = regex_match_groups.group(1)
             description = regex_match_groups.group(2)
             organism = ""
-        elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome"]:
+        elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome", "gen_prot"]:
             accession = regex_match_groups.group(1)
             description = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)

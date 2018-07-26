@@ -1753,12 +1753,12 @@ def main():
                                 fasta_replace_dict,
                                 tree_output_dir + os.sep + "RAxML_bipartitions." + code_name)
         model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + code_name)
-    rank_distance_ranges = train_placement_distances(fasta_dict=unprocessed_fasta_dict,
-                                                     ref_fasta_dict=aligned_fasta_dict,
-                                                     ref_tree_file=args.final_output_dir + args.code_name + "_tree.txt",
-                                                     tax_ids_file=tree_taxa_list,
-                                                     accession_lineage_map=accession_lineage_map,
-                                                     molecule=args.molecule, output_dir=args.output_dir)
+    rank_distance_ranges, _ = train_placement_distances(fasta_dict=unprocessed_fasta_dict,
+                                                        ref_fasta_dict=aligned_fasta_dict,
+                                                        ref_tree_file=args.final_output_dir + args.code_name + "_tree.txt",
+                                                        tax_ids_file=tree_taxa_list,
+                                                        accession_lineage_map=accession_lineage_map,
+                                                        molecule=args.molecule)
     update_build_parameters(args, code_name, model, lowest_reliable_rank, rank_distance_ranges)
 
     logging.info("Data for " + code_name + " has been generated successfully.\n")
