@@ -4,7 +4,8 @@ import sys
 import os
 import re
 import logging
-from classy import TreeLeafReference, MarkerBuild
+from classy import TreeLeafReference, MarkerBuild, Cluster
+from utilities import Autovivify, calculate_overlap
 from HMMER_domainTblParser import DomainTableParser, format_split_alignments, filter_incomplete_hits, filter_poor_hits
 
 __author__ = 'Connor Morgan-Lang'
@@ -460,3 +461,305 @@ def read_phylip(phylip_input):
 
     phylip.close()
     return header_dict, alignment_dict
+
+
+def parse_blast_results(args, blast_tables, cog_list):
+    """
+    Returns an Autovivification of purified (eg. non-redundant) BLAST hits.
+    :param args: Command-line argument object from get_options and check_parser_arguments
+    :param blast_tables: file produced by BLAST alignment
+    :param cog_list: list of COGs included in analysis pipeline
+    """
+
+    logging.info("Parsing BLAST results... ")
+
+    # reg_cog_id = re.compile(r'.*(.{5})\Z')
+    counter = 0
+    purified_blast_hits = Autovivify()
+    contigs = {}
+    hit_logger = dict()
+    alignment_count = 0
+
+    for blast_table in blast_tables:
+        try:
+            blast_results = open(blast_table, 'r')
+        except IOError:
+            logging.error("Cannot open BLAST output file " + blast_table + "\n")
+            sys.exit(3)
+
+        identifier = 0
+        for line in blast_results:
+            # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
+            # Interpret the BLAST hit, and assign the details accordingly
+            alignment_count += 1
+            temp_contig, temp_detailed_cog, _, _, _, _, temp_query_start, temp_query_end, temp_ref_start, temp_ref_end, _, temp_bitscore = line.split('\t')
+            temp_ref_end = int(temp_ref_end)
+            temp_ref_start = int(temp_ref_start)
+            temp_query_end = int(temp_query_end)
+            temp_query_start = int(temp_query_start)
+            temp_bitscore = float(temp_bitscore)
+
+            # Skip to next BLAST hit if bit score is less than user-defined minimum
+            if temp_bitscore <= args.bitscore:
+                continue
+
+            # Determine the direction of the hit relative to the reference
+            direction = 'forward'
+            if temp_ref_start > temp_ref_end:
+                temp = temp_ref_start
+                temp_ref_start = temp_ref_end
+                temp_ref_end = temp
+                direction = 'reverse'
+            if temp_query_start > temp_query_end:
+                temp = temp_query_start
+                temp_query_start = temp_query_end
+                temp_query_end = temp
+                if direction == 'reverse':
+                    logging.error("Confusing BLAST result!\n" +
+                                  "Please notify the authors about " +
+                                  temp_contig + ' at ' +
+                                  temp_detailed_cog +
+                                  " q(" + str(temp_query_end) + '..' + str(temp_query_start) + ")," +
+                                  " r(" + str(temp_ref_end) + '..' + str(temp_ref_start) + ")")
+                    sys.exit(3)
+                direction = 'reverse'
+
+            # This limitation is so-far not necessary
+            # result = reg_cog_id.match(temp_detailed_cog)
+            # if result:
+            #     tempCOG = result.group(1)
+            result = '_'.join(temp_detailed_cog.split('_')[1:])
+            if result:
+                tempCOG = result
+            else:
+                sys.exit('ERROR: Could not detect the COG of sequence ' + temp_detailed_cog)
+
+            # Save contig details to the list
+            if temp_contig not in contigs:
+                contigs[temp_contig] = {}
+
+            if identifier not in contigs[temp_contig]:
+                contigs[temp_contig][identifier] = {}
+
+            contigs[temp_contig][identifier]['bitscore'] = temp_bitscore
+            contigs[temp_contig][identifier]['cog'] = tempCOG
+            contigs[temp_contig][identifier]['seq_start'] = temp_query_start
+            contigs[temp_contig][identifier]['seq_end'] = temp_query_end
+            contigs[temp_contig][identifier]['direction'] = direction
+            contigs[temp_contig][identifier]['validity'] = True
+            identifier += 1
+
+        # Close the file
+        blast_results.close()
+
+    # Purify the BLAST hits
+    # For each contig sorted by their string-wise comparison...
+    for contig in sorted(contigs.keys()):
+        identifier = 0
+
+        # create tuple array to sort
+        IDs = []
+        for raw_identifier in sorted(contigs[contig].keys()):
+            base_start = contigs[contig][raw_identifier]['seq_start']
+            IDs.append((raw_identifier, base_start))
+        _IDs = sorted(IDs, key=lambda x: x[1])
+        IDs = [x[0] for x in _IDs]
+
+        base_blast_result_raw_identifier = IDs.pop()
+        contigs[contig][base_blast_result_raw_identifier]['validity'] = True
+        base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
+        base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
+        base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
+        base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
+        direction = contigs[contig][base_blast_result_raw_identifier]['direction']
+        base_length = base_end - base_start
+
+        # Compare the BLAST hit (base) against all others
+        # There may be several opinions about how to do this. This way is based on the original MLTreeMap
+        # ----A----  --C--
+        #        ---B---
+        # A kills B, B kills C. (Another approach would be to let C live,
+        # but the original MLTreeMap authors don't expect C to be useful)
+        for check_blast_result_raw_identifier in IDs:
+            check_bitscore = contigs[contig][check_blast_result_raw_identifier]['bitscore']
+            check_cog = contigs[contig][check_blast_result_raw_identifier]['cog']
+            check_start = contigs[contig][check_blast_result_raw_identifier]['seq_start']
+            check_end = contigs[contig][check_blast_result_raw_identifier]['seq_end']
+            check_length = check_end - check_start
+
+            # Compare the base and check BLAST hits
+            info = Autovivify()
+            info['base']['start'] = base_start
+            info['base']['end'] = base_end
+            info['check']['start'] = check_start
+            info['check']['end'] = check_end
+            overlap = calculate_overlap(info)
+            counter += 1
+
+            # Check for validity for hits with overlap
+            if overlap == 0:
+                base_blast_result_raw_identifier = check_blast_result_raw_identifier
+                base_bitscore = check_bitscore
+                base_cog = check_cog
+                base_start = check_start
+                base_end = check_end
+                base_length = check_length
+                contigs[contig][base_blast_result_raw_identifier]['validity'] = True
+            else:
+                if overlap > 0.5*base_length and base_bitscore < check_bitscore:
+                    contigs[contig][base_blast_result_raw_identifier]['validity'] = False
+                    base_blast_result_raw_identifier = check_blast_result_raw_identifier
+                    base_bitscore = check_bitscore
+                    base_cog = check_cog
+                    base_start = check_start
+                    base_end = check_end
+                    base_length = check_length
+                    contigs[contig][base_blast_result_raw_identifier]['validity'] = True
+                elif overlap > 0.5*check_length and check_bitscore < base_bitscore:
+                    contigs[contig][check_blast_result_raw_identifier]['validity'] = False
+                elif base_start == check_start and base_end == check_end:
+                    # If both are the same, keep only the one with the smaller identifier
+                    if check_blast_result_raw_identifier > base_blast_result_raw_identifier:
+                        contigs[contig][check_blast_result_raw_identifier]['validity'] = False
+
+        # Set validity to 0 if COG is not in list of TreeSAPP COGs
+        if base_cog not in cog_list['all_cogs']:
+            contigs[contig][base_blast_result_raw_identifier]['validity'] = False
+            logging.warning("WARNING: " + base_cog + " not in list of TreeSAPP markers\n")
+
+        # Save purified hits for valid base hits
+        for base_blast_result_raw_identifier in IDs:
+            base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
+            base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
+            base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
+            base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
+            direction = contigs[contig][base_blast_result_raw_identifier]['direction']
+            if contigs[contig][base_blast_result_raw_identifier]['validity']:
+                purified_blast_hits[contig][identifier]['bitscore'] = base_bitscore
+                purified_blast_hits[contig][identifier]['cog'] = base_cog
+                purified_blast_hits[contig][identifier]['start'] = base_start
+                purified_blast_hits[contig][identifier]['end'] = base_end
+                purified_blast_hits[contig][identifier]['direction'] = direction
+                purified_blast_hits[contig][identifier]['is_already_placed'] = False
+                identifier += 1
+
+    # Print the BLAST results for each contig
+    for contig in sorted(purified_blast_hits.keys()):
+        outfile = args.output_dir_var + contig + '_blast_result_purified.txt'
+        out = open(outfile, 'w')
+        sorting_hash = {}
+
+        # Identify the first instance of each bitscore
+        for identifier in sorted(purified_blast_hits[contig].keys()):
+            if not purified_blast_hits[contig][identifier]['bitscore'] in sorting_hash:
+                sorting_hash[purified_blast_hits[contig][identifier]['bitscore']] = {}
+            sorting_hash[purified_blast_hits[contig][identifier]['bitscore']][identifier] = 1
+
+        # Print the (potentially reduced set of) BLAST results ordered by decreasing bitscore
+        for bitscore in sorted(sorting_hash.keys(), reverse=True):
+            for identifier in sorted(sorting_hash[bitscore]):
+                marker = purified_blast_hits[contig][identifier]['cog']
+                if marker not in hit_logger:
+                    hit_logger[marker] = 0
+                hit_logger[marker] += 1
+                out.write(contig + '\t' + str(purified_blast_hits[contig][identifier]['start']) + '\t' +
+                          str(purified_blast_hits[contig][identifier]['end']) + '\t' +
+                          str(purified_blast_hits[contig][identifier]['direction']) + '\t' +
+                          purified_blast_hits[contig][identifier]['cog'] + '\t' + str(bitscore) + '\n')
+
+        out.close()
+    logging.info("done.\n")
+
+    logging.debug("\t" + str(alignment_count) + " intial BLAST alignments found.\n")
+    total = 0
+    for n in hit_logger.values():
+        total += n
+    logging.debug("\t" + str(total) + " purified BLAST alignments:\n" +
+                  "\n".join(["\t\t" + str(hit_logger[marker]) + " " + marker for marker in hit_logger]))
+
+    return purified_blast_hits
+
+
+def blastp_parser(args, blast_hits_purified):
+    """
+    For each contig, produces a file similar to the Genewise output file
+    (this is in cases where Genewise is unnecessary because it is already an AA sequence.
+    :param args: Command-line argument object from get_options and check_parser_arguments
+    :param blast_hits_purified: Parsed blastp outputs
+    :return blastp_summary_files: Autovivification of the output file for each contig.
+    """
+
+    blastp_summary_files = Autovivify()
+
+    reg_header = re.compile(r'\A>')
+
+    for contig in sorted(blast_hits_purified.keys()):
+        output_file = args.output_dir_var + contig + '_blast_result_summary.txt'
+        try:
+            output = open(output_file, 'w')
+        except IOError:
+            sys.exit('ERROR: Unable to open ' + output_file + '!\n')
+        blastp_summary_files[contig][output_file] = 1
+        shortened_sequence_file = args.output_dir_var + contig + '_sequence_shortened.txt'
+        try:
+            sequence_file = open(shortened_sequence_file, 'r')
+        except IOError:
+            sys.exit('ERROR: Could not open ' + shortened_sequence_file + '!\n')
+        flag_seq = 0
+        sequence = ''
+
+        # Get the sequence from the shortened sequence file
+        for line in sequence_file:
+            if reg_header.search(line):
+                if flag_seq == 1:
+                    sys.exit('ERROR: Unexpected multiple shortened sequences found!\n')
+                flag_seq = 1
+                continue
+            else:
+                line.strip()
+                sequence += line
+
+        # Write the output file to imitate the Genewise results
+        for count in sorted(blast_hits_purified[contig].keys()):
+            output.write(str(blast_hits_purified[contig][count]['cog']) + '\t')
+            output.write(str(blast_hits_purified[contig][count]['start']) + '\t')
+            output.write(str(blast_hits_purified[contig][count]['end']) + '\t')
+            output.write(str(blast_hits_purified[contig][count]['direction']) + '\t')
+            output.write(str(sequence) + '\n')
+        sequence_file.close()
+        output.close()
+
+    return blastp_summary_files
+
+
+def read_uc(uc_file):
+    """
+    Function to read a USEARCH cluster (.uc) file
+
+    :param uc_file: Path to a .uc file produced by USEARCH
+    :return: Dictionary where keys are representative cluster headers and the values are headers of identical sequences
+    """
+    cluster_dict = dict()
+    rep_len_map = dict()
+    try:
+        uc = open(uc_file, 'r')
+    except IOError:
+        logging.error("Unable to open USEARCH cluster file " + uc_file + " for reading!\n")
+        sys.exit(13)
+
+    line = uc.readline()
+    # Find all clusters with multiple identical sequences
+    while line:
+        cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
+        if cluster_type == "S":
+            cluster_dict[num_id] = Cluster('>' + header)
+            rep_len_map['>' + header] = length
+        elif cluster_type == "H":
+            cluster_dict[num_id].members.append(['>' + header, identity])
+        elif cluster_type == "C":
+            pass
+        else:
+            logging.error("Unexpected cluster type '" + str(cluster_type) + "' in " + uc_file + "\n")
+            sys.exit(13)
+        line = uc.readline()
+    return cluster_dict

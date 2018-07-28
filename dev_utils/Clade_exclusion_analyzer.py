@@ -1071,7 +1071,7 @@ def main():
                                 "-m", args.molecule,
                                 "-T", str(4),
                                 "--min_seq_length", min_seq_length,
-                                "--filter_align",
+                                "--trim_align",
                                 "--overwrite",
                                 "--delete"]
         sys.stdout.write("Command used:\n" + ' '.join(classify_command) + "\n")

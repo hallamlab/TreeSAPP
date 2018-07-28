@@ -154,8 +154,7 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "trimal", "BMGE.jar", "papara"]
-    # old_dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "makeblastdb", "muscle"]
+    dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "usearch", "trimal", "BMGE.jar", "papara"]
 
     # Extra executables necessary for certain modes of TreeSAPP
     if hasattr(args, "rpkm") and args.rpkm:
@@ -491,4 +490,59 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
             phy_string += "\n"
 
         phy_output.write(phy_string)
+    return
+
+
+def calculate_overlap(info):
+    """
+    Returns the overlap length of the base and the check sequences.
+    :param info: Autovivify() object holding start and end sequence coordinates for overlapping sequences
+    :return overlap: The number of overlapping bases between the sequences
+    """
+
+    overlap = 0
+    base_start = info['base']['start']
+    base_end = info['base']['end']
+    check_start = info['check']['start']
+    check_end = info['check']['end']
+
+    # Calculate the overlap based on the relative positioning of the base and check sequences
+    assert isinstance(base_end, (int, int, float, complex))
+    if base_start <= check_start:
+        if check_end >= base_end >= check_start:
+            # Base     ----
+            # Check      -------
+            overlap = base_end - check_start
+        elif check_end <= base_end:
+            # Base     --------
+            # Check        --
+            overlap = check_end - check_start
+    elif check_start <= base_start:
+        if base_start <= check_end <= base_end:
+            # Base         -----
+            # Check    -----
+            overlap = check_end - base_start
+        elif base_end <= check_end:
+            # Base       --
+            # Check    --------
+            overlap = base_end - base_start
+
+    return overlap
+
+
+def cluster_sequences(args, fasta_input, uclust_prefix, similarity=0.60):
+
+    uclust_cmd = [args.executables["usearch"]]
+    uclust_cmd += ["-cluster_fast", fasta_input]
+    uclust_cmd += ["-id", str(similarity)]
+    uclust_cmd += ["-sort", "length"]
+    uclust_cmd += ["-centroids", uclust_prefix + ".fa"]
+    uclust_cmd += ["--uc", uclust_prefix + ".uc"]
+
+    stdout, returncode = launch_write_command(uclust_cmd)
+
+    if returncode != 0:
+        logging.error("USEARCH did not complete successfully! Command used:\n" +
+                      ' '.join(uclust_cmd) + "\n")
+        sys.exit(13)
     return

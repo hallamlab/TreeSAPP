@@ -17,7 +17,7 @@ try:
     from time import gmtime, strftime, sleep
 
     from utilities import os_type, is_exe, which, find_executables, reformat_string, return_sequence_info_groups,\
-        reformat_fasta_to_phy, write_phy_file
+        reformat_fasta_to_phy, write_phy_file, cluster_sequences
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
         trim_multiple_alignment, read_fasta_to_dict
     from classy import ReferenceSequence, Header, Cluster, prep_logging, register_headers, get_header_info
@@ -368,56 +368,6 @@ def hmmsearch_input_references(args, fasta_replaced_file):
         sys.exit()
 
     return [domtbl]
-
-
-def uclust_sequences(args, fasta_input, uclust_prefix):
-
-    uclust_cmd = [args.executables["usearch"]]
-    uclust_cmd += ["-cluster_fast", fasta_input]
-    uclust_cmd += ["-id", args.identity]
-    uclust_cmd += ["-sort", "length"]
-    uclust_cmd += ["-centroids", uclust_prefix + ".fa"]
-    uclust_cmd += ["--uc", uclust_prefix + ".uc"]
-
-    stdout, returncode = launch_write_command(uclust_cmd)
-
-    if returncode != 0:
-        logging.error("USEARCH did not complete successfully! Command used:\n" +
-                      ' '.join(uclust_cmd) + "\n")
-        sys.exit(13)
-    return
-
-
-def read_uc(uc_file):
-    """
-    Function to read a USEARCH cluster (.uc) file
-    :param uc_file: Path to a .uc file produced by USEARCH
-    :return: Dictionary where keys are representative cluster headers and the values are headers of identical sequences
-    """
-    cluster_dict = dict()
-    rep_len_map = dict()
-    try:
-        uc = open(uc_file, 'r')
-    except IOError:
-        logging.error("Unable to open USEARCH cluster file " + uc_file + " for reading!\n")
-        sys.exit(13)
-
-    line = uc.readline()
-    # Find all clusters with multiple identical sequences
-    while line:
-        cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
-        if cluster_type == "S":
-            cluster_dict[num_id] = Cluster('>' + header)
-            rep_len_map['>' + header] = length
-        elif cluster_type == "H":
-            cluster_dict[num_id].members.append(['>' + header, identity])
-        elif cluster_type == "C":
-            pass
-        else:
-            logging.error("Unexpected cluster type '" + str(cluster_type) + "' in " + uc_file + "\n")
-            sys.exit(13)
-        line = uc.readline()
-    return cluster_dict
 
 
 def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
@@ -1481,7 +1431,7 @@ def main():
     ##
     if args.cluster:
         logging.info("Clustering sequences with UCLUST... ")
-        uclust_sequences(args, filtered_fasta_name, uclust_prefix)
+        cluster_sequences(args, filtered_fasta_name, uclust_prefix, args.identity)
         logging.info("done.\n")
         args.fasta_input = clustered_fasta
         args.uc = clustered_uc
