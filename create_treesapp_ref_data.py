@@ -26,7 +26,7 @@ try:
     from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
     from entrez_utils import get_multiple_lineages, get_lineage_robust, verify_lineage_information,\
         read_accession_taxa_map, write_accession_lineage_map, build_entrez_queries
-    from file_parsers import parse_domain_tables
+    from file_parsers import parse_domain_tables, read_phylip
     from placement_trainer import train_placement_distances
 
 except ImportError:
@@ -207,67 +207,6 @@ def get_arguments():
             sys.exit()
 
     return args
-
-
-def read_phylip(phylip_input):
-    header_dict = dict()
-    alignment_dict = dict()
-    x = 0
-
-    try:
-        phylip = open(phylip_input, 'r')
-    except IOError:
-        raise IOError("ERROR: Unable to open the Phylip file (" + phylip_input + ") provided for reading!")
-
-    line = phylip.readline()
-    try:
-        num_sequences, aln_length = line.strip().split(' ')
-        num_sequences = int(num_sequences)
-        aln_length = int(aln_length)
-    except ValueError:
-        raise AssertionError("ERROR: Phylip file is not formatted correctly!\n"
-                             "Header line does not contain 2 space-separated fields "
-                             "(number of sequences and alignment length). Exiting now.\n")
-    line = phylip.readline()
-    while line:
-        line = line.strip()
-        if len(line.split()) == 2:
-            # This is the introduction set: header, sequence
-            header, sequence = line.split()
-            header_dict[x] = header
-            alignment_dict[x] = sequence
-            x += 1
-        elif 60 >= len(line) >= 1:
-            alignment_dict[x] += line
-            x += 1
-        elif line == "":
-            # Reset accumulator on blank lines
-            x = 0
-        else:
-            sys.exit(line + "\nERROR: Unexpected line in Phylip file.")
-
-        line = phylip.readline()
-
-        if x > num_sequences:
-            sys.stderr.write("\nERROR:\n"
-                             "Accumulator has exceeded the number of sequences in the file (according to header)!\n")
-            sys.exit()
-
-    # Check that the alignment length matches that in the header line
-    x = 0
-    while x < num_sequences-1:
-        if len(alignment_dict[x]) != aln_length:
-            sys.stderr.write("\nERROR:\n" + header_dict[x] +
-                             " sequence length exceeds the stated multiple alignment length (according to header)!\n")
-            sys.stderr.write("sequence length = " + str(len(alignment_dict[x])) +
-                             ", alignment length = " + str(aln_length) + "\n")
-            sys.exit()
-        else:
-            pass
-        x += 1
-
-    phylip.close()
-    return header_dict, alignment_dict
 
 
 def write_mfa(header_dict, alignment_dict, fasta_output):

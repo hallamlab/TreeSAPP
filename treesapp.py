@@ -1741,18 +1741,20 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
                 num_seqs, sequence_length = validate_phylip_utility(mfa_file)
             else:
                 logging.error("File type '" + file_type + "' is not recognized.")
+                sys.exit(3)
 
             alignment_length_dict[mfa_file] = sequence_length
             if verbosity and ref_seq_length*1.5 < sequence_length:
-                logging.warning("\tWARNING: multiple alignment of " + denominator +
-                                "\n\tcaused >150% increase in the number of columns:\n\t" +
-                                str(ref_seq_length) + '->' + str(sequence_length) + "\n")
+                logging.warning("Multiple alignment of " + denominator +
+                                "caused >150% increase in the number of columns (" +
+                                str(ref_seq_length) + '->' + str(sequence_length) + ").\n")
     return alignment_length_dict
 
 
 def validate_phylip_utility(phylip_file):
     """
     Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+
     :param phylip_file: Path of a multiple alignment in Phylip format
     :return: tuple = (nrow, ncolumn)
     """
@@ -1778,17 +1780,38 @@ def validate_phylip_utility(phylip_file):
     return num_seqs, sequence_length
 
 
+def validate_multiple_alignment_utility(multi_align, file_name):
+    """
+    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+
+    :param multi_align: dictionary of sequence names as keys and sequences as values
+    :param file_name: Name of the file where the multi_align was read from
+    :return: tuple = (nrow, ncolumn)
+    """
+    sequence_length = 0
+    num_seqs = 0
+    for seq_name in multi_align:
+        if sequence_length == 0:
+            sequence_length = len(multi_align[seq_name])
+        elif sequence_length != len(multi_align[seq_name]):
+            logging.error("Number of aligned columns is inconsistent in " + file_name + "!\n")
+            sys.exit(3)
+        num_seqs += 1
+    return num_seqs, sequence_length
+
+
 def validate_multi_aligned_fasta_utility(fasta_file):
     """
     Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+
     :param fasta_file: Path of a multiple alignment in FASTA format
     :return: tuple = (nrow, ncolumn)
     """
     try:
         fasta_handler = open(fasta_file, 'r')
     except IOError:
-        sys.stderr.write("ERROR: unable to open " + fasta_file + " for reading!\n")
-        sys.exit(13)
+        logging.error("Unable to open " + fasta_file + " for reading!\n")
+        sys.exit(3)
     sequence = ""
     sequence_length = 0
     num_seqs = 0
@@ -1799,8 +1822,8 @@ def validate_multi_aligned_fasta_utility(fasta_file):
             if sequence_length == 0:
                 sequence_length = len(sequence)
             elif sequence_length != len(sequence) and sequence_length > 0:
-                sys.stderr.write("ERROR: Number of aligned columns is inconsistent in " + fasta_file + "!\n")
-                sys.exit(14)
+                logging.error("Number of aligned columns is inconsistent in " + fasta_file + "!\n")
+                sys.exit(3)
             sequence = ""
             num_seqs += 1
         else:
@@ -2129,9 +2152,10 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     return concatenated_mfa_files, nrs_of_sequences
 
 
-def filter_multiple_alignments(args, concatenated_mfa_files, marker_build_dict, log_handler, tool="BMGE"):
+def filter_multiple_alignments(args, concatenated_mfa_files, marker_build_dict, tool="BMGE"):
     """
     Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
+
     :param args:
     :param concatenated_mfa_files: A dictionary containing f_contig keys mapping to a FASTA or Phylip sequential file
     :param marker_build_dict:
@@ -2167,33 +2191,125 @@ def filter_multiple_alignments(args, concatenated_mfa_files, marker_build_dict, 
     return trimmed_output_files
 
 
-def evaluate_trimming_performace(mfa_files, alignment_length_dict, suffix, file_type="fasta"):
+def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
+    """
+    Reads the multiple alignment files (either Phylip or FASTA formatted) and looks for both reference and query
+    sequences that have been removed. Multiple alignment files are removed from `mfa_files` if:
+        1. all query sequences were removed; a DEBUG message is issued
+        2. at least one reference sequence was removed
+    This quality-control function is necessary for placing short query sequences onto reference trees.
+    Returns a dictionary of denominators, with multiple alignment dictioaries as values. Example:
+        {M0702: { "McrB_hmm_purified.phy-BMGE.fasta": {'1': seq1, '2': seq2}}}
+
+    :param args:
+    :param mfa_files:
+    :param marker_build_dict:
+    :return: dict()
+    """
+    qc_ma_dict = dict()
+    discarded_seqs = dict()
+    num_successful_alignments = 0
+
+    for f_contig in sorted(mfa_files.keys()):
+        denominator = f_contig.split('_')[0]
+        marker = marker_build_dict[denominator].cog
+        # Create a set of the reference sequence names
+        ref_headers = get_headers(os.sep.join([args.treesapp, "data", "alignment_data", marker + ".fa"]))
+        unique_refs = set([re.sub('_' + re.escape(marker), '', x)[1:] for x in ref_headers])
+        for multi_align_file in mfa_files[f_contig]:
+            filtered_multi_align = dict()
+            discarded_seqs[multi_align_file] = list()
+            f_ext = multi_align_file.split('.')[-1]
+            if re.search("phy", f_ext):  # File is in Phylip format
+                headers, seqs = read_phylip(multi_align_file)
+                multi_align = dict()
+                for x in headers:
+                    seq_name = headers[x]
+                    try:
+                        int(seq_name)
+                    except ValueError:
+                        if re.match("^_\d+", seq_name):
+                            seq_name = re.sub("^_", '-', seq_name)
+                        else:
+                            logging.error("Unexpected sequence name " + seq_name +
+                                          " detected in " + multi_align_file + ".\n")
+                    multi_align[seq_name] = seqs[x]
+            elif re.match("^f", f_ext):  # This is meant to match all fasta extensions
+                multi_align = read_fasta_to_dict(multi_align_file)
+            else:
+                logging.error("Unable to detect file format of " + multi_align_file + ".\n")
+                sys.exit(3)
+
+            # The numeric idenfifiers make it easy to maintain order in the Phylip file by a numerical sort
+            # The negative integers indicate this is a query sequence so we can perform filtering
+            for seq_name in sorted(multi_align, key=int):
+                seq_dummy = re.sub('-', '', multi_align[seq_name])
+                if len(seq_dummy) < args.min_seq_length:
+                    discarded_seqs[multi_align_file].append(seq_name)
+                else:
+                    filtered_multi_align[seq_name] = multi_align[seq_name]
+
+            multi_align_seq_names = set(multi_align.keys())
+            filtered_multi_align_seq_names = set(filtered_multi_align.keys())
+
+            if len(discarded_seqs[multi_align_file]) == len(multi_align.keys()):
+                # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
+                logging.warning(marker + "alignment in " + multi_align_file +
+                                " is shorter than minimum sequence length threshold (" + str(args.min_seq_length) +
+                                ").\nThese sequences will not be analyzed.\n")
+            # Calculate the number of reference sequences removed
+            elif not unique_refs.issubset(filtered_multi_align_seq_names):
+                logging.warning("Reference sequences shorter than the minimum character length (" +
+                                str(args.min_seq_length) + ") in " + multi_align_file +
+                                " were removed after alignment trimming.\n" +
+                                "These sequences will not be analyzed.\n")
+            elif not unique_refs.issubset(multi_align_seq_names):
+                logging.error("Reference sequences in " + multi_align_file + " were removed during alignment trim.\n" +
+                              "Note: this suggests the initial reference alignment is terrible.\n")
+                sys.exit(3)
+            # If there are no query sequences left, remove that alignment file from mfa_files
+            elif len(discarded_seqs[multi_align_file]) + len(unique_refs) == len(multi_align.keys()):
+                logging.warning("No query sequences in " + multi_align_file + " were retained after trimming." +
+                                "These sequences will not be analyzed.\n")
+            else:
+                if denominator not in qc_ma_dict:
+                    qc_ma_dict[denominator] = dict()
+                qc_ma_dict[denominator][multi_align_file] = filtered_multi_align
+                num_successful_alignments += 1
+
+    logging.debug("done.\n")
+    logging.debug("\tSequences <" + str(args.min_seq_length) + " characters removed:\n\t\t" +
+                  "\n\t\t".join([n + " = " + str(len(discarded_seqs[n])) for n in discarded_seqs]) + "\n")
+
+    if num_successful_alignments == 0:
+        logging.error("No quality alignment files to analyze after trimming.\n")
+        sys.exit(3)
+
+    return qc_ma_dict
+
+
+def evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, tool, file_type="fasta"):
     """
 
-    :param mfa_files: A dictionary mapping f_contigs to a list of trimmed alignment files
+    :param qc_ma_dict: A dictionary mapping denominators to files to multiple alignment dictionaries
     :param alignment_length_dict:
-    :param suffix: The name of the tool that was appended to the original, untrimmed or unmasked alignment files
+    :param tool: The name of the tool that was appended to the original, untrimmed or unmasked alignment files
     :param file_type: Type of the file that was outputted by tool
     :return: None
     """
     trimmed_length_dict = dict()
-    for f_contig in sorted(mfa_files.keys()):
-        denominator = f_contig.split('_')[0]
+    for denominator in sorted(qc_ma_dict.keys()):
         if denominator not in trimmed_length_dict:
             trimmed_length_dict[denominator] = list()
-        for multi_align in mfa_files[f_contig]:
-            if file_type == "fasta":
-                num_seqs, trimmed_seq_length = validate_multi_aligned_fasta_utility(multi_align)
-            elif file_type == "phylip":
-                num_seqs, trimmed_seq_length = validate_phylip_utility(multi_align)
-            else:
-                raise AssertionError("File type '" + file_type + "' is not recognized.")
+        for multi_align_file in qc_ma_dict[denominator]:
+            multi_align = qc_ma_dict[denominator][multi_align_file]
+            num_seqs, trimmed_seq_length = validate_multiple_alignment_utility(multi_align, multi_align_file)
 
-            original_multi_align = re.sub('-' + suffix + '.' + file_type, '', multi_align)
+            original_multi_align = re.sub('-' + tool + '.' + file_type, '.phy', multi_align_file)
             raw_align_len = alignment_length_dict[original_multi_align]
             diff = raw_align_len - trimmed_seq_length
             if diff < 0:
-                sys.stderr.write("WARNING: MSA length increased after " + suffix + " processing for " + f_contig + "\n")
+                logging.warning("MSA length increased after " + tool + " processing for " + multi_align_file + "\n")
             else:
                 # Only read the first sequence line. Other abnormalities will be caught later
                 trimmed_length_dict[denominator].append(diff)
@@ -2208,64 +2324,44 @@ def evaluate_trimming_performace(mfa_files, alignment_length_dict, suffix, file_
     return
 
 
-def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
+def produce_phy_files(args, qc_ma_dict):
     """
     Produces phy files from the provided list of alignment files
+
     :param args:
-    :param mfa_files:
-    :param ref_alignment_dimensions:
+    :param qc_ma_dict:
     :return: Dictionary containing the names of the produced phy files mapped to its f_contig
     """
 
     phy_files = dict()
     sequence_lengths = dict()
-    discarded_seqs = dict()
 
-    logging.debug("Converting FASTA multiple alignment files to Phylip... ")
+    logging.debug("Writing filtered multiple alignment files to Phylip... ")
 
     # Open each alignment file
-    for denominator in sorted(mfa_files.keys()):
-        discarded_seqs[denominator] = list()
+    for denominator in sorted(qc_ma_dict.keys()):
         sequence_lengths[denominator] = set()
         # Prepare the phy file for writing
-        num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
-        nr_of_sequences = num_ref_seqs
         if denominator not in phy_files.keys():
             phy_files[denominator] = list()
 
-        for aligned_fasta in mfa_files[denominator]:
-            phy_file_name = re.sub(".fasta$", ".phy", aligned_fasta)
-            aligned_fasta_dict = read_fasta_to_dict(aligned_fasta)
-            if aligned_fasta == phy_file_name and not aligned_fasta_dict:
-                # Input is a Phylip-formatted file. Add it to phy_files and continue.
-                phy_files[denominator].append(phy_file_name)
-                continue
-            elif aligned_fasta != phy_file_name and not aligned_fasta_dict:
-                raise AssertionError("Extension is FASTA but content of file is not for " + aligned_fasta)
-            elif aligned_fasta == phy_file_name and aligned_fasta_dict:
-                raise AssertionError("Extention indicates Phylip-format but content is FASTA for " + aligned_fasta)
+        for multi_align_file in qc_ma_dict[denominator]:
+            multi_align_dict = qc_ma_dict[denominator][multi_align_file]
+            final_phy_file_name = re.sub(".fasta$|.phy$", "-qcd.phy", multi_align_file)
             sequences_for_phy = dict()
 
-            for name in sorted(aligned_fasta_dict.keys()):
+            for name in sorted(multi_align_dict.keys()):
                 seq_name = name.strip()
                 seq_name = seq_name.split('_')[0]
 
-                sequence = aligned_fasta_dict[name]
+                sequence = multi_align_dict[name]
                 sequence = re.sub(r' ', '', sequence)
                 sequence_lengths[denominator].add(len(sequence))
                 # Ensure the sequences contain only valid characters for RAxML
                 sequence = re.sub(r'\.', 'X', sequence)
                 sequence = re.sub(r'\*', 'X', sequence)
                 sequence = re.sub('-', 'X', sequence)
-                # The numeric idenfifiers make it easy to maintain order in the Phylip file by a numerical sort
-                # The negative integers indicate this is a query sequence so we can perform filtering
-                if int(seq_name) < 0:
-                    seq_dummy = re.sub('X', '', sequence)
-                    if len(seq_dummy) < args.min_seq_length:
-                        discarded_seqs[denominator].append(seq_name)
-                        continue
-                    else:
-                        nr_of_sequences += 1
+
                 if re.search(r'\AX+\Z', sequence):
                     sequence = re.sub('X', 'V', sequence, 1)
 
@@ -2277,8 +2373,8 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
             # Write the sequences to the phy file
             phy_dict = reformat_fasta_to_phy(sequences_for_phy)
             if len(sequence_lengths[denominator]) != 1:
-                raise AssertionError("Sequence lengths varied in " + aligned_fasta)
-            phy_string = ' ' + str(nr_of_sequences) + '  ' + str(sequence_lengths[denominator].pop()) + '\n'
+                logging.error("Sequence lengths varied in " + multi_align_file + "\n")
+            phy_string = ' ' + str(len(multi_align_dict.keys())) + '  ' + str(sequence_lengths[denominator].pop()) + '\n'
             for count in sorted(phy_dict.keys(), key=int):
                 for seq_name in sorted(phy_dict[count].keys()):
                     sequence_part = phy_dict[count][seq_name]
@@ -2293,16 +2389,11 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
 
                 phy_string += '\n'
 
-            with open(phy_file_name, 'w') as phy_output:
+            with open(final_phy_file_name, 'w') as phy_output:
                 phy_output.write(phy_string)
-            phy_files[denominator].append(phy_file_name)
+            phy_files[denominator].append(final_phy_file_name)
 
-    num_discarded_seqs = sum([len(x) for x in discarded_seqs.values()])
-
-    logging.debug("done.\n")
-    logging.debug("\tSequences <" + str(args.min_seq_length) + " AA removed:\t" + str(num_discarded_seqs) + "\n")
-
-    return phy_files, discarded_seqs
+    return phy_files
 
 
 def start_raxml(args, phy_files, marker_build_dict):
@@ -3957,9 +4048,9 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
         colours_styles = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colours_style.txt"])
         colour_strip = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colour_strip.txt"])
         if colours_styles not in annotation_style_files:
-            logging.warning("A colours_style.txt file does not yet exist for marker " + marker + "\n")
+            logging.debug("A colours_style.txt file does not yet exist for marker " + marker + "\n")
         if colour_strip not in annotation_style_files:
-            logging.warning("A colour_strip.txt file does not yet exist for marker " + marker + "\n")
+            logging.debug("A colour_strip.txt file does not yet exist for marker " + marker + "\n")
 
         for annotation_file in annotation_style_files:
             shutil.copy(annotation_file, itol_base_dir + marker)
@@ -4016,9 +4107,9 @@ def main(argv):
         if args.filter_align:
             tool = "BMGE"
             mfa_files = filter_multiple_alignments(args, concatenated_msa_files, marker_build_dict, tool)
-            evaluate_trimming_performace(mfa_files, alignment_length_dict, tool)
-            # TODO: Record the number of discarded sequences in log file
-            phy_files, discarded_seqs = produce_phy_files(args, mfa_files, ref_alignment_dimensions)
+            qc_ma_dict = check_for_removed_sequences(args, mfa_files, marker_build_dict)
+            evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, tool)
+            phy_files = produce_phy_files(args, qc_ma_dict)
         else:
             phy_files = concatenated_msa_files
         delete_files(args, 3)

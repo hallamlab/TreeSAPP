@@ -349,7 +349,7 @@ def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
     :param tool: Name of the software to use for trimming [BMGE|trimAl]
     Returns file name of the trimmed multiple alignment file in FASTA format
     """
-    trimmed_msa_file = mfa_file + "-" + tool + ".fasta"
+    trimmed_msa_file = re.sub(".fasta$|.phy$", '-' + re.escape(tool) + ".fasta", mfa_file)
     if tool == "trimAl":
         trim_command = [executable]
         trim_command += ['-in', mfa_file,
@@ -357,7 +357,7 @@ def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
                          '-gt', str(0.02)]
     elif tool == "BMGE":
         if molecule == "prot":
-            bmge_settings = ["-t", "AA", "-m", "BLOSUM62"]
+            bmge_settings = ["-t", "AA", "-m", "BLOSUM30", "-g", "0.99:0.5"]
         else:
             bmge_settings = ["-t", "DNA"]
         trim_command = ["java", "-jar", executable]

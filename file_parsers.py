@@ -398,3 +398,65 @@ def xml_parser(xml_record, term):
     else:
         return xml_record[term]
     return value
+
+
+def read_phylip(phylip_input):
+    header_dict = dict()
+    alignment_dict = dict()
+    x = 0
+
+    try:
+        phylip = open(phylip_input, 'r')
+    except IOError:
+        logging.error("Unable to open the Phylip file (" + phylip_input + ") provided for reading!\n")
+        sys.exit(5)
+
+    line = phylip.readline()
+    try:
+        num_sequences, aln_length = line.strip().split(' ')
+        num_sequences = int(num_sequences)
+        aln_length = int(aln_length)
+    except ValueError:
+        logging.error("Phylip file is not formatted correctly!\n" +
+                      "Header must contain 2 space-separated fields (number of sequences and alignment length).\n")
+        sys.exit(5)
+
+    line = phylip.readline()
+    while line:
+        line = line.strip()
+        if len(line.split()) == 2:
+            # This is the introduction set: header, sequence
+            header, sequence = line.split()
+            header_dict[x] = header
+            alignment_dict[x] = sequence
+            x += 1
+        elif 60 >= len(line) >= 1:
+            alignment_dict[x] += line
+            x += 1
+        elif line == "":
+            # Reset accumulator on blank lines
+            x = 0
+        else:
+            logging.error("Unexpected line in Phylip file:\n" + line + "\n")
+            sys.exit(5)
+        line = phylip.readline()
+
+        if x > num_sequences:
+            logging.error("Accumulator has exceeded the number of sequences in the file (according to header)!\n")
+            sys.exit(5)
+
+    # Check that the alignment length matches that in the header line
+    x = 0
+    while x < num_sequences-1:
+        if len(alignment_dict[x]) != aln_length:
+            logging.error(header_dict[x] +
+                          " sequence length exceeds the stated multiple alignment length (according to header)!\n" +
+                          "sequence length = " + str(len(alignment_dict[x])) +
+                          ", alignment length = " + str(aln_length) + "\n")
+            sys.exit(5)
+        else:
+            pass
+        x += 1
+
+    phylip.close()
+    return header_dict, alignment_dict
