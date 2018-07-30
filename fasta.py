@@ -357,7 +357,7 @@ def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
                          '-gt', str(0.02)]
     elif tool == "BMGE":
         if molecule == "prot":
-            bmge_settings = ["-t", "AA", "-m", "BLOSUM30", "-g", "0.99:0.5"]
+            bmge_settings = ["-t", "AA", "-m", "BLOSUM62", "-g", "0.80:0.80"]
         else:
             bmge_settings = ["-t", "DNA"]
         trim_command = ["java", "-jar", executable]

@@ -63,8 +63,8 @@ def get_options():
                         help="Sample composition being either a single organism or a metagenome.")
     parser.add_argument("--trim_align", default=False, action="store_true",
                         help="Flag to turn on position masking of the multiple sequence alignmnet [DEFAULT = False]")
-    parser.add_argument('-g', '--min_seq_length', default=50, type=int,
-                        help='minimal sequence length after alignment trimming [DEFAULT = 50]')
+    parser.add_argument('-g', '--min_seq_length', default=20, type=int,
+                        help='minimal sequence length after alignment trimming [DEFAULT = 20]')
     parser.add_argument('-R', '--reftree', default='p', type=str,
                         help='Reference tree (p = MLTreeMap reference phylogenetic tree [DEFAULT])'
                              ' Change to code to map query sequences to specific phylogenetic tree.')
@@ -664,13 +664,19 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
     hmmalign_input_fastas = list()
     marker_gene_dict = dict()
     numeric_contig_index = dict()
+    trimmed_query_groups = dict()
     for marker in hmm_matches:
         if marker not in numeric_contig_index.keys():
             numeric_contig_index[marker] = dict()
         numeric_decrementor = -1
-        trim_homolog_fasta_string = ""
         if marker not in marker_gene_dict:
             marker_gene_dict[marker] = dict()
+
+        trimmed_query_groups.clear()
+        i = args.perc_aligned
+        while i <= 100:
+            trimmed_query_groups[i] = ""
+            i += 5
 
         for hmm_match in hmm_matches[marker]:
             if hmm_match.desc != '-':
@@ -679,11 +685,16 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
                 contig_name = hmm_match.orf
             # Add the query sequence to the index map
             orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
+            proportion = round(float((int(hmm_match.pend) - int(hmm_match.pstart)) * 100) / int(hmm_match.hmm_len))
             numeric_contig_index[marker][numeric_decrementor] = contig_name + '_' + orf_coordinates
             # Add the FASTA record of the trimmed sequence - this one moves on for placement
             full_sequence = fasta_dict[reformat_string('>' + contig_name)]
-            trim_homolog_fasta_string += '>' + str(numeric_decrementor) + "\n" +\
-                                         full_sequence[hmm_match.start-1:hmm_match.end] + "\n"
+
+            i = args.perc_aligned
+            while proportion > i:
+                i += 5
+            trimmed_query_groups[i] += '>' + str(numeric_decrementor) + "\n" + \
+                                         full_sequence[hmm_match.start - 1:hmm_match.end] + "\n"
 
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
@@ -694,16 +705,17 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
             numeric_decrementor -= 1
 
         # Write all the homologs to the FASTA file
-        if trim_homolog_fasta_string:
-            marker_query_fa = args.output_dir_var + marker + "_hmm_purified.faa"
-            try:
-                homolog_seq_fasta = open(marker_query_fa, 'w')
-            except IOError:
-                logging.error("Unable to open " + marker_query_fa + " for writing.\n")
-                sys.exit(3)
-            hmmalign_input_fastas.append(marker_query_fa)
-            homolog_seq_fasta.write(trim_homolog_fasta_string)
-            homolog_seq_fasta.close()
+        for group in trimmed_query_groups:
+            if trimmed_query_groups[group]:
+                marker_query_fa = args.output_dir_var + marker + "_hmm_purified_group" + str(group) + ".faa"
+                try:
+                    homolog_seq_fasta = open(marker_query_fa, 'w')
+                except IOError:
+                    logging.error("Unable to open " + marker_query_fa + " for writing.\n")
+                    sys.exit(3)
+                hmmalign_input_fastas.append(marker_query_fa)
+                homolog_seq_fasta.write(trimmed_query_groups[group])
+                homolog_seq_fasta.close()
     logging.info("done.\n")
 
     # Now write a single FASTA file with all identified markers
@@ -2007,9 +2019,7 @@ def evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, tool, file_t
             if diff < 0:
                 logging.warning("MSA length increased after " + tool + " processing for " + multi_align_file + "\n")
             else:
-                # Only read the first sequence line. Other abnormalities will be caught later
                 trimmed_length_dict[denominator].append(diff)
-                break
 
     trimming_performance_string = "\tAverage columns removed:\n"
     for denominator in trimmed_length_dict:
@@ -3796,6 +3806,7 @@ def main(argv):
         homolog_seq_files, numeric_contig_index = extract_hmm_matches(args, hmm_matches, formatted_fasta_dict)
 
         # Cluster the sequences
+        # TODO: package this into a function
         multi_align_input_files = list()
         cluster_dict = dict()
         for homologs_fasta in sorted(homolog_seq_files):
@@ -3828,7 +3839,7 @@ def main(argv):
         else:
             phy_files = concatenated_msa_files
         delete_files(args, 3)
-
+        sys.exit()
         # STAGE 5: Run RAxML to compute the ML estimations
         start_raxml(args, phy_files, marker_build_dict)
         sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)
