@@ -26,7 +26,7 @@ try:
     from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
     from entrez_utils import get_multiple_lineages, get_lineage_robust, verify_lineage_information,\
         read_accession_taxa_map, write_accession_lineage_map, build_entrez_queries
-    from file_parsers import parse_domain_tables, read_phylip
+    from file_parsers import parse_domain_tables, read_phylip, read_uc
     from placement_trainer import train_placement_distances
 
 except ImportError:
@@ -307,9 +307,44 @@ def generate_cm_data(args, unaligned_fasta):
     return aligned_fasta
 
 
+def run_mafft(args, fasta_in, fasta_out):
+    mafft_align_command = [args.executables["mafft"]]
+    mafft_align_command += ["--maxiterate", str(1000)]
+    mafft_align_command += ["--thread", str(args.num_threads)]
+    mafft_align_command.append("--localpair")
+    mafft_align_command += [fasta_in, '1>' + fasta_out]
+    mafft_align_command += ["2>", "/dev/null"]
+
+    stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
+
+    if mafft_proc_returncode != 0:
+        logging.error("Multiple sequence alignment using " + args.executables["mafft"] +
+                      " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
+        sys.exit(7)
+    return
+
+
+def run_odseq(args, fasta_in, outliers_fa):
+    odseq_command = [args.executables["OD-seq"]]
+    odseq_command += ["-i", fasta_in]
+    odseq_command += ["-f", "fasta"]
+    odseq_command += ["-o", outliers_fa]
+    odseq_command += ["-t", str(args.num_threads)]
+
+    stdout, odseq_proc_returncode = launch_write_command(odseq_command)
+
+    if odseq_proc_returncode != 0:
+        logging.error("Outlier detection using " + args.executables["OD-seq"] +
+                      " did not complete successfully! Command used:\n" + ' '.join(odseq_command) + "\n")
+        sys.exit(7)
+
+    return
+
+
 def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
     """
     Writes a new FASTA file using a dictionary of ReferenceSequence class objects
+
     :param out_fasta: Name of the FASTA file to write to
     :param ref_seq_dict: Dictionary containing ReferenceSequence objects, numbers are keys
     :param dashes: Flag indicating whether hyphens should be retained in sequences
@@ -1286,6 +1321,7 @@ def main():
     uclust_prefix = args.output_dir + '.'.join(os.path.basename(filtered_fasta_name).split('.')[:-1]) + "_uclust" + args.identity
     clustered_fasta = uclust_prefix + ".fa"
     clustered_uc = uclust_prefix + ".uc"
+    od_input = args.output_dir + "od_input.fasta"
     ref_fasta_file = args.output_dir + code_name + "_ref.fa"  # FASTA file of unaligned reference sequences
     aligned_ref_fasta = args.output_dir + code_name + ".fa"  # The FASTA file used for TreeSAPP and hmmbuild
     phylip_file = args.output_dir + args.code_name + ".phy"  # Used for building the phylogenetic tree with RAxML
@@ -1521,6 +1557,28 @@ def main():
             fasta_record_objects[num_id].cluster_rep = True
             # fasta_record_objects[num_id].cluster_lca is left empty
 
+    logging.info("Detecting outlier reference sequences... ")
+    outlier_test_fasta_dict = order_dict_by_lineage(fasta_record_objects)
+    create_new_ref_fasta(od_input, outlier_test_fasta_dict)
+    od_input_m = '.'.join(od_input.split('.')[:-1]) + ".mfa"
+    od_output = args.output_dir + "outliers.fasta"
+    # Perform MSA with MAFFT
+    run_mafft(args, od_input, od_input_m)
+    # Run OD-seq on MSA to identify outliers
+    run_odseq(args, od_input_m, od_output)
+    # Remove outliers from fasta_record_objects collection
+    outlier_seqs = read_fasta_to_dict(od_output)
+    outlier_names = list()
+    for seq_name in outlier_seqs:
+        for seq_num_id in fasta_record_objects:
+            ref_seq = fasta_record_objects[seq_num_id]
+            if ref_seq.short_id == seq_name:
+                ref_seq.cluster_rep = False
+                outlier_names.append(ref_seq.accession)
+    logging.info("done.\n")
+    logging.debug(str(len(outlier_seqs)) + " outlier sequences detected and discarded.\n\t" +
+                  "\n\t".join([outseq for outseq in outlier_names]) + "\n")
+
     ##
     # Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
     # Remove the cluster members since they will no longer be used
@@ -1554,20 +1612,7 @@ def main():
         args.multiple_alignment = True
     elif args.multiple_alignment is False:
         logging.info("Aligning the sequences using MAFFT... ")
-
-        mafft_align_command = [args.executables["mafft"]]
-        mafft_align_command += ["--maxiterate", str(1000)]
-        mafft_align_command += ["--thread", str(args.num_threads)]
-        mafft_align_command.append("--localpair")
-        mafft_align_command += [ref_fasta_file, '1>' + aligned_ref_fasta]
-        mafft_align_command += ["2>", "/dev/null"]
-
-        stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
-
-        if mafft_proc_returncode != 0:
-            logging.error("Multiple sequence alignment using " + args.executables["mafft"] +
-                          " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
-            sys.exit(7)
+        run_mafft(args, ref_fasta_file, aligned_ref_fasta)
         logging.info("done.\n")
     elif args.multiple_alignment and args.molecule != "rrna":
         aligned_ref_fasta = ref_fasta_file

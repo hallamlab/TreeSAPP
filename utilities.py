@@ -165,9 +165,9 @@ def find_executables(args):
             dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]
 
     if hasattr(args, "cluster") or hasattr(args, "multiple_alignment") or hasattr(args, "fast"):
+        dependencies += ["mafft", "OD-seq"]
         if args.cluster:
             dependencies.append("usearch")
-        dependencies.append("mafft")
         if args.fast:
             dependencies.append("FastTree")
 
