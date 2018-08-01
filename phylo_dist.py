@@ -52,7 +52,15 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict):
     return depth
 
 
-def trim_lineages_to_rank(leaf_taxa_map, rank):
+def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
+    """
+    Iterates a dictionary and trims the lineage string values to a specified rank.
+     Also removes lineages of unclassifieds and sequences from environmental samples
+
+    :param leaf_taxa_map: Maps indices to lineages
+    :param rank: The taxonomic rank lineages need to be trimmed to
+    :return: Dictionary of keys mapped to trimmed lineages
+    """
     trimmed_lineage_map = dict()
     ranks = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
     depth = ranks[rank]

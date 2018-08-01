@@ -9,7 +9,7 @@ from ete3 import Tree
 
 from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment
 from file_parsers import tax_ids_file_to_leaves
-from utilities import reformat_fasta_to_phy, write_phy_file, median
+from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information
 from phylo_dist import trim_lineages_to_rank, confidence_interval
@@ -121,7 +121,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             # Write query FASTA containing sequences belonging to `taxonomy`
             for seq_name in sorted(accession_lineage_map):
                 # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
-                if re.search(taxonomy, accession_lineage_map[seq_name]) and seq_name in fasta_dict:
+                if re.search(taxonomy, clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in fasta_dict:
                     taxonomy_filtered_query_seqs[seq_name] = fasta_dict[seq_name]
             logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
             if len(taxonomy_filtered_query_seqs) == 0:
