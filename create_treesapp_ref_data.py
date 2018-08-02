@@ -1648,8 +1648,15 @@ def main():
         trimmed_msa_file = trim_multiple_alignment(args.executables["BMGE.jar"], aligned_ref_fasta, args.molecule)
         logging.info("done.\n")
         trimmed_aligned_fasta_dict = read_fasta_to_dict(trimmed_msa_file)
-        for seq_name in aligned_fasta_dict:
-            dict_for_phy[seq_name.split('_')[0]] = trimmed_aligned_fasta_dict[seq_name]
+        if len(trimmed_aligned_fasta_dict) == 0:
+            logging.warning("Trimming removed all your sequences. " +
+                            "This could mean you have many non-homologous sequences or they are very dissimilar.\n" +
+                            "Proceeding with the untrimmed multiple alignment instead.\n")
+            for seq_name in aligned_fasta_dict:
+                dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
+        else:
+            for seq_name in aligned_fasta_dict:
+                dict_for_phy[seq_name.split('_')[0]] = trimmed_aligned_fasta_dict[seq_name]
     else:
         for seq_name in aligned_fasta_dict:
             dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
