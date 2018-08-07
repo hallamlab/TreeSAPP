@@ -5,6 +5,8 @@ import re
 import _tree_parser
 import os
 from utilities import Autovivify
+from ete3 import Tree
+from scipy import log2
 
 
 def get_node(tree, pos):
@@ -16,6 +18,91 @@ def get_node(tree, pos):
         pos += 1
         c = tree[pos]
     return int(node), pos
+
+
+def map_internal_nodes_leaves(tree):
+    """
+    Loads a mapping between all nodes (internal and leaves) and all leaves
+    :return:
+    """
+    no_length_tree = re.sub(":[0-9.]+{", ":{", tree)
+    node_map = dict()
+    node_stack = list()
+    leaf_stack = list()
+    x = 0
+    num_buffer = ""
+    while x < len(no_length_tree):
+        c = no_length_tree[x]
+        if re.search(r"[0-9]", c):
+            while re.search(r"[0-9]", c):
+                num_buffer += c
+                x += 1
+                c = no_length_tree[x]
+            node_stack.append([str(num_buffer)])
+            num_buffer = ""
+            x -= 1
+        elif c == ':':
+            # Append the most recent leaf
+            current_node, x = get_node(no_length_tree, x + 1)
+            node_map[current_node] = node_stack.pop()
+            leaf_stack.append(current_node)
+        elif c == ')':
+            # Set the child leaves to the leaves of the current node's two children
+            while c == ')' and x < len(no_length_tree):
+                if no_length_tree[x + 1] == ';':
+                    break
+                current_node, x = get_node(no_length_tree, x + 2)
+                node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
+                leaf_stack.append(current_node)
+                x += 1
+                c = no_length_tree[x]
+        x += 1
+    return node_map
+
+
+def find_mean_pairwise_distances(children):
+    pairwise_dists = list()
+    for rleaf in children:
+        for qleaf in children:
+            if rleaf.name != qleaf.name:
+                pairwise_dists.append(rleaf.get_distance(qleaf))
+    return sum(pairwise_dists) / len(pairwise_dists)
+
+
+def find_mean_leaf_distances(parent_node):
+    children = parent_node.get_leaves()
+    distances = [parent_node.get_distance(child) for child in children]
+    return sum(distances) / len(distances)
+
+
+def find_cluster(lost_node: Tree):
+    """
+    Function for determining the ancestor of the cluster which lost_node belongs to
+
+    :param lost_node: A node within a tree, for which we want to orient
+    :return: Tree node
+    """
+    parent = lost_node.up
+    if lost_node.is_root() or parent.is_root():
+        return lost_node
+
+    # Find the intra-cluster leaf distances
+    mean_intra = find_mean_leaf_distances(lost_node)
+
+    # Penalty for increasing the size of the clade
+    cousins = lost_node.get_sisters()[0].get_leaf_names()
+    parent_dist = parent.get_distance(lost_node) * log2(len(cousins) + 1)
+
+    while mean_intra > parent_dist:
+        lost_node = parent
+        parent = lost_node.up
+        if parent is None:
+            break
+        mean_intra = find_mean_leaf_distances(lost_node)
+        cousins = lost_node.get_sisters()[0].get_leaf_names()
+        parent_dist = parent.get_distance(lost_node) * log2(len(cousins) + 1)
+
+    return lost_node
 
 
 def subtrees_to_dictionary(subtrees_string, tree_info):
