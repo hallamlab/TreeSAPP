@@ -12,11 +12,12 @@ from file_parsers import tax_ids_file_to_leaves
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information
-from phylo_dist import trim_lineages_to_rank, confidence_interval
+from phylo_dist import trim_lineages_to_rank, confidence_interval, parent_to_tip_distances
 from external_command_interface import launch_write_command, setup_progress_bar
 from jplace_utils import jplace_parser
 from treesapp import run_papara
 from classy import prep_logging, register_headers, get_header_info, get_headers
+from entish import map_internal_nodes_leaves
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -96,7 +97,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     setup_progress_bar(len(taxonomic_ranks))
     # For each rank from Class to Species (Kingdom & Phylum-level classifications to be inferred by LCA):
     for rank in taxonomic_ranks:
-        taxonomic_placement_distances[rank] = list()
+        taxonomic_placement_distances[rank] = set()
         leaf_trimmed_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
         unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
 
@@ -160,19 +161,23 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             query_filtered_multiple_alignment = trim_multiple_alignment(bmge_file, query_multiple_alignment,
                                                                         molecule, "BMGE")
             query_name = re.sub(' ', '_', taxonomy.split("; ")[-1])
-            launch_write_command(["raxmlHPC",
-                                  "-m", "PROTGAMMALG",
-                                  "-p", str(12345),
-                                  '-T', str(4),
-                                  '-s', query_filtered_multiple_alignment,
-                                  '-t', temp_tree_file,
-                                  '-G', str(0.1),
-                                  '-f', 'v',
-                                  '-n', query_name,
-                                  '>', 'RAxML.txt'])
+            raxml_command = ["raxmlHPC",
+                             "-m", "PROTGAMMALG",
+                             "-p", str(12345),
+                             '-T', str(4),
+                             '-s', query_filtered_multiple_alignment,
+                             '-t', temp_tree_file,
+                             '-G', str(0.2),
+                             '-f', 'v',
+                             '-n', query_name,
+                             '>', 'RAxML.txt']
+            logging.debug("RAxML placement command:\n" + ' '.join(raxml_command) + "\n")
+            launch_write_command(raxml_command)
             # Parse the JPlace file to pull distal_length+pendant_length for each placement
             jplace_file = "RAxML_portableTree." + query_name + ".jplace"
             jplace_data = jplace_parser(jplace_file)
+            placement_tree = jplace_data.tree
+            node_map = map_internal_nodes_leaves(placement_tree)
             for pquery in jplace_data.placements:
                 top_lwr = 0
                 distance = 100
@@ -183,11 +188,22 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                             lwr = float(placement[2])
                             if lwr > top_lwr:
                                 top_lwr = lwr
-                                distance = float(placement[3]) + float(placement[4])
+                                inode = placement[0]
+                                node_dist = float(placement[3]) + float(placement[4])
+                                leaf_children = node_map[int(inode)]
+                                if len(leaf_children) > 1:
+                                    # Jplace tree (with adjusted branch lengths)
+                                    # parent = Tree(re.sub("\{\d+\}", '', placement_tree)).get_common_ancestor(leaf_children)
+                                    # Reference tree with clade excluded
+                                    parent = tmp_tree.get_common_ancestor(leaf_children)
+                                    tip_distances = parent_to_tip_distances(parent, leaf_children)
+                                    distance = node_dist + float(sum(tip_distances)/len(tip_distances))
+                                else:
+                                    distance = node_dist
                 if distance == 100:
                     logging.error("Distance was not updated while parsing placements.\n")
                     sys.exit(19)
-                taxonomic_placement_distances[rank].append(distance)
+                taxonomic_placement_distances[rank].add(distance)
             os.system("rm papara_* RAxML*")
         if len(taxonomic_placement_distances[rank]) == 0:
             logging.debug("No samples available for " + rank + ".\n")
@@ -199,7 +215,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
                                                     len(taxonomic_placement_distances[rank]), 4)) + "\n"
             logging.debug(stats_string)
-            rank_distance_ranges[rank] = confidence_interval(taxonomic_placement_distances[rank], 0.95)
+            rank_distance_ranges[rank] = confidence_interval(list(taxonomic_placement_distances[rank]), 0.95)
         sys.stdout.write('-')
         sys.stdout.flush()
     sys.stdout.write("-]\n")
@@ -247,7 +263,7 @@ def main():
         for rank in ranks:
             trained_string += "# " + rank + "\n"
             if rank in taxonomic_placement_distances:
-                trained_string += str(taxonomic_placement_distances[rank]) + "\n"
+                trained_string += str(sorted(taxonomic_placement_distances[rank], key=float)) + "\n"
             if rank in rank_distance_ranges:
                 trained_string += ','.join([str(dist) for dist in rank_distance_ranges[rank]]) + "\n"
             trained_string += "\n"
