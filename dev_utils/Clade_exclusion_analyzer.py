@@ -10,7 +10,7 @@ import os
 import inspect
 import shutil
 import logging
-import ete3
+from ete3 import Tree
 from glob import glob
 from random import randint
 
@@ -18,14 +18,15 @@ cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(insp
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from fasta import format_read_fasta, write_new_fasta, get_headers
+from fasta import format_read_fasta, write_new_fasta, get_headers, read_fasta_to_dict
 from create_treesapp_ref_data import get_header_format, finalize_ref_seq_lineages
 from utilities import clean_lineage_string, return_sequence_info_groups
 from external_command_interface import setup_progress_bar, launch_write_command
-from file_parsers import parse_ref_build_params
-from classy import prep_logging, get_header_info, register_headers
+from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves
+from classy import prep_logging, get_header_info, register_headers, MarkerTest
 from entrez_utils import get_lineage, read_accession_taxa_map, write_accession_lineage_map,\
     build_entrez_queries, get_multiple_lineages, verify_lineage_information
+from phylo_dist import trim_lineages_to_rank
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   2: "Phylum", 3: "Class", 4: "Order",
@@ -33,25 +34,26 @@ rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   8: "Strain"}
 
 
-def get_arguments_():
+def get_arguments():
     parser = argparse.ArgumentParser(add_help=False)
     required_args = parser.add_argument_group("Required arguments")
     required_args.add_argument('-o', "--output",
                                required=True,
-                               help='TreeSAPP output directory from a previous analysis or clade exclusion analysis')
+                               help='Path to a directory for writing output files')
     required_args.add_argument('-i', '--fasta_input',
                                help='Your sequence input file (for TreeSAPP) in FASTA format',
                                required=True)
-    required_args.add_argument("-r", "--reference_markers",
+    required_args.add_argument("-r", "--reference_marker",
                                help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)",
-                               required=True,
-                               nargs='+')
+                               required=True)
 
     optopt = parser.add_argument_group("Optional options")
     optopt.add_argument("-t", "--taxon_rank",
-                        help="Test the classification performance at a taxonomic rank.",
-                        default=None,
-                        choices=["Phylum", "Class", "Order", "Family", "Genus"])
+                        help="Comma-separated list of the taxonomic ranks to test " +
+                        "choices = [Phylum, Class, Order, Family, Genus, Species] " +
+                        "(DEFAULT = Species)",
+                        default="Species",
+                        required=False)
     optopt.add_argument('-m', '--molecule',
                         help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
                         default='prot',
@@ -121,12 +123,14 @@ def read_marker_classification_table(assignment_file, marker=None):
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
     (leaving 1 for marker name and 4 for numerical abundance)
+
     :param assignment_file: Path to the file containing sequence phylogenetic origin and assignment
     :param marker: Optionally, the marker name can be explicitly provided. Necessary when analyzing GraftM outputs
     :return: dictionary whose keys are phylogenetic origin and values are lists of TreeSAPP assignments
     """
     assignments = dict()
-    n_classified = 0
+    classifieds = list()
+    header = "Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD\n"
     if re.match(r".*_read_tax.tsv$", assignment_file):
         # This is a GraftM classification table
         marker_assignments, n_classified = read_graftm_classifications(assignment_file)
@@ -134,8 +138,7 @@ def read_marker_classification_table(assignment_file, marker=None):
     else:
         assignments_handle = open(assignment_file, 'r')
         # This is the header line
-        if not re.match("^Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
-                        assignments_handle.readline()):
+        if assignments_handle.readline() != header:
             logging.error("Header of assignments file is unexpected!\n")
             sys.exit(21)
 
@@ -146,20 +149,19 @@ def read_marker_classification_table(assignment_file, marker=None):
             try:
                 _, header, marker, _, rob_class, _, _, _, _, _ = fields
                 if marker and rob_class:
-                    n_classified += 1
+                    classifieds.append(header)
                     if marker not in assignments:
                         assignments[marker] = dict()
                     if rob_class not in assignments[marker]:
                         assignments[marker][rob_class] = list()
                     assignments[marker][rob_class].append(header)
             except ValueError:
-                logging.error("Unable to parse line:\n" +
-                              str(line))
+                logging.error("Unable to parse line:\n" + str(line))
                 sys.exit(21)
             line = assignments_handle.readline()
 
         assignments_handle.close()
-    return assignments, n_classified
+    return assignments, classifieds
 
 
 def read_intermediate_assignments(args, inter_class_file):
@@ -290,30 +292,35 @@ def all_possible_assignments(args, tax_ids_file):
     return taxonomic_tree
 
 
-def identify_excluded_clade(args, assignment_dict, trie, marker):
+def identify_excluded_clade(assignment_dict, trie, marker):
     """
     Using the taxonomic information from the sequence headers and the lineages of the reference sequence,
     this function determines the rank at which each sequence's clade is excluded.
     These data are returned and sorted in the form of a dictionary.
+
     :param: assignment_dict:
     :param: trie: A pygtrie.StringTrie object containing all reference sequence lineages
+
     :return: rank_assigned_dict; key is rank, values are dictionaries with assigned (reference) lineage as key and
-    tuples of (optimal assignment, actual assignment) as values.
-    E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
+      tuples of (optimal assignment, actual assignment) as values.
+      E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
     """
     rank_assigned_dict = dict()
+    if marker not in assignment_dict:
+        logging.debug("No sequences assigned as " + marker + "\n")
+        return rank_assigned_dict
+
     for depth in rank_depth_map:
         rank_assigned_dict[rank_depth_map[depth]] = list()
-    logging.debug("Number of unique taxonomies that sequences were assigned to = " +
-                  str(len(assignment_dict[marker].keys())) + "\n")
+    log_stats = "Number of unique taxonomies that sequences were assigned to = " + \
+                str(len(assignment_dict[marker].keys())) + "\n"
+
     for ref_lineage in assignment_dict[marker]:
-        logging.debug("Reference lineage: " + ref_lineage + "\n")
+        log_stats += "Assigned reference lineage: " + ref_lineage + "\n"
         for query_lineage in assignment_dict[marker][ref_lineage]:
             # if query_lineage == ref_lineage:
-            #     if args.verbose:
-            #         sys.stdout.write("\tQuery lineage: " + query_lineage + ", ")
-            #         sys.stdout.write("Optimal lineage: " + ref_lineage + "\n")
-            #         sys.stdout.flush()
+            #     logging.debug("\tQuery lineage: " + query_lineage + ", " +
+            #                   "Optimal lineage: " + ref_lineage + "\n")
             # While the query_lineage contains clades which are not in the reference trie,
             # remove the taxonomic rank and traverse again. Complexity: O(ln(n))
             contained_taxonomy = query_lineage
@@ -322,14 +329,15 @@ def identify_excluded_clade(args, assignment_dict, trie, marker):
             if len(contained_taxonomy.split("; ")) <= 7:
                 rank_excluded = rank_depth_map[len(contained_taxonomy.split("; ")) + 1]
                 if contained_taxonomy != ref_lineage:
-                    logging.debug("\tRank excluded: " + rank_excluded + "\n")
-                    logging.debug("\t\tQuery lineage:   " + query_lineage + "\n")
-                    logging.debug("\t\tOptimal lineage: " + contained_taxonomy + "\n")
+                    log_stats += "\tRank excluded: " + rank_excluded + "\n"
+                    log_stats += "\t\tQuery lineage:   " + query_lineage + "\n"
+                    log_stats += "\t\tOptimal lineage: " + contained_taxonomy + "\n"
                 rank_assigned_dict[rank_excluded].append({ref_lineage: (contained_taxonomy, query_lineage)})
             else:
-                # TODO: Fix the handling of this. Currently printed for strains when it shouldn't be
+                # TODO: Fix the handling of this. Currently prints strains when it shouldn't
                 logging.warning("Number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n" +
                                 "This sequence will be removed from clade exclusion calculations\n")
+    logging.debug(log_stats + "\n")
     return rank_assigned_dict
 
 
@@ -350,50 +358,50 @@ def determine_offset(classified, optimal):
     return offset
 
 
-def summarize_taxonomic_diversity(query_lineages):
+def summarize_taxonomic_diversity(marker_eval_instance):
     """
     Function for summarizing the taxonomic diversity of a reference dataset by rank
-    :param query_lineages: A list of lineages represented in the test dataset sequences
+
+    :param marker_eval_instance: An instance of the MarkerTest class.
+        The following instance variables need to be populated:
+        taxa_tests: list of TaxonTest objects, resulting from a GraftM or TreeSAPP analysis
     :return:
     """
-    # Not really interested in Cellular Organisms or Strains.
-    rank_depth_map = {0: "Kingdoms", 1: "Phyla", 2: "Classes", 3: "Orders", 4: "Families", 5: "Genera", 6: "Species"}
-    taxa_counts = dict()
-    for depth in rank_depth_map:
-        name = rank_depth_map[depth]
-        taxa_counts[name] = set()
-    for lineage in sorted(query_lineages):
-        position = 0
-        taxa = lineage.split('; ')
-        while position < len(taxa) and position < 7:
-            taxa_counts[rank_depth_map[position]].add(taxa[position])
-            position += 1
+    depth = 1  # Accumulator for parsing rank_depth_map; not really interested in Cellular Organisms or Strains.
     info_str = ""
-    for depth in rank_depth_map:
+    while depth < 8:
         rank = rank_depth_map[depth]
-        buffer = " "
-        while len(rank) + len(str(len(taxa_counts[rank]))) + len(buffer) < 12:
-            buffer += ' '
-        info_str += "\t" + rank + buffer + str(len(taxa_counts[rank])) + "\n"
-    logging.info("Number of unique lineages:\n" + info_str)
-
+        unique_taxa = marker_eval_instance.get_unique_taxa_tested(rank)
+        if unique_taxa:
+            buffer = " "
+            while len(rank) + len(str(len(unique_taxa))) + len(buffer) < 12:
+                buffer += ' '
+            info_str += "\t" + rank + buffer + str(len(unique_taxa)) + "\n"
+        else:
+            pass
+        depth += 1
+    logging.info("Number of unique lineages tested:\n" + info_str)
     return
 
 
-def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
+def get_classification_performance(marker_eval_instance):
     """
     Correct if: optimal_assignment == query_lineage
-    Correct if:
 
-    :param rank_assigned_dict:
-    :param marker: Name of the marker currently being evaluated (e.g., nifHc1, mcrA)
-    :param clade_exclusion_strings: A list of strings that is appended to. Finally used for writing the tabular output.
+    :param marker_eval_instance: An instance of the MarkerTest class.
+        The following instance variables need to be populated:
+        marker: Name of the marker currently being evaluated (e.g., nifHc1, mcrA)
+        classifications: The rank-wise classification dictionary
     :return:
     """
-    sys.stdout.write("Clade-level specificities for " + marker + ":\n")
-    sys.stdout.write("\tRank\tTotal Evaluated\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\tD=6\tD=7\n")
     clade_exclusion_tabular_string = ""
-    clades_tested = list()
+    clade_exclusion_strings = list()
+    rank_assigned_dict = marker_eval_instance.classifications
+    marker = marker_eval_instance.target_marker
+
+    sys.stdout.write("Rank-level performance of " + marker + ":\n")
+    sys.stdout.write("\tRank\tQueries\tClassified\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\n")
+
     for depth in sorted(rank_depth_map):
         rank = rank_depth_map[depth]
         if rank == "Cellular organisms":
@@ -401,11 +409,12 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
         correct = 0
         incorrect = 0
         taxonomic_distance = dict()
-        for i in range(0, 8):
+        n_queries, n_classified, sensitivity = marker_eval_instance.get_sensitivity(rank)
+        for i in range(0, 6):
             taxonomic_distance[i] = 0
         sys.stdout.write("\t" + rank + "\t")
         if len(rank_assigned_dict[rank]) == 0:
-            sys.stdout.write("0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n")
+            sys.stdout.write("0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\n")
         else:
             for assignments in rank_assigned_dict[rank]:
                 # if rank == "Family":
@@ -416,7 +425,6 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
                                       "The root rank should be a Kingdom (e.g. Bacteria or Archaea) but nope.\n")
                         sys.exit(21)
                     optimal, query = assignments[classified]
-                    clades_tested.append(query)
                     if optimal == classified:
                         offset = 0
                         correct += 1
@@ -424,69 +432,75 @@ def determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings):
                         offset = determine_offset(classified, optimal)
                         incorrect += 1
                     taxonomic_distance[offset] += 1
-            rank_total = correct + incorrect
-            sys.stdout.write(str(rank_total) + "\t\t")
+            sys.stdout.write(str(n_queries) + "\t" + str(n_classified) + "\t\t")
 
             for dist in taxonomic_distance:
                 if taxonomic_distance[dist] > 0:
-                    taxonomic_distance[dist] = str(round(float((taxonomic_distance[dist]*100)/rank_total), 1))
+                    taxonomic_distance[dist] = str(round(float((taxonomic_distance[dist]*100)/n_classified), 1))
                 else:
                     taxonomic_distance[dist] = str(0.0)
                 clade_exclusion_tabular_string += marker + "\t" + rank + "\t"
-                clade_exclusion_tabular_string += str(rank_total) + "\t"
+                clade_exclusion_tabular_string += str(n_queries) + "\t" + str(n_classified) + "\t"
                 clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist]) + "\t"
                 clade_exclusion_strings.append(clade_exclusion_tabular_string)
                 clade_exclusion_tabular_string = ""
             sys.stdout.write('\t'.join(taxonomic_distance.values()) + "\n")
-    summarize_taxonomic_diversity(clades_tested)
 
     return clade_exclusion_strings
 
 
-def determine_containment(args, marker, rank_assigned_dict):
+def determine_containment(marker_eval_inst: MarkerTest):
     """
     Determines the accuracy of sequence classifications of all sequences contained at different taxonomic ranks
-    :param args:
-    :param marker: Name of the marker currently being evaluated (e.g., nifHc1, mcrA)
-    :param rank_assigned_dict: key is rank, values are dictionaries with assigned (reference) lineage as key and
-    tuples of (optimal assignment, actual assignment) as values.
-    E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
+
+    :param marker_eval_inst: An instance of the MarkerTest class.
+        The following instance variables need to be populated:
+        marker: Name of the marker currently being evaluated (e.g., nifHc1, mcrA)
+        classifications: The rank-wise classification dictionary with
+        tuples of (optimal assignment, actual assignment) as values.
+        E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
     """
-    sys.stdout.write("Clade-level containments for " + marker + ":\n")
-    sys.stdout.write("\tRank\t\tTotal Evaluated\tCorrect (%)\tToo Shallow (%)\n")
+    rank_assigned_dict = marker_eval_inst.classifications
+    marker = marker_eval_inst.target_marker
     # Set up collection for this analysis
-    all_assignments = list()
-    for rank in rank_assigned_dict:
-        if len(rank_assigned_dict[rank]) > 0:
-            all_assignments += rank_assigned_dict[rank]
-    # Begin parsing through the depths
+    lowest_rank = ""
     for depth in sorted(rank_depth_map):
+        if rank_depth_map[depth] in marker_eval_inst.ranks:
+            lowest_rank = rank_depth_map[depth]
+    n_queries, n_classified, _ = marker_eval_inst.get_sensitivity(lowest_rank)
+
+    sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker + " classifications at " + lowest_rank + ":\n")
+    sys.stdout.write("\tRank\tCorrect (%)\tToo Shallow (%)\n")
+
+    # Begin parsing through the depths
+    if lowest_rank == "Cellular organisms":
+        return
+    for depth in sorted(rank_depth_map):
+        incorrect_assignments = dict()
         rank = rank_depth_map[depth]
-        depth = depth - 1
         if rank in ["Cellular organisms", "Species", "Strain"]:
             continue
+        elif rank == lowest_rank:
+            break
+        sys.stdout.write("\t" + rank + "\t")
         correct = 0
         incorrect = 0
         too_shallow = 0
-        rank_total = 0
-        incorrect_assignments = dict()
-        sys.stdout.write("\t" + rank + "\t\t")
-        for assignments in all_assignments:
+        parse_depth = depth-1
+        for assignments in rank_assigned_dict[lowest_rank]:
             for classified in assignments:
-                rank_total += 1
+                status = 0  # 0 == incorrect, 1 == correct
                 optimal, query = assignments[classified]
                 classified_lineage = classified.split("; ")
                 query_lineage = query.split("; ")
-                if len(classified_lineage) > depth:
-                    # print("\nReference:\t", classified)
-                    # print("Query:\t\t", query)
-                    # print("Optimal:\t", optimal)
+                # print("\nReference:\t", classified)
+                # print("Query:\t\t", query)
+                # print("Optimal:\t", optimal)
+                if len(classified_lineage) > parse_depth:
                     try:
-                        if classified_lineage[depth] == query_lineage[depth]:
-                            correct += 1
-                            # print("Correct")
+                        if classified_lineage[parse_depth] == query_lineage[parse_depth]:
+                            status += 1
                         else:
-                            # print("Incorrect - 1")
                             if query not in incorrect_assignments.keys():
                                 incorrect_assignments[query] = 0
                             incorrect_assignments[query] += 1
@@ -494,26 +508,22 @@ def determine_containment(args, marker, rank_assigned_dict):
                     except IndexError:
                         too_shallow += 1
                         # This indicates TreeSAPP placed the sequence too deep in the tree according to its NCBI lineage
-                        # sys.stderr.write(str(depth) + " " + str(classified_lineage) + " " + str(query_lineage) + "\n")
-                elif len(optimal.split("; ")) > depth:
-                    # print("\nReference:\t", classified)
-                    # print("Query:\t\t", query)
-                    # print("Optimal:\t", optimal)
-                    # print("Incorrect - 2")
+                elif len(optimal.split("; ")) > parse_depth:
                     if query not in incorrect_assignments.keys():
                         incorrect_assignments[query] = 0
                     incorrect_assignments[query] += 1
                     incorrect += 1
                 else:
                     too_shallow += 1
+                correct += status
 
-        # if incorrect == correct + incorrect:
-        #     print(incorrect_assignments)
-
-        sys.stdout.write(str(rank_total) + "\t\t")
-        sys.stdout.write(str(round((correct * 100) / (correct + incorrect), 0)) + "\t\t")
-        percentage_too_shallow = round(float((too_shallow * 100)/rank_total), 1)
+        percentage_too_shallow = round(float((too_shallow * 100) / n_classified), 1)
+        if percentage_too_shallow == 100.0:
+            sys.stdout.write(str(0.0) + "\t\t")
+        else:
+            sys.stdout.write(str(round((correct * 100) / (correct + incorrect), 1)) + "\t\t")
         sys.stdout.write(str(percentage_too_shallow) + "\n")
+
     sys.stdout.write("\n")
 
     return
@@ -522,6 +532,7 @@ def determine_containment(args, marker, rank_assigned_dict):
 def clean_classification_names(assignments):
     """
     Removes certain ranks, taxonomic super-groups, etc. so strings are more comparable
+
     :param assignments:
     :return:
     """
@@ -678,7 +689,7 @@ def map_headers_to_lineage(assignments, ref_sequences):
             for query in classified_headers:
                 for ref_seq in ref_sequences:
                     if ref_seq.accession == query:
-                        lineage_assignments[marker][assigned_lineage].append(ref_seq.lineage)
+                        lineage_assignments[marker][clean_lineage_string(assigned_lineage)].append(clean_lineage_string(ref_seq.lineage))
     return lineage_assignments
 
 
@@ -700,17 +711,18 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
     """
     Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
     from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
-    Also removes taxonomies with "*nclassified" in their lineage
+    Also removes taxonomies with "*nclassified" in their lineage or are derived from environmental samples
+
     :param ref_seqs_list: A dictionary mapping accessions to lineages that need to be filtered
     :param taxonomic_filter_stats: A dictionary for tracking the number sequences filtered, those unique, etc.
     :param max_cluster_size: The maximum number of sequences representing a taxonomic cluster
-    :return: dereplicated_lineages dict with lineages mapping to a single accession
+    :return: dereplicated_lineages dict with lineages mapping to a (short) list of accessions
     """
     good_classified_lineages = dict()
     dereplicated_lineages = dict()
     num_rep_seqs = 0
     for ref_seq in ref_seqs_list:
-        query_taxonomy = ref_seq.lineage
+        query_taxonomy = clean_lineage_string(ref_seq.lineage)
         if len(clean_lineage_string(query_taxonomy).split("; ")) < 7:
             continue
         if query_taxonomy not in good_classified_lineages:
@@ -757,35 +769,56 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
 
     taxonomic_filter_stats["Unique_taxa"] += len(dereplicated_lineages)
 
-    sys.stdout.write("\t" + str(num_rep_seqs) + " representative sequences will be used for TreeSAPP analysis.\n")
-    sys.stdout.flush()
+    logging.info("\t" + str(num_rep_seqs) + " representative sequences will be used for TreeSAPP analysis.\n")
 
-    sys.stdout.write("Representative sequence stats:\n\t")
-    sys.stdout.write("Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t")
-    sys.stdout.write("Minimum representative sequences for a taxon " + str(taxonomic_filter_stats["Min"]) + "\n\t")
-    sys.stdout.write("Mean representative sequences for a taxon " + str(taxonomic_filter_stats["Mean"]) + "\n")
+    logging.debug("Representative sequence stats:\n\t" +
+                  "Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t" +
+                  "Minimum representative sequences for a taxon " + str(taxonomic_filter_stats["Min"]) + "\n\t" +
+                  "Mean representative sequences for a taxon " + str(taxonomic_filter_stats["Mean"]) + "\n")
 
     return dereplicated_lineages, taxonomic_filter_stats
 
 
-def select_rep_seqs(deduplicated_assignments, test_sequences):
+def select_rep_seqs(deduplicated_assignments: dict, test_sequences: list, taxon=None):
     """
     Function for creating a fasta-formatted dict from the accessions representing unique taxa in the test sequences
-    :param deduplicated_assignments:
-    :param test_sequences:
-    :return:
+
+    :param deduplicated_assignments: dict of lineages mapped to a list of accessions
+    :param test_sequences: list of ReferenceSequence objects
+    :param taxon: A taxonomic lineage to filter the lineages (and sequences) in deduplicated assignments
+    :return: Dictionary containing accessions as keys and sequences as values
     """
+    if taxon:
+        filtered_assignments = dict()
+        for lineage in sorted(deduplicated_assignments):
+            if re.search(taxon, lineage):
+                filtered_assignments[lineage] = deduplicated_assignments[lineage]
+    else:
+        filtered_assignments = deduplicated_assignments
+
     deduplicated_fasta_dict = dict()
-    for lineage in sorted(deduplicated_assignments):
-        for accession in deduplicated_assignments[lineage]:
+    for lineage in sorted(filtered_assignments):
+        for accession in filtered_assignments[lineage]:
             matched = False
             for ref_seq in test_sequences:
                 if ref_seq.accession == accession:
                     deduplicated_fasta_dict[accession] = ref_seq.sequence
                     matched = True
             if not matched:
-                sys.stderr.write("ERROR: Unable to find accession (" + accession + ") in accession-lineage map\n")
+                logging.error("Unable to find accession (" + accession + ") in accession-lineage map\n")
+                sys.exit(21)
     return deduplicated_fasta_dict
+
+
+def map_seqs_to_lineages(accession_lineage_map, deduplicated_fasta_dict):
+    seq_taxa_map = dict()
+    for seq_name in deduplicated_fasta_dict:
+        if seq_name not in accession_lineage_map:
+            logging.error("Unable to find matching key for '" + seq_name + "' in accession_lineage_map.\n")
+            sys.exit(21)
+        else:
+            seq_taxa_map[seq_name] = accession_lineage_map[seq_name]
+    return seq_taxa_map
 
 
 def filter_queries_by_taxonomy(taxonomic_lineages):
@@ -793,6 +826,7 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
     from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
     Also removes taxonomies with "*nclassified" in their lineage
+
     :param taxonomic_lineages: A list of lineages that need to be filtered
     :return: A list that contains no more than 3 of each query taxonomy (arbitrarily normalized) and counts
     """
@@ -823,7 +857,7 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
 
-def write_performance_table(args, performance_table, clade_exclusion_strings, sensitivity):
+def write_performance_table(args, performance_table, clade_exclusion_strings):
     try:
         output_handler = open(performance_table, 'w')
     except IOError:
@@ -833,8 +867,7 @@ def write_performance_table(args, performance_table, clade_exclusion_strings, se
     output_handler.write("# Input file for testing: " + args.fasta_input + "\n")
     output_name = os.path.dirname(args.output)
     for line in clade_exclusion_strings:
-        line += sensitivity + "\n"
-        line = output_name + "\t" + line
+        line = output_name + "\t" + line + "\n"
         output_handler.write(line)
 
     output_handler.close()
@@ -878,6 +911,85 @@ def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
     return ref_seq_dict
 
 
+def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_clade):
+    # Move the original FASTA, tree and tax_ids files to a temporary location
+    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
+    marker_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"])
+    marker_bipart_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"])
+    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+    intermediate_prefix = intermediate_dir + "ORIGINAL"
+    shutil.copy(marker_fa, intermediate_prefix + ".fa")
+    shutil.copy(marker_tree, intermediate_prefix + "_tree.txt")
+    shutil.copy(marker_bipart_tree, intermediate_prefix + "_bipartitions.txt")
+    os.remove(marker_bipart_tree)
+    shutil.copy(marker_tax_ids, intermediate_prefix + "_tax_ids.txt")
+
+    off_target_ref_leaves = list()
+    # tax_ids file
+    ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
+    with open(marker_tax_ids, 'w') as tax_ids_handle:
+        for ref_leaf in ref_tree_leaves:
+            tax_ids_string = ""
+            if not re.search(target_clade, clean_lineage_string(ref_leaf.lineage)):
+                off_target_ref_leaves.append(ref_leaf.number)
+                tax_ids_string += "\t".join([ref_leaf.number, ref_leaf.description, ref_leaf.lineage])
+                tax_ids_handle.write(tax_ids_string + "\n")
+            else:
+                pass  # These sequences will be removed from the reference files
+
+    # fasta
+    ref_fasta_dict = read_fasta_to_dict(marker_fa)
+    off_target_headers = [num_id + '_' + marker for num_id in off_target_ref_leaves]
+    split_files = write_new_fasta(ref_fasta_dict, marker_fa, len(off_target_ref_leaves), off_target_headers)
+    if len(split_files) > 1:
+        logging.error("Only one FASTA file should have been written.\n")
+        sys.exit(21)
+    else:
+        shutil.copy(split_files[0], marker_fa)
+
+    # Trees
+    ref_tree = Tree(marker_tree)
+    ref_tree.prune(off_target_ref_leaves)
+    logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
+    ref_tree.write(outfile=marker_tree, format=5)
+
+    return intermediate_prefix
+
+
+def classify_excluded_taxon(args, taxon, marker, min_seq_length, test_rep_taxa_fasta):
+    """
+      Prepares TreeSAPP tree, alignment and taxonomic identification map (tax_ids) files for clade exclusion analysis,
+    and performs classification with TreeSAPP
+
+    :return: The paths to the classification table and the taxon-excluded tax_ids file
+    """
+    treesapp_output_dir = args.output + os.sep + re.sub(' ', '_', taxon.split("; ")[-1]) + os.sep
+
+    # Prune the reference tree to exclude all clades belonging to the taxon being tested, and copy the tree
+    prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output, taxon)
+
+    # Classify representative sequences using TreeSAPP
+    classify_command = ["./treesapp.py", "-i", test_rep_taxa_fasta,
+                        "-o", treesapp_output_dir,
+                        "-m", args.molecule,
+                        "-T", str(4),
+                        "--min_seq_length", min_seq_length,
+                        "--trim_align",
+                        "--overwrite",
+                        "--delete"]
+    logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
+    launch_write_command(classify_command, False)
+    # Move the original FASTA, tree and tax_ids files back to the proper directories
+    shutil.copy(prefix + "_tree.txt", os.sep.join([args.treesapp, "data", "tree_data", marker + "_tree.txt"]))
+    shutil.copy(prefix + "_bipartitions.txt", os.sep.join([args.treesapp, "data", "tree_data", marker + "_bipartitions.txt"]))
+    # The edited tax_ids file with clade excluded is required for performance analysis
+    shutil.copy(os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]), treesapp_output_dir)
+    shutil.copy(prefix + "_tax_ids.txt", os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]))
+    shutil.copy(prefix + ".fa", os.sep.join([args.treesapp, "data", "alignment_data", marker + ".fa"]))
+
+    return
+
+
 def main():
     """
     Method for running this script:
@@ -886,9 +998,43 @@ def main():
 
     :return:
     """
-    args = get_arguments_()
-
     sys.stdout.write("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
+
+    args = get_arguments()
+    args.targets = ["ALL"]
+
+    log_file_name = args.output + os.sep + "Clade_exclusion_analyzer_log.txt"
+    prep_logging(log_file_name, args.verbose)
+
+    marker_build_dict = parse_ref_build_params(args)
+    marker_eval_inst = MarkerTest(args.reference_marker)
+    taxa_choices = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
+    args.taxon_rank = args.taxon_rank.split(',')
+    for rank in args.taxon_rank:
+        if rank not in taxa_choices:
+            logging.error(rank + " not an available option for `--taxon_rank`.\n")
+            sys.exit(21)
+        else:
+            marker_eval_inst.ranks.append(rank)
+
+    # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
+    if re.match("[A-Z][0-9]{4}", args.reference_marker):
+        code_name = args.reference_marker
+        marker = marker_build_dict[code_name].cog
+    elif len(args.reference_marker) <= 6:
+        # Assuming the provided args.reference_marker is a short gene name (e.g. mcrA, nifH)
+        marker = args.reference_marker
+        code_name = ""
+        for denominator in marker_build_dict:
+            if marker_build_dict[denominator].cog == marker:
+                code_name = denominator
+                break
+        if not code_name:
+            logging.error("Unable to identify the gene name from the code name '" + args.reference_marker + "'.")
+            sys.exit(21)
+    else:
+        logging.error("Wrong format for the reference code_name provided: " + args.reference_marker + "\n")
+        sys.exit(21)
 
     ##
     # Define locations of files TreeSAPP outputs
@@ -903,20 +1049,14 @@ def main():
         extant = True
     else:
         extant = False
-    taxa_filter = False  # Whether the test sequences were screened for redundant taxa
     accessions_downloaded = False  # Whether the accessions have been downloaded from Entrez
     classified = False  # Has TreeSAPP been completed for these sequences?
     treesapp_output_dir = args.output + "TreeSAPP_output" + os.sep
     if extant:
         if os.path.isfile(accession_map_file):
             accessions_downloaded = True
-        if os.path.isfile(test_rep_taxa_fasta):
-            taxa_filter = True
     else:
         os.makedirs(args.output)
-
-    log_file_name = args.output + os.sep + "Clade_exclusion_analyzer_log.txt"
-    prep_logging(log_file_name, args.verbose)
 
     if extant:
         logging.debug("The output directory has been detected.\n")
@@ -952,14 +1092,6 @@ def main():
 
     logging.debug("\tNumber of input sequences =\t" + str(len(complete_ref_sequences)) + "\n")
 
-    n_classified = 0
-    marker_assignments = {}
-    # Set up a dictionary for tracking the taxonomic filtering
-    taxonomic_filter_stats = dict()
-    taxonomic_filter_stats["Unclassified"] = 0
-    taxonomic_filter_stats["Classified"] = 0
-    taxonomic_filter_stats["Unique_taxa"] = 0
-
     if args.graftm:
         gpkg_re_match = re.match(".*\.(\w+)\.gpkg", os.path.basename(args.graftm))
         marker = gpkg_re_match.group(1)
@@ -967,14 +1099,12 @@ def main():
         #     marker = gpkg_re_match.group(1)
         # except:
         #     raise Exception("ERROR: Unable to parse marker from GraftM package name: " + args.graftm + "\n")
-    else:
-        marker = None
 
     # TODO: fix bug where marker_contig_map.tsv is missing when accession_lineage_map present
     # Checkpoint one: does anything exist?
     # If not, begin by downloading lineage information for each sequence accession
     args.output = treesapp_output_dir
-    if not extant and not accessions_downloaded and not taxa_filter and not classified:
+    if not extant and not accessions_downloaded and not classified:
         # User hasn't analyzed anything, sequences will be taxonomically screened then analyzed
         # NOTE: This is only supported for analyzing a single marker gene
         extant = True
@@ -984,7 +1114,7 @@ def main():
                                                                           args.molecule)
 
         elif num_lineages_provided > 0:
-            sys.stdout.write("No sequences with lineage information that needs to be downloaded from Entrez.\n")
+            logging.info("No Entrez queries are necessary - all sequences have provided lineage information.\n")
             accession_lineage_map = dict()
             all_accessions = []
         else:
@@ -1003,30 +1133,22 @@ def main():
         accessions_downloaded = True
     elif extant and accessions_downloaded:
         # File being read should contain accessions mapped to their lineages for all sequences in input FASTA
-        read_accession_lineage_dict = read_accession_taxa_map(accession_map_file)
-        complete_ref_sequences = finalize_ref_seq_lineages(complete_ref_sequences, read_accession_lineage_dict)
+        accession_lineage_map = read_accession_taxa_map(accession_map_file)
+        complete_ref_sequences = finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
     fasta_record_objects = complete_ref_sequences.values()
-    # Checkpoint two: Do we have accessions? Are the sequences filtered by taxonomy or are the sequences classified?
-    if extant and accessions_downloaded and not taxa_filter and not classified:
-        logging.info("Selecting representative sequences for each taxon from downloaded lineage information.\n")
 
-        # Filter the sequences from redundant taxonomic lineages, picking up to 5 representative sequences
-        representative_seqs, taxonomic_filter_stats = pick_taxonomic_representatives(fasta_record_objects,
-                                                                                     taxonomic_filter_stats)
-        deduplicated_fasta_dict = select_rep_seqs(representative_seqs, fasta_record_objects)
-        total_sequences = len(deduplicated_fasta_dict.keys())
-        write_new_fasta(deduplicated_fasta_dict, test_rep_taxa_fasta)
-        taxa_filter = True
-    elif extant and accessions_downloaded and taxa_filter:
-        deduplicated_fasta_dict = format_read_fasta(test_rep_taxa_fasta, args.molecule, args.output)
-        total_sequences = len(deduplicated_fasta_dict.keys())
-    else:
+    logging.info("Selecting representative sequences for each taxon.\n")
 
-        total_sequences = len(fasta_dict)
+    # Filter the sequences from redundant taxonomic lineages, picking up to 5 representative sequences
+    representative_seqs, marker_eval_inst.taxa_filter = pick_taxonomic_representatives(fasta_record_objects,
+                                                                                       marker_eval_inst.taxa_filter)
+    deduplicated_fasta_dict = select_rep_seqs(representative_seqs, fasta_record_objects)
+    write_new_fasta(deduplicated_fasta_dict, test_rep_taxa_fasta)
+    rep_accession_lineage_map = map_seqs_to_lineages(accession_lineage_map, deduplicated_fasta_dict)
 
     # Checkpoint three: We have accessions linked to taxa, and sequences to analyze with TreeSAPP, but not classified
-    if extant and accessions_downloaded and taxa_filter and not classified:
-        logging.info("Analyzing the " + str(total_sequences) + " representative sequences with TreeSAPP.\n")
+
+    if extant and accessions_downloaded and not classified:
         # Run TreeSAPP against the provided tax_ids file and the unique taxa FASTA file
         if args.length:
             min_seq_length = str(min(args.length - 10, 50))
@@ -1046,120 +1168,114 @@ def main():
             classify_command += ["--input_sequence_type", "aminoacid"]
             classify_command.append("--force")
 
+            logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
+            launch_write_command(classify_command, False)
+            classified = True
+            tax_ids_file = glob(os.sep.join([args.graftm, "*refpkg", "*_taxonomy.csv"]))[0]
             graftm_prefix = '.'.join(os.path.basename(test_rep_taxa_fasta).split('.')[:-1])
             classification_table = os.sep.join([args.output, graftm_prefix, graftm_prefix + "_read_tax.tsv"])
+            taxonomic_tree = grab_graftm_taxa(tax_ids_file)
+            # rank_assigned_dict = identify_excluded_clade(assignments, taxonomic_tree, marker)
 
         else:
-            # TODO: iteratively prune and plant tree for all taxa at each rank with >= 3 sequences
-            classify_command = ["./treesapp.py", "-i", test_rep_taxa_fasta,
-                                "-o", treesapp_output_dir,
-                                "-m", args.molecule,
-                                "-T", str(4),
-                                "--min_seq_length", min_seq_length,
-                                "--trim_align",
-                                "--overwrite",
-                                "--delete"]
-        sys.stdout.write("Command used:\n" + ' '.join(classify_command) + "\n")
-        launch_write_command(classify_command, False)
+            for rank in args.taxon_rank:
+                leaf_trimmed_taxa_map = trim_lineages_to_rank(rep_accession_lineage_map, rank)
+                unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
+                for taxon in unique_taxonomic_lineages:
+                    treesapp_output_dir = args.output + os.sep + re.sub(' ', '_', taxon.split("; ")[-1]) + os.sep
+                    classification_table = treesapp_output_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
+
+                    optimal_lca_taxonomy = "; ".join(taxon.split("; ")[:-1])
+                    if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages
+                                                    if tl != taxon]:
+                        logging.debug(
+                            "Optimal placement target '" + optimal_lca_taxonomy + "' not found in pruned tree.\n")
+                        continue
+
+                    tax_ids_file = treesapp_output_dir + "tax_ids_" + marker + ".txt"
+                    # Select representative sequences belonging to the taxon being tested
+                    taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_record_objects, taxon)
+
+                    # Decide whether to continue analyzing taxon based on number of query sequences
+                    if len(taxon_rep_seqs.keys()) == 0:
+                        logging.debug("No query sequences for " + taxon + ".\n")
+                        continue
+                    elif not os.path.isfile(classification_table):
+                        test_rep_taxa_fasta = args.output + re.sub(' ', '_', taxon.split("; ")[-1]) + ".fa"
+                        # Write the query sequences
+                        write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
+                        classify_excluded_taxon(args, taxon, marker, min_seq_length, test_rep_taxa_fasta)
+                    else:
+                        # Valid number of queries and these sequences have already been classified
+                        pass
+
+                    test_obj = marker_eval_inst.new_taxa_test(rank, taxon)
+                    test_obj.queries = taxon_rep_seqs.keys()
+                    test_obj.taxonomic_tree = all_possible_assignments(args, tax_ids_file)
+                    if os.path.isfile(classification_table):
+                        test_obj.assignments, test_obj.classifieds = read_marker_classification_table(classification_table, marker)
+                    else:
+                        logging.error("marker_contig_map.tsv is missing from output directory '" +
+                                      os.path.basename(classification_table) + "'\n" +
+                                      "Please remove this directory and re-run.\n")
+                        sys.exit(21)
         classified = True
 
     # Checkpoint four: everything has been prepared, only need to parse the classifications and map lineages
-    if extant and accessions_downloaded and taxa_filter and classified:
-        logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
-        if os.path.isfile(classification_table):
-            assignments, n_classified = read_marker_classification_table(classification_table, marker)
-        else:
-            logging.error("marker_contig_map.tsv is missing from output directory '" +
-                          os.path.basename(classification_table) + "'\n" +
-                          "Please remove this directory and re-run.\n")
-            sys.exit(21)
-        marker_assignments = map_headers_to_lineage(assignments, fasta_record_objects)
+    logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
+    for rank in marker_eval_inst.taxa_tests:
+        for test_obj in marker_eval_inst.taxa_tests[rank]:
+            marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_record_objects)
+            for marker in marker_assignments:
+                marker_eval_inst.markers.add(marker)
 
-    # In the case of a prior TreeSAPP analysis without taxonomic sequence filtering (external of Clade_exclusion)
-    # User is just interested in seeing the clade exclusion analysis results again
-    if extant and not taxa_filter and classified:
-        logging.info("Outputs from a previous unsupervised TreeSAPP analysis found.\n")
-        # Read the classification table
-        logging.error("This functionality is now deprecated.\n" +
-                      "Software no longer analyzes TreeSAPP outputs created without Clade_exclusion_analyzer.py\n")
+            # Return the number of correct, classified, and total sequences of that taxon at the current rank
+            # Identify the excluded rank for each query sequence
+            if len(marker_assignments) == 0:
+                logging.debug("No sequences were classified for " + test_obj.taxon + "\n")
+                continue
+
+            rank_assignments = identify_excluded_clade(marker_assignments, test_obj.taxonomic_tree, marker)
+            for a_rank in rank_assignments:
+                if a_rank not in marker_eval_inst.classifications:
+                    marker_eval_inst.classifications[a_rank] = list()
+                if len(rank_assignments[a_rank]) > 0:
+                    marker_eval_inst.classifications[a_rank] += rank_assignments[a_rank]
+
+    # TODO: In the case of a prior TreeSAPP analysis without taxonomic sequence filtering (external of Clade_exclusion)
+    # if extant and classified:
+    #     logging.info("Outputs from a previous unsupervised TreeSAPP analysis found.\n")
+    #     # Read the classification table
+    #     logging.error("This functionality is now deprecated.\n" +
+    #                   "Software no longer analyzes TreeSAPP outputs created without Clade_exclusion_analyzer.py\n")
+    #     sys.exit(21)
 
     ##
     # On to the standard clade-exclusion analysis...
     ##
-    if taxonomic_filter_stats["Classified"] != taxonomic_filter_stats["Unique_taxa"]:
-        logging.debug("\n\t" + str(taxonomic_filter_stats["Classified"] - taxonomic_filter_stats["Unique_taxa"]) +
+    if marker_eval_inst.taxa_filter["Classified"] != marker_eval_inst.taxa_filter["Unique_taxa"]:
+        logging.debug("\n\t" + str(marker_eval_inst.taxa_filter["Classified"] -
+                                   marker_eval_inst.taxa_filter["Unique_taxa"]) +
                       " duplicate query taxonomies removed.\n")
 
-    if taxonomic_filter_stats["Unclassified"] > 0:
-        logging.debug("\t" + str(taxonomic_filter_stats["Unclassified"]) +
+    if marker_eval_inst.taxa_filter["Unclassified"] > 0:
+        logging.debug("\t" + str(marker_eval_inst.taxa_filter["Unclassified"]) +
                       " query sequences with unclassified taxonomies were removed.\n" +
                       "This is not a problem, its just they have 'unclassified' somewhere in their lineages\n" +
                       "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
 
-    if n_classified == 0 and marker_assignments == {}:
-        logging.error("Output from a past TreeSAPP or Clade-exclusion analysis were incorrectly assumed to be present." +
-                      "The development team should be made aware of this - " +
-                      "please post an issue to the GitHub page with your command used. Thanks!\n")
+    # Write the intermediate classifications to a file
+    # write_intermediate_assignments(inter_class_file, marker_assignments)
+
+    if code_name not in marker_eval_inst.markers and marker not in marker_eval_inst.markers:
+        logging.error("No sequences were classified as " + marker + ".\n")
         sys.exit(21)
 
-    sensitivity = str(round(float(n_classified / total_sequences), 3))
-    logging.info("Sensitivity = " + sensitivity + "\n")
-
-    # Write the intermediate classifications to a file
-    write_intermediate_assignments(inter_class_file, marker_assignments)
-
-    # Get rid of some names, replace underscores with semi-colons
-    assignments = clean_classification_names(marker_assignments)
-
-    # Load the reference lineages into a trie (prefix trie)
-    clade_exclusion_strings = list()
-    # tax_ids_tables = list()
-    args.targets = ["ALL"]
-    marker_build_dict = parse_ref_build_params(args)
-
-    for name in args.reference_markers:
-        # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
-        if re.match("[A-Z][0-9]{4}", name):
-            code_name = name
-            marker = marker_build_dict[code_name].cog
-        elif len(name) <= 6:
-            # Assuming the provided name is a short gene name (e.g. mcrA, nifH)
-            marker = name
-            code_name = ""
-            for denominator in marker_build_dict:
-                if marker_build_dict[denominator].cog == marker:
-                    code_name = denominator
-                    break
-            if not code_name:
-                logging.error("Unable to identify the gene name from the code name '" + name + "'.")
-                sys.exit(21)
-        else:
-            logging.error("Wrong format for the reference code_name provided: " + name + "\n")
-            sys.exit(21)
-
-        if args.graftm:
-            tax_ids_file = glob(os.sep.join([args.graftm, "*refpkg", "*_taxonomy.csv"]))[0]
-        else:
-            tax_ids_file = os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"])
-        if os.path.exists(tax_ids_file):
-            if args.graftm:
-                taxonomic_tree = grab_graftm_taxa(tax_ids_file)
-            else:
-                taxonomic_tree = all_possible_assignments(args, tax_ids_file)
-        else:
-            logging.error("Unable to find taxonomy IDs table: " + tax_ids_file + "\n")
-            sys.exit(21)
-        if code_name not in assignments.keys() and marker not in assignments.keys():
-            logging.warning("You provided a tax_ids file for " + marker +
-                            " but no sequences were classified for this marker. "
-                            "Everything else is okay, don't worry.\n")
-        else:
-            # Identify at which rank each sequence's clade was excluded: [K,P,C,O,F,G,S]
-            rank_assigned_dict = identify_excluded_clade(args, assignments, taxonomic_tree, marker)
-            # Determine the specificity for each rank
-            clade_exclusion_strings = determine_specificity(rank_assigned_dict, marker, clade_exclusion_strings)
-            determine_containment(args, marker, rank_assigned_dict)
-    write_performance_table(args, performance_table, clade_exclusion_strings, sensitivity)
+    # Determine the specificity for each rank
+    clade_exclusion_strings = get_classification_performance(marker_eval_inst)
+    summarize_taxonomic_diversity(marker_eval_inst)
+    determine_containment(marker_eval_inst)
+    write_performance_table(args, performance_table, clade_exclusion_strings)
 
 
 if __name__ == "__main__":

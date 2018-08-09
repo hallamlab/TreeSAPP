@@ -1058,3 +1058,54 @@ def prep_logging(log_file_name, verbosity):
     logging.getLogger('').addHandler(ch)
 
     return
+
+
+class MarkerTest:
+    def __init__(self, marker_name):
+        self.target_marker = marker_name
+        self.ranks = list()
+        self.markers = set()
+        self.taxa_filter = dict()
+        self.taxa_filter["Unclassified"] = 0
+        self.taxa_filter["Classified"] = 0
+        self.taxa_filter["Unique_taxa"] = 0
+        self.taxa_tests = dict()
+        self.classifications = dict()
+
+    def new_taxa_test(self, rank, lineage):
+        if rank not in self.taxa_tests:
+            self.taxa_tests[rank] = list()
+        taxa_test_inst = TaxonTest(lineage)
+        self.taxa_tests[rank].append(taxa_test_inst)
+        return taxa_test_inst
+
+    def get_sensitivity(self, rank):
+        total_queries = 0
+        total_classified = 0
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                total_queries += len(tt.queries)
+                total_classified += len(tt.classifieds)
+            return total_queries, total_classified, float(total_classified/total_queries)
+        else:
+            return 0, 0, 0.0
+
+    def get_unique_taxa_tested(self, rank):
+        taxa = set()
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                taxa.add(tt.taxon)
+            return taxa
+        else:
+            return None
+
+
+class TaxonTest:
+    def __init__(self, name):
+        self.lineage = name
+        self.taxon = name.split('; ')[-1]
+        self.queries = list()
+        self.classifieds = list()
+        self.distances = list()
+        self.assignments = dict()
+        self.taxonomic_tree = None
