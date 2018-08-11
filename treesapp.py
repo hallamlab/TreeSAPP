@@ -34,7 +34,7 @@ try:
         TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
-        get_node, annotate_partition_tree
+        get_node, annotate_partition_tree, find_cluster
     from external_command_interface import launch_write_command, setup_progress_bar
     from lca_calculations import *
     from jplace_utils import *
@@ -1912,7 +1912,6 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
     :return: dict()
     """
     qc_ma_dict = dict()
-    discarded_seqs = dict()
     num_successful_alignments = 0
 
     for f_contig in sorted(mfa_files.keys()):
@@ -1923,8 +1922,11 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
         unique_refs = set([re.sub('_' + re.escape(marker), '', x)[1:] for x in ref_headers])
         for multi_align_file in mfa_files[f_contig]:
             filtered_multi_align = dict()
-            discarded_seqs[multi_align_file] = list()
+            discarded_seqs = list()
+            discarded_seqs_string = ""
             f_ext = multi_align_file.split('.')[-1]
+
+            # Read the multiple alignment file
             if re.search("phy", f_ext):  # File is in Phylip format
                 headers, seqs = read_phylip(multi_align_file)
                 multi_align = dict()
@@ -1948,19 +1950,19 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
             if len(multi_align) == 0:
                 logging.error("No sequences were read from " + multi_align_file + ".\n")
                 sys.exit(3)
-            # The numeric idenfifiers make it easy to maintain order in the Phylip file by a numerical sort
+            # The numeric identifiers make it easy to maintain order in the Phylip file by a numerical sort
             # The negative integers indicate this is a query sequence so we can perform filtering
             for seq_name in sorted(multi_align, key=int):
                 seq_dummy = re.sub('-', '', multi_align[seq_name])
                 if len(seq_dummy) < args.min_seq_length:
-                    discarded_seqs[multi_align_file].append(seq_name)
+                    discarded_seqs.append(seq_name)
                 else:
                     filtered_multi_align[seq_name] = multi_align[seq_name]
 
             multi_align_seq_names = set(multi_align.keys())
             filtered_multi_align_seq_names = set(filtered_multi_align.keys())
 
-            if len(discarded_seqs[multi_align_file]) == len(multi_align.keys()):
+            if len(discarded_seqs) == len(multi_align.keys()):
                 # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
                 logging.warning(marker + " alignment in " + multi_align_file +
                                 " is shorter than minimum sequence length threshold (" + str(args.min_seq_length) +
@@ -1976,7 +1978,7 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
                               "Note: this suggests the initial reference alignment is terrible.\n")
                 sys.exit(3)
             # If there are no query sequences left, remove that alignment file from mfa_files
-            elif len(discarded_seqs[multi_align_file]) + len(unique_refs) == len(multi_align.keys()):
+            elif len(discarded_seqs) + len(unique_refs) == len(multi_align.keys()):
                 logging.warning("No query sequences in " + multi_align_file + " were retained after trimming." +
                                 "These sequences will not be analyzed.\n")
             else:
@@ -1984,10 +1986,10 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
                     qc_ma_dict[denominator] = dict()
                 qc_ma_dict[denominator][multi_align_file] = filtered_multi_align
                 num_successful_alignments += 1
+                discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
 
     logging.debug("done.\n")
-    logging.debug("\tSequences <" + str(args.min_seq_length) + " characters removed:\n\t\t" +
-                  "\n\t\t".join([n + " = " + str(len(discarded_seqs[n])) for n in discarded_seqs]) + "\n")
+    logging.debug("\tSequences <" + str(args.min_seq_length) + " characters removed:" + discarded_seqs_string + "\n")
 
     if num_successful_alignments == 0:
         logging.error("No quality alignment files to analyze after trimming.\n")
@@ -2098,6 +2100,7 @@ def produce_phy_files(args, qc_ma_dict):
             with open(final_phy_file_name, 'w') as phy_output:
                 phy_output.write(phy_string)
             phy_files[denominator].append(final_phy_file_name)
+    logging.debug("done.\n")
 
     return phy_files
 
@@ -2831,16 +2834,17 @@ def read_marker_classification_table(assignment_file):
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
     (leaving 1 for marker name and 4 for numerical abundance)
+
     :param assignment_file: Path to the file containing sequence phylogenetic origin and assignment
     :return: dictionary whose keys are phylogenetic origin and values are lists of TreeSAPP assignments
     """
     assignments = dict()
     n_classified = 0
     assignments_handle = open(assignment_file, 'r')
+    header = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
     # This is the header line
-    if not re.match("^Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
-                    assignments_handle.readline()):
-        sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
+    if assignments_handle.readline() != header:
+        logging.error("Header of classification file is unexpected!\n")
         raise AssertionError
 
     # First line in the table containing data
@@ -3483,13 +3487,12 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
     """
     for denominator in tree_saps:
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
-
-        # max_dist_threshold equals the maximum path length from root to tip in its clade
-        max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold, but good for first pass
-
+        # Find the maximum distance
+        max_rank_dist = max(marker_build_dict[denominator].distances["Class"])
+        distant_seqs = list()
         for tree_sap in tree_saps[denominator]:
-            # TODO: test classifications using the placement tree, rather than the reference tree
-            # tree = Tree(re.sub("\{\d+\}", '', tree_sap.tree))
+            # max_dist_threshold equals the maximum path length from root to tip in its clade
+            max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold, but good for first pass
             if tree_sap.name not in unclassified_counts.keys():
                 unclassified_counts[tree_sap.name] = 0
             if not tree_sap.placements:
@@ -3507,41 +3510,45 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
             distal_length = float(tree_sap.get_jplace_element("distal_length"))
             pendant_length = float(tree_sap.get_jplace_element("pendant_length"))
             # Find the length of the edge this sequence was placed onto
-            # edge_length = find_edge_length(tree_sap.tree, tree_sap.inode)
-            node_dist = distal_length + pendant_length
             leaf_children = tree_sap.node_map[int(tree_sap.inode)]
             # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
             if len(leaf_children) > 1:
                 # We need to find the LCA in the Tree instance to find the distances to tips for ete3
-                lca_node = tree.get_common_ancestor(leaf_children)
                 parent = tree.get_common_ancestor(leaf_children)
-                tip_distances = parent_to_tip_distances(lca_node, leaf_children)
-                tree_sap.avg_evo_dist = round(float(sum(tip_distances)) / len(tip_distances) + node_dist, 4)
+                tip_distances = parent_to_tip_distances(parent, leaf_children)
             else:
                 tree_leaf = tree.get_leaves_by_name(leaf_children[0])[0]
                 sister = tree_leaf.get_sisters()[0]
                 parent = tree_leaf.get_common_ancestor(sister)
-                tree_sap.avg_evo_dist = round(node_dist, 4)
+                tip_distances = [0.0]
 
+            tree_sap.avg_evo_dist = round(distal_length + pendant_length + (sum(tip_distances) / len(tip_distances)), 4)
+            tree_sap.distances = str(distal_length) + ',' +\
+                                 str(pendant_length) + ',' +\
+                                 str(sum(tip_distances) / len(tip_distances))
             # Discard this placement as a false positive if the avg_evo_dist exceeds max_dist_threshold
             if tree_sap.avg_evo_dist > max_dist_threshold:
                 unclassified_counts[tree_sap.name] += 1
+                distant_seqs.append(tree_sap.contig_name)
                 tree_sap.classified = False
                 continue
 
             # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
+            ancestor = find_cluster(parent)
             clade_tip_distances = list()
-            neighbour = parent.get_sisters()[0]
-            ancestor = parent.get_common_ancestor(neighbour)
             for leaf in ancestor.get_leaf_names():
                 clade_tip_distances.append(ancestor.get_distance(leaf))
             # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
-            if tree_sap.avg_evo_dist > max(clade_tip_distances):
+            if tree_sap.avg_evo_dist > max(clade_tip_distances) * 1.2 and tree_sap.avg_evo_dist > max_rank_dist:
                 unclassified_counts[tree_sap.name] += 1
+                distant_seqs.append(tree_sap.contig_name)
                 tree_sap.classified = False
+                print("Local", tree_sap.summarize())
                 continue
         logging.debug("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
-                      " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n")
+                      " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n" +
+                      marker_build_dict[denominator].cog + " queries with extremely long placement distances:\n\t" +
+                      "\n\t".join(distant_seqs) + "\n")
 
     return
 
@@ -3561,7 +3568,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
     sample_name = os.path.basename(args.output)
     if not sample_name:
         sample_name = args.output.split(os.sep)[-2]
-    tab_out_string = "Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD\n"
+    tab_out_string = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
     try:
         tab_out = open(mapping_output, 'w')
     except IOError:
@@ -3582,10 +3589,15 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
         for tree_sap in tree_saps[denominator]:
+            if not tree_sap.classified:
+                continue
+
             tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
 
             # Based on the calculated distance from the leaves, what rank is most appropriate?
-            recommended_rank = rank_recommender(tree_sap.avg_evo_dist, marker_build_dict[denominator].distances)
+            recommended_rank = rank_recommender(tree_sap.avg_evo_dist,
+                                                marker_build_dict[denominator].distances,
+                                                "bottom_up")
 
             if len(tree_sap.lineage_list) == 0:
                 logging.error("Unable to find lineage information for marker " +
@@ -3599,14 +3611,9 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
                     lca = tree_sap.megan_lca()
                     # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
                     tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
-                    if not tree_sap.lct:
-                        logging.debug("All lineages were highly incomplete for " +
-                                      str(tree_sap.contig_name) + "\n")
-                    else:
-                        # print(tree_sap.contig_name)
-                        tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
-                        if status > 0:
-                            tree_sap.summarize()
+                    tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                    if status > 0:
+                        tree_sap.summarize()
                 else:
                     tree_sap.lct = "Lowest common ancestor of: "
                     tree_sap.lct += ', '.join(tree_sap.lineage_list)
@@ -3616,13 +3623,14 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
             tab_out_string += '\t'.join([sample_name,
                                          tree_sap.contig_name,
                                          tree_sap.name,
+                                         str(tree_sap.seq_len),
                                          clean_lineage_string(tree_sap.lct),
                                          lowest_confident_taxonomy(tree_sap.lct, recommended_rank),
                                          str(tree_sap.abundance),
                                          str(tree_sap.inode),
-                                         str(tree_sap.likelihood),
                                          str(tree_sap.lwr),
-                                         str(tree_sap.seq_len)]) + "\n"
+                                         str(tree_sap.avg_evo_dist),
+                                         tree_sap.distances]) + "\n"
     tab_out.write(tab_out_string)
     tab_out.close()
 
@@ -3839,7 +3847,7 @@ def main(argv):
         else:
             phy_files = concatenated_msa_files
         delete_files(args, 3)
-        sys.exit()
+
         # STAGE 5: Run RAxML to compute the ML estimations
         start_raxml(args, phy_files, marker_build_dict)
         sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)

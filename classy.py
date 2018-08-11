@@ -12,7 +12,7 @@ from multiprocessing import Process, JoinableQueue
 from json import loads, dumps
 
 from fasta import format_read_fasta, get_headers, write_new_fasta, get_header_format
-from utilities import reformat_string, return_sequence_info_groups
+from utilities import reformat_string, return_sequence_info_groups, median
 from entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from external_command_interface import launch_write_command
 from entrez_utils import get_lineage
@@ -390,6 +390,7 @@ class ItolJplace:
         self.lwr = 0  # Likelihood weight ratio of an individual placement
         self.likelihood = 0
         self.avg_evo_dist = 0.0
+        self.distances = ""
         self.classified = True
         self.inode = ""
         self.tree = ""  # NEWICK tree
@@ -401,6 +402,7 @@ class ItolJplace:
         Prints a summary of the ItolJplace object (equivalent to a single marker) to stderr
         Summary include the number of marks found, the tree used, and the tree-placement of each sequence identified
         Written solely for testing purposes
+
         :return:
         """
         summary_string = ""
@@ -438,6 +440,8 @@ class ItolJplace:
             summary_string += "\tNone.\n"
         if self.abundance:
             summary_string += "Abundance:\n\t" + str(self.abundance) + "\n"
+        if self.distances:
+            summary_string += "Distances:\n\t" + self.distances + "\n"
         summary_string += "\n"
         return summary_string
 
@@ -1099,6 +1103,44 @@ class MarkerTest:
         else:
             return None
 
+    def summarize_rankwise_distances(self, rank):
+        distals = list()
+        pendants = list()
+        tips = list()
+        totals = list()
+        n_dists = 0
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                distals += tt.distances["distal"]
+                pendants += tt.distances["pendant"]
+                tips += tt.distances["tip"]
+                n_dists += 1
+            n_dists = len(distals)
+            x = 0
+            while x < n_dists:
+                totals.append(sum([distals[x], pendants[x], tips[x]]))
+                x += 1
+            if len(pendants) != n_dists or len(tips) != n_dists:
+                logging.error("Unequal number of values found between distal-, pendant- and tip-distances.\n")
+                sys.exit(17)
+            distance_summary = ["Rank\tType\tMean\tMedian\tVariance",
+                                "\t".join([rank, "Distal",
+                                           str(round(sum(distals) / float(n_dists), 4)),
+                                           str(median(distals))]),
+                                "\t".join([rank, "Pendant",
+                                           str(round(sum(pendants) / float(n_dists), 4)),
+                                           str(median(pendants))]),
+                                "\t".join([rank, "Tip",
+                                           str(round(sum(tips) / float(n_dists), 4)),
+                                           str(median(tips))]),
+                                "\t".join([rank, "Total",
+                                           str(round(sum(totals) / float(n_dists), 4)),
+                                           str(median(totals))], )]
+            sys.stdout.write("\n".join(distance_summary) + "\n")
+            return distals, pendants, tips
+        else:
+            return None, None, None
+
 
 class TaxonTest:
     def __init__(self, name):
@@ -1106,6 +1148,6 @@ class TaxonTest:
         self.taxon = name.split('; ')[-1]
         self.queries = list()
         self.classifieds = list()
-        self.distances = list()
+        self.distances = dict()
         self.assignments = dict()
         self.taxonomic_tree = None

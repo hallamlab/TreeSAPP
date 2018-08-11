@@ -97,7 +97,6 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
     :param algorithm: A string indicating what lowest common ancestor algorithm should be used [ MEGAN | LCA* | LCAp ]
     :return: string - represent the consensus lineage for that node
     """
-    lineage_string = ""
     lineages_considered = list()
     # Check that children have lineage information and discard those that don't have a known lineage
     # (e.g. unclassified sequences; metagenomes; ecological metagenomes)
@@ -113,7 +112,7 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
     # print("All children:", children)
     # print("Lineages considered:", lineages_considered)
     if len(lineages_considered) == 0:
-        return lineage_string
+        lineages_considered = [child.split("; ") for child in children]
 
     if algorithm == "MEGAN":
         # Already calculated by tree_sap.megan_lca()
@@ -167,6 +166,7 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
 def compute_taxonomic_distance(lineage_list, common_ancestor):
     """
     Input is a list >= 2, potentially either a leaf string or NCBI lineage
+
     :param lineage_list: Lineages of all leaves for this sequence
     :param common_ancestor: The common ancestor for the elements in lineage_list
     :return:

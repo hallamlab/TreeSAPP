@@ -2,6 +2,7 @@
 
 import sys
 import re
+import logging
 from ete3 import Tree
 from file_parsers import tax_ids_file_to_leaves
 from utilities import clean_lineage_string, median
@@ -9,13 +10,13 @@ from utilities import clean_lineage_string, median
 from scipy import stats
 import numpy as np
 
-# TODO: replace confidence_interval to remove scipy and numpy dependency
+# TODO: re-implement confidence_interval to remove scipy and numpy dependency
 
 __author__ = 'Connor Morgan-Lang'
 
 
 def confidence_interval(data, confidence=0.95):
-    m = 2
+    m = 1  # number of permissible standard deviations
     a = 1.0 * np.array(data)
     # reject outliers
     data = a[abs(a - np.mean(a)) < m * np.std(a)]
@@ -23,13 +24,14 @@ def confidence_interval(data, confidence=0.95):
     return round(dat_mean.minmax[0], 4), round(dat_mean.minmax[1], 4)
 
 
-def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict):
+def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach="top_down"):
     """
     Determines the rank depth (for example Class == 2) a taxonomic lineage should be truncated to
      based on which rank distance range (in taxonomic_rank_intervals) phylo_dist falls into
     
-    :param phylo_dist: Float < 1.0 representing the branch distance from the nearest node
+    :param phylo_dist: Float representing the branch distance from the nearest node
     :param taxonomic_rank_intervals: Dictionary with rank keys (e.g. Class) and distance ranges (min, max) as values
+    :param approach: Begin parsing from the top (`top_down`) or from the bottom (`bottom_up`)
     :return: int
     """    
     ranks = ["Kingdom", "Phylum", "Class", "Order",
@@ -38,17 +40,39 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict):
     if not taxonomic_rank_intervals:
         return 7
 
-    depth = 2  # Start at Class
-    while depth < 7:
-        rank = ranks[depth]
-        if taxonomic_rank_intervals[rank]:
-            min_dist, max_dist = taxonomic_rank_intervals[rank]
-            if min_dist < phylo_dist < max_dist:
-                depth += 1
-                break
-            elif phylo_dist > max_dist:
-                break
+    if approach == "top_down":
+        depth = 2  # Start at Class
+        while depth < 7:
+            rank = ranks[depth]
+            if taxonomic_rank_intervals[rank]:
+                min_dist, max_dist = taxonomic_rank_intervals[rank]
+                if min_dist < phylo_dist < max_dist:
+                    depth += 1
+                    break
+                elif phylo_dist > max_dist:
+                    break
+            depth += 1
+    elif approach == "bottom_up":
+        depth = 6  # Start at Class
+        while depth > 2:
+            rank = ranks[depth]
+            if taxonomic_rank_intervals[rank]:
+                min_dist, max_dist = taxonomic_rank_intervals[rank]
+                if min_dist < phylo_dist < max_dist:
+                    depth -= 1
+                    break
+                elif phylo_dist < max_dist:
+                    break
+            depth -= 1
+    else:
+        logging.error("Unrecognized approach: '" + approach + "'\n")
+        sys.exit(19)
+
+    # Since we don't estimate strain-level placement distances but these are still possible,
+    #  allow strain-level classifications here:
+    if depth == 6 and phylo_dist <= min_dist:
         depth += 1
+
     return depth
 
 
@@ -125,6 +149,7 @@ def parent_to_tip_distances(parent: Tree, children: Tree, estimate=False):
     Function utilizing ete3's tree object for calculating distances between a reference node (parent)
      and query nodes (children).
     The `estimate` flag will cause the parent's edge length to be included in the distance calculation.
+
     :param parent: A reference node Tree instance
     :param children: A list of query nodes, also Tree instances
     :param estimate: Boolean indicating whether these distances are to be used for estimating the edge length ranges
