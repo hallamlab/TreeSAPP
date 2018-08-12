@@ -64,8 +64,8 @@ def get_arguments():
                              "Useful for testing classification accuracy for fragments.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
-    miscellaneous_opts.add_argument("--graftm", default=None, required=False,
-                                    help="The path to a GraftM package. Classifications performed using GraftM.")
+    miscellaneous_opts.add_argument("--graftm", default=False, required=False, action="store_true",
+                                    help="Classifications performed using GraftM instead of TreeSAPP.")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
@@ -96,7 +96,7 @@ def get_arguments():
 
 def read_graftm_classifications(assignment_file):
     assignments = dict()
-    classifieds = 0
+    classifieds = list()
     assignments_handle = open(assignment_file, 'r')
     line = assignments_handle.readline()
     while line:
@@ -701,7 +701,7 @@ def map_headers_to_lineage(assignments, ref_sequences):
         lineage_assignments[marker] = dict()
         for assigned_lineage in assignments[marker].keys():
             classified_headers = assignments[marker][assigned_lineage]
-            lineage_assignments[marker][assigned_lineage] = list()
+            lineage_assignments[marker][clean_lineage_string(assigned_lineage)] = list()
             for query in classified_headers:
                 for ref_seq in ref_sequences:
                     if ref_seq.accession == query:
@@ -935,13 +935,13 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker):
     off_target_ref_leaves = dict()
     # tax_ids file
     ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
-    with open(intermediate_dir + "tax_ids_" + marker, 'w') as tax_ids_handle:
+    with open(intermediate_dir + "tax_ids_" + marker + ".txt", 'w') as tax_ids_handle:
         tax_ids_strings = list()
         for ref_leaf in ref_tree_leaves:
             if not re.search(target_clade, clean_lineage_string(ref_leaf.lineage)):
                 organism, accession = ref_leaf.description.split(" | ")
                 off_target_ref_leaves[ref_leaf.number] = accession
-                tax_ids_strings.append(accession + "\t" + ref_leaf.lineage)
+                tax_ids_strings.append(accession + "\t" + clean_lineage_string(ref_leaf.lineage))
             else:
                 pass  # These sequences will be removed from the reference files
         tax_ids_handle.write("\n".join(tax_ids_strings) + "\n")
@@ -949,9 +949,10 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker):
     # fasta
     ref_fasta_dict = read_fasta_to_dict(marker_fa)
     accession_fasta_dict = dict()
-    for num_key in ref_fasta_dict:
+    for key_id in ref_fasta_dict:
+        num_key = key_id[1:].split('_')[0]
         if num_key in off_target_ref_leaves.keys():
-            accession_fasta_dict[off_target_ref_leaves[num_key]] = ref_fasta_dict[num_key]
+            accession_fasta_dict[off_target_ref_leaves[num_key]] = ref_fasta_dict[key_id]
         else:
             pass
     write_new_fasta(accession_fasta_dict, intermediate_dir + marker + ".mfa")
@@ -1038,14 +1039,14 @@ def classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_re
     return
 
 
-def build_graftm_package(target_marker, mfa_file, fa_file):
-    taxa_file = "accession_id_lineage_map.tsv"
+def build_graftm_package(target_marker, output_dir, mfa_file, fa_file):
     create_command = ["graftM", "create"]
-    create_command += ["--threads", str(8)]
+    create_command += ["--threads", str(4)]
     create_command += ["--alignment", mfa_file]
     create_command += ["--sequences", fa_file]
-    create_command += ["--taxonomy", taxa_file]
-    create_command += ["--output", target_marker + ".gpkg"]
+    create_command += ["--taxonomy", output_dir + os.sep + "tax_ids_" + target_marker + ".txt"]
+    create_command += ["--output", output_dir + target_marker + ".gpkg"]
+    create_command.append("--force")
 
     logging.debug("Command used:\n" + ' '.join(create_command) + "\n")
     launch_write_command(create_command, False)
@@ -1209,47 +1210,50 @@ def main():
         for rank in args.taxon_rank:
             leaf_trimmed_taxa_map = trim_lineages_to_rank(rep_accession_lineage_map, rank)
             unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
-            for taxon in unique_taxonomic_lineages:
-                treesapp_output = args.output + os.sep + re.sub(' ', '_', taxon.split("; ")[-1]) + os.sep
+            for lineage in unique_taxonomic_lineages:
+                taxon = re.sub(' ', '_', lineage.split("; ")[-1])
+                treesapp_output = args.output + os.sep + taxon + os.sep
 
-                optimal_lca_taxonomy = "; ".join(taxon.split("; ")[:-1])
+                optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
                 if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages
-                                                if tl != taxon]:
+                                                if tl != lineage]:
                     logging.debug(
                         "Optimal placement target '" + optimal_lca_taxonomy + "' not found in pruned tree.\n")
                     continue
 
                 tax_ids_file = treesapp_output + "tax_ids_" + marker + ".txt"
                 # Select representative sequences belonging to the taxon being tested
-                taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_record_objects, taxon)
+                taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_record_objects, lineage)
                 # Decide whether to continue analyzing taxon based on number of query sequences
                 if len(taxon_rep_seqs.keys()) == 0:
-                    logging.debug("No query sequences for " + taxon + ".\n")
+                    logging.debug("No query sequences for " + lineage + ".\n")
                     continue
 
                 logging.info("Classifications for the " + rank + " '" + taxon + "' put " + treesapp_output + "\n")
-                test_obj = marker_eval_inst.new_taxa_test(rank, taxon)
+                test_obj = marker_eval_inst.new_taxa_test(rank, lineage)
                 test_obj.queries = taxon_rep_seqs.keys()
+                test_rep_taxa_fasta = args.output + taxon + ".fa"
 
                 if args.graftm:
-                    tax_ids_file = glob(os.sep.join([args.graftm, "*refpkg", "*_taxonomy.csv"]))[0]
-                    graftm_prefix = '.'.join(os.path.basename(test_rep_taxa_fasta).split('.')[:-1])
-                    classification_table = os.sep.join(
-                        [args.output, graftm_prefix, graftm_prefix + "_read_tax.tsv"])
+                    classification_table = os.sep.join([treesapp_output, taxon, taxon + "_read_tax.tsv"])
 
                     if not os.path.isfile(classification_table):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prep_graftm_ref_files(args.treesapp, args.output, taxon, marker_eval_inst.target_marker)
+                        prep_graftm_ref_files(args.treesapp, args.output, lineage, marker_eval_inst.target_marker)
                         build_graftm_package(marker_eval_inst.target_marker,
-                                             mfa_file="",
-                                             fa_file="")
-                        test_rep_taxa_fasta = args.output + re.sub(' ', '_', taxon.split("; ")[-1]) + ".fa"
+                                             args.output,
+                                             mfa_file=args.output + marker + ".mfa",
+                                             fa_file=args.output + marker + ".fa")
+                        tax_ids_file = os.sep.join([args.output,
+                                                    marker + ".gpkg",
+                                                    marker + ".gpkg.refpkg",
+                                                    marker + "_taxonomy.csv"])
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
 
                         classify_command = ["graftM", "graft"]
                         classify_command += ["--forward", test_rep_taxa_fasta]
-                        classify_command += ["--graftm_package", marker_eval_inst.target_marker + ".gpkg"]
+                        classify_command += ["--graftm_package", args.output + os.sep + marker + ".gpkg"]
                         classify_command += ["--threads", str(4)]
                         classify_command += ["--assignment_method", "pplacer"]
                         # classify_command += ["--assignment_method", "kraken"]
@@ -1270,11 +1274,11 @@ def main():
 
                     if not os.path.isfile(classification_table):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output, taxon)
-                        test_rep_taxa_fasta = args.output + re.sub(' ', '_', taxon.split("; ")[-1]) + ".fa"
+                        prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output, lineage)
+                        test_rep_taxa_fasta = args.output + taxon + ".fa"
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
-                        classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_rep_taxa_fasta)
+                        classify_excluded_taxon(args, prefix, lineage, marker, min_seq_length, test_rep_taxa_fasta)
                     else:
                         # Valid number of queries and these sequences have already been classified
                         pass
