@@ -26,7 +26,7 @@ from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves
 from classy import prep_logging, get_header_info, register_headers, MarkerTest
 from entrez_utils import get_lineage, read_accession_taxa_map, write_accession_lineage_map,\
     build_entrez_queries, get_multiple_lineages, verify_lineage_information
-from phylo_dist import trim_lineages_to_rank, confidence_interval
+from phylo_dist import trim_lineages_to_rank
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   2: "Phylum", 3: "Class", 4: "Order",
@@ -931,7 +931,6 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker):
     # Move the original FASTA, tree and tax_ids files to a temporary location
     marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
     marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
-
     off_target_ref_leaves = dict()
     # tax_ids file
     ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
@@ -950,7 +949,7 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker):
     ref_fasta_dict = read_fasta_to_dict(marker_fa)
     accession_fasta_dict = dict()
     for key_id in ref_fasta_dict:
-        num_key = key_id[1:].split('_')[0]
+        num_key = key_id.split('_')[0]
         if num_key in off_target_ref_leaves.keys():
             accession_fasta_dict[off_target_ref_leaves[num_key]] = ref_fasta_dict[key_id]
         else:
@@ -959,7 +958,6 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker):
     for acc in accession_fasta_dict:
         accession_fasta_dict[acc] = re.sub('-', '', accession_fasta_dict[acc])
     write_new_fasta(accession_fasta_dict, intermediate_dir + marker + ".fa")
-
     return
 
 
@@ -1221,7 +1219,6 @@ def main():
                         "Optimal placement target '" + optimal_lca_taxonomy + "' not found in pruned tree.\n")
                     continue
 
-                tax_ids_file = treesapp_output + "tax_ids_" + marker + ".txt"
                 # Select representative sequences belonging to the taxon being tested
                 taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_record_objects, lineage)
                 # Decide whether to continue analyzing taxon based on number of query sequences
@@ -1238,16 +1235,16 @@ def main():
                     classification_table = os.sep.join([treesapp_output, taxon, taxon + "_read_tax.tsv"])
 
                     if not os.path.isfile(classification_table):
+                        tax_ids_file = os.sep.join([args.output,
+                                                    marker + ".gpkg",
+                                                    marker + ".gpkg.refpkg",
+                                                    marker + "_taxonomy.csv"])
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
                         prep_graftm_ref_files(args.treesapp, args.output, lineage, marker_eval_inst.target_marker)
                         build_graftm_package(marker_eval_inst.target_marker,
                                              args.output,
                                              mfa_file=args.output + marker + ".mfa",
                                              fa_file=args.output + marker + ".fa")
-                        tax_ids_file = os.sep.join([args.output,
-                                                    marker + ".gpkg",
-                                                    marker + ".gpkg.refpkg",
-                                                    marker + "_taxonomy.csv"])
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
 
@@ -1266,10 +1263,14 @@ def main():
                         logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
                         launch_write_command(classify_command, False)
 
+                        shutil.copy(tax_ids_file, treesapp_output + os.sep + taxon + os.sep)
+
+                    tax_ids_file = os.sep.join([treesapp_output, taxon, marker + "_taxonomy.csv"])
                     test_obj.taxonomic_tree = grab_graftm_taxa(tax_ids_file)
                     graftm_assignments, test_obj.classifieds = read_graftm_classifications(classification_table)
                     test_obj.assignments = {marker: graftm_assignments}
                 else:
+                    tax_ids_file = treesapp_output + "tax_ids_" + marker + ".txt"
                     classification_table = treesapp_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
 
                     if not os.path.isfile(classification_table):
