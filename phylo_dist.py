@@ -7,21 +7,32 @@ from ete3 import Tree
 from file_parsers import tax_ids_file_to_leaves
 from utilities import clean_lineage_string, median
 
-from scipy import stats
 import numpy as np
-
-# TODO: re-implement confidence_interval to remove scipy and numpy dependency
 
 __author__ = 'Connor Morgan-Lang'
 
 
-def confidence_interval(data, confidence=0.95):
-    m = 1  # number of permissible standard deviations
-    a = 1.0 * np.array(data)
-    # reject outliers
-    data = a[abs(a - np.mean(a)) < m * np.std(a)]
-    dat_mean, dat_var, dat_std = stats.bayes_mvs(data, confidence)
-    return round(dat_mean.minmax[0], 4), round(dat_mean.minmax[1], 4)
+def confident_range(data: list, dev=3):
+    """
+    Returns the Interquartile Range (IQR) of a list after filtering outliers
+    based on log transformed data where outliers are farther than 1 std-dev from the median and
+    an un-transformed distribution where outliers are farther than `dev` standard deviations from the median.
+
+    :param data: A list of floats
+    :param dev: Number of acceptable deviations from the median; beyond this, values are outliers and removed
+    :return: floats of minimum and maximum values of the data
+    """
+    # Reject outliers from ln-transformed distribution
+    ln_a = np.log10(1.0 * np.array(data))
+    noo_a = np.power(10, ln_a[abs(ln_a - np.median(ln_a)) < 1 * np.std(ln_a)])
+
+    # Reject outliers from untransformed distribution
+    d = np.abs(noo_a - np.median(noo_a))
+    mdev = np.median(d)
+    s = d / mdev if mdev else 0.
+    noo_a = noo_a[s < dev]
+
+    return round(np.percentile(noo_a, 25), 4), round(np.percentile(noo_a, 90), 4)
 
 
 def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach="top_down"):
@@ -67,11 +78,6 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach
     else:
         logging.error("Unrecognized approach: '" + approach + "'\n")
         sys.exit(19)
-
-    # Since we don't estimate strain-level placement distances but these are still possible,
-    #  allow strain-level classifications here:
-    if depth == 6 and phylo_dist <= min_dist:
-        depth += 1
 
     return depth
 
@@ -201,7 +207,7 @@ def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
                     edge_lengths += parent_to_tip_distances(lca, clade, True)
                 taxonomic_rank_distances[rank] += edge_lengths
         if len(taxonomic_rank_distances[rank]) >= 5:
-            min_dist, max_dist = confidence_interval(taxonomic_rank_distances[rank])
+            min_dist, max_dist = confident_range(taxonomic_rank_distances[rank])
             taxonomic_rank_intervals[rank] = (round(min_dist, 4), round(max_dist, 4))
         else:
             taxonomic_rank_intervals[rank] = ()

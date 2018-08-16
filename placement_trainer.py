@@ -12,7 +12,7 @@ from file_parsers import tax_ids_file_to_leaves
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information
-from phylo_dist import trim_lineages_to_rank, confidence_interval, parent_to_tip_distances
+from phylo_dist import trim_lineages_to_rank, confident_range, parent_to_tip_distances
 from external_command_interface import launch_write_command, setup_progress_bar
 from jplace_utils import jplace_parser
 from treesapp import run_papara
@@ -42,6 +42,53 @@ def get_options():
     return args
 
 
+class PQuery:
+    def __init__(self, lineage_str, rank_str):
+        # Inferred from JPlace file
+        self.pendant = 0.0
+        self.mean_tip = 0.0
+        self.distal = 0.0
+        self.likelihood = 0.0
+        self.lwr = 0.0
+        self.inode = ""
+        self.parent_node = ""
+        self.name = ""
+
+        # Known from outer scope
+        self.lineage = lineage_str
+        self.rank = rank_str
+
+    def total_distance(self):
+        return sum([self.pendant, self.mean_tip, self.distal])
+
+    def summarize_placement(self):
+        summary_string = "Placement of " + self.lineage + " at rank " + self.rank + ":\n" + \
+                         "Distances:" + \
+                         "\n\tDistal = " + str(self.distal) +\
+                         "\n\tPendant = " + str(self.pendant) +\
+                         "\n\tTip = " + str(self.mean_tip) +\
+                         "\nLikelihood = " + str(self.likelihood) +\
+                         "\nL.W.R. = " + str(self.lwr) +\
+                         "\n"
+        return summary_string
+
+
+def write_placement_table(pqueries, placement_table_file, marker):
+
+    placement_info_strs = list()
+    for pquery in pqueries:
+        if pquery:
+            placement_info_strs.append("\t".join(
+                [marker, str(pquery.rank), str(pquery.lineage), str(pquery.name), str(pquery.inode),
+                 str(pquery.lwr), str(pquery.likelihood),
+                 str(pquery.distal), str(pquery.pendant), str(pquery.mean_tip), str(pquery.total_distance())])
+            )
+
+    with open(placement_table_file, 'w') as file_handler:
+        file_handler.write("\n".join(placement_info_strs) + "\n")
+    return
+
+
 def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_file: str, tax_ids_file: str,
                               accession_lineage_map: dict, molecule: str):
     """
@@ -65,6 +112,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     taxonomy_filtered_query_seqs = dict()
     dict_for_phy = dict()
     rank_distance_ranges = dict()
+    pqueries = list()
     taxonomic_ranks = ["Class", "Order", "Family", "Genus", "Species"]
 
     temp_tree_file = "tmp_tree.txt"
@@ -179,8 +227,10 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             placement_tree = jplace_data.tree
             node_map = map_internal_nodes_leaves(placement_tree)
             for pquery in jplace_data.placements:
-                top_lwr = 0
+                top_lwr = 0.5
                 distance = 100
+                top_placement = None
+                seq_name = ''
                 for name, info in pquery.items():
                     if name == 'p':
                         for placement in info:
@@ -188,22 +238,30 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                             lwr = float(placement[2])
                             if lwr > top_lwr:
                                 top_lwr = lwr
-                                inode = placement[0]
-                                node_dist = float(placement[3]) + float(placement[4])
-                                leaf_children = node_map[int(inode)]
+                                top_placement = PQuery(taxonomy, rank)
+                                top_placement.inode = placement[0]
+                                top_placement.likelihood = placement[1]
+                                top_placement.lwr = lwr
+                                top_placement.distal = float(placement[3])
+                                top_placement.pendant = float(placement[4])
+                                leaf_children = node_map[int(top_placement.inode)]
                                 if len(leaf_children) > 1:
-                                    # Jplace tree (with adjusted branch lengths)
-                                    # parent = Tree(re.sub("\{\d+\}", '', placement_tree)).get_common_ancestor(leaf_children)
                                     # Reference tree with clade excluded
                                     parent = tmp_tree.get_common_ancestor(leaf_children)
                                     tip_distances = parent_to_tip_distances(parent, leaf_children)
-                                    distance = node_dist + float(sum(tip_distances)/len(tip_distances))
-                                else:
-                                    distance = node_dist
-                if distance == 100:
-                    logging.error("Distance was not updated while parsing placements.\n")
-                    sys.exit(19)
-                taxonomic_placement_distances[rank].add(distance)
+                                    top_placement.mean_tip = float(sum(tip_distances)/len(tip_distances))
+                                distance = top_placement.total_distance()
+                    elif name == 'n':
+                        seq_name = info.pop()
+                    else:
+                        logging.error("Unexpected variable in pquery keys: '" + name + "'\n")
+                        sys.exit(33)
+
+                    if top_placement:
+                        top_placement.name = seq_name
+                        pqueries.append(top_placement)
+                if distance < 100:
+                    taxonomic_placement_distances[rank].add(distance)
             os.system("rm papara_* RAxML*")
         if len(taxonomic_placement_distances[rank]) == 0:
             logging.debug("No samples available for " + rank + ".\n")
@@ -215,12 +273,12 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
                                                     len(taxonomic_placement_distances[rank]), 4)) + "\n"
             logging.debug(stats_string)
-            rank_distance_ranges[rank] = confidence_interval(list(taxonomic_placement_distances[rank]), 0.95)
+            rank_distance_ranges[rank] = confident_range(list(taxonomic_placement_distances[rank]))
         sys.stdout.write('-')
         sys.stdout.flush()
     sys.stdout.write("-]\n")
     os.system("rm taxonomy_filtered_ref_seqs.phy queries.fasta tmp_tree.txt")
-    return rank_distance_ranges, taxonomic_placement_distances
+    return rank_distance_ranges, taxonomic_placement_distances, pqueries
 
 
 def main():
@@ -228,6 +286,14 @@ def main():
 
     if not os.path.isdir(args.output_dir):
         os.makedirs(args.output_dir)
+
+    seq_m = os.path.basename(args.ref_seqs).split('.')[0]
+    tree_m = re.sub("_tree", '', os.path.basename(args.tree)).split('.')[0]
+    tax_m = re.sub("tax_ids_", '', os.path.basename(args.taxa_map)).split('.')[0]
+
+    if len({seq_m, tree_m, tax_m}) != 1:
+        logging.error("Marker gene names are inconsistent between reference package inputs.\n")
+        sys.exit(33)
 
     molecule = "prot"
     sys.stdout.write("\n##\t\t\tEstimate taxonomic rank placement distances\t\t\t##\n")
@@ -251,12 +317,12 @@ def main():
     fasta_dict = read_fasta_to_dict(args.fasta)
     ref_fasta_dict = read_fasta_to_dict(args.ref_seqs)
 
-    rank_distance_ranges, taxonomic_placement_distances = train_placement_distances(fasta_dict,
-                                                                                    ref_fasta_dict,
-                                                                                    args.tree,
-                                                                                    args.taxa_map,
-                                                                                    accession_lineage_map,
-                                                                                    molecule)
+    rank_distance_ranges, taxonomic_placement_distances, pqueries = train_placement_distances(fasta_dict,
+                                                                                              ref_fasta_dict,
+                                                                                              args.tree,
+                                                                                              args.taxa_map,
+                                                                                              accession_lineage_map,
+                                                                                              molecule)
     with open(args.output_dir + os.sep + "placement_trainer_results.txt", 'w') as out_handler:
         trained_string = ""
         ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
@@ -268,6 +334,9 @@ def main():
                 trained_string += ','.join([str(dist) for dist in rank_distance_ranges[rank]]) + "\n"
             trained_string += "\n"
         out_handler.write(trained_string)
+
+    placement_table_file = args.output_dir + os.sep + "placement_info.tsv"
+    write_placement_table(pqueries, placement_table_file, seq_m)
 
 
 if __name__ == "__main__":
