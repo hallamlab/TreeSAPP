@@ -1,11 +1,11 @@
 1	NM4 | NM423249334157	cellular organisms; Archaea
 2	M. Mx2 | 2617404690	cellular organisms; Archaea
-3	ANME-2a | ANME2a2303	cellular organisms; Archaea
+3	ANME-2a | ANME2a2303	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
 4	NM1a | MN1LE99113100777	cellular organisms; Archaea
 5	NM2 | NM648286489	cellular organisms; Archaea
 6	M. archaeon | M0343248034144	cellular organisms; Archaea
 7	NM3 | NM3LE45496204	cellular organisms; Archaea
-8	ANME-2c | MSRA2291MSRA2292	cellular organisms; Archaea
+8	ANME-2c | MSRA2291MSRA2292	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
 9	NM1b | NM17892456	cellular organisms; Archaea
 10	ANME-1-THS | EURA2336EURA1606	cellular organisms; Archaea
 11	M. natro-ASL | AL1256114219	cellular organisms; Archaea
