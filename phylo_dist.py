@@ -51,6 +51,17 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach
     if not taxonomic_rank_intervals:
         return 7
 
+    # Hack method, good at Class shit everywhere else
+    # if phylo_dist < taxonomic_rank_intervals["Species"][0]:
+    #     return 7
+    # elif taxonomic_rank_intervals["Species"][0] < phylo_dist < taxonomic_rank_intervals["Species"][1]:
+    #     return 6
+    # elif phylo_dist > taxonomic_rank_intervals["Class"][0]:
+    #     return 2
+    # else:
+    #     return 5
+
+    # print(phylo_dist)
     if approach == "top_down":
         depth = 2  # Start at Class
         while depth < 7:
@@ -58,13 +69,13 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach
             if taxonomic_rank_intervals[rank]:
                 min_dist, max_dist = taxonomic_rank_intervals[rank]
                 if min_dist < phylo_dist < max_dist:
-                    depth += 1
                     break
                 elif phylo_dist > max_dist:
+                    depth -= 1
                     break
             depth += 1
     elif approach == "bottom_up":
-        depth = 6  # Start at Class
+        depth = 6  # Start at Species
         while depth > 2:
             rank = ranks[depth]
             if taxonomic_rank_intervals[rank]:
@@ -78,14 +89,15 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach
     else:
         logging.error("Unrecognized approach: '" + approach + "'\n")
         sys.exit(19)
+    # print(depth, ranks[depth])
 
-    return depth
+    return depth if depth >= 2 else 2
 
 
 def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     """
     Iterates a dictionary and trims the lineage string values to a specified rank.
-     Also removes lineages of unclassifieds and sequences from environmental samples
+     Also removes lineages that are 'unclassified' at the desired rank or higher and sequences from environmental samples
 
     :param leaf_taxa_map: Maps indices to lineages
     :param rank: The taxonomic rank lineages need to be trimmed to
@@ -94,14 +106,20 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     trimmed_lineage_map = dict()
     ranks = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
     depth = ranks[rank]
-    for node_name in leaf_taxa_map:
-        lineage = clean_lineage_string(leaf_taxa_map[node_name])
+    for node_name in sorted(leaf_taxa_map, key=int):
+        lineage = leaf_taxa_map[node_name]
+        c_lineage = clean_lineage_string(lineage).split("; ")
+        if len(c_lineage) < depth:
+            continue
         if re.search("unclassified|environmental sample", lineage, re.IGNORECASE):
-            continue
-        lineage = lineage.split("; ")
-        if len(lineage) < depth:
-            continue
-        trimmed_lineage_map[node_name] = "; ".join(lineage[:depth])
+            i = 0
+            while i < depth:
+                if re.search("unclassified|environmental sample", c_lineage[i], re.IGNORECASE):
+                    break
+                i += 1
+            if i < depth:
+                continue
+        trimmed_lineage_map[node_name] = "; ".join(c_lineage[:depth])
     return trimmed_lineage_map
 
 

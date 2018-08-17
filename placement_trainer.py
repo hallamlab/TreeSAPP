@@ -130,10 +130,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
         raise FileNotFoundError("Cannot find " + bmge_file)
 
     for ref_seq in ref_taxa_map:
-        if re.search("unclassified|environmental sample", ref_seq.lineage, re.IGNORECASE):
-            continue
-        else:
-            leaf_taxa_map[ref_seq.number] = ref_seq.lineage
+        leaf_taxa_map[ref_seq.number] = ref_seq.lineage
 
     # Remove duplicate sequences to prevent biasing the distance estimates
     nr_fasta_dict = deduplicate_fasta_sequences(fasta_dict)
@@ -145,7 +142,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     setup_progress_bar(len(taxonomic_ranks))
     # For each rank from Class to Species (Kingdom & Phylum-level classifications to be inferred by LCA):
     for rank in taxonomic_ranks:
-        taxonomic_placement_distances[rank] = set()
+        taxonomic_placement_distances[rank] = list()
         leaf_trimmed_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
         unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
 
@@ -181,8 +178,6 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                 node = key.split('_')[0]
                 # Node with truncated and/or unclassified lineages are not in `leaf_trimmed_taxa_map`
                 if node in leaf_trimmed_taxa_map and not re.match(taxonomy, leaf_trimmed_taxa_map[node]):
-                    dict_for_phy[node] = ref_fasta_dict[key]
-                elif node not in leaf_trimmed_taxa_map:
                     dict_for_phy[node] = ref_fasta_dict[key]
                 else:
                     leaves_excluded += 1
@@ -261,7 +256,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                         top_placement.name = seq_name
                         pqueries.append(top_placement)
                 if distance < 100:
-                    taxonomic_placement_distances[rank].add(distance)
+                    taxonomic_placement_distances[rank].append(distance)
             os.system("rm papara_* RAxML*")
         if len(taxonomic_placement_distances[rank]) == 0:
             logging.debug("No samples available for " + rank + ".\n")
