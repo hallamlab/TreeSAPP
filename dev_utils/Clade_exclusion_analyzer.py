@@ -927,7 +927,7 @@ def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
     return ref_seq_dict
 
 
-def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker):
+def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker, depth):
     # Move the original FASTA, tree and tax_ids files to a temporary location
     marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
     marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
@@ -937,12 +937,24 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker):
     with open(intermediate_dir + "tax_ids_" + marker + ".txt", 'w') as tax_ids_handle:
         tax_ids_strings = list()
         for ref_leaf in ref_tree_leaves:
-            if not re.search(target_clade, clean_lineage_string(ref_leaf.lineage)):
-                organism, accession = ref_leaf.description.split(" | ")
-                off_target_ref_leaves[ref_leaf.number] = accession
-                tax_ids_strings.append(accession + "\t" + clean_lineage_string(ref_leaf.lineage))
-            else:
-                pass  # These sequences will be removed from the reference files
+            c_lineage = clean_lineage_string(ref_leaf.lineage)
+            if re.search(target_clade, c_lineage):
+                continue
+            sc_lineage = c_lineage.split("; ")
+            if len(sc_lineage) < depth:
+                continue
+            if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
+                i = 0
+                while i <= depth:
+                    if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
+                        i -= 1
+                        break
+                    i += 1
+                if i < depth:
+                    continue
+            organism, accession = ref_leaf.description.split(" | ")
+            off_target_ref_leaves[ref_leaf.number] = accession
+            tax_ids_strings.append(accession + "\t" + clean_lineage_string(ref_leaf.lineage))
         tax_ids_handle.write("\n".join(tax_ids_strings) + "\n")
 
     # fasta
@@ -961,7 +973,7 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker):
     return
 
 
-def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_clade):
+def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_clade, depth):
     # Move the original FASTA, tree and tax_ids files to a temporary location
     marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
     marker_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"])
@@ -980,17 +992,29 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
     with open(marker_tax_ids, 'w') as tax_ids_handle:
         for ref_leaf in ref_tree_leaves:
             tax_ids_string = ""
-            if not re.search(target_clade, clean_lineage_string(ref_leaf.lineage)):
-                off_target_ref_leaves.append(ref_leaf.number)
-                tax_ids_string += "\t".join([ref_leaf.number, ref_leaf.description, ref_leaf.lineage])
-                tax_ids_handle.write(tax_ids_string + "\n")
-            else:
-                pass  # These sequences will be removed from the reference files
+            c_lineage = clean_lineage_string(ref_leaf.lineage)
+            if re.search(target_clade, c_lineage):
+                continue
+            sc_lineage = c_lineage.split("; ")
+            if len(sc_lineage) < depth:
+                continue
+            if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
+                i = 0
+                while i <= depth:
+                    if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
+                        i -= 1
+                        break
+                    i += 1
+                if i < depth:
+                    continue
+            off_target_ref_leaves.append(ref_leaf.number)
+            tax_ids_string += "\t".join([ref_leaf.number, ref_leaf.description, ref_leaf.lineage])
+            tax_ids_handle.write(tax_ids_string + "\n")
 
     # fasta
     ref_fasta_dict = read_fasta_to_dict(marker_fa)
     off_target_headers = [num_id + '_' + marker for num_id in off_target_ref_leaves]
-    split_files = write_new_fasta(ref_fasta_dict, marker_fa, len(off_target_ref_leaves), off_target_headers)
+    split_files = write_new_fasta(ref_fasta_dict, marker_fa, len(off_target_ref_leaves)+1, off_target_headers)
     if len(split_files) > 1:
         logging.error("Only one FASTA file should have been written.\n")
         sys.exit(21)
@@ -1208,6 +1232,8 @@ def main():
         for rank in args.taxon_rank:
             leaf_trimmed_taxa_map = trim_lineages_to_rank(rep_accession_lineage_map, rank)
             unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
+            ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
+            depth = ranks[rank]
             for lineage in unique_taxonomic_lineages:
                 taxon = re.sub(' ', '_', lineage.split("; ")[-1])
                 treesapp_output = args.output + os.sep + taxon + os.sep
@@ -1240,7 +1266,7 @@ def main():
                                                     marker + ".gpkg.refpkg",
                                                     marker + "_taxonomy.csv"])
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prep_graftm_ref_files(args.treesapp, args.output, lineage, marker_eval_inst.target_marker)
+                        prep_graftm_ref_files(args.treesapp, args.output, lineage, marker_eval_inst.target_marker, depth)
                         build_graftm_package(marker_eval_inst.target_marker,
                                              args.output,
                                              mfa_file=args.output + marker + ".mfa",
@@ -1275,7 +1301,7 @@ def main():
 
                     if not os.path.isfile(classification_table):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output, lineage)
+                        prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output, lineage, depth)
                         test_rep_taxa_fasta = args.output + taxon + ".fa"
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)

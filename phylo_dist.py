@@ -32,7 +32,7 @@ def confident_range(data: list, dev=3):
     s = d / mdev if mdev else 0.
     noo_a = noo_a[s < dev]
 
-    return round(np.percentile(noo_a, 25), 4), round(np.percentile(noo_a, 90), 4)
+    return round(np.percentile(noo_a, 20), 4), round(np.percentile(noo_a, 80), 4)
 
 
 def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach="top_down"):
@@ -50,16 +50,6 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach
 
     if not taxonomic_rank_intervals:
         return 7
-
-    # Hack method, good at Class shit everywhere else
-    # if phylo_dist < taxonomic_rank_intervals["Species"][0]:
-    #     return 7
-    # elif taxonomic_rank_intervals["Species"][0] < phylo_dist < taxonomic_rank_intervals["Species"][1]:
-    #     return 6
-    # elif phylo_dist > taxonomic_rank_intervals["Class"][0]:
-    #     return 2
-    # else:
-    #     return 5
 
     # print(phylo_dist)
     if approach == "top_down":
@@ -91,7 +81,7 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach
         sys.exit(19)
     # print(depth, ranks[depth])
 
-    return depth if depth >= 2 else 2
+    return depth
 
 
 def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
@@ -106,15 +96,16 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     trimmed_lineage_map = dict()
     ranks = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
     depth = ranks[rank]
-    for node_name in sorted(leaf_taxa_map, key=int):
+    for node_name in sorted(leaf_taxa_map):
         lineage = leaf_taxa_map[node_name]
         c_lineage = clean_lineage_string(lineage).split("; ")
         if len(c_lineage) < depth:
             continue
         if re.search("unclassified|environmental sample", lineage, re.IGNORECASE):
             i = 0
-            while i < depth:
+            while i <= depth:
                 if re.search("unclassified|environmental sample", c_lineage[i], re.IGNORECASE):
+                    i -= 1
                     break
                 i += 1
             if i < depth:
