@@ -23,7 +23,7 @@ import _tree_parser
 class MarkerBuild:
     def __init__(self, build_param_line):
         build_param_fields = build_param_line.split('\t')
-        if len(build_param_fields) != 12:
+        if len(build_param_fields) != 8:
             logging.error("Incorrect number of values (" + str(len(build_param_fields)) +
                           ") in ref_build_parameters.tsv. Line:\n" + build_param_line)
             sys.exit(17)
@@ -37,7 +37,7 @@ class MarkerBuild:
         self.update = build_param_fields[-1]
         self.description = ""
         self.kind = ""
-        self.distances = {}
+        self.pfit = []
 
     def load_rank_distances(self, build_param_line):
         build_param_fields = build_param_line.split("\t")
@@ -55,6 +55,12 @@ class MarkerBuild:
             field += 1
             rank += 1
         return 0
+
+    def load_pfit_params(self, build_param_line):
+        build_param_fields = build_param_line.split("\t")
+        if build_param_fields[5]:
+            self.pfit = [float(x) for x in build_param_fields[5].split(',')]
+        return
 
     def check_rank(self):
         taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]

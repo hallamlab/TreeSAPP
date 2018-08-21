@@ -1,32 +1,33 @@
-name	code	molecule	sub_model	cluster_identity	class_dist	order_dist	family_dist	genus_dist	species_dist	lowest_confident_rank	date
-hzs	A0100	PROTGAMMAJTTDCMUT	0.99							Species	27_Apr_2018
-nrfA	D0401	prot	PROTGAMMAWAG	95						Genera	16_Mar_2018
-hzao	A0012	prot	PROTGAMMAWAG	95						Kingdoms	21_May_2018
-nosZ	D0601	prot	PROTGAMMAWAG	95						Species	28_Jan_2017
-mcrA	M0701	prot	PROTGAMMALG	97	0.2229,0.2613	0.2311,0.3155	0.2023,0.2201	0.1384,0.1617	0.0611,0.1182	Genera	19_Jul_2018
-narG	D0101	prot	PROTGAMMALG	80						Genera	23_Jan_2018
-napA	D0201	prot	PROTGAMMALG	80						Genera	15_Jan_2018
-nirA	A0001	prot	PROTGAMMALG	90						Genera	05_Mar_2018
-nirK	D0301	prot	PROTGAMMALG	90						Species	15_Jan_2018
-nirS	D0302	prot	PROTGAMMALG	97						Species	17_Jan_2018
-norB	D0501	prot	PROTGAMMALG	80						Species	19_Jan_2018
-norC	D0502	prot	PROTGAMMALG	90						Species	19_Jan_2018
-nifD	N0401	prot	PROTGAMMALG	85						Species	17_Jan_2018
-nifH	N0402	prot	PROTGAMMALG	94						Species	29_Jan_2018
-#mcrA	M0701	prot	PROTGAMMALG	97						Species	04_Jun_2017
-McrB	M0702	prot	PROTGAMMALG	0.97	0.2492,0.2913	0.2495,0.3126	0.2224,0.2478	0.1697,0.2066	0.0681,0.1117	Genera	24_Jul_2018
-mcrG	M0705	prot	PROTGAMMALG	97						Species	09_Jan_2018
-MtrA	M0601	prot	PROTGAMMALG	95						Species	08_Feb_2018
-MtrC	M0603	prot	PROTGAMMALG	99						Species	08_Feb_2018
-MtrH	M0607	prot	PROTGAMMALG	97						Species	08_Feb_2018
-GH36	C0036	prot	PROTGAMMALG	70						Phyla	26_Apr_2018
-GH31	C0031	prot	PROTGAMMALG	70						Orders	12_May_2018
-p_amoA	N0102	prot	PROTGAMMALG	97						Species	09_Apr_2018
-CO_dh	C1000	prot	PROTGAMMALG	97						Orders	04_May_2018
-RBsCO	C2000	prot	PROTGAMMALG	80						Phyla	05_May_2018
-OGFOxy	C3000	prot	PROTGAMMALG	90						Phyla	08_May_2018
-CitSyn	C4000	prot	PROTGAMMALG	65						Classes	11_May_2018
-dsrA	S0001	prot	PROTGAMMALG	80						Families	22_May_2018
-dsrB	S0002	prot	PROTGAMMALG	85						Families	02_May_2018
-GH109	C0109	prot	PROTGAMMALG	90						Orders	31_May_2018
-GH115	C0115	prot	PROTGAMMALG	90						Genera	01_Jun_2018
+name	code	molecule	sub_model	cluster_identity	polynomial_params	lowest_confident_rank	date
+hzs	A0100	prot	PROTGAMMAJTTDCMUT	0.99		Species	27_Apr_2018
+nrfA	D0401	prot	PROTGAMMAWAG	95		Genera	16_Mar_2018
+hzao	A0012	prot	PROTGAMMAWAG	95		Kingdoms	21_May_2018
+nosZ	D0601	prot	PROTGAMMAWAG	95		Species	28_Jan_2017
+mcrA	M0701	prot	PROTGAMMALG	97		Genera	19_Jul_2018
+narG	D0101	prot	PROTGAMMALG	80		Genera	23_Jan_2018
+napA	D0201	prot	PROTGAMMALG	80		Genera	15_Jan_2018
+nirA	A0001	prot	PROTGAMMALG	90		Genera	05_Mar_2018
+nirK	D0301	prot	PROTGAMMALG	90		Species	15_Jan_2018
+nirS	D0302	prot	PROTGAMMALG	97		Species	17_Jan_2018
+norB	D0501	prot	PROTGAMMALG	80		Species	19_Jan_2018
+norC	D0502	prot	PROTGAMMALG	90		Species	19_Jan_2018
+nifD	N0401	prot	PROTGAMMALG	85		Species	17_Jan_2018
+nifH	N0402	prot	PROTGAMMALG	94		Species	29_Jan_2018
+#mcrA	M0701	prot	PROTGAMMALG	97		Species	04_Jun_2017
+McrA	M0701	prot	PROTGAMMALG	0.97	3.6378283308266757,-8.033381345493268,5.955189851065407	Classes	01_Aug_2018
+McrB	M0702	prot	PROTGAMMALG	0.97		Genera	24_Jul_2018
+mcrG	M0705	prot	PROTGAMMALG	97		Species	09_Jan_2018
+MtrA	M0601	prot	PROTGAMMALG	95		Species	08_Feb_2018
+MtrC	M0603	prot	PROTGAMMALG	99		Species	08_Feb_2018
+MtrH	M0607	prot	PROTGAMMALG	97		Species	08_Feb_2018
+GH36	C0036	prot	PROTGAMMALG	70		Phyla	26_Apr_2018
+GH31	C0031	prot	PROTGAMMALG	70		Orders	12_May_2018
+p_amoA	N0102	prot	PROTGAMMALG	97	4.843696773838072,-8.46624492768042,5.866756934540069	Species	09_Apr_2018
+CO_dh	C1000	prot	PROTGAMMALG	97		Orders	04_May_2018
+RBsCO	C2000	prot	PROTGAMMALG	80		Phyla	05_May_2018
+OGFOxy	C3000	prot	PROTGAMMALG	90		Phyla	08_May_2018
+CitSyn	C4000	prot	PROTGAMMALG	65		Classes	11_May_2018
+dsrA	S0001	prot	PROTGAMMALG	80		Families	22_May_2018
+dsrB	S0002	prot	PROTGAMMALG	85		Families	02_May_2018
+GH109	C0109	prot	PROTGAMMALG	90		Orders	31_May_2018
+GH115	C0115	prot	PROTGAMMALG	90		Genera	01_Jun_2018

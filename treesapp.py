@@ -3487,8 +3487,6 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
     """
     for denominator in tree_saps:
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
-        # Find the maximum distance
-        max_rank_dist = max(marker_build_dict[denominator].distances["Class"])
         distant_seqs = list()
         for tree_sap in tree_saps[denominator]:
             # max_dist_threshold equals the maximum path length from root to tip in its clade
@@ -3527,7 +3525,8 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
                                  str(pendant_length) + ',' +\
                                  str(sum(tip_distances) / len(tip_distances))
             # Discard this placement as a false positive if the avg_evo_dist exceeds max_dist_threshold
-            if tree_sap.avg_evo_dist > max_dist_threshold:
+            if pendant_length > max_dist_threshold:
+                # print("Global", tree_sap.summarize())
                 unclassified_counts[tree_sap.name] += 1
                 distant_seqs.append(tree_sap.contig_name)
                 tree_sap.classified = False
@@ -3539,11 +3538,12 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
             for leaf in ancestor.get_leaf_names():
                 clade_tip_distances.append(ancestor.get_distance(leaf))
             # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
-            if tree_sap.avg_evo_dist > max(clade_tip_distances) * 1.2 and tree_sap.avg_evo_dist > max_rank_dist:
+            if pendant_length > max(clade_tip_distances) * 1.2 and \
+                    rank_recommender(pendant_length, marker_build_dict[denominator].pfit) <= 0:
                 unclassified_counts[tree_sap.name] += 1
                 distant_seqs.append(tree_sap.contig_name)
                 tree_sap.classified = False
-                print("Local", tree_sap.summarize())
+                # print("Local", tree_sap.summarize())
                 continue
         logging.debug("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
                       " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n" +
@@ -3596,8 +3596,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
 
             # Based on the calculated distance from the leaves, what rank is most appropriate?
             recommended_rank = rank_recommender(tree_sap.avg_evo_dist,
-                                                marker_build_dict[denominator].distances,
-                                                "bottom_up")
+                                                marker_build_dict[denominator].pfit)
 
             if len(tree_sap.lineage_list) == 0:
                 logging.error("Unable to find lineage information for marker " +

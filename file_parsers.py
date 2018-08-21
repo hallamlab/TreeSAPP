@@ -24,8 +24,7 @@ def parse_ref_build_params(args):
         sys.exit(5)
 
     header_re = re.compile("^name\tcode\tmolecule\tsub_model\tcluster_identity\t"
-                           "class_dist\torder_dist\tfamily_dist\tgenus_dist\tspecies_dist\t"
-                           "lowest_confident_rank\tdate$")
+                           "polynomial_params\tlowest_confident_rank\tdate$")
     if not header_re.match(param_handler.readline().strip()):
         logging.error("Header of '" + ref_build_parameters + "' is unexpected!")
         sys.exit(5)
@@ -46,7 +45,7 @@ def parse_ref_build_params(args):
             skipped_lines.append(line)
         else:
             marker_build_dict[marker_build.denominator] = marker_build
-            if marker_build.load_rank_distances(line) > 0:
+            if marker_build.load_pfit_params(line):
                 missing_info.append(marker_build)
             marker_build.check_rank()
     param_handler.close()

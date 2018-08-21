@@ -1071,16 +1071,17 @@ def find_model_used(raxml_info_file):
     return model
 
 
-def update_build_parameters(args, code_name, sub_model, lowest_reliable_rank, rank_dists):
+def update_build_parameters(args, code_name, sub_model, lowest_reliable_rank, polynomial_fit_array):
     """
     Function to update the data/tree_data/ref_build_parameters.tsv file with information on this new reference sequence
-    Format of file is "code_name       denominator     aa_model        cluster_identity        last_updated"
+    Format of file is:
+     "code_name    denominator    molecule    aa_model    cluster_identity    slope    intercept    last_updated"
     
     :param args: command-line arguments objects
     :param code_name: 
     :param sub_model:
+    :param polynomial_fit_array:
     :param lowest_reliable_rank:
-    :param rank_dists:
     :return: 
     """
     param_file = args.treesapp + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
@@ -1092,17 +1093,13 @@ def update_build_parameters(args, code_name, sub_model, lowest_reliable_rank, ra
 
     date = strftime("%d_%b_%Y", gmtime())
 
-    for rank in rank_dists:
-        rank_dists[rank] = ','.join([str(dist) for dist in rank_dists[rank]])
-
     if args.molecule == "prot":
         phylo_model = "PROTGAMMA" + sub_model
     else:
         phylo_model = "GTRGAMMA"
 
     build_list = [code_name, "Z1111", args.molecule, phylo_model, args.identity,
-                  rank_dists["Class"], rank_dists["Order"], rank_dists["Family"],
-                  rank_dists["Genus"], rank_dists["Species"], lowest_reliable_rank, date]
+                  ','.join([str(param) for param in polynomial_fit_array]), lowest_reliable_rank, date]
     params.write("\t".join(build_list) + "\n")
 
     return
@@ -1694,13 +1691,13 @@ def main():
                                 fasta_replace_dict,
                                 tree_output_dir + os.sep + "RAxML_bipartitions." + code_name)
         model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + code_name)
-    rank_distance_ranges, _, _ = train_placement_distances(fasta_dict=unprocessed_fasta_dict,
-                                                           ref_fasta_dict=aligned_fasta_dict,
-                                                           ref_tree_file=args.final_output_dir + args.code_name + "_tree.txt",
-                                                           tax_ids_file=tree_taxa_list,
-                                                           accession_lineage_map=accession_lineage_map,
-                                                           molecule=args.molecule)
-    update_build_parameters(args, code_name, model, lowest_reliable_rank, rank_distance_ranges)
+    pfit_array, _, _ = train_placement_distances(unprocessed_fasta_dict,
+                                                 aligned_fasta_dict,
+                                                 args.final_output_dir + args.code_name + "_tree.txt",
+                                                 tree_taxa_list,
+                                                 accession_lineage_map,
+                                                 args.molecule)
+    update_build_parameters(args, code_name, model, lowest_reliable_rank, pfit_array)
 
     logging.info("Data for " + code_name + " has been generated successfully.\n")
     terminal_commands(args.final_output_dir, code_name)

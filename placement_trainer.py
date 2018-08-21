@@ -12,7 +12,7 @@ from file_parsers import tax_ids_file_to_leaves
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information
-from phylo_dist import trim_lineages_to_rank, confident_range, parent_to_tip_distances
+from phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
 from external_command_interface import launch_write_command, setup_progress_bar
 from jplace_utils import jplace_parser
 from treesapp import run_papara
@@ -113,7 +113,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     dict_for_phy = dict()
     rank_distance_ranges = dict()
     pqueries = list()
-    taxonomic_ranks = ["Class", "Order", "Family", "Genus", "Species"]
+    taxonomic_ranks = {"Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
 
     temp_tree_file = "tmp_tree.txt"
     temp_ref_phylip_file = "taxonomy_filtered_ref_seqs.phy"
@@ -260,7 +260,6 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             os.system("rm papara_* RAxML*")
         if len(taxonomic_placement_distances[rank]) == 0:
             logging.debug("No samples available for " + rank + ".\n")
-            rank_distance_ranges[rank] = 0.0, 0.0
         else:
             stats_string = "RANK: " + rank + "\n"
             stats_string += "\tSamples = " + str(len(taxonomic_placement_distances[rank])) + "\n"
@@ -268,12 +267,15 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
                                                     len(taxonomic_placement_distances[rank]), 4)) + "\n"
             logging.debug(stats_string)
-            rank_distance_ranges[rank] = confident_range(list(taxonomic_placement_distances[rank]))
+            rank_distance_ranges[rank] = cull_outliers(list(taxonomic_placement_distances[rank]))
         sys.stdout.write('-')
         sys.stdout.flush()
     sys.stdout.write("-]\n")
     os.system("rm taxonomy_filtered_ref_seqs.phy queries.fasta tmp_tree.txt")
-    return rank_distance_ranges, taxonomic_placement_distances, pqueries
+
+    pfit_array = regress_ranks(rank_distance_ranges, taxonomic_ranks)
+
+    return pfit_array, taxonomic_placement_distances, pqueries
 
 
 def main():
@@ -312,21 +314,19 @@ def main():
     fasta_dict = read_fasta_to_dict(args.fasta)
     ref_fasta_dict = read_fasta_to_dict(args.ref_seqs)
 
-    rank_distance_ranges, taxonomic_placement_distances, pqueries = train_placement_distances(fasta_dict,
-                                                                                              ref_fasta_dict,
-                                                                                              args.tree,
-                                                                                              args.taxa_map,
-                                                                                              accession_lineage_map,
-                                                                                              molecule)
+    pfit_array, taxonomic_placement_distances, pqueries = train_placement_distances(fasta_dict,
+                                                                                    ref_fasta_dict,
+                                                                                    args.tree,
+                                                                                    args.taxa_map,
+                                                                                    accession_lineage_map,
+                                                                                    molecule)
     with open(args.output_dir + os.sep + "placement_trainer_results.txt", 'w') as out_handler:
-        trained_string = ""
+        trained_string = "Polynomial params = " + str(pfit_array) + "\n"
         ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
         for rank in ranks:
             trained_string += "# " + rank + "\n"
             if rank in taxonomic_placement_distances:
                 trained_string += str(sorted(taxonomic_placement_distances[rank], key=float)) + "\n"
-            if rank in rank_distance_ranges:
-                trained_string += ','.join([str(dist) for dist in rank_distance_ranges[rank]]) + "\n"
             trained_string += "\n"
         out_handler.write(trained_string)
 

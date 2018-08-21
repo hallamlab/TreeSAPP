@@ -12,7 +12,7 @@ import numpy as np
 __author__ = 'Connor Morgan-Lang'
 
 
-def confident_range(data: list, dev=3):
+def cull_outliers(data: list, dev=3):
     """
     Returns the Interquartile Range (IQR) of a list after filtering outliers
     based on log transformed data where outliers are farther than 1 std-dev from the median and
@@ -20,11 +20,11 @@ def confident_range(data: list, dev=3):
 
     :param data: A list of floats
     :param dev: Number of acceptable deviations from the median; beyond this, values are outliers and removed
-    :return: floats of minimum and maximum values of the data
+    :return: A smaller list of floats
     """
     # Reject outliers from ln-transformed distribution
     ln_a = np.log10(1.0 * np.array(data))
-    noo_a = np.power(10, ln_a[abs(ln_a - np.median(ln_a)) < 1 * np.std(ln_a)])
+    noo_a = np.power(10, ln_a[abs(ln_a - np.median(ln_a)) < 2 * np.std(ln_a)])
 
     # Reject outliers from untransformed distribution
     d = np.abs(noo_a - np.median(noo_a))
@@ -32,54 +32,61 @@ def confident_range(data: list, dev=3):
     s = d / mdev if mdev else 0.
     noo_a = noo_a[s < dev]
 
-    return round(np.percentile(noo_a, 20), 4), round(np.percentile(noo_a, 80), 4)
+    return noo_a
 
 
-def rank_recommender(phylo_dist: float, taxonomic_rank_intervals: dict, approach="top_down"):
+def regress_ranks(rank_distance_ranges, taxonomic_ranks):
+
+    all_distances = list()
+    for rank in rank_distance_ranges:
+        all_distances += list(rank_distance_ranges[rank])
+
+    # Prep arrays for regression
+    rank_depth_list = list()
+    dist_list = list()
+    for rank in rank_distance_ranges:
+        depth = taxonomic_ranks[rank]
+        rank_distances = rank_distance_ranges[rank]
+        if len(rank_distances) > 3:
+            rank_depth_list += [depth] * len(rank_distance_ranges[rank])
+            dist_list += list(rank_distance_ranges[rank])
+    if len(set(rank_depth_list)) <= 2:
+        logging.error("Only " + str(len(set(rank_depth_list))) + " ranks available for modelling.\n")
+        sys.exit(33)
+
+    # Using the lowest placement distances to "estimate" Strain-level distances (at a non-negative distance)
+    strain_dists = list(np.percentile(all_distances, q=(1, 5)))
+    rank_depth_list += [7] * len(strain_dists)
+    dist_list += strain_dists
+    # Use the largest placement distances as a proxy for Phylum-level distances
+    high_dists = list(np.percentile(all_distances, q=(95, 100)))
+    rank_depth_list += [1] * len(high_dists)
+    dist_list += high_dists
+
+    # For TreeSAPP predictions
+    pfit_array = list(np.polyfit(dist_list, rank_depth_list, 2))
+
+    return pfit_array
+
+
+def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
     """
     Determines the rank depth (for example Class == 2) a taxonomic lineage should be truncated to
      based on which rank distance range (in taxonomic_rank_intervals) phylo_dist falls into
     
     :param phylo_dist: Float representing the branch distance from the nearest node
-    :param taxonomic_rank_intervals: Dictionary with rank keys (e.g. Class) and distance ranges (min, max) as values
-    :param approach: Begin parsing from the top (`top_down`) or from the bottom (`bottom_up`)
+    :param taxonomic_rank_pfit: Dictionary with rank keys (e.g. Class) and distance ranges (min, max) as values
     :return: int
-    """    
-    ranks = ["Kingdom", "Phylum", "Class", "Order",
-             "Family", "Genus", "Species", "Strain"]
+    """
 
-    if not taxonomic_rank_intervals:
+    if not taxonomic_rank_pfit:
         return 7
 
-    # print(phylo_dist)
-    if approach == "top_down":
-        depth = 2  # Start at Class
-        while depth < 7:
-            rank = ranks[depth]
-            if taxonomic_rank_intervals[rank]:
-                min_dist, max_dist = taxonomic_rank_intervals[rank]
-                if min_dist < phylo_dist < max_dist:
-                    break
-                elif phylo_dist > max_dist:
-                    depth -= 1
-                    break
-            depth += 1
-    elif approach == "bottom_up":
-        depth = 6  # Start at Species
-        while depth > 2:
-            rank = ranks[depth]
-            if taxonomic_rank_intervals[rank]:
-                min_dist, max_dist = taxonomic_rank_intervals[rank]
-                if min_dist < phylo_dist < max_dist:
-                    depth -= 1
-                    break
-                elif phylo_dist < max_dist:
-                    break
-            depth -= 1
-    else:
-        logging.error("Unrecognized approach: '" + approach + "'\n")
-        sys.exit(19)
-    # print(depth, ranks[depth])
+    polyreg = np.poly1d(taxonomic_rank_pfit)
+
+    depth = int(round(polyreg(phylo_dist)))
+
+    # TODO: Find method for reporting strain-level classifications
 
     return depth
 
@@ -216,8 +223,9 @@ def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
                     edge_lengths += parent_to_tip_distances(lca, clade, True)
                 taxonomic_rank_distances[rank] += edge_lengths
         if len(taxonomic_rank_distances[rank]) >= 5:
-            min_dist, max_dist = confident_range(taxonomic_rank_distances[rank])
-            taxonomic_rank_intervals[rank] = (round(min_dist, 4), round(max_dist, 4))
+            noo_taxa_rank_dists = cull_outliers(taxonomic_rank_distances[rank])
+            taxonomic_rank_intervals[rank] = (round(np.percentile(noo_taxa_rank_dists, q=2.5), 4),
+                                              round(np.percentile(noo_taxa_rank_dists, q=97.5), 4))
         else:
             taxonomic_rank_intervals[rank] = ()
     return taxonomic_rank_intervals
@@ -230,26 +238,6 @@ def validate_rank_intervals(taxonomic_rank_intervals):
     :param taxonomic_rank_intervals:
     :return:
     """
-    # # As inclusive as possible and alignment trimming, 95% placement distance range
-    # validated_intervals = {"Class": (0.4383, 0.509),
-    #                        "Order": (0.3835, 0.4673),
-    #                        "Family": (0.1854, 0.2183),
-    #                        "Genus": (0.1383, 0.1637),
-    #                        "Species": (0.0652, 0.0972)}
-    # # Filtering those queries where a taxonomic ancestor is not present, 95% placement distance range
-    # validated_intervals = {"Class": (0.4391, 0.5094),
-    #                        "Order": (0.4759, 0.6276),
-    #                        "Family": (0.1792, 0.2056),
-    #                        "Genus": (0.1187, 0.1403),
-    #                        "Species": (0.0447, 0.0935)}
-    # # Optimized above - now need to automate via smoothing function?
-    # validated_intervals = {"Class": (0.4391, 0.5094),
-    #                        "Order": (0.206, 0.4390),
-    #                        "Family": (0.13, 0.2056),
-    #                        "Genus": (0.1187, 0.1403),
-    #                        "Species": (0.0447, 0.0935)}
-    # return validated_intervals
-
     validated_intervals = dict()
     ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
     ci_ranges = [max_ci-min_ci for min_ci, max_ci in taxonomic_rank_intervals.values()]
