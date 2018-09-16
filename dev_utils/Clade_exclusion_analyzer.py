@@ -411,12 +411,13 @@ def get_classification_performance(marker_eval_instance):
     :return:
     """
     clade_exclusion_tabular_string = ""
+    std_out_report_string = ""
     clade_exclusion_strings = list()
     rank_assigned_dict = marker_eval_instance.classifications
     marker = marker_eval_instance.target_marker
 
     sys.stdout.write("Rank-level performance of " + marker + ":\n")
-    sys.stdout.write("\tRank\tQueries\tClassified\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\n")
+    sys.stdout.write("\tRank\tQueries\tClassified\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\tD=6\tD=7\n")
 
     for depth in sorted(rank_depth_map):
         rank = rank_depth_map[depth]
@@ -426,15 +427,13 @@ def get_classification_performance(marker_eval_instance):
         incorrect = 0
         taxonomic_distance = dict()
         n_queries, n_classified, sensitivity = marker_eval_instance.get_sensitivity(rank)
-        for i in range(0, 6):
-            taxonomic_distance[i] = 0
-        sys.stdout.write("\t" + rank + "\t")
+        for dist in range(0, 8):
+            taxonomic_distance[dist] = 0
+        std_out_report_string += "\t" + rank + "\t"
         if len(rank_assigned_dict[rank]) == 0:
-            sys.stdout.write("0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\n")
+            std_out_report_string += "0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n"
         else:
             for assignments in rank_assigned_dict[rank]:
-                # if rank == "Family":
-                #     print(assignments)
                 for classified in assignments:
                     if classified.split("; ")[0] == "Cellular organisms":
                         logging.error("Lineage string cleaning has gone awry somewhere. "
@@ -447,12 +446,24 @@ def get_classification_performance(marker_eval_instance):
                     else:
                         offset = determine_offset(classified, optimal)
                         incorrect += 1
+                    if offset > 7:
+                        # This shouldn't be possible since there are no more than 7 taxonomic ranks
+                        logging.error("Offset found to be greater than what is possible (" + str(offset) + ").\n" +
+                                      "Classified: " + classified + "\n" +
+                                      "Optimal: " + optimal + "\n" +
+                                      "Query: " + query + "\n")
                     taxonomic_distance[offset] += 1
-            sys.stdout.write(str(n_queries) + "\t" + str(n_classified) + "\t\t")
+            std_out_report_string += str(n_queries) + "\t" + str(n_classified) + "\t\t"
 
             for dist in taxonomic_distance:
                 if taxonomic_distance[dist] > 0:
-                    taxonomic_distance[dist] = str(round(float((taxonomic_distance[dist]*100)/n_classified), 1))
+                    if n_classified == 0:
+                        logging.error("No sequences were classified at rank '" + rank +
+                                      "' but optimal placements were pointed here. " +
+                                      "This is a bug - please alert the developers!\n")
+                        sys.exit(21)
+                    else:
+                        taxonomic_distance[dist] = str(round(float((taxonomic_distance[dist]*100)/n_classified), 1))
                 else:
                     taxonomic_distance[dist] = str(0.0)
                 clade_exclusion_tabular_string += marker + "\t" + rank + "\t"
@@ -460,7 +471,8 @@ def get_classification_performance(marker_eval_instance):
                 clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist]) + "\t"
                 clade_exclusion_strings.append(clade_exclusion_tabular_string)
                 clade_exclusion_tabular_string = ""
-            sys.stdout.write('\t'.join(taxonomic_distance.values()) + "\n")
+            std_out_report_string += '\t'.join(taxonomic_distance.values()) + "\n"
+    sys.stdout.write(std_out_report_string)
 
     return clade_exclusion_strings
 
@@ -980,10 +992,12 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
     marker_bipart_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"])
     marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
     intermediate_prefix = intermediate_dir + "ORIGINAL"
+
     shutil.copy(marker_fa, intermediate_prefix + ".fa")
     shutil.copy(marker_tree, intermediate_prefix + "_tree.txt")
-    shutil.copy(marker_bipart_tree, intermediate_prefix + "_bipartitions.txt")
-    os.remove(marker_bipart_tree)
+    if os.path.isfile(marker_bipart_tree):
+        shutil.copy(marker_bipart_tree, intermediate_prefix + "_bipartitions.txt")
+        os.remove(marker_bipart_tree)
     shutil.copy(marker_tax_ids, intermediate_prefix + "_tax_ids.txt")
 
     off_target_ref_leaves = list()
@@ -1030,6 +1044,39 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
     return intermediate_prefix
 
 
+def validate_ref_package_files(treesapp_dir, marker, intermediate_dir):
+    # Move the original FASTA, tree and tax_ids files to a temporary location
+    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
+    marker_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"])
+    marker_bipart_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"])
+    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+    intermediate_prefix = intermediate_dir + "ORIGINAL"
+
+    # This prevents users from quitting mid-analysis then using bad reference package files with clades removed
+    remnants = glob(intermediate_prefix + "*")
+    if len(remnants) > 0:
+        logging.warning("Intermediate files from incomplete analysis exist:\n" + "\n".join(remnants) + "\n")
+        logging.info("Attempting recovery... ")
+        # Easiest way to recover is to move the originals back to proper location and proceed
+        try:
+            shutil.copy(intermediate_prefix + ".fa", marker_fa)
+            shutil.copy(intermediate_prefix + "_tree.txt", marker_tree)
+            if os.path.isfile(intermediate_prefix + "_bipartitions.txt"):
+                shutil.copy(intermediate_prefix + "_bipartitions.txt", marker_bipart_tree)
+            shutil.copy(intermediate_prefix + "_tax_ids.txt", marker_tax_ids)
+            logging.info("succeeded.\n")
+        except FileNotFoundError:
+            logging.info("failed. Redownload data files and start over.\n")
+            sys.exit(21)
+    return
+
+
+def remove_clade_exclusion_files(intermediate_dir):
+    remnants = glob(intermediate_dir + "ORIGINAL*")
+    for tmp_file in remnants:
+        os.remove(tmp_file)
+
+
 def classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_rep_taxa_fasta):
     """
       Prepares TreeSAPP tree, alignment and taxonomic identification map (tax_ids) files for clade exclusion analysis,
@@ -1052,7 +1099,9 @@ def classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_re
     launch_write_command(classify_command, False)
     # Move the original FASTA, tree and tax_ids files back to the proper directories
     shutil.copy(prefix + "_tree.txt", os.sep.join([args.treesapp, "data", "tree_data", marker + "_tree.txt"]))
-    shutil.copy(prefix + "_bipartitions.txt", os.sep.join([args.treesapp, "data", "tree_data", marker + "_bipartitions.txt"]))
+    if os.path.isfile(prefix + "_bipartitions.txt"):
+        shutil.copy(prefix + "_bipartitions.txt",
+                    os.sep.join([args.treesapp, "data", "tree_data", marker + "_bipartitions.txt"]))
     # The edited tax_ids file with clade excluded is required for performance analysis
     shutil.copy(os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]), treesapp_output_dir)
     shutil.copy(prefix + "_tax_ids.txt", os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]))
@@ -1229,6 +1278,8 @@ def main():
         else:
             min_seq_length = str(50)
 
+        validate_ref_package_files(args.treesapp, marker, args.output)
+
         for rank in args.taxon_rank:
             leaf_trimmed_taxa_map = trim_lineages_to_rank(rep_accession_lineage_map, rank)
             unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
@@ -1299,7 +1350,7 @@ def main():
                     tax_ids_file = treesapp_output + "tax_ids_" + marker + ".txt"
                     classification_table = treesapp_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
 
-                    if not os.path.isfile(classification_table):
+                    if not os.path.isfile(classification_table) or not os.path.isfile(tax_ids_file):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
                         prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output, lineage, depth)
                         test_rep_taxa_fasta = args.output + taxon + ".fa"
@@ -1321,6 +1372,7 @@ def main():
                                       "Please remove this directory and re-run.\n")
                         sys.exit(21)
         classified = True
+    remove_clade_exclusion_files(args.output)
 
     # Checkpoint four: everything has been prepared, only need to parse the classifications and map lineages
     logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
@@ -1338,6 +1390,9 @@ def main():
 
             rank_assignments = identify_excluded_clade(marker_assignments, test_obj.taxonomic_tree, marker)
             for a_rank in rank_assignments:
+                if a_rank != rank and len(rank_assignments[a_rank]) > 0:
+                    logging.warning(rank + "-level clade excluded but classifications were found to be " + a_rank +
+                                    "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
                 if a_rank not in marker_eval_inst.classifications:
                     marker_eval_inst.classifications[a_rank] = list()
                 if len(rank_assignments[a_rank]) > 0:
