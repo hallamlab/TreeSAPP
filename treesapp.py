@@ -3539,7 +3539,7 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
                 clade_tip_distances.append(ancestor.get_distance(leaf))
             # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
             if pendant_length > max(clade_tip_distances) * 1.2 and \
-                    rank_recommender(pendant_length, marker_build_dict[denominator].pfit) <= 0:
+                    rank_recommender(pendant_length, marker_build_dict[denominator].pfit) < 0:
                 unclassified_counts[tree_sap.name] += 1
                 distant_seqs.append(tree_sap.contig_name)
                 tree_sap.classified = False

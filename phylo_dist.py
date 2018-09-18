@@ -50,7 +50,7 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
         if len(rank_distances) > 3:
             rank_depth_list += [depth] * len(rank_distance_ranges[rank])
             dist_list += list(rank_distance_ranges[rank])
-    if len(set(rank_depth_list)) <= 2:
+    if len(set(rank_depth_list)) <= 1:
         logging.error("Only " + str(len(set(rank_depth_list))) + " ranks available for modelling.\n")
         sys.exit(33)
 
@@ -64,7 +64,7 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
     dist_list += high_dists
 
     # For TreeSAPP predictions
-    pfit_array = list(np.polyfit(dist_list, rank_depth_list, 2))
+    pfit_array = list(np.polyfit(dist_list, rank_depth_list, 1))
 
     return pfit_array
 
@@ -82,9 +82,12 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
     if not taxonomic_rank_pfit:
         return 7
 
-    polyreg = np.poly1d(taxonomic_rank_pfit)
+    # For a polynomial
+    # polyreg = np.poly1d(taxonomic_rank_pfit)
+    # depth = int(round(polyreg(phylo_dist)))
 
-    depth = int(round(polyreg(phylo_dist)))
+    slope, intercept = taxonomic_rank_pfit
+    depth = int(round(phylo_dist*slope + intercept))
 
     # TODO: Find method for reporting strain-level classifications
 

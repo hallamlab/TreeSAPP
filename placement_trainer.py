@@ -6,6 +6,7 @@ import argparse
 import logging
 import re
 from ete3 import Tree
+import numpy as np
 
 from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment
 from file_parsers import tax_ids_file_to_leaves
@@ -36,6 +37,8 @@ def get_options():
     parser.add_argument("-l", "--lineages",
                         help="The accession lineage map downloaded during reference package generation.",
                         required=False)
+    parser.add_argument("-T", "--threads", required=False, default=4, type=int,
+                        help="The number of threads to be used by RAxML.")
     parser.add_argument("-o", "--output_dir", required=False, default='.',
                         help="Path to directory for writing outputs.")
     args = parser.parse_args()
@@ -89,8 +92,24 @@ def write_placement_table(pqueries, placement_table_file, marker):
     return
 
 
+def rarefy_rank_distances(rank_distances):
+    rarefied_dists = dict()
+    min_samples = min([len(rank_distances[rank]) for rank in rank_distances])
+    for rank in rank_distances:
+        slist = sorted(rank_distances[rank])
+        if len(slist) == min_samples:
+            rarefied_dists[rank] = slist
+        else:
+            rarefied_dists[rank] = list()
+            i = 0
+            while i < min_samples:
+                rarefied_dists[rank].append(slist.pop(np.random.randint(0, len(slist))))
+                i += 1
+    return rarefied_dists
+
+
 def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_file: str, tax_ids_file: str,
-                              accession_lineage_map: dict, molecule: str):
+                              accession_lineage_map: dict, molecule: str, raxml_threads=4):
     """
     Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
     yielding an estimate of placement distances corresponding to taxonomic ranks.
@@ -101,6 +120,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     :param tax_ids_file: A tabular file created by create_treesapp_ref_data.py
     :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
     :param molecule: Molecule type [prot | dna | rrna]
+    :param raxml_threads: Number of threads to be used by RAxML for parallel computation
 
     :return:
     """
@@ -113,7 +133,8 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     dict_for_phy = dict()
     rank_distance_ranges = dict()
     pqueries = list()
-    taxonomic_ranks = {"Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
+    # Limit this to just Class, Family, and Species - other ranks are inferred through regression
+    taxonomic_ranks = {"Class": 2, "Species": 6}
 
     temp_tree_file = "tmp_tree.txt"
     temp_ref_phylip_file = "taxonomy_filtered_ref_seqs.phy"
@@ -207,7 +228,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             raxml_command = ["raxmlHPC",
                              "-m", "PROTGAMMALG",
                              "-p", str(12345),
-                             '-T', str(4),
+                             '-T', str(raxml_threads),
                              '-s', query_filtered_multiple_alignment,
                              '-t', temp_tree_file,
                              '-G', str(0.2),
@@ -273,6 +294,8 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     sys.stdout.write("-]\n")
     os.system("rm taxonomy_filtered_ref_seqs.phy queries.fasta tmp_tree.txt")
 
+    # Rarefy the placement distances to the rank with the fewest samples
+    rank_distance_ranges = rarefy_rank_distances(rank_distance_ranges)
     pfit_array = regress_ranks(rank_distance_ranges, taxonomic_ranks)
 
     return pfit_array, taxonomic_placement_distances, pqueries
@@ -319,7 +342,8 @@ def main():
                                                                                     args.tree,
                                                                                     args.taxa_map,
                                                                                     accession_lineage_map,
-                                                                                    molecule)
+                                                                                    molecule,
+                                                                                    args.threads)
     with open(args.output_dir + os.sep + "placement_trainer_results.txt", 'w') as out_handler:
         trained_string = "Polynomial params = " + str(pfit_array) + "\n"
         ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
