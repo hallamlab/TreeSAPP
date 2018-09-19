@@ -68,6 +68,8 @@ def get_arguments():
                                     help="Classifications performed using GraftM instead of TreeSAPP.")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
+    miscellaneous_opts.add_argument("-T", "--threads", required=False, default=4, type=int,
+                                    help="The number of threads to be used for classification.")
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
     miscellaneous_opts.add_argument("-h", "--help",
@@ -350,7 +352,6 @@ def identify_excluded_clade(assignment_dict, trie, marker):
                     log_stats += "\t\tOptimal lineage: " + contained_taxonomy + "\n"
                 rank_assigned_dict[rank_excluded].append({ref_lineage: (contained_taxonomy, query_lineage)})
             else:
-                # TODO: Fix the handling of this. Currently prints strains when it shouldn't
                 logging.warning("Number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n" +
                                 "This sequence will be removed from clade exclusion calculations\n")
     logging.debug(log_stats + "\n")
@@ -494,7 +495,8 @@ def determine_containment(marker_eval_inst: MarkerTest):
     lowest_rank = ""
     for depth in sorted(rank_depth_map):
         if rank_depth_map[depth] in marker_eval_inst.ranks:
-            lowest_rank = rank_depth_map[depth]
+            if marker_eval_inst.get_sensitivity(rank_depth_map[depth])[1] > 0:
+                lowest_rank = rank_depth_map[depth]
     n_queries, n_classified, _ = marker_eval_inst.get_sensitivity(lowest_rank)
 
     sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker + " classifications at " + lowest_rank + ":\n")
@@ -1001,6 +1003,9 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
     shutil.copy(marker_tax_ids, intermediate_prefix + "_tax_ids.txt")
 
     off_target_ref_leaves = list()
+    n_match = 0
+    n_shallow = 0
+    n_unclassified = 0
     # tax_ids file
     ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
     with open(marker_tax_ids, 'w') as tax_ids_handle:
@@ -1008,9 +1013,11 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
             tax_ids_string = ""
             c_lineage = clean_lineage_string(ref_leaf.lineage)
             if re.search(target_clade, c_lineage):
+                n_match += 1
                 continue
             sc_lineage = c_lineage.split("; ")
             if len(sc_lineage) < depth:
+                n_shallow += 1
                 continue
             if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
                 i = 0
@@ -1020,10 +1027,13 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
                         break
                     i += 1
                 if i < depth:
+                    n_unclassified += 1
                     continue
             off_target_ref_leaves.append(ref_leaf.number)
             tax_ids_string += "\t".join([ref_leaf.number, ref_leaf.description, ref_leaf.lineage])
             tax_ids_handle.write(tax_ids_string + "\n")
+
+    # print("Matching =", n_match, "\tUnclassified =", n_unclassified, "\tShallow =", n_shallow)
 
     # fasta
     ref_fasta_dict = read_fasta_to_dict(marker_fa)
@@ -1090,7 +1100,7 @@ def classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_re
     classify_command = ["./treesapp.py", "-i", test_rep_taxa_fasta,
                         "-o", treesapp_output_dir,
                         "-m", args.molecule,
-                        "-T", str(4),
+                        "-T", str(args.threads),
                         "--min_seq_length", min_seq_length,
                         "--trim_align",
                         "--overwrite",
@@ -1141,6 +1151,11 @@ def main():
     prep_logging(log_file_name, args.verbose)
 
     marker_build_dict = parse_ref_build_params(args)
+    ref_leaves = tax_ids_file_to_leaves(os.sep.join([args.treesapp, 'data',  'tree_data',
+                                                     "tax_ids_" + args.reference_marker + ".txt"]))
+    ref_lineages = dict()
+    for leaf in ref_leaves:
+        ref_lineages[leaf.number] = leaf.lineage
     marker_eval_inst = MarkerTest(args.reference_marker)
     taxa_choices = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
     args.taxon_rank = args.taxon_rank.split(',')
@@ -1258,6 +1273,9 @@ def main():
         # File being read should contain accessions mapped to their lineages for all sequences in input FASTA
         accession_lineage_map = read_accession_taxa_map(accession_map_file)
         complete_ref_sequences = finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
+    else:
+        logging.error("Logic error.")
+        sys.exit(21)
     fasta_record_objects = complete_ref_sequences.values()
 
     logging.info("Selecting representative sequences for each taxon.\n")
@@ -1281,19 +1299,19 @@ def main():
         validate_ref_package_files(args.treesapp, marker, args.output)
 
         for rank in args.taxon_rank:
-            leaf_trimmed_taxa_map = trim_lineages_to_rank(rep_accession_lineage_map, rank)
-            unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
+            leaf_trimmed_taxa_map = trim_lineages_to_rank(ref_lineages, rank)
+            unique_ref_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
+            unique_query_lineages = sorted(set(trim_lineages_to_rank(rep_accession_lineage_map, rank).values()))
             ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
             depth = ranks[rank]
-            for lineage in unique_taxonomic_lineages:
+            for lineage in unique_query_lineages:
                 taxon = re.sub(' ', '_', lineage.split("; ")[-1])
                 treesapp_output = args.output + os.sep + taxon + os.sep
 
                 optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
-                if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages
+                if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages
                                                 if tl != lineage]:
-                    logging.debug(
-                        "Optimal placement target '" + optimal_lca_taxonomy + "' not found in pruned tree.\n")
+                    logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not in pruned tree.\n")
                     continue
 
                 # Select representative sequences belonging to the taxon being tested
@@ -1328,7 +1346,7 @@ def main():
                         classify_command = ["graftM", "graft"]
                         classify_command += ["--forward", test_rep_taxa_fasta]
                         classify_command += ["--graftm_package", args.output + os.sep + marker + ".gpkg"]
-                        classify_command += ["--threads", str(4)]
+                        classify_command += ["--threads", str(args.threads)]
                         classify_command += ["--assignment_method", "pplacer"]
                         # classify_command += ["--assignment_method", "kraken"]
                         classify_command += ["--search_method", "hmmsearch"]

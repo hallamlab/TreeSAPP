@@ -214,7 +214,7 @@ def get_header_format(header, code_name=""):
     fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
     fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
-    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
+    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name) + "$")
     # treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")  # Conflicting
     refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")
     genbank_prot_re = re.compile("^>([A-Z]{3}[0-9]{5}\.?[0-9]?) (.*) \[(.*)\]$")

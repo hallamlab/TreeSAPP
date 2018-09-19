@@ -7,5 +7,5 @@ setup(name='TreeSAPP_extend',
       author_email='c.morganlang@gmail.com',
       ext_modules=[Extension("_tree_parser", ["sub_binaries/TreeSAPP_extensions/tree_parsermodule.cpp"]),
                    Extension("_fasta_reader", ["sub_binaries/TreeSAPP_extensions/fasta_reader.cpp"])],
-      requires=['pygtrie']
+      requires=['pygtrie', 'ete3', 'numpy']
       )

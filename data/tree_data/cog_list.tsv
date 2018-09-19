@@ -58,7 +58,7 @@
 MtrA	M0601	Tetrahydro-methanopterin methyltransferase subunit A
 MtrC	M0603	Tetrahydro-methanopterin methyltransferase subunit C
 MtrH	M0607	Tetrahydro-methanopterin methyltransferase subunit H
-#mcrA	M0701	Methyl coenzyme M reductase alpha subunit
+McrA	M0701	Methyl coenzyme M reductase alpha subunit
 McrB	M0702	Methyl coenzyme M reductase beta subunit
 mcrG	M0705	Methyl coenzyme M reductase gamma subunit
 #cdhA	M0801	acetyl-CoA decarbonylase/synthase alpha subunit
@@ -105,4 +105,3 @@ CO_dh	C1000	Carbon monoxide dehydrogenase (EC 1.2.7.4)
 RBsCO	C2000	Ribulose-1,5-bisphosphate carboxylase/oxygenase (EC 4.1.1.39)
 OGFOxy	C3000	2-oxoglutarate (2OG) and Fe(II)-dependent oxygenase superfamily
 CitSyn	C4000	Citrate synthase
-McrA	M1111	McrA test
