@@ -476,7 +476,7 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
         for reference_sequence in failed_accession_queries:
             lineage = accession_lineage_map[reference_sequence.accession]
             if lineage == "":
-                logging.warning("WARNING: Unable to determine the taxonomic lineage for " +
+                logging.warning("Unable to determine the taxonomic lineage for " +
                                 reference_sequence.accession + "\n")
                 lineage = "Unclassified"
             taxa_searched += 1
