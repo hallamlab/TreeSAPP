@@ -1089,6 +1089,15 @@ class MarkerTest:
         self.taxa_tests[rank].append(taxa_test_inst)
         return taxa_test_inst
 
+    def delete_test(self, rank, lineage):
+        i = 0
+        for tti in self.taxa_tests[rank]:
+            if re.match(tti.lineage, lineage):
+                self.taxa_tests[rank].pop(i)
+                break
+            i += 1
+        return
+
     def get_sensitivity(self, rank):
         total_queries = 0
         total_classified = 0

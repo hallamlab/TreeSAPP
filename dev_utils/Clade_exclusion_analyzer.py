@@ -137,7 +137,7 @@ def parse_assignments(classification_lines):
     assignments = dict()
     classifieds = list()
     for fields in classification_lines:
-        _, header, marker, _, _, rob_class, _, _, _, _, _ = fields
+        _, header, marker, _, raw_tax, rob_class, _, _, _, _, _ = fields
         if marker and rob_class:
             classifieds.append(header)
             if marker not in assignments:
@@ -464,15 +464,22 @@ def get_classification_performance(marker_eval_instance):
                                       "This is a bug - please alert the developers!\n")
                         sys.exit(21)
                     else:
-                        taxonomic_distance[dist] = str(round(float((taxonomic_distance[dist]*100)/n_classified), 1))
+                        taxonomic_distance[dist] = round(float((taxonomic_distance[dist]*100)/n_classified), 1)
                 else:
-                    taxonomic_distance[dist] = str(0.0)
+                    taxonomic_distance[dist] = 0.0
                 clade_exclusion_tabular_string += marker + "\t" + rank + "\t"
                 clade_exclusion_tabular_string += str(n_queries) + "\t" + str(n_classified) + "\t"
                 clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist]) + "\t"
                 clade_exclusion_strings.append(clade_exclusion_tabular_string)
                 clade_exclusion_tabular_string = ""
-            std_out_report_string += '\t'.join(taxonomic_distance.values()) + "\n"
+            std_out_report_string += '\t'.join([str(val) for val in taxonomic_distance.values()]) + "\n"
+            if sum(taxonomic_distance.values()) > 101.0:
+                logging.error("Sum of proportional assignments at all distances is greater than 100." +
+                              "\nQueries = " + str(n_queries) +
+                              "\nClassified = " + str(n_classified) +
+                              "\nClassifications = " + str(len(rank_assigned_dict[rank])) + "\n")
+                sys.exit(21)
+
     sys.stdout.write(std_out_report_string)
 
     return clade_exclusion_strings
@@ -715,11 +722,17 @@ def map_headers_to_lineage(assignments, ref_sequences):
         lineage_assignments[marker] = dict()
         for assigned_lineage in assignments[marker].keys():
             classified_headers = assignments[marker][assigned_lineage]
-            lineage_assignments[marker][clean_lineage_string(assigned_lineage)] = list()
+            c_lineage = clean_lineage_string(assigned_lineage)
+            lineage_assignments[marker][c_lineage] = list()
             for query in classified_headers:
                 for ref_seq in ref_sequences:
                     if ref_seq.accession == query:
-                        lineage_assignments[marker][clean_lineage_string(assigned_lineage)].append(clean_lineage_string(ref_seq.lineage))
+                        lineage_assignments[marker][c_lineage].append(clean_lineage_string(ref_seq.lineage))
+                        break
+            if len(lineage_assignments[marker][c_lineage]) != len(classified_headers):
+                logging.error(str(len(classified_headers)) + " accessions mapped to " +
+                              str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
+                sys.exit(21)
     return lineage_assignments
 
 
@@ -1358,6 +1371,12 @@ def main():
                         logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
                         launch_write_command(classify_command, False)
 
+                        if not os.path.isfile(classification_table):
+                            # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
+                            logging.warning("GraftM did not generate output for " + lineage + ". Skipping.\n")
+                            shutil.rmtree(treesapp_output)
+                            continue
+
                         shutil.copy(tax_ids_file, treesapp_output + os.sep + taxon + os.sep)
 
                     tax_ids_file = os.sep.join([treesapp_output, taxon, marker + "_taxonomy.csv"])
@@ -1375,6 +1394,11 @@ def main():
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
                         classify_excluded_taxon(args, prefix, lineage, marker, min_seq_length, test_rep_taxa_fasta)
+                        if not os.path.isfile(classification_table):
+                            # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
+                            logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
+                            shutil.rmtree(treesapp_output)
+                            continue
                     else:
                         # Valid number of queries and these sequences have already been classified
                         pass
@@ -1394,27 +1418,28 @@ def main():
 
     # Checkpoint four: everything has been prepared, only need to parse the classifications and map lineages
     logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
-    for rank in marker_eval_inst.taxa_tests:
+    for rank in sorted(marker_eval_inst.taxa_tests):
         for test_obj in marker_eval_inst.taxa_tests[rank]:
-            marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_record_objects)
-            for marker in marker_assignments:
-                marker_eval_inst.markers.add(marker)
+            if test_obj.assignments:
+                marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_record_objects)
+                for marker in marker_assignments:
+                    marker_eval_inst.markers.add(marker)
 
-            # Return the number of correct, classified, and total sequences of that taxon at the current rank
-            # Identify the excluded rank for each query sequence
-            if len(marker_assignments) == 0:
-                logging.debug("No sequences were classified for " + test_obj.taxon + "\n")
-                continue
+                # Return the number of correct, classified, and total sequences of that taxon at the current rank
+                # Identify the excluded rank for each query sequence
+                if len(marker_assignments) == 0:
+                    logging.debug("No sequences were classified for " + test_obj.taxon + "\n")
+                    continue
 
-            rank_assignments = identify_excluded_clade(marker_assignments, test_obj.taxonomic_tree, marker)
-            for a_rank in rank_assignments:
-                if a_rank != rank and len(rank_assignments[a_rank]) > 0:
-                    logging.warning(rank + "-level clade excluded but classifications were found to be " + a_rank +
-                                    "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
-                if a_rank not in marker_eval_inst.classifications:
-                    marker_eval_inst.classifications[a_rank] = list()
-                if len(rank_assignments[a_rank]) > 0:
-                    marker_eval_inst.classifications[a_rank] += rank_assignments[a_rank]
+                rank_assignments = identify_excluded_clade(marker_assignments, test_obj.taxonomic_tree, marker)
+                for a_rank in rank_assignments:
+                    if a_rank != rank and len(rank_assignments[a_rank]) > 0:
+                        logging.warning(rank + "-level clade excluded but classifications were found to be " + a_rank +
+                                        "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
+                    if a_rank not in marker_eval_inst.classifications:
+                        marker_eval_inst.classifications[a_rank] = list()
+                    if len(rank_assignments[a_rank]) > 0:
+                        marker_eval_inst.classifications[a_rank] += rank_assignments[a_rank]
 
     # TODO: In the case of a prior TreeSAPP analysis without taxonomic sequence filtering (external of Clade_exclusion)
     # if extant and classified:
