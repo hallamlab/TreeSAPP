@@ -1,6 +1,8 @@
-resource "google_compute_instance" "default" {
+
+resource "google_compute_instance" "tftreesapp" {
+  project      = "${var.project_id}"
   zone         = "us-west1-b"
-  name         = "tftreesapp"
+  name         = "${var.project_id}"
   machine_type = "n1-highcpu-8"
 
   boot_disk {
@@ -20,5 +22,5 @@ resource "google_compute_instance" "default" {
 }
 
 output "instance_id" {
-  value = "${google_compute_instance.default.self_link}"
+  value = "${google_compute_instance.tftreesapp.self_link}"
 }
