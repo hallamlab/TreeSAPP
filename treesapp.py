@@ -63,8 +63,8 @@ def get_options():
                         help="Sample composition being either a single organism or a metagenome.")
     parser.add_argument("--trim_align", default=False, action="store_true",
                         help="Flag to turn on position masking of the multiple sequence alignmnet [DEFAULT = False]")
-    parser.add_argument('-g', '--min_seq_length', default=20, type=int,
-                        help='minimal sequence length after alignment trimming [DEFAULT = 20]')
+    parser.add_argument('-g', '--min_seq_length', default=30, type=int,
+                        help='minimal sequence length after alignment trimming [DEFAULT = 30]')
     parser.add_argument('-R', '--reftree', default='p', type=str,
                         help='Reference tree (p = MLTreeMap reference phylogenetic tree [DEFAULT])'
                              ' Change to code to map query sequences to specific phylogenetic tree.')
@@ -1992,8 +1992,8 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
     logging.debug("\tSequences <" + str(args.min_seq_length) + " characters removed:" + discarded_seqs_string + "\n")
 
     if num_successful_alignments == 0:
-        logging.error("No quality alignment files to analyze after trimming.\n")
-        sys.exit(3)
+        logging.error("No quality alignment files to analyze after trimming. Exiting now.\n")
+        sys.exit(0)  # Should be 3, but this allows Clade_exclusion_analyzer to continue after exit
 
     return qc_ma_dict
 

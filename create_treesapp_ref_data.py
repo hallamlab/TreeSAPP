@@ -1696,7 +1696,8 @@ def main():
                                                  args.final_output_dir + args.code_name + "_tree.txt",
                                                  tree_taxa_list,
                                                  accession_lineage_map,
-                                                 args.molecule)
+                                                 args.molecule,
+                                                 args.executables)
     update_build_parameters(args, code_name, model, lowest_reliable_rank, pfit_array)
 
     logging.info("Data for " + code_name + " has been generated successfully.\n")

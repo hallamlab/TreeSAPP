@@ -729,10 +729,13 @@ def map_headers_to_lineage(assignments, ref_sequences):
                     if ref_seq.accession == query:
                         lineage_assignments[marker][c_lineage].append(clean_lineage_string(ref_seq.lineage))
                         break
-            if len(lineage_assignments[marker][c_lineage]) != len(classified_headers):
+            if len(lineage_assignments[marker][c_lineage]) > len(classified_headers):
                 logging.error(str(len(classified_headers)) + " accessions mapped to " +
                               str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
                 sys.exit(21)
+            elif len(lineage_assignments[marker][c_lineage]) < len(classified_headers):
+                logging.debug(str(len(classified_headers)) + " accessions mapped to " +
+                              str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
     return lineage_assignments
 
 
@@ -1305,9 +1308,9 @@ def main():
     if extant and accessions_downloaded and not classified:
         # Run TreeSAPP against the provided tax_ids file and the unique taxa FASTA file
         if args.length:
-            min_seq_length = str(min(args.length - 10, 50))
+            min_seq_length = str(min(args.length - 10, 30))
         else:
-            min_seq_length = str(50)
+            min_seq_length = str(30)
 
         validate_ref_package_files(args.treesapp, marker, args.output)
 

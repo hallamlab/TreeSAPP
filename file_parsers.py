@@ -134,7 +134,7 @@ def parse_domain_tables(args, hmm_domtbl_files):
     info_string += "\tMinimum E-value = " + str(args.min_e) + "\n"
     info_string += "\tMinimum acc = " + str(args.min_acc) + "\n"
     info_string += "\tMinimum percentage of the HMM covered = " + str(args.perc_aligned) + "%\n"
-    logging.info(info_string)
+    logging.debug(info_string)
 
     logging.info("Parsing HMMER domain tables for high-quality matches... ")
 
