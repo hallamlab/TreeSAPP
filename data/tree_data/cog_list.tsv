@@ -58,8 +58,8 @@
 MtrA	M0601	Tetrahydro-methanopterin methyltransferase subunit A
 MtrC	M0603	Tetrahydro-methanopterin methyltransferase subunit C
 MtrH	M0607	Tetrahydro-methanopterin methyltransferase subunit H
-mcrA	M0701	Methyl coenzyme M reductase alpha subunit
-mcrB	M0702	Methyl coenzyme M reductase beta subunit
+McrA	M0701	Methyl coenzyme M reductase alpha subunit
+McrB	M0702	Methyl coenzyme M reductase beta subunit
 mcrG	M0705	Methyl coenzyme M reductase gamma subunit
 #cdhA	M0801	acetyl-CoA decarbonylase/synthase alpha subunit
 #cdhB	M0802	acetyl-CoA decarbonylase/synthase epsilon subunit

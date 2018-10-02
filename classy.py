@@ -7,16 +7,69 @@ import re
 import random
 import copy
 import subprocess
+import logging
 from multiprocessing import Process, JoinableQueue
 from json import loads, dumps
 
 from fasta import format_read_fasta, get_headers, write_new_fasta, get_header_format
-from utilities import reformat_string, return_sequence_info_groups
+from utilities import reformat_string, return_sequence_info_groups, median
 from entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from external_command_interface import launch_write_command
 from entrez_utils import get_lineage
 
 import _tree_parser
+
+
+class MarkerBuild:
+    def __init__(self, build_param_line):
+        build_param_fields = build_param_line.split('\t')
+        if len(build_param_fields) != 8:
+            logging.error("Incorrect number of values (" + str(len(build_param_fields)) +
+                          ") in ref_build_parameters.tsv. Line:\n" + build_param_line)
+            sys.exit(17)
+
+        self.cog = build_param_fields[0]
+        self.denominator = build_param_fields[1]
+        self.molecule = build_param_fields[2]
+        self.model = build_param_fields[3]
+        self.pid = build_param_fields[4]
+        self.lowest_confident_rank = build_param_fields[-2]
+        self.update = build_param_fields[-1]
+        self.description = ""
+        self.kind = ""
+        self.pfit = []
+
+    def load_rank_distances(self, build_param_line):
+        build_param_fields = build_param_line.split("\t")
+        ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
+        field = 5
+        rank = 2
+        while field < 10:
+            dist_field = build_param_fields[field]
+            range = dist_field.split(',')
+            if len(range) != 2:
+                self.distances = {}
+                return 1
+            else:
+                self.distances[ranks[rank]] = tuple(float(x) for x in range)
+            field += 1
+            rank += 1
+        return 0
+
+    def load_pfit_params(self, build_param_line):
+        build_param_fields = build_param_line.split("\t")
+        if build_param_fields[5]:
+            self.pfit = [float(x) for x in build_param_fields[5].split(',')]
+        return
+
+    def check_rank(self):
+        taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
+
+        if self.lowest_confident_rank not in list(taxonomies):
+            logging.error("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
+            sys.exit(17)
+
+        return
 
 
 class CreateFuncTreeUtility:
@@ -26,7 +79,7 @@ class CreateFuncTreeUtility:
     RefTree is the second column in cog_list.tsv for the gene to update
     Cluster is a flag indicating whether the protein sequences for the RefTree in InputData is to be clustered at 97%
     """
-    def __init__(self, input_data, ref_tree):
+    def __init__(self, input_data, ref_marker: MarkerBuild):
         if os.path.isabs(input_data):
             self.InputData = input_data
         else:
@@ -35,23 +88,24 @@ class CreateFuncTreeUtility:
         if self.InputData[-1] == '/':
             self.InputData = self.InputData[:-1]
 
-        self.Output = self.InputData + os.sep + "updated_" + ref_tree + "_tree" + os.sep
-        self.Denominator = ref_tree
-        self.marker_molecule = ""  # prot, dna, or rrna
-        self.COG = ""
-        self.raxml_model = ""  # Rather than determining the best model again, use the one that was previously used
+        self.Output = self.InputData + os.sep + "updated_" + ref_marker.denominator + "_tree" + os.sep
+        self.Denominator = ref_marker.denominator
+        self.marker_molecule = ref_marker.molecule  # prot, dna, or rrna
+        self.COG = ref_marker.cog
+        self.raxml_model = ref_marker.model  # Use the original model rather than determining the best model again
         self.ContigDict = dict()  # Used for storing the final candidate reference sequences
         self.names = list()
         self.header_id_map = dict()  # Used for mapping the original header of the sequence to internal numeric header
         self.master_reference_index = dict()  # Used for storing ReferenceSequence objects, indexed by numeric IDs
-        self.cluster_id = 0  # The percent similarity the original reference sequences were clustered at
+        self.cluster_id = ref_marker.pid  # The percent similarity the original reference sequences were clustered at
         # Automatically remove the last attempt at updating the reference tree
         if os.path.isdir(self.Output):
             shutil.rmtree(self.Output)
         try:
             os.makedirs(self.Output)
         except IOError:
-            raise IOError("Unable to make the directory " + str(self.Output) + "\n")
+            logging.error("Unable to make the directory " + str(self.Output) + "\n")
+            sys.exit(17)
 
     def get_raxml_files_for_ref(self):
         """
@@ -65,33 +119,6 @@ class CreateFuncTreeUtility:
                 suffix = re.sub("%s_" % ref_tree, '', placement)
                 predicted_orf = re.sub("_RAxML_parsed.txt", '', suffix)
                 self.names.append(predicted_orf)
-        return
-
-    def find_cog_name(self, cog_list):
-        for cog in cog_list["all_cogs"]:
-            denominator = cog_list["all_cogs"][cog]
-            if denominator == self.Denominator:
-                self.COG = cog
-                break
-        if not self.COG:
-            sys.stderr.write("ERROR: Invalid marker code provided! Unable to find matching gene in cog_list.txt!\n")
-            sys.exit(100)
-        return
-
-    def find_marker_type(self, cog_list):
-        for marker_type in cog_list:
-            if marker_type == "all_cogs":
-                continue
-            if self.COG in cog_list[marker_type]:
-                if marker_type == "phylogenetic_rRNA_cogs":
-                    self.marker_molecule = "rrna"
-                elif marker_type == "functional_cogs":
-                    self.marker_molecule = "prot"
-                else:
-                    sys.stderr.write("ERROR: Unrecognized marker class: " + marker_type)
-                    sys.exit(101)
-                break
-
         return
 
     def load_new_refs_fasta(self, args, centroids_fasta, ref_organism_lineage_info):
@@ -109,7 +136,7 @@ class CreateFuncTreeUtility:
             acc += 1
 
         # Read the FASTA to get headers and sequences
-        centroids_fasta_dict = format_read_fasta(centroids_fasta, self.marker_molecule, args)
+        centroids_fasta_dict = format_read_fasta(centroids_fasta, self.marker_molecule, args.output)
 
         # Create the final contig dictionary of new internal TreeSAPP headers (keys) and sequences (values)
         additional = acc
@@ -133,13 +160,11 @@ class CreateFuncTreeUtility:
 
         if additional == acc:
             # The reference sequence identifiers are random
-            sys.stderr.write("WARNING: numerical TreeSAPP identifiers for " + self.Denominator +
-                             "are not in the format of a sequential series!\n")
-            sys.stderr.write("Generating random numerical unique identifiers for the new sequence(s).\n")
-            sys.stderr.flush()
+            logging.warning("Numerical TreeSAPP identifiers for " + self.Denominator +
+                            "are not in the format of a sequential series!\n" +
+                            "Generating random numerical unique identifiers for the new sequence(s).\n")
 
-        if args.verbose:
-            sys.stdout.write("\t" + str(len(self.header_id_map)) + " new " + self.COG + " reference sequences.\n")
+        logging.debug("\t" + str(len(self.header_id_map)) + " new " + self.COG + " reference sequences.\n")
 
         return
 
@@ -151,8 +176,7 @@ class CreateFuncTreeUtility:
         :param assignments: A dictionary containing marker name as keys, and header: [lineages] mappings as values
         :return:
         """
-        sys.stdout.write("Writing updated tax_ids file... ")
-        sys.stdout.flush()
+        logging.info("Writing updated tax_ids file... ")
 
         tree_taxa_string = ""
         original_to_formatted_header_map = dict()
@@ -166,7 +190,7 @@ class CreateFuncTreeUtility:
             if leaf.lineage:
                 tree_taxa_string += '\t'.join([str(leaf.number), leaf.description, leaf.lineage]) + "\n"
             else:
-                sys.stderr.write("Unable to retrieve lineage information for sequence " + str(leaf.number) + "\n")
+                logging.debug("Unable to retrieve lineage information for sequence " + str(leaf.number) + "\n")
 
         # Build a map of original headers to formatted ones
         original_candidate_headers = get_headers(args.fasta_input)
@@ -220,18 +244,18 @@ class CreateFuncTreeUtility:
                             else:
                                 description = taxonomic_lineage[-1]
                         except ValueError:
-                            sys.stderr.write("WARNING: Attempt to parse species from lineage failed for:\n" + lineage + "\n")
+                            logging.warning("Attempt to parse species from lineage failed for:\n" + lineage + "\n")
                             description = sequence_info.group(2)
                     else:
-                        sys.stderr.write("ERROR: TreeSAPP is unsure what to do with header '" + header + "'\n")
-                        raise AssertionError()
+                        logging.error("TreeSAPP is unsure what to do with header '" + header + "'\n")
+                        sys.exit(17)
             else:
                 # This sequence is probably an uninformative contig name
                 lineage = "unclassified sequences; "
                 description = self.InputData.split('/')[-1]
 
             if not description or not lineage:
-                sys.stderr.write("WARNING: description is unavailable for sequence '" + header + "'\n")
+                logging.warning("Description is unavailable for sequence '" + header + "'\n")
             tree_taxa_string += num_id + "\t" + description + " | " + accession + "\t" + lineage + "\n"
             self.master_reference_index[num_id].organism = organism
             self.master_reference_index[num_id].description = description
@@ -244,8 +268,7 @@ class CreateFuncTreeUtility:
         tree_tax_list_handle.write(tree_taxa_string)
         tree_tax_list_handle.close()
 
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
+        logging.info("done.\n")
 
         return
 
@@ -282,15 +305,14 @@ class CreateFuncTreeUtility:
         """
         Call MAFFT to perform a multiple sequence alignment of the reference sequences and the
         gene sequences identified by TreeSAPP
+
         :param args: Command-line argument object from get_options and check_parser_arguments
         :param unaligned_ref_seqs:
-        :param ref_align: FASTA file containing
         :return: Name of the FASTA file containing the MSA
         """
 
         if args.verbose:
-            sys.stdout.write("Aligning the reference and identified " + self.COG + " sequences using MAFFT... ")
-            sys.stdout.flush()
+            logging.info("Aligning the reference and identified " + self.COG + " sequences using MAFFT... ")
 
         # Combine the reference and candidate sequence dictionaries
         unaligned_ref_seqs.update(self.ContigDict)
@@ -312,14 +334,11 @@ class CreateFuncTreeUtility:
         stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
 
         if mafft_proc_returncode != 0:
-            sys.stderr.write("ERROR: Multiple sequence alignment using " + args.executables["mafft"] +
-                             " did not complete successfully! Command used:\n" + ' '.join(
-                mafft_align_command) + "\n")
-            sys.exit()
+            logging.error("Multiple sequence alignment using " + args.executables["mafft"] +
+                          " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
+            sys.exit(17)
 
-        if args.verbose:
-            sys.stdout.write("done.\n")
-            sys.stdout.flush()
+        logging.info("done.\n")
 
         return aligned_fasta
 
@@ -336,23 +355,18 @@ class CreateFuncTreeUtility:
         raxml_command += ['-s', phylip_file,
                           '-f', 'a',
                           '-x', str(12345),
+                          '-p', str(12345),
                           '-#', nboot,
                           '-n', self.COG,
-                          '-w', raxml_destination_folder,
-                          '-p', str(12345)] #,
-                          # '>', raxml_destination_folder + os.sep + 'RAxML_log.txt']
+                          '-w', raxml_destination_folder]
 
-        if args.verbose:
-            sys.stdout.write("RAxML command:\n\t" + ' '.join(raxml_command) + "\n")
-            sys.stdout.write("Inferring Maximum-Likelihood tree with RAxML... ")
-            sys.stdout.flush()
+        logging.debug("RAxML command:\n\t" + ' '.join(raxml_command) + "\n")
+        logging.info("Building Maximum-Likelihood tree with RAxML")
 
         raxml_pro = subprocess.Popen(' '.join(raxml_command), shell=True, preexec_fn=os.setsid)
         raxml_pro.wait()
 
-        if args.verbose:
-            sys.stdout.write("done.\n")
-            sys.stdout.flush()
+        # logging.info("done.\n")
 
         return
 
@@ -381,6 +395,9 @@ class ItolJplace:
         self.placements = list()
         self.lwr = 0  # Likelihood weight ratio of an individual placement
         self.likelihood = 0
+        self.avg_evo_dist = 0.0
+        self.distances = ""
+        self.classified = True
         self.inode = ""
         self.tree = ""  # NEWICK tree
         self.metadata = ""
@@ -391,6 +408,7 @@ class ItolJplace:
         Prints a summary of the ItolJplace object (equivalent to a single marker) to stderr
         Summary include the number of marks found, the tree used, and the tree-placement of each sequence identified
         Written solely for testing purposes
+
         :return:
         """
         summary_string = ""
@@ -411,7 +429,7 @@ class ItolJplace:
                 summary_string += "\tL.W.R\t\t" + str(self.lwr) + "\n"
             else:
                 for pquery in self.placements:
-                    placement = loads(pquery, encoding="utf-8")
+                    placement = loads(str(pquery), encoding="utf-8")
                     for k, v in placement.items():
                         if k == 'p':
                             summary_string += '\t' + str(v) + "\n"
@@ -428,6 +446,8 @@ class ItolJplace:
             summary_string += "\tNone.\n"
         if self.abundance:
             summary_string += "Abundance:\n\t" + str(self.abundance) + "\n"
+        if self.distances:
+            summary_string += "Distances:\n\t" + self.distances + "\n"
         summary_string += "\n"
         return summary_string
 
@@ -444,13 +464,15 @@ class ItolJplace:
                         for pquery in v:
                             nodes.append(str(pquery[0]))
             else:
-                raise AssertionError("Unable to handle type " + type(d_place) + "\n")
+                logging.error("Unable to handle type " + type(d_place) + "\n")
+                sys.exit(17)
         return nodes
 
     def correct_decoding(self):
         """
         Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
         Formatting and string conversion are also performed here
+
         :return:
         """
         new_placement_collection = []  # a list of dictionary-like strings
@@ -466,10 +488,16 @@ class ItolJplace:
                 new_placement_collection.append(d_place)
         self.placements = new_placement_collection
 
-        self.fields = [dumps(x) for x in self.fields]
+        decoded_fields = list()
+        for field in self.fields:
+            if not re.match('".*"', field):
+                decoded_fields.append(dumps(field))
+            else:
+                decoded_fields.append(field)
+        self.fields = decoded_fields
         return
 
-    def name_placed_sequence(self, seq_name):
+    def rename_placed_sequence(self, seq_name):
         new_placement_collection = dict()
         for d_place in self.placements:
             for key, value in d_place.items():
@@ -478,6 +506,13 @@ class ItolJplace:
                 else:
                     new_placement_collection[key] = value
         self.placements = [new_placement_collection]
+        return
+
+    def name_placed_sequence(self):
+        for d_place in self.placements:
+            for key, value in d_place.items():
+                if key == 'n':
+                    self.contig_name = value[0]
         return
 
     def get_field_position_from_jplace_fields(self, field_name):
@@ -494,8 +529,7 @@ class ItolJplace:
             else:
                 x += 1
         if x == len(self.fields):
-            sys.stderr.write("Unable to find '" + field_name + "' in the jplace string!\n")
-            sys.stderr.write("WARNING: Skipping filtering with `filter_min_weight_threshold`\n")
+            logging.warning("Unable to find '" + field_name + "' in the jplace \"field\" string!\n")
             return None
         return x
 
@@ -517,25 +551,12 @@ class ItolJplace:
                     acc += 1
         return element_value
 
-    def get_inode(self):
-        self.inode = str(self.get_jplace_element("edge_num"))
-        return
-
-    def get_placement_lwr(self):
-        self.lwr = float(self.get_jplace_element("like_weight_ratio"))
-        return
-
-    def get_placement_likelihood(self):
-        self.likelihood = float(self.get_jplace_element("likelihood"))
-        return
-
     def filter_min_weight_threshold(self, threshold=0.1):
         """
         Remove all placements with likelihood weight ratios less than threshold
         :param threshold: The threshold which all placements with LWRs less than this are removed
         :return:
         """
-        unclassified = 0
         # Find the position of like_weight_ratio in the placements from fields descriptor
         x = self.get_field_position_from_jplace_fields("like_weight_ratio")
         if not x:
@@ -562,7 +583,7 @@ class ItolJplace:
                                 #                             str(float(removed[x]))]) + "\n")
                             else:
                                 acc += 1
-                            sys.stderr.flush()
+                            # sys.stderr.flush()
                         # If no placements met the likelihood filter then the sequence cannot be classified
                         # Alternatively: first two will be returned and used for LCA - can test...
                         if len(tmp_placements) > 0:
@@ -570,15 +591,15 @@ class ItolJplace:
                             dict_strings.append(dumps(k) + ':' + dumps(v))
                             placement_string = ', '.join(dict_strings)
                         else:
-                            unclassified += 1
+                            self.classified = False
                 # Add the filtered placements back to the object.placements
                 new_placement_collection.append('{' + placement_string + '}')
             else:
                 # If there is only one placement, the LWR is 1.0 so no filtering required!
                 new_placement_collection.append(pquery)
-        if unclassified == 0:
+        if self.classified:
             self.placements = new_placement_collection
-        return unclassified
+        return
 
     def sum_rpkms_per_node(self, leaf_rpkm_sums):
         """
@@ -692,6 +713,8 @@ class ItolJplace:
         reference_tree_file = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
         reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
         lwr_pos = self.get_field_position_from_jplace_fields("like_weight_ratio")
+        if not lwr_pos:
+            return
         singular_placements = list()
         for pquery in self.placements:
             placement = loads(pquery, encoding="utf-8")
@@ -729,8 +752,7 @@ class ItolJplace:
 class TreeProtein(ItolJplace):
     """
     A class for sequences that were properly mapped to its gene tree.
-    While it mostly contains RAxML outputs,
-    several functions are used to make 'biological' sense out of these outputs.
+    While it mostly contains RAxML outputs, functions are used to make 'biological' sense out of these outputs.
     """
     def transfer(self, itol_jplace_object):
         self.placements = itol_jplace_object.placements
@@ -786,11 +808,13 @@ class TreeLeafReference:
         self.complete = False
 
     def summarize_tree_leaf(self):
-        # sys.stderr.write("Tree:\n\t" + str(self.tree) + "\n")
-        sys.stderr.write("Leaf ID:\n\t" + str(self.number) + "\n")
-        sys.stderr.write("Description:\n\t" + str(self.description) + "\n")
+        summary_string = "Leaf ID:\n\t" + str(self.number) + "\n" +\
+                         "Description:\n\t" + str(self.description) + "\n"
+
+        # summary_string += "Tree:\n\t" + str(self.tree) + "\n"
         if self.complete:
-            sys.stderr.write("Lineage:\n\t" + str(self.lineage) + "\n")
+            summary_string += "Lineage:\n\t" + str(self.lineage) + "\n"
+        logging.debug(summary_string)
 
     class MarkerInfo:
         """
@@ -820,13 +844,17 @@ class ReferenceSequence:
         self.cluster_lca = None
 
     def get_info(self):
+        """
+        Returns a string with the ReferenceSequence instance's current fields
+
+        :return: str
+        """
         info_string = ""
         info_string += "accession = " + self.accession + ", " + "mltree_id = " + self.short_id + "\n"
         info_string += "description = " + self.description + ", " + "locus = " + self.locus + "\n"
         info_string += "organism = " + self.organism + "\n"
         info_string += "lineage = " + self.lineage + "\n"
-        sys.stdout.write(info_string)
-        sys.stdout.flush()
+        return info_string
 
 
 class CommandLineWorker(Process):
@@ -842,12 +870,11 @@ class CommandLineWorker(Process):
                 # Poison pill means shutdown
                 self.task_queue.task_done()
                 break
-            p_genewise = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
-            p_genewise.wait()
-            if p_genewise.returncode != 0:
-                sys.stderr.write("ERROR: " + self.master + " did not complete successfully for:\n")
-                sys.stderr.write(str(' '.join(next_task)) + "\n")
-                sys.stderr.flush()
+            p_instance = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
+            p_instance.wait()
+            if p_instance.returncode != 0:
+                logging.error(self.master + " did not complete successfully for:\n" +
+                              str(' '.join(next_task)) + "\n")
             self.task_queue.task_done()
         return
 
@@ -922,31 +949,6 @@ class NodeRetrieverWorker(Process):
         return
 
 
-class MarkerBuild:
-    def __init__(self, build_param_line):
-        build_param_fields = build_param_line.split('\t')
-        if len(build_param_fields) != 6:
-            sys.stderr.write("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + build_param_line)
-            raise ValueError
-        self.cog = build_param_fields[0]
-        self.denominator = build_param_fields[1]
-        self.model = build_param_fields[2]
-        self.pid = build_param_fields[3]
-        self.lowest_confident_rank = build_param_fields[4]
-        self.update = build_param_fields[5]
-        self.description = ""
-        self.kind = ""
-        self.molecule = "prot"
-
-    def check_rank(self):
-        taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
-
-        if self.lowest_confident_rank not in list(taxonomies):
-            raise AssertionError("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
-
-        return
-
-
 class Header:
     def __init__(self, header):
         self.original = header
@@ -961,8 +963,206 @@ class Header:
         return info_string
 
 
+def register_headers(header_list):
+    header_registry = dict()
+    acc = 1
+    for header in header_list:
+        new_header = Header(header)
+        new_header.formatted = reformat_string(header)
+        new_header.first_split = header.split()[0]
+        header_registry[str(acc)] = new_header
+        acc += 1
+    return header_registry
+
+
+def get_header_info(header_registry, code_name=''):
+    sys.stdout.write("Extracting information from headers... ")
+    sys.stdout.flush()
+    fasta_record_objects = dict()
+    for treesapp_id in sorted(header_registry.keys(), key=int):
+        original_header = header_registry[treesapp_id].original
+        formatted_header = header_registry[treesapp_id].formatted
+        header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
+        sequence_info = header_format_re.match(original_header)
+        accession, organism, locus, description, lineage = return_sequence_info_groups(sequence_info,
+                                                                                       header_db,
+                                                                                       formatted_header)
+        ref_seq = ReferenceSequence()
+        ref_seq.organism = organism
+        ref_seq.accession = accession
+        ref_seq.lineage = lineage
+        ref_seq.description = description
+        ref_seq.locus = locus
+        ref_seq.short_id = '>' + treesapp_id + '_' + code_name
+        fasta_record_objects[treesapp_id] = ref_seq
+
+    sys.stdout.write("done.\n")
+
+    return fasta_record_objects
+
+
 class Cluster:
     def __init__(self, rep_name):
         self.representative = rep_name
         self.members = list()
         self.lca = ''
+
+
+class MyFormatter(logging.Formatter):
+
+    error_fmt = "%(levelname)s - %(module)s, line %(lineno)d:\n%(message)s"
+    warning_fmt = "%(levelname)s:\n%(message)s"
+    debug_fmt = "%(asctime)s\n%(message)s"
+    info_fmt = "%(message)s"
+
+    def __init__(self):
+        super().__init__(fmt="%(levelname)s: %(message)s",
+                         datefmt="%d/%m %H:%M:%S")
+
+    def format(self, record):
+
+        # Save the original format configured by the user
+        # when the logger formatter was instantiated
+        format_orig = self._style._fmt
+
+        # Replace the original format with one customized by logging level
+        if record.levelno == logging.DEBUG:
+            self._style._fmt = MyFormatter.debug_fmt
+
+        elif record.levelno == logging.INFO:
+            self._style._fmt = MyFormatter.info_fmt
+
+        elif record.levelno == logging.ERROR:
+            self._style._fmt = MyFormatter.error_fmt
+
+        elif record.levelno == logging.WARNING:
+            self._style._fmt = MyFormatter.warning_fmt
+
+        # Call the original formatter class to do the grunt work
+        result = logging.Formatter.format(self, record)
+
+        # Restore the original format configured by the user
+        self._style._fmt = format_orig
+
+        return result
+
+
+def prep_logging(log_file_name, verbosity):
+    logging.basicConfig(level=logging.DEBUG,
+                        filename=log_file_name,
+                        filemode='w',
+                        datefmt="%d/%m %H:%M:%S",
+                        format="%(asctime)s %(levelname)s:\n%(message)s")
+    if verbosity:
+        logging_level = logging.DEBUG
+    else:
+        logging_level = logging.INFO
+
+    # Set the console handler normally writing to stdout/stderr
+    ch = logging.StreamHandler()
+    ch.setLevel(logging_level)
+    ch.terminator = ''
+
+    formatter = MyFormatter()
+    ch.setFormatter(formatter)
+    logging.getLogger('').addHandler(ch)
+
+    return
+
+
+class MarkerTest:
+    def __init__(self, marker_name):
+        self.target_marker = marker_name
+        self.ranks = list()
+        self.markers = set()
+        self.taxa_filter = dict()
+        self.taxa_filter["Unclassified"] = 0
+        self.taxa_filter["Classified"] = 0
+        self.taxa_filter["Unique_taxa"] = 0
+        self.taxa_tests = dict()
+        self.classifications = dict()
+
+    def new_taxa_test(self, rank, lineage):
+        if rank not in self.taxa_tests:
+            self.taxa_tests[rank] = list()
+        taxa_test_inst = TaxonTest(lineage)
+        self.taxa_tests[rank].append(taxa_test_inst)
+        return taxa_test_inst
+
+    def delete_test(self, rank, lineage):
+        i = 0
+        for tti in self.taxa_tests[rank]:
+            if re.match(tti.lineage, lineage):
+                self.taxa_tests[rank].pop(i)
+                break
+            i += 1
+        return
+
+    def get_sensitivity(self, rank):
+        total_queries = 0
+        total_classified = 0
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                total_queries += len(tt.queries)
+                total_classified += len(tt.classifieds)
+            return total_queries, total_classified, float(total_classified/total_queries)
+        else:
+            return 0, 0, 0.0
+
+    def get_unique_taxa_tested(self, rank):
+        taxa = set()
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                taxa.add(tt.taxon)
+            return taxa
+        else:
+            return None
+
+    def summarize_rankwise_distances(self, rank):
+        distals = list()
+        pendants = list()
+        tips = list()
+        totals = list()
+        n_dists = 0
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                distals += tt.distances["distal"]
+                pendants += tt.distances["pendant"]
+                tips += tt.distances["tip"]
+                n_dists += 1
+            n_dists = len(distals)
+            x = 0
+            while x < n_dists:
+                totals.append(sum([distals[x], pendants[x], tips[x]]))
+                x += 1
+            if len(pendants) != n_dists or len(tips) != n_dists:
+                logging.error("Unequal number of values found between distal-, pendant- and tip-distances.\n")
+                sys.exit(17)
+            distance_summary = ["Rank\tType\tMean\tMedian\tVariance",
+                                "\t".join([rank, "Distal",
+                                           str(round(sum(distals) / float(n_dists), 4)),
+                                           str(median(distals))]),
+                                "\t".join([rank, "Pendant",
+                                           str(round(sum(pendants) / float(n_dists), 4)),
+                                           str(median(pendants))]),
+                                "\t".join([rank, "Tip",
+                                           str(round(sum(tips) / float(n_dists), 4)),
+                                           str(median(tips))]),
+                                "\t".join([rank, "Total",
+                                           str(round(sum(totals) / float(n_dists), 4)),
+                                           str(median(totals))], )]
+            sys.stdout.write("\n".join(distance_summary) + "\n")
+            return distals, pendants, tips
+        else:
+            return None, None, None
+
+
+class TaxonTest:
+    def __init__(self, name):
+        self.lineage = name
+        self.taxon = name.split('; ')[-1]
+        self.queries = list()
+        self.classifieds = list()
+        self.distances = dict()
+        self.assignments = dict()
+        self.taxonomic_tree = None

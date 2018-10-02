@@ -1,0 +1,19 @@
+TREE_COLORS
+SEPARATOR SPACE
+DATA
+175|173 range #543005 Verstraetearchaeota
+204|203 range #A4681A Bathyarchaeota
+166 range #C66F3E Syntrophoarchaeum
+164|165 range #C66F3E Syntrophoarchaeum
+168 range #C66F3E Syntrophoarchaeum
+10|201 range #7D4808 ANME-1
+95|11 range #DDBF7A Methanonatronarchaeia
+17|15 range #EFDCAE Methanomassiliicoccales
+98 range #F5EDD9 Methanopyrus
+84|86 range #ECF2F2 Methanococcales
+80|81 range #CAEAE6 Methanococcales-MrtA
+49|67 range #97D6CD Methanobacteriales-MrtA
+73|59 range #61B7AC Methanobacteriales
+160|144 range #2D8F87 Methanosarcinales
+100|99 range #066B63 Methanocellales
+192|107 range #003C30 Methanomicrobiales

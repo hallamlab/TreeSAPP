@@ -164,10 +164,10 @@ class DomainTableParser(object):
         self.alignments['num'] = int(hit[9])  # HMMER is able to detect whether there are multi-hits
         self.alignments['of'] = int(hit[10])  # This is the number of multi-hits for a query
         self.alignments['cEval'] = float(hit[11])  # conditional E-value
-        self.alignments['pstart'] = int(hit[15])
-        self.alignments['pend'] = int(hit[16])
-        self.alignments['qstart'] = int(hit[17])
-        self.alignments['qend'] = int(hit[18])
+        self.alignments['pstart'] = int(hit[15])  # First position on HMM profile
+        self.alignments['pend'] = int(hit[16])  # Last position on HMM profile
+        self.alignments['qstart'] = int(hit[19])  # env coord from
+        self.alignments['qend'] = int(hit[20])  # env coord to
         self.alignments['acc'] = float(hit[21])
         self.alignments['desc'] = ' '.join(hit[22:])
 
@@ -418,7 +418,7 @@ def filter_incomplete_hits(args, purified_matches, num_dropped):
 
     for query in purified_matches:
         for hmm_match in purified_matches[query]:
-            ali_len = hmm_match.end - hmm_match.start
+            ali_len = hmm_match.pend - hmm_match.pstart
             perc_aligned = (float((int(ali_len)*100)/int(hmm_match.hmm_len)))
             if perc_aligned >= args.perc_aligned:
                 complete_gene_hits.append(hmm_match)

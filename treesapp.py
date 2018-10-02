@@ -20,22 +20,26 @@ try:
     import string
     import random
     import subprocess
+    import logging
+    from ete3 import Tree
     from multiprocessing import Pool, Process, Lock, Queue, JoinableQueue
-    from json import loads, load
     from os import path
     from os import listdir
     from os.path import isfile, join
     from time import gmtime, strftime
 
     from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string,\
-        parse_domain_tables, reformat_string
+        reformat_string, available_cpu_count, write_phy_file, reformat_fasta_to_phy, cluster_sequences
     from classy import CreateFuncTreeUtility, CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
-        TreeLeafReference, TreeProtein, MarkerBuild, ReferenceSequence
+        TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
-        get_node, annotate_partition_tree
+        get_node, annotate_partition_tree, find_cluster
     from external_command_interface import launch_write_command, setup_progress_bar
     from lca_calculations import *
+    from jplace_utils import *
+    from file_parsers import *
+    from phylo_dist import *
 
     import _tree_parser
     import _fasta_reader
@@ -57,15 +61,10 @@ def get_options():
                         help='output directory [DEFAULT = ./output/]')
     parser.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
                         help="Sample composition being either a single organism or a metagenome.")
-    parser.add_argument('-b', '--bootstraps', default=0, type=int,
-                        help='the number of Bootstrap replicates [DEFAULT = 0]')
-    # TODO: remove this option and only use Maximum Likelihood (-f v) for RAxML
-    # parser.add_argument('-f', '--phylogeny', default='v', choices=['v', 'p'],
-    #                     help='RAxML algorithm (v = Maximum Likelihood [DEFAULT]; p = Maximum Parsimony)')
-    parser.add_argument("--filter_align", default=False, action="store_true",
+    parser.add_argument("--trim_align", default=False, action="store_true",
                         help="Flag to turn on position masking of the multiple sequence alignmnet [DEFAULT = False]")
-    parser.add_argument('-g', '--min_seq_length', default=50, type=int,
-                        help='minimal sequence length after alignment trimming [DEFAULT = 50]')
+    parser.add_argument('-g', '--min_seq_length', default=30, type=int,
+                        help='minimal sequence length after alignment trimming [DEFAULT = 30]')
     parser.add_argument('-R', '--reftree', default='p', type=str,
                         help='Reference tree (p = MLTreeMap reference phylogenetic tree [DEFAULT])'
                              ' Change to code to map query sequences to specific phylogenetic tree.')
@@ -124,49 +123,46 @@ def get_options():
                                     help='Delete intermediate file to save disk space\n'
                                          'Recommended for large metagenomes!')
 
-    return parser
+    args = parser.parse_args()
+
+    return args
 
 
-def check_parser_arguments(parser):
+def check_parser_arguments(args):
     """
-    Ensures the command-line arguments returned by argparse are sensical
-    :param parser: object with parameters returned by argparse
+    Ensures the command-line arguments returned by argparse are sensible
+    :param args: object with parameters returned by argparse.parse_args()
     :return 'args', a summary of TreeSAPP settings.
     """
-
-    # Ensure files contain more than 0 sequences
-    args = parser.parse_args()
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-
-    # Set the reference data file prefix and the reference tree name
-    if args.reftree == 'g':
-        args.reference_data_prefix = 'geba_'
-        args.reference_tree = 'geba.tree'
-    elif args.reftree == 'i':
-        args.reference_data_prefix = 'fungi_'
-        args.reference_tree = 'fungitr_tree.txt'
-    elif args.reftree == 'p':
-        args.reference_data_prefix = ''
-        args.reference_tree = 'MLTreeMap_reference.tree'
-    else:
-        args.reference_data_prefix = ''
-        args.reference_tree = args.reftree
-
-    args.targets = args.targets.split(',')
-    if args.targets != ['ALL']:
-        for marker in args.targets:
-            if not re.match('[A-Z][0-9]{4}', marker):
-                sys.stderr.write("ERROR: Incorrect format for target: " + str(marker) +
-                                 "\nRefer to column 'Denominator' in " + args.treesapp + "data/tree_data/" +
-                                 "cog_list.tsv for identifiers that can be used.\n")
-                sys.exit()
-
-    args = find_executables(args)
 
     # Add (or replace a trailing (back)slash with) the os.sep to the end of the output directory
     while re.search(r'/\Z', args.output) or re.search(r'\\\Z', args.output):
         args.output = args.output[:-1]
     args.output += os.sep
+    if not os.path.isdir(args.output):
+        os.makedirs(args.output)
+
+    # Setup the global logger and main log file
+    log_file_name = args.output + os.sep + "TreeSAPP_log.txt"
+    prep_logging(log_file_name, args.verbose)
+
+    # Ensure files contain more than 0 sequences
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+
+    # Set the reference data file prefix and the reference tree name
+    args.reference_data_prefix = ''
+    args.reference_tree = args.reftree
+
+    args.targets = args.targets.split(',')
+    if args.targets != ['ALL']:
+        for marker in args.targets:
+            if not re.match('[A-Z][0-9]{4}', marker):
+                logging.error("Incorrect format for target: " + str(marker) +
+                              "\nRefer to column 'Denominator' in " + args.treesapp + "data/tree_data/" +
+                              "cog_list.tsv for identifiers that can be used.\n")
+                sys.exit()
+
+    args = find_executables(args)
 
     if sys.version_info > (2, 9):
         args.py_version = 3
@@ -181,21 +177,20 @@ def check_parser_arguments(parser):
     genewise_support = treesapp_dir + os.sep + 'genewise_support_files' + os.sep
 
     if args.num_threads > available_cpu_count():
-        sys.stderr.write("WARNING: Number of threads specified is greater than those available! "
-                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
-        sys.stderr.flush()
+        logging.warning("Number of threads specified is greater than those available! "
+                        "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         args.num_threads = available_cpu_count()
 
     if args.rpkm:
         if not args.reads:
-            sys.stderr.write("ERROR: At least one FASTQ file must be provided if -rpkm flag is active!")
+            logging.error("At least one FASTQ file must be provided if -rpkm flag is active!")
             sys.exit()
         if args.reverse and not args.reads:
-            sys.stderr.write("ERROR: File containing reverse reads provided but forward mates file missing!")
+            logging.error("File containing reverse reads provided but forward mates file missing!")
             sys.exit()
 
     if args.molecule == "prot" and args.rpkm:
-        sys.stderr.write("ERROR: Unable to calculate RPKM values for protein sequences.\n")
+        logging.error("Unable to calculate RPKM values for protein sequences.\n")
         sys.exit()
 
     # Parameterizing the hmmsearch output parsing:
@@ -206,13 +201,6 @@ def check_parser_arguments(parser):
     return args
 
 
-def get_response(py_version, response_string=""):
-    if py_version == 3:
-        return input(response_string)
-    if py_version == 2:
-        return raw_input(response_string)
-
-
 def check_previous_output(args):
     """
     Prompts the user to determine how to deal with a pre-existing output directory.
@@ -221,21 +209,15 @@ def check_previous_output(args):
     :return An updated version of 'args', a summary of TreeSAPP settings.
     """
 
-    # delete previous output folders by force
-    if args.overwrite:
-        if path.exists(args.output):
-            sys.stderr.write("WARNING: Removing previous outputs in '" + args.output + "'.")
-            sys.stderr.write(" You have 3 seconds to hit Ctrl-C before this proceeds... ")
-            sys.stderr.flush()
-            time.sleep(3)
-            sys.stderr.write("boom.\n")
-            shutil.rmtree(args.output)
-
+    main_output_dirs = [args.output_dir_var, args.output_dir_raxml, args.output_dir_final]
     args.skip = 'n'
-    if path.exists(args.output):
+
+    if os.path.isdir(args.output_dir_final) and args.overwrite:
+        for output_dir in main_output_dirs:
+            shutil.rmtree(output_dir)
+            os.mkdir(output_dir)
+    elif os.path.isdir(args.output_dir_final) and not args.overwrite:
         workflows = list()
-        sys.stdout.write("TreeSAPP output directory '" + args.output + "' already exists... ")
-        sys.stdout.flush()
         if args.update_tree:
             if os.path.isfile(args.output_dir_final + os.sep + "marker_contig_map.tsv"):
                 args.skip = 'y'
@@ -259,230 +241,24 @@ def check_previous_output(args):
                 else:
                     sys.stderr.write("WARNING: reclassify impossible as " + args.output + " is missing input files.\n")
                     sys.stderr.flush()
-
         else:
-            # Prompt the user to deal with the pre-existing output directory
-            while os.path.isdir(args.output):
-                sys.stdout.write('\nOverwrite [1], quit [2], or change directory [3]?\n')
-                answer = int(get_response(args.py_version))
+            # Warn user then remove all main output directories, leaving log in output
+            logging.warning("Removing previous outputs in '" + args.output + "'. " +
+                            "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
+            time.sleep(10)
+            for output_dir in main_output_dirs:
+                shutil.rmtree(output_dir)
+                os.mkdir(output_dir)
 
-                while not answer == 1 and not answer == 2 and not answer == 3:
-                    answer = int(get_response(args.py_version, 'Invalid input. Please choose 1, 2, or 3.\n'))
-                if answer == 1:
-                    sys.stdout.write('Do you really want to overwrite the old output directory?\n')
-                    sys.stdout.write('All data in it will be lost!\n')
-                    answer2 = get_response(args.py_version, 'Yes [y] or no [n]? \n')
-                    while not answer2 == 'y' and not answer2 == 'n':
-                        answer2 = get_response(args.py_version, 'Invalid input. Please choose y or n.\n')
-                    if answer2 == 'y':
-                        shutil.rmtree(args.output)
-                    else:
-                        sys.exit('Exit TreeSAPP\n')
-                elif answer == 2:
-                    sys.exit('Exit TreeSAPP\n')
-                else:
-                    args.output = get_response(args.py_version, 'Please enter the path to the new directory.\n')
         if len(workflows) >= 1:
             sys.stdout.write(','.join(workflows) + ".\n")
             sys.stdout.flush()
-    
-    # Create the output directories
-    if not os.path.isdir(args.output):
-        os.makedirs(args.output)
-        os.mkdir(args.output_dir_var)
-        os.mkdir(args.output_dir_raxml)
-        os.mkdir(args.output_dir_final)
+    else:
+        # Create the output directories
+        for output_dir in main_output_dirs:
+            os.mkdir(output_dir)
 
     return args
-
-
-def parse_cog_list(args, marker_build_dict):
-    """
-    Loads the TreeSAPP COG list file into marker_build_dict and check that the args.reftree exists
-    :param args: The command-line and default arguments object
-    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
-    :return: marker_build_dict with updated information
-    """
-    cog_list_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
-    cog_input_list = open(cog_list_file, 'r', encoding="latin1")
-    if args.reftree not in ['i', 'p', 'g']:
-        alignment_set = ''
-    else:
-        alignment_set = args.reftree
-    # Load lines from the COG list file and close
-    cog_list_lines = [x.strip() for x in cog_input_list.readlines()]
-    # Close the COG list file
-    cog_input_list.close()
-
-    for marker_input in cog_list_lines:
-        if re.match(r'\A#', marker_input):
-            continue
-
-        if not re.match(r'\w+\t[A-Z][0-9]{4}\t\w+', marker_input):
-            sys.stderr.write("ERROR: entry in cog_list.tsv is incorrectly formatted! Violating line:\n")
-            sys.stderr.write(str(marker_input) + "\n")
-            sys.stderr.flush()
-            sys.exit()
-
-        marker, denominator, description = marker_input.split("\t")
-        if args.targets != ["ALL"] and denominator not in args.targets:
-            continue
-
-        for ref_code in marker_build_dict:
-            if denominator == ref_code:
-                marker_build_dict[denominator].description = description
-                if description == "phylogenetic_cogs":
-                    marker_build_dict[denominator].kind = "phylogenetic_cogs"
-                elif description == "rRNA_marker":
-                    marker_build_dict[denominator].kind = "phylogenetic_rRNA_cogs"
-                else:
-                    marker_build_dict[denominator].kind = "functional_cogs"
-
-    if args.reftree not in ['i', 'g', 'p'] and args.reftree not in marker_build_dict.keys():
-        sys.stderr.write("ERROR: " + args.reftree + " not found in " + cog_list_file +
-                         "! Please use a valid reference tree ID!\n")
-        sys.stderr.flush()
-        sys.exit()
-    return marker_build_dict
-
-
-def create_cog_list(args):
-    """
-    Loads the TreeSAPP COG list file and check that the args.reftree exists
-    :param args: The command-line and default arguments object
-    :return: An autovivification of the COGs in cog_list.tsv. This also includes their short-form name (termed
-    denominator e.g. M0101, C0012, U0401) and a list of output text precursors based on the analysis type.
-    The denominator is equal to the command-line reference tree specifier argument (p, g, or i) if phylogenetic COGs
-    """
-    cog_list = Autovivify()
-    text_of_analysis_type = Autovivify()
-    cog_list_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'cog_list.tsv'
-    cog_input_list = open(cog_list_file, 'r', encoding="latin1")
-    if args.reftree not in ['i', 'p', 'g']:
-        alignment_set = ''
-    else:
-        alignment_set = args.reftree
-
-    # For each line in the COG list file...
-
-    cog_list_lines = [x.strip() for x in cog_input_list.readlines()]
-    # Close the COG list file
-    cog_input_list.close()
-
-    for cog_input in cog_list_lines:
-        # Get the kind of COG if cog_input is a header line
-        if re.match(r'\A#', cog_input):
-            continue
-
-        if not re.match(r'\w+\t[A-Z][0-9]{4}\t\w+', cog_input):
-            sys.stderr.write("ERROR: entry in cog_list.tsv is incorrectly formatted! Violating line:\n")
-            sys.stderr.write(str(cog_input) + "\n")
-            sys.stderr.flush()
-            sys.exit()
-
-        marker, denominator, description = cog_input.split("\t")
-        if args.targets != ["ALL"] and denominator not in args.targets:
-            continue
-        if description == "phylogenetic_cogs":
-            kind_of_cog = "phylogenetic_cogs"
-        elif description == "rRNA_marker":
-            kind_of_cog = "phylogenetic_rRNA_cogs"
-        else:
-            kind_of_cog = "functional_cogs"
-
-        # Add data to COG list based on the kind of COG it is
-        if kind_of_cog == 'phylogenetic_cogs':
-            cog_list[kind_of_cog][marker] = alignment_set
-            cog_list['all_cogs'][marker] = alignment_set
-            text_inset = ''
-            if alignment_set == 'g':
-                text_inset = ' based on the GEBA reference'
-            if alignment_set == 'i':
-                text_inset = ' focusing only on fungi'
-            text_of_analysis_type[alignment_set] = 'Phylogenetic analysis' + text_inset + ':'
-        elif kind_of_cog == 'phylogenetic_rRNA_cogs':
-            cog_list[kind_of_cog][marker] = denominator
-            cog_list['all_cogs'][marker] = denominator
-            text_of_analysis_type[denominator] = 'Phylogenetic analysis, ' + description + ':'
-        elif kind_of_cog == 'functional_cogs':
-            cog_list[kind_of_cog][marker] = denominator
-            cog_list['all_cogs'][marker] = denominator
-            text_of_analysis_type[denominator] = 'Functional analysis, ' + description + ':'
-
-    if args.reftree not in ['i', 'g', 'p']:
-        if args.reftree not in cog_list['all_cogs'].values():
-            sys.stderr.write("ERROR: " + args.reftree +
-                             " not found in " + cog_list_file + "! Please use a valid reference tree ID!\n")
-            sys.stderr.flush()
-            sys.exit()
-
-    return cog_list, text_of_analysis_type
-
-
-def single_cog_list(reftree, cog_list, text_of_analysis_type):
-    """
-    Copies the relevant information from the cog_list and text_of_analysis_type to new dictionaries
-    :param reftree: The reference gene family
-    :param cog_list: The vivification of cog names, reference names, and their respective type
-    :param text_of_analysis_type: Mapping of cogs and analysis type based on their type
-    :return: Pared down versions of cog_list and text_of_analysis_type containing only information of gene
-    """
-    new_list = Autovivify()
-    single_text_analysis = Autovivify()
-
-    # Parse the cog_list
-    for cog_type in cog_list:
-        for cog in cog_list[cog_type]:
-            denominator = cog_list[cog_type][cog]
-            if denominator == reftree:
-                new_list[cog_type][cog] = denominator
-                break
-
-    # Parse the text_of_analysis_type
-    for denominator in text_of_analysis_type:
-        analysis = text_of_analysis_type[denominator]
-        if denominator == reftree:
-            single_text_analysis[denominator] = analysis
-            break
-
-    return new_list, single_text_analysis
-
-
-def calculate_overlap(info):
-    """
-    Returns the overlap length of the base and the check sequences.
-    :param info: Autovivify() object holding start and end sequence coordinates for overlapping sequences
-    :return overlap: The number of overlapping bases between the sequences
-    """
-
-    overlap = 0
-    base_start = info['base']['start']
-    base_end = info['base']['end']
-    check_start = info['check']['start']
-    check_end = info['check']['end']
-
-    # Calculate the overlap based on the relative positioning of the base and check sequences
-    assert isinstance(base_end, (int, int, float, complex))
-    if base_start <= check_start:
-        if check_end >= base_end >= check_start:
-            # Base     ----
-            # Check      -------
-            overlap = base_end - check_start
-        elif check_end <= base_end:
-            # Base     --------
-            # Check        --
-            overlap = check_end - check_start
-    elif check_start <= base_start:
-        if base_start <= check_end <= base_end:
-            # Base         -----
-            # Check    -----
-            overlap = check_end - base_start
-        elif base_end <= check_end:
-            # Base       --
-            # Check    --------
-            overlap = base_end - base_start
-
-    return overlap 
 
 
 def get_hmm_length(hmm_file):
@@ -527,9 +303,7 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     # Needs a path to write the temporary unaligned FASTA file
     generate_blast_database(args, ref_fasta, "prot", db_prefix)
 
-    if args.verbose:
-        sys.stdout.write("Aligning the candidate sequences to the current reference sequences using blastp... ")
-        sys.stdout.flush()
+    logging.info("Aligning the candidate sequences to the current reference sequences using blastp... ")
 
     align_cmd = [args.executables["blastp"]]
     align_cmd += ["-query", new_ref_queries]
@@ -546,8 +320,7 @@ def align_ref_queries(args, new_ref_queries, update_tree):
         if os.path.isfile(db_prefix + ".fa" + db_file):
             os.remove(db_prefix + ".fa" + db_file)
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
     return alignments
 
@@ -619,6 +392,7 @@ def validate_inputs(args, marker_build_dict):
 def run_blast(args, split_files, cog_list):
     """
     Runs the BLAST algorithm on each of the split input files.
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param cog_list: Dictionary containing cog identifiers sorted into their classes
     :param split_files: List of all files that need to be individually used for BLAST calls
@@ -627,8 +401,7 @@ def run_blast(args, split_files, cog_list):
     sys.stdout.write("Running BLAST... ")
     sys.stdout.flush()
 
-    if args.verbose:
-        start_time = time.time()
+    start_time = time.time()
 
     excluded_cogs = list()
 
@@ -717,12 +490,11 @@ def run_blast(args, split_files, cog_list):
 
     sys.stdout.write("done.\n")
 
-    if args.verbose:
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tBLAST time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    end_time = time.time()
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tBLAST time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return
 
@@ -737,8 +509,8 @@ def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
     stdout, proc_code = launch_write_command(prodigal_command)
 
     if proc_code != 0:
-        sys.stderr.write("ERROR: Prodigal did not complete successfully!\n")
-        sys.stderr.write("Command used:\n" + ' '.join(prodigal_command), "err", "\n")
+        logging.error("Prodigal did not complete successfully!\n" +
+                      "Command used:\n" + ' '.join(prodigal_command), "err", "\n")
         sys.exit(3)
     return
 
@@ -746,19 +518,19 @@ def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
 def predict_orfs(args):
     """
     Predict ORFs from the input FASTA file using Prodigal
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :return:
     """
 
-    sys.stdout.write("Predicting open-reading frames in the genomes using Prodigal... ")
-    sys.stdout.flush()
+    logging.info("Predicting open-reading frames in the genomes using Prodigal... ")
 
     start_time = time.time()
 
     sample_prefix = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
     if args.num_threads > 1 and args.composition == "meta":
         # Split the input FASTA into num_threads files to run Prodigal in parallel
-        input_fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args)
+        input_fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output)
         n_seqs = len(input_fasta_dict.keys())
         chunk_size = int(n_seqs / args.num_threads) + (n_seqs % args.num_threads)
         split_files = write_new_fasta(input_fasta_dict,
@@ -798,56 +570,52 @@ def predict_orfs(args):
         for tmp_file in intermediate_files:
             os.remove(tmp_file)
 
-    sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
     args.fasta_input = aa_orfs_file
     args.nucleotide_orfs = nuc_orfs_file
 
-    if args.verbose and start_time:
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tProdigal time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    end_time = time.time()
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tProdigal time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return args
 
 
-def hmmsearch_orfs(args, cog_list, marker_build_dict):
-    # TODO: integrate marker molecule type information to decide whether the HMM analyzes the protein or DNA ORFs
+def hmmsearch_orfs(args, marker_build_dict):
     hmm_domtbl_files = list()
     nucl_target_hmm_files = list()
     prot_target_hmm_files = list()
-    # TODO: do something with excluded_markers
-    excluded_markers = list()
 
     # Find all of the available HMM profile files
     hmm_dir = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep
     try:
         os.path.isdir(hmm_dir)
     except IOError:
-        sys.stderr.write("ERROR: " + hmm_dir + "does not exist!")
-        sys.stderr.flush()
-        sys.exit()
+        logging.error(hmm_dir + "does not exist!")
+        sys.exit(3)
     hmm_files = glob.glob(hmm_dir + "*.hmm")
 
-    # Filter the HMM files to only the target markers
-    for hmm_profile in hmm_files:
-        marker = os.path.basename(hmm_profile).split('.')[0]
-        if marker in cog_list["all_cogs"].keys():
-            if marker in cog_list["phylogenetic_rRNA_cogs"]:
-                nucl_target_hmm_files.append(hmm_profile)
-            else:
-                prot_target_hmm_files.append(hmm_profile)
-        else:
-            excluded_markers.append(marker)
-
     if len(hmm_files) == 0:
-        sys.stderr.write("ERROR: Directory containing HMM files is empty,"
-                         " or at least contains no files with a '.hmm' extension.\n")
-        sys.exit(9)
+        logging.error(hmm_dir + "does not contain any files with '.hmm' extension... so no HMMs.\n")
+        sys.exit(3)
+
+    # Filter the HMM files to only the target markers
+    for marker_code in marker_build_dict:
+        ref_marker = marker_build_dict[marker_code]
+        hmm_profile = hmm_dir + ref_marker.cog + ".hmm"
+        if hmm_profile not in hmm_files:
+            logging.error("Unable to locate HMM-profile for " + ref_marker.cog + "(" + marker_code + ").\n")
+        else:
+            if ref_marker.molecule == "prot":
+                prot_target_hmm_files.append(hmm_profile)
+            else:
+                nucl_target_hmm_files.append(hmm_profile)
+
     acc = 0.0
-    sys.stdout.write("Searching for marker proteins in ORFs using hmmsearch.\n")
+    logging.info("Searching for marker proteins in ORFs using hmmsearch.\n")
     step_proportion = setup_progress_bar(len(prot_target_hmm_files) + len(nucl_target_hmm_files))
 
     # Create and launch the hmmsearch commands iteratively.
@@ -863,10 +631,9 @@ def hmmsearch_orfs(args, cog_list, marker_build_dict):
         final_hmmsearch_command += [hmm_file, args.formatted_input_file]
         stdout, ret_code = launch_write_command(final_hmmsearch_command)
         if ret_code != 0:
-            sys.stderr.write("ERROR: hmmsearch did not complete successfully!\n")
-            sys.stderr.write(stdout + "\n")
-            sys.stderr.write("Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
-            sys.exit()
+            logging.error("hmmsearch did not complete successfully! Output:\n" + stdout + "\n" +
+                          "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
+            sys.exit(3)
 
         # Update the progress bar
         acc += 1.0
@@ -880,65 +647,89 @@ def hmmsearch_orfs(args, cog_list, marker_build_dict):
     return hmm_domtbl_files
 
 
-def extract_hmm_matches(args, hmm_matches, fasta_dict, cog_list):
+def extract_hmm_matches(args, hmm_matches, fasta_dict):
     """
     Function writes the sequences identified by the HMMs to output files in FASTA format.
-    One file contains all sequences identified for a marker.
-    The second file type contains a single sequence identified by the HMM.
-        This one is used for inserting the putative marker sequences into the reference trees.
+    FASTA files containing full-length queries for every sequence containing a region homologous to a marker are made
+        One has numeric index headers and is used for downstream phylogenetic placement
+        The second contains the actual contig headers with marker, start, and end positions included
+    The negative integers (or numeric indexes) are stored in a dictionary and returned
+
     :param args:
     :param hmm_matches:
     :param fasta_dict:
-    :param cog_list:
-    :return:
+    :return: List of files that go on to placement stage, dictionary mapping marker-specific numbers to contig names
     """
-    sys.stdout.write("Extracting the quality-controlled protein sequences... ")
-    sys.stdout.flush()
+    logging.info("Extracting the quality-controlled protein sequences... ")
     hmmalign_input_fastas = list()
     marker_gene_dict = dict()
+    numeric_contig_index = dict()
+    trimmed_query_groups = dict()
     for marker in hmm_matches:
+        if marker not in numeric_contig_index.keys():
+            numeric_contig_index[marker] = dict()
+        numeric_decrementor = -1
         if marker not in marker_gene_dict:
             marker_gene_dict[marker] = dict()
 
+        trimmed_query_groups.clear()
+        i = args.perc_aligned
+        while i <= 100:
+            trimmed_query_groups[i] = ""
+            i += 5
+
         for hmm_match in hmm_matches[marker]:
-            denominator = cog_list["all_cogs"][hmm_match.target_hmm]
             if hmm_match.desc != '-':
                 contig_name = hmm_match.orf + '_' + hmm_match.desc
             else:
                 contig_name = hmm_match.orf
-            f_contig = denominator + "_" + contig_name
-            marker_query_fa = args.output_dir_var + f_contig + '_' + \
-                              str(hmm_match.start) + "_" + str(hmm_match.end) + "_" + hmm_match.target_hmm + ".fa"
-            hmmalign_input_fastas.append(marker_query_fa)
-            try:
-                outfile = open(marker_query_fa, 'w')
-            except IOError:
-                sys.stderr.write('Can\'t create ' + marker_query_fa + '\n')
-                sys.exit(0)
+            # Add the query sequence to the index map
+            orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
+            proportion = round(float((int(hmm_match.pend) - int(hmm_match.pstart)) * 100) / int(hmm_match.hmm_len))
+            numeric_contig_index[marker][numeric_decrementor] = contig_name + '_' + orf_coordinates
+            # Add the FASTA record of the trimmed sequence - this one moves on for placement
             full_sequence = fasta_dict[reformat_string('>' + contig_name)]
-            fprintf(outfile, '>query\n%s', full_sequence[hmm_match.start-1:hmm_match.end])
-            outfile.close()
+
+            i = args.perc_aligned
+            while proportion > i:
+                i += 5
+            trimmed_query_groups[i] += '>' + str(numeric_decrementor) + "\n" + \
+                                         full_sequence[hmm_match.start - 1:hmm_match.end] + "\n"
 
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
             bulk_header = '>' + contig_name + '|' +\
                           hmm_match.target_hmm + '|' +\
-                          str(hmm_match.start) + '_' + str(hmm_match.end)
-            marker_gene_dict[marker][bulk_header] = full_sequence
-    sys.stdout.write("done.\n")
+                          orf_coordinates
+            marker_gene_dict[marker][bulk_header] = full_sequence[hmm_match.start-1:hmm_match.end]
+            numeric_decrementor -= 1
+
+        # Write all the homologs to the FASTA file
+        for group in trimmed_query_groups:
+            if trimmed_query_groups[group]:
+                marker_query_fa = args.output_dir_var + marker + "_hmm_purified_group" + str(group) + ".faa"
+                try:
+                    homolog_seq_fasta = open(marker_query_fa, 'w')
+                except IOError:
+                    logging.error("Unable to open " + marker_query_fa + " for writing.\n")
+                    sys.exit(3)
+                hmmalign_input_fastas.append(marker_query_fa)
+                homolog_seq_fasta.write(trimmed_query_groups[group])
+                homolog_seq_fasta.close()
+    logging.info("done.\n")
 
     # Now write a single FASTA file with all identified markers
     for marker in marker_gene_dict:
-        bulk_output_fasta = args.output_dir_final + marker + "_hmm_purified.fasta"
-        if args.verbose:
-            sys.stdout.write("\tWriting " + marker + " sequences to " + bulk_output_fasta + "\n")
-        write_new_fasta(marker_gene_dict[marker], bulk_output_fasta)
-    return hmmalign_input_fastas
+        trimmed_hits_fasta = args.output_dir_final + marker + "_hmm_purified.faa"
+        logging.debug("\tWriting " + marker + " sequences to " + trimmed_hits_fasta + "\n")
+        write_new_fasta(marker_gene_dict[marker], trimmed_hits_fasta)
+    return hmmalign_input_fastas, numeric_contig_index
 
  
 def collect_blast_outputs(args):
     """
     Deletes empty BLAST results files.
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     Returns a list of non-empty BLAST results files.
     """
@@ -957,286 +748,10 @@ def collect_blast_outputs(args):
             blast_tables.pop()
 
     if total_size <= 0:
-        sys.stdout.write("No marker genes detected in input! Exiting...\n")
-        sys.exit(-4)
+        logging.error("No marker genes detected in input! Exiting...\n")
+        sys.exit(3)
 
     return blast_tables
-
-
-def parse_blast_results(args, blast_tables, cog_list):
-    """
-    Returns an Autovivification of purified (eg. non-redundant) BLAST hits.
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param blast_tables: file produced by BLAST alignment
-    :param cog_list: list of COGs included in analysis pipeline
-    """
-
-    sys.stdout.write("Parsing BLAST results... ")
-    sys.stdout.flush()
-
-    # reg_cog_id = re.compile(r'.*(.{5})\Z')
-    counter = 0
-    purified_blast_hits = Autovivify()
-    contigs = {}
-    hit_logger = dict()
-    alignment_count = 0
-
-    for blast_table in blast_tables:
-        try:
-            blast_results = open(blast_table, 'r')
-        except IOError:
-            sys.stderr.write("\nERROR: Cannot open BLAST output file " + blast_table + "\n")
-            sys.exit(5)
-
-        identifier = 0
-        for line in blast_results:
-            # Clear variables referencing the contig, COG, qstart, qend, reference start, reference end, and bitscore
-            # Interpret the BLAST hit, and assign the details accordingly
-            alignment_count += 1
-            temp_contig, temp_detailed_cog, _, _, _, _, temp_query_start, temp_query_end, temp_ref_start, temp_ref_end, _, temp_bitscore = line.split('\t')
-            temp_ref_end = int(temp_ref_end)
-            temp_ref_start = int(temp_ref_start)
-            temp_query_end = int(temp_query_end)
-            temp_query_start = int(temp_query_start)
-            temp_bitscore = float(temp_bitscore)
-
-            # Skip to next BLAST hit if bit score is less than user-defined minimum
-            if temp_bitscore <= args.bitscore:
-                continue
-
-            # Determine the direction of the hit relative to the reference
-            direction = 'forward'
-            if temp_ref_start > temp_ref_end:
-                temp = temp_ref_start
-                temp_ref_start = temp_ref_end
-                temp_ref_end = temp
-                direction = 'reverse'
-            if temp_query_start > temp_query_end:
-                temp = temp_query_start
-                temp_query_start = temp_query_end
-                temp_query_end = temp
-                if direction == 'reverse':
-                    sys.stderr.write("ERROR: Confusing BLAST result!\n")
-                    sys.stderr.write("Please notify the authors about " +
-                                     temp_contig + ' at ' +
-                                     temp_detailed_cog +
-                                     " q(" + str(temp_query_end) + '..' + str(temp_query_start) + ")," +
-                                     " r(" + str(temp_ref_end) + '..' + str(temp_ref_start) + ")")
-                    sys.stderr.flush()
-                    sys.exit()
-                direction = 'reverse'
-
-            # This limitation is so-far not necessary
-            # result = reg_cog_id.match(temp_detailed_cog)
-            # if result:
-            #     tempCOG = result.group(1)
-            result = '_'.join(temp_detailed_cog.split('_')[1:])
-            if result:
-                tempCOG = result
-            else:
-                sys.exit('ERROR: Could not detect the COG of sequence ' + temp_detailed_cog)
-
-            # Save contig details to the list
-            if temp_contig not in contigs:
-                contigs[temp_contig] = {}
-
-            if identifier not in contigs[temp_contig]:
-                contigs[temp_contig][identifier] = {}
-
-            contigs[temp_contig][identifier]['bitscore'] = temp_bitscore
-            contigs[temp_contig][identifier]['cog'] = tempCOG
-            contigs[temp_contig][identifier]['seq_start'] = temp_query_start
-            contigs[temp_contig][identifier]['seq_end'] = temp_query_end
-            contigs[temp_contig][identifier]['direction'] = direction
-            contigs[temp_contig][identifier]['validity'] = True
-            identifier += 1
-
-        # Close the file
-        blast_results.close()
-
-    # Purify the BLAST hits
-    # For each contig sorted by their string-wise comparison...
-    for contig in sorted(contigs.keys()):
-        identifier = 0
-
-        # create tuple array to sort
-        IDs = []
-        for raw_identifier in sorted(contigs[contig].keys()):
-            base_start = contigs[contig][raw_identifier]['seq_start']
-            IDs.append((raw_identifier, base_start))
-        _IDs = sorted(IDs, key=lambda x: x[1])
-        IDs = [x[0] for x in _IDs]
-
-        base_blast_result_raw_identifier = IDs.pop()
-        contigs[contig][base_blast_result_raw_identifier]['validity'] = True
-        base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
-        base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
-        base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
-        base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
-        direction = contigs[contig][base_blast_result_raw_identifier]['direction']
-        base_length = base_end - base_start
-
-        # Compare the BLAST hit (base) against all others
-        # There may be several opinions about how to do this. This way is based on the original MLTreeMap
-        # ----A----  --C--
-        #        ---B---
-        # A kills B, B kills C. (Another approach would be to let C live,
-        # but the original MLTreeMap authors don't expect C to be useful)
-        for check_blast_result_raw_identifier in IDs:
-            check_bitscore = contigs[contig][check_blast_result_raw_identifier]['bitscore']
-            check_cog = contigs[contig][check_blast_result_raw_identifier]['cog']
-            check_start = contigs[contig][check_blast_result_raw_identifier]['seq_start']
-            check_end = contigs[contig][check_blast_result_raw_identifier]['seq_end']
-            check_length = check_end - check_start
-
-            # Compare the base and check BLAST hits
-            info = Autovivify()
-            info['base']['start'] = base_start
-            info['base']['end'] = base_end
-            info['check']['start'] = check_start
-            info['check']['end'] = check_end
-            overlap = calculate_overlap(info)
-            counter += 1
-
-            # Check for validity for hits with overlap
-            if overlap == 0:
-                base_blast_result_raw_identifier = check_blast_result_raw_identifier
-                base_bitscore = check_bitscore
-                base_cog = check_cog
-                base_start = check_start
-                base_end = check_end
-                base_length = check_length
-                contigs[contig][base_blast_result_raw_identifier]['validity'] = True
-            else:
-                if overlap > 0.5*base_length and base_bitscore < check_bitscore:
-                    contigs[contig][base_blast_result_raw_identifier]['validity'] = False
-                    base_blast_result_raw_identifier = check_blast_result_raw_identifier
-                    base_bitscore = check_bitscore
-                    base_cog = check_cog
-                    base_start = check_start
-                    base_end = check_end
-                    base_length = check_length
-                    contigs[contig][base_blast_result_raw_identifier]['validity'] = True
-                elif overlap > 0.5*check_length and check_bitscore < base_bitscore:
-                    contigs[contig][check_blast_result_raw_identifier]['validity'] = False
-                elif base_start == check_start and base_end == check_end:
-                    # If both are the same, keep only the one with the smaller identifier
-                    if check_blast_result_raw_identifier > base_blast_result_raw_identifier:
-                        contigs[contig][check_blast_result_raw_identifier]['validity'] = False
-
-        # Set validity to 0 if COG is not in list of TreeSAPP COGs
-        if base_cog not in cog_list['all_cogs']:
-            contigs[contig][base_blast_result_raw_identifier]['validity'] = False
-            if args.verbose:
-                sys.stderr.write("WARNING: " + base_cog + " not in list of TreeSAPP markers")
-                sys.stderr.flush()
-
-        # Save purified hits for valid base hits
-        for base_blast_result_raw_identifier in IDs:
-            base_bitscore = contigs[contig][base_blast_result_raw_identifier]['bitscore']
-            base_cog = contigs[contig][base_blast_result_raw_identifier]['cog']
-            base_start = contigs[contig][base_blast_result_raw_identifier]['seq_start']
-            base_end = contigs[contig][base_blast_result_raw_identifier]['seq_end']
-            direction = contigs[contig][base_blast_result_raw_identifier]['direction']
-            if contigs[contig][base_blast_result_raw_identifier]['validity']:
-                purified_blast_hits[contig][identifier]['bitscore'] = base_bitscore
-                purified_blast_hits[contig][identifier]['cog'] = base_cog
-                purified_blast_hits[contig][identifier]['start'] = base_start
-                purified_blast_hits[contig][identifier]['end'] = base_end
-                purified_blast_hits[contig][identifier]['direction'] = direction
-                purified_blast_hits[contig][identifier]['is_already_placed'] = False
-                identifier += 1
-
-    # Print the BLAST results for each contig
-    for contig in sorted(purified_blast_hits.keys()):
-        outfile = args.output_dir_var + contig + '_blast_result_purified.txt'
-        out = open(outfile, 'w')
-        sorting_hash = {}
-
-        # Identify the first instance of each bitscore
-        for identifier in sorted(purified_blast_hits[contig].keys()):
-            if not purified_blast_hits[contig][identifier]['bitscore'] in sorting_hash:
-                sorting_hash[purified_blast_hits[contig][identifier]['bitscore']] = {}
-            sorting_hash[purified_blast_hits[contig][identifier]['bitscore']][identifier] = 1
-
-        # Print the (potentially reduced set of) BLAST results ordered by decreasing bitscore
-        for bitscore in sorted(sorting_hash.keys(), reverse=True):
-            for identifier in sorted(sorting_hash[bitscore]):
-                marker = purified_blast_hits[contig][identifier]['cog']
-                if marker not in hit_logger:
-                    hit_logger[marker] = 0
-                hit_logger[marker] += 1
-                out.write(contig + '\t' + str(purified_blast_hits[contig][identifier]['start']) + '\t' +
-                          str(purified_blast_hits[contig][identifier]['end']) + '\t' +
-                          str(purified_blast_hits[contig][identifier]['direction']) + '\t' +
-                          purified_blast_hits[contig][identifier]['cog'] + '\t' + str(bitscore) + '\n')
-
-        out.close()
-    sys.stdout.write("done.\n")
-
-    if args.verbose:
-        sys.stdout.write("\t" + str(alignment_count) + " intial BLAST alignments found.\n")
-        total = 0
-        for n in hit_logger.values():
-            total += n
-        sys.stdout.write("\t" + str(total) + " purified BLAST alignments:\n")
-        for marker in hit_logger:
-            sys.stdout.write("\t\t" + str(hit_logger[marker]) + " " + marker + "\n")
-        sys.stdout.flush()
-
-    return purified_blast_hits
-
-
-def blastp_parser(args, blast_hits_purified):
-    """
-    For each contig, produces a file similar to the Genewise output file
-    (this is in cases where Genewise is unnecessary because it is already an AA sequence.
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param blast_hits_purified: Parsed blastp outputs
-    :return blastp_summary_files: Autovivification of the output file for each contig.
-    """
-
-    blastp_summary_files = Autovivify()
-
-    reg_header = re.compile(r'\A>')
-
-    for contig in sorted(blast_hits_purified.keys()):
-        output_file = args.output_dir_var + contig + '_blast_result_summary.txt'
-        try:
-            output = open(output_file, 'w')
-        except IOError:
-            sys.exit('ERROR: Unable to open ' + output_file + '!\n')
-        blastp_summary_files[contig][output_file] = 1
-        shortened_sequence_file = args.output_dir_var + contig + '_sequence_shortened.txt'
-        try:
-            sequence_file = open(shortened_sequence_file, 'r')
-        except IOError:
-            sys.exit('ERROR: Could not open ' + shortened_sequence_file + '!\n')
-        flag_seq = 0
-        sequence = ''
-
-        # Get the sequence from the shortened sequence file
-        for line in sequence_file:
-            if reg_header.search(line):
-                if flag_seq == 1:
-                    sys.exit('ERROR: Unexpected multiple shortened sequences found!\n')
-                flag_seq = 1
-                continue
-            else:
-                line.strip()
-                sequence += line
-
-        # Write the output file to imitate the Genewise results
-        for count in sorted(blast_hits_purified[contig].keys()):
-            output.write(str(blast_hits_purified[contig][count]['cog']) + '\t')
-            output.write(str(blast_hits_purified[contig][count]['start']) + '\t')
-            output.write(str(blast_hits_purified[contig][count]['end']) + '\t')
-            output.write(str(blast_hits_purified[contig][count]['direction']) + '\t')
-            output.write(str(sequence) + '\n')
-        sequence_file.close()
-        output.close()
-
-    return blastp_summary_files
 
 
 def make_genewise_inputs(args, blast_hits_purified, formatted_fasta_dict, cog_list):
@@ -1448,11 +963,9 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
     task_list = list()
     dups_skipped = 0
 
-    sys.stdout.write("Running Genewise... ")
-    sys.stdout.flush()
+    logging.info("Running Genewise... ")
 
-    if args.verbose:
-        start_time = time.time()
+    start_time = time.time()
 
     treesapp_dir = args.treesapp + os.sep + 'data' + os.sep
     genewise_support = treesapp_dir + os.sep + 'genewise_support_files' + os.sep
@@ -1487,9 +1000,6 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
             # Check to see if this cog is already going to be searched for on this contig
             if genewise_outputfile in genewise_outputfiles[contig]:
                 dups_skipped += 1
-                # if args.verbose:
-                #     sys.stderr.write("Skipping duplicate genewise command for " + cog + " on " + contig + "\n")
-                #     sys.stderr.flush()
                 continue
             else:
                 genewise_outputfiles[contig][genewise_outputfile] = 1
@@ -1518,15 +1028,15 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
         cl_farmer.task_queue.close()
         cl_farmer.task_queue.join()
 
-    sys.stdout.write("done.\n")
-    if args.verbose:
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tGenewise time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-        sys.stdout.write("\tGenewise was called " + str(num_tasks) + " times.\n")
-        sys.stdout.write("\t" + str(dups_skipped) + " duplicate Genewise calls were skipped.\n")
+    logging.info("done.\n")
+
+    end_time = time.time()
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tGenewise time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    logging.debug("\tGenewise was called " + str(num_tasks) + " times.\n" +
+                  "\t" + str(dups_skipped) + " duplicate Genewise calls were skipped.\n")
 
     # Return the list of output files for each contig
     return genewise_outputfiles
@@ -1541,8 +1051,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
     Returns an Autovivification mapping the summary files to each contig.
     """
 
-    sys.stdout.write("Parsing Genewise outputs... ")
-    sys.stdout.flush()
+    logging.info("Parsing Genewise outputs... ")
 
     genewise_summary_files = Autovivify()
     valid_genewise_sequences = 0
@@ -1728,11 +1237,9 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
         output.close()
 
-    sys.stdout.write("done.\n")
-    sys.stdout.flush()
+    logging.info("done.\n")
 
-    if args.verbose:
-        sys.stdout.write("\t" + str(valid_genewise_sequences) + " valid sequences after Genewise processing.\n\n")
+    logging.debug("\t" + str(valid_genewise_sequences) + " valid sequences after Genewise processing.\n\n")
 
     return genewise_summary_files
 
@@ -1775,11 +1282,9 @@ def detect_ribrna_sequences(args, cog_list, formatted_fasta_dict):
     :param formatted_fasta_dict:
     :return:
     """
-    sys.stdout.write("Retrieving rRNA hits with Infernal... ")
-    sys.stdout.flush()
+    logging.info("Retrieving rRNA hits with Infernal... ")
 
-    if args.verbose:
-        function_start_time = time.time()
+    function_start_time = time.time()
 
     num_rrna = 0
 
@@ -1796,16 +1301,14 @@ def detect_ribrna_sequences(args, cog_list, formatted_fasta_dict):
         num_rrna += len(rrna_seqs.values())
         extract_rrna_sequences(rrna_seqs, rrna_marker, formatted_fasta_dict)
 
-    sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
-    if args.verbose:
-        function_end_time = time.time()
-        hours, remainder = divmod(function_end_time - function_start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\trRNA-identification time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-        sys.stdout.write("\t" + str(num_rrna) + " rRNA sequences found.\n\n")
-        sys.stdout.flush()
+    function_end_time = time.time()
+    hours, remainder = divmod(function_end_time - function_start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\trRNA-identification time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    logging.debug("\t" + str(num_rrna) + " rRNA sequences found.\n\n")
 
     return
 
@@ -1826,15 +1329,13 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
     Returns a list of the rRNA summary files.
     """
 
-    sys.stdout.write("Retrieving rRNA hits... ")
-    sys.stdout.flush()
+    logging.info("Retrieving rRNA hits... ")
 
     contig_rrna_coordinates = Autovivify()
     rRNA_hit_files = {}
     rrna_seqs = 0
 
-    if args.verbose:
-        function_start_time = time.time()
+    function_start_time = time.time()
     
     for contig in sorted(blast_hits_purified.keys()):
         # note: We skipped the Genewise step (we are dealing with rRNA) but we bring the rRNA files in the
@@ -1922,57 +1423,53 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
                 sys.stderr.write("ERROR: Can't create " + args.output_dir_var + contig_name + '_sequence.txt!\n')
                 sys.exit(12)
 
-    sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
-    if args.verbose:
-        function_end_time = time.time()
-        hours, remainder = divmod(function_end_time - function_start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\trRNA-identification time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-        sys.stdout.write("\t" + str(rrna_seqs) + " rRNA sequences found.\n\n")
-        sys.stdout.flush()
+    function_end_time = time.time()
+    hours, remainder = divmod(function_end_time - function_start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\trRNA-identification time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    logging.debug("\t" + str(rrna_seqs) + " rRNA sequences found.\n\n")
 
     return contig_rrna_coordinates, rRNA_hit_files
 
 
 def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbosity, file_type="phylip"):
     alignment_length_dict = dict()
-    for f_contig in concatenated_mfa_files:
-        denominator = f_contig.split('_')[0]
+    for denominator in concatenated_mfa_files:
         if denominator not in ref_alignment_dimensions:
-            sys.stderr.write("ERROR: Unable to parse denominator code from " + f_contig + ".\n")
-            sys.exit(11)
+            logging.error("Unrecognized code '" + denominator + "'.")
         ref_n_seqs, ref_seq_length = ref_alignment_dimensions[denominator]
-        for mfa_file in concatenated_mfa_files[f_contig]:
+        for mfa_file in concatenated_mfa_files[denominator]:
             if file_type == "fasta":
                 num_seqs, sequence_length = validate_multi_aligned_fasta_utility(mfa_file)
             elif file_type == "phylip":
                 num_seqs, sequence_length = validate_phylip_utility(mfa_file)
             else:
-                raise AssertionError("File type '" + file_type + "' is not recognized.")
+                logging.error("File type '" + file_type + "' is not recognized.")
+                sys.exit(3)
 
             alignment_length_dict[mfa_file] = sequence_length
-            if num_seqs != ref_n_seqs+1:
-                raise AssertionError("Unexpected number of sequences in MSA for " + f_contig)
             if verbosity and ref_seq_length*1.5 < sequence_length:
-                sys.stderr.write("\tWARNING: multiple alignment of " + f_contig +
-                                 "\n\tcaused >150% increase in the number of columns:\n\t" +
-                                 str(ref_seq_length) + '->' + str(sequence_length) + "\n")
+                logging.warning("Multiple alignment of " + denominator +
+                                "caused >150% increase in the number of columns (" +
+                                str(ref_seq_length) + '->' + str(sequence_length) + ").\n")
     return alignment_length_dict
 
 
 def validate_phylip_utility(phylip_file):
     """
     Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+
     :param phylip_file: Path of a multiple alignment in Phylip format
     :return: tuple = (nrow, ncolumn)
     """
     try:
         handler = open(phylip_file, 'r')
     except IOError:
-        sys.stderr.write("ERROR: unable to open " + phylip_file + " for reading!\n")
-        sys.exit(13)
+        logging.error("Unable to open " + phylip_file + " for reading!\n")
+        sys.exit(3)
     header = handler.readline()
     num_seqs, sequence_length = [int(x) for x in header.split(' ')]
     seq_counter = 0
@@ -1981,27 +1478,47 @@ def validate_phylip_utility(phylip_file):
         line = line.strip()
         seq_name, sequence = re.sub('\s+', ',', line).split(',')
         if len(sequence) != sequence_length:
-            raise AssertionError("Number of aligned columns is inconsistent in " + phylip_file + "!\n")
+            logging.error("Number of aligned columns is inconsistent in " + phylip_file + "!\n")
         seq_counter += 1
         line = handler.readline()
     handler.close()
-
     if num_seqs != seq_counter:
-        raise AssertionError("Number of sequences in " + phylip_file + " is inconsistent with header!\n")
+        logging.error("Number of sequences in " + phylip_file + " is inconsistent with header!\n")
+    return num_seqs, sequence_length
+
+
+def validate_multiple_alignment_utility(multi_align, file_name):
+    """
+    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+
+    :param multi_align: dictionary of sequence names as keys and sequences as values
+    :param file_name: Name of the file where the multi_align was read from
+    :return: tuple = (nrow, ncolumn)
+    """
+    sequence_length = 0
+    num_seqs = 0
+    for seq_name in multi_align:
+        if sequence_length == 0:
+            sequence_length = len(multi_align[seq_name])
+        elif sequence_length != len(multi_align[seq_name]):
+            logging.error("Number of aligned columns is inconsistent in " + file_name + "!\n")
+            sys.exit(3)
+        num_seqs += 1
     return num_seqs, sequence_length
 
 
 def validate_multi_aligned_fasta_utility(fasta_file):
     """
     Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+
     :param fasta_file: Path of a multiple alignment in FASTA format
     :return: tuple = (nrow, ncolumn)
     """
     try:
         fasta_handler = open(fasta_file, 'r')
     except IOError:
-        sys.stderr.write("ERROR: unable to open " + fasta_file + " for reading!\n")
-        sys.exit(13)
+        logging.error("Unable to open " + fasta_file + " for reading!\n")
+        sys.exit(3)
     sequence = ""
     sequence_length = 0
     num_seqs = 0
@@ -2012,8 +1529,8 @@ def validate_multi_aligned_fasta_utility(fasta_file):
             if sequence_length == 0:
                 sequence_length = len(sequence)
             elif sequence_length != len(sequence) and sequence_length > 0:
-                sys.stderr.write("ERROR: Number of aligned columns is inconsistent in " + fasta_file + "!\n")
-                sys.exit(14)
+                logging.error("Number of aligned columns is inconsistent in " + fasta_file + "!\n")
+                sys.exit(3)
             sequence = ""
             num_seqs += 1
         else:
@@ -2023,42 +1540,42 @@ def validate_multi_aligned_fasta_utility(fasta_file):
     return num_seqs, sequence_length
 
 
-def get_alignment_dims(args, cog_list):
+def get_alignment_dims(args, marker_build_dict):
     alignment_dimensions_dict = dict()
-    alignment_data_dir = args.treesapp + os.sep + 'data' \
-                         + os.sep + args.reference_data_prefix \
-                         + 'alignment_data' + os.sep
+    alignment_data_dir = os.sep.join([args.treesapp, 'data', args.reference_data_prefix + 'alignment_data' + os.sep])
     try:
         os.path.isdir(alignment_data_dir)
     except IOError:
-        sys.stderr.write("ERROR: " + alignment_data_dir + "does not exist!")
-        sys.stderr.flush()
-        sys.exit()
+        logging.error(alignment_data_dir + "does not exist.")
+        sys.exit(3)
+
+    all_markers = [marker_build_dict[marker_code].cog for marker_code in marker_build_dict]
 
     for fasta in glob.glob(alignment_data_dir + "*fa"):
         cog = os.path.basename(fasta).split('.')[0]
-        if cog in cog_list["all_cogs"].keys():
-            alignment_dimensions_dict[cog_list["all_cogs"][cog]] = (validate_multi_aligned_fasta_utility(fasta))
+        if cog in all_markers:
+            for marker_code in marker_build_dict:
+                if marker_build_dict[marker_code].cog == cog:
+                    alignment_dimensions_dict[marker_code] = (validate_multi_aligned_fasta_utility(fasta))
     return alignment_dimensions_dict
 
 
-def multiple_alignments(args, single_query_sequence_files, marker_build_dict):
+def multiple_alignments(args, single_query_sequence_files, marker_build_dict, tool="papara"):
     """
-    The most important inputs are the genewise summary files
+    Wrapper function for the multiple alignment functions - only purpose is to make an easy decision at this point...
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param single_query_sequence_files:
     :param marker_build_dict:
-    :return:
-    1. concatenated_mfa_files is a dictionary of contig: multi_fasta_alignments
-    (for example: {'R0016_GOUB3081.b1': './output/various_outputs/R0016_GOUB3081.b1.mfa'})
-    2. nrs_of_sequences is a dictionary of contig: number of reference sequences
-    (for example: {'R0016_GOUB3081.b1': 177})
-    3. models_to_be_used is a dictionary of contig: model to be used
-    (for example: {'R0016_GOUB3081.b1': 'GTRGAMMA'}
+    :param tool: Tool to use for aligning query sequences to a reference multiple alignment [hmmalign|papara]
+    :return: list of multiple sequence alignment files, generated by `tool`
     """
-    singlehit_files = prepare_and_run_papara(args, single_query_sequence_files, marker_build_dict)
-    # singlehit_files = prepare_and_run_hmmalign(args, single_query_sequence_files, cog_list)
-    # concatenated_mfa_files, nrs_of_sequences = cat_hmmalign_singlehit_files(args, singlehit_files)
+    if tool == "papara":
+        singlehit_files = prepare_and_run_papara(args, single_query_sequence_files, marker_build_dict)
+    elif tool == "hmmalign":
+        singlehit_files = prepare_and_run_hmmalign(args, single_query_sequence_files, marker_build_dict)
+    else:
+        raise AssertionError("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.")
     return singlehit_files
 
 
@@ -2068,17 +1585,23 @@ def create_ref_phy_files(args, single_query_fasta_files, marker_build_dict, ref_
     :param args:
     :param single_query_fasta_files:
     :param marker_build_dict:
+    :param ref_alignment_dimensions:
     :return:
     """
     treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
 
     # Convert the reference sequence alignments to .phy files for every marker identified
     for query_fasta in single_query_fasta_files:
-        denominator = os.path.basename(query_fasta).split('_')[0]
-        ref_alignment_phy = args.output_dir_var + denominator + ".phy"
+        marker = re.match("(.*)_hmm_purified.*", os.path.basename(query_fasta)).group(1)
+        denominator = None
+        for denominator in marker_build_dict.keys():
+            if marker_build_dict[denominator].cog == marker:
+                break
+
+        ref_alignment_phy = args.output_dir_var + marker + ".phy"
         if os.path.isfile(ref_alignment_phy):
             continue
-        aligned_fasta = treesapp_resources + "alignment_data" + os.sep + marker_build_dict[denominator].cog + ".fa"
+        aligned_fasta = treesapp_resources + "alignment_data" + os.sep + marker + ".fa"
 
         num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
         aligned_fasta_dict = read_fasta_to_dict(aligned_fasta)
@@ -2087,32 +1610,30 @@ def create_ref_phy_files(args, single_query_fasta_files, marker_build_dict, ref_
             dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
         phy_dict = reformat_fasta_to_phy(dict_for_phy)
 
-        # PaPaRa is EXTREMELY particular about the input of its Phylip file. Don't mess.
-        with open(ref_alignment_phy, 'w') as phy_output:
-            phy_string = ' ' + str(num_ref_seqs) + ' ' + str(ref_align_len) + '\n'
-            for count in sorted(phy_dict.keys(), key=int):
-                for seq_name in sorted(phy_dict[count].keys()):
-                    sequence_part = re.sub('X', '-', phy_dict[count][seq_name])
-                    if count == 0:
-                        phy_string += str(seq_name)
-                        length = len(str(seq_name))
-                        c = length
-                        while c < 11:
-                            phy_string += ' '
-                            c += 1
-                    else:
-                        phy_string += 11*' '
-                    phy_string += ' '.join(re.findall(r'.{1,10}', sequence_part)) + '\n'
-                phy_string += "\n"
-
-            phy_output.write(phy_string)
-
+        write_phy_file(ref_alignment_phy, phy_dict, (num_ref_seqs, ref_align_len))
     return
+
+
+def run_papara(executable, tree_file, ref_alignment_phy, query_fasta, molecule):
+    papara_command = [executable]
+    papara_command += ["-t", tree_file]
+    papara_command += ["-s", ref_alignment_phy]
+    papara_command += ["-q", query_fasta]
+    if molecule == "prot":
+        papara_command.append("-a")
+
+    stdout, ret_code = launch_write_command(papara_command)
+    if ret_code != 0:
+        sys.stderr.write("ERROR: PaPaRa did not complete successfully!\n")
+        sys.stderr.write("Command used:\n" + ' '.join(papara_command) + "\n")
+        sys.exit(3)
+    return stdout
 
 
 def prepare_and_run_papara(args, single_query_fasta_files, marker_build_dict):
     """
     Uses the Parsimony-based Phylogeny-aware short Read Alignment (PaPaRa) tool
+
     :param args:
     :param single_query_fasta_files:
     :param marker_build_dict:
@@ -2120,60 +1641,52 @@ def prepare_and_run_papara(args, single_query_fasta_files, marker_build_dict):
     """
     treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
     query_alignment_files = dict()
-    sys.stdout.write("Running PaPaRa... ")
-    sys.stdout.flush()
-    # TODO: Parallelize
+    logging.info("Running PaPaRa... ")
+    # TODO: Parallelize; PaPaRa's posix threading is not guaranteed with binary
     start_time = time.time()
 
     # Convert the reference sequence alignments to .phy files for every marker identified
     for query_fasta in single_query_fasta_files:
-        file_name_info = re.match("^([A-Z][0-9]{4})_(.*)_(\d+)_(\d+)_([A-Za-z0-9_]+).fa$",
-                                  os.path.basename(query_fasta))
+        file_name_info = re.match("(.*)_hmm_purified.*\.(f.*)$", os.path.basename(query_fasta))
         if file_name_info:
-            denominator, contig, start, stop, cog = file_name_info.groups()
-            f_contig = denominator + '_' + contig
+            marker, extension = file_name_info.groups()
         else:
-            raise AssertionError("Unable to parse information from file name:" + "\n" + str(query_fasta) + "\n")
-
-        query_multiple_alignment = re.sub(".fa$", ".phy", query_fasta)
-        ref_marker = marker_build_dict[denominator]
-        tree_file = treesapp_resources + "tree_data" + os.sep + ref_marker.cog + "_tree.txt"
-        ref_alignment_phy = args.output_dir_var + denominator + ".phy"
-        if not os.path.isfile(ref_alignment_phy):
-            raise AssertionError("ERROR: Phylip file '" + ref_alignment_phy + "' not found.")
-
-        papara_command = [args.executables["papara"]]
-        papara_command += ["-t", tree_file]
-        papara_command += ["-s", ref_alignment_phy]
-        papara_command += ["-q", query_fasta]
-        if ref_marker.molecule == "prot":
-            papara_command.append("-a")
-
-        stdout, ret_code = launch_write_command(papara_command)
-        if ret_code != 0:
-            sys.stderr.write("ERROR: PaPaRa did not complete successfully!\n")
-            sys.stderr.write("Command used:\n" + ' '.join(papara_command) + "\n")
+            logging.error("Unable to parse information from file name:" + "\n" + str(query_fasta) + "\n")
             sys.exit(3)
-        os.rename("papara_alignment.default", query_multiple_alignment)
-        if f_contig not in query_alignment_files:
-            query_alignment_files[f_contig] = []
-        query_alignment_files[f_contig].append(query_multiple_alignment)
 
-    sys.stdout.write("done.\n")
+        ref_marker = None
+        for denominator in marker_build_dict:
+            if marker == marker_build_dict[denominator].cog:
+                ref_marker = marker_build_dict[denominator]
+                break
+        query_multiple_alignment = re.sub('.' + re.escape(extension) + r"$", ".phy", query_fasta)
+        tree_file = treesapp_resources + "tree_data" + os.sep + marker + "_tree.txt"
+        ref_alignment_phy = args.output_dir_var + marker + ".phy"
+        if not os.path.isfile(ref_alignment_phy):
+            logging.error("Phylip file '" + ref_alignment_phy + "' not found.")
+            sys.exit(3)
+
+        run_papara(args.executables["papara"], tree_file, ref_alignment_phy, query_fasta, ref_marker.molecule)
+        shutil.copy("papara_alignment.default", query_multiple_alignment)
+        os.remove("papara_alignment.default")
+        if ref_marker.denominator not in query_alignment_files:
+            query_alignment_files[ref_marker.denominator] = []
+        query_alignment_files[ref_marker.denominator].append(query_multiple_alignment)
+
+    logging.info("done.\n")
     os.remove("papara_log.default")
     os.remove("papara_quality.default")
 
     end_time = time.time()
-    if args.verbose:
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tPaPaRa time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tPaPaRa time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return query_alignment_files
 
 
-def prepare_and_run_hmmalign(args, single_query_fasta_files, cog_list):
+def prepare_and_run_hmmalign(args, single_query_fasta_files, marker_build_dict):
     """
     Runs hmmalign using the provided COG list and summary of Genewise files.
 
@@ -2183,11 +1696,9 @@ def prepare_and_run_hmmalign(args, single_query_fasta_files, cog_list):
     reference_data_prefix = args.reference_data_prefix
     treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
     hmmalign_singlehit_files = list()
-    sys.stdout.write("Running hmmalign... ")
-    sys.stdout.flush()
+    logging.info("Running hmmalign... ")
 
-    if args.verbose:
-        start_time = time.time()
+    start_time = time.time()
     # task_list = list()
 
     # Run hmmalign on each fasta file
@@ -2231,43 +1742,15 @@ def prepare_and_run_hmmalign(args, single_query_fasta_files, cog_list):
     #     cl_farmer.task_queue.close()
     #     cl_farmer.task_queue.join()
 
-    sys.stdout.write("done.\n")
-    sys.stdout.flush()
+    logging.info("done.\n")
 
-    if args.verbose:
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\thmmalign time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    end_time = time.time()
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\thmmalign time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
     return hmmalign_singlehit_files
-
-#
-# # TODO: replace this function with parse_ref_build_params
-# def get_non_wag_cogs(args):
-#     """
-#     Returns an Autovivification listing the COGs which don't follow the WAG evolutionary model.
-#     :param args: Command-line argument object returned by get_options and check_parser_arguments
-#     """
-#     non_wag_cog_list = Autovivify()
-#     non_wag_cogs_file = args.treesapp + os.sep + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
-#     try:
-#         cogin = open(non_wag_cogs_file, 'r')
-#     except IOError:
-#         sys.exit('ERROR: Can\'t open ' + non_wag_cogs_file + '!\n')
-#
-#     for line in cogin:
-#         line = line.strip()
-#         try:
-#             cog, denominator, model, pid, lowest_confident_rank, update = line.split('\t')
-#         except ValueError:
-#             sys.stderr.write("ERROR: Incorrect number of values in ref_build_parameters.tsv line:\n" + line)
-#             sys.exit(7)
-#         non_wag_cog_list[denominator][cog] = model
-#
-#     cogin.close()
-#     return non_wag_cog_list
 
 
 def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
@@ -2376,235 +1859,216 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     return concatenated_mfa_files, nrs_of_sequences
 
 
-def filter_multiple_alignments(args, concatenated_mfa_files, tool="bmge"):
+def filter_multiple_alignments(args, concatenated_mfa_files, marker_build_dict, tool="BMGE"):
     """
     Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
+
     :param args:
     :param concatenated_mfa_files: A dictionary containing f_contig keys mapping to a FASTA or Phylip sequential file
+    :param marker_build_dict:
     :param tool:
     :return: A list of files resulting from BMGE multiple sequence alignment masking.
     """
     # TODO: Parallelize with multiprocessing
-    # TODO: Incorporate TrimAl as another option, rather than having a separate function
-    if args.molecule == "prot":
-        bmge_settings = ["-t", "AA", "-m", "BLOSUM62"]
-    else:
-        bmge_settings = ["-t", "DNA"]
-    sys.stdout.write("Running BMGE with settings '" + ' '.join(bmge_settings) + "'... ")
 
-    sys.stdout.flush()
+    logging.info("Running " + tool + "... ")
 
-    if args.verbose:
-        start_time = time.time()
+    start_time = time.time()
 
-    bmge_outputs = {}
+    trimmed_output_files = {}
 
-    for f_contig in sorted(concatenated_mfa_files.keys()):
-        if f_contig not in bmge_outputs:
-            bmge_outputs[f_contig] = []
-        concatenated_mfa_file = concatenated_mfa_files[f_contig]
-        if len(concatenated_mfa_file) > 1:
-            sys.stderr.write("WARNING: more than a single alignment file generated for " + f_contig + "...\n")
-        concatenated_mfa_file = concatenated_mfa_file[0]
-        bmge_file = concatenated_mfa_file + "-" + tool
-        log = args.output + os.sep + "treesapp.bmge_log.txt"
-        bmge_outputs[f_contig].append(bmge_file)
-        bmge_command = ["java", "-jar", args.executables["BMGE.jar"]]
-        if args.molecule == "prot":
-            bmge_command += ["-t", "AA"]
-        else:
-            bmge_command += ["-t", "DNA"]
-        bmge_command += bmge_settings
-        bmge_command += ['-i', concatenated_mfa_file,
-                         '-of', bmge_file]
-        bmge_command += ['>', log]
-        stdout, return_code = launch_write_command(bmge_command)
-        if return_code != 0:
-            sys.stderr.write("ERROR: BMGE did not complete successfully!\n")
-            sys.stderr.write("BMGE output:\n" + stdout + "\n")
-            sys.exit(39)
+    for denominator in sorted(concatenated_mfa_files.keys()):
+        if denominator not in trimmed_output_files:
+            trimmed_output_files[denominator] = []
+        mfa_files = concatenated_mfa_files[denominator]
+        for concatenated_mfa_file in mfa_files:
+            trimmed_msa_file = trim_multiple_alignment(args.executables["BMGE.jar"], concatenated_mfa_file,
+                                                       marker_build_dict[denominator].molecule, tool)
+            trimmed_output_files[denominator].append(trimmed_msa_file)
 
-    sys.stdout.write("done.\n")
-    sys.stdout.flush()
+    logging.info("done.\n")
 
-    if args.verbose:
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tBMGE time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    return bmge_outputs
+    end_time = time.time()
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\t" + tool + " time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    return trimmed_output_files
 
 
-def trimal_alignments(args, concatenated_mfa_files):
+def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
     """
-    Runs trimal using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
+    Reads the multiple alignment files (either Phylip or FASTA formatted) and looks for both reference and query
+    sequences that have been removed. Multiple alignment files are removed from `mfa_files` if:
+        1. all query sequences were removed; a DEBUG message is issued
+        2. at least one reference sequence was removed
+    This quality-control function is necessary for placing short query sequences onto reference trees.
+    Returns a dictionary of denominators, with multiple alignment dictioaries as values. Example:
+        {M0702: { "McrB_hmm_purified.phy-BMGE.fasta": {'1': seq1, '2': seq2}}}
 
-    Returns a list of files resulting from trimal.
+    :param args:
+    :param mfa_files:
+    :param marker_build_dict:
+    :return: dict()
+    """
+    qc_ma_dict = dict()
+    num_successful_alignments = 0
+
+    for f_contig in sorted(mfa_files.keys()):
+        denominator = f_contig.split('_')[0]
+        marker = marker_build_dict[denominator].cog
+        # Create a set of the reference sequence names
+        ref_headers = get_headers(os.sep.join([args.treesapp, "data", "alignment_data", marker + ".fa"]))
+        unique_refs = set([re.sub('_' + re.escape(marker), '', x)[1:] for x in ref_headers])
+        for multi_align_file in mfa_files[f_contig]:
+            filtered_multi_align = dict()
+            discarded_seqs = list()
+            discarded_seqs_string = ""
+            f_ext = multi_align_file.split('.')[-1]
+
+            # Read the multiple alignment file
+            if re.search("phy", f_ext):  # File is in Phylip format
+                headers, seqs = read_phylip(multi_align_file)
+                multi_align = dict()
+                for x in headers:
+                    seq_name = headers[x]
+                    try:
+                        int(seq_name)
+                    except ValueError:
+                        if re.match("^_\d+", seq_name):
+                            seq_name = re.sub("^_", '-', seq_name)
+                        else:
+                            logging.error("Unexpected sequence name " + seq_name +
+                                          " detected in " + multi_align_file + ".\n")
+                    multi_align[seq_name] = seqs[x]
+            elif re.match("^f", f_ext):  # This is meant to match all fasta extensions
+                multi_align = read_fasta_to_dict(multi_align_file)
+            else:
+                logging.error("Unable to detect file format of " + multi_align_file + ".\n")
+                sys.exit(3)
+
+            if len(multi_align) == 0:
+                logging.error("No sequences were read from " + multi_align_file + ".\n")
+                sys.exit(3)
+            # The numeric identifiers make it easy to maintain order in the Phylip file by a numerical sort
+            # The negative integers indicate this is a query sequence so we can perform filtering
+            for seq_name in sorted(multi_align, key=int):
+                seq_dummy = re.sub('-', '', multi_align[seq_name])
+                if len(seq_dummy) < args.min_seq_length:
+                    discarded_seqs.append(seq_name)
+                else:
+                    filtered_multi_align[seq_name] = multi_align[seq_name]
+
+            multi_align_seq_names = set(multi_align.keys())
+            filtered_multi_align_seq_names = set(filtered_multi_align.keys())
+
+            if len(discarded_seqs) == len(multi_align.keys()):
+                # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
+                logging.warning(marker + " alignment in " + multi_align_file +
+                                " is shorter than minimum sequence length threshold (" + str(args.min_seq_length) +
+                                ").\nThese sequences will not be analyzed.\n")
+            # Calculate the number of reference sequences removed
+            elif not unique_refs.issubset(filtered_multi_align_seq_names):
+                logging.warning("Reference sequences shorter than the minimum character length (" +
+                                str(args.min_seq_length) + ") in " + multi_align_file +
+                                " were removed after alignment trimming.\n" +
+                                "These sequences will not be analyzed.\n")
+            elif not unique_refs.issubset(multi_align_seq_names):
+                logging.error("Reference sequences in " + multi_align_file + " were removed during alignment trim.\n" +
+                              "Note: this suggests the initial reference alignment is terrible.\n")
+                sys.exit(3)
+            # If there are no query sequences left, remove that alignment file from mfa_files
+            elif len(discarded_seqs) + len(unique_refs) == len(multi_align.keys()):
+                logging.warning("No query sequences in " + multi_align_file + " were retained after trimming." +
+                                "These sequences will not be analyzed.\n")
+            else:
+                if denominator not in qc_ma_dict:
+                    qc_ma_dict[denominator] = dict()
+                qc_ma_dict[denominator][multi_align_file] = filtered_multi_align
+                num_successful_alignments += 1
+                discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
+
+    logging.debug("done.\n")
+    logging.debug("\tSequences <" + str(args.min_seq_length) + " characters removed:" + discarded_seqs_string + "\n")
+
+    if num_successful_alignments == 0:
+        logging.error("No quality alignment files to analyze after trimming. Exiting now.\n")
+        sys.exit(0)  # Should be 3, but this allows Clade_exclusion_analyzer to continue after exit
+
+    return qc_ma_dict
+
+
+def evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, tool, file_type="fasta"):
     """
 
-    # settings = ['-automated1']  # Good for building trees but removes too many positions for sequence insertions
-    settings = ['-gt', '0.02']
-    sys.stdout.write("Running TrimAl with the '" + ' '.join(settings) + "' setting... ")
-    sys.stdout.flush()
-
-    if args.verbose:
-        start_time = time.time()
-
-    trimal_outputs = {}
-
-    for f_contig in sorted(concatenated_mfa_files.keys()):
-        if f_contig not in trimal_outputs:
-            trimal_outputs[f_contig] = []
-        concatenated_mfa_file = concatenated_mfa_files[f_contig]
-        if len(concatenated_mfa_file) > 1:
-            sys.stderr.write("WARNING: more than a single alignment file generated for " + f_contig + "...\n")
-        concatenated_mfa_file = concatenated_mfa_file[0]
-        trimal_file = concatenated_mfa_file + "-trimal"
-        log = args.output + os.sep + "treesapp.trimal_log.txt"
-        trimal_outputs[f_contig].append(trimal_file)
-        trimal_command = [args.executables["trimal"]]
-        trimal_command += ['-in', concatenated_mfa_file,
-                           '-out', trimal_file]
-        trimal_command += settings
-        trimal_command += ['>', log]
-        stdout, return_code = launch_write_command(trimal_command)
-        if return_code != 0:
-            sys.stderr.write("ERROR: trimal did not complete successfully!\n")
-            sys.stderr.write("trimal output:\n" + stdout + "\n")
-            sys.exit(39)
-
-    sys.stdout.write("done.\n")
-    sys.stdout.flush()
-
-    if args.verbose:
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tTrimaAl time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    return trimal_outputs
-
-
-def evaluate_trimming_performace(mfa_files, alignment_length_dict, suffix, file_type="fasta"):
-    """
-
-    :param mfa_files: A dictionary mapping f_contigs to a list of trimmed alignment files
-    :param suffix: The name of the tool that was appended to the original, untrimmed or unmasked alignment files
+    :param qc_ma_dict: A dictionary mapping denominators to files to multiple alignment dictionaries
+    :param alignment_length_dict:
+    :param tool: The name of the tool that was appended to the original, untrimmed or unmasked alignment files
     :param file_type: Type of the file that was outputted by tool
     :return: None
     """
     trimmed_length_dict = dict()
-    for f_contig in sorted(mfa_files.keys()):
-        denominator = f_contig.split('_')[0]
+    for denominator in sorted(qc_ma_dict.keys()):
         if denominator not in trimmed_length_dict:
             trimmed_length_dict[denominator] = list()
-        for multi_align in mfa_files[f_contig]:
-            if file_type == "fasta":
-                num_seqs, trimmed_seq_length = validate_multi_aligned_fasta_utility(multi_align)
-            elif file_type == "phylip":
-                num_seqs, trimmed_seq_length = validate_phylip_utility(multi_align)
-            else:
-                raise AssertionError("File type '" + file_type + "' is not recognized.")
+        for multi_align_file in qc_ma_dict[denominator]:
+            multi_align = qc_ma_dict[denominator][multi_align_file]
+            num_seqs, trimmed_seq_length = validate_multiple_alignment_utility(multi_align, multi_align_file)
 
-            original_multi_align = re.sub('-' + suffix, '', multi_align)
+            original_multi_align = re.sub('-' + tool + '.' + file_type, '.phy', multi_align_file)
             raw_align_len = alignment_length_dict[original_multi_align]
             diff = raw_align_len - trimmed_seq_length
             if diff < 0:
-                sys.stderr.write("WARNING: MSA length increased after " + suffix + " processing for " + f_contig + "\n")
+                logging.warning("MSA length increased after " + tool + " processing for " + multi_align_file + "\n")
             else:
-                # Only read the first sequence line. Other abnormalities will be caught later
                 trimmed_length_dict[denominator].append(diff)
-                break
 
-    sys.stdout.write("\tAverage columns removed:\n")
+    trimming_performance_string = "\tAverage columns removed:\n"
     for denominator in trimmed_length_dict:
-        sys.stdout.write("\t\t" + denominator + "\t" +
-                         str(round(sum(trimmed_length_dict[denominator])/len(trimmed_length_dict[denominator]), 1)) + "\n")
+        trimming_performance_string += "\t\t" + denominator + "\t"
+        trimming_performance_string += str(round(sum(trimmed_length_dict[denominator])/len(trimmed_length_dict[denominator]), 1)) + "\n"
+
+    logging.debug(trimming_performance_string + "\n")
     return
 
 
-def reformat_fasta_to_phy(fasta_dict):
-    phy_dict = Autovivify()
-    for seq_name in fasta_dict:
-        sequence = fasta_dict[seq_name]
-        sub_sequences = re.findall(r'.{1,50}', sequence)
-        count = 0
-        for sub_sequence in sub_sequences:
-            phy_dict[count][int(seq_name)] = sub_sequence
-            count += 1
-    return phy_dict
-
-
-def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
+def produce_phy_files(args, qc_ma_dict):
     """
     Produces phy files from the provided list of alignment files
+
     :param args:
-    :param mfa_files:
-    :param ref_alignment_dimensions:
+    :param qc_ma_dict:
     :return: Dictionary containing the names of the produced phy files mapped to its f_contig
     """
 
     phy_files = dict()
     sequence_lengths = dict()
-    discarded_seqs = 0
 
-    if args.verbose:
-        sys.stdout.write("Converting FASTA multiple alignment files to Phylip... ")
-        sys.stdout.flush()
+    logging.debug("Writing filtered multiple alignment files to Phylip... ")
 
     # Open each alignment file
-    for f_contig in sorted(mfa_files.keys()):
-        denominator = f_contig.split('_')[0]
+    for denominator in sorted(qc_ma_dict.keys()):
+        sequence_lengths[denominator] = set()
         # Prepare the phy file for writing
-        num_ref_seqs, ref_align_len = ref_alignment_dimensions[denominator]
-        nr_of_sequences = num_ref_seqs
-        if f_contig not in phy_files.keys():
-            phy_files[f_contig] = list()
+        if denominator not in phy_files.keys():
+            phy_files[denominator] = list()
 
-        for aligned_fasta in mfa_files[f_contig]:
-            phy_file_name = re.sub(".mfa", ".phy", aligned_fasta)
-            aligned_fasta_dict = read_fasta_to_dict(aligned_fasta)
-            if aligned_fasta == phy_file_name and not aligned_fasta_dict:
-                # Input is a Phylip-formatted file. Add it to phy_files and continue.
-                phy_files[f_contig].append(phy_file_name)
-                continue
+        for multi_align_file in qc_ma_dict[denominator]:
+            multi_align_dict = qc_ma_dict[denominator][multi_align_file]
+            final_phy_file_name = re.sub(".fasta$|.phy$", "-qcd.phy", multi_align_file)
             sequences_for_phy = dict()
-            do_not_continue = 0
 
-            for name in sorted(aligned_fasta_dict.keys()):
+            for name in sorted(multi_align_dict.keys()):
                 seq_name = name.strip()
                 seq_name = seq_name.split('_')[0]
 
-                sequence = aligned_fasta_dict[name]
+                sequence = multi_align_dict[name]
                 sequence = re.sub(r' ', '', sequence)
-                sequence_lengths[f_contig] = len(sequence)
+                sequence_lengths[denominator].add(len(sequence))
                 # Ensure the sequences contain only valid characters for RAxML
                 sequence = re.sub(r'\.', 'X', sequence)
                 sequence = re.sub(r'\*', 'X', sequence)
                 sequence = re.sub('-', 'X', sequence)
-                # Notify user if the reference alignment contains the number -666, which is needed later in the code
-                if seq_name == 'query':
-                    # This is necessary for a numerical sort to keep order in the phy file and so the query is first
-                    nr_of_sequences += 1
-                    seq_name = -666
-                    seq_dummy = re.sub('X', '', sequence)
-                    if len(seq_dummy) < args.min_seq_length:
-                        do_not_continue = 1
-                        discarded_seqs += 1
-                        exit_file_name = args.output_dir_var + f_contig + '_exit_after_trimal.txt'
-                        try:
-                            log_output = open(exit_file_name, 'w')
-                        except IOError:
-                            sys.exit('ERROR: Can\'t open ' + exit_file_name + '!\n')
-                        log_output.write(
-                            'final alignment after trimming is too short (<' + str(args.min_seq_length) + ') ' +
-                            '-  insufficient number of non-ambiguity/alignment characters in query sequence.\n')
-                        log_output.close()
-                        continue
-                elif seq_name == str(-666):
-                    sys.exit('ERROR: Your reference alignment contains element with the number -666. '
-                             'Please change it, because this number is needed for internal purposes.\n')
 
                 if re.search(r'\AX+\Z', sequence):
                     sequence = re.sub('X', 'V', sequence, 1)
@@ -2614,22 +2078,17 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
 
                 sequences_for_phy[seq_name] = sequence
 
-            if do_not_continue == 1:
-                continue
-
             # Write the sequences to the phy file
             phy_dict = reformat_fasta_to_phy(sequences_for_phy)
-            phy_string = ' ' + str(nr_of_sequences) + '  ' + str(sequence_lengths[f_contig]) + '\n'
+            if len(sequence_lengths[denominator]) != 1:
+                logging.error("Sequence lengths varied in " + multi_align_file + "\n")
+            phy_string = ' ' + str(len(multi_align_dict.keys())) + '  ' + str(sequence_lengths[denominator].pop()) + '\n'
             for count in sorted(phy_dict.keys(), key=int):
                 for seq_name in sorted(phy_dict[count].keys()):
                     sequence_part = phy_dict[count][seq_name]
                     if count == 0:
-                        if seq_name == -666:
-                            print_seqname = 'query'
-                        else:
-                            print_seqname = seq_name
-                        phy_string += str(print_seqname)
-                        length = len(str(print_seqname))
+                        phy_string += str(seq_name)
+                        length = len(str(seq_name))
                         c = length
                         while c < 10:
                             phy_string += ' '
@@ -2638,14 +2097,10 @@ def produce_phy_files(args, mfa_files, ref_alignment_dimensions):
 
                 phy_string += '\n'
 
-            with open(phy_file_name, 'w') as phy_output:
+            with open(final_phy_file_name, 'w') as phy_output:
                 phy_output.write(phy_string)
-            phy_files[f_contig].append(phy_file_name)
-
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stderr.write("\tSequences <" + str(args.min_seq_length) + " AA removed:\t" + str(discarded_seqs) + "\n")
-        sys.stdout.flush()
+            phy_files[denominator].append(final_phy_file_name)
+    logging.debug("done.\n")
 
     return phy_files
 
@@ -2657,33 +2112,25 @@ def start_raxml(args, phy_files, marker_build_dict):
     Returns an Autovivification listing the output files of RAxML.
     Returns an Autovivification containing the reference tree file associated with each functional or rRNA COG.
     """
-    sys.stdout.write("Running RAxML... coffee?\n")
-    sys.stdout.flush()
+    logging.info("Running RAxML... coffee?\n")
 
-    if args.verbose:
-        start_time = time.time()
+    start_time = time.time()
 
     raxml_outfiles = Autovivify()
     raxml_calls = 0
 
     # Maximum-likelihood sequence placement analyses
-    bootstrap_replicates = args.bootstraps
     denominator_reference_tree_dict = dict()
     mltree_resources = args.treesapp + os.sep + 'data' + os.sep
     if os.path.isabs(args.output_dir_var):
         output_dir = args.output_dir_var
     else:
         output_dir = os.getcwd() + os.sep + args.output_dir_var
-    for f_contig in sorted(phy_files.keys()):
+    for denominator in sorted(phy_files.keys()):
         # Establish the reference tree file to be used for this contig
         reference_tree_file = mltree_resources + 'tree_data' + os.sep + args.reference_tree
-        f_contig_phy_files = phy_files[f_contig]
+        f_contig_phy_files = phy_files[denominator]
         for phy_file in f_contig_phy_files:
-            file_name_info = re.match("^([A-Z][0-9]{4})_(.*)$", os.path.basename(f_contig))
-            if file_name_info:
-                denominator, contig = file_name_info.groups()
-            else:
-                raise AssertionError("Unable to parse information from:\n\t" + str(f_contig) + "\n")
             ref_marker = marker_build_dict[denominator]
             if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
                 if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"):
@@ -2691,7 +2138,8 @@ def start_raxml(args, phy_files, marker_build_dict):
                 else:
                     reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + '_tree.txt'
 
-            query_name = re.sub(".phy.*$", '', os.path.basename(phy_file))
+            query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(phy_file))
+            query_name = re.sub(marker_build_dict[denominator].cog, denominator, query_name)
             # Determine the output file names, and remove any pre-existing output files
             if type(denominator) is not str:
                 sys.exit("ERROR: " + str(denominator) + " is not string but " + str(type(denominator)))
@@ -2716,8 +2164,6 @@ def start_raxml(args, phy_files, marker_build_dict):
                 raise AssertionError("No best AA model could be detected for the ML step!")
             # Set up the command to run RAxML
             raxml_command = [args.executables["raxmlHPC"], '-m', ref_marker.model]
-            if bootstrap_replicates > 1:
-                raxml_command += ["-p 12345 -b 12345 -#", str(bootstrap_replicates)]
             if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
                               "_RAxML_binaryModelParameters.PARAMS"):
                 raxml_command += ["-R", mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
@@ -2725,6 +2171,7 @@ def start_raxml(args, phy_files, marker_build_dict):
             # Run RAxML using multiple threads, if CPUs available
             raxml_command += ['-T', str(int(args.num_threads))]
             raxml_command += ['-s', phy_file,
+                              "-p", str(12345),
                               '-t', reference_tree_file,
                               '-G', str(0.2),
                               '-f', 'v',
@@ -2759,17 +2206,16 @@ def start_raxml(args, phy_files, marker_build_dict):
             if os.path.exists(str(output_dir) + 'RAxML_labelledTree.' + str(query_name)):
                 os.system(' '.join(remove_command))
             else:
-                sys.stderr.write("Some files were not successfully created for " + str(query_name) + "\n")
-                sys.stderr.write("Check " + str(output_dir) + str(query_name) + "_RAxML.txt for an error!\n")
-                sys.exit("Bailing out!")
+                logging.error("Some files were not successfully created for " + str(query_name) + "\n" +
+                              "Check " + str(output_dir) + str(query_name) + "_RAxML.txt for an error!\n")
+                sys.exit(3)
 
-    if args.verbose:
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tRAxML time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-        sys.stdout.write("\tRAxML was called " + str(raxml_calls) + " times.\n")
+    end_time = time.time()
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tRAxML time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    logging.debug("\tRAxML was called " + str(raxml_calls) + " times.\n")
 
     return raxml_outfiles, denominator_reference_tree_dict, len(phy_files.keys())
 
@@ -2782,8 +2228,7 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
     def log_tree(result):
         marker, terminal_children_of_reference = result
         if terminal_children_of_reference is None:
-            sys.stdout.write("Letting threads finish before exiting... ")
-            sys.stdout.flush()
+            logging.warning("Letting threads finish before exiting... ")
         ref_trees_dict[marker] = terminal_children_of_reference
 
     for denominator in denominator_ref_tree_dict:
@@ -2795,8 +2240,7 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
     pool.join()
     for marker in ref_trees_dict:
         if ref_trees_dict[marker] is None:
-            sys.stdout.write("done.\n")
-            sys.stdout.flush()
+            logging.info("done.\n")
             return None
         else:
             pass
@@ -2822,10 +2266,7 @@ def pparse_raxml_out_trees(labelled_trees, args):
         raxml_tree_dict[f_contig] = [rooted_labelled_trees, insertion_point_node_hash]
 
     def no_tree_handler(error):
-        sys.stderr.write("ERROR: ")
-        sys.stderr.flush()
-        print(error)
-        print("-->{}\n<--".format(error.__cause__))
+        logging.error(error + "-->{}\n<--".format(error.__cause__))
         pool.terminate()
         sys.exit(5)
 
@@ -2844,253 +2285,6 @@ def pparse_raxml_out_trees(labelled_trees, args):
     pool.close()
     pool.join()
     return raxml_tree_dict
-#
-#
-# def parse_raxml_output(args, denominator_reference_tree_dict, tree_numbers_translation,
-#                        raxml_outfiles, text_of_analysis_type, num_raxml_outputs):
-#     """
-#     Parse the RAxML output files.
-#     :param args: Command-line argument object from get_options and check_parser_arguments
-#     :param denominator_reference_tree_dict:
-#     :param tree_numbers_translation: A dictionary containing a list of TreeLeafReference objects
-#     :param raxml_outfiles:
-#     :param text_of_analysis_type:
-#     :param num_raxml_outputs:
-#     :return: An Autovivification of the final RAxML output files.
-#     """
-#
-#     raxml_option = 'v'
-#     raxml_placements = 0
-#
-#     sys.stdout.write('Parsing the RAxML outputs...\n')
-#     sys.stdout.flush()
-#
-#     if args.verbose:
-#         function_start_time = time.time()
-#
-#     final_raxml_output_files = Autovivify()
-#
-#     if num_raxml_outputs > 50:
-#         progress_bar_width = 50
-#         step_proportion = float(num_raxml_outputs) / progress_bar_width
-#     else:
-#         progress_bar_width = num_raxml_outputs
-#         step_proportion = 1
-#
-#     sys.stdout.write("[%s ]" % (" " * progress_bar_width))
-#     sys.stdout.write("%")
-#     sys.stdout.write("\b" * (progress_bar_width + 3))
-#     sys.stdout.flush()
-#
-#     acc = 0.0
-#
-#     try:
-#         parse_log = open(args.output + os.sep + "treesapp_parse_RAxML_log.txt", 'w')
-#     except IOError:
-#         sys.stderr.write("WARNING: Unable to open " + args.output + os.sep + "treesapp_parse_RAxML_log.txt!")
-#         sys.stderr.flush()
-#         parse_log = sys.stdout
-#
-#     parse_log.write("Parsing each gene reference tree file found in the input sequences in parallel...")
-#     parse_log.flush()
-#     terminal_children_strings_of_ref_denominators = pparse_ref_trees(denominator_reference_tree_dict, args)
-#     parse_log.write(" done.\n")
-#     if terminal_children_strings_of_ref_denominators is None:
-#         sys.exit()
-#     parse_log.write(time.ctime() + "\n")
-#
-#     if sorted(denominator_reference_tree_dict.keys()) != sorted(terminal_children_strings_of_ref_denominators.keys()):
-#         sys.stderr.write("input: " + str(denominator_reference_tree_dict.keys()) + "\n")
-#         sys.stderr.write("output: " + str(terminal_children_strings_of_ref_denominators.keys()) + "\n")
-#         sys.exit("ERROR: Not all of the reference trees were parsed!")
-#
-#     for denominator in sorted(raxml_outfiles.keys()):
-#         description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
-#
-#         # Retrieve the parsed reference tree from the dictionary of parsed reference trees
-#         if args.verbose:
-#             parse_log.write("Retrieving the reference tree for " + denominator + "... ")
-#         terminal_children_strings_of_reference = terminal_children_strings_of_ref_denominators[denominator]
-#         if args.verbose:
-#             parse_log.write("done.\n")
-#
-#         content_of_previous_labelled_tree_file = ''
-#         previous_f_contig = ""
-#         rooted_labelled_trees = ''
-#         insertion_point_node_hash = ''
-#         final_assignment_target_strings = Autovivify()
-#
-#         # Parse all labelled tree files for denominator in parallel
-#         labelled_tree_files = dict()
-#         for f_contig in raxml_outfiles[denominator].keys():
-#             if not os.path.isfile(raxml_outfiles[denominator][f_contig]['labelled_tree']):
-#                 parse_log.write("WARNING: " + str(raxml_outfiles[denominator][f_contig]['labelled_tree']) +
-#                                 "was included in RAxML output files but is not a file. Continuing...\n")
-#             else:
-#                 labelled_tree_files[f_contig] = raxml_outfiles[denominator][f_contig]['labelled_tree']
-#
-#         parse_log.write("Parsing the " + str(len(labelled_tree_files.keys())) +
-#                         " trees for " + denominator + " in parallel... ")
-#         start_time = time.time()
-#         parse_log.flush()
-#         raxml_tree_dict = pparse_raxml_out_trees(labelled_tree_files, args)
-#         end_time = time.time()
-#         parse_log.write("done.\n")
-#         hours, remainder = divmod(end_time - start_time, 3600)
-#         minutes, seconds = divmod(remainder, 60)
-#         parse_log.write("Parsing required " + str(hours) + ":" + str(minutes) + ":" + str(seconds) + "\n")
-#         parse_log.flush()
-#
-#         for f_contig in sorted(raxml_outfiles[denominator].keys()):
-#             # Update the progress bar
-#             acc += 1.0
-#             if acc >= step_proportion:
-#                 acc -= step_proportion
-#                 time.sleep(0.1)
-#                 sys.stdout.write("-")
-#                 sys.stdout.flush()
-#
-#             denominator = ''
-#             if re.search(r'\A(.)', f_contig):
-#                 denominator = f_contig.split('_')[0]
-#             content_of_labelled_tree_file = ''
-#             assignments = Autovivify()
-#
-#             if raxml_option == 'v':
-#                 # Maximum-likelihood analysis
-#                 classification_file = raxml_outfiles[denominator][f_contig]['classification']
-#                 labelled_tree_file = raxml_outfiles[denominator][f_contig]['labelled_tree']
-#                 try:
-#                     raxml_labelled_tree = open(labelled_tree_file, 'r')
-#                 except IOError:
-#                     sys.exit('ERROR: Can\'t open ' + str(labelled_tree_file) + '!\n')
-#
-#                 for line in raxml_labelled_tree:
-#                     line = line.strip()
-#                     content_of_labelled_tree_file += str(line)
-#
-#                 raxml_labelled_tree.close()
-#                 if not content_of_labelled_tree_file == content_of_previous_labelled_tree_file:
-#                     parse_log.write("Retrieving the labelled tree " + labelled_tree_file + "... ")
-#                     parse_log.flush()
-#                     if f_contig not in raxml_tree_dict.keys():
-#                         sys.exit("ERROR: " + f_contig + " was not found in raxml_tree_dict.keys():"
-#                                                         " \n" + str(raxml_tree_dict.keys()))
-#                     rooted_labelled_trees, insertion_point_node_hash = raxml_tree_dict[f_contig]
-#
-#                     parse_log.write("done.\n")
-#                     parse_log.flush()
-#                     final_assignment_target_strings = Autovivify()
-#                     nr_of_assignments = 0  # This does not exist in the original MLTreeMap perl code
-#                 else:
-#                     if args.verbose:
-#                         parse_log.write("Identical RAxML classifications between" + str(f_contig) +
-#                                         "and" + previous_f_contig + "!")
-#
-#                 new_assignments = Autovivify()
-#                 at_least_one_new_assignment = 0
-#                 try:
-#                     RAxML_classification = open(classification_file, 'r')
-#                 except IOError:
-#                     sys.exit('ERROR: Can\'t open ' + str(classification_file) + '!\n')
-#
-#                 for line in RAxML_classification:
-#                     line = line.strip()
-#                     query, insertion_point_l, weight = line.split(' ')[0:3]
-#                     assignment = ''
-#                     if re.search(r'I(\d+)', insertion_point_l):
-#                         assignment = re.search(r'I(\d+)', insertion_point_l).group(1)
-#                     assignments[assignment] = weight
-#                     if assignment not in final_assignment_target_strings.keys():
-#                         new_assignments[assignment] = 1
-#                         at_least_one_new_assignment = 1
-#                         final_assignment_target_strings[assignment] = ""
-#                         nr_of_assignments += 1
-#
-#                 RAxML_classification.close()
-#                 if at_least_one_new_assignment > 0:
-#                     parse_log.write("identifying the terminal children of each assignment for " + f_contig + "... ")
-#                     parse_log.write(time.ctime() + "\n")
-#                     parse_log.flush()
-#                     prae_assignment_target_strings = identify_the_correct_terminal_children_of_each_assignment(
-#                         terminal_children_strings_of_reference,
-#                         rooted_labelled_trees,
-#                         insertion_point_node_hash,
-#                         new_assignments,
-#                         args.num_threads,
-#                         parse_log)
-#                     parse_log.write("done.\n")
-#
-#                     for assignment in sorted(prae_assignment_target_strings.keys()):
-#                         assignment_target_string = prae_assignment_target_strings[assignment]
-#                         final_assignment_target_strings[assignment] = assignment_target_string
-#
-#                 parse_log.write("Finished parsing " + f_contig + "'s RAxML output at " + time.ctime() + "\n")
-#
-#             final_RAxML_filename = str(args.output_dir_raxml) + str(f_contig) + '_RAxML_parsed.txt'
-#             final_raxml_output_files[denominator][final_RAxML_filename] = 1
-#
-#             try:
-#                 output = open(final_RAxML_filename, 'w')
-#             except IOError:
-#                 sys.exit('ERROR: Can\'t create ' + str(final_RAxML_filename) + '!\n')
-#             output.write(str(description_text) + '\n')
-#
-#             raxml_placements += len(assignments.keys())
-#
-#             for assignment in sorted(assignments.keys()):
-#                 # TODO: Convert to function, use function for TreeProtein queries
-#                 assignment_target_string = final_assignment_target_strings[assignment]
-#                 weight = float(assignments[assignment])
-#                 relative_weight = float(weight * 100.0 / float(nr_of_assignments))
-#                 assignment_terminal_targets = assignment_target_string.split(' ')
-#                 nr_of_terminal_targets = len(assignment_terminal_targets) - 1
-#                 output.write('Placement weight ' + '%.2f' % relative_weight + '%: Assignment of query to ')
-#                 if not nr_of_terminal_targets == 1:
-#                     output.write('the lowest common ancestor of ')
-#                 count = 1
-#
-#                 while count <= nr_of_terminal_targets:
-#                     assignment_terminal_target = assignment_terminal_targets[count - 1]
-#                     for leaf in tree_numbers_translation[denominator]:
-#                         if assignment_terminal_target == leaf.number:
-#                             name_of_terminal_target = leaf.description
-#                             break
-#                         else:
-#                             pass
-#                     try:
-#                         name_of_terminal_target
-#                     except NameError:
-#                         sys.exit('ERROR: ' + str(assignment_terminal_target) +
-#                                  ' could not be located in the tree with the denominator ' +
-#                                  str(denominator) + '!\n')
-#                     output.write(str(name_of_terminal_target) + ' (' + str(assignment_terminal_target) + ')')
-#                     if count < nr_of_terminal_targets - 1:
-#                         output.write(', ')
-#                     if count == nr_of_terminal_targets - 1:
-#                         output.write(' and ')
-#                     if count == nr_of_terminal_targets:
-#                         output.write('.\n')
-#                     count += 1
-#
-#             output.close()
-#             content_of_previous_labelled_tree_file = content_of_labelled_tree_file
-#             previous_f_contig = f_contig
-#
-#     sys.stdout.write("-]%\n")
-#     parse_log.close()
-#
-#     if args.verbose:
-#         function_end_time = time.time()
-#         hours, remainder = divmod(function_end_time - function_start_time, 3600)
-#         minutes, seconds = divmod(remainder, 60)
-#         sys.stdout.write("\tTree parsing time required: " +
-#                          ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-#         sys.stdout.write("\t" + str(num_raxml_outputs) + " RAxML output files.\n")
-#         sys.stdout.write("\t" + str(raxml_placements) + " sequences successfully inserted by RAxML.\n\n")
-#         sys.stdout.flush()
-#
-#     return final_raxml_output_files
 
 
 def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
@@ -3151,7 +2345,8 @@ def read_the_raxml_out_tree(labelled_tree_file):
     try:
         raxml_tree = open(labelled_tree_file, 'r')
     except IOError:
-        sys.exit('ERROR: Could not open ' + labelled_tree_file + '!\n')
+        logging.error("Could not open " + labelled_tree_file + " for reading!\n")
+        sys.exit(5)
     tree_string = ''
 
     for line in raxml_tree:
@@ -3523,239 +2718,6 @@ def compare_terminal_children_strings(terminal_children_of_assignments, terminal
     return real_terminal_children_of_assignments
 
 
-def concatenate_RAxML_output_files(args, final_raxml_output_files, text_of_analysis_type):
-    if args.verbose:
-        sys.stdout.write("Concatenating the RAxML outputs for each marker gene class...\n")
-    output_directory_final = args.output_dir_final
-    
-    for denominator in sorted(final_raxml_output_files.keys()):
-        nr_of_files = 0
-        assignments = Autovivify()
-        description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n'
-        final_output_file_name = str(output_directory_final) + str(denominator) + '_concatenated_RAxML_outputs.txt'
-        
-        for final_RAxML_output_file in sorted(final_raxml_output_files[denominator].keys()):
-            nr_of_files += 1
-            try:
-                final_raxml_output = open(final_RAxML_output_file, 'r')
-            except IOError:
-                sys.exit('ERROR: Can\'t open ' + str(final_RAxML_output_file) + '!\n')
-            
-            for line in final_raxml_output:
-                line = line.strip()
-                if re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line):
-                    weight = float(re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line).group(1))
-                    assignment = re.search(r'Placement weight (\d+\.\d+)%: (.+)\Z', line).group(2)
-                    if assignment in assignments.keys():
-                        assignments[assignment] += weight
-                    else:
-                        assignments[assignment] = weight
-                else:
-                    continue
-
-            final_raxml_output.close()
-
-        assignments_with_relative_weights = Autovivify()
-
-        for assignment in sorted(assignments.keys(), reverse=True):
-            weight = assignments[assignment]
-            relative_weight = weight / float(nr_of_files)
-            assignments_with_relative_weights[relative_weight][assignment] = 1
-
-        try:
-            output = open(final_output_file_name, 'w')
-        except IOError:
-            sys.exit('ERROR: Can\'t create ' + str(final_output_file_name) + '!\n')
-        if args.verbose:
-            sys.stdout.write(str(denominator) + '_ results concatenated:\n')
-        output.write(str(description_text) + '\n')
-        sum_of_relative_weights = 0
-
-        for relative_weight in sorted(assignments_with_relative_weights.keys(), reverse=True):
-
-            for assignment in sorted(assignments_with_relative_weights[relative_weight].keys(), reverse=True):
-                sum_of_relative_weights += relative_weight
-                sys.stdout.write('Placement weight ')
-                sys.stdout.write('%.2f' % relative_weight + "%: ")
-                sys.stdout.write(assignment + "\n")
-                output.write('Placement weight ' + str(relative_weight) + '%: ' + str(assignment) + '\n')
-
-        output.close()
-        sys.stdout.write('_' + str(denominator) + '_ sum of placement weights (should be 100): ')
-        sys.stdout.write(str(int(sum_of_relative_weights + 0.5)) + "\n")
-        sys.stdout.flush()
-
-
-def tax_ids_file_to_leaves(args, tax_ids_file):
-    tree_leaves = list()
-    try:
-        if args.py_version == 3:
-            cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
-        else:
-            cog_tax_ids = open(tax_ids_file, 'r')
-    except IOError:
-        sys.exit('ERROR: Can\'t open ' + str(tax_ids_file) + '!\n')
-
-    for line in cog_tax_ids:
-        line = line.strip()
-        try:
-            fields = line.split("\t")
-        except ValueError:
-            sys.stderr.write('ValueError: .split(\'\\t\') on ' + str(line) +
-                             " generated " + str(len(line.split("\t"))) + " fields.")
-            sys.exit(9)
-        if len(fields) == 2:
-            number, translation = fields
-            lineage = ""
-        elif len(fields) == 3:
-            number, translation, lineage = fields
-        else:
-            sys.stderr.write("ValueError: Unexpected number of fields in " + tax_ids_file +
-                             ".\nInvoked .split(\'\\t\') on line " + str(line))
-            raise ValueError
-        leaf = TreeLeafReference(number, translation)
-        if lineage:
-            leaf.lineage = lineage
-            leaf.complete = True
-        tree_leaves.append(leaf)
-
-    cog_tax_ids.close()
-    return tree_leaves
-
-
-def read_species_translation_files(args, marker_build_dict):
-    """
-    :param args:
-    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
-    :return: The taxonomic identifiers for each of the organisms in a tree for all trees
-    """
-
-    tree_numbers_translation = Autovivify()
-    translation_files = Autovivify()
-    phylogenetic_denominator = args.reftree
-    tree_resources_dir = os.sep.join([args.treesapp, "data", "tree_data"]) + os.sep
-    if phylogenetic_denominator == 'g':
-        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_geba_tree.txt'
-    elif phylogenetic_denominator == 'i':
-        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_fungitr.txt'
-    elif phylogenetic_denominator == 'p':
-        translation_files[phylogenetic_denominator] = tree_resources_dir + 'tax_ids_nr.txt'
-
-    for denominator in sorted(marker_build_dict.keys()):
-        marker_build_obj = marker_build_dict[denominator]
-        filename = 'tax_ids_' + str(marker_build_obj.cog) + '.txt'
-        translation_files[denominator] = tree_resources_dir + filename
-
-    for denominator in sorted(translation_files.keys()):
-        filename = translation_files[denominator]
-        tree_numbers_translation[denominator] = tax_ids_file_to_leaves(args, filename)
-
-    return tree_numbers_translation
-
-
-def available_cpu_count():
-    """ Number of available virtual or physical CPUs on this system, i.e.
-    user/real as output by time(1) when called with an optimally scaling
-    userspace-only program"""
-
-    # cpuset
-    # cpuset may restrict the number of *available* processors
-    try:
-        m = re.search(r'(?m)^Cpus_allowed:\s*(.*)$',
-                      open('/proc/self/status').read())
-        if m:
-            res = bin(int(m.group(1).replace(',', ''), 16)).count('1')
-            if res > 0:
-                return res
-    except IOError:
-        pass
-
-    # Python 2.6+
-    try:
-        import multiprocessing
-        return multiprocessing.cpu_count()
-    except (ImportError, NotImplementedError):
-        pass
-
-    # http://code.google.com/p/psutil/
-    try:
-        import psutil
-        return psutil.NUM_CPUS
-    except (ImportError, AttributeError):
-        pass
-
-    # POSIX
-    try:
-        res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-
-        if res > 0:
-            return res
-    except (AttributeError, ValueError):
-        pass
-
-    # Windows
-    try:
-        res = int(os.environ['NUMBER_OF_PROCESSORS'])
-
-        if res > 0:
-            return res
-    except (KeyError, ValueError):
-        pass
-
-    # BSD
-    try:
-        sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'],
-                                  stdout=subprocess.PIPE)
-        scStdout = sysctl.communicate()[0]
-        res = int(scStdout)
-
-        if res > 0:
-            return res
-    except (OSError, ValueError):
-        pass
-
-    # Linux
-    try:
-        res = open('/proc/cpuinfo').read().count('processor\t:')
-
-        if res > 0:
-            return res
-    except IOError:
-        pass
-
-    # Solaris
-    try:
-        pseudoDevices = os.listdir('/devices/pseudo/')
-        res = 0
-        for pd in pseudoDevices:
-            if re.match(r'^cpuid@[0-9]+$', pd):
-                res += 1
-
-        if res > 0:
-            return res
-    except OSError:
-        pass
-
-    # Other UNIXes (heuristic)
-    try:
-        try:
-            dmesg = open('/var/run/dmesg.boot').read()
-        except IOError:
-            dmesgProcess = subprocess.Popen(['dmesg'], stdout=subprocess.PIPE)
-            dmesg = dmesgProcess.communicate()[0]
-
-        res = 0
-        while '\ncpu' + str(res) + ':' in dmesg:
-            res += 1
-
-        if res > 0:
-            return res
-    except OSError:
-        pass
-
-    raise Exception('Can not determine number of CPUs on this system')
-
-
 def delete_files(args, section):
     files_to_be_deleted = []
     if args.delete:
@@ -3806,9 +2768,7 @@ def single_family_msa(args, cog_list, formatted_fasta_dict):
     """
     reference_data_prefix = args.reference_data_prefix
     hmmalign_singlehit_files = Autovivify()
-    if args.verbose:
-        sys.stdout.write("Running hmmalign... ")
-        sys.stdout.flush()
+    logging.info("Running hmmalign... ")
 
     cog = list(cog_list["all_cogs"].keys())[0]
     denominator = cog_list["all_cogs"][cog]
@@ -3846,8 +2806,7 @@ def single_family_msa(args, cog_list, formatted_fasta_dict):
                             genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
         os.system(' '.join(hmmalign_command))
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
     if oddly_long:
         sys.stderr.write("WARNING: These sequences look awfully long for a gene... "
@@ -3875,16 +2834,17 @@ def read_marker_classification_table(assignment_file):
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
     Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
     (leaving 1 for marker name and 4 for numerical abundance)
+
     :param assignment_file: Path to the file containing sequence phylogenetic origin and assignment
     :return: dictionary whose keys are phylogenetic origin and values are lists of TreeSAPP assignments
     """
     assignments = dict()
     n_classified = 0
     assignments_handle = open(assignment_file, 'r')
+    header = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
     # This is the header line
-    if not re.match("^Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD$",
-                    assignments_handle.readline()):
-        sys.stderr.write("ERROR: header of assignments file is unexpected!\n")
+    if assignments_handle.readline() != header:
+        logging.error("Header of classification file is unexpected!\n")
         raise AssertionError
 
     # First line in the table containing data
@@ -3918,7 +2878,7 @@ def get_new_ref_sequences(args, update_tree):
     :param update_tree: An instance of CreateFuncTreeUtility class
     :return: aa_dictionary is a dictionary of fasta sequences with headers as keys and protein sequences as values
     """
-    sys.stdout.write("Retrieving candidate reference sequences... ")
+    logging.info("Retrieving candidate reference sequences... ")
 
     candidate_fa = update_tree.InputData + os.sep + "final_outputs" + os.sep + update_tree.COG + "_hmm_purified.fasta"
     aa_dictionary = dict()
@@ -3939,21 +2899,18 @@ def get_new_ref_sequences(args, update_tree):
         candidate_fa_handler.close()
         aa_dictionary[header] = sequence
     else:
-        sys.stderr.write("ERROR: file necessary for updating the reference tree (" + candidate_fa + ") is missing!\n")
-        raise AssertionError(7)
+        logging.error("File necessary for updating the reference tree (" + candidate_fa + ") is missing!\n")
+        sys.exit(3)
 
-    sys.stdout.write("done.\n")
-    if args.verbose:
-        sys.stdout.write("\t" + str(len(aa_dictionary)) + " candidate " + update_tree.COG + " reference sequences.\n")
+    logging.info("done.\n")
+    logging.debug("\t" + str(len(aa_dictionary)) + " candidate " + update_tree.COG + " reference sequences.\n")
     sys.stdout.flush()
 
     return aa_dictionary
 
 
 def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
-    if args.verbose:
-        sys.stdout.write("Clustering sequences at %s percent identity with USEARCH... " % str(update_tree.cluster_id))
-        sys.stdout.flush()
+    logging.info("Clustering sequences at %s percent identity with USEARCH... " % str(update_tree.cluster_id))
 
     usearch_command = [args.executables["usearch"]]
     usearch_command += ["-sortbylength", new_ref_seqs_fasta]
@@ -3967,7 +2924,7 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
     try:
         float(uclust_id)
     except ValueError:
-        raise ValueError("Weird formatting of cluster_id: " + uclust_id + "\n")
+        logging.error("Weird formatting of cluster_id: " + uclust_id + "\n")
 
     uclust_command = [args.executables["usearch"]]
     uclust_command += ["-cluster_fast", update_tree.Output + "usearch_sorted.fasta"]
@@ -3979,9 +2936,7 @@ def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
 
     launch_write_command(uclust_command)
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
+    logging.info("done.\n")
 
     return
 
@@ -3996,7 +2951,7 @@ def filter_short_sequences(args, aa_dictionary, length_threshold):
     """
     long_queries = dict()
     short_seqs = 0
-    sys.stdout.write("Removing all sequences shorter than " + str(length_threshold) + " amino acids... ")
+    logging.info("Removing all sequences shorter than " + str(length_threshold) + " amino acids... ")
 
     for seq in aa_dictionary:
         if len(aa_dictionary[seq]) >= length_threshold:
@@ -4004,12 +2959,10 @@ def filter_short_sequences(args, aa_dictionary, length_threshold):
         else:
             short_seqs += 1
 
-    sys.stdout.write("done.\n")
-    if args.verbose:
-        sys.stdout.write("\t" + str(short_seqs) + " were removed.\n")
-    sys.stdout.flush()
+    logging.info("done.\n")
+    logging.info("\t" + str(short_seqs) + " were removed.\n")
     if len(long_queries.keys()) == 0:
-        sys.stderr.write("WARNING: No sequences passed the minimum length threshold! Skipping updating.\n")
+        logging.warning("No sequences passed the minimum length threshold! Skipping updating.\n")
         return
 
     return long_queries
@@ -4025,26 +2978,30 @@ def write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_f
     """
     # Header format:
     # >contig_name|marker_gene
-    try:
-        fna_output = open(orf_nuc_fasta, 'w')
-    except IOError:
-        raise IOError("Unable to open " + orf_nuc_fasta + " for writing!")
 
     output_fasta_string = ""
 
     for denominator in tree_saps:
         for placed_sequence in tree_saps[denominator]:
-            if '>' + placed_sequence.contig_name not in nuc_orfs_formatted_dict:
-                sys.stderr.write("ERROR: Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n")
-                sys.stderr.write("Example headers in the predicted ORFs file:\n\t")
-                sys.stderr.write('\n\t'.join(list(nuc_orfs_formatted_dict.keys())[:6]) + "\n")
-                sys.exit(45)
-            else:
-                output_fasta_string += '>' + placed_sequence.contig_name + '|' + placed_sequence.name + "\n"
-                output_fasta_string += nuc_orfs_formatted_dict['>' + placed_sequence.contig_name] + "\n"
+            if placed_sequence.classified:
+                if '>' + placed_sequence.contig_name not in nuc_orfs_formatted_dict:
+                    logging.error("Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n" +
+                                  "Example headers in the predicted ORFs file:\n\t" +
+                                  '\n\t'.join(list(nuc_orfs_formatted_dict.keys())[:6]) + "\n")
+                    sys.exit(3)
+                else:
+                    output_fasta_string += '>' + placed_sequence.contig_name + '|' + placed_sequence.name + "\n"
+                    output_fasta_string += nuc_orfs_formatted_dict['>' + placed_sequence.contig_name] + "\n"
 
-    fna_output.write(output_fasta_string)
-    fna_output.close()
+    if output_fasta_string:
+        try:
+            fna_output = open(orf_nuc_fasta, 'w')
+        except IOError:
+            logging.error("Unable to open " + orf_nuc_fasta + " for writing!")
+            sys.exit(3)
+
+        fna_output.write(output_fasta_string)
+        fna_output.close()
 
     return
 
@@ -4067,9 +3024,7 @@ def align_reads_to_nucs(args, reference_fasta):
             else:
                 raise OSError("Unable to make " + rpkm_output_dir + "!\n")
 
-    if args.verbose:
-        sys.stdout.write("Aligning reads to ORFs with BWA MEM... ")
-        sys.stdout.flush()
+    logging.info("Aligning reads to ORFs with BWA MEM... ")
 
     sam_file = rpkm_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
     index_command = [args.executables["bwa"], "index"]
@@ -4100,9 +3055,7 @@ def align_reads_to_nucs(args, reference_fasta):
         sys.stderr.write(str(' '.join(bwa_command)) + "\n")
         sys.stderr.flush()
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
+    logging.info("done.\n")
 
     return sam_file
 
@@ -4115,9 +3068,7 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
     :param orf_nuc_fasta:
     :return: Path to the RPKM output csv file
     """
-    if args.verbose:
-        sys.stdout.write("Calculating RPKM values for each ORF... ")
-        sys.stdout.flush()
+    logging.info("Calculating RPKM values for each ORF... ")
 
     rpkm_output_file = '.'.join(sam_file.split('.')[0:-1]) + ".csv"
     rpkm_output_dir = args.output + "RPKM_outputs" + os.sep
@@ -4135,21 +3086,19 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
         sys.stderr.write(str(' '.join(rpkm_command)) + "\n")
         sys.stderr.flush()
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
+    logging.info("done.\n")
 
     return rpkm_output_file
 
 
-def summarize_placements_rpkm(args, rpkm_output_file, cog_list, text_of_analysis_type):
+def summarize_placements_rpkm(args, rpkm_output_file, marker_build_dict):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
     Recapitulates MLTreeMap standard out summary
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param rpkm_output_file: CSV file containing contig names and RPKM values
-    :param cog_list:
-    :param text_of_analysis_type:
+    :type marker_build_dict: dict
+    :param marker_build_dict:
     :return:
     """
     contig_rpkm_map = dict()
@@ -4206,18 +3155,24 @@ def summarize_placements_rpkm(args, rpkm_output_file, cog_list, text_of_analysis
             marker_rpkm_map[marker][placement] = percentage
 
     for marker in marker_rpkm_map:
-        denominator = cog_list['all_cogs'][marker]
+        ref_marker = None
+        for marker_code in marker_build_dict:
+            if marker_build_dict[marker_code].cog == marker:
+                ref_marker = marker_build_dict[marker_code]
+                break
+        if not ref_marker:
+            raise AssertionError("Unable to map marker '" + marker + "' to a MarkerBuild instance.")
 
-        final_output_file = args.output_dir_final + str(denominator) + "_concatenated_RAxML_outputs.txt"
+        final_output_file = args.output_dir_final + str(ref_marker.denominator) + "_concatenated_RAxML_outputs.txt"
         # Not all of the genes predicted will have made it to the RAxML stage
         if os.path.isfile(final_output_file):
-            shutil.move(final_output_file, args.output_dir_final + denominator + "_concatenated_counts.txt")
+            shutil.move(final_output_file, args.output_dir_final + ref_marker.denominator + "_concatenated_counts.txt")
             try:
                 cat_output = open(final_output_file, 'w')
             except IOError:
                 raise IOError("Unable to open " + final_output_file + " for writing!")
 
-            description_text = '# ' + str(text_of_analysis_type[denominator]) + '\n\n'
+            description_text = '# ' + str(ref_marker.kind) + '\n\n'
             cat_output.write(description_text)
 
             for placement in sorted(marker_rpkm_map[marker].keys(), reverse=True):
@@ -4232,71 +3187,28 @@ def summarize_placements_rpkm(args, rpkm_output_file, cog_list, text_of_analysis
     return
 
 
-def parse_ref_build_params(args, current_marker_code=None, create_func_tree=None):
-    """
-    Returns a dictionary of MarkerBuild objects storing information pertaining to the build parameters of each marker.
-    :param args: Command-line argument object returned by get_options and check_parser_arguments
-    :param current_marker_code: The code of the marker currently being updated (e.g. M0701)
-    :param create_func_tree: An instance of the CreateFuncTree class
-    """
-    ref_build_parameters = args.treesapp + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
-    try:
-        param_handler = open(ref_build_parameters, 'r')
-    except IOError:
-        sys.exit('ERROR: Can\'t open ' + ref_build_parameters + '!\n')
-
-    header_re = re.compile("code_name\tdenominator\taa_model\tcluster_identity\tlowest_confident_rank\tlast_updated$")
-    if not header_re.match(param_handler.readline().strip()):
-        raise AssertionError("ERROR: Header of '" + ref_build_parameters + "' is unexpected!")
-
-    marker_build_dict = dict()
-    for line in param_handler:
-        if header_re.match(line):
-            continue
-        if line[0] == '#':
-            continue
-        line = line.strip()
-        marker_build = MarkerBuild(line)
-        marker_build.check_rank()
-        marker_build_dict[marker_build.denominator] = marker_build
-
-        if create_func_tree:
-            if marker_build.denominator == current_marker_code:
-                try:
-                    create_func_tree.cluster_id = float(marker_build.pid)
-                except ValueError:
-                    raise ValueError("ERROR: cluster percent identity '" + marker_build.pid + "' in " +
-                                         ref_build_parameters + " is an invalid value.\n")
-                create_func_tree.raxml_model = marker_build.model
-
-    param_handler.close()
-
-    return marker_build_dict
-
-
 def get_reference_sequence_dict(args, update_tree):
     # Determine the name of the aligned FASTA with reference sequences
     ref_alignment_fasta = "data" + os.sep + "alignment_data" + os.sep + update_tree.COG + ".fa"
     # Read the FASTA to get headers and sequences
-    ref_fasta_dict = format_read_fasta(ref_alignment_fasta, update_tree.marker_molecule, args)
+    ref_fasta_dict = format_read_fasta(ref_alignment_fasta, update_tree.marker_molecule, args.output)
     # Strip the '-'s since these will be re-aligned again
     unaligned_ref_seqs = {header: re.sub('-', '', ref_fasta_dict[header]) for header in ref_fasta_dict}
 
     return unaligned_ref_seqs
 
 
-def update_func_tree_workflow(args, cog_list, ref_tree):
+def update_func_tree_workflow(args, ref_marker: MarkerBuild):
+
     # Load information essential to updating the reference data into a CreateFuncTreeUtility class object
-    update_tree = CreateFuncTreeUtility(args.output, ref_tree)
-    update_tree.find_cog_name(cog_list)
-    update_tree.find_marker_type(cog_list)
+    update_tree = CreateFuncTreeUtility(args.output, ref_marker.denominator)
 
     # Get HMM, sequence, reference build, and taxonomic information for the original sequences
-    parse_ref_build_params(args, ref_tree, update_tree)
     ref_hmm_file = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
     hmm_length = get_hmm_length(ref_hmm_file)
     unaligned_ref_seqs = get_reference_sequence_dict(args, update_tree)
-    ref_organism_lineage_info = read_species_translation_files(args, cog_list)
+    # read_species_translation_files expects the entire marker_build_dict, so we're making a mock one
+    ref_organism_lineage_info = read_species_translation_files(args, {ref_marker.denominator: ref_marker})
 
     # Set up the output directories
     time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
@@ -4344,7 +3256,7 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     # The candidate set has been finalized. Begin rebuilding!
     update_tree.load_new_refs_fasta(args, centroids_fasta, ref_organism_lineage_info)
     aligned_fasta = update_tree.align_multiple_sequences(unaligned_ref_seqs, args)
-    trimal_file = trim_multiple_alignment(args, aligned_fasta)
+    trimal_file = trim_multiple_alignment(args.executables["BMGE.jar"], aligned_fasta, update_tree.marker_molecule)
 
     shutil.move(trimal_file, alignment_files_dir + update_tree.COG + ".fa")
     aligned_fasta = alignment_files_dir + update_tree.COG + ".fa"
@@ -4353,9 +3265,8 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
     new_hmm_file = update_tree.Output + os.sep + update_tree.COG + ".hmm"
     build_hmm(args, alignment_files_dir + update_tree.COG + ".fa", new_hmm_file)
     new_hmm_length = get_hmm_length(new_hmm_file)
-    if args.verbose:
-        sys.stdout.write("\tOld HMM length = " + str(hmm_length) + "\n")
-        sys.stdout.write("\tNew HMM length = " + str(new_hmm_length) + "\n")
+    logging.debug("\tOld HMM length = " + str(hmm_length) + "\n" +
+                  "\tNew HMM length = " + str(new_hmm_length) + "\n")
 
     os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % aligned_fasta)
 
@@ -4396,62 +3307,6 @@ def update_func_tree_workflow(args, cog_list, ref_tree):
             os.remove(useless_file)
         except OSError:
             sys.stderr.write("WARNING: unable to remove intermediate file " + useless_file + "\n")
-
-
-def jplace_parser(filename):
-    """
-    Parses the jplace file using the load function from the JSON library
-    :param filename: jplace file output by RAxML
-    :return: ItolJplace object
-    """
-    itol_datum = ItolJplace()
-    with open(filename) as jplace:
-        jplace_dat = load(jplace, encoding="utf-8")
-        itol_datum.tree = jplace_dat["tree"]
-        # A list of strings
-        if sys.version_info > (2, 9):
-            itol_datum.fields = jplace_dat["fields"]
-        else:
-            itol_datum.fields = [x.decode("utf-8") for x in jplace_dat["fields"]]
-        itol_datum.version = jplace_dat["version"]
-        itol_datum.metadata = jplace_dat["metadata"]
-        # A list of dictionaries of where the key is a string and the value is a list of lists
-        itol_datum.placements = jplace_dat["placements"]
-
-    jplace_dat.clear()
-
-    return itol_datum
-
-
-def write_jplace(itol_datum, jplace_file):
-    """
-    A hacky function for writing jplace files with concatenated placements
-     which are also compatible with iTOL's jplace parser
-    :param itol_datum: A ItolJplace class object
-    :param jplace_file: 
-    :return: 
-    """
-    try:
-        jplace_out = open(jplace_file, 'w')
-    except IOError:
-        raise IOError("Unable to open " + jplace_file + " for writing! Exiting now.")
-
-    itol_datum.correct_decoding()
-    # itol_datum.filter_min_weight_threshold(0.3)
-    itol_datum.filter_max_weight_placement()
-
-    # Begin writing elements to the jplace file
-    jplace_out.write('{\n\t"tree": "')
-    jplace_out.write(itol_datum.tree + "\", \n")
-    jplace_out.write("\t\"placements\": [\n\t")
-    jplace_out.write(", ".join(itol_datum.placements))
-    jplace_out.write("\n\t],\n")
-    jplace_out.write("\t\"version\": " + str(itol_datum.version) + ",\n")
-    jplace_out.write("\t\"fields\": [\n\t")
-    jplace_out.write(", ".join(itol_datum.fields) + "\n\t]\n}")
-
-    jplace_out.close()
-    return
 
 
 def create_itol_labels(args, marker):
@@ -4532,6 +3387,7 @@ def read_rpkm(rpkm_output_file):
 def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
     """
     From the basic RPKM output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param rpkm_output_file:
     :param marker:
@@ -4554,80 +3410,53 @@ def generate_simplebar(args, rpkm_output_file, marker, tree_protein_list):
             rpkm_values[tree_sap.contig_name] = 1.0
 
     for tree_sap in tree_protein_list:
-        if tree_sap.contig_name in rpkm_values:
-            tree_sap.abundance = rpkm_values[tree_sap.contig_name]
-        else:
-            tree_sap.abundance = 0
-        leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
+        if tree_sap.classified:
+            if tree_sap.contig_name in rpkm_values:
+                tree_sap.abundance = rpkm_values[tree_sap.contig_name]
+            else:
+                tree_sap.abundance = 0
+            leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
 
-    try:
-        itol_rpkm_out = open(itol_rpkm_file, 'w')
-    except IOError:
-        sys.stderr.write("Unable to open " + itol_rpkm_file + " for writing! Exiting now...\n")
-        sys.stderr.flush()
-        sys.exit(-10)
+    # Only make the file if there is something to write
+    if len(leaf_rpkm_sums.keys()) > 0:
+        try:
+            itol_rpkm_out = open(itol_rpkm_file, 'w')
+        except IOError:
+            logging.error("Unable to open " + itol_rpkm_file + " for writing.\n")
+            sys.exit(3)
 
-    # Write the header
-    header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,RPKM\nCOLOR,#ff0000\n"
-    itol_rpkm_out.write(header)
-    # Write the RPKM sums for each leaf
-    itol_rpkm_out.write("DATA\n")
-    data_lines = [','.join([str(k), str(v)]) for k, v in leaf_rpkm_sums.items()]
-    itol_rpkm_out.write("\n".join(data_lines))
+        # Write the header
+        header = "DATASET_SIMPLEBAR\nSEPARATOR COMMA\nDATASET_LABEL,RPKM\nCOLOR,#ff0000\n"
+        itol_rpkm_out.write(header)
+        # Write the RPKM sums for each leaf
+        itol_rpkm_out.write("DATA\n")
+        data_lines = [','.join([str(k), str(v)]) for k, v in leaf_rpkm_sums.items()]
+        itol_rpkm_out.write("\n".join(data_lines))
 
-    itol_rpkm_out.close()
+        itol_rpkm_out.close()
 
     return tree_protein_list
 
 
-def children_lineage(leaves, pquery, node_map):
+def lowest_confident_taxonomy(lct, depth):
     """
-    From the jplace placement field ()
-    :param leaves:
-    :param pquery:
-    :param node_map:
-    :return:
-    """
-    children = list()
-    placement = loads(pquery, encoding="utf-8")
-    loci = placement['p']
-    for locus in loci:
-        jplace_node = locus[0]
-        tree_leaves = node_map[jplace_node]
-        for tree_leaf in tree_leaves:
-            # ref_leaf is a TreeLeafReference object
-            for ref_leaf in leaves:
-                if ref_leaf.number == tree_leaf:
-                    if ref_leaf.complete:
-                        children.append(clean_lineage_string(ref_leaf.lineage))
-                    else:
-                        children.append(clean_lineage_string(ref_leaf.description))
-    return children
+    Truncates the initial taxonomic assignment to rank of depth.
 
-
-def lowest_confident_taxonomy(lct, marker_build_object):
-    """
-    Truncates the initial taxonomic assignment to the lowest rank with reasonable confidence.
-    This rank is determined during reference package construction using create_treesapp_ref_data,
-    based on the number of children in a branch.
     :param lct: String for the taxonomic lineage ('; ' separated)
-    :param marker_build_object: Object of MarkerBuild clss
+    :param depth: The recommended depth to truncate the taxonomy
     :return: String representing 'confident' taxonomic assignment for the sequence
     """
-    taxonomic_rank_depth = {0: "Kingdoms", 1: "Phyla", 2: "Classes", 3: "Orders",
-                            4: "Families", 5: "Genera", 6: "Species"}
-    confident_assignment = list()
 
-    if marker_build_object.lowest_confident_rank not in list(taxonomic_rank_depth.values()):
-        raise AssertionError("Unable to find " + marker_build_object.lowest_confident_rank + " in taxonomic map!")
-    else:
-        purified_lineage_list = clean_lineage_string(lct).split("; ")
-        i = 0
-        while taxonomic_rank_depth[i] != marker_build_object.lowest_confident_rank and i < len(purified_lineage_list):
-            confident_assignment.append(purified_lineage_list[i])
-            i += 1
+    purified_lineage_list = clean_lineage_string(lct).split("; ")
+    confident_assignment = "; ".join(purified_lineage_list[:depth])
+    # For debugging
+    # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+    # if clean_lineage_string(lct) == confident_assignment:
+    #     print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
+    # else:
+    #     print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
 
-    return "; ".join(confident_assignment)
+    return confident_assignment
 
 
 def enumerate_taxonomic_lineages(lineage_list):
@@ -4645,27 +3474,106 @@ def enumerate_taxonomic_lineages(lineage_list):
     return taxonomic_counts
 
 
-def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict):
+def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
     """
-    Fields:
-    Marker,Taxonomy,Query,Abundance
+    Determines the total distance of each placement from its branch point on the tree
+    and removes the placement if the distance is deemed too great
+
     :param args: Command-line argument object from get_options and check_parser_arguments
+    :param tree_saps: A dictionary containing TreeProtein objects
+    :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
     :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
+    :return:
+    """
+    for denominator in tree_saps:
+        tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
+        distant_seqs = list()
+        for tree_sap in tree_saps[denominator]:
+            # max_dist_threshold equals the maximum path length from root to tip in its clade
+            max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold, but good for first pass
+            if tree_sap.name not in unclassified_counts.keys():
+                unclassified_counts[tree_sap.name] = 0
+            if not tree_sap.placements:
+                unclassified_counts[tree_sap.name] += 1
+            elif len(tree_sap.placements) > 1:
+                logging.warning("More than one placement for a single contig:\n" +
+                                tree_sap.summarize())
+                tree_sap.classified = False
+                continue
+            elif tree_sap.placements[0] == '{}':
+                unclassified_counts[tree_sap.name] += 1
+                tree_sap.classified = False
+                continue
+
+            distal_length = float(tree_sap.get_jplace_element("distal_length"))
+            pendant_length = float(tree_sap.get_jplace_element("pendant_length"))
+            # Find the length of the edge this sequence was placed onto
+            leaf_children = tree_sap.node_map[int(tree_sap.inode)]
+            # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
+            if len(leaf_children) > 1:
+                # We need to find the LCA in the Tree instance to find the distances to tips for ete3
+                parent = tree.get_common_ancestor(leaf_children)
+                tip_distances = parent_to_tip_distances(parent, leaf_children)
+            else:
+                tree_leaf = tree.get_leaves_by_name(leaf_children[0])[0]
+                sister = tree_leaf.get_sisters()[0]
+                parent = tree_leaf.get_common_ancestor(sister)
+                tip_distances = [0.0]
+
+            tree_sap.avg_evo_dist = round(distal_length + pendant_length + (sum(tip_distances) / len(tip_distances)), 4)
+            tree_sap.distances = str(distal_length) + ',' +\
+                                 str(pendant_length) + ',' +\
+                                 str(sum(tip_distances) / len(tip_distances))
+            # Discard this placement as a false positive if the avg_evo_dist exceeds max_dist_threshold
+            if pendant_length > max_dist_threshold:
+                # print("Global", tree_sap.summarize())
+                unclassified_counts[tree_sap.name] += 1
+                distant_seqs.append(tree_sap.contig_name)
+                tree_sap.classified = False
+                continue
+
+            # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
+            ancestor = find_cluster(parent)
+            clade_tip_distances = list()
+            for leaf in ancestor.get_leaf_names():
+                clade_tip_distances.append(ancestor.get_distance(leaf))
+            # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
+            if pendant_length > max(clade_tip_distances) * 1.2 and \
+                    rank_recommender(pendant_length, marker_build_dict[denominator].pfit) < 0:
+                unclassified_counts[tree_sap.name] += 1
+                distant_seqs.append(tree_sap.contig_name)
+                tree_sap.classified = False
+                # print("Local", tree_sap.summarize())
+                continue
+        logging.debug("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
+                      " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n" +
+                      marker_build_dict[denominator].cog + " queries with extremely long placement distances:\n\t" +
+                      "\n\t".join(distant_seqs) + "\n")
+
+    return
+
+
+def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict):
+    """
+
+
+    :param args: Command-line argument object from get_options and check_parser_arguments
     :param tree_saps: A dictionary containing TreeProtein objects
     :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
     :return:
     """
+    leaf_taxa_map = dict()
     mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
     sample_name = os.path.basename(args.output)
     if not sample_name:
         sample_name = args.output.split(os.sep)[-2]
-    tab_out_string = "Sample\tQuery\tMarker\tTaxonomy\tConfident_Taxonomy\tAbundance\tInternal_node\tLikelihood\tLWR\tWTD\n"
+    tab_out_string = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
     try:
         tab_out = open(mapping_output, 'w')
     except IOError:
-        sys.stderr.write(traceback.print_exc(10))
-        raise IOError("Unable to open " + mapping_output + " for writing! Exiting.")
+        logging.error("Unable to open " + mapping_output + " for writing!\n")
+        sys.exit(3)
 
     for denominator in tree_saps:
         # All the leaves for that tree [number, translation, lineage]
@@ -4677,282 +3585,149 @@ def write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_tran
             lineage_list.append(clean_lineage_string(leaf.lineage).split('; '))
             if leaf.complete:
                 lineage_complete = True
+            leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
         for tree_sap in tree_saps[denominator]:
-            if tree_sap.name not in unclassified_counts.keys():
-                unclassified_counts[tree_sap.name] = 0
-            if len(tree_sap.placements) > 1:
-                sys.stderr.write("WARNING: More than one placements for a single contig!\n")
-                sys.stderr.flush()
-                tree_sap.summarize()
-            if not tree_sap.placements:
-                unclassified_counts[tree_sap.name] += 1
-            elif tree_sap.placements[0] == '{}':
-                unclassified_counts[tree_sap.name] += 1
-            else:
-                tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
-                if len(tree_sap.lineage_list) == 0:
-                    sys.stderr.write("ERROR: unable to find lineage information for marker " +
-                                     denominator + ", contig " + tree_sap.contig_name + "!\n")
-                    sys.stderr.flush()
-                if len(tree_sap.lineage_list) == 1:
-                    tree_sap.lct = tree_sap.lineage_list[0]
-                    tree_sap.wtd = 0.0
-                if len(tree_sap.lineage_list) > 1:
-                    # TODO: Integrate RAxML's likelihood weight ratio so the consensus requires majority likelihood
-                    if lineage_complete:
-                        lca = tree_sap.megan_lca()
-                        # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
-                        tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
+            if not tree_sap.classified:
+                continue
 
-                        if not tree_sap.lct:
-                            sys.stderr.write(str(tree_sap.contig_name) + "\n")
-                        else:
-                            # print(tree_sap.contig_name)
-                            tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
-                            if status > 0:
-                                tree_sap.summarize()
-                    else:
-                        tree_sap.lct = "Lowest common ancestor of: "
-                        tree_sap.lct += ', '.join(tree_sap.lineage_list)
-                        tree_sap.wtd = 1
+            tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
 
-                # tree_sap.summarize()
-                tab_out_string += '\t'.join([sample_name,
-                                             tree_sap.contig_name,
-                                             tree_sap.name,
-                                             clean_lineage_string(tree_sap.lct),
-                                             lowest_confident_taxonomy(tree_sap.lct, marker_build_dict[denominator]),
-                                             str(tree_sap.abundance),
-                                             str(tree_sap.inode),
-                                             str(tree_sap.likelihood),
-                                             str(tree_sap.lwr),
-                                             str(tree_sap.seq_len)]) + "\n"
-        if args.verbose:
-            sys.stdout.write("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
-                             " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n")
-            sys.stdout.flush()
+            # Based on the calculated distance from the leaves, what rank is most appropriate?
+            recommended_rank = rank_recommender(tree_sap.avg_evo_dist,
+                                                marker_build_dict[denominator].pfit)
+
+            if len(tree_sap.lineage_list) == 0:
+                logging.error("Unable to find lineage information for marker " +
+                              denominator + ", contig " + tree_sap.contig_name + "!\n")
+                sys.exit(3)
+            if len(tree_sap.lineage_list) == 1:
+                tree_sap.lct = tree_sap.lineage_list[0]
+                tree_sap.wtd = 0.0
+            if len(tree_sap.lineage_list) > 1:
+                if lineage_complete:
+                    lca = tree_sap.megan_lca()
+                    # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
+                    tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
+                    tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                    if status > 0:
+                        tree_sap.summarize()
+                else:
+                    tree_sap.lct = "Lowest common ancestor of: "
+                    tree_sap.lct += ', '.join(tree_sap.lineage_list)
+                    tree_sap.wtd = 1
+
+            # tree_sap.summarize()
+            tab_out_string += '\t'.join([sample_name,
+                                         tree_sap.contig_name,
+                                         tree_sap.name,
+                                         str(tree_sap.seq_len),
+                                         clean_lineage_string(tree_sap.lct),
+                                         lowest_confident_taxonomy(tree_sap.lct, recommended_rank),
+                                         str(tree_sap.abundance),
+                                         str(tree_sap.inode),
+                                         str(tree_sap.lwr),
+                                         str(tree_sap.avg_evo_dist),
+                                         tree_sap.distances]) + "\n"
     tab_out.write(tab_out_string)
     tab_out.close()
 
     return
 
 
-def pquery_likelihood_weight_ratio(pquery, position):
-    """
-    Determines the likelihood weight ratio (LWR) for a single placement. There may be multiple placements
-    (or 'pquery's) in a single .jplace file. Therefore, this function is usually looped over.
-    :param pquery:
-    :param position: The position of "like_weight_ration" in the pquery fields
-    :return: The float(LWR) of a single placement
-    """
-    lwr = 0.0
-    placement = loads(str(pquery), encoding="utf-8")
-    for k, v in placement.items():
-        if k == 'p':
-            acc = 0
-            while acc < len(v):
-                pquery_fields = v[acc]
-                lwr = float(pquery_fields[position])
-                acc += 1
-    return lwr
-
-
-def parse_raxml_output(args, cog_list, unclassified_counts):
+def parse_raxml_output(args, marker_build_dict):
     """
 
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :param cog_list:
-    :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
+    :param marker_build_dict:
     :return: 
     """
 
-    sys.stdout.write('Parsing the RAxML outputs... ')
-    sys.stdout.flush()
-    try:
-        parse_log = open(args.output + os.sep + "treesapp_parse_RAxML_log.txt", 'w')
-    except IOError:
-        sys.stderr.write("WARNING: Unable to open " + args.output + os.sep + "treesapp_parse_RAxML_log.txt!")
-        sys.stderr.flush()
-        parse_log = sys.stdout
-    if args.verbose:
-        function_start_time = time.time()
+    logging.info('Parsing the RAxML outputs... ')
+
+    function_start_time = time.time()
 
     jplace_files = glob.glob(args.output_dir_var + '*.jplace')
-    jplace_marker_re = re.compile(r".*portableTree.([A-Z][0-9]{4})_(.*)_(\d+)_(\d+)_[A-Za-z0-9_]+.jplace$")
-    jplace_phylocog_re = re.compile(r".*portableTree.([a-z])_(.*)_(\d+)_(\d+)_[A-Za-z0-9_]+.jplace$")
-    itol_data = dict()
-    # marker_map holds the JPlace outputs for all proteins of a marker identified (N >= 1)
-    marker_map = dict()
-    # tree_saps contain individual a single JPlace output for each protein (N == 1)
-    tree_saps = dict()
+    jplace_collection = organize_jplace_files(jplace_files)
+    itol_data = dict()  # contains all pqueries, indexed by marker name (e.g. McrA, nosZ, 16srRNA)
+    tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
+    unclassified_counts = dict()  # A dictionary tracking the number of putative markers that were not classified
     # Use the jplace files to guide which markers iTOL outputs should be created for
     classified_seqs = 0
-    for filename in jplace_files:
-        file_name_info = None
-        for jplace_pattern in [jplace_marker_re, jplace_phylocog_re]:
-            if jplace_pattern.match(filename):
-                file_name_info = jplace_pattern.match(filename)
-                break
-        if not file_name_info:
-            sys.stderr.write("\nRegex parsing marker information from jplace files was unsuccessful!\n")
-            raise AssertionError("The offending file name: " + filename)
-
-        denominator = file_name_info.group(1)
-        contig = file_name_info.group(2)
-        start = file_name_info.group(3)
-        end = file_name_info.group(4)
-
-        if denominator not in marker_map:
-            if denominator != 'p':
-                for cog in cog_list["all_cogs"]:
-                    if denominator == cog_list["all_cogs"][cog]:
-                        marker_map[denominator] = cog
-                        break
-            else:
-                marker_map[denominator] = "nr"
-
+    for denominator in jplace_collection:
+        marker = marker_build_dict[denominator].cog
         if denominator not in tree_saps:
             tree_saps[denominator] = list()
+        if marker not in unclassified_counts.keys():
+            unclassified_counts[marker] = 0
+        for filename in jplace_collection[denominator]:
+            # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
+            jplace_data = jplace_parser(filename)
+            # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
+            tree_placement_queries = demultiplex_pqueries(jplace_data)
+            # Filter the placements, determine the likelihood associated with the harmonized placement
+            for pquery in tree_placement_queries:
+                pquery.name = marker
+                pquery.filter_min_weight_threshold(args.min_likelihood)
+                if not pquery.classified:
+                    unclassified_counts[marker] += 1
+                    logging.debug("A putative " + marker +
+                                  " sequence has been unclassified due to low placement likelihood weights. " +
+                                  "More info:\n" +
+                                  pquery.summarize())
+                    continue
+                if re.match(".*_(\d+)_(\d+)$", pquery.contig_name):
+                    start, end = re.match(".*_(\d+)_(\d+)$", pquery.contig_name).groups()
+                    pquery.seq_len = int(end) - int(start)
+                    pquery.contig_name = re.sub(r"_(\d+)_(\d+)$", '', pquery.contig_name)
+                pquery.create_jplace_node_map()
+                if args.placement_parser == "best":
+                    pquery.filter_max_weight_placement()
+                else:
+                    pquery.harmonize_placements(args.treesapp)
+                if pquery.classified and len(pquery.placements) != 1:
+                    logging.error("Number of JPlace pqueries is " + str(len(pquery.placements)) +
+                                  " when only 1 is expected at this point.\n" +
+                                  pquery.summarize())
+                    sys.exit(3)
+                pquery.inode = str(pquery.get_jplace_element("edge_num"))
+                pquery.lwr = float(pquery.get_jplace_element("like_weight_ratio"))
+                pquery.likelihood = float(pquery.get_jplace_element("likelihood"))
+                tree_saps[denominator].append(pquery)
+                classified_seqs += 1
 
-        marker = marker_map[denominator]
-        query_obj = TreeProtein()
-        query_obj.contig_name = contig
-        query_obj.name = marker
-        query_obj.seq_len = int(end) - int(start)
-        jplace_data = jplace_parser(filename)
-        query_obj.transfer(jplace_data)
-        jplace_data.name_placed_sequence(contig)
+            if marker not in itol_data:
+                itol_data[marker] = jplace_data
+                itol_data[marker].name = marker
+            else:
+                # If a JPlace file for that tree has already been parsed, just append the placements
+                itol_data[marker].placements = itol_data[marker].placements + jplace_data.placements
 
-        if marker not in itol_data:
-            itol_data[marker] = jplace_data
-            itol_data[marker].name = marker
-        else:
-            # If a JPlace file for that tree has already been parsed, just append the placements
-            itol_data[marker].placements = itol_data[marker].placements + jplace_data.placements
-            # with open(filename) as jplace:
-            #     jplace_dat = load(jplace, encoding="utf-8")
-            #     itol_data[marker].placements = itol_data[marker].placements + jplace_dat["placements"]
+            # I have decided to not remove the original JPlace files since some may find these useful
+            # os.remove(filename)
 
-        query_obj.correct_decoding()
-        unclassified = query_obj.filter_min_weight_threshold(args.min_likelihood)
+    logging.info("done.\n")
 
-        if unclassified > 0 and args.verbose:
-            if marker not in unclassified_counts.keys():
-                unclassified_counts[marker] = 0
-            unclassified_counts[marker] += 1
-            parse_log.write("WARNING: a putative " + marker +
-                            " sequence has been unclassified due to low placement likelihood weights. More info:\n")
-            parse_log.write(query_obj.summarize())
-            continue
-        query_obj.create_jplace_node_map()
-        if args.placement_parser == "best":
-            query_obj.filter_max_weight_placement()
-        else:
-            query_obj.harmonize_placements(args.treesapp)
-        if unclassified == 0 and len(query_obj.placements) != 1:
-            sys.stderr.write("ERROR: Number of JPlace pqueries is " + str(len(query_obj.placements)) +
-                             " when only 1 is expected at this point.\n")
-            sys.stderr.write(query_obj.summarize())
-            sys.exit(3)
-        query_obj.get_inode()
-        query_obj.get_placement_lwr()
-        query_obj.get_placement_likelihood()
-        tree_saps[denominator].append(query_obj)
-        classified_seqs += 1
+    function_end_time = time.time()
+    hours, remainder = divmod(function_end_time - function_start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tTree parsing time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    logging.debug("\t" + str(len(jplace_files)) + " RAxML output files.\n" +
+                  "\t" + str(classified_seqs) + " sequences classified by TreeSAPP.\n\n")
 
-        # I have decided to not remove the original JPlace files since some may find these useful
-        # os.remove(filename)
-
-    sys.stdout.write("done.\n")
-
-    if args.verbose:
-        function_end_time = time.time()
-        hours, remainder = divmod(function_end_time - function_start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        sys.stdout.write("\tTree parsing time required: " +
-                         ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-        sys.stdout.write("\t" + str(len(jplace_files)) + " RAxML output files.\n")
-        sys.stdout.write("\t" + str(classified_seqs) + " sequences classified by TreeSAPP.\n\n")
-        sys.stdout.flush()
-
-    parse_log.close()
-
-    return tree_saps, itol_data, marker_map, unclassified_counts
+    return tree_saps, itol_data, unclassified_counts
 
 
-def add_bipartitions(itol_datum, bipartition_file):
-    """
-    Adds bootstrap values read from a NEWICK tree-file where they are indicated by values is square-brackets
-    and inserts them into a JPlace-formatted NEWICK tree (Internal nodes in curly braces are required)
-    :param itol_datum: An ItolJplace object
-    :param bipartition_file: Path to file containing the bootstrapped tree
-    :return: Updated ItolJPlace object
-    """
-    with open(bipartition_file) as bootstrap_tree_handler:
-        bootstrap_tree = bootstrap_tree_handler.readline().strip()
-        no_length_tree = re.sub(":[0-9.]+", '', bootstrap_tree)
-        node_stack = list()
-        internal_node_bipart_map = dict()
-        x = 0
-        i_node = 0
-        num_buffer = ""
-        while x < len(no_length_tree):
-            c = no_length_tree[x]
-            if c == '[':
-                x += 1
-                c = no_length_tree[x]
-                while re.search(r"[0-9]", c):
-                    num_buffer += c
-                    x += 1
-                    c = no_length_tree[x]
-                bootstrap = num_buffer
-                num_buffer = ""
-                x -= 1
-                internal_node_bipart_map[node_stack.pop()] = bootstrap
-            elif re.search(r"[0-9]", c):
-                while re.search(r"[0-9]", c):
-                    x += 1
-                    c = no_length_tree[x]
-                node_stack.append(str(i_node))
-                i_node += 1
-                x -= 1
-            elif c == ')':
-                node_stack.append(str(i_node))
-                i_node += 1
-            x += 1
-    x = 0
-    bootstrapped_jplace_tree = ''
-    num_buffer = ''
-    while x < len(itol_datum.tree):
-        c = itol_datum.tree[x]
-        if c == '{':
-            x += 1
-            c = itol_datum.tree[x]
-            while re.search(r"[0-9]", c):
-                num_buffer += c
-                x += 1
-                c = itol_datum.tree[x]
-            if num_buffer in internal_node_bipart_map.keys():
-                bootstrapped_jplace_tree += '[' + internal_node_bipart_map[num_buffer] + ']'
-            bootstrapped_jplace_tree += '{' + num_buffer
-            num_buffer = ''
-            x -= 1
-        else:
-            bootstrapped_jplace_tree += c
-        x += 1
-    itol_datum.tree = bootstrapped_jplace_tree
-    return itol_datum
-
-
-def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file=None):
+def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_output_file=None):
     """
     Function to create outputs for the interactive tree of life (iTOL) webservice.
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
+
     :param args:
     :param tree_saps:
-    :param marker_map:
+    :param marker_build_dict:
     :param itol_data:
     :param rpkm_output_file:
     :return:
@@ -4965,7 +3740,7 @@ def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file
         if len(tree_saps[denominator]) == 0:
             # No sequences that were mapped met the minimum likelihood weight ration threshold. Skipping!
             continue
-        marker = marker_map[denominator]
+        marker = marker_build_dict[denominator].cog
         if not os.path.exists(itol_base_dir + marker):
             os.mkdir(itol_base_dir + marker)
 
@@ -4975,6 +3750,7 @@ def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file
 
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + marker + os.sep + marker + "_complete_profile.jplace"
+        itol_data[marker] = filter_jplace_data(itol_data[marker], tree_saps[denominator])
         write_jplace(itol_data[marker], master_jplace)
         itol_data[marker].clear_object()
         # Create a labels file from the tax_ids_marker.txt
@@ -4985,11 +3761,9 @@ def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file
         colours_styles = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colours_style.txt"])
         colour_strip = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colour_strip.txt"])
         if colours_styles not in annotation_style_files:
-            sys.stderr.write("WARNING: a colours_style.txt file does not yet exist for marker " + marker + "\n")
-            sys.stderr.flush()
+            logging.debug("A colours_style.txt file does not yet exist for marker " + marker + "\n")
         if colour_strip not in annotation_style_files:
-            sys.stderr.write("WARNING: a colour_strip.txt file does not yet exist for marker " + marker + "\n")
-            sys.stderr.flush()
+            logging.debug("A colour_strip.txt file does not yet exist for marker " + marker + "\n")
 
         for annotation_file in annotation_style_files:
             shutil.copy(annotation_file, itol_base_dir + marker)
@@ -5003,106 +3777,114 @@ def produce_itol_inputs(args, tree_saps, marker_map, itol_data, rpkm_output_file
 
 
 def main(argv):
-    sys.stdout.write("\n\tBeginning TreeSAPP analysis\n\n")
+    sys.stdout.write("\n##\t\t\t\tTreeSAPP\t\t\t\t##\n\n")
     sys.stdout.flush()
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
-    parser = get_options()
-    args = check_parser_arguments(parser)
+    args = get_options()
+    args = check_parser_arguments(args)
     args = check_previous_output(args)
+
     marker_build_dict = parse_ref_build_params(args)
     marker_build_dict = parse_cog_list(args, marker_build_dict)
-    cog_list, text_of_analysis_type = create_cog_list(args)
     tree_numbers_translation = read_species_translation_files(args, marker_build_dict)
-    unclassified_counts = dict()
     if args.check_trees:
         validate_inputs(args, marker_build_dict)
-    # TODO: Finish replacing cog_list with marker_build_dict
     if args.skip == 'n':
         # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
         if args.molecule == "dna":
             # args.fasta_input is set to the predicted ORF protein sequences
             args = predict_orfs(args)
-        sys.stdout.write("Formatting " + args.fasta_input + " for pipeline... ")
-        sys.stdout.flush()
-        formatted_fasta_dict = format_read_fasta(args.fasta_input, "prot", args)
-        sys.stdout.write("done.\n")
-        if args.verbose:
-            sys.stdout.write("\tTreeSAPP will analyze the "
-                             + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
+        logging.info("Formatting " + args.fasta_input + " for pipeline... ")
+        formatted_fasta_dict = format_read_fasta(args.fasta_input, "prot", args.output)
+        logging.info("done.\n")
+
+        logging.info("\tTreeSAPP will analyze the " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
         if re.match(r'\A.*\/(.*)', args.fasta_input):
             input_multi_fasta = os.path.basename(args.fasta_input)
         else:
             input_multi_fasta = args.fasta_input
         args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
         formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
-        ref_alignment_dimensions = get_alignment_dims(args, cog_list)
+        ref_alignment_dimensions = get_alignment_dims(args, marker_build_dict)
 
         # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
-        hmm_search_log = args.output + os.sep + "hmm_search_log.txt"
+        hmm_domtbl_files = hmmsearch_orfs(args, marker_build_dict)
+        hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
+        homolog_seq_files, numeric_contig_index = extract_hmm_matches(args, hmm_matches, formatted_fasta_dict)
 
-        log_handler = open(hmm_search_log, 'w')
+        # Cluster the sequences
+        # TODO: package this into a function
+        multi_align_input_files = list()
+        cluster_dict = dict()
+        for homologs_fasta in sorted(homolog_seq_files):
+            # Strip the extension
+            homologs = read_fasta_to_dict(homologs_fasta)
+            prefix = '.'.join(homologs_fasta.split('.')[:-1])
+            cluster_prefix = prefix + "_cluster"
+            cluster_sequences(args, homologs_fasta, cluster_prefix)
+            clusters = read_uc(cluster_prefix + ".uc")
+            for cid in clusters:
+                cluster_dict.clear()
+                cluster_dict[clusters[cid].representative] = homologs[clusters[cid].representative[1:]]
+                for member in clusters[cid].members:
+                    member_name = member[0]
+                    cluster_dict[member_name] = homologs[member_name[1:]]
+                write_new_fasta(fasta_dict=cluster_dict, fasta_name=cluster_prefix + str(cid) + ".fasta")
+                multi_align_input_files.append(cluster_prefix + str(cid) + ".fasta")
 
-        hmm_domtbl_files = hmmsearch_orfs(args, cog_list, marker_build_dict)
-        hmm_matches = parse_domain_tables(args, hmm_domtbl_files, log_handler)
-        hmmalign_inputs = extract_hmm_matches(args, hmm_matches, formatted_fasta_dict, cog_list)
+        # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
+        create_ref_phy_files(args, multi_align_input_files, marker_build_dict, ref_alignment_dimensions)
+        concatenated_msa_files = multiple_alignments(args, multi_align_input_files, marker_build_dict)
+        alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions, args.verbose)
 
-        log_handler.close()
-
-        # STAGE 4: Run hmmalign, and optionally trimal, to produce the MSAs required to for the ML estimations
-        create_ref_phy_files(args, hmmalign_inputs, marker_build_dict, ref_alignment_dimensions)
-        concatenated_mfa_files = multiple_alignments(args, hmmalign_inputs, marker_build_dict)
-        alignment_length_dict = get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, args.verbose)
-
-        if args.filter_align:
-            # mfa_files = trimal_alignments(args, concatenated_mfa_files)
-            tool = "bmge"
-            mfa_files = filter_multiple_alignments(args, concatenated_mfa_files, tool)
-            if args.verbose:
-                evaluate_trimming_performace(mfa_files, alignment_length_dict, tool)
+        if args.trim_align:
+            tool = "BMGE"
+            mfa_files = filter_multiple_alignments(args, concatenated_msa_files, marker_build_dict, tool)
+            qc_ma_dict = check_for_removed_sequences(args, mfa_files, marker_build_dict)
+            evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, tool)
+            phy_files = produce_phy_files(args, qc_ma_dict)
         else:
-            mfa_files = concatenated_mfa_files
-        phy_files = produce_phy_files(args, mfa_files, ref_alignment_dimensions)
+            phy_files = concatenated_msa_files
         delete_files(args, 3)
 
         # STAGE 5: Run RAxML to compute the ML estimations
         start_raxml(args, phy_files, marker_build_dict)
-    tree_saps, itol_data, marker_map, unclassified_counts = parse_raxml_output(args, cog_list, unclassified_counts)
+        sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)
+    tree_saps, itol_data, unclassified_counts = parse_raxml_output(args, marker_build_dict)
+    filter_placements(args, tree_saps, marker_build_dict, unclassified_counts)
 
     abundance_file = None
     if args.molecule == "dna":
         sample_name = '.'.join(os.path.basename(re.sub("_ORFs", '', args.fasta_input)).split('.')[:-1])
         orf_nuc_fasta = args.output_dir_final + sample_name + "_classified_seqs.fna"
         if not os.path.isfile(orf_nuc_fasta):
-            sys.stdout.write("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
-            sys.stdout.flush()
+            logging.info("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
             genome_nuc_genes_file = args.output_dir_final + sample_name + "_ORFs.fna"
             if os.path.isfile(genome_nuc_genes_file):
-                nuc_orfs_formatted_dict = format_read_fasta(genome_nuc_genes_file, 'dna', args)
+                nuc_orfs_formatted_dict = format_read_fasta(genome_nuc_genes_file, 'dna', args.output)
                 write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta)
-                sys.stdout.write("done.\n")
-                sys.stdout.flush()
+                logging.info("done.\n")
             else:
-                sys.stderr.write("failed.\nWARNING: Unable to read '" + genome_nuc_genes_file + "'.\n")
-                sys.stderr.write("Cannot create the nucleotide FASTA file of classified sequences!\n")
+                logging.info("failed.\nWARNING: Unable to read '" + genome_nuc_genes_file + "'.\n" +
+                             "Cannot create the nucleotide FASTA file of classified sequences!\n")
         if args.rpkm:
             sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
             abundance_file = run_rpkm(args, sam_file, orf_nuc_fasta)
-            summarize_placements_rpkm(args, abundance_file, cog_list, text_of_analysis_type)
+            summarize_placements_rpkm(args, abundance_file, marker_build_dict)
     else:
         pass
 
-    produce_itol_inputs(args, tree_saps, marker_map, itol_data, abundance_file)
-    write_tabular_output(args, unclassified_counts, tree_saps, tree_numbers_translation, marker_build_dict)
+    write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict)
+    produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, abundance_file)
     delete_files(args, 4)
 
     # STAGE 6: Optionally update the reference tree
     if args.update_tree:
-        for marker in args.targets:
-            update_func_tree_workflow(args, cog_list, marker)
+        for marker_code in args.targets:
+            update_func_tree_workflow(args, marker_build_dict[marker_code])
 
     delete_files(args, 5)
-    sys.stdout.write("TreeSAPP has finished successfully.\n")
-    sys.stdout.flush()
+    logging.info("TreeSAPP has finished successfully.\n")
 
 
 if __name__ == "__main__":

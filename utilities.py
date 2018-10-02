@@ -3,8 +3,8 @@ __author__ = 'Connor Morgan-Lang'
 import os
 import re
 import sys
-from HMMER_domainTblParser import filter_incomplete_hits, filter_poor_hits, DomainTableParser, format_split_alignments
-
+import subprocess
+import logging
 from external_command_interface import launch_write_command
 
 
@@ -44,6 +44,109 @@ def os_type():
             return 'linux'
 
 
+def available_cpu_count():
+    """ Number of available virtual or physical CPUs on this system, i.e.
+    user/real as output by time(1) when called with an optimally scaling
+    userspace-only program"""
+
+    # cpuset
+    # cpuset may restrict the number of *available* processors
+    try:
+        m = re.search(r'(?m)^Cpus_allowed:\s*(.*)$',
+                      open('/proc/self/status').read())
+        if m:
+            res = bin(int(m.group(1).replace(',', ''), 16)).count('1')
+            if res > 0:
+                return res
+    except IOError:
+        pass
+
+    # Python 2.6+
+    try:
+        import multiprocessing
+        return multiprocessing.cpu_count()
+    except (ImportError, NotImplementedError):
+        pass
+
+    # http://code.google.com/p/psutil/
+    try:
+        import psutil
+        return psutil.NUM_CPUS
+    except (ImportError, AttributeError):
+        pass
+
+    # POSIX
+    try:
+        res = int(os.sysconf('SC_NPROCESSORS_ONLN'))
+
+        if res > 0:
+            return res
+    except (AttributeError, ValueError):
+        pass
+
+    # Windows
+    try:
+        res = int(os.environ['NUMBER_OF_PROCESSORS'])
+
+        if res > 0:
+            return res
+    except (KeyError, ValueError):
+        pass
+
+    # BSD
+    try:
+        sysctl = subprocess.Popen(['sysctl', '-n', 'hw.ncpu'],
+                                  stdout=subprocess.PIPE)
+        scStdout = sysctl.communicate()[0]
+        res = int(scStdout)
+
+        if res > 0:
+            return res
+    except (OSError, ValueError):
+        pass
+
+    # Linux
+    try:
+        res = open('/proc/cpuinfo').read().count('processor\t:')
+
+        if res > 0:
+            return res
+    except IOError:
+        pass
+
+    # Solaris
+    try:
+        pseudoDevices = os.listdir('/devices/pseudo/')
+        res = 0
+        for pd in pseudoDevices:
+            if re.match(r'^cpuid@[0-9]+$', pd):
+                res += 1
+
+        if res > 0:
+            return res
+    except OSError:
+        pass
+
+    # Other UNIXes (heuristic)
+    try:
+        try:
+            dmesg = open('/var/run/dmesg.boot').read()
+        except IOError:
+            dmesgProcess = subprocess.Popen(['dmesg'], stdout=subprocess.PIPE)
+            dmesg = dmesgProcess.communicate()[0]
+
+        res = 0
+        while '\ncpu' + str(res) + ':' in dmesg:
+            res += 1
+
+        if res > 0:
+            return res
+    except OSError:
+        pass
+
+    logging.error('Can not determine number of CPUs on this system')
+
+
 def find_executables(args):
     """
     Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
@@ -51,8 +154,7 @@ def find_executables(args):
     :return: exec_paths beings the absolute path to each executable
     """
     exec_paths = dict()
-    dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "trimal", "BMGE.jar", "papara"]
-    # old_dependencies = ["blastn", "blastx", "blastp", "genewise", "Gblocks", "makeblastdb", "muscle"]
+    dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "usearch", "trimal", "BMGE.jar", "papara"]
 
     # Extra executables necessary for certain modes of TreeSAPP
     if hasattr(args, "rpkm") and args.rpkm:
@@ -63,9 +165,9 @@ def find_executables(args):
             dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]
 
     if hasattr(args, "cluster") or hasattr(args, "multiple_alignment") or hasattr(args, "fast"):
+        dependencies += ["mafft", "OD-seq"]
         if args.cluster:
             dependencies.append("usearch")
-        dependencies.append("mafft")
         if args.fast:
             dependencies.append("FastTree")
 
@@ -77,7 +179,8 @@ def find_executables(args):
     if os_type() == "mac":
         args.executables = args.treesapp + "sub_binaries" + os.sep + "mac"
     elif os_type() == "win" or os_type() is None:
-        sys.exit("ERROR: Unsupported OS")
+        logging.error("Unsupported OS")
+        sys.exit(13)
 
     for dep in dependencies:
         if is_exe(args.executables + os.sep + dep):
@@ -88,8 +191,8 @@ def find_executables(args):
         elif which(dep):
             exec_paths[dep] = which(dep)
         else:
-            sys.stderr.write("Could not find a valid executable for " + dep + ". ")
-            sys.exit("Bailing out.")
+            logging.error("Could not find a valid executable for " + dep + ". ")
+            sys.exit(13)
 
     args.executables = exec_paths
     return args
@@ -123,29 +226,6 @@ class Autovivify(dict):
             return value
 
 
-def xml_parser(xml_record, term):
-    """
-    Recursive function for parsing individual xml records
-    :param xml_record:
-    :param term:
-    :return:
-    """
-    # TODO: Finish this off - would be great for consistently extracting data from xml
-    value = None
-    if type(xml_record) == str:
-        return value
-    if term not in xml_record.keys():
-        for record in xml_record:
-            value = xml_parser(record, term)
-            if value:
-                return value
-            else:
-                continue
-    else:
-        return xml_record[term]
-    return value
-
-
 def return_sequence_info_groups(regex_match_groups, header_db, header):
     accession = ""
     description = ""
@@ -157,7 +237,15 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             accession = regex_match_groups.group(1)
             organism = regex_match_groups.group(2)
             description = regex_match_groups.group(2)
-        elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome"]:
+        if header_db == "gi_proper":
+            accession = regex_match_groups.group(2)
+            description = regex_match_groups.group(3)
+            organism = regex_match_groups.group(4)
+        if header_db in ["gi_re", "gi_mess", "pdb"]:
+            accession = regex_match_groups.group(1)
+            description = regex_match_groups.group(2)
+            organism = ""
+        elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome", "gen_prot"]:
             accession = regex_match_groups.group(1)
             description = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
@@ -176,17 +264,18 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
             organism = regex_match_groups.group(2)
             description = regex_match_groups.group(3)
         elif header_db == "custom":
-            description = regex_match_groups.group(1)
+            accession = regex_match_groups.group(1)
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
+            description = regex_match_groups.group(3)
     else:
-        sys.stderr.write("Unable to handle header: " + header + "\n")
-        sys.exit()
+        logging.error("Unable to handle header: " + header + "\n")
+        sys.exit(13)
 
     if not accession and not organism:
-        sys.stderr.write("ERROR: Insufficient information was loaded for header:\n" + header + "\n")
-        sys.stderr.write("regex_match: " + header_db + '\n')
-        sys.exit(33)
+        logging.error("Insufficient information was loaded for header:\n" +
+                      header + "\n" + "regex_match: " + header_db + '\n')
+        sys.exit(13)
 
     return accession, organism, locus, description, lineage
 
@@ -234,14 +323,14 @@ def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
     blastdb_out = prefix + ".fa"
     if multiple:
         if blastdb_out == fasta:
-            sys.stderr.write("ERROR: prefix.fa is the same as " + fasta + " and would be overwritten!\n")
-            sys.exit(11)
+            logging.error("prefix.fa is the same as " + fasta + " and would be overwritten!\n")
+            sys.exit(13)
         remove_dashes_from_msa(fasta, blastdb_out)
         blastdb_in = blastdb_out
     else:
         blastdb_in = fasta
 
-    sys.stdout.write("Making the BLAST database for " + blastdb_in + "... ")
+    logging.info("Making the BLAST database for " + blastdb_in + "... ")
 
     # Format the `makeblastdb` command
     makeblastdb_command = [args.executables["makeblastdb"]]
@@ -253,8 +342,7 @@ def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
     # Launch the command
     stdout, makeblastdb_pro_returncode = launch_write_command(makeblastdb_command)
 
-    sys.stdout.write("done\n")
-    sys.stdout.flush()
+    logging.info("done\n")
 
     return stdout, blastdb_out
 
@@ -276,128 +364,6 @@ def clean_lineage_string(lineage):
     return lineage
 
 
-def best_match(matches):
-    """
-    Function for finding the best alignment in a list of HmmMatch() objects
-    The best match is based off of the full sequence score
-    :param matches: A list of HmmMatch() objects
-    :return: The best HmmMatch
-    """
-    # TODO: Incorporate the alignment intervals to allow for proteins with multiple different functional domains
-    # Code currently only permits multi-domains of the same gene
-    best_target_hmm = ""
-    best_alignment = None
-    top_score = 0
-    for match in matches:
-        # match.print_info()
-        if match.full_score > top_score:
-            best_alignment = match
-            best_target_hmm = match.target_hmm
-            top_score = match.full_score
-    return best_target_hmm, best_alignment
-
-
-def parse_domain_tables(args, hmm_domtbl_files, log=None):
-    # Check if the HMM filtering thresholds have been set
-    if not hasattr(args, "min_e"):
-        args.min_e = 0.01
-        args.min_acc = 0.6
-        args.perc_aligned = 80
-    # Print some stuff to inform the user what they're running and what thresholds are being used.
-    if args.verbose:
-        sys.stdout.write("Filtering HMM alignments using the following thresholds:\n")
-        sys.stdout.write("\tMinimum E-value = " + str(args.min_e) + "\n")
-        sys.stdout.write("\tMinimum acc = " + str(args.min_acc) + "\n")
-        sys.stdout.write("\tMinimum percentage of the HMM covered = " + str(args.perc_aligned) + "%\n")
-    sys.stdout.write("Parsing domain tables generated by HMM searches for high-quality matches... ")
-
-    raw_alignments = 0
-    seqs_identified = 0
-    dropped = 0
-    fragmented = 0
-    glued = 0
-    multi_alignments = 0  # matches of the same query to a different HMM (>1 lines)
-    hmm_matches = dict()
-    orf_gene_map = dict()
-
-    # TODO: Capture multimatches across multiple domain table files
-    for domtbl_file in hmm_domtbl_files:
-        rp_marker, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
-        domain_table = DomainTableParser(domtbl_file)
-        domain_table.read_domtbl_lines()
-        distinct_matches, fragmented, glued, multi_alignments, raw_alignments = format_split_alignments(domain_table,
-                                                                                                        fragmented,
-                                                                                                        glued,
-                                                                                                        multi_alignments,
-                                                                                                        raw_alignments)
-        purified_matches, dropped = filter_poor_hits(args, distinct_matches, dropped)
-        complete_gene_hits, dropped = filter_incomplete_hits(args, purified_matches, dropped)
-        # for match in complete_gene_hits:
-        #     match.genome = reference
-        #     if match.target_hmm not in hmm_matches.keys():
-        #         hmm_matches[match.target_hmm] = list()
-        #     hmm_matches[match.target_hmm].append(match)
-        #     seqs_identified += 1
-
-        for match in complete_gene_hits:
-            match.genome = reference
-            if match.orf not in orf_gene_map:
-                orf_gene_map[match.orf] = dict()
-            orf_gene_map[match.orf][match.target_hmm] = match
-            if match.target_hmm not in hmm_matches.keys():
-                hmm_matches[match.target_hmm] = list()
-
-    for orf in orf_gene_map:
-        if len(orf_gene_map[orf]) == 1:
-            target_hmm = list(orf_gene_map[orf].keys())[0]
-            hmm_matches[target_hmm].append(orf_gene_map[orf][target_hmm])
-        else:
-            optional_matches = [orf_gene_map[orf][target_hmm] for target_hmm in orf_gene_map[orf]]
-            target_hmm, match = best_match(optional_matches)
-            hmm_matches[target_hmm].append(match)
-            multi_alignments += 1
-            dropped += (len(optional_matches) - 1)
-
-            if log:
-                dropped_annotations = list()
-                for optional in optional_matches:
-                    if optional.target_hmm != target_hmm:
-                        dropped_annotations.append(optional.target_hmm)
-                log.write("HMM search annotations for " + orf + ":\n")
-                log.write("\tRetained\t" + target_hmm + "\n")
-                log.write("\tDropped\t" + ','.join(dropped_annotations) + "\n")
-
-        seqs_identified += 1
-
-    sys.stdout.write("done.\n")
-
-    if seqs_identified == 0 and dropped == 0:
-        sys.stderr.write("\tWARNING: No alignments found!\n")
-        sys.stderr.write("TreeSAPP is exiting now.\n")
-        sys.exit(11)
-    if seqs_identified == 0 and dropped > 0:
-        sys.stderr.write("\tWARNING: No alignments met the quality cut-offs!\n")
-        sys.stderr.write("TreeSAPP is exiting now.\n")
-        sys.exit(13)
-
-    sys.stdout.write("\tNumber of markers identified:\n")
-    for marker in sorted(hmm_matches):
-        sys.stdout.write("\t\t" + marker + "\t" + str(len(hmm_matches[marker])) + "\n")
-        # For debugging:
-        # for match in hmm_matches[marker]:
-        #     match.print_info()
-    if args.verbose:
-        sys.stdout.write("\tInitial alignments:\t" + str(raw_alignments) + "\n")
-        sys.stdout.write("\tAlignments discarded:\t" + str(dropped) + "\n")
-        sys.stdout.write("\tFragmented alignments:\t" + str(fragmented) + "\n")
-        sys.stdout.write("\tAlignments scaffolded:\t" + str(glued) + "\n")
-        sys.stdout.write("\tMulti-alignments:\t" + str(multi_alignments) + "\n")
-        sys.stdout.write("\tSequences identified:\t" + str(seqs_identified) + "\n")
-
-    sys.stdout.flush()
-    return hmm_matches
-
-
 def median(lst):
     n = len(lst)
     if n < 1:
@@ -406,110 +372,6 @@ def median(lst):
             return sorted(lst)[n//2]
     else:
             return sum(sorted(lst)[n//2-1:n//2+1])/2.0
-
-
-def read_colours_file(args, annotation_file):
-    """
-    Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
-    marker and data_type.
-    :param args:
-    :param annotation_file:
-    :return: A dictionary of lists where each list is populated by tuples with start and end leaves
-    """
-    try:
-        style_handler = open(annotation_file, 'r')
-    except IOError:
-        sys.stderr.write("ERROR: Unable to open " + annotation_file + " for reading!\n")
-        sys.exit()
-
-    clusters = dict()
-    field_sep = ''
-    internal_nodes = True
-
-    line = style_handler.readline()
-    # Skip the header
-    while line.strip() != "DATA":
-        header_fields = line.strip().split(' ')
-        if header_fields[0] == "SEPARATOR":
-            if header_fields[1] == "SPACE":
-                field_sep = ' '
-            elif header_fields[1] == "TAB":
-                field_sep = '\t'
-            else:
-                sys.stderr.write("ERROR: Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
-                sys.stderr.flush()
-                sys.exit()
-        line = style_handler.readline()
-    # For RGB
-    range_line_rgb = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
-                                "range" + re.escape(field_sep) +
-                                ".*\)" + re.escape(field_sep) +
-                                "(.*)$")
-    single_node_rgb = re.compile("^(\d+)" + re.escape(field_sep) +
-                                 "range" + re.escape(field_sep) +
-                                 ".*\)" + re.escape(field_sep) +
-                                 "(.*)$")
-    lone_node_rgb = re.compile("^(.*)" + re.escape(field_sep) +
-                               "range" + re.escape(field_sep) +
-                               ".*\)" + re.escape(field_sep) +
-                               "(.*)$")
-
-    # For hexadecimal
-    range_line = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
-                            "range" + re.escape(field_sep) +
-                            "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                            "(.*)$")
-    single_node = re.compile("^(\d+)" + re.escape(field_sep) +
-                             "range" + re.escape(field_sep) +
-                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                             "(.*)$")
-    lone_node = re.compile("^(.*)" + re.escape(field_sep) +
-                           "range" + re.escape(field_sep) +
-                           "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                           "(.*)$")
-
-    # Begin parsing the data from 4 columns
-    line = style_handler.readline().strip()
-    while line:
-        if range_line.match(line):
-            style_data = range_line.match(line)
-            start, end, description = style_data.groups()
-            internal_nodes = False
-        elif range_line_rgb.match(line):
-            style_data = range_line_rgb.match(line)
-            start, end, description = style_data.groups()
-            internal_nodes = False
-        elif single_node.match(line):
-            style_data = single_node.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif single_node_rgb.match(line):
-            style_data = single_node_rgb.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node.match(line):
-            style_data = lone_node.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node_rgb.match(line):
-            style_data = lone_node_rgb.match(line)
-            start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        else:
-            sys.stderr.write("ERROR: Unrecognized line formatting in " + annotation_file + ":\n")
-            sys.stderr.write(line + "\n")
-            sys.exit()
-
-        description = style_data.groups()[-1]
-        if description not in clusters.keys():
-            clusters[description] = list()
-        clusters[description].append((start, end))
-
-        line = style_handler.readline().strip()
-
-    style_handler.close()
-
-    if args.verbose:
-        sys.stdout.write("\tParsed " + str(len(clusters)) +
-                         " clades from " + annotation_file + "\n")
-
-    return clusters, internal_nodes
 
 
 def convert_outer_to_inner_nodes(clusters, internal_node_map):
@@ -562,7 +424,125 @@ def annotate_internal_nodes(args, internal_node_map, clusters):
             if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
                 annotated_clade_members[annotation].add(i_node)
 
-    if args.verbose:
-        sys.stdout.write("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
+    logging.debug("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
 
     return annotated_clade_members, leaves_in_clusters
+
+
+def reformat_fasta_to_phy(fasta_dict):
+    phy_dict = dict()
+    for seq_name in fasta_dict:
+        sequence = fasta_dict[seq_name]
+        sub_sequences = re.findall(r'.{1,50}', sequence)
+        count = 0
+        for sub_sequence in sub_sequences:
+            if count not in phy_dict:
+                phy_dict[count] = dict()
+            phy_dict[count][int(seq_name)] = sub_sequence
+            count += 1
+    return phy_dict
+
+
+def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
+    """
+    Writes a Phylip-formatted alignment file
+    PaPaRa is EXTREMELY particular about the input of its Phylip file. Don't mess.
+    :param phy_output_file: File path to write the Phylip file
+    :param phy_dict: Dictionary of sequences to write
+    :param alignment_dims: Tuple containing (num_seqs, alignment_len)
+    :return:
+    """
+    if not alignment_dims:
+        seq_chunks = [len(aligned_seq) for aligned_seq in phy_dict.values()]
+        if min(seq_chunks) != max(seq_chunks):
+            logging.error("Inconsistent number of sequences in Phylip dictionary keys.")
+        num_seqs = seq_chunks[0]
+        aligned_seqs = dict()
+        for seq_chunk in phy_dict.keys():
+            for seq_name in phy_dict[seq_chunk].keys():
+                if seq_name not in aligned_seqs:
+                    aligned_seqs[seq_name] = ""
+                aligned_seqs[seq_name] += phy_dict[seq_chunk][seq_name]
+        aligned_seq_lengths = [len(aligned_seqs[aligned_seq]) for aligned_seq in aligned_seqs.keys()]
+        if min(aligned_seq_lengths) != max(aligned_seq_lengths):
+            logging.error("Lengths of aligned sequences are heterogeneous.")
+        alignment_len = aligned_seq_lengths[0]
+        aligned_seqs.clear()
+        seq_chunks.clear()
+    else:
+        num_seqs, alignment_len = alignment_dims
+
+    with open(phy_output_file, 'w') as phy_output:
+        phy_string = ' ' + str(num_seqs) + ' ' + str(alignment_len) + '\n'
+        for count in sorted(phy_dict.keys(), key=int):
+            for seq_name in sorted(phy_dict[count].keys()):
+                sequence_part = re.sub('X', '-', phy_dict[count][seq_name])
+                if count == 0:
+                    phy_string += str(seq_name)
+                    length = len(str(seq_name))
+                    c = length
+                    while c < 11:
+                        phy_string += ' '
+                        c += 1
+                else:
+                    phy_string += 11*' '
+                phy_string += ' '.join(re.findall(r'.{1,10}', sequence_part)) + '\n'
+            phy_string += "\n"
+
+        phy_output.write(phy_string)
+    return
+
+
+def calculate_overlap(info):
+    """
+    Returns the overlap length of the base and the check sequences.
+    :param info: Autovivify() object holding start and end sequence coordinates for overlapping sequences
+    :return overlap: The number of overlapping bases between the sequences
+    """
+
+    overlap = 0
+    base_start = info['base']['start']
+    base_end = info['base']['end']
+    check_start = info['check']['start']
+    check_end = info['check']['end']
+
+    # Calculate the overlap based on the relative positioning of the base and check sequences
+    assert isinstance(base_end, (int, int, float, complex))
+    if base_start <= check_start:
+        if check_end >= base_end >= check_start:
+            # Base     ----
+            # Check      -------
+            overlap = base_end - check_start
+        elif check_end <= base_end:
+            # Base     --------
+            # Check        --
+            overlap = check_end - check_start
+    elif check_start <= base_start:
+        if base_start <= check_end <= base_end:
+            # Base         -----
+            # Check    -----
+            overlap = check_end - base_start
+        elif base_end <= check_end:
+            # Base       --
+            # Check    --------
+            overlap = base_end - base_start
+
+    return overlap
+
+
+def cluster_sequences(args, fasta_input, uclust_prefix, similarity=0.60):
+
+    uclust_cmd = [args.executables["usearch"]]
+    uclust_cmd += ["-cluster_fast", fasta_input]
+    uclust_cmd += ["-id", str(similarity)]
+    uclust_cmd += ["-sort", "length"]
+    uclust_cmd += ["-centroids", uclust_prefix + ".fa"]
+    uclust_cmd += ["--uc", uclust_prefix + ".uc"]
+
+    stdout, returncode = launch_write_command(uclust_cmd)
+
+    if returncode != 0:
+        logging.error("USEARCH did not complete successfully! Command used:\n" +
+                      ' '.join(uclust_cmd) + "\n")
+        sys.exit(13)
+    return

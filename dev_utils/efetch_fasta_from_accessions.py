@@ -6,6 +6,7 @@ import sys
 import os
 import argparse
 import inspect
+import logging
 from urllib import error
 from Bio import Entrez
 
@@ -14,6 +15,8 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from external_command_interface import setup_progress_bar
+from classy import prep_logging
+from fasta import get_headers
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -160,20 +163,20 @@ def fetch_sequences(args, accessions):
     """
     fasta_string = ""
     alternative_molecule = ""
+    failures = list()
+    blanks = list()
     Entrez.email = "A.N.Other@example.com"
 
-    if args.verbose:
-        sys.stdout.write("Testing Entrez efetch and your internet connection... ")
-        sys.stdout.flush()
+    logging.debug("Testing Entrez efetch and your internet connection... ")
+
     try:
         Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
     except error.URLError:
-        raise AssertionError("ERROR: Unable to serve Entrez query. Are you connected to the internet?")
+        logging.error("Unable to serve Entrez query. Are you connected to the internet?\n")
+        sys.exit(11)
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.write("Fetching sequences from Entrez. Here is a sweet progress bar:\n")
-        sys.stdout.flush()
+    logging.debug("done.\n")
+    logging.info("Fetching sequences from Entrez.\n")
 
     for mol in ["protein", "nucleotide"]:
         if mol != args.molecule_in:
@@ -182,11 +185,10 @@ def fetch_sequences(args, accessions):
 
     step_proportion = setup_progress_bar(len(accessions))
     acc = 0.0
-    skipped_seqs = 0
 
     for accession in accessions:
         if not accession:
-            sys.stderr.write("\tWARNING: Blank accession ID found for unknown sequence.\n")
+            logging.warning("Blank accession ID found for unknown sequence.\n")
 
         if args.molecule_in == args.seq_out:
             try:
@@ -203,7 +205,9 @@ def fetch_sequences(args, accessions):
                                                    retmode="text")
                     gb_record = genbank_handle.read()
                 except error.HTTPError:
-                    sys.exit("\nERROR: Unable to fetch information from NCBi for accession: " + str(accession) + "\n")
+                    failures.append(accession)
+                    acc += 1.0
+                    continue
                 if args.molecule_in == "protein":
                     accession = re.search("protein_id=\"(.*)\"", gb_record).group(1)
                 else:
@@ -212,28 +216,28 @@ def fetch_sequences(args, accessions):
                 handle = Entrez.efetch(db=args.molecule_in, id=str(accession), rettype="fasta", retmode="text")
             fasta_seq = handle.read()
             if fasta_seq == "":
-                sys.stderr.write("\tEntrez server returned empty fasta sequence for "
-                                 + accession + " from " + args.molecule_in + " database.\n")
-                skipped_seqs += 1
+                blanks.append(accession)
+                acc += 1.0
+                continue
         else:
             handle = (Entrez.efetch(db=args.molecule_in, id=str(accession), retmode="xml"))
             fasta_seq = parse_entrez_xml(args, handle)
             if type(fasta_seq) is list:
-                sys.stderr.write("\tWARNING: Unable to find the converted accession or sequence for " + accession + "\n")
-                if args.verbose:
-                    sys.stderr.write("\tAccession: " + fasta_seq[0] + "\n")
-                    sys.stderr.write("\tOrganism: " + fasta_seq[1] + "\n")
-                    sys.stderr.write("\tSequence: " + str(fasta_seq[2]) + "\n")
-                    sys.stderr.write("\tRecord: " + str(fasta_seq[3]) + "\n")
+                logging.warning("Unable to find the converted accession or sequence for " + accession + "\n")
+                logging.debug("\tAccession: " + fasta_seq[0] + "\n" +
+                              "\tOrganism: " + fasta_seq[1] + "\n" +
+                              "\tSequence: " + str(fasta_seq[2]) + "\n" +
+                              "\tRecord: " + str(fasta_seq[3]) + "\n")
             elif fasta_seq == "":
-                sys.stderr.write("Entrez record for " + accession + " is empty! Skipping...\n")
+                blanks.append(accession)
+                acc += 1.0
+                continue
 
         if fasta_seq and fasta_seq[0] == '>':
             fasta_string += fasta_seq.strip() + "\n"
         else:
-            sys.stderr.write("\tSomething bad happened when fetching " +
-                             accession + " from " + args.molecule_in + ". Skipping...\n")
-            skipped_seqs += 1
+            acc += 1.0
+            failures.append(accession)
 
         # Update the progress bar
         acc += 1.0
@@ -245,7 +249,10 @@ def fetch_sequences(args, accessions):
 
     sys.stdout.write("-]\n")
 
-    sys.stdout.write("Number of sequences skipped = " + str(skipped_seqs) + "\n")
+    logging.debug("Unable to fetch information from NCBI:\n" +
+                  '\n'.join(failures) + "\n")
+    logging.debug("Entrez server returned empty fasta sequences:\n" +
+                  "\n".join(blanks) + "\n")
 
     return fasta_string
 
@@ -254,8 +261,8 @@ def write_fasta(args, fasta_dict):
     try:
         fa_out_handler = open(args.output, 'w')
     except IOError:
-        sys.stderr.write("\tERROR: Unable to open " + args.output + " for writing!\n")
-        sys.exit(5)
+        logging.error("Unable to open " + args.output + " for writing!\n")
+        sys.exit(11)
 
     fa_out_handler.write(fasta_dict)
     fa_out_handler.close()
@@ -264,12 +271,22 @@ def write_fasta(args, fasta_dict):
 
 def main():
     args = get_options()
+    log_file_name = "Efetch_fasta_log.txt"
+    prep_logging(log_file_name, args.verbose)
     if args.format == "stockholm":
         accessions = read_stockholm(args)
+    elif args.format == "fasta":
+        # Need to remove the '>'
+        accessions = [header[1:] for header in get_headers(args.input)]
     elif args.format == "list":
         accessions = read_accession_list(args)
     else:
-        accessions = list()
+        logging.error("Unrecognized file format '" + args.format + "'.\n")
+        sys.exit(11)
+
+    if len(accessions) == 0:
+        logging.error("No accessions were read from '" + args.input + "'.\n")
+        sys.exit(11)
     fasta_dict = fetch_sequences(args, accessions)
     write_fasta(args, fasta_dict)
 

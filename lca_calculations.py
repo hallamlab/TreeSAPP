@@ -3,7 +3,8 @@ __author__ = 'Connor Morgan-Lang'
 
 import sys
 import re
-from utilities import median, clean_lineage_string
+import logging
+from utilities import median
 
 
 def disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_list):
@@ -46,11 +47,13 @@ def disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_list):
     return vote_weights, taxonomic_tree, nucleus/2
 
 
-def megan_lca(lineage_list):
+def megan_lca(lineage_list: list):
     """
     Using the lineages of all leaves to which this sequence was mapped (n >= 1),
     A lowest common ancestor is found at the point which these lineages converge.
     This emulates the LCA algorithm employed by the MEtaGenome ANalyzer (MEGAN).
+
+    :param lineage_list: List of '; '-separated lineage strings
     :return:
     """
     # If there is only one child, return the joined string
@@ -77,6 +80,9 @@ def megan_lca(lineage_list):
             lca_set.clear()
         else:
             i = max_depth
+    if len(lca_lineage_strings) == 0:
+        logging.debug("Empty LCA from lineages:\n\t" + "\n\t".join(lineage_list) + "\n")
+        lca_lineage_strings.append("Unclassified")
 
     return "; ".join(lca_lineage_strings)
 
@@ -84,11 +90,13 @@ def megan_lca(lineage_list):
 def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA*"):
     """
     Input is a list >= 2, potentially either a leaf string or NCBI lineage
+
     :param children: Lineages of all leaves for this sequence
+    :param megan_lca:
+    :param taxonomic_counts:
     :param algorithm: A string indicating what lowest common ancestor algorithm should be used [ MEGAN | LCA* | LCAp ]
     :return: string - represent the consensus lineage for that node
     """
-    lineage_string = ""
     lineages_considered = list()
     # Check that children have lineage information and discard those that don't have a known lineage
     # (e.g. unclassified sequences; metagenomes; ecological metagenomes)
@@ -104,54 +112,53 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
     # print("All children:", children)
     # print("Lineages considered:", lineages_considered)
     if len(lineages_considered) == 0:
-        sys.stderr.write("WARNING: all lineages were highly incomplete for ")
+        lineages_considered = [child.split("; ") for child in children]
+
+    if algorithm == "MEGAN":
+        # Already calculated by tree_sap.megan_lca()
+        lineage_string = megan_lca
+    elif algorithm == "LCA*":
+        # approximate LCA* (no entropy calculations):
+        hits = dict()
+        consensus = list()
+        i = 0  # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
+        while i < max_ranks:
+            hits.clear()
+            lineages_used = 0
+            elected = False
+            for ranks in lineages_considered:
+                # If the ranks of this hit has not been exhausted (i.e. if it has a depth of 4 and max_ranks >= 5)
+                if len(ranks) > i:
+                    taxonomy = ranks[i]
+                    if taxonomy not in hits.keys():
+                        hits[taxonomy] = 0
+                    hits[taxonomy] += 1
+                    lineages_used += 1
+            for taxonomy in hits.keys():
+                if hits[taxonomy] > float(len(lineages_considered)/2):
+                    consensus.append(str(taxonomy))
+                    elected = True
+
+            # If there is no longer a consensus, break the loop
+            if not elected:
+                i = max_ranks
+            i += 1
+        lineage_string = "; ".join(consensus)
+    elif algorithm == "LCAp":
+        lineage_string = megan_lca
+        vote_weights, t_tree, majority = disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_considered)
+        for parent in sorted(t_tree, key=lambda x: x.count(';')):
+            if len(t_tree[parent]) == 0:
+                break
+            children = t_tree[parent]
+            for child in children:
+                if vote_weights[child] > majority:
+                    lineage_string = child
+                else:
+                    pass
     else:
-        if algorithm == "MEGAN":
-            # Already calculated by tree_sap.megan_lca()
-            lineage_string = megan_lca
-        elif algorithm == "LCA*":
-            # approximate LCA* (no entropy calculations):
-            hits = dict()
-            consensus = list()
-            i = 0  # The accumulator to guarantee the lineages are parsed from Kingdom -> Strain
-            while i < max_ranks:
-                hits.clear()
-                lineages_used = 0
-                elected = False
-                for ranks in lineages_considered:
-                    # If the ranks of this hit has not been exhausted (i.e. if it has a depth of 4 and max_ranks >= 5)
-                    if len(ranks) > i:
-                        taxonomy = ranks[i]
-                        if taxonomy not in hits.keys():
-                            hits[taxonomy] = 0
-                        hits[taxonomy] += 1
-                        lineages_used += 1
-                for taxonomy in hits.keys():
-                    if hits[taxonomy] > float(len(lineages_considered)/2):
-                        consensus.append(str(taxonomy))
-                        elected = True
-
-                # If there is no longer a consensus, break the loop
-                if not elected:
-                    i = max_ranks
-                i += 1
-            lineage_string = "; ".join(consensus)
-        elif algorithm == "LCAp":
-            lineage_string = megan_lca
-            vote_weights, t_tree, majority = disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_considered)
-            for parent in sorted(t_tree, key=lambda x: x.count(';')):
-                if len(t_tree[parent]) == 0:
-                    break
-                children = t_tree[parent]
-                for child in children:
-                    if vote_weights[child] > majority:
-                        lineage_string = child
-                    else:
-                        pass
-
-        else:
-            sys.stderr.write("ERROR: common ancestor algorithm '" + algorithm + "' is not known.\n")
-            sys.exit(33)
+        logging.error("Common ancestor algorithm '" + algorithm + "' is not known.\n")
+        sys.exit(33)
 
     return lineage_string
 
@@ -159,6 +166,7 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
 def compute_taxonomic_distance(lineage_list, common_ancestor):
     """
     Input is a list >= 2, potentially either a leaf string or NCBI lineage
+
     :param lineage_list: Lineages of all leaves for this sequence
     :param common_ancestor: The common ancestor for the elements in lineage_list
     :return:
@@ -186,9 +194,9 @@ def compute_taxonomic_distance(lineage_list, common_ancestor):
                     ref = ref[:-1]
                 distance += 1
         except IndexError:
-            sys.stderr.write("\tWARNING: Taxonomic lineages didn't converge between " +
-                             common_ancestor + " and " + lineage + ".\n")
-            sys.stderr.write("\tTaxonomic distance set to length of LCA lineage (" + str(len(lca_lineage)) + ").\n")
+            logging.debug("Taxonomic lineages didn't converge between " +
+                          common_ancestor + " and " + lineage +
+                          ". Taxonomic distance set to length of LCA lineage (" + str(len(lca_lineage)) + ").\n")
             distance = len(lca_lineage)
             status += 1
 

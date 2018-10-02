@@ -2,7 +2,7 @@ __author__ = 'Connor Morgan-Lang'
 
 import sys
 import re
-import os
+import logging
 
 import _fasta_reader
 from utilities import median, launch_write_command
@@ -44,21 +44,24 @@ def read_fasta_to_dict(fasta_file):
     try:
         fasta_handler = open(fasta_file, 'r')
     except IOError:
-        sys.exit("ERROR: Unable to open " + fasta_file + " for reading!\n")
+        logging.error("Unable to open " + fasta_file + " for reading!\n")
+        sys.exit(5)
     for record in generate_fasta(fasta_handler):
         name, sequence = record
         fasta_dict[name] = sequence
     return fasta_dict
 
 
-def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
+def format_read_fasta(fasta_input, molecule, output_dir, max_header_length=110, min_seq_length=10):
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid.
+
     :param fasta_input: Absolute path of the FASTA file to be read
     :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
-    :param args: Command-line argument object from get_options and check_parser_arguments
+    :param output_dir: Path to a directory for writing the log file to
     :param max_header_length: The length of the header string before all characters after this length are removed
-    :return A Python dictionary with headers as keys and sequences as values
+    :param min_seq_length: All sequences shorter than this will not be included in the returned list.
+    :return: A Python dictionary with headers as keys and sequences as values
     """
 
     if sys.version_info > (2, 9):
@@ -68,25 +71,26 @@ def format_read_fasta(fasta_input, molecule, args, max_header_length=110):
         from itertools import izip
 
     fasta_list = _fasta_reader._read_format_fasta(fasta_input,
-                                                  args.min_seq_length,
-                                                  args.output,
+                                                  min_seq_length,
+                                                  output_dir,
                                                   molecule,
                                                   max_header_length)
     if not fasta_list:
-        sys.exit()
+        sys.exit(5)
     tmp_iterable = iter(fasta_list)
     if py_version == 2:
         formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
     elif py_version == 3:
         formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
     else:
-        raise AssertionError("Unexpected Python version detected")
+        logging.error("Unexpected Python version detected: " + str(py_version), )
+        sys.exit(5)
 
     for header in formatted_fasta_dict.keys():
         if len(header) > max_header_length:
-            sys.stderr.write(header + " is too long (" + str(len(header)) + ")!\n")
-            sys.stderr.write("There is a bug in _read_format_fasta - please report!\n")
-            sys.exit()
+            logging.error(header + " is too long (" + str(len(header)) + ")!\n" +
+                          "There is a bug in _read_format_fasta - please report!\n")
+            sys.exit(5)
 
     return formatted_fasta_dict
 
@@ -101,7 +105,8 @@ def get_headers(fasta_file):
     try:
         fasta = open(fasta_file, 'r')
     except IOError:
-        raise IOError("ERROR: Unable to open the FASTA file (" + fasta_file + ") provided for reading!")
+        logging.error("Unable to open the FASTA file '" + fasta_file + "' for reading!")
+        sys.exit(5)
     line = fasta.readline()
     while line:
         line = line.strip()
@@ -118,6 +123,7 @@ def get_headers(fasta_file):
 def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     """
     Function for writing sequences stored in dictionary to file in FASTA format; optional filtering with headers list
+
     :param fasta_dict: A dictionary containing headers as keys and sequences as values
     :param fasta_name: Name of the FASTA file to write to
     :param max_seqs: If not None, the maximum number of sequences to write to a single FASTA file
@@ -135,7 +141,8 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
         for header in headers:
             state = header[0] == '>'
             if state is not side_chevy:
-                raise AssertionError("ERROR: inconsistent header names in headers list object")
+                logging.error("Inconsistent header names in headers list object\n")
+                sys.exit(5)
         if side_chevy:
             headers = [header[1:] for header in headers]
 
@@ -145,7 +152,8 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     try:
         fa_out = open(fasta_name, 'w')
     except IOError:
-        raise IOError("Unable to open " + fasta_name + " for writing!")
+        logging.error("Unable to open " + fasta_name + " for writing!\n")
+        sys.exit(5)
 
     for name in sorted(fasta_dict.keys()):
         seq = fasta_dict[name]
@@ -186,42 +194,45 @@ def get_header_format(header, code_name=""):
         2. add the name of the compiled regex pattern to the header_regexes dictionary
         3. if the regex groups are new and complicated (parsing more than the accession and organism info),
         alter return_sequence_info_groups in create_treesapp_ref_data to add another case
+
     :param header: A sequences header from a FASTA file
     :param code_name:
     :return:
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
-    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|?\w.+\|(.*)$")
-    gi_prepend_proper_re = re.compile(">gi\|([0-9]+)\|[a-z]+\|[_A-Z0-9.]+\|.*\[(.*)\]$")
-    gi_prepend_mess_re = re.compile(">gi\|([0-9]+)\|pir\|\|(.*)$")
+    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);.*$")
+    gi_prepend_proper_re = re.compile(">gi\|(\d+)\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")
+    gi_prepend_mess_re = re.compile(">gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-\()]+)$")
     dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")
     emb_re = re.compile(">emb\|(.*)\|.*\[(.*)\]")
     gb_re = re.compile(">gb\|(.*)\|.*\[(.*)\]")
     ref_re = re.compile(">ref\|(.*)\|.*\[(.*)\]")
     pdb_re = re.compile(">pdb\|(.*)\|(.*)$")
     pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
-    sp_re = re.compile(">sp\|(.*)\|.*Full=(.*); AltName:.*$")
+    sp_re = re.compile(">sp\|(.*)\|.*Full=(.*);.*$")
     fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
     fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
-    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name))
-    treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")
+    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name) + "$")
+    # treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")  # Conflicting
     refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")
+    genbank_prot_re = re.compile("^>([A-Z]{3}[0-9]{5}\.?[0-9]?) (.*) \[(.*)\]$")
 
     # Nucleotide databases:
-    genbank_exact_genome = re.compile("^>([A-Z0-9]+\.[0-9]) (.*) \[(.*)\]$")
-    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) (.*)$")
     silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
     refseq_nuc_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
     nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
 
+    # Ambiguous:
+    genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) (.*) \[(.*)\]$")
+    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) ([A-Za-z1-9 _-]+)$")
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
     # There are no character restrictions on the first and third groups
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
-    custom_tax = re.compile("^>(.*) lineage=(.*) \[(.*)\]$")
+    custom_tax = re.compile("^>(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
@@ -233,7 +244,8 @@ def get_header_format(header, code_name=""):
                                gi_re: "gi_re",
                                gi_prepend_proper_re: "gi_proper",
                                gi_prepend_mess_re: "gi_mess",
-                               refseq_prot_re: "refseq_prot"},
+                               refseq_prot_re: "refseq_prot",
+                               genbank_prot_re: "gen_prot"},
                       "dna": {fungene_re: "fungene",
                               fungene_trunc_re: "fungene_truncated",
                               mltree_re: "mltree",
@@ -242,29 +254,36 @@ def get_header_format(header, code_name=""):
                               nr_re: "nr"},
                       "ambig": {ncbi_ambiguous: "ncbi_ambig",
                                 genbank_exact_genome: "gen_genome",
-                                treesapp_re: "treesapp",
+                                # treesapp_re: "treesapp",
                                 custom_tax: "custom"}
                       }
 
     if fungene_gi_bad.match(header):
-        sys.stderr.write("WARNING: " + header + " uses GI numbers which are now unsupported by the NCBI! ")
-        sys.stderr.write("Consider switching to Accession.Version identifiers instead.\n")
+        logging.warning(header + " uses GI numbers which are now unsupported by the NCBI! " +
+                        "Consider switching to Accession.Version identifiers instead.\n")
 
     header_format_re = None
     header_db = None
     header_molecule = None
+    format_matches = list()
     for molecule in header_regexes:
         for regex in header_regexes[molecule]:
             if regex.match(header):
                 header_format_re = regex
                 header_db = header_regexes[molecule][regex]
                 header_molecule = molecule
-                break
+                format_matches.append(header_db)
             else:
                 pass
+    if len(format_matches) > 1:
+        logging.error("Header '" + header + "' matches multiple potential formats:\n\t" +
+                      ", ".join(format_matches) + "\n" +
+                      "TreeSAPP is unable to parse necessary information properly.\n")
+        sys.exit(5)
 
     if header_format_re is None:
-        raise AssertionError("Unable to parse header '" + header + "'\n")
+        logging.error("Unable to parse header '" + header + "'\n")
+        sys.exit(5)
 
     return header_format_re, header_db, header_molecule
 
@@ -273,8 +292,8 @@ def summarize_fasta_sequences(fasta_file):
     try:
         fasta_handler = open(fasta_file, 'r')
     except IOError:
-        sys.stderr.write("ERROR: Unable to open " + fasta_file + " for reading!\n")
-        sys.exit(17)
+        logging.error("Unable to open " + fasta_file + " for reading!\n")
+        sys.exit(5)
 
     num_headers = 0
     longest = 0
@@ -310,38 +329,68 @@ def summarize_fasta_sequences(fasta_file):
         shortest = len(sequence)
     sequence_lengths.append(len(sequence))
 
-    sys.stdout.write("\tNumber of sequences: " + str(num_headers) + "\n")
-    sys.stdout.write("\tLongest sequence length: " + str(longest) + "\n")
-    sys.stdout.write("\tShortest sequence length: " + str(shortest) + "\n")
-    sys.stdout.write("\tMean sequence length: " + str(round(sum(sequence_lengths)/num_headers, 1)) + "\n")
-    sys.stdout.write("\tMedian sequence length: " + str(median(sequence_lengths)) + "\n")
+    stats_string = "\tNumber of sequences: " + str(num_headers) + "\n"
+    stats_string += "\tLongest sequence length: " + str(longest) + "\n"
+    stats_string += "\tShortest sequence length: " + str(shortest) + "\n"
+    stats_string += "\tMean sequence length: " + str(round(sum(sequence_lengths)/num_headers, 1)) + "\n"
+    stats_string += "\tMedian sequence length: " + str(median(sequence_lengths)) + "\n"
+
+    logging.info(stats_string)
     return
 
 
-def trim_multiple_alignment(args, mfa_file):
+def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
     """
-    Soft MSA trimming using TrimAl on a single multiple sequence alignment file.
-    :param args: an object created by argparse's parse_args(). MUST contain 'output', and 'executables' in Namespace
+    Trims the multiple sequence alignment using either BMGE or trimAl
+
+    :param executable: Path to the executable of `tool`
     :param mfa_file: Name of a MSA file
-    Returns file name of the TrimAl output
+    :param molecule: prot | dna
+    :param tool: Name of the software to use for trimming [BMGE|trimAl]
+    Returns file name of the trimmed multiple alignment file in FASTA format
     """
+    trimmed_msa_file = re.sub(".fasta$|.phy$", '-' + re.escape(tool) + ".fasta", mfa_file)
+    if tool == "trimAl":
+        trim_command = [executable]
+        trim_command += ['-in', mfa_file,
+                         '-out', trimmed_msa_file,
+                         '-gt', str(0.02)]
+    elif tool == "BMGE":
+        if molecule == "prot":
+            bmge_settings = ["-t", "AA", "-m", "BLOSUM62", "-g", "0.99:0.20"]
+        else:
+            bmge_settings = ["-t", "DNA"]
+        trim_command = ["java", "-jar", executable]
+        trim_command += bmge_settings
+        trim_command += ['-i', mfa_file,
+                         '-of', trimmed_msa_file]
+    else:
+        logging.error("Unsupported trimming software requested: '" + tool + "'")
+        sys.exit(5)
 
-    sys.stdout.write("Running TrimAl... ")
-    sys.stdout.flush()
+    logging.debug("STAGE: Multiple sequence alignment trimming\n" +
+                  "\tINPUT: " + mfa_file + "\n" +
+                  "\tTOOL: " + tool + "\n" +
+                  "\tCOMMAND:\n" + " ".join(trim_command) + "\n" +
+                  "\tOUTPUT:\n")
 
-    trimal_file = mfa_file + "-trimal"
-    log = args.output + os.sep + "treesapp.trimal_log.txt"
-    trimal_command = [args.executables["trimal"]]
-    trimal_command += ['-in', mfa_file,
-                       '-out', trimal_file,
-                       '-gt', str(0.02), '>', log]
-    stdout, return_code = launch_write_command(trimal_command)
+    stdout, return_code = launch_write_command(trim_command)
     if return_code != 0:
-        sys.stderr.write("ERROR: trimal did not complete successfully!\n")
-        sys.stderr.write("trimal output:\n" + stdout + "\n")
-        sys.exit(39)
+        logging.error(tool + " did not complete successfully!\n" +
+                      tool + "output:\n" + stdout + "\n")
+        sys.exit(5)
 
-    sys.stdout.write("done.\n")
-    sys.stdout.flush()
+    return trimmed_msa_file
 
-    return trimal_file
+
+def deduplicate_fasta_sequences(fasta_dict):
+    """
+    Removes exact duplicate sequences from a FASTA-formatted dictionary of sequence records
+    :param fasta_dict: dict() where headers are keys, sequences are values
+    :return:
+    """
+    dedup_dict = dict()
+    for header in fasta_dict.keys():
+        if fasta_dict[header] not in dedup_dict.values():
+            dedup_dict[header] = fasta_dict[header]
+    return dedup_dict
