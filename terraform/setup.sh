@@ -3,8 +3,6 @@
 #Run gcloud init before executing script
 #TODO: add error checks
 
-cd tf
-
 PROJECT_ID=${1:-treesapp}-$RANDOM
 echo "--------------------------------" 
 echo "YOUR PROJECT ID IS: "$PROJECT_ID
@@ -19,10 +17,13 @@ gcloud iam service-accounts create terraform --display-name "terraform"
 echo -n "On GCP Console, go to Billing tab and enable billing for $PROJECT_ID, press [ENTER] when complete"
 
 read done
+echo "Creating virtual machine...this could take up to 10 minutes.."
 
 gcloud services enable compute.googleapis.com
 
-gcloud iam service-accounts keys create credentials.json --iam-account=terraform@${PROJECT_ID}.iam.gserviceaccount.com
+gcloud iam service-accounts keys create ./tf/credentials.json --iam-account=terraform@${PROJECT_ID}.iam.gserviceaccount.com
+
+cd tf
 
 gcloud projects add-iam-policy-binding ${PROJECT_ID} --member serviceAccount:terraform@${PROJECT_ID}.iam.gserviceaccount.com --role roles/editor
 
