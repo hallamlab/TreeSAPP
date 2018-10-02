@@ -10,7 +10,7 @@ import numpy as np
 
 from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment
 from file_parsers import tax_ids_file_to_leaves
-from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string
+from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string, find_executables
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information
 from phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
@@ -28,7 +28,7 @@ def get_options():
                                                  " to taxonomic ranks by iterative leave-one-out validation")
     parser.add_argument("-f", "--fasta", required=True,
                         help='The raw, unclusterd and unfiltered FASTA file used to generated the reference package.')
-    parser.add_argument("-m", "--taxa_map", required=True,
+    parser.add_argument("-i", "--taxa_map", required=True,
                         help="The tax_ids file generated from the marker's reference package.")
     parser.add_argument("-t", "--tree", required=True,
                         help="The Newick formatted tree generated from the marker's reference package.")
@@ -37,10 +37,14 @@ def get_options():
     parser.add_argument("-l", "--lineages",
                         help="The accession lineage map downloaded during reference package generation.",
                         required=False)
+    parser.add_argument('-m', '--molecule', default='prot', choices=['prot', 'dna', 'rrna'],
+                        help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide )')
     parser.add_argument("-T", "--threads", required=False, default=4, type=int,
                         help="The number of threads to be used by RAxML.")
     parser.add_argument("-o", "--output_dir", required=False, default='.',
                         help="Path to directory for writing outputs.")
+    parser.add_argument("-O", "--overwrite", default=False, action="store_true",
+                        help="Force recalculation of placement distances for query sequences.")
     args = parser.parse_args()
     return args
 
@@ -108,8 +112,56 @@ def rarefy_rank_distances(rank_distances):
     return rarefied_dists
 
 
+def read_placement_summary(placement_summary_file):
+    """
+    Reads a specially-formatted file and returns the rank-wise clade-exclusion placement distances
+    :param placement_summary_file:
+    :return:
+    """
+    taxonomic_placement_distances = dict()
+    with open(placement_summary_file, 'r') as place_summary:
+        rank = ""
+        line = place_summary.readline()
+        while line:
+            line = line.strip()
+            if line:
+                if line[0] == '#':
+                    rank = line.split(' ')[1]
+                elif line[0] == '[':
+                    dist_strings = re.sub('\[|\]', '', line).split(", ")
+                    dists = [float(dist) for dist in dist_strings]
+                    if len(dists) > 1:
+                        taxonomic_placement_distances[rank] = dists
+            line = place_summary.readline()
+    return taxonomic_placement_distances
+
+
+def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
+    """
+    Wrapper for performing outlier removal, normalization via rarefaction, and regression
+    :param taxonomic_placement_distances:
+    :param taxonomic_ranks:
+    :return:
+    """
+    if not taxonomic_ranks:
+        taxonomic_ranks = {"Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6, "Strain": 7}
+
+    filtered_pds = dict()
+    for rank in taxonomic_placement_distances:
+        # print(rank, "raw", np.median(list(taxonomic_placement_distances[rank])))
+        filtered_pds[rank] = cull_outliers(list(taxonomic_placement_distances[rank]))
+        # print(rank, "filtered", np.median(list(filtered_pds[rank])))
+
+    # Rarefy the placement distances to the rank with the fewest samples
+    rarefied_pds = rarefy_rank_distances(filtered_pds)
+    # for rank in rarefied_pds:
+    #     print(rank, "rarefied", np.median(list(rarefied_pds[rank])))
+    pfit_array = regress_ranks(rarefied_pds, taxonomic_ranks)
+    return pfit_array
+
+
 def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_file: str, tax_ids_file: str,
-                              accession_lineage_map: dict, molecule: str, raxml_threads=4):
+                              accession_lineage_map: dict, molecule: str, executables: dict, raxml_threads=4):
     """
     Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
     yielding an estimate of placement distances corresponding to taxonomic ranks.
@@ -119,6 +171,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     :param ref_tree_file: A Newick-formatted phylogenetic tree with branch length distances (no internal nodes)
     :param tax_ids_file: A tabular file created by create_treesapp_ref_data.py
     :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
+    :param executables: A dictionary mapping software to a path of their respective executable
     :param molecule: Molecule type [prot | dna | rrna]
     :param raxml_threads: Number of threads to be used by RAxML for parallel computation
 
@@ -126,12 +179,10 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     """
 
     logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
-
     leaf_taxa_map = dict()
     taxonomic_placement_distances = dict()
     taxonomy_filtered_query_seqs = dict()
     dict_for_phy = dict()
-    rank_distance_ranges = dict()
     pqueries = list()
     # Limit this to just Class, Family, and Species - other ranks are inferred through regression
     taxonomic_ranks = {"Class": 2, "Species": 6}
@@ -146,7 +197,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     # Read the taxonomic map; the final sequences used to build the tree are inferred from this
     ref_taxa_map = tax_ids_file_to_leaves(tax_ids_file)
 
-    bmge_file = "sub_binaries" + os.sep + "BMGE.jar"
+    bmge_file = executables["BMGE.jar"]
     if not os.path.exists(bmge_file):
         raise FileNotFoundError("Cannot find " + bmge_file)
 
@@ -216,7 +267,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             tmp_tree.write(outfile=temp_tree_file, format=5)
 
             # Run PaPaRa, BMGE and RAxML to map sequences from the taxonomic rank onto the tree
-            papara_stdout = run_papara("papara",
+            papara_stdout = run_papara(executables["papara"],
                                        temp_tree_file, temp_ref_phylip_file, temp_query_fasta_file,
                                        "prot")
             os.rename("papara_alignment.default", query_multiple_alignment)
@@ -225,7 +276,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             query_filtered_multiple_alignment = trim_multiple_alignment(bmge_file, query_multiple_alignment,
                                                                         molecule, "BMGE")
             query_name = re.sub(' ', '_', taxonomy.split("; ")[-1])
-            raxml_command = ["raxmlHPC",
+            raxml_command = [executables["raxmlHPC"],
                              "-m", "PROTGAMMALG",
                              "-p", str(12345),
                              '-T', str(raxml_threads),
@@ -288,15 +339,13 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
                                                     len(taxonomic_placement_distances[rank]), 4)) + "\n"
             logging.debug(stats_string)
-            rank_distance_ranges[rank] = cull_outliers(list(taxonomic_placement_distances[rank]))
         sys.stdout.write('-')
         sys.stdout.flush()
     sys.stdout.write("-]\n")
     os.system("rm taxonomy_filtered_ref_seqs.phy queries.fasta tmp_tree.txt")
 
-    # Rarefy the placement distances to the rank with the fewest samples
-    rank_distance_ranges = rarefy_rank_distances(rank_distance_ranges)
-    pfit_array = regress_ranks(rank_distance_ranges, taxonomic_ranks)
+    # Finish up
+    pfit_array = complete_regression(taxonomic_placement_distances, taxonomic_ranks)
 
     return pfit_array, taxonomic_placement_distances, pqueries
 
@@ -306,7 +355,7 @@ def main():
 
     if not os.path.isdir(args.output_dir):
         os.makedirs(args.output_dir)
-
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
     seq_m = os.path.basename(args.ref_seqs).split('.')[0]
     tree_m = re.sub("_tree", '', os.path.basename(args.tree)).split('.')[0]
     tax_m = re.sub("tax_ids_", '', os.path.basename(args.taxa_map)).split('.')[0]
@@ -314,22 +363,28 @@ def main():
     if len({seq_m, tree_m, tax_m}) != 1:
         logging.error("Marker gene names are inconsistent between reference package inputs.\n")
         sys.exit(33)
+    args = find_executables(args)
 
-    molecule = "prot"
     sys.stdout.write("\n##\t\t\tEstimate taxonomic rank placement distances\t\t\t##\n")
-    prep_logging("placement_trainer_log.txt", False)
+    prep_logging(args.output_dir + "placement_trainer_log.txt", False)
+    logging.debug("ANALYSIS SPECIFICATIONS:\n" +
+                  "\tQuery FASTA: " + args.fasta + "\n" +
+                  "\tTaxonomy map: " + args.taxa_map + "\n" +
+                  "\tReference tree: " + args.tree + "\n" +
+                  "\tReference FASTA: " + args.ref_seqs + "\n"
+                  "\tLineage map: " + str(args.lineages) + "\n")
     if args.lineages:
         accession_lineage_map = read_accession_taxa_map(args.lineages)
     else:
         header_registry = register_headers(get_headers(args.fasta))
         fasta_record_objects = get_header_info(header_registry)
         query_accession_list, num_lineages_provided = build_entrez_queries(fasta_record_objects)
-        accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list, molecule)
+        accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list, args.molecule)
         fasta_record_objects, accession_lineage_map = verify_lineage_information(accession_lineage_map,
                                                                                  all_accessions,
                                                                                  fasta_record_objects,
                                                                                  num_lineages_provided,
-                                                                                 molecule)
+                                                                                 args.molecule)
         write_accession_lineage_map(args.output_dir + os.sep + "placement_trainer_accession_lineage_map.tsv",
                                     accession_lineage_map)
 
@@ -337,15 +392,34 @@ def main():
     fasta_dict = read_fasta_to_dict(args.fasta)
     ref_fasta_dict = read_fasta_to_dict(args.ref_seqs)
 
-    pfit_array, taxonomic_placement_distances, pqueries = train_placement_distances(fasta_dict,
-                                                                                    ref_fasta_dict,
-                                                                                    args.tree,
-                                                                                    args.taxa_map,
-                                                                                    accession_lineage_map,
-                                                                                    molecule,
-                                                                                    args.threads)
-    with open(args.output_dir + os.sep + "placement_trainer_results.txt", 'w') as out_handler:
-        trained_string = "Polynomial params = " + str(pfit_array) + "\n"
+    placement_table_file = args.output_dir + os.sep + "placement_info.tsv"
+    placement_summary_file = args.output_dir + os.sep + "placement_trainer_results.txt"
+    taxonomic_placement_distances = dict()
+    pfit_array = list()
+
+    # Goal is to use the distances already calculated but re-print
+    if os.path.isfile(placement_summary_file) and not args.overwrite:
+        # Read the summary file and pull the phylogenetic distances for each rank
+        taxonomic_placement_distances = read_placement_summary(placement_summary_file)
+        pfit_array = complete_regression(taxonomic_placement_distances)
+
+    if len(taxonomic_placement_distances) == 0:
+        # Perform the rank-wise clade exclusion analysis for estimating placement distances
+        pfit_array, taxonomic_placement_distances, pqueries = train_placement_distances(fasta_dict,
+                                                                                        ref_fasta_dict,
+                                                                                        args.tree,
+                                                                                        args.taxa_map,
+                                                                                        accession_lineage_map,
+                                                                                        args.molecule,
+                                                                                        args.executables,
+                                                                                        args.threads)
+
+        # Write the tab-delimited file with metadata included for each placement
+        write_placement_table(pqueries, placement_table_file, seq_m)
+
+    # Write the text file containing distances used in the regression analysis
+    with open(placement_summary_file, 'w') as out_handler:
+        trained_string = "Regression parameters = " + re.sub(' ', '', str(pfit_array)) + "\n"
         ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
         for rank in ranks:
             trained_string += "# " + rank + "\n"
@@ -353,9 +427,6 @@ def main():
                 trained_string += str(sorted(taxonomic_placement_distances[rank], key=float)) + "\n"
             trained_string += "\n"
         out_handler.write(trained_string)
-
-    placement_table_file = args.output_dir + os.sep + "placement_info.tsv"
-    write_placement_table(pqueries, placement_table_file, seq_m)
 
 
 if __name__ == "__main__":

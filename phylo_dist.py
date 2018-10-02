@@ -8,6 +8,7 @@ from file_parsers import tax_ids_file_to_leaves
 from utilities import clean_lineage_string, median
 
 import numpy as np
+np.random.seed(0)
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -44,24 +45,29 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
     # Prep arrays for regression
     rank_depth_list = list()
     dist_list = list()
+    depth_dist_dict = dict()
+    n_samples = 0
     for rank in rank_distance_ranges:
         depth = taxonomic_ranks[rank]
         rank_distances = rank_distance_ranges[rank]
-        if len(rank_distances) > 3:
-            rank_depth_list += [depth] * len(rank_distance_ranges[rank])
-            dist_list += list(rank_distance_ranges[rank])
+        n_samples = len(rank_distances)
+        if n_samples > 3:
+            depth_dist_dict[depth] = rank_distances
+            dist_list += rank_distances
+    # Use the largest placement distance as a proxy for Root-level distances
+    root_anchor = max(dist_list)  # + np.std(dist_list)
+    depth_dist_dict[1] = [root_anchor] * n_samples
+    # Anchor Strain-level placement distances to 0
+    depth_dist_dict[7] = [0] * n_samples
+
+    dist_list.clear()
+    for depth in sorted(depth_dist_dict, key=int):
+        rank_depth_list += [depth] * len(depth_dist_dict[depth])
+        dist_list += list(depth_dist_dict[depth])
+
     if len(set(rank_depth_list)) <= 1:
         logging.error("Only " + str(len(set(rank_depth_list))) + " ranks available for modelling.\n")
         sys.exit(33)
-
-    # Using the lowest placement distances to "estimate" Strain-level distances (at a non-negative distance)
-    strain_dists = list(np.percentile(all_distances, q=(1, 5)))
-    rank_depth_list += [7] * len(strain_dists)
-    dist_list += strain_dists
-    # Use the largest placement distances as a proxy for Phylum-level distances
-    high_dists = list(np.percentile(all_distances, q=(95, 100)))
-    rank_depth_list += [1] * len(high_dists)
-    dist_list += high_dists
 
     # For TreeSAPP predictions
     pfit_array = list(np.polyfit(dist_list, rank_depth_list, 1))
@@ -88,8 +94,6 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
 
     slope, intercept = taxonomic_rank_pfit
     depth = int(round(phylo_dist*slope + intercept))
-
-    # TODO: Find method for reporting strain-level classifications
 
     return depth
 
