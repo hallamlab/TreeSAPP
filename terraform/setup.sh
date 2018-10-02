@@ -3,6 +3,8 @@
 #Run gcloud init before executing script
 #TODO: add error checks
 
+cd tf
+
 PROJECT_ID=${1:-treesapp}-$RANDOM
 echo "--------------------------------" 
 echo "YOUR PROJECT ID IS: "$PROJECT_ID
