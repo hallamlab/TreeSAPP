@@ -71,5 +71,10 @@ gcloud compute ssh [YOUR-PROJECT-ID-HERE]
 ```
 The setup script will install all the dependencies TreeSAPP relies on and will take around 5-10 minutes to complete. 
 
+Run the following to start TreeSAPP:
+```
+source ~/.bashrc
+treesapp [INPUTS]
+```
 
 

@@ -9,7 +9,7 @@ mkdir /root/github
 sudo apt-get update 
 update-alternatives --remove python /usr/bin/python2 
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1 
- 
+
 # Check default python is python3 
 sudo apt-get install python3-pip -y
 
@@ -55,10 +55,18 @@ dpkg -i mafft_7.407-1_amd64.deb
 wget https://sco.h-its.org/exelixis/resource/download/software/papara_nt-2.5-static_x86_64.tar.gz
 tar -xvf papara* --directory=/usr/bin; cd /usr/bin; mv papara* papara
 
-#Grab from subbinaries folder 
 cd $GITHUB_PATH
 
 git clone --single-branch -b autoinstall https://github.com/hallamlab/TreeSAPP.git; cd TreeSAPP;
-#Grab dependencies from sub_binaries folder
 cd sub_binaries; cp usearch /usr/bin; cd ../
 make; make install;
+
+cd ~/
+
+#Move github folder to user home directory
+cp -r github /home/${username}
+
+ALIAS="alias treesapp='python /home/${username}/github/TreeSAPP/treesapp.py'"
+echo $ALIAS >> /home/${username}/.bashrc
+
+source /home/${username}/.bashrc
