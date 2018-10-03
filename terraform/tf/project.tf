@@ -1,9 +1,13 @@
 variable "project_id" {
- default       = "treesapp"
+  default = "treesapp"
+}
+
+variable "username" {
+  default = "treesapp"
 }
 
 provider "google" {
- region        = "us-west-1b"
- credentials   = "${file("credentials.json")}"
- project       = "${var.project_id}"
+  region      = "us-west-1b"
+  credentials = "${file("credentials.json")}"
+  project     = "${var.project_id}"
 }

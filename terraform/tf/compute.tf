@@ -1,3 +1,10 @@
+data "template_file" "init" {
+  template = "${file("./scripts/user_data.sh")}"
+
+  vars {
+    username = "${var.username}"
+  }
+}
 
 resource "google_compute_instance" "tftreesapp" {
   project      = "${var.project_id}"
@@ -13,7 +20,7 @@ resource "google_compute_instance" "tftreesapp" {
     }
   }
 
-  metadata_startup_script = "${file("./scripts/user_data.sh")}"
+  metadata_startup_script = "${data.template_file.init.rendered}"
 
   network_interface {
     network       = "default"
