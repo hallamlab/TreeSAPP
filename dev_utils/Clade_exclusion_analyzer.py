@@ -64,8 +64,9 @@ def get_arguments():
                              "Useful for testing classification accuracy for fragments.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
-    miscellaneous_opts.add_argument("--graftm", default=False, required=False, action="store_true",
-                                    help="Classifications performed using GraftM instead of TreeSAPP.")
+    miscellaneous_opts.add_argument("--tool", default="treesapp", required=False,
+                                    choices=["treesapp", "graftm", "diamond"],
+                                    help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
     miscellaneous_opts.add_argument("-T", "--threads", required=False, default=4, type=int,
@@ -261,7 +262,7 @@ def grab_graftm_taxa(tax_ids_file):
             for rank in ranks:
                 if rank:
                     lineage_list.append(rank)
-            lineage = clean_lineage_string('; '.join(lineage_list))
+            lineage = re.sub('_', ' ', clean_lineage_string('; '.join(lineage_list)))
             i = 0
             ranks = len(lineage)
             while i < len(lineage):
@@ -469,7 +470,7 @@ def get_classification_performance(marker_eval_instance):
                     taxonomic_distance[dist] = 0.0
                 clade_exclusion_tabular_string += marker + "\t" + rank + "\t"
                 clade_exclusion_tabular_string += str(n_queries) + "\t" + str(n_classified) + "\t"
-                clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist]) + "\t"
+                clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist])
                 clade_exclusion_strings.append(clade_exclusion_tabular_string)
                 clade_exclusion_tabular_string = ""
             std_out_report_string += '\t'.join([str(val) for val in taxonomic_distance.values()]) + "\n"
@@ -504,10 +505,11 @@ def determine_containment(marker_eval_inst: MarkerTest):
         if rank_depth_map[depth] in marker_eval_inst.ranks:
             if marker_eval_inst.get_sensitivity(rank_depth_map[depth])[1] > 0:
                 lowest_rank = rank_depth_map[depth]
+    containment_strings = list()
     n_queries, n_classified, _ = marker_eval_inst.get_sensitivity(lowest_rank)
 
     sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker + " classifications at " + lowest_rank + ":\n")
-    sys.stdout.write("\tRank\tCorrect (%)\tToo Shallow (%)\n")
+    sys.stdout.write("\tRank\tCorrect\tToo Shallow (%)\n")
 
     # Begin parsing through the depths
     if lowest_rank == "Cellular organisms":
@@ -519,7 +521,6 @@ def determine_containment(marker_eval_inst: MarkerTest):
             continue
         elif rank == lowest_rank:
             break
-        sys.stdout.write("\t" + rank + "\t")
         correct = 0
         incorrect = 0
         too_shallow = 0
@@ -556,14 +557,15 @@ def determine_containment(marker_eval_inst: MarkerTest):
 
         percentage_too_shallow = round(float((too_shallow * 100) / n_classified), 1)
         if percentage_too_shallow == 100.0:
-            sys.stdout.write(str(0.0) + "\t\t")
+            containment_strings.append("\t" + rank + "\t" + str(0.0) + "\t" + str(100.0))
         else:
-            sys.stdout.write(str(round((correct * 100) / (correct + incorrect), 1)) + "\t\t")
-        sys.stdout.write(str(percentage_too_shallow) + "\n")
+            containment_strings.append("\t" + rank + "\t" +
+                                       str(round((correct * 100) / (correct + incorrect), 1)) + "\t" +
+                                       str(percentage_too_shallow))
 
-    sys.stdout.write("\n")
+    sys.stdout.write("\n".join(containment_strings) + "\n")
 
-    return
+    return containment_strings
 
 
 def clean_classification_names(assignments):
@@ -903,6 +905,24 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
 
+def write_containment_table(args, containment_table, containment_strings):
+    try:
+        output_handler = open(containment_table, 'w')
+    except IOError:
+        logging.error("Unable to open " + containment_table + " for writing.\n")
+        sys.exit(21)
+
+    output_handler.write("# Input file for testing: " + args.fasta_input + "\n")
+    output_name = os.path.dirname(args.output)
+    for line in containment_strings:
+        # Line has a "\t" prefix already
+        line = output_name + "\t" + args.reference_marker + "\t" + args.tool + line + "\n"
+        output_handler.write(line)
+
+    output_handler.close()
+    return
+
+
 def write_performance_table(args, performance_table, clade_exclusion_strings):
     try:
         output_handler = open(performance_table, 'w')
@@ -913,7 +933,7 @@ def write_performance_table(args, performance_table, clade_exclusion_strings):
     output_handler.write("# Input file for testing: " + args.fasta_input + "\n")
     output_name = os.path.dirname(args.output)
     for line in clade_exclusion_strings:
-        line = output_name + "\t" + line + "\n"
+        line = output_name + "\t" + args.tool + "\t" + line + "\n"
         output_handler.write(line)
 
     output_handler.close()
@@ -1208,6 +1228,7 @@ def main():
     accession_map_file = args.output + os.sep + "accession_id_lineage_map.tsv"
     test_rep_taxa_fasta = args.output + os.sep + "representative_taxa_sequences.fasta"
     performance_table = args.output + os.sep + "clade_exclusion_performance.tsv"
+    containment_table = args.output + os.sep + "accuracy.tsv"
     # Determine the analysis stage and user's intentions with four booleans
     accessions_downloaded = False  # Whether the accessions have been downloaded from Entrez
     classified = False  # Has TreeSAPP been completed for these sequences?
@@ -1227,7 +1248,7 @@ def main():
     if not os.path.isdir(treesapp_output_dir):
         os.makedirs(treesapp_output_dir)
 
-    if args.graftm:
+    if args.tool in ["diamond", "graftm"]:
         graftm_files = glob(treesapp_output_dir + os.sep + "*" + os.sep + "*_read_tax.tsv")
         if len(graftm_files) == 1:
             classification_table = glob(treesapp_output_dir + os.sep + "*" + os.sep + "*_read_tax.tsv")[0]
@@ -1342,7 +1363,7 @@ def main():
                 test_obj.queries = taxon_rep_seqs.keys()
                 test_rep_taxa_fasta = args.output + taxon + ".fa"
 
-                if args.graftm:
+                if args.tool in ["graftm", "diamond"]:
                     classification_table = os.sep.join([treesapp_output, taxon, taxon + "_read_tax.tsv"])
 
                     if not os.path.isfile(classification_table):
@@ -1363,10 +1384,12 @@ def main():
                         classify_command += ["--forward", test_rep_taxa_fasta]
                         classify_command += ["--graftm_package", args.output + os.sep + marker + ".gpkg"]
                         classify_command += ["--threads", str(args.threads)]
-                        classify_command += ["--assignment_method", "pplacer"]
-                        # classify_command += ["--assignment_method", "kraken"]
-                        classify_command += ["--search_method", "hmmsearch"]
-                        # classify_command += ["--search_method", "kraken"]
+                        if args.tool == "graftm":
+                            classify_command += ["--assignment_method", "pplacer"]
+                            classify_command += ["--search_method", "hmmsearch"]
+                        elif args.tool == "diamond":
+                            classify_command += ["--assignment_method", "diamond"]                        
+                            classify_command += ["--search_method", "diamond"]
                         classify_command += ["--output_directory", treesapp_output]
                         classify_command += ["--input_sequence_type", "aminoacid"]
                         classify_command.append("--force")
@@ -1479,9 +1502,10 @@ def main():
 
     # Determine the specificity for each rank
     clade_exclusion_strings = get_classification_performance(marker_eval_inst)
-    summarize_taxonomic_diversity(marker_eval_inst)
-    determine_containment(marker_eval_inst)
     write_performance_table(args, performance_table, clade_exclusion_strings)
+    summarize_taxonomic_diversity(marker_eval_inst)
+    containment_strings = determine_containment(marker_eval_inst)
+    write_containment_table(args, containment_table, containment_strings)
 
 
 if __name__ == "__main__":

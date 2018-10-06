@@ -27,14 +27,18 @@ def query_entrez_taxonomy(search_term):
                             term=search_term,
                             retmode="xml")
     record = Entrez.read(handle)
+    lineage = ""
     try:
         org_id = record["IdList"][0]
         if org_id:
-            handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
-            records = Entrez.read(handle)
-            lineage = str(records[0]["Lineage"])
+            try:
+                handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
+                records = Entrez.read(handle)
+                lineage = str(records[0]["Lineage"])
+            except error.HTTPError:
+                return lineage
         else:
-            return
+            return lineage
     except IndexError:
         if 'QueryTranslation' in record.keys():
             # If 'QueryTranslation' is returned, use it for the final Entrez query
@@ -53,13 +57,11 @@ def query_entrez_taxonomy(search_term):
                 lineage = str(records[0]["Lineage"])
                 if re.search("cellular organisms", lineage):
                     break
-        else:
-            logging.error("Unable to handle record returned by Entrez.efetch!\n" +
-                          "Database = Taxonomy\n" +
-                          "term = " + search_term + "\n" +
-                          "record = " + str(record) + "\n")
-            sys.exit(9)
-
+    if not lineage:
+        logging.warning("Unable to handle record returned by Entrez.efetch!\n" +
+                        "Database = Taxonomy\n" +
+                        "term = " + search_term + "\n" +
+                        "record = " + str(record) + "\n")
     return lineage
 
 
@@ -467,6 +469,8 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
                             reference_sequence.organism = accession_lineage_map[tuple_key]["organism"]
             else:
                 failed_accession_queries.append(reference_sequence)
+        else:
+            unambiguous_accession_lineage_map[reference_sequence.accession] = reference_sequence.lineage
 
     # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
     # Failing this, lineages will be set to "Unclassified"
