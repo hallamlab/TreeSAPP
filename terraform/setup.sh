@@ -33,7 +33,6 @@ echo "--------------------------------"
 echo "YOUR PROJECT ID IS: "$PROJECT_ID
 echo "--------------------------------"
 
-PROJECT_ID="treesapp-2948"
 USER_NAME="$(whoami)"
  
 gcloud projects create $PROJECT_ID
