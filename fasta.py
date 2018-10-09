@@ -188,7 +188,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
 
 def get_header_format(header, code_name=""):
     """
-    Used to decipher which formatting style was used: NCBI, FunGenes, or other
+    Used to decipher which formatting style was used and parse information, ideally reliably
     HOW TO ADD A NEW REGULAR EXPRESSION:
         1. create a new compiled regex pattern, like below
         2. add the name of the compiled regex pattern to the header_regexes dictionary
@@ -201,38 +201,35 @@ def get_header_format(header, code_name=""):
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
-    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);.*$")
-    gi_prepend_proper_re = re.compile(">gi\|(\d+)\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")
-    gi_prepend_mess_re = re.compile(">gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-\()]+)$")
-    dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")
+    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);?.*$")  # a
+    gi_prepend_proper_re = re.compile(">gi\|\d+\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")  # a, d, o
+    gi_prepend_mess_re = re.compile(">gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-\()]+)$")  # a
+    dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")  # a, o
     emb_re = re.compile(">emb\|(.*)\|.*\[(.*)\]")
     gb_re = re.compile(">gb\|(.*)\|.*\[(.*)\]")
     ref_re = re.compile(">ref\|(.*)\|.*\[(.*)\]")
-    pdb_re = re.compile(">pdb\|(.*)\|(.*)$")
-    pir_re = re.compile(">pir\|\|(\w+).* - (.*)$")
-    sp_re = re.compile(">sp\|(.*)\|.*Full=(.*);.*$")
-    fungene_re = re.compile("^>([A-Z0-9.]+)[ ]+coded_by=(.+)[,]+organism=(.+)[,]+definition=(.+)$")
-    fungene_trunc_re = re.compile("^>([A-Z0-9.]+)[ ]+organism=(.+)[,]+definition=(.+)$")
+    pdb_re = re.compile(">pdb\|(.*)\|.+$")  # a
+    pir_re = re.compile(">pir\|.*\|(\w+).* - (.*)$")  # a, o
+    sp_re = re.compile(">sp\|(.*)\|.*Full=.*;?.*$")  # a
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name) + "$")
-    # treesapp_re = re.compile("^>([A-Z0-9.]+) .* \[(.*)\]$")  # Conflicting
-    refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")
-    genbank_prot_re = re.compile("^>([A-Z]{3}[0-9]{5}\.?[0-9]?) (.*) \[(.*)\]$")
+    refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")  # a, d, o
+    genbank_prot_re = re.compile("^>([A-Z]{3}[0-9]{5}\.?[0-9]?)[ ]+(.+) \[(.*)\]$")  # a, d, o
 
     # Nucleotide databases:
     silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
-    refseq_nuc_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_(.*)$")
-    nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_(.*)$")
+    refseq_nuc_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_.+$")  # a
+    nr_re = re.compile("^>([A-Z0-9]+\.[0-9])_.*$")  # a
 
     # Ambiguous:
-    genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) (.*) \[(.*)\]$")
-    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.[0-9]) ([A-Za-z1-9 _-]+)$")
+    genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
+    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.?[0-9]?)[ ]+.*(?<!\])$")  # a
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
     # There are no character restrictions on the first and third groups
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
-    custom_tax = re.compile("^>(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")
+    custom_tax = re.compile("^>(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")  # a, l, o
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
@@ -246,9 +243,7 @@ def get_header_format(header, code_name=""):
                                gi_prepend_mess_re: "gi_mess",
                                refseq_prot_re: "refseq_prot",
                                genbank_prot_re: "gen_prot"},
-                      "dna": {fungene_re: "fungene",
-                              fungene_trunc_re: "fungene_truncated",
-                              mltree_re: "mltree",
+                      "dna": {mltree_re: "mltree",
                               silva_arb_re: "silva",
                               refseq_nuc_re: "refseq_nuc",
                               nr_re: "nr"},

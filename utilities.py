@@ -227,47 +227,25 @@ class Autovivify(dict):
 
 
 def return_sequence_info_groups(regex_match_groups, header_db, header):
-    accession = ""
     description = ""
     locus = ""
     organism = ""
     lineage = ""
     if regex_match_groups:
-        if len(regex_match_groups.groups()) == 2:
-            accession = regex_match_groups.group(1)
-            organism = regex_match_groups.group(2)
-            description = regex_match_groups.group(2)
-        if header_db == "gi_proper":
-            accession = regex_match_groups.group(2)
-            description = regex_match_groups.group(3)
-            organism = regex_match_groups.group(4)
-        if header_db in ["gi_re", "gi_mess", "pdb"]:
-            accession = regex_match_groups.group(1)
-            description = regex_match_groups.group(2)
-            organism = ""
-        elif header_db in ["ncbi_ambig", "refseq_prot", "gen_genome", "gen_prot"]:
-            accession = regex_match_groups.group(1)
-            description = regex_match_groups.group(2)
-            organism = regex_match_groups.group(3)
-        elif header_db == "silva":
-            accession = regex_match_groups.group(1)
-            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
-            lineage = regex_match_groups.group(4)
-            description = regex_match_groups.group(4)
-        elif header_db == "fungene":
-            accession = regex_match_groups.group(1)
-            locus = regex_match_groups.group(2)
-            organism = regex_match_groups.group(3)
-            description = regex_match_groups.group(3)
-        elif header_db == "fungene_truncated":
-            accession = regex_match_groups.group(1)
-            organism = regex_match_groups.group(2)
-            description = regex_match_groups.group(3)
-        elif header_db == "custom":
-            accession = regex_match_groups.group(1)
+        accession = regex_match_groups.group(1)
+        if header_db == "custom":
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
             description = regex_match_groups.group(3)
+        elif header_db == "silva":
+            locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
+            lineage = regex_match_groups.group(4)
+            description = regex_match_groups.group(4)
+        elif len(regex_match_groups.groups()) == 3:
+            description = regex_match_groups.group(2)
+            organism = regex_match_groups.group(3)
+        elif len(regex_match_groups.groups()) == 2:
+            organism = regex_match_groups.group(2)
     else:
         logging.error("Unable to handle header: " + header + "\n")
         sys.exit(13)
