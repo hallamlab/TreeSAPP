@@ -33,6 +33,7 @@ else
 fi
 
 PROJECT_ID=${1:-treesapp-$RANDOM}
+PROJECT_NAME=treesapp
 echo "--------------------------------" 
 echo "YOUR PROJECT ID IS: "$PROJECT_ID
 echo "--------------------------------"
@@ -67,16 +68,18 @@ gcloud services enable compute.googleapis.com
 gcloud services enable iam.googleapis.com
 
 # Check if instance with project name already exists
-if [ -z $(gcloud compute instances list --format='table(name)' | grep treesapp) ]; then
-    INSTANCE_NAME=treesapp
-elif [ -z $(gcloud compute instances list --format='table(name)' | grep $PROJECT_ID) ]; then
+if [ -z "$(gcloud compute instances list --format='table(name)' | grep $PROJECT_NAME)" ]; then
+    INSTANCE_NAME=$PROJECT_NAME
+elif [ -z "$(gcloud compute instances list --format='table(name)' | grep $PROJECT_ID)" ]; then
     INSTANCE_NAME=$PROJECT_ID
 else
     INSTANCE_NAME=treesapp-$RANDOM
     echo "Instance name will be $INSTANCE_NAME"
 fi
 
+echo "-------------------------------------------------------------------------------" 
 echo "Spawned instance will be named $INSTANCE_NAME"
+echo "-------------------------------------------------------------------------------" 
 
 cd tf
 

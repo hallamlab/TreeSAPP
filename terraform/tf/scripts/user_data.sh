@@ -66,7 +66,12 @@ cd ~/
 #Move github folder to user home directory
 mv github /home/${username}
 
-ALIAS="alias treesapp='python /home/${username}/github/TreeSAPP/treesapp.py'"
+cd /home/${username}
+
+if [ -d "github" ]; then
+    ALIAS="alias treesapp='python /home/${username}/github/TreeSAPP/treesapp.py'"
+else     
+    ALIAS="alias treesapp='python /home/${username}/TreeSAPP/treesapp.py'"
+fi 
 echo $ALIAS >> /home/${username}/.bashrc
 
-source /home/${username}/.bashrc
