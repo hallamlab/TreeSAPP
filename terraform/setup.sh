@@ -78,7 +78,7 @@ else
 fi
 
 echo "-------------------------------------------------------------------------------" 
-echo "Spawned instance will be named $INSTANCE_NAME"
+echo "YOUR INSTANCE NAME IS: $INSTANCE_NAME"
 echo "-------------------------------------------------------------------------------" 
 
 cd tf

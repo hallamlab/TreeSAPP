@@ -46,12 +46,15 @@ If you want to create an instance in an existing account, pass the project name 
 ./scripts/setup.sh [YOUR-PROJECT-NAME]
 ```
 
-Your project ID will be displayed in the script output:
+Your project ID and instance ID will be displayed in the script output:
 
 ```
 -----------------------------------------------
 YOUR PROJECT ID IS: [YOUR PROJECT NAME]-xxxxxx
 -----------------------------------------------
+YOUR INSTANCE ID IS: [INSTANCE-ID]
+-----------------------------------------------
+
 ```
 
 ##### Enabling Billing
@@ -71,7 +74,7 @@ instance_id = https://www.googleapis.com/compute/v1/projects/[YOUR-PROJECT-ID-HE
 
 Now, you can ssh into your instance using:
 ```
-gcloud compute ssh [YOUR-PROJECT-ID-HERE]
+gcloud compute ssh [YOUR-INSTANCE-ID-HERE]
 ```
 The setup script will install all the dependencies TreeSAPP relies on and will take around 5-10 minutes to complete. 
 
