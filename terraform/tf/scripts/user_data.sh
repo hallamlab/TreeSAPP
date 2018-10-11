@@ -57,7 +57,7 @@ tar -xvf papara* --directory=/usr/bin; cd /usr/bin; mv papara* papara
 
 cd $GITHUB_PATH
 
-git clone --single-branch -b autoinstall https://github.com/hallamlab/TreeSAPP.git; cd TreeSAPP;
+git clone https://github.com/hallamlab/TreeSAPP.git; cd TreeSAPP;
 cd sub_binaries; cp usearch /usr/bin; cd ../
 make; make install;
 
