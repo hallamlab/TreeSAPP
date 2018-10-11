@@ -67,7 +67,9 @@ gcloud services enable compute.googleapis.com
 gcloud services enable iam.googleapis.com
 
 # Check if instance with project name already exists
-if [ -z $(gcloud compute instances list --format='table(name)' | grep $PROJECT_ID) ]; then
+if [ -z $(gcloud compute instances list --format='table(name)' | grep treesapp) ]; then
+    INSTANCE_NAME=treesapp
+elif [ -z $(gcloud compute instances list --format='table(name)' | grep $PROJECT_ID) ]; then
     INSTANCE_NAME=$PROJECT_ID
 else
     INSTANCE_NAME=treesapp-$RANDOM

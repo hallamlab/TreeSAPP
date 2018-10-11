@@ -9,7 +9,7 @@ data "template_file" "init" {
 resource "google_compute_instance" "tftreesapp" {
   project      = "${var.project_id}"
   zone         = "us-west1-b"
-  name         = "${var.project_id}"
+  name         = "${var.instance_name}"
   machine_type = "n1-highcpu-8"
 
   boot_disk {

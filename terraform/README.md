@@ -38,9 +38,13 @@ Sign into your GCP account by running gcloud init (if you haven't already).
 Run the setup script and enable billing when prompted. 
 
 ```
-./scripts/setup.sh [YOUR-PROJECT-NAME]
+./scripts/setup.sh
 ```
 
+If you want to create an instance in an existing account, pass the project name as a parameter to the setup script like so:
+```
+./scripts/setup.sh [YOUR-PROJECT-NAME]
+```
 
 Your project ID will be displayed in the script output:
 

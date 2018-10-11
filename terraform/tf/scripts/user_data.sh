@@ -64,7 +64,7 @@ make; make install;
 cd ~/
 
 #Move github folder to user home directory
-cp -r github /home/${username}
+mv github /home/${username}
 
 ALIAS="alias treesapp='python /home/${username}/github/TreeSAPP/treesapp.py'"
 echo $ALIAS >> /home/${username}/.bashrc
