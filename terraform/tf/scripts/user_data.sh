@@ -22,6 +22,14 @@ sudo pip install numpy biopython scipy
 sudo apt-get install python-qt4 python-lxml python-six -y
 sudo pip install --upgrade ete3 
 
+#Java dependency
+sudo apt-get update
+sudo apt-get install -y software-properties-common debconf-utils
+sudo add-apt-repository -y ppa:webupd8team/java
+sudo apt-get update
+sudo echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
+sudo apt-get install -y oracle-java8-installer
+
 GITHUB_PATH="/root/github"
 
 cd $GITHUB_PATH
