@@ -76,6 +76,8 @@ mv github /home/${username}
 
 cd /home/${username}
 
+chmod 775 /home/${username}/github
+
 if [ -d "github" ]; then
     ALIAS="alias treesapp='python /home/${username}/github/TreeSAPP/treesapp.py'"
 else     
