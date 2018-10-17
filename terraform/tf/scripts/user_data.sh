@@ -28,7 +28,7 @@ sudo apt-get install -y software-properties-common debconf-utils
 sudo add-apt-repository -y ppa:webupd8team/java
 sudo apt-get update
 sudo echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
-sudo apt-get install -y oracle-java8-installer
+sudo apt-get install -y oracle-java8-installer oracle-java8-set-default 
 
 GITHUB_PATH="/root/github"
 
@@ -36,8 +36,8 @@ cd $GITHUB_PATH
 
 # RAxML
 git clone https://github.com/stamatak/standard-RAxML --branch v8.2.12 > /root/logs/raxml_setup.log
-cd standard-RAxML; make -f Makefile.SSE3.PTHREADS.gcc; make -f Makefile.gcc; make -f Makefile.SSE3.gcc; make -f Makefile.AVX.gcc; make -f Makefile.PTHREADS.gcc; make-f Makefile.AVX.PTHREADS.gcc; rm *.o
-
+cd standard-RAxML;  make -f Makefile.PTHREADS.gcc; rm *.o
+mv raxmlHPC* raxmlHPC
 cp raxmlHPC* /usr/bin/
 
 cd $GITHUB_PATH
