@@ -22,14 +22,22 @@ sudo pip install numpy biopython scipy
 sudo apt-get install python-qt4 python-lxml python-six -y
 sudo pip install --upgrade ete3 
 
+#Java dependency
+sudo apt-get update
+sudo apt-get install -y software-properties-common debconf-utils
+sudo add-apt-repository -y ppa:webupd8team/java
+sudo apt-get update
+sudo echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
+sudo apt-get install -y oracle-java8-installer oracle-java8-set-default 
+
 GITHUB_PATH="/root/github"
 
 cd $GITHUB_PATH
 
 # RAxML
 git clone https://github.com/stamatak/standard-RAxML --branch v8.2.12 > /root/logs/raxml_setup.log
-cd standard-RAxML; make -f Makefile.SSE3.PTHREADS.gcc; make -f Makefile.gcc; make -f Makefile.SSE3.gcc; make -f Makefile.AVX.gcc; make -f Makefile.PTHREADS.gcc; make-f Makefile.AVX.PTHREADS.gcc; rm *.o
-
+cd standard-RAxML;  make -f Makefile.PTHREADS.gcc; rm *.o
+mv raxmlHPC* raxmlHPC
 cp raxmlHPC* /usr/bin/
 
 cd $GITHUB_PATH
@@ -57,16 +65,23 @@ tar -xvf papara* --directory=/usr/bin; cd /usr/bin; mv papara* papara
 
 cd $GITHUB_PATH
 
-git clone --single-branch -b autoinstall https://github.com/hallamlab/TreeSAPP.git; cd TreeSAPP;
+git clone https://github.com/hallamlab/TreeSAPP.git; cd TreeSAPP;
 cd sub_binaries; cp usearch /usr/bin; cd ../
 make; make install;
 
 cd ~/
 
 #Move github folder to user home directory
-cp -r github /home/${username}
+mv github /home/${username}
 
-ALIAS="alias treesapp='python /home/${username}/github/TreeSAPP/treesapp.py'"
+cd /home/${username}
+
+chmod 775 /home/${username}/github
+
+if [ -d "github" ]; then
+    ALIAS="alias treesapp='python /home/${username}/github/TreeSAPP/treesapp.py'"
+else     
+    ALIAS="alias treesapp='python /home/${username}/TreeSAPP/treesapp.py'"
+fi 
 echo $ALIAS >> /home/${username}/.bashrc
 
-source /home/${username}/.bashrc
