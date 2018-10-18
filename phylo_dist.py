@@ -101,30 +101,45 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
 def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     """
     Iterates a dictionary and trims the lineage string values to a specified rank.
-     Also removes lineages that are 'unclassified' at the desired rank or higher and sequences from environmental samples
+     Also removes lineages that are unclassified at the desired rank or higher (closer to root)
 
     :param leaf_taxa_map: Maps indices to lineages
     :param rank: The taxonomic rank lineages need to be trimmed to
     :return: Dictionary of keys mapped to trimmed lineages
     """
     trimmed_lineage_map = dict()
+    # ranks is offset by 1 (e.g. Kingdom is the first index and therefore should be 1) for the final trimming step
     ranks = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
     depth = ranks[rank]
     for node_name in sorted(leaf_taxa_map):
-        lineage = leaf_taxa_map[node_name]
-        c_lineage = clean_lineage_string(lineage).split("; ")
-        if len(c_lineage) < depth:
+        c_lineage = clean_lineage_string(leaf_taxa_map[node_name])
+        c_lineage_s = c_lineage.split("; ")
+
+        # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
+        if len(c_lineage_s) < depth:
             continue
-        if re.search("unclassified|environmental sample", lineage, re.IGNORECASE):
+
+        try:
+            re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE)
+        except TypeError:
+            logging.error("Unexpected type (" + str(type(c_lineage)) + ") for '" + str(c_lineage) + "'\n")
+            sys.exit(33)
+
+        if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
             i = 0
-            while i <= depth:
-                if re.search("unclassified|environmental sample", c_lineage[i], re.IGNORECASE):
+            while i < depth:
+                try:
+                    taxon = c_lineage_s[i]
+                except IndexError:
+                    logging.error(rank + " position (" + str(depth) + ") unavailable in " + c_lineage + " ")
+                    break
+                if re.search("unclassified|environmental sample", taxon, re.IGNORECASE):
                     i -= 1
                     break
                 i += 1
             if i < depth:
                 continue
-        trimmed_lineage_map[node_name] = "; ".join(c_lineage[:depth])
+        trimmed_lineage_map[node_name] = "; ".join(c_lineage_s[:depth])
     return trimmed_lineage_map
 
 

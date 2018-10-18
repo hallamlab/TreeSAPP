@@ -17,17 +17,23 @@ def multiple_query_entrez_taxonomy(search_term_set):
     :return: A dictionary mapping each of the unique organism names in search_term_set to a full taxonomic lineage
     """
     search_term_result_map = dict()
+    # TODO: Query Entrez server with multiple tax_ids at once, parse records to map the org_id to tax_id
     for search_term in search_term_set:
         search_term_result_map[search_term] = query_entrez_taxonomy(search_term)
+    # TODO: Query Entrez server with multiple org_ids at once, parse records to map the org_id to lineage
     return search_term_result_map
 
 
 def query_entrez_taxonomy(search_term):
-    handle = Entrez.esearch(db="Taxonomy",
-                            term=search_term,
-                            retmode="xml")
-    record = Entrez.read(handle)
     lineage = ""
+    try:
+        handle = Entrez.esearch(db="Taxonomy",
+                                term=search_term,
+                                retmode="xml")
+    except error.HTTPError:
+        logging.warning("Unable to find the taxonomy for " + search_term + "\n")
+        return lineage
+    record = Entrez.read(handle)
     try:
         org_id = record["IdList"][0]
         if org_id:
@@ -280,8 +286,7 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
     start_time = time.time()
     organism_lineage_map = multiple_query_entrez_taxonomy(unique_organisms)
     for tuple_key in accession_lineage_map:
-        organism_name = accession_lineage_map[tuple_key]["organism"]
-        accession_lineage_map[tuple_key]["lineage"] = organism_lineage_map[organism_name]
+        accession_lineage_map[tuple_key]["lineage"] = organism_lineage_map[accession_lineage_map[tuple_key]["organism"]]
 
     logging.info("done.\n")
 
@@ -493,6 +498,25 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
                       + str(len(fasta_record_objects)) + ") were queried against the NCBI taxonomy database!\n")
         sys.exit(9)
 
+    # Add the species designation since it is often not included in the sequence record's lineage
+    proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
+    for treesapp_id in fasta_record_objects:
+        ref_seq = fasta_record_objects[treesapp_id]
+        if not ref_seq.lineage:
+            try:
+                lineage = unambiguous_accession_lineage_map[ref_seq.accession]
+            except KeyError:
+                logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
+                              "Please remove the output directory and restart.\n")
+                sys.exit(13)
+            lr = lineage.split("; ")
+            if len(lr) == 7 and proper_species_re.match(ref_seq.organism):
+                unambiguous_accession_lineage_map[ref_seq.accession] = lineage + "; " + ref_seq.organism
+            elif ref_seq.organism not in lr and len(lr) <= 6 and re.match("^[A-Z][a-z]+$", ref_seq.organism):
+                unambiguous_accession_lineage_map[ref_seq.accession] = lineage + "; " + ref_seq.organism
+            # print(','.join([lineage, "organism: " + ref_seq.organism,
+            #                 "\n", "Final: " + unambiguous_accession_lineage_map[ref_seq.accession]]))
+
     return fasta_record_objects, unambiguous_accession_lineage_map
 
 
@@ -527,7 +551,7 @@ def read_accession_taxa_map(mapping_file):
     """
     try:
         map_file_handler = open(mapping_file, 'r')
-    except IOError:
+    except OSError:
         logging.error("Unable to open " + mapping_file, " for reading!\n")
         sys.exit(9)
 
@@ -535,7 +559,7 @@ def read_accession_taxa_map(mapping_file):
     for line in map_file_handler:
         accession, lineage = line.strip().split("\t")
         if accession not in accession_lineage_map:
-            accession_lineage_map[accession] = lineage
+            accession_lineage_map[accession] = str(lineage)
         else:
             logging.error(accession + " present in " + mapping_file + " multiple times!")
             sys.exit(9)

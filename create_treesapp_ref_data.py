@@ -32,7 +32,7 @@ try:
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
     sys.stderr.write(str(traceback.print_exc(10)))
-    sys.exit(3)
+    sys.exit(13)
 
 
 def get_arguments():
@@ -165,13 +165,12 @@ def get_arguments():
     args.final_output_dir = args.output_dir + "TreeSAPP_files_%s" % args.code_name + os.sep
 
     if len(args.code_name) > 6:
-        sys.stderr.write("ERROR: code_name must be <= 6 characters!\n")
-        sys.stderr.flush()
-        sys.exit(-1)
+        logging.error("code_name must be <= 6 characters!\n")
+        sys.exit(13)
 
     if args.rfam_cm is None and args.molecule == "rrna":
-        sys.stderr.write("ERROR: Covariance model file must be provided for rRNA data!\n")
-        sys.exit(-2)
+        logging.error("Covariance model file must be provided for rRNA data!\n")
+        sys.exit(13)
 
     # Check the RAxML model
     raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALGF", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
@@ -179,13 +178,15 @@ def get_arguments():
     if args.raxml_model and args.raxml_model not in raxml_models:
         sys.stderr.write("ERROR: --raxml_model (" + args.raxml_model + ") not valid!\n")
         sys.stderr.write("If this model is valid (not a typo), add if to `raxml_models` list and re-run.\n")
-        sys.exit(3)
+        sys.exit(13)
 
     if args.cluster:
         if args.multiple_alignment:
-            sys.exit("ERROR: --cluster and --multiple_alignment are mutually exclusive!\n")
+            logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
+            sys.exit(13)
         if args.uc:
-            sys.exit("ERROR: --cluster and --uc are mutually exclusive!\n")
+            logging.error("--cluster and --uc are mutually exclusive!\n")
+            sys.exit(13)
         if not 0.5 < float(args.identity) < 1.0:
             if 0.5 < float(args.identity)/100 < 1.0:
                 args.identity = str(float(args.identity)/100)
@@ -195,16 +196,16 @@ def get_arguments():
 
     if args.taxa_lca:
         if not args.cluster and not args.uc:
-            sys.stderr.write("ERROR: Unable to perform LCA for representatives without clustering information: "
-                             "either with a provided UCLUST file or by clustering within the pipeline.\n")
-            sys.exit(3)
+            logging.error("Unable to perform LCA for representatives without clustering information: " +
+                          "either with a provided UCLUST file or by clustering within the pipeline.\n")
+            sys.exit(13)
 
     if args.guarantee:
         if not args.uc and not args.cluster:
-            sys.stderr.write("ERROR: --guarantee used but without clustering there is no reason for it.\n")
-            sys.stderr.write("Include all sequences in " + args.guarantee +
-                             " in " + args.fasta_input + " and re-run without --guarantee\n")
-            sys.exit()
+            logging.error("--guarantee used but without clustering there is no reason for it.\n" +
+                          "Include all sequences in " + args.guarantee +
+                          " in " + args.fasta_input + " and re-run without --guarantee\n")
+            sys.exit(13)
 
     return args
 
@@ -255,9 +256,8 @@ def generate_cm_data(args, unaligned_fasta):
     stdout, cmalign_pro_returncode = launch_write_command(cmalign_sto)
 
     if cmalign_pro_returncode != 0:
-        sys.stderr.write("ERROR: cmalign did not complete successfully for:\n")
-        sys.stderr.write(' '.join(cmalign_sto) + "\n")
-        sys.exit()
+        logging.error("cmalign did not complete successfully for:\n" + ' '.join(cmalign_sto) + "\n")
+        sys.exit(13)
 
     sys.stdout.write("done.\n")
     sys.stdout.write("Running cmbuild... ")
@@ -273,7 +273,7 @@ def generate_cm_data(args, unaligned_fasta):
     if cmbuild_pro_returncode != 0:
         sys.stderr.write("ERROR: cmbuild did not complete successfully for:\n")
         sys.stderr.write(' '.join(cmbuild_command) + "\n")
-        sys.exit()
+        sys.exit(13)
     os.rename(args.code_name + ".cm", args.final_output_dir + os.sep + args.code_name + ".cm")
     if os.path.isfile(args.final_output_dir + os.sep + args.code_name + ".sto"):
         sys.stderr.write("WARNING: overwriting " + args.final_output_dir + os.sep + args.code_name + ".sto")
@@ -296,7 +296,7 @@ def generate_cm_data(args, unaligned_fasta):
     if cmalign_pro_returncode != 0:
         sys.stderr.write("ERROR: cmalign did not complete successfully for:\n")
         sys.stderr.write(' '.join(cmalign_afa) + "\n")
-        sys.exit()
+        sys.exit(13)
 
     # Convert the Phylip file to an aligned FASTA file for downstream use
     phylip_to_mfa(args.code_name + ".phy", aligned_fasta)
@@ -311,7 +311,7 @@ def run_mafft(args, fasta_in, fasta_out):
     mafft_align_command = [args.executables["mafft"]]
     mafft_align_command += ["--maxiterate", str(1000)]
     mafft_align_command += ["--thread", str(args.num_threads)]
-    mafft_align_command.append("--localpair")
+    mafft_align_command.append("--auto")
     mafft_align_command += [fasta_in, '1>' + fasta_out]
     mafft_align_command += ["2>", "/dev/null"]
 
@@ -329,7 +329,10 @@ def run_odseq(args, fasta_in, outliers_fa):
     odseq_command += ["-i", fasta_in]
     odseq_command += ["-f", "fasta"]
     odseq_command += ["-o", outliers_fa]
+    odseq_command += ["-m", "linear"]
+    odseq_command += ["--boot-rep", str(1000)]
     odseq_command += ["-t", str(args.num_threads)]
+    odseq_command.append("--full")
 
     stdout, odseq_proc_returncode = launch_write_command(odseq_command)
 
@@ -397,10 +400,9 @@ def hmmsearch_input_references(args, fasta_replaced_file):
 
     # Check to ensure the job finished properly
     if ret_code != 0:
-        sys.stderr.write("ERROR: hmmsearch did not complete successfully!\n")
-        sys.stderr.write(stdout + "\n")
-        sys.stderr.write("Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
-        sys.exit()
+        logging.error("hmmsearch did not complete successfully!\n" + stdout + "\n" +
+                      "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
+        sys.exit(13)
 
     return [domtbl]
 
@@ -563,7 +565,17 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
     return swappers
 
 
-def finalize_cluster_reps(cluster_dict, refseq_objects, header_registry):
+def finalize_cluster_reps(cluster_dict: dict, refseq_objects, header_registry):
+    """
+        Transfer information from the cluster data (representative sequence, identity and cluster taxonomic LCA) to the
+    dictionary of ReferenceSequence objects. The sequences not representing a cluster will have their `cluster_rep`
+    flags remain *False* so as to not be analyzed further.
+
+    :param cluster_dict:
+    :param refseq_objects:
+    :param header_registry: A list of Header() objects, each used to map various header formats to each other
+    :return: Dictionary of ReferenceSequence objects with complete clustering information
+    """
     for cluster_id in sorted(cluster_dict, key=int):
         cluster_info = cluster_dict[cluster_id]
         for treesapp_id in sorted(refseq_objects, key=int):
@@ -577,9 +589,10 @@ def finalize_cluster_reps(cluster_dict, refseq_objects, header_registry):
 def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, important_seqs=None):
     """
     Present the headers of identical sequences to user for them to decide on representative header
+
     :param cluster_dict: dictionary from read_uc(uc_file)
     :param refseq_objects:
-    :param header_registry:
+    :param header_registry: A list of Header() objects, each used to map various header formats to each other
     :param important_seqs: If --guarantee is provided, a dictionary mapping headers to seqs from format_read_fasta()
     :return:
     """
@@ -827,6 +840,13 @@ def remove_duplicate_records(fasta_record_objects):
 
 
 def order_dict_by_lineage(fasta_object_dict):
+    """
+    Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
+    Remove the cluster members since they will no longer be used
+
+    :param fasta_object_dict: A dictionary mapping `treesapp_id`s (integers) to ReferenceSequence objects
+    :return: An ordered, filtered version of the input dictionary
+    """
     # Create a new dictionary with lineages as keys
     lineage_dict = dict()
     sorted_lineage_dict = dict()
@@ -847,6 +867,7 @@ def order_dict_by_lineage(fasta_object_dict):
             # Values of the new dictionary are lists of ReferenceSequence instances
             lineage_dict[ref_seq.lineage] = list()
         lineage_dict[ref_seq.lineage].append(ref_seq)
+
     # Now re-write the fasta_object_dict, but the numeric keys are now sorted by lineage
     #  AND it doesn't contain redundant fasta objects
     num_key = 1
@@ -921,6 +942,12 @@ def estimate_taxonomic_redundancy(args, reference_dict):
 
 
 def summarize_reference_taxa(args, reference_dict):
+    """
+        Function for enumerating the representation of each taxonomic rank within the finalized reference sequences
+    :param args:
+    :param reference_dict:
+    :return: A formatted, human-readable string stating the number of unique taxa at each rank
+    """
     taxonomic_summary_string = ""
     # Not really interested in Cellular Organisms or Strains.
     rank_depth_map = {1: "Kingdoms", 2: "Phyla", 3: "Classes", 4: "Orders", 5: "Families", 6: "Genera", 7: "Species"}
@@ -931,17 +958,20 @@ def summarize_reference_taxa(args, reference_dict):
         name = rank_depth_map[depth]
         taxa_counts[name] = set()
     for num_id in sorted(reference_dict.keys(), key=int):
-        if args.taxa_lca:
+        if args.taxa_lca and reference_dict[num_id].cluster_lca:
             lineage = reference_dict[num_id].cluster_lca
         else:
             lineage = reference_dict[num_id].lineage
+
         if re.search("unclassified", lineage, re.IGNORECASE):
             unclassifieds += 1
+
         position = 1
         taxa = lineage.split('; ')
         while position < len(taxa) and position < 8:
             taxa_counts[rank_depth_map[position]].add(taxa[position])
             position += 1
+
     taxonomic_summary_string += "Number of unique lineages:\n"
     for depth in rank_depth_map:
         rank = rank_depth_map[depth]
@@ -967,8 +997,8 @@ def write_tax_ids(args, fasta_replace_dict, tax_ids_file):
     """
 
     tree_taxa_string = ""
-    no_lineage = 0
     warning_string = ""
+    no_lineage = list()
 
     for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
         # Definitely will not uphold phylogenetic relationships but at least sequences
@@ -979,9 +1009,8 @@ def write_tax_ids(args, fasta_replace_dict, tax_ids_file):
         else:
             lineage = reference_sequence.lineage
         if not lineage:
-            no_lineage += 1
+            no_lineage.append(reference_sequence.accession)
             lineage = ''
-            print(reference_sequence.accession, lineage)
 
         tree_taxa_string += "\t".join([str(mltree_id_key),
                                       reference_sequence.organism + " | " + reference_sequence.accession,
@@ -992,8 +1021,9 @@ def write_tax_ids(args, fasta_replace_dict, tax_ids_file):
     tree_tax_list_handle.write(tree_taxa_string)
     tree_tax_list_handle.close()
 
-    if no_lineage > 0:
-        warning_string += "WARNING: " + str(no_lineage) + " reference sequences did not have an associated lineage!\n"
+    if len(no_lineage) > 0:
+        warning_string += str(len(no_lineage)) + " reference sequences did not have an associated lineage!\n\t"
+        warning_string += "\n\t".join(no_lineage)
 
     return warning_string
 
@@ -1089,7 +1119,7 @@ def update_build_parameters(args, code_name, sub_model, lowest_reliable_rank, po
         params = open(param_file, 'a')
     except IOError:
         logging.error("Unable to open " + param_file + "for appending.\n")
-        sys.exit()
+        sys.exit(13)
 
     date = strftime("%d_%b_%Y", gmtime())
 
@@ -1121,18 +1151,19 @@ def construct_tree(args, multiple_alignment_file, tree_output_dir):
 
     :param args:
     :param multiple_alignment_file:
+    :param tree_output_dir:
     :return:
     """
 
     # Decide on the command to build the tree, make some directories and files when necessary
+    final_mltree = args.final_output_dir + args.code_name + "_tree.txt"
     if args.fast:
-        tree_to_swap = tree_output_dir + os.sep + args.code_name + "_tree.txt"
         tree_build_cmd = [args.executables["FastTree"]]
         if args.molecule == "rrna" or args.molecule == "dna":
             tree_build_cmd += ["-nt", "-gtr"]
         else:
             tree_build_cmd += ["-lg", "-wag"]
-        tree_build_cmd += ["-out", tree_to_swap]
+        tree_build_cmd += ["-out", final_mltree]
         tree_build_cmd.append(multiple_alignment_file)
         tree_builder = "FastTree"
     else:
@@ -1153,42 +1184,40 @@ def construct_tree(args, multiple_alignment_file, tree_output_dir):
         elif args.molecule == "rrna" or args.molecule == "dna":
             tree_build_cmd += ["-m", "GTRGAMMA"]
         else:
-            sys.exit(
-                "ERROR: a substitution model could not be specified with the 'molecule' argument: " + args.molecule)
+            logging.error("A substitution model could not be specified with the 'molecule' argument: " + args.molecule)
+            sys.exit(13)
         tree_builder = "RAxML"
-        raw_newick_tree = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
-        bootstrap_tree = tree_output_dir + os.sep + "RAxML_bipartitionsBranchLabels." + args.code_name
-        final_mltree = args.output_dir + os.sep + args.code_name + "_tree.txt"
-        bootstrap_nameswap = args.output_dir + os.sep + args.code_name + "_bipartitions.txt"
 
     # Ensure the tree from a previous run isn't going to be over-written
     if not os.path.exists(tree_output_dir):
         os.system("mkdir %s" % tree_output_dir)
     else:
-        sys.stderr.write("ERROR: " + tree_output_dir + " already exists from a previous run! "
-                                                       "Please delete or rename it and try again.\n")
-        sys.exit()
+        logging.error(tree_output_dir + " already exists from a previous run! " +
+                      "Please delete or rename it and try again.\n")
+        sys.exit(13)
 
     if args.fast:
-        sys.stdout.write("Building Approximately-Maximum-Likelihood tree with FastTree... ")
-        sys.stdout.flush()
+        logging.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
         stdout, returncode = launch_write_command(tree_build_cmd, True)
         with open(tree_output_dir + os.sep + "FastTree_info." + args.code_name, 'w') as fast_info:
             fast_info.write(stdout + "\n")
-        sys.stdout.write("done.\n")
-        sys.stdout.flush()
     else:
+
+        logging.info("Building phylogenetic tree with RAxML... ")
         stdout, returncode = launch_write_command(tree_build_cmd, False)
+    logging.info("done.\n")
 
     if returncode != 0:
-        sys.stderr.write("ERROR: " + tree_builder + " did not complete successfully! "
-                         "Look in " + tree_output_dir + os.sep +
-                         tree_builder + "_info." + args.code_name + " for an error message.\n")
-        sys.stderr.write(tree_builder + " command used:\n")
-        sys.stderr.write(' '.join(tree_build_cmd) + "\n")
-        sys.exit(3)
+        logging.error(tree_builder + " did not complete successfully! " +
+                      "Look in " + tree_output_dir + os.sep +
+                      tree_builder + "_info." + args.code_name + " for an error message.\n" +
+                      tree_builder + " command used:\n" + ' '.join(tree_build_cmd) + "\n")
+        sys.exit(13)
 
     if not args.fast:
+        raw_newick_tree = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
+        bootstrap_tree = tree_output_dir + os.sep + "RAxML_bipartitionsBranchLabels." + args.code_name
+        bootstrap_nameswap = args.final_output_dir + args.code_name + "_bipartitions.txt"
         os.system("mv %s %s" % (multiple_alignment_file, tree_output_dir))
         swap_tree_names(raw_newick_tree, final_mltree, args.code_name)
         swap_tree_names(bootstrap_tree, bootstrap_nameswap, args.code_name)
@@ -1260,7 +1289,6 @@ def finalize_ref_seq_lineages(fasta_record_objects, accession_lineages):
     :param accession_lineages: a dictionary mapping {accession: lineage}
     :return:
     """
-    proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
     for treesapp_id in fasta_record_objects:
         ref_seq = fasta_record_objects[treesapp_id]
         if not ref_seq.lineage:
@@ -1269,18 +1297,11 @@ def finalize_ref_seq_lineages(fasta_record_objects, accession_lineages):
             except KeyError:
                 logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
                               "Please remove the output directory and restart.\n")
-                sys.exit(3)
+                sys.exit(13)
             # Add the species designation since it is often not included in the sequence record's lineage
-            lr = lineage.split("; ")
-            if proper_species_re.match(lr[-1]):
-                ref_seq.lineage = lineage
-            elif len(lr) == 7 and proper_species_re.match(ref_seq.organism):
-                ref_seq.lineage = lineage + "; " + ref_seq.organism
-            elif ref_seq.organism not in lr and len(lr) <= 6 and re.match("^[A-Z][a-z]+$", ref_seq.organism):
-                ref_seq.lineage = lineage + "; " + ref_seq.organism
-            else:
-                ref_seq.lineage = lineage
-            # print(','.join([lineage, "organism: " + ref_seq.organism, "\n", "Final: " + ref_seq.lineage]))
+            ref_seq.lineage = lineage
+        if not ref_seq.organism and ref_seq.lineage:
+            ref_seq.organism = ref_seq.lineage.split("; ")[-1]
         else:
             pass
     return fasta_record_objects
@@ -1292,7 +1313,6 @@ def main():
     # STAGE 0: PARAMETERIZE - retrieve command line arguments, query user about settings if necessary
     ##
     args = get_arguments()
-    args = find_executables(args)
 
     if os.path.isdir(args.output_dir) and args.overwrite:
         shutil.rmtree(args.output_dir)
@@ -1304,13 +1324,15 @@ def main():
     logging.info("\n##\t\t\tCreating TreeSAPP reference package for '" + args.code_name + "' \t\t\t##\n")
     logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
 
+    args = find_executables(args)
+
     code_name = args.code_name
     if args.pc:
         terminal_commands(args.final_output_dir, code_name)
         sys.exit(0)
 
     # Names of files to be created
-    tree_output_dir = args.output_dir + args.code_name + "_phy_files"
+    tree_output_dir = args.output_dir + args.code_name + "_phy_files" + os.sep
     tree_taxa_list = args.final_output_dir + "tax_ids_%s.txt" % code_name
     accession_map_file = args.output_dir + os.sep + "accession_id_lineage_map.tsv"
     hmm_purified_fasta = args.output_dir + args.code_name + "_hmm_purified.fasta"
@@ -1394,7 +1416,7 @@ def main():
     if args.guarantee:
         if not os.path.isfile(args.guarantee):
             logging.error("File '" + args.guarantee + "' does not exist!\n")
-            sys.exit(3)
+            sys.exit(13)
         important_seqs = format_read_fasta(args.guarantee, args.molecule, args.output_dir)
         important_headers = register_headers(get_headers(args.guarantee))
         fasta_dict.update(important_seqs)
@@ -1588,7 +1610,7 @@ def main():
 
     warnings = write_tax_ids(args, fasta_replace_dict, tree_taxa_list)
     if warnings:
-        logging.warning(warnings)
+        logging.warning(warnings + "\n")
 
     logging.info("Generated the taxonomic lineage map " + tree_taxa_list + "\n")
     taxonomic_summary = summarize_reference_taxa(args, fasta_replace_dict)
@@ -1663,9 +1685,7 @@ def main():
     ##
     # Build the tree using RAxML
     ##
-    logging.info("Building phylogenetic tree with RAxML... ")
     construct_tree(args, phylip_file, tree_output_dir)
-    logging.info("done.\n")
 
     if os.path.exists(ref_fasta_file):
         os.remove(ref_fasta_file)
@@ -1676,10 +1696,6 @@ def main():
 
     # Move the FASTA file to the final output directory
     os.system("mv %s.fa %s" % (args.output_dir + code_name, args.final_output_dir))
-    os.rename(args.output_dir + args.code_name + "_tree.txt",
-              args.final_output_dir + args.code_name + "_tree.txt")
-    os.rename(args.output_dir + args.code_name + "_bipartitions.txt",
-              args.final_output_dir + args.code_name + "_bipartitions.txt")
 
     if args.fast:
         if args.molecule == "prot":

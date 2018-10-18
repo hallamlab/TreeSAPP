@@ -48,7 +48,7 @@ def read_fasta_to_dict(fasta_file):
         sys.exit(5)
     for record in generate_fasta(fasta_handler):
         name, sequence = record
-        fasta_dict[name] = sequence
+        fasta_dict[name] = sequence.upper()
     return fasta_dict
 
 
