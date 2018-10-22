@@ -344,7 +344,12 @@ def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
     :param tool: Name of the software to use for trimming [BMGE|trimAl]
     Returns file name of the trimmed multiple alignment file in FASTA format
     """
-    trimmed_msa_file = re.sub(".fasta$|.phy$", '-' + re.escape(tool) + ".fasta", mfa_file)
+    f_ext = mfa_file.split('.')[-1]
+    if not re.match("mfa|fasta|phy", f_ext):
+        logging.error("Unsupported file format: '" + f_ext + "'\n")
+        sys.exit(5)
+
+    trimmed_msa_file = re.sub('.' + re.escape(f_ext), '-' + re.escape(tool) + ".fasta", mfa_file)
     if tool == "trimAl":
         trim_command = [executable]
         trim_command += ['-in', mfa_file,

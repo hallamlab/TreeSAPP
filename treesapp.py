@@ -1435,22 +1435,28 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
     return contig_rrna_coordinates, rRNA_hit_files
 
 
-def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbosity, file_type="phylip"):
+def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbosity, file_type):
     alignment_length_dict = dict()
     for denominator in concatenated_mfa_files:
         if denominator not in ref_alignment_dimensions:
             logging.error("Unrecognized code '" + denominator + "'.")
+            sys.exit(3)
+
         ref_n_seqs, ref_seq_length = ref_alignment_dimensions[denominator]
-        for mfa_file in concatenated_mfa_files[denominator]:
-            if file_type == "fasta":
-                num_seqs, sequence_length = validate_multi_aligned_fasta_utility(mfa_file)
-            elif file_type == "phylip":
-                num_seqs, sequence_length = validate_phylip_utility(mfa_file)
+        for msa_file in concatenated_mfa_files[denominator]:
+            if file_type == "Fasta":
+                seq_dict = read_fasta_to_dict(msa_file)
+            elif file_type == "Phylip":
+                seq_dict = read_phylip_to_dict(msa_file)
+            elif file_type == "Stockholm":
+                seq_dict = read_stockholm_to_dict(msa_file)
             else:
                 logging.error("File type '" + file_type + "' is not recognized.")
                 sys.exit(3)
+            num_seqs, sequence_length = validate_multiple_alignment_utility(seq_dict, msa_file)
+            alignment_length_dict[msa_file] = sequence_length
 
-            alignment_length_dict[mfa_file] = sequence_length
+            # Warn user if the multiple sequence alignment has grown significantly
             if verbosity and ref_seq_length*1.5 < sequence_length:
                 logging.warning("Multiple alignment of " + denominator +
                                 "caused >150% increase in the number of columns (" +
@@ -1458,86 +1464,26 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
     return alignment_length_dict
 
 
-def validate_phylip_utility(phylip_file):
+def validate_multiple_alignment_utility(seq_dict, mfa_file):
     """
     Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
 
-    :param phylip_file: Path of a multiple alignment in Phylip format
-    :return: tuple = (nrow, ncolumn)
-    """
-    try:
-        handler = open(phylip_file, 'r')
-    except IOError:
-        logging.error("Unable to open " + phylip_file + " for reading!\n")
-        sys.exit(3)
-    header = handler.readline()
-    num_seqs, sequence_length = [int(x) for x in header.split(' ')]
-    seq_counter = 0
-    line = handler.readline()
-    while line:
-        line = line.strip()
-        seq_name, sequence = re.sub('\s+', ',', line).split(',')
-        if len(sequence) != sequence_length:
-            logging.error("Number of aligned columns is inconsistent in " + phylip_file + "!\n")
-        seq_counter += 1
-        line = handler.readline()
-    handler.close()
-    if num_seqs != seq_counter:
-        logging.error("Number of sequences in " + phylip_file + " is inconsistent with header!\n")
-    return num_seqs, sequence_length
-
-
-def validate_multiple_alignment_utility(multi_align, file_name):
-    """
-    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
-
-    :param multi_align: dictionary of sequence names as keys and sequences as values
-    :param file_name: Name of the file where the multi_align was read from
+    :param seq_dict: A dictionary containing headers as keys and sequences as values
+    :param mfa_file: The name of the multiple alignment FASTA file being validated
     :return: tuple = (nrow, ncolumn)
     """
     sequence_length = 0
-    num_seqs = 0
-    for seq_name in multi_align:
+    for seq_name in seq_dict:
+        sequence = seq_dict[seq_name]
         if sequence_length == 0:
-            sequence_length = len(multi_align[seq_name])
-        elif sequence_length != len(multi_align[seq_name]):
-            logging.error("Number of aligned columns is inconsistent in " + file_name + "!\n")
+            sequence_length = len(sequence)
+        elif sequence_length != len(sequence) and sequence_length > 0:
+            logging.error("Number of aligned columns is inconsistent in " + mfa_file + "!\n")
             sys.exit(3)
-        num_seqs += 1
-    return num_seqs, sequence_length
-
-
-def validate_multi_aligned_fasta_utility(fasta_file):
-    """
-    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
-
-    :param fasta_file: Path of a multiple alignment in FASTA format
-    :return: tuple = (nrow, ncolumn)
-    """
-    try:
-        fasta_handler = open(fasta_file, 'r')
-    except IOError:
-        logging.error("Unable to open " + fasta_file + " for reading!\n")
-        sys.exit(3)
-    sequence = ""
-    sequence_length = 0
-    num_seqs = 0
-    line = fasta_handler.readline()
-    while line:
-        line = line.strip()
-        if line[0] == '>':
-            if sequence_length == 0:
-                sequence_length = len(sequence)
-            elif sequence_length != len(sequence) and sequence_length > 0:
-                logging.error("Number of aligned columns is inconsistent in " + fasta_file + "!\n")
-                sys.exit(3)
-            sequence = ""
-            num_seqs += 1
         else:
-            sequence += line
-        line = fasta_handler.readline()
-    fasta_handler.close()
-    return num_seqs, sequence_length
+            pass
+            # Sequence is the right length, carrying on
+    return len(seq_dict), sequence_length
 
 
 def get_alignment_dims(args, marker_build_dict):
@@ -1556,7 +1502,8 @@ def get_alignment_dims(args, marker_build_dict):
         if cog in all_markers:
             for marker_code in marker_build_dict:
                 if marker_build_dict[marker_code].cog == cog:
-                    alignment_dimensions_dict[marker_code] = (validate_multi_aligned_fasta_utility(fasta))
+                    seq_dict = read_fasta_to_dict(fasta)
+                    alignment_dimensions_dict[marker_code] = (validate_multiple_alignment_utility(seq_dict, fasta))
     return alignment_dimensions_dict
 
 
@@ -1575,7 +1522,8 @@ def multiple_alignments(args, single_query_sequence_files, marker_build_dict, to
     elif tool == "hmmalign":
         singlehit_files = prepare_and_run_hmmalign(args, single_query_sequence_files, marker_build_dict)
     else:
-        raise AssertionError("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.")
+        logging.error("Unrecognized tool '" + str(tool) + "' for multiple sequence alignment.\n")
+        sys.exit(3)
     return singlehit_files
 
 
@@ -1624,8 +1572,8 @@ def run_papara(executable, tree_file, ref_alignment_phy, query_fasta, molecule):
 
     stdout, ret_code = launch_write_command(papara_command)
     if ret_code != 0:
-        sys.stderr.write("ERROR: PaPaRa did not complete successfully!\n")
-        sys.stderr.write("Command used:\n" + ' '.join(papara_command) + "\n")
+        logging.error("PaPaRa did not complete successfully!\n" +
+                      "Command used:\n" + ' '.join(papara_command) + "\n")
         sys.exit(3)
     return stdout
 
@@ -1646,7 +1594,7 @@ def prepare_and_run_papara(args, single_query_fasta_files, marker_build_dict):
     start_time = time.time()
 
     # Convert the reference sequence alignments to .phy files for every marker identified
-    for query_fasta in single_query_fasta_files:
+    for query_fasta in sorted(single_query_fasta_files):
         file_name_info = re.match("(.*)_hmm_purified.*\.(f.*)$", os.path.basename(query_fasta))
         if file_name_info:
             marker, extension = file_name_info.groups()
@@ -1663,7 +1611,7 @@ def prepare_and_run_papara(args, single_query_fasta_files, marker_build_dict):
         tree_file = treesapp_resources + "tree_data" + os.sep + marker + "_tree.txt"
         ref_alignment_phy = args.output_dir_var + marker + ".phy"
         if not os.path.isfile(ref_alignment_phy):
-            logging.error("Phylip file '" + ref_alignment_phy + "' not found.")
+            logging.error("Phylip file '" + ref_alignment_phy + "' not found.\n")
             sys.exit(3)
 
         run_papara(args.executables["papara"], tree_file, ref_alignment_phy, query_fasta, ref_marker.molecule)
@@ -1688,51 +1636,72 @@ def prepare_and_run_papara(args, single_query_fasta_files, marker_build_dict):
 
 def prepare_and_run_hmmalign(args, single_query_fasta_files, marker_build_dict):
     """
-    Runs hmmalign using the provided COG list and summary of Genewise files.
+    Runs `hmmalign` to add the query sequences into the reference FASTA multiple alignments
 
-    Returns an Autovivification of the resulting files from hmmalign.
+    :param args:
+    :param single_query_fasta_files:
+    :param marker_build_dict:
+    :return: list of multiple sequence alignment files (in Clustal format) generated by hmmalign.
     """
 
     reference_data_prefix = args.reference_data_prefix
     treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
-    hmmalign_singlehit_files = list()
+    hmmalign_singlehit_files = dict()
     logging.info("Running hmmalign... ")
 
     start_time = time.time()
     # task_list = list()
 
     # Run hmmalign on each fasta file
-    for query_sequence_file in sorted(single_query_fasta_files):
-        file_name_info = re.match("^([A-Z][0-9]{4})_(.*)_(\d+)_(\d+)_([A-Za-z0-9_]+).fa$",
-                                  os.path.basename(query_sequence_file))
+    for query_fasta in sorted(single_query_fasta_files):
+        file_name_info = re.match("(.*)_hmm_purified.*\.(f.*)$", os.path.basename(query_fasta))
         if file_name_info:
-            denominator, contig, start, stop, cog = file_name_info.groups()
+            marker, extension = file_name_info.groups()
         else:
-            sys.stderr.write("ERROR: Unable to parse information from file name:"
-                             + "\n" + str(query_sequence_file) + "\n")
-            sys.exit()
+            logging.error("Unable to parse information from file name:" + "\n" + str(query_fasta) + "\n")
+            sys.exit(3)
 
-        query_multiple_alignment = re.sub(".fa$", ".cl", query_sequence_file)
+        query_multiple_alignment = re.sub('.' + re.escape(extension) + r"$", ".sto", query_fasta)
 
-        # TODO: Remove this once 18s and general rRNA reference package creation is implemented
-        if cog in cog_list["phylogenetic_rRNA_cogs"] and cog in ["16srRNA", "16s", "16S", "SSU16"]:
+        ref_marker = None
+        for denominator in marker_build_dict:
+            if marker == marker_build_dict[denominator].cog:
+                ref_marker = marker_build_dict[denominator]
+                break
+        if not ref_marker:
+            logging.error("Unable to match marker '" + marker + "' to a code.\n")
+            sys.exit(3)
+
+        if ref_marker.kind == "phylogenetic_rRNA_cogs":
             malign_command = [args.executables["cmalign"], '--mapali',
                               treesapp_resources + reference_data_prefix + 'alignment_data' +
-                              os.sep + cog + '.sto',
-                              '--outformat', 'Clustal',
-                              treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.cm',
-                              query_sequence_file, '>', query_multiple_alignment]
+                              os.sep + marker + '.sto',
+                              '--outformat', 'Stockholm',
+                              treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + marker + '.cm',
+                              query_fasta, '>', query_multiple_alignment]
         else:
             malign_command = [args.executables["hmmalign"], '--mapali',
                               treesapp_resources + reference_data_prefix + 'alignment_data' +
-                              os.sep + cog + '.fa',
-                              '--outformat', 'Clustal',
-                              treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + cog + '.hmm',
-                              query_sequence_file, '>', query_multiple_alignment]
+                              os.sep + marker + '.fa',
+                              '--outformat', 'Stockholm',
+                              treesapp_resources + reference_data_prefix + 'hmm_data' + os.sep + marker + '.hmm',
+                              query_fasta, '>', query_multiple_alignment]
         # TODO: Run this using multiple processes
         # task_list.append(malign_command)
-        os.system(' '.join(malign_command))
-        hmmalign_singlehit_files.append(query_multiple_alignment)
+        stdout, returncode = launch_write_command(malign_command)
+        if returncode != 0:
+            logging.error("Multiple alignment failed for " + query_fasta + ". Command used:\n" +
+                          ' '.join(malign_command) + " output:\n" + stdout + "\n")
+            sys.exit(3)
+        if ref_marker.denominator not in hmmalign_singlehit_files:
+            hmmalign_singlehit_files[ref_marker.denominator] = []
+        mfa_file = re.sub(".sto", ".mfa", query_multiple_alignment)
+        tmp_dict = read_stockholm_to_dict(query_multiple_alignment)
+        seq_dict = dict()
+        for seq_name in tmp_dict:
+            seq_dict[seq_name.split('_')[0]] = tmp_dict[seq_name]
+        write_new_fasta(seq_dict, mfa_file)
+        hmmalign_singlehit_files[ref_marker.denominator].append(mfa_file)
 
     # num_tasks = len(task_list)
     # if num_tasks > 0:
@@ -1767,8 +1736,7 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     concatenated_mfa_files = {}
     nrs_of_sequences = {}
 
-    sys.stdout.write("Reformatting hmmalign output files to FASTA... ")
-    sys.stdout.flush()
+    logging.info("Reformatting hmmalign output files to FASTA... ")
 
     for clustal_mfa_file in sorted(hmmalign_singlehit_files):
         # Determine what type of gene is currently represented, or raise an error
@@ -1777,9 +1745,9 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
         if file_name_info:
             f_contig, cog = file_name_info.groups()
         else:
-            sys.stderr.write("ERROR: Regular expression unable to pull contig and marker information from file name!\n")
-            sys.stderr.write("Offending file:\n\t" + clustal_mfa_file + "\n")
-            sys.exit(17)
+            logging.error("Regular expression unable to pull contig and marker information from file name!\n" +
+                          "Offending file:\n\t" + clustal_mfa_file + "\n")
+            sys.exit(3)
         sequences = dict()
         query_sequence = ""
         parsing_order = dict()
@@ -1797,7 +1765,8 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
         try:
             hmmalign_msa = open(clustal_mfa_file, 'r')
         except IOError:
-            sys.exit('Can\'t open ' + clustal_mfa_file + ' for reading!\n')
+            logging.error("Can't open " + clustal_mfa_file + " for reading!\n")
+            sys.exit(3)
 
         # Get sequence from file
         for _line in hmmalign_msa:
@@ -1831,7 +1800,8 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
         try:
             output = open(args.output_dir_var + f_contig + '.mfa', 'w')
         except IOError:
-            sys.exit('ERROR: Can\'t create ' + args.output_dir_var + f_contig + '.mfa\n')
+            logging.error("Can't create " + args.output_dir_var + f_contig + '.mfa\n')
+            sys.exit(3)
         output.write('>query\n' + query_sequence + '\n')
         nrs_of_sequences[f_contig] = 1
         qlen = len(query_sequence)
@@ -1849,12 +1819,13 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
             output.write('>' + sequence_name + '\n' + sequence + '\n')
             if len(sequence) != qlen:
                 output.close()
-                sys.stderr.write("ERROR: inconsistent sequence lengths between query and concatenated HMM alignments!\n")
-                sys.exit("Check " + args.output_dir_var + f_contig + ".mfa for offending sequence " + sequence_name)
+                logging.error("Inconsistent sequence lengths between query and concatenated HMM alignments!\n" +
+                              "Check " + args.output_dir_var + f_contig + ".mfa for bad sequence " + sequence_name)
+                sys.exit(3)
 
         output.close()
 
-    sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
     return concatenated_mfa_files, nrs_of_sequences
 
@@ -1927,11 +1898,11 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
             f_ext = multi_align_file.split('.')[-1]
 
             # Read the multiple alignment file
+            # TODO Update for compatibility with seq_dict
             if re.search("phy", f_ext):  # File is in Phylip format
-                headers, seqs = read_phylip(multi_align_file)
+                seq_dict = read_phylip_to_dict(multi_align_file)
                 multi_align = dict()
-                for x in headers:
-                    seq_name = headers[x]
+                for seq_name in seq_dict:
                     try:
                         int(seq_name)
                     except ValueError:
@@ -1940,7 +1911,7 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
                         else:
                             logging.error("Unexpected sequence name " + seq_name +
                                           " detected in " + multi_align_file + ".\n")
-                    multi_align[seq_name] = seqs[x]
+                    multi_align[seq_name] = seq_dict[seq_name]
             elif re.match("^f", f_ext):  # This is meant to match all fasta extensions
                 multi_align = read_fasta_to_dict(multi_align_file)
             else:
@@ -1998,24 +1969,29 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
     return qc_ma_dict
 
 
-def evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, tool, file_type="fasta"):
+def evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool):
     """
 
     :param qc_ma_dict: A dictionary mapping denominators to files to multiple alignment dictionaries
     :param alignment_length_dict:
+    :param concatenated_msa_files: Dictionary with markers indexing original (untrimmed) multiple alignment files
     :param tool: The name of the tool that was appended to the original, untrimmed or unmasked alignment files
-    :param file_type: Type of the file that was outputted by tool
     :return: None
     """
     trimmed_length_dict = dict()
     for denominator in sorted(qc_ma_dict.keys()):
+        if len(concatenated_msa_files[denominator]) >= 1:
+            of_ext = concatenated_msa_files[denominator][0].split('.')[-1]
+        else:
+            continue
         if denominator not in trimmed_length_dict:
             trimmed_length_dict[denominator] = list()
         for multi_align_file in qc_ma_dict[denominator]:
+            file_type = multi_align_file.split('.')[-1]
             multi_align = qc_ma_dict[denominator][multi_align_file]
             num_seqs, trimmed_seq_length = validate_multiple_alignment_utility(multi_align, multi_align_file)
 
-            original_multi_align = re.sub('-' + tool + '.' + file_type, '.phy', multi_align_file)
+            original_multi_align = re.sub('-' + tool + '.' + file_type, '.' + of_ext, multi_align_file)
             raw_align_len = alignment_length_dict[original_multi_align]
             diff = raw_align_len - trimmed_seq_length
             if diff < 0:
@@ -3834,14 +3810,33 @@ def main(argv):
 
         # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
         create_ref_phy_files(args, multi_align_input_files, marker_build_dict, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(args, multi_align_input_files, marker_build_dict)
-        alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions, args.verbose)
+        concatenated_msa_files = multiple_alignments(args, multi_align_input_files, marker_build_dict, "hmmalign")
+        file_types = set()
+        for mc in concatenated_msa_files:
+            sample_msa_file = concatenated_msa_files[mc][0]
+            f_ext = sample_msa_file.split('.')[-1]
+            if re.match("phy|phylip", f_ext):
+                file_types.add("Phylip")
+            elif re.match("sto|stockholm", f_ext):
+                file_types.add("Stockholm")
+            elif re.match("mfa|fa|fasta", f_ext):
+                file_types.add("Fasta")
+            else:
+                logging.error("Unrecognized file extension: '" + f_ext + "'")
+                sys.exit(3)
+        if len(file_types) > 1:
+            logging.error("Multiple file types detected in multiple alignment files:\n" + ','.join(file_types) + "\n")
+            sys.exit(3)
+        else:
+            file_type = file_types.pop()
+        alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
+                                                    args.verbose, file_type)
 
         if args.trim_align:
             tool = "BMGE"
             mfa_files = filter_multiple_alignments(args, concatenated_msa_files, marker_build_dict, tool)
             qc_ma_dict = check_for_removed_sequences(args, mfa_files, marker_build_dict)
-            evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, tool)
+            evaluate_trimming_performace(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
             phy_files = produce_phy_files(args, qc_ma_dict)
         else:
             phy_files = concatenated_msa_files
