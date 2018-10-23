@@ -7,7 +7,7 @@ python:
 before_install:
     - sudo apt-get install python3-pip -y
     - sudo apt-get install python-qt4 -y
-    - sudo apt-get instll python-lxml -y
+    - sudo apt-get install python-lxml -y
     - sudo apt-get install python-six -y
     - sudo add-apt-repository ppa:webupd8team/java -y
     - sudo apt-get update
