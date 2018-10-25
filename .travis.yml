@@ -1,0 +1,29 @@
+sudo: true
+language: python
+python:
+    - "3.6"
+    - "3.5"
+
+before_install:
+    - sudo apt-get install python3-pip -y
+    - sudo apt-get install python-qt4 -y
+    - sudo apt-get install python-lxml -y
+    - sudo apt-get install python-six -y
+    - sudo add-apt-repository ppa:webupd8team/java -y
+    - sudo apt-get update
+    - sudo echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
+    - sudo apt-get install oracle-java8-installer -y
+    - sudo apt-get install oracle-java8-set-default -y
+    - wget https://mafft.cbrc.jp/alignment/software/mafft_7.407-1_amd64.deb
+    - sudo dpkg -i mafft_7.407-1_amd64.deb
+    - wget https://sco.h-its.org/exelixis/resource/download/software/papara_nt-2.5-static_x86_64.tar.gz
+
+install:
+    - pip install -r requirements.txt
+    
+branches:
+  only:
+    - master
+
+notifications:
+    email: false
