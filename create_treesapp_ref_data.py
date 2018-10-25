@@ -26,7 +26,7 @@ try:
     from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
     from entrez_utils import get_multiple_lineages, get_lineage_robust, verify_lineage_information,\
         read_accession_taxa_map, write_accession_lineage_map, build_entrez_queries
-    from file_parsers import parse_domain_tables, read_phylip, read_uc
+    from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc
     from placement_trainer import train_placement_distances
 
 except ImportError:
@@ -210,28 +210,6 @@ def get_arguments():
     return args
 
 
-def write_mfa(header_dict, alignment_dict, fasta_output):
-    fasta_string = ""
-
-    for entry in header_dict:
-        fasta_string += '>' + header_dict[entry] + "\n"
-        fasta_string += alignment_dict[entry] + "\n"
-
-    try:
-        fasta = open(fasta_output, 'w')
-    except IOError:
-        raise IOError("ERROR: Unable to open the FASTA file (" + fasta_output + ") provided for writing!")
-    fasta.write(fasta_string)
-    fasta.close()
-
-    return
-
-
-def phylip_to_mfa(phylip_input, fasta_output):
-    header_dict, alignment_dict = read_phylip(phylip_input)
-    write_mfa(header_dict, alignment_dict, fasta_output)
-
-
 def generate_cm_data(args, unaligned_fasta):
     """
     Using the input unaligned FASTA file:
@@ -299,7 +277,8 @@ def generate_cm_data(args, unaligned_fasta):
         sys.exit(13)
 
     # Convert the Phylip file to an aligned FASTA file for downstream use
-    phylip_to_mfa(args.code_name + ".phy", aligned_fasta)
+    seq_dict = read_phylip_to_dict(args.code_name + ".phy")
+    write_new_fasta(seq_dict, aligned_fasta)
 
     sys.stdout.write("done.\n")
     sys.stdout.flush()
@@ -444,8 +423,8 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
                     break
             if sequence:
                 if bulk_header in marker_gene_dict[marker]:
-                    logging.warning(bulk_header + " being overwritten by an alternative alignment!\n")
-                    hmm_match.print_info()
+                    logging.warning(bulk_header + " being overwritten by an alternative alignment!\n" +
+                                    hmm_match.get_info())
                 marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
             else:
                 logging.error("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")

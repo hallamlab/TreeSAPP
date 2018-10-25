@@ -20,7 +20,7 @@ if cmd_folder not in sys.path:
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from fasta import format_read_fasta, write_new_fasta, get_headers, read_fasta_to_dict
 from create_treesapp_ref_data import get_header_format, finalize_ref_seq_lineages
-from utilities import clean_lineage_string, return_sequence_info_groups
+from utilities import clean_lineage_string, return_sequence_info_groups, find_executables
 from external_command_interface import setup_progress_bar, launch_write_command
 from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves
 from classy import prep_logging, get_header_info, register_headers, MarkerTest
@@ -1023,15 +1023,17 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker, 
     return
 
 
-def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_clade, depth):
+def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_clade, depth, executables):
     # Move the original FASTA, tree and tax_ids files to a temporary location
     marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
+    marker_hmm = os.sep.join([treesapp_dir, "data", "hmm_data", marker + ".hmm"])
     marker_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"])
     marker_bipart_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"])
     marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
     intermediate_prefix = intermediate_dir + "ORIGINAL"
 
     shutil.copy(marker_fa, intermediate_prefix + ".fa")
+    shutil.copy(marker_fa, intermediate_prefix + ".hmm")
     shutil.copy(marker_tree, intermediate_prefix + "_tree.txt")
     if os.path.isfile(marker_bipart_tree):
         shutil.copy(marker_bipart_tree, intermediate_prefix + "_bipartitions.txt")
@@ -1080,6 +1082,12 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
         sys.exit(21)
     else:
         shutil.copy(split_files[0], marker_fa)
+
+    # HMM profile
+    hmm_build_command = [executables["hmmbuild"],
+                         marker_hmm,
+                         marker_fa]
+    launch_write_command(hmm_build_command)
 
     # Trees
     ref_tree = Tree(marker_tree)
@@ -1152,6 +1160,7 @@ def classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_re
     shutil.copy(os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]), treesapp_output_dir)
     shutil.copy(prefix + "_tax_ids.txt", os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]))
     shutil.copy(prefix + ".fa", os.sep.join([args.treesapp, "data", "alignment_data", marker + ".fa"]))
+    shutil.copy(prefix + ".hmm", os.sep.join([args.treesapp, "data", "hmm_data", marker + ".hmm"]))
 
     return
 
@@ -1181,6 +1190,7 @@ def main():
 
     args = get_arguments()
     args.targets = ["ALL"]
+    args = find_executables(args)
 
     os.makedirs(args.output, exist_ok=True)
     log_file_name = args.output + os.sep + "Clade_exclusion_analyzer_log.txt"
@@ -1415,7 +1425,8 @@ def main():
 
                     if not os.path.isfile(classification_table) or not os.path.isfile(tax_ids_file):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output, lineage, depth)
+                        prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output,
+                                                              lineage, depth, args.executables)
                         test_rep_taxa_fasta = args.output + taxon + ".fa"
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
