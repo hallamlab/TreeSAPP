@@ -647,54 +647,67 @@ def hmmsearch_orfs(args, marker_build_dict):
     return hmm_domtbl_files
 
 
-def extract_hmm_matches(args, hmm_matches, fasta_dict):
+def extract_hmm_matches(args, hmm_matches: dict, fasta_dict: dict):
     """
     Function writes the sequences identified by the HMMs to output files in FASTA format.
-    FASTA files containing full-length queries for every sequence containing a region homologous to a marker are made
-        One has numeric index headers and is used for downstream phylogenetic placement
-        The second contains the actual contig headers with marker, start, and end positions included
+    Full-length query sequences with homologous regions are put into two FASTA files:
+        1. Numeric index headers, used for downstream phylogenetic placement
+        2. Contains the original headers along with marker, start, and end positions included
     The negative integers (or numeric indexes) are stored in a dictionary and returned
+    Sequences are grouped based on the location on the HMM profile they mapped to
 
-    :param args:
-    :param hmm_matches:
-    :param fasta_dict:
+    :param args: Command-line argument object from get_options and check_parser_arguments
+    :param hmm_matches: Contains lists of HmmMatch objects mapped to the marker they matched
+    :param fasta_dict: Stores either the original or ORF-predicted input FASTA. Headers are keys, sequences are values
     :return: List of files that go on to placement stage, dictionary mapping marker-specific numbers to contig names
     """
     logging.info("Extracting the quality-controlled protein sequences... ")
     hmmalign_input_fastas = list()
     marker_gene_dict = dict()
     numeric_contig_index = dict()
-    trimmed_query_groups = dict()
+    trimmed_query_bins = dict()
+    bins = dict()
+
     for marker in hmm_matches:
+        if len(hmm_matches[marker]) == 0:
+            continue
         if marker not in numeric_contig_index.keys():
             numeric_contig_index[marker] = dict()
         numeric_decrementor = -1
         if marker not in marker_gene_dict:
             marker_gene_dict[marker] = dict()
 
-        trimmed_query_groups.clear()
-        i = args.perc_aligned
-        while i <= 100:
-            trimmed_query_groups[i] = ""
-            i += 5
-
-        for hmm_match in hmm_matches[marker]:
+        # Algorithm for binning sequences:
+        # 1. Sort HmmMatches by the proportion of the HMM profile they covered in increasing order (full-length last)
+        # 2. For HmmMatch in sorted matches, determine overlap between HmmMatch and each bin's representative HmmMatch
+        # 3. If overlap exceeds 80% of representative's aligned length add it to the bin, else continue
+        # 4. When bins are exhausted create new bin with HmmMatch
+        for hmm_match in sorted(hmm_matches[marker], key=lambda x: x.end - x.start):
             if hmm_match.desc != '-':
                 contig_name = hmm_match.orf + '_' + hmm_match.desc
             else:
                 contig_name = hmm_match.orf
             # Add the query sequence to the index map
             orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
-            proportion = round(float((int(hmm_match.pend) - int(hmm_match.pstart)) * 100) / int(hmm_match.hmm_len))
             numeric_contig_index[marker][numeric_decrementor] = contig_name + '_' + orf_coordinates
             # Add the FASTA record of the trimmed sequence - this one moves on for placement
             full_sequence = fasta_dict[reformat_string('>' + contig_name)]
-
-            i = args.perc_aligned
-            while proportion > i:
-                i += 5
-            trimmed_query_groups[i] += '>' + str(numeric_decrementor) + "\n" + \
-                                         full_sequence[hmm_match.start - 1:hmm_match.end] + "\n"
+            binned = False
+            for bin_num in sorted(bins):
+                bin_rep = bins[bin_num][0]
+                overlap = min(hmm_match.pend, bin_rep.pend) - max(hmm_match.pstart, bin_rep.pstart)
+                if (100*overlap)/(bin_rep.pend - bin_rep.pstart) > 80:
+                    bins[bin_num].append(hmm_match)
+                    trimmed_query_bins[bin_num] += '>' + str(numeric_decrementor) + "\n" + \
+                                                   full_sequence[hmm_match.start - 1:hmm_match.end] + "\n"
+                    binned = True
+                    break
+            if not binned:
+                bin_num = len(bins)
+                bins[bin_num] = list()
+                bins[bin_num].append(hmm_match)
+                trimmed_query_bins[bin_num] = '>' + str(numeric_decrementor) + "\n" + \
+                                              full_sequence[hmm_match.start - 1:hmm_match.end] + "\n"
 
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
@@ -705,8 +718,8 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
             numeric_decrementor -= 1
 
         # Write all the homologs to the FASTA file
-        for group in trimmed_query_groups:
-            if trimmed_query_groups[group]:
+        for group in trimmed_query_bins:
+            if trimmed_query_bins[group]:
                 marker_query_fa = args.output_dir_var + marker + "_hmm_purified_group" + str(group) + ".faa"
                 try:
                     homolog_seq_fasta = open(marker_query_fa, 'w')
@@ -714,8 +727,10 @@ def extract_hmm_matches(args, hmm_matches, fasta_dict):
                     logging.error("Unable to open " + marker_query_fa + " for writing.\n")
                     sys.exit(3)
                 hmmalign_input_fastas.append(marker_query_fa)
-                homolog_seq_fasta.write(trimmed_query_groups[group])
+                homolog_seq_fasta.write(trimmed_query_bins[group])
                 homolog_seq_fasta.close()
+        trimmed_query_bins.clear()
+        bins.clear()
     logging.info("done.\n")
 
     # Now write a single FASTA file with all identified markers
@@ -1884,21 +1899,19 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
     """
     qc_ma_dict = dict()
     num_successful_alignments = 0
+    discarded_seqs_string = ""
 
-    for f_contig in sorted(mfa_files.keys()):
-        denominator = f_contig.split('_')[0]
+    for denominator in sorted(mfa_files.keys()):
         marker = marker_build_dict[denominator].cog
         # Create a set of the reference sequence names
         ref_headers = get_headers(os.sep.join([args.treesapp, "data", "alignment_data", marker + ".fa"]))
         unique_refs = set([re.sub('_' + re.escape(marker), '', x)[1:] for x in ref_headers])
-        for multi_align_file in mfa_files[f_contig]:
+        for multi_align_file in mfa_files[denominator]:
             filtered_multi_align = dict()
             discarded_seqs = list()
-            discarded_seqs_string = ""
             f_ext = multi_align_file.split('.')[-1]
 
             # Read the multiple alignment file
-            # TODO Update for compatibility with seq_dict
             if re.search("phy", f_ext):  # File is in Phylip format
                 seq_dict = read_phylip_to_dict(multi_align_file)
                 multi_align = dict()
@@ -1950,8 +1963,7 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
                 sys.exit(3)
             # If there are no query sequences left, remove that alignment file from mfa_files
             elif len(discarded_seqs) + len(unique_refs) == len(multi_align.keys()):
-                logging.warning("No query sequences in " + multi_align_file + " were retained after trimming." +
-                                "These sequences will not be analyzed.\n")
+                logging.warning("No query sequences in " + multi_align_file + " were retained after trimming.\n")
             else:
                 if denominator not in qc_ma_dict:
                     qc_ma_dict[denominator] = dict()
@@ -3788,29 +3800,9 @@ def main(argv):
         hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
         homolog_seq_files, numeric_contig_index = extract_hmm_matches(args, hmm_matches, formatted_fasta_dict)
 
-        # Cluster the sequences
-        # TODO: package this into a function
-        multi_align_input_files = list()
-        cluster_dict = dict()
-        for homologs_fasta in sorted(homolog_seq_files):
-            # Strip the extension
-            homologs = read_fasta_to_dict(homologs_fasta)
-            prefix = '.'.join(homologs_fasta.split('.')[:-1])
-            cluster_prefix = prefix + "_cluster"
-            cluster_sequences(args, homologs_fasta, cluster_prefix)
-            clusters = read_uc(cluster_prefix + ".uc")
-            for cid in clusters:
-                cluster_dict.clear()
-                cluster_dict[clusters[cid].representative] = homologs[clusters[cid].representative[1:]]
-                for member in clusters[cid].members:
-                    member_name = member[0]
-                    cluster_dict[member_name] = homologs[member_name[1:]]
-                write_new_fasta(fasta_dict=cluster_dict, fasta_name=cluster_prefix + str(cid) + ".fasta")
-                multi_align_input_files.append(cluster_prefix + str(cid) + ".fasta")
-
         # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
-        create_ref_phy_files(args, multi_align_input_files, marker_build_dict, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(args, multi_align_input_files, marker_build_dict, "hmmalign")
+        create_ref_phy_files(args, homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
+        concatenated_msa_files = multiple_alignments(args, homolog_seq_files, marker_build_dict, "hmmalign")
         file_types = set()
         for mc in concatenated_msa_files:
             sample_msa_file = concatenated_msa_files[mc][0]

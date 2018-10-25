@@ -4,6 +4,7 @@ import os
 import sys
 import re
 import argparse
+import logging
 import math
 
 
@@ -87,19 +88,18 @@ class HmmMatch:
         self.ceval = 0.0
         self.full_score = 0
 
-    def print_info(self):
-        sys.stdout.write("Info for " + str(self.orf) + " in " + self.genome + ":\n")
-        sys.stdout.write("\tHMM = " + self.target_hmm)
-        sys.stdout.write(", length = " + str(self.hmm_len) + "\n")
-        sys.stdout.write("\tSequence length = " + str(self.seq_len) + "\n")
-        sys.stdout.write("\tAligned length = " + str(self.end - self.start) + "\n")
-        sys.stdout.write("\tAlignment start = " + str(self.start) + ", alignment stop = " + str(self.end) + "\n")
-        sys.stdout.write("\tProfile start = " + str(self.pstart) + ", profile stop = " + str(self.pend) + "\n")
-        sys.stdout.write("\tNumber " + str(self.num) + " of " + str(self.of) + "\n")
-        sys.stdout.write("\tcE-value = " + str(self.ceval) + "\n")
-        sys.stdout.write("\tacc = " + str(self.acc) + "\n")
-        sys.stdout.write("\tfull score = " + str(self.full_score) + "\n")
-        return
+    def get_info(self):
+        info_string = "Info for " + str(self.orf) + " in " + self.genome + ":\n"
+        info_string += "\tHMM = " + self.target_hmm + ", length = " + str(self.hmm_len) + "\n"
+        info_string += "\tSequence length = " + str(self.seq_len) + "\n"
+        info_string += "\tAligned length = " + str(self.end - self.start) + "\n"
+        info_string += "\tAlignment start = " + str(self.start) + ", alignment stop = " + str(self.end) + "\n"
+        info_string += "\tProfile start = " + str(self.pstart) + ", profile stop = " + str(self.pend) + "\n"
+        info_string += "\tNumber " + str(self.num) + " of " + str(self.of) + "\n"
+        info_string += "\tcE-value = " + str(self.ceval) + "\n"
+        info_string += "\tacc = " + str(self.acc) + "\n"
+        info_string += "\tfull score = " + str(self.full_score) + "\n"
+        return info_string
 
 
 class DomainTableParser(object):
@@ -113,7 +113,7 @@ class DomainTableParser(object):
             self.commentPattern = re.compile(r'^#')
             self.src = open(dom_tbl)
         except IOError:
-            sys.stderr.write("Could not open " + dom_tbl + " or file is not available for reading.\n")
+            logging.error("Could not open " + dom_tbl + " or file is not available for reading.\n")
             sys.exit(0)
 
     def __iter__(self):
@@ -358,7 +358,7 @@ def format_split_alignments(domain_table, num_fragmented, glued, multi_alignment
                                 '_' + str(hmm_match.num) + '_' + str(hmm_match.of)
         query_header = ' '.join([hmm_match.orf, hmm_match.desc])
         if not hmm_match.orf:
-            sys.stderr.write("ERROR: Double-line parsing encountered: hmm_match.orf is empty!\n")
+            logging.error("Double-line parsing encountered: hmm_match.orf is empty!\n")
             sys.exit(9)
 
         if hmm_match.target_hmm != previous_hmm_target and query_header == previous_query_header:
@@ -426,67 +426,3 @@ def filter_incomplete_hits(args, purified_matches, num_dropped):
                 num_dropped += 1
 
     return complete_gene_hits, num_dropped
-
-
-def read_fasta(args):
-    """
-    :return: A dictionary with the contig headers of interest as keys and their respective sequences as their values.
-    """
-    fasta_dict = dict()
-    try:
-        fas = open(args.fasta_in, 'r')
-    except IOError:
-        raise IOError("ERROR: Unable to open fasta " + args.fasta_in + " for reading!\n")
-
-    if args.verbose:
-        sys.stdout.write("\tReading " + args.fasta_in + "... ")
-        sys.stdout.flush()
-
-    header = ""
-    line = fas.readline()
-    while line:
-        if line[0] == '>':
-            header = line[1:].strip()
-            fasta_dict[header] = ""
-        else:
-            if header == "":
-                sys.stderr.write("ERROR: Header line is blank. FASTA file is not formatted correctly!\n")
-                raise AssertionError
-            fasta_dict[header] += line.strip()
-        line = fas.readline()
-
-    if args.verbose:
-        sys.stdout.write("done.\n")
-
-    if args.verbose:
-        sys.stdout.write("\tNumber of sequences parsed from FASTA file: " + str(len(fasta_dict)) + "\n")
-
-    return fasta_dict
-
-
-def write_quality_matches_fasta(args, complete_gene_hits, fasta_dict):
-    for marker in complete_gene_hits:
-        if not args.output:
-            output_file = marker + "_hmm_purified.fasta"
-        else:
-            output_file = args.output
-
-        if args.verbose:
-            sys.stdout.write("Writing " + marker + " sequences to " + output_file + "\n")
-
-        try:
-            if len(complete_gene_hits) > 1:
-                output_handler = open(output_file, 'a')
-            else:
-                output_handler = open(output_file, 'w')
-        except IOError:
-            sys.stderr.write("ERROR: Unable to open " + output_file + " for appending!\n")
-            raise IOError
-
-        for query in complete_gene_hits[marker]:
-            header = ' '.join(query)
-            output_handler.write('>' + header + "\n")
-            output_handler.write(fasta_dict[header] + "\n")
-        output_handler.close()
-
-    return
