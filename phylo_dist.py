@@ -154,11 +154,13 @@ def prune_branches(tree, leaf_taxa_map: dict, rank="Genus"):
     :return: pruned_nodes dict() of Tree() nodes
     """
     pruned_nodes = dict()
-    assert isinstance(tree, Tree)
+    if not isinstance(tree, Tree):
+        logging.error("Tree is not ete tree object.\n")
+        raise AssertionError()
     # Check to see if the two collections are comparable
     for leaf in tree:
         if leaf.name not in leaf_taxa_map.keys():
-            sys.stderr.write(str(leaf.name) + " not found in leaf_taxa_map.\n")
+            logging.error(str(leaf.name) + " not found in leaf_taxa_map.\n")
             raise AssertionError("Leaves in tree and tax_ids file are disparate sets.\n")
     # Raw lineages are too specific to test for monophyly, so try at a deeper rank by trimming the lineages
     leaf_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)

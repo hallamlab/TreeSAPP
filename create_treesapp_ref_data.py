@@ -348,10 +348,9 @@ def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
     out_fasta_handle.close()
 
     if num_seqs_written == 0:
-        sys.stderr.write("ERROR: No sequences written to " + out_fasta + ".\n")
-        sys.stderr.write("The headers in your input file are probably not accommodated in the regex patterns used. "
-                         "Function responsible: get_header_format. Please make an issue on the GitHub page.\n")
-        sys.stderr.flush()
+        logging.error("No sequences written to " + out_fasta + ".\n" +
+                      "The headers in your input file are probably not accommodated in the regex patterns used. " +
+                      "Function responsible: get_header_format. Please make an issue on the GitHub page.\n")
         sys.exit(5)
 
     return
@@ -1169,7 +1168,7 @@ def construct_tree(args, multiple_alignment_file, tree_output_dir):
 
     # Ensure the tree from a previous run isn't going to be over-written
     if not os.path.exists(tree_output_dir):
-        os.system("mkdir %s" % tree_output_dir)
+        os.makedirs(tree_output_dir)
     else:
         logging.error(tree_output_dir + " already exists from a previous run! " +
                       "Please delete or rename it and try again.\n")
@@ -1197,7 +1196,8 @@ def construct_tree(args, multiple_alignment_file, tree_output_dir):
         raw_newick_tree = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
         bootstrap_tree = tree_output_dir + os.sep + "RAxML_bipartitionsBranchLabels." + args.code_name
         bootstrap_nameswap = args.final_output_dir + args.code_name + "_bipartitions.txt"
-        os.system("mv %s %s" % (multiple_alignment_file, tree_output_dir))
+        shutil.copy(multiple_alignment_file, tree_output_dir)
+        os.remove(multiple_alignment_file)
         swap_tree_names(raw_newick_tree, final_mltree, args.code_name)
         swap_tree_names(bootstrap_tree, bootstrap_nameswap, args.code_name)
 
@@ -1227,7 +1227,7 @@ def reverse_complement(rrna_sequence):
 def update_tax_ids_with_lineage(args, tree_taxa_list):
     tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + "tax_ids_%s.txt" % args.code_name
     if not os.path.exists(tax_ids_file):
-        sys.stderr.write("ERROR: Unable to find " + tax_ids_file + "!\n")
+        logging.error("Unable to find " + tax_ids_file + "!\n")
         raise FileNotFoundError
     else:
         fasta_replace_dict = read_tax_ids(tax_ids_file)
@@ -1674,7 +1674,8 @@ def main():
         os.remove(args.final_output_dir + "fasta_reader_log.txt")
 
     # Move the FASTA file to the final output directory
-    os.system("mv %s.fa %s" % (args.output_dir + code_name, args.final_output_dir))
+    shutil.copy(args.output_dir + code_name + ".fa", args.final_output_dir)
+    os.remove(args.output_dir + code_name + ".fa")
 
     if args.fast:
         if args.molecule == "prot":

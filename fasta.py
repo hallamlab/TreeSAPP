@@ -223,6 +223,7 @@ def get_header_format(header, code_name=""):
 
     # Ambiguous:
     genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
+    accession_only = re.compile("^>([A-Z]{1,2}_?[0-9]+\.?[0-9]?)$")  # a
     ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.?[0-9]?)[ ]+.*(?<!\])$")  # a
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
@@ -249,6 +250,7 @@ def get_header_format(header, code_name=""):
                               nr_re: "nr"},
                       "ambig": {ncbi_ambiguous: "ncbi_ambig",
                                 genbank_exact_genome: "gen_genome",
+                                accession_only: "bare",
                                 # treesapp_re: "treesapp",
                                 custom_tax: "custom"}
                       }
@@ -345,7 +347,7 @@ def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
     Returns file name of the trimmed multiple alignment file in FASTA format
     """
     f_ext = mfa_file.split('.')[-1]
-    if not re.match("mfa|fasta|phy", f_ext):
+    if not re.match("mfa|fasta|phy|fa", f_ext):
         logging.error("Unsupported file format: '" + f_ext + "'\n")
         sys.exit(5)
 

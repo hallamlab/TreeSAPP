@@ -1710,7 +1710,7 @@ def prepare_and_run_hmmalign(args, single_query_fasta_files, marker_build_dict):
             sys.exit(3)
         if ref_marker.denominator not in hmmalign_singlehit_files:
             hmmalign_singlehit_files[ref_marker.denominator] = []
-        mfa_file = re.sub(".sto", ".mfa", query_multiple_alignment)
+        mfa_file = re.sub("\.sto$", ".mfa", query_multiple_alignment)
         tmp_dict = read_stockholm_to_dict(query_multiple_alignment)
         seq_dict = dict()
         for seq_name in tmp_dict:
