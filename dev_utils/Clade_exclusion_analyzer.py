@@ -106,14 +106,14 @@ def read_graftm_classifications(assignment_file):
         fields = line.strip().split('\t')
         try:
             header, classified = fields
+            classified = '; '.join([re.sub('e\d+$', '', taxon) for taxon in classified.split('; ')])
             if header and classified:
                 classifieds.append(header)
                 if classified not in assignments:
                     assignments[classified] = list()
                 assignments[classified].append(header)
         except ValueError:
-            logging.error("Unable to parse line:" +
-                          str(line))
+            logging.error("Unable to parse line:" + str(line))
             sys.exit(21)
         line = assignments_handle.readline()
 
@@ -259,9 +259,13 @@ def grab_graftm_taxa(tax_ids_file):
                 sys.exit(21)
             ranks = [k_, p_, c_, o_, f_, g_, s_]
             lineage_list = []
+            # In case there are missing ranks... which is likely
             for rank in ranks:
                 if rank:
-                    lineage_list.append(rank)
+                    # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
+                    # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
+                    lineage_list.append(re.sub('e\d+$', '', rank))
+                    # lineage_list.append(rank)
             lineage = re.sub('_', ' ', clean_lineage_string('; '.join(lineage_list)))
             i = 0
             ranks = len(lineage)
@@ -270,7 +274,6 @@ def grab_graftm_taxa(tax_ids_file):
                 i += 1
 
             line = tax_ids.readline().strip()
-
     return taxonomic_tree
 
 
@@ -317,8 +320,9 @@ def identify_excluded_clade(assignment_dict, trie, marker):
     this function determines the rank at which each sequence's clade is excluded.
     These data are returned and sorted in the form of a dictionary.
 
-    :param: assignment_dict:
-    :param: trie: A pygtrie.StringTrie object containing all reference sequence lineages
+    :param assignment_dict:
+    :param trie: A pygtrie.StringTrie object containing all reference sequence lineages
+    :param marker: Name of the marker gene being tested
 
     :return: rank_assigned_dict; key is rank, values are dictionaries with assigned (reference) lineage as key and
       tuples of (optimal assignment, actual assignment) as values.
@@ -432,7 +436,7 @@ def get_classification_performance(marker_eval_instance):
         for dist in range(0, 8):
             taxonomic_distance[dist] = 0
         std_out_report_string += "\t" + rank + "\t"
-        if len(rank_assigned_dict[rank]) == 0:
+        if len(rank_assigned_dict[rank]) == 0 or rank not in rank_assigned_dict:
             std_out_report_string += "0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n"
         else:
             for assignments in rank_assigned_dict[rank]:
@@ -475,10 +479,11 @@ def get_classification_performance(marker_eval_instance):
                 clade_exclusion_tabular_string = ""
             std_out_report_string += '\t'.join([str(val) for val in taxonomic_distance.values()]) + "\n"
             if sum(taxonomic_distance.values()) > 101.0:
-                logging.error("Sum of proportional assignments at all distances is greater than 100." +
-                              "\nQueries = " + str(n_queries) +
-                              "\nClassified = " + str(n_classified) +
-                              "\nClassifications = " + str(len(rank_assigned_dict[rank])) + "\n")
+                logging.error("Sum of proportional assignments at all distances is greater than 100.\n" +
+                              "\n".join(["Rank = " + rank,
+                                         "Queries = " + str(n_queries),
+                                         "Classified = " + str(n_classified),
+                                         "Classifications = " + str(len(rank_assigned_dict[rank]))]) + "\n")
                 sys.exit(21)
 
     sys.stdout.write(std_out_report_string)
@@ -1033,7 +1038,7 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
     intermediate_prefix = intermediate_dir + "ORIGINAL"
 
     shutil.copy(marker_fa, intermediate_prefix + ".fa")
-    shutil.copy(marker_fa, intermediate_prefix + ".hmm")
+    shutil.copy(marker_hmm, intermediate_prefix + ".hmm")
     shutil.copy(marker_tree, intermediate_prefix + "_tree.txt")
     if os.path.isfile(marker_bipart_tree):
         shutil.copy(marker_bipart_tree, intermediate_prefix + "_bipartitions.txt")
@@ -1131,18 +1136,17 @@ def remove_clade_exclusion_files(intermediate_dir):
         os.remove(tmp_file)
 
 
-def classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_rep_taxa_fasta):
+def classify_excluded_taxon(args, prefix, output_dir, marker, min_seq_length, test_rep_taxa_fasta):
     """
       Prepares TreeSAPP tree, alignment and taxonomic identification map (tax_ids) files for clade exclusion analysis,
     and performs classification with TreeSAPP
 
     :return: The paths to the classification table and the taxon-excluded tax_ids file
     """
-    treesapp_output_dir = args.output + os.sep + re.sub(' ', '_', taxon.split("; ")[-1]) + os.sep
 
     # Classify representative sequences using TreeSAPP
     classify_command = ["./treesapp.py", "-i", test_rep_taxa_fasta,
-                        "-o", treesapp_output_dir,
+                        "-o", output_dir,
                         "-m", args.molecule,
                         "-T", str(args.threads),
                         "--min_seq_length", min_seq_length,
@@ -1157,7 +1161,7 @@ def classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_re
         shutil.copy(prefix + "_bipartitions.txt",
                     os.sep.join([args.treesapp, "data", "tree_data", marker + "_bipartitions.txt"]))
     # The edited tax_ids file with clade excluded is required for performance analysis
-    shutil.copy(os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]), treesapp_output_dir)
+    shutil.copy(os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]), output_dir)
     shutil.copy(prefix + "_tax_ids.txt", os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"]))
     shutil.copy(prefix + ".fa", os.sep.join([args.treesapp, "data", "alignment_data", marker + ".fa"]))
     shutil.copy(prefix + ".hmm", os.sep.join([args.treesapp, "data", "hmm_data", marker + ".hmm"]))
@@ -1165,9 +1169,9 @@ def classify_excluded_taxon(args, prefix, taxon, marker, min_seq_length, test_re
     return
 
 
-def build_graftm_package(target_marker, output_dir, mfa_file, fa_file):
+def build_graftm_package(target_marker, output_dir, mfa_file, fa_file, threads):
     create_command = ["graftM", "create"]
-    create_command += ["--threads", str(4)]
+    create_command += ["--threads", str(threads)]
     create_command += ["--alignment", mfa_file]
     create_command += ["--sequences", fa_file]
     create_command += ["--taxonomy", output_dir + os.sep + "tax_ids_" + target_marker + ".txt"]
@@ -1176,6 +1180,27 @@ def build_graftm_package(target_marker, output_dir, mfa_file, fa_file):
 
     logging.debug("Command used:\n" + ' '.join(create_command) + "\n")
     launch_write_command(create_command, False)
+
+
+def graftm_classify(test_rep_taxa_fasta, gpkg_path, output_dir, threads, tool):
+    classify_command = ["graftM", "graft"]
+    classify_command += ["--forward", test_rep_taxa_fasta]
+    classify_command += ["--graftm_package", gpkg_path]
+    classify_command += ["--threads", str(threads)]
+    if tool == "graftm":
+        classify_command += ["--assignment_method", "pplacer"]
+        classify_command += ["--search_method", "hmmsearch"]
+    elif tool == "diamond":
+        classify_command += ["--assignment_method", "diamond"]
+        classify_command += ["--search_method", "diamond"]
+    classify_command += ["--output_directory", output_dir]
+    classify_command += ["--input_sequence_type", "aminoacid"]
+    classify_command.append("--force")
+
+    logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
+    launch_write_command(classify_command, False)
+
+    return
 
 
 def main():
@@ -1353,7 +1378,8 @@ def main():
             depth = ranks[rank]
             for lineage in unique_query_lineages:
                 taxon = re.sub(' ', '_', lineage.split("; ")[-1])
-                treesapp_output = args.output + os.sep + taxon + os.sep
+                rank_tax = rank[0] + '_' + taxon
+                treesapp_output = args.output + os.sep + rank_tax + os.sep
 
                 optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
                 if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages
@@ -1371,10 +1397,10 @@ def main():
                 logging.info("Classifications for the " + rank + " '" + taxon + "' put " + treesapp_output + "\n")
                 test_obj = marker_eval_inst.new_taxa_test(rank, lineage)
                 test_obj.queries = taxon_rep_seqs.keys()
-                test_rep_taxa_fasta = args.output + taxon + ".fa"
+                test_rep_taxa_fasta = args.output + rank_tax + ".fa"
 
                 if args.tool in ["graftm", "diamond"]:
-                    classification_table = os.sep.join([treesapp_output, taxon, taxon + "_read_tax.tsv"])
+                    classification_table = os.sep.join([treesapp_output, rank_tax, rank_tax + "_read_tax.tsv"])
 
                     if not os.path.isfile(classification_table):
                         tax_ids_file = os.sep.join([args.output,
@@ -1386,36 +1412,23 @@ def main():
                         build_graftm_package(marker_eval_inst.target_marker,
                                              args.output,
                                              mfa_file=args.output + marker + ".mfa",
-                                             fa_file=args.output + marker + ".fa")
+                                             fa_file=args.output + marker + ".fa",
+                                             threads=args.threads)
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
 
-                        classify_command = ["graftM", "graft"]
-                        classify_command += ["--forward", test_rep_taxa_fasta]
-                        classify_command += ["--graftm_package", args.output + os.sep + marker + ".gpkg"]
-                        classify_command += ["--threads", str(args.threads)]
-                        if args.tool == "graftm":
-                            classify_command += ["--assignment_method", "pplacer"]
-                            classify_command += ["--search_method", "hmmsearch"]
-                        elif args.tool == "diamond":
-                            classify_command += ["--assignment_method", "diamond"]                        
-                            classify_command += ["--search_method", "diamond"]
-                        classify_command += ["--output_directory", treesapp_output]
-                        classify_command += ["--input_sequence_type", "aminoacid"]
-                        classify_command.append("--force")
-
-                        logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
-                        launch_write_command(classify_command, False)
+                        graftm_classify(test_rep_taxa_fasta, args.output + os.sep + marker + ".gpkg",
+                                        treesapp_output, args.threads, args.tool)
 
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                             logging.warning("GraftM did not generate output for " + lineage + ". Skipping.\n")
-                            shutil.rmtree(treesapp_output)
+                            # shutil.rmtree(treesapp_output)
                             continue
 
-                        shutil.copy(tax_ids_file, treesapp_output + os.sep + taxon + os.sep)
+                        shutil.copy(tax_ids_file, treesapp_output + os.sep + rank_tax + os.sep)
 
-                    tax_ids_file = os.sep.join([treesapp_output, taxon, marker + "_taxonomy.csv"])
+                    tax_ids_file = os.sep.join([treesapp_output, rank_tax, marker + "_taxonomy.csv"])
                     test_obj.taxonomic_tree = grab_graftm_taxa(tax_ids_file)
                     graftm_assignments, test_obj.classifieds = read_graftm_classifications(classification_table)
                     test_obj.assignments = {marker: graftm_assignments}
@@ -1427,10 +1440,9 @@ def main():
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
                         prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output,
                                                               lineage, depth, args.executables)
-                        test_rep_taxa_fasta = args.output + taxon + ".fa"
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
-                        classify_excluded_taxon(args, prefix, lineage, marker, min_seq_length, test_rep_taxa_fasta)
+                        classify_excluded_taxon(args, prefix, treesapp_output, marker, min_seq_length, test_rep_taxa_fasta)
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                             logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
@@ -1473,6 +1485,7 @@ def main():
                     if a_rank != rank and len(rank_assignments[a_rank]) > 0:
                         logging.warning(rank + "-level clade excluded but classifications were found to be " + a_rank +
                                         "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
+                        continue
                     if a_rank not in marker_eval_inst.classifications:
                         marker_eval_inst.classifications[a_rank] = list()
                     if len(rank_assignments[a_rank]) > 0:
