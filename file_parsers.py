@@ -193,10 +193,10 @@ def parse_domain_tables(args, hmm_domtbl_files):
 
     if seqs_identified == 0 and dropped == 0:
         logging.warning("No alignments found! TreeSAPP is exiting now.\n")
-        sys.exit(5)
+        sys.exit(0)
     if seqs_identified == 0 and dropped > 0:
         logging.warning("No alignments met the quality cut-offs! TreeSAPP is exiting now.\n")
-        sys.exit(5)
+        sys.exit(0)
 
     alignment_stat_string = "\tNumber of markers identified:\n"
     for marker in sorted(hmm_matches):
@@ -318,6 +318,7 @@ def read_colours_file(args, annotation_file):
 
 def tax_ids_file_to_leaves(tax_ids_file):
     tree_leaves = list()
+    unknown = 0
     try:
         if sys.version_info > (2, 9):
             cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
@@ -348,7 +349,13 @@ def tax_ids_file_to_leaves(tax_ids_file):
         if lineage:
             leaf.lineage = lineage
             leaf.complete = True
+        else:
+            unknown += 1
         tree_leaves.append(leaf)
+
+    if len(tree_leaves) == unknown:
+        logging.error("Lineage information was not properly loaded for " + tax_ids_file + "\n")
+        sys.exit(5)
 
     cog_tax_ids.close()
     return tree_leaves
