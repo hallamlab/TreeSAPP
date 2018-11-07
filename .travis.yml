@@ -21,6 +21,9 @@ before_install:
 install:
     - pip install -r requirements.txt
 
+before_script:
+    - cd /home/travis/build/hallamlab/TreeSAPP/sub_binaries; cp usearch /usr/bin; cd ../; make; make install
+   
 script:
     - pytest
 
@@ -28,7 +31,6 @@ branches:
   only:
     - travis
 
-branches:
   except:
     - master
     
