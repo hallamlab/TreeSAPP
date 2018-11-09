@@ -3532,13 +3532,12 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
                 distant_seqs.append(tree_sap.contig_name)
                 tree_sap.classified = False
                 # print("Local", tree_sap.summarize())
-                continue
         logging.debug("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
                       " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n" +
                       marker_build_dict[denominator].cog + " queries with extremely long placement distances:\n\t" +
                       "\n\t".join(distant_seqs) + "\n")
 
-    return
+    return tree_saps
 
 
 def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict):
@@ -3585,6 +3584,9 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
             # Based on the calculated distance from the leaves, what rank is most appropriate?
             recommended_rank = rank_recommender(tree_sap.avg_evo_dist,
                                                 marker_build_dict[denominator].pfit)
+            # Sequence likely isn't a FP but is highly divergent from reference set so set to Kingdom classification
+            if recommended_rank < 1:
+                recommended_rank = 1
 
             if len(tree_sap.lineage_list) == 0:
                 logging.error("Unable to find lineage information for marker " +
@@ -3838,7 +3840,7 @@ def main(argv):
         start_raxml(args, phy_files, marker_build_dict)
         sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)
     tree_saps, itol_data, unclassified_counts = parse_raxml_output(args, marker_build_dict)
-    filter_placements(args, tree_saps, marker_build_dict, unclassified_counts)
+    tree_saps = filter_placements(args, tree_saps, marker_build_dict, unclassified_counts)
 
     abundance_file = None
     if args.molecule == "dna":

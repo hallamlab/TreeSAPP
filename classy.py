@@ -1166,3 +1166,38 @@ class TaxonTest:
         self.distances = dict()
         self.assignments = dict()
         self.taxonomic_tree = None
+
+    def summarise_taxon_test(self):
+        summary_string = "Test for taxonomic lineage '" + self.lineage + "':\n" + \
+                         "\tNumber of query sequences = " + str(len(self.queries)) + "\n" + \
+                         "\tNumber of classified queries = " + str(len(self.classifieds)) + "\n"
+        if self.assignments:
+            for marker in self.assignments:
+                summary_string += "Sequences classified as marker '" + marker + "':\n"
+                for lineage in self.assignments[marker]:
+                    summary_string += str(len(self.assignments[marker][lineage])) + "\t'" + lineage + "'\n"
+        return summary_string
+
+    def filter_assignments(self, target_marker):
+        """
+        Filters the assignments from TreeSAPP for the target marker.
+        Off-target classifications are accounted for and reported.
+        TaxonTest.classifieds only include the headers of the correctly annotated sequences
+        :param target_marker:
+        :return:
+        """
+        off_targets = dict()
+        for marker in self.assignments:
+            for lineage in self.assignments[marker]:
+                classifieds = self.assignments[marker][lineage]
+                if marker == target_marker:
+                    self.classifieds += classifieds
+                else:
+                    if marker not in off_targets:
+                        off_targets[marker] = list()
+                    off_targets[marker] += classifieds
+        if off_targets:
+            for marker in off_targets:
+                logging.warning(str(len(off_targets)) + " sequences were classified as " + marker + ":\n" +
+                                "\t\n".join(off_targets[marker]) + "\n")
+        return
