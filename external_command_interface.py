@@ -39,8 +39,8 @@ def launch_write_command(cmd_list, collect_all=True):
 
 
 def setup_progress_bar(num_items):
-    if num_items > 100:
-        progress_bar_width = 100
+    if num_items > 50:
+        progress_bar_width = 50
         step_proportion = float(num_items) / progress_bar_width
     else:
         progress_bar_width = num_items

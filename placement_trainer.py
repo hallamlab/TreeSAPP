@@ -10,7 +10,8 @@ import numpy as np
 
 from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment
 from file_parsers import tax_ids_file_to_leaves
-from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string, find_executables
+from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string,\
+    find_executables, cluster_sequences
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information
 from phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
@@ -180,10 +181,13 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
 
     logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
     leaf_taxa_map = dict()
+    training_seqs = dict()
     taxonomic_placement_distances = dict()
     taxonomy_filtered_query_seqs = dict()
     dict_for_phy = dict()
     pqueries = list()
+    optimal_placement_missing = list()
+    num_training_queries = 0
     # Limit this to just Class, Family, and Species - other ranks are inferred through regression
     taxonomic_ranks = {"Class": 2, "Species": 6}
 
@@ -211,39 +215,60 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
         fasta_dict[seq_name.split(" ")[0]] = nr_fasta_dict[seq_name]
     nr_fasta_dict.clear()
 
-    setup_progress_bar(len(taxonomic_ranks))
+    # TODO: Cluster the training sequences to mitigate harmful redundancy
+    
+    # Determine the set of reference sequences to use at each rank
+    for rank in taxonomic_ranks:
+        training_seqs[rank] = dict()
+        leaf_trimmed_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
+        unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
+
+        # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
+        for taxonomy in unique_taxonomic_lineages:
+            optimal_lca_taxonomy = "; ".join(taxonomy.split("; ")[:-1])
+            if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages if
+                                            tl != taxonomy]:
+                optimal_placement_missing.append(optimal_lca_taxonomy)
+            else:
+                taxon_training_queries = list()
+                for seq_name in sorted(accession_lineage_map):
+                    # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
+                    if re.search(taxonomy,
+                                 clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in fasta_dict:
+                        taxon_training_queries.append(seq_name)
+                        num_training_queries += 1
+                    if len(taxon_training_queries) == 30:
+                        break
+                if len(taxon_training_queries) > 0:
+                    training_seqs[rank][taxonomy] = taxon_training_queries
+
+    logging.debug("Optimal placement target is not found in the pruned tree for following taxa:\n\t" +
+                  "\n\t".join(optimal_placement_missing) + "\n")
+
+    step_proportion = setup_progress_bar(num_training_queries)
+    acc = 0.0
     # For each rank from Class to Species (Kingdom & Phylum-level classifications to be inferred by LCA):
     for rank in taxonomic_ranks:
         taxonomic_placement_distances[rank] = list()
         leaf_trimmed_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
-        unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
-
+        
         # Add the lineages to the Tree instance
         for leaf in ref_tree:
             leaf.add_features(lineage=leaf_trimmed_taxa_map.get(leaf.name, "none"))
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
-        for taxonomy in unique_taxonomic_lineages:
+        for taxonomy in training_seqs[rank]:
             logging.debug("Testing placements for " + taxonomy + ":\n")
             # Clear collections
             taxonomy_filtered_query_seqs.clear()
             dict_for_phy.clear()
             leaves_excluded = 0
 
-            optimal_lca_taxonomy = "; ".join(taxonomy.split("; ")[:-1])
-            if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages if
-                                            tl != taxonomy]:
-                logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not found in pruned tree.\n")
-                continue
-
             # Write query FASTA containing sequences belonging to `taxonomy`
-            for seq_name in sorted(accession_lineage_map):
-                # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
-                if re.search(taxonomy, clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in fasta_dict:
-                    taxonomy_filtered_query_seqs[seq_name] = fasta_dict[seq_name]
+            for seq_name in training_seqs[rank][taxonomy]:
+                taxonomy_filtered_query_seqs[seq_name] = fasta_dict[seq_name]
             logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
-            if len(taxonomy_filtered_query_seqs) == 0:
-                continue
+            acc += len(taxonomy_filtered_query_seqs.keys())
             write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
 
             for key in ref_fasta_dict.keys():
@@ -330,6 +355,12 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                 if distance < 100:
                     taxonomic_placement_distances[rank].append(distance)
             os.system("rm papara_* RAxML*")
+
+            while acc > step_proportion:
+                acc -= step_proportion
+                sys.stdout.write('-')
+                sys.stdout.flush()
+
         if len(taxonomic_placement_distances[rank]) == 0:
             logging.debug("No samples available for " + rank + ".\n")
         else:
@@ -339,8 +370,6 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
                                                     len(taxonomic_placement_distances[rank]), 4)) + "\n"
             logging.debug(stats_string)
-        sys.stdout.write('-')
-        sys.stdout.flush()
     sys.stdout.write("-]\n")
     os.system("rm taxonomy_filtered_ref_seqs.phy queries.fasta tmp_tree.txt")
 
