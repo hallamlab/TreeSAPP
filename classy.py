@@ -39,23 +39,6 @@ class MarkerBuild:
         self.kind = ""
         self.pfit = []
 
-    def load_rank_distances(self, build_param_line):
-        build_param_fields = build_param_line.split("\t")
-        ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
-        field = 5
-        rank = 2
-        while field < 10:
-            dist_field = build_param_fields[field]
-            range = dist_field.split(',')
-            if len(range) != 2:
-                self.distances = {}
-                return 1
-            else:
-                self.distances[ranks[rank]] = tuple(float(x) for x in range)
-            field += 1
-            rank += 1
-        return 0
-
     def load_pfit_params(self, build_param_line):
         build_param_fields = build_param_line.split("\t")
         if build_param_fields[5]:
@@ -458,7 +441,7 @@ class ItolJplace:
         """
         nodes = list()
         for d_place in self.placements:
-            if type(d_place) == str:
+            if isinstance(d_place, str):
                 for k, v in loads(d_place).items():
                     if k == 'p':
                         for pquery in v:
@@ -478,7 +461,7 @@ class ItolJplace:
         new_placement_collection = []  # a list of dictionary-like strings
         placement_string = ""  # e.g. {"p":[[226, -31067.028237, 0.999987, 0.012003, 2e-06]], "n":["query"]}
         for d_place in self.placements:
-            if type(d_place) != str:
+            if not isinstance(d_place, str):
                 dict_strings = list()  # e.g. "n":["query"]
                 for k, v in d_place.items():
                     dict_strings.append(dumps(k) + ':' + dumps(v))
@@ -736,9 +719,9 @@ class ItolJplace:
         return
 
     def clear_object(self):
-        placements = list()
-        fields = list()
-        node_map = dict()
+        self.placements.clear()
+        self.fields.clear()
+        self.node_map.clear()
         self.contig_name = ""
         self.name = ""
         self.tree = ""

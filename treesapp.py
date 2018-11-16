@@ -10,15 +10,11 @@ try:
     import argparse
     import sys
     import os
-    import errno
     import shutil
     import re
     import glob
-    import signal
     import time
     import traceback
-    import string
-    import random
     import subprocess
     import logging
     from ete3 import Tree
@@ -49,7 +45,7 @@ except ImportWarning:
     sys.exit(3)
 
 
-def get_options(): 
+def get_options():
     """
     Returns the parser to interpret user options.
     """
@@ -293,7 +289,7 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param new_ref_queries:
     :param update_tree:
-    :return: 
+    :return:
     """
     alignments = update_tree.Output + "candidate_alignments.tsv"
 
@@ -370,8 +366,7 @@ def validate_inputs(args, marker_build_dict):
     :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
     :return: list of files that were edited
     """
-    sys.stdout.write("Testing validity of reference trees... ")
-    sys.stdout.flush()
+    logging.info("Testing validity of reference trees... ")
     ref_trees = glob.glob(args.treesapp + os.sep + "data/tree_data/*_tree.txt")
     ref_tree_dict = dict()
     for tree_file in ref_trees:
@@ -379,123 +374,13 @@ def validate_inputs(args, marker_build_dict):
         for denominator in marker_build_dict:
             if marker_build_dict[denominator].cog == marker:
                 ref_tree_dict[denominator] = tree_file
-    ref_tree_dict['p'] = args.treesapp + os.sep + "data/tree_data/MLTreeMap_reference.tree"
     status = pparse_ref_trees(denominator_ref_tree_dict=ref_tree_dict, args=args)
+    logging.info("done.\n")
     if status is None:
-        sys.exit()
+        logging.error("Reference trees do not appear to be formatted correctly!\n")
+        sys.exit(3)
     else:
-        sys.stdout.write("Reference trees appear to be formatted correctly. Continuing with TreeSAPP.\n")
-        sys.stdout.flush()
-    return
-
-
-def run_blast(args, split_files, cog_list):
-    """
-    Runs the BLAST algorithm on each of the split input files.
-
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param cog_list: Dictionary containing cog identifiers sorted into their classes
-    :param split_files: List of all files that need to be individually used for BLAST calls
-    """
-
-    sys.stdout.write("Running BLAST... ")
-    sys.stdout.flush()
-
-    start_time = time.time()
-
-    excluded_cogs = list()
-
-    # For each file containing a maximum of the specified number of sequences...
-    alignment_data_dir = args.treesapp + os.sep + \
-        'data' + os.sep + \
-        args.reference_data_prefix + 'alignment_data' + os.sep
-    try:
-        os.path.isdir(alignment_data_dir)
-    except IOError:
-        sys.stderr.write("ERROR: " + alignment_data_dir + "does not exist!")
-        sys.stderr.flush()
-        sys.exit()
-
-    db_nt = '-db "'
-    db_aa = '-db "'
-
-    for fasta in glob.glob(alignment_data_dir + "*fa"):
-        cog = os.path.basename(fasta).split('.')[0]
-        if cog in cog_list["all_cogs"].keys():
-            if cog in cog_list["phylogenetic_rRNA_cogs"]:
-                db_nt += fasta + ' '
-            else:
-                db_aa += fasta + ' '
-        else:
-            excluded_cogs.append(cog)
-
-    db_nt += '"'
-    db_aa += '"'
-
-    if len(excluded_cogs) > 0:
-        with open(args.output+"treesapp_BLAST_log.txt", 'w') as blast_log:
-            blast_log.write("WARNING:\nThe following markers were excluded from the analysis since they were " +
-                            "found in " + alignment_data_dir + " but not in " +
-                            args.treesapp + "/data/tree_data/cog_list.tsv:\n")
-            for ec in excluded_cogs:
-                blast_log.write(ec + "\n")
-
-    if db_aa == '-db ""' and db_nt == '-db ""':
-        sys.stderr.write("ERROR: Unable BLAST database files not found for targets:\n" +
-                         str(cog_list["all_cogs"].keys()) + "\n")
-        sys.stderr.flush()
-        sys.exit()
-                
-    for split_fasta in sorted(split_files):
-
-        # Ensure split_fasta is a .fasta file; save file name if so, die otherwise
-        
-        if not re.match(r'\A.+/(.+)\.fasta\Z', split_fasta):
-            sys.exit('ERROR: Something is wrong with the directory of the BLAST input file!\n')
-        else:
-            blast_input_file_name = re.match(r'\A.+/(.+)\.fasta\Z', split_fasta).group(1)
-
-        # Run the appropriate BLAST command(s) based on the input sequence type
-        if args.molecule == "dna":
-            blastx_command = args.executables["blastx"] + " " + \
-                '-query ' + split_fasta + ' ' + db_aa + ' ' + \
-                '-evalue 0.01 -max_target_seqs 100 ' + \
-                '-dbsize 1000000 -outfmt 6 '
-            if args.num_threads:
-                blastx_command += '-num_threads ' + str(int(args.num_threads)) + ' '
-            blastx_command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
-            blastx_command += " 2>/dev/null"
-            os.system(blastx_command)
-
-            blastn_command = args.executables["blastn"] + " " + \
-                '-query ' + split_fasta + ' ' + db_nt + ' ' + \
-                '-evalue 0.01 -max_target_seqs 100 ' + \
-                '-dbsize 1000000 -outfmt 6 '
-            if args.num_threads:
-                blastn_command += '-num_threads ' + str(int(args.num_threads)) + ' '
-            blastn_command += '>> ' + args.output_dir_var + blast_input_file_name + '.rRNA_BLAST_results_raw.txt'
-            blastn_command += " 2>/dev/null"
-            os.system(blastn_command)
-
-        elif args.molecule == "prot":
-            blastp_command = args.executables["blastp"] + " " + \
-                      '-query ' + split_fasta + ' ' + db_aa + ' ' + \
-                      '-evalue 0.01 -max_target_seqs 100 ' + \
-                      '-dbsize 1000000 -outfmt 6 '
-            if args.num_threads:
-                blastp_command += '-num_threads ' + str(int(args.num_threads)) + ' '
-            blastp_command += '>> ' + args.output_dir_var + blast_input_file_name + '.BLAST_results_raw.txt'
-            blastp_command += " 2> /dev/null"
-            os.system(blastp_command)
-
-    sys.stdout.write("done.\n")
-
-    end_time = time.time()
-    hours, remainder = divmod(end_time - start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    logging.debug("\tBLAST time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-
+        logging.info("Reference trees appear to be formatted correctly. Continuing with TreeSAPP.\n")
     return
 
 
@@ -1020,7 +905,7 @@ def start_genewise(args, shortened_sequence_files, blast_hits_purified):
                 genewise_outputfiles[contig][genewise_outputfile] = 1
 
             # Prepare the Genewise command and run it
-            genewise_command = [args.executables["genewise"], 
+            genewise_command = [args.executables["genewise"],
                                 hmm_dir + cog + ".hmm"]
             genewise_command += [shortened_sequence_file, "-init", "local", "-quiet"]
             genewise_command += ["-gene", genewise_support + 'human.gf']
@@ -1080,7 +965,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
 
         # Parse each output file of that contig
         for genewise_outputfile in sorted(genewise_outputfiles[contig].keys()):
-            try:     
+            try:
                 genewise_file = open(genewise_outputfile, 'r')
             except IOError:
                 sys.stdout.write("ERROR: Cannot open Genewise output file " + genewise_outputfile + "\n")
@@ -1203,7 +1088,7 @@ def parse_genewise_results(args, genewise_outputfiles, contig_coordinates):
                             # And if the hit and check are the same COG...
                             if base_cog == check_cog:
 
-                                # Keep only the longer hit, since the major difference between the hits is the length 
+                                # Keep only the longer hit, since the major difference between the hits is the length
                                 if base_length < check_length:
                                     is_valid = 0
 
@@ -1370,7 +1255,7 @@ def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, 
             contig_rrna_coordinates[contig][identifier]["direction"] = direction
             outfile_name = args.output_dir_var + contig + '_rRNA_result_summary.txt'
             contig_rrna_coordinates[contig][identifier]["outfile"] = outfile_name
-            genewise_summary_files[contig][outfile_name] = 1     
+            genewise_summary_files[contig][outfile_name] = 1
             try:
                 outfile = open(outfile_name, 'w')
                 outfile.close()
@@ -1522,7 +1407,7 @@ def get_alignment_dims(args, marker_build_dict):
     return alignment_dimensions_dict
 
 
-def multiple_alignments(args, single_query_sequence_files, marker_build_dict, tool="papara"):
+def multiple_alignments(args, single_query_sequence_files, marker_build_dict, tool="hmmalign"):
     """
     Wrapper function for the multiple alignment functions - only purpose is to make an easy decision at this point...
 
@@ -2129,13 +2014,16 @@ def start_raxml(args, phy_files, marker_build_dict):
             query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(phy_file))
             query_name = re.sub(marker_build_dict[denominator].cog, denominator, query_name)
             # Determine the output file names, and remove any pre-existing output files
-            if type(denominator) is not str:
-                sys.exit("ERROR: " + str(denominator) + " is not string but " + str(type(denominator)))
-            if type(reference_tree_file) is not str:
-                sys.exit("ERROR: " + str(reference_tree_file) + " is not string but " + str(type(reference_tree_file)))
+            if not isinstance(denominator, str):
+                logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
+                raise AssertionError()
+            if not isinstance(reference_tree_file, str):
+                logging.error(str(reference_tree_file) + " is not string but " + str(type(reference_tree_file)) + "\n")
+                raise AssertionError()
 
             if len(reference_tree_file) == 0:
-                sys.exit("ERROR: could not find reference tree for " + denominator)
+                logging.error("Could not find reference tree for " + denominator + "\n")
+                raise AssertionError()
             if denominator not in denominator_reference_tree_dict.keys():
                 denominator_reference_tree_dict[denominator] = reference_tree_file
             raxml_files = [output_dir + 'RAxML_info.' + query_name,
@@ -2316,12 +2204,6 @@ def identify_the_correct_terminal_children_of_each_assignment(terminal_children_
     return real_terminal_children_of_assignments
 
 
-def get_correct_mp_assignment(terminal_children_of_reference, mp_tree_file, assignments):
-    potential_terminal_children_strings = read_the_raxml_mp_out_tree(mp_tree_file, assignments)
-    real_terminal_children_strings_of_assignments = compare_terminal_children_strings(potential_terminal_children_strings, terminal_children_of_reference)
-    return real_terminal_children_strings_of_assignments
-
-
 def read_the_raxml_out_tree(labelled_tree_file):
     """
     Reads and reformats the labelled_tree_file for downstream interpretation
@@ -2397,84 +2279,6 @@ def read_the_raxml_out_tree(labelled_tree_file):
     return tree_string, insertion_point_node_hash
 
 
-def read_the_raxml_mp_out_tree(mp_tree_file, assignments):
-    """
-    A function for specifically reading the maximum-parsimony tree from RAxML
-    :param mp_tree_file: The tree file built by RAxML using the maximum-parsimony based algorithm
-    :param assignments: A dictionary for holding nodes -- currently just the root
-    :return: Autovivification of all potential terminal children
-    """
-    potential_terminal_children_strings = Autovivify()
-    assignment = ''
-
-    for assig in sorted(assignments.keys()):
-        assignment = assig
-        sys.stdout.write(assig + "\n")
-        sys.stdout.flush()
-        break
-
-    try:
-        mp_tree = open(mp_tree_file, 'r')
-    except IOError:
-        sys.exit('ERROR: Can\'t open ' + str(mp_tree_file) + '\n')
-    tree_string = ''
-
-    for line in mp_tree:
-        line = line.strip()
-        tree_string += line
-
-    mp_tree.close()
-    tree_string = re.sub('\(', 'L', tree_string)
-    tree_string = re.sub('\)', 'R', tree_string)
-    if not re.search(r',queryR;\Z', tree_string):
-        sys.exit('ERROR: The query is not at the root of ' + str(mp_tree_file) + '!\n')
-    else:
-        tree_string = re.sub(r',queryR;\Z', 'R;', tree_string)
-    tree_string = re.sub(r':\d+\.\d+', '', tree_string)
-    count = -2
-
-    while re.search('R', tree_string):
-        tree_string = re.sub('R', 'Q' + str(count), tree_string, 1)
-        count += -1
-
-    tree_string = re.sub(r'Q-\d+;', 'Q;', tree_string)
-    tree_string = re.sub('L', '(', tree_string)
-    tree_string = re.sub('Q', ')', tree_string)
-    tree_symbols = list(tree_string)
-    bracket_diff = 0
-    comma_count = 0
-    substrings = ['', ',']
-
-    for tree_symbol in tree_symbols:
-        if comma_count < 1:
-            if tree_symbol == '(':
-                bracket_diff += 1
-            if tree_symbol == ')':
-                bracket_diff += -1
-            if tree_symbol == ',' and bracket_diff == 1:
-                comma_count += 1
-            substrings[0] += tree_symbol
-        else:
-            substrings[1] += tree_symbol
-
-    for substring in substrings:
-        terminal_children = Autovivify()
-
-        for eachGroup in re.findall(r'(\D)(\d+)', str(substring)):
-            if eachGroup[0] == '-':
-                continue
-            terminal_children[eachGroup[1]] = 1
-
-        potential_terminal_children_string = ''
-
-        for potential_terminal_child in sorted(terminal_children.keys(), key=int):
-            potential_terminal_children_string += str(potential_terminal_child) + ' '
-
-        potential_terminal_children_strings[assignment][potential_terminal_children_string] = 1
-
-    return potential_terminal_children_strings
-
-
 def split_tree_string(tree_string):
     tree_symbols_raw = list(str(tree_string))
     count = -1
@@ -2489,11 +2293,6 @@ def split_tree_string(tree_string):
             tree_elements[count] = tree_symbol_raw
         previous_symbol = tree_symbol_raw
     return tree_elements
-
-
-def get_node_subtrees(tree_elements, tree_info):
-    # Replaced with _tree_parser._build_subtrees_newick and subtrees_to_dictionary
-    return tree_info
 
 
 def build_tree_info_quartets(tree_info):
@@ -3301,7 +3100,7 @@ def create_itol_labels(args, marker):
     """
     
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :param marker: 
+    :param marker:
     :return: 
     """
     itol_base_dir = args.output + 'iTOL_output' + os.sep
@@ -3804,7 +3603,7 @@ def main(argv):
 
         # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
         create_ref_phy_files(args, homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(args, homolog_seq_files, marker_build_dict, "hmmalign")
+        concatenated_msa_files = multiple_alignments(args, homolog_seq_files, marker_build_dict)
         file_types = set()
         for mc in concatenated_msa_files:
             sample_msa_file = concatenated_msa_files[mc][0]

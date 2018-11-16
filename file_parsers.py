@@ -393,7 +393,7 @@ def xml_parser(xml_record, term):
     """
     # TODO: Finish this off - would be great for consistently extracting data from xml
     value = None
-    if type(xml_record) == str:
+    if isinstance(xml_record, str):
         return value
     if term not in xml_record.keys():
         for record in xml_record:

@@ -79,7 +79,7 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
     """
     Determines the rank depth (for example Class == 2) a taxonomic lineage should be truncated to
      based on which rank distance range (in taxonomic_rank_intervals) phylo_dist falls into
-    
+
     :param phylo_dist: Float representing the branch distance from the nearest node
     :param taxonomic_rank_pfit: Dictionary with rank keys (e.g. Class) and distance ranges (min, max) as values
     :return: int
@@ -204,14 +204,15 @@ def parent_to_tip_distances(parent: Tree, children: Tree, estimate=False):
     branch_distances = list()
     # Calculate distance between parent and all descendants
     for child_node in children:
-        if type(child_node) is Tree:
+        if isinstance(child_node, Tree):
             distal_length = parent.get_distance(child_node.name)
-        elif type(child_node) is str:
+        elif isinstance(child_node, str):
             distal_length = parent.get_distance(child_node)
-        elif type(child_node) is int:
+        elif isinstance(child_node, int):
             distal_length = parent.get_distance(str(child_node))
         else:
-            raise AssertionError("Cannot handle type '" + type(child_node) + "' for child.")
+            logging.error("Cannot handle type '" + type(child_node) + "' for child.")
+            raise AssertionError()
         if estimate:
             distal_length += parent.dist
         branch_distances.append(distal_length)

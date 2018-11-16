@@ -509,18 +509,18 @@ def calculate_overlap(info):
 
 
 def cluster_sequences(args, fasta_input, uclust_prefix, similarity=0.60):
-
+    logging.info("Clustering sequences with UCLUST... ")
     uclust_cmd = [args.executables["usearch"]]
     uclust_cmd += ["-cluster_fast", fasta_input]
     uclust_cmd += ["-id", str(similarity)]
     uclust_cmd += ["-sort", "length"]
     uclust_cmd += ["-centroids", uclust_prefix + ".fa"]
     uclust_cmd += ["--uc", uclust_prefix + ".uc"]
-
+    logging.info("done.\n")
     stdout, returncode = launch_write_command(uclust_cmd)
 
     if returncode != 0:
-        logging.error("USEARCH did not complete successfully! Command used:\n" +
+        logging.error("UCLUST did not complete successfully! Command used:\n" +
                       ' '.join(uclust_cmd) + "\n")
         sys.exit(13)
     return

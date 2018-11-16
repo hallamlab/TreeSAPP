@@ -395,7 +395,7 @@ def get_lineage_robust(reference_sequence_list, molecule):
                 else:
                     logging.warning("No accession available for Entrez query:\n" +
                                     reference_sequence.get_info())
-                if type(lineage) is str and len(lineage) > 0:
+                if isinstance(lineage, str) and len(lineage) > 0:
                     # The query was successful
                     strikes = 3
             elif strikes == 1:
