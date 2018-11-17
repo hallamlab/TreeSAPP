@@ -508,9 +508,18 @@ def calculate_overlap(info):
     return overlap
 
 
-def cluster_sequences(args, fasta_input, uclust_prefix, similarity=0.60):
+def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
+    """
+    Wrapper function for clustering a FASTA file at some similarity using usearch's cluster_fast algorithm
+
+    :param uclust_exe: Path to the usearch executable
+    :param fasta_input: FASTA file for which contained sequences will be clustered
+    :param uclust_prefix: Prefix for the output files
+    :param similarity: The proportional similarity to cluster input sequences
+    :return: None
+    """
     logging.info("Clustering sequences with UCLUST... ")
-    uclust_cmd = [args.executables["usearch"]]
+    uclust_cmd = [uclust_exe]
     uclust_cmd += ["-cluster_fast", fasta_input]
     uclust_cmd += ["-id", str(similarity)]
     uclust_cmd += ["-sort", "length"]

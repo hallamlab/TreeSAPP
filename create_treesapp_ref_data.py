@@ -27,7 +27,7 @@ try:
     from entrez_utils import get_multiple_lineages, get_lineage_robust, verify_lineage_information,\
         read_accession_taxa_map, write_accession_lineage_map, build_entrez_queries
     from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc
-    from placement_trainer import train_placement_distances
+    from placement_trainer import regress_rank_distance
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
@@ -1464,17 +1464,15 @@ def main():
     # Optionally cluster the input sequences using USEARCH at the specified identity
     ##
     if args.cluster:
-        cluster_sequences(args, filtered_fasta_name, uclust_prefix, args.identity)
-        args.fasta_input = clustered_fasta
+        cluster_sequences(args.executables["usearch"], filtered_fasta_name, uclust_prefix, args.identity)
         args.uc = clustered_uc
-        cluster_fasta_dict = format_read_fasta(clustered_fasta, args.molecule, args.output_dir)
-        logging.debug("\t" + str(len(cluster_fasta_dict.keys())) + " sequence clusters\n")
 
     ##
     # Read the uc file if present
     ##
     if args.uc:
         cluster_dict = read_uc(args.uc)
+        logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
         ##
         # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
         ##
@@ -1685,13 +1683,10 @@ def main():
                                 fasta_replace_dict,
                                 tree_output_dir + os.sep + "RAxML_bipartitions." + code_name)
         model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + code_name)
-    pfit_array, _, _ = train_placement_distances(unprocessed_fasta_dict,
-                                                 aligned_fasta_dict,
-                                                 args.final_output_dir + args.code_name + "_tree.txt",
-                                                 tree_taxa_list,
-                                                 accession_lineage_map,
-                                                 args.molecule,
-                                                 args.executables)
+    pfit_array, _, _ = regress_rank_distance(args,
+                                             args.final_output_dir + args.code_name + "_tree.txt", tree_taxa_list,
+                                             accession_lineage_map,
+                                             aligned_fasta_dict)
     update_build_parameters(args, code_name, model, lowest_reliable_rank, pfit_array)
 
     logging.info("Data for " + code_name + " has been generated successfully.\n")

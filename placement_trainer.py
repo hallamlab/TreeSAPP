@@ -8,7 +8,8 @@ import re
 from ete3 import Tree
 import numpy as np
 
-from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment
+from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences,\
+    trim_multiple_alignment, format_read_fasta
 from file_parsers import tax_ids_file_to_leaves
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string,\
     find_executables, cluster_sequences
@@ -27,7 +28,7 @@ __author__ = 'Connor Morgan-Lang'
 def get_options():
     parser = argparse.ArgumentParser(description="Workflow for estimating calibrating the edge distances corresponding"
                                                  " to taxonomic ranks by iterative leave-one-out validation")
-    parser.add_argument("-f", "--fasta", required=True,
+    parser.add_argument("-f", "--fasta_input", required=True,
                         help='The raw, unclusterd and unfiltered FASTA file used to generated the reference package.')
     parser.add_argument("-i", "--taxa_map", required=True,
                         help="The tax_ids file generated from the marker's reference package.")
@@ -40,7 +41,7 @@ def get_options():
                         required=False)
     parser.add_argument('-m', '--molecule', default='prot', choices=['prot', 'dna', 'rrna'],
                         help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide )')
-    parser.add_argument("-T", "--threads", required=False, default=4, type=int,
+    parser.add_argument("-T", "--num_threads", required=False, default=4, type=int,
                         help="The number of threads to be used by RAxML.")
     parser.add_argument("-o", "--output_dir", required=False, default='.',
                         help="Path to directory for writing outputs.")
@@ -140,8 +141,10 @@ def read_placement_summary(placement_summary_file):
 def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
     """
     Wrapper for performing outlier removal, normalization via rarefaction, and regression
+
     :param taxonomic_placement_distances:
-    :param taxonomic_ranks:
+    :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
+    to rank depth values where Kingdom is 0, Phylum is 1, etc.
     :return:
     """
     if not taxonomic_ranks:
@@ -161,65 +164,44 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
     return pfit_array
 
 
-def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_file: str, tax_ids_file: str,
-                              accession_lineage_map: dict, molecule: str, executables: dict, raxml_threads=4):
+def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
+                          leaf_taxa_map: dict, accession_lineage_map: dict, taxonomic_ranks):
     """
-    Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
-    yielding an estimate of placement distances corresponding to taxonomic ranks.
+    Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
+    linear model. Removes sequences that share an identical accession, are more than 95% similar and limits the
+    number of taxonomically-identical sequences to 30.
 
-    :param fasta_dict: A dictionary with headers as keys and sequences as values for all potential reference sequences
-    :param ref_fasta_dict: A dictionary with headers as keys and sequences as values containing only reference sequences
-    :param ref_tree_file: A Newick-formatted phylogenetic tree with branch length distances (no internal nodes)
-    :param tax_ids_file: A tabular file created by create_treesapp_ref_data.py
-    :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
+    :param fasta_input: 
+    :param output_dir: Path to write intermediate output files (such as UCLUST outputs)
     :param executables: A dictionary mapping software to a path of their respective executable
-    :param molecule: Molecule type [prot | dna | rrna]
-    :param raxml_threads: Number of threads to be used by RAxML for parallel computation
-
-    :return:
+    :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric sequence identifiers to taxonomic lineages
+    :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
+    :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
+     to rank depth values where Kingdom is 0, Phylum is 1, etc.
+    :return: A dictionary storing the sequence names being used to test each taxon within each rank
     """
-
-    logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
-    leaf_taxa_map = dict()
-    training_seqs = dict()
-    taxonomic_placement_distances = dict()
-    taxonomy_filtered_query_seqs = dict()
-    dict_for_phy = dict()
-    pqueries = list()
+    rank_training_seqs = dict()
     optimal_placement_missing = list()
-    num_training_queries = 0
-    # Limit this to just Class, Family, and Species - other ranks are inferred through regression
-    taxonomic_ranks = {"Class": 2, "Species": 6}
+    taxon_training_queries = list()
+    similarity = 0.97
+    uclust_prefix = output_dir + os.sep + "uclust" + str(similarity)
 
-    temp_tree_file = "tmp_tree.txt"
-    temp_ref_phylip_file = "taxonomy_filtered_ref_seqs.phy"
-    temp_query_fasta_file = "queries.fasta"
-    query_multiple_alignment = "papara_queries_aligned.phy"
+    # Cluster the training sequences to mitigate harmful redundancy
+    cluster_sequences(executables["usearch"], fasta_input, uclust_prefix, similarity)
+    uclust_fasta_dict = read_fasta_to_dict(uclust_prefix + ".fa")
+    logging.debug("\t" + str(len(uclust_fasta_dict.keys())) + " sequence clusters\n")
 
-    # Read the tree as ete3 Tree instance
-    ref_tree = Tree(ref_tree_file)
-    # Read the taxonomic map; the final sequences used to build the tree are inferred from this
-    ref_taxa_map = tax_ids_file_to_leaves(tax_ids_file)
-
-    bmge_file = executables["BMGE.jar"]
-    if not os.path.exists(bmge_file):
-        raise FileNotFoundError("Cannot find " + bmge_file)
-
-    for ref_seq in ref_taxa_map:
-        leaf_taxa_map[ref_seq.number] = ref_seq.lineage
-
-    # Remove duplicate sequences to prevent biasing the distance estimates
-    nr_fasta_dict = deduplicate_fasta_sequences(fasta_dict)
-    fasta_dict.clear()
+    logging.info("Preparing deduplicated sequence set for training... ")
+    # Remove sequences with duplicate accessions
+    nr_fasta_dict = deduplicate_fasta_sequences(uclust_fasta_dict)
+    uclust_fasta_dict.clear()
     for seq_name in nr_fasta_dict.keys():
-        fasta_dict[seq_name.split(" ")[0]] = nr_fasta_dict[seq_name]
+        uclust_fasta_dict[seq_name.split(" ")[0]] = nr_fasta_dict[seq_name]
     nr_fasta_dict.clear()
 
-    # TODO: Cluster the training sequences to mitigate harmful redundancy
-    
     # Determine the set of reference sequences to use at each rank
     for rank in taxonomic_ranks:
-        training_seqs[rank] = dict()
+        rank_training_seqs[rank] = dict()
         leaf_trimmed_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
         unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
 
@@ -230,25 +212,82 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
                                             tl != taxonomy]:
                 optimal_placement_missing.append(optimal_lca_taxonomy)
             else:
-                taxon_training_queries = list()
                 for seq_name in sorted(accession_lineage_map):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
                     if re.search(taxonomy,
-                                 clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in fasta_dict:
+                                 clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in uclust_fasta_dict:
                         taxon_training_queries.append(seq_name)
-                        num_training_queries += 1
                     if len(taxon_training_queries) == 30:
                         break
                 if len(taxon_training_queries) > 0:
-                    training_seqs[rank][taxonomy] = taxon_training_queries
+                    rank_training_seqs[rank][taxonomy] = list(taxon_training_queries)
+                    taxon_training_queries.clear()
+    logging.info("done.\n")
 
     logging.debug("Optimal placement target is not found in the pruned tree for following taxa:\n\t" +
                   "\n\t".join(optimal_placement_missing) + "\n")
 
+    return rank_training_seqs, uclust_fasta_dict
+
+
+def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
+                              ref_fasta_dict: dict, dedup_fasta_dict: dict,
+                              ref_tree_file: str, leaf_taxa_map: dict,
+                              molecule: str, executables: dict, raxml_threads=4):
+    """
+    Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
+    yielding an estimate of placement distances corresponding to taxonomic ranks.
+
+    :param rank_training_seqs: A dictionary storing the sequence names being used to test each taxon within each rank
+    :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
+     to rank depth values where Kingdom is 0, Phylum is 1, etc.
+    :param ref_fasta_dict: A dictionary with headers as keys and sequences as values containing only reference sequences
+    :param dedup_fasta_dict: Dictionary with headers as keys and sequences as values for deduplicated training sequences
+    :param ref_tree_file: A Newick-formatted phylogenetic tree with branch length distances (no internal nodes)
+    :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric sequence identifiers to taxonomic lineages
+    :param executables: A dictionary mapping software to a path of their respective executable
+    :param molecule: Molecule type [prot | dna | rrna]
+    :param raxml_threads: Number of threads to be used by RAxML for parallel computation
+
+    :return:
+    """
+
+    logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
+    taxonomic_placement_distances = dict()
+    taxonomy_filtered_query_seqs = dict()
+    dict_for_phy = dict()
+    pqueries = list()
+
+    temp_tree_file = "tmp_tree.txt"
+    temp_ref_phylip_file = "taxonomy_filtered_ref_seqs.phy"
+    temp_query_fasta_file = "queries.fasta"
+    query_multiple_alignment = "papara_queries_aligned.phy"
+
+    # Read the tree as ete3 Tree instance
+    ref_tree = Tree(ref_tree_file)
+
+    bmge_file = executables["BMGE.jar"]
+    if not os.path.exists(bmge_file):
+        raise FileNotFoundError("Cannot find " + bmge_file)
+
+    num_training_queries = 0
+    for rank in rank_training_seqs:
+        for taxonomy in rank_training_seqs[rank]:
+            num_training_queries += len(rank_training_seqs[rank][taxonomy])
+
+    if num_training_queries < 30:
+        logging.error("Too few (" + str(num_training_queries) + ") sequences for training placement distance model.\n")
+        sys.exit(19)
+    if num_training_queries < 50:
+        logging.warning("Only " + str(num_training_queries) + " sequences for training placement distance model.\n")
     step_proportion = setup_progress_bar(num_training_queries)
     acc = 0.0
+
     # For each rank from Class to Species (Kingdom & Phylum-level classifications to be inferred by LCA):
-    for rank in taxonomic_ranks:
+    for rank in rank_training_seqs:
+        if rank not in taxonomic_ranks:
+            logging.error("Rank '" + rank + "' not found in ranks being used for training.\n")
+            sys.exit(33)
         taxonomic_placement_distances[rank] = list()
         leaf_trimmed_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
         
@@ -257,7 +296,7 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             leaf.add_features(lineage=leaf_trimmed_taxa_map.get(leaf.name, "none"))
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
-        for taxonomy in training_seqs[rank]:
+        for taxonomy in rank_training_seqs[rank]:
             logging.debug("Testing placements for " + taxonomy + ":\n")
             # Clear collections
             taxonomy_filtered_query_seqs.clear()
@@ -265,8 +304,8 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
             leaves_excluded = 0
 
             # Write query FASTA containing sequences belonging to `taxonomy`
-            for seq_name in training_seqs[rank][taxonomy]:
-                taxonomy_filtered_query_seqs[seq_name] = fasta_dict[seq_name]
+            for seq_name in rank_training_seqs[rank][taxonomy]:
+                taxonomy_filtered_query_seqs[seq_name] = dedup_fasta_dict[seq_name]
             logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
             acc += len(taxonomy_filtered_query_seqs.keys())
             write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
@@ -373,8 +412,40 @@ def train_placement_distances(fasta_dict: dict, ref_fasta_dict: dict, ref_tree_f
     sys.stdout.write("-]\n")
     os.system("rm taxonomy_filtered_ref_seqs.phy queries.fasta tmp_tree.txt")
 
+    return taxonomic_placement_distances, pqueries
+
+
+def regress_rank_distance(args, ref_tree, taxa_map, accession_lineage_map, ref_fasta_dict, training_ranks=None):
+    """
+
+    :param args:
+    :param ref_tree: A Newick-formatted phylogenetic tree file with branch length distances (no internal nodes)
+    :param taxa_map:
+    :param accession_lineage_map:
+    :param ref_fasta_dict:
+    :param training_ranks:
+    :return:
+    """
+    if not training_ranks:
+        training_ranks = {"Class": 2, "Species": 6}
+    # Read the taxonomic map; the final sequences used to build the tree are inferred from this
+    leaf_taxa_map = dict()
+    ref_taxa_map = tax_ids_file_to_leaves(taxa_map)
+    for ref_seq in ref_taxa_map:
+        leaf_taxa_map[ref_seq.number] = ref_seq.lineage
+    # Find non-redundant set of diverse sequences to train
+    rank_training_seqs, dedup_fasta_dict = prepare_training_data(args.fasta_input, args.output_dir, args.executables,
+                                                                 leaf_taxa_map, accession_lineage_map, training_ranks)
+    # Perform the rank-wise clade exclusion analysis for estimating placement distances
+    taxonomic_placement_distances, pqueries = train_placement_distances(rank_training_seqs, training_ranks,
+                                                                        ref_fasta_dict, dedup_fasta_dict,
+                                                                        ref_tree, leaf_taxa_map,
+                                                                        args.molecule, args.executables,
+                                                                        args.num_threads)
     # Finish up
-    pfit_array = complete_regression(taxonomic_placement_distances, taxonomic_ranks)
+    pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
+
+    logging.info("Placement distance regression model complete.\n")
 
     return pfit_array, taxonomic_placement_distances, pqueries
 
@@ -394,18 +465,22 @@ def main():
         sys.exit(33)
     args = find_executables(args)
 
+    # Limit this to just Class, Family, and Species - other ranks are inferred through regression
+    training_ranks = {"Class": 2, "Species": 6}
+
     sys.stdout.write("\n##\t\t\tEstimate taxonomic rank placement distances\t\t\t##\n")
-    prep_logging(args.output_dir + "placement_trainer_log.txt", False)
+    prep_logging(args.output_dir + os.sep + "placement_trainer_log.txt", False)
     logging.debug("ANALYSIS SPECIFICATIONS:\n" +
-                  "\tQuery FASTA: " + args.fasta + "\n" +
+                  "\tQuery FASTA: " + args.fasta_input + "\n" +
                   "\tTaxonomy map: " + args.taxa_map + "\n" +
                   "\tReference tree: " + args.tree + "\n" +
-                  "\tReference FASTA: " + args.ref_seqs + "\n"
-                  "\tLineage map: " + str(args.lineages) + "\n")
+                  "\tReference FASTA: " + args.ref_seqs + "\n" +
+                  "\tLineage map: " + str(args.lineages) + "\n" +
+                  "\tRanks tested: " + ','.join(training_ranks.keys()) + "\n")
     if args.lineages:
         accession_lineage_map = read_accession_taxa_map(args.lineages)
     else:
-        header_registry = register_headers(get_headers(args.fasta))
+        header_registry = register_headers(get_headers(args.fasta_input))
         fasta_record_objects = get_header_info(header_registry)
         query_accession_list, num_lineages_provided = build_entrez_queries(fasta_record_objects)
         accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list, args.molecule)
@@ -417,8 +492,7 @@ def main():
         write_accession_lineage_map(args.output_dir + os.sep + "placement_trainer_accession_lineage_map.tsv",
                                     accession_lineage_map)
 
-    # Read in the original fasta file
-    fasta_dict = read_fasta_to_dict(args.fasta)
+    # Read in the reference fasta file
     ref_fasta_dict = read_fasta_to_dict(args.ref_seqs)
 
     placement_table_file = args.output_dir + os.sep + "placement_info.tsv"
@@ -433,15 +507,11 @@ def main():
         pfit_array = complete_regression(taxonomic_placement_distances)
 
     if len(taxonomic_placement_distances) == 0:
-        # Perform the rank-wise clade exclusion analysis for estimating placement distances
-        pfit_array, taxonomic_placement_distances, pqueries = train_placement_distances(fasta_dict,
-                                                                                        ref_fasta_dict,
-                                                                                        args.tree,
-                                                                                        args.taxa_map,
-                                                                                        accession_lineage_map,
-                                                                                        args.molecule,
-                                                                                        args.executables,
-                                                                                        args.threads)
+        pfit_array, taxonomic_placement_distances, pqueries = regress_rank_distance(args,
+                                                                                    args.tree, args.taxa_map,
+                                                                                    accession_lineage_map,
+                                                                                    ref_fasta_dict,
+                                                                                    training_ranks)
 
         # Write the tab-delimited file with metadata included for each placement
         write_placement_table(pqueries, placement_table_file, seq_m)
