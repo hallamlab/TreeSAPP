@@ -788,7 +788,8 @@ def read_uc(uc_file):
     Function to read a USEARCH cluster (.uc) file
 
     :param uc_file: Path to a .uc file produced by USEARCH
-    :return: Dictionary where keys are representative cluster headers and the values are headers of identical sequences
+    :return: Dictionary where keys are numerical identifiers and values are Cluster objects
+        The Cluster object
     """
     cluster_dict = dict()
     rep_len_map = dict()

@@ -1472,15 +1472,28 @@ def main():
     ##
     if args.uc:
         cluster_dict = read_uc(args.uc)
+
+        # Ensure the headers in cluster_dict have been reformatted if UC file was not generated internally
+        if not args.cluster:
+            members = list()
+            for num_id in cluster_dict:
+                cluster = cluster_dict[num_id]
+                cluster.representative = reformat_string(cluster.representative)
+                for member in cluster.members:
+                    header, identity = member
+                    members.append([reformat_string(header), identity])
+                cluster.members = members
+                members.clear()
         logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
         ##
         # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
         ##
+        lineages = list()
         for cluster_id in sorted(cluster_dict, key=int):
             members = [cluster_dict[cluster_id].representative]
             # format of member list is: [header, identity, member_seq_length/representative_seq_length]
             members += [member[0] for member in cluster_dict[cluster_id].members]
-            lineages = list()
+            # Create a lineage list for all sequences in the cluster
             for num_id in fasta_record_objects:
                 if header_registry[num_id].formatted in members:
                     lineages.append(fasta_record_objects[num_id].lineage)
@@ -1495,6 +1508,7 @@ def main():
             #     for l in cleaned_lineages:
             #         print(l)
             #     print("LCA:", cluster_dict[cluster_id].lca)
+            lineages.clear()
     else:
         cluster_dict = None
 
