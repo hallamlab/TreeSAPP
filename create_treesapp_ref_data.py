@@ -286,10 +286,19 @@ def generate_cm_data(args, unaligned_fasta):
     return aligned_fasta
 
 
-def run_mafft(args, fasta_in, fasta_out):
-    mafft_align_command = [args.executables["mafft"]]
+def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads):
+    """
+    Wrapper function for the MAFFT multiple sequence alignment tool.
+    Runs MAFFT using `--auto` and checks if the output is empty.
+    :param mafft_exe: Path to the executable for mafft
+    :param fasta_in: An unaligned FASTA file
+    :param fasta_out: The path to a file MAFFT will write aligned sequences to
+    :param num_threads: Integer (or string) for the number of threads MAFFT can use
+    :return:
+    """
+    mafft_align_command = [mafft_exe]
     mafft_align_command += ["--maxiterate", str(1000)]
-    mafft_align_command += ["--thread", str(args.num_threads)]
+    mafft_align_command += ["--thread", str(num_threads)]
     mafft_align_command.append("--auto")
     mafft_align_command += [fasta_in, '1>' + fasta_out]
     mafft_align_command += ["2>", "/dev/null"]
@@ -297,26 +306,34 @@ def run_mafft(args, fasta_in, fasta_out):
     stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
 
     if mafft_proc_returncode != 0:
-        logging.error("Multiple sequence alignment using " + args.executables["mafft"] +
+        logging.error("Multiple sequence alignment using " + mafft_exe +
                       " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
         sys.exit(7)
+    else:
+        mfa = read_fasta_to_dict(fasta_out)
+        if len(mfa.keys()) < 1:
+            logging.error("MAFFT did not generate a proper FASTA file. " +
+                          "Check the output by running:\n" + ' '.join(mafft_align_command) + "\n")
+            sys.exit(7)
+
     return
 
 
-def run_odseq(args, fasta_in, outliers_fa):
-    odseq_command = [args.executables["OD-seq"]]
+def run_odseq(odseq_exe, fasta_in, outliers_fa, num_threads):
+    odseq_command = [odseq_exe]
     odseq_command += ["-i", fasta_in]
     odseq_command += ["-f", "fasta"]
     odseq_command += ["-o", outliers_fa]
     odseq_command += ["-m", "linear"]
     odseq_command += ["--boot-rep", str(1000)]
-    odseq_command += ["-t", str(args.num_threads)]
+    odseq_command += ["--threads", str(num_threads)]
+    odseq_command += ["--score", str(5)]
     odseq_command.append("--full")
 
     stdout, odseq_proc_returncode = launch_write_command(odseq_command)
 
     if odseq_proc_returncode != 0:
-        logging.error("Outlier detection using " + args.executables["OD-seq"] +
+        logging.error("Outlier detection using " + odseq_exe +
                       " did not complete successfully! Command used:\n" + ' '.join(odseq_command) + "\n")
         sys.exit(7)
 
@@ -809,10 +826,10 @@ def remove_duplicate_records(fasta_record_objects):
         logging.warning("Redundant accessions have been detected in your input FASTA.\n" +
                         "The duplicates have been removed leaving a single copy for further analysis.\n" +
                         "Please view the log file for the list of redundant accessions and their copy numbers.\n")
-        msg = "Redundant accessions found and copies:"
+        msg = "Redundant accessions found and copies:\n"
         for acc in accessions:
             if accessions[acc] > 1:
-                msg += "\n" + acc + "\t" + str(accessions[acc]) + "\n"
+                msg += "\t" + acc + "\t" + str(accessions[acc]) + "\n"
         logging.debug(msg)
     return nr_record_dict
 
@@ -1571,9 +1588,9 @@ def main():
     od_input_m = '.'.join(od_input.split('.')[:-1]) + ".mfa"
     od_output = args.output_dir + "outliers.fasta"
     # Perform MSA with MAFFT
-    run_mafft(args, od_input, od_input_m)
+    run_mafft(args.executables["mafft"], od_input, od_input_m, args.num_threads)
     # Run OD-seq on MSA to identify outliers
-    run_odseq(args, od_input_m, od_output)
+    run_odseq(args.executables["OD-seq"], od_input_m, od_output, args.num_threads)
     # Remove outliers from fasta_record_objects collection
     outlier_seqs = read_fasta_to_dict(od_output)
     outlier_names = list()
@@ -1620,7 +1637,7 @@ def main():
         args.multiple_alignment = True
     elif args.multiple_alignment is False:
         logging.info("Aligning the sequences using MAFFT... ")
-        run_mafft(args, ref_fasta_file, aligned_ref_fasta)
+        run_mafft(args.executables["mafft"], ref_fasta_file, aligned_ref_fasta, args.num_threads)
         logging.info("done.\n")
     elif args.multiple_alignment and args.molecule != "rrna":
         aligned_ref_fasta = ref_fasta_file

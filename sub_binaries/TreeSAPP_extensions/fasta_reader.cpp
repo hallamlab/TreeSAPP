@@ -170,13 +170,14 @@ int Fasta::record_sequence() {
     transform(sequence_buffer.begin(), sequence_buffer.end(), sequence_buffer.begin(), ::toupper);
 
     if (molecule == "prot") {
-        acceptable_characters.assign("ACDEFGHIKLMNPQRSTUVWYBXZ.-*");
+        acceptable_characters.assign("ACDEFGHIKLMNPQRSTVWYBXZ.-*");
     }
     else if (molecule == "dna" || molecule == "rrna") {
         acceptable_characters.assign("-ACGTU.");
     }
     else {
         cerr << "ERROR: Unrecognized molecule. Unable to determine which characters to use." << endl;
+        free(purified_seq);
         return 5;
     }
 
