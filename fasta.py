@@ -40,6 +40,12 @@ def generate_fasta(fasta_handler):  # this is a generator function
 
 
 def read_fasta_to_dict(fasta_file):
+    """
+    Reads any fasta file using a generator function (generate_fasta) into a dictionary collection
+
+    :param fasta_file: Path to a FASTA file to be read into a dict
+    :return: Dict where headers/record names are keys and sequences are the values
+    """
     fasta_dict = dict()
     try:
         fasta_handler = open(fasta_file, 'r')

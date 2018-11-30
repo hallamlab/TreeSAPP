@@ -215,7 +215,7 @@ def clean_lineage_list(lineage_list):
     :param lineage_list:
     :return: A list of lineages with mostly or entirely classified sequences, as long as they comprise the majority
     """
-    if len(lineage_list) == 1:
+    if len(lineage_list) <= 1:
         return [lineage_list]
 
     classified_lineages = list()
