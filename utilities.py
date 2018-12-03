@@ -416,7 +416,7 @@ def reformat_fasta_to_phy(fasta_dict):
         for sub_sequence in sub_sequences:
             if count not in phy_dict:
                 phy_dict[count] = dict()
-            phy_dict[count][int(seq_name)] = sub_sequence
+            phy_dict[count][seq_name] = sub_sequence
             count += 1
     return phy_dict
 
@@ -533,3 +533,49 @@ def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
                       ' '.join(uclust_cmd) + "\n")
         sys.exit(13)
     return
+
+
+def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_multiple_alignment, kind="functional"):
+    """
+    A wrapper for both cmalign and hmmalign for performing profile-based multiple sequence alignment
+    :param executables: A dictionary containing keys "cmalign" and "hmmalign"
+    :param ref_aln: Path to a FASTA or Stockholm file with the multiple alignment pattern
+    :param ref_profile: Path to the HMM or CM profile for the reference gene
+    :param input_fasta: Path to the FASTA containing query sequences
+    :param output_multiple_alignment: Name of the output Stockholm formatted file
+    :param kind: The type of marker gene being analyzed [functional (default), phylogenetic, phylogenetic_rRNA]
+    :return:
+    """
+
+    if kind == "phylogenetic_rRNA":
+        malign_command = [executables["cmalign"]]
+    else:
+        malign_command = [executables["hmmalign"]]
+
+    malign_command += ['--mapali', ref_aln,
+                       '--outformat', 'Stockholm',
+                       ref_profile, input_fasta,
+                       '>', output_multiple_alignment]
+
+    stdout, returncode = launch_write_command(malign_command)
+    if returncode != 0:
+        logging.error("Multiple alignment failed for " + input_fasta + ". Command used:\n" +
+                      ' '.join(malign_command) + " output:\n" + stdout + "\n")
+        sys.exit(3)
+    return stdout
+
+
+def run_papara(executable, tree_file, ref_alignment_phy, query_fasta, molecule):
+    papara_command = [executable]
+    papara_command += ["-t", tree_file]
+    papara_command += ["-s", ref_alignment_phy]
+    papara_command += ["-q", query_fasta]
+    if molecule == "prot":
+        papara_command.append("-a")
+
+    stdout, ret_code = launch_write_command(papara_command)
+    if ret_code != 0:
+        logging.error("PaPaRa did not complete successfully!\n" +
+                      "Command used:\n" + ' '.join(papara_command) + "\n")
+        sys.exit(3)
+    return stdout

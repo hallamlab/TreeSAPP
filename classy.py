@@ -20,6 +20,71 @@ from entrez_utils import get_lineage
 import _tree_parser
 
 
+class ReferencePackage:
+    def __init__(self):
+        self.prefix = ""
+        self.msa = ""
+        self.profile = ""
+        self.tree = ""
+        self.boot_tree = ""
+        self.lineage_ids = ""
+        self.core_ref_files = list()
+        self.num_seqs = 0
+
+    def validate(self, num_ref_seqs=None):
+        """
+        Function that ensures the number of sequences is equal across all files and that in the ref_build_parameters.tsv
+        :return: Boolean
+        """
+        # Check to ensure all files exist
+        for ref_file in self.core_ref_files:
+            if not os.path.isfile(ref_file):
+                logging.error("File '" + ref_file + "' does not exist for reference package: " + self.prefix + "\n")
+                sys.exit(17)
+        # TODO: Compare the number of sequences in the multiple sequence alignment
+        # TODO: Compare the number of sequences in the Hidden-Markov model
+        # TODO: Compare the number of sequences in the Tree files
+        # TODO: Compare the number of sequences in the tax_ids file
+        return True
+
+    def gather_package_files(self, ref_name: str, pkg_path: str, pkg_format="hierarchical", molecule="prot"):
+        """
+        Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
+         files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
+         in the same directory.
+        :param ref_name: Prefix name of all the files of a reference package
+        :param pkg_path: Path to the reference package
+        :param pkg_format: The format of the files within the pkg_path directory
+        :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
+        :return:
+        """
+        self.prefix = ref_name
+        if pkg_format == "flat":
+            self.msa = pkg_path + os.sep + ref_name + ".fa"
+            self.profile = pkg_path + os.sep + ref_name
+            self.tree = pkg_path + os.sep + ref_name + "_tree.txt"
+            self.boot_tree = pkg_path + os.sep + ref_name + "_bipartitions.txt"
+            self.lineage_ids = pkg_path + os.sep + "tax_ids_" + ref_name + ".txt"
+        elif pkg_format == "hierarchical":
+            self.msa = pkg_path + os.sep + "alignment_data" + os.sep + ref_name + ".fa"
+            self.profile = pkg_path + os.sep + "hmm_data" + os.sep + ref_name
+            self.tree = pkg_path + os.sep + "tree_data" + os.sep + ref_name + "_tree.txt"
+            self.boot_tree = pkg_path + os.sep + "tree_data" + os.sep + ref_name + "_bipartitions.txt"
+            self.lineage_ids = pkg_path + os.sep + "tree_data" + os.sep + "tax_ids_" + ref_name + ".txt"
+        else:
+            logging.error("Unrecognised reference package format '" + pkg_format + "'\n")
+            sys.exit(17)
+
+        if molecule == "rRNA":
+            self.profile += ".cm"
+        else:
+            self.profile += ".hmm"
+
+        self.core_ref_files += [self.msa, self.profile, self.tree, self.lineage_ids]
+
+        return
+
+
 class MarkerBuild:
     def __init__(self, build_param_line):
         build_param_fields = build_param_line.split('\t')

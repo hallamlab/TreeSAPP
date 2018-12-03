@@ -90,11 +90,11 @@ def parse_cog_list(args, marker_build_dict):
             if denominator == ref_code:
                 marker_build_dict[denominator].description = description
                 if description == "phylogenetic_cogs":
-                    marker_build_dict[denominator].kind = "phylogenetic_cogs"
+                    marker_build_dict[denominator].kind = "phylogenetic"
                 elif description == "rRNA_marker":
-                    marker_build_dict[denominator].kind = "phylogenetic_rRNA_cogs"
+                    marker_build_dict[denominator].kind = "phylogenetic_rRNA"
                 else:
-                    marker_build_dict[denominator].kind = "functional_cogs"
+                    marker_build_dict[denominator].kind = "functional"
 
     if args.reftree not in ['i', 'g', 'p'] and args.reftree not in marker_build_dict.keys():
         logging.error(args.reftree + " not found in " + cog_list_file + "! Please use a valid reference tree ID!\n")
