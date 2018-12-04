@@ -86,9 +86,23 @@ class ReferencePackage:
 
 
 class MarkerBuild:
-    def __init__(self, build_param_line):
+    def __init__(self):
+        self.cog = ""
+        self.denominator = ""
+        self.molecule = ""
+        self.model = ""
+        self.lowest_confident_rank = ""
+        self.update = ""
+        self.kind = ""
+        self.tree_tool = ""
+        self.description = ""
+        self.pid = 1.0
+        self.num_reps = 0
+        self.pfit = []
+
+    def load_build_params(self, build_param_line):
         build_param_fields = build_param_line.split('\t')
-        if len(build_param_fields) != 8:
+        if len(build_param_fields) != 11:
             logging.error("Incorrect number of values (" + str(len(build_param_fields)) +
                           ") in ref_build_parameters.tsv. Line:\n" + build_param_line)
             sys.exit(17)
@@ -97,17 +111,18 @@ class MarkerBuild:
         self.denominator = build_param_fields[1]
         self.molecule = build_param_fields[2]
         self.model = build_param_fields[3]
-        self.pid = build_param_fields[4]
-        self.lowest_confident_rank = build_param_fields[-2]
-        self.update = build_param_fields[-1]
-        self.description = ""
-        self.kind = ""
-        self.pfit = []
+        self.kind = build_param_fields[4]
+        self.pid = build_param_fields[5]
+        self.num_reps = build_param_fields[6]
+        self.tree_tool = build_param_fields[7]
+        self.lowest_confident_rank = build_param_fields[9]
+        self.update = build_param_fields[10]
+        self.description = build_param_fields[-1]
 
     def load_pfit_params(self, build_param_line):
         build_param_fields = build_param_line.split("\t")
-        if build_param_fields[5]:
-            self.pfit = [float(x) for x in build_param_fields[5].split(',')]
+        if build_param_fields[8]:
+            self.pfit = [float(x) for x in build_param_fields[8].split(',')]
         return
 
     def check_rank(self):

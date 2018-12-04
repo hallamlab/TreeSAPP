@@ -20,7 +20,7 @@ try:
         reformat_fasta_to_phy, write_phy_file, cluster_sequences
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
         trim_multiple_alignment, read_fasta_to_dict
-    from classy import ReferenceSequence, ReferencePackage, Header, Cluster,\
+    from classy import ReferenceSequence, ReferencePackage, Header, Cluster, MarkerBuild,\
         prep_logging, register_headers, get_header_info
     from external_command_interface import launch_write_command
     from entish import annotate_partition_tree
@@ -132,6 +132,10 @@ def get_arguments():
                         help="A flag indicating the tree should be built rapidly, using FastTree.",
                         default=False, required=False,
                         action="store_true")
+    optopt.add_argument("--kind",
+                        help="The broad classification of marker gene type, either "
+                             "functional, phylogenetic, or phylogenetic_rRNA. [ DEFAULT = functional ]",
+                        default="functional", required=False)
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument("-h", "--help",
@@ -1060,7 +1064,8 @@ def swap_tree_names(tree_to_swap, final_mltree, code_name):
     tree = original_tree.readlines()
     original_tree.close()
     if len(tree) > 1:
-        sys.stderr.write("ERROR: >1 line contained in RAxML tree " + tree_to_swap)
+        logging.error(">1 line contained in RAxML tree " + tree_to_swap + "\n")
+        sys.exit(13)
 
     new_tree = re.sub('_' + re.escape(code_name), '', str(tree[0]))
     raxml_tree.write(new_tree)
@@ -1084,42 +1089,38 @@ def find_model_used(raxml_info_file):
                 pass
     if model == "":
         if command_line == "":
-            sys.stderr.write("WARNING: Unable to parse model used from " + raxml_info_file + "!\n")
-            sys.stderr.flush()
+            logging.warning("Unable to parse model used from " + raxml_info_file + "!\n")
         else:
             model = re.match('^.*/raxml.*-m ([A-Z]+)$', command_line).group(1)
     return model
 
 
-def update_build_parameters(args, code_name, sub_model, lowest_reliable_rank, polynomial_fit_array):
+def update_build_parameters(param_file, marker_package: MarkerBuild):
     """
     Function to update the data/tree_data/ref_build_parameters.tsv file with information on this new reference sequence
     Format of file is:
-     "code_name    denominator    molecule    aa_model    cluster_identity    slope    intercept    last_updated"
+     "\t".join(["name","code","molecule","sub_model","cluster_identity","ref_sequences","tree-tool","poly-params",
+     "lowest_reliable_rank","last_updated","description"])
 
-    :param args: command-line arguments objects
-    :param code_name: code_name from the command-line parameters
-    :param sub_model: substitution model used for building the tree
-    :param polynomial_fit_array:
-    :param lowest_reliable_rank:
+    :param param_file: Path to the ref_build_parameters.tsv file used by TreeSAPP for storing refpkg metadata
+    :param marker_package: A MarkerBuild instance
     :return: 
     """
-    param_file = args.treesapp + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
     try:
         params = open(param_file, 'a')
     except IOError:
         logging.error("Unable to open " + param_file + "for appending.\n")
         sys.exit(13)
 
-    date = strftime("%d_%b_%Y", gmtime())
+    marker_package.update = strftime("%d_%b_%Y", gmtime())
 
-    if args.molecule == "prot":
-        phylo_model = "PROTGAMMA" + sub_model
-    else:
-        phylo_model = "GTRGAMMA"
+    if marker_package.molecule == "prot":
+        marker_package.model = "PROTGAMMA" + marker_package.model
 
-    build_list = [code_name, "Z1111", args.molecule, phylo_model, args.identity,
-                  ','.join([str(param) for param in polynomial_fit_array]), lowest_reliable_rank, date]
+    build_list = [marker_package.cog, marker_package.denominator, marker_package.molecule, marker_package.model,
+                  marker_package.kind, str(marker_package.pid), str(marker_package.num_reps), marker_package.tree_tool,
+                  ','.join([str(param) for param in marker_package.pfit]),
+                  marker_package.lowest_confident_rank, marker_package.update, marker_package.description]
     params.write("\t".join(build_list) + "\n")
 
     return
@@ -1213,7 +1214,7 @@ def construct_tree(args, multiple_alignment_file, tree_output_dir):
         swap_tree_names(raw_newick_tree, final_mltree, args.code_name)
         swap_tree_names(bootstrap_tree, bootstrap_nameswap, args.code_name)
 
-    return
+    return tree_builder
 
 
 def reverse_complement(rrna_sequence):
@@ -1317,9 +1318,8 @@ def main():
 
     args = find_executables(args)
 
-    code_name = args.code_name
     if args.pc:
-        terminal_commands(args.final_output_dir, code_name)
+        terminal_commands(args.final_output_dir, args.code_name)
         sys.exit(0)
 
     # Names of files to be created
@@ -1331,12 +1331,20 @@ def main():
     clustered_fasta = uclust_prefix + ".fa"
     clustered_uc = uclust_prefix + ".uc"
     od_input = args.output_dir + "od_input.fasta"
-    unaln_ref_fasta = args.output_dir + code_name + "_ref.fa"  # FASTA file of unaligned reference sequences
+    unaln_ref_fasta = args.output_dir + args.code_name + "_ref.fa"  # FASTA file of unaligned reference sequences
     phylip_file = args.output_dir + args.code_name + ".phy"  # Used for building the phylogenetic tree with RAxML
 
     # Gather all the final TreeSAPP reference files
     ref_pkg = ReferencePackage()
     ref_pkg.gather_package_files(args.code_name, args.final_output_dir, "flat")
+
+    # Create a new MarkerBuild instance to hold all relevant information for recording in ref_build_parameters.tsv
+    marker_package = MarkerBuild()
+    marker_package.pid = args.identity
+    marker_package.cog = args.code_name
+    marker_package.molecule = args.molecule
+    marker_package.kind = args.kind
+    marker_package.denominator = "Z1111"
 
     # TODO: Restore this functionality
     # if args.add_lineage:
@@ -1423,7 +1431,7 @@ def main():
     ##
     # Determine the format of each sequence name (header) and pull important info (e.g. accession, lineage)
     ##
-    fasta_record_objects = get_header_info(header_registry, code_name)
+    fasta_record_objects = get_header_info(header_registry, args.code_name)
 
     ##
     # Read lineages corresponding to accessions for each sequence if available, otherwise download them
@@ -1618,12 +1626,11 @@ def main():
     logging.info("Generated the taxonomic lineage map " + ref_pkg.lineage_ids + "\n")
     taxonomic_summary = summarize_reference_taxa(args, fasta_replace_dict)
     logging.info(taxonomic_summary)
-    lowest_reliable_rank = estimate_taxonomic_redundancy(args, fasta_replace_dict)
+    marker_package.lowest_confident_rank = estimate_taxonomic_redundancy(args, fasta_replace_dict)
 
     ##
     # Perform multiple sequence alignment
     ##
-
     if args.multiple_alignment:
         create_new_ref_fasta(unaln_ref_fasta, fasta_replace_dict, True)
     else:
@@ -1639,6 +1646,7 @@ def main():
     else:
         pass
     aligned_fasta_dict = read_fasta_to_dict(ref_pkg.msa)
+    marker_package.num_reps = len(aligned_fasta_dict.keys())
 
     ##
     # Build the HMM profile from the aligned reference FASTA file
@@ -1649,7 +1657,7 @@ def main():
     else:
         logging.info("Building HMM profile... ")
         hmm_build_command = [args.executables["hmmbuild"],
-                             args.final_output_dir + code_name + ".hmm",
+                             args.final_output_dir + args.code_name + ".hmm",
                              ref_pkg.msa]
         stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
         logging.info("done.\n")
@@ -1687,7 +1695,7 @@ def main():
     ##
     # Build the tree using either RAxML or FastTree
     ##
-    construct_tree(args, phylip_file, tree_output_dir)
+    marker_package.tree_tool = construct_tree(args, phylip_file, tree_output_dir)
 
     if os.path.exists(unaln_ref_fasta):
         os.remove(unaln_ref_fasta)
@@ -1698,22 +1706,27 @@ def main():
 
     if args.fast:
         if args.molecule == "prot":
-            model = "lg"
+            marker_package.model = "LG"
         else:
-            model = "gtrgamma"
+            marker_package.model = "GTRGAMMA"
     else:
-        annotate_partition_tree(code_name,
+        annotate_partition_tree(args.code_name,
                                 fasta_replace_dict,
-                                tree_output_dir + os.sep + "RAxML_bipartitions." + code_name)
-        model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + code_name)
+                                tree_output_dir + os.sep + "RAxML_bipartitions." + args.code_name)
+        marker_package.model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + args.code_name)
 
-    ref_pkg.validate()
-    pfit_array, _, _ = regress_rank_distance(args, ref_pkg, accession_lineage_map, aligned_fasta_dict)
-    # TODO: Include the number of reference sequences in the file for updating with ReferencePackage.validate()
-    update_build_parameters(args, code_name, model, lowest_reliable_rank, pfit_array)
+    # Build the regression model of placement distances to taxonomic ranks
+    marker_package.pfit, _, _ = regress_rank_distance(args, ref_pkg, accession_lineage_map, aligned_fasta_dict)
 
-    logging.info("Data for " + code_name + " has been generated successfully.\n")
-    terminal_commands(args.final_output_dir, code_name)
+    ##
+    # Finish validating the file and append the reference package build parameters to the master table
+    ##
+    ref_pkg.validate(marker_package.num_reps)
+    param_file = args.treesapp + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
+    update_build_parameters(param_file, marker_package)
+
+    logging.info("Data for " + args.code_name + " has been generated successfully.\n")
+    terminal_commands(args.final_output_dir, args.code_name)
 
 
 if __name__ == "__main__":
