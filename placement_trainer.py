@@ -180,7 +180,8 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     rank_training_seqs = dict()
     optimal_placement_missing = list()
     taxon_training_queries = list()
-    similarity = 0.97
+    similarity = 0.97  # The proportional similarity to cluster the training sequences
+    max_reps = 30  # The maximum number of representative sequences from a specific taxon for training
     uclust_prefix = output_dir + os.sep + "uclust" + str(similarity)
 
     # Cluster the training sequences to mitigate harmful redundancy
@@ -214,7 +215,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
                     if re.search(taxonomy,
                                  clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in uclust_fasta_dict:
                         taxon_training_queries.append(seq_name)
-                    if len(taxon_training_queries) == 30:
+                    if len(taxon_training_queries) == max_reps:
                         break
                 if len(taxon_training_queries) > 0:
                     rank_training_seqs[rank][taxonomy] = list(taxon_training_queries)
@@ -357,7 +358,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
             query_filtered_multiple_alignment = trim_multiple_alignment(bmge_file, query_multiple_alignment,
                                                                         molecule, "BMGE")
-            query_name = re.sub(' ', '_', taxonomy.split("; ")[-1])
+            query_name = re.sub(r"([ /])", '_', taxonomy.split("; ")[-1])
             raxml_command = [executables["raxmlHPC"],
                              "-m", "PROTGAMMALG",
                              "-p", str(12345),

@@ -2763,19 +2763,18 @@ def write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_f
 
 def align_reads_to_nucs(args, reference_fasta):
     """
-    Align the BLAST-predicted ORFs to the reads using BWA MEM
+    Align the predicted ORFs to the reads using BWA MEM
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param reference_fasta: A FASTA file containing the sequences to be aligned to
     :return: Path to the SAM file
     """
-    input_multi_fasta = re.match(r'\A.*\/(.*)', args.fasta_input).group(1)
     rpkm_output_dir = args.output + "RPKM_outputs" + os.sep
     if not os.path.exists(rpkm_output_dir):
         try:
             os.makedirs(rpkm_output_dir)
         except OSError:
             if os.path.exists(rpkm_output_dir):
-                sys.stderr.write("WARNING: Overwriting files in " + rpkm_output_dir + ".\n")
+                logging.warning("Overwriting files in " + rpkm_output_dir + ".\n")
             else:
                 raise OSError("Unable to make " + rpkm_output_dir + "!\n")
 
@@ -2792,8 +2791,7 @@ def align_reads_to_nucs(args, reference_fasta):
     bwa_command += ["-t", str(args.num_threads)]
     if args.pairing == "pe" and not args.reverse:
         bwa_command.append("-p")
-        sys.stderr.write("FASTQ file containing reverse mates was not provided - assuming the reads are interleaved!\n")
-        sys.stderr.flush()
+        logging.debug("FASTQ file containing reverse mates was not provided - assuming the reads are interleaved!\n")
     elif args.pairing == "se":
         bwa_command += ["-S", "-P"]
 
@@ -2806,9 +2804,8 @@ def align_reads_to_nucs(args, reference_fasta):
     p_bwa = subprocess.Popen(' '.join(bwa_command), shell=True, preexec_fn=os.setsid)
     p_bwa.wait()
     if p_bwa.returncode != 0:
-        sys.stderr.write("ERROR: bwa mem did not complete successfully for:\n")
-        sys.stderr.write(str(' '.join(bwa_command)) + "\n")
-        sys.stderr.flush()
+        logging.error("bwa mem did not complete successfully for:\n" +
+                      str(' '.join(bwa_command)) + "\n")
 
     logging.info("done.\n")
 
@@ -2837,10 +2834,9 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
     p_rpkm = subprocess.Popen(' '.join(rpkm_command), shell=True, preexec_fn=os.setsid)
     p_rpkm.wait()
     if p_rpkm.returncode != 0:
-        sys.stderr.write("ERROR: RPKM calculation did not complete successfully for:\n")
-        sys.stderr.write(str(' '.join(rpkm_command)) + "\n")
-        sys.stderr.flush()
-
+        logging.error("RPKM calculation did not complete successfully for:\n" +
+                      str(' '.join(rpkm_command)) + "\n")
+        sys.exit(3)
     logging.info("done.\n")
 
     return rpkm_output_file
@@ -3240,6 +3236,9 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
     :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
     :return:
     """
+
+    logging.debug("Filtering low-quality placements.\n")
+
     for denominator in tree_saps:
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
         distant_seqs = list()
@@ -3288,6 +3287,7 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
                 continue
 
             # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
+            # TODO: Improve the algorithms in find_cluster and compilation of clade_tip_distances
             ancestor = find_cluster(parent)
             clade_tip_distances = list()
             for leaf in ancestor.get_leaf_names():
@@ -3303,6 +3303,8 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
                       " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n" +
                       marker_build_dict[denominator].cog + " queries with extremely long placement distances:\n\t" +
                       "\n\t".join(distant_seqs) + "\n")
+
+    logging.debug("Completed filtering of low-quality placements.\n")
 
     return tree_saps
 
@@ -3489,10 +3491,15 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
     :param rpkm_output_file:
     :return:
     """
+    logging.debug("Generating inputs for iTOL... ")
+    
     itol_base_dir = args.output + 'iTOL_output' + os.sep
     if not os.path.exists(itol_base_dir):
         os.mkdir(itol_base_dir)  # drwxr-xr-x
     # Now that all the JPlace files have been loaded, generate the abundance stats for each marker
+    
+    strip_missing = []
+    style_missing = []
     for denominator in tree_saps:
         if len(tree_saps[denominator]) == 0:
             # No sequences that were mapped met the minimum likelihood weight ration threshold. Skipping!
@@ -3518,9 +3525,9 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
         colours_styles = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colours_style.txt"])
         colour_strip = os.sep.join([args.treesapp, "data", "iTOL_datasets", marker + "_colour_strip.txt"])
         if colours_styles not in annotation_style_files:
-            logging.debug("A colours_style.txt file does not yet exist for marker " + marker + "\n")
+            style_missing.append(marker)
         if colour_strip not in annotation_style_files:
-            logging.debug("A colour_strip.txt file does not yet exist for marker " + marker + "\n")
+            strip_missing.append(marker)
 
         for annotation_file in annotation_style_files:
             shutil.copy(annotation_file, itol_base_dir + marker)
@@ -3529,6 +3536,14 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
                            rpkm_output_file,
                            marker,
                            tree_saps[denominator])
+
+    logging.debug("done.\n")
+    if style_missing:
+        logging.debug("A colours_style.txt file does not yet exist for markers:\n\t" + 
+                      "\n\t".join(style_missing) + "\n")
+    if strip_missing:
+        logging.debug("A colours_strip.txt file does not yet exist for markers:\n\t" +
+                      "\n\t".join(strip_missing) + "\n")
 
     return
 

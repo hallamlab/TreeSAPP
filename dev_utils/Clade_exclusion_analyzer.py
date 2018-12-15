@@ -1419,7 +1419,7 @@ def main():
             ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
             depth = ranks[rank]
             for lineage in unique_query_lineages:
-                taxon = re.sub(' ', '_', lineage.split("; ")[-1])
+                taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
                 rank_tax = rank[0] + '_' + taxon
                 treesapp_output = args.output + os.sep + rank_tax + os.sep
 
