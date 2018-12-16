@@ -1,28 +1,27 @@
 #include "utilities.h"
-//#include <iostream>
-//#include <fstream>
+#include <stdlib.h>
 
 
 void Options::print_usage(char *arg) {
-    std::cout << "\nUSAGE : "   << arg << " --c contigs.fasta --s alignments.sam --o RPKMs.csv\n\n"\
-            << "Required arguments:   \n"
-            << "-c  <contigs_file>    \n"\
-            << "-a  <alignment_file>  [SAM format]\n"\
-            << "-o  <output_file>     \n\n"\
-            << "Optional arguments:   \n"
-            << "-n  <num_reads>       [default = number of reads in SAM]\n"\
-            << "-s  <stats_file>      \n\n"\
+    std::cout << "\nUSAGE : " << arg << " -c contigs.fasta -a alignments.sam [-a alignments_N.sam] -o RPKMs.csv\n\n"\
+    << "Required arguments:   \n"
+    << "-c  <contigs.fasta>   \n"\
+    << "-a  <alignments.sam>  \n"\
+    << "-o  <output_file.csv> \n\n"\
+    << "Optional arguments:   \n"
+    << "-n  <num_reads>       [default = number of reads in SAM]\n"\
+    << "-s  <stats_file>      \n\n"\
 
-            << "--m                   \n"\
-            << "\tUse this flag to use multireads in RPKM calculations "\
-            << "(i.e., turn off masking of low-complexity regions).\n"\
-            << "\tReads aligning to multiple loci will evenly distributed amongst the contigs.\n"
-            << "--verbose             [shows run status]\n"\
-            << "--h                   [ for help ]\n"\
-            << std::endl;
+    << "--m                   \n"\
+    << "\tUse this flag to use multireads in RPKM calculations "\
+    << "(i.e., turn off masking of low-complexity regions).\n"\
+    << "\tReads aligning to multiple loci will evenly distributed amongst the contigs.\n"
+    << "--verbose             [shows run status]\n"\
+    << "--h                   [ for help ]\n"\
+    << std::endl;
 }
 
-bool Options::SetOptions(int argc, char *argv[]) { 
+bool Options::SetOptions(int argc, char *argv[]) {
    for(int i = 1; i < argc ; i++) {
        if( strncmp(argv[i], "-c", strlen("-c")) == 0 ) {
           this->contigs_file = argv[++i];
@@ -33,10 +32,10 @@ bool Options::SetOptions(int argc, char *argv[]) {
        }   
        else if( strncmp(argv[i], "-s", strlen("-s")) == 0 ) {
           this->stats_file = argv[++i];
-       }   
+       }
        else if(strncmp(argv[i], "-a", strlen("-a")) == 0 ) {
           this->read_map_files.push_back(string(argv[++i]));
-       }   
+       }
        else if(strncmp(argv[i], "--verbose", strlen("--verbose")) == 0 ) {
           this->show_status = true;
        }
@@ -51,37 +50,36 @@ bool Options::SetOptions(int argc, char *argv[]) {
        }
     } //for loop for arguments processing
 
-   if ( this->contigs_file.size()==0) {
+   if ( this->contigs_file.empty()) {
        std::cout << "ERROR: There must be a contigs file" << std::endl;
        return false;
    }
 
-   if ( this->read_map_files.size()==0 ) {
-       std::cout << "ERROR: There must be a at least one read map file" << std::endl;
+   if ( this->read_map_files.empty()) {
+       std::cout << "ERROR: There must be at least one SAM file" << std::endl;
        return false;
    }
 
-   if ( this->output_file.size()==0) {
-       std::cout << "ERROR: There must be a output file prefix" << std::endl;
+   if ( this->output_file.empty()) {
+       std::cout << "ERROR: There must be a output file path" << std::endl;
        return false;
    }
    return true;
-    
 };
- 
-//this function gets us in a map the name of a sequnce and length
-// as in the provided fasta file
-void get_fasta_sequence_info(const std::string & fasta_file_name) {
 
+void get_fasta_sequence_info(const std::string & fasta_file_name) {
+    /*
+     * This function prints a map of each sequence's name and its length
+     */
     std::ifstream input(fasta_file_name.c_str());
     if(!input.good()){
-        std::cerr << "Error opening '"<<fasta_file_name<<"'. Bailing out." << std::endl;
+        std::cerr << "Error opening '" << fasta_file_name << "'. Bailing out." << std::endl;
         return ;
     }
  
     std::string line, name, content;
     while( std::getline( input, line ).good() ){
-        if( line.empty() || line[0] == '>' ){ // Identifier marker
+        if( line.empty() || line[0] == '>' ){ // Sequence record name
             if( !name.empty() ){ // Print out what we read from the last entry
                 std::cout << extract_sequence_name(name) << " : " << content.size() << std::endl;
                 name.clear();
@@ -144,9 +142,8 @@ void split(const string  &strn, std::vector<char *> &v, char *buf, char d) {
 bool matchString(const string &str, const string & stringtomatch, bool fromstart) {
 
     unsigned long pos = str.find(stringtomatch);
-    if(fromstart &&  pos ==0 ) return true;
+    if(fromstart && pos ==0 ) return true;
 
-    if( !fromstart && pos >= 0) return true;
-    return false;
+    return !fromstart && pos >= 0;
 
 }

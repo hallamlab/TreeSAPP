@@ -37,7 +37,7 @@ bool SamFileParser::getMateInfo(unsigned int i, MATCH &match)  {
      */
 
     unsigned int a = i;
-    bool singleton  = 0;
+    bool singleton = 0;
     a = a >> 2;
     match.mapped = !(a&1); 
     singleton = a&1;
@@ -82,7 +82,7 @@ bool SamFileParser::nextline(MATCH &match) {
 
          _success = true;
          break;
-     }  
+     }
     
      if ( _success )  {
          match.query =  fields[0];

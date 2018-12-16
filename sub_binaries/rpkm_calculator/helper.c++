@@ -23,7 +23,7 @@ unsigned long create_contigs_dictionary(std::string contigs_file, std::map<std::
 }
 
 
-RUN_STATS detect_multireads_samfile(const std::string &SAM_file, const std::string &format,\
+RUN_STATS consume_sam(const std::string &SAM_file, const std::string &format,\
      vector<MATCH> &all_reads, map<std::string, float > &multireads, bool show_status) {
 
     MatchOutputParser *parser = ParserFactory::createParser(SAM_file, format);
@@ -37,13 +37,16 @@ RUN_STATS detect_multireads_samfile(const std::string &SAM_file, const std::stri
     vector<std::string> holder;
    
     if ( show_status )
-        std::cout << std::endl << "Number of reads processed : " ;
+        std::cout << "Number of lines processed: " << std::endl;
 
     RUN_STATS stats;
 
     int i;
     struct QUADRUPLE <bool, bool, unsigned int, unsigned int> p;
     for ( i =0; ; i++ ) {
+        if (show_status && i % 10000 == 0)
+            std::cout << "\n\033[F\033[J" << i;
+
         if (!parser->nextline(match))
             break;
 
@@ -65,7 +68,7 @@ RUN_STATS detect_multireads_samfile(const std::string &SAM_file, const std::stri
             p.fourth = 0;
             reads_dict[match.query] = p;
         }
-        stats.num_total_reads++;
+        stats.num_alignments++;
 
         // if it is not mapped then ignore it
         if (!match.mapped)
@@ -86,11 +89,6 @@ RUN_STATS detect_multireads_samfile(const std::string &SAM_file, const std::stri
         }
         catch (...) {
             cout << "failing " << match.query << "   " << all_reads.size() << endl;
-        }
-
-        if (show_status && i % 10000 == 0) {
-            std::cout << "\n\033[F\033[J";
-            std::cout << i;
         }
 
     }
@@ -182,19 +180,11 @@ void process_SAM(const std::string & reads_map_file, std::map<string, CONTIG> &c
             read_datum.end = it->end;
         }
         else {
-           read_datum.start = it->end;
-           read_datum.end = it->start;
+            read_datum.start = it->end;
+            read_datum.end = it->start;
         }
-        /*
-        if( it->w ==0 ) {
-            std::cout << "why zero " << it->w <<std::endl;
-        }
-        triplet.multi = it->w;
-        if( triplet.multi==0 ) {
-            std::cout << "why zero in triplet " << it->w <<std::endl;
-        }
-        */
-       contigs_dictionary[it->subject].M.push_back(read_datum);
+
+        contigs_dictionary[it->subject].M.push_back(read_datum);
     }
 }
 
@@ -215,8 +205,9 @@ unsigned int getMaxReadSize( std::map<string, vector<MATCH> > &orf_dictionary,
 
 std::vector<READ_DATUM>::iterator  binary_search(std::vector<READ_DATUM> &A, int seekValue) {
   // continually narrow search until just one element remains
-  unsigned int imin, imax;
-  imin = 0; imax = A.size();
+  unsigned long imin, imax;
+  imin = 0;
+  imax = A.size();
 
   while (imin < imax)
     {
@@ -251,8 +242,8 @@ void substring_coverage(std::map<string, CONTIG> &contigs_dictionary, const std:
     }
 
     float numreads = 0;
-    float uncovered_length = 0;
     float _coverage = 0;
+    unsigned long uncovered_length = 0;
     unsigned long p_end = start;
 
     int _seekValue =  maxReadLength == 0 ? 0 :  (start < maxReadLength ? 0 : start-maxReadLength );

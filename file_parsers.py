@@ -31,7 +31,7 @@ def parse_ref_build_params(args):
         logging.error("Header of '" + ref_build_parameters + "' is unexpected!")
         sys.exit(5)
 
-    logging.info("Reading build parameters of reference markers... ")
+    logging.debug("Reading build parameters of reference markers... ")
     skipped_lines = []
     missing_info = []
     marker_build_dict = dict()
@@ -53,12 +53,14 @@ def parse_ref_build_params(args):
             marker_build.check_rank()
     param_handler.close()
 
-    logging.info("done.\n")
+    logging.debug("done.\n")
 
-    logging.debug("Rank distance information missing for:\n\t" +
-                  "\n\t".join([mb.cog + '-' + mb.denominator for mb in missing_info]) + "\n")
-    logging.debug("Skipped the following lines:\n\t" +
-                  "\n\t".join(skipped_lines) + "\n")
+    if missing_info:
+        logging.debug("Rank distance information missing for:\n\t" +
+                      "\n\t".join([mb.cog + '-' + mb.denominator for mb in missing_info]) + "\n")
+    if skipped_lines:
+        logging.debug("Skipped the following lines:\n\t" +
+                      "\n\t".join(skipped_lines) + "\n")
     return marker_build_dict
 
 
@@ -818,3 +820,36 @@ def read_uc(uc_file):
             sys.exit(13)
         line = uc.readline()
     return cluster_dict
+
+
+def read_rpkm(rpkm_output_file):
+    """
+    Read the CSV file written by rpkm. A header and line with unmapped reads is expected and are skipped.
+    Each line is expected to have 4 elements: Sample ID, sequence name, number of reads recruited, RPKM
+    :param rpkm_output_file: A file path
+    :return: Dictionary mapping contig names to floats
+    """
+    rpkm_values = dict()
+
+    try:
+        rpkm_stats = open(rpkm_output_file)
+    except IOError:
+        logging.error("Unable to open " + rpkm_output_file + " for reading!\n")
+        sys.exit(13)
+
+    # Skip the header
+    next(rpkm_stats)
+    # Skip the line with unaligned reads
+    next(rpkm_stats)
+    for line in rpkm_stats:
+        # Line format is Sample ID (output file name), sequence name, number of reads recruited, RPKM
+        try:
+            _, seq_name, _, rpkm = line.strip().split(',')
+        except ValueError:
+            n_values = str(len(line.split(',')))
+            logging.error("Unexpected line format in RPKM file - should contain 4 elements, "
+                          "" + n_values + " encountered. Offending line:\n" + line + "\n")
+            sys.exit(13)
+        rpkm_values[seq_name] = float(rpkm)
+    rpkm_stats.close()
+    return rpkm_values
