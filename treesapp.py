@@ -3,10 +3,11 @@
 
 __author__ = "Connor Morgan-Lang and Kishori Konwar"
 __maintainer__ = "Connor Morgan-Lang"
-__license__ = "GPL"
+__license__ = "GPL-3.0"
 __version__ = "1.1.0"
 
 try:
+    import profile
     import argparse
     import sys
     import os
@@ -3197,11 +3198,13 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
     :return:
     """
 
-    logging.debug("Filtering low-quality placements.\n")
+    logging.info("Filtering low-quality placements... ")
+    distant_seqs = dict()
 
     for denominator in tree_saps:
-        tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker_build_dict[denominator].cog + "_tree.txt"]))
-        distant_seqs = list()
+        marker = marker_build_dict[denominator].cog
+        distant_seqs[marker] = list()
+        tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker + "_tree.txt"]))
         for tree_sap in tree_saps[denominator]:
             # max_dist_threshold equals the maximum path length from root to tip in its clade
             max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold, but good for first pass
@@ -3242,29 +3245,28 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
             if pendant_length > max_dist_threshold:
                 # print("Global", tree_sap.summarize())
                 unclassified_counts[tree_sap.name] += 1
-                distant_seqs.append(tree_sap.contig_name)
+                distant_seqs[marker].append(tree_sap.contig_name)
                 tree_sap.classified = False
                 continue
 
             # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
-            # TODO: Improve the algorithms in find_cluster and compilation of clade_tip_distances
-            ancestor = find_cluster(parent)
-            clade_tip_distances = list()
-            for leaf in ancestor.get_leaf_names():
-                clade_tip_distances.append(ancestor.get_distance(leaf))
+            ancestor, clade_tip_distances = find_cluster(parent)
             # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
             if pendant_length > max(clade_tip_distances) * 1.2 and \
                     rank_recommender(pendant_length, marker_build_dict[denominator].pfit) < 0:
                 unclassified_counts[tree_sap.name] += 1
-                distant_seqs.append(tree_sap.contig_name)
+                distant_seqs[marker].append(tree_sap.contig_name)
                 tree_sap.classified = False
                 # print("Local", tree_sap.summarize())
-        logging.debug("\t" + str(unclassified_counts[marker_build_dict[denominator].cog]) +
-                      " " + marker_build_dict[denominator].cog + " sequence(s) detected but not classified.\n" +
-                      marker_build_dict[denominator].cog + " queries with extremely long placement distances:\n\t" +
-                      "\n\t".join(distant_seqs) + "\n")
+    logging.info("done.\n")
 
-    logging.debug("Completed filtering of low-quality placements.\n")
+    for marker in distant_seqs:
+        # unclassified_counts[marker] will always be >= distant_seqs[marker]
+        if unclassified_counts[marker] > 0:
+            logging.debug("\t" + str(unclassified_counts[marker]) + " " + marker +
+                          " sequence(s) detected but not classified.\n" +
+                          marker + " queries with extremely long placement distances:\n\t" +
+                          "\n\t".join(distant_seqs[marker]) + "\n")
 
     return tree_saps
 

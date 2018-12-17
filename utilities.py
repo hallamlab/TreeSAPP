@@ -342,14 +342,23 @@ def clean_lineage_string(lineage):
     return lineage
 
 
-def median(lst):
-    n = len(lst)
+def median(num_list: list):
+    n = len(num_list)
     if n < 1:
             return None
     if n % 2 == 1:
-            return sorted(lst)[n//2]
+            return sorted(num_list)[n//2]
     else:
-            return sum(sorted(lst)[n//2-1:n//2+1])/2.0
+            return sum(sorted(num_list)[n//2-1:n//2+1])/2.0
+
+
+def mean(num_list: list):
+    """
+    Simple function for a returning a floating-point integer for the mean of a list of numbers
+    :param num_list: List of numbers
+    :return: Float
+    """
+    return float(sum(num_list) / len(num_list))
 
 
 def convert_outer_to_inner_nodes(clusters, internal_node_map):

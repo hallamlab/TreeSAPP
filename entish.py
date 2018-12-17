@@ -4,7 +4,7 @@ import sys
 import re
 import _tree_parser
 import os
-from utilities import Autovivify
+from utilities import Autovivify, mean
 from ete3 import Tree
 from scipy import log2
 
@@ -69,40 +69,46 @@ def find_mean_pairwise_distances(children):
     return sum(pairwise_dists) / len(pairwise_dists)
 
 
-def find_mean_leaf_distances(parent_node):
+def get_tip_distances(parent_node):
     children = parent_node.get_leaves()
     distances = [parent_node.get_distance(child) for child in children]
-    return sum(distances) / len(distances)
+    return distances
 
 
-def find_cluster(lost_node: Tree):
+def find_cluster(lost_node: Tree, intra_distances: list = None):
     """
-    Function for determining the ancestor of the cluster which lost_node belongs to
+    Recursively calculates whether a node in a tree is the root of a cluster,
+    where a cluster is defined as a sub-tree (clade) whose members satisfy the condition:
+     the distance to the parent of the current subtree's root multiplied by the logarithm base 2 of the number of
+     cousins is greater than the mean(intra-cluster root-to-tip distances).
+    Adding a large number of members to the clade is penalized, as well as large distances from the existing subtree to
+    a new parent.
 
     :param lost_node: A node within a tree, for which we want to orient
-    :return: Tree node
+    :param intra_distances: A list with the current set of leaf-tip distances
+    :return: Tree node, a list of float distances
     """
     parent = lost_node.up
     if lost_node.is_root() or parent.is_root():
-        return lost_node
+        return lost_node, intra_distances
 
-    # Find the intra-cluster leaf distances
-    mean_intra = find_mean_leaf_distances(lost_node)
+    if not intra_distances:
+        # If this is the initial attempt at finding lost_node's cluster, find the intra-cluster leaf distances
+        intra_distances = get_tip_distances(lost_node)
 
-    # Penalty for increasing the size of the clade
+    # Penalty for increasing the size of the clade is log-base 2
     cousins = lost_node.get_sisters()[0].get_leaf_names()
-    parent_dist = parent.get_distance(lost_node) * log2(len(cousins) + 1)
+    parent_dist = parent.get_distance(lost_node)
+    cost = parent_dist * log2(len(cousins) + 1)
 
-    while mean_intra > parent_dist:
-        lost_node = parent
-        parent = lost_node.up
-        if parent is None:
-            break
-        mean_intra = find_mean_leaf_distances(lost_node)
-        cousins = lost_node.get_sisters()[0].get_leaf_names()
-        parent_dist = parent.get_distance(lost_node) * log2(len(cousins) + 1)
+    if mean(intra_distances) > cost:
+        return lost_node, intra_distances
 
-    return lost_node
+    # Add the distance from the parent to the
+    intra_distances = [dist+parent_dist for dist in intra_distances]
+    for cousin in cousins:
+        intra_distances.append(parent.get_distance(cousin))
+    return find_cluster(parent, intra_distances)
 
 
 def subtrees_to_dictionary(subtrees_string, tree_info):
