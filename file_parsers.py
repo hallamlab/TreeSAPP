@@ -128,7 +128,7 @@ def best_match(matches):
     return best_target_hmm, best_alignment
 
 
-def parse_domain_tables(args, hmm_domtbl_files):
+def parse_domain_tables(args, hmm_domtbl_files, single=True):
     # Check if the HMM filtering thresholds have been set
     if not hasattr(args, "min_e"):
         args.min_e = 0.01
@@ -179,18 +179,23 @@ def parse_domain_tables(args, hmm_domtbl_files):
             hmm_matches[target_hmm].append(orf_gene_map[orf][target_hmm])
         else:
             optional_matches = [orf_gene_map[orf][target_hmm] for target_hmm in orf_gene_map[orf]]
-            target_hmm, match = best_match(optional_matches)
-            hmm_matches[target_hmm].append(match)
-            multi_alignments += 1
-            dropped += (len(optional_matches) - 1)
+            if single is False:
+                for match in optional_matches:
+                    hmm_matches[match.target_hmm].append(match)
+                seqs_identified += len(optional_matches) - 1
+            else:
+                target_hmm, match = best_match(optional_matches)
+                hmm_matches[target_hmm].append(match)
+                multi_alignments += 1
+                dropped += (len(optional_matches) - 1)
 
-            dropped_annotations = list()
-            for optional in optional_matches:
-                if optional.target_hmm != target_hmm:
-                    dropped_annotations.append(optional.target_hmm)
-            logging.debug("HMM search annotations for " + orf +
-                          ":\n\tRetained\t" + target_hmm +
-                          "\n\tDropped\t" + ','.join(dropped_annotations) + "\n")
+                dropped_annotations = list()
+                for optional in optional_matches:
+                    if optional.target_hmm != target_hmm:
+                        dropped_annotations.append(optional.target_hmm)
+                logging.debug("HMM search annotations for " + orf +
+                              ":\n\tRetained\t" + target_hmm +
+                              "\n\tDropped\t\t" + ','.join(dropped_annotations) + "\n")
 
         seqs_identified += 1
 
