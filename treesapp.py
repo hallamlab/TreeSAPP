@@ -3251,6 +3251,11 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
 
             # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
             ancestor, clade_tip_distances = find_cluster(parent)
+            if not clade_tip_distances:
+                # Either the parent or ancestor is the root, so there are many children. This doesn't scale well.
+                # TODO: Decrease the number of leaves sampled for this distance
+                leaf, dist = parent.get_farthest_leaf()
+                clade_tip_distances.append(dist)
             # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
             if pendant_length > max(clade_tip_distances) * 1.2 and \
                     rank_recommender(pendant_length, marker_build_dict[denominator].pfit) < 0:
