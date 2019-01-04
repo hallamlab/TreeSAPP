@@ -58,12 +58,10 @@ def read_accession_list(args):
     try:
         list_handler = open(args.input, 'r')
     except IOError:
-        sys.stderr.write("\tERROR: Unable to open " + args.input + " for reading!\n")
+        logging.error("Unable to open " + args.input + " for reading!\n")
         sys.exit(1)
 
-    if args.verbose:
-        sys.stdout.write("Reading accession list file... ")
-        sys.stdout.flush()
+    logging.debug("Reading accession list file... ")
     line = list_handler.readline()
     while line:
         if line[0] == '>':
@@ -75,9 +73,8 @@ def read_accession_list(args):
         
     list_handler.close()
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.write(str(len(accessions)) + " accessions parsed from " + args.input + "\n")
+    logging.debug("done.\n")
+    logging.info(str(len(accessions)) + " accessions parsed from " + args.input + "\n")
 
     return accessions
 
@@ -87,12 +84,10 @@ def read_stockholm(args):
     try:
         stklm_handler = open(args.input, 'r')
     except IOError:
-        sys.stderr.write("\tERROR: Unable to open " + args.input + " for reading!\n")
+        logging.error("Unable to open " + args.input + " for reading!\n")
         sys.exit(1)
 
-    if args.verbose:
-        sys.stdout.write("Reading stockholm file... ")
-        sys.stdout.flush()
+    logging.debug("Reading stockholm file... ")
 
     stockholm_header_re = re.compile("^#=GS (.*)/([0-9])+-([0-9])+\w+.*")
     # We are able to include the start and end coordinates for downstream sequence slicing
@@ -105,52 +100,69 @@ def read_stockholm(args):
 
     stklm_handler.close()
 
-    if args.verbose:
-        sys.stdout.write("done.\n")
-        sys.stdout.write(str(len(accessions)) + " accessions parsed from " + args.input + "\n")
+    logging.debug("done.\n")
+    logging.debug(str(len(accessions)) + " accessions parsed from " + args.input + "\n")
 
     return accessions
 
 
 def parse_entrez_xml(args, xml_string):
+    """
+    This function is only ever used if the input molecule type is not identical to the desired output molecule type.
+
+    Parse the xml string returned by Entrez and return either a list or empty string if the query was unsuccessful
+    or a string with the format:
+
+     >accession [organism]
+     sequence
+    :param args:
+    :param xml_string:
+    :return:
+    """
     sequence = ""
     organism = ""
     accession = ""
-    # Header format will be: > + accession + '_' + GBSeq_organism
     record = Entrez.read(xml_string)
-    if args.molecule_in == "protein":
-        sys.stderr.write("\tThis is untested :) Here is the information you need:\n")
-        print(record)
-        sys.exit()
-    else:
-        if not record:
-            return ""
-        for sub_info in record:
-            if 'GBSeq_feature-table' in sub_info.keys():
-                for feature in sub_info['GBSeq_feature-table']:
-                    for feature_key in feature:
-                        if feature_key == "GBFeature_key":
-                            if feature[feature_key] == "CDS":
-                                for element in feature["GBFeature_quals"]:
-                                    if element['GBQualifier_name'] == "translation":
+    if not record:
+        return ""
+
+    for sub_info in record:
+        if 'GBSeq_feature-table' in sub_info.keys():
+            for feature in sub_info['GBSeq_feature-table']:
+                for feature_key in feature:
+                    if feature_key == "GBFeature_key":
+                        if feature[feature_key] == "CDS":
+                            for element in feature["GBFeature_quals"]:
+                                if args.molecule_in == "protein" and element['GBQualifier_name'] == "coded_by":
+                                        seq_name, positions = element['GBQualifier_value'].split(':')
+                                        start, end = positions.split("..")
+                                        try:
+                                            handle = Entrez.efetch(db="nucleotide", id=str(seq_name),
+                                                                   rettype="fasta")
+                                            scf = handle.read()
+                                            long_scf = ''.join(scf.split("\n")[1:])
+                                            sequence = long_scf[(int(start) - 1):int(end)]
+                                        except error.HTTPError:
+                                            return ""
+                                elif element['GBQualifier_name'] == "translation":
                                         sequence = element['GBQualifier_value']
-                                    else:
-                                        pass
-                            elif feature[feature_key] == "source":
-                                for element in feature["GBFeature_quals"]:
-                                    if element['GBQualifier_name'] == "organism":
-                                        organism = element['GBQualifier_value']
-                                    else:
-                                        pass
-                        elif feature_key == 'GBFeature_intervals' and accession == "":
-                            for element in feature['GBFeature_intervals']:
-                                accession = element['GBInterval_accession']
-                if sequence == "" or accession == "":
-                    return [accession, organism, sequence, record]
-                else:
-                    return '>' + accession + ' [' + organism + "]\n" + sequence
+                                else:
+                                    pass
+                        elif feature[feature_key] == "source":
+                            for element in feature["GBFeature_quals"]:
+                                if element['GBQualifier_name'] == "organism":
+                                    organism = element['GBQualifier_value']
+                                else:
+                                    pass
+                    elif feature_key == 'GBFeature_intervals' and accession == "":
+                        for element in feature['GBFeature_intervals']:
+                            accession = element['GBInterval_accession']
+            if sequence == "" or accession == "":
+                return [accession, organism, sequence, record]
             else:
-                pass
+                return '>' + accession + ' [' + organism + "]\n" + sequence
+        else:
+            pass
     return ""
 
 
@@ -287,6 +299,7 @@ def main():
     if len(accessions) == 0:
         logging.error("No accessions were read from '" + args.input + "'.\n")
         sys.exit(11)
+    # TODO: Extract a accession ID from the header
     fasta_dict = fetch_sequences(args, accessions)
     write_fasta(args, fasta_dict)
 
