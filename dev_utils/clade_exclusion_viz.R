@@ -23,8 +23,9 @@ if (is.null(opt$input_table)){
 # For debugging
 ##
 # prefix <- "~/Desktop/Trimming"
-# input_table <- "manuscript/trimming_clade_exclusion_performance_compilation.tsv"
-# opt <- data.frame(input_table, prefix, stringsAsFactors = FALSE)
+# input_table <- "manuscript/alignment_trimming_clade_exclusion_performance_compilation.tsv"
+# build_params <- "~/Bioinformatics/Hallam_projects/TreeSAPP/data/tree_data/ref_build_parameters.tsv"
+# opt <- data.frame(input_table, prefix, build_params, stringsAsFactors = FALSE)
 
 spec_out <- paste(opt$prefix, "Classification_specificity_bars.png", sep='_')
 sens_out <- paste(opt$prefix, "Classification_sensitivity.png", sep='_')
@@ -48,7 +49,7 @@ taxonomic_hierarchy <- data.frame(Ranks, Position)
 acc_dat <- merge(acc_dat, taxonomic_hierarchy, by.x = "Rank", by.y = "Ranks")
 
 acc_dat <- acc_dat %>% 
-  mutate("Sensitivity" = (Classified*100)/Sequences)
+  mutate("Sensitivity" = (Classified/Sequences))
 
 
 ##
@@ -69,6 +70,8 @@ ggplot(spec_se, aes(x=Distance, y=Proportion, fill=Rank)) +
                 width=0.5, position=pd) +
   scale_fill_brewer(palette = "PuOr") +
   scale_y_continuous(breaks=seq(0,100,10)) +
+  xlab("Distance from Optimal Rank") +
+  ylab("Percentage of Queries") +
   theme(panel.background = element_blank(),
         panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
         panel.grid.minor = element_blank())
@@ -83,7 +86,7 @@ ggplot(acc_dat, aes(x=Rank, y=Sensitivity, fill=Rank)) +
   geom_jitter(colour="black", shape=21, size=3, stroke=1) +
   facet_wrap(~Trial) +
   scale_fill_brewer(palette = "PuOr") +
-  scale_y_continuous(breaks=seq(90,100,2), limits = c(90,100)) +
+  scale_y_continuous(breaks=seq(0.8,1,0.05), limits = c(0.8,1)) +
   theme(panel.background = element_blank(),
         panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
         panel.grid.minor = element_blank())
@@ -109,6 +112,7 @@ ggplot(harm_dist_dat, aes(x=Marker, y=PlaceDist)) +
              shape=21, size=3, alpha=2/3) +
   scale_fill_brewer(palette = "PuOr") +
   facet_wrap(~Trial) +
+  ylab("Cumulative Taxonomic Distance") +
   theme(panel.background = element_blank(),
         panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
         panel.grid.minor = element_blank(),
@@ -116,11 +120,13 @@ ggplot(harm_dist_dat, aes(x=Marker, y=PlaceDist)) +
 ggsave(filename = pdist_out, width = 8, height = 5, dpi = 400)
 
 harm_dist_dat %>%
-  group_by(Trial, Rank) %>% 
+  group_by(Trial) %>% 
   summarise_at(vars(PlaceDist), funs(mean, median))
 
 ##
 # Welch Two Sample t-test between the two trials
 ##
+cat("Trials evaluated: ")
+unlist(unique(harm_dist_dat$Trial)[1:2])
 t.test(filter(harm_dist_dat, Trial == unique(harm_dist_dat$Trial)[1])$PlaceDist,
        filter(harm_dist_dat, Trial == unique(harm_dist_dat$Trial)[2])$PlaceDist)
