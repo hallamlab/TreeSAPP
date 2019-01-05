@@ -106,6 +106,56 @@ def read_stockholm(args):
     return accessions
 
 
+def grab_coding_sequence_entrez(cds):
+    try:
+        seq_name, positions = cds.split(':')
+        start, end = positions.split("..")
+    except ValueError:
+        logging.error("Unexpected formatting of GBQualifier_value:\n\t" + cds)
+        sys.exit(11)
+    try:
+        handle = Entrez.efetch(db="nucleotide", id=str(seq_name), rettype="fasta")
+        scf = handle.read()
+    except error.HTTPError:
+        return ""
+
+    long_scf = ''.join(scf.split("\n")[1:])
+    try:
+        return long_scf[(int(start) - 1):int(end)]
+    except ValueError:
+        # logging.warning("ValueError for CDS: '" + cds + "'\n\t" +
+        #                 "start position = " + start +
+        #                 ", end position = " + end + "\n")
+        start = int(re.sub("[<>]", '', start))
+        end = int(re.sub("[<>]", '', end))
+        return long_scf[(start - 1):end]
+
+
+def reverse_complement(dna_str):
+    return complement(dna_str).reverse()
+
+
+def complement(dna_str):
+    comp = ""
+    for c in dna_str.upper():
+        if c == 'A':
+            comp += 'T'
+        elif c == 'G':
+            comp += 'C'
+        elif c == 'U':
+            comp += 'A'
+        elif c == 'T':
+            comp += 'A'
+        elif c == 'C':
+            comp += 'G'
+        elif c == 'N':
+            comp += 'N'
+        else:
+            logging.warning("Ambiguity character '" + c + "' encountered during complementing process\n")
+            comp += 'N'
+    return comp
+
+
 def parse_entrez_xml(args, xml_string):
     """
     This function is only ever used if the input molecule type is not identical to the desired output molecule type.
@@ -119,50 +169,49 @@ def parse_entrez_xml(args, xml_string):
     :param xml_string:
     :return:
     """
+    if not xml_string:
+        return ""
     sequence = ""
     organism = ""
     accession = ""
-    record = Entrez.read(xml_string)
-    if not record:
-        return ""
 
-    for sub_info in record:
-        if 'GBSeq_feature-table' in sub_info.keys():
-            for feature in sub_info['GBSeq_feature-table']:
-                for feature_key in feature:
-                    if feature_key == "GBFeature_key":
-                        if feature[feature_key] == "CDS":
-                            for element in feature["GBFeature_quals"]:
-                                if args.molecule_in == "protein" and element['GBQualifier_name'] == "coded_by":
-                                        seq_name, positions = element['GBQualifier_value'].split(':')
-                                        start, end = positions.split("..")
-                                        try:
-                                            handle = Entrez.efetch(db="nucleotide", id=str(seq_name),
-                                                                   rettype="fasta")
-                                            scf = handle.read()
-                                            long_scf = ''.join(scf.split("\n")[1:])
-                                            sequence = long_scf[(int(start) - 1):int(end)]
-                                        except error.HTTPError:
-                                            return ""
-                                elif element['GBQualifier_name'] == "translation":
-                                        sequence = element['GBQualifier_value']
+    if 'GBSeq_feature-table' in xml_string.keys():
+        for feature in xml_string['GBSeq_feature-table']:
+            for feature_key in feature:
+                if feature_key == "GBFeature_key":
+                    if feature[feature_key] == "CDS":
+                        for element in feature["GBFeature_quals"]:
+                            if args.molecule_in == "protein" and element['GBQualifier_name'] == "coded_by":
+                                cds = element['GBQualifier_value']
+                                if re.search("complement|join", cds):
+                                    tmp_seq = ""
+                                    instructions = cds.split('(')[:-1]
+                                    loci = cds.strip(')').split('(')[-1]
+                                    for locus in loci.split(','):
+                                        tmp_seq += grab_coding_sequence_entrez(locus)
+                                    if "complement" in instructions:
+                                        sequence = complement(tmp_seq)
                                 else:
-                                    pass
-                        elif feature[feature_key] == "source":
-                            for element in feature["GBFeature_quals"]:
-                                if element['GBQualifier_name'] == "organism":
-                                    organism = element['GBQualifier_value']
-                                else:
-                                    pass
-                    elif feature_key == 'GBFeature_intervals' and accession == "":
-                        for element in feature['GBFeature_intervals']:
-                            accession = element['GBInterval_accession']
-            if sequence == "" or accession == "":
-                return [accession, organism, sequence, record]
-            else:
-                return '>' + accession + ' [' + organism + "]\n" + sequence
+                                    sequence = grab_coding_sequence_entrez(cds)
+                            elif element['GBQualifier_name'] == "translation":
+                                    sequence = element['GBQualifier_value']
+                            else:
+                                pass
+                    elif feature[feature_key] == "source":
+                        for element in feature["GBFeature_quals"]:
+                            if element['GBQualifier_name'] == "organism":
+                                organism = element['GBQualifier_value']
+                            else:
+                                pass
+                elif feature_key == 'GBFeature_intervals' and accession == "":
+                    for element in feature['GBFeature_intervals']:
+                        accession = element['GBInterval_accession']
+        if sequence == "" or accession == "":
+            return [accession, organism, sequence, xml_string]
         else:
-            pass
+            return '>' + accession + ' [' + organism + "]\n" + sequence
+    else:
+        pass
     return ""
 
 
@@ -173,11 +222,14 @@ def fetch_sequences(args, accessions):
     :param accessions:
     :return:
     """
+    chunk_size = 200
+    num_queries = len(accessions)
     fasta_string = ""
     alternative_molecule = ""
+    query_acc_list = list()
     failures = list()
     blanks = list()
-    Entrez.email = "A.N.Other@example.com"
+    Entrez.email = "c.morganlang@gmail.com"
 
     logging.debug("Testing Entrez efetch and your internet connection... ")
 
@@ -195,61 +247,64 @@ def fetch_sequences(args, accessions):
             alternative_molecule = mol
             break
 
-    step_proportion = setup_progress_bar(len(accessions))
+    # Make the lists of query accessions
+    for i in range(0, num_queries, chunk_size):
+        query_acc_list.append(", ".join(accessions[i:i+chunk_size]))
+
+    step_proportion = setup_progress_bar(len(query_acc_list))
     acc = 0.0
 
-    for accession in accessions:
-        if not accession:
-            logging.warning("Blank accession ID found for unknown sequence.\n")
+    for acc_list_chunk in query_acc_list:
+        if not acc_list_chunk:
+            logging.warning("Blank accession chunk encountered.\n")
+            continue
 
         if args.molecule_in == args.seq_out:
+            # TODO: test this
             try:
                 handle = Entrez.efetch(db=args.molecule_in,
-                                       id=str(accession),
+                                       id=str(acc_list_chunk),
                                        rettype="fasta",
                                        retmode="text")
             except error.HTTPError:
                 # Accession ID is for another database, so try and find the correct accession
                 try:
                     genbank_handle = Entrez.efetch(db=alternative_molecule,
-                                                   id=str(accession),
+                                                   id=str(acc_list_chunk),
                                                    rettype="gb",
                                                    retmode="text")
                     gb_record = genbank_handle.read()
                 except error.HTTPError:
-                    failures.append(accession)
-                    acc += 1.0
+                    failures.append(acc_list_chunk)
                     continue
                 if args.molecule_in == "protein":
-                    accession = re.search("protein_id=\"(.*)\"", gb_record).group(1)
+                    acc_list_chunk = re.search("protein_id=\"(.*)\"", gb_record).group(1)
                 else:
                     print("New territory. Figure this out!")
                     print(gb_record)
-                handle = Entrez.efetch(db=args.molecule_in, id=str(accession), rettype="fasta", retmode="text")
+                handle = Entrez.efetch(db=args.molecule_in, id=str(acc_list_chunk), rettype="fasta", retmode="text")
             fasta_seq = handle.read()
             if fasta_seq == "":
-                blanks.append(accession)
-                acc += 1.0
+                blanks.append(acc_list_chunk)
                 continue
         else:
-            handle = (Entrez.efetch(db=args.molecule_in, id=str(accession), retmode="xml"))
-            fasta_seq = parse_entrez_xml(args, handle)
-            if type(fasta_seq) is list:
-                logging.warning("Unable to find the converted accession or sequence for " + accession + "\n")
-                logging.debug("\tAccession: " + fasta_seq[0] + "\n" +
-                              "\tOrganism: " + fasta_seq[1] + "\n" +
-                              "\tSequence: " + str(fasta_seq[2]) + "\n" +
-                              "\tRecord: " + str(fasta_seq[3]) + "\n")
-            elif fasta_seq == "":
-                blanks.append(accession)
-                acc += 1.0
-                continue
+            handle = (Entrez.efetch(db=args.molecule_in, id=str(acc_list_chunk), retmode="xml"))
+            records = Entrez.read(handle)
+            for xml_string in records:
+                fasta_seq = parse_entrez_xml(args, xml_string)
+                if type(fasta_seq) is list:
+                    logging.debug("Unable to find the converted acc_list_chunk or sequence for " + fasta_seq[0] + "\n" +
+                                  "\tAccession: " + fasta_seq[0] + "\n" +
+                                  "\tOrganism: " + fasta_seq[1] + "\n" +
+                                  "\tSequence: " + str(fasta_seq[2]) + "\n" +
+                                  "\tRecord: " + str(fasta_seq[3]) + "\n")
+                elif fasta_seq == "":
+                    blanks.append(fasta_seq[0])
 
-        if fasta_seq and fasta_seq[0] == '>':
-            fasta_string += fasta_seq.strip() + "\n"
-        else:
-            acc += 1.0
-            failures.append(accession)
+                if fasta_seq and fasta_seq[0] == '>':
+                    fasta_string += fasta_seq.strip() + "\n"
+                else:
+                    failures.append(fasta_seq[0])
 
         # Update the progress bar
         acc += 1.0
@@ -261,10 +316,14 @@ def fetch_sequences(args, accessions):
 
     sys.stdout.write("-]\n")
 
-    logging.debug("Unable to fetch information from NCBI:\n" +
-                  '\n'.join(failures) + "\n")
-    logging.debug("Entrez server returned empty fasta sequences:\n" +
-                  "\n".join(blanks) + "\n")
+    if failures:
+        logging.debug("Unable to fetch information from NCBI for " +
+                      str(len(failures)) + '/' + str(num_queries) + ":\n" +
+                      '\n'.join(failures) + "\n")
+    if blanks:
+        logging.debug("Entrez server returned empty fasta sequences for " +
+                      str(len(blanks)) + '/' + str(num_queries) + ":\n" +
+                      "\n".join(blanks) + "\n")
 
     return fasta_string
 
