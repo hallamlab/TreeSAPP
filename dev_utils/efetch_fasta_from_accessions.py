@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import time
 import re
 import sys
 import os
@@ -9,12 +8,12 @@ import inspect
 import logging
 from urllib import error
 from Bio import Entrez
+from tqdm import tqdm
 
 cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from external_command_interface import setup_progress_bar
 from classy import prep_logging
 from fasta import get_headers
 
@@ -251,10 +250,7 @@ def fetch_sequences(args, accessions):
     for i in range(0, num_queries, chunk_size):
         query_acc_list.append(", ".join(accessions[i:i+chunk_size]))
 
-    step_proportion = setup_progress_bar(len(query_acc_list))
-    acc = 0.0
-
-    for acc_list_chunk in query_acc_list:
+    for acc_list_chunk in tqdm(query_acc_list):
         if not acc_list_chunk:
             logging.warning("Blank accession chunk encountered.\n")
             continue
@@ -305,16 +301,6 @@ def fetch_sequences(args, accessions):
                     fasta_string += fasta_seq.strip() + "\n"
                 else:
                     failures.append(fasta_seq[0])
-
-        # Update the progress bar
-        acc += 1.0
-        if acc >= step_proportion:
-            acc -= step_proportion
-            time.sleep(0.1)
-            sys.stdout.write("-")
-            sys.stdout.flush()
-
-    sys.stdout.write("-]\n")
 
     if failures:
         logging.debug("Unable to fetch information from NCBI for " +
