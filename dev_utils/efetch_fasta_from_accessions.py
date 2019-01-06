@@ -15,7 +15,8 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from classy import prep_logging
-from fasta import get_headers
+from fasta import get_headers, get_header_format
+from utilities import return_sequence_info_groups, complement_nucs
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -130,31 +131,6 @@ def grab_coding_sequence_entrez(cds):
         return long_scf[(start - 1):end]
 
 
-def reverse_complement(dna_str):
-    return complement(dna_str).reverse()
-
-
-def complement(dna_str):
-    comp = ""
-    for c in dna_str.upper():
-        if c == 'A':
-            comp += 'T'
-        elif c == 'G':
-            comp += 'C'
-        elif c == 'U':
-            comp += 'A'
-        elif c == 'T':
-            comp += 'A'
-        elif c == 'C':
-            comp += 'G'
-        elif c == 'N':
-            comp += 'N'
-        else:
-            logging.warning("Ambiguity character '" + c + "' encountered during complementing process\n")
-            comp += 'N'
-    return comp
-
-
 def parse_entrez_xml(args, xml_string):
     """
     This function is only ever used if the input molecule type is not identical to the desired output molecule type.
@@ -189,7 +165,7 @@ def parse_entrez_xml(args, xml_string):
                                     for locus in loci.split(','):
                                         tmp_seq += grab_coding_sequence_entrez(locus)
                                     if "complement" in instructions:
-                                        sequence = complement(tmp_seq)
+                                        sequence = complement_nucs(tmp_seq)
                                 else:
                                     sequence = grab_coding_sequence_entrez(cds)
                             elif element['GBQualifier_name'] == "translation":
@@ -284,8 +260,12 @@ def fetch_sequences(args, accessions):
                 blanks.append(acc_list_chunk)
                 continue
         else:
-            handle = (Entrez.efetch(db=args.molecule_in, id=str(acc_list_chunk), retmode="xml"))
-            records = Entrez.read(handle)
+            try:
+                handle = (Entrez.efetch(db=args.molecule_in, id=str(acc_list_chunk), retmode="xml"))
+                records = Entrez.read(handle)
+            except error.HTTPError:
+                logging.error("HTTPError! Here is the id used for this failed query:\n" + acc_list_chunk + "\n")
+                sys.exit(3)
             for xml_string in records:
                 fasta_seq = parse_entrez_xml(args, xml_string)
                 if type(fasta_seq) is list:
@@ -333,8 +313,12 @@ def main():
     if args.format == "stockholm":
         accessions = read_stockholm(args)
     elif args.format == "fasta":
-        # Need to remove the '>'
-        accessions = [header[1:] for header in get_headers(args.input)]
+        accessions = []
+        for header in get_headers(args.input):
+            header_format_re, header_db, header_molecule = get_header_format(header)
+            sequence_info = header_format_re.match(header)
+            accession, _, _, _, _ = return_sequence_info_groups(sequence_info, header_db, header)
+            accessions.append(accession)
     elif args.format == "list":
         accessions = read_accession_list(args)
     else:
@@ -344,7 +328,7 @@ def main():
     if len(accessions) == 0:
         logging.error("No accessions were read from '" + args.input + "'.\n")
         sys.exit(11)
-    # TODO: Extract a accession ID from the header
+
     fasta_dict = fetch_sequences(args, accessions)
     write_fasta(args, fasta_dict)
 

@@ -1217,26 +1217,6 @@ def construct_tree(args, multiple_alignment_file, tree_output_dir):
     return tree_builder
 
 
-def reverse_complement(rrna_sequence):
-    comp = []
-    for c in rrna_sequence:
-        if c == 'A' or c == 'a':
-            comp.append('T')
-        if c == 'G' or c == 'g':
-            comp.append('C')
-        if c == 'U' or c == 'u' or c == 'T' or c == 't':
-            comp.append('A')
-        if c == 'C' or c == 'c':
-            comp.append('G')
-        # In the case input FASTA is a multiple alignment file
-        if c == '.' or c == '-':
-            comp.append(c)
-        else:
-            pass
-    rev_comp = ''.join(reversed(comp))
-    return rev_comp
-
-
 def update_tax_ids_with_lineage(args, tree_taxa_list):
     tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + "tax_ids_%s.txt" % args.code_name
     if not os.path.exists(tax_ids_file):
