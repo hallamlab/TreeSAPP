@@ -197,7 +197,7 @@ def fetch_sequences(args, accessions):
     :param accessions:
     :return:
     """
-    chunk_size = 200
+    chunk_size = 1000
     num_queries = len(accessions)
     fasta_string = ""
     alternative_molecule = ""
@@ -267,6 +267,7 @@ def fetch_sequences(args, accessions):
                 logging.error("HTTPError! Here is the id used for this failed query:\n" + acc_list_chunk + "\n")
                 sys.exit(3)
             for xml_string in records:
+                # TODO: group the records into a single query (involving sig. changes to parse_entrez_xml) for speed
                 fasta_seq = parse_entrez_xml(args, xml_string)
                 if type(fasta_seq) is list:
                     logging.debug("Unable to find the converted acc_list_chunk or sequence for " + fasta_seq[0] + "\n" +

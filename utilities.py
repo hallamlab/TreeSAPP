@@ -591,7 +591,7 @@ def run_papara(executable, tree_file, ref_alignment_phy, query_fasta, molecule):
 
 
 def complement_nucs(nuc_str: str):
-    replacements = set()
+    replacements = []
     comp_str = ""
     trans_map = {"A": "T", "T": "A", "C": "G", "G": "C", "U": "A", 'N': 'N'}
     for c in nuc_str.upper():
@@ -601,12 +601,12 @@ def complement_nucs(nuc_str: str):
             if c == '.' or c == '-':
                 comp_str += c
             else:
-                replacements.add(c)
+                replacements.append(c)
                 comp_str += 'N'
 
     if replacements:
         logging.warning(str(len(replacements)) +
-                        " ambiguity character(s) (" + ', '.join(replacements) +
+                        " ambiguity character(s) (" + ', '.join(sorted(set(replacements))) +
                         ") replaced by 'N' while complementing\n")
     return comp_str
 
