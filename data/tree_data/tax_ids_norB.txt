@@ -1,330 +1,329 @@
-1	Halomicrobium mukohataei DSM 12286 | ACV48093	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Haloarculaceae; Halomicrobium; Halomicrobium mukohataei
-2	Haladaptatus paucihalophilus DX253 | EFW90104	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Haladaptatus; Haladaptatus paucihalophilus
-3	Halobacterium hubeiense | CQH58112	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halobacterium
-4	Halococcus saccharolyticus DSM 5350 | EMA46077	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halococcaceae; Halococcus; Halococcus saccharolyticus
-5	Halococcus salifodinae DSM 8989 | EMA54822	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halococcaceae; Halococcus; Halococcus salifodinae
-6	Halococcus thailandensis JCM 13552 | EMA53543	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halococcaceae; Halococcus; Halococcus thailandensis
-7	Haloferax elongans ATCC BAA-1513 | ELZ84861	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Haloferacales; Haloferacaceae; Haloferax; Haloferax elongans
-8	Candidatus Halobonum tyrrellensis G22 | ESP89840	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Haloferacales; Halorubraceae; Candidatus Halobonum; Candidatus Halobonum tyrrellensis
-9	Halorubrum lacusprofundi ATCC 49239 | ACM57480	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Haloferacales; Halorubraceae; Halorubrum; Halorubrum lacusprofundi
-10	Halopiger xanaduensis SH-6 | AEH38623	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Natrialbales; Natrialbaceae; Halopiger; Halopiger xanaduensis
-11	Haloterrigena salina JCM 13891 | ELZ14457	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Natrialbales; Natrialbaceae; Haloterrigena; Haloterrigena salina
-12	Haloterrigena turkmenica DSM 5511 | ADB59083	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Natrialbales; Natrialbaceae; Haloterrigena; Haloterrigena turkmenica
-13	Halovivax asiaticus JCM 14624 | ELZ09229	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Natrialbales; Natrialbaceae; Halovivax; Halovivax asiaticus
-14	Natronococcus jeotgali DSM 18795 | ELY60828	cellular organisms; Archaea; Euryarchaeota; Halobacteria; Natrialbales; Natrialbaceae; Natronococcus; Natronococcus jeotgali
-15	Acidilobus saccharovorans 345-15 | ADL19053	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Acidilobales; Acidilobaceae; Acidilobus; Acidilobus saccharovorans
-16	Caldisphaera lagunensis DSM 15908 | AFZ70582	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Acidilobales; Caldisphaeraceae; Caldisphaera; Caldisphaera lagunensis
-17	Pyrodictium delaneyi | ALL01353	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Desulfurococcales; Pyrodictiaceae; Pyrodictium
-18	Sulfolobus islandicus HVE10/4 | ADX82169	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Sulfolobus; Sulfolobus islandicus
-19	Pyrobaculum calidifontis JCM 11548 | ABO09324	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum; Pyrobaculum calidifontis
-20	Pyrobaculum oguniense TE7 | AFA39872	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum; Pyrobaculum oguniense
-21	Thermoproteus uzoniensis 768-20 | AEA12999	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermoproteus; Thermoproteus uzoniensis
-22	Vulcanisaeta distributa DSM 14429 | ADN50837	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Vulcanisaeta; Vulcanisaeta distributa
-23	Candidatus Koribacter versatilis Ellin345 | ABF39369	cellular organisms; Bacteria; Acidobacteria; Acidobacteriia; Acidobacteriales; Acidobacteriaceae; Candidatus Koribacter; Candidatus Koribacter versatilis
-24	Candidatus Solibacter usitatus Ellin6076 | ABJ83921	cellular organisms; Bacteria; Acidobacteria; Solibacteres; Solibacterales; Solibacteraceae; Candidatus Solibacter; Candidatus Solibacter usitatus
-25	Acidobacteria bacterium DSM 100886 | AMY09214	cellular organisms; Bacteria; Acidobacteria; unclassified Acidobacteria; Acidobacteria subdivision 6; Luteitalea
-26	Hydrogenivirga sp. 128-5-R1-1 | EDP76020	cellular organisms; Bacteria; Aquificae; Aquificae; Aquificales; Aquificaceae; Hydrogenivirga
-27	Hydrogenobaculum sp. Y04AAS1 | ACG57041	cellular organisms; Bacteria; Aquificae; Aquificae; Aquificales; Aquificaceae; Hydrogenobaculum
-28	Persephonella marina EX-H1 | ACO04857	cellular organisms; Bacteria; Aquificae; Aquificae; Aquificales; Hydrogenothermaceae; Persephonella; Persephonella marina
-29	Sulfurihydrogenibium azorense Az-Fu1 | ACN99774	cellular organisms; Bacteria; Aquificae; Aquificae; Aquificales; Hydrogenothermaceae; Sulfurihydrogenibium; Sulfurihydrogenibium azorense
-30	Paludibacter jiangxiensis | GAT61620	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Paludibacteraceae; Paludibacter
-31	Porphyromonadaceae bacterium ING2-E5B | CEA16478	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Porphyromonadaceae; Fermentimonas
-32	Porphyromonas catoniae F0037 | EKY00231	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Porphyromonadaceae; Porphyromonas; Porphyromonas catoniae
-33	Prevotella sp. oral taxon 472 str. F0295 | EEX51751	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Prevotellaceae; Prevotella; Prevotella sp. oral taxon 472
-34	Tannerella sp. oral taxon BU063 isolate Cell 1/3 | ETK05878	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Tannerellaceae; Tannerella; Tannerella sp. oral taxon HOT-286
-35	Saccharicrinis fermentans DSM 9555 = JCM 21142 | GAF05435	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Marinilabiliaceae; Saccharicrinis; Saccharicrinis fermentans
-36	Draconibacterium sediminis | KJF43657	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Prolixibacteraceae; Draconibacterium
-37	Sunxiuqinia dokdonensis | KOH45077	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Prolixibacteraceae; Sunxiuqinia
-38	Chitinophaga pinensis DSM 2588 | ACU63206	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Chitinophagia; Chitinophagales; Chitinophagaceae; Chitinophaga; Chitinophaga pinensis
-39	Cecembia lonarensis LW9 | EKB49951	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Cyclobacteriaceae; Cecembia; Cecembia lonarensis
-40	Cyclobacteriaceae bacterium AK24 | EON75935	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Cyclobacteriaceae; Lunatimonas
-41	Mariniradius saccharolyticus AK6 | EMS34074	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Cyclobacteriaceae; Mariniradius; Mariniradius saccharolyticus
-42	Cesiribacter andamanensis AMV16 | EMR03382	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Flammeovirgaceae; Cesiribacter; Cesiribacter andamanensis
-43	Fulvivirga imtechensis AK7 | ELR72472	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Flammeovirgaceae; Fulvivirga; Fulvivirga imtechensis
-44	Rufibacter sp. DG31D | AKQ46155	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Hymenobacteraceae; Rufibacter
-45	Epilithonimonas sp. J200 | OAH72837	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Chryseobacterium
-46	Chryseobacterium sp. CBo1 | OCK49658	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Chryseobacterium
-47	Flavobacterium sp. F52 | EJG02926	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Flavobacterium
-48	Flavobacterium piscis | OCB76039	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Flavobacterium
-49	Formosa agariphila KMM 3901 | CDF79951	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Formosa; Formosa agariphila
-50	Galbibacter marinus | EKF55765	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Galbibacter
-51	Lutibacter sp. LP1 | AMC11862	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Lutibacter
-52	Muricauda ruestringensis DSM 13258 | AEM71926	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Muricauda; Muricauda ruestringensis
-53	Myroides marinus | KUF47237	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Myroides
-54	Zobellia galactanivorans | CAZ98446	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Zobellia
-55	Haliscomenobacter hydrossis DSM 1100 | AEE50119	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Saprospiria; Saprospirales; Haliscomenobacteraceae; Haliscomenobacter; Haliscomenobacter hydrossis
-56	Solitalea canadensis DSM 3403 | EHP05832	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Sphingobacteriia; Sphingobacteriales; Sphingobacteriaceae; Solitalea; Solitalea canadensis
-57	Bacteroidetes bacterium OLB12 | KXK21991	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; unclassified Bacteroidetes; unclassified Bacteroidetes (miscellaneous)
-58	Chlorobi bacterium OLB7 | KXK57127	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Chlorobi; unclassified Chlorobi
-59	Nitrospirae bacterium HCH-1 | KWT91861	cellular organisms; Bacteria; Nitrospirae; unclassified Nitrospirae
-60	Omnitrophica bacterium OLB16 | KXK33524	cellular organisms; Bacteria; PVC group; Candidatus Omnitrophica; unclassified Candidatus Omnitrophica
-61	Omnitrophica bacterium OLB16 | KXK39892	cellular organisms; Bacteria; PVC group; Candidatus Omnitrophica; unclassified Candidatus Omnitrophica
-62	Estrella lausannensis | CRX37469	cellular organisms; Bacteria; PVC group; Chlamydiae; Chlamydiia; Parachlamydiales; Criblamydiaceae; Estrella
-63	Parachlamydia acanthamoebae UV-7 | CCB87448	cellular organisms; Bacteria; PVC group; Chlamydiae; Chlamydiia; Parachlamydiales; Parachlamydiaceae; Parachlamydia; Parachlamydia acanthamoebae
-64	Waddlia chondrophila 2032/99 | CCB92015	cellular organisms; Bacteria; PVC group; Chlamydiae; Chlamydiia; Parachlamydiales; Waddliaceae; Waddlia; Waddlia chondrophila
-65	Gemmata sp. SH-PL17 | AMV27643	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Planctomycetales; Gemmataceae; Gemmata
-66	Planctomyces sp. SH-PL62 | AMV40548	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Planctomycetales; Planctomycetaceae; Planctomyces
-67	Rhodopirellula europaea SH398 | EMI24316	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Planctomycetales; Planctomycetaceae; Rhodopirellula; Rhodopirellula europaea
-68	Brevundimonas sp. Root608 | KRA29103	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Caulobacterales; Caulobacteraceae; Brevundimonas
-69	Caulobacter sp. Root1472 | KQZ34018	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Caulobacterales; Caulobacteraceae; Caulobacter
-70	Phenylobacterium zucineum HLK1 | ACG77033	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Caulobacterales; Caulobacteraceae; Phenylobacterium; Phenylobacterium zucineum
-71	Magnetococcus marinus MC-1 | ABK42647	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Magnetococcales; Magnetococcaceae; Magnetococcus; Magnetococcus marinus
-72	Methylocella silvestris BL2 | ACK50466	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Beijerinckiaceae; Methylocella; Methylocella silvestris
-73	Bradyrhizobium japonicum SEMIA 5079 | AHY56019	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Bradyrhizobiaceae; Bradyrhizobium; Bradyrhizobium japonicum
-74	Brucella canis HSK A52141 | AEW15707	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Brucellaceae; Brucella; Brucella canis
-75	Methylocystis sp. SC2 | CCD32286	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
-76	Parvibaculum lavamentivorans DS-1 | ABS62627	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Rhodobiaceae; Parvibaculum; Parvibaculum lavamentivorans
-77	Tepidicaulis marinus | GAK43769	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Rhodobiaceae; Tepidicaulis
-78	Starkeya novella DSM 506 | ADH88474	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Xanthobacteraceae; Starkeya; Starkeya novella
-79	Rhizobiales bacterium NRL2 | ANK82038	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; unclassified Rhizobiales; unclassified Rhizobiales (miscellaneous)
-80	Hyphomonas johnsonii MHS-2 | KCZ94422	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Hyphomonadaceae; Hyphomonas; Hyphomonas johnsonii
-81	Dinoroseobacter shibae DFL 12 = DSM 16493 | ABV94917	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Dinoroseobacter; Dinoroseobacter shibae
-82	Jannaschia rubra | CTQ32736	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Jannaschia
-83	Paracoccus sp. SY | AKE49362	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Paracoccus
-84	Paracoccus sanguinis | KGJ19451	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Paracoccus
-85	Pseudovibrio sp. FO-BEG1 | AEV39054	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Pseudovibrio
-86	Pseudovibrio sp. WM33 | KZL22349	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Pseudovibrio
-87	Rhodobacter sp. AKP1 | EKX56324	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Rhodobacter
-88	Thioclava sp. DT23-4 | KEO60086	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Thioclava
-89	Acidomonas methanolica NBRC 104435 | GAJ30419	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Acetobacteraceae; Acidomonas; Acidomonas methanolica
-90	Gluconobacter oxydans | KXV22589	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Acetobacteraceae; Gluconobacter
-91	Azospirillum brasilense Sp245 | ABY68275	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Azospirillum; Azospirillum brasilense
-92	Azospirillum brasilense Sp245 | CCD03021	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Azospirillum; Azospirillum brasilense
-93	Magnetospirillum magneticum AMB-1 | BAE51748	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Magnetospirillum; Magnetospirillum magneticum
-94	Rhodospirillum centenum SW | ACJ01317	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Rhodospirillum; Rhodospirillum centenum
-95	Sphingobium baderi | ALR19254	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingobium
-96	Sphingobium sp. TKS | AMK22944	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingobium
-97	Sphingobium sp. AM | KXU33436	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingobium
-98	Sphingobium japonicum BiD32 | CCW17321	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingobium; Sphingobium japonicum
-99	Sphingomonas sp. NS2 | AJW29235	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingomonas
-100	Sphingomonas wittichii RW1 | ABQ70952	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingomonas; Sphingomonas wittichii
-101	Sphingomonas wittichii RW1 | ABQ71311	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingomonas; Sphingomonas wittichii
-102	Alphaproteobacteria bacterium BRH_c36 | KUO58476	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; unclassified Alphaproteobacteria; unclassified Alphaproteobacteria (miscellaneous)
-103	Alcaligenes faecalis subsp. faecalis NCIB 8687 | EJC62912	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Alcaligenes; Alcaligenes faecalis; Alcaligenes faecalis subsp. faecalis
-104	Basilea psittacipulmonis DSM 24701 | AIL33205	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Basilea; Basilea psittacipulmonis
-105	Castellaniella defragrans 65Phen | CDM24864	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Castellaniella; Castellaniella defragrans
-106	Alcaligenaceae bacterium LMG 29303 | SBT26129	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Orrella
-107	Pelistega sp. HM-7 | ETD73111	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Pelistega
-108	Pusillimonas sp. T7-7 | AEC19078	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Pusillimonas
-109	Pusillimonas sp. T7-7 | AEC20723	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Pusillimonas
-110	Burkholderia sp. H160 | EEA03904	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Burkholderia
-111	Burkholderia pseudomallei | CFM33249	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Burkholderia; pseudomallei group
-112	Burkholderia pseudomallei | CPI67095	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Burkholderia; pseudomallei group
-113	Cupriavidus sp. SK-4 | EYS85756	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Cupriavidus
-114	Ralstonia sp. PBA | EIZ03729	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Ralstonia
-115	Ralstonia solanacearum | OAI70194	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Ralstonia
-116	Alicycliphilus denitrificans BC | ADU97914	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Alicycliphilus; Alicycliphilus denitrificans
-117	Comamonas aquatica DA1877 | EXU80676	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Comamonas; Comamonas aquatica
-118	Hydrogenophaga sp. Root209 | KRC04530	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Hydrogenophaga
-119	Pelomonas sp. Root1237 | KQV92748	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Pelomonas
-120	Pelomonas sp. Root1444 | KQY81753	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Pelomonas
-121	Polaromonas sp. CF318 | EJL91304	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Polaromonas
-122	Ramlibacter tataouinensis | AMO24031	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Ramlibacter
-123	Albidiferax ferrireducens T118 | ABD69612	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Rhodoferax; Rhodoferax ferrireducens
-124	Variovorax paradoxus | KLN53166	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Variovorax
-125	Duganella sp. Root1480D1 | KQZ44008	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Duganella
-126	Herbaspirillum frisingense GSF30 | EOA05728	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Herbaspirillum; Herbaspirillum frisingense
-127	Herminiimonas arsenicoxydans | CAL60284	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Herminiimonas
-128	Janthinobacterium sp. B9-8 | AMC33517	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Janthinobacterium
-129	Massilia sp. NR 4-1 | AKU20532	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Massilia
-130	Massilia sp. Root418 | KQW94126	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Massilia
-131	Massilia sp. Root1485 | KQZ46836	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Massilia
-132	Paucibacter sp. KCTC 42545 | ALT77183	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; unclassified Burkholderiales; Burkholderiales Genera incertae sedis; Paucibacter
-133	Rhizobacter sp. Root16D2 | KRB14680	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; unclassified Burkholderiales; Burkholderiales Genera incertae sedis; Rhizobacter
-134	Rhizobacter sp. Root16D2 | KRB23924	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; unclassified Burkholderiales; Burkholderiales Genera incertae sedis; Rhizobacter
-135	Chromobacterium subtsugae | OBU88311	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Chromobacteriaceae; Chromobacterium group; Chromobacterium
-136	Pseudogulbenkiania ferrooxidans 2002 | EEG09993	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Chromobacteriaceae; Pseudogulbenkiania; Pseudogulbenkiania ferrooxidans
-137	Vogesella sp. LIG4 | SCK14592	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Chromobacteriaceae; Vogesella
-138	Vogesella sp. LIG4 | SCK19280	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Chromobacteriaceae; Vogesella
-139	Eikenella sp. NML02-A-017 | OAM29161	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Neisseriaceae; Eikenella
-140	Kingella kingae ATCC 23330 | EGK09370	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Neisseriaceae; Kingella; Kingella kingae
-141	Neisseria meningitidis | CWN69997	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Neisseriaceae; Neisseria
-142	Neisseria sp. 74A18 | KPN73283	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Neisseriaceae; Neisseria
-143	Gallionella capsiferriformans ES-2 | ADL54805	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Gallionellaceae; Gallionella; Gallionella capsiferriformans
-144	Methylophilus sp. Leaf414 | KQT33282	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Methylophilaceae; Methylophilus
-145	Nitrosomonas sp. AL212 | ADZ25483	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
-146	Nitrosomonas eutropha C91 | ABI58796	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas eutropha
-147	Nitrosospira multiformis ATCC 25196 | ABB74558	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira; Nitrosospira multiformis
-148	Thiobacillus denitrificans ATCC 25259 | AAZ96776	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Thiobacillaceae; Thiobacillus; Thiobacillus denitrificans
-149	Rugosibacter aromaticivorans | AJP49583	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Rhodocyclales; Rhodocyclaceae; Rugosibacter
-150	Thauera phenylacetica B4P | ENO96840	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Rhodocyclales; Zoogloeaceae; Thauera; Thauera phenylacetica
-151	Candidatus Accumulibacter sp. BA-92 | EXI80261	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; unclassified Betaproteobacteria; Candidatus Accumulibacter
-152	Candidatus Accumulibacter phosphatis clade IIA str. UW-1 | ACV35617	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; unclassified Betaproteobacteria; Candidatus Accumulibacter; Candidatus Accumulibacter phosphatis
-153	Acidiferrobacter thiooxydans | OCX43850	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Acidiferrobacterales; Acidiferrobacteraceae; Acidiferrobacter
-154	Oceanimonas sp. GK1 | AEX99846	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Aeromonadales; Aeromonadaceae; Oceanimonas
-155	Catenovulum agarivorans DS-2 | EWH08327	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Catenovulum; Catenovulum agarivorans
-156	Lacimicrobium alkaliphilum | ALS98048	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Lacimicrobium
-157	Marinobacter sp. JG233 | KMQ76146	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Marinobacter
-158	Marinobacter sp. T13-3 | KXS52193	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Marinobacter
-159	Marinobacter santoriniensis NKSG1 | EMP56376	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Marinobacter; Marinobacter santoriniensis
-160	Paraglaciecola arctica BSs20135 | GAC17330	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Paraglaciecola; Paraglaciecola arctica
-161	Paraglaciecola polaris LMG 21857 | GAC31028	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Paraglaciecola; Paraglaciecola polaris
-162	Thalassomonas actiniarum | KJE41428	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Colwelliaceae; Thalassomonas
-163	Idiomarina woesei | CUA86208	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Idiomarinaceae; Idiomarina
-164	Idiomarina abyssalis | KPD21819	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Idiomarinaceae; Idiomarina
-165	Pseudoalteromonas lipolytica SCSIO 04301 | EWH04220	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Pseudoalteromonadaceae; Pseudoalteromonas; Pseudoalteromonas lipolytica
-166	Pseudoalteromonas translucida KMM 520 | ALS33937	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Pseudoalteromonadaceae; Pseudoalteromonas; Pseudoalteromonas translucida
-167	Shewanella loihica PV-4 | ABO22529	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Shewanellaceae; Shewanella; Shewanella loihica
-168	Cardiobacterium hominis | SAM71030	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cardiobacteriales; Cardiobacteriaceae; Cardiobacterium
-169	Cellvibrio sp. BR | EIK43228	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cellvibrionales; Cellvibrionaceae; Cellvibrio
-170	Cellvibrio japonicus Ueda107 | ACE84886	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cellvibrionales; Cellvibrionaceae; Cellvibrio; Cellvibrio japonicus
-171	Allochromatium vinosum DSM 180 | ADC61875	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Allochromatium; Allochromatium vinosum
-172	Nitrosococcus oceani C-27 | KFI19246	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus oceani
-173	Rheinheimera nanhaiensis E407-8 | GAB57954	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Rheinheimera; Rheinheimera nanhaiensis
-174	Thiocapsa sp. KS1 | CRI63905	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Thiocapsa
-175	Alkalilimnicola ehrlichii MLHE-1 | ABI57460	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Ectothiorhodospiraceae; Alkalilimnicola; Alkalilimnicola ehrlichii
-176	Thioalkalivibrio thiocyanoxidans ARh 4 | EGZ35505	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Ectothiorhodospiraceae; Thioalkalivibrio; Thioalkalivibrio thiocyanoxidans
-177	Wenzhouxiangella marina | AKS42932	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Wenzhouxiangellaceae; Wenzhouxiangella
-178	Woeseia oceani | ANO52552	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Woeseiaceae; Woeseia
-179	Shimwellia blattae DSM 4481 = NBRC 105725 | GAB83209	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Enterobacterales; Enterobacteriaceae; Shimwellia; Shimwellia blattae
-180	Legionella erythra | KTC94532	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-181	Legionella feeleii | KTC96762	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-182	Legionella jordanis | KTD16241	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-183	Legionella nautarum | KTD36360	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-184	Legionella parisiensis | KTD40955	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-185	Legionella quinlivanii | KTD51647	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-186	Legionella spiritensis | KTD61817	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-187	Legionella spiritensis | KTD62206	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-188	Legionella santicrucis | KTD63527	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
-189	Legionella drozanskii LLAP-1 | KTC89111	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella; Legionella drozanskii
-190	Legionella pneumophila subsp. pneumophila ATCC 43290 | AEW52476	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella; Legionella pneumophila; Legionella pneumophila serogroup 12
-191	Legionella maceachernii | SKA28839	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Tatlockia
-192	Methylomonas lenta | OAI19446	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
-193	Alcanivorax pacificus W11-5 | EKE34968	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Alcanivoracaceae; Alcanivorax; Alcanivorax pacificus
-194	Endozoicomonas elysicola | KEI73058	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Endozoicomonaceae; Endozoicomonas
-195	Hahella chejuensis KCTC 2396 | ABC27611	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Hahellaceae; Hahella; Hahella chejuensis
-196	Halomonas halodenitrificans | BAA24701	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Halomonadaceae; Halomonas
-197	Kangiella sediminilitoris | AOE49250	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Kangiellaceae; Kangiella
-198	Oleispira antarctica RB-8 | CCK76351	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Oceanospirillaceae; Oleispira; Oleispira antarctica
-199	Osedax symbiont Rs1 | EPJ43350	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Oceanospirillaceae; unclassified Oceanospirillaceae
-200	Gynuella sunshinyii YC6258 | AJQ94349	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Saccharospirillaceae; Gynuella; Gynuella sunshinyii
-201	Aggregatibacter segnis ATCC 33393 | EFU67830	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pasteurellales; Pasteurellaceae; Aggregatibacter; Aggregatibacter segnis
-202	Gallibacterium genomosp. 1 | OBX01305	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pasteurellales; Pasteurellaceae; Gallibacterium
-203	Moraxella nonliquefaciens | OBX83339	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Moraxellaceae; Moraxella
-204	Moraxella catarrhalis 101P30B1 | EGE25320	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Moraxellaceae; Moraxella; Moraxella catarrhalis
-205	Psychrobacter sp. SHUES1 | OAP67031	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Moraxellaceae; Psychrobacter
-206	Pseudomonas sp. A3(2016) | ANJ56615	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Pseudomonadaceae
-207	Pseudomonas sp. 12M76_air | CEF27543	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Pseudomonadaceae; Pseudomonas
-208	Pseudomonas sp. CFII64 | EPJ75913	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Pseudomonadaceae; Pseudomonas
-209	Pseudomonas sp. CO183 | OCX94535	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Pseudomonadaceae; Pseudomonas
-210	Pseudomonas citronellolis | AMO76351	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Pseudomonadaceae; Pseudomonas; Pseudomonas aeruginosa group
-211	Methylophaga nitratireducenticrescens | AFI83284	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Piscirickettsiaceae; Methylophaga
-212	Methylophaga aminisulfidivorans MP | EGL55729	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Piscirickettsiaceae; Methylophaga; Methylophaga aminisulfidivorans
-213	Achromatium sp. WMS2 | KOR30976	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Thiotrichaceae; Achromatium
-214	Beggiatoa sp. PS | EDN68730	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Thiotrichaceae; Beggiatoa
-215	Beggiatoa sp. PS | EDN69502	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Thiotrichaceae; Beggiatoa
-216	Thioploca ingrica | BAP54632	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Thiotrichaceae; Thioploca
-217	Photobacterium jeanii | OAN13018	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Vibrionales; Vibrionaceae; Photobacterium
-218	Photobacterium damselae subsp. damselae CIP 102761 | EEZ40327	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Vibrionales; Vibrionaceae; Photobacterium; Photobacterium damselae; Photobacterium damselae subsp. damselae
-219	Vibrio sp. UCD-FRSSP16_30 | OBT14007	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Vibrionales; Vibrionaceae; Vibrio
-220	Dyella jiangningensis | AHX15533	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Dyella
-221	Dyella thiooxydans | AND70255	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Dyella
-222	Rhodanobacter denitrificans | AGG89396	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
-223	Rhodanobacter sp. 115 | EIL86843	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
-224	Rhodanobacter sp. 115 | EIL96808	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
-225	Rhodanobacter sp. Root561 | KQZ71077	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
-226	Rhodanobacter sp. Root627 | KRA31873	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
-227	Rhodanobacter sp. Root627 | KRA35515	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
-228	Arenimonas donghaensis DSM 18148 = HO3-R19 | KFL36655	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Arenimonas; Arenimonas donghaensis
-229	Luteimonas sp. JM171 | AOH35199	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Luteimonas
-230	Lysobacter sp. Root667 | KRA72083	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Lysobacter
-231	Lysobacter arseniciresistens ZS79 | KGM56820	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Lysobacter; Lysobacter arseniciresistens
-232	Pseudoxanthomonas sp. Root630 | KRA45391	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Pseudoxanthomonas
-233	Candidatus Competibacter denitrificans Run_A_D11 | CDI04471	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; Competibacteraceae; Candidatus Competibacter; Candidatus Competibacter denitrificans
-234	Thiohalorhabdus denitrificans | KPV40462	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; Thiohalorhabdus
-235	Bathymodiolus azoricus thioautotrophic gill symbiont | CEO93746	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; sulfur-oxidizing symbionts
-236	gamma proteobacterium HdN1 | CBL43845	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
-237	gamma proteobacterium HdN1 | CBL45628	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
-238	gamma proteobacterium IMCC2047 | EGG99962	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
-239	Gammaproteobacteria bacterium SG8_30 | KPJ79428	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
-240	Gammaproteobacteria bacterium SG8_31 | KPK60376	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
-241	Bacteriovorax sp. BAL6_X | EPZ52439	cellular organisms; Bacteria; Proteobacteria; Oligoflexia; Bacteriovoracales; Bacteriovoracaceae; Bacteriovorax
-242	Bdellovibrio bacteriovorus | KYG62321	cellular organisms; Bacteria; Proteobacteria; Oligoflexia; Bdellovibrionales; Bdellovibrionaceae; Bdellovibrio
-243	Bdellovibrio bacteriovorus str. Tiberius | AFY02424	cellular organisms; Bacteria; Proteobacteria; Oligoflexia; Bdellovibrionales; Bdellovibrionaceae; Bdellovibrio; Bdellovibrio bacteriovorus
-244	Desulfococcus multivorans DSM 2059 | SKA03708	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfococcus; Desulfococcus multivorans
-245	Desulfovibrio sp. TomC | KHK01833	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
-246	Geobacter sp. M21 | ACT19063	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter
-247	Geobacter bemidjiensis Bem | ACH40893	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter; Geobacter bemidjiensis
-248	Geobacter daltonii FRC-32 | ACM18395	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter; Geobacter daltonii
-249	Geobacter metallireducens GS-15 | ABB33698	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter; Geobacter metallireducens
-250	Anaeromyxobacter sp. Fw109-5 | ABS26958	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Anaeromyxobacteraceae; Anaeromyxobacter
-251	Anaeromyxobacter sp. K | ACG73680	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Anaeromyxobacteraceae; Anaeromyxobacter
-252	Anaeromyxobacter sp. PSR-1 | GAO01424	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Anaeromyxobacteraceae; Anaeromyxobacter
-253	Anaeromyxobacter sp. PSR-1 | GAO04078	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Anaeromyxobacteraceae; Anaeromyxobacter
-254	Archangium gephyra | AKJ00991	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Archangiaceae; Archangium
-255	Archangium gephyra | AKJ01501	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Archangiaceae; Archangium
-256	Cystobacter fuscus DSM 2262 | EPX58034	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Archangiaceae; Cystobacter; Cystobacter fuscus
-257	Sorangium cellulosum | KYF77729	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Sorangiineae; Polyangiaceae; Sorangium
-258	Sorangium cellulosum So ce56 | CAN93440	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Sorangiineae; Polyangiaceae; Sorangium; Sorangium cellulosum
-259	Sorangium cellulosum So ce56 | CAN98754	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Sorangiineae; Polyangiaceae; Sorangium; Sorangium cellulosum
-260	Enhygromyxa salina | KIG14148	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; unclassified Myxococcales; Enhygromyxa
-261	Desulfomonile tiedjei DSM 6799 | AFM25202	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophaceae; Desulfomonile; Desulfomonile tiedjei
-262	Syntrophobacter fumaroxidans MPOB | ABK18607	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophobacteraceae; Syntrophobacter; Syntrophobacter fumaroxidans
-263	Arcobacter butzleri 7h1h | AGR77642	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Epsilonproteobacteria; Campylobacterales; Campylobacteraceae; Arcobacter; Arcobacter butzleri
-264	Campylobacter gracilis | AKT92422	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Epsilonproteobacteria; Campylobacterales; Campylobacteraceae; Campylobacter
-265	Campylobacter concisus UNSW3 | ERJ21813	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Epsilonproteobacteria; Campylobacterales; Campylobacteraceae; Campylobacter; Campylobacter concisus
-266	Campylobacter showae CSUNSWCD | EKU10776	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Epsilonproteobacteria; Campylobacterales; Campylobacteraceae; Campylobacter; Campylobacter showae
-267	Leptospira sp. B5-022 | EMK01804	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Leptospirales; Leptospiraceae; Leptospira
-268	Leptospira meyeri serovar Hardjo str. Went 5 | EKJ86205	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Leptospirales; Leptospiraceae; Leptospira; Leptospira meyeri; Leptospira meyeri serovar Hardjo
-269	Actinomyces sp. oral taxon 448 str. F0400 | EGQ73949	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Actinomycetales; Actinomycetaceae; Actinomyces; Actinomyces sp. oral taxon 448
-270	Corynebacterium sp. DNF00584 | KXB56447	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium
-271	Corynebacterium diphtheriae bv. gravis str. ISS 4746 | KLN37595	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium; Corynebacterium diphtheriae; Corynebacterium diphtheriae bv. gravis
-272	Corynebacterium doosanense CAU 212 = DSM 45436 | AIT60387	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium; Corynebacterium doosanense
-273	Corynebacterium pseudodiphtheriticum 090104 | ERJ47219	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium; Corynebacterium pseudodiphtheriticum
-274	Corynebacterium pseudotuberculosis CIP 52.97 | AEQ05701	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium; Corynebacterium pseudotuberculosis
-275	Mycobacterium sp. MCS | ABG07680	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium
-276	Mycobacterium sp. GA-1199 | KUI48159	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium
-277	Mycobacterium sinense | OBK87600	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium
-278	Mycobacterium avium subsp. paratuberculosis 11-1786 | ETB43687	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium; Mycobacterium avium complex (MAC); Mycobacterium avium; Mycobacterium avium subsp. paratuberculosis
-279	Mycobacterium abscessus subsp. bolletii | SKO64663	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium; Mycobacterium chelonae group; Mycobacterium abscessus subgroup; Mycobacterium abscessus
-280	Mycobacterium fortuitum | OBG44626	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium; Mycobacterium fortuitum complex
-281	Rhodococcus equi | ORL06309	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Nocardiaceae; Rhodococcus
-282	Brachybacterium faecium DSM 4810 | ACU86624	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Dermabacteraceae; Brachybacterium; Brachybacterium faecium
-283	Arsenicicoccus sp. oral taxon 190 | AKT50410	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Intrasporangiaceae; Arsenicicoccus
-284	Intrasporangium chromatireducens Q5-1 | EWT06483	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Intrasporangiaceae; Intrasporangium; Intrasporangium chromatireducens
-285	Tetrasphaera australiensis Ben110 | CCH74215	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Intrasporangiaceae; Tetrasphaera; Tetrasphaera australiensis
-286	Tetrasphaera japonica T1-X7 | CCH80437	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Intrasporangiaceae; Tetrasphaera; Tetrasphaera japonica
-287	Kocuria flava | ALU38904	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Micrococcaceae; Kocuria
-288	Rothia aeria F0184 | ERT66889	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Micrococcaceae; Rothia; Rothia aeria
-289	Actinoplanes awajinensis subsp. mycoplanecinus | KUL41691	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micromonosporales; Micromonosporaceae; Actinoplanes; Actinoplanes awajinensis
-290	Micromonospora halophytica | SCG70346	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micromonosporales; Micromonosporaceae; Micromonospora
-291	Propionibacterium acidipropionici | AMS07136	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Acidipropionibacterium
-292	Propionibacterium acidipropionici ATCC 4875 | AFV90484	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Acidipropionibacterium; Acidipropionibacterium acidipropionici
-293	Propionibacterium acnes | KPG64553	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Cutibacterium
-294	Propionibacterium freudenreichii | CEH10170	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Propionibacterium
-295	Propionibacterium acidifaciens F0233 | ERK55541	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Propionibacterium; Propionibacterium acidifaciens
-296	Streptomyces sp. F-3 | GAT80013	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Streptomycetales; Streptomycetaceae; Streptomyces
-297	Streptomyces fradiae | KDS84165	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Streptomycetales; Streptomycetaceae; Streptomyces
-298	Chroococcidiopsis thermalis PCC 7203 | AFY88825	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria; Chroococcidiopsidales; Chroococcidiopsidaceae; Chroococcidiopsis; Chroococcidiopsis thermalis
-299	Geitlerinema sp. PCC 7407 | AFY65030	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria; Oscillatoriophycideae; Oscillatoriales; Coleofasciculaceae; Geitlerinema
-300	Oscillatoria nigro-viridis PCC 7112 | AFZ04984	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria; Oscillatoriophycideae; Oscillatoriales; Oscillatoriaceae; Oscillatoria; Oscillatoria nigro-viridis
-301	Synechocystis sp. PCC 6803 | AGF53344	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria; Synechococcales; Merismopediaceae; Synechocystis
-302	Thermus sp. NMX2.A1 | ETN88589	cellular organisms; Bacteria; Terrabacteria group; Deinococcus-Thermus; Deinococci; Thermales; Thermaceae; Thermus
-303	Kyrpidia tusciae DSM 2912 | ADG06795	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Alicyclobacillaceae; Kyrpidia; Kyrpidia tusciae
-304	Bacillus sp. FJAT-18017 | ALC90163	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
-305	Bacillus sp. 1NLA3E | EHP25171	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
-306	Bacillus sp. 1NLA3E | EHP27021	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
-307	Bacillus sp. FJAT-18043 | KQL18366	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
-308	Bacillus azotoformans LMG 9581 | EKN67270	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus; Bacillus azotoformans
-309	Bacillus licheniformis | OLG11576	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus; Bacillus subtilis group
-310	Geobacillus stearothermophilus | BAG66139	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Geobacillus
-311	Paenibacillus sp. Leaf72 | KQO17292	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
-312	Paenibacillus sp. LPB0068 | OAB72094	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
-313	Staphylococcus hyicus | AJC95257	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Staphylococcaceae; Staphylococcus
-314	Staphylococcus aureus | ORN48508	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Staphylococcaceae; Staphylococcus
-315	Lactobacillus curieae | KHD02673	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus
-316	Lactobacillus composti DSM 18527 = JCM 14202 | KRM34979	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus composti
-317	Lactobacillus coryniformis subsp. torquens DSM 20004 = KCTC 3535 | KRK84454	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus coryniformis; Lactobacillus coryniformis subsp. torquens
-318	Lactobacillus fermentum 3872 | ETC79808	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus fermentum
-319	Lactobacillus hokkaidonensis JCM 18461 | BAP86400	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus hokkaidonensis
-320	Lactobacillus kimchicus JCM 15530 | KRK47391	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus kimchicus
-321	Lactobacillus tucceti DSM 20183 | KRK65099	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus tucceti
-322	Limnochorda pilosa | BAS28583	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Limnochordia; Limnochordales; Limnochordaceae; Limnochorda
-323	Veillonella dispar | KXB86049	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Veillonella
-324	Clostridium ultunense Esp | CCQ94164	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Tissierellaceae; [Clostridium] ultunense
-325	Parcubacteria bacterium GW2011_GWC1_42_11 | KKS27263	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; Patescibacteria group; Parcubacteria group; unclassified Parcubacteria group
-326	Parcubacteria bacterium GW2011_GWA1_47_8 | KKU80976	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; Patescibacteria group; Parcubacteria group; unclassified Parcubacteria group
-327	Candidatus Methylomirabilis oxyfera | CBE68939	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; candidate division NC10; Candidatus Methylomirabilis
-328	Candidatus Methylomirabilis oxyfera | CBE69502	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; candidate division NC10; Candidatus Methylomirabilis
-329	bacterium BRH_c32 | KUO62120	cellular organisms; Bacteria; unclassified Bacteria; unclassified Bacteria (miscellaneous)
-330	Lasius niger | KMQ93831	cellular organisms; Eukaryota; Opisthokonta; Metazoa; Eumetazoa; Bilateria; Protostomia; Ecdysozoa; Panarthropoda; Arthropoda; Mandibulata; Pancrustacea; Hexapoda; Insecta; Dicondylia; Pterygota; Neoptera; Holometabola; Hymenoptera; Apocrita; Aculeata; Vespoidea; Formicidae; Formicinae; Lasiini; Lasius; Lasius
+1	Halomicrobium mukohataei | ACV48093	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria
+2	Haladaptatus paucihalophilus | EFW90104	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Halobacteriales; Halobacteriaceae; Haladaptatus; Haladaptatus paucihalophilus
+3	Halobacterium | CQH58112	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Halobacteriales; Halobacteriaceae; Halobacterium
+4	Halococcus morrhuae | EMA42556	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Halobacteriales; Halococcaceae; Halococcus
+5	Halococcus saccharolyticus | EMA46077	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Halobacteriales; Halococcaceae; Halococcus; Halococcus saccharolyticus
+6	Halococcus salifodinae | EMA54822	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Halobacteriales; Halococcaceae; Halococcus; Halococcus salifodinae
+7	Haloferax elongans | ELZ84861	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Haloferacales; Haloferacaceae; Haloferax
+8	Candidatus Halobonum tyrrellensis | ESP89840	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Haloferacales; Halorubraceae; Candidatus Halobonum; Candidatus Halobonum tyrrellensis
+9	Halorubrum lacusprofundi | ACM57480	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Haloferacales; Halorubraceae; Halorubrum
+10	Halopiger xanaduensis | AEH38623	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Natrialbales; Natrialbaceae; Halopiger; Halopiger xanaduensis
+11	Halopiger xanaduensis | AEH36148	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Natrialbales; Natrialbaceae
+12	Haloterrigena salina | ELZ14457	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Natrialbales; Natrialbaceae; Haloterrigena
+13	Natrialba aegyptia | ELZ00243	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria
+14	Natronococcus jeotgali | ELY60828	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Halobacteria; Natrialbales; Natrialbaceae; Natronococcus
+15	Acidilobus saccharovorans | ADL19053	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Acidilobales; Acidilobaceae; Acidilobus; Acidilobus saccharovorans
+16	Caldisphaera lagunensis | AFZ70582	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Acidilobales; Caldisphaeraceae; Caldisphaera; Caldisphaera lagunensis
+17	Pyrodictium | ALL01353	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Desulfurococcales; Pyrodictiaceae; Pyrodictium
+18	Sulfolobus islandicus | ACP49203	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae
+19	Pyrobaculum | AET32196	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum
+20	Pyrobaculum arsenaticum | ABP50097	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum
+21	Thermoproteus uzoniensis | AEA12999	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermoproteus; Thermoproteus uzoniensis
+22	Vulcanisaeta distributa | ADN50837	cellular organisms; Archaea; TACK group; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae
+23	Candidatus Koribacter versatilis | ABF39369	cellular organisms; Bacteria; Acidobacteria; Acidobacteriia; Acidobacteriales; Acidobacteriaceae; Candidatus Koribacter; Candidatus Koribacter versatilis
+24	Candidatus Solibacter usitatus | ABJ83921	cellular organisms; Bacteria; Acidobacteria; Solibacteres; Solibacterales; Solibacteraceae; Candidatus Solibacter; Candidatus Solibacter usitatus
+25	Luteitalea pratensis | AMY09214	cellular organisms; Bacteria; Acidobacteria; unclassified Acidobacteria; Acidobacteria subdivision 6; Vicinamibacteraceae; Luteitalea; Luteitalea pratensis
+26	Hydrogenivirga | EDP76020	cellular organisms; Bacteria; Aquificae; Aquificae; Aquificales; Aquificaceae; Hydrogenivirga
+27	Hydrogenobaculum | ACG57041	cellular organisms; Bacteria; Aquificae; Aquificae; Aquificales; Aquificaceae; Hydrogenobaculum
+28	Persephonella marina | ACO04857	cellular organisms; Bacteria; Aquificae; Aquificae; Aquificales; Hydrogenothermaceae; Persephonella; Persephonella marina
+29	Sulfurihydrogenibium azorense | ACN99774	cellular organisms; Bacteria; Aquificae; Aquificae; Aquificales; Hydrogenothermaceae; Sulfurihydrogenibium
+30	Paludibacter | GAT61620	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Paludibacteraceae; Paludibacter
+31	Fermentimonas | CEA16478	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Porphyromonadaceae; Fermentimonas
+32	Porphyromonas catoniae | EKY00231	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Porphyromonadaceae; Porphyromonas; Porphyromonas catoniae
+33	Prevotella sp. oral taxon 472 | EEX51751	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales
+34	Saccharicrinis fermentans | GAF05435	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Marinilabiliaceae; Saccharicrinis; Saccharicrinis fermentans
+35	Draconibacterium | KJF43657	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Prolixibacteraceae; Draconibacterium
+36	Sunxiuqinia | KOH45077	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Prolixibacteraceae; Sunxiuqinia
+37	Chitinophaga pinensis | ACU63206	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Chitinophagia; Chitinophagales; Chitinophagaceae; Chitinophaga; Chitinophaga pinensis
+38	Flavihumibacter | KIC94255	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes
+39	Cecembia lonarensis | EKB49951	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Cyclobacteriaceae; Cecembia; Cecembia lonarensis
+40	Indibacter alkaliphilus | EOZ96831	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes
+41	Mariniradius saccharolyticus | EMS34074	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Cyclobacteriaceae; Mariniradius; Mariniradius saccharolyticus
+42	Cesiribacter andamanensis | EMR03382	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Flammeovirgaceae
+43	Fulvivirga imtechensis | ELR72472	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Flammeovirgaceae; Fulvivirga; Fulvivirga imtechensis
+44	Rufibacter | AKQ46155	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Cytophagia; Cytophagales; Hymenobacteraceae
+45	Aquimarina | EZH71928	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae
+46	Aquimarina | KZS42890	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae
+47	Capnocytophaga | AMD84978	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes
+48	Chryseobacterium | OCK49658	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Chryseobacterium
+49	Chryseobacterium | OAH72837	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes
+50	Flavobacterium | KQB38105	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Flavobacterium
+51	Flavobacterium | EJL63423	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Flavobacterium
+52	Flavobacterium | EJG02926	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Flavobacterium
+53	Galbibacter | EKF55765	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Galbibacter
+54	Muricauda ruestringensis | AEM71926	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Muricauda; Muricauda ruestringensis
+55	Myroides | AJA67687	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Flavobacteriia; Flavobacteriales; Flavobacteriaceae; Myroides
+56	Haliscomenobacter hydrossis | AEE50119	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Saprospiria; Saprospirales; Haliscomenobacteraceae; Haliscomenobacter; Haliscomenobacter hydrossis
+57	Solitalea canadensis | EHP05832	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Sphingobacteriia; Sphingobacteriales; Sphingobacteriaceae; Solitalea; Solitalea canadensis
+58	unclassified Bacteroidetes (miscellaneous) | KXK21991	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; unclassified Bacteroidetes; unclassified Bacteroidetes (miscellaneous)
+59	unclassified Chlorobi | KXK57127	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Chlorobi; unclassified Chlorobi
+60	unclassified Nitrospirae | KWT91861	cellular organisms; Bacteria; Nitrospirae; unclassified Nitrospirae
+61	unclassified Candidatus Omnitrophica | KXK39892	cellular organisms; Bacteria; PVC group; Candidatus Omnitrophica; unclassified Candidatus Omnitrophica
+62	unclassified Candidatus Omnitrophica | KXK33524	cellular organisms; Bacteria; PVC group; Candidatus Omnitrophica; unclassified Candidatus Omnitrophica
+63	Estrella | CRX37469	cellular organisms; Bacteria; PVC group; Chlamydiae; Chlamydiia; Parachlamydiales; Criblamydiaceae; Estrella
+64	Parachlamydia acanthamoebae | CCB87448	cellular organisms; Bacteria; PVC group; Chlamydiae; Chlamydiia; Parachlamydiales; Parachlamydiaceae; Parachlamydia; Parachlamydia acanthamoebae
+65	Waddlia chondrophila | CCB92015	cellular organisms; Bacteria; PVC group; Chlamydiae; Chlamydiia; Parachlamydiales; Waddliaceae; Waddlia; Waddlia chondrophila
+66	Gemmata | AMV27643	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Planctomycetales; Gemmataceae; Gemmata
+67	Planctomyces | AMV40548	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Planctomycetales; Planctomycetaceae; Planctomyces
+68	Rhodopirellula europaea | EMI24316	cellular organisms; Bacteria; PVC group; Planctomycetes; Planctomycetia; Planctomycetales; Planctomycetaceae; Rhodopirellula; Rhodopirellula europaea
+69	Brevundimonas | KRA29103	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Caulobacterales; Caulobacteraceae; Brevundimonas
+70	Caulobacter | KQZ34018	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Caulobacterales; Caulobacteraceae; Caulobacter
+71	Phenylobacterium zucineum | ACG77033	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Caulobacterales; Caulobacteraceae
+72	Magnetococcus marinus | ABK42647	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Magnetococcales; Magnetococcaceae; Magnetococcus; Magnetococcus marinus
+73	Methylocella silvestris | ACK50466	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Beijerinckiaceae; Methylocella; Methylocella silvestris
+74	Bradyrhizobium japonicum | AHY56019	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Bradyrhizobiaceae; Bradyrhizobium; Bradyrhizobium japonicum
+75	Hyphomicrobium denitrificans | ADJ22403	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria
+76	Hyphomicrobium nitrativorans | AHB48253	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria
+77	Methylocystis | CCD31960	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
+78	unclassified Rhizobiaceae | AAC79449	cellular organisms; Bacteria; Proteobacteria
+79	Parvibaculum lavamentivorans | ABS62627	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Rhodobiaceae; Parvibaculum; Parvibaculum lavamentivorans
+80	Tepidicaulis marinus | GAK43769	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Rhodobiaceae; Tepidicaulis; Tepidicaulis marinus
+81	Starkeya novella | ADH88474	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Xanthobacteraceae; Starkeya; Starkeya novella
+82	unclassified Rhizobiales (miscellaneous) | ANK82038	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; unclassified Rhizobiales; unclassified Rhizobiales (miscellaneous)
+83	Hyphomonas johnsonii | KCZ94422	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Hyphomonadaceae; Hyphomonas; Hyphomonas johnsonii
+84	Celeribacter indicus | AJE45631	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae
+85	Dinoroseobacter shibae | ABV94917	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae
+86	Jannaschia rubra | CTQ32736	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae
+87	Paracoccus | AKE49362	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria
+88	Paracoccus sanguinis | KGJ19451	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae
+89	Pseudovibrio | AEV39054	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria
+90	Pseudovibrio | KZL24032	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Pseudovibrio
+91	Rubellimicrobium mesophilum | EYD76726	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Rubellimicrobium; Rubellimicrobium mesophilum
+92	Thioclava indica | KEO60086	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Thioclava; Thioclava indica
+93	Gluconobacter japonicus | KXV29483	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Acetobacteraceae
+94	Gluconobacter oxydans | KXV22589	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Acetobacteraceae; Gluconobacter; Gluconobacter oxydans
+95	Azospirillum brasilense | CCD03021	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Azospirillum
+96	Magnetospirillum gryphiswaldense | CAM75374	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Magnetospirillum
+97	Rhodospirillum centenum | ACJ01317	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Rhodospirillum; Rhodospirillum centenum
+98	Novosphingobium pentaromativorans | EHJ58490	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae
+99	Sphingobium | AMK22944	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingobium
+100	Sphingobium baderi | ALR19737	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingobium; Sphingobium baderi
+101	Sphingomonas | AJW29235	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingomonas
+102	Sphingomonas wittichii | ABQ70952	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingomonas; Sphingomonas wittichii
+103	Sphingomonas wittichii | ABQ71311	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingomonas; Sphingomonas wittichii
+104	Achromobacter | CUJ43370	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales
+105	Alcaligenes faecalis subsp. faecalis | EJC62912	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Alcaligenes
+106	Basilea psittacipulmonis | AIL33205	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Basilea; Basilea psittacipulmonis
+107	Castellaniella defragrans | CDM24864	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Castellaniella; Castellaniella defragrans
+108	Orrella dioscoreae | SBT26129	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Orrella; Orrella dioscoreae
+109	Pelistega indica | ETD73111	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Pelistega; Pelistega indica
+110	Pusillimonas | AEC19078	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Pusillimonas
+111	Pusillimonas | AEC20723	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Alcaligenaceae; Pusillimonas
+112	Burkholderia | EEA03904	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Burkholderia
+113	pseudomallei group | KXF61795	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria
+114	pseudomallei group | CFM33249	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Burkholderia; pseudomallei group
+115	Cupriavidus necator | AAP85993	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae
+116	Ralstonia | EIZ03729	cellular organisms; Bacteria; Proteobacteria
+117	Ralstonia pickettii | ENZ79386	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Burkholderiaceae; Ralstonia
+118	Alicycliphilus denitrificans | ADU97914	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae
+119	Comamonas aquatica | EXU80676	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae
+120	Hydrogenophaga | KRC04530	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae
+121	Pelomonas | KQY81753	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Pelomonas
+122	Ramlibacter tataouinensis | AMO24031	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Ramlibacter; Ramlibacter tataouinensis
+123	Rhodoferax ferrireducens | ABD69612	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales
+124	Variovorax | SCK21302	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Variovorax
+125	Duganella | KQZ44008	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Duganella
+126	Herbaspirillum frisingense | EOA05728	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Herbaspirillum; Herbaspirillum frisingense
+127	Herminiimonas arsenicoxydans | CAL60284	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Herminiimonas; Herminiimonas arsenicoxydans
+128	Janthinobacterium | AMC33517	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Janthinobacterium
+129	Massilia | AKU20532	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Massilia
+130	Massilia | KQZ46836	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Massilia
+131	Massilia | KQW94126	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Oxalobacteraceae; Massilia
+132	unclassified Burkholderiales | AKJ30881	cellular organisms; Bacteria; Proteobacteria
+133	Rhizobacter | KQW03153	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales
+134	Rhizobacter | KRB23924	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; unclassified Burkholderiales; Burkholderiales Genera incertae sedis; Rhizobacter
+135	Rhizobacter | KRB14680	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; unclassified Burkholderiales; Burkholderiales Genera incertae sedis; Rhizobacter
+136	Rubrivivax gelatinosus | BAL94062	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales
+137	Chromobacterium | KMO02423	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Chromobacteriaceae
+138	Pseudogulbenkiania ferrooxidans | EEG09993	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria
+139	Vogesella | SCK19280	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Chromobacteriaceae
+140	Eikenella | OAM29161	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Neisseriaceae; Eikenella
+141	Kingella kingae | EGK09370	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Neisseriaceae; Kingella; Kingella kingae
+142	Neisseria arctica | KLT72577	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Neisseriaceae; Neisseria
+143	Neisseria meningitidis | CWQ07497	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Neisseriaceae; Neisseria
+144	Gallionella | KXS31283	cellular organisms; Bacteria; Proteobacteria
+145	Gallionella capsiferriformans | ADL54805	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Gallionellaceae; Gallionella; Gallionella capsiferriformans
+146	Methylophilus | KQT33282	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Methylophilaceae; Methylophilus
+147	Nitrosomonas | ADZ25483	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
+148	Nitrosomonas europaea | SJZ99038	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
+149	Nitrosospira multiformis | ABB74558	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira; Nitrosospira multiformis
+150	Thiobacillus denitrificans | AAZ96776	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Thiobacillaceae; Thiobacillus; Thiobacillus denitrificans
+151	Rugosibacter aromaticivorans | AJP49583	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Rhodocyclales; Rhodocyclaceae; Rugosibacter; Rugosibacter aromaticivorans
+152	Thauera | ENO93224	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria
+153	Candidatus Accumulibacter | EXI89828	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; unclassified Betaproteobacteria; Candidatus Accumulibacter
+154	Candidatus Accumulibacter phosphatis | ACV35617	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; unclassified Betaproteobacteria; Candidatus Accumulibacter; Candidatus Accumulibacter phosphatis
+155	Acidiferrobacter thiooxydans | OCX43850	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Acidiferrobacterales; Acidiferrobacteraceae; Acidiferrobacter; Acidiferrobacter thiooxydans
+156	Oceanimonas | AEX99846	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Aeromonadales; Aeromonadaceae; Oceanimonas
+157	Catenovulum agarivorans | EWH08327	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Catenovulum; Catenovulum agarivorans
+158	Lacimicrobium alkaliphilum | ALS98048	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Lacimicrobium; Lacimicrobium alkaliphilum
+159	Marinobacter | KXS52193	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+160	Marinobacter hydrocarbonoclasticus | CCG96478	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+161	Marinobacter subterrani | KMQ76146	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Marinobacter; Marinobacter subterrani
+162	Paraglaciecola polaris | GAC31028	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Alteromonadaceae; Paraglaciecola; Paraglaciecola polaris
+163	Thalassomonas viridans | KJE48325	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Colwelliaceae; Thalassomonas
+164	Idiomarina atlantica | KFZ29361	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Idiomarinaceae; Idiomarina
+165	Pseudoalteromonas lipolytica | EWH04220	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Pseudoalteromonadaceae; Pseudoalteromonas; Pseudoalteromonas lipolytica
+166	Pseudoalteromonas translucida | ALS33937	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Pseudoalteromonadaceae; Pseudoalteromonas; Pseudoalteromonas translucida
+167	Shewanella amazonensis | ABL98936	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Shewanellaceae; Shewanella; Shewanella amazonensis
+168	Shewanella xiamenensis | KEK27275	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Shewanellaceae; Shewanella
+169	Cardiobacterium valvarum | EHM56084	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cardiobacteriales; Cardiobacteriaceae; Cardiobacterium
+170	Cellvibrio | EIK43228	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cellvibrionales; Cellvibrionaceae; Cellvibrio
+171	Allochromatium vinosum | ADC61875	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae
+172	Arsukibacterium ikkense | KKO46767	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+173	Nitrosococcus watsonii | ADJ28193	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus
+174	Thiocapsa marina | EGV20124	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Thiocapsa
+175	Alkalilimnicola ehrlichii | ABI57460	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Ectothiorhodospiraceae; Alkalilimnicola; Alkalilimnicola ehrlichii
+176	Thioalkalivibrio nitratireducens | AGA33320	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Ectothiorhodospiraceae; Thioalkalivibrio
+177	Wenzhouxiangella marina | AKS42932	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Wenzhouxiangellaceae; Wenzhouxiangella; Wenzhouxiangella marina
+178	Woeseia oceani | ANO52746	cellular organisms; Bacteria; Proteobacteria
+179	Woeseia oceani | ANO52552	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Woeseiaceae; Woeseia; Woeseia oceani
+180	Shimwellia blattae | GAB83209	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Enterobacterales; Enterobacteriaceae; Shimwellia; Shimwellia blattae
+181	Fluoribacter dumoffii | KTC89551	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Fluoribacter; Fluoribacter dumoffii
+182	Legionella cincinnatiensis | KTC83314	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae
+183	Legionella drozanskii | KTC89111	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
+184	Legionella erythra | KTC94532	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
+185	Legionella feeleii | KTC96762	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella; Legionella feeleii
+186	Legionella gratiana | KTD11905	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
+187	Legionella jordanis | KTD16241	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella; Legionella jordanis
+188	Legionella nautarum | KTD36360	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella; Legionella nautarum
+189	Legionella pneumophila serogroup 12 | AEW52476	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella; Legionella pneumophila
+190	Legionella santicrucis | KTD63527	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae
+191	Legionella spiritensis | KTD61817	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella
+192	Legionella spiritensis | KTD62206	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Legionella; Legionella spiritensis
+193	Legionella maceachernii | SKA28839	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Legionellaceae; Tatlockia; Legionella maceachernii
+194	Methylomonas lenta | OAI19446	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
+195	Alcanivorax pacificus | EKE34968	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Alcanivoracaceae; Alcanivorax
+196	Endozoicomonas elysicola | KEI73058	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Endozoicomonadaceae; Endozoicomonas; Endozoicomonas elysicola
+197	Hahella chejuensis | ABC27611	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Hahellaceae; Hahella; Hahella chejuensis
+198	Halomonas halodenitrificans | BAA24701	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Halomonadaceae; Halomonas
+199	Kangiella sediminilitoris | AOE49250	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Kangiellaceae; Kangiella
+200	Oleispira antarctica | CCK76351	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+201	unclassified Oceanospirillaceae | EPJ43350	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Oceanospirillaceae; unclassified Oceanospirillaceae
+202	Gynuella sunshinyii | AJQ94349	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Oceanospirillales; Saccharospirillaceae; Gynuella; Gynuella sunshinyii
+203	Actinobacillus succinogenes | ABR74956	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pasteurellales; Pasteurellaceae
+204	Aggregatibacter aphrophilus | AKS65135	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pasteurellales; Pasteurellaceae
+205	Moraxella catarrhalis | EGE25320	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Moraxellaceae; Moraxella; Moraxella catarrhalis
+206	Moraxella nonliquefaciens | OBX83339	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Moraxellaceae; Moraxella
+207	Psychrobacter | OAP67031	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Moraxellaceae
+208	Pseudomonas | KQZ87925	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Pseudomonadaceae; Pseudomonas
+209	Pseudomonas aeruginosa group | AMO76351	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Pseudomonadaceae; Pseudomonas
+210	Pseudomonas saudimassiliensis | CEF27543	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Pseudomonadales; Pseudomonadaceae; Pseudomonas
+211	Pseudomonas silesiensis | ANJ56615	cellular organisms; Bacteria; Proteobacteria
+212	Methylophaga aminisulfidivorans | EGL55729	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Piscirickettsiaceae; Methylophaga; Methylophaga aminisulfidivorans
+213	Methylophaga nitratireducenticrescens | AFI83284	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Piscirickettsiaceae; Methylophaga; Methylophaga nitratireducenticrescens
+214	Achromatium | KOR30976	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Thiotrichaceae; Achromatium
+215	Beggiatoa | EDN68730	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Thiotrichaceae; Beggiatoa
+216	Beggiatoa | EDN69502	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Thiotrichaceae; Beggiatoa
+217	Thioploca ingrica | BAP54632	cellular organisms; Bacteria; Proteobacteria
+218	Photobacterium damselae subsp. damselae | EEZ40327	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Vibrionales; Vibrionaceae; Photobacterium; Photobacterium damselae; Photobacterium damselae subsp. damselae
+219	Photobacterium swingsii | KMV29275	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+220	Vibrio | OBT14007	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Vibrionales; Vibrionaceae; Vibrio
+221	Dyella jiangningensis | AHX15533	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Dyella; Dyella jiangningensis
+222	Dyella thiooxydans | AND70255	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Dyella; Dyella thiooxydans
+223	Rhodanobacter | KQZ71077	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
+224	Rhodanobacter | EIL96808	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+225	Rhodanobacter | KRA31873	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
+226	Rhodanobacter | KRA35515	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae
+227	Rhodanobacter | EIL86843	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Rhodanobacteraceae; Rhodanobacter
+228	Arenimonas donghaensis | KFL36655	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Arenimonas; Arenimonas donghaensis
+229	Luteimonas | AOH35199	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Luteimonas
+230	Lysobacter | KRA72083	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Lysobacter
+231	Lysobacter arseniciresistens | KGM56820	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae; Lysobacter; Lysobacter arseniciresistens
+232	Pseudoxanthomonas suwonensis | AKC86351	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Xanthomonadales; Xanthomonadaceae
+233	Candidatus Competibacter denitrificans | CDI04471	cellular organisms; Bacteria; Proteobacteria
+234	Thiohalorhabdus | KPV40462	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; Thiohalorhabdus
+235	sulfur-oxidizing symbionts | CEO93746	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; sulfur-oxidizing symbionts
+236	unclassified Gammaproteobacteria (miscellaneous) | KPK60376	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
+237	unclassified Gammaproteobacteria (miscellaneous) | CBL43845	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
+238	unclassified Gammaproteobacteria (miscellaneous) | KPJ79428	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
+239	unclassified Gammaproteobacteria (miscellaneous) | CBL45628	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
+240	unclassified Gammaproteobacteria (miscellaneous) | EGG99962	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
+241	Bacteriovorax | EPZ52439	cellular organisms; Bacteria; Proteobacteria; Oligoflexia; Bacteriovoracales; Bacteriovoracaceae; Bacteriovorax
+242	Bdellovibrio bacteriovorus | KYG62321	cellular organisms; Bacteria; Proteobacteria; Oligoflexia; Bdellovibrionales; Bdellovibrionaceae; Bdellovibrio; Bdellovibrio bacteriovorus
+243	Bdellovibrio bacteriovorus | AFY02424	cellular organisms; Bacteria; Proteobacteria; Oligoflexia; Bdellovibrionales; Bdellovibrionaceae; Bdellovibrio; Bdellovibrio bacteriovorus
+244	Desulfococcus multivorans | SKA03708	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfococcus; Desulfococcus multivorans
+245	Desulfovibrio | KHK01833	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+246	Geobacter | ACT19063	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter
+247	Geobacter bemidjiensis | ACH40893	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter
+248	Geobacter daltonii | ACM18395	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter; Geobacter daltonii
+249	Geobacter metallireducens | ABB33698	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter
+250	Anaeromyxobacter | GAO01424	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Anaeromyxobacteraceae; Anaeromyxobacter
+251	Anaeromyxobacter | GAO04078	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Anaeromyxobacteraceae; Anaeromyxobacter
+252	Anaeromyxobacter | ABS26958	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Anaeromyxobacteraceae; Anaeromyxobacter
+253	Anaeromyxobacter dehalogenans | ABC81177	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Anaeromyxobacteraceae; Anaeromyxobacter
+254	Archangium | AKJ01501	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Archangiaceae; Archangium
+255	Archangium | AKJ00991	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Archangiaceae; Archangium
+256	Cystobacter fuscus | EPX58034	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Cystobacterineae; Archangiaceae; Cystobacter; Cystobacter fuscus
+257	Sorangium | KYF77729	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Sorangiineae; Polyangiaceae; Sorangium
+258	Sorangium cellulosum | AGP36586	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Sorangiineae; Polyangiaceae; Sorangium
+259	Sorangium cellulosum | CAN98754	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; Sorangiineae; Polyangiaceae; Sorangium; Sorangium cellulosum
+260	Enhygromyxa | KIG14148	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Myxococcales; unclassified Myxococcales; Enhygromyxa
+261	Desulfomonile tiedjei | AFM25202	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophaceae; Desulfomonile; Desulfomonile tiedjei
+262	Syntrophobacter fumaroxidans | ABK18607	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophobacteraceae; Syntrophobacter; Syntrophobacter fumaroxidans
+263	Arcobacter butzleri | AGR77642	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Epsilonproteobacteria; Campylobacterales; Campylobacteraceae; Arcobacter group; Arcobacter; Arcobacter butzleri
+264	Campylobacter | AKT92422	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Epsilonproteobacteria; Campylobacterales; Campylobacteraceae; Campylobacter
+265	Campylobacter concisus | ERJ28826	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Epsilonproteobacteria; Campylobacterales; Campylobacteraceae; Campylobacter
+266	Campylobacter showae | EKU10776	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Epsilonproteobacteria; Campylobacterales; Campylobacteraceae; Campylobacter
+267	Leptospira | EMK01804	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Leptospirales; Leptospiraceae; Leptospira
+268	Leptospira meyeri serovar Hardjo | EKJ86205	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Leptospirales; Leptospiraceae; Leptospira; Leptospira meyeri; Leptospira meyeri serovar Hardjo
+269	Actinomyces sp. oral taxon 448 | EGQ73949	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Actinomycetales; Actinomycetaceae; Actinomyces
+270	Corynebacterium | KXB56447	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium
+271	Corynebacterium diphtheriae | AEX45191	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium; Corynebacterium diphtheriae
+272	Corynebacterium doosanense | AIT60387	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium; Corynebacterium doosanense
+273	Corynebacterium pseudodiphtheriticum | ERJ47219	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium; Corynebacterium pseudodiphtheriticum
+274	Corynebacterium pseudotuberculosis | AEQ05701	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Corynebacteriaceae; Corynebacterium; Corynebacterium pseudotuberculosis
+275	Mycobacterium | KUI48159	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae
+276	Mycobacterium | ABG07680	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium
+277	Mycobacterium avium subsp. paratuberculosis | ETB43687	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium
+278	Mycobacteroides abscessus | SIL22236	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae
+279	Mycolicibacter | OBK87600	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycolicibacter
+280	Mycolicibacterium | KMV16898	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae
+281	Rhodococcus | ORL06309	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Nocardiaceae; Rhodococcus
+282	Brachybacterium faecium | ACU86624	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Dermabacteraceae; Brachybacterium
+283	Arsenicicoccus | AKT50410	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Intrasporangiaceae; Arsenicicoccus
+284	Intrasporangium chromatireducens | EWT06483	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Intrasporangiaceae; Intrasporangium
+285	Tetrasphaera australiensis | CCH74215	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Intrasporangiaceae; Tetrasphaera; Tetrasphaera australiensis
+286	Tetrasphaera japonica | CCH80437	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Intrasporangiaceae; Tetrasphaera; Tetrasphaera japonica
+287	Kocuria | ALU38904	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Micrococcaceae; Kocuria
+288	Rothia mucilaginosa | BAI64962	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Micrococcaceae; Rothia
+289	Actinoplanes awajinensis | KUL41691	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micromonosporales; Micromonosporaceae; Actinoplanes; Actinoplanes awajinensis
+290	Micromonospora | SCG70346	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micromonosporales; Micromonosporaceae; Micromonospora
+291	Acidipropionibacterium | AMS07136	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Acidipropionibacterium
+292	Acidipropionibacterium acidipropionici | AFV90484	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Acidipropionibacterium; Acidipropionibacterium acidipropionici
+293	Cutibacterium | ALD70353	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Cutibacterium
+294	Propionibacterium | CEH10170	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Propionibacterium
+295	Propionibacterium acidifaciens | ERK55541	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Propionibacteriaceae; Propionibacterium; Propionibacterium acidifaciens
+296	Streptomyces | GAT80013	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Streptomycetales; Streptomycetaceae; Streptomyces
+297	Streptomyces | KDS84165	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Streptomycetales; Streptomycetaceae; Streptomyces
+298	Chroococcidiopsis thermalis | AFY88825	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria
+299	Geitlerinema | AFY65030	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria; Oscillatoriophycideae; Oscillatoriales; Coleofasciculaceae; Geitlerinema
+300	Oscillatoria nigro-viridis | AFZ04984	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria
+301	Synechocystis | AGF53344	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria; Synechococcales
+302	Thermus oshimai | AFV76106	cellular organisms; Bacteria; Terrabacteria group; Deinococcus-Thermus; Deinococci; Thermales; Thermaceae; Thermus
+303	Kyrpidia tusciae | ADG06795	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Alicyclobacillaceae; Kyrpidia; Kyrpidia tusciae
+304	Bacillus | KQL18366	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
+305	Bacillus | ALC90163	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
+306	Bacillus | EHP25171	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
+307	Bacillus | EHP27021	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
+308	Bacillus azotoformans | EKN67270	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus; Bacillus azotoformans
+309	Bacillus sonorensis | EME75697	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus
+310	Geobacillus | BAG66139	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae
+311	Paenibacillus | KQO17292	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+312	Paenibacillus | OAB72094	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+313	Staphylococcus | SBB39621	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Staphylococcaceae; Staphylococcus
+314	Staphylococcus | KXA44404	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Staphylococcaceae; Staphylococcus
+315	Lactobacillus | AKP67154	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus
+316	Lactobacillus composti | KRM34979	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus composti
+317	Lactobacillus coryniformis subsp. torquens | KRK84454	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus coryniformis; Lactobacillus coryniformis subsp. torquens
+318	Lactobacillus fermentum | ETC79808	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus fermentum
+319	Lactobacillus hokkaidonensis | BAP86400	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus hokkaidonensis
+320	Lactobacillus kimchicus | KRK47391	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus kimchicus
+321	Weissella | SCC13299	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales
+322	Limnochorda | BAS28583	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Limnochordia; Limnochordales; Limnochordaceae; Limnochorda
+323	Veillonella | ETS92934	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Veillonella
+324	[Clostridium] ultunense | CCQ94164	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Tissierellaceae; [Clostridium] ultunense
+325	Candidatus Nomurabacteria | KKT37142	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; Patescibacteria group; Parcubacteria group
+326	unclassified Parcubacteria group | KKU80976	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; Patescibacteria group; Parcubacteria group; unclassified Parcubacteria group
+327	Candidatus Methylomirabilis | CBE69502	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; candidate division NC10; Candidatus Methylomirabilis
+328	Candidatus Methylomirabilis | CBE68939	cellular organisms; Bacteria; unclassified Bacteria; Bacteria candidate phyla; candidate division NC10; Candidatus Methylomirabilis
+329	unclassified Bacteria (miscellaneous) | KUO62120	cellular organisms; Bacteria; unclassified Bacteria; unclassified Bacteria (miscellaneous)
