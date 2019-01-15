@@ -70,6 +70,9 @@ class SeqRecord:
         if self.positions:
             seq_chunks = []
             for coords in self.positions:
+                if not re.search("..", coords):
+                    logging.warning("Invalid range '" + coords + "' encountered in record:" + "'\n" + self.get_info())
+                    continue
                 start, end = coords.split("..")
                 try:
                     seq_chunks.append(self.sequence[(int(start) - 1):int(end)])
@@ -307,6 +310,9 @@ def fetch_sequences(args, accessions: set):
                 records = Entrez.read(handle)
             except error.HTTPError:
                 logging.error("HTTPError! Here are the failed queries:\n" + acc_list_chunk + "\n")
+                for failure in acc_list_chunk.split(", "):
+                    print(failure)
+                    handle = Entrez.efetch(db=args.seq_out, id=failure, retmode="xml")
                 sys.exit(3)
             logging.debug("done.\n")
 
