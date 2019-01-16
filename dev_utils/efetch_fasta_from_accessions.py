@@ -70,10 +70,14 @@ class SeqRecord:
         if self.positions:
             seq_chunks = []
             for coords in self.positions:
-                if not re.search("..", coords):
+                if not re.search('\.\.', coords):
                     logging.warning("Invalid range '" + coords + "' encountered in record:" + "'\n" + self.get_info())
                     continue
-                start, end = coords.split("..")
+                try:
+                    start, end = coords.split("..")
+                except ValueError:
+                    logging.warning("Bad coords '" + coords + "' slipped through:\n" + self.get_info() + "\n")
+                    sys.exit()
                 try:
                     seq_chunks.append(self.sequence[(int(start) - 1):int(end)])
                 except ValueError:
@@ -135,21 +139,21 @@ def read_accession_list(args):
         sys.exit(1)
 
     logging.debug("Reading accession list file... ")
-    line = list_handler.readline()
-    while line:
+    for line in list_handler:
         if line[0] == '>':
             line = line.strip()[1:]
         else:
             line = line.strip()
         accessions.append(line)
-        line = list_handler.readline()
-        
+
     list_handler.close()
 
     logging.debug("done.\n")
     logging.info(str(len(accessions)) + " accessions parsed from " + args.input + "\n")
+    uniq_accs = set(accessions)
+    logging.info(str(len(uniq_accs)) + " unique accessions " + args.input + "\n")
 
-    return accessions
+    return uniq_accs
 
 
 def read_stockholm(args):
@@ -175,8 +179,10 @@ def read_stockholm(args):
 
     logging.debug("done.\n")
     logging.debug(str(len(accessions)) + " accessions parsed from " + args.input + "\n")
+    uniq_accs = set(accessions)
+    logging.info(str(len(uniq_accs)) + " unique accessions " + args.input + "\n")
 
-    return accessions
+    return uniq_accs
 
 
 def parse_entrez_xml(molecule_in: str, xml_string):
@@ -245,7 +251,7 @@ def fetch_sequences(args, accessions: set):
     alternative_molecule = ""
     primary_accs = set()
     secondary_accs = set()
-    query_sequence_records = list()
+    query_sequence_records = dict()
     Entrez.email = "c.morganlang@gmail.com"
 
     logging.debug("Testing Entrez efetch and your internet connection... ")
@@ -329,7 +335,7 @@ def fetch_sequences(args, accessions: set):
                     logging.debug("Unable to find the converted accession for:\n" + sr.get_info())
                 elif not sr.sequence:
                     secondary_accs.add(sr.get_desired_accession(args.seq_out))
-                query_sequence_records.append(sr)
+                query_sequence_records[sr.get_desired_accession(args.seq_out)] = sr
 
             # Download records for the output-molecule
             if secondary_accs:
@@ -350,14 +356,19 @@ def fetch_sequences(args, accessions: set):
                 logging.debug("done.\n")
                 fasta_dict = fasta_string_to_dict(fasta_seq)
                 blanks += len(secondary_accs) - len(fasta_dict.keys())
-                # Doesn't scale well, could operate on smaller lists of sr to reduce time complexity
-                for sr in query_sequence_records:
-                    acc_out = sr.get_desired_accession(args.seq_out)
-                    if acc_out and not sr.sequence:
+                for acc_out in fasta_dict:
+                    try:
+                        sr = query_sequence_records[acc_out]
+                    except KeyError:
+                        if acc_out.find('.'):
+                            acc_out_trunc, ver = acc_out.split('.')
+                            sr = query_sequence_records[acc_out_trunc]
+                        else:
+                            logging.error("ERROR: '" + acc_out + "' not found in SequenceRecords dictionary!\n")
+                            sys.exit(1)
+                    if not sr.sequence:
                         sr.sequence = fasta_dict[acc_out]
                         sr.finish_sequence()
-                    else:
-                        pass
                 secondary_accs.clear()
                 fasta_dict.clear()
             else:
@@ -435,12 +446,12 @@ def main():
         logging.error("No accessions were read from '" + args.input + "'.\n")
         sys.exit(11)
 
-    seq_list = fetch_sequences(args, accessions)
+    seq_record_list = fetch_sequences(args, accessions)
 
     # Generate a fasta dictionary from each of the seq_record objects
     fasta_dict = dict()
     failures = list()
-    for seq_record in seq_list:
+    for seq_record in seq_record_list.values():
         seq_dict = seq_record.fastafy(args.seq_out)
         if seq_dict:
             fasta_dict.update(seq_dict)
