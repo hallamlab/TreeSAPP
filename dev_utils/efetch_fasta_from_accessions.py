@@ -24,22 +24,22 @@ __author__ = 'Connor Morgan-Lang'
 
 def get_options():
     parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input",
+                        required=True,
+                        help="File containing NCBI accession IDs to be downloaded")
     parser.add_argument("-f", "--format",
                         required=False, default="list",
                         help="Format of the input file",
                         choices=["list", "stockholm", "fasta"])
-    parser.add_argument("-i", "--input",
-                        required=True,
-                        help="File containing NCBI accession IDs to be downloaded")
     parser.add_argument("-m", "--molecule_in",
-                        required=True,
+                        required=False, default="protein", choices=["protein", "nucleotide"],
                         help="The molecule type of the accessions. "
-                             "This effects which database is queried, "
-                             "in turn effecting the success of this run...",
-                        choices=["protein", "nucleotide"])
+                             "This effects which database is queried,  in turn effecting the success of this run... "
+                             "[DEFAULT=protein]")
     parser.add_argument("-s", "--seq_out",
                         required=False, default="protein", choices=["protein", "nucleotide"],
-                        help="The molecule type of the sequences to be written to the FASTA file")
+                        help="The molecule type of the sequences to be written to the FASTA file. "
+                             "[DEFAULT=protein]")
     parser.add_argument("-o", "--output",
                         required=False,
                         default="entrez_downloads.fasta",
@@ -271,7 +271,7 @@ def fetch_sequences(args, accessions: set):
             break
 
     # Make the lists of query accessions
-    accessions = sorted(list(accessions))[0:100]
+    accessions = sorted(list(accessions))
     num_queries = len(accessions)
     chunk_size = int(round(num_queries/100)) + 1
     for i in range(0, num_queries, chunk_size):
