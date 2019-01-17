@@ -6,6 +6,7 @@ import os
 import argparse
 import inspect
 import logging
+from time import sleep, time
 from urllib import error
 from Bio import Entrez
 from tqdm import tqdm
@@ -122,7 +123,8 @@ class SeqRecord:
             return None
         if header[0] != '>':
             header = '>' + header
-        header += " [" + self.organism + "]"
+        if self.organism:
+            header += " [" + self.organism + "]"
         if self.sequence:
             return {header: self.sequence}
         else:
@@ -245,13 +247,11 @@ def fetch_sequences(args, accessions: set):
     :param accessions:
     :return:
     """
-    num_queries = len(accessions)
-    chunk_size = int(round(num_queries/100)) + 1
-    blanks = 0
     alternative_molecule = ""
     primary_accs = set()
     secondary_accs = set()
-    query_sequence_records = dict()
+    blanks = 0
+    seq_record_list = dict()
     Entrez.email = "c.morganlang@gmail.com"
 
     logging.debug("Testing Entrez efetch and your internet connection... ")
@@ -271,43 +271,69 @@ def fetch_sequences(args, accessions: set):
             break
 
     # Make the lists of query accessions
-    accessions = list(accessions)
+    accessions = sorted(list(accessions))[0:100]
+    num_queries = len(accessions)
+    chunk_size = int(round(num_queries/100)) + 1
     for i in range(0, num_queries, chunk_size):
         primary_accs.add(", ".join(accessions[i:i+chunk_size]))
 
-    for acc_list_chunk in tqdm(primary_accs):
+    for acc_list_chunk in tqdm(sorted(primary_accs)):
+        t_start = time()
         if not acc_list_chunk:
             logging.warning("Blank accession chunk encountered.\n")
             continue
 
         if args.molecule_in == args.seq_out:
-            # TODO: test this
             try:
                 handle = Entrez.efetch(db=args.molecule_in,
                                        id=str(acc_list_chunk),
                                        rettype="fasta",
                                        retmode="text")
+                # Load the current batch of SequenceRecords in acc_list_chunk into seq_record_list
+                logging.debug("Reading... ")
+                fasta_seq = handle.read()
+                handle.close()
+                logging.debug("done.\n")
             except error.HTTPError:
                 # Accession ID is for another database, so try and find the correct accession
-                try:
-                    genbank_handle = Entrez.efetch(db=alternative_molecule,
-                                                   id=str(acc_list_chunk),
-                                                   rettype="gb",
-                                                   retmode="text")
-                    gb_record = genbank_handle.read()
-                except error.HTTPError:
-                    blanks += acc_list_chunk.find(',') + 1
-                    continue
-                if args.molecule_in == "protein":
-                    acc_list_chunk = re.search("protein_id=\"(.*)\"", gb_record).group(1)
-                else:
-                    print("New territory. Figure this out!")
-                    print(gb_record)
-                handle = Entrez.efetch(db=args.molecule_in, id=str(acc_list_chunk), rettype="fasta", retmode="text")
-            fasta_seq = handle.read()
-            if fasta_seq == "":
-                blanks += 1
-                continue
+                fasta_seq = ""
+                for chunk_acc in acc_list_chunk.split(", "):
+                    # There appears to be a bad egg in here - query them individually
+                    try:
+                        gb_handle = Entrez.efetch(db=args.molecule_in,
+                                                  id=str(chunk_acc),
+                                                  rettype="gb",
+                                                  retmode="text")
+                        gb_record = gb_handle.read()
+                    except error.HTTPError:
+                        # Alrighty, maybe we're looking in the wrong database?
+                        try:
+                            gb_handle = Entrez.efetch(db=alternative_molecule,
+                                                      id=str(chunk_acc),
+                                                      rettype="gb",
+                                                      retmode="text")
+                            gb_record = gb_handle.read()
+                        except error.HTTPError:
+                            blanks += 1
+                            continue
+                    if args.molecule_in == "protein":
+                        chunk_acc = re.search("protein_id=\"(.*)\"", gb_record).group(1)
+                    else:
+                        print("New territory. Figure this out!")
+                        print(gb_record)
+                    handle = Entrez.efetch(db=args.molecule_in, id=str(chunk_acc),
+                                           rettype="fasta", retmode="text")
+                    fasta_seq += handle.read()
+
+            fasta_dict = fasta_string_to_dict(fasta_seq, divide=False)
+            for acc_out in sorted(fasta_dict.keys()):
+                sr = SeqRecord()
+                if args.seq_out == "protein":
+                    sr.prot_acc = acc_out
+                elif args.seq_out == "nucleotide":
+                    sr.nuc_acc = acc_out
+                sr.sequence = fasta_dict[acc_out]
+                seq_record_list[acc_out] = sr
         else:
             # This method requires two separate Entrez queries and so is a bit different
             logging.debug("Downloading primary... ")
@@ -315,10 +341,11 @@ def fetch_sequences(args, accessions: set):
                 handle = (Entrez.efetch(db=args.molecule_in, id=str(acc_list_chunk), retmode="xml"))
                 records = Entrez.read(handle)
             except error.HTTPError:
+                # This is for debugging - the query failed for one of the accessions, but which one?
                 logging.error("HTTPError! Here are the failed queries:\n" + acc_list_chunk + "\n")
                 for failure in acc_list_chunk.split(", "):
-                    print(failure)
-                    handle = Entrez.efetch(db=args.seq_out, id=failure, retmode="xml")
+                    sys.stderr.write("Now testing download of: " + failure + "\n")
+                    Entrez.efetch(db=args.seq_out, id=failure, retmode="xml")
                 sys.exit(3)
             logging.debug("done.\n")
 
@@ -333,9 +360,11 @@ def fetch_sequences(args, accessions: set):
                     continue
                 if not sr.get_desired_accession(args.seq_out):
                     logging.debug("Unable to find the converted accession for:\n" + sr.get_info())
+                    blanks += 1
+                    continue
                 elif not sr.sequence:
                     secondary_accs.add(sr.get_desired_accession(args.seq_out))
-                query_sequence_records[sr.get_desired_accession(args.seq_out)] = sr
+                seq_record_list[sr.get_desired_accession(args.seq_out)] = sr
 
             # Download records for the output-molecule
             if secondary_accs:
@@ -350,34 +379,42 @@ def fetch_sequences(args, accessions: set):
                     #     handle = Entrez.efetch(db=args.seq_out, id=failure, rettype="fasta", retmode="text")
                     sys.exit(3)
                 logging.debug("done.\n")
-                logging.debug("Reading... ")
-                fasta_seq = handle.read()
-                handle.close()
-                logging.debug("done.\n")
-                fasta_dict = fasta_string_to_dict(fasta_seq)
-                blanks += len(secondary_accs) - len(fasta_dict.keys())
-                for acc_out in fasta_dict:
-                    try:
-                        sr = query_sequence_records[acc_out]
-                    except KeyError:
-                        if acc_out.find('.'):
-                            acc_out_trunc, ver = acc_out.split('.')
-                            sr = query_sequence_records[acc_out_trunc]
-                        else:
-                            logging.error("ERROR: '" + acc_out + "' not found in SequenceRecords dictionary!\n")
-                            sys.exit(1)
-                    if not sr.sequence:
-                        sr.sequence = fasta_dict[acc_out]
-                        sr.finish_sequence()
                 secondary_accs.clear()
-                fasta_dict.clear()
             else:
                 continue
-    if blanks:
-        logging.debug("Entrez server returned empty records for " +
-                      str(blanks) + '/' + str(num_queries) + "\n")
+            logging.debug("Reading... ")
+            fasta_seq = handle.read()
+            handle.close()
+            logging.debug("done.\n")
+            fasta_dict = fasta_string_to_dict(fasta_seq)
+            for acc_out in sorted(fasta_dict.keys()):
+                try:
+                    sr = seq_record_list[acc_out]
+                except KeyError:
+                    if acc_out.find('.'):
+                        acc_out_trunc, ver = acc_out.split('.')
+                        sr = seq_record_list[acc_out_trunc]
+                    else:
+                        logging.error("ERROR: '" + acc_out + "' not found in SequenceRecords dictionary!\n")
+                        sys.exit(1)
+                if not sr.sequence:
+                    sr.sequence = fasta_dict[acc_out]
+                    sr.finish_sequence()
+        blanks += len(acc_list_chunk.split(", ")) - len(fasta_dict.keys())
+        fasta_dict.clear()
 
-    return query_sequence_records
+        t_end = time()
+        duration = t_end - t_start
+
+        # Sleep for a while to ensure NCBI doesn't slap us with a 'HTTP Error 429: Too Many Requests'
+        if duration < 1:
+            sleep(1-duration)
+
+    if blanks:
+        logging.info("Entrez server returned empty records for " +
+                     str(blanks) + '/' + str(num_queries) + "\n")
+
+    return seq_record_list
 
 
 def write_fasta(args, fasta_dict: dict):
@@ -400,7 +437,7 @@ def write_fasta(args, fasta_dict: dict):
     return
 
 
-def fasta_string_to_dict(fasta_record):
+def fasta_string_to_dict(fasta_record, divide=True):
     fasta_dict = dict()
     header = ""
     seq = ""
@@ -413,7 +450,9 @@ def fasta_string_to_dict(fasta_record):
                 fasta_dict[header] = seq
             seq = ""
             # Just get the accession ID, the first element split on whitespace
-            header = line[1:].split()[0]
+            header = line.strip()[1:]
+            if divide:
+                header = header.split()[0]
         else:
             seq += line
     fasta_dict[header] = seq
@@ -459,9 +498,9 @@ def main():
             failures.append(seq_record.get_desired_accession(args.molecule_in))
 
     if failures:
-        logging.debug("Unable to fetch information from NCBI for " +
-                      str(len(failures)) + '/' + str(len(accessions)) + ":\n" +
-                      '\n'.join(failures) + "\n")
+        logging.info("Unable to fetch information from NCBI for " +
+                     str(len(failures)) + '/' + str(len(accessions)) + ":\n" +
+                     '\n'.join(failures) + "\n")
 
     write_fasta(args, fasta_dict)
 
