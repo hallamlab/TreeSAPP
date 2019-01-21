@@ -9,66 +9,91 @@ from Bio import Entrez
 from urllib import error
 
 
-def multiple_query_entrez_taxonomy(search_term_set):
+def validate_target_db(db_type: str):
     """
-    Function for submitting multiple queries using Entrez.efetch to the 'Taxonomy' database.
-
-    :param search_term_set: Inputs are a set of organism names (based off their accession records)
-    :return: A dictionary mapping each of the unique organism names in search_term_set to a full taxonomic lineage
+    Takes a `db_type` string and matches it with the appropriate database name to be used in an Entrez query
+    :param db_type: Molecule or database type
+    :return: Proper Entrez database name
     """
-    search_term_result_map = dict()
-    # TODO: Query Entrez server with multiple tax_ids at once, parse records to map the org_id to tax_id
-    for search_term in search_term_set:
-        search_term_result_map[search_term] = query_entrez_taxonomy(search_term)
-    # TODO: Query Entrez server with multiple org_ids at once, parse records to map the org_id to lineage
-    return search_term_result_map
+    # Determine which database to search using the `db_type`
+    if db_type == "dna" or db_type == "rrna" or db_type == "ambig":
+        database = "nucleotide"
+    elif db_type == "prot":
+        database = "protein"
+    elif db_type == "tax":
+        database = "Taxonomy"
+    else:
+        logging.error("Welp. We're not sure how but the molecule type is not recognized!\n" +
+                      "Please create an issue on the GitHub page.")
+        sys.exit(9)
+
+    return database
 
 
-def query_entrez_taxonomy(search_term):
-    lineage = ""
-    try:
-        handle = Entrez.esearch(db="Taxonomy",
-                                term=search_term,
-                                retmode="xml")
-    except error.HTTPError:
-        logging.warning("Unable to find the taxonomy for " + search_term + "\n")
-        return lineage
-    record = Entrez.read(handle)
-    try:
-        org_id = record["IdList"][0]
-        if org_id:
-            try:
-                handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
-                records = Entrez.read(handle)
-                lineage = str(records[0]["Lineage"])
-            except error.HTTPError:
-                return lineage
-        else:
-            return lineage
-    except IndexError:
-        if 'QueryTranslation' in record.keys():
-            # If 'QueryTranslation' is returned, use it for the final Entrez query
-            lineage = record['QueryTranslation']
-            lineage = re.sub("\[All Names\].*", '', lineage)
-            lineage = re.sub('[()]', '', lineage)
-            for word in lineage.split(' '):
-                handle = Entrez.esearch(db="Taxonomy", term=word, retmode="xml")
-                record = Entrez.read(handle)
+def tolerant_entrez_query(search_term_list: list, db="Taxonomy", method="fetch", retmode="xml", chunk_size=100):
+    """
+    Function for performing Entrez-database queries using BioPython's Entrez utilities.
+    It is able to break up the complete list of search terms,
+     perform the search and if any chunks fail send individual queries for each item in the sub_list.
+    :param search_term_list: A list of GenBank accessions, NCBI taxonomy IDs, or organism names
+    :param db: Name of the Entrez database to query
+    :param method: Either fetch or search corresponding to Entrez.efetch and Entrez.esearch, respectively
+    :param retmode: The format of the Entrez records to be returned ('fasta' or 'xml', typically)
+    :param chunk_size: Size of the sub_lists for each Entrez query. Fewer than 100 is recommended.
+    :return: A list of Entrez records, in the format specific by `retmode`
+    """
+    read_records = list()
+    durations = list()
+    failures = list()
+
+    # Check the database name
+    if db not in ["nucleotide", "protein", "Taxonomy"]:
+        logging.error("Unknown Entrez database '" + db + "'.\n")
+        sys.exit(9)
+
+    # Create the sub-lists from `search_term_list` of length `chunk_size`
+    for i in range(0, len(search_term_list), chunk_size):
+        start_time = time.time()
+        sub_list = search_term_list[i:i + chunk_size]
+        try:
+            if method == "fetch":
+                handle = Entrez.efetch(db=db, id=','.join([str(sid) for sid in sub_list]), retmode=retmode)
+            else:
+                handle = Entrez.esearch(db=db, term=','.join([str(sid) for sid in sub_list]))
+            if chunk_size > 1:
+                read_records += Entrez.read(handle)
+            else:
+                read_records.append(Entrez.read(handle))
+        # Broad exception clause but THE NUMBER OF POSSIBLE ERRORS IS TOO DAMN HIGH!
+        # Try sending individual queries instead to determine problematic query IDs
+        except:
+            for sid in sub_list:
                 try:
-                    org_id = record["IdList"][0]
-                except IndexError:
-                    continue
-                handle = Entrez.efetch(db="Taxonomy", id=org_id, retmode="xml")
-                records = Entrez.read(handle)
-                lineage = str(records[0]["Lineage"])
-                if re.search("cellular organisms", lineage):
-                    break
-    if not lineage:
-        logging.warning("Unable to handle record returned by Entrez.efetch!\n" +
-                        "Database = Taxonomy\n" +
-                        "term = " + search_term + "\n" +
-                        "record = " + str(record) + "\n")
-    return lineage
+                    if method == "fetch":
+                        handle = Entrez.efetch(db=db, id=sid, retmode=retmode)
+                    else:
+                        handle = Entrez.esearch(db=db, term=sid)
+                    record = Entrez.read(handle)
+                    read_records.append(record[0])
+                except:
+                    failures.append("\t" + str(sid))
+
+        end_time = time.time()
+        duration = end_time - start_time
+        hours, remainder = divmod(duration, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if duration < 0.8:
+            time.sleep(0.5)
+        durations.append(str(i) + ' - ' + str(i + chunk_size) + "\t" + ':'.join([str(minutes), str(round(seconds, 2))]))
+
+    logging.debug("Entrez query time for accessions (minutes:seconds):\n\t" +
+                  "\n\t".join(durations) + "\n")
+
+    if failures:
+        logging.warning("Unable to parse XML data from Entrez! "
+                        "Either the XML is corrupted or the query terms cannot be found in the database.\n"
+                        "Offending accessions from this batch:\n" + "\n".join(failures) + "\n")
+    return read_records, durations, failures
 
 
 def parse_accessions_from_entrez_xml(record):
@@ -96,40 +121,46 @@ def parse_accessions_from_entrez_xml(record):
     return accession, versioned, alternatives
 
 
-def parse_organism_from_entrez_xml(record):
-    organism = ""
+def parse_gbseq_info_from_entrez_xml(record, gb_key="GBSeq_organism"):
+    """
+    Function for pulling out a value for a specific GenBank key from a dictionary
+    :param record:
+    :param gb_key:
+    :return:
+    """
+    gb_value = ""
     if len(record) >= 1:
         try:
-            if "GBSeq_organism" in record:
-                organism = record["GBSeq_organism"]
-                # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
-                organism = re.sub('[)(\[\]]', '', organism)
-        except IndexError:
-            logging.warning("'GBSeq_organism' not found in Entrez record.\n")
-    else:
-        pass
-    return organism
+            gb_value = record[gb_key]
+            # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
+            gb_value = re.sub('[)(\[\]]', '', gb_value)
+        except (IndexError, KeyError):
+            logging.warning("'" + gb_key + "' not found in Entrez record.\n")
+    return gb_value
 
 
-def parse_lineage_from_record(record):
-    lineage = ""
+def parse_gbseq_info_from_esearch_record(record, gb_key="IdList"):
+    gb_value = ""
     if len(record) >= 1:
         try:
-            if "GBSeq_organism" in record:
-                organism = record["GBSeq_organism"]
-                # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
-                organism = re.sub('[)(\[\]]', '', organism)
-                lineage = query_entrez_taxonomy(organism)
-        except IndexError:
-            logging.warning("'GBSeq_organism' not found in Entrez record.\n" +
-                            "\n".join([query_entrez_taxonomy(word) for word in record['QueryTranslation']]))
-    else:
-        # Lineage is already set to "". Just return and move on to the next attempt
-        pass
-    return lineage
+            gb_value = record[gb_key][0]
+        except (IndexError, KeyError, TypeError):
+            return gb_value
+    return gb_value
 
 
 def prep_for_entrez_query():
+    """
+    Tests checks to ensure the correct version of BioPython is imported,
+    sends a test Entrez.efetch query to see if the internet connection is currently stable.
+    :return:
+    """
+    if float(Bio.__version__) < 1.68:
+        # This is required due to a bug in earlier versions returning a URLError
+        logging.error("Version of biopython needs to be >=1.68! " +
+                      str(Bio.__version__) + " is currently installed.\n")
+        sys.exit(9)
+
     logging.info("Preparing Bio.Entrez for NCBI queries... ")
     Entrez.email = "c.morganlang@gmail.com"
     Entrez.tool = "treesapp"
@@ -159,278 +190,111 @@ def check_lineage(lineage, organism_name):
         return lineage
 
 
-def query_entrez_accessions(search_term_list, molecule_type):
-    """
-
-    :param search_term_list:
-    :param molecule_type: "dna", "rrna", "prot", or "tax - parsed from command line arguments
-    :return: A dictionary mapping accession IDs (keys) to organisms and lineages (values)
-    """
-
-    if float(Bio.__version__) < 1.68:
-        # This is required due to a bug in earlier versions returning a URLError
-        logging.error("Version of biopython needs to be >=1.68! " +
-                      str(Bio.__version__) + " is currently installed.\n")
-        sys.exit(9)
-
-    # Determine which database to search using the `molecule_type`
-    if molecule_type == "dna" or molecule_type == "rrna" or molecule_type == "ambig":
-        database = "nucleotide"
-    elif molecule_type == "prot":
-        database = "protein"
-    elif molecule_type == "tax":
-        database = "Taxonomy"
-    else:
-        logging.error("Welp. We're not sure how but the molecule type is not recognized!\n" +
-                      "Please create an issue on the GitHub page.")
-        sys.exit(9)
-
-    # Must be cautious with this first query since some accessions are not in the Entrez database anymore
-    # and return with `urllib.error.HTTPError: HTTP Error 502: Bad Gateway`
-    master_records = list()
-    durations = list()
-    chunk_size = 90
-
-    for i in range(0, len(search_term_list), chunk_size):
-        start_time = time.time()
-        chunk = search_term_list[i:i+chunk_size]
-        try:
-            handle = Entrez.efetch(db=database, id=','.join([str(sid) for sid in chunk]), retmode="xml")
-            master_records += Entrez.read(handle)
-        # Broad exception clause but THE NUMBER OF POSSIBLE ERRORS IS TOO DAMN HIGH!
-        except:
-            bad_sids = list()
-            for sid in chunk:
-                try:
-                    handle = Entrez.efetch(db=database, id=sid, retmode="xml")
-                    record = Entrez.read(handle)
-                    master_records.append(record[0])
-                except:
-                    bad_sids.append("\t" + str(sid))
-
-            logging.warning("Unable to parse XML data from Entrez.efetch! "
-                            "Either the XML is corrupted or the query terms cannot be found in the database.\n"
-                            "Offending accessions from this batch:\n" + "\n".join(bad_sids) + "\n")
-        end_time = time.time()
-        hours, remainder = divmod(end_time - start_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        durations.append(str(i) + ' - ' + str(i+chunk_size) + "\t" + ':'.join([str(minutes), str(round(seconds, 2))]))
-
-    logging.debug("Entrez.efetch query time for accessions (minutes:seconds):\n\t" +
-                  "\n\t".join(durations) + "\n")
-    return master_records
-
-
 def get_multiple_lineages(search_term_list: list, molecule_type: str):
+    """
+    Function for retrieving taxonomic lineage information from accession IDs - accomplished in 2 steps:
+     1. Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
+     2. Query Entrez's Taxonomy database using organism names to obtain corresponding TaxIds
+     3. Query Entrez's Taxonomy database using TaxIds to obtain corresponding taxonomic lineages
+    :param search_term_list:
+    :param molecule_type:
+    :return:
+    """
     if not search_term_list:
         logging.error("Search_term for Entrez query is empty\n")
         sys.exit(9)
 
-    # Do some semi-important stuff
     prep_for_entrez_query()
+    entrez_db = validate_target_db(molecule_type)
 
-    logging.info("Retrieving Entrez records for each reference sequence... ")
     accession_lineage_map = dict()
     all_accessions = set()
     unique_organisms = set()
+    unique_taxa = set()
     updated_accessions = dict()
-    attempt = 1
-    while attempt < 3:
-        if len(search_term_list) == 0:
-            break
 
-        logging.debug("ATTEMPT " + str(attempt) + ':' +
-                      "\n\tNumber of search terms = " + str(len(search_term_list)) + "\n")
-        records_batch = query_entrez_accessions(search_term_list, molecule_type)
+    ##
+    # Step 1: Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
+    ##
+    logging.info("Retrieving taxonomy Entrez records for each accession... ")
+    records_batch, durations, org_failures = tolerant_entrez_query(search_term_list, entrez_db)
+    logging.info("done.\n")
 
-        # Instantiate the master_records for linking each organism to accessions, and empty fields
-        for record in records_batch:
-            accession, versioned, alt = parse_accessions_from_entrez_xml(record)
-            if not accession and not versioned:
-                logging.debug("Neither accession nor accession.version parsed from:\n" + str(record) + "\n")
-                continue
-            elif accession not in search_term_list and versioned not in search_term_list:
-                for alt_key in alt:
-                    if alt_key in search_term_list:
-                        versioned = alt_key
-                    updated_accessions[alt_key] = (accession, versioned)
-            accession_lineage_map[(accession, versioned)] = dict()
-            accession_lineage_map[(accession, versioned)]["organism"] = parse_organism_from_entrez_xml(record)
+    # Parse the records returned by tolerant_entrez_query mapping accessions to organism names
+    for record in records_batch:
+        accession, versioned, alt = parse_accessions_from_entrez_xml(record)
+        if not accession and not versioned:
+            logging.debug("Neither accession nor accession.version parsed from:\n" + str(record) + "\n")
+            continue
+        elif accession not in search_term_list and versioned not in search_term_list:
+            for alt_key in alt:
+                if alt_key in search_term_list:
+                    versioned = alt_key
+                updated_accessions[alt_key] = (accession, versioned)
+        accession_lineage_map[(accession, versioned)] = dict()
+        tax_organism = parse_gbseq_info_from_entrez_xml(record)
+        tax_lineage = check_lineage(parse_gbseq_info_from_entrez_xml(record, "GBSeq_taxonomy"), tax_organism)
+
+        # Add the organism to unique_organisms set for taxonomic lineage querying
+        accession_lineage_map[(accession, versioned)]["organism"] = tax_organism
+        accession_lineage_map[(accession, versioned)]["tax_id"] = ""
+        # If the full taxonomic lineage was not found, then add it to the unique organisms for further querying
+        if len(tax_lineage) >= 7:
+            accession_lineage_map[(accession, versioned)]["lineage"] = "; ".join(tax_lineage)
+        else:
             accession_lineage_map[(accession, versioned)]["lineage"] = ""
-            all_accessions.update([accession, versioned])
+            unique_organisms.add(tax_organism)
+        all_accessions.update([accession, versioned])
 
-        # Tolerance for failed Entrez accession queries
-        rescued = 0
-        success = 0
-        x = 0
-        while x < len(search_term_list):
-            if search_term_list[x] in all_accessions:
-                search_term_list.pop(x)
-                success += 1
-            elif search_term_list[x] in updated_accessions:
-                search_term_list.pop(x)
-                rescued += 1
-            else:
-                x += 1
-        logging.debug("ATTEMPT " + str(attempt) + ":" +
-                      "\n\tQueries mapped ideally = " + str(success) +
-                      "\n\tQueries mapped with alternative accessions = " + str(rescued) + "\n")
-        attempt += 1
-
-    for tuple_key in accession_lineage_map.keys():
-        unique_organisms.add(accession_lineage_map[tuple_key]["organism"])
-
+    ##
+    # Step 2: Query Entrez's Taxonomy database using organism names to obtain corresponding taxonomic lineages
+    ##
+    logging.info("Retrieving NCBI taxonomy IDs for each organism... ")
+    records_batch, durations, lin_failures = tolerant_entrez_query(list(unique_organisms),
+                                                                   "Taxonomy", "search", "xml", 1)
     logging.info("done.\n")
+    for record in records_batch:
+        try:
+            organism = parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term']
+        except (IndexError, KeyError, TypeError):
+            logging.warning("Value for 'TranslationStack' not found in Entrez record:" + str(record) + ".\n" +
+                            "Unable to link taxonomy ID to organism.\n")
+            continue
+        tax_id = parse_gbseq_info_from_esearch_record(record)
+        for acc_tuple in accession_lineage_map:
+            if re.search(accession_lineage_map[acc_tuple]["organism"], organism):
+                accession_lineage_map[acc_tuple]["tax_id"] = tax_id
+                unique_taxa.add(tax_id)
 
-    logging.info("Retrieving lineage information for each sequence from Entrez... ")
-    start_time = time.time()
-    organism_lineage_map = multiple_query_entrez_taxonomy(unique_organisms)
-    for tuple_key in accession_lineage_map:
-        accession_lineage_map[tuple_key]["lineage"] = organism_lineage_map[accession_lineage_map[tuple_key]["organism"]]
-
+    ##
+    # Step 3: Fetch the taxonomic lineage for all of the taxonomic IDs
+    ##
+    logging.info("Retrieving lineage information for each taxonomy ID... ")
+    records_batch, durations, lin_failures = tolerant_entrez_query(list(unique_taxa))
     logging.info("done.\n")
+    for record in records_batch:
+        tax_id = parse_gbseq_info_from_entrez_xml(record, "TaxId")
+        for tuple_key in accession_lineage_map:
+            if accession_lineage_map[tuple_key]["tax_id"] == tax_id:
+                accession_lineage_map[tuple_key]["lineage"] = parse_gbseq_info_from_entrez_xml(record, "Lineage")
 
-    end_time = time.time()
-    hours, remainder = divmod(end_time - start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    logging.debug("Entrez.efetch query time for lineages (minutes:seconds):\n" +
-                  ':'.join([str(minutes), str(round(seconds, 2))]) + "\n")
+    # Report on the tolerance for failed Entrez accession queries
+    rescued = 0
+    success = 0
+    x = 0
+    while x < len(search_term_list):
+        if search_term_list[x] in all_accessions:
+            search_term_list.pop(x)
+            success += 1
+        elif search_term_list[x] in updated_accessions:
+            search_term_list.pop(x)
+            rescued += 1
+        else:
+            x += 1
+    logging.debug("\nQueries mapped ideally = " + str(success) +
+                  "\nQueries mapped with alternative accessions = " + str(rescued) + "\n")
 
     return accession_lineage_map, all_accessions
-
-
-def get_lineage(search_term, molecule_type):
-    """
-    Used to return the NCBI taxonomic lineage of the sequence
-    :param: search_term: The NCBI search_term
-    :param: molecule_type: "dna", "rrna", "prot", or "tax - parsed from command line arguments
-    :return: string representing the taxonomic lineage
-    """
-    # TODO: fix potential error PermissionError:
-    # [Errno 13] Permission denied: '/home/connor/.config/biopython/Bio/Entrez/XSDs'
-    # Fixed with `sudo chmod 777 .config/biopython/Bio/Entrez/`
-    if not search_term:
-        raise AssertionError("ERROR: search_term for Entrez query is empty!\n")
-    if float(Bio.__version__) < 1.68:
-        # This is required due to a bug in earlier versions returning a URLError
-        raise AssertionError("ERROR: version of biopython needs to be >=1.68! " +
-                             str(Bio.__version__) + " is currently installed. Exiting now...")
-    Entrez.email = "c.morganlang@gmail.com"
-    Entrez.tool = "treesapp"
-    # Test the internet connection:
-    try:
-        Entrez.efetch(db="Taxonomy", id="158330", retmode="xml")
-    except error.URLError:
-        raise AssertionError("ERROR: Unable to serve Entrez query. Are you connected to the internet?")
-
-    # Determine which database to search using the `molecule_type`
-    if molecule_type == "dna" or molecule_type == "rrna" or molecule_type == "ambig":
-        database = "nucleotide"
-    elif molecule_type == "prot":
-        database = "protein"
-    elif molecule_type == "tax":
-        database = "Taxonomy"
-    else:
-        logging.error("Welp. We're not sure how but the molecule type is not recognized!\n" +
-                      "Please create an issue on the GitHub page.")
-        sys.exit(9)
-
-    # Find the lineage from the search_term ID
-    lineage = ""
-    ncbi_sequence_databases = ["nucleotide", "protein"]
-    handle = None
-    if database in ["nucleotide", "protein"]:
-        try:
-            handle = Entrez.efetch(db=database, id=str(search_term), retmode="xml")
-        except error.HTTPError:
-            # if molecule_type == "ambig":
-                x = 0
-                while handle is None and x < len(ncbi_sequence_databases):
-                    backup_db = ncbi_sequence_databases[x]
-                    if backup_db != database:
-                        try:
-                            handle = Entrez.efetch(db=backup_db, id=str(search_term), retmode="xml")
-                        except error.HTTPError:
-                            handle = None
-                    x += 1
-                if handle is None:
-                    return lineage
-        try:
-            record = Entrez.read(handle)
-        except UnboundLocalError:
-            raise UnboundLocalError
-        if len(record) >= 1:
-            try:
-                if "GBSeq_organism" in record[0]:
-                    organism = record[0]["GBSeq_organism"]
-                    # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
-                    organism = re.sub('[)(\[\]]', '', organism)
-                    lineage = query_entrez_taxonomy(organism)
-            except IndexError:
-                for word in record['QueryTranslation']:
-                    lineage = query_entrez_taxonomy(word)
-                    print(lineage)
-        else:
-            # Lineage is already set to "". Just return and move on to the next attempt
-            pass
-    else:
-        try:
-            lineage = query_entrez_taxonomy(search_term)
-        except UnboundLocalError:
-            logging.warning("Unable to find Entrez taxonomy using organism name:\n\t" + search_term + "\n")
-
-    return lineage
-
-
-def get_lineage_robust(reference_sequence_list, molecule):
-    accession_lineage_map = dict()
-
-    for reference_sequence in reference_sequence_list:
-        strikes = 0
-        lineage = ""
-        while strikes < 3:
-            if strikes == 0:
-                if reference_sequence.accession:
-                    lineage = get_lineage(reference_sequence.accession, molecule)
-                else:
-                    logging.warning("No accession available for Entrez query:\n" +
-                                    reference_sequence.get_info())
-                if isinstance(lineage, str) and len(lineage) > 0:
-                    # The query was successful
-                    strikes = 3
-            elif strikes == 1:
-                # Unable to determine lineage from the search_term provided,
-                # try to parse organism name from description
-                if reference_sequence.organism:
-                    try:
-                        taxon = ' '.join(reference_sequence.organism.split('_')[:2])
-                    except IndexError:
-                        taxon = reference_sequence.organism
-                    lineage = get_lineage(taxon, "tax")
-                    if type(lineage) is str and len(lineage) > 0:
-                        # The query was successful
-                        # try:
-                        #     lineage += '; ' + reference_sequence.organism.split('_')[-2]
-                        # except IndexError:
-                        #     lineage += '; ' + reference_sequence.organism
-                        strikes = 3
-                else:
-                    # Organism information is not available, time to bail
-                    strikes += 1
-            elif strikes == 2:
-                lineage = get_lineage(lineage, "tax")
-            strikes += 1
-        if not lineage:
-            logging.warning("Unable to find lineage for sequence with following data:\n" +
-                            reference_sequence.get_info())
-            lineage = ""
-        # TODO: test this
-        if reference_sequence.organism:
-            lineage = check_lineage(lineage, reference_sequence.organism)
-        else:
-            reference_sequence.organism = reference_sequence.description
-        accession_lineage_map[reference_sequence.accession] = lineage
-    return accession_lineage_map
 
 
 def verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects, taxa_searched, molecule):
@@ -481,9 +345,13 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
     # Failing this, lineages will be set to "Unclassified"
     if len(failed_accession_queries) > 0:
         misses_strings = list()
-        accession_lineage_map = get_lineage_robust(failed_accession_queries, molecule)
+        accession_lineage_map, all_accessions = get_multiple_lineages([ref_seq.accession for ref_seq in failed_accession_queries], molecule)
         for reference_sequence in failed_accession_queries:
-            lineage = accession_lineage_map[reference_sequence.accession]
+            lineage = ""
+            for tuple_key in accession_lineage_map.keys():
+                if reference_sequence.accession in tuple_key:
+                    lineage = accession_lineage_map[tuple_key]["lineage"]
+                    break
             if lineage == "":
                 logging.warning("Unable to determine the taxonomic lineage for " +
                                 reference_sequence.accession + "\n")
@@ -593,3 +461,6 @@ def build_entrez_queries(fasta_record_objects: dict):
                         "\n\t".join(unavailable))
     return list(entrez_query_list), num_lineages_provided
 
+
+if __name__ == "main":
+    tolerant_entrez_query(['12968'])
