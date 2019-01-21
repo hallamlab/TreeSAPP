@@ -216,6 +216,7 @@ def get_header_format(header, code_name=""):
     ref_re = re.compile(">ref\|(.*)\|.*\[(.*)\]")
     pdb_re = re.compile(">pdb\|(.*)\|.+$")  # a
     pir_re = re.compile(">pir\|.*\|(\w+).* - (.*)$")  # a, o
+    presf_re = re.compile(">prf\|.*\|([A-Z0-9]+)\s+.*$")  # a
     sp_re = re.compile(">sp\|(.*)\|.*Full=.*;?.*$")  # a
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name) + "$")
@@ -251,7 +252,8 @@ def get_header_format(header, code_name=""):
                                gi_prepend_mess_re: "gi_mess",
                                refseq_prot_re: "refseq_prot",
                                genbank_prot_re: "gen_prot",
-                               pfam_re: "pfam"},
+                               pfam_re: "pfam",
+                               presf_re: "prf"},
                       "dna": {mltree_re: "mltree",
                               silva_arb_re: "silva",
                               refseq_nuc_re: "refseq_nuc",

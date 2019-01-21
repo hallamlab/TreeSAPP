@@ -191,7 +191,7 @@ def find_executables(args):
         elif which(dep):
             exec_paths[dep] = which(dep)
         else:
-            logging.error("Could not find a valid executable for " + dep + ". ")
+            logging.error("Could not find a valid executable for " + dep + ".\n")
             sys.exit(13)
 
     args.executables = exec_paths

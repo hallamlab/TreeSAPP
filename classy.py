@@ -1039,8 +1039,13 @@ def register_headers(header_list):
 
 
 def get_header_info(header_registry, code_name=''):
-    sys.stdout.write("Extracting information from headers... ")
-    sys.stdout.flush()
+    """
+
+    :param header_registry: A dictionary of Header instances, indexed by numerical treesapp_id
+    :param code_name: [OPTIONAL] The code_name of the reference package (marker gene/domain/family/protein)
+    :return: Dictionary where keys are numerical treesapp_ids and values are ReferenceSequence instances
+    """
+    logging.info("Extracting information from headers... ")
     fasta_record_objects = dict()
     for treesapp_id in sorted(header_registry.keys(), key=int):
         original_header = header_registry[treesapp_id].original
@@ -1059,7 +1064,7 @@ def get_header_info(header_registry, code_name=''):
         ref_seq.short_id = '>' + treesapp_id + '_' + code_name
         fasta_record_objects[treesapp_id] = ref_seq
 
-    sys.stdout.write("done.\n")
+    logging.info("done.\n")
 
     return fasta_record_objects
 

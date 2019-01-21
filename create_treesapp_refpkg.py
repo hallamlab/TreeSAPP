@@ -409,8 +409,7 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
     :return:
     """
-    sys.stdout.write("Extracting the quality-controlled protein sequences... ")
-    sys.stdout.flush()
+    logging.info("Extracting the quality-controlled protein sequences... ")
     marker_gene_dict = dict()
     for marker in hmm_matches:
         if len(hmm_matches.keys()) > 1:
@@ -428,7 +427,10 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
             for num in header_registry:
                 if hmm_match.orf == header_registry[num].first_split[1:]:
                     query_names = header_registry[num]
-                    sequence = fasta_dict[query_names.formatted]
+                    try:
+                        sequence = fasta_dict[query_names.formatted]
+                    except KeyError:
+                        break
                     if hmm_match.of > 1:
                         query_names.post_align = \
                             ' '.join([query_names.first_split, str(hmm_match.num) + '.' + str(hmm_match.of), re.sub(re.escape(query_names.first_split), '', query_names.original)])
@@ -442,9 +444,8 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
                                     hmm_match.get_info())
                 marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
             else:
-                logging.error("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
-                sys.exit(13)
-    sys.stdout.write("done.\n")
+                logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
+    logging.info("done.\n")
     return marker_gene_dict[marker]
 
 
@@ -478,7 +479,7 @@ def hmm_pile(hmm_matches):
         low_coverage_start = 0
         low_coverage_stop = 0
         maximum_coverage = 0
-        sys.stdout.write("Low coverage HMM windows (start-stop):\n")
+        low_cov_summary = ""
         for window in sorted(hmm_bins.keys()):
             height = hmm_bins[window]
             if height > maximum_coverage:
@@ -491,14 +492,17 @@ def hmm_pile(hmm_matches):
                 else:
                     low_coverage_stop = end
             elif height > len(hmm_matches[marker])/2 and low_coverage_stop != 0:
-                sys.stdout.write("\t" + str(low_coverage_start) + '-' + str(low_coverage_stop) + "\n")
+                low_cov_summary += "\t" + str(low_coverage_start) + '-' + str(low_coverage_stop) + "\n"
                 low_coverage_start = 0
                 low_coverage_stop = 0
             else:
                 pass
         if low_coverage_stop != low_coverage_start:
-            sys.stdout.write("\t" + str(low_coverage_start) + "-end\n")
-        sys.stdout.write("Maximum coverage = " + str(maximum_coverage) + " sequences\n")
+            low_cov_summary += "\t" + str(low_coverage_start) + "-end\n"
+
+        if low_cov_summary:
+            logging.info("Low coverage HMM windows (start-stop):\n" + low_cov_summary)
+        logging.info("Maximum coverage = " + str(maximum_coverage) + " sequences\n")
     return
 
 
