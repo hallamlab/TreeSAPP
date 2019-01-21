@@ -51,6 +51,9 @@ def tolerant_entrez_query(search_term_list: list, db="Taxonomy", method="fetch",
         logging.error("Unknown Entrez database '" + db + "'.\n")
         sys.exit(9)
 
+    if len(search_term_list) == 0:
+        return read_records, durations, failures
+
     # Create the sub-lists from `search_term_list` of length `chunk_size`
     for i in range(0, len(search_term_list), chunk_size):
         start_time = time.time()
@@ -80,10 +83,11 @@ def tolerant_entrez_query(search_term_list: list, db="Taxonomy", method="fetch",
 
         end_time = time.time()
         duration = end_time - start_time
+        if duration < 0.66:
+            time.sleep(0.66 - duration)
+            duration = 0.66
         hours, remainder = divmod(duration, 3600)
         minutes, seconds = divmod(remainder, 60)
-        if duration < 0.8:
-            time.sleep(0.5)
         durations.append(str(i) + ' - ' + str(i + chunk_size) + "\t" + ':'.join([str(minutes), str(round(seconds, 2))]))
 
     logging.debug("Entrez query time for accessions (minutes:seconds):\n\t" +
@@ -173,21 +177,33 @@ def prep_for_entrez_query():
     return
 
 
-def check_lineage(lineage, organism_name):
+def check_lineage(lineage: str, organism_name: str, verbosity=0):
     """
     Sometimes the NCBI lineage is incomplete.
     Currently, this function uses organism_name to ideally add Species to the lineage
     :param lineage: A semi-colon separated taxonomic lineage
     :param organism_name: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
-    :return: A string with lineage information
+    :param verbosity: 1 prints debugging messages
+    :return: A list of elements for each taxonomic rank representing the taxonomic lineage
     """
+    if verbosity:
+        logging.debug("check_lineage():\n\tlineage = '" + lineage + "'\n\torganism = '" + organism_name + "'\n")
+
+    if not lineage:
+        return []
     proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
-    if proper_species_re.match(lineage.split("; ")[-1]):
-        return lineage
-    elif len(lineage.split("; ")) == 7 and proper_species_re.match(organism_name):
-        return lineage + "; " + organism_name
+    lineage_list = lineage.split("; ")
+    if proper_species_re.match(lineage_list[-1]):
+        if verbosity:
+            logging.debug("check_lineage(): Perfect lineage")
+    elif len(lineage_list) >= 6 and proper_species_re.match(organism_name):
+        if verbosity:
+            logging.debug("check_lineage(): Organism name added to complete the lineage")
+        lineage_list.append(organism_name)
     else:
-        return lineage
+        if verbosity:
+            logging.debug("check_lineage(): Bad lineage")
+    return lineage_list
 
 
 def get_multiple_lineages(search_term_list: list, molecule_type: str):
@@ -196,22 +212,26 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
      1. Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
      2. Query Entrez's Taxonomy database using organism names to obtain corresponding TaxIds
      3. Query Entrez's Taxonomy database using TaxIds to obtain corresponding taxonomic lineages
-    :param search_term_list:
-    :param molecule_type:
-    :return:
+
+    :param search_term_list: A list of GenBank accession IDs to be mapped to lineages
+    :param molecule_type: The type of molecule (e.g. prot, nuc) to be mapped to a proper Entrez database name
+    :return: Dictionary mapping accession and accession.version to taxonomic values;
+     dictionary tracking the success (1) or failure (0) of an accession's query.
     """
     if not search_term_list:
         logging.error("Search_term for Entrez query is empty\n")
         sys.exit(9)
 
-    prep_for_entrez_query()
-    entrez_db = validate_target_db(molecule_type)
-
     accession_lineage_map = dict()
-    all_accessions = set()
+    all_accessions = dict()
     unique_organisms = set()
     unique_taxa = set()
     updated_accessions = dict()
+
+    for term in search_term_list:
+        all_accessions[term] = 0  # Indicating a failure
+    prep_for_entrez_query()
+    entrez_db = validate_target_db(molecule_type)
 
     ##
     # Step 1: Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
@@ -244,7 +264,6 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
         else:
             accession_lineage_map[(accession, versioned)]["lineage"] = ""
             unique_organisms.add(tax_organism)
-        all_accessions.update([accession, versioned])
 
     ##
     # Step 2: Query Entrez's Taxonomy database using organism names to obtain corresponding taxonomic lineages
@@ -275,29 +294,35 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
     for record in records_batch:
         tax_id = parse_gbseq_info_from_entrez_xml(record, "TaxId")
         for tuple_key in accession_lineage_map:
+            acc, ver = tuple_key
             if accession_lineage_map[tuple_key]["tax_id"] == tax_id:
                 accession_lineage_map[tuple_key]["lineage"] = parse_gbseq_info_from_entrez_xml(record, "Lineage")
+                break
+            # If the lineage can be mapped to the original taxonomy, then set the values to 1 (success)
+            if accession_lineage_map[tuple_key]["lineage"]:
+                all_accessions.update({acc: 1, ver: 1})
 
     # Report on the tolerance for failed Entrez accession queries
     rescued = 0
     success = 0
     x = 0
     while x < len(search_term_list):
-        if search_term_list[x] in all_accessions:
+        accession = search_term_list[x]
+        if accession in all_accessions and all_accessions[accession]:
             search_term_list.pop(x)
             success += 1
-        elif search_term_list[x] in updated_accessions:
+        elif accession in updated_accessions:
             search_term_list.pop(x)
             rescued += 1
         else:
             x += 1
-    logging.debug("\nQueries mapped ideally = " + str(success) +
+    logging.debug("Queries mapped ideally = " + str(success) +
                   "\nQueries mapped with alternative accessions = " + str(rescued) + "\n")
 
     return accession_lineage_map, all_accessions
 
 
-def verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects, taxa_searched, molecule):
+def verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects, taxa_searched):
     """
     Function used for parsing records returned by Bio.Entrez.efetch queries and identifying inconsistencies
     between the search terms and the results
@@ -306,10 +331,8 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
     :param all_accessions:
     :param fasta_record_objects:
     :param taxa_searched: An integer for tracking number of accessions queried (currently number of lineages provided)
-    :param molecule: Type of molecule (prot, dna, rrna) used for choosing the Entrez database to query
     :return:
     """
-    failed_accession_queries = list()
     if (len(accession_lineage_map.keys()) + taxa_searched) != len(fasta_record_objects):
         # Records were not returned for all sequences. Time to figure out which ones!
         logging.warning("Entrez did not return a record for every accession queried.\n"
@@ -322,68 +345,39 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
     # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
     unambiguous_accession_lineage_map = dict()
     for mltree_id_key in fasta_record_objects.keys():
-        reference_sequence = fasta_record_objects[mltree_id_key]
-        if not reference_sequence.lineage:
-            if reference_sequence.accession in all_accessions:
-                taxa_searched += 1
-                for tuple_key in accession_lineage_map:
-                    accession, versioned = tuple_key
-                    if reference_sequence.accession == accession or reference_sequence.accession == versioned:
-                        if accession_lineage_map[tuple_key]["lineage"] == "":
-                            failed_accession_queries.append(reference_sequence)
-                        else:
-                            # The query was successful! Add it and increment
-                            unambiguous_accession_lineage_map[reference_sequence.accession] = accession_lineage_map[tuple_key]["lineage"]
-                        if not reference_sequence.organism and accession_lineage_map[tuple_key]["organism"]:
-                            reference_sequence.organism = accession_lineage_map[tuple_key]["organism"]
-            else:
-                failed_accession_queries.append(reference_sequence)
-        else:
-            unambiguous_accession_lineage_map[reference_sequence.accession] = reference_sequence.lineage
-
-    # Attempt to find appropriate lineages for the failed accessions (e.g. using organism name as search term)
-    # Failing this, lineages will be set to "Unclassified"
-    if len(failed_accession_queries) > 0:
-        misses_strings = list()
-        accession_lineage_map, all_accessions = get_multiple_lineages([ref_seq.accession for ref_seq in failed_accession_queries], molecule)
-        for reference_sequence in failed_accession_queries:
-            lineage = ""
-            for tuple_key in accession_lineage_map.keys():
-                if reference_sequence.accession in tuple_key:
-                    lineage = accession_lineage_map[tuple_key]["lineage"]
-                    break
-            if lineage == "":
-                logging.warning("Unable to determine the taxonomic lineage for " +
-                                reference_sequence.accession + "\n")
-                lineage = "Unclassified"
+        ref_seq = fasta_record_objects[mltree_id_key]
+        if ref_seq.accession in all_accessions:
             taxa_searched += 1
-            unambiguous_accession_lineage_map[reference_sequence.accession] = lineage
-            misses_strings.append("\tAccession=" + reference_sequence.accession + ", " + "Lineage=" + lineage)
-        logging.debug("Recovered records:\n" + "\n".join(misses_strings) + "\n")
+        # Could have been set previously
+        if ref_seq.lineage:
+            unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
+        else:
+            lineage = ""
+            for tuple_key in accession_lineage_map:
+                accession, versioned = tuple_key
+                if ref_seq.accession == accession or ref_seq.accession == versioned:
+                    if accession_lineage_map[tuple_key]["lineage"] == "":
+                        lineage = "Unclassified"
+                    else:
+                        # The query was successful! Add it and increment
+                        lineage = accession_lineage_map[tuple_key]["lineage"]
+                    if not ref_seq.organism and accession_lineage_map[tuple_key]["organism"]:
+                        ref_seq.organism = accession_lineage_map[tuple_key]["organism"]
+
+            if not lineage and ref_seq.accession not in all_accessions:
+                logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
+                              "Please remove the output directory and restart.\n")
+                sys.exit(13)
+            elif not lineage and all_accessions[ref_seq.accession] == 0:
+                lineage = "Unclassified"
+
+            ref_seq.lineage = "; ".join(check_lineage(lineage, ref_seq.organism))
+            unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
 
     if taxa_searched < len(fasta_record_objects.keys()):
         logging.error("Not all sequences (" + str(taxa_searched) + '/'
                       + str(len(fasta_record_objects)) + ") were queried against the NCBI taxonomy database!\n")
         sys.exit(9)
-
-    # Add the species designation since it is often not included in the sequence record's lineage
-    proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
-    for treesapp_id in fasta_record_objects:
-        ref_seq = fasta_record_objects[treesapp_id]
-        if not ref_seq.lineage:
-            try:
-                lineage = unambiguous_accession_lineage_map[ref_seq.accession]
-            except KeyError:
-                logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
-                              "Please remove the output directory and restart.\n")
-                sys.exit(13)
-            lr = lineage.split("; ")
-            if len(lr) == 7 and proper_species_re.match(ref_seq.organism):
-                unambiguous_accession_lineage_map[ref_seq.accession] = lineage + "; " + ref_seq.organism
-            elif ref_seq.organism not in lr and len(lr) <= 6 and re.match("^[A-Z][a-z]+$", ref_seq.organism):
-                unambiguous_accession_lineage_map[ref_seq.accession] = lineage + "; " + ref_seq.organism
-            # print(','.join([lineage, "organism: " + ref_seq.organism,
-            #                 "\n", "Final: " + unambiguous_accession_lineage_map[ref_seq.accession]]))
 
     return fasta_record_objects, unambiguous_accession_lineage_map
 
