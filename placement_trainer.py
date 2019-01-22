@@ -144,6 +144,9 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
     to rank depth values where Kingdom is 0, Phylum is 1, etc.
     :return:
     """
+    if not taxonomic_placement_distances:
+        return []
+
     if not taxonomic_ranks:
         taxonomic_ranks = {"Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6, "Strain": 7}
 
@@ -152,13 +155,19 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
         # print(rank, "raw", np.median(list(taxonomic_placement_distances[rank])))
         filtered_pds[rank] = cull_outliers(list(taxonomic_placement_distances[rank]))
         # print(rank, "filtered", np.median(list(filtered_pds[rank])))
+        if len(filtered_pds[rank]) == 0:
+            logging.warning("Ranks have 0 samples after filtering outliers.\n")
+            return []
 
     # Rarefy the placement distances to the rank with the fewest samples
     rarefied_pds = rarefy_rank_distances(filtered_pds)
+    for rank in rarefied_pds:
+        if len(rarefied_pds[rank]) == 0:
+            logging.warning("Ranks have 0 samples after rarefaction.\n")
+            return []
     # for rank in rarefied_pds:
     #     print(rank, "rarefied", np.median(list(rarefied_pds[rank])))
-    pfit_array = regress_ranks(rarefied_pds, taxonomic_ranks)
-    return pfit_array
+    return regress_ranks(rarefied_pds, taxonomic_ranks)
 
 
 def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
@@ -275,6 +284,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     for rank in rank_training_seqs:
         for taxonomy in rank_training_seqs[rank]:
             num_training_queries += len(rank_training_seqs[rank][taxonomy])
+        if len(rank_training_seqs[rank]) == 0:
+            logging.error("No sequences available for estimating Species-level placement distances.\n")
+            return taxonomic_placement_distances, pqueries
 
     if num_training_queries < 30:
         logging.error("Too few (" + str(num_training_queries) + ") sequences for training placement distance model.\n")
@@ -471,8 +483,10 @@ def regress_rank_distance(args, ref_pkg: ReferencePackage, accession_lineage_map
                                                                         args.num_threads)
     # Finish up
     pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
-
-    logging.info("Placement distance regression model complete.\n")
+    if pfit_array:
+        logging.info("Placement distance regression model complete.\n")
+    else:
+        logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
     return pfit_array, taxonomic_placement_distances, pqueries
 
@@ -511,8 +525,7 @@ def main():
         fasta_record_objects, accession_lineage_map = verify_lineage_information(accession_lineage_map,
                                                                                  all_accessions,
                                                                                  fasta_record_objects,
-                                                                                 num_lineages_provided,
-                                                                                 args.molecule)
+                                                                                 num_lineages_provided)
         write_accession_lineage_map(args.output_dir + os.sep + "placement_trainer_accession_lineage_map.tsv",
                                     accession_lineage_map)
 
@@ -522,23 +535,25 @@ def main():
     placement_table_file = args.output_dir + os.sep + "placement_info.tsv"
     placement_summary_file = args.output_dir + os.sep + "placement_trainer_results.txt"
     taxonomic_placement_distances = dict()
-    pfit_array = list()
 
     # Goal is to use the distances already calculated but re-print
     if os.path.isfile(placement_summary_file) and not args.overwrite:
         # Read the summary file and pull the phylogenetic distances for each rank
         taxonomic_placement_distances = read_placement_summary(placement_summary_file)
-        pfit_array = complete_regression(taxonomic_placement_distances)
-
     if len(taxonomic_placement_distances) == 0:
         pfit_array, taxonomic_placement_distances, pqueries = regress_rank_distance(args,
                                                                                     ref_pkg,
                                                                                     accession_lineage_map,
                                                                                     ref_fasta_dict,
                                                                                     training_ranks)
-
         # Write the tab-delimited file with metadata included for each placement
         write_placement_table(pqueries, placement_table_file, args.name)
+    else:
+        pfit_array = complete_regression(taxonomic_placement_distances)
+        if pfit_array:
+            logging.info("Placement distance regression model complete.\n")
+        else:
+            logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
     # Write the text file containing distances used in the regression analysis
     with open(placement_summary_file, 'w') as out_handler:
