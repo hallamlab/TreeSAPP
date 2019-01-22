@@ -409,42 +409,47 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
     :return:
     """
-    logging.info("Extracting the quality-controlled protein sequences... ")
+
+    if len(hmm_matches.keys()) > 1:
+        logging.error("Number of markers found from HMM alignments is >1\n" +
+                      "Does your HMM file contain more than 1 profile? TreeSAPP is unprepared for this.\n")
+        sys.exit(13)
+
     marker_gene_dict = dict()
+    header_matching_dict = dict()
+
+    logging.debug("Creating a temporary dictionary for rapid sequence name look-ups... ")
+    for num in header_registry:
+        header_matching_dict[header_registry[num].first_split[1:]] = header_registry[num]
+    logging.debug("done.\n")
+
+    logging.info("Extracting the quality-controlled protein sequences... ")
+
     for marker in hmm_matches:
-        if len(hmm_matches.keys()) > 1:
-            logging.error("Number of markers found from HMM alignments is >1\n" +
-                          "Does your HMM file contain more than 1 profile? TreeSAPP is unprepared for this.\n")
-            sys.exit(13)
         if marker not in marker_gene_dict:
             marker_gene_dict[marker] = dict()
 
         for hmm_match in hmm_matches[marker]:
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
-            sequence = ""
-            bulk_header = ""
-            for num in header_registry:
-                if hmm_match.orf == header_registry[num].first_split[1:]:
-                    query_names = header_registry[num]
-                    try:
-                        sequence = fasta_dict[query_names.formatted]
-                    except KeyError:
-                        break
-                    if hmm_match.of > 1:
-                        query_names.post_align = \
-                            ' '.join([query_names.first_split, str(hmm_match.num) + '.' + str(hmm_match.of), re.sub(re.escape(query_names.first_split), '', query_names.original)])
-                    else:
-                        query_names.post_align = query_names.original
-                    bulk_header = query_names.post_align
-                    break
-            if sequence:
-                if bulk_header in marker_gene_dict[marker]:
-                    logging.warning(bulk_header + " being overwritten by an alternative alignment!\n" +
-                                    hmm_match.get_info())
-                marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
-            else:
+            query_names = header_matching_dict[hmm_match.orf]
+            try:
+                sequence = fasta_dict[query_names.formatted]
+            except KeyError:
                 logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
+                continue
+            if hmm_match.of > 1:
+                query_names.post_align = ' '.join([query_names.first_split,
+                                                   str(hmm_match.num) + '.' + str(hmm_match.of),
+                                                   re.sub(re.escape(query_names.first_split), '', query_names.original)])
+            else:
+                query_names.post_align = query_names.original
+            bulk_header = query_names.post_align
+
+            if bulk_header in marker_gene_dict[marker]:
+                logging.warning(bulk_header + " being overwritten by an alternative alignment!\n" + hmm_match.get_info())
+            marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
+
     logging.info("done.\n")
     return marker_gene_dict[marker]
 
