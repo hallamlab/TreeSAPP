@@ -17,7 +17,7 @@ try:
     from time import gmtime, strftime, sleep
 
     from utilities import os_type, which, find_executables, reformat_string, return_sequence_info_groups,\
-        reformat_fasta_to_phy, write_phy_file, cluster_sequences
+        reformat_fasta_to_phy, write_phy_file, cluster_sequences, clean_lineage_string
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
         trim_multiple_alignment, read_fasta_to_dict
     from classy import ReferenceSequence, ReferencePackage, Header, Cluster, MarkerBuild,\
@@ -25,8 +25,8 @@ try:
     from external_command_interface import launch_write_command
     from entish import annotate_partition_tree
     from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
-    from entrez_utils import get_multiple_lineages, get_lineage_robust, verify_lineage_information,\
-        read_accession_taxa_map, write_accession_lineage_map, build_entrez_queries
+    from entrez_utils import get_multiple_lineages, verify_lineage_information, read_accession_taxa_map, \
+        write_accession_lineage_map, build_entrez_queries
     from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc
     from placement_trainer import regress_rank_distance
 
@@ -939,16 +939,16 @@ def estimate_taxonomic_redundancy(args, reference_dict):
     return lowest_reliable_rank
 
 
-def summarize_reference_taxa(args, reference_dict):
+def summarize_reference_taxa(reference_dict: dict, cluster_lca=False):
     """
-        Function for enumerating the representation of each taxonomic rank within the finalized reference sequences
-    :param args:
-    :param reference_dict:
+    Function for enumerating the representation of each taxonomic rank within the finalized reference sequences
+    :param reference_dict: A dictionary holding ReferenceSequence objects indexed by their unique numerical identifier
+    :param cluster_lca: Boolean specifying whether a cluster's LCA should be used for calculation or not
     :return: A formatted, human-readable string stating the number of unique taxa at each rank
     """
     taxonomic_summary_string = ""
     # Not really interested in Cellular Organisms or Strains.
-    rank_depth_map = {1: "Kingdoms", 2: "Phyla", 3: "Classes", 4: "Orders", 5: "Families", 6: "Genera", 7: "Species"}
+    rank_depth_map = {0: "Kingdoms", 1: "Phyla", 2: "Classes", 3: "Orders", 4: "Families", 5: "Genera", 6: "Species"}
     taxa_counts = dict()
     unclassifieds = 0
 
@@ -956,7 +956,7 @@ def summarize_reference_taxa(args, reference_dict):
         name = rank_depth_map[depth]
         taxa_counts[name] = set()
     for num_id in sorted(reference_dict.keys(), key=int):
-        if args.taxa_lca and reference_dict[num_id].cluster_lca:
+        if cluster_lca and reference_dict[num_id].cluster_lca:
             lineage = reference_dict[num_id].cluster_lca
         else:
             lineage = reference_dict[num_id].lineage
@@ -964,9 +964,10 @@ def summarize_reference_taxa(args, reference_dict):
         if re.search("unclassified", lineage, re.IGNORECASE):
             unclassifieds += 1
 
-        position = 1
-        taxa = lineage.split('; ')
-        while position < len(taxa) and position < 8:
+        position = 0
+        # Ensure the root/ cellular organisms designations are stripped
+        taxa = clean_lineage_string(lineage).split('; ')
+        while position < len(taxa) and position < 7:
             taxa_counts[rank_depth_map[position]].add(taxa[position])
             position += 1
 
@@ -1432,8 +1433,7 @@ def main():
         # Map proper accession to lineage from the tuple keys (accession, accession.version)
         #  in accession_lineage_map returned by get_multiple_lineages.
         fasta_record_objects, accession_lineage_map = verify_lineage_information(accession_lineage_map, all_accessions,
-                                                                                 fasta_record_objects, num_lineages_provided,
-                                                                                 args.molecule)
+                                                                                 fasta_record_objects, num_lineages_provided)
         write_accession_lineage_map(accession_map_file, accession_lineage_map)
     # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
     finalize_ref_seq_lineages(fasta_record_objects, accession_lineage_map)
@@ -1608,7 +1608,7 @@ def main():
         logging.warning(warnings + "\n")
 
     logging.info("Generated the taxonomic lineage map " + ref_pkg.lineage_ids + "\n")
-    taxonomic_summary = summarize_reference_taxa(args, fasta_replace_dict)
+    taxonomic_summary = summarize_reference_taxa(fasta_replace_dict, args.taxa_lca)
     logging.info(taxonomic_summary)
     marker_package.lowest_confident_rank = estimate_taxonomic_redundancy(args, fasta_replace_dict)
 

@@ -7,14 +7,14 @@ This tutorial is meant for users who would like to analyze a marker gene
 
 ## Ingredients
 
-The script we will need to use for this tutorial is `create_treesapp_ref_data.py`.
+The script we will need to use for this tutorial is `create_treesapp_refpkg.py`.
  It is packaged within the TreeSAPP GitHub repository and has been used extensively to
 build all the reference packages available. The most basic usage of this pipeline
 is visualized below:
 
 ![alt text](https://github.com/hallamlab/TreeSAPP/blob/master/dev_utils/Create_TreeSAPP_RefPkg_pipeline.png)
 
-As you can see `create_treesapp_ref_data.py` depends on several other open source software.
+As you can see `create_treesapp_refpkg.py` depends on several other open source software.
 Many of these are also dependencies of `treesapp.py` (e.g. HMMER, RAxML)
 but some are not. These are: MAFFT, TrimAl, USEARCH and potentially
 FastTree if you're interested in `fast` mode as well as the Python package BioPython (>1.67).
@@ -64,7 +64,7 @@ A multiple sequence alignment file in FASTA format, a HMM, a table mapping tree 
 
 A basic command could look something like this:
 ```
-$ ./create_treesapp_ref_data.py \
+$ ./create_treesapp_refpkg.py \
  --fasta_input rpoB_proteins.faa --output_dir rpoB_TreeSAPP_create \
  --code_name rpoB --identity 90 \
  --num_threads 8 --verbose
@@ -73,7 +73,7 @@ $ ./create_treesapp_ref_data.py \
 ## Step 3. Integration
 
 Congrats, you've created your TreeSAPP reference package! The final step
-is to run those commands that were printed as `create_treesapp_ref_data.py` finished.
+is to run those commands that were printed as `create_treesapp_refpkg.py` finished.
 They should look something like this:
 ```
 To integrate these data for use in TreeSAPP, the following steps must be performed:
@@ -94,7 +94,7 @@ A significant time sink is waiting for TreeSAPP to download the lineages
  those directories. Here is an example:
 
 ```
-$ ./create_treesapp_ref_data.py \
+$ ./create_treesapp_refpkg.py \
  -i rpoB_proteins.faa -o rpoB_create_90/ \
  -T 4 -c rpoB -p 90 --cluster --verbose --taxa_lca
 $ mkdir rpoB_create_80/
@@ -103,4 +103,4 @@ $ cp rpoB_create_90/accessions_id_lineage_map.tsv rpoB_create_80/
 $ cp rpoB_create_90/accessions_id_lineage_map.tsv rpoB_create_70/
 ```
 
-Following this, run `create_treesapp_ref_data.py` for the other versions.
+Following this, run `create_treesapp_refpkg.py` for the other versions.

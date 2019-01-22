@@ -19,12 +19,12 @@ if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from fasta import format_read_fasta, write_new_fasta, get_headers, read_fasta_to_dict
-from create_treesapp_ref_data import get_header_format, finalize_ref_seq_lineages
+from create_treesapp_refpkg import get_header_format, finalize_ref_seq_lineages
 from utilities import clean_lineage_string, return_sequence_info_groups, find_executables
 from external_command_interface import setup_progress_bar, launch_write_command
 from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves
 from classy import prep_logging, get_header_info, register_headers, MarkerTest
-from entrez_utils import get_lineage, read_accession_taxa_map, write_accession_lineage_map,\
+from entrez_utils import read_accession_taxa_map, write_accession_lineage_map,\
     build_entrez_queries, get_multiple_lineages, verify_lineage_information
 from phylo_dist import trim_lineages_to_rank
 
@@ -623,45 +623,6 @@ def clean_classification_names(assignments):
                 query = clean_lineage_string(query)
                 cleaned_assignments[marker][ref].append(query)
     return cleaned_assignments
-
-
-def download_taxonomic_lineage_for_queries(entrez_query_list):
-
-    sys.stdout.write("Downloading lineage information for each sequence accession from Entrez\n")
-
-    num_queries = len(entrez_query_list)
-    download_accumulator = 0
-    full_assignments = dict()
-    if num_queries > 1:
-        step_proportion = setup_progress_bar(num_queries)
-        acc = 0.0
-        # for ref in entrez_query_list:
-        #     if ref not in full_assignments:
-        #         full_assignments[ref] = list()
-        #     for entrez_query in entrez_query_list[ref]:
-        for entrez_query in entrez_query_list:
-            q_accession, database = entrez_query
-            lineage = get_lineage(q_accession, database)
-            if lineage:
-                full_assignments[q_accession] = lineage
-                download_accumulator += 1
-
-            # Update the progress bar
-            acc += 1.0
-            if acc >= step_proportion:
-                acc -= step_proportion
-                sys.stdout.write('-')
-                sys.stdout.flush()
-        if acc > 1:
-            sys.stdout.write('-')
-        sys.stdout.write("]\n")
-    else:
-        logging.error("No accessions could be parsed from the FASTA headers.\n")
-        sys.exit(21)
-
-    logging.info("\t" + str(download_accumulator) + " taxonomic lineages downloaded\n")
-
-    return full_assignments
 
 
 def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
@@ -1280,9 +1241,14 @@ def main():
             marker_eval_inst.ranks.append(rank)
 
     # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
-    if re.match("[A-Z][0-9]{4}", args.reference_marker):
+    if re.match("^[A-Z][0-9]{4}$", args.reference_marker):
         code_name = args.reference_marker
-        marker = marker_build_dict[code_name].cog
+        try:
+            marker = marker_build_dict[code_name].cog
+        except KeyError:
+            logging.error("Unable to find '" + code_name + "' in ref_build_parameters collection!\n" +
+                          "Has it been added to data/tree_data/ref_build_parameters.tsv and cog_list.tsv?\n")
+            sys.exit(21)
     elif len(args.reference_marker) <= 6:
         # Assuming the provided args.reference_marker is a short gene name (e.g. mcrA, nifH)
         marker = args.reference_marker
@@ -1341,7 +1307,7 @@ def main():
     if args.length:
         for seq_id in fasta_dict:
             if len(fasta_dict[seq_id]) < args.length:
-                logging.warning(seq_id + " sequence is shorter than " + str(args.length))
+                logging.warning(seq_id + " sequence is shorter than " + str(args.length) + "\n")
             else:
                 max_stop = len(fasta_dict[seq_id]) - args.length
                 random_start = randint(0, max_stop)
@@ -1378,8 +1344,7 @@ def main():
         complete_ref_sequences, accession_lineage_map = verify_lineage_information(accession_lineage_map,
                                                                                    all_accessions,
                                                                                    complete_ref_sequences,
-                                                                                   num_lineages_provided,
-                                                                                   args.molecule)
+                                                                                   num_lineages_provided)
         write_accession_lineage_map(accession_map_file, accession_lineage_map)
         complete_ref_sequences = finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
         accessions_downloaded = True

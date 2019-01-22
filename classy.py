@@ -15,7 +15,7 @@ from fasta import format_read_fasta, get_headers, write_new_fasta, get_header_fo
 from utilities import reformat_string, return_sequence_info_groups, median
 from entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from external_command_interface import launch_write_command
-from entrez_utils import get_lineage
+from entrez_utils import get_multiple_lineages
 
 import _tree_parser
 
@@ -295,7 +295,10 @@ class CreateFuncTreeUtility:
                     if lineage:
                         pass
                     elif accession:
-                        lineage = get_lineage(accession, header_molecule)
+                        accession_lineage_map, all_accessions = get_multiple_lineages([accession], header_molecule)
+                        # Should only be one...
+                        for tuple_key in accession_lineage_map:
+                            lineage = accession_lineage_map[tuple_key]["lineage"]
                         try:
                             taxonomic_lineage = lineage.split('; ')
                             # Try to get the species name

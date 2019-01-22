@@ -7,6 +7,7 @@ import Bio
 import logging
 from Bio import Entrez
 from urllib import error
+from utilities import clean_lineage_string
 
 
 def validate_target_db(db_type: str):
@@ -192,17 +193,21 @@ def check_lineage(lineage: str, organism_name: str, verbosity=0):
     if not lineage:
         return []
     proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
-    lineage_list = lineage.split("; ")
+    lineage_list = clean_lineage_string(lineage).split("; ")
     if proper_species_re.match(lineage_list[-1]):
         if verbosity:
-            logging.debug("check_lineage(): Perfect lineage")
+            logging.debug("check_lineage(): Perfect lineage.\n")
     elif len(lineage_list) >= 6 and proper_species_re.match(organism_name):
         if verbosity:
-            logging.debug("check_lineage(): Organism name added to complete the lineage")
+            logging.debug("check_lineage(): Organism name added to complete the lineage.\n")
+        lineage_list.append(organism_name)
+    elif len(lineage_list) < 6 and organism_name != lineage_list[-1] and re.match("^[A-Z][a-z]+$", organism_name):
+        if verbosity:
+            logging.debug("check_lineage(): Organism name added to truncated lineage.\n")
         lineage_list.append(organism_name)
     else:
         if verbosity:
-            logging.debug("check_lineage(): Bad lineage")
+            logging.debug("check_lineage(): Bad lineage.\n")
     return lineage_list
 
 
@@ -240,30 +245,33 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
     records_batch, durations, org_failures = tolerant_entrez_query(search_term_list, entrez_db)
     logging.info("done.\n")
 
-    # Parse the records returned by tolerant_entrez_query mapping accessions to organism names
+    # Parse the records returned by tolerant_entrez_query, mapping accessions to organism names
     for record in records_batch:
-        accession, versioned, alt = parse_accessions_from_entrez_xml(record)
-        if not accession and not versioned:
+        accession, ver, alt = parse_accessions_from_entrez_xml(record)
+        if not accession and not ver:
             logging.debug("Neither accession nor accession.version parsed from:\n" + str(record) + "\n")
             continue
-        elif accession not in search_term_list and versioned not in search_term_list:
+        elif accession not in search_term_list and ver not in search_term_list:
             for alt_key in alt:
                 if alt_key in search_term_list:
-                    versioned = alt_key
-                updated_accessions[alt_key] = (accession, versioned)
-        accession_lineage_map[(accession, versioned)] = dict()
+                    ver = alt_key
+                updated_accessions[alt_key] = (accession, ver)
+        all_accessions.update({accession: 1, ver: 1})
+        accession_lineage_map[(accession, ver)] = dict()
         tax_organism = parse_gbseq_info_from_entrez_xml(record)
+        # Entrez replaces special characters with whitespace in organism queries, so doing it here for compatibility
+        tax_organism = re.sub('[:]', ' ', tax_organism)
         tax_lineage = check_lineage(parse_gbseq_info_from_entrez_xml(record, "GBSeq_taxonomy"), tax_organism)
 
         # Add the organism to unique_organisms set for taxonomic lineage querying
-        accession_lineage_map[(accession, versioned)]["organism"] = tax_organism
-        accession_lineage_map[(accession, versioned)]["tax_id"] = ""
+        accession_lineage_map[(accession, ver)]["organism"] = tax_organism
+        accession_lineage_map[(accession, ver)]["tax_id"] = ""
         # If the full taxonomic lineage was not found, then add it to the unique organisms for further querying
         if len(tax_lineage) >= 7:
-            accession_lineage_map[(accession, versioned)]["lineage"] = "; ".join(tax_lineage)
+            accession_lineage_map[(accession, ver)]["lineage"] = "; ".join(tax_lineage)
         else:
-            accession_lineage_map[(accession, versioned)]["lineage"] = ""
-            unique_organisms.add(tax_organism)
+            accession_lineage_map[(accession, ver)]["lineage"] = ""
+            unique_organisms.add(tax_organism + "[All Names]")
 
     ##
     # Step 2: Query Entrez's Taxonomy database using organism names to obtain corresponding taxonomic lineages
@@ -281,9 +289,12 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
             continue
         tax_id = parse_gbseq_info_from_esearch_record(record)
         for acc_tuple in accession_lineage_map:
-            if re.search(accession_lineage_map[acc_tuple]["organism"], organism):
+            accession, ver = acc_tuple
+            if re.search(accession_lineage_map[acc_tuple]["organism"], organism, re.IGNORECASE):
                 accession_lineage_map[acc_tuple]["tax_id"] = tax_id
                 unique_taxa.add(tax_id)
+                all_accessions[accession] += 2
+                all_accessions[ver] += 2
 
     ##
     # Step 3: Fetch the taxonomic lineage for all of the taxonomic IDs
@@ -294,13 +305,15 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
     for record in records_batch:
         tax_id = parse_gbseq_info_from_entrez_xml(record, "TaxId")
         for tuple_key in accession_lineage_map:
-            acc, ver = tuple_key
+            if accession_lineage_map[tuple_key]["lineage"]:
+                continue
+            accession, ver = tuple_key
             if accession_lineage_map[tuple_key]["tax_id"] == tax_id:
                 accession_lineage_map[tuple_key]["lineage"] = parse_gbseq_info_from_entrez_xml(record, "Lineage")
-                break
-            # If the lineage can be mapped to the original taxonomy, then set the values to 1 (success)
-            if accession_lineage_map[tuple_key]["lineage"]:
-                all_accessions.update({acc: 1, ver: 1})
+                # If the lineage can be mapped to the original taxonomy, then set the values to 1 (success)
+                if accession_lineage_map[tuple_key]["lineage"]:
+                    all_accessions[accession] += 3
+                    all_accessions[ver] += 3
 
     # Report on the tolerance for failed Entrez accession queries
     rescued = 0
@@ -350,7 +363,7 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
             taxa_searched += 1
         # Could have been set previously
         if ref_seq.lineage:
-            unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
+            unambiguous_accession_lineage_map[ref_seq.accession] = clean_lineage_string(ref_seq.lineage)
         else:
             lineage = ""
             for tuple_key in accession_lineage_map:
@@ -371,7 +384,7 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
             elif not lineage and all_accessions[ref_seq.accession] == 0:
                 lineage = "Unclassified"
 
-            ref_seq.lineage = "; ".join(check_lineage(lineage, ref_seq.organism))
+            ref_seq.lineage = clean_lineage_string("; ".join(check_lineage(lineage, ref_seq.organism)))
             unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
 
     if taxa_searched < len(fasta_record_objects.keys()):

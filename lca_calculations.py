@@ -253,7 +253,7 @@ def clean_lineage_list(lineage_list):
             classified_lineages.append(lineage_string)
             continue
 
-    # Decide whether to return the cleaned list of not by determining whether the majority of lineages are included
+    # Decide whether to return the cleaned list or not by determining whether the majority of lineages are included
     if float(len(classified_lineages)/len(lineage_list)) > 0.5:
         return classified_lineages
     else:
