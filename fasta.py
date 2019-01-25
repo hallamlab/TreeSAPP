@@ -223,6 +223,7 @@ def get_header_format(header, code_name=""):
     refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")  # a, d, o
     genbank_prot_re = re.compile("^>([A-Z]{3}[0-9]{5}\.?[0-9]?)[ ]+(.+) \[(.*)\]$")  # a, d, o
     pfam_re = re.compile("^>([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
+    interpro_re = re.compile("^>([A-Z][0-9]{1,3}[A-Z]{1,2}[A-Z0-9]+)$")  # a
 
     # Nucleotide databases:
     silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
@@ -252,6 +253,7 @@ def get_header_format(header, code_name=""):
                                gi_prepend_mess_re: "gi_mess",
                                refseq_prot_re: "refseq_prot",
                                genbank_prot_re: "gen_prot",
+                               interpro_re: "interpro",
                                pfam_re: "pfam",
                                presf_re: "prf"},
                       "dna": {mltree_re: "mltree",
