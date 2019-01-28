@@ -9,7 +9,7 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment
+from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment, get_headers
 from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string,\
     find_executables, cluster_sequences, profile_aligner, run_papara
@@ -18,7 +18,7 @@ from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_e
 from phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
 from external_command_interface import launch_write_command, setup_progress_bar
 from jplace_utils import jplace_parser
-from classy import prep_logging, register_headers, get_header_info, get_headers, ReferencePackage
+from classy import prep_logging, register_headers, get_header_info, ReferencePackage
 from entish import map_internal_nodes_leaves
 
 __author__ = 'Connor Morgan-Lang'
@@ -271,7 +271,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     temp_tree_file = "tmp_tree.txt"
     temp_ref_phylip_file = "taxonomy_filtered_ref_seqs.phy"
     temp_query_fasta_file = "queries.fasta"
-    query_multiple_alignment = "papara_queries_aligned.phy"
+    query_multiple_alignment = aligner + "_queries_aligned.phy"
 
     # Read the tree as ete3 Tree instance
     ref_tree = Tree(ref_pkg.tree)
@@ -332,7 +332,10 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             # Copy the tree since we are removing leaves of `taxonomy` and don't want this to be permanent
             tmp_tree = ref_tree.copy(method="deepcopy")
             tmp_tree.prune(dict_for_phy.keys())  # iteratively detaching the monophyletic clades generates a bad tree
+            # Resolve any multifurcations
+            tmp_tree.resolve_polytomy()
             logging.debug("\t" + str(len(tmp_tree.get_leaves())) + " leaves in pruned tree.\n")
+
             # Write the new reference tree with sequences from `taxonomy` removed
             tmp_tree.write(outfile=temp_tree_file, format=5)
 
