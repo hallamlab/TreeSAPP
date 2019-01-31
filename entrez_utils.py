@@ -282,7 +282,7 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
         tax_lineage = check_lineage(parse_gbseq_info_from_entrez_xml(record, "GBSeq_taxonomy"), e_record.organism)
 
         # If the full taxonomic lineage was not found, then add it to the unique organisms for further querying
-        if len(tax_lineage) >= 7:
+        if len(tax_lineage) >= 7 or tax_lineage[-1] == e_record.organism:
             e_record.lineage = "; ".join(tax_lineage)
             e_record.bitflag += 6
         else:
@@ -301,7 +301,7 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
     records_batch, durations, lin_failures = tolerant_entrez_query(list(unique_organisms),
                                                                    "Taxonomy", "search", "xml", 1)
     logging.info("done.\n")
-    # Initial loop attempts to directly enter tax_id into all EntrezRecords with organism name at O(N)
+
     for record in records_batch:
         try:
             organism = re.sub("\[All Names]", '', parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term'])
@@ -314,22 +314,13 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
         try:
             # This can, and will, lead to multiple accessions being assigned the same tax_id - not a problem, though
             for e_record in entrez_record_map[organism]:
+                if e_record.bitflag == 7:
+                    continue
                 e_record.ncbi_tax = tax_id
                 e_record.bitflag += 2
                 tax_id_map[tax_id].append(e_record)
         except KeyError:
             organism_map[organism] = tax_id
-
-    # Second attempt is O(N^2) and is more costly with regex searches
-    for organism in organism_map:
-        tax_id = organism_map[organism]
-        for er_organism in entrez_record_map:
-            # Potential problem case is when the organism in accession_lineage_map[acc_tuple] maps non-specifically
-            if re.search(er_organism, organism, re.IGNORECASE):
-                for e_record in entrez_record_map[er_organism]:
-                    e_record.ncbi_tax = tax_id
-                    e_record.bitflag += 2
-                    tax_id_map[tax_id].append(e_record)
 
     ##
     # Step 3: Fetch the taxonomic lineage for all of the taxonomic IDs
@@ -339,8 +330,9 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
     logging.info("done.\n")
     for record in records_batch:
         tax_id = parse_gbseq_info_from_entrez_xml(record, "TaxId")
+        tax_lineage = parse_gbseq_info_from_entrez_xml(record, "Lineage")
         for e_record in tax_id_map[tax_id]:
-            e_record.lineage = parse_gbseq_info_from_entrez_xml(record, "Lineage")
+            e_record.lineage = tax_lineage
             # If the lineage can be mapped to the original taxonomy, then add 4 indicating success
             if e_record.lineage:
                 e_record.bitflag += 4
@@ -367,7 +359,7 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
                 bad_org += 1
             else:
                 logging.error("Unexpected bitflag (" + str(e_record.bitflag) + ") encountered for EntrezRecord:\n" +
-                              e_record.get_info() + "\n")
+                              e_record.get_info() + "\n" + "tax_id = " + str(e_record.ncbi_tax) + "\n")
                 sys.exit(19)
 
     logging.debug("Queries mapped ideally = " + str(success) +
@@ -404,7 +396,7 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
         ref_seq = fasta_record_objects[mltree_id_key]
         if ref_seq.accession in all_accessions:
             taxa_searched += 1
-        # Could have been set previously
+        # Could have been set previously, in custom header format for example
         if ref_seq.lineage:
             unambiguous_accession_lineage_map[ref_seq.accession] = clean_lineage_string(ref_seq.lineage)
         else:
