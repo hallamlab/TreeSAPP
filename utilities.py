@@ -544,6 +544,18 @@ def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
     return
 
 
+def build_hmm_profile(hmmbuild_exe, msa_in, output_hmm):
+    logging.debug("Building HMM profile... ")
+    hmm_build_command = [hmmbuild_exe, output_hmm, msa_in]
+    stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
+    logging.debug("done.\n")
+
+    if hmmbuild_pro_returncode != 0:
+        logging.error("hmmbuild did not complete successfully for:\n" +
+                      ' '.join(hmm_build_command) + "\n")
+        sys.exit(7)
+
+
 def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_multiple_alignment, kind="functional"):
     """
     A wrapper for both cmalign and hmmalign for performing profile-based multiple sequence alignment
