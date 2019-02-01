@@ -82,28 +82,40 @@ def get_arguments():
                                  'prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA',
                             default='prot',
                             choices=['prot', 'dna', 'rrna'])
-    seqop_args.add_argument('-r', "--rfam_cm",
-                            help="The covariance model of the RNA family being packaged.\n"
-                                 "REQUIRED if molecule is rRNA!",
-                            default=None)
-    seqop_args.add_argument("-s", "--screen",
-                            help="Keywords (taxonomic regular expressions) for including specific taxa in the tree.\n"
-                                 "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
-                                 "[ DEFAULT is no screen ]",
-                            default="",
-                            required=False)
-    seqop_args.add_argument("-f", "--filter",
-                            help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
-                                 "[ DEFAULT is no filter ]",
-                            default="",
-                            required=False)
     seqop_args.add_argument("-g", "--guarantee",
                             help="A FASTA file containing sequences that need to be included \n"
                                  "in the tree after all clustering and filtering",
                             default=None,
                             required=False)
+    seqop_args.add_argument('-r', "--rfam_cm",
+                            help="The covariance model of the RNA family being packaged.\n"
+                                 "REQUIRED if molecule is rRNA!",
+                            default=None,
+                            required=False)
 
-    optopt = parser.add_argument_group("Optional options")
+    taxa_args = parser.add_argument_group("Taxonomic-lineage arguments")
+    taxa_args.add_argument("-s", "--screen",
+                           help="Keywords (taxonomic regular expressions) for including specific taxa in the tree.\n"
+                                "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
+                                "[ DEFAULT is no screen ]",
+                           default="", required=False)
+    taxa_args.add_argument("-f", "--filter",
+                           help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
+                                "[ DEFAULT is no filter ]",
+                           default="", required=False)
+    taxa_args.add_argument("-t", "--min_taxonomic_rank",
+                           required=False, default='k', choices=['k', 'p', 'c', 'o', 'f', 'g', 's'],
+                           help="The minimum taxonomic lineage resolution for reference sequences [ DEFAULT = k ].\n")
+    taxa_args.add_argument("--taxa_lca",
+                           help="Set taxonomy of representative sequences to LCA of cluster member's taxa.\n"
+                                "[ --cluster or --uc REQUIRED ]",
+                           default=False, required=False, action="store_true")
+    taxa_args.add_argument("--taxa_norm",
+                           help="[ IN PROGRESS ] Perform taxonomic normalization on the provided sequences.\n"
+                                "A comma-separated argument with the Rank (e.g. Phylum) and\n"
+                                "number of representatives is required.\n")
+
+    optopt = parser.add_argument_group("Optional arguments")
     optopt.add_argument("-b", "--bootstraps",
                         help="The number of bootstrap replicates RAxML should perform\n"
                              "[ DEFAULT = autoMR ]",
@@ -119,15 +131,6 @@ def get_arguments():
                         help="The USEARCH cluster format file produced from clustering reference sequences.\n"
                              "This can be used for selecting representative headers from identical sequences.",
                         required=False, default=None)
-    optopt.add_argument("--taxa_lca",
-                        help="Set taxonomy of representative sequences to LCA of cluster member's taxa.\n"
-                             "[ --cluster or --uc REQUIRED ]",
-                        default=False, required=False,
-                        action="store_true")
-    optopt.add_argument("--taxa_norm",
-                        help="BETA: Perform taxonomic normalization on the provided sequences.\n"
-                             "A comma-separated argument with the Rank (e.g. Phylum) and\n"
-                             "number of representatives is required.\n")
     optopt.add_argument("--fast",
                         help="A flag indicating the tree should be built rapidly, using FastTree.",
                         default=False, required=False,
@@ -137,7 +140,7 @@ def get_arguments():
                              "functional, phylogenetic, or phylogenetic_rRNA. [ DEFAULT = functional ]",
                         default="functional", required=False)
 
-    miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
+    miscellaneous_opts = parser.add_argument_group("Miscellaneous arguments")
     miscellaneous_opts.add_argument("-h", "--help",
                                     action="help",
                                     help="Show this help message and exit")
@@ -813,6 +816,30 @@ def screen_filter_taxa(args, fasta_replace_dict):
 
     logging.debug('\t' + str(num_screened) + " sequences removed after failing screen.\n" +
                   '\t' + str(num_filtered) + " sequences removed after failing filter.\n" +
+                  '\t' + str(len(purified_fasta_dict.keys())) + " sequences retained.\n")
+
+    return purified_fasta_dict
+
+
+def remove_by_truncated_lineages(min_taxonomic_rank, fasta_replace_dict):
+    rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
+    min_depth = rank_depth_map[min_taxonomic_rank]
+    if min_taxonomic_rank == 'k':
+        return fasta_replace_dict
+
+    purified_fasta_dict = dict()
+    num_removed = 0
+
+    for mltree_id in fasta_replace_dict:
+        ref_seq = fasta_replace_dict[mltree_id]
+        if len(ref_seq.lineage.split("; ")) < min_depth:
+            num_removed += 1
+        elif re.search("^unclassified", ref_seq.lineage.split("; ")[min_depth-1], re.IGNORECASE):
+            num_removed += 1
+        else:
+            purified_fasta_dict[mltree_id] = ref_seq
+
+    logging.debug('\t' + str(num_removed) + " sequences removed with truncated taxonomic lineages.\n" +
                   '\t' + str(len(purified_fasta_dict.keys())) + " sequences retained for building tree.\n")
 
     return purified_fasta_dict
@@ -1444,13 +1471,16 @@ def main():
     finalize_ref_seq_lineages(fasta_record_objects, accession_lineage_map)
 
     ##
-    # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
+    # Perform taxonomic lineage-based filtering and screening based on command-line arguments
     ##
     if args.add_lineage:
         if args.screen or args.filter:
             logging.warning("Skipping taxonomic filtering and screening in `--add_lineage` mode.\n")
     else:
+        # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
         fasta_record_objects = screen_filter_taxa(args, fasta_record_objects)
+        # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
+        fasta_record_objects = remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_record_objects)
 
     if len(fasta_record_objects.keys()) < 2:
         logging.error(str(len(fasta_record_objects)) + " sequences post-homology + taxonomy filtering\n")
