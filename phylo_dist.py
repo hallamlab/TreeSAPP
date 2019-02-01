@@ -110,22 +110,26 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     trimmed_lineage_map = dict()
     # ranks is offset by 1 (e.g. Kingdom is the first index and therefore should be 1) for the final trimming step
     ranks = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+    unknowns_re = re.compile("unclassified|environmental sample")
     depth = ranks[rank]
+    truncated = 0
+    unclassified = 0
     for node_name in sorted(leaf_taxa_map):
         c_lineage = clean_lineage_string(leaf_taxa_map[node_name])
         c_lineage_s = c_lineage.split("; ")
 
         # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
         if len(c_lineage_s) < depth:
+            truncated += 1
             continue
 
         try:
-            re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE)
+            unknowns_re.search(c_lineage, re.IGNORECASE)
         except TypeError:
             logging.error("Unexpected type (" + str(type(c_lineage)) + ") for '" + str(c_lineage) + "'\n")
             sys.exit(33)
 
-        if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
+        if unknowns_re.search(c_lineage, re.IGNORECASE):
             i = 0
             while i < depth:
                 try:
@@ -133,13 +137,17 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
                 except IndexError:
                     logging.error(rank + " position (" + str(depth) + ") unavailable in " + c_lineage + " ")
                     break
-                if re.search("unclassified|environmental sample", taxon, re.IGNORECASE):
+                if unknowns_re.search(taxon, re.IGNORECASE):
                     i -= 1
                     break
                 i += 1
             if i < depth:
+                unclassified += 1
                 continue
         trimmed_lineage_map[node_name] = "; ".join(c_lineage_s[:depth])
+
+    logging.debug(str(truncated) + " lineages truncated before " + rank + " were removed during lineage trimming.\n" +
+                  str(unclassified) + " lineages unclassified at or before " + rank + " also removed.\n")
     return trimmed_lineage_map
 
 

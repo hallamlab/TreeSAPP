@@ -12,7 +12,7 @@ from glob import glob
 from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment, get_headers
 from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string,\
-    find_executables, cluster_sequences, profile_aligner, run_papara
+    find_executables, cluster_sequences, profile_aligner, run_papara, build_hmm_profile
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information
 from phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
@@ -262,14 +262,14 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
     taxonomic_placement_distances = dict()
     taxonomy_filtered_query_seqs = dict()
-    dict_for_phy = dict()
+    pruned_ref_fasta_dict = dict()
     seq_dict = dict()
     pqueries = list()
     intermediate_files = list()
     aligner = "hmmalign"
 
     temp_tree_file = "tmp_tree.txt"
-    temp_ref_phylip_file = "taxonomy_filtered_ref_seqs.phy"
+    temp_ref_aln_prefix = "taxonomy_filtered_ref_seqs"
     temp_query_fasta_file = "queries.fasta"
     query_multiple_alignment = aligner + "_queries_aligned.phy"
 
@@ -282,11 +282,15 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
     num_training_queries = 0
     for rank in rank_training_seqs:
+        num_rank_training_seqs = 0
         for taxonomy in rank_training_seqs[rank]:
-            num_training_queries += len(rank_training_seqs[rank][taxonomy])
+            num_rank_training_seqs += len(rank_training_seqs[rank][taxonomy])
         if len(rank_training_seqs[rank]) == 0:
-            logging.error("No sequences available for estimating Species-level placement distances.\n")
+            logging.error("No sequences available for estimating" + rank + "-level placement distances.\n")
             return taxonomic_placement_distances, pqueries
+        else:
+            logging.debug(str(num_rank_training_seqs) + " sequences to train " + rank + "-level placement distances\n")
+        num_training_queries += num_rank_training_seqs
 
     if num_training_queries < 30:
         logging.error("Too few (" + str(num_training_queries) + ") sequences for training placement distance model.\n")
@@ -324,14 +328,15 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 node = key.split('_')[0]
                 # Node with truncated and/or unclassified lineages are not in `leaf_trimmed_taxa_map`
                 if node in leaf_trimmed_taxa_map and not re.match(taxonomy, leaf_trimmed_taxa_map[node]):
-                    dict_for_phy[node] = ref_fasta_dict[key]
+                    pruned_ref_fasta_dict[node] = ref_fasta_dict[key]
                 else:
                     leaves_excluded += 1
             logging.debug("\t" + str(leaves_excluded) + " sequences pruned from tree.\n")
 
             # Copy the tree since we are removing leaves of `taxonomy` and don't want this to be permanent
             tmp_tree = ref_tree.copy(method="deepcopy")
-            tmp_tree.prune(dict_for_phy.keys())  # iteratively detaching the monophyletic clades generates a bad tree
+            # iteratively detaching the monophyletic clades generates a bad tree, so do it all at once
+            tmp_tree.prune(pruned_ref_fasta_dict.keys())
             # Resolve any multifurcations
             tmp_tree.resolve_polytomy()
             logging.debug("\t" + str(len(tmp_tree.get_leaves())) + " leaves in pruned tree.\n")
@@ -343,8 +348,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             # Run hmmalign, BMGE and RAxML to map sequences from the taxonomic rank onto the tree
             ##
             if aligner == "papara":
+                temp_ref_phylip_file = temp_ref_aln_prefix + ".phy"
                 # Write the reference MSA with sequences of `taxonomy` removed
-                phy_dict = reformat_fasta_to_phy(dict_for_phy)
+                phy_dict = reformat_fasta_to_phy(pruned_ref_fasta_dict)
                 write_phy_file(temp_ref_phylip_file, phy_dict)
                 aln_stdout = run_papara(executables["papara"],
                                         temp_tree_file, temp_ref_phylip_file, temp_query_fasta_file,
@@ -352,10 +358,15 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 intermediate_files.append(temp_ref_phylip_file)
                 os.rename("papara_alignment.default", query_multiple_alignment)
             elif aligner == "hmmalign":
+                temp_ref_fasta_file = temp_ref_aln_prefix + ".fasta"
+                temp_ref_profile = temp_ref_aln_prefix + ".hmm"
                 sto_file = re.sub("\.phy$", ".sto", query_multiple_alignment)
-                intermediate_files.append(sto_file)
+                intermediate_files += [temp_ref_fasta_file, temp_ref_profile, sto_file]
+                # Write the pruned reference FASTA file
+                write_new_fasta(pruned_ref_fasta_dict, temp_ref_fasta_file)
+                build_hmm_profile(executables["hmmbuild"], temp_ref_fasta_file, temp_ref_profile)
                 # Currently not supporting rRNA references (phylogenetic_rRNA)
-                aln_stdout = profile_aligner(executables, ref_pkg.msa, ref_pkg.profile,
+                aln_stdout = profile_aligner(executables, temp_ref_fasta_file, temp_ref_profile,
                                              temp_query_fasta_file, sto_file)
                 # Reformat the Stockholm format created by cmalign or hmmalign to Phylip
                 sto_dict = read_stockholm_to_dict(sto_file)
@@ -392,7 +403,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             placement_tree = jplace_data.tree
             node_map = map_internal_nodes_leaves(placement_tree)
             for pquery in jplace_data.placements:
-                top_lwr = 0.5
+                top_lwr = 0.5  # This is the minimum likelihood weight ration a placement requires to be included
                 distance = 100
                 top_placement = None
                 seq_name = ''
@@ -436,7 +447,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             # Clear collections
             taxonomy_filtered_query_seqs.clear()
             intermediate_files.clear()
-            dict_for_phy.clear()
+            pruned_ref_fasta_dict.clear()
             seq_dict.clear()
 
             while acc > step_proportion:
