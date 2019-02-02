@@ -323,6 +323,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
             acc += len(taxonomy_filtered_query_seqs.keys())
             write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
+            intermediate_files.append(temp_query_fasta_file)
 
             for key in ref_fasta_dict.keys():
                 node = key.split('_')[0]
@@ -336,13 +337,14 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             # Copy the tree since we are removing leaves of `taxonomy` and don't want this to be permanent
             tmp_tree = ref_tree.copy(method="deepcopy")
             # iteratively detaching the monophyletic clades generates a bad tree, so do it all at once
-            tmp_tree.prune(pruned_ref_fasta_dict.keys())
+            tmp_tree.prune(pruned_ref_fasta_dict.keys(), preserve_branch_length=True)
             # Resolve any multifurcations
             tmp_tree.resolve_polytomy()
             logging.debug("\t" + str(len(tmp_tree.get_leaves())) + " leaves in pruned tree.\n")
 
             # Write the new reference tree with sequences from `taxonomy` removed
             tmp_tree.write(outfile=temp_tree_file, format=5)
+            intermediate_files.append(temp_tree_file)
 
             ##
             # Run hmmalign, BMGE and RAxML to map sequences from the taxonomic rank onto the tree
@@ -361,7 +363,6 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 temp_ref_fasta_file = temp_ref_aln_prefix + ".fasta"
                 temp_ref_profile = temp_ref_aln_prefix + ".hmm"
                 sto_file = re.sub("\.phy$", ".sto", query_multiple_alignment)
-                intermediate_files += [temp_ref_fasta_file, temp_ref_profile, sto_file]
                 # Write the pruned reference FASTA file
                 write_new_fasta(pruned_ref_fasta_dict, temp_ref_fasta_file)
                 build_hmm_profile(executables["hmmbuild"], temp_ref_fasta_file, temp_ref_profile)
@@ -377,6 +378,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                     except ValueError:
                         seq_dict[seq_name] = sto_dict[seq_name]
                 write_new_fasta(seq_dict, query_multiple_alignment)
+                intermediate_files += [temp_ref_fasta_file, temp_ref_profile, sto_file, query_multiple_alignment]
             else:
                 logging.error("Unrecognised alignment tool '" + aligner + "'. Exiting now.\n")
                 sys.exit(33)
@@ -384,6 +386,23 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
             query_filtered_multiple_alignment = trim_multiple_alignment(bmge_file, query_multiple_alignment,
                                                                         molecule, "BMGE")
+            intermediate_files += glob(query_filtered_multiple_alignment + "*")
+
+            # Ensure that there is at least 1 query sequence retained after trimming the multiple alignment
+            msa_headers = [h[1:] for h in get_headers(query_filtered_multiple_alignment)]
+            queries_retained = 0
+            for seq_name in taxonomy_filtered_query_seqs.keys():
+                if seq_name in msa_headers:
+                    queries_retained += 1
+                    break
+            if queries_retained == 0:
+                logging.warning("No query sequences were retained in the multiple alignment after trimming.\n" +
+                                "Placements for '" + taxonomy + "' are being skipped.\n")
+                for old_file in intermediate_files:
+                    os.remove(old_file)
+                intermediate_files.clear()
+                continue
+
             query_name = re.sub(r"([ /])", '_', taxonomy.split("; ")[-1])
             raxml_command = [executables["raxmlHPC"],
                              "-m", "PROTGAMMALG",
@@ -440,8 +459,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                     taxonomic_placement_distances[rank].append(distance)
             intermediate_files += glob("RAxML_*" + query_name + "*")
             intermediate_files.append("RAxML.txt")
-            intermediate_files += glob(query_filtered_multiple_alignment + "*")
-            intermediate_files += [query_multiple_alignment, temp_tree_file, temp_query_fasta_file]
+
             for old_file in intermediate_files:
                 os.remove(old_file)
             # Clear collections
@@ -520,7 +538,7 @@ def main():
     prep_logging(args.output_dir + os.sep + "placement_trainer_log.txt", False)
 
     ref_pkg = ReferencePackage()
-    ref_pkg.gather_package_files(args.name, args.pkg_path)
+    ref_pkg.gather_package_files(args.name, args.pkg_path, "flat")
     ref_pkg.validate()
     logging.debug("ANALYSIS SPECIFICATIONS:\n" +
                   "\tQuery FASTA: " + args.fasta_input + "\n" +
