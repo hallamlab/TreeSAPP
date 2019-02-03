@@ -12,11 +12,11 @@ from glob import glob
 from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment, get_headers
 from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string,\
-    find_executables, cluster_sequences, profile_aligner, run_papara, build_hmm_profile
+    find_executables, cluster_sequences, profile_aligner, run_papara, build_hmm_profile, raxml_evolutionary_placement
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information
 from phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
-from external_command_interface import launch_write_command, setup_progress_bar
+from external_command_interface import setup_progress_bar
 from jplace_utils import jplace_parser
 from classy import prep_logging, register_headers, get_header_info, ReferencePackage
 from entish import map_internal_nodes_leaves
@@ -388,6 +388,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                                                                         molecule, "BMGE")
             intermediate_files += glob(query_filtered_multiple_alignment + "*")
 
+            # TODO: Ensure reference sequences haevn't been removed - and use the untrimmed file if they have
             # Ensure that there is at least 1 query sequence retained after trimming the multiple alignment
             msa_headers = [h[1:] for h in get_headers(query_filtered_multiple_alignment)]
             queries_retained = 0
@@ -404,21 +405,16 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 continue
 
             query_name = re.sub(r"([ /])", '_', taxonomy.split("; ")[-1])
-            raxml_command = [executables["raxmlHPC"],
-                             "-m", "PROTGAMMALG",
-                             "-p", str(12345),
-                             '-T', str(raxml_threads),
-                             '-s', query_filtered_multiple_alignment,
-                             '-t', temp_tree_file,
-                             '-G', str(0.2),
-                             '-f', 'v',
-                             '-n', query_name,
-                             '>', 'RAxML.txt']
-            logging.debug("RAxML placement command:\n" + ' '.join(raxml_command) + "\n")
-            launch_write_command(raxml_command)
+            # Clear out old files that may exist from an old run
+            for old_file in glob("RAxML_*" + query_name + "*"):
+                os.remove(old_file)
+
+            raxml_files = raxml_evolutionary_placement(executables["raxmlHPC"], temp_tree_file,
+                                                       query_filtered_multiple_alignment, "PROTGAMMALG", "./",
+                                                       query_name, raxml_threads)
+
             # Parse the JPlace file to pull distal_length+pendant_length for each placement
-            jplace_file = "RAxML_portableTree." + query_name + ".jplace"
-            jplace_data = jplace_parser(jplace_file)
+            jplace_data = jplace_parser(raxml_files["jplace"])
             placement_tree = jplace_data.tree
             node_map = map_internal_nodes_leaves(placement_tree)
             for pquery in jplace_data.placements:
@@ -457,9 +453,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                         pqueries.append(top_placement)
                 if distance < 100:
                     taxonomic_placement_distances[rank].append(distance)
+            # Remove intermediate files from the analysis of this taxon
             intermediate_files += glob("RAxML_*" + query_name + "*")
             intermediate_files.append("RAxML.txt")
-
             for old_file in intermediate_files:
                 os.remove(old_file)
             # Clear collections
@@ -534,7 +530,7 @@ def main():
     # Limit this to just Class, Family, and Species - other ranks are inferred through regression
     training_ranks = {"Class": 2, "Species": 6}
 
-    sys.stdout.write("\n##\t\t\tEstimate taxonomic rank placement distances\t\t\t##\n")
+    sys.stdout.write("\n##\t\t\tEstimate " + args.name + " taxonomic rank placement distances\t\t\t##\n")
     prep_logging(args.output_dir + os.sep + "placement_trainer_log.txt", False)
 
     ref_pkg = ReferencePackage()
