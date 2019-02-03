@@ -614,14 +614,16 @@ def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multi
     """
     A wrapper for RAxML's evolutionary placement algorithm (EPA)
         1. checks to ensure the output files do not already exist, and removes them if they do
-        2.
-    :param raxml_exe:
-    :param reference_tree_file:
-    :param multiple_alignment:
-    :param model:
-    :param output_dir:
-    :param query_name:
-    :param num_threads:
+        2. ensures the output directory is an absolute path, satisfying RAxML
+        3. Runs RAxML with the provided parameters
+        4. Renames the files for consistency in TreeSAPP
+    :param raxml_exe: Path to the RAxML executable to be used
+    :param reference_tree_file: The reference tree for evolutionary placement to operate on
+    :param multiple_alignment: Path to a multiple alignment file containing reference and query sequences
+    :param model: The substitution model to be used by RAxML e.g. PROTGAMMALG, GTRCAT
+    :param output_dir: Path to write the EPA outputs
+    :param query_name: Prefix name for all of the output files
+    :param num_threads: Number of threads EPA should use (default = 2)
     :return: A dictionary of files written by RAxML's EPA that are used by TreeSAPP. For example epa_files["jplace"]
     """
     epa_files = dict()
@@ -636,7 +638,8 @@ def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multi
         output_dir += os.sep
 
     if model is None:
-        raise AssertionError("No substitution model provided for evolutionary placement of ")
+        logging.error("No substitution model provided for evolutionary placement of " + query_name + ".\n")
+        raise AssertionError()
 
     # Determine the output file names, and remove any pre-existing output files
     if not isinstance(reference_tree_file, str):
@@ -648,17 +651,19 @@ def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multi
         raise AssertionError()
 
     # This is the final set of files that will be written by RAxML's EPA algorithm
-    epa_files["stdout"] = str(output_dir) + str(query_name) + '_RAxML.txt'
-    epa_info = str(output_dir) + 'RAxML_info.' + str(query_name)
-    epa_files["info"] = str(output_dir) + str(query_name) + '.RAxML_info.txt'
-    epa_labelled_tree = str(output_dir) + 'RAxML_labelledTree.' + str(query_name)
-    epa_tree = str(output_dir) + 'RAxML_originalLabelledTree.' + str(query_name)
-    epa_files["tree"] = str(output_dir) + str(query_name) + '.originalRAxML_labelledTree.txt'
-    epa_classification = str(output_dir) + 'RAxML_classification.' + str(query_name)
-    epa_files["classification"] = str(output_dir) + str(query_name) + '.RAxML_classification.txt'
-    epa_files["jplace"] = str(output_dir) + "RAxML_portableTree." + query_name + ".jplace"
+    epa_files["stdout"] = output_dir + query_name + '_RAxML.txt'
+    epa_info = output_dir + 'RAxML_info.' + query_name
+    epa_files["info"] = output_dir + query_name + '.RAxML_info.txt'
+    epa_labelled_tree = output_dir + 'RAxML_labelledTree.' + query_name
+    epa_tree = output_dir + 'RAxML_originalLabelledTree.' + query_name
+    epa_files["tree"] = output_dir + query_name + '.originalRAxML_labelledTree.txt'
+    epa_classification = output_dir + 'RAxML_classification.' + query_name
+    epa_files["classification"] = output_dir + query_name + '.RAxML_classification.txt'
+    epa_files["jplace"] = output_dir + "RAxML_portableTree." + query_name + ".jplace"
+    epa_entropy = output_dir + "RAxML_entropy." + query_name
+    epa_weights = output_dir + "RAxML_classificationLikelihoodWeights." + query_name
 
-    for raxml_file in [epa_info, epa_labelled_tree, epa_tree, epa_classification]:
+    for raxml_file in [epa_info, epa_labelled_tree, epa_tree, epa_classification, epa_entropy, epa_weights]:
         try:
             os.remove(raxml_file)
         except OSError:
@@ -673,8 +678,8 @@ def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multi
                      '-t', reference_tree_file,
                      '-G', str(0.2),
                      '-f', 'v',
-                     '-n', str(query_name),
-                     '-w', str(output_dir),
+                     '-n', query_name,
+                     '-w', output_dir,
                      '>', epa_files["stdout"]]
     launch_write_command(raxml_command)
 
@@ -689,12 +694,14 @@ def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multi
         copy(epa_tree, epa_files["tree"])
         os.remove(epa_tree)
     else:
-        logging.error("Some files were not successfully created for " + str(query_name) + "\n" +
-                      "Check " + str(output_dir) + str(query_name) + "_RAxML.txt for an error!\n")
+        logging.error("Some files were not successfully created for " + query_name + "\n" +
+                      "Check " + epa_files["stdout"] + " for an error!\n")
         sys.exit(3)
     # Remove useless files
     if os.path.exists(epa_labelled_tree):
         os.remove(epa_labelled_tree)
+        os.remove(epa_weights)
+        os.remove(epa_entropy)
 
     return epa_files
 

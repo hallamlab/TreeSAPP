@@ -10,7 +10,7 @@ import numpy as np
 from glob import glob
 
 from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment, get_headers
-from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict
+from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string,\
     find_executables, cluster_sequences, profile_aligner, run_papara, build_hmm_profile, raxml_evolutionary_placement
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
@@ -315,6 +315,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
         for taxonomy in rank_training_seqs[rank]:
             logging.debug("Testing placements for " + taxonomy + ":\n")
+            query_name = re.sub(r"([ /])", '_', taxonomy.split("; ")[-1])
             leaves_excluded = 0
 
             # Write query FASTA containing sequences belonging to `taxonomy`
@@ -365,6 +366,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 sto_file = re.sub("\.phy$", ".sto", query_multiple_alignment)
                 # Write the pruned reference FASTA file
                 write_new_fasta(pruned_ref_fasta_dict, temp_ref_fasta_file)
+                # Build the HMM profile that doesn't include pruned reference sequences
                 build_hmm_profile(executables["hmmbuild"], temp_ref_fasta_file, temp_ref_profile)
                 # Currently not supporting rRNA references (phylogenetic_rRNA)
                 aln_stdout = profile_aligner(executables, temp_ref_fasta_file, temp_ref_profile,
@@ -388,27 +390,19 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                                                                         molecule, "BMGE")
             intermediate_files += glob(query_filtered_multiple_alignment + "*")
 
-            # TODO: Ensure reference sequences haevn't been removed - and use the untrimmed file if they have
-            # Ensure that there is at least 1 query sequence retained after trimming the multiple alignment
-            msa_headers = [h[1:] for h in get_headers(query_filtered_multiple_alignment)]
-            queries_retained = 0
-            for seq_name in taxonomy_filtered_query_seqs.keys():
-                if seq_name in msa_headers:
-                    queries_retained += 1
-                    break
-            if queries_retained == 0:
+            # Ensure reference sequences haven't been removed
+            uref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x)[1:] for x in ref_fasta_dict.keys()])
+            msa_dict, summary_str = validate_alignment_trimming([query_filtered_multiple_alignment], uref_headers)
+            if query_filtered_multiple_alignment not in msa_dict.keys():
                 logging.warning("No query sequences were retained in the multiple alignment after trimming.\n" +
                                 "Placements for '" + taxonomy + "' are being skipped.\n")
                 for old_file in intermediate_files:
                     os.remove(old_file)
-                intermediate_files.clear()
+                    intermediate_files.clear()
                 continue
-
-            query_name = re.sub(r"([ /])", '_', taxonomy.split("; ")[-1])
-            # Clear out old files that may exist from an old run
-            for old_file in glob("RAxML_*" + query_name + "*"):
-                os.remove(old_file)
-
+            logging.info(summary_str)
+            # TODO: replace hard-coded PROTGAMMALG with whatever model was reported in ref_build_parameters.tsv
+            # Run RAxML with the parameters specified
             raxml_files = raxml_evolutionary_placement(executables["raxmlHPC"], temp_tree_file,
                                                        query_filtered_multiple_alignment, "PROTGAMMALG", "./",
                                                        query_name, raxml_threads)
@@ -454,8 +448,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 if distance < 100:
                     taxonomic_placement_distances[rank].append(distance)
             # Remove intermediate files from the analysis of this taxon
-            intermediate_files += glob("RAxML_*" + query_name + "*")
-            intermediate_files.append("RAxML.txt")
+            intermediate_files += list(raxml_files.values())
             for old_file in intermediate_files:
                 os.remove(old_file)
             # Clear collections

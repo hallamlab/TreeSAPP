@@ -7,6 +7,7 @@ import logging
 from classy import TreeLeafReference, MarkerBuild, Cluster
 from utilities import Autovivify, calculate_overlap
 from HMMER_domainTblParser import DomainTableParser, format_split_alignments, filter_incomplete_hits, filter_poor_hits
+from fasta import read_fasta_to_dict
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -858,3 +859,77 @@ def read_rpkm(rpkm_output_file):
         rpkm_values[seq_name] = float(rpkm)
     rpkm_stats.close()
     return rpkm_values
+
+
+def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, min_seq_length=10):
+    discarded_seqs_string = ""
+    successful_multiple_alignments = dict()
+    for multi_align_file in msa_files:
+        filtered_multi_align = dict()
+        discarded_seqs = list()
+        f_ext = multi_align_file.split('.')[-1]
+
+        # Read the multiple alignment file
+        if re.search("phy", f_ext):  # File is in Phylip format
+            seq_dict = read_phylip_to_dict(multi_align_file)
+            multi_align = dict()
+            for seq_name in seq_dict:
+                try:
+                    int(seq_name)
+                except ValueError:
+                    if re.match(r"^_\d+", seq_name):
+                        seq_name = re.sub("^_", '-', seq_name)
+                    else:
+                        logging.error("Unexpected sequence name " + seq_name +
+                                      " detected in " + multi_align_file + ".\n")
+                multi_align[seq_name] = seq_dict[seq_name]
+        elif re.match("^f", f_ext):  # This is meant to match all fasta extensions
+            multi_align = read_fasta_to_dict(multi_align_file)
+        else:
+            logging.error("Unable to detect file format of " + multi_align_file + ".\n")
+            sys.exit(3)
+
+        if len(multi_align) == 0:
+            logging.error("No sequences were read from " + multi_align_file + ".\n")
+            sys.exit(3)
+        # The numeric identifiers make it easy to maintain order in the Phylip file by a numerical sort
+        # The negative integers indicate this is a query sequence so we can perform filtering
+        for seq_name in sorted(multi_align, key=int):
+            seq_dummy = re.sub('-', '', multi_align[seq_name])
+            if len(seq_dummy) < min_seq_length:
+                discarded_seqs.append(seq_name)
+            else:
+                filtered_multi_align[seq_name] = multi_align[seq_name]
+
+        multi_align_seq_names = set(multi_align.keys())
+        filtered_multi_align_seq_names = set(filtered_multi_align.keys())
+
+        if len(discarded_seqs) == len(multi_align.keys()):
+            # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
+            logging.warning("Multiple sequence alignment in " + multi_align_file +
+                            " is shorter than minimum sequence length threshold (" + str(min_seq_length) +
+                            ").\nThese sequences will not be analyzed.\n")
+        # Calculate the number of reference sequences removed
+        elif not unique_ref_headers.issubset(filtered_multi_align_seq_names):
+            logging.warning("Reference sequences shorter than the minimum character length (" +
+                            str(min_seq_length) + ") in " + multi_align_file +
+                            " were removed after alignment trimming.\n" +
+                            "These sequences will not be analyzed.\n")
+        elif not unique_ref_headers.issubset(multi_align_seq_names):
+            logging.error("Reference sequences in " + multi_align_file + " were removed during alignment trim.\n" +
+                          "Note: this suggests the initial reference alignment is terrible.\n")
+            sys.exit(3)
+        # If there are no query sequences left, remove that alignment file from mfa_files
+        #     # Ensure that there is at least 1 query sequence retained after trimming the multiple alignment
+        #     msa_headers = [h[1:] for h in get_headers(query_filtered_multiple_alignment)]
+        #     queries_retained = 0
+        #     for seq_name in taxonomy_filtered_query_seqs.keys():
+        #         if seq_name in msa_headers:
+        #             queries_retained += 1
+        #             break
+        elif len(discarded_seqs) + len(unique_ref_headers) == len(multi_align.keys()):
+            logging.warning("No query sequences in " + multi_align_file + " were retained after trimming.\n")
+        else:
+            successful_multiple_alignments[multi_align_file] = filtered_multi_align
+            discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
+    return successful_multiple_alignments, discarded_seqs_string
