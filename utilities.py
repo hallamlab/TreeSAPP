@@ -5,6 +5,8 @@ import re
 import sys
 import subprocess
 import logging
+import time
+from shutil import copy
 from external_command_interface import launch_write_command
 
 
@@ -554,6 +556,147 @@ def build_hmm_profile(hmmbuild_exe, msa_in, output_hmm):
         logging.error("hmmbuild did not complete successfully for:\n" +
                       ' '.join(hmm_build_command) + "\n")
         sys.exit(7)
+    return
+
+
+def launch_evolutionary_placement_queries(args, phy_files, marker_build_dict):
+    """
+    Run RAxML using the provided Autovivifications of phy files and COGs, as well as the list of models used for each COG.
+
+    Returns an Autovivification listing the output files of RAxML.
+    Returns an Autovivification containing the reference tree file associated with each functional or rRNA COG.
+    :param args:
+    :param phy_files:
+    :param marker_build_dict:
+    :return:
+    """
+    logging.info("Running RAxML... coffee?\n")
+
+    start_time = time.time()
+
+    raxml_outfiles = Autovivify()
+    raxml_calls = 0
+    # Maximum-likelihood sequence placement analyses
+    denominator_reference_tree_dict = dict()
+    mltree_resources = args.treesapp + os.sep + 'data' + os.sep
+    for denominator in sorted(phy_files.keys()):
+        if not isinstance(denominator, str):
+            logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
+            raise AssertionError()
+        # Establish the reference tree file to be used for this contig
+        reference_tree_file = mltree_resources + 'tree_data' + os.sep + args.reference_tree
+        ref_marker = marker_build_dict[denominator]
+        if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
+            reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + '_tree.txt'
+        if denominator not in denominator_reference_tree_dict.keys():
+            denominator_reference_tree_dict[denominator] = reference_tree_file
+        for phy_file in phy_files[denominator]:
+            query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(phy_file))
+            query_name = re.sub(marker_build_dict[denominator].cog, denominator, query_name)
+            raxml_files = raxml_evolutionary_placement(args.executables["raxmlHPC"], reference_tree_file, phy_file,
+                                                       ref_marker.model, args.output_dir_var, query_name, args.num_threads)
+            raxml_outfiles[denominator][query_name]['classification'] = raxml_files["classification"]
+            raxml_outfiles[denominator][query_name]['labelled_tree'] = raxml_files["tree"]
+            raxml_calls += 1
+
+    end_time = time.time()
+    hours, remainder = divmod(end_time - start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tRAxML time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    logging.debug("\tRAxML was called " + str(raxml_calls) + " times.\n")
+
+    return raxml_outfiles, denominator_reference_tree_dict, len(phy_files.keys())
+
+
+def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multiple_alignment: str, model: str,
+                                 output_dir: str, query_name: str, num_threads=2):
+    """
+    A wrapper for RAxML's evolutionary placement algorithm (EPA)
+        1. checks to ensure the output files do not already exist, and removes them if they do
+        2.
+    :param raxml_exe:
+    :param reference_tree_file:
+    :param multiple_alignment:
+    :param model:
+    :param output_dir:
+    :param query_name:
+    :param num_threads:
+    :return: A dictionary of files written by RAxML's EPA that are used by TreeSAPP. For example epa_files["jplace"]
+    """
+    epa_files = dict()
+    ##
+    # Start with some housekeeping - are the inputs looking alright?
+    # Do the outputs already exist?
+    # Is the output directory an absolute path?
+    ##
+    if not os.path.isabs(output_dir):
+        output_dir = os.getcwd() + os.sep + output_dir
+    if output_dir[-1] != os.sep:
+        output_dir += os.sep
+
+    if model is None:
+        raise AssertionError("No substitution model provided for evolutionary placement of ")
+
+    # Determine the output file names, and remove any pre-existing output files
+    if not isinstance(reference_tree_file, str):
+        logging.error(str(reference_tree_file) + " is not string but " + str(type(reference_tree_file)) + "\n")
+        raise AssertionError()
+
+    if len(reference_tree_file) == 0:
+        logging.error("Could not find reference tree for " + query_name + " to be used by EPA.\n")
+        raise AssertionError()
+
+    # This is the final set of files that will be written by RAxML's EPA algorithm
+    epa_files["stdout"] = str(output_dir) + str(query_name) + '_RAxML.txt'
+    epa_info = str(output_dir) + 'RAxML_info.' + str(query_name)
+    epa_files["info"] = str(output_dir) + str(query_name) + '.RAxML_info.txt'
+    epa_labelled_tree = str(output_dir) + 'RAxML_labelledTree.' + str(query_name)
+    epa_tree = str(output_dir) + 'RAxML_originalLabelledTree.' + str(query_name)
+    epa_files["tree"] = str(output_dir) + str(query_name) + '.originalRAxML_labelledTree.txt'
+    epa_classification = str(output_dir) + 'RAxML_classification.' + str(query_name)
+    epa_files["classification"] = str(output_dir) + str(query_name) + '.RAxML_classification.txt'
+    epa_files["jplace"] = str(output_dir) + "RAxML_portableTree." + query_name + ".jplace"
+
+    for raxml_file in [epa_info, epa_labelled_tree, epa_tree, epa_classification]:
+        try:
+            os.remove(raxml_file)
+        except OSError:
+            pass
+
+    # Set up the command to run RAxML
+    raxml_command = [raxml_exe,
+                     '-m', model,
+                     '-T', str(int(num_threads)),
+                     '-s', multiple_alignment,
+                     "-p", str(12345),
+                     '-t', reference_tree_file,
+                     '-G', str(0.2),
+                     '-f', 'v',
+                     '-n', str(query_name),
+                     '-w', str(output_dir),
+                     '>', epa_files["stdout"]]
+    launch_write_command(raxml_command)
+
+    # Rename the RAxML output files
+    if os.path.exists(epa_info):
+        copy(epa_info, epa_files["info"])
+        os.remove(epa_info)
+    if os.path.exists(epa_classification):
+        copy(epa_classification, epa_files["classification"])
+        os.remove(epa_classification)
+    if os.path.exists(epa_tree):
+        copy(epa_tree, epa_files["tree"])
+        os.remove(epa_tree)
+    else:
+        logging.error("Some files were not successfully created for " + str(query_name) + "\n" +
+                      "Check " + str(output_dir) + str(query_name) + "_RAxML.txt for an error!\n")
+        sys.exit(3)
+    # Remove useless files
+    if os.path.exists(epa_labelled_tree):
+        os.remove(epa_labelled_tree)
+
+    return epa_files
 
 
 def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_multiple_alignment, kind="functional"):

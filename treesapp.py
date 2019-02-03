@@ -26,7 +26,8 @@ try:
     from time import gmtime, strftime
 
     from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string,\
-        reformat_string, available_cpu_count, write_phy_file, reformat_fasta_to_phy, profile_aligner, run_papara
+        reformat_string, available_cpu_count, write_phy_file, reformat_fasta_to_phy, profile_aligner, run_papara, \
+        launch_evolutionary_placement_queries
     from classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
@@ -1509,124 +1510,6 @@ def produce_phy_files(args, qc_ma_dict):
     logging.debug("done.\n")
 
     return phy_files
-
-
-def start_raxml(args, phy_files, marker_build_dict):
-    """
-    Run RAxML using the provided Autovivifications of phy files and COGs, as well as the list of models used for each COG.
-
-    Returns an Autovivification listing the output files of RAxML.
-    Returns an Autovivification containing the reference tree file associated with each functional or rRNA COG.
-    """
-    logging.info("Running RAxML... coffee?\n")
-
-    start_time = time.time()
-
-    raxml_outfiles = Autovivify()
-    raxml_calls = 0
-
-    # Maximum-likelihood sequence placement analyses
-    denominator_reference_tree_dict = dict()
-    mltree_resources = args.treesapp + os.sep + 'data' + os.sep
-    if os.path.isabs(args.output_dir_var):
-        output_dir = args.output_dir_var
-    else:
-        output_dir = os.getcwd() + os.sep + args.output_dir_var
-    for denominator in sorted(phy_files.keys()):
-        # Establish the reference tree file to be used for this contig
-        reference_tree_file = mltree_resources + 'tree_data' + os.sep + args.reference_tree
-        f_contig_phy_files = phy_files[denominator]
-        for phy_file in f_contig_phy_files:
-            ref_marker = marker_build_dict[denominator]
-            if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
-                if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"):
-                    reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + "_RAxML_result.PARAMS"
-                else:
-                    reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + '_tree.txt'
-
-            query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(phy_file))
-            query_name = re.sub(marker_build_dict[denominator].cog, denominator, query_name)
-            # Determine the output file names, and remove any pre-existing output files
-            if not isinstance(denominator, str):
-                logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
-                raise AssertionError()
-            if not isinstance(reference_tree_file, str):
-                logging.error(str(reference_tree_file) + " is not string but " + str(type(reference_tree_file)) + "\n")
-                raise AssertionError()
-
-            if len(reference_tree_file) == 0:
-                logging.error("Could not find reference tree for " + denominator + "\n")
-                raise AssertionError()
-            if denominator not in denominator_reference_tree_dict.keys():
-                denominator_reference_tree_dict[denominator] = reference_tree_file
-            raxml_files = [output_dir + 'RAxML_info.' + query_name,
-                           output_dir + 'RAxML_labelledTree.' + query_name,
-                           output_dir + 'RAxML_classification.' + query_name]
-
-            for raxml_file in raxml_files:
-                try:
-                    shutil.rmtree(raxml_file)
-                except OSError:
-                    pass
-
-            if ref_marker.model is None:
-                raise AssertionError("No best AA model could be detected for the ML step!")
-            # Set up the command to run RAxML
-            raxml_command = [args.executables["raxmlHPC"], '-m', ref_marker.model]
-            if os.path.isfile(mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
-                              "_RAxML_binaryModelParameters.PARAMS"):
-                raxml_command += ["-R", mltree_resources + 'tree_data' + os.sep + ref_marker.cog +
-                                  "_RAxML_binaryModelParameters.PARAMS"]
-            # Run RAxML using multiple threads, if CPUs available
-            raxml_command += ['-T', str(int(args.num_threads))]
-            raxml_command += ['-s', phy_file,
-                              "-p", str(12345),
-                              '-t', reference_tree_file,
-                              '-G', str(0.2),
-                              '-f', 'v',
-                              '-n', str(query_name),
-                              '-w', str(output_dir),
-                              '>', str(output_dir) + str(query_name) + '_RAxML.txt']
-
-            launch_write_command(raxml_command)
-
-            raxml_calls += 1
-
-            # Rename the RAxML output files
-            move_command = ['mv', str(output_dir) + 'RAxML_info.' + str(query_name),
-                            str(output_dir) + str(query_name) + '.RAxML_info.txt']
-            if os.path.exists(str(output_dir) + 'RAxML_info.' + str(query_name)):
-                os.system(' '.join(move_command))
-            raxml_outfiles[denominator][query_name]['classification'] = str(output_dir) + \
-                                                                        str(query_name) + \
-                                                                        '.RAxML_classification.txt'
-            raxml_outfiles[denominator][query_name]['labelled_tree'] = str(output_dir) + \
-                                                                       str(query_name) + \
-                                                                       '.originalRAxML_labelledTree.txt'
-            move_command1 = ['mv', str(output_dir) + 'RAxML_classification.' + str(query_name),
-                             str(raxml_outfiles[denominator][query_name]['classification'])]
-            move_command2 = ['mv', str(output_dir) + 'RAxML_originalLabelledTree.' + str(query_name),
-                             str(raxml_outfiles[denominator][query_name]['labelled_tree'])]
-            remove_command = ['rm', str(output_dir) + 'RAxML_labelledTree.' + str(query_name)]
-            if os.path.exists(str(output_dir) + 'RAxML_classification.' + str(query_name)):
-                os.system(' '.join(move_command1))
-            if os.path.exists(str(output_dir) + 'RAxML_originalLabelledTree.' + str(query_name)):
-                os.system(' '.join(move_command2))
-            if os.path.exists(str(output_dir) + 'RAxML_labelledTree.' + str(query_name)):
-                os.system(' '.join(remove_command))
-            else:
-                logging.error("Some files were not successfully created for " + str(query_name) + "\n" +
-                              "Check " + str(output_dir) + str(query_name) + "_RAxML.txt for an error!\n")
-                sys.exit(3)
-
-    end_time = time.time()
-    hours, remainder = divmod(end_time - start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    logging.debug("\tRAxML time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    logging.debug("\tRAxML was called " + str(raxml_calls) + " times.\n")
-
-    return raxml_outfiles, denominator_reference_tree_dict, len(phy_files.keys())
 
 
 def pparse_ref_trees(denominator_ref_tree_dict, args):
@@ -3157,7 +3040,7 @@ def main(argv):
         delete_files(args, 3)
 
         # STAGE 5: Run RAxML to compute the ML estimations
-        start_raxml(args, phy_files, marker_build_dict)
+        launch_evolutionary_placement_queries(args, phy_files, marker_build_dict)
         sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)
     tree_saps, itol_data, unclassified_counts = parse_raxml_output(args, marker_build_dict)
     tree_saps = filter_placements(args, tree_saps, marker_build_dict, unclassified_counts)
