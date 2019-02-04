@@ -319,8 +319,10 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             leaves_excluded = 0
 
             # Write query FASTA containing sequences belonging to `taxonomy`
+            query_seq_decrementor = -1
             for seq_name in rank_training_seqs[rank][taxonomy]:
-                taxonomy_filtered_query_seqs[seq_name] = dedup_fasta_dict[seq_name]
+                taxonomy_filtered_query_seqs[str(query_seq_decrementor)] = dedup_fasta_dict[seq_name]
+                query_seq_decrementor -= 1
             logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
             acc += len(taxonomy_filtered_query_seqs.keys())
             write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
@@ -333,6 +335,8 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                     pruned_ref_fasta_dict[node] = ref_fasta_dict[key]
                 else:
                     leaves_excluded += 1
+
+            unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x) for x in pruned_ref_fasta_dict.keys()])
             logging.debug("\t" + str(leaves_excluded) + " sequences pruned from tree.\n")
 
             # Copy the tree since we are removing leaves of `taxonomy` and don't want this to be permanent
@@ -391,16 +395,15 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             intermediate_files += glob(query_filtered_multiple_alignment + "*")
 
             # Ensure reference sequences haven't been removed
-            uref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x)[1:] for x in ref_fasta_dict.keys()])
-            msa_dict, summary_str = validate_alignment_trimming([query_filtered_multiple_alignment], uref_headers)
+            msa_dict, summary_str = validate_alignment_trimming([query_filtered_multiple_alignment], unique_ref_headers)
             if query_filtered_multiple_alignment not in msa_dict.keys():
-                logging.warning("No query sequences were retained in the multiple alignment after trimming.\n" +
-                                "Placements for '" + taxonomy + "' are being skipped.\n")
+                logging.debug("Placements for '" + taxonomy + "' are being skipped after failing MSA validation.\n")
                 for old_file in intermediate_files:
                     os.remove(old_file)
                     intermediate_files.clear()
                 continue
-            logging.info(summary_str)
+            logging.debug("Number of sequences discarded: " + summary_str + "\n")
+
             # TODO: replace hard-coded PROTGAMMALG with whatever model was reported in ref_build_parameters.tsv
             # Run RAxML with the parameters specified
             raxml_files = raxml_evolutionary_placement(executables["raxmlHPC"], temp_tree_file,
