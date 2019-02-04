@@ -27,7 +27,7 @@ try:
     from lca_calculations import megan_lca, lowest_common_taxonomy, clean_lineage_list
     from entrez_utils import get_multiple_lineages, verify_lineage_information, read_accession_taxa_map, \
         write_accession_lineage_map, build_entrez_queries
-    from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc
+    from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc, validate_alignment_trimming
     from placement_trainer import regress_rank_distance
 
 except ImportError:
@@ -1694,20 +1694,20 @@ def main():
         logging.info("Running BMGE... ")
         trimmed_msa_file = trim_multiple_alignment(args.executables["BMGE.jar"], ref_pkg.msa, args.molecule)
         logging.info("done.\n")
-        trimmed_aligned_fasta_dict = read_fasta_to_dict(trimmed_msa_file)
-        if len(trimmed_aligned_fasta_dict) == 0:
-            logging.warning("Trimming removed all your sequences. " +
-                            "This could mean you have many non-homologous sequences or they are very dissimilar.\n" +
-                            "Proceeding with the untrimmed multiple alignment instead.\n")
-            for seq_name in aligned_fasta_dict:
-                dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
-        else:
-            for seq_name in aligned_fasta_dict:
-                dict_for_phy[seq_name.split('_')[0]] = trimmed_aligned_fasta_dict[seq_name]
+
+        unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x) for x in aligned_fasta_dict.keys()])
+        msa_dict, summary_str = validate_alignment_trimming([trimmed_msa_file], unique_ref_headers)
+        logging.debug("Number of sequences discarded: " + summary_str + "\n")
+        if trimmed_msa_file not in msa_dict.keys():
+            # At least one of the reference sequences were discarded and therefore this package is invalid.
+            logging.error("Trimming removed reference sequences. This indicates you have non-homologous sequences.\n" +
+                          "Please improve sequence quality-control and/or re-run without the '--trim_align' flag.\n")
+            sys.exit(13)
+        aligned_fasta_dict = msa_dict[trimmed_msa_file]
         os.remove(trimmed_msa_file)
-    else:
-        for seq_name in aligned_fasta_dict:
-            dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
+
+    for seq_name in aligned_fasta_dict:
+        dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
     phy_dict = reformat_fasta_to_phy(dict_for_phy)
     write_phy_file(phylip_file, phy_dict)
 

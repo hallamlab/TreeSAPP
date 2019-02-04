@@ -862,6 +862,18 @@ def read_rpkm(rpkm_output_file):
 
 
 def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, min_seq_length=30):
+    """
+    Parse a list of multiple sequence alignment (MSA) files and determine whether the multiple alignment:
+        1. is shorter then the min_seq_length (30 by default)
+        2. is missing any reference sequences
+    The number of query sequences discarded - these may have been added by hmmalign or PaPaRa - is returned via a string
+    NOTE: Initially design for sequences records with numeric names (e.g. >4889) but accomodates other TreeSAPP formats
+    :param msa_files: A list of either Phylip- or FASTA-formatted MSA files
+    :param unique_ref_headers: A set of all headers that were in the untrimmed MSA
+    :param min_seq_length: Optional minimum unaligned (no '-'s) length a sequence must exceed to be retained
+    :return: 1. Dictionary indexed by MSA file name mapping to FASTA-dictionaries and
+    2. A string mapping the number of query sequences removed from each MSA file
+    """
     discarded_seqs_string = ""
     successful_multiple_alignments = dict()
     for multi_align_file in msa_files:
@@ -873,22 +885,28 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, min_se
         # Read the multiple alignment file
         if re.search("phy", f_ext):  # File is in Phylip format
             seq_dict = read_phylip_to_dict(multi_align_file)
-            multi_align = dict()
-            for seq_name in seq_dict:
-                try:
-                    int(seq_name)
-                except ValueError:
-                    if re.match("^_\d+", seq_name):
-                        seq_name = re.sub("^_", '-', seq_name)
-                    else:
-                        logging.error("Unexpected sequence name " + seq_name +
-                                      " detected in " + multi_align_file + ".\n")
-                multi_align[seq_name] = seq_dict[seq_name]
         elif re.match("^f", f_ext):  # This is meant to match all fasta extensions
-            multi_align = read_fasta_to_dict(multi_align_file)
+            seq_dict = read_fasta_to_dict(multi_align_file)
         else:
             logging.error("Unable to detect file format of " + multi_align_file + ".\n")
-            sys.exit(3)
+            sys.exit(13)
+
+        # Parse the MSA dict and ensure headers are integer-compatible
+        multi_align = dict()
+        for seq_name in seq_dict:
+            seq = seq_dict[seq_name]
+            try:
+                int(seq_name)
+            except ValueError:
+                if re.match("^_\d+", seq_name):
+                    seq_name = re.sub("^_", '-', seq_name)
+                elif re.match("^\d+_[A-Z]\d{4,6}$", seq_name):
+                    seq_name = seq_name.split('_')[0]
+                else:
+                    logging.error("Unexpected sequence name " + seq_name +
+                                  " detected in " + multi_align_file + ".\n")
+                    sys.exit(13)
+            multi_align[seq_name] = seq
 
         if len(multi_align) == 0:
             logging.error("No sequences were read from " + multi_align_file + ".\n")
@@ -904,6 +922,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, min_se
                 if seq_name[0] == '-':
                     num_queries_retained += 1
 
+        discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
         multi_align_seq_names = set(multi_align.keys())
         filtered_multi_align_seq_names = set(filtered_multi_align.keys())
         if len(discarded_seqs) == len(multi_align.keys()):
@@ -926,5 +945,10 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, min_se
             logging.warning("No query sequences in " + multi_align_file + " were retained after trimming.\n")
         else:
             successful_multiple_alignments[multi_align_file] = filtered_multi_align
-            discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
+
+        if multi_align_file in successful_multiple_alignments:
+            discarded_seqs_string += " (retained)"
+        else:
+            discarded_seqs_string += " (removed)"
+
     return successful_multiple_alignments, discarded_seqs_string
