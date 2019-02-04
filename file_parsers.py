@@ -876,6 +876,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, min_se
     """
     discarded_seqs_string = ""
     successful_multiple_alignments = dict()
+    queries_mapped = False
     for multi_align_file in msa_files:
         filtered_multi_align = dict()
         discarded_seqs = list()
@@ -907,7 +908,8 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, min_se
                                   " detected in " + multi_align_file + ".\n")
                     sys.exit(13)
             multi_align[seq_name] = seq
-
+        if len(multi_align.keys()) > len(unique_ref_headers):
+            queries_mapped = True
         if len(multi_align) == 0:
             logging.error("No sequences were read from " + multi_align_file + ".\n")
             sys.exit(3)
@@ -941,7 +943,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, min_se
                           "Note: this suggests the initial reference alignment is terrible.\n")
             sys.exit(3)
         # Ensure that there is at least 1 query sequence retained after trimming the multiple alignment
-        elif num_queries_retained == 0:
+        elif queries_mapped and num_queries_retained == 0:
             logging.warning("No query sequences in " + multi_align_file + " were retained after trimming.\n")
         else:
             successful_multiple_alignments[multi_align_file] = filtered_multi_align
