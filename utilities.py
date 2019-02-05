@@ -482,43 +482,6 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
     return
 
 
-def calculate_overlap(info):
-    """
-    Returns the overlap length of the base and the check sequences.
-    :param info: Autovivify() object holding start and end sequence coordinates for overlapping sequences
-    :return overlap: The number of overlapping bases between the sequences
-    """
-
-    overlap = 0
-    base_start = info['base']['start']
-    base_end = info['base']['end']
-    check_start = info['check']['start']
-    check_end = info['check']['end']
-
-    # Calculate the overlap based on the relative positioning of the base and check sequences
-    assert isinstance(base_end, (int, int, float, complex))
-    if base_start <= check_start:
-        if check_end >= base_end >= check_start:
-            # Base     ----
-            # Check      -------
-            overlap = base_end - check_start
-        elif check_end <= base_end:
-            # Base     --------
-            # Check        --
-            overlap = check_end - check_start
-    elif check_start <= base_start:
-        if base_start <= check_end <= base_end:
-            # Base         -----
-            # Check    -----
-            overlap = check_end - base_start
-        elif base_end <= check_end:
-            # Base       --
-            # Check    --------
-            overlap = base_end - base_start
-
-    return overlap
-
-
 def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
     """
     Wrapper function for clustering a FASTA file at some similarity using usearch's cluster_fast algorithm

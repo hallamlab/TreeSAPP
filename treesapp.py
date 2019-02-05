@@ -128,7 +128,7 @@ def check_parser_arguments(args):
     """
     Ensures the command-line arguments returned by argparse are sensible
     :param args: object with parameters returned by argparse.parse_args()
-    :return 'args', a summary of TreeSAPP settings.
+    :return: 'args', a summary of TreeSAPP settings.
     """
 
     # Add (or replace a trailing (back)slash with) the os.sep to the end of the output directory
@@ -282,7 +282,7 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param new_ref_queries:
     :param update_tree:
-    :return:
+    :return: Path to tabular alignment file
     """
     alignments = update_tree.Output + "candidate_alignments.tsv"
 
@@ -668,7 +668,7 @@ def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param gene_coordinates:
     :param formatted_fasta_dict:
-    :return: nothing
+    :return: None
     """
     # Header format:
     # >contig_name|marker_gene|start_end
@@ -1325,7 +1325,7 @@ def check_for_removed_sequences(args, mfa_files: dict, marker_build_dict: dict):
         # Create a set of the reference sequence names
         ref_headers = get_headers(os.sep.join([args.treesapp, "data", "alignment_data", marker + ".fa"]))
         unique_refs = set([re.sub('_' + re.escape(marker), '', x)[1:] for x in ref_headers])
-        msa_passed, summary_str = validate_alignment_trimming(mfa_files[denominator], unique_refs, args.min_seq_length)
+        msa_passed, summary_str = validate_alignment_trimming(mfa_files[denominator], unique_refs, True, args.min_seq_length)
         num_successful_alignments += len(msa_passed)
         qc_ma_dict[denominator] = msa_passed
         discarded_seqs_string += summary_str
@@ -2115,7 +2115,7 @@ def write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_f
     :param tree_saps: A dictionary of gene_codes as keys and TreeSap objects as values
     :param nuc_orfs_formatted_dict:
     :param orf_nuc_fasta:
-    :return: nothing
+    :return: None
     """
     # Header format:
     # >contig_name|marker_gene
@@ -2447,7 +2447,7 @@ def create_itol_labels(args, marker):
     
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param marker:
-    :return: 
+    :return: None
     """
     itol_base_dir = args.output + 'iTOL_output' + os.sep
     itol_label_file = itol_base_dir + os.sep + marker + os.sep + marker + "_labels.txt"
@@ -2759,8 +2759,11 @@ def parse_raxml_output(args, marker_build_dict):
     """
 
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :param marker_build_dict:
-    :return: 
+    :param marker_build_dict: Dictionary of MarkerBuild instances indexed by denominator (refpkg code e.g. M0701)
+    :return:
+        1. Dictionary of TreeProtein instances indexed by denominator (refpkg code e.g. M0701)
+        2. Dictionary of an ItolJplace instance (values) mapped to marker name
+        3. Dictionary mapping the number of sequences that were unclassified (value) to a marker (key)
     """
 
     logging.info('Parsing the RAxML outputs... ')
@@ -2849,7 +2852,7 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
     :param marker_build_dict:
     :param itol_data:
     :param rpkm_output_file:
-    :return:
+    :return: None
     """
     logging.debug("Generating inputs for iTOL... ")
     
@@ -2900,7 +2903,7 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
 
     logging.debug("done.\n")
     if style_missing:
-        logging.debug("A colours_style.txt file does not yet exist for markers:\n\t" + 
+        logging.debug("A colours_style.txt file does not yet exist for markers:\n\t" +
                       "\n\t".join(style_missing) + "\n")
     if strip_missing:
         logging.debug("A colours_strip.txt file does not yet exist for markers:\n\t" +

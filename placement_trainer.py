@@ -395,7 +395,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             intermediate_files += glob(query_filtered_multiple_alignment + "*")
 
             # Ensure reference sequences haven't been removed
-            msa_dict, summary_str = validate_alignment_trimming([query_filtered_multiple_alignment], unique_ref_headers)
+            msa_dict, summary_str = validate_alignment_trimming([query_filtered_multiple_alignment], unique_ref_headers, True)
             if query_filtered_multiple_alignment not in msa_dict.keys():
                 logging.debug("Placements for '" + taxonomy + "' are being skipped after failing MSA validation.\n")
                 for old_file in intermediate_files:
