@@ -125,8 +125,8 @@ def get_arguments():
                              "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",
                         required=False, default=None)
     optopt.add_argument("-o", "--output_dir",
-                        help="Path to a directory for all outputs [ DEFAULT = ./ ]",
-                        default="./", required=False)
+                        help="Path to a directory for all outputs [ DEFAULT = ./${code_name}_treesapp_refpkg/ ]",
+                        required=False)
     optopt.add_argument("-u", "--uc",
                         help="The USEARCH cluster format file produced from clustering reference sequences.\n"
                              "This can be used for selecting representative headers from identical sequences.",
@@ -137,8 +137,8 @@ def get_arguments():
                         action="store_true")
     optopt.add_argument("--kind",
                         help="The broad classification of marker gene type, either "
-                             "functional, phylogenetic, or phylogenetic_rRNA. [ DEFAULT = functional ]",
-                        default="functional", required=False)
+                             "functional or taxonomic. [ DEFAULT = functional ]",
+                        default="functional", choices=["functional", "taxonomic"], required=False)
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous arguments")
     miscellaneous_opts.add_argument("-h", "--help",
@@ -165,6 +165,8 @@ def get_arguments():
 
     args = parser.parse_args()
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+    if not args.output_dir:
+        args.output_dir = os.getcwd() + os.sep + args.code_name + "_treesapp_refpkg"
     if args.output_dir[0] != os.sep:
         # The user didn't provide a full path
         args.output_dir = os.getcwd() + os.sep + args.output_dir
