@@ -5,19 +5,19 @@ STRIP_WIDTH 75
 MARGIN 0
 SHOW_INTERNAL 1
 DATA
-175|173 #543005 Verstraetearchaeota
+174|173 #543005 Verstraetearchaeota
 204|203 #A4681A Bathyarchaeota
-166 #C66F3E Syntrophoarchaeum
-164|165 #C66F3E Syntrophoarchaeum
-168 #C66F3E Syntrophoarchaeum
-10|201 #7D4808 ANME-1
-95|11 #DDBF7A Methanonatronarchaeia
-17|15 #EFDCAE Methanomassiliicoccales
+160 #C66F3E Syntrophoarchaeum
+164|166 #C66F3E Syntrophoarchaeum
+161 #C66F3E Syntrophoarchaeum
+16|210 #7D4808 ANME-1
+97|14 #DDBF7A Methanonatronarchaeia
+130|200 #EFDCAE Methanomassiliicoccales
 98 #F5EDD9 Methanopyrus
-84|86 #ECF2F2 Methanococcales
-80|81 #CAEAE6 Methanococcales-MrtA
-49|67 #97D6CD Methanobacteriales-MrtA
+88|78 #ECF2F2 Methanococcales
+75|83 #CAEAE6 Methanococcales-MrtA
+57|67 #97D6CD Methanobacteriales-MrtA
 73|59 #61B7AC Methanobacteriales
-160|144 #2D8F87 Methanosarcinales
+159|145 #2D8F87 Methanosarcinales
 100|99 #066B63 Methanocellales
 192|107 #003C30 Methanomicrobiales
