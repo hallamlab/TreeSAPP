@@ -40,7 +40,7 @@ SETUP_METADATA = \
                                                language="c++",
                                                include_dirs=["./sub_binaries/TreeSAPP_extensions"])
                                      ],
-                     "install_requires": ["pygtrie", "ete3>=2.3", "numpy", "biopython>=1.68"]
+                     "install_requires": ["pygtrie", "ete3>=3.1.0", "numpy", "biopython>=1.68", "scipy>=1.1.0"]
                }
 
 setup(**SETUP_METADATA)
