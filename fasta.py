@@ -233,7 +233,8 @@ def get_header_format(header, code_name=""):
     # Ambiguous:
     genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
     accession_only = re.compile("^>([A-Z]{1,2}_?[0-9]+\.?[0-9]?)$")  # a
-    ncbi_ambiguous = re.compile("^>([A-Z0-9]+\.?[0-9]?)[ ]+.*(?<!\])$")  # a
+    ncbi_ambiguous = re.compile(r"^>([A-Z0-9]+\.?[0-9]?)\s+.*(?<!\])$")  # a
+    ncbi_org = re.compile(r"^>([A-Z0-9]+\.?[0-9]?)\s+.*\[[A-Za-z0-9 .-]+\]$")  # a
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
     # There are no character restrictions on the first and third groups
@@ -259,6 +260,7 @@ def get_header_format(header, code_name=""):
                       "dna": {mltree_re: "mltree",
                               silva_arb_re: "silva",
                               refseq_nuc_re: "refseq_nuc",
+                              ncbi_org: "ncbi_org",
                               nr_re: "nr"},
                       "ambig": {ncbi_ambiguous: "ncbi_ambig",
                                 genbank_exact_genome: "gen_genome",
