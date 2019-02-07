@@ -633,7 +633,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             except ValueError:
                 if re.match("^_\d+", seq_name):
                     seq_name = re.sub("^_", '-', seq_name)
-                elif re.match("^\d+_[A-Z]\d{4,6}$", seq_name):
+                elif re.match("^\d+_\w{3,7}$", seq_name):
                     seq_name = seq_name.split('_')[0]
                 else:
                     logging.error("Unexpected sequence name " + seq_name +
