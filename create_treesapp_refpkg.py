@@ -25,8 +25,7 @@ try:
     from external_command_interface import launch_write_command
     from entish import annotate_partition_tree
     from lca_calculations import megan_lca, clean_lineage_list
-    from entrez_utils import get_multiple_lineages, verify_lineage_information, read_accession_taxa_map, \
-        write_accession_lineage_map, build_entrez_queries
+    from entrez_utils import *
     from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc, validate_alignment_trimming
     from placement_trainer import regress_rank_distance
 
@@ -111,9 +110,12 @@ def get_arguments():
                                 "[ --cluster or --uc REQUIRED ]",
                            default=False, required=False, action="store_true")
     taxa_args.add_argument("--taxa_norm",
-                           help="[ IN PROGRESS ] Perform taxonomic normalization on the provided sequences.\n"
+                           help="[ IN DEVELOPMENT ] Perform taxonomic normalization on the provided sequences.\n"
                                 "A comma-separated argument with the Rank (e.g. Phylum) and\n"
                                 "number of representatives is required.\n")
+    taxa_args.add_argument("--accession2taxid", required=False, default=None,
+                           help="[ IN DEVELOPMENT ]\n" +
+                                "Path to an NCBI accession2taxid file for more rapid accession-to-lineage mapping.\n")
 
     optopt = parser.add_argument_group("Optional arguments")
     optopt.add_argument("-b", "--bootstraps",
@@ -1459,8 +1461,22 @@ def main():
         accession_lineage_map = read_accession_taxa_map(accession_map_file)
         logging.info("done.\n")
     else:
-        accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list,
-                                                                      args.molecule)
+        if args.accession2taxid:
+            # Determine find the query accessions that are located in the provided accession2taxid file
+            unmapped_queries, entrez_records = map_accession2taxid(query_accession_list, args.accession2taxid)
+            # Report the number percentage of query accessions mapped
+            logging.debug(
+                str((len(unmapped_queries) * 100 / len(query_accession_list))) +
+                "% of query accessions mapped by accession2taxid file.\n")
+            # Use the normal querying functions to obtain lineage information for the unmapped queries
+            entrez_records = get_multiple_lineages(unmapped_queries, args.molecule)
+            # Map lineages to taxids for successfully-mapped query sequences
+            entrez_records += fetch_lineages_from_taxids(entrez_records)
+        else:
+            entrez_records = get_multiple_lineages(query_accession_list, args.molecule)
+        accession_lineage_map = entrez_records_to_accession_lineage_map(entrez_records)
+        all_accessions = entrez_records_to_accessions(entrez_records, query_accession_list)
+
         # Download lineages separately for those accessions that failed
         # Map proper accession to lineage from the tuple keys (accession, accession.version)
         #  in accession_lineage_map returned by get_multiple_lineages.
