@@ -1464,14 +1464,10 @@ def main():
         if args.accession2taxid:
             # Determine find the query accessions that are located in the provided accession2taxid file
             unmapped_queries, entrez_records = map_accession2taxid(query_accession_list, args.accession2taxid)
-            # Report the number percentage of query accessions mapped
-            logging.debug(
-                str((len(unmapped_queries) * 100 / len(query_accession_list))) +
-                "% of query accessions mapped by accession2taxid file.\n")
-            # Use the normal querying functions to obtain lineage information for the unmapped queries
-            entrez_records = get_multiple_lineages(unmapped_queries, args.molecule)
             # Map lineages to taxids for successfully-mapped query sequences
-            entrez_records += fetch_lineages_from_taxids(entrez_records)
+            entrez_records = fetch_lineages_from_taxids(entrez_records)
+            # Use the normal querying functions to obtain lineage information for the unmapped queries
+            entrez_records += get_multiple_lineages(unmapped_queries, args.molecule)
         else:
             entrez_records = get_multiple_lineages(query_accession_list, args.molecule)
         accession_lineage_map = entrez_records_to_accession_lineage_map(entrez_records)
