@@ -6,7 +6,7 @@ import re
 import random
 import subprocess
 from external_command_interface import launch_write_command
-from entrez_utils import get_multiple_lineages
+from entrez_utils import get_multiple_lineages, entrez_records_to_accession_lineage_map
 from utilities import reformat_string, return_sequence_info_groups
 from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta
 from classy import MarkerBuild, ReferenceSequence
@@ -174,7 +174,8 @@ class CreateFuncTreeUtility:
                     if lineage:
                         pass
                     elif accession:
-                        accession_lineage_map, all_accessions = get_multiple_lineages([accession], header_molecule)
+                        entrez_records = get_multiple_lineages([accession], header_molecule)
+                        accession_lineage_map = entrez_records_to_accession_lineage_map(entrez_records)
                         # Should only be one...
                         for tuple_key in accession_lineage_map:
                             lineage = accession_lineage_map[tuple_key]["lineage"]

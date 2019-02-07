@@ -21,11 +21,10 @@ sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from fasta import format_read_fasta, write_new_fasta, get_headers, read_fasta_to_dict
 from create_treesapp_refpkg import get_header_format, finalize_ref_seq_lineages
 from utilities import clean_lineage_string, return_sequence_info_groups, find_executables
-from external_command_interface import setup_progress_bar, launch_write_command
+from external_command_interface import launch_write_command
 from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves
 from classy import prep_logging, get_header_info, register_headers, MarkerTest
-from entrez_utils import read_accession_taxa_map, write_accession_lineage_map,\
-    build_entrez_queries, get_multiple_lineages, verify_lineage_information
+from entrez_utils import *
 from phylo_dist import trim_lineages_to_rank
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
@@ -1328,8 +1327,9 @@ def main():
         extant = True
         entrez_query_list, num_lineages_provided = build_entrez_queries(complete_ref_sequences)
         if len(entrez_query_list) > 0:
-            accession_lineage_map, all_accessions = get_multiple_lineages(entrez_query_list,
-                                                                          args.molecule)
+            entrez_records = get_multiple_lineages(entrez_query_list, args.molecule)
+            accession_lineage_map = entrez_records_to_accession_lineage_map(entrez_records)
+            all_accessions = entrez_records_to_accessions(entrez_records, entrez_query_list)
 
         elif num_lineages_provided > 0:
             logging.info("No Entrez queries are necessary - all sequences have provided lineage information.\n")

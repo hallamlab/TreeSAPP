@@ -14,7 +14,8 @@ from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validat
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string,\
     find_executables, cluster_sequences, profile_aligner, run_papara, build_hmm_profile, raxml_evolutionary_placement
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
-    write_accession_lineage_map, verify_lineage_information
+    write_accession_lineage_map, verify_lineage_information, \
+    entrez_records_to_accessions, entrez_records_to_accession_lineage_map
 from phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
 from external_command_interface import setup_progress_bar
 from jplace_utils import jplace_parser
@@ -286,7 +287,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
         for taxonomy in rank_training_seqs[rank]:
             num_rank_training_seqs += len(rank_training_seqs[rank][taxonomy])
         if len(rank_training_seqs[rank]) == 0:
-            logging.error("No sequences available for estimating" + rank + "-level placement distances.\n")
+            logging.error("No sequences available for estimating " + rank + "-level placement distances.\n")
             return taxonomic_placement_distances, pqueries
         else:
             logging.debug(str(num_rank_training_seqs) + " sequences to train " + rank + "-level placement distances\n")
@@ -545,7 +546,9 @@ def main():
         header_registry = register_headers(get_headers(args.fasta_input))
         fasta_record_objects = get_header_info(header_registry)
         query_accession_list, num_lineages_provided = build_entrez_queries(fasta_record_objects)
-        accession_lineage_map, all_accessions = get_multiple_lineages(query_accession_list, args.molecule)
+        entrez_records = get_multiple_lineages(query_accession_list, args.molecule)
+        accession_lineage_map = entrez_records_to_accession_lineage_map(entrez_records)
+        all_accessions = entrez_records_to_accessions(entrez_records, query_accession_list)
         fasta_record_objects, accession_lineage_map = verify_lineage_information(accession_lineage_map,
                                                                                  all_accessions,
                                                                                  fasta_record_objects,
