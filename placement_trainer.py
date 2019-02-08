@@ -10,7 +10,7 @@ import numpy as np
 from glob import glob
 
 from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment, get_headers
-from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming
+from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming, parse_ref_build_params
 from utilities import reformat_fasta_to_phy, write_phy_file, median, clean_lineage_string,\
     find_executables, cluster_sequences, profile_aligner, run_papara, build_hmm_profile, raxml_evolutionary_placement
 from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
@@ -46,6 +46,7 @@ def get_options():
     parser.add_argument("-O", "--overwrite", default=False, action="store_true",
                         help="Force recalculation of placement distances for query sequences.")
     args = parser.parse_args()
+    args.targets = ["ALL"]
     return args
 
 
@@ -405,10 +406,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 continue
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
 
-            # TODO: replace hard-coded PROTGAMMALG with whatever model was reported in ref_build_parameters.tsv
             # Run RAxML with the parameters specified
             raxml_files = raxml_evolutionary_placement(executables["raxmlHPC"], temp_tree_file,
-                                                       query_filtered_multiple_alignment, "PROTGAMMALG", "./",
+                                                       query_filtered_multiple_alignment, ref_pkg.sub_model, "./",
                                                        query_name, raxml_threads)
 
             # Parse the JPlace file to pull distal_length+pendant_length for each placement
@@ -540,6 +540,19 @@ def main():
                   "\tReference FASTA: " + ref_pkg.msa + "\n" +
                   "\tLineage map: " + str(args.lineages) + "\n" +
                   "\tRanks tested: " + ','.join(training_ranks.keys()) + "\n")
+
+    # Get the model to be used for phylogenetic placement
+    marker_build_dict = parse_ref_build_params(args)
+    for denominator in marker_build_dict:
+        marker_build = marker_build_dict[denominator]
+        if marker_build.cog == args.name and args.molecule == marker_build.molecule:
+            ref_pkg.sub_model = marker_build_dict[denominator].model
+            break
+    if not ref_pkg.sub_model:
+        logging.error("Unable to find the substitution model used for " + args.name + ".\n")
+        sys.exit(33)
+
+    # Get the lineage information for the training/query sequences
     if args.lineages:
         accession_lineage_map = read_accession_taxa_map(args.lineages)
     else:

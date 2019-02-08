@@ -23,6 +23,7 @@ class ReferencePackage:
         self.tree = ""
         self.boot_tree = ""
         self.lineage_ids = ""
+        self.sub_model = ""
         self.core_ref_files = list()
         self.num_seqs = 0
 

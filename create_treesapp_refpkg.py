@@ -1745,7 +1745,7 @@ def main():
                                 fasta_replace_dict,
                                 tree_output_dir + os.sep + "RAxML_bipartitions." + args.code_name)
         marker_package.model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + args.code_name)
-
+    ref_pkg.sub_model = marker_package.model
     # Build the regression model of placement distances to taxonomic ranks
     marker_package.pfit, _, _ = regress_rank_distance(args, ref_pkg, accession_lineage_map, aligned_fasta_dict)
 

@@ -47,6 +47,9 @@ def parse_ref_build_params(args):
         if args.targets != ["ALL"] and marker_build.denominator not in args.targets:
             skipped_lines.append(line)
         else:
+            if marker_build.denominator in marker_build_dict:
+                logging.debug("Multiple '" + marker_build.denominator + "' codes in " + ref_build_parameters +
+                              ". Previous entry in marker_build_dict being overwritten...\n")
             marker_build_dict[marker_build.denominator] = marker_build
             if marker_build.load_pfit_params(line):
                 missing_info.append(marker_build)
@@ -633,6 +636,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             except ValueError:
                 if re.match("^_\d+", seq_name):
                     seq_name = re.sub("^_", '-', seq_name)
+                # The section of regular expresion after '_' needs to match denominator and refpkg names
                 elif re.match("^\d+_\w{3,7}$", seq_name):
                     seq_name = seq_name.split('_')[0]
                 else:
