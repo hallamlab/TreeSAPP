@@ -1155,9 +1155,6 @@ def update_build_parameters(param_file, marker_package: MarkerBuild):
 
     marker_package.update = strftime("%d_%b_%Y", gmtime())
 
-    if marker_package.molecule == "prot":
-        marker_package.model = "PROTGAMMA" + marker_package.model
-
     build_list = [marker_package.cog, marker_package.denominator, marker_package.molecule, marker_package.model,
                   marker_package.kind, str(marker_package.pid), str(marker_package.num_reps), marker_package.tree_tool,
                   ','.join([str(param) for param in marker_package.pfit]),
@@ -1745,7 +1742,10 @@ def main():
                                 fasta_replace_dict,
                                 tree_output_dir + os.sep + "RAxML_bipartitions." + args.code_name)
         marker_package.model = find_model_used(tree_output_dir + os.sep + "RAxML_info." + args.code_name)
+    if marker_package.molecule == "prot":
+        marker_package.model = "PROTGAMMA" + marker_package.model
     ref_pkg.sub_model = marker_package.model
+
     # Build the regression model of placement distances to taxonomic ranks
     marker_package.pfit, _, _ = regress_rank_distance(args, ref_pkg, accession_lineage_map, aligned_fasta_dict)
 
