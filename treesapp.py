@@ -2967,6 +2967,9 @@ def main(argv):
         if len(file_types) > 1:
             logging.error("Multiple file types detected in multiple alignment files:\n" + ','.join(file_types) + "\n")
             sys.exit(3)
+        elif len(file_types) == 0:
+            logging.error("No alignment files were generated!\n")
+            sys.exit(3)
         else:
             file_type = file_types.pop()
         alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
