@@ -543,9 +543,10 @@ def read_uc(uc_file):
         logging.error("Unable to open USEARCH cluster file " + uc_file + " for reading!\n")
         sys.exit(13)
 
-    line = uc.readline()
+    logging.debug("Reading usearch cluster file... ")
+
     # Find all clusters with multiple identical sequences
-    while line:
+    for line in uc:
         cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
         if cluster_type == "S":
             cluster_dict[num_id] = Cluster('>' + header)
@@ -557,7 +558,9 @@ def read_uc(uc_file):
         else:
             logging.error("Unexpected cluster type '" + str(cluster_type) + "' in " + uc_file + "\n")
             sys.exit(13)
-        line = uc.readline()
+
+    uc.close()
+    logging.debug("done.\n")
     return cluster_dict
 
 

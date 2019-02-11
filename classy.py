@@ -781,6 +781,12 @@ class Cluster:
         self.members = list()
         self.lca = ''
 
+    def get_info(self):
+        info_string = "Representative: " + str(self.representative) + "\n" + \
+                      "LCA: " + self.lca + "\n" + \
+                      "Members:\n\t" + "\n\t".join([', '.join(member) for member in self.members]) + "\n"
+        return info_string
+
 
 class MyFormatter(logging.Formatter):
 

@@ -586,13 +586,20 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects, header_registry):
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
     :return: Dictionary of ReferenceSequence objects with complete clustering information
     """
+    logging.debug("Finalizing representative sequence clusters... ")
+    # Create a temporary dictionary mapping formatted headers to TreeSAPP numeric IDs
+    tmp_dict = dict()
+    for treesapp_id in header_registry:
+        tmp_dict[header_registry[treesapp_id].formatted] = treesapp_id
+
     for cluster_id in sorted(cluster_dict, key=int):
         cluster_info = cluster_dict[cluster_id]
-        for treesapp_id in sorted(refseq_objects, key=int):
-            if header_registry[treesapp_id].formatted == cluster_info.representative:
-                refseq_objects[treesapp_id].cluster_rep_similarity = '*'
-                refseq_objects[treesapp_id].cluster_rep = True
-                refseq_objects[treesapp_id].cluster_lca = cluster_info.lca
+        treesapp_id = tmp_dict[cluster_info.representative]
+        refseq_objects[treesapp_id].cluster_rep_similarity = '*'
+        refseq_objects[treesapp_id].cluster_rep = True
+        refseq_objects[treesapp_id].cluster_lca = cluster_info.lca
+
+    logging.debug("done.\n")
     return refseq_objects
 
 
@@ -882,6 +889,7 @@ def order_dict_by_lineage(fasta_object_dict):
     :return: An ordered, filtered version of the input dictionary
     """
     # Create a new dictionary with lineages as keys
+    logging.debug("Re-enumerating the reference sequences in taxonomic order... ")
     lineage_dict = dict()
     sorted_lineage_dict = dict()
     accessions = list()
@@ -914,6 +922,7 @@ def order_dict_by_lineage(fasta_object_dict):
                 sorted_lineage_dict[str(num_key)] = ref_seq
                 num_key += 1
 
+    logging.debug("done.\n")
     return sorted_lineage_dict
 
 
@@ -1317,6 +1326,69 @@ def finalize_ref_seq_lineages(fasta_record_objects, accession_lineages):
     return fasta_record_objects
 
 
+def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output_dir="./outliers", num_threads=2):
+    od_input = output_dir + "od_input.fasta"
+    od_output = output_dir + "outliers.fasta"
+    outlier_names = list()
+    tmp_dict = dict()
+
+    outlier_test_fasta_dict = order_dict_by_lineage(fasta_record_objects)
+
+    logging.info("Detecting outlier reference sequences... ")
+    create_new_ref_fasta(od_input, outlier_test_fasta_dict)
+    od_input_m = '.'.join(od_input.split('.')[:-1]) + ".mfa"
+    # Perform MSA with MAFFT
+    run_mafft(mafft_exe, od_input, od_input_m, num_threads)
+    # Run OD-seq on MSA to identify outliers
+    run_odseq(od_seq_exe, od_input_m, od_output, num_threads)
+    # Remove outliers from fasta_record_objects collection
+    outlier_seqs = read_fasta_to_dict(od_output)
+    for seq_num_id in fasta_record_objects:
+        ref_seq = fasta_record_objects[seq_num_id]
+        tmp_dict[ref_seq.short_id] = ref_seq
+
+    for seq_name in outlier_seqs:
+        ref_seq = tmp_dict[seq_name]
+        ref_seq.cluster_rep = False
+        outlier_names.append(ref_seq.accession)
+
+    logging.info("done.\n")
+    logging.debug(str(len(outlier_seqs)) + " outlier sequences detected and discarded.\n\t" +
+                  "\n\t".join([outseq for outseq in outlier_names]) + "\n")
+
+    return fasta_record_objects
+
+
+def guarantee_ref_seqs(cluster_dict, important_seqs):
+    num_swaps = 0
+    nonredundant_guarantee_cluster_dict = dict()  # Will be used to replace cluster_dict
+    expanded_cluster_id = 0
+    for cluster_id in sorted(cluster_dict, key=int):
+        if len(cluster_dict[cluster_id].members) == 0:
+            nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+        else:
+            contains_important_seq = False
+            # The case where a member of a cluster is a guaranteed sequence, but not the representative
+            representative = cluster_dict[cluster_id].representative
+            for member in cluster_dict[cluster_id].members:
+                if member[0] in important_seqs.keys():
+                    nonredundant_guarantee_cluster_dict[expanded_cluster_id] = Cluster(member[0])
+                    nonredundant_guarantee_cluster_dict[expanded_cluster_id].members = []
+                    nonredundant_guarantee_cluster_dict[expanded_cluster_id].lca = cluster_dict[cluster_id].lca
+                    expanded_cluster_id += 1
+                    contains_important_seq = True
+            if contains_important_seq and representative not in important_seqs.keys():
+                num_swaps += 1
+            elif contains_important_seq and representative in important_seqs.keys():
+                # So there is no opportunity for the important representative sequence to be swapped, clear members
+                cluster_dict[cluster_id].members = []
+                nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+            else:
+                nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+        expanded_cluster_id += 1
+    return nonredundant_guarantee_cluster_dict
+
+
 def main():
     # TODO: Record each external software command and version in log
     ##
@@ -1346,7 +1418,6 @@ def main():
     hmm_purified_fasta = args.output_dir + args.code_name + "_hmm_purified.fasta"
     filtered_fasta_name = args.output_dir + '.'.join(os.path.basename(args.fasta_input).split('.')[:-1]) + "_filtered.fa"
     uclust_prefix = args.output_dir + '.'.join(os.path.basename(filtered_fasta_name).split('.')[:-1]) + "_uclust" + args.identity
-    od_input = args.output_dir + "od_input.fasta"
     unaln_ref_fasta = args.output_dir + args.code_name + "_ref.fa"  # FASTA file of unaligned reference sequences
     phylip_file = args.output_dir + args.code_name + ".phy"  # Used for building the phylogenetic tree with RAxML
 
@@ -1538,15 +1609,23 @@ def main():
         ##
         # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
         ##
+        # Create a temporary dictionary for faster mapping
+        formatted_to_num_map = dict()
+        for num_id in fasta_record_objects:
+            formatted_to_num_map[header_registry[num_id].formatted] = num_id
+
         lineages = list()
         for cluster_id in sorted(cluster_dict, key=int):
             members = [cluster_dict[cluster_id].representative]
             # format of member list is: [header, identity, member_seq_length/representative_seq_length]
             members += [member[0] for member in cluster_dict[cluster_id].members]
             # Create a lineage list for all sequences in the cluster
-            for num_id in fasta_record_objects:
-                if header_registry[num_id].formatted in members:
+            for member in members:
+                try:
+                    num_id = formatted_to_num_map[member]
                     lineages.append(fasta_record_objects[num_id].lineage)
+                except KeyError:
+                    logging.warning("Unable to map " + str(member) + " to a TreeSAPP numeric ID.\n")
             cleaned_lineages = clean_lineage_list(lineages)
             cluster_dict[cluster_id].lca = megan_lca(cleaned_lineages)
             # For debugging
@@ -1559,6 +1638,7 @@ def main():
             #         print(l)
             #     print("LCA:", cluster_dict[cluster_id].lca)
             lineages.clear()
+        formatted_to_num_map.clear()
     else:
         cluster_dict = None
 
@@ -1569,33 +1649,7 @@ def main():
         # We don't want to make the tree redundant so instead of simply adding the sequences in guarantee,
         #  we will swap them for their respective representative sequences.
         # All important sequences become representative, even if multiple are in the same cluster
-        num_swaps = 0
-        nonredundant_guarantee_cluster_dict = dict()  # Will be used to replace cluster_dict
-        expanded_cluster_id = 0
-        for cluster_id in sorted(cluster_dict, key=int):
-            if len(cluster_dict[cluster_id].members) == 0:
-                nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
-            else:
-                contains_important_seq = False
-                # The case where a member of a cluster is a guaranteed sequence, but not the representative
-                representative = cluster_dict[cluster_id].representative
-                for member in cluster_dict[cluster_id].members:
-                    if member[0] in important_seqs.keys():
-                        nonredundant_guarantee_cluster_dict[expanded_cluster_id] = Cluster(member[0])
-                        nonredundant_guarantee_cluster_dict[expanded_cluster_id].members = []
-                        nonredundant_guarantee_cluster_dict[expanded_cluster_id].lca = cluster_dict[cluster_id].lca
-                        expanded_cluster_id += 1
-                        contains_important_seq = True
-                if contains_important_seq and representative not in important_seqs.keys():
-                    num_swaps += 1
-                elif contains_important_seq and representative in important_seqs.keys():
-                    # So there is no opportunity for the important representative sequence to be swapped, clear members
-                    cluster_dict[cluster_id].members = []
-                    nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
-                else:
-                    nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
-            expanded_cluster_id += 1
-        cluster_dict = nonredundant_guarantee_cluster_dict
+        cluster_dict = guarantee_ref_seqs(cluster_dict, important_seqs)
 
     # TODO: Taxonomic normalization
 
@@ -1615,27 +1669,9 @@ def main():
             fasta_record_objects[num_id].cluster_rep = True
             # fasta_record_objects[num_id].cluster_lca is left empty
 
-    logging.info("Detecting outlier reference sequences... ")
-    outlier_test_fasta_dict = order_dict_by_lineage(fasta_record_objects)
-    create_new_ref_fasta(od_input, outlier_test_fasta_dict)
-    od_input_m = '.'.join(od_input.split('.')[:-1]) + ".mfa"
-    od_output = args.output_dir + "outliers.fasta"
-    # Perform MSA with MAFFT
-    run_mafft(args.executables["mafft"], od_input, od_input_m, args.num_threads)
-    # Run OD-seq on MSA to identify outliers
-    run_odseq(args.executables["OD-seq"], od_input_m, od_output, args.num_threads)
-    # Remove outliers from fasta_record_objects collection
-    outlier_seqs = read_fasta_to_dict(od_output)
-    outlier_names = list()
-    for seq_name in outlier_seqs:
-        for seq_num_id in fasta_record_objects:
-            ref_seq = fasta_record_objects[seq_num_id]
-            if ref_seq.short_id == seq_name:
-                ref_seq.cluster_rep = False
-                outlier_names.append(ref_seq.accession)
-    logging.info("done.\n")
-    logging.debug(str(len(outlier_seqs)) + " outlier sequences detected and discarded.\n\t" +
-                  "\n\t".join([outseq for outseq in outlier_names]) + "\n")
+    fasta_record_objects = remove_outlier_sequences(fasta_record_objects,
+                                                    args.executables["OD-seq"], args.executables["mafft"],
+                                                    args.output_dir, args.num_threads)
 
     ##
     # Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
