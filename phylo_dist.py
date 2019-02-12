@@ -54,9 +54,13 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
         if n_samples > 3:
             depth_dist_dict[depth] = rank_distances
             dist_list += rank_distances
+
+    if len(depth_dist_dict.keys()) <= 1:
+        logging.error("Only " + str(len(depth_dist_dict.keys())) + " ranks available for modelling.\n")
+        sys.exit(33)
+
     # Use the largest placement distance as a proxy for Root-level distances
-    root_anchor = max(dist_list)  # + np.std(dist_list)
-    depth_dist_dict[1] = [root_anchor] * n_samples
+    depth_dist_dict[1] = [max(dist_list)] * n_samples
     # Anchor Strain-level placement distances to 0
     depth_dist_dict[7] = [0] * n_samples
 
@@ -64,10 +68,6 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
     for depth in sorted(depth_dist_dict, key=int):
         rank_depth_list += [depth] * len(depth_dist_dict[depth])
         dist_list += list(depth_dist_dict[depth])
-
-    if len(set(rank_depth_list)) <= 1:
-        logging.error("Only " + str(len(set(rank_depth_list))) + " ranks available for modelling.\n")
-        sys.exit(33)
 
     # For TreeSAPP predictions
     pfit_array = list(np.polyfit(dist_list, rank_depth_list, 1))
