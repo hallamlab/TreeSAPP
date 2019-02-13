@@ -26,7 +26,8 @@ try:
     from entish import annotate_partition_tree
     from lca_calculations import megan_lca, clean_lineage_list
     from entrez_utils import *
-    from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc, validate_alignment_trimming
+    from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc, validate_alignment_trimming,\
+        multiple_alignment_dimensions
     from placement_trainer import regress_rank_distance
 
 except ImportError:
@@ -306,6 +307,7 @@ def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads):
     mafft_align_command += ["--maxiterate", str(1000)]
     mafft_align_command += ["--thread", str(num_threads)]
     mafft_align_command.append("--auto")
+    mafft_align_command += ["--randomseed", str(12345)]
     mafft_align_command += [fasta_in, '1>' + fasta_out]
     mafft_align_command += ["2>", "/dev/null"]
 
@@ -1709,8 +1711,13 @@ def main():
         logging.info("done.\n")
     else:
         pass
-    aligned_fasta_dict = read_fasta_to_dict(ref_pkg.msa)
-    marker_package.num_reps = len(aligned_fasta_dict.keys())
+    ref_aligned_fasta_dict = read_fasta_to_dict(ref_pkg.msa)
+    marker_package.num_reps = len(ref_aligned_fasta_dict.keys())
+    n_rows, n_cols = multiple_alignment_dimensions(seq_dict=ref_aligned_fasta_dict,
+                                                   mfa_file=ref_pkg.msa)
+    logging.debug("Reference alignment contains " +
+                  str(n_rows) + " sequences with" +
+                  str(n_cols) + " character positions.\n")
 
     ##
     # Build the HMM profile from the aligned reference FASTA file
@@ -1740,7 +1747,7 @@ def main():
         trimmed_msa_file = trim_multiple_alignment(args.executables["BMGE.jar"], ref_pkg.msa, args.molecule)
         logging.info("done.\n")
 
-        unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x) for x in aligned_fasta_dict.keys()])
+        unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
         msa_dict, summary_str = validate_alignment_trimming([trimmed_msa_file], unique_ref_headers)
         logging.debug("Number of sequences discarded: " + summary_str + "\n")
         if trimmed_msa_file not in msa_dict.keys():
@@ -1750,6 +1757,8 @@ def main():
             sys.exit(13)
         aligned_fasta_dict = msa_dict[trimmed_msa_file]
         os.remove(trimmed_msa_file)
+    else:
+        aligned_fasta_dict = ref_aligned_fasta_dict
 
     for seq_name in aligned_fasta_dict:
         dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
@@ -1783,7 +1792,7 @@ def main():
     ref_pkg.sub_model = marker_package.model
 
     # Build the regression model of placement distances to taxonomic ranks
-    marker_package.pfit, _, _ = regress_rank_distance(args, ref_pkg, accession_lineage_map, aligned_fasta_dict)
+    marker_package.pfit, _, _ = regress_rank_distance(args, ref_pkg, accession_lineage_map, ref_aligned_fasta_dict)
 
     ##
     # Finish validating the file and append the reference package build parameters to the master table
