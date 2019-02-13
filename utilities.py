@@ -522,6 +522,145 @@ def build_hmm_profile(hmmbuild_exe, msa_in, output_hmm):
     return
 
 
+def hmmsearch_input_references(args, fasta_replaced_file):
+    """
+    Function for searching a fasta file with an hmm profile
+    :param args: Argparse.parser object with 'domain', 'output_dir', 'executables' and 'num_threads' in namespace
+    :param fasta_replaced_file:
+    :return:
+    """
+    # Find the name of the HMM. Use it to name the output file
+    rp_marker = re.sub(".hmm", '', os.path.basename(args.domain))
+    domtbl = args.output_dir + rp_marker + "_to_ORFs_domtbl.txt"
+
+    # Basic hmmsearch command
+    hmmsearch_command_base = [args.executables["hmmsearch"]]
+    hmmsearch_command_base += ["--cpu", str(args.num_threads)]
+    hmmsearch_command_base.append("--noali")
+    # Customize the command for this input and HMM
+    final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
+    final_hmmsearch_command += [args.domain, fasta_replaced_file]
+    stdout, ret_code = launch_write_command(final_hmmsearch_command)
+
+    # Check to ensure the job finished properly
+    if ret_code != 0:
+        logging.error("hmmsearch did not complete successfully!\n" + stdout + "\n" +
+                      "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
+        sys.exit(13)
+
+    return [domtbl]
+
+
+def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
+    """
+    Function for slicing sequences guided by alignment co-ordinates.
+    :param hmm_matches: Dictionary containing a list HmmMatch() objects as values for each 'marker' key
+    :param fasta_dict: A dictionary with headers as keys and sequences as values
+    :param header_registry: A list of Header() objects, each used to map various header formats to each other
+    :return:
+    """
+
+    if len(hmm_matches.keys()) > 1:
+        logging.error("Number of markers found from HMM alignments is >1\n" +
+                      "Does your HMM file contain more than 1 profile? TreeSAPP is unprepared for this.\n")
+        sys.exit(13)
+
+    marker_gene_dict = dict()
+    header_matching_dict = dict()
+
+    logging.debug("Creating a temporary dictionary for rapid sequence name look-ups... ")
+    for num in header_registry:
+        header_matching_dict[header_registry[num].first_split[1:]] = header_registry[num]
+    logging.debug("done.\n")
+
+    logging.info("Extracting the quality-controlled protein sequences... ")
+
+    for marker in hmm_matches:
+        if marker not in marker_gene_dict:
+            marker_gene_dict[marker] = dict()
+
+        for hmm_match in hmm_matches[marker]:
+            # Now for the header format to be used in the bulk FASTA:
+            # >contig_name|marker_gene|start_end
+            query_names = header_matching_dict[hmm_match.orf]
+            try:
+                sequence = fasta_dict[query_names.formatted]
+            except KeyError:
+                logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
+                continue
+            if hmm_match.of > 1:
+                query_names.post_align = ' '.join([query_names.first_split,
+                                                   str(hmm_match.num) + '.' + str(hmm_match.of),
+                                                   re.sub(re.escape(query_names.first_split), '', query_names.original)])
+            else:
+                query_names.post_align = query_names.original
+            bulk_header = query_names.post_align
+
+            if bulk_header in marker_gene_dict[marker]:
+                logging.warning(bulk_header + " being overwritten by an alternative alignment!\n" + hmm_match.get_info())
+            marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
+
+    logging.info("done.\n")
+    return marker_gene_dict[marker]
+
+
+def hmm_pile(hmm_matches):
+    """
+    Function to inspect the placement of query sequences on the reference HMM
+    :param hmm_matches:
+    :return:
+    """
+    hmm_bins = dict()
+    window_size = 2
+
+    for marker in hmm_matches:
+        for hmm_match in hmm_matches[marker]:
+            # Initialize the hmm_bins using the HMM profile length
+            if not hmm_bins:
+                i = 1
+                hmm_length = int(hmm_match.hmm_len)
+                while i < hmm_length:
+                    if i+window_size-1 > hmm_length:
+                        hmm_bins[(i, hmm_length)] = 0
+                    else:
+                        hmm_bins[(i, i+window_size-1)] = 0
+                    i += window_size
+            # Skip ahead to the HMM profile position where the query sequence began aligning
+            for bin_start, bin_end in hmm_bins:
+                if hmm_match.pstart <= bin_start and hmm_match.pend >= bin_end:
+                    hmm_bins[(bin_start, bin_end)] += 1
+                else:
+                    pass
+        low_coverage_start = 0
+        low_coverage_stop = 0
+        maximum_coverage = 0
+        low_cov_summary = ""
+        for window in sorted(hmm_bins.keys()):
+            height = hmm_bins[window]
+            if height > maximum_coverage:
+                maximum_coverage = height
+            if height < len(hmm_matches[marker])/2:
+                begin, end = window
+                if low_coverage_start == low_coverage_stop:
+                    low_coverage_start = begin
+                    low_coverage_stop = end
+                else:
+                    low_coverage_stop = end
+            elif height > len(hmm_matches[marker])/2 and low_coverage_stop != 0:
+                low_cov_summary += "\t" + str(low_coverage_start) + '-' + str(low_coverage_stop) + "\n"
+                low_coverage_start = 0
+                low_coverage_stop = 0
+            else:
+                pass
+        if low_coverage_stop != low_coverage_start:
+            low_cov_summary += "\t" + str(low_coverage_start) + "-end\n"
+
+        if low_cov_summary:
+            logging.info("Low coverage HMM windows (start-stop):\n" + low_cov_summary)
+        logging.info("Maximum coverage = " + str(maximum_coverage) + " sequences\n")
+    return
+
+
 def launch_evolutionary_placement_queries(args, phy_files, marker_build_dict):
     """
     Run RAxML using the provided Autovivifications of phy files and COGs, as well as the list of models used for each COG.
