@@ -97,7 +97,8 @@ class PQuery:
 
 
 def write_placement_table(pqueries, placement_table_file, marker):
-
+    header = ["Marker", "Rank", "Lineage", "Query.Name", "Internal.Node", "Placement.LWR", "Tree.Likelihood",
+              "Dist.Distal", "Dist.Pendant", "Dist.MeanTip", "Dist.Total"]
     placement_info_strs = list()
     for pquery in pqueries:
         if pquery:
@@ -108,6 +109,7 @@ def write_placement_table(pqueries, placement_table_file, marker):
             )
 
     with open(placement_table_file, 'w') as file_handler:
+        file_handler.write('#' + "\t".join(header) + "\n")
         file_handler.write("\n".join(placement_info_strs) + "\n")
     return
 

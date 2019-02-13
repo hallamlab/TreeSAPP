@@ -70,7 +70,7 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
         dist_list += list(depth_dist_dict[depth])
 
     # For TreeSAPP predictions
-    pfit_array = list(np.polyfit(dist_list, rank_depth_list, 1))
+    pfit_array = [round(float(x), 4) for x in list(np.polyfit(dist_list, rank_depth_list, 1))]
 
     return pfit_array
 
