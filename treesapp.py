@@ -916,7 +916,7 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
             else:
                 logging.error("File type '" + file_type + "' is not recognized.")
                 sys.exit(3)
-            num_seqs, sequence_length = validate_multiple_alignment_utility(seq_dict, msa_file)
+            num_seqs, sequence_length = multiple_alignment_dimensions(seq_dict, msa_file)
             alignment_length_dict[msa_file] = sequence_length
 
             # Warn user if the multiple sequence alignment has grown significantly
@@ -925,28 +925,6 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
                                 "caused >150% increase in the number of columns (" +
                                 str(ref_seq_length) + '->' + str(sequence_length) + ").\n")
     return alignment_length_dict
-
-
-def validate_multiple_alignment_utility(seq_dict, mfa_file):
-    """
-    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
-
-    :param seq_dict: A dictionary containing headers as keys and sequences as values
-    :param mfa_file: The name of the multiple alignment FASTA file being validated
-    :return: tuple = (nrow, ncolumn)
-    """
-    sequence_length = 0
-    for seq_name in seq_dict:
-        sequence = seq_dict[seq_name]
-        if sequence_length == 0:
-            sequence_length = len(sequence)
-        elif sequence_length != len(sequence) and sequence_length > 0:
-            logging.error("Number of aligned columns is inconsistent in " + mfa_file + "!\n")
-            sys.exit(3)
-        else:
-            pass
-            # Sequence is the right length, carrying on
-    return len(seq_dict), sequence_length
 
 
 def get_alignment_dims(args, marker_build_dict):
@@ -966,7 +944,7 @@ def get_alignment_dims(args, marker_build_dict):
             for marker_code in marker_build_dict:
                 if marker_build_dict[marker_code].cog == cog:
                     seq_dict = read_fasta_to_dict(fasta)
-                    alignment_dimensions_dict[marker_code] = (validate_multiple_alignment_utility(seq_dict, fasta))
+                    alignment_dimensions_dict[marker_code] = (multiple_alignment_dimensions(seq_dict, fasta))
     return alignment_dimensions_dict
 
 
@@ -1360,7 +1338,7 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
         for multi_align_file in qc_ma_dict[denominator]:
             file_type = multi_align_file.split('.')[-1]
             multi_align = qc_ma_dict[denominator][multi_align_file]
-            num_seqs, trimmed_seq_length = validate_multiple_alignment_utility(multi_align, multi_align_file)
+            num_seqs, trimmed_seq_length = multiple_alignment_dimensions(multi_align, multi_align_file)
 
             original_multi_align = re.sub('-' + tool + '.' + file_type, '.' + of_ext, multi_align_file)
             raw_align_len = alignment_length_dict[original_multi_align]
