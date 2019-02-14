@@ -562,6 +562,7 @@ def main():
                   "\tReference FASTA: " + ref_pkg.msa + "\n" +
                   "\tLineage map: " + str(args.lineages) + "\n" +
                   "\tRanks tested: " + ','.join(training_ranks.keys()) + "\n")
+    logging.debug(utilities.executable_dependency_versions(args.executables))
 
     # Get the model to be used for phylogenetic placement
     marker_build_dict = parse_ref_build_params(args)

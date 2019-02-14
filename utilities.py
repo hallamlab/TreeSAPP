@@ -200,6 +200,67 @@ def find_executables(args):
     return args
 
 
+def executable_dependency_versions(exe_dict):
+    """
+    Function for retrieving the version numbers for each executable in exe_dict
+    :param exe_dict: A dictionary mapping names of software to the path to their executable
+    :return: A formatted string with the executable name and its respective version found
+    """
+    versions_dict = dict()
+    versions_string = "Software versions used:\n"
+
+    simple_v = ["prodigal", "raxmlHPC"]
+    version_param = ["trimal", "mafft"]
+    no_params = ["usearch", "papara"]
+    help_param = ["hmmbuild", "hmmalign", "hmmsearch", "OD-seq"]
+    version_re = re.compile(r"[Vv]\d+.\d|version \d+.\d|\d\.\d\.\d")
+
+    for exe in exe_dict:
+        ##
+        # Get the help/version statement for the software
+        ##
+        versions_dict[exe] = ""
+        if exe in simple_v:
+            stdout, returncode = launch_write_command([exe_dict[exe], "-v"])
+        elif exe in version_param:
+            stdout, returncode = launch_write_command([exe_dict[exe], "--version"])
+        elif exe in help_param:
+            stdout, returncode = launch_write_command([exe_dict[exe], "-h"])
+        elif exe in no_params:
+            stdout, returncode = launch_write_command([exe_dict[exe]])
+        elif exe == "FastTree":
+            stdout, returncode = launch_write_command([exe_dict[exe], "-expert"])
+        elif exe == "BMGE.jar":
+            stdout, returncode = launch_write_command(["java", "-jar", exe_dict[exe], "-?"])
+        else:
+            logging.warning("Unknown version command for " + exe + ".\n")
+            continue
+        ##
+        # Identify the line with the version number (since often more than a single line is returned)
+        ##
+        for line in stdout.split("\n"):
+            if version_re.search(line):
+                # If a line was identified, try to get just the string with the version number
+                for word in line.split(" "):
+                    if re.search(r"\d\.\d", word):
+                        versions_dict[exe] = re.sub(r"[,:()[\]]", '', word)
+                        break
+                break
+            else:
+                pass
+        if not versions_dict[exe]:
+            logging.debug("Unable to find version for " + exe + ".\n")
+
+    ##
+    # Format the string with the versions of all software
+    ##
+    for exe in sorted(versions_dict):
+        n_spaces = 12-len(exe)
+        versions_string += "\t" + exe + ' '*n_spaces + versions_dict[exe] + "\n"
+
+    return versions_string
+
+
 def reformat_string(string):
     if string and string[0] == '>':
         header = True
