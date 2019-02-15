@@ -935,7 +935,7 @@ class MarkerTest:
                                 "\t".join([rank, "Total",
                                            str(round(sum(totals) / float(n_dists), 4)),
                                            str(round(median(totals), 4)),
-                                           str(round(float(var(totals)), 4))], )]
+                                           str(round(float(var(totals)), 4))])]
             sys.stdout.write("\n".join(distance_summary) + "\n")
             return distals, pendants, tips
         else:
