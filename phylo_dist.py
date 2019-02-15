@@ -110,7 +110,7 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     trimmed_lineage_map = dict()
     # ranks is offset by 1 (e.g. Kingdom is the first index and therefore should be 1) for the final trimming step
     ranks = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
-    unknowns_re = re.compile("unclassified|environmental sample")
+    unknowns_re = re.compile("unclassified|environmental sample", re.IGNORECASE)
     depth = ranks[rank]
     truncated = 0
     unclassified = 0
@@ -124,12 +124,12 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
             continue
 
         try:
-            unknowns_re.search(c_lineage, re.IGNORECASE)
+            unknowns_re.search(c_lineage)
         except TypeError:
             logging.error("Unexpected type (" + str(type(c_lineage)) + ") for '" + str(c_lineage) + "'\n")
             sys.exit(33)
 
-        if unknowns_re.search(c_lineage, re.IGNORECASE):
+        if unknowns_re.search(c_lineage):
             i = 0
             while i < depth:
                 try:
@@ -137,7 +137,7 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
                 except IndexError:
                     logging.error(rank + " position (" + str(depth) + ") unavailable in " + c_lineage + " ")
                     break
-                if unknowns_re.search(taxon, re.IGNORECASE):
+                if unknowns_re.search(taxon):
                     i -= 1
                     break
                 i += 1
