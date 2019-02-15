@@ -11,6 +11,7 @@ from json import loads, dumps
 from fasta import get_header_format
 from utilities import reformat_string, return_sequence_info_groups, median
 from entish import get_node, create_tree_info_hash, subtrees_to_dictionary
+from numpy import var
 
 import _tree_parser
 
@@ -921,16 +922,20 @@ class MarkerTest:
             distance_summary = ["Rank\tType\tMean\tMedian\tVariance",
                                 "\t".join([rank, "Distal",
                                            str(round(sum(distals) / float(n_dists), 4)),
-                                           str(median(distals))]),
+                                           str(round(median(distals), 4)),
+                                           str(round(float(var(distals)), 4))]),
                                 "\t".join([rank, "Pendant",
                                            str(round(sum(pendants) / float(n_dists), 4)),
-                                           str(median(pendants))]),
+                                           str(round(median(pendants), 4)),
+                                           str(round(float(var(pendants)), 4))]),
                                 "\t".join([rank, "Tip",
                                            str(round(sum(tips) / float(n_dists), 4)),
-                                           str(median(tips))]),
+                                           str(round(median(tips), 4)),
+                                           str(round(float(var(tips)), 4))]),
                                 "\t".join([rank, "Total",
                                            str(round(sum(totals) / float(n_dists), 4)),
-                                           str(median(totals))], )]
+                                           str(round(median(totals), 4)),
+                                           str(round(float(var(totals)), 4))], )]
             sys.stdout.write("\n".join(distance_summary) + "\n")
             return distals, pendants, tips
         else:

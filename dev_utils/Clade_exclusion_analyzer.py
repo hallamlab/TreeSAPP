@@ -1377,11 +1377,11 @@ def main():
 
         validate_ref_package_files(args.treesapp, marker, args.output)
 
+        ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
         for rank in args.taxon_rank:
             leaf_trimmed_taxa_map = trim_lineages_to_rank(ref_lineages, rank)
             unique_ref_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
             unique_query_lineages = sorted(set(trim_lineages_to_rank(rep_accession_lineage_map, rank).values()))
-            ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
             depth = ranks[rank]
             for lineage in unique_query_lineages:
                 taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
