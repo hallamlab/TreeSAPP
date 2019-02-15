@@ -20,8 +20,8 @@ CLASSIFIERS = [
 
 SETUP_METADATA = \
                {
-                     "name": "TreeSAPP-cmorganl",
-                     "version": "0.2.0",
+                     "name": "treesapp",
+                     "version": "0.2.2",
                      "description": "TreeSAPP is a functional and taxonomic annotation tool",
                      "long_description": LONG_DESCRIPTION,
                      "long_description_content_type": "text/markdown",
@@ -40,7 +40,7 @@ SETUP_METADATA = \
                                                language="c++",
                                                include_dirs=["./sub_binaries/TreeSAPP_extensions"])
                                      ],
-                     "install_requires": ["pygtrie", "ete3>=3.1.0", "numpy", "biopython>=1.68", "scipy>=1.1.0"]
+                     "install_requires": ["pygtrie>=2.3", "ete3", "numpy", "biopython>=1.68", "scipy"]
                }
 
 setup(**SETUP_METADATA)

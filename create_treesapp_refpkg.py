@@ -16,8 +16,7 @@ try:
 
     from time import gmtime, strftime, sleep
 
-    from utilities import find_executables, reformat_string, return_sequence_info_groups,\
-        reformat_fasta_to_phy, write_phy_file, cluster_sequences, clean_lineage_string
+    import utilities
     from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
         trim_multiple_alignment, read_fasta_to_dict
     from classy import ReferenceSequence, ReferencePackage, Cluster, MarkerBuild,\
@@ -26,7 +25,8 @@ try:
     from entish import annotate_partition_tree
     from lca_calculations import megan_lca, clean_lineage_list
     from entrez_utils import *
-    from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc, validate_alignment_trimming
+    from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc, validate_alignment_trimming,\
+        multiple_alignment_dimensions
     from placement_trainer import regress_rank_distance
 
 except ImportError:
@@ -306,6 +306,7 @@ def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads):
     mafft_align_command += ["--maxiterate", str(1000)]
     mafft_align_command += ["--thread", str(num_threads)]
     mafft_align_command.append("--auto")
+    mafft_align_command += ["--randomseed", str(12345)]
     mafft_align_command += [fasta_in, '1>' + fasta_out]
     mafft_align_command += ["2>", "/dev/null"]
 
@@ -376,145 +377,6 @@ def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
                       "Function responsible: get_header_format. Please make an issue on the GitHub page.\n")
         sys.exit(5)
 
-    return
-
-
-def hmmsearch_input_references(args, fasta_replaced_file):
-    """
-    Function for searching a fasta file with an hmm profile
-    :param args:
-    :param fasta_replaced_file:
-    :return:
-    """
-    # Find the name of the HMM. Use it to name the output file
-    rp_marker = re.sub(".hmm", '', os.path.basename(args.domain))
-    domtbl = args.output_dir + rp_marker + "_to_ORFs_domtbl.txt"
-
-    # Basic hmmsearch command
-    hmmsearch_command_base = [args.executables["hmmsearch"]]
-    hmmsearch_command_base += ["--cpu", str(args.num_threads)]
-    hmmsearch_command_base.append("--noali")
-    # Customize the command for this input and HMM
-    final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
-    final_hmmsearch_command += [args.domain, fasta_replaced_file]
-    stdout, ret_code = launch_write_command(final_hmmsearch_command)
-
-    # Check to ensure the job finished properly
-    if ret_code != 0:
-        logging.error("hmmsearch did not complete successfully!\n" + stdout + "\n" +
-                      "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
-        sys.exit(13)
-
-    return [domtbl]
-
-
-def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
-    """
-    Function for slicing sequences guided by alignment co-ordinates.
-    :param hmm_matches: Dictionary containing a list HmmMatch() objects as values for each 'marker' key
-    :param fasta_dict: A dictionary with headers as keys and sequences as values
-    :param header_registry: A list of Header() objects, each used to map various header formats to each other
-    :return:
-    """
-
-    if len(hmm_matches.keys()) > 1:
-        logging.error("Number of markers found from HMM alignments is >1\n" +
-                      "Does your HMM file contain more than 1 profile? TreeSAPP is unprepared for this.\n")
-        sys.exit(13)
-
-    marker_gene_dict = dict()
-    header_matching_dict = dict()
-
-    logging.debug("Creating a temporary dictionary for rapid sequence name look-ups... ")
-    for num in header_registry:
-        header_matching_dict[header_registry[num].first_split[1:]] = header_registry[num]
-    logging.debug("done.\n")
-
-    logging.info("Extracting the quality-controlled protein sequences... ")
-
-    for marker in hmm_matches:
-        if marker not in marker_gene_dict:
-            marker_gene_dict[marker] = dict()
-
-        for hmm_match in hmm_matches[marker]:
-            # Now for the header format to be used in the bulk FASTA:
-            # >contig_name|marker_gene|start_end
-            query_names = header_matching_dict[hmm_match.orf]
-            try:
-                sequence = fasta_dict[query_names.formatted]
-            except KeyError:
-                logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
-                continue
-            if hmm_match.of > 1:
-                query_names.post_align = ' '.join([query_names.first_split,
-                                                   str(hmm_match.num) + '.' + str(hmm_match.of),
-                                                   re.sub(re.escape(query_names.first_split), '', query_names.original)])
-            else:
-                query_names.post_align = query_names.original
-            bulk_header = query_names.post_align
-
-            if bulk_header in marker_gene_dict[marker]:
-                logging.warning(bulk_header + " being overwritten by an alternative alignment!\n" + hmm_match.get_info())
-            marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
-
-    logging.info("done.\n")
-    return marker_gene_dict[marker]
-
-
-def hmm_pile(hmm_matches):
-    """
-    Function to inspect the placement of query sequences on the reference HMM
-    :param hmm_matches:
-    :return:
-    """
-    hmm_bins = dict()
-    window_size = 2
-
-    for marker in hmm_matches:
-        for hmm_match in hmm_matches[marker]:
-            # Initialize the hmm_bins using the HMM profile length
-            if not hmm_bins:
-                i = 1
-                hmm_length = int(hmm_match.hmm_len)
-                while i < hmm_length:
-                    if i+window_size-1 > hmm_length:
-                        hmm_bins[(i, hmm_length)] = 0
-                    else:
-                        hmm_bins[(i, i+window_size-1)] = 0
-                    i += window_size
-            # Skip ahead to the HMM profile position where the query sequence began aligning
-            for bin_start, bin_end in hmm_bins:
-                if hmm_match.pstart <= bin_start and hmm_match.pend >= bin_end:
-                    hmm_bins[(bin_start, bin_end)] += 1
-                else:
-                    pass
-        low_coverage_start = 0
-        low_coverage_stop = 0
-        maximum_coverage = 0
-        low_cov_summary = ""
-        for window in sorted(hmm_bins.keys()):
-            height = hmm_bins[window]
-            if height > maximum_coverage:
-                maximum_coverage = height
-            if height < len(hmm_matches[marker])/2:
-                begin, end = window
-                if low_coverage_start == low_coverage_stop:
-                    low_coverage_start = begin
-                    low_coverage_stop = end
-                else:
-                    low_coverage_stop = end
-            elif height > len(hmm_matches[marker])/2 and low_coverage_stop != 0:
-                low_cov_summary += "\t" + str(low_coverage_start) + '-' + str(low_coverage_stop) + "\n"
-                low_coverage_start = 0
-                low_coverage_stop = 0
-            else:
-                pass
-        if low_coverage_stop != low_coverage_start:
-            low_cov_summary += "\t" + str(low_coverage_start) + "-end\n"
-
-        if low_cov_summary:
-            logging.info("Low coverage HMM windows (start-stop):\n" + low_cov_summary)
-        logging.info("Maximum coverage = " + str(maximum_coverage) + " sequences\n")
     return
 
 
@@ -670,7 +532,7 @@ def reformat_headers(header_dict):
     swappers = dict()
 
     for old, new in header_dict.items():
-        swappers[reformat_string(old)] = reformat_string(new)
+        swappers[utilities.reformat_string(old)] = utilities.reformat_string(new)
     return swappers
 
 
@@ -698,9 +560,9 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
                 original_header = header_registry[mltree_id].original
                 header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
                 sequence_info = header_format_re.match(original_header)
-                _, fasta_header_organism, _, _, _ = return_sequence_info_groups(sequence_info, header_db, header)
+                _, fasta_header_organism, _, _, _ = utilities.return_sequence_info_groups(sequence_info, header_db, header)
                 if re.search(ref_seq.accession, header):
-                    if re.search(reformat_string(ref_seq.organism), reformat_string(fasta_header_organism)):
+                    if re.search(utilities.reformat_string(ref_seq.organism), utilities.reformat_string(fasta_header_organism)):
                         ref_seq.sequence = fasta_dict[header]
                     else:
                         logging.warning("Accession '" + ref_seq.accession + "' matches, organism differs:\n" +
@@ -764,7 +626,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
                 ref_seq.organism,\
                 ref_seq.locus,\
                 ref_seq.description,\
-                ref_seq.lineage = return_sequence_info_groups(sequence_info, header_db, original_header)
+                ref_seq.lineage = utilities.return_sequence_info_groups(sequence_info, header_db, original_header)
 
             ref_seq.short_id = mltree_id + '_' + code_name
             fasta_replace_dict[mltree_id] = ref_seq
@@ -1406,7 +1268,7 @@ def main():
     logging.info("\n##\t\t\tCreating TreeSAPP reference package for '" + args.code_name + "' \t\t\t##\n")
     logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
 
-    args = find_executables(args)
+    args = utilities.find_executables(args)
 
     if args.pc:
         terminal_commands(args.final_output_dir, args.code_name)
@@ -1461,17 +1323,17 @@ def main():
             logging.info("Using " + hmm_purified_fasta + " from a previous attempt.\n")
         else:
             logging.info("Searching for domain sequences... ")
-            hmm_domtbl_files = hmmsearch_input_references(args, args.fasta_input)
+            hmm_domtbl_files = utilities.hmmsearch_input_references(args, args.fasta_input)
             logging.info("done.\n")
             hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
             # If we're screening a massive fasta file, we don't want to read every sequence - just those with hits
             # TODO: Implement a screening procedure in _fasta_reader._read_format_fasta()
             fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
             header_registry = register_headers(get_headers(args.fasta_input))
-            marker_gene_dict = extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
+            marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
             write_new_fasta(marker_gene_dict, hmm_purified_fasta)
             summarize_fasta_sequences(hmm_purified_fasta)
-            hmm_pile(hmm_matches)
+            utilities.hmm_pile(hmm_matches)
 
         fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args.output_dir)
         header_registry = register_headers(get_headers(hmm_purified_fasta))
@@ -1585,7 +1447,7 @@ def main():
     # Optionally cluster the input sequences using USEARCH at the specified identity
     ##
     if args.cluster:
-        cluster_sequences(args.executables["usearch"], filtered_fasta_name, uclust_prefix, args.identity)
+        utilities.cluster_sequences(args.executables["usearch"], filtered_fasta_name, uclust_prefix, args.identity)
         args.uc = uclust_prefix + ".uc"
 
     ##
@@ -1599,10 +1461,10 @@ def main():
             members = list()
             for num_id in cluster_dict:
                 cluster = cluster_dict[num_id]
-                cluster.representative = reformat_string(cluster.representative)
+                cluster.representative = utilities.reformat_string(cluster.representative)
                 for member in cluster.members:
                     header, identity = member
-                    members.append([reformat_string(header), identity])
+                    members.append([utilities.reformat_string(header), identity])
                 cluster.members = members
                 members.clear()
         logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
@@ -1709,8 +1571,13 @@ def main():
         logging.info("done.\n")
     else:
         pass
-    aligned_fasta_dict = read_fasta_to_dict(ref_pkg.msa)
-    marker_package.num_reps = len(aligned_fasta_dict.keys())
+    ref_aligned_fasta_dict = read_fasta_to_dict(ref_pkg.msa)
+    marker_package.num_reps = len(ref_aligned_fasta_dict.keys())
+    n_rows, n_cols = multiple_alignment_dimensions(seq_dict=ref_aligned_fasta_dict,
+                                                   mfa_file=ref_pkg.msa)
+    logging.debug("Reference alignment contains " +
+                  str(n_rows) + " sequences with " +
+                  str(n_cols) + " character positions.\n")
 
     ##
     # Build the HMM profile from the aligned reference FASTA file
@@ -1740,7 +1607,7 @@ def main():
         trimmed_msa_file = trim_multiple_alignment(args.executables["BMGE.jar"], ref_pkg.msa, args.molecule)
         logging.info("done.\n")
 
-        unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x) for x in aligned_fasta_dict.keys()])
+        unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
         msa_dict, summary_str = validate_alignment_trimming([trimmed_msa_file], unique_ref_headers)
         logging.debug("Number of sequences discarded: " + summary_str + "\n")
         if trimmed_msa_file not in msa_dict.keys():
@@ -1750,11 +1617,13 @@ def main():
             sys.exit(13)
         aligned_fasta_dict = msa_dict[trimmed_msa_file]
         os.remove(trimmed_msa_file)
+    else:
+        aligned_fasta_dict = ref_aligned_fasta_dict
 
     for seq_name in aligned_fasta_dict:
         dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
-    phy_dict = reformat_fasta_to_phy(dict_for_phy)
-    write_phy_file(phylip_file, phy_dict)
+    phy_dict = utilities.reformat_fasta_to_phy(dict_for_phy)
+    utilities.write_phy_file(phylip_file, phy_dict)
 
     ##
     # Build the tree using either RAxML or FastTree
@@ -1783,7 +1652,7 @@ def main():
     ref_pkg.sub_model = marker_package.model
 
     # Build the regression model of placement distances to taxonomic ranks
-    marker_package.pfit, _, _ = regress_rank_distance(args, ref_pkg, accession_lineage_map, aligned_fasta_dict)
+    marker_package.pfit, _, _ = regress_rank_distance(args, ref_pkg, accession_lineage_map, ref_aligned_fasta_dict)
 
     ##
     # Finish validating the file and append the reference package build parameters to the master table
