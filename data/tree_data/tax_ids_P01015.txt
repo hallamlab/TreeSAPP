@@ -1,0 +1,346 @@
+1	Candidatus Aenigmarchaeota archaeon CG1_02_38_14 | OIN88326.1	Archaea; Candidatus Aenigmarchaeota; unclassified Aenigmarchaeota
+2	Candidatus Aenigmarchaeota archaeon ex4484_224 | OYT41521.1	Archaea; Candidatus Aenigmarchaeota; unclassified Aenigmarchaeota
+3	Candidatus Aenigmarchaeota archaeon ex4484_56 | OYT43669.1	Archaea; Candidatus Aenigmarchaeota; unclassified Aenigmarchaeota
+4	miscellaneous Crenarchaeota group-1 archaeon SG8-32-3 | KON31724.1	Archaea; Candidatus Bathyarchaeota; MCG-1
+5	miscellaneous Crenarchaeota group-1 archaeon SG8-32-1 | KON32567.1	Archaea; Candidatus Bathyarchaeota; MCG-1
+6	miscellaneous Crenarchaeota group-6 archaeon AD8-1 | KON33228.1	Archaea; Candidatus Bathyarchaeota; MCG-6
+7	miscellaneous Crenarchaeota group archaeon SMTZ-80 | KON28001.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+8	Candidatus Bathyarchaeota archaeon BA2 | KPV64397.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+9	Candidatus Bathyarchaeota archaeon B24 | KYH37399.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+10	Candidatus Bathyarchaeota archaeon B25 | KYH38859.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+11	Candidatus Bathyarchaeota archaeon B23 | KYH39364.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+12	Candidatus Bathyarchaeota archaeon B26-2 | KYH40984.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+13	Candidatus Bathyarchaeota archaeon RBG_16_57_9 | OGD46527.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+14	Candidatus Bathyarchaeota archaeon RBG_13_46_16b | OGD46584.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+15	Candidatus Bathyarchaeota archaeon RBG_16_48_13 | OGD46727.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+16	Candidatus Bathyarchaeota archaeon RBG_13_38_9 | OGD53207.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+17	Candidatus Bathyarchaeota archaeon RBG_13_52_12 | OGD61481.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+18	Candidatus Bathyarchaeota archaeon ex4484_231 | OYT50120.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+19	Candidatus Bathyarchaeota archaeon ex4484_135 | OYT52816.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+20	Candidatus Bathyarchaeota archaeon ex4484_218 | OYT54486.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+21	Candidatus Bathyarchaeota archaeon ex4484_205 | OYT66448.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+22	Candidatus Bathyarchaeota archaeon B24-2 | PDM25924.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+23	Candidatus Bathyarchaeota archaeon CG07_land_8_20_14_0_80_47_9 | PIU59110.1	Archaea; Candidatus Bathyarchaeota; unclassified Candidatus Bathyarchaeota
+24	Candidatus Diapherotrites archaeon CG11_big_fil_rev_8_21_14_0_20_37_9 | PIN84658.1	Archaea; Candidatus Diapherotrites; unclassified Diapherotrites
+25	Candidatus Diapherotrites archaeon CG10_big_fil_rev_8_21_14_0_10_31_34 | PIN98440.1	Archaea; Candidatus Diapherotrites; unclassified Diapherotrites
+26	Candidatus Diapherotrites archaeon CG09_land_8_20_14_0_10_32_12 | PIU03064.1	Archaea; Candidatus Diapherotrites; unclassified Diapherotrites
+27	Candidatus Diapherotrites archaeon CG08_land_8_20_14_0_20_34_12 | PIU21197.1	Archaea; Candidatus Diapherotrites; unclassified Diapherotrites
+28	Candidatus Diapherotrites archaeon CG08_land_8_20_14_0_20_30_16 | PIU21896.1	Archaea; Candidatus Diapherotrites; unclassified Diapherotrites
+29	Candidatus Geothermarchaeota archaeon ex4572_27 | PCN50355.1	Archaea; Candidatus Geothermarchaeota
+30	Candidatus Geothermarchaeota archaeon ex4572_27 | PCN50780.1	Archaea; Candidatus Geothermarchaeota
+31	Candidatus Heimdallarchaeota archaeon LC_3 | OLS26966.1	Archaea; Candidatus Heimdallarchaeota
+32	Candidatus Heimdallarchaeota archaeon LC_2 | OLS28642.1	Archaea; Candidatus Heimdallarchaeota
+33	Candidatus Heimdallarchaeota archaeon AB_125 | OLS33192.1	Archaea; Candidatus Heimdallarchaeota
+34	Candidatus Korarchaeota archaeon | PNV77117.1	Archaea; Candidatus Korarchaeota
+35	Candidatus Korarchaeum cryptofilum OPF8 | ACB08126.1	Archaea; Candidatus Korarchaeota; Candidatus Korarchaeum
+36	uncultured korarchaeote | AOZ55984.1	Archaea; Candidatus Korarchaeota; environmental samples
+37	uncultured korarchaeote | AOZ56148.1	Archaea; Candidatus Korarchaeota; environmental samples
+38	Lokiarchaeum sp. GC14_75 | KKK46265.1	Archaea; Candidatus Lokiarchaeota; Lokiarchaeum
+39	Candidatus Lokiarchaeota archaeon CR_4 | OLS15728.1	Archaea; Candidatus Lokiarchaeota; unclassified Lokiarchaeota
+40	Candidatus Marsarchaeota G1 archaeon OSP_C | PSN89713.1	Archaea; Candidatus Marsarchaeota
+41	Candidatus Marsarchaeota G2 archaeon ECH_B_2 | PSN96766.1	Archaea; Candidatus Marsarchaeota
+42	Candidatus Mancarchaeum acidiphilum | WP_088819664.1	Archaea; Candidatus Micrarchaeota; Candidatus Mancarchaeum
+43	Candidatus Micrarchaeum acidiphilum ARMAN-2 | EET90330.1	Archaea; Candidatus Micrarchaeota; Candidatus Micrarchaeum; Candidatus Micrarchaeum acidiphilum
+44	Candidatus Micrarchaeum acidiphilum ARMAN-1 | OJI06744.1	Archaea; Candidatus Micrarchaeota; Candidatus Micrarchaeum; Candidatus Micrarchaeum acidiphilum
+45	Candidatus Micrarchaeota archaeon RBG_16_36_9 | OGI11659.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+46	Candidatus Micrarchaeota archaeon RBG_16_49_10 | OGI15907.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+47	Candidatus Micrarchaeota archaeon CG1_02_49_24 | OIO21569.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+48	Candidatus Micrarchaeota archaeon CG1_02_47_40 | OIO22067.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+49	Candidatus Micrarchaeota archaeon CG1_02_51_15 | OIO24674.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+50	Candidatus Micrarchaeota archaeon CG1_02_55_22 | OIO25468.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+51	Candidatus Micrarchaeota archaeon CG1_02_55_41 | OIO26322.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+52	Candidatus Micrarchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_60_32 | PIN96145.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+53	Candidatus Micrarchaeota archaeon CG08_land_8_20_14_0_20_59_11 | PIO05930.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+54	Candidatus Micrarchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_45_29 | PIT84983.1	Archaea; Candidatus Micrarchaeota; unclassified Candidatus Micrarchaeota
+55	Candidatus Odinarchaeota archaeon LCB_4 | OLS17891.1	Archaea; Candidatus Odinarchaeota
+56	Candidatus Pacearchaeota archaeon RBG_19FT_COMBO_34_9 | OGJ12984.1	Archaea; Candidatus Pacearchaeota
+57	Candidatus Pacearchaeota archaeon CG1_02_35_32 | OIO41864.1	Archaea; Candidatus Pacearchaeota
+58	Candidatus Pacearchaeota archaeon CG1_02_39_14 | OIO43950.1	Archaea; Candidatus Pacearchaeota
+59	Candidatus Pacearchaeota archaeon CG1_02_32_132 | OIO80436.1	Archaea; Candidatus Pacearchaeota
+60	Candidatus Pacearchaeota archaeon ex4484_71 | OYT36297.1	Archaea; Candidatus Pacearchaeota
+61	Candidatus Pacearchaeota archaeon CG11_big_fil_rev_8_21_14_0_20_30_13 | PIN71526.1	Archaea; Candidatus Pacearchaeota
+62	Candidatus Pacearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_31_24 | PIN94007.1	Archaea; Candidatus Pacearchaeota
+63	Candidatus Pacearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_34_12 | PIO07543.1	Archaea; Candidatus Pacearchaeota
+64	Candidatus Pacearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_32_42 | PJE81087.1	Archaea; Candidatus Pacearchaeota
+65	Candidatus Parvarchaeum acidiphilum ARMAN-4 | EEZ92637.1	Archaea; Candidatus Parvarchaeota; Candidatus Parvarchaeum; Candidatus Parvarchaeum acidiphilum
+66	Candidatus Parvarchaeum acidophilus ARMAN-5 | EFD93112.1	Archaea; Candidatus Parvarchaeota; Candidatus Parvarchaeum; Candidatus Parvarchaeum acidophilus
+67	Candidatus Thorarchaeota archaeon SMTZ1-45 | KXH72627.1	Archaea; Candidatus Thorarchaeota
+68	Candidatus Woesearchaeota archaeon CG1_02_47_18 | OIO62954.1	Archaea; Candidatus Woesearchaeota
+69	Candidatus Woesearchaeota archaeon CG1_02_33_12 | OIO64004.1	Archaea; Candidatus Woesearchaeota
+70	Candidatus Woesearchaeota archaeon CG1_02_57_44 | OIO65022.1	Archaea; Candidatus Woesearchaeota
+71	Candidatus Woesearchaeota archaeon ex4484_78 | OYT32458.1	Archaea; Candidatus Woesearchaeota
+72	Candidatus Woesearchaeota archaeon CG11_big_fil_rev_8_21_14_0_20_43_8 | PIN69877.1	Archaea; Candidatus Woesearchaeota
+73	Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_45_5 | PIN72029.1	Archaea; Candidatus Woesearchaeota
+74	Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_45_16 | PIN73402.1	Archaea; Candidatus Woesearchaeota
+75	Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_37_12 | PIN74932.1	Archaea; Candidatus Woesearchaeota
+76	Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_36_11 | PIN76508.1	Archaea; Candidatus Woesearchaeota
+77	Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_34_8 | PIN79901.1	Archaea; Candidatus Woesearchaeota
+78	Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_30_7 | PIN81483.1	Archaea; Candidatus Woesearchaeota
+79	Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_44_13 | PIN86184.1	Archaea; Candidatus Woesearchaeota
+80	Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_32_24 | PIN87826.1	Archaea; Candidatus Woesearchaeota
+81	Candidatus Woesearchaeota archaeon CG_4_10_14_0_8_um_filter_47_5 | PIY60256.1	Archaea; Candidatus Woesearchaeota
+82	Candidatus Woesearchaeota archaeon CG_4_10_14_0_2_um_filter_33_13 | PIZ52088.1	Archaea; Candidatus Woesearchaeota
+83	Candidatus Woesearchaeota archaeon | PLW80836.1	Archaea; Candidatus Woesearchaeota
+84	Acidilobus saccharovorans | WP_013267020.1	Archaea; Crenarchaeota; Thermoprotei; Acidilobales; Acidilobaceae; Acidilobus
+85	uncultured Acidilobus sp. MG | ESQ22990.1	Archaea; Crenarchaeota; Thermoprotei; Acidilobales; Acidilobaceae; Acidilobus; environmental samples
+86	Caldisphaera sp. | PMP59633.1	Archaea; Crenarchaeota; Thermoprotei; Acidilobales; Caldisphaeraceae; Caldisphaera
+87	Caldisphaera lagunensis | WP_015232113.1	Archaea; Crenarchaeota; Thermoprotei; Acidilobales; Caldisphaeraceae; Caldisphaera
+88	Aeropyrum pernix K1 | Q9YCV8.2	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Aeropyrum
+89	Desulfurococcus amylolyticus | WP_014768182.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Desulfurococcus
+90	Ignicoccus hospitalis | WP_012123009.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Ignicoccus; Ignicoccus hospitalis
+91	Ignicoccus islandicus | WP_075049683.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Ignicoccus; Ignicoccus islandicus
+92	Ignisphaera aggregans DSM 17230 | ADM27907.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Ignisphaera; Ignisphaera aggregans
+93	Thermogladius calderae | WP_014737075.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Thermogladius; Thermogladius calderae
+94	Thermosphaera aggregans DSM 11486 | ADG91609.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Thermosphaera; Thermosphaera aggregans
+95	Zestosphaera tikiterensis | PUA33484.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Zestosphaera; Zestosphaera tikiterensis
+96	Desulfurococcaceae archaeon AG1 | GAY25819.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; unclassified Desulfurococcaceae
+97	Pyrodictium occultum | WP_058369992.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Pyrodictiaceae
+98	Desulfurococcales archaeon ex4484_58 | OYT38240.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Staphylothermus
+99	Desulfurococcales archaeon ex4484_42 | OYT48962.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; unclassified Desulfurococcales; unclassified Desulfurococcales miscellaneous
+100	Desulfurococcales archaeon ex4484_217_2 | OYT51503.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; unclassified Desulfurococcales; unclassified Desulfurococcales miscellaneous
+101	Desulfurococcales archaeon ex4484_204 | OYT52230.1	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; unclassified Desulfurococcales; unclassified Desulfurococcales miscellaneous
+102	Fervidicoccus fontis Kam940 | AFH42423.1	Archaea; Crenarchaeota; Thermoprotei; Fervidicoccales; Fervidicoccaceae; Fervidicoccus; Fervidicoccus fontis
+103	Candidatus Acidianus copahuensis | WP_048100050.1	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Acidianus
+104	Acidianus manzaensis | ARM75905.1	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Acidianus; Acidianus manzaensis
+105	Candidatus Aramenus sulfurataquae | EWG07285.1	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae
+106	Metallosphaera sedula | WP_011921213.1	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Metallosphaera
+107	Sulfolobus sp. A20 | WP_069284548.1	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae
+108	Sulfolobus acidocaldarius SUSAZ | AHC51026.1	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Sulfolobus; Sulfolobus acidocaldarius
+109	Sulfolobus metallicus | WP_054838655.1	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Sulfolobus
+110	Sulfurisphaera tokodaii | WP_010978426.1	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Sulfurisphaera; Sulfurisphaera tokodaii
+111	Thermofilum sp. ex4484_82 | OYT29756.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermofilaceae; Thermofilum
+112	Thermofilum sp. ex4484_79 | OYT32268.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermofilaceae; Thermofilum
+113	Thermofilum sp. ex4484_15 | OYT62896.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermofilaceae; Thermofilum
+114	Thermofilum pendens | WP_011752320.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermofilaceae; Thermofilum
+115	Thermofilum uzonense | AKG38891.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermofilaceae; Thermofilum
+116	Caldivirga maquilingensis | WP_012186797.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Caldivirga
+117	Pyrobaculum aerophilum str. IM2 | Q8ZT21.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum
+118	Pyrobaculum neutrophilum V24Sta | B1YDC4.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum; Pyrobaculum neutrophilum
+119	Thermocladium sp. ECH_B | KUO92053.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermocladium
+120	Thermoproteus sp. AZ2 | KJR73413.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermoproteus
+121	Thermoproteus sp. CIS_19 | KUO83790.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermoproteus
+122	Thermoproteus tenax | WP_014126629.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermoproteus; Thermoproteus tenax
+123	Vulcanisaeta sp. AZ3 | KJR71668.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Vulcanisaeta
+124	Vulcanisaeta distributa DSM 14429 | ADN51352.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Vulcanisaeta
+125	Vulcanisaeta thermophila | WP_069806795.1	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Vulcanisaeta; Vulcanisaeta thermophila
+126	Crenarchaeota archaeon 13_1_40CM_3_52_17 | OLD12279.1	Archaea
+127	Marine Group III euryarchaeote CG-Bathy1 | OIR15691.1	Archaea; Euryarchaeota
+128	Marine Group III euryarchaeote CG-Epi1 | OIR20690.1	Archaea; Euryarchaeota
+129	Marine Group II euryarchaeote MED-G38 | PDH23054.1	Archaea; Euryarchaeota
+130	Marine Group II euryarchaeote MED-G35 | PDH25087.1	Archaea; Euryarchaeota
+131	Marine Group II euryarchaeote MED-G33 | PDH27940.1	Archaea; Euryarchaeota
+132	Aciduliprofundum sp. | PMP74074.1	Archaea; Euryarchaeota; Aciduliprofundum
+133	Aciduliprofundum boonei | WP_008082288.1	Archaea; Euryarchaeota; Aciduliprofundum
+134	Archaeoglobus profundus | WP_012940196.1	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus profundus
+135	Archaeoglobus sulfaticallidus | WP_015590634.1	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus sulfaticallidus
+136	Geoglobus ahangari | WP_048095594.1	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae
+137	Archaeoglobales archaeon ex4484_92 | OYT33573.1	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; unclassified Archaeoglobales
+138	Candidatus Nanosalina sp. J07AB43 | EGQ42779.1	Archaea; Euryarchaeota; Candidatus Nanohaloarchaeota; Nanohaloarchaea; Candidatus Nanosalina
+139	Candidatus Nanosalinarum sp. J07AB56 | EGQ39997.1	Archaea; Euryarchaeota; Candidatus Nanohaloarchaeota; Nanohaloarchaea; Candidatus Nanosalinarum
+140	Nanohaloarchaea archaeon SG9 | AOV95326.1	Archaea; Euryarchaeota; Candidatus Nanohaloarchaeota; Nanohaloarchaea; unclassified Nanohaloarchaea
+141	Nanohaloarchaea archaeon SW_7_43_1 | PSG99489.1	Archaea; Euryarchaeota; Candidatus Nanohaloarchaeota; Nanohaloarchaea; unclassified Nanohaloarchaea
+142	uncultured Candidatus Thalassoarchaea euryarchaeote | ANV79932.1	Archaea; Euryarchaeota; Candidatus Thalassoarchaea; environmental samples
+143	uncultured Candidatus Thalassoarchaea euryarchaeote | ANV79995.1	Archaea; Euryarchaeota
+144	Hadesarchaea archaeon DG-33 | KUO39055.1	Archaea; Euryarchaeota; Hadesarchaea; unclassified Hadesarchaea
+145	Hadesarchaea archaeon YNP_45 | KUO39389.1	Archaea; Euryarchaeota; Hadesarchaea; unclassified Hadesarchaea
+146	Hadesarchaea archaeon DG-33-1 | KUO40405.1	Archaea; Euryarchaeota; Hadesarchaea; unclassified Hadesarchaea
+147	Hadesarchaea archaeon YNP_N21 | KUO41982.1	Archaea; Euryarchaeota; Hadesarchaea; unclassified Hadesarchaea
+148	Hadesarchaea archaeon CG08_land_8_20_14_0_20_51_8 | PIU12321.1	Archaea; Euryarchaeota; Hadesarchaea; unclassified Hadesarchaea
+149	Haloarcula | WP_050007149.1	Archaea; Euryarchaeota; Halobacteria
+150	Halorientalis persicus | WP_092659105.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Haloarculaceae; Halorientalis
+151	Haloarculaceae archaeon HArcel1 | WP_108382496.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Haloarculaceae; unclassified Haloarculaceae
+152	Halalkalicoccus jeotgali B3 | ADJ15548.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halalkalicoccus; Halalkalicoccus jeotgali
+153	Halanaeroarchaeum sulfurireducens | WP_050048373.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halanaeroarchaeum; Halanaeroarchaeum sulfurireducens
+154	Halarchaeum acidiphilum | WP_021780090.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halarchaeum; Halarchaeum acidiphilum
+155	Halobacterium hubeiense | WP_059056318.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halobacterium
+156	Halodesulfurarchaeum formicicum | WP_070365110.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halodesulfurarchaeum; Halodesulfurarchaeum formicicum
+157	Halococcus saccharolyticus | WP_006077147.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halococcaceae; Halococcus
+158	Halobacteriales archaeon QH_10_67_13 | PSP15773.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; unclassified Halobacteriales; unclassified Halobacteriales miscellaneous
+159	Halobacteriales archaeon QH_10_65_19 | PSP23793.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; unclassified Halobacteriales; unclassified Halobacteriales miscellaneous
+160	Halobacteriales archaeon QH_6_64_20 | PSP41299.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; unclassified Halobacteriales; unclassified Halobacteriales miscellaneous
+161	Halobacteriales archaeon QH_7_66_36 | PSP57317.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales
+162	Halobacteriales archaeon QS_1_68_20 | PSP77708.1	Archaea; Euryarchaeota; Halobacteria
+163	Halobacteriales archaeon QS_5_70_17 | PSP97051.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales
+164	Halobacteriales archaeon QS_5_68_33 | PSQ02526.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales
+165	Halobacteriales archaeon QS_6_71_20 | PSQ06521.1	Archaea; Euryarchaeota; Halobacteria; Haloferacales; Halorubraceae
+166	Halobacteriales archaeon SW_12_69_24 | PSQ32807.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales
+167	Halobacteriales archaeon SW_5_70_135 | PSQ38499.1	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; unclassified Halobacteriales; unclassified Halobacteriales miscellaneous
+168	Haloferax massiliensis | WP_089778398.1	Archaea; Euryarchaeota; Halobacteria; Haloferacales; Haloferacaceae; Haloferax
+169	Halogeometricum rufum | WP_089806029.1	Archaea; Euryarchaeota; Halobacteria; Haloferacales; Haloferacaceae
+170	Halogranum gelatinilyticum | WP_089695003.1	Archaea; Euryarchaeota; Halobacteria; Haloferacales
+171	Haloquadratum walsbyi J07HQW2 | ERG94521.1	Archaea; Euryarchaeota; Halobacteria; Haloferacales; Haloferacaceae
+172	Halonotius sp. J07HN4 | ERH07720.1	Archaea
+173	Halopenitus persicus | WP_021073883.1	Archaea
+174	halophilic archaeon DL31 | WP_014050589.1	Archaea; Euryarchaeota; Halobacteria; Haloferacales; Halorubraceae; Halolamina
+175	Natronorubrum tibetense | WP_006091932.1	Archaea; Euryarchaeota; Halobacteria
+176	Methanobacterium | WP_048080278.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+177	Methanobacterium sp. SMA-27 | WP_048189864.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+178	Methanobacterium congolense | WP_071906042.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium; Methanobacterium congolense
+179	Methanobacterium formicicum | WP_048071757.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+180	Methanobrevibacter | WP_016357840.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+181	Methanobrevibacter arboriphilus | WP_042702232.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+182	Methanobrevibacter curvatus | WP_067092404.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter; Methanobrevibacter curvatus
+183	Methanobrevibacter olleyae | WP_067145322.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+184	Methanobrevibacter oralis | WP_042693567.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+185	Methanosphaera cuniculi | WP_095608883.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanosphaera
+186	Methanothermobacter sp. MT-2 | BAW30840.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae
+187	Methanothermobacter wolfeii | WP_074358309.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanothermobacter
+188	Methanothermus fervidus | WP_013413214.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanothermaceae; Methanothermus; Methanothermus fervidus
+189	Methanobacteriales archaeon HGW-Methanobacteriales-1 | PKL67433.1	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; unclassified Methanobacteriales
+190	Methanocaldococcus vulcanius | WP_015732635.1	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+191	Methanotorris igneus | WP_013798826.1	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanotorris
+192	Methanococcus aeolicus | WP_011973472.1	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus; Methanococcus aeolicus
+193	Methanococcus maripaludis | WP_104837380.1	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+194	Methanococcus voltae | WP_013180297.1	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus; Methanococcus voltae
+195	Methanothermococcus thermolithotrophicus | WP_018154847.1	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanothermococcus
+196	Methanocella arvoryzae | WP_012035197.1	Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella; Methanocella arvoryzae
+197	Methanocella paludicola SANAE | BAI60905.1	Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella
+198	Methanocalculus sp. 52_23 | KUK69274.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanocalculaceae; Methanocalculus
+199	Methanocorpusculum bavaricum | WP_042696513.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanocorpusculaceae; Methanocorpusculum
+200	Methanoculleus sp. SDB | KQC05599.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+201	Methanoculleus bourgensis | WP_014866250.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+202	Methanofollis ethanolicus | WP_067048723.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanofollis
+203	Methanomicrobium mobile | WP_042706347.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanomicrobium; Methanomicrobium mobile
+204	Methanoplanus limicola | WP_004079225.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae
+205	Methanolinea sp. SDB | KQC02883.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanolinea
+206	Methanolinea tarda | WP_007314614.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanolinea; Methanolinea tarda
+207	Methanoregula sp. | PKG33401.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+208	Methanosphaerula palustris | WP_012619240.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanosphaerula; Methanosphaerula palustris
+209	Methanospirillum hungatei | WP_011449466.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanospirillaceae; Methanospirillum; Methanospirillum hungatei
+210	Methanomicrobiales archaeon HGW-Methanomicrobiales-4 | PKL60708.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales miscellaneous
+211	Methanomicrobiales archaeon HGW-Methanomicrobiales-3 | PKL66029.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula
+212	Methanomicrobiales archaeon HGW-Methanomicrobiales-1 | PKL68001.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales miscellaneous
+213	methanogenic archaeon mixed culture ISO4-G1 | AMK13408.1	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; unclassified Methanomicrobiales; unclassified Methanomicrobiales miscellaneous; environmental samples
+214	Candidatus Methanoperedens nitroreducens | WP_048093426.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+215	Candidatus Methanoperedens sp. BLZ2 | WP_097299309.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; Candidatus Methanoperedens
+216	Candidatus Methanoperedenaceae archaeon HGW-Methanoperedenaceae-1 | PKL54083.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Candidatus Methanoperedenaceae; unclassified Candidatus Methanoperedenaceae
+217	Methanosaeta harundinacea | WP_014587135.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanosaeta; Methanosaeta harundinacea
+218	Methanothrix soehngenii | WP_013720702.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix
+219	Methanothrix thermoacetophila PT | A0B5A7.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix; Methanothrix thermoacetophila
+220	Methanococcoides methylutens | WP_048193793.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides
+221	Methanohalobium evestigatum | WP_013193707.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalobium; Methanohalobium evestigatum
+222	Methanohalophilus | WP_013037908.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus
+223	Methanolobus psychrophilus | WP_015054570.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus
+224	Methanomethylovorans hollandica | WP_015325184.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanomethylovorans; Methanomethylovorans hollandica
+225	Methanosalsum zhilinae | WP_013898697.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosalsum; Methanosalsum zhilinae
+226	Methanosarcina | WP_048133703.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+227	Methermicoccus shengliensis | WP_042687123.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methermicoccaceae; Methermicoccus; Methermicoccus shengliensis
+228	Methanosarcinales archaeon ex4484_138 | OYT62992.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+229	ANME-2 cluster archaeon HR1 | PPA79956.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+230	Candidatus Syntrophoarchaeum caldarius | OFV67839.1	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales; Candidatus Syntrophoarchaeum
+231	Arc I group archaeon U1lsi0528_Bin089 | KYC49429.1	Archaea; Euryarchaeota; Methanomicrobia; unclassified Methanomicrobia
+232	ANME-1 cluster archaeon ex4572_4 | OYT66113.1	Archaea; Euryarchaeota; Methanomicrobia; unclassified Methanomicrobia
+233	Candidatus Methanohalarchaeum thermophilum | OKY78235.1	Archaea; Euryarchaeota; Methanonatronarchaeia; Methanonatronarchaeales; Methanonatronarchaeaceae; Candidatus Methanohalarchaeum
+234	Methanonatronarchaeum thermophilum | WP_086636702.1	Archaea; Euryarchaeota; Methanonatronarchaeia; Methanonatronarchaeales; Methanonatronarchaeaceae; Methanonatronarchaeum; Methanonatronarchaeum thermophilum
+235	Methanopyrus kandleri AV19 | Q8TVD1.1	Archaea; Euryarchaeota; Methanopyri; Methanopyrales; Methanopyraceae; Methanopyrus
+236	Theionarchaea archaeon DG-70 | KYK34425.1	Archaea; Euryarchaeota; Theionarchaea; unclassified Theionarchaea
+237	Pyrococcus sp. ST04 | WP_014733264.1	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae
+238	Thermococcus nautili | WP_042689519.1	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae
+239	Thermococcus sibiricus | WP_015849540.1	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae
+240	Candidatus Methanomethylophilus sp. 1R26 | WP_058747278.1	Archaea; Euryarchaeota; Thermoplasmata; Methanomassiliicoccales; Methanomassiliicoccaceae; Candidatus Methanomethylophilus
+241	Candidatus Methanoplasma termitum | WP_048112466.1	Archaea; Euryarchaeota; Thermoplasmata; Methanomassiliicoccales; Methanomassiliicoccaceae; Candidatus Methanoplasma
+242	Candidatus Methanomassiliicoccus intestinalis | WP_020448238.1	Archaea; Euryarchaeota; Thermoplasmata; Methanomassiliicoccales; Methanomassiliicoccaceae; Methanomassiliicoccus
+243	Methanomassiliicoccales archaeon RumEn M2 | KQM10294.1	Archaea; Euryarchaeota; Thermoplasmata; Methanomassiliicoccales; unclassified Methanomassiliicoccales
+244	Cuniculiplasma divulgatum | WP_021788882.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Cuniculiplasmataceae; Cuniculiplasma
+245	Acidiplasma | WP_048101419.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Ferroplasmaceae; Acidiplasma
+246	Ferroplasma sp. Type II | EQB73419.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Ferroplasmaceae; Ferroplasma
+247	Picrophilus | WP_011178325.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Picrophilaceae; Picrophilus
+248	Thermoplasma volcanium | WP_010917505.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Thermoplasmataceae; Thermoplasma
+249	Thermoplasmatales archaeon SCGC AB-539-N05 | EMR74091.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+250	Thermoplasmatales archaeon SCGC AB-540-F20 | EMR74470.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+251	Thermoplasmatales archaeon I-plasma | EQB66047.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+252	Thermoplasmatales archaeon E-plasma | EQB66395.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+253	Thermoplasmatales archaeon A-plasma | EQB70635.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+254	Thermoplasmatales archaeon SM1-50 | KYK20853.1	Archaea; Euryarchaeota; Thermoplasmata
+255	Thermoplasmatales archaeon SG8-52-4 | KYK24467.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+256	Thermoplasmatales archaeon B_DKE | OWP55561.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+257	Thermoplasmatales archaeon ex4572_165 | OYT29600.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+258	Thermoplasmatales archaeon ex4484_6 | OYT46712.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+259	Thermoplasmatales archaeon ex4484_30 | OYT60680.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+260	Thermoplasmatales archaeon SW_10_69_26 | PSG96368.1	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+261	Thermoplasmatales archaeon BRNA1 | WP_015492774.1	Archaea; Euryarchaeota
+262	Thermoplasmata archaeon HGW-Thermoplasmata-1 | PKK85118.1	Archaea; Euryarchaeota; Thermoplasmata; unclassified Thermoplasmata
+263	Thermoplasmata archaeon HGW-Thermoplasmata-1 | PKK85335.1	Archaea; Euryarchaeota; Thermoplasmata; unclassified Thermoplasmata
+264	Thermoplasmata archaeon M9B1D | PNX48061.1	Archaea; Euryarchaeota; Thermoplasmata; unclassified Thermoplasmata
+265	uncultured euryarchaeote Alv-FOS4 | AAZ32507.1	Archaea; Euryarchaeota
+266	uncultured marine group II/III euryarchaeote AD1000_04_F01 | AIE90526.1	Archaea; Euryarchaeota; environmental samples
+267	uncultured marine group II/III euryarchaeote KM3_139_C07 | AIF00811.1	Archaea; Euryarchaeota; environmental samples
+268	uncultured marine group II/III euryarchaeote KM3_161_B06 | AIF03080.1	Archaea; Euryarchaeota; environmental samples
+269	uncultured marine group II/III euryarchaeote KM3_205_C10 | AIF07607.1	Archaea; Euryarchaeota
+270	uncultured marine group II/III euryarchaeote KM3_64_C08 | AIF13821.1	Archaea; Euryarchaeota; environmental samples
+271	uncultured marine group II/III euryarchaeote KM3_72_A06 | AIF15942.1	Archaea; Euryarchaeota
+272	Candidatus Altiarchaeum sp. CG2_30_32_3053 | OIQ05960.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; Candidatus Altiarchaeales
+273	Candidatus Altiarchaeales archaeon WOR_SM1_SCG | ODS36651.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; Candidatus Altiarchaeales; unclassified Candidatus Altiarchaeales
+274	Candidatus Altiarchaeales archaeon WOR_SM1_79 | ODS39578.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; Candidatus Altiarchaeales; unclassified Candidatus Altiarchaeales
+275	Candidatus Altiarchaeales archaeon IMC4 | ODS43012.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; Candidatus Altiarchaeales; unclassified Candidatus Altiarchaeales
+276	Candidatus Altiarchaeales archaeon ex4484_96 | OYT27845.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; Candidatus Altiarchaeales; unclassified Candidatus Altiarchaeales
+277	Candidatus Altiarchaeales archaeon ex4484_43 | OYT42284.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; Candidatus Altiarchaeales; unclassified Candidatus Altiarchaeales
+278	Candidatus Altiarchaeales archaeon HGW-Altiarchaeales-1 | PKP59646.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; Candidatus Altiarchaeales; unclassified Candidatus Altiarchaeales
+279	candidate divison MSBL1 archaeon SCGC-AAA259B11 | KXA88904.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; candidate division MSBL1
+280	candidate divison MSBL1 archaeon SCGC-AAA259A05 | KXA90398.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; candidate division MSBL1
+281	candidate divison MSBL1 archaeon SCGC-AAA261C02 | KXA99012.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; candidate division MSBL1
+282	candidate divison MSBL1 archaeon SCGC-AAA261D19 | KXB01945.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; candidate division MSBL1
+283	Euryarchaeota archaeon SM23-78 | KYK26838.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+284	Euryarchaeota archaeon RBG_13_31_8 | OGS40103.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+285	Euryarchaeota archaeon RBG_13_57_23 | OGS43343.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+286	Euryarchaeota archaeon RBG_19FT_COMBO_69_17 | OGS63699.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+287	Euryarchaeota archaeon 13_1_20CM_2_64_92 | OLE56254.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+288	Euryarchaeota archaeon TMED85 | OUU98357.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+289	Euryarchaeota archaeon TMED215 | OUW78737.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+290	Euryarchaeota archaeon TMED252 | OUX21529.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+291	Euryarchaeota archaeon TMED255 | OUX23327.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+292	Euryarchaeota archaeon TMED279 | OUX47496.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+293	Euryarchaeota archaeon ex4484_162 | OYT58391.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+294	Euryarchaeota archaeon CG01_land_8_20_14_3_00_38_12 | PIV69752.1	Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+295	Nanoarchaeum equitans Kin4-M | AAR39223.1	Archaea; Nanoarchaeota; Nanoarchaeales; Nanoarchaeaceae; Nanoarchaeum; Nanoarchaeum equitans
+296	Candidatus Nanobsidianus stetteri | EOD42648.1	Archaea; Nanoarchaeota; Nanoarchaeales; Nanopusillaceae
+297	Cenarchaeum symbiosum A | ABK76744.1	Archaea; Thaumarchaeota; Cenarchaeales; Cenarchaeaceae; Cenarchaeum; Cenarchaeum symbiosum
+298	Candidatus Nitrosopumilus salaria | WP_008296778.1	Archaea
+299	Candidatus Nitrosocaldus islandicus | WP_103287672.1	Archaea
+300	Candidatus Nitrosocosmicus oleophilus | ALI36119.1	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Candidatus Nitrosocosmicus
+301	Candidatus Nitrososphaera gargensis | ADK25997.1	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera
+302	Nitrososphaera sp. | PMP97159.1	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera
+303	uncultured marine thaumarchaeote KM3_115_A11 | AIE99614.1	Archaea; Thaumarchaeota; environmental samples
+304	uncultured marine thaumarchaeote KM3_31_E07 | AIF08536.1	Archaea; Thaumarchaeota; environmental samples
+305	uncultured marine thaumarchaeote KM3_37_D10 | AIF09491.1	Archaea; Thaumarchaeota; environmental samples
+306	uncultured marine thaumarchaeote KM3_70_B05 | AIF15302.1	Archaea; Thaumarchaeota
+307	uncultured marine thaumarchaeote KM3_75_F03 | AIF16920.1	Archaea; Thaumarchaeota; environmental samples
+308	uncultured marine thaumarchaeote KM3_90_G11 | AIF20570.1	Archaea; Thaumarchaeota; environmental samples
+309	Candidatus Caldiarchaeum subterraneum | BAJ47492.1	Archaea; Thaumarchaeota; unclassified Thaumarchaeota; Candidatus Caldiarchaeum
+310	Candidatus Nitrosopelagicus brevis | WP_048104606.1	Archaea; Thaumarchaeota; environmental samples
+311	Nitrosotalea sp. SbT1 | WP_101477677.1	Archaea; Thaumarchaeota; unclassified Thaumarchaeota
+312	Candidatus Nitrosotenuis aquarius | WP_100183308.1	Archaea
+313	Thaumarchaeota archaeon RBG_16_49_8 | OHE55010.1	Archaea; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota miscellaneous
+314	Thaumarchaeota archaeon 13_1_40CM_2_39_4 | OLD41052.1	Archaea; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota miscellaneous
+315	Thaumarchaeota archaeon ex4484_121 | OYT66832.1	Archaea; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota miscellaneous
+316	Aigarchaeota archaeon NZ13_MG1 | PUA31388.1	Archaea; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota miscellaneous
+317	uncultured archaeon | AQS33275.1	Archaea; environmental samples
+318	uncultured archaeon | CBH37102.1	Archaea; environmental samples
+319	uncultured archaeon A07HR60 | ESS12216.1	Archaea; environmental samples
+320	archaeon GW2011_AR10 | AJF60408.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+321	archaeon GW2011_AR15 | AJF61137.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+322	archaeon GW2011_AR20 | AJF62372.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+323	archaeon HR01 | GBC70004.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+324	archaeon HR02 | GBC70502.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+325	archaeon HR06 | GBC74978.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+326	archaeon BMS3Abin17 | GBE19759.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+327	archaeon BMS3Bbin15 | GBE55686.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+328	archaeon BMS3Bbin16 | GBE56781.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+329	archaeon GW2011_AR3 | KHO46642.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+330	archaeon GW2011_AR5 | KHO48086.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+331	archaeon GW2011_AR9 | KHO49067.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+332	archaeon GW2011_AR11 | KHO50726.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+333	archaeon GW2011_AR17 | KHO52749.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+334	archaeon GW2011_AR21 | KHO54944.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+335	archaeon RBG_16_50_20 | OFX16015.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+336	archaeon CG2_30_31_98 | OIP20299.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+337	archaeon CG10_big_fil_rev_8_21_14_0_10_43_11 | PIO00646.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+338	archaeon CG07_land_8_20_14_0_80_38_8 | PIU63470.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+339	archaeon SCG-AAA382B04 | PTD94432.1	Archaea; unclassified Archaea; unclassified Archaea miscellaneous
+340	Euhalothece sp. KZN 001 | PNW63257.1	Bacteria; Cyanobacteria; Oscillatoriophycideae; Chroococcales; Aphanothecaceae; Euhalothece
+341	Desulfuromonadales bacterium C00003107 | OEU77829.1	Bacteria; Proteobacteria; Deltaproteobacteria; Desulfuromonadales; unclassified Desulfuromonadales
+342	Pseudomonas syringae | WP_087674321.1	Bacteria; Proteobacteria; Gammaproteobacteria
+343	Gammaproteobacteria bacterium TMED243 | OUX13928.1	Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria miscellaneous
+344	Tenericutes bacterium GWA2_35_7 | OHE26764.1	Bacteria; Tenericutes; unclassified Tenericutes
+345	uncultured marine bacterium HF10_29C11 | ABL97789.1	Unclassified
+346	uncultured bacterium | AGC09697.1	Bacteria; environmental samples
