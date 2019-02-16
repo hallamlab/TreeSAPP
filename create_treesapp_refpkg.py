@@ -72,9 +72,9 @@ def get_arguments():
                                  "Domains will be excised from input sequences based on hmmsearch alignments.",
                             required=False, default=None)
     seqop_args.add_argument('-l', '--min_seq_length',
-                            help='Minimal sequence length [DEFAULT = 100]',
+                            help='Minimal sequence length [DEFAULT = 10]',
                             required=False,
-                            default=100,
+                            default=10,
                             type=int)
     seqop_args.add_argument('-m', '--molecule',
                             help='The type of input sequences:\n'
@@ -1335,14 +1335,13 @@ def main():
             summarize_fasta_sequences(hmm_purified_fasta)
             utilities.hmm_pile(hmm_matches)
 
-        fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args.output_dir)
+        fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args.output_dir, 110, args.min_seq_length)
         header_registry = register_headers(get_headers(hmm_purified_fasta))
         # Point all future operations to the HMM purified FASTA file as the original input
         args.fasta_input = hmm_purified_fasta
     else:
-        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
+        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir, 110, args.min_seq_length)
         header_registry = register_headers(get_headers(args.fasta_input))
-    unprocessed_fasta_dict = read_fasta_to_dict(args.fasta_input)
 
     ##
     # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
@@ -1355,8 +1354,8 @@ def main():
                 excluded_headers.append(header_registry[num_id].original)
             else:
                 sync_header_registry[num_id] = header_registry[num_id]
-        logging.warning("The following sequences have been excluded from downstream analyses:\n" +
-                        "\n".join(excluded_headers))
+        logging.debug("The following " + str(len(excluded_headers)) + " sequences have been excluded:\n" +
+                      "\n".join(excluded_headers) + "\n")
         header_registry = sync_header_registry
 
     ##
@@ -1393,11 +1392,22 @@ def main():
     else:
         if args.accession2taxid:
             # Determine find the query accessions that are located in the provided accession2taxid file
-            unmapped_queries, entrez_records = map_accession2taxid(query_accession_list, args.accession2taxid)
+            entrez_record_dict = map_accession2taxid(query_accession_list, args.accession2taxid)
             # Map lineages to taxids for successfully-mapped query sequences
-            entrez_records = fetch_lineages_from_taxids(entrez_records)
+            fetch_lineages_from_taxids(entrez_record_dict.values())
             # Use the normal querying functions to obtain lineage information for the unmapped queries
-            entrez_records += get_multiple_lineages(unmapped_queries, args.molecule)
+            unmapped_queries = pull_unmapped_entrez_records(entrez_record_dict.values())
+            if len(unmapped_queries) > 0:
+                # This tends to be a minority so shouldn't be too taxing
+                for e_record in get_multiple_lineages(unmapped_queries, args.molecule):  # type: EntrezRecord
+                    try:
+                        entrez_record_dict[e_record.accession] = e_record
+                    except KeyError:
+                        logging.warning(e_record.accession + " not found in original query list.\n")
+                        continue
+            entrez_records = list(entrez_record_dict.values())
+            entrez_record_dict.clear()
+            unmapped_queries.clear()
         else:
             entrez_records = get_multiple_lineages(query_accession_list, args.molecule)
         accession_lineage_map = entrez_records_to_accession_lineage_map(entrez_records)
