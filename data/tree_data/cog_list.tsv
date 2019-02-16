@@ -100,8 +100,25 @@ hzs	A0100	Hydrazine synthase (hzs)
 hzao	A0012	hydrazine dehydrogenase (hzo/hdh) and hydroxylamine dehydrogenase (hao)
 GH36	C0036	CAZy family 36: α-galactosidase (EC 3.2.1.22); α-N-acetylgalactosaminidase (EC 3.2.1.49); stachyose synthase (EC 2.4.1.67); raffinose synthase (EC 2.4.1.82)
 GH31	C0031	Glycoside hydrolase family 31
+GH94	C0094	Glycoside hydrolase family 94
 GH109	C0109	Glycoside hydrolase family 109
 CO_dh	C1000	Carbon monoxide dehydrogenase (EC 1.2.7.4)
 RBsCO	C2000	Ribulose-1,5-bisphosphate carboxylase/oxygenase (EC 4.1.1.39)
 OGFOxy	C3000	2-oxoglutarate (2OG) and Fe(II)-dependent oxygenase superfamily
 CitSyn	C4000	Citrate synthase
+RecA	P0001	Recombinase A
+RpoB	P0002	Beta subunit of RNA polymerase
+P00380	P0380	Ribosomal protein S9/S16
+P00750	P0750	tRNA synthetases class I (R)
+P00687	P0687	Ribosomal protein L1p/L10e family
+P01409	P1409	tRNA synthetases class II core domain (F)
+P01200	P1200	Ribosomal protein S28e
+P04919	P4919	Protein of unknown function (DUF655)
+P01015	P1015	Ribosomal S3Ae family
+P01092	P1092	Ribosomal protein S6e
+P01280	P1280	Ribosomal protein L19e
+P01655	P1655	Ribosomal protein L32
+P00410	P0410	Ribosomal protein S8
+P01866	P1866	Putative diphthamide synthesis protein
+P00900	P0900	Ribosomal family S4e
+P01157	P1157	Ribosomal protein L21e
