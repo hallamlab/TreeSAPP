@@ -669,16 +669,17 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             logging.warning("Multiple sequence alignment in " + multi_align_file +
                             " is shorter than minimum sequence length threshold (" + str(min_seq_length) +
                             ").\nThese sequences will not be analyzed.\n")
+        elif not unique_ref_headers.issubset(multi_align_seq_names):
+            # Testing whether there were more sequences in the untrimmed alignment than the trimmed one
+            logging.error("Reference sequences in " + multi_align_file + " were removed during alignment trimming.\n" +
+                          "This suggests either truncated sequences or the initial reference alignment was terrible.\n")
+            sys.exit(3)
         # Calculate the number of reference sequences removed
         elif not unique_ref_headers.issubset(filtered_multi_align_seq_names):
             logging.warning("Reference sequences shorter than the minimum character length (" +
                             str(min_seq_length) + ") in " + multi_align_file +
                             " were removed after alignment trimming.\n" +
                             "These sequences will not be analyzed.\n")
-        elif not unique_ref_headers.issubset(multi_align_seq_names):
-            logging.error("Reference sequences in " + multi_align_file + " were removed during alignment trim.\n" +
-                          "Note: this suggests the initial reference alignment is terrible.\n")
-            sys.exit(3)
         # Ensure that there is at least 1 query sequence retained after trimming the multiple alignment
         elif queries_mapped and num_queries_retained == 0:
             logging.debug("No query sequences in " + multi_align_file + " were retained after trimming.\n")
