@@ -122,7 +122,7 @@ def read_graftm_classifications(assignment_file):
      a divergent sequence are recorded as "_split_" and only the first split is recorded and analyzed.
 
     :param assignment_file: Path to the _read_tax.tsv file
-    :return:
+    :return: Dictionary indexed by taxonomic lineage whose values are headers of classified sequences
     """
     assignments = dict()
     assignments_handle = open(assignment_file, 'r')
@@ -151,6 +151,25 @@ def read_graftm_classifications(assignment_file):
     return assignments
 
 
+def parse_assignments(classified_lines: list):
+    """
+    Parses the marker_contig_map.tsv lines loaded to retrieve lineage assignment and marker information
+
+    :param classified_lines: A list of classification lines returned by read_marker_classification_table
+    :return: A dictionary of lineage information for each assignment, indexed by the marker gene it was classified as
+    """
+    assignments = dict()
+    for fields in classified_lines:
+        _, header, marker, _, raw_tax, rob_class, _, _, _, _, _ = fields
+        if marker and rob_class:
+            if marker not in assignments:
+                assignments[marker] = dict()
+            if rob_class not in assignments[marker]:
+                assignments[marker][rob_class] = list()
+            assignments[marker][rob_class].append(header)
+    return assignments
+
+
 def read_marker_classification_table(assignment_file):
     """
     Function for reading the tabular assignments file (currently marker_contig_map.tsv)
@@ -158,7 +177,7 @@ def read_marker_classification_table(assignment_file):
     (leaving 1 for marker name and 4 for numerical abundance)
 
     :param assignment_file: Path to the file containing sequence phylogenetic origin and assignment
-    :return: dictionary whose keys are phylogenetic origin and values are lists of TreeSAPP assignments
+    :return: A list of lines that have been split by tabs into lists themselves
     """
     classified_lines = list()
     header = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"

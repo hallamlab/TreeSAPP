@@ -21,7 +21,7 @@ from create_treesapp_refpkg import get_header_format, finalize_ref_seq_lineages
 from utilities import return_sequence_info_groups, find_executables
 from external_command_interface import launch_write_command
 from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves,\
-    read_graftm_classifications, read_marker_classification_table
+    read_graftm_classifications, read_marker_classification_table, parse_assignments
 from classy import prep_logging, get_header_info, register_headers, MarkerTest
 from entrez_utils import *
 from phylo_dist import trim_lineages_to_rank
@@ -109,25 +109,6 @@ def parse_distances(classification_lines):
         distances["pendant"].append(float(dist_fields[1]))
         distances["tip"].append(float(dist_fields[2]))
     return distances
-
-
-def parse_assignments(classified_lines: list):
-    """
-    Parses the marker_contig_map.tsv lines loaded to retrieve lineage assignment and marker information
-
-    :param classified_lines: A list of classification lines returned by read_marker_classification_table
-    :return: A dictionary of lineage information for each assignment, indexed by the marker gene it was classified as
-    """
-    assignments = dict()
-    for fields in classified_lines:
-        _, header, marker, _, raw_tax, rob_class, _, _, _, _, _ = fields
-        if marker and rob_class:
-            if marker not in assignments:
-                assignments[marker] = dict()
-            if rob_class not in assignments[marker]:
-                assignments[marker][rob_class] = list()
-            assignments[marker][rob_class].append(header)
-    return assignments
 
 
 def read_intermediate_assignments(inter_class_file):
