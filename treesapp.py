@@ -27,7 +27,7 @@ try:
 
     from utilities import Autovivify, os_type, which, find_executables, generate_blast_database, clean_lineage_string,\
         reformat_string, available_cpu_count, write_phy_file, reformat_fasta_to_phy, profile_aligner, run_papara, \
-        launch_evolutionary_placement_queries
+        launch_evolutionary_placement_queries, fish_refpkg_from_build_params
     from classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
@@ -526,7 +526,7 @@ def hmmsearch_orfs(args, marker_build_dict):
     return hmm_domtbl_files
 
 
-def extract_hmm_matches(args, hmm_matches: dict, fasta_dict: dict):
+def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict):
     """
     Function writes the sequences identified by the HMMs to output files in FASTA format.
     Full-length query sequences with homologous regions are put into two FASTA files:
@@ -535,16 +535,13 @@ def extract_hmm_matches(args, hmm_matches: dict, fasta_dict: dict):
     The negative integers (or numeric indexes) are stored in a dictionary and returned
     Sequences are grouped based on the location on the HMM profile they mapped to
 
-    :param args: Command-line argument object from get_options and check_parser_arguments
     :param hmm_matches: Contains lists of HmmMatch objects mapped to the marker they matched
     :param fasta_dict: Stores either the original or ORF-predicted input FASTA. Headers are keys, sequences are values
     :return: List of files that go on to placement stage, dictionary mapping marker-specific numbers to contig names
     """
-    logging.info("Extracting the quality-controlled protein sequences... ")
-    hmmalign_input_fastas = list()
-    marker_gene_dict = dict()
-    numeric_contig_index = dict()
-    trimmed_query_bins = dict()
+    logging.info("Extracting and grouping the quality-controlled sequences... ")
+    extracted_seq_dict = dict()  # Keys are markers -> bin_num -> negative integers -> extracted sequences
+    numeric_contig_index = dict()  # Keys are markers -> negative integers -> headers
     bins = dict()
 
     for marker in hmm_matches:
@@ -553,8 +550,8 @@ def extract_hmm_matches(args, hmm_matches: dict, fasta_dict: dict):
         if marker not in numeric_contig_index.keys():
             numeric_contig_index[marker] = dict()
         numeric_decrementor = -1
-        if marker not in marker_gene_dict:
-            marker_gene_dict[marker] = dict()
+        if marker not in extracted_seq_dict:
+            extracted_seq_dict[marker] = dict()
 
         # Algorithm for binning sequences:
         # 1. Sort HmmMatches by the proportion of the HMM profile they covered in increasing order (full-length last)
@@ -568,7 +565,7 @@ def extract_hmm_matches(args, hmm_matches: dict, fasta_dict: dict):
                 contig_name = hmm_match.orf
             # Add the query sequence to the index map
             orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
-            numeric_contig_index[marker][numeric_decrementor] = contig_name + '_' + orf_coordinates
+            numeric_contig_index[marker][numeric_decrementor] = '>' + contig_name + '|' + marker + '|' + orf_coordinates
             # Add the FASTA record of the trimmed sequence - this one moves on for placement
             full_sequence = fasta_dict[reformat_string('>' + contig_name)]
             binned = False
@@ -577,47 +574,63 @@ def extract_hmm_matches(args, hmm_matches: dict, fasta_dict: dict):
                 overlap = min(hmm_match.pend, bin_rep.pend) - max(hmm_match.pstart, bin_rep.pstart)
                 if (100*overlap)/(bin_rep.pend - bin_rep.pstart) > 80:
                     bins[bin_num].append(hmm_match)
-                    trimmed_query_bins[bin_num] += '>' + str(numeric_decrementor) + "\n" + \
-                                                   full_sequence[hmm_match.start - 1:hmm_match.end] + "\n"
+                    extracted_seq_dict[marker][bin_num][numeric_decrementor] = full_sequence[
+                                                                               hmm_match.start - 1:hmm_match.end]
                     binned = True
                     break
             if not binned:
                 bin_num = len(bins)
                 bins[bin_num] = list()
+                extracted_seq_dict[marker][bin_num] = dict()
                 bins[bin_num].append(hmm_match)
-                trimmed_query_bins[bin_num] = '>' + str(numeric_decrementor) + "\n" + \
-                                              full_sequence[hmm_match.start - 1:hmm_match.end] + "\n"
-
-            # Now for the header format to be used in the bulk FASTA:
-            # >contig_name|marker_gene|start_end
-            bulk_header = '>' + contig_name + '|' +\
-                          hmm_match.target_hmm + '|' +\
-                          orf_coordinates
-            marker_gene_dict[marker][bulk_header] = full_sequence[hmm_match.start-1:hmm_match.end]
+                extracted_seq_dict[marker][bin_num][numeric_decrementor] = full_sequence[
+                                                                           hmm_match.start - 1:hmm_match.end]
             numeric_decrementor -= 1
 
-        # Write all the homologs to the FASTA file
-        for group in trimmed_query_bins:
-            if trimmed_query_bins[group]:
-                marker_query_fa = args.output_dir_var + marker + "_hmm_purified_group" + str(group) + ".faa"
-                try:
-                    homolog_seq_fasta = open(marker_query_fa, 'w')
-                except IOError:
-                    logging.error("Unable to open " + marker_query_fa + " for writing.\n")
-                    sys.exit(3)
-                hmmalign_input_fastas.append(marker_query_fa)
-                homolog_seq_fasta.write(trimmed_query_bins[group])
-                homolog_seq_fasta.close()
-        trimmed_query_bins.clear()
         bins.clear()
     logging.info("done.\n")
 
-    # Now write a single FASTA file with all identified markers
-    for marker in marker_gene_dict:
-        trimmed_hits_fasta = args.output_dir_final + marker + "_hmm_purified.faa"
-        logging.debug("\tWriting " + marker + " sequences to " + trimmed_hits_fasta + "\n")
-        write_new_fasta(marker_gene_dict[marker], trimmed_hits_fasta)
-    return hmmalign_input_fastas, numeric_contig_index
+    return extracted_seq_dict, numeric_contig_index
+
+
+def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, marker_build_dict, output_dir):
+    hmmalign_input_fastas = list()
+    bulk_marker_fasta = dict()
+    bin_fasta = dict()
+    logging.info("Writing the grouped sequences to FASTA files... ")
+
+    for marker in extracted_seq_dict:
+        # Find the reference package instance
+        ref_marker = fish_refpkg_from_build_params(marker, marker_build_dict)
+
+        f_acc = 0  # For counting the number of files for a marker. Will exceed groups if queries > references
+        for group in sorted(extracted_seq_dict[marker]):
+            if extracted_seq_dict[marker][group]:
+                group_sequences = extracted_seq_dict[marker][group]
+                for num in group_sequences:
+                    # Add the query sequence to the master marker FASTA with the full sequence name
+                    bulk_marker_fasta[numeric_contig_index[marker][num]] = group_sequences[num]
+
+                    # Add the query sequence to this bin's FASTA file
+                    bin_fasta[str(num)] = group_sequences[num]
+                    # Ensuring the number of query sequences doesn't exceed the number of reference sequences
+                    if len(bin_fasta) >= ref_marker.num_reps:
+                        write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                        hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                        f_acc += 1
+                        bin_fasta.clear()
+                write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+            f_acc += 1
+            bin_fasta.clear()
+
+        # Now write a single FASTA file with all identified markers
+        if len(bulk_marker_fasta) >= 1:
+            trimmed_hits_fasta = output_dir + marker + "_hmm_purified.faa"
+            write_new_fasta(bulk_marker_fasta, trimmed_hits_fasta)
+        bulk_marker_fasta.clear()
+    logging.info("done.\n")
+    return hmmalign_input_fastas
 
  
 def collect_blast_outputs(args):
@@ -1027,11 +1040,7 @@ def prepare_and_run_papara(args, single_query_fasta_files, marker_build_dict):
             logging.error("Unable to parse information from file name:" + "\n" + str(query_fasta) + "\n")
             sys.exit(3)
 
-        ref_marker = None
-        for denominator in marker_build_dict:
-            if marker == marker_build_dict[denominator].cog:
-                ref_marker = marker_build_dict[denominator]
-                break
+        ref_marker = fish_refpkg_from_build_params(marker, marker_build_dict)
         query_multiple_alignment = re.sub('.' + re.escape(extension) + r"$", ".phy", query_fasta)
         tree_file = treesapp_resources + "tree_data" + os.sep + marker + "_tree.txt"
         ref_alignment_phy = args.output_dir_var + marker + ".phy"
@@ -1086,14 +1095,7 @@ def prepare_and_run_hmmalign(args, single_query_fasta_files, marker_build_dict):
 
         query_multiple_alignment = re.sub('.' + re.escape(extension) + r"$", ".sto", query_fasta)
 
-        ref_marker = None
-        for denominator in marker_build_dict:
-            if marker == marker_build_dict[denominator].cog:
-                ref_marker = marker_build_dict[denominator]
-                break
-        if not ref_marker:
-            logging.error("Unable to match marker '" + marker + "' to a code.\n")
-            sys.exit(3)
+        ref_marker = fish_refpkg_from_build_params(marker, marker_build_dict)
 
         # Get the paths to either the HMM or CM profile files
         ref_alignment = os.sep.join([args.treesapp, 'data', "alignment_data", ref_marker.cog + ".fa"])
@@ -2266,13 +2268,7 @@ def summarize_placements_rpkm(args, rpkm_output_file, marker_build_dict):
             marker_rpkm_map[marker][placement] = percentage
 
     for marker in marker_rpkm_map:
-        ref_marker = None
-        for marker_code in marker_build_dict:
-            if marker_build_dict[marker_code].cog == marker:
-                ref_marker = marker_build_dict[marker_code]
-                break
-        if not ref_marker:
-            raise AssertionError("Unable to map marker '" + marker + "' to a MarkerBuild instance.")
+        ref_marker = fish_refpkg_from_build_params(marker, marker_build_dict)
 
         final_output_file = args.output_dir_final + str(ref_marker.denominator) + "_concatenated_RAxML_outputs.txt"
         # Not all of the genes predicted will have made it to the RAxML stage
@@ -2924,7 +2920,9 @@ def main(argv):
         # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
         hmm_domtbl_files = hmmsearch_orfs(args, marker_build_dict)
         hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
-        homolog_seq_files, numeric_contig_index = extract_hmm_matches(args, hmm_matches, formatted_fasta_dict)
+        extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, formatted_fasta_dict)
+        homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
+                                                 marker_build_dict, args.output_dir_var)
 
         # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
         create_ref_phy_files(args, homolog_seq_files, marker_build_dict, ref_alignment_dimensions)

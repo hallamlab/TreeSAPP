@@ -938,3 +938,16 @@ def complement_nucs(nuc_str: str):
 
 def reverse_complement(nuc_sequence: str):
     return complement_nucs(nuc_sequence[::-1])
+
+
+def fish_refpkg_from_build_params(bait: str, marker_build_dict: dict):
+    refpkg = None
+    for denominator in marker_build_dict:
+        if bait == marker_build_dict[denominator].cog:
+            refpkg = marker_build_dict[denominator]
+            break
+    if not refpkg:
+        logging.error("Unable to find '" + bait + "' in marker_build_dict!\n")
+        sys.exit(13)
+    else:
+        return refpkg

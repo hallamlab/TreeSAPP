@@ -109,8 +109,8 @@ class MarkerBuild:
         self.molecule = build_param_fields[2]
         self.model = build_param_fields[3]
         self.kind = build_param_fields[4]
-        self.pid = build_param_fields[5]
-        self.num_reps = build_param_fields[6]
+        self.pid = float(build_param_fields[5])
+        self.num_reps = int(build_param_fields[6])
         self.tree_tool = build_param_fields[7]
         self.lowest_confident_rank = build_param_fields[9]
         self.update = build_param_fields[10]
