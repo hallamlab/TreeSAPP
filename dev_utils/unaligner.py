@@ -49,7 +49,7 @@ def strip_alignment(fasta_dict):
 
 def main():
     args = get_options()
-    prep_logging(os.path.dirname(args.output_fa) + "./unaligner_log.txt", args.verbose)
+    prep_logging(os.path.dirname(args.output_fa) + os.sep + "unaligner_log.txt", args.verbose)
     logging.info("Reading FASTA file '" + args.input_fa + "'... ")
     fasta_dict = read_fasta_to_dict(args.input_fa)
     logging.info("done.\n")
