@@ -163,7 +163,7 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
     return lineage_string
 
 
-def compute_taxonomic_distance(lineage_list, common_ancestor):
+def weighted_taxonomic_distance(lineage_list, common_ancestor):
     """
     Input is a list >= 2, potentially either a leaf string or NCBI lineage
 
@@ -173,37 +173,48 @@ def compute_taxonomic_distance(lineage_list, common_ancestor):
     """
     numerator = 0
     status = 0
-    max_dist = 7
-    lca_lineage = common_ancestor.split("; ")
+    _MAX_DIST = 7
     for lineage in lineage_list:
-        # Compute the distance to common_ancestor
-        lineage_path = lineage.split("; ")
-        ref = lca_lineage
-        query = lineage_path
-        distance = 0
-        # Compare the last elements of each list to see if the lineage is equal
-        try:
-            while ref[-1] != query[-1]:
-                if len(ref) > len(query):
-                    ref = ref[:-1]
-                elif len(query) > len(ref):
-                    query = query[:-1]
-                else:
-                    # They are the same length, but disagree
-                    query = query[:-1]
-                    ref = ref[:-1]
-                distance += 1
-        except IndexError:
-            logging.debug("Taxonomic lineages didn't converge between " +
-                          common_ancestor + " and " + lineage +
-                          ". Taxonomic distance set to length of LCA lineage (" + str(len(lca_lineage)) + ").\n")
-            distance = len(lca_lineage)
-            status += 1
+        distance, status = compute_taxonomic_distance(lineage, common_ancestor)
+        if status:
+            logging.debug("Taxonomic lineages didn't converge between " + common_ancestor + " and " + lineage + ".\n")
+        status += 1
 
         numerator += 2**distance
 
-    wtd = round(float(numerator/(len(lineage_list) * 2**max_dist)), 5)
+    wtd = round(float(numerator/(len(lineage_list) * 2**_MAX_DIST)), 5)
     return wtd, status
+
+
+def compute_taxonomic_distance(ref_lineage: str, query_lineage: str):
+    """
+    Calculates the number of taxonomic ranks need to be climbed in the taxonomic hierarchy before a common ancestor
+    is identified between the two taxa.
+    If no common ancestor is reached, the distance is returned along with a status of 1 to indicate non-convergence.
+
+    :param ref_lineage: A taxonomic lineage string, where each rank is separated by semi-colons (;)
+    :param query_lineage: Another taxonomic lineage string, where each rank is separated by semi-colons (;)
+    :return: Tuple of (distance, status)
+    """
+    distance = 0
+    l1 = ref_lineage.split("; ")
+    l2 = query_lineage.split("; ")
+    # Compare the last elements of each list to see if the lineage is equal
+    try:
+        while l1[-1] != l2[-1]:
+            if len(l1) > len(l2):
+                l1 = l1[:-1]
+            elif len(l2) > len(l1):
+                l2 = l2[:-1]
+            else:
+                # They are the same length, but disagree
+                l2 = l2[:-1]
+                l1 = l1[:-1]
+            distance += 1
+    except IndexError:
+        return distance, 1
+
+    return distance, 0
 
 
 def clean_lineage_list(lineage_list):

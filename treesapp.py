@@ -2703,7 +2703,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
                     lca = tree_sap.megan_lca()
                     # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
                     tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
-                    tree_sap.wtd, status = compute_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                    tree_sap.wtd, status = weighted_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
                     if status > 0:
                         tree_sap.summarize()
                 else:
