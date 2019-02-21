@@ -8,18 +8,18 @@ import os
 import inspect
 import shutil
 import glob
+from numpy import sqrt
 
 cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
 sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from fasta import format_read_fasta, write_new_fasta, get_headers, read_fasta_to_dict
-from create_treesapp_refpkg import get_header_format, finalize_ref_seq_lineages
-from utilities import return_sequence_info_groups, find_executables
+from fasta import get_headers
 from external_command_interface import launch_write_command
 import file_parsers
-from classy import prep_logging, get_header_info, register_headers, MarkerTest
+from classy import prep_logging
 from entrez_utils import *
+from lca_calculations import compute_taxonomic_distance
 
 
 class ClassifiedSequence:
@@ -34,6 +34,7 @@ class ClassifiedSequence:
 
 class ConfusionTest:
     def __init__(self, gene_list):
+        self._MAX_TAX_DIST = None
         self.header_regex = None
         self.test_markers = gene_list
         self.fn = {key: [] for key in gene_list}
@@ -41,7 +42,7 @@ class ConfusionTest:
         self.tp = {key: [] for key in gene_list}  # This will be a list of ClassifiedSequence instances
         self.tax_lineage_map = dict()
         self.dist_wise_tp = dict()
-        self.tn = 0
+        self.num_total_queries = 0
 
     def get_info(self):
         info_string = ""
@@ -84,30 +85,53 @@ class ConfusionTest:
             self.tax_lineage_map[e_record.ncbi_tax] = e_record.lineage
         return
 
-    def bin_true_positives_by_taxdist(self):
+    def bin_true_positives_by_taxdist(self, g_name=None):
+        """
+        Defines the number of true positives at each taxonomic distance x where 0 <= x <= 7,
+        since there are 7 ranks in the NCBI taxonomic hierarchy.
+        All sequences correctly classified (at the gene level) are assigned a taxonomic distance,
+        so the sum of dist_wise_tp[x] for all x will equal the number of all true positives.
+
+        :return: None
+        """
         for marker in self.tp:
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
-                tp_inst.tax_dist = taxonomic_distance(tp_inst.assigned_lineage, self.tax_lineage_map[tp_inst.ncbi_tax])
+                tp_inst.tax_dist = compute_taxonomic_distance(tp_inst.assigned_lineage,
+                                                              self.tax_lineage_map[tp_inst.ncbi_tax])
                 try:
                     self.dist_wise_tp[tp_inst.tax_dist] += 1
                 except KeyError:
                     self.dist_wise_tp[tp_inst.tax_dist] = 1
         return
 
-    def get_true_positives_at_dist(self, max_distance=7, g_name=None):
-        total_tp = 0
-        for tax_dist in sorted(self.dist_wise_tp, key=int):
-            if tax_dist <= max_distance:
-                total_tp += self.dist_wise_tp[tax_dist]
-        return total_tp
+    def get_true_positives_at_dist(self):
+        """
+        Calculates the sum of all true positives at a specified maximum taxonomic distance and less.
+        Sequences classified at a distance greater than self._MAX_TAX_DIST are counted as false negatives,
+        since it is as if the sequences were not classified at all.
 
-    def get_true_negatives(self, all_queries: int):
+        :return: The sum of true positives at taxonomic distance <= max_distance
+        """
+        if not self._MAX_TAX_DIST:
+            logging.error("ConfusionTest's _MAX_TAX_DIST has yet to be set to an integer.\n")
+            sys.exit(5)
+        total_tp = 0
+        remainder = 0
+        for tax_dist in sorted(self.dist_wise_tp, key=int):
+            if tax_dist <= self._MAX_TAX_DIST:
+                total_tp += self.dist_wise_tp[tax_dist]
+            else:
+                remainder += self.dist_wise_tp[tax_dist]
+        return total_tp, remainder
+
+    def get_true_negatives(self):
+        # TODO: Get this to work for a single marker as well as all
         acc = 0
         for marker in self.test_markers:
             acc += len(self.fn[marker])
             acc += len(self.fp[marker])
             acc += len(self.tp[marker])
-        self.tn = all_queries - acc
+        return self.num_total_queries - acc
 
     def get_false_positives(self, g_name=None):
         if g_name:
@@ -216,6 +240,7 @@ def read_annotation_mapping_file(annot_map_file):
         elif not line:
             continue
         else:
+            print(line)
             fields = line.split("\t")
             try:
                 annot_map[fields[0]] = fields[1].split(',')
@@ -241,10 +266,12 @@ def bin_headers(test_seq_names, assignments, annot_map, confusion_obj: Confusion
     # False negatives: those whose annotations match a reference package name and were not classified
     # True positives: those with a matching annotation and reference package name and were classified
     # True negatives: those that were not classified and should not have been
-
+    logging.info("Assigning test sequences to the four class conditions... ")
     mapping_dict = dict()
+
+    #
     for refpkg in annot_map:
-        orthos = annot_map[refpkg].split(',')
+        orthos = annot_map[refpkg]  # List of all orthologous genes corresponding to a reference package
         for gene in orthos:
             mapping_dict[gene] = refpkg
 
@@ -263,7 +290,7 @@ def bin_headers(test_seq_names, assignments, annot_map, confusion_obj: Confusion
             if marker not in positive_queries:
                 positive_queries[marker] = []
             positive_queries[marker].append(header)
-
+    print(positive_queries.keys())
     for marker in assignments:
         positives = set(positive_queries[marker])
         true_positives = set()
@@ -290,7 +317,14 @@ def bin_headers(test_seq_names, assignments, annot_map, confusion_obj: Confusion
 
         # Identify the False Negatives using set difference - those that were not classified but should have been
         confusion_obj.fn[marker] = list(positives.difference(true_positives))
+    logging.info("done.\n")
     return
+
+
+def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: int):
+    numerator = (tp * tn) - (fp * fn)
+    denominator = (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)
+    return numerator/sqrt(denominator)
 
 
 def main():
@@ -312,13 +346,14 @@ def main():
     test_fa_prefix = '.'.join(args.fasta_input.split('.')[:-1])
     if args.tool == "treesapp":
         ref_pkgs = ','.join(pkg_name_dict.keys())
-        # TODO: Replace with a call to the treesapp main function
-        classify_call = [args.treesapp + "treesapp.py", "-i", args.fasta_input,
-                         "-t", ref_pkgs, "-T", str(4),
-                         "-m", "prot", "--output", args.output + "TreeSAPP_output" + os.sep,
-                         "--trim_align", "--overwrite"]
-        launch_write_command(classify_call, False)
         classification_table = os.sep.join([args.output, "TreeSAPP_output", "final_outputs", "marker_contig_map.tsv"])
+        if not os.path.isfile(classification_table):
+            # TODO: Replace with a call to the treesapp main function
+            classify_call = [args.treesapp + "treesapp.py", "-i", args.fasta_input,
+                             "-t", ref_pkgs, "-T", str(4),
+                             "-m", "prot", "--output", args.output + "TreeSAPP_output" + os.sep,
+                             "--trim_align", "--overwrite"]
+            launch_write_command(classify_call, False)
         classification_lines = file_parsers.read_marker_classification_table(classification_table)
         assignments = file_parsers.parse_assignments(classification_lines)
     else:
@@ -329,18 +364,23 @@ def main():
                 logging.warning(gpkg + " not in " + args.annot_map + " and will be skipped...\n")
                 continue
             output_dir = os.sep.join([args.output, "GraftM_output", pkg_name]) + os.sep
-            classify_call = ["graftM", "graft",
-                             "--forward", args.fasta_input,
-                             "--graftm_package", gpkg,
-                             "--input_sequence_type", "aminoacid",
-                             "--threads", str(8),
-                             "--output_directory", output_dir,
-                             "--force"]
-            launch_write_command(classify_call, False)
             classification_table = output_dir + test_fa_prefix + os.sep + test_fa_prefix + "_read_tax.tsv"
+            if not os.path.isfile(classification_table):
+                classify_call = ["graftM", "graft",
+                                 "--forward", args.fasta_input,
+                                 "--graftm_package", gpkg,
+                                 "--input_sequence_type", "aminoacid",
+                                 "--threads", str(8),
+                                 "--output_directory", output_dir,
+                                 "--force"]
+                launch_write_command(classify_call, False)
+
             assignments[pkg_name] = file_parsers.read_graftm_classifications(classification_table)
 
+    logging.info("Reading headers in " + args.fasta_input + "... ")
     test_seq_names = get_headers(args.fasta_input)
+    logging.info("done.\n")
+    test_obj.num_total_queries = len(test_seq_names)
 
     ##
     # Bin the test sequence names into their respective confusion categories (TP, TN, FP, FN)
@@ -351,20 +391,23 @@ def main():
     ##
     # Parse the taxonomic IDs from EggNOG headers and map taxonomic lineage information to classified sequences
     ##
-    test_obj.retrieve_lineages(2)
+    _TAXID_GROUP = 2
+    test_obj.retrieve_lineages(_TAXID_GROUP)
     test_obj.bin_true_positives_by_taxdist()
 
     ##
     # TODO: Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
-    # d = 0
-    # while d < 7:
-    #     num_tp = test_obj.get_true_positives_at_dist(d)
-    #     mcc = calculate_matthews_correlation_coefficient(num_tp,
-    #                                                      test_obj.get_true_negatives(),
-    #                                                      test_obj.get_false_negatives()
-    #                                                      test_obj.get_false_positives())
-    #     d += 1
+    d = 0
+    while d < 7:
+        test_obj._MAX_TAX_DIST = d
+        num_tp, remainder = test_obj.get_true_positives_at_dist()
+        mcc = calculate_matthews_correlation_coefficient(num_tp,
+                                                         test_obj.get_false_positives() + remainder,
+                                                         test_obj.get_false_negatives(),
+                                                         test_obj.get_true_negatives())
+        print("Distance = ", d, "MCC =", mcc)
+        d += 1
 
 
 main()
