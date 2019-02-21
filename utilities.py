@@ -941,12 +941,20 @@ def reverse_complement(nuc_sequence: str):
 
 
 def fish_refpkg_from_build_params(bait: str, marker_build_dict: dict):
+    """
+    Using a marker gene name (first column in ref_build_parameters.tsv, e.g. RecA, McrA) as bait,
+    find and return the reference package for that marker gene name by matching the 'cog' elements.
+
+    :param bait: A marker gene name
+    :param marker_build_dict: A dictionary of refpkg name keys mapping to MarkerBuild instances
+    :return: MarkerBuild object
+    """
     refpkg = None
     for denominator in marker_build_dict:
         if bait == marker_build_dict[denominator].cog:
             refpkg = marker_build_dict[denominator]
             break
-    if not refpkg:
+    if refpkg is None:
         logging.error("Unable to find '" + bait + "' in marker_build_dict!\n")
         sys.exit(13)
     else:

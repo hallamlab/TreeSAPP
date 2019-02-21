@@ -709,6 +709,9 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
     """
     discarded_seqs_string = ""
     successful_multiple_alignments = dict()
+    n_refs = len(unique_ref_headers)
+    n_msa_refs = 0
+    n_filtered_refs = 0
     for multi_align_file in msa_files:
         filtered_multi_align = dict()
         discarded_seqs = list()
@@ -729,7 +732,8 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
         for seq_name in seq_dict:
             seq = seq_dict[seq_name]
             try:
-                int(seq_name)
+                if int(seq_name) > 0:
+                    n_msa_refs += 1
             except ValueError:
                 if re.match("^_\d+", seq_name):
                     seq_name = re.sub("^_", '-', seq_name)
@@ -740,6 +744,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
                     logging.error("Unexpected sequence name " + seq_name +
                                   " detected in " + multi_align_file + ".\n")
                     sys.exit(13)
+                n_msa_refs += 1
             multi_align[seq_name] = seq
         if len(multi_align) == 0:
             logging.error("No sequences were read from " + multi_align_file + ".\n")
@@ -754,22 +759,21 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
                 # The negative integers indicate this is a query sequence
                 if seq_name[0] == '-':
                     num_queries_retained += 1
-
+                else:
+                    n_filtered_refs += 1
         discarded_seqs_string += "\n\t\t" + multi_align_file + " = " + str(len(discarded_seqs))
-        multi_align_seq_names = set(multi_align.keys())
-        filtered_multi_align_seq_names = set(filtered_multi_align.keys())
         if len(discarded_seqs) == len(multi_align.keys()):
             # Throw an error if the final trimmed alignment is shorter than min_seq_length, and therefore empty
             logging.warning("Multiple sequence alignment in " + multi_align_file +
                             " is shorter than minimum sequence length threshold (" + str(min_seq_length) +
                             ").\nThese sequences will not be analyzed.\n")
-        elif not unique_ref_headers.issubset(multi_align_seq_names):
+        elif n_refs > n_msa_refs:
             # Testing whether there were more sequences in the untrimmed alignment than the trimmed one
             logging.error("Reference sequences in " + multi_align_file + " were removed during alignment trimming.\n" +
                           "This suggests either truncated sequences or the initial reference alignment was terrible.\n")
             sys.exit(3)
         # Calculate the number of reference sequences removed
-        elif not unique_ref_headers.issubset(filtered_multi_align_seq_names):
+        elif n_refs > n_filtered_refs:
             logging.warning("Reference sequences shorter than the minimum character length (" +
                             str(min_seq_length) + ") in " + multi_align_file +
                             " were removed after alignment trimming.\n" +
