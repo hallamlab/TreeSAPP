@@ -420,7 +420,8 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             intermediate_files += glob(query_filtered_multiple_alignment + "*")
 
             # Ensure reference sequences haven't been removed
-            msa_dict, summary_str = validate_alignment_trimming([query_filtered_multiple_alignment], unique_ref_headers, True)
+            msa_dict, failed_msa_files, summary_str = validate_alignment_trimming([query_filtered_multiple_alignment],
+                                                                                  unique_ref_headers, True)
             nrow, ncolumn = multiple_alignment_dimensions(seq_dict=read_fasta_to_dict(query_filtered_multiple_alignment),
                                                           mfa_file=query_filtered_multiple_alignment)
             logging.debug("Columns = " + str(ncolumn) + "\n")

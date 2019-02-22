@@ -1618,7 +1618,7 @@ def main():
         logging.info("done.\n")
 
         unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
-        msa_dict, summary_str = validate_alignment_trimming([trimmed_msa_file], unique_ref_headers)
+        msa_dict, failed_trimmed_msa, summary_str = validate_alignment_trimming([trimmed_msa_file], unique_ref_headers)
         logging.debug("Number of sequences discarded: " + summary_str + "\n")
         if trimmed_msa_file not in msa_dict.keys():
             # At least one of the reference sequences were discarded and therefore this package is invalid.
