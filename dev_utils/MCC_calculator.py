@@ -260,6 +260,8 @@ def get_arguments():
     #                          "Useful for testing classification accuracy for fragments.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
+    miscellaneous_opts.add_argument("-T", "--num_threads", default=4, required=False,
+                                    help="The number of threads to use when running either TreeSAPP or GraftM")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
@@ -366,7 +368,7 @@ def main():
         if not os.path.isfile(classification_table):
             # TODO: Replace with a call to the treesapp main function
             classify_call = [args.treesapp + "treesapp.py", "-i", args.fasta_input,
-                             "-t", ref_pkgs, "-T", str(4),
+                             "-t", ref_pkgs, "-T", str(args.num_threads),
                              "-m", "prot", "--output", args.output + "TreeSAPP_output" + os.sep,
                              "--trim_align", "--overwrite"]
             launch_write_command(classify_call, False)
@@ -375,9 +377,9 @@ def main():
     else:
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively
         for gpkg in glob.glob(args.gpkg_dir + "*gpkg"):
-            pkg_name = os.path.basename(gpkg).split('.')[0]
+            pkg_name = str(os.path.basename(gpkg).split('.')[0])
             if pkg_name not in pkg_name_dict:
-                logging.warning(gpkg + " not in " + args.annot_map + " and will be skipped...\n")
+                logging.warning("'" + pkg_name + "' not in " + args.annot_map + " and will be skipped...\n")
                 continue
             output_dir = os.sep.join([args.output, "GraftM_output", pkg_name]) + os.sep
             classification_table = output_dir + test_fa_prefix + os.sep + test_fa_prefix + "_read_tax.tsv"
@@ -386,12 +388,16 @@ def main():
                                  "--forward", args.fasta_input,
                                  "--graftm_package", gpkg,
                                  "--input_sequence_type", "aminoacid",
-                                 "--threads", str(8),
+                                 "--threads", str(args.num_threads),
                                  "--output_directory", output_dir,
                                  "--force"]
                 launch_write_command(classify_call, False)
 
             assignments[pkg_name] = file_parsers.read_graftm_classifications(classification_table)
+
+    if len(assignments) == 0:
+        logging.error("No sequences were classified by " + args.tool + ".\n")
+        sys.exit(3)
 
     logging.info("Reading headers in " + args.fasta_input + "... ")
     test_seq_names = get_headers(args.fasta_input)
@@ -414,7 +420,7 @@ def main():
     test_obj.bin_true_positives_by_taxdist()
 
     ##
-    # TODO: Report the MCC score across different taxonomic distances - should increase with greater allowed distance
+    # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
     d = 0
     while d < 7:
