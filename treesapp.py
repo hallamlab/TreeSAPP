@@ -2546,9 +2546,13 @@ def lowest_confident_taxonomy(lct, depth):
     :param depth: The recommended depth to truncate the taxonomy
     :return: String representing 'confident' taxonomic assignment for the sequence
     """
+    # Sequence likely isn't a FP but is highly divergent from reference set
+    if depth < 0:
+        return "Root"
 
     purified_lineage_list = clean_lineage_string(lct).split("; ")
     confident_assignment = "; ".join(purified_lineage_list[:depth])
+
     # For debugging
     # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
     # if clean_lineage_string(lct) == confident_assignment:
@@ -2708,9 +2712,6 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
             # Based on the calculated distance from the leaves, what rank is most appropriate?
             recommended_rank = rank_recommender(tree_sap.avg_evo_dist,
                                                 marker_build_dict[denominator].pfit)
-            # Sequence likely isn't a FP but is highly divergent from reference set so set to Kingdom classification
-            if recommended_rank < 1:
-                recommended_rank = 1
 
             if len(tree_sap.lineage_list) == 0:
                 logging.error("Unable to find lineage information for marker " +
