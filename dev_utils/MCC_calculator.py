@@ -49,13 +49,22 @@ class ConfusionTest:
         info_string = ""
         return info_string
 
-    def marker_classifcation_summary(self, g_name):
+    def marker_classification_summary(self, refpkg_name):
         """
-        Provide a classification summary for a specific marker gene, g_name
-        :param g_name:
-        :return: A string summarizing the classification performance of a single marker/g_name
+        Provide a classification summary for a specific marker gene, refpkg_name
+        :param refpkg_name:
+        :return: A string summarizing the classification performance of a single marker/refpkg_name
         """
-        summary_string = ""
+        self.check_dist()
+        self.check_refpkg_name(refpkg_name)
+        num_tp, remainder = self.get_true_positives_at_dist(refpkg_name)
+
+        summary_string = "Summary for Reference Package: '" + str(refpkg_name) + "':\n"
+        summary_string += "Correct classifications\t\t" + str(len(self.tp[refpkg_name])) + "\n"
+        summary_string += "True Positives\t\t" + str(num_tp) + "\n"
+        summary_string += "False Positives\t\t" + str(self.get_false_positives(refpkg_name) + remainder) + "\n"
+        summary_string += "False Negatives\t\t" + str(self.get_false_negatives(refpkg_name)) + "\n"
+        summary_string += "True Negatives\t\t" + str(self.get_true_negatives(refpkg_name)) + "\n"
         return summary_string
 
     def retrieve_lineages(self, group=1):
@@ -88,7 +97,7 @@ class ConfusionTest:
             self.tax_lineage_map[e_record.ncbi_tax] = clean_lineage_string(e_record.lineage)
         return
 
-    def bin_true_positives_by_taxdist(self, g_name=None):
+    def bin_true_positives_by_taxdist(self, refpkg_name=None):
         """
         Defines the number of true positives at each taxonomic distance x where 0 <= x <= 7,
         since there are 7 ranks in the NCBI taxonomic hierarchy.
@@ -97,8 +106,14 @@ class ConfusionTest:
 
         :return: None
         """
-        for marker in self.tp:
+        if not refpkg_name:
+            marker_set = self.tp
+        else:
+            marker_set = [refpkg_name]
+        for marker in marker_set:
+            self.dist_wise_tp[marker] = dict()
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
+                # TODO: Find the optimal taxonomic assignment
                 tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage,
                                                                       self.tax_lineage_map[tp_inst.ncbi_tax])
                 if status > 0:
@@ -106,12 +121,24 @@ class ConfusionTest:
                                   tp_inst.assigned_lineage + "\n" +
                                   self.tax_lineage_map[tp_inst.ncbi_tax] + "\n")
                 try:
-                    self.dist_wise_tp[tp_inst.tax_dist] += 1
+                    self.dist_wise_tp[marker][tp_inst.tax_dist] += 1
                 except KeyError:
-                    self.dist_wise_tp[tp_inst.tax_dist] = 1
+                    self.dist_wise_tp[marker][tp_inst.tax_dist] = 1
         return
 
-    def get_true_positives_at_dist(self):
+    def check_dist(self):
+        if self._MAX_TAX_DIST < 0:
+            logging.error("ConfusionTest's _MAX_TAX_DIST has yet to be set.\n")
+            sys.exit(5)
+        return
+
+    def check_refpkg_name(self, refpkg_name):
+        if refpkg_name not in self.test_markers:
+            logging.error(refpkg_name + " is not found in the names of markers to be tested.\n")
+            sys.exit(9)
+        return
+
+    def get_true_positives_at_dist(self, refpkg_name=None):
         """
         Calculates the sum of all true positives at a specified maximum taxonomic distance and less.
         Sequences classified at a distance greater than self._MAX_TAX_DIST are counted as false negatives,
@@ -119,36 +146,43 @@ class ConfusionTest:
 
         :return: The sum of true positives at taxonomic distance <= max_distance
         """
-        if self._MAX_TAX_DIST < 0:
-            logging.error("ConfusionTest's _MAX_TAX_DIST has yet to be set.\n")
-            sys.exit(5)
+        self.check_dist()
         total_tp = 0
         remainder = 0
-        for tax_dist in sorted(self.dist_wise_tp, key=int):
-            if tax_dist <= self._MAX_TAX_DIST:
-                total_tp += self.dist_wise_tp[tax_dist]
-            else:
-                remainder += self.dist_wise_tp[tax_dist]
+        if refpkg_name:
+            marker_set = [refpkg_name]
+        else:
+            marker_set = self.dist_wise_tp
+        for ref_name in marker_set:
+            for tax_dist in sorted(self.dist_wise_tp[ref_name], key=int):  # type: int
+                if tax_dist <= self._MAX_TAX_DIST:
+                    total_tp += self.dist_wise_tp[ref_name][tax_dist]
+                else:
+                    remainder += self.dist_wise_tp[ref_name][tax_dist]
         return total_tp, remainder
 
-    def get_true_negatives(self):
-        # TODO: Get this to work for a single marker as well as all
+    def get_true_negatives(self, refpkg_name=None):
+        # TODO: Get this to work for a single marker as well as all markers
         acc = 0
-        for marker in self.test_markers:
+        if refpkg_name:
+            marker_set = [refpkg_name]
+        else:
+            marker_set = self.test_markers
+        for marker in marker_set:
             acc += len(self.fn[marker])
             acc += len(self.fp[marker])
             acc += len(self.tp[marker])
         return self.num_total_queries - acc
 
-    def get_false_positives(self, g_name=None):
-        if g_name:
-            return len(self.fp[g_name])
+    def get_false_positives(self, refpkg_name=None):
+        if refpkg_name:
+            return len(self.fp[refpkg_name])
         else:
             return sum([len(self.fp[marker]) for marker in self.test_markers])
 
-    def get_false_negatives(self, g_name=None):
-        if g_name:
-            return len(self.fn[g_name])
+    def get_false_negatives(self, refpkg_name=None):
+        if refpkg_name:
+            return len(self.fn[refpkg_name])
         else:
             return sum([len(self.fn[marker]) for marker in self.test_markers])
 
@@ -187,7 +221,7 @@ class ConfusionTest:
             if ref_g in mapping_dict:
                 markers = mapping_dict[ref_g]
                 ##
-                # TODO: These leads to double-counting and therefore needs to be deduplicated later
+                # TODO: This leads to double-counting and therefore needs to be deduplicated later
                 ##
                 for marker in markers:
                     if marker not in positive_queries:
@@ -418,6 +452,9 @@ def main():
     _TAXID_GROUP = 2
     test_obj.retrieve_lineages(_TAXID_GROUP)
     test_obj.bin_true_positives_by_taxdist()
+
+    # test_obj._MAX_TAX_DIST = 6
+    # print(test_obj.marker_classification_summary("P0001"))
 
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
