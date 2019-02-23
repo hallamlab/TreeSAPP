@@ -17,9 +17,10 @@ sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from fasta import get_headers
 from external_command_interface import launch_write_command
 import file_parsers
-from classy import prep_logging
+from classy import prep_logging, ReferencePackage
 from entrez_utils import *
-from lca_calculations import compute_taxonomic_distance
+from lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
+    optimal_taxonomic_assignment, grab_graftm_taxa
 from utilities import fish_refpkg_from_build_params
 
 
@@ -37,7 +38,7 @@ class ConfusionTest:
     def __init__(self, gene_list):
         self._MAX_TAX_DIST = -1
         self.header_regex = None
-        self.test_markers = gene_list
+        self.ref_packages = {key: ReferencePackage() for key in gene_list}
         self.fn = {key: [] for key in gene_list}
         self.fp = {key: [] for key in gene_list}
         self.tp = {key: [] for key in gene_list}  # This will be a list of ClassifiedSequence instances
@@ -59,12 +60,13 @@ class ConfusionTest:
         self.check_refpkg_name(refpkg_name)
         num_tp, remainder = self.get_true_positives_at_dist(refpkg_name)
 
-        summary_string = "Summary for Reference Package: '" + str(refpkg_name) + "':\n"
-        summary_string += "Correct classifications\t\t" + str(len(self.tp[refpkg_name])) + "\n"
-        summary_string += "True Positives\t\t" + str(num_tp) + "\n"
-        summary_string += "False Positives\t\t" + str(self.get_false_positives(refpkg_name) + remainder) + "\n"
-        summary_string += "False Negatives\t\t" + str(self.get_false_negatives(refpkg_name)) + "\n"
-        summary_string += "True Negatives\t\t" + str(self.get_true_negatives(refpkg_name)) + "\n"
+        summary_string = "\nSummary for reference package '" + str(refpkg_name) + "':\n"
+        summary_string += "\tTrue positives\t\t" + str(len(self.tp[refpkg_name])) + "\n"
+        summary_string += "Stats based on taxonomic distance <" + str(self._MAX_TAX_DIST) + ":\n"
+        summary_string += "\tTrue positives\t\t" + str(num_tp) + "\n"
+        summary_string += "\tFalse positives\t\t" + str(self.get_false_positives(refpkg_name) + remainder) + "\n"
+        summary_string += "\tFalse negatives\t\t" + str(self.get_false_negatives(refpkg_name)) + "\n"
+        summary_string += "\tTrue negatives\t\t" + str(self.get_true_negatives(refpkg_name)) + "\n"
         return summary_string
 
     def retrieve_lineages(self, group=1):
@@ -113,9 +115,13 @@ class ConfusionTest:
         for marker in marker_set:
             self.dist_wise_tp[marker] = dict()
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
-                # TODO: Find the optimal taxonomic assignment
-                tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage,
-                                                                      self.tax_lineage_map[tp_inst.ncbi_tax])
+                # Find the optimal taxonomic assignment
+                optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie,
+                                                             self.tax_lineage_map[tp_inst.ncbi_tax])
+                tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
+                print("distance", tp_inst.tax_dist,
+                      "optimal", optimal_taxon,
+                      "assigned", tp_inst.assigned_lineage)
                 if status > 0:
                     logging.debug("Lineages didn't converge between:\n" +
                                   tp_inst.assigned_lineage + "\n" +
@@ -133,7 +139,7 @@ class ConfusionTest:
         return
 
     def check_refpkg_name(self, refpkg_name):
-        if refpkg_name not in self.test_markers:
+        if refpkg_name not in self.ref_packages:
             logging.error(refpkg_name + " is not found in the names of markers to be tested.\n")
             sys.exit(9)
         return
@@ -167,7 +173,7 @@ class ConfusionTest:
         if refpkg_name:
             marker_set = [refpkg_name]
         else:
-            marker_set = self.test_markers
+            marker_set = self.ref_packages
         for marker in marker_set:
             acc += len(self.fn[marker])
             acc += len(self.fp[marker])
@@ -178,13 +184,13 @@ class ConfusionTest:
         if refpkg_name:
             return len(self.fp[refpkg_name])
         else:
-            return sum([len(self.fp[marker]) for marker in self.test_markers])
+            return sum([len(self.fp[marker]) for marker in self.ref_packages])
 
     def get_false_negatives(self, refpkg_name=None):
         if refpkg_name:
             return len(self.fn[refpkg_name])
         else:
-            return sum([len(self.fn[marker]) for marker in self.test_markers])
+            return sum([len(self.fn[marker]) for marker in self.ref_packages])
 
     def bin_headers(self, test_seq_names, assignments, annot_map, marker_build_dict):
         """
@@ -284,6 +290,8 @@ def get_arguments():
                              " Files must follow 'name.gpkg' scheme and 'name' is in the first column of --annot_map")
     optopt.add_argument("--output", required=False, default="./MCC_output/",
                         help="Path to a directory for writing output files")
+    optopt.add_argument("-p", "--pkg_path", required=False, default=None,
+                        help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
     # optopt.add_argument('-m', '--molecule',
     #                     help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
     #                     default='prot',
@@ -309,6 +317,8 @@ def get_arguments():
     if args.output[-1] != os.sep:
         args.output += os.sep
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep + ".." + os.sep
+    if args.tool == "treesapp" and not args.pkg_path:
+        args.pkg_path = args.treesapp + "data" + os.sep
     args.targets = ["ALL"]
 
     if sys.version_info > (2, 9):
@@ -388,8 +398,23 @@ def main():
     # Read the file mapping reference package name to the database annotations
     ##
     pkg_name_dict = read_annotation_mapping_file(args.annot_map)
-    test_obj = ConfusionTest(pkg_name_dict.keys())
     marker_build_dict = file_parsers.parse_ref_build_params(args)
+    test_obj = ConfusionTest(pkg_name_dict.keys())
+
+    ##
+    # Load the taxonomic_trie data for each reference package
+    ##
+    if args.tool == "treesapp":
+        for pkg_name in test_obj.ref_packages:
+            refpkg = test_obj.ref_packages[pkg_name]
+            marker = marker_build_dict[pkg_name].cog
+            refpkg.gather_package_files(marker, args.pkg_path)
+            test_obj.ref_packages[pkg_name].taxa_trie = all_possible_assignments(test_obj.ref_packages[pkg_name].lineage_ids)
+    else:
+        for gpkg in glob.glob(args.gpkg_dir + "*gpkg"):
+            pkg_name = str(os.path.basename(gpkg).split('.')[0])
+            tax_ids_file = gpkg + os.sep + pkg_name + "_taxonomy.csv"
+            test_obj.ref_packages[pkg_name].taxonomic_tree = grab_graftm_taxa(tax_ids_file)
 
     ##
     # Run the specified taxonomic analysis tool and collect the classifications
@@ -453,13 +478,14 @@ def main():
     test_obj.retrieve_lineages(_TAXID_GROUP)
     test_obj.bin_true_positives_by_taxdist()
 
-    # test_obj._MAX_TAX_DIST = 6
+    # test_obj._MAX_TAX_DIST = 2
     # print(test_obj.marker_classification_summary("P0001"))
 
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
     d = 0
+    mcc_string = "Tax.dist\tMCC\n"
     while d < 7:
         test_obj._MAX_TAX_DIST = d
         num_tp, remainder = test_obj.get_true_positives_at_dist()
@@ -467,8 +493,9 @@ def main():
                                                          test_obj.get_false_positives() + remainder,
                                                          test_obj.get_false_negatives(),
                                                          test_obj.get_true_negatives())
-        print("Distance = ", d, "MCC =", mcc)
+        mcc_string += str(d) + "\t" + str(mcc) + "\n"
         d += 1
+    logging.info(mcc_string)
     return
 
 

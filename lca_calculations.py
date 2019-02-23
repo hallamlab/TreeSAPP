@@ -4,7 +4,135 @@ __author__ = 'Connor Morgan-Lang'
 import sys
 import re
 import logging
-from utilities import median
+from pygtrie import StringTrie
+from utilities import median, clean_lineage_string
+
+
+def all_possible_assignments(tax_ids_file):
+    taxonomic_tree = StringTrie(separator='; ')
+    try:
+        cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
+    except IOError:
+        logging.error("Unable to open " + str(tax_ids_file) + " for reading.\n")
+        sys.exit(21)
+
+    for line in cog_tax_ids:
+        line = line.strip()
+        try:
+            fields = line.split("\t")
+        except ValueError:
+            logging.error(" split(\'\\t\') on " + str(line) +
+                          " generated " + str(len(line.split("\t"))) + " fields.")
+            sys.exit(21)
+        if len(fields) == 3:
+            number, translation, lineage = fields
+            lineage = clean_lineage_string(lineage)
+        else:
+            logging.error("Unexpected number of fields in " + tax_ids_file +
+                          ".\nInvoked .split(\'\\t\') on line " + str(line))
+            sys.exit(21)
+
+        i = 0
+        ranks = len(lineage)
+        while i < len(lineage):
+            taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
+            i += 1
+
+    cog_tax_ids.close()
+    return taxonomic_tree
+
+
+def grab_graftm_taxa(tax_ids_file):
+    taxonomic_tree = StringTrie(separator='; ')
+    with open(tax_ids_file) as tax_ids:
+        header = tax_ids.readline().strip()
+        if header != "tax_id,parent_id,rank,tax_name,root,kingdom,phylum,class,order,family,genus,species":
+            logging.error("Unable to handle format of " + tax_ids_file + "!")
+            sys.exit(21)
+        line = tax_ids.readline().strip()
+        while line:
+            try:
+                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_ = line.split(',')
+            except IndexError:
+                logging.error("Unexpected format of line in " + tax_ids_file + ":\n" + line)
+                sys.exit(21)
+            ranks = [k_, p_, c_, o_, f_, g_, s_]
+            lineage_list = []
+            # In case there are missing ranks... which is likely
+            for rank in ranks:
+                if rank:
+                    # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
+                    # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
+                    lineage_list.append(re.sub('e\d+$', '', rank))
+                    # lineage_list.append(rank)
+            lineage = re.sub('_', ' ', clean_lineage_string('; '.join(lineage_list)))
+            i = 0
+            ranks = len(lineage)
+            while i < len(lineage):
+                taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
+                i += 1
+
+            line = tax_ids.readline().strip()
+    return taxonomic_tree
+
+
+def optimal_taxonomic_assignment(trie, query_taxon):
+    while not trie.__contains__(query_taxon) and len(query_taxon.split('; ')) > 1:
+        query_taxon = "; ".join(query_taxon.split('; ')[:-1])
+    if not trie.__contains__(query_taxon):
+        query_taxon = "Root"
+    return query_taxon
+
+
+def identify_excluded_clade(assignment_dict, trie, marker):
+    """
+    Using the taxonomic information from the sequence headers and the lineages of the reference sequence,
+    this function determines the rank at which each sequence's clade is excluded.
+    These data are returned and sorted in the form of a dictionary.
+
+    :param assignment_dict:
+    :param trie: A pygtrie.StringTrie object containing all reference sequence lineages
+    :param marker: Name of the marker gene being tested
+
+    :return: rank_assigned_dict; key is rank, values are dictionaries with assigned (reference) lineage as key and
+      tuples of (optimal assignment, actual assignment) as values.
+      E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
+    """
+    rank_assigned_dict = dict()
+    _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
+                       2: "Phylum", 3: "Class", 4: "Order",
+                       5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+
+    if marker not in assignment_dict:
+        logging.debug("No sequences assigned as " + marker + "\n")
+        return rank_assigned_dict
+
+    for depth in _RANK_DEPTH_MAP:
+        rank_assigned_dict[_RANK_DEPTH_MAP[depth]] = list()
+    log_stats = "Number of unique taxonomies that sequences were assigned to = " + \
+                str(len(assignment_dict[marker].keys())) + "\n"
+
+    for ref_lineage in assignment_dict[marker]:
+        log_stats += "Assigned reference lineage: " + ref_lineage + "\n"
+        for query_lineage in assignment_dict[marker][ref_lineage]:
+            # if query_lineage == ref_lineage:
+            #     logging.debug("\tQuery lineage: " + query_lineage + ", " +
+            #                   "Optimal lineage: " + ref_lineage + "\n")
+            # While the query_lineage contains clades which are not in the reference trie,
+            # remove the taxonomic rank and traverse again. Complexity: O(ln(n))
+            contained_taxonomy = optimal_taxonomic_assignment(trie, query_lineage)
+            if len(contained_taxonomy.split("; ")) <= 7:
+                rank_excluded = _RANK_DEPTH_MAP[len(contained_taxonomy.split("; ")) + 1]
+                if contained_taxonomy != ref_lineage:
+                    log_stats += "\tRank excluded: " + rank_excluded + "\n"
+                    log_stats += "\t\tQuery lineage:   " + query_lineage + "\n"
+                    log_stats += "\t\tOptimal lineage: " + contained_taxonomy + "\n"
+                rank_assigned_dict[rank_excluded].append({ref_lineage: (contained_taxonomy, query_lineage)})
+            else:
+                logging.warning("Number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n" +
+                                "This sequence will be removed from clade exclusion calculations\n")
+    logging.debug(log_stats + "\n")
+    return rank_assigned_dict
 
 
 def disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_list):

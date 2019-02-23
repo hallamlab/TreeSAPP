@@ -4,7 +4,6 @@ __author__ = 'Connor Morgan-Lang'
 
 import argparse
 import sys
-import pygtrie
 import os
 import inspect
 import shutil
@@ -25,11 +24,12 @@ from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves,\
 from classy import prep_logging, get_header_info, register_headers, MarkerTest
 from entrez_utils import *
 from phylo_dist import trim_lineages_to_rank
+from lca_calculations import all_possible_assignments, grab_graftm_taxa, identify_excluded_clade
 
-rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
-                  2: "Phylum", 3: "Class", 4: "Order",
-                  5: "Family", 6: "Genus", 7: "Species",
-                  8: "Strain"}
+# TODO: Ensure this dictionary works for every taxonomic hierarchy scheme
+_RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
+                   2: "Phylum", 3: "Class", 4: "Order",
+                   5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
 
 
 def get_arguments():
@@ -171,126 +171,6 @@ def write_intermediate_assignments(inter_class_file, assignments):
     return
 
 
-def grab_graftm_taxa(tax_ids_file):
-    taxonomic_tree = pygtrie.StringTrie(separator='; ')
-    with open(tax_ids_file) as tax_ids:
-        header = tax_ids.readline().strip()
-        if header != "tax_id,parent_id,rank,tax_name,root,kingdom,phylum,class,order,family,genus,species":
-            logging.error("Unable to handle format of " + tax_ids_file + "!")
-            sys.exit(21)
-        line = tax_ids.readline().strip()
-        while line:
-            try:
-                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_ = line.split(',')
-            except IndexError:
-                logging.error("Unexpected format of line in " + tax_ids_file + ":\n" + line)
-                sys.exit(21)
-            ranks = [k_, p_, c_, o_, f_, g_, s_]
-            lineage_list = []
-            # In case there are missing ranks... which is likely
-            for rank in ranks:
-                if rank:
-                    # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
-                    # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
-                    lineage_list.append(re.sub('e\d+$', '', rank))
-                    # lineage_list.append(rank)
-            lineage = re.sub('_', ' ', clean_lineage_string('; '.join(lineage_list)))
-            i = 0
-            ranks = len(lineage)
-            while i < len(lineage):
-                taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
-                i += 1
-
-            line = tax_ids.readline().strip()
-    return taxonomic_tree
-
-
-def all_possible_assignments(args, tax_ids_file):
-    taxonomic_tree = pygtrie.StringTrie(separator='; ')
-    try:
-        if args.py_version == 3:
-            cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
-        else:
-            cog_tax_ids = open(tax_ids_file, 'r')
-    except IOError:
-        logging.error("Unable to open " + str(tax_ids_file) + " for reading.\n")
-        sys.exit(21)
-
-    for line in cog_tax_ids:
-        line = line.strip()
-        try:
-            fields = line.split("\t")
-        except ValueError:
-            logging.error(" split(\'\\t\') on " + str(line) +
-                          " generated " + str(len(line.split("\t"))) + " fields.")
-            sys.exit(21)
-        if len(fields) == 3:
-            number, translation, lineage = fields
-            lineage = clean_lineage_string(lineage)
-        else:
-            logging.error("Unexpected number of fields in " + tax_ids_file +
-                          ".\nInvoked .split(\'\\t\') on line " + str(line))
-            sys.exit(21)
-
-        i = 0
-        ranks = len(lineage)
-        while i < len(lineage):
-            taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
-            i += 1
-
-    cog_tax_ids.close()
-    return taxonomic_tree
-
-
-def identify_excluded_clade(assignment_dict, trie, marker):
-    """
-    Using the taxonomic information from the sequence headers and the lineages of the reference sequence,
-    this function determines the rank at which each sequence's clade is excluded.
-    These data are returned and sorted in the form of a dictionary.
-
-    :param assignment_dict:
-    :param trie: A pygtrie.StringTrie object containing all reference sequence lineages
-    :param marker: Name of the marker gene being tested
-
-    :return: rank_assigned_dict; key is rank, values are dictionaries with assigned (reference) lineage as key and
-      tuples of (optimal assignment, actual assignment) as values.
-      E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
-    """
-    rank_assigned_dict = dict()
-    if marker not in assignment_dict:
-        logging.debug("No sequences assigned as " + marker + "\n")
-        return rank_assigned_dict
-
-    for depth in rank_depth_map:
-        rank_assigned_dict[rank_depth_map[depth]] = list()
-    log_stats = "Number of unique taxonomies that sequences were assigned to = " + \
-                str(len(assignment_dict[marker].keys())) + "\n"
-
-    for ref_lineage in assignment_dict[marker]:
-        log_stats += "Assigned reference lineage: " + ref_lineage + "\n"
-        for query_lineage in assignment_dict[marker][ref_lineage]:
-            # if query_lineage == ref_lineage:
-            #     logging.debug("\tQuery lineage: " + query_lineage + ", " +
-            #                   "Optimal lineage: " + ref_lineage + "\n")
-            # While the query_lineage contains clades which are not in the reference trie,
-            # remove the taxonomic rank and traverse again. Complexity: O(ln(n))
-            contained_taxonomy = query_lineage
-            while not trie.__contains__(contained_taxonomy) and len(contained_taxonomy.split('; ')) > 1:
-                contained_taxonomy = "; ".join(contained_taxonomy.split('; ')[:-1])
-            if len(contained_taxonomy.split("; ")) <= 7:
-                rank_excluded = rank_depth_map[len(contained_taxonomy.split("; ")) + 1]
-                if contained_taxonomy != ref_lineage:
-                    log_stats += "\tRank excluded: " + rank_excluded + "\n"
-                    log_stats += "\t\tQuery lineage:   " + query_lineage + "\n"
-                    log_stats += "\t\tOptimal lineage: " + contained_taxonomy + "\n"
-                rank_assigned_dict[rank_excluded].append({ref_lineage: (contained_taxonomy, query_lineage)})
-            else:
-                logging.warning("Number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n" +
-                                "This sequence will be removed from clade exclusion calculations\n")
-    logging.debug(log_stats + "\n")
-    return rank_assigned_dict
-
-
 def determine_offset(classified, optimal):
     # Figure out which taxonomic lineage is longer
     offset = 0
@@ -317,10 +197,10 @@ def summarize_taxonomic_diversity(marker_eval_instance):
         taxa_tests: list of TaxonTest objects, resulting from a GraftM or TreeSAPP analysis
     :return:
     """
-    depth = 1  # Accumulator for parsing rank_depth_map; not really interested in Cellular Organisms or Strains.
+    depth = 1  # Accumulator for parsing _RANK_DEPTH_MAP; not really interested in Cellular Organisms or Strains.
     info_str = ""
     while depth < 8:
-        rank = rank_depth_map[depth]
+        rank = _RANK_DEPTH_MAP[depth]
         unique_taxa = marker_eval_instance.get_unique_taxa_tested(rank)
         if unique_taxa:
             buffer = " "
@@ -352,8 +232,8 @@ def get_classification_performance(marker_eval_instance):
     sys.stdout.write("Rank-level performance of " + marker_eval_instance.target_marker + ":\n")
     sys.stdout.write("\tRank\tQueries\tClassified\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\tD=6\tD=7\n")
 
-    for depth in sorted(rank_depth_map):
-        rank = rank_depth_map[depth]
+    for depth in sorted(_RANK_DEPTH_MAP):
+        rank = _RANK_DEPTH_MAP[depth]
         if rank == "Cellular organisms":
             continue
         correct = 0
@@ -442,10 +322,10 @@ def determine_containment(marker_eval_inst: MarkerTest):
     marker = marker_eval_inst.target_marker
     # Set up collection for this analysis
     lowest_rank = ""
-    for depth in sorted(rank_depth_map):
-        if rank_depth_map[depth] in marker_eval_inst.ranks:
-            if marker_eval_inst.get_sensitivity(rank_depth_map[depth])[1] > 0:
-                lowest_rank = rank_depth_map[depth]
+    for depth in sorted(_RANK_DEPTH_MAP):
+        if _RANK_DEPTH_MAP[depth] in marker_eval_inst.ranks:
+            if marker_eval_inst.get_sensitivity(_RANK_DEPTH_MAP[depth])[1] > 0:
+                lowest_rank = _RANK_DEPTH_MAP[depth]
     containment_strings = list()
     n_queries, n_classified, _ = marker_eval_inst.get_sensitivity(lowest_rank)
 
@@ -455,9 +335,9 @@ def determine_containment(marker_eval_inst: MarkerTest):
     # Begin parsing through the depths
     if lowest_rank == "Cellular organisms":
         return
-    for depth in sorted(rank_depth_map):
+    for depth in sorted(_RANK_DEPTH_MAP):
         incorrect_assignments = dict()
-        rank = rank_depth_map[depth]
+        rank = _RANK_DEPTH_MAP[depth]
         if rank in ["Cellular organisms", "Species", "Strain"]:
             continue
         elif rank == lowest_rank:
@@ -1370,7 +1250,7 @@ def main():
                         # Valid number of queries and these sequences have already been classified
                         pass
 
-                    test_obj.taxonomic_tree = all_possible_assignments(args, tax_ids_file)
+                    test_obj.taxonomic_tree = all_possible_assignments(tax_ids_file)
                     if os.path.isfile(classification_table):
                         assigned_lines = read_marker_classification_table(classification_table)
                         test_obj.assignments = parse_assignments(assigned_lines)
