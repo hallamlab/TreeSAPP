@@ -46,8 +46,20 @@ class ConfusionTest:
         self.dist_wise_tp = dict()
         self.num_total_queries = 0
 
-    def get_info(self):
-        info_string = ""
+    def get_info(self, verbose=False):
+        info_string = "Reference packages being tested:\n"
+        info_string += ", ".join(list(self.ref_packages.keys())) + "\n"
+
+        self.check_dist()
+        info_string += "Stats based on taxonomic distance < " + str(self._MAX_TAX_DIST) + "\n"
+
+        if self.num_total_queries > 0:
+            info_string += str(self.num_total_queries) + " query sequences being used for testing.\n"
+
+        if verbose:
+            for refpkg in self.ref_packages:
+                info_string += self.marker_classification_summary(refpkg)
+
         return info_string
 
     def marker_classification_summary(self, refpkg_name):
@@ -119,17 +131,14 @@ class ConfusionTest:
                 optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie,
                                                              self.tax_lineage_map[tp_inst.ncbi_tax])
                 tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
-                print("distance", tp_inst.tax_dist,
-                      "optimal", optimal_taxon,
-                      "assigned", tp_inst.assigned_lineage)
                 if status > 0:
                     logging.debug("Lineages didn't converge between:\n" +
                                   tp_inst.assigned_lineage + "\n" +
                                   self.tax_lineage_map[tp_inst.ncbi_tax] + "\n")
                 try:
-                    self.dist_wise_tp[marker][tp_inst.tax_dist] += 1
+                    self.dist_wise_tp[marker][tp_inst.tax_dist].append(tp_inst.name)
                 except KeyError:
-                    self.dist_wise_tp[marker][tp_inst.tax_dist] = 1
+                    self.dist_wise_tp[marker][tp_inst.tax_dist] = [tp_inst.name]
         return
 
     def check_dist(self):
@@ -153,8 +162,8 @@ class ConfusionTest:
         :return: The sum of true positives at taxonomic distance <= max_distance
         """
         self.check_dist()
-        total_tp = 0
-        remainder = 0
+        all_tp_headers = set()
+        remainder_headers = set()
         if refpkg_name:
             marker_set = [refpkg_name]
         else:
@@ -162,13 +171,12 @@ class ConfusionTest:
         for ref_name in marker_set:
             for tax_dist in sorted(self.dist_wise_tp[ref_name], key=int):  # type: int
                 if tax_dist <= self._MAX_TAX_DIST:
-                    total_tp += self.dist_wise_tp[ref_name][tax_dist]
+                    all_tp_headers.update(set(self.dist_wise_tp[ref_name][tax_dist]))
                 else:
-                    remainder += self.dist_wise_tp[ref_name][tax_dist]
-        return total_tp, remainder
+                    remainder_headers.update(set(self.dist_wise_tp[ref_name][tax_dist]))
+        return len(all_tp_headers), len(remainder_headers)
 
     def get_true_negatives(self, refpkg_name=None):
-        # TODO: Get this to work for a single marker as well as all markers
         acc = 0
         if refpkg_name:
             marker_set = [refpkg_name]
@@ -184,13 +192,15 @@ class ConfusionTest:
         if refpkg_name:
             return len(self.fp[refpkg_name])
         else:
-            return sum([len(self.fp[marker]) for marker in self.ref_packages])
+            unique_fp = set()
+            return len([unique_fp.update(self.fp[marker]) for marker in self.ref_packages])
 
     def get_false_negatives(self, refpkg_name=None):
         if refpkg_name:
             return len(self.fn[refpkg_name])
         else:
-            return sum([len(self.fn[marker]) for marker in self.ref_packages])
+            unique_fn = set()
+            return len([unique_fn.update(self.fn[marker]) for marker in self.ref_packages])
 
     def bin_headers(self, test_seq_names, assignments, annot_map, marker_build_dict):
         """
@@ -402,7 +412,7 @@ def main():
     test_obj = ConfusionTest(pkg_name_dict.keys())
 
     ##
-    # Load the taxonomic_trie data for each reference package
+    # Load the taxonomic trie for each reference package
     ##
     if args.tool == "treesapp":
         for pkg_name in test_obj.ref_packages:
@@ -479,21 +489,20 @@ def main():
     test_obj.bin_true_positives_by_taxdist()
 
     # test_obj._MAX_TAX_DIST = 2
-    # print(test_obj.marker_classification_summary("P0001"))
-
+    # print(test_obj.get_info(True))
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
     d = 0
-    mcc_string = "Tax.dist\tMCC\n"
+    mcc_string = "Tax.dist\tMCC\tTrue.Pos\tTrue.Neg\tFalse.Pos\tFalse.Neg\n"
     while d < 7:
         test_obj._MAX_TAX_DIST = d
         num_tp, remainder = test_obj.get_true_positives_at_dist()
-        mcc = calculate_matthews_correlation_coefficient(num_tp,
-                                                         test_obj.get_false_positives() + remainder,
-                                                         test_obj.get_false_negatives(),
-                                                         test_obj.get_true_negatives())
-        mcc_string += str(d) + "\t" + str(mcc) + "\n"
+        num_fp = test_obj.get_false_positives() + remainder
+        num_fn = test_obj.get_false_negatives()
+        num_tn = test_obj.get_true_negatives()
+        mcc = calculate_matthews_correlation_coefficient(num_tp, num_fp, num_fn, num_tn)
+        mcc_string += "\t".join([str(x) for x in [d, mcc, num_tp, num_tn, num_fp, num_fn]]) + "\n"
         d += 1
     logging.info(mcc_string)
     return
