@@ -47,14 +47,23 @@ class ConfusionTest:
         self.num_total_queries = 0
 
     def get_info(self, verbose=False):
-        info_string = "Reference packages being tested:\n"
-        info_string += ", ".join(list(self.ref_packages.keys())) + "\n"
+        info_string = "\nReference packages being tested:\n"
+        info_string += "\t" + ", ".join(list(self.ref_packages.keys())) + "\n"
 
         self.check_dist()
         info_string += "Stats based on taxonomic distance < " + str(self._MAX_TAX_DIST) + "\n"
 
         if self.num_total_queries > 0:
             info_string += str(self.num_total_queries) + " query sequences being used for testing.\n"
+
+        fp_ogs = set()
+        for marker in self.fp:
+            if len(self.fp[marker]) > 0:
+                info_string += "False positive OGs classified as " + marker + ":\n"
+                for query_name in self.fp[marker]:
+                    fp_ogs.add(self.header_regex.match(query_name).group(1))
+                info_string += "\t" + ', '.join(fp_ogs) + "\n"
+            fp_ogs.clear()
 
         if verbose:
             for refpkg in self.ref_packages:
@@ -70,13 +79,12 @@ class ConfusionTest:
         """
         self.check_dist()
         self.check_refpkg_name(refpkg_name)
-        num_tp, remainder = self.get_true_positives_at_dist(refpkg_name)
-
+        tp, remain = self.get_true_positives_at_dist(refpkg_name)
         summary_string = "\nSummary for reference package '" + str(refpkg_name) + "':\n"
         summary_string += "\tTrue positives\t\t" + str(len(self.tp[refpkg_name])) + "\n"
         summary_string += "Stats based on taxonomic distance <" + str(self._MAX_TAX_DIST) + ":\n"
-        summary_string += "\tTrue positives\t\t" + str(num_tp) + "\n"
-        summary_string += "\tFalse positives\t\t" + str(len(self.get_false_positives(refpkg_name)) + remainder) + "\n"
+        summary_string += "\tTrue positives\t\t" + str(len(tp)) + "\n"
+        summary_string += "\tFalse positives\t\t" + str(len(self.get_false_positives(refpkg_name)) + len(remain)) + "\n"
         summary_string += "\tFalse negatives\t\t" + str(len(self.get_false_negatives(refpkg_name))) + "\n"
         summary_string += "\tTrue negatives\t\t" + str(self.get_true_negatives(refpkg_name)) + "\n"
         return summary_string
@@ -111,7 +119,7 @@ class ConfusionTest:
             self.tax_lineage_map[e_record.ncbi_tax] = clean_lineage_string(e_record.lineage)
         return
 
-    def bin_true_positives_by_taxdist(self, refpkg_name=None):
+    def bin_true_positives_by_taxdist(self):
         """
         Defines the number of true positives at each taxonomic distance x where 0 <= x <= 7,
         since there are 7 ranks in the NCBI taxonomic hierarchy.
@@ -120,11 +128,7 @@ class ConfusionTest:
 
         :return: None
         """
-        if not refpkg_name:
-            marker_set = self.tp
-        else:
-            marker_set = [refpkg_name]
-        for marker in marker_set:
+        for marker in self.tp:
             self.dist_wise_tp[marker] = dict()
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
                 # Find the optimal taxonomic assignment
@@ -174,19 +178,21 @@ class ConfusionTest:
                     all_tp_headers.update(set(self.dist_wise_tp[ref_name][tax_dist]))
                 else:
                     remainder_headers.update(set(self.dist_wise_tp[ref_name][tax_dist]))
-        return len(all_tp_headers), len(remainder_headers)
+        return all_tp_headers, remainder_headers
 
     def get_true_negatives(self, refpkg_name=None):
-        acc = 0
         if refpkg_name:
             marker_set = [refpkg_name]
         else:
             marker_set = self.ref_packages
+        unique_fn = set()
+        unique_fp = set()
+        unique_tp = set()
         for marker in marker_set:
-            acc += len(self.fn[marker])
-            acc += len(self.fp[marker])
-            acc += len(self.tp[marker])
-        return self.num_total_queries - acc
+            unique_fn.update(self.fn[marker])
+            unique_fp.update(self.fp[marker])
+            unique_tp.update(self.tp[marker])
+        return self.num_total_queries - sum([len(unique_fn), len(unique_fp), len(unique_tp)])
 
     def get_false_positives(self, refpkg_name=None):
         if refpkg_name:
@@ -203,6 +209,7 @@ class ConfusionTest:
         else:
             unique_fn = set()
             for marker in self.ref_packages:
+                # Remove sequences that were classified by a homologous marker
                 unique_fn.update(self.fn[marker])
             return unique_fn
 
@@ -279,6 +286,62 @@ class ConfusionTest:
             # Identify the False Negatives using set difference - those that were not classified but should have been
             self.fn[refpkg] = list(positives.difference(true_positives))
         logging.info("done.\n")
+        return
+
+    def og_names(self, seq_names):
+        og_names = []
+        for query in seq_names:
+            try:
+                seq_name = query.name
+            except AttributeError:
+                seq_name = query
+            og = self.header_regex.match(seq_name).group(1)
+            original_name = re.sub(og, '', seq_name)
+            if original_name[0] == '>':
+                original_name = original_name[1:]
+            if original_name[0] == '_':
+                original_name = original_name[1:]
+            og_names.append(original_name)
+        return og_names
+
+    def validate_false_positives(self):
+        # Get all the original Orthologous Group (OG) headers for sequences classified as TP or FN
+        tp_names = []
+        for marker in list(self.ref_packages.keys()):
+            tp_names += self.og_names(self.tp[marker])
+            tp_names += self.og_names(self.fn[marker])
+
+        for marker in self.fp:
+            validated_fp = []
+            for seq_name in self.fp[marker]:
+                og_name = self.header_regex.match(seq_name).group(1)
+                original_name = re.sub(og_name + '_', '', seq_name)
+                if original_name[0] == '>':
+                    original_name = original_name[1:]
+                if original_name not in tp_names:
+                    validated_fp.append(seq_name)
+            self.fp[marker] = validated_fp
+        return
+
+    def validate_false_negatives(self, pkg_name_dict):
+        # Invert the dictionary
+        refpkg_og_map = dict()
+        for refpkg_name in pkg_name_dict:
+            ogs = pkg_name_dict[refpkg_name]
+            for og in ogs:
+                try:
+                    refpkg_og_map[og].append(refpkg_name)
+                except KeyError:
+                    refpkg_og_map[og] = [refpkg_name]
+
+        for marker in self.fn:
+            homologous_tps = set()
+            for og in pkg_name_dict[marker]:
+                for homolgous_marker in refpkg_og_map[og]:
+                    if homolgous_marker != marker:
+                        homologous_tps.update(set(cs.name for cs in self.tp[homolgous_marker]))
+            # Remove all sequences from this marker's false negatives that are found in a homologous TP set
+            self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
         return
 
 
@@ -491,20 +554,21 @@ def main():
     _TAXID_GROUP = 2
     test_obj.retrieve_lineages(_TAXID_GROUP)
     test_obj.bin_true_positives_by_taxdist()
+    test_obj.validate_false_positives()
+    test_obj.validate_false_negatives(pkg_name_dict)
 
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
-    test_obj._MAX_TAX_DIST = 2
-    print(test_obj.get_info(True))
-    test_obj._MAX_TAX_DIST = 6
-    print(test_obj.get_info(True))
+    # test_obj._MAX_TAX_DIST = 6
+    # print(test_obj.get_info(True))
     d = 0
     mcc_string = "Tax.dist\tMCC\tTrue.Pos\tTrue.Neg\tFalse.Pos\tFalse.Neg\n"
     while d < 7:
         test_obj._MAX_TAX_DIST = d
-        num_tp, remainder = test_obj.get_true_positives_at_dist()
-        num_fp = len(test_obj.get_false_positives()) + remainder
+        tp, remainder = test_obj.get_true_positives_at_dist()
+        num_tp = len(tp)
+        num_fp = len(test_obj.get_false_positives()) + len(remainder)
         num_fn = len(test_obj.get_false_negatives())
         num_tn = test_obj.get_true_negatives()
         mcc = calculate_matthews_correlation_coefficient(num_tp, num_fp, num_fn, num_tn)
