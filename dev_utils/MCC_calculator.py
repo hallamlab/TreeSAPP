@@ -76,8 +76,8 @@ class ConfusionTest:
         summary_string += "\tTrue positives\t\t" + str(len(self.tp[refpkg_name])) + "\n"
         summary_string += "Stats based on taxonomic distance <" + str(self._MAX_TAX_DIST) + ":\n"
         summary_string += "\tTrue positives\t\t" + str(num_tp) + "\n"
-        summary_string += "\tFalse positives\t\t" + str(self.get_false_positives(refpkg_name) + remainder) + "\n"
-        summary_string += "\tFalse negatives\t\t" + str(self.get_false_negatives(refpkg_name)) + "\n"
+        summary_string += "\tFalse positives\t\t" + str(len(self.get_false_positives(refpkg_name)) + remainder) + "\n"
+        summary_string += "\tFalse negatives\t\t" + str(len(self.get_false_negatives(refpkg_name))) + "\n"
         summary_string += "\tTrue negatives\t\t" + str(self.get_true_negatives(refpkg_name)) + "\n"
         return summary_string
 
@@ -190,23 +190,27 @@ class ConfusionTest:
 
     def get_false_positives(self, refpkg_name=None):
         if refpkg_name:
-            return len(self.fp[refpkg_name])
+            return self.fp[refpkg_name]
         else:
             unique_fp = set()
-            return len([unique_fp.update(self.fp[marker]) for marker in self.ref_packages])
+            for marker in self.ref_packages:
+                unique_fp.update(self.fp[marker])
+            return unique_fp
 
     def get_false_negatives(self, refpkg_name=None):
         if refpkg_name:
-            return len(self.fn[refpkg_name])
+            return self.fn[refpkg_name]
         else:
             unique_fn = set()
-            return len([unique_fn.update(self.fn[marker]) for marker in self.ref_packages])
+            for marker in self.ref_packages:
+                unique_fn.update(self.fn[marker])
+            return unique_fn
 
     def bin_headers(self, test_seq_names, assignments, annot_map, marker_build_dict):
         """
         Function for sorting/binning the classified sequences at T/F positives/negatives based on the
         :param test_seq_names: List of all headers in the input FASTA file
-        :param assignments: Dictionary mapping taxonomic lineages to a list of headers that were classified to this lineage
+        :param assignments: Dictionary mapping taxonomic lineages to a list of headers that were classified as lineage
         :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
         :param marker_build_dict:
         :return: None
@@ -237,7 +241,7 @@ class ConfusionTest:
             if ref_g in mapping_dict:
                 markers = mapping_dict[ref_g]
                 ##
-                # TODO: This leads to double-counting and therefore needs to be deduplicated later
+                # This leads to double-counting and is therefore deduplicated later
                 ##
                 for marker in markers:
                     if marker not in positive_queries:
@@ -488,18 +492,20 @@ def main():
     test_obj.retrieve_lineages(_TAXID_GROUP)
     test_obj.bin_true_positives_by_taxdist()
 
-    # test_obj._MAX_TAX_DIST = 2
-    # print(test_obj.get_info(True))
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
+    test_obj._MAX_TAX_DIST = 2
+    print(test_obj.get_info(True))
+    test_obj._MAX_TAX_DIST = 6
+    print(test_obj.get_info(True))
     d = 0
     mcc_string = "Tax.dist\tMCC\tTrue.Pos\tTrue.Neg\tFalse.Pos\tFalse.Neg\n"
     while d < 7:
         test_obj._MAX_TAX_DIST = d
         num_tp, remainder = test_obj.get_true_positives_at_dist()
-        num_fp = test_obj.get_false_positives() + remainder
-        num_fn = test_obj.get_false_negatives()
+        num_fp = len(test_obj.get_false_positives()) + remainder
+        num_fn = len(test_obj.get_false_negatives())
         num_tn = test_obj.get_true_negatives()
         mcc = calculate_matthews_correlation_coefficient(num_tp, num_fp, num_fn, num_tn)
         mcc_string += "\t".join([str(x) for x in [d, mcc, num_tp, num_tn, num_fp, num_fn]]) + "\n"
