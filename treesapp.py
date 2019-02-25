@@ -2552,6 +2552,8 @@ def lowest_confident_taxonomy(lct, depth):
 
     purified_lineage_list = clean_lineage_string(lct).split("; ")
     confident_assignment = "; ".join(purified_lineage_list[:depth])
+    if not confident_assignment:
+        confident_assignment = "Root"
 
     # For debugging
     # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
