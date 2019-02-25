@@ -111,9 +111,10 @@ def filter_jplace_data(jplace_data: ItolJplace, tree_saps: list):
             if k == 'n':
                 # Find the TreeProtein that matches the placement (same contig name)
                 for sapling in tree_saps:
-                    if re.match(re.escape(sapling.contig_name) + "_\d+_\d+", v[0]):
+                    if re.match(sapling.contig_name, v[0]):
                         # If the TreeProtein is classified, flag to append
                         classified = sapling.classified
+                        break
                 dict_strings.append(dumps(k) + ":" + dumps(v))
             elif k == 'p':
                 dict_strings.append(dumps(k) + ":" + dumps(v))

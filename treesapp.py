@@ -565,7 +565,7 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict):
                 contig_name = hmm_match.orf
             # Add the query sequence to the index map
             orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
-            numeric_contig_index[marker][numeric_decrementor] = '>' + contig_name + '|' + marker + '|' + orf_coordinates
+            numeric_contig_index[marker][numeric_decrementor] = contig_name + '|' + marker + '|' + orf_coordinates
             # Add the FASTA record of the trimmed sequence - this one moves on for placement
             full_sequence = fasta_dict[reformat_string('>' + contig_name)]
             binned = False
@@ -2735,7 +2735,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
 
             # tree_sap.summarize()
             tab_out_string += '\t'.join([sample_name,
-                                         tree_sap.contig_name,
+                                         '|'.join(tree_sap.contig_name.split('|')[:-2]),
                                          tree_sap.name,
                                          str(tree_sap.seq_len),
                                          clean_lineage_string(tree_sap.lct),
