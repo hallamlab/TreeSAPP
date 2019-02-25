@@ -167,6 +167,10 @@ def parse_assignments(classified_lines: list):
             if rob_class not in assignments[marker]:
                 assignments[marker][rob_class] = list()
             assignments[marker][rob_class].append(header)
+        else:
+            logging.error("Bad line in classification table - no robust taxonomic classification:\n" +
+                          '\t'.join(fields) + "\n")
+            sys.exit(21)
     return assignments
 
 
