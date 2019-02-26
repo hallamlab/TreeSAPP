@@ -2737,7 +2737,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
 
             # tree_sap.summarize()
             tab_out_string += '\t'.join([sample_name,
-                                         '|'.join(tree_sap.contig_name.split('|')[:-2]),
+                                         tree_sap.contig_name,
                                          tree_sap.name,
                                          str(tree_sap.seq_len),
                                          clean_lineage_string(tree_sap.lct),
@@ -2797,10 +2797,11 @@ def parse_raxml_output(args, marker_build_dict):
                                   "More info:\n" +
                                   pquery.summarize())
                     continue
-                if re.match(".*_(\d+)_(\d+)$", pquery.contig_name):
-                    start, end = re.match(".*_(\d+)_(\d+)$", pquery.contig_name).groups()
+                seq_info = re.match(r"(.*)\|" + re.escape(marker) + "\|(\\d+)_(\\d+)$", pquery.contig_name)
+                if seq_info:
+                    pquery.contig_name = seq_info.group(1)
+                    start, end = seq_info.groups()[1:]
                     pquery.seq_len = int(end) - int(start)
-                    pquery.contig_name = re.sub(r"_(\d+)_(\d+)$", '', pquery.contig_name)
                 pquery.create_jplace_node_map()
                 if args.placement_parser == "best":
                     pquery.filter_max_weight_placement()
