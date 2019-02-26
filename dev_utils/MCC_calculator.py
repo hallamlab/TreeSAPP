@@ -462,7 +462,10 @@ def read_annotation_mapping_file(annot_map_file):
 def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: int):
     numerator = float((tp * tn) - (fp * fn))
     denominator = float((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-    return round(numerator/sqrt(denominator), 3)
+    if numerator == 0 or denominator == 0:
+        return 0
+    else:
+        return round(numerator/sqrt(denominator), 3)
 
 
 def main():
@@ -537,7 +540,7 @@ def main():
                                  "--force"]
                 launch_write_command(classify_call, False)
 
-            assignments[pkg_name] = file_parsers.read_graftm_classifications(classification_table)
+            assignments[marker] = file_parsers.read_graftm_classifications(classification_table)
 
     if len(assignments) == 0:
         logging.error("No sequences were classified by " + args.tool + ".\n")
