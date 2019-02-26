@@ -7,7 +7,7 @@ import sys
 import os
 import inspect
 import shutil
-import glob
+from glob import glob
 from numpy import sqrt
 
 cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
@@ -420,7 +420,7 @@ def validate_command(args):
         elif not os.path.isdir(args.gpkg_dir):
             logging.error(args.gpkg_dir + " GraftM reference package directory does not exist!\n")
             sys.exit(17)
-        elif len(glob.glob(args.gpkg_dir + "*gpkg")) == 0:
+        elif len(glob(args.gpkg_dir + "*gpkg")) == 0:
             logging.error("Not GraftM reference packages found in " + args.gpkg_dir + ".\n")
             sys.exit(17)
     elif args.tool == "treesapp" and args.gpkg_dir:
@@ -488,16 +488,21 @@ def main():
             refpkg.gather_package_files(marker, args.pkg_path)
             test_obj.ref_packages[pkg_name].taxa_trie = all_possible_assignments(test_obj.ref_packages[pkg_name].lineage_ids)
     else:
-        for gpkg in glob.glob(args.gpkg_dir + "*gpkg"):
-            pkg_name = str(os.path.basename(gpkg).split('.')[0])
-            tax_ids_file = gpkg + os.sep + pkg_name + "_taxonomy.csv"
-            test_obj.ref_packages[pkg_name].taxonomic_tree = grab_graftm_taxa(tax_ids_file)
+        for gpkg in glob(args.gpkg_dir + "*gpkg"):
+            marker = str(os.path.basename(gpkg).split('.')[0])
+            pkg_name = fish_refpkg_from_build_params(marker, marker_build_dict).denominator
+            if pkg_name in pkg_name_dict:
+                try:
+                    tax_ids_file = glob(os.sep.join([gpkg, marker + ".gpkg.refpkg", marker + "*_taxonomy.csv"])).pop()
+                    test_obj.ref_packages[pkg_name].taxonomic_tree = grab_graftm_taxa(tax_ids_file)
+                except IndexError:
+                    logging.warning("No GraftM taxonomy file found for " + marker + ". Is this refpkg incomplete?\n")
 
     ##
     # Run the specified taxonomic analysis tool and collect the classifications
     ##
     assignments = {}
-    test_fa_prefix = '.'.join(args.fasta_input.split('.')[:-1])
+    test_fa_prefix = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
     if args.tool == "treesapp":
         ref_pkgs = ','.join(pkg_name_dict.keys())
         classification_table = os.sep.join([args.output, "TreeSAPP_output", "final_outputs", "marker_contig_map.tsv"])
@@ -512,12 +517,15 @@ def main():
         assignments = file_parsers.parse_assignments(classification_lines)
     else:
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively
-        for gpkg in glob.glob(args.gpkg_dir + "*gpkg"):
-            pkg_name = str(os.path.basename(gpkg).split('.')[0])
+        for gpkg in glob(args.gpkg_dir + "*gpkg"):
+            marker = str(os.path.basename(gpkg).split('.')[0])
+            pkg_name = fish_refpkg_from_build_params(marker, marker_build_dict).denominator
             if pkg_name not in pkg_name_dict:
                 logging.warning("'" + pkg_name + "' not in " + args.annot_map + " and will be skipped...\n")
                 continue
             output_dir = os.sep.join([args.output, "GraftM_output", pkg_name]) + os.sep
+            if not os.path.isdir(output_dir):
+                os.makedirs(output_dir)
             classification_table = output_dir + test_fa_prefix + os.sep + test_fa_prefix + "_read_tax.tsv"
             if not os.path.isfile(classification_table):
                 classify_call = ["graftM", "graft",
@@ -536,7 +544,7 @@ def main():
         sys.exit(3)
 
     logging.info("Reading headers in " + args.fasta_input + "... ")
-    test_seq_names = get_headers(args.fasta_input)
+    test_seq_names = [seq_name[1:] if seq_name[0] == '>' else seq_name for seq_name in get_headers(args.fasta_input)]
     logging.info("done.\n")
     test_obj.num_total_queries = len(test_seq_names)
     eggnog_re = re.compile(r"^>?(COG[A-Z0-9]+|ENOG[A-Z0-9]+)_(\d+)\..*")
@@ -560,8 +568,8 @@ def main():
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
-    # test_obj._MAX_TAX_DIST = 6
-    # print(test_obj.get_info(True))
+    test_obj._MAX_TAX_DIST = 6
+    print(test_obj.get_info(True))
     d = 0
     mcc_string = "Tax.dist\tMCC\tTrue.Pos\tTrue.Neg\tFalse.Pos\tFalse.Neg\n"
     while d < 7:
