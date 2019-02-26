@@ -113,16 +113,15 @@ def get_headers(fasta_file):
     except IOError:
         logging.error("Unable to open the FASTA file '" + fasta_file + "' for reading!")
         sys.exit(5)
-    line = fasta.readline()
-    while line:
-        line = line.strip()
-        if line and line[0] == '>':
-            original_headers.append(line)
-        else:
-            pass
-        line = fasta.readline()
+
+    n_headers = 0
+    for name, _ in generate_fasta(fasta):
+        n_headers += 1
+        original_headers.append('>' + str(name))
 
     fasta.close()
+    logging.debug("Read " + str(n_headers) + " headers from " + fasta_file + ".\n")
+
     return original_headers
 
 
@@ -369,7 +368,7 @@ def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
             bmge_settings = ["-t", "DNA", "-m", "DNAPAM100:2"]
         trim_command = ["java", "-jar", executable]
         trim_command += bmge_settings
-        trim_command += ["-g", "0.95:0.33"]  # Specifying the gap rate per_sequence:per_character
+        trim_command += ["-g", "0.99:0.33"]  # Specifying the gap rate per_sequence:per_character
         trim_command += ['-i', mfa_file,
                          '-of', trimmed_msa_file]
     else:

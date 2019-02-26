@@ -91,7 +91,7 @@ def parse_cog_list(args, marker_build_dict):
             continue
 
         if not re.match(r'\w+\t[A-Z][0-9]{4}\t\w+', marker_input):
-            message = "Entry in cog_lit.tsv is incorrectly formatted! Violating line:\n" + str(marker_input)
+            message = "Entry in cog_lit.tsv is incorrectly formatted! Violating line:\n" + str(marker_input) + "\n"
             logging.error(message)
             sys.exit(5)
 
@@ -779,7 +779,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             failed_multiple_alignments.append(multi_align_file)
         elif n_refs > n_msa_refs:
             # Testing whether there were more sequences in the untrimmed alignment than the trimmed one
-            logging.warning("Reference sequences in " + multi_align_file + " were removed during alignment trimming" +
+            logging.warning("Reference sequences in " + multi_align_file + " were removed during alignment trimming " +
                             "suggesting either truncated sequences or the initial reference alignment was terrible.\n" +
                             "The untrimmed alignment will be used instead.\n")
             failed_multiple_alignments.append(multi_align_file)
