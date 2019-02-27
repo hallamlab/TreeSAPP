@@ -66,7 +66,7 @@ class ConfusionTest:
             fp_ogs.clear()
 
         if verbose:
-            for refpkg in self.ref_packages:
+            for refpkg in sorted(self.ref_packages):
                 info_string += self.marker_classification_summary(refpkg)
 
         return info_string
@@ -236,6 +236,7 @@ class ConfusionTest:
                 if gene not in mapping_dict:
                     mapping_dict[gene] = []
                 mapping_dict[gene].append(marker)
+        og_names_mapped = list(mapping_dict.keys())
 
         logging.info("Labelling true test sequences... ")
         for header in test_seq_names:
@@ -244,21 +245,41 @@ class ConfusionTest:
             except (TypeError, KeyError):
                 logging.error("Header '" + header + "' in test FASTA file does not match the supported format.\n")
                 sys.exit(5)
-            # Keep the name in
             if ref_g in mapping_dict:
                 markers = mapping_dict[ref_g]
                 ##
                 # This leads to double-counting and is therefore deduplicated later
                 ##
                 for marker in markers:
+                    if not marker:
+                        logging.error("Bad marker name in " + str(mapping_dict.keys()) + "\n")
+                        sys.exit(5)
                     if marker not in positive_queries:
                         positive_queries[marker] = []
+                        if ref_g in og_names_mapped:
+                            i = 0
+                            while i < len(og_names_mapped):
+                                if og_names_mapped[i] == ref_g:
+                                    og_names_mapped.pop(i)
+                                    i = len(og_names_mapped)
+                                i += 1
                     positive_queries[marker].append(header)
         logging.info("done.\n")
 
+        # Ensure all reference genes in mapping_dict have been used
+        if len(og_names_mapped) > 0:
+            logging.warning("Some orthologous groups in the annotation mapping file were not found in the FASTA file." +
+                            " Perhaps a mistake was made when making this file? The following OGs will be skipped:\n" +
+                            '\n'.join([str(og) + ": " + str(mapping_dict[og]) for og in og_names_mapped]) + "\n")
+
         logging.info("Assigning test sequences to the four class conditions... ")
         for marker in assignments:
-            positives = set(positive_queries[marker])
+            try:
+                positives = set(positive_queries[marker])
+            except KeyError:
+                logging.error("Unable to find '" + marker + "' in the set of positive queries:\n" +
+                              ", ".join([str(n) for n in positive_queries.keys()]) + "\n")
+                sys.exit(5)
             true_positives = set()
             refpkg = fish_refpkg_from_build_params(marker, marker_build_dict).denominator
             for tax_lin in assignments[marker]:
@@ -352,8 +373,6 @@ def get_arguments():
     required_args = parser.add_argument_group("Required arguments")
     required_args.add_argument("--fasta_input", required=True,
                                help="FASTA-formatted file used for testing the classifiers")
-    # required_args.add_argument("--reference_marker", required=True,
-    #                            help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)")
     required_args.add_argument("--annot_map", required=True,
                                help="Path to a tabular file mapping markers being tested to their database annotations."
                                     " First column is the ")
@@ -369,14 +388,6 @@ def get_arguments():
                         help="Path to a directory for writing output files")
     optopt.add_argument("-p", "--pkg_path", required=False, default=None,
                         help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
-    # optopt.add_argument('-m', '--molecule',
-    #                     help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
-    #                     default='prot',
-    #                     choices=['prot', 'dna', 'rrna'])
-    # optopt.add_argument("-l", "--length",
-    #                     required=False, type=int, default=0,
-    #                     help="Arbitrarily slice the input sequences to this length. "
-    #                          "Useful for testing classification accuracy for fragments.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument("-T", "--num_threads", default=4, required=False,
@@ -522,6 +533,9 @@ def main():
         # Since you are only able to analyze a single reference package at a time with GraftM, this is ran iteratively
         for gpkg in glob(args.gpkg_dir + "*gpkg"):
             marker = str(os.path.basename(gpkg).split('.')[0])
+            if not marker:
+                logging.error("Unable to parse marker name from gpkg '" + gpkg + "'\n")
+                sys.exit(5)
             pkg_name = fish_refpkg_from_build_params(marker, marker_build_dict).denominator
             if pkg_name not in pkg_name_dict:
                 logging.warning("'" + pkg_name + "' not in " + args.annot_map + " and will be skipped...\n")
@@ -571,8 +585,8 @@ def main():
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
-    test_obj._MAX_TAX_DIST = 6
-    print(test_obj.get_info(True))
+    # test_obj._MAX_TAX_DIST = 6
+    # print(test_obj.get_info(True))
     d = 0
     mcc_string = "Tax.dist\tMCC\tTrue.Pos\tTrue.Neg\tFalse.Pos\tFalse.Neg\n"
     while d < 7:
