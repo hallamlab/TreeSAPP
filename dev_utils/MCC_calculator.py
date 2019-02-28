@@ -585,11 +585,11 @@ def main():
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
-    # test_obj._MAX_TAX_DIST = 6
-    # print(test_obj.get_info(True))
+    test_obj._MAX_TAX_DIST = 6
+    logging.debug(test_obj.get_info(True))
     d = 0
     mcc_string = "Tax.dist\tMCC\tTrue.Pos\tTrue.Neg\tFalse.Pos\tFalse.Neg\n"
-    while d < 7:
+    while d < 8:
         test_obj._MAX_TAX_DIST = d
         tp, remainder = test_obj.get_true_positives_at_dist()
         num_tp = len(tp)
