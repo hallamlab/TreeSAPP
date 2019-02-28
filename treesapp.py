@@ -2920,7 +2920,6 @@ def main(argv):
     args = check_previous_output(args)
 
     marker_build_dict = parse_ref_build_params(args)
-    marker_build_dict = parse_cog_list(args, marker_build_dict)
     tree_numbers_translation = read_species_translation_files(args, marker_build_dict)
     if args.check_trees:
         validate_inputs(args, marker_build_dict)
