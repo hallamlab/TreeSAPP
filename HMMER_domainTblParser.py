@@ -83,7 +83,8 @@ class HmmMatch:
         self.of = 0
         self.desc = ""
         self.acc = 0.0
-        self.ceval = 0.0
+        self.ieval = 0.0
+        self.eval = 0.0
         self.full_score = 0
 
     def get_info(self):
@@ -94,7 +95,7 @@ class HmmMatch:
         info_string += "\tAlignment start = " + str(self.start) + ", alignment stop = " + str(self.end) + "\n"
         info_string += "\tProfile start = " + str(self.pstart) + ", profile stop = " + str(self.pend) + "\n"
         info_string += "\tNumber " + str(self.num) + " of " + str(self.of) + "\n"
-        info_string += "\tcE-value = " + str(self.ceval) + "\n"
+        info_string += "\tcE-value = " + str(self.ieval) + "\n"
         info_string += "\tacc = " + str(self.acc) + "\n"
         info_string += "\tfull score = " + str(self.full_score) + "\n"
         return info_string
@@ -162,6 +163,7 @@ class DomainTableParser(object):
         self.alignments['num'] = int(hit[9])  # HMMER is able to detect whether there are multi-hits
         self.alignments['of'] = int(hit[10])  # This is the number of multi-hits for a query
         self.alignments['cEval'] = float(hit[11])  # conditional E-value
+        self.alignments['iEval'] = float(hit[12])  # conditional E-value
         self.alignments['pstart'] = int(hit[15])  # First position on HMM profile
         self.alignments['pend'] = int(hit[16])  # Last position on HMM profile
         self.alignments['qstart'] = int(hit[19])  # env coord from
@@ -228,7 +230,7 @@ def scaffold_subalignments(fragmented_alignment_data):
                         if base_aln.num > 1:
                             base_aln.num = min([base_aln.num, projected_aln.num])
                         base_aln.of -= 1
-                        base_aln.ceval = min([base_aln.ceval, projected_aln.ceval])
+                        base_aln.ieval = min([base_aln.ieval, projected_aln.ieval])
                         fragmented_alignment_data.pop(j)
                         j -= 1
                 else:
@@ -269,7 +271,7 @@ def consolidate_subalignments(fragmented_alignment_data, alignment_relations, di
             pass
         elif alignment_relations[pair] == "overlap":
             # If there are multiple overlapping alignments on the same query, take the one with the lowest E-value
-            if fragmented_alignment_data[base].ceval < fragmented_alignment_data[projected].ceval:
+            if fragmented_alignment_data[base].ieval < fragmented_alignment_data[projected].ieval:
                 alignments_to_defecate.add(projected)
             else:
                 alignments_to_defecate.add(base)
@@ -328,9 +330,10 @@ def format_split_alignments(domain_table, num_fragmented, glued, multi_alignment
         hmm_match.pend = data['pend']
         hmm_match.num = data['num']
         hmm_match.of = data['of']
-        hmm_match.acc = data['acc']
-        hmm_match.ceval = data['cEval']
-        hmm_match.full_score = data['full_score']
+        hmm_match.acc = data['acc']  # Used for filtering
+        hmm_match.ieval = data['iEval']  # Used for filtering
+        hmm_match.eval = data['Eval']  # Used for filtering
+        hmm_match.full_score = data['full_score']  # Used for filtering
 
         raw_alignments += 1
         # Finish off "old business" (sub-alignments)
@@ -392,6 +395,8 @@ def filter_poor_hits(args, distinct_alignments, num_dropped):
     alignment instead of treating them as individual alignments. This information is used in the next filtering step.
     """
     min_acc = float(args.min_acc)
+    min_score = float(args.min_score)
+    min_ie = float(args.min_ie)
     min_e = float(args.min_e)
 
     purified_matches = dict()
@@ -403,8 +408,9 @@ def filter_poor_hits(args, distinct_alignments, num_dropped):
         if query_header_desc not in purified_matches:
             purified_matches[query_header_desc] = list()
 
-        if hmm_match.acc >= min_acc and hmm_match.ceval <= min_e:
-            purified_matches[query_header_desc].append(hmm_match)
+        if hmm_match.eval <= min_e and hmm_match.ieval <= min_ie:
+            if hmm_match.acc >= min_acc and hmm_match.full_score >= min_score:
+                purified_matches[query_header_desc].append(hmm_match)
         else:
             num_dropped += 1
 

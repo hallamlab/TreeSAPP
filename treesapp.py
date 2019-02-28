@@ -186,8 +186,10 @@ def check_parser_arguments(args):
 
     # Parameterizing the hmmsearch output parsing:
     args.min_acc = 0.7
-    args.min_e = 0.0001
-    args.perc_aligned = 15
+    args.min_e = 1E-3
+    args.min_ie = 1E-2
+    args.min_score = 25
+    args.perc_aligned = 20
 
     return args
 
@@ -2934,7 +2936,9 @@ def main(argv):
         else:
             input_multi_fasta = args.fasta_input
         args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
+        logging.debug("Writing formatted FASTA file to " + args.formatted_input_file + "... ")
         formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
+        logging.debug("done.\n")
         ref_alignment_dimensions = get_alignment_dims(args, marker_build_dict)
 
         # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs

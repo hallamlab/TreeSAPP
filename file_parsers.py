@@ -61,7 +61,7 @@ def parse_ref_build_params(args):
                       "\n\t".join([mb.cog + '-' + mb.denominator for mb in missing_info]) + "\n")
     if skipped_lines:
         logging.debug("Skipped the following lines:\n\t" +
-                      "\n\t".join(skipped_lines) + "\n")
+                      "\n\t".join([line.strip() for line in skipped_lines]) + "\n")
 
     if len(marker_build_dict) == 0:
         logging.error("No reference package information was parsed.\n" +
@@ -80,7 +80,11 @@ def read_graftm_classifications(assignment_file):
     :return: Dictionary indexed by taxonomic lineage whose values are headers of classified sequences
     """
     assignments = dict()
-    assignments_handle = open(assignment_file, 'r')
+    try:
+        assignments_handle = open(assignment_file, 'r')
+    except IOError:
+        logging.error("Unable to open classification file '" + assignment_file + "' for reading.\n")
+        sys.exit(21)
     tax_lines = assignments_handle.readlines()
     assignments_handle.close()
 
@@ -141,7 +145,11 @@ def read_marker_classification_table(assignment_file):
     classified_lines = list()
     header = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
 
-    assignments_handle = open(assignment_file, 'r')
+    try:
+        assignments_handle = open(assignment_file, 'r')
+    except IOError:
+        logging.error("Unable to open classification file '" + assignment_file + "' for reading.\n")
+        sys.exit(21)
     # This is the header line
     if assignments_handle.readline() != header:
         logging.error("Header of assignments file is unexpected!\n")
@@ -187,13 +195,17 @@ def best_match(matches):
 def parse_domain_tables(args, hmm_domtbl_files, single=True):
     # Check if the HMM filtering thresholds have been set
     if not hasattr(args, "min_e"):
-        args.min_e = 0.01
+        args.min_e = 1E-4
+        args.min_ie = 0.01
         args.min_acc = 0.6
+        args.min_score = 20
         args.perc_aligned = 80
     # Print some stuff to inform the user what they're running and what thresholds are being used.
     info_string = "Filtering HMM alignments using the following thresholds:\n"
     info_string += "\tMinimum E-value = " + str(args.min_e) + "\n"
+    info_string += "\tMinimum i-Evalue = " + str(args.min_ie) + "\n"
     info_string += "\tMinimum acc = " + str(args.min_acc) + "\n"
+    info_string += "\tMinimum score = " + str(args.min_score) + "\n"
     info_string += "\tMinimum percentage of the HMM covered = " + str(args.perc_aligned) + "%\n"
     logging.debug(info_string)
 
