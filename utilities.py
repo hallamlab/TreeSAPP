@@ -213,7 +213,7 @@ def executable_dependency_versions(exe_dict):
     version_param = ["trimal", "mafft"]
     no_params = ["usearch", "papara"]
     help_param = ["hmmbuild", "hmmalign", "hmmsearch", "OD-seq"]
-    version_re = re.compile(r"[Vv]\d+.\d|version \d+.\d|\d\.\d\.\d")
+    version_re = re.compile(r"[Vv]\d+.\d|version \d+.\d|\d\.\d\.\d|HMMER")
 
     for exe in exe_dict:
         ##
