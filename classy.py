@@ -98,9 +98,9 @@ class MarkerBuild:
         self.num_reps = 0
         self.pfit = []
 
-    def load_build_params(self, build_param_line):
+    def load_build_params(self, build_param_line, n_fields):
         build_param_fields = build_param_line.split('\t')
-        if len(build_param_fields) != 11:
+        if len(build_param_fields) != n_fields:
             logging.error("Incorrect number of values (" + str(len(build_param_fields)) +
                           ") in ref_build_parameters.tsv. Line:\n" + build_param_line)
             sys.exit(17)
@@ -115,7 +115,7 @@ class MarkerBuild:
         self.tree_tool = build_param_fields[7]
         self.lowest_confident_rank = build_param_fields[9]
         self.update = build_param_fields[10]
-        self.description = build_param_fields[-1]
+        self.description = build_param_fields[-1].strip()
 
     def load_pfit_params(self, build_param_line):
         build_param_fields = build_param_line.split("\t")

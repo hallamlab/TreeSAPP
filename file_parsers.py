@@ -23,10 +23,9 @@ def parse_ref_build_params(args):
         logging.error("\tUnable to open " + ref_build_parameters + " for reading.\n")
         sys.exit(5)
 
-    header_re = re.compile("\t".join(["name", "code",
-                                      "molecule", "sub_model", "marker_info", "cluster_identity", "ref_sequences",
-                                      "tree_tool", "poly-params", "lowest_reliable_rank",
-                                      "last_updated", "description"]))
+    header_fields = ["name", "code", "molecule", "sub_model", "marker_info", "cluster_identity", "ref_sequences",
+                     "tree_tool", "poly-params", "lowest_reliable_rank", "last_updated", "description"]
+    header_re = re.compile("\t".join(header_fields))
     if not header_re.match(param_handler.readline().strip()):
         logging.error("Header of '" + ref_build_parameters + "' is unexpected!")
         sys.exit(5)
@@ -38,12 +37,11 @@ def parse_ref_build_params(args):
     for line in param_handler:
         if header_re.match(line):
             continue
-        line = line.strip()
         if line[0] == '#':
             skipped_lines.append(line)
             continue
         marker_build = MarkerBuild()
-        marker_build.load_build_params(line)
+        marker_build.load_build_params(line, len(header_fields))
         if args.targets != ["ALL"] and marker_build.denominator not in args.targets:
             skipped_lines.append(line)
         else:

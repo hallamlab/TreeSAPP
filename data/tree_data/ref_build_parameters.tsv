@@ -11,42 +11,43 @@ name	code	molecule	sub_model	marker_info	cluster_identity	ref_sequences	tree_too
 #RBsCO	C2000
 #OGFOxy	C3000
 #CitSyn	C4000
-#dsrA	S0001
-#dsrB	S0002
-#GH36	C0036
-#GH31	C0031
-#GH109	C0109
-#GH115	C0115
-p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	RAxML	-7.89721105542,5.97005476239	Families	04_Dec_2018	
-McrA	M0701	prot	PROTGAMMALG	functional	0.97	211	RAxML	-4.23498195165,6.04587850739	Classes	05_Dec_2018	
-McrB	M0702	prot	PROTGAMMALG	functional	0.97	158	RAxML	-4.37713960571,6.47636215433	Classes	05_Dec_2018	
-McrG	M0705	prot	PROTGAMMALG	functional	0.97	155	RAxML	-5.34975215825,6.50054249136	Genera	05_Dec_2018	
-napA	D0201	prot	PROTGAMMALG	functional	0.90	332	RAxML	-5.62216204958,6.47133135917	Classes	05_Dec_2018	
-narG	D0101	prot	PROTGAMMALG	functional	0.80	306	RAxML	-4.68685511996,6.4521489684	Phyla	06_Dec_2018	
-nifD	N0401	prot	PROTGAMMALG	functional	0.90	402	RAxML	-8.00376916521,6.14805307229	Orders	07_Dec_2018	
-nifH	N0402	prot	PROTGAMMALG	functional	0.95	301	RAxML	-5.11690385798,6.3598636109	Phyla	07_Dec_2018	
-nirK	D0301	prot	PROTGAMMALG	functional	0.97	120	RAxML	-10.4409734102,6.79842362998	Orders	07_Dec_2018	
-nirS	D0302	prot	PROTGAMMALG	functional	0.97	184	RAxML	-8.54743895765,6.47522244638	Classes	07_Dec_2018	
-norB	D0501	prot	PROTGAMMALG	functional	0.80	329	RAxML	-6.55817192009,6.35408905873	Orders	08_Dec_2018	
-norC	D0502	prot	PROTGAMMALG	functional	0.90	223	RAxML	-6.11646687169,6.71594870436	Classes	08_Dec_2018	
-RecA	P0001	prot	PROTGAMMALG	functional	0.80	1110	RAxML	-6.97127632726,6.18020218361	Classes	12_Dec_2018	
-GH94	C0094	prot	PROTGAMMALG	functional	0.90	486	FastTree	-4.27462347201,6.34905731298	Classes	16_Dec_2018	
-RecA	P0001	prot	PROTGAMMALG	taxonomic	0.80	1046	FastTree	-6.1365,6.5206	Kingdoms	16_Feb_2019	
-RpoB	P0002	prot	PROTGAMMALG	taxonomic	0.90	880	FastTree	-4.5705,6.4703	Phyla	16_Feb_2019	
-P00380	P0380	prot	PROTGAMMALG	taxonomic	0.80	3241	FastTree	-6.8321,6.9632	Phyla	23_Jan_2019	
-P00750	P0750	prot	PROTGAMMALG	taxonomic	0.60	627	FastTree	-2.8533,5.6604	Kingdoms	30_Jan_2019	
-P00687	P0687	prot	PROTGAMMALG	taxonomic	0.75	690	FastTree	-4.6668,6.8477	Kingdoms	01_Feb_2019	
-P01409	P1409	prot	PROTGAMMALG	taxonomic	0.75	1140	FastTree	-6.728,6.7503	Phyla	09_Feb_2019	
-P01200	P1200	prot	PROTGAMMALG	taxonomic	0.95	367	FastTree	-6.4485,6.4981	Phyla	22_Jan_2019	
-P04919	P4919	prot	PROTGAMMALG	taxonomic	0.90	507	FastTree	-5.0402,6.736	Phyla	26_Jan_2019	
-P01015	P1015	prot	PROTGAMMALG	taxonomic	0.80	346	FastTree	-7.4121,7.4943	Phyla	27_Jan_2019	
-P01092	P1092	prot	PROTGAMMALG	taxonomic	0.80	370	FastTree	-8.5752,7.2651	Phyla	27_Jan_2019	
-P01280	P1280	prot	PROTGAMMALG	taxonomic	0.80	380	FastTree	-7.5939,7.2953	Phyla	27_Jan_2019	
-P01655	P1655	prot	PROTGAMMALG	taxonomic	0.80	356	FastTree	-5.4169,7.0513	Phyla	27_Jan_2019	
-P00410	P0410	prot	PROTGAMMALG	taxonomic	0.75	1100	FastTree	-6.7953,6.4378	Phyla	04_Feb_2019	
-P01866	P1866	prot	PROTGAMMALG	taxonomic	0.90	247	FastTree	-3.1283,6.2489	Kingdoms	05_Feb_2019	
-P00900	P0900	prot	PROTGAMMALG	taxonomic	0.97	482	FastTree	-4.6903,6.3415	Classes	14_Feb_2019	
-P01157	P1157	prot	PROTGAMMALG	taxonomic	0.95	437	FastTree	-4.3297,6.9325	Phyla	15_Feb_2019	
+#dsrA	S0001	Dissimilatory sulfite reductase alpha subunit [EC:1.8.99.5]
+#dsrB	S0002	Dissimilatory sulfite reductase beta subunit [EC:1.8.99.5]
+#GH36	C0036	CAZy family 36: α-galactosidase (EC 3.2.1.22); α-N-acetylgalactosaminidase (EC 3.2.1.49); stachyose synthase (EC 2.4.1.67); raffinose synthase (EC 2.4.1.82)
+#GH31	C0031	Glycoside hydrolase family 31
+#GH109	C0109	Glycoside hydrolase family 109
+#GH115	C0115	Glycoside hydrolase family 115
+p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	RAxML	-7.89721105542,5.97005476239	Families	04_Dec_2018	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase
+McrA	M0701	prot	PROTGAMMALG	functional	0.97	211	RAxML	-4.23498195165,6.04587850739	Classes	05_Dec_2018	Methyl coenzyme M reductase alpha subunit
+McrB	M0702	prot	PROTGAMMALG	functional	0.97	158	RAxML	-4.37713960571,6.47636215433	Classes	05_Dec_2018	Methyl coenzyme M reductase beta subunit
+McrG	M0705	prot	PROTGAMMALG	functional	0.97	155	RAxML	-5.34975215825,6.50054249136	Genera	05_Dec_2018	Methyl coenzyme M reductase gamma subunit
+napA	D0201	prot	PROTGAMMALG	functional	0.90	332	RAxML	-5.62216204958,6.47133135917	Classes	05_Dec_2018	periplasmic nitrate reductase NapA
+narG	D0101	prot	PROTGAMMALG	functional	0.80	306	RAxML	-4.68685511996,6.4521489684	Phyla	06_Dec_2018	nitrate reductase / nitrite oxidoreductase, alpha subunit
+nifD	N0401	prot	PROTGAMMALG	functional	0.90	402	RAxML	-8.00376916521,6.14805307229	Orders	07_Dec_2018	nitrogenase molybdenum-iron protein alpha chain (K02586)
+nifH	N0402	prot	PROTGAMMALG	functional	0.95	301	RAxML	-5.11690385798,6.3598636109	Phyla	07_Dec_2018	nitrogenase iron protein NifH (K02588)
+nirK	D0301	prot	PROTGAMMALG	functional	0.97	120	RAxML	-10.4409734102,6.79842362998	Orders	07_Dec_2018	nitrite reductase (NO-forming)
+nirS	D0302	prot	PROTGAMMALG	functional	0.97	184	RAxML	-8.54743895765,6.47522244638	Classes	07_Dec_2018	nitrite reductase (NO-forming) / hydroxylamine reductase
+norB	D0501	prot	PROTGAMMALG	functional	0.80	329	RAxML	-6.55817192009,6.35408905873	Orders	08_Dec_2018	nitric oxide reductase subunit B
+norC	D0502	prot	PROTGAMMALG	functional	0.90	223	RAxML	-6.11646687169,6.71594870436	Classes	08_Dec_2018	nitric oxide reductase subunit C
+#RecA	P0001	prot	PROTGAMMALG	taxonomic	0.80	1110	RAxML	-6.97127632726,6.18020218361	Classes	12_Dec_2018	
+GH94	C0094	prot	PROTGAMMALG	functional	0.90	486	FastTree	-4.27462347201,6.34905731298	Classes	16_Dec_2018	Glycoside hydrolase family 94
+RecA	P0001	prot	PROTGAMMALG	taxonomic	0.85	1374	FastTree	-6.3313,6.6418	Phyla	18_Feb_2019	Bacterial Recombinase A
+RpoB	P0002	prot	PROTGAMMALG	taxonomic	0.90	880	FastTree	-4.5705,6.4703	Phyla	16_Feb_2019	Beta subunit of RNA polymerase
+RadA	P8423	prot	PROTGAMMALG	taxonomic	0.95	154	FastTree	-2.1944,6.3079	Kingdoms	19_Feb_2019	
+P00380	P0380	prot	PROTGAMMALG	taxonomic	0.80	3241	FastTree	-6.8321,6.9632	Phyla	23_Jan_2019	Ribosomal protein S9/S16
+P00750	P0750	prot	PROTGAMMALG	taxonomic	0.60	627	FastTree	-2.8533,5.6604	Kingdoms	30_Jan_2019	tRNA synthetases class I (R)
+P00687	P0687	prot	PROTGAMMALG	taxonomic	0.75	690	FastTree	-4.6668,6.8477	Kingdoms	01_Feb_2019	Ribosomal protein L1p/L10e family
+P01409	P1409	prot	PROTGAMMALG	taxonomic	0.75	1140	FastTree	-6.728,6.7503	Phyla	09_Feb_2019	tRNA synthetases class II core domain (F)
+P01200	P1200	prot	PROTGAMMALG	taxonomic	0.95	367	FastTree	-6.4485,6.4981	Phyla	22_Jan_2019	Ribosomal protein S28e
+P04919	P4919	prot	PROTGAMMALG	taxonomic	0.90	507	FastTree	-5.0402,6.736	Phyla	26_Jan_2019	Protein of unknown function (DUF655)
+P01015	P1015	prot	PROTGAMMALG	taxonomic	0.80	346	FastTree	-7.4121,7.4943	Phyla	27_Jan_2019	Ribosomal S3Ae family
+P01092	P1092	prot	PROTGAMMALG	taxonomic	0.80	370	FastTree	-8.5752,7.2651	Phyla	27_Jan_2019	Ribosomal protein S6e
+P01280	P1280	prot	PROTGAMMALG	taxonomic	0.80	380	FastTree	-7.5939,7.2953	Phyla	27_Jan_2019	Ribosomal protein L19e
+P01655	P1655	prot	PROTGAMMALG	taxonomic	0.80	356	FastTree	-5.4169,7.0513	Phyla	27_Jan_2019	Ribosomal protein L32
+P00410	P0410	prot	PROTGAMMALG	taxonomic	0.75	1100	FastTree	-6.7953,6.4378	Phyla	04_Feb_2019	Ribosomal protein S8
+P01866	P1866	prot	PROTGAMMALG	taxonomic	0.90	247	FastTree	-3.1283,6.2489	Kingdoms	05_Feb_2019	Putative diphthamide synthesis protein
+P00900	P0900	prot	PROTGAMMALG	taxonomic	0.97	482	FastTree	-4.6903,6.3415	Classes	14_Feb_2019	Ribosomal family S4e
+P01157	P1157	prot	PROTGAMMALG	taxonomic	0.95	437	FastTree	-4.3297,6.9325	Phyla	15_Feb_2019	Ribosomal protein L21e
 #McrA	M0701	prot	PROTGAMMALG	functional	0.97	211	FastTree	-4.08046639871,6.03601100802	Classes	04_Dec_2018	
 #McrB	M0702	prot	PROTGAMMALG	functional	0.97	157	FastTree	-4.82025271473,6.52717228329	Classes	04_Dec_2018	
 #McrG	M0705	prot	PROTGAMMALG	functional	0.97	155	FastTree	-5.23147387413,6.5926235222	Genera	04_Dec_2018	
@@ -59,3 +60,4 @@ P01157	P1157	prot	PROTGAMMALG	taxonomic	0.95	437	FastTree	-4.3297,6.9325	Phyla	1
 #norB	D0501	prot	PROTGAMMALG	functional	0.80	329	FastTree	-7.6070183552,6.48567258868	Orders	04_Dec_2018	
 #norC	D0502	prot	PROTGAMMALG	functional	0.90	223	FastTree	-6.61551453189,6.60317398186	Classes	04_Dec_2018	
 #p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	FastTree	-2.83232814805,5.67790899421	Families	04_Dec_2018	
+GH20	G0020	prot	PROTGAMMALG	functional	0.75	1159	FastTree	-4.689,6.3935	Phyla	26_Feb_2019	Glycoside hydrolase family 20
