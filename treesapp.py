@@ -71,6 +71,8 @@ def get_options():
                              ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
     parser.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna'],
                         help='the type of input sequences (prot = Protein; dna = Nucleotide [DEFAULT])')
+    parser.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
+                        help="HMM-threshold mode affects the number of query sequences that advance on to placement.")
     parser.add_argument("-l", "--min_likelihood", default=0.2, type=float,
                         help="The minimum likelihood weight ratio required for a RAxML placement. "
                              "[DEFAULT = 0.2]")
@@ -185,11 +187,16 @@ def check_parser_arguments(args):
         sys.exit()
 
     # Parameterizing the hmmsearch output parsing:
+    args.perc_aligned = 15
     args.min_acc = 0.7
-    args.min_e = 1E-3
-    args.min_ie = 1E-2
-    args.min_score = 25
-    args.perc_aligned = 20
+    if args.stringency == "relaxed":
+        args.min_e = 1E-2
+        args.min_ie = 1E-1
+        args.min_score = 15
+    else:
+        args.min_e = 1E-7
+        args.min_ie = 1E-5
+        args.min_score = 30
 
     return args
 
