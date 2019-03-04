@@ -73,9 +73,9 @@ def get_options():
                         help='the type of input sequences (prot = Protein; dna = Nucleotide [DEFAULT])')
     parser.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
                         help="HMM-threshold mode affects the number of query sequences that advance on to placement.")
-    parser.add_argument("-l", "--min_likelihood", default=0.2, type=float,
+    parser.add_argument("-l", "--min_likelihood", default=0.1, type=float,
                         help="The minimum likelihood weight ratio required for a RAxML placement. "
-                             "[DEFAULT = 0.2]")
+                             "[DEFAULT = 0.1]")
     parser.add_argument("-P", "--placement_parser", default="best", type=str, choices=["best", "lca"],
                         help="Algorithm used for parsing each sequence's potential RAxML placements. "
                              "[DEFAULT = 'best']")
@@ -193,10 +193,13 @@ def check_parser_arguments(args):
         args.min_e = 1E-2
         args.min_ie = 1E-1
         args.min_score = 15
-    else:
+    elif args.stringency == "strict":
         args.min_e = 1E-7
         args.min_ie = 1E-5
         args.min_score = 30
+    else:
+        logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
+        sys.exit(3)
 
     return args
 
@@ -2235,12 +2238,12 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
     return rpkm_output_file
 
 
-def summarize_placements_rpkm(args, rpkm_output_file, marker_build_dict):
+def summarize_placements_rpkm(args, abundance_dict, marker_build_dict):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
     Recapitulates MLTreeMap standard out summary
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :param rpkm_output_file: CSV file containing contig names and RPKM values
+    :param abundance_dict: A dictionary mapping predicted (not necessarily classified) seq_names to abundance values
     :type marker_build_dict: dict
     :param marker_build_dict:
     :return:
@@ -2252,10 +2255,9 @@ def summarize_placements_rpkm(args, rpkm_output_file, marker_build_dict):
     marker_rpkm_map = dict()
 
     # Pull the RPKM values for each marker predicted; seq_name format is contig|marker
-    rpkm_values = read_rpkm(rpkm_output_file)
-    for seq_name in rpkm_values:
+    for seq_name in abundance_dict:
         contig, marker = seq_name.split('|')
-        contig_rpkm_map[contig] = rpkm_values[seq_name]
+        contig_rpkm_map[contig] = abundance_dict[seq_name]
         if marker not in marker_contig_map:
             marker_contig_map[marker] = list()
         marker_contig_map[marker].append(contig)
@@ -2318,6 +2320,24 @@ def summarize_placements_rpkm(args, rpkm_output_file, marker_build_dict):
 
             cat_output.close()
             
+    return
+
+
+def abundify_tree_saps(tree_saps, abundance_dict):
+    abundance_mapped_acc = 0
+    for refpkg_code in tree_saps:
+        for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
+            seq_name = placed_seq.contig_name + '|' + placed_seq.name
+            # Filter out RPKMs for contigs not associated with the target marker
+            if seq_name in abundance_dict:
+                placed_seq.abundance = abundance_dict[seq_name]
+                abundance_mapped_acc += 1
+            else:
+                placed_seq.abundance = 0.0
+
+    if abundance_mapped_acc == 0:
+        logging.warning("No placed sequences with abundances identified.\n")
+
     return
 
 
@@ -2491,35 +2511,19 @@ def create_itol_labels(args, marker):
     return
 
 
-def generate_simplebar(target_marker, tree_protein_list, itol_bar_file, all_rpkm_values=None):
+def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     """
     From the basic RPKM output csv file, generate an iTOL-compatible simple bar-graph file for each leaf
 
-    :param all_rpkm_values: A dictionary mapping seq_names to RPKM floats
     :param target_marker:
     :param tree_protein_list: A list of TreeProtein objects, for single sequences
     :param itol_bar_file: The name of the file to write the simple-bar data for iTOL
     :return:
     """
-    rpkm_values = dict()
     leaf_rpkm_sums = dict()
 
-    if all_rpkm_values:
-        for seq_name in all_rpkm_values:
-            contig, marker = seq_name.split('|')
-            # Filter out RPKMs for contigs not associated with the target marker
-            if target_marker == marker:
-                rpkm_values[contig] = all_rpkm_values[seq_name]
-    else:
-        for tree_sap in tree_protein_list:
-            rpkm_values[tree_sap.contig_name] = 1.0
-
     for tree_sap in tree_protein_list:
-        if tree_sap.classified:
-            if tree_sap.contig_name in rpkm_values:
-                tree_sap.abundance = rpkm_values[tree_sap.contig_name]
-            else:
-                tree_sap.abundance = 0
+        if tree_sap.name == target_marker and tree_sap.classified:
             leaf_rpkm_sums = tree_sap.sum_rpkms_per_node(leaf_rpkm_sums)
 
     # Only make the file if there is something to write
@@ -2846,7 +2850,7 @@ def parse_raxml_output(args, marker_build_dict):
     return tree_saps, itol_data, unclassified_counts
 
 
-def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_output_file=None):
+def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data):
     """
     Function to create outputs for the interactive tree of life (iTOL) webservice.
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
@@ -2855,7 +2859,6 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
     :param tree_saps:
     :param marker_build_dict:
     :param itol_data:
-    :param rpkm_output_file:
     :return: None
     """
     logging.info("Generating inputs for iTOL... ")
@@ -2899,11 +2902,7 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, rpkm_outp
         for annotation_file in annotation_style_files:
             shutil.copy(annotation_file, itol_base_dir + marker)
         itol_bar_file = os.sep.join([args.output, "iTOL_output", marker, marker + "_abundance_simplebar.txt"])
-        if args.rpkm:
-            all_rpkm_values = read_rpkm(rpkm_output_file)
-            generate_simplebar(marker, tree_saps[denominator], itol_bar_file, all_rpkm_values)
-        else:
-            generate_simplebar(marker, tree_saps[denominator], itol_bar_file)
+        generate_simplebar(marker, tree_saps[denominator], itol_bar_file)
 
     logging.info("done.\n")
     if style_missing:
@@ -2999,7 +2998,7 @@ def main(argv):
     tree_saps, itol_data, unclassified_counts = parse_raxml_output(args, marker_build_dict)
     tree_saps = filter_placements(args, tree_saps, marker_build_dict, unclassified_counts)
 
-    abundance_file = None
+    abundance_dict = dict()
     if args.molecule == "dna":
         sample_name = '.'.join(os.path.basename(re.sub("_ORFs", '', args.fasta_input)).split('.')[:-1])
         orf_nuc_fasta = args.output_dir_final + sample_name + "_classified_seqs.fna"
@@ -3015,13 +3014,17 @@ def main(argv):
                              "Cannot create the nucleotide FASTA file of classified sequences!\n")
         if args.rpkm:
             sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
-            abundance_file = run_rpkm(args, sam_file, orf_nuc_fasta)
-            summarize_placements_rpkm(args, abundance_file, marker_build_dict)
+            rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
+            abundance_dict = read_rpkm(rpkm_output_file)
+            summarize_placements_rpkm(args, abundance_dict, marker_build_dict)
     else:
-        pass
+        for refpkg_code in tree_saps:
+            for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
+                abundance_dict[placed_seq.contig_name + '|' + placed_seq.name] = 1.0
 
+        abundify_tree_saps(tree_saps, abundance_dict)
     write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict)
-    produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data, abundance_file)
+    produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data)
     delete_files(args, 4)
 
     # STAGE 6: Optionally update the reference tree
