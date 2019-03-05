@@ -362,12 +362,16 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
     # TODO: Remove this necessity. Currently need to reformat and tally accessions like so but its a waste
     # Used for tallying the status of Entrez queries
     success = 0
+    rescued = 0
     bad_tax = 0
     bad_org = 0
-    rescued = 0
+    failed = 0
     accession_lineage_map = dict()
 
     for e_record in entrez_records_list:
+        if e_record.bitflag == 0:
+            failed += 1
+            continue
         accession_lineage_map[(e_record.accession, e_record.versioned)] = dict()
         accession_lineage_map[(e_record.accession, e_record.versioned)]["lineage"] = e_record.lineage
         accession_lineage_map[(e_record.accession, e_record.versioned)]["organism"] = e_record.organism
@@ -388,7 +392,8 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
     logging.debug("Queries mapped ideally = " + str(success) +
                   "\nQueries with organism unmapped = " + str(bad_org) +
                   "\nQueries with NCBI taxonomy ID unmapped = " + str(bad_tax) +
-                  "\nQueries mapped with alternative accessions = " + str(rescued) + "\n")
+                  "\nQueries mapped with alternative accessions = " + str(rescued) +
+                  "\nQueries that outright failed = " + str(failed) + "\n")
 
     return accession_lineage_map
 
