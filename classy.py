@@ -142,7 +142,7 @@ class ItolJplace:
     def __init__(self):
         self.contig_name = ""  # Sequence name (from FASTA header)
         self.name = ""  # Code name of the tree it mapped to (e.g. mcrA)
-        self.abundance = None  # Either the number of occurences, or the FPKM of that sequence
+        self.abundance = 0  # Either the number of occurences, or the FPKM of that sequence
         self.node_map = dict()  # A dictionary mapping internal nodes (Jplace) to all leaf nodes
         self.seq_len = 0
         ##
@@ -508,7 +508,7 @@ class ItolJplace:
         self.version = ""
         self.lineage_list = list()
         self.lct = ""
-        self.abundance = None
+        self.abundance = 0
 
 
 class TreeProtein(ItolJplace):
