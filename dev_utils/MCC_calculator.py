@@ -111,12 +111,17 @@ class ConfusionTest:
                     e_record.ncbi_tax = tax_id
                     e_record.bitflag = 3
                     entrez_records.append(e_record)
+                    self.tax_lineage_map[e_record.ncbi_tax] = "Root; "
 
         # Query the Entrez database for these unique taxonomy IDs
         fetch_lineages_from_taxids(entrez_records)
 
         for e_record in entrez_records:  # type: EntrezRecord
-            self.tax_lineage_map[e_record.ncbi_tax] = clean_lineage_string(e_record.lineage)
+            if not e_record.lineage:
+                logging.warning("Lineage information unavailable for taxonomy ID '" + e_record.ncbi_tax + "'\n")
+                self.tax_lineage_map[e_record.ncbi_tax] = ''
+            else:
+                self.tax_lineage_map[e_record.ncbi_tax] += clean_lineage_string(e_record.lineage)
         return
 
     def bin_true_positives_by_taxdist(self):
@@ -134,11 +139,15 @@ class ConfusionTest:
                 # Find the optimal taxonomic assignment
                 optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie,
                                                              self.tax_lineage_map[tp_inst.ncbi_tax])
+                if not optimal_taxon:
+                    logging.debug("Optimal taxonomic assignment '" + self.tax_lineage_map[tp_inst.ncbi_tax] + "' for " +
+                                  tp_inst.name + " not found in reference hierarchy.\n")
+                    continue
                 tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
                 if status > 0:
-                    logging.debug("Lineages didn't converge between:\n" +
-                                  tp_inst.assigned_lineage + "\n" +
-                                  self.tax_lineage_map[tp_inst.ncbi_tax] + "\n")
+                    logging.debug("Lineages didn't converge between:\n'" +
+                                  tp_inst.assigned_lineage + "' and '" + optimal_taxon +
+                                  "' (taxid: " + tp_inst.ncbi_tax + ")\n")
                 try:
                     self.dist_wise_tp[marker][tp_inst.tax_dist].append(tp_inst.name)
                 except KeyError:
@@ -508,7 +517,7 @@ def main():
             if pkg_name in pkg_name_dict:
                 try:
                     tax_ids_file = glob(os.sep.join([gpkg, marker + ".gpkg.refpkg", marker + "*_taxonomy.csv"])).pop()
-                    test_obj.ref_packages[pkg_name].taxonomic_tree = grab_graftm_taxa(tax_ids_file)
+                    test_obj.ref_packages[pkg_name].taxa_trie = grab_graftm_taxa(tax_ids_file)
                 except IndexError:
                     logging.warning("No GraftM taxonomy file found for " + marker + ". Is this refpkg incomplete?\n")
 

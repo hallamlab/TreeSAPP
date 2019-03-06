@@ -2556,13 +2556,12 @@ def lowest_confident_taxonomy(lct, depth):
     :return: String representing 'confident' taxonomic assignment for the sequence
     """
     # Sequence likely isn't a FP but is highly divergent from reference set
-    if depth < 0:
-        return "Root"
+    confident_assignment = "Root"
+    if depth < 1:
+        return confident_assignment
 
     purified_lineage_list = clean_lineage_string(lct).split("; ")
     confident_assignment = "; ".join(purified_lineage_list[:depth])
-    if not confident_assignment:
-        confident_assignment = "Root"
 
     # For debugging
     # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
@@ -2615,6 +2614,7 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
                 unclassified_counts[tree_sap.name] = 0
             if not tree_sap.placements:
                 unclassified_counts[tree_sap.name] += 1
+                continue
             elif len(tree_sap.placements) > 1:
                 logging.warning("More than one placement for a single contig:\n" +
                                 tree_sap.summarize())
@@ -2704,13 +2704,10 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
     for denominator in tree_saps:
         # All the leaves for that tree [number, translation, lineage]
         leaves = tree_numbers_translation[denominator]
-        lineage_complete = False
         lineage_list = list()
         # Test if the reference set have lineage information
         for leaf in leaves:
             lineage_list.append(clean_lineage_string(leaf.lineage).split('; '))
-            if leaf.complete:
-                lineage_complete = True
             leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
@@ -2728,22 +2725,18 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
                 logging.error("Unable to find lineage information for marker " +
                               denominator + ", contig " + tree_sap.contig_name + "!\n")
                 sys.exit(3)
-            if len(tree_sap.lineage_list) == 1:
+            elif len(tree_sap.lineage_list) == 1:
                 tree_sap.lct = tree_sap.lineage_list[0]
                 tree_sap.wtd = 0.0
-            if len(tree_sap.lineage_list) > 1:
-                if lineage_complete:
-                    lca = tree_sap.megan_lca()
-                    # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
-                    tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
-                    tree_sap.wtd, status = weighted_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
-                    if status > 0:
-                        tree_sap.summarize()
-                else:
-                    tree_sap.lct = "Lowest common ancestor of: "
-                    tree_sap.lct += ', '.join(tree_sap.lineage_list)
-                    tree_sap.wtd = 1
+            else:
+                lca = tree_sap.megan_lca()
+                # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
+                tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
+                tree_sap.wtd, status = weighted_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                if status > 0:
+                    tree_sap.summarize()
 
+            tree_sap.lct = "Root; " + tree_sap.lct
             # tree_sap.summarize()
             tab_out_string += '\t'.join([sample_name,
                                          tree_sap.contig_name,
@@ -3022,7 +3015,7 @@ def main(argv):
             for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
                 abundance_dict[placed_seq.contig_name + '|' + placed_seq.name] = 1.0
 
-        abundify_tree_saps(tree_saps, abundance_dict)
+    abundify_tree_saps(tree_saps, abundance_dict)
     write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict)
     produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data)
     delete_files(args, 4)
