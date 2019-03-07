@@ -1308,28 +1308,35 @@ def check_for_removed_sequences(args, trimmed_msa_files: dict, msa_files: dict, 
     qc_ma_dict = dict()
     num_successful_alignments = 0
     discarded_seqs_string = ""
+    trimmed_away_seqs = dict()
+    untrimmed_msa_failed = []
     logging.debug("Validating trimmed multiple sequence alignment files... ")
 
     for denominator in sorted(trimmed_msa_files.keys()):
         marker = marker_build_dict[denominator].cog
+        trimmed_away_seqs[marker] = 0
         # Create a set of the reference sequence names
         ref_headers = get_headers(os.sep.join([args.treesapp, "data", "alignment_data", marker + ".fa"]))
         unique_refs = set([re.sub('_' + re.escape(marker), '', x)[1:] for x in ref_headers])
         msa_passed, msa_failed, summary_str = validate_alignment_trimming(trimmed_msa_files[denominator], unique_refs,
                                                                           True, args.min_seq_length)
-        if len(msa_failed) > 0:
-            untrimmed_msa_failed = []
-            # Get the untrimmed multiple alignment files for the failures
-            for trimmed_msa_file in msa_failed:
-                try:
-                    prefix, tool = re.search(r"([A-Z0-9]+_.*)-(BMGE|trimAl).fasta$", trimmed_msa_file).groups()
-                except TypeError:
-                    logging.error("Unexpected file name format for a trimmed MSA.\n")
-                    sys.exit(3)
-                # Use the prefix of the trimmed MSA file to find the matching untrimmed MSA file
-                for msa_file in msa_files[denominator]:
-                    if re.search(prefix, msa_file):
+
+        # Report the number of sequences that are removed by BMGE
+        for trimmed_msa_file in trimmed_msa_files[denominator]:
+            try:
+                prefix, tool = re.search(r"(" + re.escape(marker) + "_.*_group\d+)-(BMGE|trimAl).fasta$",
+                                         os.path.basename(trimmed_msa_file)).groups()
+            except TypeError:
+                logging.error("Unexpected file name format for a trimmed MSA.\n")
+                sys.exit(3)
+            for msa_file in msa_files[denominator]:
+                if re.search(re.escape(prefix) + '\.', msa_file):
+                    if trimmed_msa_file in msa_failed:
                         untrimmed_msa_failed.append(msa_file)
+                    trimmed_away_seqs[marker] += len(set(get_headers(msa_file)).difference(set(get_headers(trimmed_msa_file))))
+                    break
+
+        if len(msa_failed) > 0:
             if len(untrimmed_msa_failed) != len(msa_failed):
                 logging.error("Not all of the failed, trimmed MSA files were mapped to the original MSAs.\n")
                 sys.exit(3)
@@ -1341,7 +1348,11 @@ def check_for_removed_sequences(args, trimmed_msa_files: dict, msa_files: dict, 
         discarded_seqs_string += summary_str
 
     logging.debug("done.\n")
-    logging.debug("\tSequences <" + str(args.min_seq_length) + " characters removed:" + discarded_seqs_string + "\n")
+    logging.debug("\tSequences removed during trimming:\n\t\t" +
+                  '\n\t\t'.join([k + ": " + str(trimmed_away_seqs[k]) for k in trimmed_away_seqs.keys()]) + "\n")
+
+    logging.debug("\tSequences <" + str(args.min_seq_length) + " characters removed after trimming:" +
+                  discarded_seqs_string + "\n")
 
     if num_successful_alignments == 0:
         logging.error("No quality alignment files to analyze after trimming. Exiting now.\n")
@@ -2588,7 +2599,7 @@ def enumerate_taxonomic_lineages(lineage_list):
     return taxonomic_counts
 
 
-def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
+def filter_placements(args, tree_saps, marker_build_dict):
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -2596,24 +2607,33 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param tree_saps: A dictionary containing TreeProtein objects
     :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
-    :param unclassified_counts: A dictionary tracking the number of putative markers that were not classified
     :return:
     """
 
     logging.info("Filtering low-quality placements... ")
-    distant_seqs = dict()
+    unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
 
     for denominator in tree_saps:
         marker = marker_build_dict[denominator].cog
-        distant_seqs[marker] = list()
+        unclassified_seqs[marker] = dict()
+        unclassified_seqs[marker]["low_lwr"] = list()
+        unclassified_seqs[marker]["np"] = list()
+        unclassified_seqs[marker]["far_beyond"] = list()
+        unclassified_seqs[marker]["beyond"] = list()
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker + "_tree.txt"]))
         for tree_sap in tree_saps[denominator]:
             # max_dist_threshold equals the maximum path length from root to tip in its clade
             max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold, but good for first pass
-            if tree_sap.name not in unclassified_counts.keys():
-                unclassified_counts[tree_sap.name] = 0
+            tree_sap.filter_min_weight_threshold(args.min_likelihood)
+            if not tree_sap.classified:
+                unclassified_seqs[marker]["low_lwr"].append(tree_sap)
+                # logging.debug("A putative " + marker +
+                #               " sequence has been unclassified due to low placement likelihood weights. " +
+                #               "More info:\n" +
+                #               tree_sap.summarize())
+                continue
             if not tree_sap.placements:
-                unclassified_counts[tree_sap.name] += 1
+                unclassified_seqs[tree_sap.name]["np"].append(tree_sap)
                 continue
             elif len(tree_sap.placements) > 1:
                 logging.warning("More than one placement for a single contig:\n" +
@@ -2621,7 +2641,7 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
                 tree_sap.classified = False
                 continue
             elif tree_sap.placements[0] == '{}':
-                unclassified_counts[tree_sap.name] += 1
+                unclassified_seqs[marker]["np"].append(tree_sap)
                 tree_sap.classified = False
                 continue
 
@@ -2647,8 +2667,7 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
             # Discard this placement as a false positive if the avg_evo_dist exceeds max_dist_threshold
             if pendant_length > max_dist_threshold:
                 # print("Global", tree_sap.summarize())
-                unclassified_counts[tree_sap.name] += 1
-                distant_seqs[marker].append(tree_sap.contig_name)
+                unclassified_seqs[tree_sap.name]["far_beyond"].append(tree_sap)
                 tree_sap.classified = False
                 continue
 
@@ -2660,21 +2679,20 @@ def filter_placements(args, tree_saps, marker_build_dict, unclassified_counts):
                 leaf, dist = parent.get_farthest_leaf()
                 clade_tip_distances.append(dist)
             # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
-            if pendant_length > max(clade_tip_distances) * 1.2 and \
-                    rank_recommender(pendant_length, marker_build_dict[denominator].pfit) < 0:
-                unclassified_counts[tree_sap.name] += 1
-                distant_seqs[marker].append(tree_sap.contig_name)
+            if pendant_length > max(clade_tip_distances) * 2 and \
+                    rank_recommender(pendant_length, marker_build_dict[denominator].pfit) < -2:
+                unclassified_seqs[tree_sap.name]["beyond"].append(tree_sap)
                 tree_sap.classified = False
                 # print("Local", tree_sap.summarize())
     logging.info("done.\n")
 
-    for marker in distant_seqs:
+    declass_summary = ""
+    for marker in unclassified_seqs:
         # unclassified_counts[marker] will always be >= distant_seqs[marker]
-        if unclassified_counts[marker] > 0:
-            logging.debug("\t" + str(unclassified_counts[marker]) + " " + marker +
-                          " sequence(s) detected but not classified.\n" +
-                          marker + " queries with extremely long placement distances:\n\t" +
-                          "\n\t".join(distant_seqs[marker]) + "\n")
+        for declass in unclassified_seqs[marker]:
+            declass_summary += marker + '\t' + declass + '\t' + str(len(unclassified_seqs[marker][declass])) + "\n"
+
+    logging.debug(declass_summary)
 
     return tree_saps
 
@@ -2774,15 +2792,12 @@ def parse_raxml_output(args, marker_build_dict):
     jplace_collection = organize_jplace_files(jplace_files)
     itol_data = dict()  # contains all pqueries, indexed by marker name (e.g. McrA, nosZ, 16srRNA)
     tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
-    unclassified_counts = dict()  # A dictionary tracking the number of putative markers that were not classified
     # Use the jplace files to guide which markers iTOL outputs should be created for
     classified_seqs = 0
     for denominator in jplace_collection:
         marker = marker_build_dict[denominator].cog
         if denominator not in tree_saps:
             tree_saps[denominator] = list()
-        if marker not in unclassified_counts.keys():
-            unclassified_counts[marker] = 0
         for filename in jplace_collection[denominator]:
             # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
             jplace_data = jplace_parser(filename)
@@ -2791,14 +2806,6 @@ def parse_raxml_output(args, marker_build_dict):
             # Filter the placements, determine the likelihood associated with the harmonized placement
             for pquery in tree_placement_queries:
                 pquery.name = marker
-                pquery.filter_min_weight_threshold(args.min_likelihood)
-                if not pquery.classified:
-                    unclassified_counts[marker] += 1
-                    logging.debug("A putative " + marker +
-                                  " sequence has been unclassified due to low placement likelihood weights. " +
-                                  "More info:\n" +
-                                  pquery.summarize())
-                    continue
                 seq_info = re.match(r"(.*)\|" + re.escape(marker) + "\|(\\d+)_(\\d+)$", pquery.contig_name)
                 if seq_info:
                     pquery.contig_name = seq_info.group(1)
@@ -2840,7 +2847,7 @@ def parse_raxml_output(args, marker_build_dict):
     logging.debug("\t" + str(len(jplace_files)) + " RAxML output files.\n" +
                   "\t" + str(classified_seqs) + " sequences classified by TreeSAPP.\n\n")
 
-    return tree_saps, itol_data, unclassified_counts
+    return tree_saps, itol_data
 
 
 def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data):
@@ -2988,8 +2995,8 @@ def main(argv):
         # STAGE 5: Run RAxML to compute the ML estimations
         utilities.launch_evolutionary_placement_queries(args, phy_files, marker_build_dict)
         sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)
-    tree_saps, itol_data, unclassified_counts = parse_raxml_output(args, marker_build_dict)
-    tree_saps = filter_placements(args, tree_saps, marker_build_dict, unclassified_counts)
+    tree_saps, itol_data = parse_raxml_output(args, marker_build_dict)
+    tree_saps = filter_placements(args, tree_saps, marker_build_dict)
 
     abundance_dict = dict()
     if args.molecule == "dna":
