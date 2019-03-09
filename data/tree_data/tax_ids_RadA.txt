@@ -1,0 +1,154 @@
+1	Candidatus Korarchaeum cryptofilum | ACB07958	Archaea; Candidatus Korarchaeota; Candidatus Korarchaeum; Candidatus Korarchaeum cryptofilum
+2	Acidilobus | AMD30524	Archaea; Crenarchaeota; Thermoprotei; Acidilobales; Acidilobaceae; Acidilobus
+3	Acidilobus saccharovorans | ADL18877	Archaea; Crenarchaeota; Thermoprotei; Acidilobales; Acidilobaceae; Acidilobus; Acidilobus saccharovorans
+4	Caldisphaera lagunensis | AFZ69803	Archaea; Crenarchaeota; Thermoprotei; Acidilobales; Caldisphaeraceae; Caldisphaera; Caldisphaera lagunensis
+5	Aeropyrum | BAB83902	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Aeropyrum
+6	Desulfurococcus amylolyticus | AFL67185	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Desulfurococcus; Desulfurococcus amylolyticus
+7	Desulfurococcus mucosus | ADV65506	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Desulfurococcus; Desulfurococcus mucosus
+8	Ignicoccus hospitalis | ABU82185	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Ignicoccus; Ignicoccus hospitalis
+9	Ignicoccus islandicus | ALU11739	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Ignicoccus; Ignicoccus islandicus
+10	Ignisphaera aggregans | ADM28264	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Ignisphaera; Ignisphaera aggregans
+11	Staphylothermus hellenicus | ADI32577	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Staphylothermus
+12	Thermogladius calderae | AFK50655	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Thermogladius; Thermogladius calderae
+13	Thermosphaera aggregans | ADG91035	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Desulfurococcaceae; Thermosphaera; Thermosphaera aggregans
+14	Hyperthermus butylicus | ABM80815	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Pyrodictiaceae; Hyperthermus; Hyperthermus butylicus
+15	Pyrodictium | ALL01741	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Pyrodictiaceae; Pyrodictium
+16	Pyrolobus fumarii | AEM38842	Archaea; Crenarchaeota; Thermoprotei; Desulfurococcales; Pyrodictiaceae; Pyrolobus; Pyrolobus fumarii
+17	Acidianus hospitalis | AEE93658	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Acidianus; Acidianus hospitalis
+18	Candidatus Aramenus | AHM94055	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Candidatus Aramenus
+19	Metallosphaera sedula | ABP94186	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Metallosphaera
+20	Sulfolobus | ALU28991	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Sulfolobus
+21	Sulfolobus islandicus | ADX83175	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Sulfolobus; Sulfolobus islandicus
+22	Sulfurisphaera tokodaii | BAB65267	Archaea; Crenarchaeota; Thermoprotei; Sulfolobales; Sulfolobaceae; Sulfurisphaera; Sulfurisphaera tokodaii
+23	Thermofilum | AKG39367	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermofilaceae; Thermofilum
+24	Thermofilum carboxyditrophus | AJB41429	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermofilaceae; Thermofilum; Thermofilum carboxyditrophus
+25	Thermofilum pendens | ABL78417	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermofilaceae; Thermofilum; Thermofilum pendens
+26	Caldivirga maquilingensis | ABW01946	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Caldivirga; Caldivirga maquilingensis
+27	Pyrobaculum | AET32809	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum
+28	Pyrobaculum islandicum | ABL87891	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum
+29	Pyrobaculum islandicum | ABL87664	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum; Pyrobaculum islandicum
+30	Pyrobaculum neutrophilum | ACB40556	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum; Pyrobaculum neutrophilum
+31	Pyrobaculum oguniense | AFA38836	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum; Pyrobaculum oguniense
+32	Pyrobaculum oguniense | AFA40155	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Pyrobaculum; Pyrobaculum oguniense
+33	Thermoproteus tenax | CCC81801	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermoproteus; Thermoproteus tenax
+34	Thermoproteus tenax | CCC82309	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermoproteus
+35	Thermoproteus uzoniensis | AEA12419	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Thermoproteus; Thermoproteus uzoniensis
+36	Vulcanisaeta distributa | ADN51878	Archaea; Crenarchaeota; Thermoprotei; Thermoproteales; Thermoproteaceae; Vulcanisaeta
+37	Aciduliprofundum | AGB04503	Archaea; Euryarchaeota; Aciduliprofundum
+38	Aciduliprofundum boonei | ADD08241	Archaea; Euryarchaeota; Aciduliprofundum; Aciduliprofundum boonei
+39	Archaeoglobus fulgidus | AIG99083	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus fulgidus
+40	Archaeoglobus fulgidus | AIG97870	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus fulgidus
+41	Archaeoglobus fulgidus | AIG98462	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus fulgidus
+42	Archaeoglobus sulfaticallidus | AGK61855	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus sulfaticallidus
+43	Archaeoglobus veneficus | AEA46211	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Archaeoglobus; Archaeoglobus veneficus
+44	Ferroglobus placidus | ADC65598	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Ferroglobus; Ferroglobus placidus
+45	Geoglobus | AKG91790	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Geoglobus
+46	Geoglobus | AIY90781	Archaea; Euryarchaeota; Archaeoglobi; Archaeoglobales; Archaeoglobaceae; Geoglobus
+47	Haloarcula hispanica | AHB66453	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Haloarculaceae; Haloarcula
+48	Halorhabdus tiamatea | ERJ05504	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Haloarculaceae; Halorhabdus; Halorhabdus tiamatea
+49	Halorhabdus utahensis | ACV11090	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Haloarculaceae; Halorhabdus; Halorhabdus utahensis
+50	Haladaptatus | KZN25622	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Haladaptatus
+51	Halarchaeum acidiphilum | GAD52815	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halarchaeum; Halarchaeum acidiphilum
+52	Halobacterium | CQH59503	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halobacterium
+53	Halobacterium sp. DL1 | EHB60885	Archaea; Euryarchaeota; Halobacteria; Halobacteriales; Halobacteriaceae; Halobacterium
+54	Haloterrigena turkmenica | ADB61040	Archaea; Euryarchaeota; Halobacteria; Natrialbales; Natrialbaceae; Haloterrigena; Haloterrigena turkmenica
+55	Methanobacterium | SCG86192	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+56	Methanobacterium | AEG19322	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+57	Methanobacterium | ADZ08418	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+58	Methanobacterium | AEG18785	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+59	Methanobacterium | SCG86779	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+60	Methanobacterium | CDG66032	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+61	Methanobacterium | ADZ08839	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobacterium
+62	Methanobrevibacter | KZX13844	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+63	Methanobrevibacter | ALT70009	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+64	Methanobrevibacter | AGN16192	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+65	Methanobrevibacter | AMD16624	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+66	Methanobrevibacter | ALT68167	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+67	Methanobrevibacter | KZX11668	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+68	Methanobrevibacter | KZX11322	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+69	Methanobrevibacter | KZX15462	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+70	Methanobrevibacter | AMK16111	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+71	Methanobrevibacter | KZX11174	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+72	Methanobrevibacter | AGN17549	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+73	Methanobrevibacter | KZX10294	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+74	Methanobrevibacter | AMD16847	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+75	Methanobrevibacter | KZX16137	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+76	Methanobrevibacter | KZX13886	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter
+77	Methanobrevibacter ruminantium | ADC45967	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter; Methanobrevibacter ruminantium
+78	Methanobrevibacter smithii | EEE42562	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter; Methanobrevibacter smithii
+79	Methanobrevibacter smithii | ABQ87538	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanobrevibacter; Methanobrevibacter smithii
+80	Methanosphaera stadtmanae | ABC57858	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanosphaera; Methanosphaera stadtmanae
+81	Methanosphaera stadtmanae | ABC56772	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanosphaera; Methanosphaera stadtmanae
+82	Methanothermobacter marburgensis | ADL59338	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanobacteriaceae; Methanothermobacter; Methanothermobacter marburgensis
+83	Methanothermus fervidus | ADP77721	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanothermaceae; Methanothermus; Methanothermus fervidus
+84	Methanothermus fervidus | ADP76985	Archaea; Euryarchaeota; Methanobacteria; Methanobacteriales; Methanothermaceae; Methanothermus; Methanothermus fervidus
+85	Methanocaldococcus | AIJ05022	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+86	Methanocaldococcus fervens | ACV23945	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus; Methanocaldococcus fervens
+87	Methanocaldococcus fervens | ACV24941	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus
+88	Methanocaldococcus infernus | ADG12858	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus; Methanocaldococcus infernus
+89	Methanocaldococcus jannaschii | AAB98241	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus; Methanocaldococcus jannaschii
+90	Methanocaldococcus vulcanius M7 | EET29030	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanocaldococcus; Methanocaldococcus vulcanius
+91	Methanotorris igneus | AEF95564	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanocaldococcaceae; Methanotorris; Methanotorris igneus
+92	Methanococcus aeolicus | ABR56560	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus; Methanococcus aeolicus
+93	Methanococcus maripaludis | ABO34684	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus
+94	Methanococcus vannielii | ABR54444	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus; Methanococcus vannielii
+95	Methanococcus voltae | ADI36504	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus; Methanococcus voltae
+96	Methanococcus voltae | AAC23499	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanococcus; Methanococcus voltae
+97	Methanothermococcus okinawensis | AEH06205	Archaea; Euryarchaeota; Methanococci; Methanococcales; Methanococcaceae; Methanothermococcus; Methanothermococcus okinawensis
+98	Methanocella arvoryzae | CAJ36092	Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella; Methanocella arvoryzae
+99	Methanocella arvoryzae | CAJ36315	Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella
+100	Methanocella conradii | AFC99402	Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella; Methanocella conradii
+101	Methanocella paludicola | BAI62898	Archaea; Euryarchaeota; Methanomicrobia; Methanocellales; Methanocellaceae; Methanocella; Methanocella paludicola
+102	Methanocorpusculum labreanum | ABN06810	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanocorpusculaceae; Methanocorpusculum; Methanocorpusculum labreanum
+103	Methanoculleus | CVK31797	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus
+104	Methanoculleus marisnigri | ABN57844	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanoculleus; Methanoculleus marisnigri
+105	Methanolacinia petrolearia | ADN35480	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae; Methanolacinia; Methanolacinia petrolearia
+106	Methanoregula boonei | ABS56613	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula; Methanoregula boonei
+107	Methanoregula formicica | AGB01812	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula; Methanoregula formicica
+108	Methanoregula formicica | AGB01303	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanoregula; Methanoregula formicica
+109	Methanosphaerula palustris | ACL15644	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanosphaerula; Methanosphaerula palustris
+110	Methanosphaerula palustris | ACL15436	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanoregulaceae; Methanosphaerula; Methanosphaerula palustris
+111	Methanospirillum hungatei | ABD42632	Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanospirillaceae; Methanospirillum; Methanospirillum hungatei
+112	Methanosaeta harundinacea | AET63826	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix; Methanosaeta harundinacea
+113	Methanothrix soehngenii | AEB69218	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix; Methanothrix soehngenii
+114	Methanothrix thermoacetophila | ABK14673	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosaetaceae; Methanothrix; Methanothrix thermoacetophila
+115	Methanococcoides burtonii | ABE52909	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides; Methanococcoides burtonii
+116	Methanococcoides methylutens | AKB84305	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanococcoides; Methanococcoides methylutens
+117	Methanohalobium evestigatum | ADI75006	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalobium; Methanohalobium evestigatum
+118	Methanohalophilus mahii | ADE35780	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus; Methanohalophilus mahii
+119	Methanohalophilus mahii | ADE35849	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanohalophilus; Methanohalophilus mahii
+120	Methanolobus psychrophilus | AFV24204	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanolobus; Methanolobus psychrophilus
+121	Methanomethylovorans hollandica | AGB50444	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanomethylovorans; Methanomethylovorans hollandica
+122	Methanosalsum zhilinae | AEH61765	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosalsum; Methanosalsum zhilinae
+123	Methanosarcina | AKB25839	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+124	Methanosarcina barkeri | AKB54962	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+125	Methanosarcina horonobensis | AKB79568	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+126	Methanosarcina lacustris | AKB75633	Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; Methanosarcinaceae; Methanosarcina
+127	Methanopyrus kandleri | AAM02655	Archaea; Euryarchaeota; Methanopyri; Methanopyrales; Methanopyraceae; Methanopyrus; Methanopyrus kandleri
+128	Palaeococcus pacificus | AIF70426	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae; Palaeococcus; Palaeococcus pacificus
+129	Pyrococcus abyssi | CAB49165	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae
+130	Thermococcus | ALM76071	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae; Thermococcus
+131	Thermococcus | AMQ18706	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae; Thermococcus
+132	Thermococcus | EEB73463	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae; Thermococcus
+133	Thermococcus | AEK73333	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae; Thermococcus
+134	Thermococcus | KPU63908	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae; Thermococcus
+135	Thermococcus onnurineus | ACJ17137	Archaea; Euryarchaeota; Thermococci; Thermococcales; Thermococcaceae; Thermococcus; Thermococcus onnurineus
+136	Candidatus Methanomethylophilus | KUE73989	Archaea; Euryarchaeota; Thermoplasmata; Methanomassiliicoccales; Candidatus Methanomethylophilaceae; Candidatus Methanomethylophilus
+137	Candidatus Methanomethylophilus alvus | AGI85011	Archaea; Euryarchaeota; Thermoplasmata; Methanomassiliicoccales; Candidatus Methanomethylophilaceae; Candidatus Methanomethylophilus; Candidatus Methanomethylophilus alvus
+138	Candidatus Methanoplasma | AIZ56959	Archaea; Euryarchaeota; Thermoplasmata; Methanomassiliicoccales; Methanomassiliicoccaceae; Candidatus Methanoplasma
+139	Candidatus Methanomassiliicoccus intestinalis | AGN25968	Archaea; Euryarchaeota; Thermoplasmata; Methanomassiliicoccales; Methanomassiliicoccaceae; Methanomassiliicoccus; Candidatus Methanomassiliicoccus intestinalis
+140	Acidiplasma | KPV47637	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Ferroplasmaceae; Acidiplasma
+141	Ferroplasma | ARD84462	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Ferroplasmaceae; Ferroplasma
+142	Picrophilus torridus | AAT43326	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Picrophilaceae; Picrophilus; Picrophilus torridus
+143	Thermoplasma volcanium | BAB59598	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; Thermoplasmataceae; Thermoplasma
+144	unclassified Thermoplasmatales miscellaneous | AGI47285	Archaea; Euryarchaeota; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
+145	unclassified Thermoplasmata | AMH95300	Archaea; Euryarchaeota; Thermoplasmata; unclassified Thermoplasmata
+146	Candidatus Nanopusillus | AMD29742	Archaea; Nanoarchaeota; Nanoarchaeales; Nanopusillaceae; Candidatus Nanopusillus
+147	Cenarchaeum | AAD16063	Archaea; Thaumarchaeota; Cenarchaeales; Cenarchaeaceae; Cenarchaeum
+148	Nitrosopumilus | AJW70191	Archaea; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus
+149	Candidatus Nitrosocosmicus | ALI35023	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Candidatus Nitrosocosmicus
+150	Candidatus Nitrosocosmicus | ALI35483	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Candidatus Nitrosocosmicus
+151	Candidatus Nitrososphaera gargensis | AFU59445	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera; Candidatus Nitrososphaera gargensis
+152	Candidatus Nitrososphaera gargensis | AFU58602	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera; Candidatus Nitrososphaera gargensis
+153	Nitrososphaera viennensis | AIC17118	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera
+154	Nitrososphaera viennensis | AIC14740	Archaea; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera
