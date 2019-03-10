@@ -89,6 +89,23 @@ class ConfusionTest:
         summary_string += "\tTrue negatives\t\t" + str(self.get_true_negatives(refpkg_name)) + "\n"
         return summary_string
 
+    def populate_tax_lineage_map(self, classified_seq_list, records_list, group=1):
+        for seq_name in classified_seq_list:  # type: str
+            try:
+                tax_id = self.header_regex.search(seq_name).group(group)
+            except (KeyError, TypeError):
+                logging.error("Header '" + str(seq_name) + "' in test FASTA doesn't match the supported format.\n")
+                sys.exit(5)
+
+            # Only make Entrez records for new NCBI taxonomy IDs
+            if tax_id not in self.tax_lineage_map:
+                e_record = EntrezRecord(seq_name, "")
+                e_record.ncbi_tax = tax_id
+                e_record.bitflag = 3
+                records_list.append(e_record)
+                self.tax_lineage_map[e_record.ncbi_tax] = "Root; "
+        return records_list
+
     def retrieve_lineages(self, group=1):
         if not self.header_regex:
             logging.error("Unable to parse taxonomic identifiers from header without a regular expression.\n")
@@ -97,21 +114,10 @@ class ConfusionTest:
         # Gather the unique taxonomy IDs and store in EntrezRecord instances
         entrez_records = list()
         for marker in self.tp:
-            for tp_seq in self.tp[marker]:  # type: ClassifiedSequence
-                header = tp_seq.name
-                try:
-                    tax_id = self.header_regex.search(header).group(group)
-                except (KeyError, TypeError):
-                    logging.error("Header '" + str(header) + "' in test FASTA doesn't match the supported format.\n")
-                    sys.exit(5)
-
-                # Only make Entrez records for new NCBI taxonomy IDs
-                if tax_id not in self.tax_lineage_map:
-                    e_record = EntrezRecord(header, "")
-                    e_record.ncbi_tax = tax_id
-                    e_record.bitflag = 3
-                    entrez_records.append(e_record)
-                    self.tax_lineage_map[e_record.ncbi_tax] = "Root; "
+            entrez_records = self.populate_tax_lineage_map([tp_inst.name for tp_inst in self.tp[marker]],
+                                                           entrez_records, group)
+        for marker in self.fn:
+            entrez_records = self.populate_tax_lineage_map(self.fn[marker], entrez_records, group)
 
         # Query the Entrez database for these unique taxonomy IDs
         fetch_lineages_from_taxids(entrez_records)
@@ -374,6 +380,30 @@ class ConfusionTest:
             self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
         return
 
+    def summarize_type_two_taxa(self, rank_depth=3):
+        lineage_count_dict = dict()
+        summary_string = ""
+        for marker in self.fn:
+            if len(self.fn[marker]) == 0:
+                continue
+            summary_string += "Number of false negatives for '" + marker + "':\n"
+            for seq_name in self.fn[marker]:
+                ref_g, tax_id = self.header_regex.match(seq_name).groups()
+                try:
+                    summary_lineage = "; ".join(self.tax_lineage_map[tax_id].split("; ")[:rank_depth])
+                except KeyError:
+                    continue
+                try:
+                    lineage_count_dict[summary_lineage] += 1
+                except KeyError:
+                    lineage_count_dict[summary_lineage] = 1
+
+            for summary_lineage in sorted(lineage_count_dict):
+                summary_string += "\t'" + summary_lineage + "'\t" + str(lineage_count_dict[summary_lineage]) + "\n"
+            lineage_count_dict.clear()
+
+        return summary_string
+
 
 def get_arguments():
     parser = argparse.ArgumentParser(add_help=False,
@@ -591,6 +621,7 @@ def main():
     test_obj.validate_false_positives()
     test_obj.validate_false_negatives(pkg_name_dict)
 
+    logging.debug(test_obj.summarize_type_two_taxa())
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
