@@ -209,7 +209,7 @@ class ItolJplace:
         if self.abundance:
             summary_string += "Abundance:\n\t" + str(self.abundance) + "\n"
         if self.distances:
-            summary_string += "Distances:\n\t" + self.distances + "\n"
+            summary_string += "Distal, pendant and tip distances:\n\t" + self.distances + "\n"
         summary_string += "\n"
         return summary_string
 
@@ -329,23 +329,14 @@ class ItolJplace:
         for pquery in self.placements:
             placement = loads(pquery, encoding="utf-8")
             dict_strings = list()
-            if len(placement["p"]) > 1:
+            if len(placement["p"]) >= 1:
                 for k, v in placement.items():
                     if k == 'p':
-                        # For debugging:
-                        # sys.stderr.write(str(v) + "\nRemoved:\n")
-                        acc = 0
-                        tmp_placements = copy.deepcopy(v)
-                        while acc < len(tmp_placements):
-                            candidate = tmp_placements[acc]
-                            if float(candidate[x]) < threshold:
-                                removed = tmp_placements.pop(acc)
-                                # For debugging:
-                                # sys.stderr.write("\t".join([self.name, str(removed[0]),
-                                #                             str(float(removed[x]))]) + "\n")
-                            else:
-                                acc += 1
-                            # sys.stderr.flush()
+                        tmp_placements = []
+                        for candidate in v:
+                            if float(candidate[x]) >= threshold:
+                                tmp_placements.append(candidate)
+
                         # If no placements met the likelihood filter then the sequence cannot be classified
                         # Alternatively: first two will be returned and used for LCA - can test...
                         if len(tmp_placements) > 0:
@@ -377,7 +368,11 @@ class ItolJplace:
                     for locus in v:
                         jplace_node = locus[0]
                         tree_leaves = self.node_map[jplace_node]
-                        normalized_abundance = float(self.abundance/len(tree_leaves))
+                        try:
+                            normalized_abundance = float(self.abundance/len(tree_leaves))
+                        except TypeError:
+                            logging.warning("Unable to find abundance for " + self.contig_name + "... setting to 0.\n")
+                            normalized_abundance = 0.0
                         for tree_leaf in tree_leaves:
                             if tree_leaf not in leaf_rpkm_sums.keys():
                                 leaf_rpkm_sums[tree_leaf] = 0.0

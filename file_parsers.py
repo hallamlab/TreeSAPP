@@ -195,15 +195,15 @@ def best_match(matches):
 def parse_domain_tables(args, hmm_domtbl_files, single=True):
     # Check if the HMM filtering thresholds have been set
     if not hasattr(args, "min_e"):
-        args.min_e = 1E-4
-        args.min_ie = 0.01
-        args.min_acc = 0.6
+        args.min_e = 1E-5
+        args.min_ie = 1E-3
+        args.min_acc = 0.7
         args.min_score = 20
         args.perc_aligned = 80
     # Print some stuff to inform the user what they're running and what thresholds are being used.
     info_string = "Filtering HMM alignments using the following thresholds:\n"
-    info_string += "\tMinimum E-value = " + str(args.min_e) + "\n"
-    info_string += "\tMinimum i-Evalue = " + str(args.min_ie) + "\n"
+    info_string += "\tMaximum E-value = " + str(args.min_e) + "\n"
+    info_string += "\tMaximum i-Evalue = " + str(args.min_ie) + "\n"
     info_string += "\tMinimum acc = " + str(args.min_acc) + "\n"
     info_string += "\tMinimum score = " + str(args.min_score) + "\n"
     info_string += "\tMinimum percentage of the HMM covered = " + str(args.perc_aligned) + "%\n"

@@ -30,7 +30,7 @@ try:
         TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
-        get_node, annotate_partition_tree, find_cluster
+        get_node, annotate_partition_tree, find_cluster, tree_leaf_distances
     from external_command_interface import launch_write_command, setup_progress_bar
     from lca_calculations import *
     from jplace_utils import *
@@ -187,11 +187,11 @@ def check_parser_arguments(args):
         sys.exit()
 
     # Parameterizing the hmmsearch output parsing:
-    args.perc_aligned = 15
+    args.perc_aligned = 10
     args.min_acc = 0.7
     if args.stringency == "relaxed":
-        args.min_e = 1E-2
-        args.min_ie = 1E-1
+        args.min_e = 1E-5
+        args.min_ie = 1E-3
         args.min_score = 15
     elif args.stringency == "strict":
         args.min_e = 1E-7
@@ -2618,12 +2618,14 @@ def filter_placements(args, tree_saps, marker_build_dict):
         unclassified_seqs[marker] = dict()
         unclassified_seqs[marker]["low_lwr"] = list()
         unclassified_seqs[marker]["np"] = list()
-        unclassified_seqs[marker]["far_beyond"] = list()
         unclassified_seqs[marker]["beyond"] = list()
+
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker + "_tree.txt"]))
+        max_dist, leaf_ds = tree_leaf_distances(tree)
+        # Find the maximum distance and standard deviation of distances from the root to all leaves
+        max_dist_threshold = max_dist + (1 * np.std(leaf_ds))
+
         for tree_sap in tree_saps[denominator]:
-            # max_dist_threshold equals the maximum path length from root to tip in its clade
-            max_dist_threshold = tree.get_farthest_leaf()[1]  # Too permissive of a threshold, but good for first pass
             tree_sap.filter_min_weight_threshold(args.min_likelihood)
             if not tree_sap.classified:
                 unclassified_seqs[marker]["low_lwr"].append(tree_sap)
@@ -2655,35 +2657,17 @@ def filter_placements(args, tree_saps, marker_build_dict):
                 parent = tree.get_common_ancestor(leaf_children)
                 tip_distances = parent_to_tip_distances(parent, leaf_children)
             else:
-                tree_leaf = tree.get_leaves_by_name(leaf_children[0])[0]
-                sister = tree_leaf.get_sisters()[0]
-                parent = tree_leaf.get_common_ancestor(sister)
                 tip_distances = [0.0]
 
             tree_sap.avg_evo_dist = round(distal_length + pendant_length + (sum(tip_distances) / len(tip_distances)), 4)
             tree_sap.distances = str(distal_length) + ',' +\
                                  str(pendant_length) + ',' +\
                                  str(sum(tip_distances) / len(tip_distances))
-            # Discard this placement as a false positive if the avg_evo_dist exceeds max_dist_threshold
+            # Discard this placement as a false positive if the pendant_length exceeds max_dist_threshold
             if pendant_length > max_dist_threshold:
-                # print("Global", tree_sap.summarize())
-                unclassified_seqs[tree_sap.name]["far_beyond"].append(tree_sap)
-                tree_sap.classified = False
-                continue
-
-            # Estimate the branch lengths of the clade to factor heterogeneous substitution rates
-            ancestor, clade_tip_distances = find_cluster(parent)
-            if not clade_tip_distances:
-                # Either the parent or ancestor is the root, so there are many children. This doesn't scale well.
-                # TODO: Decrease the number of leaves sampled for this distance
-                leaf, dist = parent.get_farthest_leaf()
-                clade_tip_distances.append(dist)
-            # If the longest root-to-tip distance from the ancestral node (one-up from LCA) is exceeded, discard
-            if pendant_length > max(clade_tip_distances) * 2 and \
-                    rank_recommender(pendant_length, marker_build_dict[denominator].pfit) < -2:
                 unclassified_seqs[tree_sap.name]["beyond"].append(tree_sap)
                 tree_sap.classified = False
-                # print("Local", tree_sap.summarize())
+
     logging.info("done.\n")
 
     declass_summary = ""
