@@ -2619,11 +2619,14 @@ def filter_placements(args, tree_saps, marker_build_dict):
         unclassified_seqs[marker]["low_lwr"] = list()
         unclassified_seqs[marker]["np"] = list()
         unclassified_seqs[marker]["beyond"] = list()
+        unclassified_seqs[marker]["far_beyond"] = list()
 
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker + "_tree.txt"]))
         max_dist, leaf_ds = tree_leaf_distances(tree)
         # Find the maximum distance and standard deviation of distances from the root to all leaves
-        max_dist_threshold = max_dist + (1 * np.std(leaf_ds))
+        max_dist_threshold = max_dist  # + np.std(leaf_ds)
+        mean_dist_threshold = utilities.mean(leaf_ds)
+        logging.debug(denominator + " maximum pendant length distance threshold: " + str(max_dist_threshold) + "\n")
 
         for tree_sap in tree_saps[denominator]:
             tree_sap.filter_min_weight_threshold(args.min_likelihood)
@@ -2647,11 +2650,23 @@ def filter_placements(args, tree_saps, marker_build_dict):
                 tree_sap.classified = False
                 continue
 
-            distal_length = float(tree_sap.get_jplace_element("distal_length"))
             pendant_length = float(tree_sap.get_jplace_element("pendant_length"))
+            # Discard this placement as a false positive if the pendant_length exceeds max_dist_threshold
+            if pendant_length > max_dist_threshold:
+                unclassified_seqs[tree_sap.name]["far_beyond"].append(tree_sap)
+                tree_sap.classified = False
+                continue
+            tree_sap.lwr = float(tree_sap.get_jplace_element("like_weight_ratio"))
+            if pendant_length > mean_dist_threshold and tree_sap.lwr < 0.66:
+                unclassified_seqs[marker]["beyond"].append(tree_sap)
+                tree_sap.classified = False
+                continue
+
             # Find the length of the edge this sequence was placed onto
             leaf_children = tree_sap.node_map[int(tree_sap.inode)]
+            distal_length = float(tree_sap.get_jplace_element("distal_length"))
             # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
+
             if len(leaf_children) > 1:
                 # We need to find the LCA in the Tree instance to find the distances to tips for ete3
                 parent = tree.get_common_ancestor(leaf_children)
@@ -2663,10 +2678,6 @@ def filter_placements(args, tree_saps, marker_build_dict):
             tree_sap.distances = str(distal_length) + ',' +\
                                  str(pendant_length) + ',' +\
                                  str(sum(tip_distances) / len(tip_distances))
-            # Discard this placement as a false positive if the pendant_length exceeds max_dist_threshold
-            if pendant_length > max_dist_threshold:
-                unclassified_seqs[tree_sap.name]["beyond"].append(tree_sap)
-                tree_sap.classified = False
 
     logging.info("done.\n")
 
