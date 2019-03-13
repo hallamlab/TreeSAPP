@@ -190,8 +190,8 @@ def check_parser_arguments(args):
     args.perc_aligned = 10
     args.min_acc = 0.7
     if args.stringency == "relaxed":
-        args.min_e = 1E-5
-        args.min_ie = 1E-3
+        args.min_e = 1E-3
+        args.min_ie = 1E-1
         args.min_score = 15
     elif args.stringency == "strict":
         args.min_e = 1E-7
