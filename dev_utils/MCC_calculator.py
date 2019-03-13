@@ -591,6 +591,9 @@ def main():
                                  "--threads", str(args.num_threads),
                                  "--output_directory", output_dir,
                                  "--force"]
+                if args.tool == "diamond":
+                    classify_call += ["--assignment_method", "diamond"]
+                    classify_call += ["--search_method", "diamond"]
                 launch_write_command(classify_call, False)
 
             assignments[marker] = file_parsers.read_graftm_classifications(classification_table)
