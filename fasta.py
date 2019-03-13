@@ -219,10 +219,7 @@ def get_header_format(header, code_name=""):
     sp_re = re.compile(">sp\|(.*)\|.*Full=.*;?.*$")  # a
     fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     mltree_re = re.compile("^>(\d+)_" + re.escape(code_name) + "$")
-    # refseq_prot_re = re.compile("^>([A-Z]{2}_[0-9]+\.[0-9]) (.*) \[(.*)\]$")  # a, d, o
-    # genbank_prot_re = re.compile("^>([A-Z]{3}[0-9]{5}\.?[0-9]?)[ ]+(.+) \[(.*)\]$")  # a, d, o
     pfam_re = re.compile("^>([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
-    # interpro_re = re.compile("^>([A-Z][0-9]{1,3}[A-Z]{1,2}[A-Z0-9]+)$")  # a
 
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
@@ -231,15 +228,16 @@ def get_header_format(header, code_name=""):
 
     # Ambiguous:
     # genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
-    accession_only = re.compile("^>([A-Z]+_?[0-9]+\.?[0-9]?)$")  # a
-    ncbi_ambiguous = re.compile(r"^>([A-Za-z0-9.-_]+)\s+.*$")  # a
-    # ncbi_org = re.compile(r"^>([A-Z0-9]+\.?[0-9]?)\s+.*\[[A-Za-z0-9 .-]+\]$")  # a
+    accession_only = re.compile(r"^>([A-Z]+_?[0-9]+\.?[0-9]?)$")  # a
+    ncbi_ambiguous = re.compile(r"^>([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
+    ncbi_org = re.compile(r"^>([A-Z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
+
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
     # There are no character restrictions on the first and third groups
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
-    custom_tax = re.compile("^>(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")  # a, l, o
+    custom_tax = re.compile(r"^>(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")  # a, l, o
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
@@ -256,6 +254,7 @@ def get_header_format(header, code_name=""):
                       "dna": {mltree_re: "mltree"},
                       "ambig": {accession_only: "bare",
                                 ncbi_ambiguous: "ncbi_ambig",
+                                ncbi_org: "ncbi_org",
                                 custom_tax: "custom"}
                       }
 

@@ -243,7 +243,7 @@ def get_classification_performance(marker_eval_instance):
         for dist in range(0, 8):
             taxonomic_distance[dist] = 0
         std_out_report_string += "\t" + rank + "\t"
-        if len(rank_assigned_dict[rank]) == 0 or rank not in rank_assigned_dict:
+        if rank not in rank_assigned_dict or len(rank_assigned_dict[rank]) == 0:
             std_out_report_string += "0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n"
         else:
             acc = 0
@@ -937,7 +937,7 @@ def classify_excluded_taxon(args, prefix, output_dir, marker, min_seq_length, te
     """
 
     # Classify representative sequences using TreeSAPP
-    classify_command = ["./treesapp.py", "-i", test_rep_taxa_fasta,
+    classify_command = [args.treesapp + "/treesapp.py", "-i", test_rep_taxa_fasta,
                         "-o", output_dir,
                         "-m", args.molecule,
                         "-T", str(args.threads),

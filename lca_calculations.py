@@ -116,6 +116,8 @@ def identify_excluded_clade(assignment_dict, trie, marker):
     for ref_lineage in assignment_dict[marker]:
         log_stats += "Assigned reference lineage: " + ref_lineage + "\n"
         for query_lineage in assignment_dict[marker][ref_lineage]:
+            if not re.search(r"^Root; ", query_lineage):
+                query_lineage = "Root; " + query_lineage
             # if query_lineage == ref_lineage:
             #     logging.debug("\tQuery lineage: " + query_lineage + ", " +
             #                   "Optimal lineage: " + ref_lineage + "\n")
@@ -123,7 +125,7 @@ def identify_excluded_clade(assignment_dict, trie, marker):
             # remove the taxonomic rank and traverse again. Complexity: O(ln(n))
             contained_taxonomy = optimal_taxonomic_assignment(trie, query_lineage)
             if len(contained_taxonomy.split("; ")) <= 7:
-                rank_excluded = _RANK_DEPTH_MAP[len(contained_taxonomy.split("; ")) + 1]
+                rank_excluded = _RANK_DEPTH_MAP[len(contained_taxonomy.split("; "))]
                 if contained_taxonomy != ref_lineage:
                     log_stats += "\tRank excluded: " + rank_excluded + "\n"
                     log_stats += "\t\tQuery lineage:   " + query_lineage + "\n"
