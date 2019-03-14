@@ -1012,6 +1012,7 @@ def main():
     os.makedirs(args.output, exist_ok=True)
     log_file_name = args.output + os.sep + "Clade_exclusion_analyzer_log.txt"
     prep_logging(log_file_name, args.verbose)
+    logging.debug("Command used:\n" + ' '.join(sys.argv) + "\n")
 
     marker_build_dict = parse_ref_build_params(args)
     ref_leaves = tax_ids_file_to_leaves(os.sep.join([args.treesapp, 'data',  'tree_data',

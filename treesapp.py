@@ -141,6 +141,7 @@ def check_parser_arguments(args):
     # Setup the global logger and main log file
     log_file_name = args.output + os.sep + "TreeSAPP_log.txt"
     prep_logging(log_file_name, args.verbose)
+    logging.debug("Command used:\n" + ' '.join(sys.argv) + "\n")
 
     # Ensure files contain more than 0 sequences
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
@@ -2880,6 +2881,8 @@ def produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data):
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + marker + os.sep + marker + "_complete_profile.jplace"
         itol_data[marker] = filter_jplace_data(itol_data[marker], tree_saps[denominator])
+        # TODO: validate no distal lengths exceed their corresponding edge lengths
+
         write_jplace(itol_data[marker], master_jplace)
         itol_data[marker].clear_object()
         # Create a labels file from the tax_ids_marker.txt
