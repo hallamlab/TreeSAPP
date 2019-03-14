@@ -458,6 +458,35 @@ class ItolJplace:
             x += 1
         return
 
+    def check_jplace(self, tree_index):
+        """
+        Currently validates a pquery's JPlace distal length, ensuring it is less than or equal to the edge length
+        This is necessary to handle a case found in RAxML v8.2.12 (and possibly older versions) where the distal length
+        of a placement is greater than the corresponding branch length in some rare cases.
+
+        :return: None
+        """
+        distal_pos = self.get_field_position_from_jplace_fields("distal_length")
+        edge_pos = self.get_field_position_from_jplace_fields("edge_num")
+        for pquery in self.placements:
+            placement = loads(pquery, encoding="utf-8")
+            if placement:
+                if len(placement["p"]) > 1:
+                    for k, v in placement.items():
+                        if k == 'p':
+                            for edge_placement in v:
+                                place_len = float(edge_placement[distal_pos])
+                                edge = edge_placement[edge_pos]
+                                tree_len = tree_index[str(edge)]
+                                if place_len > tree_len:
+                                    logging.debug("Distal length adjusted to fit JPlace " +
+                                                  self.name + " tree for " + self.contig_name + ".\n")
+                                    edge_placement[distal_pos] = tree_len
+                else:
+                    pass
+
+        return
+
     def harmonize_placements(self, treesapp_dir):
         """
         Often times, the placements field in a jplace file contains multiple possible tree locations.

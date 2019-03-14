@@ -271,3 +271,29 @@ def tree_leaf_distances(tree: Tree):
             else:
                 d += n.dist if not topology_only else 1.0
     return max_dist, leaf_distances
+
+
+def index_tree_edges(tree: str):
+    edge_index = dict()
+    dist = ""
+    edge = ""
+    i = 0
+    n = len(tree)
+    while i < n:
+        if tree[i] in [':', '{']:
+            i += 1
+            if dist:
+                while re.match(r"[0-9]", tree[i]):
+                    edge += tree[i]
+                    i += 1
+                edge_index[edge] = float(dist)
+                dist = ""
+                edge = ""
+            else:
+                while re.match(r"[0-9.]", tree[i]):
+                    dist += tree[i]
+                    i += 1
+        else:
+            i += 1
+
+    return edge_index

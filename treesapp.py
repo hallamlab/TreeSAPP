@@ -30,7 +30,7 @@ try:
         TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging
     from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
     from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
-        get_node, annotate_partition_tree, find_cluster, tree_leaf_distances
+        get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
     from external_command_interface import launch_write_command, setup_progress_bar
     from lca_calculations import *
     from jplace_utils import *
@@ -2633,10 +2633,6 @@ def filter_placements(args, tree_saps, marker_build_dict):
             tree_sap.filter_min_weight_threshold(args.min_likelihood)
             if not tree_sap.classified:
                 unclassified_seqs[marker]["low_lwr"].append(tree_sap)
-                # logging.debug("A putative " + marker +
-                #               " sequence has been unclassified due to low placement likelihood weights. " +
-                #               "More info:\n" +
-                #               tree_sap.summarize())
                 continue
             if not tree_sap.placements:
                 unclassified_seqs[tree_sap.name]["np"].append(tree_sap)
@@ -2797,6 +2793,7 @@ def parse_raxml_output(args, marker_build_dict):
         for filename in jplace_collection[denominator]:
             # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
             jplace_data = jplace_parser(filename)
+            tree_index = index_tree_edges(jplace_data.tree)
             # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
             tree_placement_queries = demultiplex_pqueries(jplace_data)
             # Filter the placements, determine the likelihood associated with the harmonized placement
@@ -2808,6 +2805,7 @@ def parse_raxml_output(args, marker_build_dict):
                     start, end = seq_info.groups()[1:]
                     pquery.seq_len = int(end) - int(start)
                 pquery.create_jplace_node_map()
+                pquery.check_jplace(tree_index)
                 if args.placement_parser == "best":
                     pquery.filter_max_weight_placement()
                 else:
