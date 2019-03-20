@@ -2,7 +2,6 @@ name	code	molecule	sub_model	marker_info	cluster_identity	ref_sequences	tree_too
 #hzs	A0100
 #nrfA	D0401
 #hzao	A0012
-#nosZ	D0601
 #nirA	A0001
 #MtrA	M0601
 #MtrC	M0603
@@ -11,25 +10,23 @@ name	code	molecule	sub_model	marker_info	cluster_identity	ref_sequences	tree_too
 #RBsCO	C2000
 #OGFOxy	C3000
 #CitSyn	C4000
-#dsrA	S0001	Dissimilatory sulfite reductase alpha subunit [EC:1.8.99.5]
-#dsrB	S0002	Dissimilatory sulfite reductase beta subunit [EC:1.8.99.5]
 #GH36	C0036	CAZy family 36: α-galactosidase (EC 3.2.1.22); α-N-acetylgalactosaminidase (EC 3.2.1.49); stachyose synthase (EC 2.4.1.67); raffinose synthase (EC 2.4.1.82)
 #GH31	C0031	Glycoside hydrolase family 31
 #GH109	C0109	Glycoside hydrolase family 109
 #GH115	C0115	Glycoside hydrolase family 115
-p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	RAxML	-7.89721105542,5.97005476239	Families	04_Dec_2018	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase
-McrA	M0701	prot	PROTGAMMALG	functional	0.97	211	RAxML	-4.23498195165,6.04587850739	Classes	05_Dec_2018	Methyl coenzyme M reductase alpha subunit
-McrB	M0702	prot	PROTGAMMALG	functional	0.97	158	RAxML	-4.37713960571,6.47636215433	Classes	05_Dec_2018	Methyl coenzyme M reductase beta subunit
-McrG	M0705	prot	PROTGAMMALG	functional	0.97	155	RAxML	-5.34975215825,6.50054249136	Genera	05_Dec_2018	Methyl coenzyme M reductase gamma subunit
-napA	D0201	prot	PROTGAMMALG	functional	0.90	332	RAxML	-5.62216204958,6.47133135917	Classes	05_Dec_2018	periplasmic nitrate reductase NapA
-narG	D0101	prot	PROTGAMMALG	functional	0.80	306	RAxML	-4.68685511996,6.4521489684	Phyla	06_Dec_2018	nitrate reductase / nitrite oxidoreductase, alpha subunit
-nifD	N0401	prot	PROTGAMMALG	functional	0.90	402	RAxML	-8.00376916521,6.14805307229	Orders	07_Dec_2018	nitrogenase molybdenum-iron protein alpha chain (K02586)
-nifH	N0402	prot	PROTGAMMALG	functional	0.95	301	RAxML	-5.11690385798,6.3598636109	Phyla	07_Dec_2018	nitrogenase iron protein NifH (K02588)
-nirK	D0301	prot	PROTGAMMALG	functional	0.97	120	RAxML	-10.4409734102,6.79842362998	Orders	07_Dec_2018	nitrite reductase (NO-forming)
-nirS	D0302	prot	PROTGAMMALG	functional	0.97	184	RAxML	-8.54743895765,6.47522244638	Classes	07_Dec_2018	nitrite reductase (NO-forming) / hydroxylamine reductase
-norB	D0501	prot	PROTGAMMALG	functional	0.80	329	RAxML	-6.55817192009,6.35408905873	Orders	08_Dec_2018	nitric oxide reductase subunit B
-norC	D0502	prot	PROTGAMMALG	functional	0.90	223	RAxML	-6.11646687169,6.71594870436	Classes	08_Dec_2018	nitric oxide reductase subunit C
-#RecA	P0001	prot	PROTGAMMALG	taxonomic	0.80	1110	RAxML	-6.97127632726,6.18020218361	Classes	12_Dec_2018	
+McrA	M0701	prot	PROTGAMMALG	functional	0.97	211	RAxML	-6.7684,6.6843	Classes	05_Dec_2018	Methyl coenzyme M reductase alpha subunit
+McrB	M0702	prot	PROTGAMMALG	functional	0.97	158	RAxML	-4.9922,6.4521	Classes	05_Dec_2018	Methyl coenzyme M reductase beta subunit
+McrG	M0705	prot	PROTGAMMALG	functional	0.97	155	RAxML	-5.7458,6.5854	Genera	05_Dec_2018	Methyl coenzyme M reductase gamma subunit
+napA	D0201	prot	PROTGAMMALG	functional	0.90	332	RAxML	-6.3508,6.6605	Classes	05_Dec_2018	periplasmic nitrate reductase NapA
+narG	D0101	prot	PROTGAMMALG	functional	0.80	306	RAxML	-5.3403,6.5158	Phyla	06_Dec_2018	nitrate reductase / nitrite oxidoreductase, alpha subunit
+nifD	N0401	prot	PROTGAMMALG	functional	0.90	402	RAxML	-8.1368,6.5444	Orders	07_Dec_2018	nitrogenase molybdenum-iron protein alpha chain (K02586)
+nifH	N0402	prot	PROTGAMMALG	functional	0.95	301	RAxML	-5.1159,6.3582	Phyla	07_Dec_2018	nitrogenase iron protein NifH (K02588)
+nirK	D0301	prot	PROTGAMMALG	functional	0.97	120	RAxML	-11.3207,6.9484	Orders	07_Dec_2018	nitrite reductase (NO-forming)
+nirS	D0302	prot	PROTGAMMALG	functional	0.97	184	RAxML	-8.1424,6.2904	Classes	07_Dec_2018	nitrite reductase (NO-forming) / hydroxylamine reductase
+norB	D0501	prot	PROTGAMMALG	functional	0.80	329	RAxML	-6.109,6.6475	Orders	08_Dec_2018	nitric oxide reductase subunit B
+norC	D0502	prot	PROTGAMMALG	functional	0.90	223	RAxML	-5.3221,6.3809	Classes	08_Dec_2018	nitric oxide reductase subunit C
+p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	RAxML	-3.9091,6.0388	Families	04_Dec_2018	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase
+#RecA	P0001	prot	PROTGAMMALG	taxonomic	0.80	1110	RAxML	-5.4758,6.3838	Classes	12_Dec_2018	
 GH94	C0094	prot	PROTGAMMALG	functional	0.90	486	FastTree	-4.27462347201,6.34905731298	Classes	16_Dec_2018	Glycoside hydrolase family 94
 RecA	P0001	prot	PROTGAMMALG	taxonomic	0.85	1374	FastTree	-6.3313,6.6418	Phyla	18_Feb_2019	Bacterial Recombinase A
 RpoB	P0002	prot	PROTGAMMALG	taxonomic	0.90	880	FastTree	-4.5705,6.4703	Phyla	16_Feb_2019	Beta subunit of RNA polymerase
@@ -61,3 +58,9 @@ P01157	P1157	prot	PROTGAMMALG	taxonomic	0.95	437	FastTree	-4.3297,6.9325	Phyla	1
 #norC	D0502	prot	PROTGAMMALG	functional	0.90	223	FastTree	-6.61551453189,6.60317398186	Classes	04_Dec_2018	
 #p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	FastTree	-2.83232814805,5.67790899421	Families	04_Dec_2018	
 GH20	G0020	prot	PROTGAMMALG	functional	0.75	1159	FastTree	-4.689,6.3935	Phyla	26_Feb_2019	Glycoside hydrolase family 20
+#nosZ	D0601	prot	PROTGAMMALG	functional	0.95	449	FastTree	-6.1988,6.095	Phyla	13_Mar_2019	
+nosZ	D0601	prot	PROTGAMMALG	functional	0.95	449	RAxML	-7.9763,6.2277	Phyla	16_Mar_2019	
+dsrA	S0001	prot	PROTGAMMALG	functional	0.95	535	FastTree	-7.6614,6.6422	Kingdoms	19_Mar_2019	Dissimilatory sulfite reductase alpha subunit [EC:1.8.99.5]
+dsrB	S0002	prot	PROTGAMMALG	functional	0.95	722	FastTree	-6.7889,6.6125	Families	20_Mar_2019	Dissimilatory sulfite reductase beta subunit [EC:1.8.99.5]
+nxrA	N0301	prot	PROTGAMMALG	functional	0.90	963	FastTree	-4.7531,6.2707	Classes	20_Mar_2019	Nitrite oxidoreductase subunit A
+nxrB	N0302	prot	PROTGAMMALG	functional	0.90	648	FastTree	-3.1916,5.9084	Phyla	20_Mar_2019	Nitrite oxidoreductase subunit B
