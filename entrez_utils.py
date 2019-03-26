@@ -591,8 +591,8 @@ def read_accession_taxa_map(mapping_file):
     """
     try:
         map_file_handler = open(mapping_file, 'r')
-    except OSError:
-        logging.error("Unable to open " + mapping_file, " for reading!\n")
+    except (IOError, FileNotFoundError):
+        logging.error("Unable to open " + mapping_file + " for reading!\n")
         sys.exit(9)
 
     accession_lineage_map = dict()
