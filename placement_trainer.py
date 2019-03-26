@@ -146,7 +146,7 @@ def read_placement_summary(placement_summary_file):
                 if line[0] == '#':
                     rank = line.split(' ')[1]
                 elif line[0] == '[':
-                    dist_strings = re.sub('\[|\]', '', line).split(", ")
+                    dist_strings = re.sub(r'[\[\]]', '', line).split(", ")
                     dists = [float(dist) for dist in dist_strings]
                     if len(dists) > 1:
                         taxonomic_placement_distances[rank] = dists
@@ -167,7 +167,7 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
         return []
 
     if not taxonomic_ranks:
-        taxonomic_ranks = {"Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6, "Strain": 7}
+        taxonomic_ranks = {"Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7, "Strain": 8}
 
     filtered_pds = dict()
     for rank in taxonomic_placement_distances:
@@ -188,8 +188,7 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
         if len(rarefied_pds[rank]) == 0:
             logging.warning("Ranks have 0 samples after rarefaction.\n")
             return []
-    # for rank in rarefied_pds:
-    #     print(rank, "rarefied", np.median(list(rarefied_pds[rank])))
+
     return regress_ranks(rarefied_pds, taxonomic_ranks)
 
 
@@ -547,13 +546,13 @@ def main():
     args = utilities.find_executables(args)
 
     # Limit this to just Class, Family, and Species - other ranks are inferred through regression
-    training_ranks = {"Class": 2, "Species": 6}
+    training_ranks = {"Class": 3, "Species": 7}
 
     sys.stdout.write("\n##\t\t\tEstimate " + args.name + " taxonomic rank placement distances\t\t\t##\n")
     prep_logging(args.output_dir + os.sep + "placement_trainer_log.txt", args.verbose)
 
     ref_pkg = ReferencePackage()
-    ref_pkg.gather_package_files(args.name, args.pkg_path, "flat")
+    ref_pkg.gather_package_files(args.name, args.pkg_path)
     ref_pkg.validate()
     # TODO: wrap this into a function along with dependency version logging
     logging.debug("ANALYSIS SPECIFICATIONS:\n" +
@@ -619,7 +618,12 @@ def main():
     if os.path.isfile(placement_summary_file) and not args.overwrite:
         # Read the summary file and pull the phylogenetic distances for each rank
         taxonomic_placement_distances = read_placement_summary(placement_summary_file)
-    if len(taxonomic_placement_distances) == 0:
+        # Remove any ranks that are not to be used in this estimation
+        estimated_ranks = set(taxonomic_placement_distances.keys())
+        for rank_key in estimated_ranks.difference(set(training_ranks.keys())):
+            taxonomic_placement_distances.pop(rank_key)
+
+    if len(set(training_ranks.keys()).difference(set(taxonomic_placement_distances.keys()))) > 0:
         pfit_array, taxonomic_placement_distances, pqueries = regress_rank_distance(args,
                                                                                     ref_pkg,
                                                                                     accession_lineage_map,
@@ -628,7 +632,7 @@ def main():
         # Write the tab-delimited file with metadata included for each placement
         write_placement_table(pqueries, placement_table_file, args.name)
     else:
-        pfit_array = complete_regression(taxonomic_placement_distances)
+        pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
         if pfit_array:
             logging.info("Placement distance regression model complete.\n")
         else:

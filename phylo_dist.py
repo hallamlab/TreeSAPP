@@ -8,6 +8,7 @@ from file_parsers import tax_ids_file_to_leaves
 from utilities import clean_lineage_string, median
 
 import numpy as np
+import scipy.optimize as so
 np.random.seed(0)
 
 __author__ = 'Connor Morgan-Lang'
@@ -30,10 +31,10 @@ def cull_outliers(data: list, dev=3):
     # Reject outliers from untransformed distribution
     d = np.abs(noo_a - np.median(noo_a))
     mdev = np.median(d)
-    s = d / mdev if mdev else 0.
+    s = d / mdev if mdev else 0
     noo_a = noo_a[s < dev]
 
-    return noo_a
+    return list(noo_a)
 
 
 def regress_ranks(rank_distance_ranges, taxonomic_ranks):
@@ -46,7 +47,7 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
     rank_depth_list = list()
     dist_list = list()
     depth_dist_dict = dict()
-    n_samples = 0
+    # n_samples = 0
     for rank in rank_distance_ranges:
         depth = taxonomic_ranks[rank]
         rank_distances = rank_distance_ranges[rank]
@@ -60,9 +61,9 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
         sys.exit(33)
 
     # Use the largest placement distance as a proxy for Root-level distances
-    depth_dist_dict[1] = [max(dist_list)] * n_samples
+    # depth_dist_dict[1] = [max(dist_list)] * n_samples
     # Anchor Strain-level placement distances to 0
-    depth_dist_dict[7] = [0] * n_samples
+    # depth_dist_dict[7] = [0] * n_samples
 
     dist_list.clear()
     for depth in sorted(depth_dist_dict, key=int):
@@ -70,9 +71,14 @@ def regress_ranks(rank_distance_ranges, taxonomic_ranks):
         dist_list += list(depth_dist_dict[depth])
 
     # For TreeSAPP predictions
-    pfit_array = [round(float(x), 4) for x in list(np.polyfit(dist_list, rank_depth_list, 1))]
+    # opt_slope, intercept = [round(float(x), 4) for x in list(np.polyfit(dist_list, rank_depth_list, 1))]
 
-    return pfit_array
+    opt_slope = round(float(so.fmin(lambda m, x, y: ((m * x - y + 7.0) ** 2).sum(),
+                                    x0=-6.0,
+                                    args=(dist_list, rank_depth_list))), 4)
+    intercept = 7.0
+
+    return opt_slope, intercept
 
 
 def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
