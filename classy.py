@@ -871,12 +871,11 @@ def prep_logging(log_file_name, verbosity):
     else:
         logging_level = logging.INFO
 
+    formatter = MyFormatter()
     # Set the console handler normally writing to stdout/stderr
     ch = logging.StreamHandler()
     ch.setLevel(logging_level)
     ch.terminator = ''
-
-    formatter = MyFormatter()
     ch.setFormatter(formatter)
     logging.getLogger('').addHandler(ch)
 
@@ -1000,13 +999,16 @@ class TaxonTest:
         Filters the assignments from TreeSAPP for the target marker.
         Off-target classifications are accounted for and reported.
         TaxonTest.classifieds only include the headers of the correctly annotated sequences
+
         :param target_marker:
         :return:
         """
         off_targets = dict()
+        num_classified = 0
         for marker in self.assignments:
             for lineage in self.assignments[marker]:
                 classifieds = self.assignments[marker][lineage]
+                num_classified += len(classifieds)
                 if marker == target_marker:
                     self.classifieds += classifieds
                 else:
@@ -1015,6 +1017,7 @@ class TaxonTest:
                     off_targets[marker] += classifieds
         if off_targets:
             for marker in off_targets:
-                logging.warning(str(len(off_targets)) + " sequences were classified as " + marker + ":\n" +
+                logging.warning(str(len(off_targets[marker])) + '/' + str(num_classified) +
+                                " sequences were classified as " + marker + ":\n" +
                                 "\t\n".join(off_targets[marker]) + "\n")
         return
