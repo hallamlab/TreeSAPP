@@ -512,7 +512,7 @@ def regress_rank_distance(args, ref_pkg: ReferencePackage, accession_lineage_map
     :return:
     """
     if not training_ranks:
-        training_ranks = {"Class": 2, "Species": 6}
+        training_ranks = {"Class": 3, "Species": 7}
     # Read the taxonomic map; the final sequences used to build the tree are inferred from this
     leaf_taxa_map = dict()
     ref_taxa_map = tax_ids_file_to_leaves(ref_pkg.lineage_ids)
