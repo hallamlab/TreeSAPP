@@ -45,6 +45,7 @@ class ConfusionTest:
         self.tax_lineage_map = dict()
         self.dist_wise_tp = dict()
         self.num_total_queries = 0
+        self.rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
 
     def get_info(self, verbose=False):
         info_string = "\nReference packages being tested:\n"
@@ -380,7 +381,12 @@ class ConfusionTest:
             self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
         return
 
-    def summarize_type_two_taxa(self, rank_depth=3):
+    def summarize_type_two_taxa(self, rank="Phylum"):
+        try:
+            rank_depth = self.rank_depth_map[rank] + 1
+        except KeyError:
+            logging.error("Rank '" + rank + "' not present in rank-depth map:\n" + str(self.rank_depth_map) + "\n")
+            sys.exit(3)
         lineage_count_dict = dict()
         summary_string = ""
         for marker in self.fn:
@@ -399,6 +405,40 @@ class ConfusionTest:
                     lineage_count_dict[summary_lineage] = 1
 
             for summary_lineage in sorted(lineage_count_dict):
+                summary_string += "\t'" + summary_lineage + "'\t" + str(lineage_count_dict[summary_lineage]) + "\n"
+            lineage_count_dict.clear()
+
+        return summary_string
+
+    def taxonomic_summary(self, rank="Phylum", aggregate=False):
+        try:
+            rank_depth = self.rank_depth_map[rank] + 1
+        except KeyError:
+            logging.error("Rank '" + rank + "' not present in rank-depth map:\n" + str(self.rank_depth_map) + "\n")
+            sys.exit(3)
+        lineage_count_dict = dict()
+        summary_string = ""
+        for marker in self.tp:
+            if len(self.tp[marker]) == 0:
+                continue
+            for tp_inst in self.tp[marker]:
+                try:
+                    summary_lineage = "; ".join(self.tax_lineage_map[tp_inst.ncbi_tax].split("; ")[:rank_depth])
+                except KeyError:
+                    continue
+                try:
+                    lineage_count_dict[summary_lineage] += 1
+                except KeyError:
+                    lineage_count_dict[summary_lineage] = 1
+
+            if aggregate is False:
+                summary_string += "Taxonomic distribution of true positives for '" + marker + "':\n"
+                for summary_lineage in sorted(lineage_count_dict):
+                    summary_string += "\t'" + summary_lineage + "'\t" + str(lineage_count_dict[summary_lineage]) + "\n"
+                lineage_count_dict.clear()
+        if aggregate:
+            summary_string += "Taxonomic distribution of true positives:\n"
+            for summary_lineage in sorted(lineage_count_dict, key=lambda x: lineage_count_dict[x]):
                 summary_string += "\t'" + summary_lineage + "'\t" + str(lineage_count_dict[summary_lineage]) + "\n"
             lineage_count_dict.clear()
 
@@ -625,6 +665,7 @@ def main():
     test_obj.validate_false_negatives(pkg_name_dict)
 
     logging.debug(test_obj.summarize_type_two_taxa())
+    logging.debug(test_obj.taxonomic_summary("Kingdom", True))
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
