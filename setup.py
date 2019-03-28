@@ -21,7 +21,7 @@ CLASSIFIERS = [
 SETUP_METADATA = \
                {
                      "name": "treesapp",
-                     "version": "0.2.3",
+                     "version": "0.2.4",
                      "description": "TreeSAPP is a functional and taxonomic annotation tool",
                      "long_description": LONG_DESCRIPTION,
                      "long_description_content_type": "text/markdown",
@@ -30,6 +30,7 @@ SETUP_METADATA = \
                      "url": "https://github.com/hallamlab/TreeSAPP",
                      "license": "GPL-3.0",
                      "packages": find_packages(),
+                     "entry_points": {'console_scripts': ['treesapp = treesapp.__main__:main']},
                      "classifiers": CLASSIFIERS,
                      "ext_modules": [Extension("_tree_parser",
                                                sources=["sub_binaries/TreeSAPP_extensions/tree_parsermodule.cpp"],
