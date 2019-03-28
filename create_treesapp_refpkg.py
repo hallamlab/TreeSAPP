@@ -114,8 +114,7 @@ def get_arguments():
                                 "A comma-separated argument with the Rank (e.g. Phylum) and\n"
                                 "number of representatives is required.\n")
     taxa_args.add_argument("--accession2taxid", required=False, default=None,
-                           help="[ IN DEVELOPMENT ]\n" +
-                                "Path to an NCBI accession2taxid file for more rapid accession-to-lineage mapping.\n")
+                           help="Path to an NCBI accession2taxid file for more rapid accession-to-lineage mapping.\n")
 
     optopt = parser.add_argument_group("Optional arguments")
     optopt.add_argument("-b", "--bootstraps",

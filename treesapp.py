@@ -4,7 +4,6 @@
 __author__ = "Connor Morgan-Lang and Kishori Konwar"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
-__version__ = "1.1.0"
 
 try:
     import profile
