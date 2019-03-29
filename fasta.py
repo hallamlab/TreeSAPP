@@ -365,7 +365,7 @@ def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
             bmge_settings = ["-t", "AA", "-m", "BLOSUM30"]
         else:
             bmge_settings = ["-t", "DNA", "-m", "DNAPAM100:2"]
-        trim_command = ["java", "-jar", executable]
+        trim_command = ["java", "-jar", "-Xmx1G", executable]
         trim_command += bmge_settings
         trim_command += ["-g", "0.99:0.33"]  # Specifying the gap rate per_sequence:per_character
         trim_command += ['-i', mfa_file,

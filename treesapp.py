@@ -1325,17 +1325,22 @@ def check_for_removed_sequences(args, trimmed_msa_files: dict, msa_files: dict, 
         # Report the number of sequences that are removed by BMGE
         for trimmed_msa_file in trimmed_msa_files[denominator]:
             try:
-                prefix, tool = re.search(r"(" + re.escape(marker) + "_.*_group\d+)-(BMGE|trimAl).fasta$",
+                prefix, tool = re.search(r"(" + re.escape(marker) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
                                          os.path.basename(trimmed_msa_file)).groups()
             except TypeError:
                 logging.error("Unexpected file name format for a trimmed MSA.\n")
                 sys.exit(3)
+            original_msa = ""
             for msa_file in msa_files[denominator]:
-                if re.search(re.escape(prefix) + '\.', msa_file):
+                if re.search(re.escape(prefix) + r'\.', msa_file):
+                    original_msa = msa_file
                     if trimmed_msa_file in msa_failed:
-                        untrimmed_msa_failed.append(msa_file)
-                    trimmed_away_seqs[marker] += len(set(get_headers(msa_file)).difference(set(get_headers(trimmed_msa_file))))
+                        untrimmed_msa_failed.append(original_msa)
+                    trimmed_away_seqs[marker] += len(set(get_headers(original_msa)).difference(set(get_headers(trimmed_msa_file))))
                     break
+            if not original_msa:
+                logging.error("Trimmed MSA file " + trimmed_msa_file + " was not uniquely mapped to an original MSA.\n")
+                sys.exit(3)
 
         if len(msa_failed) > 0:
             if len(untrimmed_msa_failed) != len(msa_failed):
@@ -1347,6 +1352,7 @@ def check_for_removed_sequences(args, trimmed_msa_files: dict, msa_files: dict, 
         num_successful_alignments += len(msa_passed)
         qc_ma_dict[denominator] = msa_passed
         discarded_seqs_string += summary_str
+        untrimmed_msa_failed.clear()
 
     logging.debug("done.\n")
     logging.debug("\tSequences removed during trimming:\n\t\t" +
@@ -2625,7 +2631,7 @@ def filter_placements(args, tree_saps, marker_build_dict):
         tree = Tree(os.sep.join([args.treesapp, "data", "tree_data", marker + "_tree.txt"]))
         max_dist, leaf_ds = tree_leaf_distances(tree)
         # Find the maximum distance and standard deviation of distances from the root to all leaves
-        max_dist_threshold = max_dist  # + np.std(leaf_ds)
+        max_dist_threshold = max_dist
         mean_dist_threshold = utilities.mean(leaf_ds)
         logging.debug(denominator + " maximum pendant length distance threshold: " + str(max_dist_threshold) + "\n")
 
@@ -2839,7 +2845,7 @@ def parse_raxml_output(args, marker_build_dict):
     logging.debug("\tTree parsing time required: " +
                   ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
     logging.debug("\t" + str(len(jplace_files)) + " RAxML output files.\n" +
-                  "\t" + str(classified_seqs) + " sequences classified by TreeSAPP.\n\n")
+                  "\t" + str(classified_seqs) + " sequences placed into trees by RAxML.\n\n")
 
     return tree_saps, itol_data
 

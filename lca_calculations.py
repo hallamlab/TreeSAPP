@@ -100,7 +100,7 @@ def identify_excluded_clade(assignment_dict, trie, marker):
       E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
     """
     rank_assigned_dict = dict()
-    _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
+    _RANK_DEPTH_MAP = {0: "Cellular  organisms", 1: "Kingdom",
                        2: "Phylum", 3: "Class", 4: "Order",
                        5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
 
