@@ -3,6 +3,7 @@ import os
 import sys
 import re
 import logging
+import shutil
 from .classy import prep_logging
 from .utilities import find_executables, executable_dependency_versions, available_cpu_count
 
@@ -232,21 +233,6 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
                                required=False, type=int, default=0,
                                help="Arbitrarily slice the input sequences to this length. "
                                     "Useful for testing classification accuracy for fragments.")
-    # TODO: make this standard checking stuff a function:
-    # if args.output[-1] != os.sep:
-    #     args.output += os.sep
-    #
-    # if args.overwrite:
-    #     if os.path.exists(args.output):
-    #         shutil.rmtree(args.output)
-    #
-    # args.min_seq_length = 1
-    #
-    # if sys.version_info > (2, 9):
-    #     args.py_version = 3
-    # else:
-    #     args.py_version = 2
-    #
     return
 
 
@@ -256,6 +242,24 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
 
 
 def check_parser_arguments(args):
+    # TODO: make this standard checking stuff a function:
+    if args.output[-1] != os.sep:
+        args.output += os.sep
+
+    if args.overwrite:
+        if os.path.exists(args.output):
+            shutil.rmtree(args.output)
+
+    args.min_seq_length = 1
+
+    if sys.version_info > (2, 9):
+        args.py_version = 3
+    else:
+        args.py_version = 2
+    return
+
+
+def check_classify_arguments(args):
     """
     Ensures the command-line arguments returned by argparse are sensible
     :param args: object with parameters returned by argparse.parse_args()
@@ -332,6 +336,63 @@ def check_parser_arguments(args):
     else:
         logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
         sys.exit(3)
+
+    return args
+
+
+def check_create_arguments(args):
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+    if not args.output_dir:
+        args.output_dir = os.getcwd() + os.sep + args.code_name + "_treesapp_refpkg"
+    if args.output_dir[0] != os.sep:
+        # The user didn't provide a full path
+        args.output_dir = os.getcwd() + os.sep + args.output_dir
+    if args.output_dir[-1] != os.sep:
+        args.output_dir += os.sep
+    args.final_output_dir = args.output_dir + "TreeSAPP_files_%s" % args.code_name + os.sep
+
+    if len(args.code_name) > 6:
+        logging.error("code_name must be <= 6 characters!\n")
+        sys.exit(13)
+
+    if args.rfam_cm is None and args.molecule == "rrna":
+        logging.error("Covariance model file must be provided for rRNA data!\n")
+        sys.exit(13)
+
+    # Check the RAxML model
+    raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALGF", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
+                    "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
+    if args.raxml_model and args.raxml_model not in raxml_models:
+        sys.stderr.write("ERROR: --raxml_model (" + args.raxml_model + ") not valid!\n")
+        sys.stderr.write("If this model is valid (not a typo), add if to `raxml_models` list and re-run.\n")
+        sys.exit(13)
+
+    if args.cluster:
+        if args.multiple_alignment:
+            logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
+            sys.exit(13)
+        if args.uc:
+            logging.error("--cluster and --uc are mutually exclusive!\n")
+            sys.exit(13)
+        if not 0.5 < float(args.identity) < 1.0:
+            if 0.5 < float(args.identity)/100 < 1.0:
+                args.identity = str(float(args.identity)/100)
+                sys.stderr.write("WARNING: --identity  set to " + args.identity + " for compatibility with USEARCH \n")
+            else:
+                sys.exit("ERROR: --identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+
+    if args.taxa_lca:
+        if not args.cluster and not args.uc:
+            logging.error("Unable to perform LCA for representatives without clustering information: " +
+                          "either with a provided UCLUST file or by clustering within the pipeline.\n")
+            sys.exit(13)
+
+    if args.guarantee:
+        if not args.uc and not args.cluster:
+            logging.error("--guarantee used but without clustering there is no reason for it.\n" +
+                          "Include all sequences in " + args.guarantee +
+                          " in " + args.fasta_input + " and re-run without --guarantee\n")
+            sys.exit(13)
 
     return args
 

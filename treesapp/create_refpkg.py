@@ -15,80 +15,19 @@ try:
     from time import gmtime, strftime, sleep
 
     from . import utilities
-    from .fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta, summarize_fasta_sequences,\
-        trim_multiple_alignment, read_fasta_to_dict
-    from .classy import ReferenceSequence, ReferencePackage, Cluster, MarkerBuild,\
-        prep_logging, register_headers, get_header_info
-    from external_command_interface import launch_write_command
-    from entish import annotate_partition_tree
-    from lca_calculations import megan_lca, clean_lineage_list
-    from entrez_utils import *
-    from file_parsers import parse_domain_tables, read_phylip_to_dict, read_uc, validate_alignment_trimming,\
-        multiple_alignment_dimensions
-    from placement_trainer import regress_rank_distance
+    from . import fasta
+    from . import classy
+    from . import file_parsers
+    from .external_command_interface import launch_write_command
+    from .entish import annotate_partition_tree
+    from .lca_calculations import megan_lca, clean_lineage_list
+    from .entrez_utils import *
+    from .placement_trainer import regress_rank_distance
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
     sys.stderr.write(str(traceback.print_exc(10)))
     sys.exit(13)
-
-
-def get_create_arguments():
-    args = parser.parse_args()
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-    if not args.output_dir:
-        args.output_dir = os.getcwd() + os.sep + args.code_name + "_treesapp_refpkg"
-    if args.output_dir[0] != os.sep:
-        # The user didn't provide a full path
-        args.output_dir = os.getcwd() + os.sep + args.output_dir
-    if args.output_dir[-1] != os.sep:
-        args.output_dir += os.sep
-    args.final_output_dir = args.output_dir + "TreeSAPP_files_%s" % args.code_name + os.sep
-
-    if len(args.code_name) > 6:
-        logging.error("code_name must be <= 6 characters!\n")
-        sys.exit(13)
-
-    if args.rfam_cm is None and args.molecule == "rrna":
-        logging.error("Covariance model file must be provided for rRNA data!\n")
-        sys.exit(13)
-
-    # Check the RAxML model
-    raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALGF", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
-                    "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
-    if args.raxml_model and args.raxml_model not in raxml_models:
-        sys.stderr.write("ERROR: --raxml_model (" + args.raxml_model + ") not valid!\n")
-        sys.stderr.write("If this model is valid (not a typo), add if to `raxml_models` list and re-run.\n")
-        sys.exit(13)
-
-    if args.cluster:
-        if args.multiple_alignment:
-            logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
-            sys.exit(13)
-        if args.uc:
-            logging.error("--cluster and --uc are mutually exclusive!\n")
-            sys.exit(13)
-        if not 0.5 < float(args.identity) < 1.0:
-            if 0.5 < float(args.identity)/100 < 1.0:
-                args.identity = str(float(args.identity)/100)
-                sys.stderr.write("WARNING: --identity  set to " + args.identity + " for compatibility with USEARCH \n")
-            else:
-                sys.exit("ERROR: --identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
-
-    if args.taxa_lca:
-        if not args.cluster and not args.uc:
-            logging.error("Unable to perform LCA for representatives without clustering information: " +
-                          "either with a provided UCLUST file or by clustering within the pipeline.\n")
-            sys.exit(13)
-
-    if args.guarantee:
-        if not args.uc and not args.cluster:
-            logging.error("--guarantee used but without clustering there is no reason for it.\n" +
-                          "Include all sequences in " + args.guarantee +
-                          " in " + args.fasta_input + " and re-run without --guarantee\n")
-            sys.exit(13)
-
-    return args
 
 
 def generate_cm_data(args, unaligned_fasta):
@@ -153,8 +92,8 @@ def generate_cm_data(args, unaligned_fasta):
         sys.exit(13)
 
     # Convert the Phylip file to an aligned FASTA file for downstream use
-    seq_dict = read_phylip_to_dict(args.code_name + ".phy")
-    write_new_fasta(seq_dict, aligned_fasta)
+    seq_dict = file_parsers.read_phylip_to_dict(args.code_name + ".phy")
+    fasta.write_new_fasta(seq_dict, aligned_fasta)
 
     logging.info("done.\n")
 
@@ -186,7 +125,7 @@ def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads):
                       " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
         sys.exit(7)
     else:
-        mfa = read_fasta_to_dict(fasta_out)
+        mfa = fasta.read_fasta_to_dict(fasta_out)
         if len(mfa.keys()) < 1:
             logging.error("MAFFT did not generate a proper FASTA file. " +
                           "Check the output by running:\n" + ' '.join(mafft_align_command) + "\n")
@@ -287,7 +226,7 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
                         break
 
                     # parse the accession from the header
-                    header_format_re, header_db, header_molecule = get_header_format(candidate, args.code_name)
+                    header_format_re, header_db, header_molecule = fasta.get_header_format(candidate, args.code_name)
                     sequence_info = header_format_re.match(candidate)
                     if sequence_info:
                         candidate_acc = sequence_info.group(1)
@@ -427,7 +366,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
             for header in fasta_dict:
                 # Find the matching header in the header_registry
                 original_header = header_registry[mltree_id].original
-                header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
+                header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, code_name)
                 sequence_info = header_format_re.match(original_header)
                 _, fasta_header_organism, _, _, _ = utilities.return_sequence_info_groups(sequence_info, header_db, header)
                 if re.search(ref_seq.accession, header):
@@ -476,7 +415,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
                     original_header = header_registry[num].original
                     mltree_id = str(num)
                     break
-            ref_seq = ReferenceSequence()
+            ref_seq = classy.ReferenceSequence()
             ref_seq.sequence = fasta_dict[header]
 
             if swappers and header in swappers.keys():
@@ -489,7 +428,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
                               "\nin header_map (constructed from either the input FASTA or .uc file).\n" +
                               "There is a chance this is due to the FASTA file and .uc being generated separately.\n")
                 sys.exit(13)
-            header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
+            header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, code_name)
             sequence_info = header_format_re.match(original_header)
             ref_seq.accession,\
                 ref_seq.organism,\
@@ -824,7 +763,7 @@ def read_tax_ids(tree_taxa_list):
         else:
             mltree_id_key, seq_info = fields
             lineage = ""
-        ref_seq = ReferenceSequence()
+        ref_seq = classy.ReferenceSequence()
         try:
             ref_seq.organism = seq_info.split(" | ")[0]
             ref_seq.accession = seq_info.split(" | ")[1]
@@ -876,7 +815,7 @@ def find_model_used(raxml_info_file):
     return model
 
 
-def update_build_parameters(param_file, marker_package: MarkerBuild):
+def update_build_parameters(param_file, marker_package: classy.MarkerBuild):
     """
     Function to update the data/tree_data/ref_build_parameters.tsv file with information on this new reference sequence
     Format of file is:
@@ -1072,7 +1011,7 @@ def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output
     # Run OD-seq on MSA to identify outliers
     run_odseq(od_seq_exe, od_input_m, od_output, num_threads)
     # Remove outliers from fasta_record_objects collection
-    outlier_seqs = read_fasta_to_dict(od_output)
+    outlier_seqs = fasta.read_fasta_to_dict(od_output)
     for seq_num_id in fasta_record_objects:
         ref_seq = fasta_record_objects[seq_num_id]
         tmp_dict[ref_seq.short_id] = ref_seq
@@ -1102,7 +1041,7 @@ def guarantee_ref_seqs(cluster_dict, important_seqs):
             representative = cluster_dict[cluster_id].representative
             for member in cluster_dict[cluster_id].members:
                 if member[0] in important_seqs.keys():
-                    nonredundant_guarantee_cluster_dict[expanded_cluster_id] = Cluster(member[0])
+                    nonredundant_guarantee_cluster_dict[expanded_cluster_id] = classy.Cluster(member[0])
                     nonredundant_guarantee_cluster_dict[expanded_cluster_id].members = []
                     nonredundant_guarantee_cluster_dict[expanded_cluster_id].lca = cluster_dict[cluster_id].lca
                     expanded_cluster_id += 1

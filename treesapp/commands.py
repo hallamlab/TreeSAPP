@@ -5,17 +5,20 @@ import re
 import os
 import shutil
 from time import sleep
+from glob import glob
+from random import randint
 from . import file_parsers
 from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, summarize_fasta_sequences, get_headers,\
     read_fasta_to_dict
-from .treesapp_args import TreeSAPPArgumentParser, check_parser_arguments,\
-    add_classify_arguments, add_create_arguments, add_evaluate_arguments, add_update_arguments
+from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments,\
+    add_evaluate_arguments, add_update_arguments, check_parser_arguments
 from . import utilities
 from . import entrez_utils
 from . import entish
 from . import lca_calculations
 from . import placement_trainer
-from .classy import prep_logging, MarkerBuild, ReferencePackage, register_headers, get_header_info
+from .phylo_dist import trim_lineages_to_rank
+from .classy import prep_logging, MarkerBuild, MarkerTest, ReferencePackage, register_headers, get_header_info
 from . import create_refpkg
 from .classify import abundify_tree_saps, delete_files, check_previous_output, validate_inputs, predict_orfs,\
     get_alignment_dims, hmmsearch_orfs, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
@@ -25,6 +28,11 @@ from .classify import abundify_tree_saps, delete_files, check_previous_output, v
     update_func_tree_workflow
 from .external_command_interface import launch_write_command
 from .jplace_utils import sub_indices_for_seq_names_jplace
+from .clade_exclusion_evaluator import load_ref_seqs, pick_taxonomic_representatives, select_rep_seqs,\
+    map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, get_classification_performance,\
+    write_containment_table, map_headers_to_lineage, graftm_classify, validate_ref_package_files, \
+    classify_excluded_taxon, exclude_clade_from_ref_files, determine_containment, parse_distances,\
+    write_performance_table, summarize_taxonomic_diversity, remove_clade_exclusion_files
 
 
 def info(args):
@@ -493,9 +501,338 @@ def create(args):
 
 
 def evaluate():
+    """
+    Method for running this script:
+        Provide it a FASTA file for which it will determine the taxonomic lineage for each sequence
+         and run all taxonomic representative sequences with TreeSAPP then analyze via clade exclusion
+
+    :return:
+    """
     parser = TreeSAPPArgumentParser(description='Evaluate classification performance using clade-exclusion analysis.')
     add_evaluate_arguments(parser)
     args = parser.parse_args()
+    sys.stdout.write("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
+
+    args = check_parser_arguments(args)
+    args.targets = ["ALL"]
+    exe_dict = utilities.find_executables(args)
+
+    os.makedirs(args.output, exist_ok=True)
+    log_file_name = args.output + os.sep + "Clade_exclusion_analyzer_log.txt"
+    prep_logging(log_file_name, args.verbose)
+    logging.debug("Command used:\n" + ' '.join(sys.argv) + "\n")
+
+    marker_build_dict = file_parsers.parse_ref_build_params(args)
+    ref_leaves = file_parsers.tax_ids_file_to_leaves(os.sep.join([args.treesapp, 'data', 'tree_data',
+                                                     "tax_ids_" + args.reference_marker + ".txt"]))
+    ref_lineages = dict()
+    for leaf in ref_leaves:
+        ref_lineages[leaf.number] = leaf.lineage
+    marker_eval_inst = MarkerTest(args.reference_marker)
+    taxa_choices = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
+    args.taxon_rank = args.taxon_rank.split(',')
+    for rank in args.taxon_rank:
+        if rank not in taxa_choices:
+            logging.error(rank + " not an available option for `--taxon_rank`.\n")
+            sys.exit(21)
+        else:
+            marker_eval_inst.ranks.append(rank)
+
+    # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
+    if re.match("^[A-Z][0-9]{4}$", args.reference_marker):
+        code_name = args.reference_marker
+        try:
+            marker = marker_build_dict[code_name].cog
+        except KeyError:
+            logging.error("Unable to find '" + code_name + "' in ref_build_parameters collection!\n" +
+                          "Has it been added to data/tree_data/ref_build_parameters.tsv and cog_list.tsv?\n")
+            sys.exit(21)
+    elif len(args.reference_marker) <= 6:
+        # Assuming the provided args.reference_marker is a short gene name (e.g. mcrA, nifH)
+        marker = args.reference_marker
+        code_name = ""
+        for denominator in marker_build_dict:
+            if marker_build_dict[denominator].cog == marker:
+                code_name = denominator
+                break
+        if not code_name:
+            logging.error("Unable to identify the gene name from the code name '" + args.reference_marker + "'.")
+            sys.exit(21)
+    else:
+        logging.error("Wrong format for the reference code_name provided: " + args.reference_marker + "\n")
+        sys.exit(21)
+
+    ##
+    # Define locations of files TreeSAPP outputs
+    ##
+    inter_class_file = args.output + os.sep + "tmp_clade_exclusion_assignments.tsv"
+    accession_map_file = args.output + os.sep + "accession_id_lineage_map.tsv"
+    test_rep_taxa_fasta = args.output + os.sep + "representative_taxa_sequences.fasta"
+    performance_table = args.output + os.sep + "clade_exclusion_performance.tsv"
+    containment_table = args.output + os.sep + "accuracy.tsv"
+    # Determine the analysis stage and user's intentions with four booleans
+    accessions_downloaded = False  # Whether the accessions have been downloaded from Entrez
+    classified = False  # Has TreeSAPP been completed for these sequences?
+    treesapp_output_dir = args.output + "TreeSAPP_output" + os.sep
+    # Working with a pre-existing TreeSAPP output directory
+    if os.path.exists(treesapp_output_dir):
+        extant = True
+    else:
+        extant = False
+    if extant:
+        if os.path.isfile(accession_map_file):
+            accessions_downloaded = True
+
+    if extant:
+        logging.debug("The output directory has been detected.\n")
+
+    if not os.path.isdir(treesapp_output_dir):
+        os.makedirs(treesapp_output_dir)
+
+    if args.tool in ["diamond", "graftm"]:
+        graftm_files = glob(treesapp_output_dir + os.sep + "*" + os.sep + "*_read_tax.tsv")
+        if len(graftm_files) == 1:
+            classification_table = glob(treesapp_output_dir + os.sep + "*" + os.sep + "*_read_tax.tsv")[0]
+        else:
+            classification_table = ''
+    else:
+        classification_table = treesapp_output_dir + os.sep + "final_outputs" + os.sep + "marker_contig_map.tsv"
+    if os.path.isfile(classification_table):
+        classified = True
+
+    # Load FASTA data
+    fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output, 110)
+    if args.length:
+        for seq_id in fasta_dict:
+            if len(fasta_dict[seq_id]) < args.length:
+                logging.warning(seq_id + " sequence is shorter than " + str(args.length) + "\n")
+            else:
+                max_stop = len(fasta_dict[seq_id]) - args.length
+                random_start = randint(0, max_stop)
+                fasta_dict[seq_id] = fasta_dict[seq_id][random_start:random_start + args.length]
+    header_registry = register_headers(get_headers(args.fasta_input))
+    # Load the query test sequences as ReferenceSequence objects
+    complete_ref_sequences = get_header_info(header_registry)
+    complete_ref_sequences = load_ref_seqs(fasta_dict, header_registry, complete_ref_sequences)
+
+    logging.debug("\tNumber of input sequences =\t" + str(len(complete_ref_sequences)) + "\n")
+
+    # Checkpoint one: does anything exist?
+    # If not, begin by downloading lineage information for each sequence accession
+    args.output = treesapp_output_dir
+    if not extant and not accessions_downloaded and not classified:
+        # User hasn't analyzed anything, sequences will be taxonomically screened then analyzed
+        # NOTE: This is only supported for analyzing a single marker gene
+        extant = True
+        entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(complete_ref_sequences)
+        if len(entrez_query_list) > 0:
+            entrez_records = entrez_utils.get_multiple_lineages(entrez_query_list, args.molecule)
+            accession_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
+            all_accessions = entrez_utils.entrez_records_to_accessions(entrez_records, entrez_query_list)
+
+        elif num_lineages_provided > 0:
+            logging.info("No Entrez queries are necessary - all sequences have provided lineage information.\n")
+            accession_lineage_map = dict()
+            all_accessions = []
+        else:
+            logging.error("No accessions were parsed from FASTA records in " + args.fasta_input)
+            sys.exit(21)
+        # Download lineages separately for those accessions that failed,
+        # map proper accession to lineage from the tuple keys (accession, accession.version)
+        #  in accession_lineage_map returned by get_multiple_lineages.
+        complete_ref_sequences, accession_lineage_map = entrez_utils.verify_lineage_information(accession_lineage_map,
+                                                                                                all_accessions,
+                                                                                                complete_ref_sequences,
+                                                                                                num_lineages_provided)
+        create_refpkg.write_accession_lineage_map(accession_map_file, accession_lineage_map)
+        complete_ref_sequences = create_refpkg.finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
+        accessions_downloaded = True
+    elif extant and accessions_downloaded:
+        # File being read should contain accessions mapped to their lineages for all sequences in input FASTA
+        accession_lineage_map = entrez_utils.read_accession_taxa_map(accession_map_file)
+        complete_ref_sequences = create_refpkg.finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
+    else:
+        logging.error("Logic error.")
+        sys.exit(21)
+    fasta_record_objects = complete_ref_sequences.values()
+
+    logging.info("Selecting representative sequences for each taxon.\n")
+
+    # Filter the sequences from redundant taxonomic lineages, picking up to 5 representative sequences
+    representative_seqs, marker_eval_inst.taxa_filter = pick_taxonomic_representatives(fasta_record_objects,
+                                                                                       marker_eval_inst.taxa_filter)
+    deduplicated_fasta_dict = select_rep_seqs(representative_seqs, fasta_record_objects)
+    write_new_fasta(deduplicated_fasta_dict, test_rep_taxa_fasta)
+    rep_accession_lineage_map = map_seqs_to_lineages(accession_lineage_map, deduplicated_fasta_dict)
+
+    # Checkpoint three: We have accessions linked to taxa, and sequences to analyze with TreeSAPP, but not classified
+
+    if extant and accessions_downloaded and not classified:
+        # Run TreeSAPP against the provided tax_ids file and the unique taxa FASTA file
+        if args.length:
+            min_seq_length = str(min(args.length - 10, 30))
+        else:
+            min_seq_length = str(30)
+
+        validate_ref_package_files(args.treesapp, marker, args.output)
+
+        ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
+        for rank in args.taxon_rank:
+            leaf_trimmed_taxa_map = trim_lineages_to_rank(ref_lineages, rank)
+            unique_ref_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
+            unique_query_lineages = sorted(set(trim_lineages_to_rank(rep_accession_lineage_map, rank).values()))
+            depth = ranks[rank]
+            for lineage in unique_query_lineages:
+                taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
+                rank_tax = rank[0] + '_' + taxon
+                treesapp_output = args.output + os.sep + rank_tax + os.sep
+
+                optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
+                if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages
+                                                if tl != lineage]:
+                    logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not in pruned tree.\n")
+                    continue
+
+                # Select representative sequences belonging to the taxon being tested
+                taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_record_objects, lineage)
+                # Decide whether to continue analyzing taxon based on number of query sequences
+                if len(taxon_rep_seqs.keys()) == 0:
+                    logging.debug("No query sequences for " + lineage + ".\n")
+                    continue
+
+                logging.info("Classifications for the " + rank + " '" + taxon + "' put " + treesapp_output + "\n")
+                test_obj = marker_eval_inst.new_taxa_test(rank, lineage)
+                test_obj.queries = taxon_rep_seqs.keys()
+                test_rep_taxa_fasta = args.output + rank_tax + ".fa"
+
+                if args.tool in ["graftm", "diamond"]:
+                    classification_table = os.sep.join([treesapp_output, rank_tax, rank_tax + "_read_tax.tsv"])
+
+                    if not os.path.isfile(classification_table):
+                        tax_ids_file = os.sep.join([args.output,
+                                                    marker + ".gpkg",
+                                                    marker + ".gpkg.refpkg",
+                                                    marker + "_taxonomy.csv"])
+                        # Copy reference files, then exclude all clades belonging to the taxon being tested
+                        prep_graftm_ref_files(args.treesapp, args.output, lineage, marker_eval_inst.target_marker,
+                                              depth)
+                        build_graftm_package(marker_eval_inst.target_marker,
+                                             args.output,
+                                             mfa_file=args.output + marker + ".mfa",
+                                             fa_file=args.output + marker + ".fa",
+                                             threads=args.threads)
+                        # Write the query sequences
+                        write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
+
+                        graftm_classify(test_rep_taxa_fasta, args.output + os.sep + marker + ".gpkg",
+                                        treesapp_output, args.threads, args.tool)
+
+                        if not os.path.isfile(classification_table):
+                            # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
+                            logging.warning("GraftM did not generate output for " + lineage + ". Skipping.\n")
+                            # shutil.rmtree(treesapp_output)
+                            continue
+
+                        shutil.copy(tax_ids_file, treesapp_output + os.sep + rank_tax + os.sep)
+
+                    tax_ids_file = os.sep.join([treesapp_output, rank_tax, marker + "_taxonomy.csv"])
+                    test_obj.taxonomic_tree = lca_calculations.grab_graftm_taxa(tax_ids_file)
+                    graftm_assignments = file_parsers.read_graftm_classifications(classification_table)
+                    test_obj.assignments = {marker: graftm_assignments}
+                    test_obj.filter_assignments(marker_eval_inst.target_marker)
+                else:
+                    tax_ids_file = treesapp_output + "tax_ids_" + marker + ".txt"
+                    classification_table = treesapp_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
+
+                    if not os.path.isfile(classification_table) or not os.path.isfile(tax_ids_file):
+                        # Copy reference files, then exclude all clades belonging to the taxon being tested
+                        prefix = exclude_clade_from_ref_files(args.treesapp, marker, args.output, lineage, depth,
+                                                              args.executables, args.fresh, args.molecule)
+                        # Write the query sequences
+                        write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
+                        classify_excluded_taxon(args, prefix, treesapp_output, marker, min_seq_length,
+                                                test_rep_taxa_fasta)
+                        if not os.path.isfile(classification_table):
+                            # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
+                            logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
+                            shutil.rmtree(treesapp_output)
+                            continue
+                    else:
+                        # Valid number of queries and these sequences have already been classified
+                        pass
+
+                    test_obj.taxonomic_tree = lca_calculations.all_possible_assignments(tax_ids_file)
+                    if os.path.isfile(classification_table):
+                        assigned_lines = file_parsers.read_marker_classification_table(classification_table)
+                        test_obj.assignments = file_parsers.parse_assignments(assigned_lines)
+                        test_obj.filter_assignments(marker_eval_inst.target_marker)
+                        test_obj.distances = parse_distances(assigned_lines)
+                    else:
+                        logging.error("marker_contig_map.tsv is missing from output directory '" +
+                                      os.path.basename(classification_table) + "'\n" +
+                                      "Please remove this directory and re-run.\n")
+                        sys.exit(21)
+        classified = True
+    remove_clade_exclusion_files(args.output)
+
+    # Checkpoint four: everything has been prepared, only need to parse the classifications and map lineages
+    logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
+    for rank in sorted(marker_eval_inst.taxa_tests):
+        for test_obj in marker_eval_inst.taxa_tests[rank]:
+            if test_obj.assignments:
+                marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_record_objects)
+                # Return the number of correct, classified, and total sequences of that taxon at the current rank
+                # Identify the excluded rank for each query sequence
+                if len(marker_assignments) == 0:
+                    logging.debug("No sequences were classified for " + test_obj.taxon + "\n")
+                    continue
+
+                for marker in marker_assignments:
+                    marker_eval_inst.markers.add(marker)
+
+                rank_assignments = lca_calculations.identify_excluded_clade(marker_assignments,
+                                                           test_obj.taxonomic_tree,
+                                                           marker_eval_inst.target_marker)
+                for a_rank in rank_assignments:
+                    if a_rank != rank and len(rank_assignments[a_rank]) > 0:
+                        logging.warning(
+                            rank + "-level clade excluded but classifications were found to be " + a_rank +
+                            "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
+                        continue
+                    if a_rank not in marker_eval_inst.classifications:
+                        marker_eval_inst.classifications[a_rank] = list()
+                    if len(rank_assignments[a_rank]) > 0:
+                        marker_eval_inst.classifications[a_rank] += rank_assignments[a_rank]
+
+    ##
+    # On to the standard clade-exclusion analysis...
+    ##
+    if marker_eval_inst.taxa_filter["Classified"] != marker_eval_inst.taxa_filter["Unique_taxa"]:
+        logging.debug("\n\t" + str(marker_eval_inst.taxa_filter["Classified"] -
+                                   marker_eval_inst.taxa_filter["Unique_taxa"]) +
+                      " duplicate query taxonomies removed.\n")
+
+    if marker_eval_inst.taxa_filter["Unclassified"] > 0:
+        logging.debug("\t" + str(marker_eval_inst.taxa_filter["Unclassified"]) +
+                      " query sequences with unclassified taxonomies were removed.\n" +
+                      "This is not a problem, its just they have 'unclassified' somewhere in their lineages\n" +
+                      "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
+
+    if code_name not in marker_eval_inst.markers and marker not in marker_eval_inst.markers:
+        logging.error("No sequences were classified as " + marker + ".\n")
+        sys.exit(21)
+
+    # For debugging:
+    # for rank in marker_eval_inst.ranks:
+    #     distal, pendant, tip = marker_eval_inst.summarize_rankwise_distances(rank)
+
+    # Determine the specificity for each rank
+    clade_exclusion_strings = get_classification_performance(marker_eval_inst)
+    write_performance_table(args, performance_table, clade_exclusion_strings)
+    summarize_taxonomic_diversity(marker_eval_inst)
+    containment_strings = determine_containment(marker_eval_inst)
+    write_containment_table(args, containment_table, containment_strings)
+
     return
 
 
