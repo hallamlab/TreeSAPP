@@ -5,7 +5,7 @@ import sys
 import argparse
 import logging
 
-from .commands import (create, classify, update, info)
+from .commands import (create, classify, update, info, train)
 from .clade_exclusion_evaluator import main as evaluate_main
 
 usage = """
@@ -26,7 +26,8 @@ def main():
                 "evaluate": evaluate_main,
                 "classify": classify,
                 "update": update,
-                "info": info}
+                "info": info,
+                "train": train}
     parser = argparse.ArgumentParser(
         description='work with compressed biological sequence representations')
     parser.add_argument('command', nargs='?')

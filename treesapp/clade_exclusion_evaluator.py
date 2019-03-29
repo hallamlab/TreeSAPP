@@ -2,19 +2,13 @@
 
 __author__ = 'Connor Morgan-Lang'
 
-import argparse
 import sys
 import os
-import inspect
 import shutil
 from ete3 import Tree
 from glob import glob
 from random import randint
 
-cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
-if cmd_folder not in sys.path:
-    sys.path.insert(0, cmd_folder)
-sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
 from fasta import format_read_fasta, write_new_fasta, get_headers, read_fasta_to_dict
 from create_treesapp_refpkg import get_header_format, finalize_ref_seq_lineages
 from utilities import return_sequence_info_groups, find_executables
@@ -30,72 +24,6 @@ from lca_calculations import all_possible_assignments, grab_graftm_taxa, identif
 _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
                    2: "Phylum", 3: "Class", 4: "Order",
                    5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
-
-
-def get_arguments():
-    parser = argparse.ArgumentParser(add_help=False)
-    required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument('-o', "--output",
-                               required=True,
-                               help='Path to a directory for writing output files')
-    required_args.add_argument('-i', '--fasta_input',
-                               help='Your sequence input file (for TreeSAPP) in FASTA format',
-                               required=True)
-    required_args.add_argument("-r", "--reference_marker",
-                               help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)",
-                               required=True)
-
-    optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument("--fresh", default=False, required=False, action="store_true",
-                        help="Recalculate a fresh phylogenetic tree with the target clades removed instead of"
-                             " removing the leaves corresponding to targets from the reference tree.")
-    optopt.add_argument("--tool", default="treesapp", required=False,
-                        choices=["treesapp", "graftm", "diamond"],
-                        help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
-    optopt.add_argument("-t", "--taxon_rank",
-                        help="Comma-separated list of the taxonomic ranks to test " +
-                        "choices = [Phylum, Class, Order, Family, Genus, Species] " +
-                        "(DEFAULT = Species)",
-                        default="Species",
-                        required=False)
-    optopt.add_argument('-m', '--molecule',
-                        help='the type of input sequences (prot = Protein [DEFAULT]; dna = Nucleotide; rrna = rRNA)',
-                        default='prot',
-                        choices=['prot', 'dna', 'rrna'])
-    optopt.add_argument("-l", "--length",
-                        required=False, type=int, default=0,
-                        help="Arbitrarily slice the input sequences to this length. "
-                             "Useful for testing classification accuracy for fragments.")
-
-    miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
-    miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
-                                    help='overwrites previously processed output folders')
-    miscellaneous_opts.add_argument("-T", "--threads", required=False, default=4, type=int,
-                                    help="The number of threads to be used for classification.")
-    miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
-                                    help='Prints a more verbose runtime log')
-    miscellaneous_opts.add_argument("-h", "--help",
-                                    action="help",
-                                    help="Show this help message and exit")
-
-    args = parser.parse_args()
-
-    if args.output[-1] != os.sep:
-        args.output += os.sep
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep + ".." + os.sep
-
-    if args.overwrite:
-        if os.path.exists(args.output):
-            shutil.rmtree(args.output)
-
-    args.min_seq_length = 1
-
-    if sys.version_info > (2, 9):
-        args.py_version = 3
-    else:
-        args.py_version = 2
-
-    return args
 
 
 def parse_distances(classification_lines):
