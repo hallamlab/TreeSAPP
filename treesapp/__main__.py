@@ -28,8 +28,7 @@ def main():
                 "update": update,
                 "info": info,
                 "train": train}
-    parser = argparse.ArgumentParser(
-        description='work with compressed biological sequence representations')
+    parser = argparse.ArgumentParser(description='Phylogenetic classification of biological sequences')
     parser.add_argument('command', nargs='?')
     args = parser.parse_args(sys.argv[1:2])
 
