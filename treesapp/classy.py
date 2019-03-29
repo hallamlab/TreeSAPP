@@ -8,9 +8,9 @@ import subprocess
 import logging
 from multiprocessing import Process, JoinableQueue
 from json import loads, dumps
-from fasta import get_header_format
-from utilities import reformat_string, return_sequence_info_groups, median
-from entish import get_node, create_tree_info_hash, subtrees_to_dictionary
+from .fasta import get_header_format
+from .utilities import reformat_string, return_sequence_info_groups, median
+from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from numpy import var
 
 import _tree_parser

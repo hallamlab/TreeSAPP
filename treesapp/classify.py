@@ -26,16 +26,17 @@ try:
 
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
-        TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging
-    from fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
-    from entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
+        TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging, MarkerBuild
+    from .fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
+    from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
-    from external_command_interface import launch_write_command, setup_progress_bar
-    from lca_calculations import *
-    from jplace_utils import *
-    from file_parsers import *
-    from phylo_dist import *
-    from update_refpkg import CreateFuncTreeUtility
+    from .external_command_interface import launch_write_command, setup_progress_bar
+    from .lca_calculations import *
+    from .jplace_utils import *
+    from .file_parsers import *
+    from .phylo_dist import *
+    from .update_refpkg import CreateFuncTreeUtility
+    from . import utilities
 
     import _tree_parser
     import _fasta_reader
@@ -2412,7 +2413,7 @@ def lowest_confident_taxonomy(lct, depth):
     if depth < 1:
         return confident_assignment
 
-    purified_lineage_list = clean_lineage_string(lct).split("; ")
+    purified_lineage_list = utilities.clean_lineage_string(lct).split("; ")
     confident_assignment = "; ".join(purified_lineage_list[:depth])
 
     # For debugging
@@ -2557,7 +2558,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
         lineage_list = list()
         # Test if the reference set have lineage information
         for leaf in leaves:
-            lineage_list.append(clean_lineage_string(leaf.lineage).split('; '))
+            lineage_list.append(utilities.clean_lineage_string(leaf.lineage).split('; '))
             leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
@@ -2592,7 +2593,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
                                          tree_sap.contig_name,
                                          tree_sap.name,
                                          str(tree_sap.seq_len),
-                                         clean_lineage_string(tree_sap.lct),
+                                         utilities.clean_lineage_string(tree_sap.lct),
                                          lowest_confident_taxonomy(tree_sap.lct, recommended_rank),
                                          str(tree_sap.abundance),
                                          str(tree_sap.inode),

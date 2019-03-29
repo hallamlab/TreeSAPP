@@ -7,16 +7,10 @@ import sys
 import argparse
 import os
 import re
-import inspect
-cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
-if cmd_folder not in sys.path:
-    sys.path.insert(0, cmd_folder)
-sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from entish import read_and_map_internal_nodes_from_newick_tree
-from fasta import format_read_fasta
-from classy import TreeLeafReference
-from file_parsers import read_colours_file
-from treesapp import parse_ref_build_params
+from .entish import read_and_map_internal_nodes_from_newick_tree
+from .fasta import format_read_fasta
+from .classy import TreeLeafReference
+from .file_parsers import read_colours_file, parse_ref_build_params
 
 
 def get_arguments():

@@ -7,7 +7,7 @@ import subprocess
 import logging
 import time
 from shutil import copy
-from external_command_interface import launch_write_command
+from .external_command_interface import launch_write_command
 
 
 def is_exe(fpath):

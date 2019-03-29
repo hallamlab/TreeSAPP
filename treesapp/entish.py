@@ -4,7 +4,7 @@ import sys
 import re
 import _tree_parser
 import os
-from utilities import Autovivify, mean
+from .utilities import Autovivify, mean
 from ete3 import Tree
 from scipy import log2
 
