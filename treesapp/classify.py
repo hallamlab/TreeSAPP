@@ -46,63 +46,6 @@ except ImportWarning:
     sys.exit(3)
 
 
-def check_previous_output(args):
-    """
-    Prompts the user to determine how to deal with a pre-existing output directory.
-    :rtype: Namespace object
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :return An updated version of 'args', a summary of TreeSAPP settings.
-    """
-
-    main_output_dirs = [args.output_dir_var, args.output_dir_raxml, args.output_dir_final]
-    args.skip = 'n'
-
-    if os.path.isdir(args.output_dir_final) and args.overwrite:
-        for output_dir in main_output_dirs:
-            shutil.rmtree(output_dir)
-            os.mkdir(output_dir)
-    elif os.path.isdir(args.output_dir_final) and not args.overwrite:
-        workflows = list()
-        if args.update_tree:
-            if os.path.isfile(args.output_dir_final + os.sep + "marker_contig_map.tsv"):
-                args.skip = 'y'
-                workflows.append("updating")
-            else:
-                logging.warning("Update-tree impossible as " + args.output + " is missing input files.\n")
-        elif args.rpkm:
-            if os.path.isfile(args.reads) and os.path.isfile(args.output_dir_final + os.sep + "marker_contig_map.tsv"):
-                args.skip = 'y'
-                workflows.append("calculating RPKM")
-            else:
-                logging.warning("RPKM impossible as " + args.output + " is missing input files.\n")
-        elif args.reclassify:
-            if os.path.isdir(args.output_dir_var):
-                jplace_files = glob.glob(args.output_dir_var + os.sep + "*jplace")
-                if len(jplace_files) >= 1:
-                    args.skip = 'y'
-                    workflows.append("reclassifying")
-                else:
-                    logging.warning("reclassify impossible as " + args.output + " is missing input files.\n")
-        else:
-            # Warn user then remove all main output directories, leaving log in output
-            logging.warning("Removing previous outputs in '" + args.output + "'. " +
-                            "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
-            time.sleep(10)
-            for output_dir in main_output_dirs:
-                shutil.rmtree(output_dir)
-                os.mkdir(output_dir)
-
-        if len(workflows) >= 1:
-            sys.stdout.write(','.join(workflows) + ".\n")
-            sys.stdout.flush()
-    else:
-        # Create the output directories
-        for output_dir in main_output_dirs:
-            os.mkdir(output_dir)
-
-    return args
-
-
 def get_hmm_length(hmm_file):
     """
     Function to open the ref_tree's hmm file and determine its length
@@ -273,7 +216,7 @@ def predict_orfs(args):
 
     task_list = list()
     for fasta_chunk in split_files:
-        chunk_prefix = args.output_dir_final + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
+        chunk_prefix = args.final_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
         prodigal_command = [args.executables["prodigal"]]
         prodigal_command += ["-i", fasta_chunk]
         prodigal_command += ["-p", args.composition]
@@ -291,11 +234,11 @@ def predict_orfs(args):
         cl_farmer.task_queue.join()
 
     # Concatenate outputs
-    aa_orfs_file = args.output_dir_final + sample_prefix + "_ORFs.faa"
-    nuc_orfs_file = args.output_dir_final + sample_prefix + "_ORFs.fna"
+    aa_orfs_file = args.final_output_dir + sample_prefix + "_ORFs.faa"
+    nuc_orfs_file = args.final_output_dir + sample_prefix + "_ORFs.fna"
     if not os.path.isfile(aa_orfs_file) and not os.path.isfile(nuc_orfs_file):
-        tmp_prodigal_aa_orfs = glob.glob(args.output_dir_final + sample_prefix + "*_ORFs.faa")
-        tmp_prodigal_nuc_orfs = glob.glob(args.output_dir_final + sample_prefix + "*_ORFs.fna")
+        tmp_prodigal_aa_orfs = glob.glob(args.final_output_dir + sample_prefix + "*_ORFs.faa")
+        tmp_prodigal_nuc_orfs = glob.glob(args.final_output_dir + sample_prefix + "*_ORFs.fna")
         os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + aa_orfs_file)
         os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + nuc_orfs_file)
         intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
@@ -2152,10 +2095,10 @@ def summarize_placements_rpkm(args, abundance_dict, marker_build_dict):
     for marker in marker_rpkm_map:
         ref_marker = utilities.fish_refpkg_from_build_params(marker, marker_build_dict)
 
-        final_output_file = args.output_dir_final + str(ref_marker.denominator) + "_concatenated_RAxML_outputs.txt"
+        final_output_file = args.final_output_dir + str(ref_marker.denominator) + "_concatenated_RAxML_outputs.txt"
         # Not all of the genes predicted will have made it to the RAxML stage
         if os.path.isfile(final_output_file):
-            shutil.move(final_output_file, args.output_dir_final + ref_marker.denominator + "_concatenated_counts.txt")
+            shutil.move(final_output_file, args.final_output_dir + ref_marker.denominator + "_concatenated_counts.txt")
             try:
                 cat_output = open(final_output_file, 'w')
             except IOError:
@@ -2541,7 +2484,7 @@ def write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build
     :return:
     """
     leaf_taxa_map = dict()
-    mapping_output = args.output_dir_final + os.sep + "marker_contig_map.tsv"
+    mapping_output = args.final_output_dir + os.sep + "marker_contig_map.tsv"
     sample_name = os.path.basename(args.output)
     if not sample_name:
         sample_name = args.output.split(os.sep)[-2]

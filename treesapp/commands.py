@@ -75,11 +75,6 @@ def create(args):
     add_create_arguments(parser)
     args = parser.parse_args()
 
-    if os.path.isdir(args.output_dir) and args.overwrite:
-        shutil.rmtree(args.output_dir)
-        os.mkdir(args.output_dir)
-    os.makedirs(args.output_dir, exist_ok=True)
-
     log_file_name = args.output_dir + os.sep + "create_" + args.code_name + "_TreeSAPP_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCreating TreeSAPP reference package for '" + args.code_name + "' \t\t\t##\n")
@@ -843,9 +838,7 @@ def classify():
     parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
     add_classify_arguments(parser)
     args = parser.parse_args()
-
     args = check_parser_arguments(args)
-    args = check_previous_output(args)
 
     marker_build_dict = file_parsers.parse_ref_build_params(args)
     tree_numbers_translation = file_parsers.read_species_translation_files(args, marker_build_dict)
@@ -866,7 +859,7 @@ def classify():
             input_multi_fasta = os.path.basename(args.fasta_input)
         else:
             input_multi_fasta = args.fasta_input
-        args.formatted_input_file = args.output_dir_var + input_multi_fasta + "_formatted.fasta"
+        args.formatted_input_file = args.var_output_dir + input_multi_fasta + "_formatted.fasta"
         logging.debug("Writing formatted FASTA file to " + args.formatted_input_file + "... ")
         formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
         logging.debug("done.\n")
@@ -877,7 +870,7 @@ def classify():
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, formatted_fasta_dict)
         homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
-                                                 marker_build_dict, args.output_dir_var)
+                                                 marker_build_dict, args.var_output_dir)
 
         # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
         create_ref_phy_files(args, homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
@@ -928,10 +921,10 @@ def classify():
     abundance_dict = dict()
     if args.molecule == "dna":
         sample_name = '.'.join(os.path.basename(re.sub("_ORFs", '', args.fasta_input)).split('.')[:-1])
-        orf_nuc_fasta = args.output_dir_final + sample_name + "_classified_seqs.fna"
+        orf_nuc_fasta = args.final_output_dir + sample_name + "_classified_seqs.fna"
         if not os.path.isfile(orf_nuc_fasta):
             logging.info("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
-            genome_nuc_genes_file = args.output_dir_final + sample_name + "_ORFs.fna"
+            genome_nuc_genes_file = args.final_output_dir + sample_name + "_ORFs.fna"
             if os.path.isfile(genome_nuc_genes_file):
                 nuc_orfs_formatted_dict = format_read_fasta(genome_nuc_genes_file, 'dna', args.output)
                 write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta)

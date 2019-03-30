@@ -6,8 +6,82 @@ import sys
 import subprocess
 import logging
 import time
-from shutil import copy
+from shutil import copy, rmtree
+from glob import glob
 from .external_command_interface import launch_write_command
+
+
+def check_previous_output(args):
+    """
+    Prompts the user to determine how to deal with a pre-existing output directory.
+    By the end of this function, all directories should exist and be in the correct state for a new analysis run
+
+    :rtype: Namespace object
+    :param args: Command-line argument object from get_options and check_parser_arguments
+    :return An updated version of 'args', a summary of TreeSAPP settings.
+    """
+
+    main_output_dirs = [args.var_output_dir, args.final_output_dir]
+    args.skip = 'n'
+
+    # TODO: Identify all the various reasons someone may not want to have their previous results overwritten
+    if not os.path.isdir(args.final_output_dir):
+        os.mkdir(args.final_output_dir)
+        # Create the output directories
+        for output_dir in main_output_dirs:
+            os.mkdir(output_dir)
+    elif not args.overwrite and glob(args.final_output_dir + "*"):
+        workflows = list()
+        if args.update_tree:
+            if os.path.isfile(args.final_output_dir + os.sep + "marker_contig_map.tsv"):
+                args.skip = 'y'
+                workflows.append("updating")
+            else:
+                logging.warning("Update-tree impossible as " + args.output + " is missing input files.\n")
+        elif args.rpkm:
+            if os.path.isfile(args.reads) and os.path.isfile(args.final_output_dir + os.sep + "marker_contig_map.tsv"):
+                args.skip = 'y'
+                workflows.append("calculating RPKM")
+            else:
+                logging.warning("RPKM impossible as " + args.output + " is missing input files.\n")
+        elif args.reclassify:
+            if os.path.isdir(args.var_output_dir):
+                jplace_files = glob(args.var_output_dir + os.sep + "*jplace")
+                if len(jplace_files) >= 1:
+                    args.skip = 'y'
+                    workflows.append("reclassifying")
+                else:
+                    logging.warning("reclassify impossible as " + args.output + " is missing input files.\n")
+        # TODO: Add check(s) for create_refpkg
+        else:
+            # Warn user then remove all main output directories, leaving log in output
+            logging.warning("Removing previous outputs in '" + args.output + "'. " +
+                            "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
+            time.sleep(10)
+            rmtree(args.output)
+            os.mkdir(args.output)
+            for output_dir in main_output_dirs:
+                os.mkdir(output_dir)
+
+        if len(workflows) >= 1:
+            sys.stdout.write(','.join(workflows) + ".\n")
+            sys.stdout.flush()
+    # TODO: Finish these cases
+    elif args.overwrite and glob(args.final_output_dir + "*"):
+        # Remove everything, remake directories
+        pass
+    elif args.overwrite and not glob(args.final_output_dir + "*"):
+        # Remove everything, remake directories
+        pass
+    elif not args.overwrite and not glob(args.final_output_dir + "*"):
+        # Last run didn't complete so use the intermediates if possible
+        pass
+    else:
+        # Create the output directories
+        for output_dir in main_output_dirs:
+            os.mkdir(output_dir)
+
+    return args
 
 
 def is_exe(fpath):
@@ -763,7 +837,7 @@ def launch_evolutionary_placement_queries(args, phy_files, marker_build_dict):
             query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(phy_file))
             query_name = re.sub(marker_build_dict[denominator].cog, denominator, query_name)
             raxml_files = raxml_evolutionary_placement(args.executables["raxmlHPC"], reference_tree_file, phy_file,
-                                                       ref_marker.model, args.output_dir_var, query_name, args.num_threads)
+                                                       ref_marker.model, args.var_output_dir, query_name, args.num_threads)
             raxml_outfiles[denominator][query_name]['classification'] = raxml_files["classification"]
             raxml_outfiles[denominator][query_name]['labelled_tree'] = raxml_files["tree"]
             raxml_calls += 1
