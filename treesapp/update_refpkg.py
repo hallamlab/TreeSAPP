@@ -5,11 +5,11 @@ import logging
 import re
 import random
 import subprocess
-from external_command_interface import launch_write_command
-from entrez_utils import get_multiple_lineages, entrez_records_to_accession_lineage_map
-from utilities import reformat_string, return_sequence_info_groups
-from fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta
-from classy import MarkerBuild, ReferenceSequence
+from .external_command_interface import launch_write_command
+from .entrez_utils import get_multiple_lineages, entrez_records_to_accession_lineage_map
+from .utilities import reformat_string, return_sequence_info_groups
+from .fasta import format_read_fasta, get_headers, get_header_format, write_new_fasta
+from .classy import MarkerBuild, ReferenceSequence
 
 # TODO: Refactor this entire class - loads of redundant code
 

@@ -9,19 +9,19 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment,\
+from .fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment,\
     get_headers, summarize_fasta_sequences, format_read_fasta
-from file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming,\
+from .file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming,\
     parse_ref_build_params, multiple_alignment_dimensions, parse_domain_tables
-import utilities
-from entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
+from . import utilities
+from .entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information, \
     entrez_records_to_accessions, entrez_records_to_accession_lineage_map
-from phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
-from external_command_interface import setup_progress_bar
-from jplace_utils import jplace_parser
-from classy import prep_logging, register_headers, get_header_info, ReferencePackage
-from entish import map_internal_nodes_leaves
+from .phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
+from .external_command_interface import setup_progress_bar
+from .jplace_utils import jplace_parser
+from .classy import prep_logging, register_headers, get_header_info, ReferencePackage
+from .entish import map_internal_nodes_leaves
 
 __author__ = 'Connor Morgan-Lang'
 

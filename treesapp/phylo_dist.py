@@ -4,8 +4,8 @@ import sys
 import re
 import logging
 from ete3 import Tree
-from file_parsers import tax_ids_file_to_leaves
-from utilities import clean_lineage_string, median
+from .file_parsers import tax_ids_file_to_leaves
+from .utilities import clean_lineage_string, median
 
 import numpy as np
 import scipy.optimize as so

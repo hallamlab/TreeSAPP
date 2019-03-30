@@ -4,9 +4,9 @@ import sys
 import os
 import re
 import logging
-from classy import TreeLeafReference, MarkerBuild, Cluster
-from HMMER_domainTblParser import DomainTableParser, format_split_alignments, filter_incomplete_hits, filter_poor_hits
-from fasta import read_fasta_to_dict
+from .classy import TreeLeafReference, MarkerBuild, Cluster
+from .HMMER_domainTblParser import DomainTableParser, format_split_alignments, filter_incomplete_hits, filter_poor_hits
+from .fasta import read_fasta_to_dict
 
 __author__ = 'Connor Morgan-Lang'
 

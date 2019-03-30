@@ -5,7 +5,7 @@ import sys
 import re
 import logging
 from pygtrie import StringTrie
-from utilities import median, clean_lineage_string
+from .utilities import median, clean_lineage_string
 
 
 def all_possible_assignments(tax_ids_file):

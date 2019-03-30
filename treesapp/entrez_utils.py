@@ -7,8 +7,8 @@ import Bio
 import logging
 from Bio import Entrez
 from urllib import error
-from utilities import clean_lineage_string
-from classy import EntrezRecord
+from .utilities import clean_lineage_string
+from .classy import EntrezRecord
 
 
 def validate_target_db(db_type: str):

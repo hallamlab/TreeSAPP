@@ -3,8 +3,9 @@ import os
 import sys
 import re
 import logging
+import shutil
 from .classy import prep_logging
-from .utilities import find_executables, executable_dependency_versions, available_cpu_count
+from .utilities import find_executables, executable_dependency_versions, available_cpu_count, check_previous_output
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -232,21 +233,6 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
                                required=False, type=int, default=0,
                                help="Arbitrarily slice the input sequences to this length. "
                                     "Useful for testing classification accuracy for fragments.")
-    # TODO: make this standard checking stuff a function:
-    # if args.output[-1] != os.sep:
-    #     args.output += os.sep
-    #
-    # if args.overwrite:
-    #     if os.path.exists(args.output):
-    #         shutil.rmtree(args.output)
-    #
-    # args.min_seq_length = 1
-    #
-    # if sys.version_info > (2, 9):
-    #     args.py_version = 3
-    # else:
-    #     args.py_version = 2
-    #
     return
 
 
@@ -257,25 +243,54 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
 
 def check_parser_arguments(args):
     """
+    Function for checking arguments that are found in args.namespace()
+    This is the only parser validation function used by clade exclusion evaluator
+    :param args:
+    :return:
+    """
+    ##
+    # Remove the output directory if it exists and overwrite permission granted.
+    ##
+    if re.match(r"^/$", args.output):
+        logging.error("Output directory specified as root. Bailing out to prevent future catastrophe!\n")
+        sys.exit(1)
+    # Add (or replace a trailing (back)slash with) the os.sep to the end of the output directory
+    while re.search(r'.*/$', args.output) or re.search(r'.*\\$', args.output):
+        args.output = args.output[:-1]
+    args.output += os.sep
+    if not re.match(r'^/.*', args.output):
+        args.output = os.getcwd() + os.sep + args.output  # args.output is now the absolute path
+
+    args.var_output_dir = args.output + 'intermediates' + os.sep
+    args.final_output_dir = args.output + 'final_outputs' + os.sep
+
+    # Determine whether the output directory should be removed, creates output directory if it doesn't exist
+    check_previous_output(args)
+
+    # TODO: fix this... perhaps import treesapp, treesapp.__path__?
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+
+    args.min_seq_length = 1
+
+    if sys.version_info > (2, 9):
+        args.py_version = 3
+    else:
+        logging.error("Python 2 is not supported by TreeSAPP.\n")
+        sys.exit(3)
+
+    return
+
+
+def check_classify_arguments(args):
+    """
     Ensures the command-line arguments returned by argparse are sensible
     :param args: object with parameters returned by argparse.parse_args()
     :return: 'args', a summary of TreeSAPP settings.
     """
-
-    # Add (or replace a trailing (back)slash with) the os.sep to the end of the output directory
-    while re.search(r'/\Z', args.output) or re.search(r'\\\Z', args.output):
-        args.output = args.output[:-1]
-    args.output += os.sep
-    if not os.path.isdir(args.output):
-        os.makedirs(args.output)
-
     # Setup the global logger and main log file
     log_file_name = args.output + os.sep + "TreeSAPP_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.debug("Command used:\n" + ' '.join(sys.argv) + "\n")
-
-    # Ensure files contain more than 0 sequences
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
 
     # Set the reference data file prefix and the reference tree name
     args.reference_tree = args.reftree
@@ -291,15 +306,6 @@ def check_parser_arguments(args):
 
     args = find_executables(args)
     logging.debug(executable_dependency_versions(args.executables))
-
-    if sys.version_info > (2, 9):
-        args.py_version = 3
-    else:
-        args.py_version = 2
-
-    args.output_dir_var = args.output + 'various_outputs' + os.sep
-    args.output_dir_raxml = args.output + 'final_RAxML_outputs' + os.sep
-    args.output_dir_final = args.output + 'final_outputs' + os.sep
 
     if args.num_threads > available_cpu_count():
         logging.warning("Number of threads specified is greater than those available! "
@@ -332,6 +338,58 @@ def check_parser_arguments(args):
     else:
         logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
         sys.exit(3)
+
+    return args
+
+
+def check_create_arguments(args):
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+    if not args.output:
+        args.output = os.getcwd() + os.sep + args.code_name + "_treesapp_refpkg"
+    args.final_output_dir = args.output + "TreeSAPP_files_%s" % args.code_name + os.sep
+
+    if len(args.code_name) > 6:
+        logging.error("code_name must be <= 6 characters!\n")
+        sys.exit(13)
+
+    if args.rfam_cm is None and args.molecule == "rrna":
+        logging.error("Covariance model file must be provided for rRNA data!\n")
+        sys.exit(13)
+
+    # Check the RAxML model
+    raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALGF", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
+                    "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
+    if args.raxml_model and args.raxml_model not in raxml_models:
+        sys.stderr.write("ERROR: --raxml_model (" + args.raxml_model + ") not valid!\n")
+        sys.stderr.write("If this model is valid (not a typo), add if to `raxml_models` list and re-run.\n")
+        sys.exit(13)
+
+    if args.cluster:
+        if args.multiple_alignment:
+            logging.error("--cluster and --multiple_alignment are mutually exclusive!\n")
+            sys.exit(13)
+        if args.uc:
+            logging.error("--cluster and --uc are mutually exclusive!\n")
+            sys.exit(13)
+        if not 0.5 < float(args.identity) < 1.0:
+            if 0.5 < float(args.identity)/100 < 1.0:
+                args.identity = str(float(args.identity)/100)
+                sys.stderr.write("WARNING: --identity  set to " + args.identity + " for compatibility with USEARCH \n")
+            else:
+                sys.exit("ERROR: --identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+
+    if args.taxa_lca:
+        if not args.cluster and not args.uc:
+            logging.error("Unable to perform LCA for representatives without clustering information: " +
+                          "either with a provided UCLUST file or by clustering within the pipeline.\n")
+            sys.exit(13)
+
+    if args.guarantee:
+        if not args.uc and not args.cluster:
+            logging.error("--guarantee used but without clustering there is no reason for it.\n" +
+                          "Include all sequences in " + args.guarantee +
+                          " in " + args.fasta_input + " and re-run without --guarantee\n")
+            sys.exit(13)
 
     return args
 
