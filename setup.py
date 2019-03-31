@@ -30,7 +30,6 @@ SETUP_METADATA = \
         "license": "GPL-3.0",
         "packages": find_packages(),
         "include_package_data": True,
-        # "data_files": [('data', ['data/']), ("sub_binaries", "sub_binaries/")],  # Relative to the installation prefix
         "entry_points": {'console_scripts': ['treesapp = treesapp.__main__:main']},
         "classifiers": CLASSIFIERS,
         "ext_modules": [Extension("_tree_parser",
