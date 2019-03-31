@@ -3,9 +3,8 @@ import os
 import sys
 import re
 import logging
-import shutil
-from .classy import prep_logging
-from .utilities import find_executables, executable_dependency_versions, available_cpu_count, check_previous_output
+from .classy import Assigner
+from .utilities import available_cpu_count, check_previous_output
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -69,8 +68,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                     help="Indicating whether the reads are paired-end (pe) or single-end (se)")
 
     def add_search_params(self):
-        self.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
-                          help="HMM-threshold mode affects the number of query sequences that advance.")
+        self.optopt.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
+                                 help="HMM-threshold mode affects the number of query sequences that advance.")
 
     def add_compute_miscellany(self):
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
@@ -267,62 +266,48 @@ def check_parser_arguments(args):
     # Determine whether the output directory should be removed, creates output directory if it doesn't exist
     check_previous_output(args)
 
-    # TODO: fix this... perhaps import treesapp, treesapp.__path__?
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-
-    args.min_seq_length = 1
+    if "min_seq_length" not in vars(args):
+        args.min_seq_length = 1
 
     if sys.version_info > (2, 9):
-        args.py_version = 3
-    else:
         logging.error("Python 2 is not supported by TreeSAPP.\n")
         sys.exit(3)
-
-    return
-
-
-def check_classify_arguments(args):
-    """
-    Ensures the command-line arguments returned by argparse are sensible
-    :param args: object with parameters returned by argparse.parse_args()
-    :return: 'args', a summary of TreeSAPP settings.
-    """
-    # Setup the global logger and main log file
-    log_file_name = args.output + os.sep + "TreeSAPP_log.txt"
-    prep_logging(log_file_name, args.verbose)
-    logging.debug("Command used:\n" + ' '.join(sys.argv) + "\n")
-
-    # Set the reference data file prefix and the reference tree name
-    args.reference_tree = args.reftree
-
-    args.targets = args.targets.split(',')
-    if args.targets != ['ALL']:
-        for marker in args.targets:
-            if not re.match('[A-Z][0-9]{4}', marker):
-                logging.error("Incorrect format for target: " + str(marker) +
-                              "\nRefer to column 'Denominator' in " + args.treesapp + "data/tree_data/" +
-                              "cog_list.tsv for identifiers that can be used.\n")
-                sys.exit()
-
-    args = find_executables(args)
-    logging.debug(executable_dependency_versions(args.executables))
 
     if args.num_threads > available_cpu_count():
         logging.warning("Number of threads specified is greater than those available! "
                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         args.num_threads = available_cpu_count()
 
+    return
+
+
+def check_classify_arguments(assigner_instance: Assigner, args):
+    """
+    Ensures the command-line arguments returned by argparse are sensible
+    :param assigner_instance: An instantiated Assigner object
+    :param args: object with parameters returned by argparse.parse_args()
+    :return: 'args', a summary of TreeSAPP settings.
+    """
+    args.targets = args.targets.split(',')
+    if args.targets != ['ALL']:
+        for marker in args.targets:
+            if not assigner_instance.refpkg_code_re.match(marker):
+                logging.error("Incorrect format for target: " + str(marker) +
+                              "\nRefer to column 'Denominator' in " + args.treesapp + "data/tree_data/" +
+                              "cog_list.tsv for identifiers that can be used.\n")
+                sys.exit(3)
+
     if args.rpkm:
         if not args.reads:
             logging.error("At least one FASTQ file must be provided if -rpkm flag is active!")
-            sys.exit()
+            sys.exit(3)
         if args.reverse and not args.reads:
             logging.error("File containing reverse reads provided but forward mates file missing!")
-            sys.exit()
+            sys.exit(3)
 
     if args.molecule == "prot" and args.rpkm:
         logging.error("Unable to calculate RPKM values for protein sequences.\n")
-        sys.exit()
+        sys.exit(3)
 
     # Parameterizing the hmmsearch output parsing:
     args.perc_aligned = 10

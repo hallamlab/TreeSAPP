@@ -11,6 +11,16 @@ from glob import glob
 from .external_command_interface import launch_write_command
 
 
+def reluctant_remove_replace(dir_path):
+    # Warn user then remove all main output directories, leaving log in output
+    logging.warning("Removing previous outputs in '" + dir_path + "'. " +
+                    "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
+    time.sleep(10)
+    rmtree(dir_path)
+    os.mkdir(dir_path)
+    return
+
+
 def check_previous_output(args):
     """
     Prompts the user to determine how to deal with a pre-existing output directory.
@@ -18,70 +28,35 @@ def check_previous_output(args):
 
     :rtype: Namespace object
     :param args: Command-line argument object from get_options and check_parser_arguments
-    :return An updated version of 'args', a summary of TreeSAPP settings.
+    :return None
     """
 
     main_output_dirs = [args.var_output_dir, args.final_output_dir]
-    args.skip = 'n'
 
-    # TODO: Identify all the various reasons someone may not want to have their previous results overwritten
+    # Identify all the various reasons someone may not want to have their previous results overwritten
     if not os.path.isdir(args.final_output_dir):
         os.mkdir(args.final_output_dir)
         # Create the output directories
         for output_dir in main_output_dirs:
             os.mkdir(output_dir)
     elif not args.overwrite and glob(args.final_output_dir + "*"):
-        workflows = list()
-        if args.update_tree:
-            if os.path.isfile(args.final_output_dir + os.sep + "marker_contig_map.tsv"):
-                args.skip = 'y'
-                workflows.append("updating")
-            else:
-                logging.warning("Update-tree impossible as " + args.output + " is missing input files.\n")
-        elif args.rpkm:
-            if os.path.isfile(args.reads) and os.path.isfile(args.final_output_dir + os.sep + "marker_contig_map.tsv"):
-                args.skip = 'y'
-                workflows.append("calculating RPKM")
-            else:
-                logging.warning("RPKM impossible as " + args.output + " is missing input files.\n")
-        elif args.reclassify:
-            if os.path.isdir(args.var_output_dir):
-                jplace_files = glob(args.var_output_dir + os.sep + "*jplace")
-                if len(jplace_files) >= 1:
-                    args.skip = 'y'
-                    workflows.append("reclassifying")
-                else:
-                    logging.warning("reclassify impossible as " + args.output + " is missing input files.\n")
-        # TODO: Add check(s) for create_refpkg
-        else:
-            # Warn user then remove all main output directories, leaving log in output
-            logging.warning("Removing previous outputs in '" + args.output + "'. " +
-                            "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
-            time.sleep(10)
-            rmtree(args.output)
-            os.mkdir(args.output)
-            for output_dir in main_output_dirs:
-                os.mkdir(output_dir)
-
-        if len(workflows) >= 1:
-            sys.stdout.write(','.join(workflows) + ".\n")
-            sys.stdout.flush()
-    # TODO: Finish these cases
-    elif args.overwrite and glob(args.final_output_dir + "*"):
-        # Remove everything, remake directories
-        pass
-    elif args.overwrite and not glob(args.final_output_dir + "*"):
-        # Remove everything, remake directories
-        pass
+        reluctant_remove_replace(args.output)
+        for output_dir in main_output_dirs:
+            os.mkdir(output_dir)
     elif not args.overwrite and not glob(args.final_output_dir + "*"):
         # Last run didn't complete so use the intermediates if possible
         pass
+    elif args.overwrite:
+        if os.path.isdir(args.output):
+            rmtree(args.output)
+        os.mkdir(args.output)
+        for output_dir in main_output_dirs:
+            os.mkdir(output_dir)
     else:
         # Create the output directories
         for output_dir in main_output_dirs:
             os.mkdir(output_dir)
-
-    return args
+    return
 
 
 def is_exe(fpath):
@@ -221,57 +196,6 @@ def available_cpu_count():
         pass
 
     logging.error('Can not determine number of CPUs on this system')
-
-
-def find_executables(args):
-    """
-    Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
-    :param args: command-line arguments objects
-    :return: exec_paths beings the absolute path to each executable
-    """
-    exec_paths = dict()
-    dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "usearch", "trimal", "BMGE.jar", "papara"]
-
-    # Extra executables necessary for certain modes of TreeSAPP
-    if hasattr(args, "rpkm") and args.rpkm:
-        dependencies += ["bwa", "rpkm"]
-
-    if hasattr(args, "update_tree"):
-        if args.update_tree:
-            dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]
-
-    if hasattr(args, "cluster") or hasattr(args, "multiple_alignment") or hasattr(args, "fast"):
-        dependencies += ["mafft", "OD-seq"]
-        if args.cluster:
-            dependencies.append("usearch")
-        if args.fast:
-            dependencies.append("FastTree")
-
-    if args.molecule == "rrna":
-        dependencies += ["cmalign", "cmsearch", "cmbuild"]
-
-    if os_type() == "linux":
-        args.executables = args.treesapp + "sub_binaries" + os.sep + "ubuntu"
-    if os_type() == "mac":
-        args.executables = args.treesapp + "sub_binaries" + os.sep + "mac"
-    elif os_type() == "win" or os_type() is None:
-        logging.error("Unsupported OS")
-        sys.exit(13)
-
-    for dep in dependencies:
-        if is_exe(args.executables + os.sep + dep):
-            exec_paths[dep] = str(args.executables + os.sep + dep)
-        # For rpkm and potentially other executables that are compiled ad hoc
-        elif is_exe(args.treesapp + "sub_binaries" + os.sep + dep):
-            exec_paths[dep] = str(args.treesapp + "sub_binaries" + os.sep + dep)
-        elif which(dep):
-            exec_paths[dep] = which(dep)
-        else:
-            logging.error("Could not find a valid executable for " + dep + ".\n")
-            sys.exit(13)
-
-    args.executables = exec_paths
-    return args
 
 
 def executable_dependency_versions(exe_dict):

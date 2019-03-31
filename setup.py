@@ -17,32 +17,31 @@ CLASSIFIERS = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
-
 SETUP_METADATA = \
-               {
-                     "name": "treesapp",
-                     "version": "0.2.6",
-                     "description": "TreeSAPP is a functional and taxonomic annotation tool",
-                     "long_description": LONG_DESCRIPTION,
-                     "long_description_content_type": "text/markdown",
-                     "author": "Connor Morgan-Lang",
-                     "author_email": "c.morganlang@gmail.com",
-                     "url": "https://github.com/hallamlab/TreeSAPP",
-                     "license": "GPL-3.0",
-                     "packages": find_packages(),
-                     "entry_points": {'console_scripts': ['treesapp = treesapp.__main__:main']},
-                     "classifiers": CLASSIFIERS,
-                     "ext_modules": [Extension("_tree_parser",
-                                               sources=["sub_binaries/TreeSAPP_extensions/tree_parsermodule.cpp"],
-                                               language="c++",
-                                               include_dirs=["./sub_binaries/TreeSAPP_extensions/"]),
-                                     Extension("_fasta_reader",
-                                               sources=["sub_binaries/TreeSAPP_extensions/fasta_reader.cpp"],
-                                               depends=["sub_binaries/TreeSAPP_extensions/fasta_reader.hpp"],
-                                               language="c++",
-                                               include_dirs=["./sub_binaries/TreeSAPP_extensions/"])
-                                     ],
-                     "install_requires": ["pygtrie>=2.3", "ete3", "numpy", "biopython>=1.68", "scipy", "six"]
-               }
+    {
+        "name": "treesapp",
+        "version": "0.2.6",
+        "description": "TreeSAPP is a functional and taxonomic annotation tool",
+        "long_description": LONG_DESCRIPTION,
+        "long_description_content_type": "text/markdown",
+        "author": "Connor Morgan-Lang",
+        "author_email": "c.morganlang@gmail.com",
+        "url": "https://github.com/hallamlab/TreeSAPP",
+        "license": "GPL-3.0",
+        "packages": find_packages(),
+        "include_package_data": True,
+        "entry_points": {'console_scripts': ['treesapp = treesapp.__main__:main']},
+        "classifiers": CLASSIFIERS,
+        "ext_modules": [Extension("_tree_parser",
+                                  sources=["include/tree_parsermodule.cpp"],
+                                  language="c++"),
+                        Extension("_fasta_reader",
+                                  sources=["include/fasta_reader.cpp"],
+                                  depends=["include/fasta_reader.hpp"],
+                                  language="c++",
+                                  include_dirs=["./include/"])
+                        ],
+        "install_requires": ["pygtrie>=2.3", "ete3", "numpy", "biopython>=1.68", "scipy", "six"]
+    }
 
 setup(**SETUP_METADATA)

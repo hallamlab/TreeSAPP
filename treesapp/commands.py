@@ -4,23 +4,23 @@ import sys
 import re
 import os
 import shutil
-from time import sleep
 from glob import glob
 from random import randint
 from . import file_parsers
 from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, summarize_fasta_sequences, get_headers,\
     read_fasta_to_dict
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments,\
-    add_evaluate_arguments, add_update_arguments, check_parser_arguments
+    add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_classify_arguments
 from . import utilities
 from . import entrez_utils
 from . import entish
 from . import lca_calculations
 from . import placement_trainer
 from .phylo_dist import trim_lineages_to_rank
-from .classy import prep_logging, MarkerBuild, MarkerTest, ReferencePackage, register_headers, get_header_info
+from .classy import TreeProtein, MarkerBuild, MarkerTest, ReferencePackage, EntrezRecord, TreeSAPP, Assigner,\
+    register_headers, get_header_info, prep_logging
 from . import create_refpkg
-from .classify import abundify_tree_saps, delete_files, check_previous_output, validate_inputs, predict_orfs,\
+from .assign import abundify_tree_saps, delete_files, validate_inputs, predict_orfs,\
     get_alignment_dims, hmmsearch_orfs, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, filter_multiple_alignments, check_for_removed_sequences,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
@@ -41,6 +41,7 @@ def info(args):
     """
     parser = TreeSAPPArgumentParser(description="Return package, executable and refpkg information.")
     args = parser.parse_args(args)
+    ts = TreeSAPP("info")
 
     import treesapp
     import Bio
@@ -54,12 +55,13 @@ def info(args):
                "ETE3": ete3.__version__,
                "numpy": numpy.__version__,
                "scipy": scipy.__version__}
+
     logging.info("Python package dependency versions:\n" +
-                 "\n\t".join([k + ": " + v for k, v in py_deps]) + "\n")
+                 "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
 
     # Write the version of executable deps
-    exe_dict = utilities.find_executables(args)
-    logging.info(utilities.executable_dependency_versions(exe_dict))
+    ts.furnish_with_arguments(args)
+    logging.info(utilities.executable_dependency_versions(ts.executables))
 
     # TODO: Write relevant reference package information (e.g. codes, gene names, descriptions)
 
@@ -71,11 +73,11 @@ def create(args):
     ##
     # STAGE 0: PARAMETERIZE - retrieve command line arguments, query user about settings if necessary
     ##
-    parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
+    parser = TreeSAPPArgumentParser(description='Create a reference package for TreeSAPP.')
     add_create_arguments(parser)
     args = parser.parse_args()
 
-    log_file_name = args.output_dir + os.sep + "create_" + args.code_name + "_TreeSAPP_log.txt"
+    log_file_name = args.output + os.sep + "create_" + args.code_name + "_TreeSAPP_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCreating TreeSAPP reference package for '" + args.code_name + "' \t\t\t##\n")
     logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
@@ -87,15 +89,15 @@ def create(args):
         sys.exit(0)
 
     # Names of files to be created
-    tree_output_dir = args.output_dir + args.code_name + "_phy_files" + os.sep
-    accession_map_file = args.output_dir + os.sep + "accession_id_lineage_map.tsv"
-    hmm_purified_fasta = args.output_dir + args.code_name + "_hmm_purified.fasta"
-    filtered_fasta_name = args.output_dir + '.'.join(
+    tree_output_dir = args.output + args.code_name + "_phy_files" + os.sep
+    accession_map_file = args.output + os.sep + "accession_id_lineage_map.tsv"
+    hmm_purified_fasta = args.output + args.code_name + "_hmm_purified.fasta"
+    filtered_fasta_name = args.output + '.'.join(
         os.path.basename(args.fasta_input).split('.')[:-1]) + "_filtered.fa"
-    uclust_prefix = args.output_dir + '.'.join(
+    uclust_prefix = args.output + '.'.join(
         os.path.basename(filtered_fasta_name).split('.')[:-1]) + "_uclust" + args.identity
-    unaln_ref_fasta = args.output_dir + args.code_name + "_ref.fa"  # FASTA file of unaligned reference sequences
-    phylip_file = args.output_dir + args.code_name + ".phy"  # Used for building the phylogenetic tree with RAxML
+    unaln_ref_fasta = args.output + args.code_name + "_ref.fa"  # FASTA file of unaligned reference sequences
+    phylip_file = args.output + args.code_name + ".phy"  # Used for building the phylogenetic tree with RAxML
 
     # Gather all the final TreeSAPP reference files
     ref_pkg = ReferencePackage()
@@ -108,26 +110,6 @@ def create(args):
     marker_package.molecule = args.molecule
     marker_package.kind = args.kind
     marker_package.denominator = "Z1111"
-
-    # TODO: Restore this functionality
-    # if args.add_lineage:
-    #     update_tax_ids_with_lineage(args, tree_taxa_list)
-    #     terminal_commands(args.final_output_dir, code_name)
-    #     sys.exit(0)
-
-    if not os.path.exists(args.final_output_dir):
-        try:
-            os.makedirs(args.final_output_dir, exist_ok=False)
-        except OSError:
-            logging.warning("Making all directories in path " + args.final_output_dir + "\n")
-            os.makedirs(args.final_output_dir, exist_ok=True)
-    else:
-        logging.warning("Output directory already exists. " +
-                        "You have 10 seconds to hit Ctrl-C before previous outputs will be overwritten.\n")
-        sleep(10)
-        # Comment out to skip tree-building
-        if os.path.exists(tree_output_dir):
-            shutil.rmtree(tree_output_dir)
 
     ##
     # STAGE 2: FILTER - begin filtering sequences by homology and taxonomy
@@ -142,19 +124,19 @@ def create(args):
             hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
             # If we're screening a massive fasta file, we don't want to read every sequence - just those with hits
             # TODO: Implement a screening procedure in _fasta_reader._read_format_fasta()
-            fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
+            fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output)
             header_registry = register_headers(get_headers(args.fasta_input))
             marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
             write_new_fasta(marker_gene_dict, hmm_purified_fasta)
             summarize_fasta_sequences(hmm_purified_fasta)
             utilities.hmm_pile(hmm_matches)
 
-        fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args.output_dir, 110, args.min_seq_length)
+        fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args.output, 110, args.min_seq_length)
         header_registry = register_headers(get_headers(hmm_purified_fasta))
         # Point all future operations to the HMM purified FASTA file as the original input
         args.fasta_input = hmm_purified_fasta
     else:
-        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir, 110, args.min_seq_length)
+        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output, 110, args.min_seq_length)
         header_registry = register_headers(get_headers(args.fasta_input))
 
     ##
@@ -180,7 +162,7 @@ def create(args):
         if not os.path.isfile(args.guarantee):
             logging.error("File '" + args.guarantee + "' does not exist!\n")
             sys.exit(13)
-        important_seqs = format_read_fasta(args.guarantee, args.molecule, args.output_dir)
+        important_seqs = format_read_fasta(args.guarantee, args.molecule, args.output)
         important_headers = register_headers(get_headers(args.guarantee))
         fasta_dict.update(important_seqs)
         acc = max([int(x) for x in header_registry.keys()])
@@ -359,7 +341,7 @@ def create(args):
 
     fasta_record_objects = create_refpkg.remove_outlier_sequences(fasta_record_objects,
                                                                   args.executables["OD-seq"], args.executables["mafft"],
-                                                                  args.output_dir, args.num_threads)
+                                                                  args.output, args.num_threads)
 
     ##
     # Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
@@ -495,7 +477,7 @@ def create(args):
     return
 
 
-def evaluate():
+def evaluate(args):
     """
     Method for running this script:
         Provide it a FASTA file for which it will determine the taxonomic lineage for each sequence
@@ -831,14 +813,18 @@ def evaluate():
     return
 
 
-def classify():
-    sys.stdout.write("\n##\t\t\t\tTreeSAPP classify\t\t\t\t##\n\n")
-    sys.stdout.flush()
+def assign(args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
     add_classify_arguments(parser)
     args = parser.parse_args()
-    args = check_parser_arguments(args)
+
+    log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
+    prep_logging(log_file_name, args.verbose)
+
+    check_parser_arguments(args)
+    assign_this = Assigner(args)
+    check_classify_arguments(assign_this, args)
 
     marker_build_dict = file_parsers.parse_ref_build_params(args)
     tree_numbers_translation = file_parsers.read_species_translation_files(args, marker_build_dict)
@@ -953,17 +939,16 @@ def classify():
             update_func_tree_workflow(args, marker_build_dict[marker_code])
 
     delete_files(args, 5)
-    logging.info("TreeSAPP has finished successfully.\n")
 
     return
 
 
-def update():
+def update(args):
     parser = TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with newly identified sequences.')
     add_update_arguments(parser)
     args = parser.parse_args()
     return
 
 
-def train():
+def train(args):
     return

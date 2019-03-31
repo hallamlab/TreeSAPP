@@ -1,3 +1,4 @@
 include LICENSE Makefile requirements.txt README.md
 recursive-include sub_binaries *
 recursive-include data *
+global-exclude *.xml

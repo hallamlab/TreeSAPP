@@ -7,9 +7,10 @@ import copy
 import subprocess
 import logging
 from multiprocessing import Process, JoinableQueue
+from glob import glob
 from json import loads, dumps
 from .fasta import get_header_format
-from .utilities import reformat_string, return_sequence_info_groups, median
+from .utilities import reformat_string, return_sequence_info_groups, median, os_type, which, is_exe
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from numpy import var
 
@@ -880,6 +881,130 @@ def prep_logging(log_file_name, verbosity):
     logging.getLogger('').addHandler(ch)
 
     return
+
+# TODO: Classes for each of the different analysis types - create, evaluate, assign, update and train
+class TreeSAPP:
+    """
+    Abstract class for each of the different analysis types - create, evaluate, assign, update and train
+    """
+    def __init__(self, cmd):
+        # Static values
+        self.command = cmd
+        self.refpkg_code_re = re.compile(r'[A-Z]{1,2}[0-9]{4,5}')
+        # TODO: fix this... perhaps import treesapp, treesapp.__path__?
+        self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+
+        # Values derived from the command-line arguments
+        self.input_sequences = ""
+        self.molecule_type = ""
+        self.output_dir = ""
+        self.final_output_dir = ""
+        self.var_output_dir = ""
+        self.executables = dict()
+
+        # Values that need to be entered later, in the command-specific class
+        self.stages = dict()  # Used to track what progress stages need to be completed
+        self.restart = True
+        self.target_refpkgs = dict()
+
+    def furnish_with_arguments(self, args):
+        if self.command != "info":
+            self.input_sequences = args.input
+            self.molecule_type = args.molecule
+            self.output_dir = args.output
+            self.final_output_dir = args.final_output_dir
+            self.var_output_dir = args.var_output_dir
+        self.executables = self.find_executables(args)
+
+    def log_progress(self):
+        return
+
+    def validate_continue(self, args):
+        """
+        If the --continue flag is used, this function is called and ensures all the required inputs are present
+        otherwise, the restart variable is reset to True and the output directory is refreshed.
+        :return: None
+        """
+        if self.command == "assign":
+            assigments_file = self.final_output_dir + os.sep + "marker_contig_map.tsv"
+            if args.update_tree:
+                if os.path.isfile(assigments_file):
+                    self.stages["update"] = True
+                else:
+                    logging.warning("Update-tree impossible as " + self.output_dir + " is missing input files.\n")
+            elif args.rpkm:
+                if os.path.isfile(args.reads) and os.path.isfile(assigments_file):
+                    self.stages["RPKM"] = True
+                else:
+                    logging.warning("RPKM impossible as " + self.output_dir + " is missing input files.\n")
+            elif args.reclassify:
+                if os.path.isdir(self.var_output_dir):
+                    jplace_files = glob(self.var_output_dir + os.sep + "*jplace")
+                    if len(jplace_files) >= 1:
+                        self.stages["reclassify]"] = True
+                    else:
+                        logging.warning("Reclassify impossible as " + self.output_dir + " is missing input files.\n")
+        elif self.command == "create":
+            pass
+        elif self.command == "evaluate":
+            pass
+        elif self.command == "train":
+            pass
+        # TODO: Summarise the  and write to log
+        return
+
+    def find_executables(self, args):
+        """
+        Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
+        :param args: The parsed command-line arguments
+        :return: exec_paths beings the absolute path to each executable
+        """
+        exec_paths = dict()
+        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC",
+                        "usearch", "trimal", "BMGE.jar", "papara"]
+
+        # Extra executables necessary for certain modes of TreeSAPP
+        if self.command == "assign":
+            dependencies += ["bwa", "rpkm"]
+            if args.update_tree:
+                dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]
+
+        if self.command == "update":
+            dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]
+
+        if self.command == "create":
+            dependencies += ["mafft", "OD-seq"]
+            if args.cluster:
+                dependencies.append("usearch")
+            if args.fast:
+                dependencies.append("FastTree")
+
+        if self.molecule_type == "rrna":
+            dependencies += ["cmalign", "cmsearch", "cmbuild"]
+
+        for dep in dependencies:
+            # For rpkm and potentially other executables that are compiled ad hoc
+            if is_exe(self.treesapp_dir + "sub_binaries" + os.sep + dep):
+                exec_paths[dep] = str(self.treesapp_dir + "sub_binaries" + os.sep + dep)
+            elif which(dep):
+                exec_paths[dep] = which(dep)
+            else:
+                logging.error("Could not find a valid executable for " + dep + ".\n")
+                sys.exit(13)
+
+        return exec_paths
+
+
+class Assigner(TreeSAPP):
+    def __init__(self, args):
+        """
+
+        """
+        logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
+        logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
+        command = "assign"
+        super(TreeSAPP, self).__init__(command, args)
+        self.reference_tree = None
 
 
 class MarkerTest:

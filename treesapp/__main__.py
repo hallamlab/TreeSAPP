@@ -5,8 +5,8 @@ import sys
 import argparse
 import logging
 
-from .commands import (create, classify, update, info, train)
-from .clade_exclusion_evaluator import main as evaluate_main
+from .commands import (create, evaluate, assign, update, info, train)
+# from .clade_exclusion_evaluator import main as evaluate_main
 
 usage = """
 treesapp <command> [<args>]
@@ -23,8 +23,8 @@ Use '-h' to get subcommand-specific help, e.g.
 
 def main():
     commands = {"create": create,
-                "evaluate": evaluate_main,
-                "classify": classify,
+                "evaluate": evaluate,
+                "classify": assign,
                 "update": update,
                 "info": info,
                 "train": train}
@@ -43,6 +43,8 @@ def main():
 
     cmd = commands.get(args.command)
     cmd(sys.argv[2:])
+    logging.info("TreeSAPP has finished successfully.\n")
+    # TODO: Write citation info for all tools used
 
 
 if __name__ == '__main__':
