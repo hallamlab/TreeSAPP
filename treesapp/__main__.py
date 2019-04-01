@@ -13,7 +13,7 @@ treesapp <command> [<args>]
 ** Commands include:
 create         Create a reference package for a new gene, domain or orthologous group
 evaluate       Evaluate the classification performance using Clade-exclusion analysis
-classify       Classify query [protein|genomic] sequences using reference packages 
+assign         Classify query [protein|genomic] sequences using reference packages 
 update         Update an existing reference package with sequences found in a `classify` run
 ** Other commands:
 info           Display TreeSAPP version and other information.
@@ -24,7 +24,7 @@ Use '-h' to get subcommand-specific help, e.g.
 def main():
     commands = {"create": create,
                 "evaluate": evaluate,
-                "classify": assign,
+                "assign": assign,
                 "update": update,
                 "info": info,
                 "train": train}

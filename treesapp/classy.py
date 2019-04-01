@@ -854,19 +854,7 @@ class MyFormatter(logging.Formatter):
         return result
 
 
-def prep_logging(log_file_name, verbosity):
-    output_dir = os.path.dirname(log_file_name)
-    try:
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
-    except (IOError, OSError):
-        sys.stderr.write("ERROR: Unable to make directory '" + output_dir + "'.\n")
-        sys.exit(3)
-    logging.basicConfig(level=logging.DEBUG,
-                        filename=log_file_name,
-                        filemode='w',
-                        datefmt="%d/%m %H:%M:%S",
-                        format="%(asctime)s %(levelname)s:\n%(message)s")
+def prep_logging(log_file_name=None, verbosity=False):
     if verbosity:
         logging_level = logging.DEBUG
     else:
@@ -878,9 +866,27 @@ def prep_logging(log_file_name, verbosity):
     ch.setLevel(logging_level)
     ch.terminator = ''
     ch.setFormatter(formatter)
-    logging.getLogger('').addHandler(ch)
 
+    if log_file_name:
+        output_dir = os.path.dirname(log_file_name)
+        try:
+            if output_dir and not os.path.isdir(output_dir):
+                os.makedirs(output_dir)
+        except (IOError, OSError):
+            sys.stderr.write("ERROR: Unable to make directory '" + output_dir + "'.\n")
+            sys.exit(3)
+        logging.basicConfig(level=logging.DEBUG,
+                            filename=log_file_name,
+                            filemode='w',
+                            datefmt="%d/%m %H:%M:%S",
+                            format="%(asctime)s %(levelname)s:\n%(message)s")
+        logging.getLogger('').addHandler(ch)
+    else:
+        logging.basicConfig(level=logging_level,
+                            datefmt="%d/%m %H:%M:%S",
+                            format="%(asctime)s %(levelname)s:\n%(message)s")
     return
+
 
 # TODO: Classes for each of the different analysis types - create, evaluate, assign, update and train
 class TreeSAPP:

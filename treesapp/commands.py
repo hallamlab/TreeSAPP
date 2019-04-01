@@ -41,6 +41,7 @@ def info(args):
     """
     parser = TreeSAPPArgumentParser(description="Return package, executable and refpkg information.")
     args = parser.parse_args(args)
+    prep_logging()
     ts = TreeSAPP("info")
 
     import treesapp
@@ -63,7 +64,9 @@ def info(args):
     ts.furnish_with_arguments(args)
     logging.info(utilities.executable_dependency_versions(ts.executables))
 
-    # TODO: Write relevant reference package information (e.g. codes, gene names, descriptions)
+    if args.verbose:
+        # TODO: Write relevant reference package information (e.g. codes, gene names, descriptions)
+        pass
 
     return
 
@@ -75,7 +78,7 @@ def create(args):
     ##
     parser = TreeSAPPArgumentParser(description='Create a reference package for TreeSAPP.')
     add_create_arguments(parser)
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     log_file_name = args.output + os.sep + "create_" + args.code_name + "_TreeSAPP_log.txt"
     prep_logging(log_file_name, args.verbose)
@@ -487,7 +490,7 @@ def evaluate(args):
     """
     parser = TreeSAPPArgumentParser(description='Evaluate classification performance using clade-exclusion analysis.')
     add_evaluate_arguments(parser)
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     sys.stdout.write("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
 
     args = check_parser_arguments(args)
@@ -817,7 +820,7 @@ def assign(args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
     add_classify_arguments(parser)
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
     prep_logging(log_file_name, args.verbose)
@@ -946,9 +949,11 @@ def assign(args):
 def update(args):
     parser = TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with newly identified sequences.')
     add_update_arguments(parser)
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     return
 
 
 def train(args):
+    parser = TreeSAPPArgumentParser(description='Model phylogenetic distances across taxonomic ranks.')
+    args = parser.parse_args(args)
     return
