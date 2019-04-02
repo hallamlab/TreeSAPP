@@ -32,6 +32,7 @@ class ClassifiedSequence:
         self.ncbi_tax = ""
         self.assigned_lineage = ""
         self.true_lineage = ""
+        self.optimal_lineage = ""
         self.tax_dist = 0
 
 
@@ -132,26 +133,41 @@ class ConfusionTest:
                 self.tax_lineage_map[e_record.ncbi_tax] += clean_lineage_string(e_record.lineage)
         return
 
-    def summarise_reference_taxa(self, output_file, rank="Phylum"):
-        lineage_list = []
+    def map_lineages(self):
         for marker in self.tp:
-            for tp_inst in self.tp[marker]:
+            for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
                 try:
-                    lineage_list.append(self.tax_lineage_map[tp_inst.ncbi_tax])
+                    tp_inst.true_lineage = self.tax_lineage_map[tp_inst.ncbi_tax]
                 except KeyError:
                     continue
+        return
+
+    def summarise_reference_taxa(self, taxa_file, classification_file, rank="Phylum"):
+        lineage_list = []
+        info_string = "RefPkg\tName\tTaxDist\tClassified\tTrueLineage\tAssignedLineage\tOptimalLineage\n"
+        for marker in self.tp:
+            for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
+                lineage_list.append(tp_inst.true_lineage)
+                info_string += "\t".join([marker, tp_inst.name, str(tp_inst.tax_dist), "True",
+                                          tp_inst.true_lineage, tp_inst.assigned_lineage,
+                                          tp_inst.optimal_lineage]) + "\n"
         for marker in self.fn:
             for seq_name in self.fn[marker]:
                 ref_g, tax_id = self.header_regex.match(seq_name).groups()
+                true_lineage = self.tax_lineage_map[tax_id]
                 try:
-                    lineage_list.append(self.tax_lineage_map[tax_id])
+                    lineage_list.append(true_lineage)
                 except KeyError:
                     continue
+                info_string += "\t".join([marker, seq_name, "NA", "False", true_lineage, "NA", "NA"]) + "\n"
+
+        with open(classification_file, 'w') as info_handler:
+            info_handler.write(info_string)
 
         input_taxa_dist = summarize_taxonomy(taxa_list=lineage_list,
                                              rank=rank,
                                              rank_depth_map=self.rank_depth_map)
-        write_dict_to_table(input_taxa_dist, output_file, "\t")
+        write_dict_to_table(input_taxa_dist, taxa_file, "\t")
         summary_string = ""
         for summary_lineage in sorted(input_taxa_dist, key=lambda x: input_taxa_dist[x]):
             summary_string += "\t'" + summary_lineage + "'\t" + str(input_taxa_dist[summary_lineage]) + "\n"
@@ -171,12 +187,12 @@ class ConfusionTest:
             self.dist_wise_tp[marker] = dict()
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
                 # Find the optimal taxonomic assignment
-                optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie,
-                                                             self.tax_lineage_map[tp_inst.ncbi_tax])
+                optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie, tp_inst.true_lineage)
                 if not optimal_taxon:
-                    logging.debug("Optimal taxonomic assignment '" + self.tax_lineage_map[tp_inst.ncbi_tax] + "' for " +
+                    logging.debug("Optimal taxonomic assignment '" + tp_inst.true_lineage + "' for " +
                                   tp_inst.name + " not found in reference hierarchy.\n")
                     continue
+                tp_inst.optimal_lineage = optimal_taxon
                 tp_inst.tax_dist, status = compute_taxonomic_distance(tp_inst.assigned_lineage, optimal_taxon)
                 if status > 0:
                     logging.debug("Lineages didn't converge between:\n'" +
@@ -435,11 +451,7 @@ class ConfusionTest:
         for marker in self.tp:
             if len(self.tp[marker]) == 0:
                 continue
-            for tp_inst in self.tp[marker]:
-                try:
-                    lineage_list.append(self.tax_lineage_map[tp_inst.ncbi_tax])
-                except KeyError:
-                    continue
+            lineage_list = [tp_inst.true_lineage for tp_inst in self.tp[marker]]
 
             if aggregate is False:
                 lineage_count_dict = summarize_taxonomy(lineage_list, rank, self.rank_depth_map)
@@ -628,8 +640,10 @@ def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: in
 def main():
     args = get_arguments()
     log_name = args.output + os.sep + "MCC_log.txt"
+    mcc_file = args.output + os.sep + "MCC_table.tsv"
     summary_rank = "Phylum"
     taxa_dist_output = args.output + '.'.join(basename(args.input).split('.')[:-1]) + '_' + summary_rank + "_dist.tsv"
+    classification_info_output = args.output + '.'.join(basename(args.input).split('.')[:-1]) + "_classifications.tsv"
     prep_logging(log_name, args.verbose)
     validate_command(args)
 
@@ -729,15 +743,17 @@ def main():
     ##
     _TAXID_GROUP = 2
     test_obj.retrieve_lineages(_TAXID_GROUP)
+    test_obj.map_lineages()
 
     logging.debug("Taxonomic distribution of reference:\n")
-    test_obj.summarise_reference_taxa(taxa_dist_output, summary_rank)
     test_obj.bin_true_positives_by_taxdist()
     test_obj.validate_false_positives()
     test_obj.validate_false_negatives(pkg_name_dict)
 
+    test_obj.summarise_reference_taxa(taxa_dist_output, classification_info_output, summary_rank)
     logging.debug(test_obj.summarize_type_two_taxa(summary_rank))
     logging.debug(test_obj.taxonomic_summary(summary_rank, True))
+
     ##
     # Report the MCC score across different taxonomic distances - should increase with greater allowed distance
     ##
@@ -756,6 +772,8 @@ def main():
         mcc_string += "\t".join([str(x) for x in [d, mcc, num_tp, num_tn, num_fp, num_fn]]) + "\n"
         d += 1
     logging.info(mcc_string)
+    with open(mcc_file, 'w') as mcc_handler:
+        mcc_handler.write(mcc_string)
     return
 
 
