@@ -584,7 +584,7 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict):
             for bin_num in sorted(bins):
                 bin_rep = bins[bin_num][0]
                 overlap = min(hmm_match.pend, bin_rep.pend) - max(hmm_match.pstart, bin_rep.pstart)
-                if (100*overlap)/(bin_rep.pend - bin_rep.pstart) > 80:
+                if (100*overlap)/(bin_rep.pend - bin_rep.pstart) > 80:  # 80 refers to overlap proportion with seed
                     bins[bin_num].append(hmm_match)
                     extracted_seq_dict[marker][bin_num][numeric_decrementor] = full_sequence[
                                                                                hmm_match.start - 1:hmm_match.end]
@@ -609,13 +609,21 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, m
     hmmalign_input_fastas = list()
     bulk_marker_fasta = dict()
     bin_fasta = dict()
+
+    group_size_string = "Number of query sequences in each marker's group:\n"
+    for marker in extracted_seq_dict:
+        for group in sorted(extracted_seq_dict[marker]):
+            if extracted_seq_dict[marker][group]:
+                group_size_string += "\t".join([marker, str(group), str(len(extracted_seq_dict[marker][group]))]) + "\n"
+    logging.debug(group_size_string + "\n")
+
     logging.info("Writing the grouped sequences to FASTA files... ")
 
     for marker in extracted_seq_dict:
         # Find the reference package instance
         ref_marker = utilities.fish_refpkg_from_build_params(marker, marker_build_dict)
 
-        f_acc = 0  # For counting the number of files for a marker. Will exceed groups if queries > references
+        f_acc = 0  # For counting the number of files for a marker. Will exceed groups if len(queries) > len(references)
         for group in sorted(extracted_seq_dict[marker]):
             if extracted_seq_dict[marker][group]:
                 group_sequences = extracted_seq_dict[marker][group]
@@ -631,8 +639,9 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, m
                         hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                         f_acc += 1
                         bin_fasta.clear()
-                write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
-                hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                if len(bin_fasta) > 1:
+                    write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
+                    hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
             f_acc += 1
             bin_fasta.clear()
 
