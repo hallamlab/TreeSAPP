@@ -41,7 +41,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
     # The following are building-block functions
     def add_io(self):
-        self.reqs.add_argument('-i', '--fasta_input', required=True,
+        self.reqs.add_argument('-i', '--fasta_input', required=True, dest="input",
                                help='An input file containing DNA or protein sequences in FASTA format')
         self.optopt.add_argument('-o', '--output', default='./output/', required=False,
                                  help='Path to an output directory [DEFAULT = ./output/]')
@@ -69,17 +69,18 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
     def add_search_params(self):
         self.optopt.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
-                                 help="HMM-threshold mode affects the number of query sequences that advance.")
+                                 help="HMM-threshold mode affects the number of query sequences that advance "
+                                      "[DEFAULT = relaxed]")
 
     def add_compute_miscellany(self):
+        self.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
+                                     help='Delete intermediate file to save disk space\n'
+                                          'Recommended for large metagenomes!')
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
                                      help='overwrites previously processed output folders')
         self.miscellany.add_argument('-T', '--num_threads', default=2, type=int,
                                      help='specifies the number of CPU threads to use in RAxML and BLAST '
                                           'and processes throughout the pipeline [DEFAULT = 2]')
-        self.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
-                                     help='Delete intermediate file to save disk space\n'
-                                          'Recommended for large metagenomes!')
 
 
 def add_classify_arguments(parser: TreeSAPPArgumentParser):
@@ -90,6 +91,7 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
     parser.add_rpkm_params()
     parser.add_seq_params()
     parser.add_search_params()
+    parser.add_compute_miscellany()
     # The required parameters... for which there are currently none. But they would go here!
 
     # The optionals
@@ -101,16 +103,16 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
     parser.optopt.add_argument("-P", "--placement_parser", default="best", type=str, choices=["best", "lca"],
                                help="Algorithm used for parsing each sequence's potential RAxML placements. "
                                "[DEFAULT = 'best']")
-    parser.optopt.add_argument('-t', '--targets', default='ALL', type=str,
+    parser.optopt.add_argument('-t', '--targets', default='', type=str,
                                help='A comma-separated list specifying which marker genes to query in input by'
                                ' the "denominator" column in data/tree_data/cog_list.tsv'
                                ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
     parser.optopt.add_argument("--update_tree", action="store_true", default=False,
                                help="Flag indicating the reference tree specified by `--reftree` "
                                     "is to be updated using the sequences found in TreeSAPP output")
-    parser.optopt.add_argument("--reclassify", action="store_true", default=False,
-                               help="Flag indicating current outputs should be used to generate "
-                                    "all outputs downstream of phylogenetic placement.")
+    parser.optopt.add_argument("--stage", default="continue", required=False,
+                               choices=["continue", "orf-call", "search", "align", "place", "classify"],
+                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
     # The miscellany
     parser.miscellany.add_argument('-R', '--reftree', default='p', type=str,
@@ -269,7 +271,7 @@ def check_parser_arguments(args):
     if "min_seq_length" not in vars(args):
         args.min_seq_length = 1
 
-    if sys.version_info > (2, 9):
+    if sys.version_info <= (2, 9):
         logging.error("Python 2 is not supported by TreeSAPP.\n")
         sys.exit(3)
 
@@ -288,27 +290,22 @@ def check_classify_arguments(assigner_instance: Assigner, args):
     :param args: object with parameters returned by argparse.parse_args()
     :return: 'args', a summary of TreeSAPP settings.
     """
-    args.targets = args.targets.split(',')
-    if args.targets != ['ALL']:
-        for marker in args.targets:
+    assigner_instance.targets = args.targets.split(',')
+    if args.targets:
+        for marker in assigner_instance.targets:
             if not assigner_instance.refpkg_code_re.match(marker):
                 logging.error("Incorrect format for target: " + str(marker) +
-                              "\nRefer to column 'Denominator' in " + args.treesapp + "data/tree_data/" +
-                              "cog_list.tsv for identifiers that can be used.\n")
+                              "\nRefer to column 'Denominator' in " + assigner_instance.treesapp_dir +
+                              "data/ref_build_parameters.tsv for identifiers that can be used.\n")
                 sys.exit(3)
-
-    if args.rpkm:
-        if not args.reads:
-            logging.error("At least one FASTQ file must be provided if -rpkm flag is active!")
-            sys.exit(3)
-        if args.reverse and not args.reads:
-            logging.error("File containing reverse reads provided but forward mates file missing!")
-            sys.exit(3)
 
     if args.molecule == "prot" and args.rpkm:
         logging.error("Unable to calculate RPKM values for protein sequences.\n")
         sys.exit(3)
 
+    assigner_instance.validate_continue(args)
+
+    # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
     # Parameterizing the hmmsearch output parsing:
     args.perc_aligned = 10
     args.min_acc = 0.7

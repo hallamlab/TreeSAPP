@@ -34,8 +34,8 @@ def check_previous_output(args):
     main_output_dirs = [args.var_output_dir, args.final_output_dir]
 
     # Identify all the various reasons someone may not want to have their previous results overwritten
-    if not os.path.isdir(args.final_output_dir):
-        os.mkdir(args.final_output_dir)
+    if not os.path.isdir(args.output):
+        os.mkdir(args.output)
         # Create the output directories
         for output_dir in main_output_dirs:
             os.mkdir(output_dir)
@@ -596,7 +596,7 @@ def hmmsearch_input_references(args, fasta_replaced_file):
     """
     # Find the name of the HMM. Use it to name the output file
     rp_marker = re.sub(".hmm", '', os.path.basename(args.domain))
-    domtbl = args.output_dir + rp_marker + "_to_ORFs_domtbl.txt"
+    domtbl = args.output + rp_marker + "_to_ORFs_domtbl.txt"
 
     # Basic hmmsearch command
     hmmsearch_command_base = [args.executables["hmmsearch"]]

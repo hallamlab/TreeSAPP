@@ -10,11 +10,18 @@ from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
 from .fasta import get_header_format
-from .utilities import reformat_string, return_sequence_info_groups, median, os_type, which, is_exe
+from .utilities import reformat_string, return_sequence_info_groups, median, which, is_exe
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from numpy import var
 
 import _tree_parser
+
+
+class Function:
+    def __init__(self):
+        self.order = -1
+        self.func_name = ""
+        self.function = None
 
 
 class ReferencePackage:
@@ -909,7 +916,9 @@ class TreeSAPP:
         self.executables = dict()
 
         # Values that need to be entered later, in the command-specific class
+        self.stage_order = dict()
         self.stages = dict()  # Used to track what progress stages need to be completed
+        self.stage_file = ""  # The file to write progress updates to
         self.restart = True
         self.target_refpkgs = dict()
 
@@ -923,40 +932,107 @@ class TreeSAPP:
         self.executables = self.find_executables(args)
 
     def log_progress(self):
+        """
+        Write the current stage's information (e.g. number of output files) to a JSON file
+        :return: None
+        """
+        # TODO: Finish this to enable continuing part-way through an analysis
+        if os.path.isdir(self.var_output_dir):
+            jplace_files = glob(self.var_output_dir + os.sep + "*jplace")
+            if len(jplace_files) >= 1:
+                self.stages["classify"] = True
+            else:
+                logging.warning("Reclassify impossible as " + self.output_dir + " is missing input files.\n")
+        return
+
+    def read_progress_log(self):
+        """
+        Read the object's 'stage_file' and determine the completed stage
+        :return: An integer corresponding to the last completed stage's rank in 'stage_order'
+        """
+        completed_int = 0
+        try:
+            progress_handler = open(self.stage_file)
+        except IOError:
+            logging.debug("Unable to open stage file '" + self.stage_file + "' for reading. Defaulting to stage 0.\n")
+            return completed_int
+        # TODO: Finish this to enable continuing part-way through an analysis
+        progress_handler.close()
+        return completed_int
+
+    def edit_stages(self, start, end=None):
+        for x in sorted(self.stage_order):  # type: int
+            stage_name = self.stage_order[x]  # For mapping to the self.stages
+            if end:
+                if x < start or x > end:
+                        self.stages[stage_name] = False
+            elif x < start:
+                    self.stages[stage_name] = False
+            else:
+                # These stages need to be ran
+                pass
+
         return
 
     def validate_continue(self, args):
         """
-        If the --continue flag is used, this function is called and ensures all the required inputs are present
-        otherwise, the restart variable is reset to True and the output directory is refreshed.
+        Bases the stage(s) to run on args.stage which is broadly set to either 'continue' or any other valid stage
+
+        This function ensures all the required inputs are present for beginning at the desired first stage,
+        otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
         :return: None
         """
         if self.command == "assign":
             assigments_file = self.final_output_dir + os.sep + "marker_contig_map.tsv"
+            if args.overwrite:
+                # Proceed by running all stages
+                pass
+            else:
+                last_valid_stage = self.read_progress_log()
+                desired_stage = -1
+                for step in sorted(self.stage_order):
+                    if args.stage == self.stage_order[step]:
+                        desired_stage = step
+                        break
+
+                # Update the stage status
+                if desired_stage < 0:
+                    # last_valid_stage should equal 0, proceed with continue
+                    logging.debug("Continuing with assignment at '" + self.stage_order[last_valid_stage] + "'\n")
+                    self.edit_stages(last_valid_stage)
+                elif desired_stage > last_valid_stage:
+                    logging.warning("Unable to run '" + args.stage + "' as it is ahead of the last completed stage.\n" +
+                                    "Continuing with assignment at '" + self.stage_order[last_valid_stage] + "'\n")
+                    self.edit_stages(last_valid_stage, desired_stage)
+                else:
+                    # Proceed with running the desired stage
+                    logging.debug("Proceeding with '" + args.stage + "'\n")
+                    self.edit_stages(desired_stage, desired_stage)
+
             if args.update_tree:
                 if os.path.isfile(assigments_file):
                     self.stages["update"] = True
                 else:
                     logging.warning("Update-tree impossible as " + self.output_dir + " is missing input files.\n")
             elif args.rpkm:
+                if not args.reads:
+                    logging.error("At least one FASTQ file must be provided if -rpkm flag is active!")
+                    sys.exit(3)
+                if args.reverse and not args.reads:
+                    logging.error("File containing reverse reads provided but forward mates file missing!")
+                    sys.exit(3)
+
                 if os.path.isfile(args.reads) and os.path.isfile(assigments_file):
                     self.stages["RPKM"] = True
                 else:
                     logging.warning("RPKM impossible as " + self.output_dir + " is missing input files.\n")
-            elif args.reclassify:
-                if os.path.isdir(self.var_output_dir):
-                    jplace_files = glob(self.var_output_dir + os.sep + "*jplace")
-                    if len(jplace_files) >= 1:
-                        self.stages["reclassify]"] = True
-                    else:
-                        logging.warning("Reclassify impossible as " + self.output_dir + " is missing input files.\n")
         elif self.command == "create":
             pass
         elif self.command == "evaluate":
             pass
         elif self.command == "train":
             pass
-        # TODO: Summarise the  and write to log
+        # TODO: Summarise the steps to be taken and write to log
         return
 
     def find_executables(self, args):
@@ -1002,15 +1078,19 @@ class TreeSAPP:
 
 
 class Assigner(TreeSAPP):
-    def __init__(self, args):
+    def __init__(self):
         """
 
         """
         logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
         logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
-        command = "assign"
-        super(TreeSAPP, self).__init__(command, args)
+        super(Assigner, self).__init__("assign")
         self.reference_tree = None
+
+        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
+        stage_names = ["orf-call", "clean", "search", "align", "place", "classify"]
+        self.stage_order = {i: stage_names[i] for i in range(0, len(stage_names))}
+        self.stages = {stage: True for stage in stage_names}  # Used to track what progress stages need to be completed
 
 
 class MarkerTest:

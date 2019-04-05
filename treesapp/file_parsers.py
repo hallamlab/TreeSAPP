@@ -11,12 +11,13 @@ from .fasta import read_fasta_to_dict
 __author__ = 'Connor Morgan-Lang'
 
 
-def parse_ref_build_params(args):
+def parse_ref_build_params(base_dir: str, targets: list):
     """
     Returns a dictionary of MarkerBuild objects storing information pertaining to the build parameters of each marker.
-    :param args: Command-line argument object returned by get_options and check_parser_arguments
+    :param base_dir: Path to the treesapp package directory containing 'data/ref_build_parameters.tsv'
+    :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
     """
-    ref_build_parameters = args.treesapp + 'data' + os.sep + 'tree_data' + os.sep + 'ref_build_parameters.tsv'
+    ref_build_parameters = base_dir + os.sep + "data" + os.sep + 'ref_build_parameters.tsv'
     try:
         param_handler = open(ref_build_parameters, 'r')
     except IOError:
@@ -42,7 +43,7 @@ def parse_ref_build_params(args):
             continue
         marker_build = MarkerBuild()
         marker_build.load_build_params(line, len(header_fields))
-        if args.targets != ["ALL"] and marker_build.denominator not in args.targets:
+        if targets and marker_build.denominator not in targets:
             skipped_lines.append(line)
         else:
             if marker_build.denominator in marker_build_dict:
@@ -65,7 +66,7 @@ def parse_ref_build_params(args):
 
     if len(marker_build_dict) == 0:
         logging.error("No reference package information was parsed.\n" +
-                      "Is your target '" + ','.join(args.targets) + "' in " + ref_build_parameters + "?\n")
+                      "Is your target '" + ','.join(targets) + "' in " + ref_build_parameters + "?\n")
         sys.exit(3)
     return marker_build_dict
 
@@ -439,16 +440,16 @@ def tax_ids_file_to_leaves(tax_ids_file):
     return tree_leaves
 
 
-def read_species_translation_files(args, marker_build_dict):
+def read_species_translation_files(treesapp_dir, marker_build_dict):
     """
-    :param args:
+    :param treesapp_dir: Path to the TreeSAPP python package containing the 'data' directory with Reference Packages
     :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
     :return: The taxonomic identifiers for each of the organisms in a tree for all trees
     """
 
     tree_numbers_translation = dict()
     translation_files = dict()
-    tree_resources_dir = os.sep.join([args.treesapp, "data", "tree_data"]) + os.sep
+    tree_resources_dir = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep
 
     for denominator in sorted(marker_build_dict.keys()):
         marker_build_obj = marker_build_dict[denominator]
