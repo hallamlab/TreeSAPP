@@ -837,10 +837,10 @@ def assign(args):
         validate_inputs(args, marker_build_dict)
 
     # TODO: Get this working using the Function class
-    for analysis_step in sorted(ts_assign.stage_order, key=int):
-        stage_name = ts_assign.stage_order[analysis_step]
-        if ts_assign.stages[stage_name]:
-            pass
+    for analysis_function in sorted(ts_assign.stages, key=lambda x: x.order):
+        print(analysis_function.get_info())
+        if analysis_function.run:
+            analysis_function.function()
 
     ##
     # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA

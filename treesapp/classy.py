@@ -6,10 +6,11 @@ import re
 import copy
 import subprocess
 import logging
+import time
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
-from .fasta import get_header_format
+from .fasta import get_header_format, format_read_fasta, write_new_fasta
 from .utilities import reformat_string, return_sequence_info_groups, median, which, is_exe
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from numpy import var
@@ -18,10 +19,17 @@ import _tree_parser
 
 
 class Function:
-    def __init__(self):
-        self.order = -1
-        self.func_name = ""
-        self.function = None
+    def __init__(self, name, order, func):
+        self.order = order
+        self.func_name = name
+        self.function = func
+        self.run = True
+
+    def get_info(self):
+        info_string = "Information for '" + self.func_name + "':\n"
+        info_string += "Order: " + str(self.order)
+        info_string += "Run: " + str(self.run)
+        return info_string
 
 
 class ReferencePackage:
@@ -1088,9 +1096,81 @@ class Assigner(TreeSAPP):
         self.reference_tree = None
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        stage_names = ["orf-call", "clean", "search", "align", "place", "classify"]
-        self.stage_order = {i: stage_names[i] for i in range(0, len(stage_names))}
-        self.stages = {stage: True for stage in stage_names}  # Used to track what progress stages need to be completed
+        self.stages = [Function("orf-call", 0, self.predict_orfs),
+                       Function("clean", 1, self.clean),
+                       Function("search", 2, self.search),
+                       Function("align", 3, self.align),
+                       Function("place", 4, self.place),
+                       Function("classify", 5, self.classify)]
+
+    def predict_orfs(self, args):
+        """
+        Predict ORFs from the input FASTA file using Prodigal
+
+        :param args: Command-line argument object from get_options and check_parser_arguments
+        :return:
+        """
+
+        logging.info("Predicting open-reading frames in the genomes using Prodigal... ")
+
+        start_time = time.time()
+
+        sample_prefix = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
+        if args.num_threads > 1 and args.composition == "meta":
+            # Split the input FASTA into num_threads files to run Prodigal in parallel
+            # TODO: low-priority - split into multiple files based on total sequence length rather than number of sequences
+            input_fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output)
+            n_seqs = len(input_fasta_dict.keys())
+            chunk_size = int(n_seqs / args.num_threads) + (n_seqs % args.num_threads)
+            split_files = write_new_fasta(input_fasta_dict,
+                                          args.output_dir_var + sample_prefix,
+                                          chunk_size)
+        else:
+            split_files = [args.fasta_input]
+
+        task_list = list()
+        for fasta_chunk in split_files:
+            chunk_prefix = args.final_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
+            prodigal_command = [args.executables["prodigal"]]
+            prodigal_command += ["-i", fasta_chunk]
+            prodigal_command += ["-p", args.composition]
+            prodigal_command += ["-a", chunk_prefix + "_ORFs.faa"]
+            prodigal_command += ["-d", chunk_prefix + "_ORFs.fna"]
+            prodigal_command += ["1>/dev/null", "2>/dev/null"]
+            task_list.append(prodigal_command)
+
+        num_tasks = len(task_list)
+        if num_tasks > 0:
+            cl_farmer = CommandLineFarmer("Prodigal -p " + args.composition, args.num_threads)
+            cl_farmer.add_tasks_to_queue(task_list)
+
+            cl_farmer.task_queue.close()
+            cl_farmer.task_queue.join()
+
+        # Concatenate outputs
+        aa_orfs_file = args.final_output_dir + sample_prefix + "_ORFs.faa"
+        nuc_orfs_file = args.final_output_dir + sample_prefix + "_ORFs.fna"
+        if not os.path.isfile(aa_orfs_file) and not os.path.isfile(nuc_orfs_file):
+            tmp_prodigal_aa_orfs = glob(args.final_output_dir + sample_prefix + "*_ORFs.faa")
+            tmp_prodigal_nuc_orfs = glob(args.final_output_dir + sample_prefix + "*_ORFs.fna")
+            os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + aa_orfs_file)
+            os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + nuc_orfs_file)
+            intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
+            for tmp_file in intermediate_files:
+                os.remove(tmp_file)
+
+        logging.info("done.\n")
+
+        args.fasta_input = aa_orfs_file
+        args.nucleotide_orfs = nuc_orfs_file
+
+        end_time = time.time()
+        hours, remainder = divmod(end_time - start_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        logging.debug("\tProdigal time required: " +
+                      ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+
+        return args
 
 
 class MarkerTest:
