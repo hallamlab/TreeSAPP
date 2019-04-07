@@ -20,7 +20,7 @@ from .phylo_dist import trim_lineages_to_rank
 from .classy import TreeProtein, MarkerBuild, MarkerTest, ReferencePackage, EntrezRecord, TreeSAPP, Assigner,\
     register_headers, get_header_info, prep_logging
 from . import create_refpkg
-from .assign import abundify_tree_saps, delete_files, validate_inputs, predict_orfs,\
+from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, hmmsearch_orfs, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, filter_multiple_alignments, check_for_removed_sequences,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
@@ -85,8 +85,6 @@ def create(args):
     logging.info("\n##\t\t\tCreating TreeSAPP reference package for '" + args.code_name + "' \t\t\t##\n")
     logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
 
-    args = utilities.find_executables(args)
-
     if args.pc:
         create_refpkg.terminal_commands(args.final_output_dir, args.code_name)
         sys.exit(0)
@@ -96,7 +94,7 @@ def create(args):
     accession_map_file = args.output + os.sep + "accession_id_lineage_map.tsv"
     hmm_purified_fasta = args.output + args.code_name + "_hmm_purified.fasta"
     filtered_fasta_name = args.output + '.'.join(
-        os.path.basename(args.fasta_input).split('.')[:-1]) + "_filtered.fa"
+        os.path.basename(args.input).split('.')[:-1]) + "_filtered.fa"
     uclust_prefix = args.output + '.'.join(
         os.path.basename(filtered_fasta_name).split('.')[:-1]) + "_uclust" + args.identity
     unaln_ref_fasta = args.output + args.code_name + "_ref.fa"  # FASTA file of unaligned reference sequences
@@ -122,13 +120,13 @@ def create(args):
             logging.info("Using " + hmm_purified_fasta + " from a previous attempt.\n")
         else:
             logging.info("Searching for domain sequences... ")
-            hmm_domtbl_files = utilities.hmmsearch_input_references(args, args.fasta_input)
+            hmm_domtbl_files = utilities.hmmsearch_input_references(args, args.input)
             logging.info("done.\n")
             hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
             # If we're screening a massive fasta file, we don't want to read every sequence - just those with hits
             # TODO: Implement a screening procedure in _fasta_reader._read_format_fasta()
-            fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output)
-            header_registry = register_headers(get_headers(args.fasta_input))
+            fasta_dict = format_read_fasta(args.input, args.molecule, args.output)
+            header_registry = register_headers(get_headers(args.input))
             marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
             write_new_fasta(marker_gene_dict, hmm_purified_fasta)
             summarize_fasta_sequences(hmm_purified_fasta)
@@ -137,10 +135,10 @@ def create(args):
         fasta_dict = format_read_fasta(hmm_purified_fasta, args.molecule, args.output, 110, args.min_seq_length)
         header_registry = register_headers(get_headers(hmm_purified_fasta))
         # Point all future operations to the HMM purified FASTA file as the original input
-        args.fasta_input = hmm_purified_fasta
+        args.input = hmm_purified_fasta
     else:
-        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output, 110, args.min_seq_length)
-        header_registry = register_headers(get_headers(args.fasta_input))
+        fasta_dict = format_read_fasta(args.input, args.molecule, args.output, 110, args.min_seq_length)
+        header_registry = register_headers(get_headers(args.input))
 
     ##
     # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
@@ -581,7 +579,7 @@ def evaluate(args):
         classified = True
 
     # Load FASTA data
-    fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output, 110)
+    fasta_dict = format_read_fasta(args.input, args.molecule, args.output, 110)
     if args.length:
         for seq_id in fasta_dict:
             if len(fasta_dict[seq_id]) < args.length:
@@ -590,7 +588,7 @@ def evaluate(args):
                 max_stop = len(fasta_dict[seq_id]) - args.length
                 random_start = randint(0, max_stop)
                 fasta_dict[seq_id] = fasta_dict[seq_id][random_start:random_start + args.length]
-    header_registry = register_headers(get_headers(args.fasta_input))
+    header_registry = register_headers(get_headers(args.input))
     # Load the query test sequences as ReferenceSequence objects
     complete_ref_sequences = get_header_info(header_registry)
     complete_ref_sequences = load_ref_seqs(fasta_dict, header_registry, complete_ref_sequences)
@@ -615,7 +613,7 @@ def evaluate(args):
             accession_lineage_map = dict()
             all_accessions = []
         else:
-            logging.error("No accessions were parsed from FASTA records in " + args.fasta_input)
+            logging.error("No accessions were parsed from FASTA records in " + args.input)
             sys.exit(21)
         # Download lineages separately for those accessions that failed,
         # map proper accession to lineage from the tuple keys (accession, accession.version)
@@ -829,46 +827,39 @@ def assign(args):
     ts_assign = Assigner()
     ts_assign.furnish_with_arguments(args)
     check_classify_arguments(ts_assign, args)
+    ts_assign.validate_continue(args)
 
     marker_build_dict = file_parsers.parse_ref_build_params(ts_assign.treesapp_dir,
-                                                            list(ts_assign.target_refpkgs.keys()))
+                                                            ts_assign.target_refpkgs)
+    ref_alignment_dimensions = get_alignment_dims(ts_assign.treesapp_dir, marker_build_dict)
     tree_numbers_translation = file_parsers.read_species_translation_files(ts_assign.treesapp_dir, marker_build_dict)
     if args.check_trees:
         validate_inputs(args, marker_build_dict)
 
-    # TODO: Get this working using the Function class
-    for analysis_function in sorted(ts_assign.stages, key=lambda x: x.order):
-        print(analysis_function.get_info())
-        if analysis_function.run:
-            analysis_function.function()
-
     ##
     # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
     ##
-    if ts_assign.stages["orf-call"]:
-        if args.molecule == "dna":
-            # args.fasta_input is set to the predicted ORF protein sequences
-            args = predict_orfs(args)
-    if ts_assign.stages["clean"]:
-        logging.info("Formatting " + args.fasta_input + " for pipeline... ")
-        formatted_fasta_dict = format_read_fasta(args.fasta_input, "prot", args.output)
+    if ts_assign.stage_status("orf-call"):
+        ts_assign.predict_orfs(args.composition, args.num_threads)
+    else:
+        ts_assign.orf_file = ts_assign.input_sequences
+
+    if ts_assign.stage_status("clean"):
+        logging.info("Formatting " + ts_assign.input_sequences + " for pipeline... ")
+        formatted_fasta_dict = format_read_fasta(ts_assign.input_sequences, "prot", ts_assign.output_dir)
         logging.info("done.\n")
-        logging.info("\tTreeSAPP analyze the " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
-        if re.match(r'\A.*\/(.*)', args.fasta_input):
-            input_multi_fasta = os.path.basename(args.fasta_input)
-        else:
-            input_multi_fasta = args.fasta_input
-        args.formatted_input_file = args.var_output_dir + input_multi_fasta + "_formatted.fasta"
-        logging.debug("Writing formatted FASTA file to " + args.formatted_input_file + "... ")
-        formatted_fasta_files = write_new_fasta(formatted_fasta_dict, args.formatted_input_file)
-        logging.debug("done.\n")
-        ref_alignment_dimensions = get_alignment_dims(args, marker_build_dict)
+        logging.info("\tTreeSAPP will analyze the " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
+        logging.info("Writing formatted FASTA file to " + ts_assign.formatted_input + "... ")
+        write_new_fasta(formatted_fasta_dict, ts_assign.formatted_input)
+        logging.info("done.\n")
 
     ##
     # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
     ##
-    if ts_assign.stages["search"]:
-        hmm_domtbl_files = hmmsearch_orfs(args, marker_build_dict)
+    if ts_assign.stage_status("search"):
+        hmm_domtbl_files = hmmsearch_orfs(ts_assign.executables["hmmsearch"], ts_assign.hmm_dir,
+                                          marker_build_dict, ts_assign.formatted_input, ts_assign.var_output_dir,
+                                          args.num_threads)
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, formatted_fasta_dict)
         homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
@@ -877,42 +868,23 @@ def assign(args):
     ##
     # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
     ##
-    if ts_assign.stages["align"]:
-        create_ref_phy_files(args, homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(args, homolog_seq_files, marker_build_dict)
-        # TODO: Wrap this into a function
-        file_types = set()
-        for mc in concatenated_msa_files:
-            sample_msa_file = concatenated_msa_files[mc][0]
-            f_ext = sample_msa_file.split('.')[-1]
-            if re.match("phy|phylip", f_ext):
-                file_types.add("Phylip")
-            elif re.match("sto|stockholm", f_ext):
-                file_types.add("Stockholm")
-            elif re.match("mfa|fa|fasta", f_ext):
-                file_types.add("Fasta")
-            else:
-                logging.error("Unrecognized file extension: '" + f_ext + "'")
-                sys.exit(3)
-        if len(file_types) > 1:
-            logging.error(
-                "Multiple file types detected in multiple alignment files:\n" + ','.join(file_types) + "\n")
-            sys.exit(3)
-        elif len(file_types) == 0:
-            logging.error("No alignment files were generated!\n")
-            sys.exit(3)
-        else:
-            file_type = file_types.pop()
+    if ts_assign.stage_status("align"):
+        create_ref_phy_files(ts_assign.aln_dir, ts_assign.var_output_dir,
+                             homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
+        concatenated_msa_files = multiple_alignments(ts_assign.executables, ts_assign.refpkg_dir, ts_assign.var_output_dir,
+                                                     homolog_seq_files, marker_build_dict)
+        file_type = utilities.find_msa_type(concatenated_msa_files)
         alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
                                                     args.verbose, file_type)
 
         if args.trim_align:
             tool = "BMGE"
-            trimmed_mfa_files = filter_multiple_alignments(args, concatenated_msa_files, marker_build_dict, tool)
-            qc_ma_dict = check_for_removed_sequences(args, trimmed_mfa_files, concatenated_msa_files,
-                                                     marker_build_dict)
+            trimmed_mfa_files = filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
+                                                           marker_build_dict, tool)
+            qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
+                                                     marker_build_dict, args.min_seq_length)
             evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-            phy_files = produce_phy_files(args, qc_ma_dict)
+            phy_files = produce_phy_files(qc_ma_dict)
         else:
             phy_files = concatenated_msa_files
         delete_files(args, 3)
@@ -920,27 +892,27 @@ def assign(args):
     ##
     # STAGE 5: Run RAxML to compute the ML estimations
     ##
-    if ts_assign.stages["place"]:
-        utilities.launch_evolutionary_placement_queries(args, phy_files, marker_build_dict)
-        sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict)
+    if ts_assign.stage_status("place"):
+        utilities.launch_evolutionary_placement_queries(ts_assign.executables, ts_assign.tree_dir,
+                                                        phy_files, marker_build_dict,
+                                                        ts_assign.var_output_dir, args.num_threads)
+        sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, marker_build_dict)
 
-    if ts_assign.stages["classify"]:
-        tree_saps, itol_data = parse_raxml_output(args, marker_build_dict)
-        tree_saps = filter_placements(args, tree_saps, marker_build_dict)
+    if ts_assign.stage_status("classify"):
+        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, ts_assign.tree_dir, marker_build_dict)
+        tree_saps = filter_placements(tree_saps, marker_build_dict, ts_assign.tree_dir, args.min_likelihood)
 
         abundance_dict = dict()
         if args.molecule == "dna":
-            sample_name = '.'.join(os.path.basename(re.sub("_ORFs", '', args.fasta_input)).split('.')[:-1])
-            orf_nuc_fasta = args.final_output_dir + sample_name + "_classified_seqs.fna"
+            orf_nuc_fasta = ts_assign.final_output_dir + ts_assign.sample_prefix + "_classified_seqs.fna"
             if not os.path.isfile(orf_nuc_fasta):
                 logging.info("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
-                genome_nuc_genes_file = args.final_output_dir + sample_name + "_ORFs.fna"
-                if os.path.isfile(genome_nuc_genes_file):
-                    nuc_orfs_formatted_dict = format_read_fasta(genome_nuc_genes_file, 'dna', args.output)
+                if os.path.isfile(ts_assign.nuc_orfs_file):
+                    nuc_orfs_formatted_dict = format_read_fasta(ts_assign.nuc_orfs_file, 'dna', args.output)
                     write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta)
                     logging.info("done.\n")
                 else:
-                    logging.info("failed.\nWARNING: Unable to read '" + genome_nuc_genes_file + "'.\n" +
+                    logging.info("failed.\nWARNING: Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
                                  "Cannot create the nucleotide FASTA file of classified sequences!\n")
             if args.rpkm:
                 sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
@@ -953,14 +925,15 @@ def assign(args):
                     abundance_dict[placed_seq.contig_name + '|' + placed_seq.name] = 1.0
 
         abundify_tree_saps(tree_saps, abundance_dict)
-        write_tabular_output(args, tree_saps, tree_numbers_translation, marker_build_dict)
-        produce_itol_inputs(args, tree_saps, marker_build_dict, itol_data)
+        assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
+        write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_assign.sample_prefix, assign_out)
+        produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
         delete_files(args, 4)
 
     ##
     # STAGE 6: Optionally update the reference tree
     ##
-    if "update" in ts_assign.stages:
+    if "update" in ts_assign.stages and ts_assign.stage_status("update"):
         for marker_code in args.targets:
             update_func_tree_workflow(args, marker_build_dict[marker_code])
 

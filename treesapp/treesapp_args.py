@@ -290,20 +290,20 @@ def check_classify_arguments(assigner_instance: Assigner, args):
     :param args: object with parameters returned by argparse.parse_args()
     :return: 'args', a summary of TreeSAPP settings.
     """
-    assigner_instance.targets = args.targets.split(',')
+    assigner_instance.target_refpkgs = args.targets.split(',')
     if args.targets:
-        for marker in assigner_instance.targets:
+        for marker in assigner_instance.target_refpkgs:
             if not assigner_instance.refpkg_code_re.match(marker):
                 logging.error("Incorrect format for target: " + str(marker) +
                               "\nRefer to column 'Denominator' in " + assigner_instance.treesapp_dir +
                               "data/ref_build_parameters.tsv for identifiers that can be used.\n")
                 sys.exit(3)
 
-    if args.molecule == "prot" and args.rpkm:
-        logging.error("Unable to calculate RPKM values for protein sequences.\n")
-        sys.exit(3)
-
-    assigner_instance.validate_continue(args)
+    if args.molecule == "prot":
+        assigner_instance.change_stage_status("orf-call", False)
+        if args.rpkm:
+            logging.error("Unable to calculate RPKM values for protein sequences.\n")
+            sys.exit(3)
 
     # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
     # Parameterizing the hmmsearch output parsing:

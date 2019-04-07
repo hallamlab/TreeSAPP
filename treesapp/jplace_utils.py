@@ -205,15 +205,15 @@ def organize_jplace_files(jplace_files):
     return jplace_collection
 
 
-def sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_dict):
+def sub_indices_for_seq_names_jplace(jplace_dir, numeric_contig_index, marker_build_dict):
     """
     Ugly script for running re.sub on a set of jplace files
-    :param args:
+    :param jplace_dir:
     :param numeric_contig_index:
     :param marker_build_dict:
     :return:
     """
-    jplace_files = glob.glob(args.output_dir_var + '*.jplace')
+    jplace_files = glob.glob(jplace_dir + '*.jplace')
     jplace_collection = organize_jplace_files(jplace_files)
     for denominator, jplace_files in jplace_collection.items():
         marker = marker_build_dict[denominator].cog
@@ -221,8 +221,8 @@ def sub_indices_for_seq_names_jplace(args, numeric_contig_index, marker_build_di
             jplace_data = jplace_parser(jplace_path)
             for pquery in jplace_data.placements:
                 pquery["n"] = numeric_contig_index[marker][int(pquery["n"][0])]
-            write_jplace(jplace_data, args.output_dir_var + os.sep + "tmp.jplace")
-            os.rename(args.output_dir_var + os.sep + "tmp.jplace", jplace_path)
+            write_jplace(jplace_data, jplace_dir + os.sep + "tmp.jplace")
+            os.rename(jplace_dir + os.sep + "tmp.jplace", jplace_path)
     return
 
 

@@ -18,17 +18,17 @@ from numpy import var
 import _tree_parser
 
 
-class Function:
-    def __init__(self, name, order, func):
+class ModuleFunction:
+    def __init__(self, name, order, func=None):
         self.order = order
-        self.func_name = name
+        self.name = name
         self.function = func
         self.run = True
 
     def get_info(self):
-        info_string = "Information for '" + self.func_name + "':\n"
-        info_string += "Order: " + str(self.order)
-        info_string += "Run: " + str(self.run)
+        info_string = "Information for '" + self.name + "':\n"
+        info_string += "\tOrder: " + str(self.order) + "\n"
+        info_string += "\tRun: " + str(self.run) + "\n"
         return info_string
 
 
@@ -503,7 +503,7 @@ class ItolJplace:
 
         return
 
-    def harmonize_placements(self, treesapp_dir):
+    def harmonize_placements(self, tree_data_dir):
         """
         Often times, the placements field in a jplace file contains multiple possible tree locations.
         In order to consolidate these into a single tree location, the LCA algorithm is utilized.
@@ -512,7 +512,7 @@ class ItolJplace:
         """
         if self.name == "nr":
             self.name = "COGrRNA"
-        reference_tree_file = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep + self.name + "_tree.txt"
+        reference_tree_file = tree_data_dir + os.sep + self.name + "_tree.txt"
         reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
         lwr_pos = self.get_field_position_from_jplace_fields("like_weight_ratio")
         if not lwr_pos:
@@ -914,9 +914,16 @@ class TreeSAPP:
         self.refpkg_code_re = re.compile(r'[A-Z]{1,2}[0-9]{4,5}')
         # TODO: fix this... perhaps import treesapp, treesapp.__path__?
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+        self.refpkg_dir = self.treesapp_dir + os.sep + 'data' + os.sep
+        self.tree_dir = self.treesapp_dir + os.sep + 'data' + os.sep + "tree_data" + os.sep
+        self.hmm_dir = self.treesapp_dir + os.sep + 'data' + os.sep + "hmm_data" + os.sep
+        self.aln_dir = self.treesapp_dir + os.sep + 'data' + os.sep + "alignment_data" + os.sep
+        self.itol_dir = self.treesapp_dir + os.sep + 'data' + os.sep + "iTOL_data" + os.sep
 
         # Values derived from the command-line arguments
         self.input_sequences = ""
+        self.sample_prefix = ""
+        self.formatted_input = ""
         self.molecule_type = ""
         self.output_dir = ""
         self.final_output_dir = ""
@@ -924,11 +931,10 @@ class TreeSAPP:
         self.executables = dict()
 
         # Values that need to be entered later, in the command-specific class
-        self.stage_order = dict()
         self.stages = dict()  # Used to track what progress stages need to be completed
         self.stage_file = ""  # The file to write progress updates to
         self.restart = True
-        self.target_refpkgs = dict()
+        self.target_refpkgs = list()
 
     def furnish_with_arguments(self, args):
         if self.command != "info":
@@ -937,6 +943,8 @@ class TreeSAPP:
             self.output_dir = args.output
             self.final_output_dir = args.final_output_dir
             self.var_output_dir = args.var_output_dir
+            self.sample_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
+            self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
         self.executables = self.find_executables(args)
 
     def log_progress(self):
@@ -953,12 +961,41 @@ class TreeSAPP:
                 logging.warning("Reclassify impossible as " + self.output_dir + " is missing input files.\n")
         return
 
+    def stage_lookup_fail(self, name):
+        logging.error("Unable to find '" + name + "' in " + self.command + " stages.\n")
+        sys.exit(3)
+
+    def stage_lookup(self, name: str, tolerant=False):
+        """
+        Used for looking up a stage in self.stages by its stage.name
+        :param name: Name of a stage
+        :param tolerant: Boolean controlling whether the function exits if look-up failed (defualt) or returns None
+        :return: ModuleFunction instance that matches the name, or None if failed and tolerant, exit otherwise
+        """
+        fingerprint = False
+        for module_step in sorted(self.stages, key=int):
+            stage = self.stages[module_step]  # type: ModuleFunction
+            if stage.name == name:
+                return stage
+
+        if not fingerprint and not tolerant:
+            self.stage_lookup_fail(name)
+        return
+
+    def first_stage(self):
+        for x in sorted(self.stages, key=int):  # type: int
+            stage = self.stages[x]  # type: ModuleFunction
+            if stage.run:
+                return stage.order
+        logging.error("No stages are set to run!\n")
+        sys.exit(3)
+
     def read_progress_log(self):
         """
         Read the object's 'stage_file' and determine the completed stage
         :return: An integer corresponding to the last completed stage's rank in 'stage_order'
         """
-        completed_int = 0
+        completed_int = self.first_stage()
         try:
             progress_handler = open(self.stage_file)
         except IOError:
@@ -968,14 +1005,22 @@ class TreeSAPP:
         progress_handler.close()
         return completed_int
 
+    def stage_status(self, name):
+        return self.stage_lookup(name).run
+
+    def change_stage_status(self, name: str, new_status: bool):
+        stage = self.stage_lookup(name)
+        stage.run = new_status
+        return
+
     def edit_stages(self, start, end=None):
-        for x in sorted(self.stage_order):  # type: int
-            stage_name = self.stage_order[x]  # For mapping to the self.stages
+        for x in sorted(self.stages, key=int):  # type: int
+            stage = self.stages[x]  # type: ModuleFunction
             if end:
                 if x < start or x > end:
-                        self.stages[stage_name] = False
+                        stage.run = False
             elif x < start:
-                    self.stages[stage_name] = False
+                    stage.run = False
             else:
                 # These stages need to be ran
                 pass
@@ -991,38 +1036,9 @@ class TreeSAPP:
         :return: None
         """
         if self.command == "assign":
-            assigments_file = self.final_output_dir + os.sep + "marker_contig_map.tsv"
-            if args.overwrite:
-                # Proceed by running all stages
-                pass
-            else:
-                last_valid_stage = self.read_progress_log()
-                desired_stage = -1
-                for step in sorted(self.stage_order):
-                    if args.stage == self.stage_order[step]:
-                        desired_stage = step
-                        break
+            assignments_file = self.final_output_dir + os.sep + "marker_contig_map.tsv"
 
-                # Update the stage status
-                if desired_stage < 0:
-                    # last_valid_stage should equal 0, proceed with continue
-                    logging.debug("Continuing with assignment at '" + self.stage_order[last_valid_stage] + "'\n")
-                    self.edit_stages(last_valid_stage)
-                elif desired_stage > last_valid_stage:
-                    logging.warning("Unable to run '" + args.stage + "' as it is ahead of the last completed stage.\n" +
-                                    "Continuing with assignment at '" + self.stage_order[last_valid_stage] + "'\n")
-                    self.edit_stages(last_valid_stage, desired_stage)
-                else:
-                    # Proceed with running the desired stage
-                    logging.debug("Proceeding with '" + args.stage + "'\n")
-                    self.edit_stages(desired_stage, desired_stage)
-
-            if args.update_tree:
-                if os.path.isfile(assigments_file):
-                    self.stages["update"] = True
-                else:
-                    logging.warning("Update-tree impossible as " + self.output_dir + " is missing input files.\n")
-            elif args.rpkm:
+            if args.rpkm:
                 if not args.reads:
                     logging.error("At least one FASTQ file must be provided if -rpkm flag is active!")
                     sys.exit(3)
@@ -1030,17 +1046,47 @@ class TreeSAPP:
                     logging.error("File containing reverse reads provided but forward mates file missing!")
                     sys.exit(3)
 
-                if os.path.isfile(args.reads) and os.path.isfile(assigments_file):
-                    self.stages["RPKM"] = True
+                if os.path.isfile(args.reads) and os.path.isfile(assignments_file):
+                    self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
                 else:
                     logging.warning("RPKM impossible as " + self.output_dir + " is missing input files.\n")
+            if args.update_tree:
+                if os.path.isfile(assignments_file):
+                    self.stages[len(self.stages)] = ModuleFunction("update", len(self.stages))
+                else:
+                    logging.warning("Update-tree impossible as " + self.output_dir + " is missing input files.\n")
         elif self.command == "create":
             pass
         elif self.command == "evaluate":
             pass
         elif self.command == "train":
             pass
+        else:
+            logging.error("Unknown sub-command: " + str(self.command) + "\n")
+            sys.exit(3)
+
         # TODO: Summarise the steps to be taken and write to log
+        if args.overwrite:
+            last_valid_stage = self.first_stage()
+        else:
+            last_valid_stage = self.read_progress_log()
+
+        if args.stage == "continue":
+            logging.debug("Continuing with assignment at '" + self.stages[last_valid_stage].name + "'\n")
+            self.edit_stages(last_valid_stage)
+            return
+
+        # Update the stage status
+        desired_stage = self.stage_lookup(args.stage).order
+        if desired_stage > last_valid_stage:
+            logging.warning("Unable to run '" + args.stage + "' as it is ahead of the last completed stage.\n" +
+                            "Continuing with assignment at '" + self.stages[last_valid_stage].name + "'\n")
+            self.edit_stages(last_valid_stage, desired_stage)
+        else:
+            # Proceed with running the desired stage
+            logging.debug("Proceeding with '" + args.stage + "'\n")
+            self.edit_stages(desired_stage, desired_stage)
+
         return
 
     def find_executables(self, args):
@@ -1094,46 +1140,63 @@ class Assigner(TreeSAPP):
         logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
+        self.aa_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.faa"
+        self.nuc_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.fna"
+        self.composition = ""
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = [Function("orf-call", 0, self.predict_orfs),
-                       Function("clean", 1, self.clean),
-                       Function("search", 2, self.search),
-                       Function("align", 3, self.align),
-                       Function("place", 4, self.place),
-                       Function("classify", 5, self.classify)]
+        self.stages = {0: ModuleFunction("orf-call", 0, self.predict_orfs),
+                       1: ModuleFunction("clean", 1, self.clean),
+                       2: ModuleFunction("search", 2, self.search),
+                       3: ModuleFunction("align", 3, self.align),
+                       4: ModuleFunction("place", 4, self.place),
+                       5: ModuleFunction("classify", 5, self.classify)}
 
-    def predict_orfs(self, args):
+    def get_info(self):
+        info_string = "Assigner instance summary:\n\t"
+        info_string += "\n\t".join(["TreeSAPP directory = " + self.treesapp_dir,
+                                    "FASTA input sequences = " + self.input_sequences,
+                                    "Formatted input = " + self.formatted_input,
+                                    "ORF protein sequences = " + self.aa_orfs_file,
+                                    "Output directory = " + self.output_dir,
+                                    "Input molecule type = " + self.molecule_type,
+                                    "Target reference packages = " + str(self.target_refpkgs)]) + "\n"
+        for module_step in self.stages:
+            info_string += self.stages[module_step].get_info()
+
+        return info_string
+
+    def predict_orfs(self, composition, num_threads):
         """
         Predict ORFs from the input FASTA file using Prodigal
 
-        :param args: Command-line argument object from get_options and check_parser_arguments
-        :return:
+        :param composition: Sample composition being either a single organism or a metagenome [single | meta]
+        :param num_threads: The number of CPU threads to use
+        :return: None
         """
 
         logging.info("Predicting open-reading frames in the genomes using Prodigal... ")
 
         start_time = time.time()
 
-        sample_prefix = '.'.join(os.path.basename(args.fasta_input).split('.')[:-1])
-        if args.num_threads > 1 and args.composition == "meta":
+        if num_threads > 1 and composition == "meta":
             # Split the input FASTA into num_threads files to run Prodigal in parallel
             # TODO: low-priority - split into multiple files based on total sequence length rather than number of sequences
-            input_fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output)
+            input_fasta_dict = format_read_fasta(self.input_sequences, self.molecule_type, self.output_dir)
             n_seqs = len(input_fasta_dict.keys())
-            chunk_size = int(n_seqs / args.num_threads) + (n_seqs % args.num_threads)
+            chunk_size = int(n_seqs / num_threads) + (n_seqs % num_threads)
             split_files = write_new_fasta(input_fasta_dict,
-                                          args.output_dir_var + sample_prefix,
+                                          self.var_output_dir + self.sample_prefix,
                                           chunk_size)
         else:
-            split_files = [args.fasta_input]
+            split_files = [self.input_sequences]
 
         task_list = list()
         for fasta_chunk in split_files:
-            chunk_prefix = args.final_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
-            prodigal_command = [args.executables["prodigal"]]
+            chunk_prefix = self.var_output_dir + '.'.join(os.path.basename(fasta_chunk).split('.')[:-1])
+            prodigal_command = [self.executables["prodigal"]]
             prodigal_command += ["-i", fasta_chunk]
-            prodigal_command += ["-p", args.composition]
+            prodigal_command += ["-p", composition]
             prodigal_command += ["-a", chunk_prefix + "_ORFs.faa"]
             prodigal_command += ["-d", chunk_prefix + "_ORFs.fna"]
             prodigal_command += ["1>/dev/null", "2>/dev/null"]
@@ -1141,28 +1204,23 @@ class Assigner(TreeSAPP):
 
         num_tasks = len(task_list)
         if num_tasks > 0:
-            cl_farmer = CommandLineFarmer("Prodigal -p " + args.composition, args.num_threads)
+            cl_farmer = CommandLineFarmer("Prodigal -p " + composition, num_threads)
             cl_farmer.add_tasks_to_queue(task_list)
 
             cl_farmer.task_queue.close()
             cl_farmer.task_queue.join()
 
         # Concatenate outputs
-        aa_orfs_file = args.final_output_dir + sample_prefix + "_ORFs.faa"
-        nuc_orfs_file = args.final_output_dir + sample_prefix + "_ORFs.fna"
-        if not os.path.isfile(aa_orfs_file) and not os.path.isfile(nuc_orfs_file):
-            tmp_prodigal_aa_orfs = glob(args.final_output_dir + sample_prefix + "*_ORFs.faa")
-            tmp_prodigal_nuc_orfs = glob(args.final_output_dir + sample_prefix + "*_ORFs.fna")
-            os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + aa_orfs_file)
-            os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + nuc_orfs_file)
+        if not os.path.isfile(self.aa_orfs_file) and not os.path.isfile(self.nuc_orfs_file):
+            tmp_prodigal_aa_orfs = glob(self.var_output_dir + self.sample_prefix + "*_ORFs.faa")
+            tmp_prodigal_nuc_orfs = glob(self.var_output_dir + self.sample_prefix + "*_ORFs.fna")
+            os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + self.aa_orfs_file)
+            os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + self.nuc_orfs_file)
             intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
             for tmp_file in intermediate_files:
                 os.remove(tmp_file)
 
         logging.info("done.\n")
-
-        args.fasta_input = aa_orfs_file
-        args.nucleotide_orfs = nuc_orfs_file
 
         end_time = time.time()
         hours, remainder = divmod(end_time - start_time, 3600)
@@ -1170,7 +1228,22 @@ class Assigner(TreeSAPP):
         logging.debug("\tProdigal time required: " +
                       ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
 
-        return args
+        return
+
+    def clean(self):
+        return
+
+    def search(self):
+        return
+
+    def align(self):
+        return
+
+    def place(self):
+        return
+
+    def classify(self):
+        return
 
 
 class MarkerTest:

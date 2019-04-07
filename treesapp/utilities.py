@@ -726,15 +726,18 @@ def hmm_pile(hmm_matches):
     return
 
 
-def launch_evolutionary_placement_queries(args, phy_files, marker_build_dict):
+def launch_evolutionary_placement_queries(executables, tree_dir, phy_files, marker_build_dict, output_dir, num_threads):
     """
     Run RAxML using the provided Autovivifications of phy files and COGs, as well as the list of models used for each COG.
 
     Returns an Autovivification listing the output files of RAxML.
     Returns an Autovivification containing the reference tree file associated with each functional or rRNA COG.
-    :param args:
+    :param executables:
+    :param tree_dir:
     :param phy_files:
     :param marker_build_dict:
+    :param output_dir:
+    :param num_threads:
     :return:
     """
     logging.info("Running RAxML... coffee?\n")
@@ -745,23 +748,20 @@ def launch_evolutionary_placement_queries(args, phy_files, marker_build_dict):
     raxml_calls = 0
     # Maximum-likelihood sequence placement analyses
     denominator_reference_tree_dict = dict()
-    mltree_resources = args.treesapp + os.sep + 'data' + os.sep
     for denominator in sorted(phy_files.keys()):
         if not isinstance(denominator, str):
             logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
             raise AssertionError()
         # Establish the reference tree file to be used for this contig
-        reference_tree_file = mltree_resources + 'tree_data' + os.sep + args.reference_tree
         ref_marker = marker_build_dict[denominator]
-        if not denominator == 'p' and not denominator == 'g' and not denominator == 'i':
-            reference_tree_file = mltree_resources + 'tree_data' + os.sep + ref_marker.cog + '_tree.txt'
+        reference_tree_file = tree_dir + os.sep + ref_marker.cog + '_tree.txt'
         if denominator not in denominator_reference_tree_dict.keys():
             denominator_reference_tree_dict[denominator] = reference_tree_file
         for phy_file in phy_files[denominator]:
             query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(phy_file))
             query_name = re.sub(marker_build_dict[denominator].cog, denominator, query_name)
-            raxml_files = raxml_evolutionary_placement(args.executables["raxmlHPC"], reference_tree_file, phy_file,
-                                                       ref_marker.model, args.var_output_dir, query_name, args.num_threads)
+            raxml_files = raxml_evolutionary_placement(executables["raxmlHPC"], reference_tree_file, phy_file,
+                                                       ref_marker.model, output_dir, query_name, num_threads)
             raxml_outfiles[denominator][query_name]['classification'] = raxml_files["classification"]
             raxml_outfiles[denominator][query_name]['labelled_tree'] = raxml_files["tree"]
             raxml_calls += 1
@@ -963,3 +963,28 @@ def fish_refpkg_from_build_params(bait: str, marker_build_dict: dict):
         sys.exit(13)
     else:
         return refpkg
+
+
+def find_msa_type(msa_files):
+    file_types = set()
+    for mc in msa_files:
+        sample_msa_file = msa_files[mc][0]
+        f_ext = sample_msa_file.split('.')[-1]
+        if re.match("phy|phylip", f_ext):
+            file_types.add("Phylip")
+        elif re.match("sto|stockholm", f_ext):
+            file_types.add("Stockholm")
+        elif re.match("mfa|fa|fasta", f_ext):
+            file_types.add("Fasta")
+        else:
+            logging.error("Unrecognized file extension: '" + f_ext + "'")
+            sys.exit(3)
+    if len(file_types) > 1:
+        logging.error(
+            "Multiple file types detected in multiple alignment files:\n" + ','.join(file_types) + "\n")
+        sys.exit(3)
+    elif len(file_types) == 0:
+        logging.error("No alignment files were generated!\n")
+        sys.exit(3)
+    else:
+        return file_types.pop()
