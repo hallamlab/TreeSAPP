@@ -3,8 +3,8 @@ import os
 import sys
 import re
 import logging
-from .classy import Assigner
-from .utilities import available_cpu_count, check_previous_output
+from .classy import Assigner, Evaluator
+from .utilities import available_cpu_count, check_previous_output, get_refpkg_build
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -79,8 +79,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
                                      help='overwrites previously processed output folders')
         self.miscellany.add_argument('-T', '--num_threads', default=2, type=int,
-                                     help='specifies the number of CPU threads to use in RAxML and BLAST '
-                                          'and processes throughout the pipeline [DEFAULT = 2]')
+                                     help='The number of CPU threads or parallel processes '
+                                          'to use in various pipeline steps [DEFAULT = 2]')
 
 
 def add_classify_arguments(parser: TreeSAPPArgumentParser):
@@ -215,6 +215,9 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
 
 
 def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_io()
+    parser.add_seq_params()
+    parser.add_compute_miscellany()
     parser.reqs.add_argument("-r", "--reference_marker",
                              help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)",
                              required=True)
@@ -283,6 +286,21 @@ def check_parser_arguments(args):
     return
 
 
+def check_evaulate_arguments(evaluator_instance: Evaluator, args, marker_build_dict):
+    taxa_choices = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
+    args.taxon_rank = args.taxon_rank.split(',')
+    for rank in args.taxon_rank:
+        if rank not in taxa_choices:
+            logging.error(rank + " not an available option for `--taxon_rank`.\n")
+            sys.exit(21)
+        else:
+            evaluator_instance.ranks.append(rank)
+    evaluator_instance.target_marker = get_refpkg_build(args.reference_marker,
+                                                        marker_build_dict,
+                                                        evaluator_instance.refpkg_code_re)
+    return
+
+
 def check_classify_arguments(assigner_instance: Assigner, args):
     """
     Ensures the command-line arguments returned by argparse are sensible
@@ -290,14 +308,16 @@ def check_classify_arguments(assigner_instance: Assigner, args):
     :param args: object with parameters returned by argparse.parse_args()
     :return: 'args', a summary of TreeSAPP settings.
     """
-    assigner_instance.target_refpkgs = args.targets.split(',')
     if args.targets:
+        assigner_instance.target_refpkgs = args.targets.split(',')
         for marker in assigner_instance.target_refpkgs:
             if not assigner_instance.refpkg_code_re.match(marker):
                 logging.error("Incorrect format for target: " + str(marker) +
                               "\nRefer to column 'Denominator' in " + assigner_instance.treesapp_dir +
                               "data/ref_build_parameters.tsv for identifiers that can be used.\n")
                 sys.exit(3)
+    else:
+        assigner_instance.target_refpkgs = []
 
     if args.molecule == "prot":
         assigner_instance.change_stage_status("orf-call", False)

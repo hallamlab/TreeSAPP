@@ -21,6 +21,26 @@ def reluctant_remove_replace(dir_path):
     return
 
 
+def get_refpkg_build(name: str, marker_build_dict: dict, refpkg_code_re):
+    if refpkg_code_re.match(name):
+        try:
+            return marker_build_dict[name]
+        except KeyError:
+            # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
+            logging.error("Unable to find '" + name + "' in ref_build_parameters collection!\n" +
+                          "Has it been added to data/tree_data/ref_build_parameters.tsv?\n")
+            sys.exit(21)
+    else:
+        for denominator in marker_build_dict:
+            refpkg_build = marker_build_dict[denominator]
+            if refpkg_build.cog == name:
+                return refpkg_build
+            elif name == denominator:
+                return refpkg_build
+        logging.error("Wrong format for the reference code_name provided: " + name + "\n")
+        sys.exit(21)
+
+
 def check_previous_output(args):
     """
     Prompts the user to determine how to deal with a pre-existing output directory.

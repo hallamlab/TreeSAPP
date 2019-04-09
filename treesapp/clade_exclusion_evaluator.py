@@ -11,7 +11,7 @@ from .fasta import write_new_fasta, read_fasta_to_dict
 from .utilities import return_sequence_info_groups
 from .external_command_interface import launch_write_command
 from .file_parsers import tax_ids_file_to_leaves
-from .classy import MarkerTest, get_header_format
+from .classy import get_header_format
 from .entrez_utils import *
 
 # TODO: Ensure this dictionary works for every taxonomic hierarchy scheme
@@ -229,7 +229,7 @@ def get_classification_performance(marker_eval_instance):
     return clade_exclusion_strings
 
 
-def determine_containment(marker_eval_inst: MarkerTest):
+def determine_containment(marker_eval_inst):
     """
     Determines the accuracy of sequence classifications of all sequences contained at different taxonomic ranks
 

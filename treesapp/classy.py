@@ -1131,6 +1131,107 @@ class TreeSAPP:
         return exec_paths
 
 
+class Evaluator(TreeSAPP):
+    def __init__(self):
+        logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
+        logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
+        super(Evaluator, self).__init__("evaluate")
+        self.reference_tree = None
+        self.targets = []  # Left empty to appease parse_ref_build_parameters()
+        self.target_marker = None
+        self.ranks = list()
+        self.markers = set()
+        self.taxa_filter = dict()
+        self.taxa_filter["Unclassified"] = 0
+        self.taxa_filter["Classified"] = 0
+        self.taxa_filter["Unique_taxa"] = 0
+        self.taxa_tests = dict()
+        self.classifications = dict()
+
+        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
+        self.stages = {0: ModuleFunction("lineages", 0),
+                       1: ModuleFunction("build", 1, ),
+                       2: ModuleFunction("train", 2, )}
+
+    def new_taxa_test(self, rank, lineage):
+        if rank not in self.taxa_tests:
+            self.taxa_tests[rank] = list()
+        taxa_test_inst = TaxonTest(lineage)
+        self.taxa_tests[rank].append(taxa_test_inst)
+        return taxa_test_inst
+
+    def delete_test(self, rank, lineage):
+        i = 0
+        for tti in self.taxa_tests[rank]:
+            if re.match(tti.lineage, lineage):
+                self.taxa_tests[rank].pop(i)
+                break
+            i += 1
+        return
+
+    def get_sensitivity(self, rank):
+        total_queries = 0
+        total_classified = 0
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                total_queries += len(tt.queries)
+                total_classified += len(tt.classifieds)
+            return total_queries, total_classified, float(total_classified/total_queries)
+        else:
+            return 0, 0, 0.0
+
+    def get_unique_taxa_tested(self, rank):
+        taxa = set()
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                taxa.add(tt.taxon)
+            return taxa
+        else:
+            return None
+
+    def summarize_rankwise_distances(self, rank):
+        distals = list()
+        pendants = list()
+        tips = list()
+        totals = list()
+        n_dists = 0
+        if rank in self.taxa_tests:
+            for tt in self.taxa_tests[rank]:
+                distals += tt.distances["distal"]
+                pendants += tt.distances["pendant"]
+                tips += tt.distances["tip"]
+                n_dists += 1
+            n_dists = len(distals)
+            x = 0
+            while x < n_dists:
+                totals.append(sum([distals[x], pendants[x], tips[x]]))
+                x += 1
+            if len(pendants) != n_dists or len(tips) != n_dists:
+                logging.error("Unequal number of values found between distal-, pendant- and tip-distances.\n")
+                sys.exit(17)
+            distance_summary = ["Rank\tType\tMean\tMedian\tVariance",
+                                "\t".join([rank, "Distal",
+                                           str(round(sum(distals) / float(n_dists), 4)),
+                                           str(round(median(distals), 4)),
+                                           str(round(float(var(distals)), 4))]),
+                                "\t".join([rank, "Pendant",
+                                           str(round(sum(pendants) / float(n_dists), 4)),
+                                           str(round(median(pendants), 4)),
+                                           str(round(float(var(pendants)), 4))]),
+                                "\t".join([rank, "Tip",
+                                           str(round(sum(tips) / float(n_dists), 4)),
+                                           str(round(median(tips), 4)),
+                                           str(round(float(var(tips)), 4))]),
+                                "\t".join([rank, "Total",
+                                           str(round(sum(totals) / float(n_dists), 4)),
+                                           str(round(median(totals), 4)),
+                                           str(round(float(var(totals)), 4))])]
+            sys.stdout.write("\n".join(distance_summary) + "\n")
+            return distals, pendants, tips
+        else:
+            return None, None, None
+
+
 class Assigner(TreeSAPP):
     def __init__(self):
         """
@@ -1244,97 +1345,6 @@ class Assigner(TreeSAPP):
 
     def classify(self):
         return
-
-
-class MarkerTest:
-    def __init__(self, marker_name):
-        self.target_marker = marker_name
-        self.ranks = list()
-        self.markers = set()
-        self.taxa_filter = dict()
-        self.taxa_filter["Unclassified"] = 0
-        self.taxa_filter["Classified"] = 0
-        self.taxa_filter["Unique_taxa"] = 0
-        self.taxa_tests = dict()
-        self.classifications = dict()
-
-    def new_taxa_test(self, rank, lineage):
-        if rank not in self.taxa_tests:
-            self.taxa_tests[rank] = list()
-        taxa_test_inst = TaxonTest(lineage)
-        self.taxa_tests[rank].append(taxa_test_inst)
-        return taxa_test_inst
-
-    def delete_test(self, rank, lineage):
-        i = 0
-        for tti in self.taxa_tests[rank]:
-            if re.match(tti.lineage, lineage):
-                self.taxa_tests[rank].pop(i)
-                break
-            i += 1
-        return
-
-    def get_sensitivity(self, rank):
-        total_queries = 0
-        total_classified = 0
-        if rank in self.taxa_tests:
-            for tt in self.taxa_tests[rank]:
-                total_queries += len(tt.queries)
-                total_classified += len(tt.classifieds)
-            return total_queries, total_classified, float(total_classified/total_queries)
-        else:
-            return 0, 0, 0.0
-
-    def get_unique_taxa_tested(self, rank):
-        taxa = set()
-        if rank in self.taxa_tests:
-            for tt in self.taxa_tests[rank]:
-                taxa.add(tt.taxon)
-            return taxa
-        else:
-            return None
-
-    def summarize_rankwise_distances(self, rank):
-        distals = list()
-        pendants = list()
-        tips = list()
-        totals = list()
-        n_dists = 0
-        if rank in self.taxa_tests:
-            for tt in self.taxa_tests[rank]:
-                distals += tt.distances["distal"]
-                pendants += tt.distances["pendant"]
-                tips += tt.distances["tip"]
-                n_dists += 1
-            n_dists = len(distals)
-            x = 0
-            while x < n_dists:
-                totals.append(sum([distals[x], pendants[x], tips[x]]))
-                x += 1
-            if len(pendants) != n_dists or len(tips) != n_dists:
-                logging.error("Unequal number of values found between distal-, pendant- and tip-distances.\n")
-                sys.exit(17)
-            distance_summary = ["Rank\tType\tMean\tMedian\tVariance",
-                                "\t".join([rank, "Distal",
-                                           str(round(sum(distals) / float(n_dists), 4)),
-                                           str(round(median(distals), 4)),
-                                           str(round(float(var(distals)), 4))]),
-                                "\t".join([rank, "Pendant",
-                                           str(round(sum(pendants) / float(n_dists), 4)),
-                                           str(round(median(pendants), 4)),
-                                           str(round(float(var(pendants)), 4))]),
-                                "\t".join([rank, "Tip",
-                                           str(round(sum(tips) / float(n_dists), 4)),
-                                           str(round(median(tips), 4)),
-                                           str(round(float(var(tips)), 4))]),
-                                "\t".join([rank, "Total",
-                                           str(round(sum(totals) / float(n_dists), 4)),
-                                           str(round(median(totals), 4)),
-                                           str(round(float(var(totals)), 4))])]
-            sys.stdout.write("\n".join(distance_summary) + "\n")
-            return distals, pendants, tips
-        else:
-            return None, None, None
 
 
 class TaxonTest:
