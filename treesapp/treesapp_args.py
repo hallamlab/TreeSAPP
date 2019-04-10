@@ -308,6 +308,7 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
     evaluator_instance.target_marker = get_refpkg_build(args.reference_marker,
                                                         marker_build_dict,
                                                         evaluator_instance.refpkg_code_re)
+    evaluator_instance.targets.append(evaluator_instance.target_marker.denominator)
 
     if args.acc_to_lin and os.path.isfile(args.acc_to_lin):
         evaluator_instance.acc_to_lin = args.acc_to_lin

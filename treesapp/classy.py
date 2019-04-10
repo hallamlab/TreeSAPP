@@ -870,10 +870,22 @@ class MyFormatter(logging.Formatter):
 
 
 def prep_logging(log_file_name=None, verbosity=False):
+    """
+    Allows for multiple file handlers to be added to the root logger, but only a single stream handler.
+    The new file handlers must be removed outside of this function explicitly
+    :param log_file_name:
+    :param verbosity:
+    :return:
+    """
     if verbosity:
         logging_level = logging.DEBUG
     else:
         logging_level = logging.INFO
+
+    # Detect whether a handlers are already present and return if true
+    logger = logging.getLogger()
+    if len(logger.handlers):
+        return
 
     formatter = MyFormatter()
     # Set the console handler normally writing to stdout/stderr
@@ -896,6 +908,7 @@ def prep_logging(log_file_name=None, verbosity=False):
                             datefmt="%d/%m %H:%M:%S",
                             format="%(asctime)s %(levelname)s:\n%(message)s")
         logging.getLogger('').addHandler(ch)
+        logging.getLogger('').propagate = False
     else:
         logging.basicConfig(level=logging_level,
                             datefmt="%d/%m %H:%M:%S",
@@ -929,12 +942,21 @@ class TreeSAPP:
         self.final_output_dir = ""
         self.var_output_dir = ""
         self.executables = dict()
-
         # Values that need to be entered later, in the command-specific class
         self.stages = dict()  # Used to track what progress stages need to be completed
         self.stage_file = ""  # The file to write progress updates to
-        self.restart = True
-        self.target_refpkgs = list()
+
+    def get_info(self):
+        info_string = "Executables:\n\t" + "\n\t".join([k + ": " + v for k, v in self.executables.items()]) + "\n"
+
+        for module_step in self.stages:
+            info_string += self.stages[module_step].get_info()
+        info_string += "\n\t".join(["TreeSAPP directory = " + self.treesapp_dir,
+                                    "FASTA input sequences = " + self.input_sequences,
+                                    "Formatted input = " + self.formatted_input,
+                                    "Output directory = " + self.output_dir,
+                                    "Input molecule type = " + self.molecule_type])
+        return info_string
 
     def furnish_with_arguments(self, args):
         if self.command != "info":
@@ -961,10 +983,6 @@ class TreeSAPP:
                 logging.warning("Reclassify impossible as " + self.output_dir + " is missing input files.\n")
         return
 
-    def stage_lookup_fail(self, name):
-        logging.error("Unable to find '" + name + "' in " + self.command + " stages.\n")
-        sys.exit(3)
-
     def stage_lookup(self, name: str, tolerant=False):
         """
         Used for looking up a stage in self.stages by its stage.name
@@ -979,7 +997,8 @@ class TreeSAPP:
                 return stage
 
         if not fingerprint and not tolerant:
-            self.stage_lookup_fail(name)
+            logging.error("Unable to find '" + name + "' in " + self.command + " stages.\n")
+            sys.exit(3)
         return
 
     def first_stage(self):
@@ -999,7 +1018,8 @@ class TreeSAPP:
         try:
             progress_handler = open(self.stage_file)
         except IOError:
-            logging.debug("Unable to open stage file '" + self.stage_file + "' for reading. Defaulting to stage 0.\n")
+            logging.debug("Unable to open stage file '" + self.stage_file +
+                          "' for reading. Defaulting to stage " + str(completed_int) + ".\n")
             return completed_int
         # TODO: Finish this to enable continuing part-way through an analysis
         progress_handler.close()
@@ -1016,9 +1036,9 @@ class TreeSAPP:
     def edit_stages(self, start, end=None):
         for x in sorted(self.stages, key=int):  # type: int
             stage = self.stages[x]  # type: ModuleFunction
-            if end:
+            if end is not None:
                 if x < start or x > end:
-                        stage.run = False
+                    stage.run = False
             elif x < start:
                     stage.run = False
             else:
@@ -1080,8 +1100,12 @@ class TreeSAPP:
         desired_stage = self.stage_lookup(args.stage).order
         if desired_stage > last_valid_stage:
             logging.warning("Unable to run '" + args.stage + "' as it is ahead of the last completed stage.\n" +
-                            "Continuing with assignment at '" + self.stages[last_valid_stage].name + "'\n")
+                            "Continuing with stage '" + self.stages[last_valid_stage].name + "'\n")
             self.edit_stages(last_valid_stage, desired_stage)
+        elif desired_stage < last_valid_stage:
+            logging.info("Wow - its your lucky day:\n"
+                         "All stages up to and including '" + args.stage + "' have already been completed!\n")
+            self.edit_stages(desired_stage, desired_stage)
         else:
             # Proceed with running the desired stage
             logging.debug("Proceeding with '" + args.stage + "'\n")
@@ -1147,9 +1171,8 @@ class Evaluator(TreeSAPP):
         logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
         logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
         super(Evaluator, self).__init__("evaluate")
-        self.reference_tree = None
         self.targets = []  # Left empty to appease parse_ref_build_parameters()
-        self.target_marker = None
+        self.target_marker = None  # A MarkerBuild object
         self.acc_to_lin = ""
         self.ranks = list()
         self.markers = set()
@@ -1168,6 +1191,15 @@ class Evaluator(TreeSAPP):
         self.stages = {0: ModuleFunction("lineages", 0),
                        1: ModuleFunction("classify", 1),
                        2: ModuleFunction("calculate", 2)}
+
+    def get_info(self):
+        info_string = "Evaluator instance summary:\n"
+        info_string += super(Evaluator, self).get_info() + "\n\t"
+        info_string += "\n\t".join(["Accession-to-lineage map = " + self.acc_to_lin,
+                                    "Clade-exclusion table = " + self.performance_table,
+                                    "Target marker(s) = " + str(self.targets)]) + "\n"
+
+        return info_string
 
     def new_taxa_test(self, rank, lineage):
         if rank not in self.taxa_tests:
@@ -1260,6 +1292,7 @@ class Assigner(TreeSAPP):
         self.aa_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.faa"
         self.nuc_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.fna"
         self.composition = ""
+        self.target_refpkgs = list()
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("orf-call", 0, self.predict_orfs),
@@ -1270,16 +1303,11 @@ class Assigner(TreeSAPP):
                        5: ModuleFunction("classify", 5, self.classify)}
 
     def get_info(self):
-        info_string = "Assigner instance summary:\n\t"
-        info_string += "\n\t".join(["TreeSAPP directory = " + self.treesapp_dir,
-                                    "FASTA input sequences = " + self.input_sequences,
-                                    "Formatted input = " + self.formatted_input,
-                                    "ORF protein sequences = " + self.aa_orfs_file,
-                                    "Output directory = " + self.output_dir,
-                                    "Input molecule type = " + self.molecule_type,
-                                    "Target reference packages = " + str(self.target_refpkgs)]) + "\n"
-        for module_step in self.stages:
-            info_string += self.stages[module_step].get_info()
+        info_string = "Assigner instance summary:\n"
+        info_string += super(Assigner, self).get_info() + "\n\t"
+        info_string += "\n\t".join(["ORF protein sequences = " + self.aa_orfs_file,
+                                    "Target reference packages = " + str(self.target_refpkgs),
+                                    "Composition of input = " + self.composition]) + "\n"
 
         return info_string
 

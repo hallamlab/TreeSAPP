@@ -4,7 +4,6 @@ import sys
 import re
 import os
 import shutil
-from glob import glob
 from random import randint
 from . import file_parsers
 from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, summarize_fasta_sequences, get_headers,\
@@ -17,7 +16,7 @@ from . import entish
 from . import lca_calculations
 from . import placement_trainer
 from .phylo_dist import trim_lineages_to_rank
-from .classy import TreeProtein, MarkerBuild, ReferencePackage, EntrezRecord, TreeSAPP, Assigner, Evaluator,\
+from .classy import TreeProtein, MarkerBuild, ReferencePackage, TreeSAPP, Assigner, Evaluator,\
     register_headers, get_header_info, prep_logging
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
@@ -31,7 +30,7 @@ from .jplace_utils import sub_indices_for_seq_names_jplace
 from .clade_exclusion_evaluator import load_ref_seqs, pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, get_classification_performance,\
     write_containment_table, map_headers_to_lineage, graftm_classify, validate_ref_package_files, \
-    classify_excluded_taxon, exclude_clade_from_ref_files, determine_containment, parse_distances,\
+    restore_reference_package, exclude_clade_from_ref_files, determine_containment, parse_distances,\
     write_performance_table, summarize_taxonomic_diversity, remove_clade_exclusion_files
 
 
@@ -52,8 +51,8 @@ def info(args):
     logging.info("TreeSAPP version " + treesapp.version + ".\n")
 
     # Write the version of all python deps
-    py_deps = {"BioPython": Bio.__version__,
-               "ETE3": ete3.__version__,
+    py_deps = {"biopython": Bio.__version__,
+               "ete3": ete3.__version__,
                "numpy": numpy.__version__,
                "scipy": scipy.__version__}
 
@@ -754,9 +753,8 @@ def evaluate(cmd_args):
                         if args.trim_align:
                             assign_args.append("--trim_align")
                         assign(assign_args)
-                        classify_excluded_taxon(ts_evaluate.treesapp_dir, ts_evaluate.molecule_type, prefix,
-                                                treesapp_output, ts_evaluate.target_marker.cog, min_seq_length,
-                                                test_rep_taxa_fasta, args.num_threads)
+                        restore_reference_package(ts_evaluate.treesapp_dir, prefix,
+                                                  treesapp_output, ts_evaluate.target_marker.cog)
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                             logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
@@ -777,66 +775,66 @@ def evaluate(cmd_args):
                                       os.path.basename(classification_table) + "'\n" +
                                       "Please remove this directory and re-run.\n")
                         sys.exit(21)
-        classified = True
-    remove_clade_exclusion_files(ts_evaluate.var_output_dir)
+        remove_clade_exclusion_files(ts_evaluate.var_output_dir)
 
-    # Checkpoint four: everything has been prepared, only need to parse the classifications and map lineages
-    logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
-    for rank in sorted(ts_evaluate.taxa_tests):
-        for test_obj in ts_evaluate.taxa_tests[rank]:
-            if test_obj.assignments:
-                marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_record_objects)
-                # Return the number of correct, classified, and total sequences of that taxon at the current rank
-                # Identify the excluded rank for each query sequence
-                if len(marker_assignments) == 0:
-                    logging.debug("No sequences were classified for " + test_obj.taxon + "\n")
-                    continue
-
-                for marker in marker_assignments:
-                    ts_evaluate.markers.add(marker)
-
-                rank_assignments = lca_calculations.identify_excluded_clade(marker_assignments,
-                                                                            test_obj.taxonomic_tree,
-                                                                            ts_evaluate.target_marker)
-                for a_rank in rank_assignments:
-                    if a_rank != rank and len(rank_assignments[a_rank]) > 0:
-                        logging.warning(
-                            rank + "-level clade excluded but classifications were found to be " + a_rank +
-                            "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
+    if ts_evaluate.stage_status("calculate"):
+        # everything has been prepared, only need to parse the classifications and map lineages
+        logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
+        for rank in sorted(ts_evaluate.taxa_tests):
+            for test_obj in ts_evaluate.taxa_tests[rank]:
+                if test_obj.assignments:
+                    marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_record_objects)
+                    # Return the number of correct, classified, and total sequences of that taxon at the current rank
+                    # Identify the excluded rank for each query sequence
+                    if len(marker_assignments) == 0:
+                        logging.debug("No sequences were classified for " + test_obj.taxon + "\n")
                         continue
-                    if a_rank not in ts_evaluate.classifications:
-                        ts_evaluate.classifications[a_rank] = list()
-                    if len(rank_assignments[a_rank]) > 0:
-                        ts_evaluate.classifications[a_rank] += rank_assignments[a_rank]
 
-    ##
-    # On to the standard clade-exclusion analysis...
-    ##
-    if ts_evaluate.taxa_filter["Classified"] != ts_evaluate.taxa_filter["Unique_taxa"]:
-        logging.debug("\n\t" + str(ts_evaluate.taxa_filter["Classified"] -
-                                   ts_evaluate.taxa_filter["Unique_taxa"]) +
-                      " duplicate query taxonomies removed.\n")
+                    for marker in marker_assignments:
+                        ts_evaluate.markers.add(marker)
 
-    if ts_evaluate.taxa_filter["Unclassified"] > 0:
-        logging.debug("\t" + str(ts_evaluate.taxa_filter["Unclassified"]) +
-                      " query sequences with unclassified taxonomies were removed.\n" +
-                      "This is not a problem, its just they have 'unclassified' somewhere in their lineages\n" +
-                      "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
+                    rank_assignments = lca_calculations.identify_excluded_clade(marker_assignments,
+                                                                                test_obj.taxonomic_tree,
+                                                                                ts_evaluate.target_marker)
+                    for a_rank in rank_assignments:
+                        if a_rank != rank and len(rank_assignments[a_rank]) > 0:
+                            logging.warning(
+                                rank + "-level clade excluded but classifications were found to be " + a_rank +
+                                "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
+                            continue
+                        if a_rank not in ts_evaluate.classifications:
+                            ts_evaluate.classifications[a_rank] = list()
+                        if len(rank_assignments[a_rank]) > 0:
+                            ts_evaluate.classifications[a_rank] += rank_assignments[a_rank]
 
-    if ts_evaluate.target_marker.denominator not in ts_evaluate.markers and ts_evaluate.target_marker.cog not in ts_evaluate.markers:
-        logging.error("No sequences were classified as " + ts_evaluate.target_marker.cog + ".\n")
-        sys.exit(21)
+        ##
+        # On to the standard clade-exclusion analysis...
+        ##
+        if ts_evaluate.taxa_filter["Classified"] != ts_evaluate.taxa_filter["Unique_taxa"]:
+            logging.debug("\n\t" + str(ts_evaluate.taxa_filter["Classified"] -
+                                       ts_evaluate.taxa_filter["Unique_taxa"]) +
+                          " duplicate query taxonomies removed.\n")
 
-    # For debugging:
-    # for rank in ts_evaluate.ranks:
-    #     distal, pendant, tip = ts_evaluate.summarize_rankwise_distances(rank)
+        if ts_evaluate.taxa_filter["Unclassified"] > 0:
+            logging.debug("\t" + str(ts_evaluate.taxa_filter["Unclassified"]) +
+                          " query sequences with unclassified taxonomies were removed.\n" +
+                          "This is not a problem, its just they have 'unclassified' somewhere in their lineages\n" +
+                          "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
 
-    # Determine the specificity for each rank
-    clade_exclusion_strings = get_classification_performance(ts_evaluate)
-    write_performance_table(args, ts_evaluate.performance_table, clade_exclusion_strings)
-    summarize_taxonomic_diversity(ts_evaluate)
-    containment_strings = determine_containment(ts_evaluate)
-    write_containment_table(args, ts_evaluate.containment_table, containment_strings)
+        if ts_evaluate.target_marker.denominator not in ts_evaluate.markers and ts_evaluate.target_marker.cog not in ts_evaluate.markers:
+            logging.error("No sequences were classified as " + ts_evaluate.target_marker.cog + ".\n")
+            sys.exit(21)
+
+        # For debugging:
+        # for rank in ts_evaluate.ranks:
+        #     distal, pendant, tip = ts_evaluate.summarize_rankwise_distances(rank)
+
+        # Determine the specificity for each rank
+        clade_exclusion_strings = get_classification_performance(ts_evaluate)
+        write_performance_table(args, ts_evaluate.performance_table, clade_exclusion_strings)
+        summarize_taxonomic_diversity(ts_evaluate)
+        containment_strings = determine_containment(ts_evaluate)
+        write_containment_table(args, ts_evaluate.containment_table, containment_strings)
 
     return
 

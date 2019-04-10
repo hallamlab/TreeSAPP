@@ -22,6 +22,13 @@ def reluctant_remove_replace(dir_path):
 
 
 def get_refpkg_build(name: str, marker_build_dict: dict, refpkg_code_re):
+    """
+    Find and return the MarkerBuild instance with a matching name
+    :param name:
+    :param marker_build_dict: A dictionary of MarkerBuild objects indexed by their refpkg codes/denominators
+    :param refpkg_code_re: A compiled regular expression (re) for matching refpkg code names
+    :return: MarkerBuild
+    """
     if refpkg_code_re.match(name):
         try:
             return marker_build_dict[name]

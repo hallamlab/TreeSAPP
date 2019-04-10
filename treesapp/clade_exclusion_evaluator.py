@@ -850,7 +850,7 @@ def remove_clade_exclusion_files(intermediate_dir):
         os.remove(tmp_file)
 
 
-def classify_excluded_taxon(treesapp_dir, molecule_type, prefix, output_dir, marker, min_seq_length, test_rep_taxa_fasta, num_threads):
+def restore_reference_package(treesapp_dir, prefix, output_dir, marker):
     """
       Prepares TreeSAPP tree, alignment and taxonomic identification map (tax_ids) files for clade exclusion analysis,
     and performs classification with TreeSAPP
@@ -858,17 +858,6 @@ def classify_excluded_taxon(treesapp_dir, molecule_type, prefix, output_dir, mar
     :return: The paths to the classification table and the taxon-excluded tax_ids file
     """
 
-    # Classify representative sequences using TreeSAPP
-    # classify_command = [treesapp_dir + "/treesapp.py", "-i", test_rep_taxa_fasta,
-    #                     "-o", output_dir,
-    #                     "-m", molecule_type,
-    #                     "-T", str(num_threads),
-    #                     "--min_seq_length", min_seq_length,
-    #                     "--trim_align",
-    #                     "--overwrite",
-    #                     "--delete"]
-    # logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
-    # launch_write_command(classify_command, False)
     # Move the original FASTA, tree and tax_ids files back to the proper directories
     shutil.copy(prefix + "_tree.txt", os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"]))
     if os.path.isfile(prefix + "_bipartitions.txt"):
