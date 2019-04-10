@@ -457,7 +457,135 @@ def create(args):
     return
 
 
-def evaluate(args):
+def assign(args):
+    # STAGE 1: Prompt the user and prepare files and lists for the pipeline
+    parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
+    add_classify_arguments(parser)
+    args = parser.parse_args(args)
+
+    log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
+    prep_logging(log_file_name, args.verbose)
+
+    check_parser_arguments(args)
+    ts_assign = Assigner()
+    ts_assign.furnish_with_arguments(args)
+    check_classify_arguments(ts_assign, args)
+    ts_assign.validate_continue(args)
+
+    marker_build_dict = file_parsers.parse_ref_build_params(ts_assign.treesapp_dir,
+                                                            ts_assign.target_refpkgs)
+    ref_alignment_dimensions = get_alignment_dims(ts_assign.treesapp_dir, marker_build_dict)
+    tree_numbers_translation = file_parsers.read_species_translation_files(ts_assign.treesapp_dir, marker_build_dict)
+    if args.check_trees:
+        validate_inputs(args, marker_build_dict)
+
+    ##
+    # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
+    ##
+    if ts_assign.stage_status("orf-call"):
+        ts_assign.predict_orfs(args.composition, args.num_threads)
+    else:
+        ts_assign.orf_file = ts_assign.input_sequences
+
+    if ts_assign.stage_status("clean"):
+        logging.info("Formatting " + ts_assign.input_sequences + " for pipeline... ")
+        formatted_fasta_dict = format_read_fasta(ts_assign.input_sequences, "prot", ts_assign.output_dir)
+        logging.info("done.\n")
+        logging.info("\tTreeSAPP will analyze the " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
+        logging.info("Writing formatted FASTA file to " + ts_assign.formatted_input + "... ")
+        write_new_fasta(formatted_fasta_dict, ts_assign.formatted_input)
+        logging.info("done.\n")
+
+    ##
+    # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
+    ##
+    if ts_assign.stage_status("search"):
+        hmm_domtbl_files = hmmsearch_orfs(ts_assign.executables["hmmsearch"], ts_assign.hmm_dir,
+                                          marker_build_dict, ts_assign.formatted_input, ts_assign.var_output_dir,
+                                          args.num_threads)
+        hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+        extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, formatted_fasta_dict)
+        homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
+                                                 marker_build_dict, args.var_output_dir)
+
+    ##
+    # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
+    ##
+    if ts_assign.stage_status("align"):
+        create_ref_phy_files(ts_assign.aln_dir, ts_assign.var_output_dir,
+                             homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
+        concatenated_msa_files = multiple_alignments(ts_assign.executables, ts_assign.refpkg_dir, ts_assign.var_output_dir,
+                                                     homolog_seq_files, marker_build_dict)
+        file_type = utilities.find_msa_type(concatenated_msa_files)
+        alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
+                                                    args.verbose, file_type)
+
+        if args.trim_align:
+            tool = "BMGE"
+            trimmed_mfa_files = filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
+                                                           marker_build_dict, tool)
+            qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
+                                                     marker_build_dict, args.min_seq_length)
+            evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
+            phy_files = produce_phy_files(qc_ma_dict)
+        else:
+            phy_files = concatenated_msa_files
+        delete_files(args.delete, ts_assign.var_output_dir, 3)
+
+    ##
+    # STAGE 5: Run RAxML to compute the ML estimations
+    ##
+    if ts_assign.stage_status("place"):
+        utilities.launch_evolutionary_placement_queries(ts_assign.executables, ts_assign.tree_dir,
+                                                        phy_files, marker_build_dict,
+                                                        ts_assign.var_output_dir, args.num_threads)
+        sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, marker_build_dict)
+
+    if ts_assign.stage_status("classify"):
+        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, ts_assign.tree_dir, marker_build_dict)
+        tree_saps = filter_placements(tree_saps, marker_build_dict, ts_assign.tree_dir, args.min_likelihood)
+
+        abundance_dict = dict()
+        if args.molecule == "dna":
+            orf_nuc_fasta = ts_assign.final_output_dir + ts_assign.sample_prefix + "_classified_seqs.fna"
+            if not os.path.isfile(orf_nuc_fasta):
+                logging.info("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
+                if os.path.isfile(ts_assign.nuc_orfs_file):
+                    nuc_orfs_formatted_dict = format_read_fasta(ts_assign.nuc_orfs_file, 'dna', args.output)
+                    write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta)
+                    logging.info("done.\n")
+                else:
+                    logging.info("failed.\nWARNING: Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
+                                 "Cannot create the nucleotide FASTA file of classified sequences!\n")
+            if args.rpkm:
+                sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
+                rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
+                abundance_dict = file_parsers.read_rpkm(rpkm_output_file)
+                summarize_placements_rpkm(args, abundance_dict, marker_build_dict)
+        else:
+            for refpkg_code in tree_saps:
+                for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
+                    abundance_dict[placed_seq.contig_name + '|' + placed_seq.name] = 1.0
+
+        abundify_tree_saps(tree_saps, abundance_dict)
+        assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
+        write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_assign.sample_prefix, assign_out)
+        produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
+        delete_files(args.delete, ts_assign.var_output_dir, 4, args.rpkm)
+
+    ##
+    # STAGE 6: Optionally update the reference tree
+    ##
+    if "update" in ts_assign.stages and ts_assign.stage_status("update"):
+        for marker_code in args.targets:
+            update_func_tree_workflow(args, marker_build_dict[marker_code])
+
+    delete_files(args.delete, ts_assign.var_output_dir, 5)
+
+    return
+
+
+def evaluate(cmd_args):
     """
     Method for running this script:
         Provide it a FASTA file for which it will determine the taxonomic lineage for each sequence
@@ -467,7 +595,7 @@ def evaluate(args):
     """
     parser = TreeSAPPArgumentParser(description='Evaluate classification performance using clade-exclusion analysis.')
     add_evaluate_arguments(parser)
-    args = parser.parse_args(args)
+    args = parser.parse_args(cmd_args)
 
     log_file_name = args.output + os.sep + "clade_exclusion_analyzer_log.txt"
     prep_logging(log_file_name, args.verbose)
@@ -620,7 +748,12 @@ def evaluate(args):
                                                               ts_evaluate.executables, args.fresh, args.molecule)
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
-
+                        assign_args = ["-i", test_rep_taxa_fasta, "-o", treesapp_output,
+                                       "-m", ts_evaluate.molecule_type, "-T", str(args.num_threads),
+                                       "--min_seq_length", str(min_seq_length), "--overwrite", "--delete"]
+                        if args.trim_align:
+                            assign_args.append("--trim_align")
+                        assign(assign_args)
                         classify_excluded_taxon(ts_evaluate.treesapp_dir, ts_evaluate.molecule_type, prefix,
                                                 treesapp_output, ts_evaluate.target_marker.cog, min_seq_length,
                                                 test_rep_taxa_fasta, args.num_threads)
@@ -704,134 +837,6 @@ def evaluate(args):
     summarize_taxonomic_diversity(ts_evaluate)
     containment_strings = determine_containment(ts_evaluate)
     write_containment_table(args, ts_evaluate.containment_table, containment_strings)
-
-    return
-
-
-def assign(args):
-    # STAGE 1: Prompt the user and prepare files and lists for the pipeline
-    parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
-    add_classify_arguments(parser)
-    args = parser.parse_args(args)
-
-    log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
-    prep_logging(log_file_name, args.verbose)
-
-    check_parser_arguments(args)
-    ts_assign = Assigner()
-    ts_assign.furnish_with_arguments(args)
-    check_classify_arguments(ts_assign, args)
-    ts_assign.validate_continue(args)
-
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_assign.treesapp_dir,
-                                                            ts_assign.target_refpkgs)
-    ref_alignment_dimensions = get_alignment_dims(ts_assign.treesapp_dir, marker_build_dict)
-    tree_numbers_translation = file_parsers.read_species_translation_files(ts_assign.treesapp_dir, marker_build_dict)
-    if args.check_trees:
-        validate_inputs(args, marker_build_dict)
-
-    ##
-    # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA
-    ##
-    if ts_assign.stage_status("orf-call"):
-        ts_assign.predict_orfs(args.composition, args.num_threads)
-    else:
-        ts_assign.orf_file = ts_assign.input_sequences
-
-    if ts_assign.stage_status("clean"):
-        logging.info("Formatting " + ts_assign.input_sequences + " for pipeline... ")
-        formatted_fasta_dict = format_read_fasta(ts_assign.input_sequences, "prot", ts_assign.output_dir)
-        logging.info("done.\n")
-        logging.info("\tTreeSAPP will analyze the " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
-        logging.info("Writing formatted FASTA file to " + ts_assign.formatted_input + "... ")
-        write_new_fasta(formatted_fasta_dict, ts_assign.formatted_input)
-        logging.info("done.\n")
-
-    ##
-    # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
-    ##
-    if ts_assign.stage_status("search"):
-        hmm_domtbl_files = hmmsearch_orfs(ts_assign.executables["hmmsearch"], ts_assign.hmm_dir,
-                                          marker_build_dict, ts_assign.formatted_input, ts_assign.var_output_dir,
-                                          args.num_threads)
-        hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, formatted_fasta_dict)
-        homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
-                                                 marker_build_dict, args.var_output_dir)
-
-    ##
-    # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
-    ##
-    if ts_assign.stage_status("align"):
-        create_ref_phy_files(ts_assign.aln_dir, ts_assign.var_output_dir,
-                             homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(ts_assign.executables, ts_assign.refpkg_dir, ts_assign.var_output_dir,
-                                                     homolog_seq_files, marker_build_dict)
-        file_type = utilities.find_msa_type(concatenated_msa_files)
-        alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
-                                                    args.verbose, file_type)
-
-        if args.trim_align:
-            tool = "BMGE"
-            trimmed_mfa_files = filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
-                                                           marker_build_dict, tool)
-            qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
-                                                     marker_build_dict, args.min_seq_length)
-            evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-            phy_files = produce_phy_files(qc_ma_dict)
-        else:
-            phy_files = concatenated_msa_files
-        delete_files(args, 3)
-
-    ##
-    # STAGE 5: Run RAxML to compute the ML estimations
-    ##
-    if ts_assign.stage_status("place"):
-        utilities.launch_evolutionary_placement_queries(ts_assign.executables, ts_assign.tree_dir,
-                                                        phy_files, marker_build_dict,
-                                                        ts_assign.var_output_dir, args.num_threads)
-        sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, marker_build_dict)
-
-    if ts_assign.stage_status("classify"):
-        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, ts_assign.tree_dir, marker_build_dict)
-        tree_saps = filter_placements(tree_saps, marker_build_dict, ts_assign.tree_dir, args.min_likelihood)
-
-        abundance_dict = dict()
-        if args.molecule == "dna":
-            orf_nuc_fasta = ts_assign.final_output_dir + ts_assign.sample_prefix + "_classified_seqs.fna"
-            if not os.path.isfile(orf_nuc_fasta):
-                logging.info("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
-                if os.path.isfile(ts_assign.nuc_orfs_file):
-                    nuc_orfs_formatted_dict = format_read_fasta(ts_assign.nuc_orfs_file, 'dna', args.output)
-                    write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta)
-                    logging.info("done.\n")
-                else:
-                    logging.info("failed.\nWARNING: Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
-                                 "Cannot create the nucleotide FASTA file of classified sequences!\n")
-            if args.rpkm:
-                sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
-                rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
-                abundance_dict = file_parsers.read_rpkm(rpkm_output_file)
-                summarize_placements_rpkm(args, abundance_dict, marker_build_dict)
-        else:
-            for refpkg_code in tree_saps:
-                for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
-                    abundance_dict[placed_seq.contig_name + '|' + placed_seq.name] = 1.0
-
-        abundify_tree_saps(tree_saps, abundance_dict)
-        assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
-        write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_assign.sample_prefix, assign_out)
-        produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
-        delete_files(args, 4)
-
-    ##
-    # STAGE 6: Optionally update the reference tree
-    ##
-    if "update" in ts_assign.stages and ts_assign.stage_status("update"):
-        for marker_code in args.targets:
-            update_func_tree_workflow(args, marker_build_dict[marker_code])
-
-    delete_files(args, 5)
 
     return
 

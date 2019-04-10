@@ -859,16 +859,16 @@ def classify_excluded_taxon(treesapp_dir, molecule_type, prefix, output_dir, mar
     """
 
     # Classify representative sequences using TreeSAPP
-    classify_command = [treesapp_dir + "/treesapp.py", "-i", test_rep_taxa_fasta,
-                        "-o", output_dir,
-                        "-m", molecule_type,
-                        "-T", str(num_threads),
-                        "--min_seq_length", min_seq_length,
-                        "--trim_align",
-                        "--overwrite",
-                        "--delete"]
-    logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
-    launch_write_command(classify_command, False)
+    # classify_command = [treesapp_dir + "/treesapp.py", "-i", test_rep_taxa_fasta,
+    #                     "-o", output_dir,
+    #                     "-m", molecule_type,
+    #                     "-T", str(num_threads),
+    #                     "--min_seq_length", min_seq_length,
+    #                     "--trim_align",
+    #                     "--overwrite",
+    #                     "--delete"]
+    # logging.debug("Command used:\n" + ' '.join(classify_command) + "\n")
+    # launch_write_command(classify_command, False)
     # Move the original FASTA, tree and tax_ids files back to the proper directories
     shutil.copy(prefix + "_tree.txt", os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"]))
     if os.path.isfile(prefix + "_bipartitions.txt"):

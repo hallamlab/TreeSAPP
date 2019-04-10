@@ -1605,39 +1605,39 @@ def compare_terminal_children_strings(terminal_children_of_assignments, terminal
     return real_terminal_children_of_assignments
 
 
-def delete_files(args, section):
+def delete_files(clean_up, output_dir_var, section, rpkm_dir=None):
     files_to_be_deleted = []
-    if args.delete:
+    if clean_up:
         if section == 1:
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*BLAST_results*')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*blast_result_purified.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*BLAST_results*')
+            files_to_be_deleted += glob.glob(output_dir_var + '*blast_result_purified.txt')
         if section == 2:
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*_sequence.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*sequence_shortened.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*_sequence.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*sequence_shortened.txt')
         if section == 3:
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*genewise.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*genewise_result_summary.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*rRNA_result_summary.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*genewise.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*genewise_result_summary.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*rRNA_result_summary.txt')
         if section == 4:
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.mfa')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.mfa-gb')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.mfa-gb.txt')
-            if args.rpkm:
-                files_to_be_deleted += glob.glob(args.output + "RPKM_outputs" + os.sep + "*.sam")
+            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa')
+            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-gb')
+            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-gb.txt')
+            if rpkm_dir:
+                files_to_be_deleted += glob.glob(rpkm_dir + os.sep + "*.sam")
         if section == 5:
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*_exit_after_trimal.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.mfa-trimal')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.cl')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*_RAxML.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + 'RAxML_entropy.*')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_info.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_labelledTree.txt')
-            files_to_be_deleted += glob.glob(args.output_dir_var + 'RAxML_classificationLikelihoodWeights*')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*.phy.reduced')
-            files_to_be_deleted += glob.glob(args.output_dir_var + '*RAxML_classification.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*_exit_after_trimal.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-trimal')
+            files_to_be_deleted += glob.glob(output_dir_var + '*.cl')
+            files_to_be_deleted += glob.glob(output_dir_var + '*_RAxML.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + 'RAxML_entropy.*')
+            files_to_be_deleted += glob.glob(output_dir_var + '*RAxML_info.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*RAxML_labelledTree.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + 'RAxML_classificationLikelihoodWeights*')
+            files_to_be_deleted += glob.glob(output_dir_var + '*.phy')
+            files_to_be_deleted += glob.glob(output_dir_var + '*.phy.reduced')
+            files_to_be_deleted += glob.glob(output_dir_var + '*RAxML_classification.txt')
             # Need this for annotate_extra_treesapp.py
-            # files_to_be_deleted += glob.glob(args.output_dir_var + '*.jplace')
+            # files_to_be_deleted += glob.glob(output_dir_var + '*.jplace')
 
     for useless_file in files_to_be_deleted:
         if path.exists(useless_file):
