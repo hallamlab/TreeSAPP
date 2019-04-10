@@ -26,7 +26,7 @@ def validate_target_db(db_type: str):
         database = "Taxonomy"
     else:
         logging.error("Welp. We're not sure how but the molecule type is not recognized!\n" +
-                      "Please create an issue on the GitHub page.")
+                      "Please create an issue on the GitHub page.\n")
         sys.exit(9)
 
     return database
@@ -632,6 +632,30 @@ def build_entrez_queries(fasta_record_objects: dict):
         logging.warning("Neither accession nor lineage available for:\n\t" +
                         "\n\t".join(unavailable))
     return list(entrez_query_list), num_lineages_provided
+
+
+def map_accessions_to_lineages(query_accession_list, molecule, accession_to_taxid=None):
+    if accession_to_taxid:
+        # Determine find the query accessions that are located in the provided accession2taxid file
+        entrez_record_dict = map_accession2taxid(query_accession_list, accession_to_taxid)
+        # Map lineages to taxids for successfully-mapped query sequences
+        fetch_lineages_from_taxids(entrez_record_dict.values())
+        # Use the normal querying functions to obtain lineage information for the unmapped queries
+        unmapped_queries = pull_unmapped_entrez_records(entrez_record_dict.values())
+        if len(unmapped_queries) > 0:
+            # This tends to be a minority so shouldn't be too taxing
+            for e_record in get_multiple_lineages(unmapped_queries, molecule):  # type: EntrezRecord
+                try:
+                    entrez_record_dict[e_record.accession] = e_record
+                except KeyError:
+                    logging.warning(e_record.accession + " not found in original query list.\n")
+                    continue
+        entrez_records = list(entrez_record_dict.values())
+        entrez_record_dict.clear()
+        unmapped_queries.clear()
+    else:
+        entrez_records = get_multiple_lineages(query_accession_list, molecule)
+    return entrez_records
 
 
 if __name__ == "main":

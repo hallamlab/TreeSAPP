@@ -82,6 +82,14 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                      help='The number of CPU threads or parallel processes '
                                           'to use in various pipeline steps [DEFAULT = 2]')
 
+    def add_accession_params(self):
+        self.optopt.add_argument("--accession2taxid", dest="acc_to_taxid", required=False, default=None,
+                                 help="Path to an NCBI accession2taxid file "
+                                      "for more rapid accession-to-lineage mapping.\n")
+        self.optopt.add_argument("-a", "--accession2lin", dest="acc_to_lin", required=False, default=None,
+                                 help="Path to a file that maps sequence accessions to taxonomic lineages, "
+                                      "possibly made by `treesapp create`...")
+
 
 def add_classify_arguments(parser: TreeSAPPArgumentParser):
     """
@@ -184,8 +192,6 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                            help="[ IN DEVELOPMENT ] Perform taxonomic normalization on the provided sequences.\n"
                                 "A comma-separated argument with the Rank (e.g. Phylum) and\n"
                                 "number of representatives is required.\n")
-    taxa_args.add_argument("--accession2taxid", required=False, default=None,
-                           help="Path to an NCBI accession2taxid file for more rapid accession-to-lineage mapping.\n")
 
     parser.optopt.add_argument("-b", "--bootstraps",
                                help="The number of bootstrap replicates RAxML should perform\n"
@@ -217,6 +223,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
 def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
     parser.add_io()
     parser.add_seq_params()
+    parser.add_accession_params()
     parser.add_compute_miscellany()
     parser.reqs.add_argument("-r", "--reference_marker",
                              help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)",
@@ -237,6 +244,9 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
                                required=False, type=int, default=0,
                                help="Arbitrarily slice the input sequences to this length. "
                                     "Useful for testing classification accuracy for fragments.")
+    parser.optopt.add_argument("--stage", default="continue", required=False,
+                               choices=["continue", "lineages", "classify", "calculate"],
+                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
     return
 
 
@@ -286,7 +296,7 @@ def check_parser_arguments(args):
     return
 
 
-def check_evaulate_arguments(evaluator_instance: Evaluator, args, marker_build_dict):
+def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_dict):
     taxa_choices = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
     args.taxon_rank = args.taxon_rank.split(',')
     for rank in args.taxon_rank:
@@ -298,6 +308,24 @@ def check_evaulate_arguments(evaluator_instance: Evaluator, args, marker_build_d
     evaluator_instance.target_marker = get_refpkg_build(args.reference_marker,
                                                         marker_build_dict,
                                                         evaluator_instance.refpkg_code_re)
+
+    if args.acc_to_lin and os.path.isfile(args.acc_to_lin):
+        evaluator_instance.acc_to_lin = args.acc_to_lin
+        evaluator_instance.change_stage_status("lineages", False)
+    else:
+        evaluator_instance.acc_to_lin = args.output + os.sep + "accession_id_lineage_map.tsv"
+
+    ##
+    # Define locations of files TreeSAPP outputs
+    ##
+    evaluator_instance.test_rep_taxa_fasta = args.output + os.sep + "representative_taxa_sequences.fasta"
+    evaluator_instance.performance_table = args.output + os.sep + "clade_exclusion_performance.tsv"
+    evaluator_instance.containment_table = args.output + os.sep + "accuracy.tsv"
+    evaluator_instance.var_output_dir = args.output + "TreeSAPP_output" + os.sep
+
+    if not os.path.isdir(evaluator_instance.var_output_dir):
+        os.makedirs(evaluator_instance.var_output_dir)
+
     return
 
 

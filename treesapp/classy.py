@@ -1072,7 +1072,7 @@ class TreeSAPP:
             last_valid_stage = self.read_progress_log()
 
         if args.stage == "continue":
-            logging.debug("Continuing with assignment at '" + self.stages[last_valid_stage].name + "'\n")
+            logging.debug("Continuing with stage '" + self.stages[last_valid_stage].name + "'\n")
             self.edit_stages(last_valid_stage)
             return
 
@@ -1131,6 +1131,17 @@ class TreeSAPP:
         return exec_paths
 
 
+class Creator(TreeSAPP):
+    def __init__(self):
+        logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
+        logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
+        super(Creator, self).__init__("create")
+        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
+        self.stages = {0: ModuleFunction("lineages", 0),
+                       1: ModuleFunction("build", 1, ),
+                       2: ModuleFunction("train", 2, )}
+
+
 class Evaluator(TreeSAPP):
     def __init__(self):
         logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
@@ -1139,6 +1150,7 @@ class Evaluator(TreeSAPP):
         self.reference_tree = None
         self.targets = []  # Left empty to appease parse_ref_build_parameters()
         self.target_marker = None
+        self.acc_to_lin = ""
         self.ranks = list()
         self.markers = set()
         self.taxa_filter = dict()
@@ -1148,10 +1160,14 @@ class Evaluator(TreeSAPP):
         self.taxa_tests = dict()
         self.classifications = dict()
 
+        self.test_rep_taxa_fasta = ""
+        self.performance_table = ""
+        self.containment_table = ""
+
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
-                       1: ModuleFunction("build", 1, ),
-                       2: ModuleFunction("train", 2, )}
+                       1: ModuleFunction("classify", 1),
+                       2: ModuleFunction("calculate", 2)}
 
     def new_taxa_test(self, rank, lineage):
         if rank not in self.taxa_tests:
