@@ -3,7 +3,7 @@ import os
 import sys
 import re
 import logging
-from .classy import Assigner, Evaluator
+from .classy import Assigner, Evaluator, Creator
 from .utilities import available_cpu_count, check_previous_output, get_refpkg_build
 
 
@@ -51,7 +51,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.optopt.add_argument("--trim_align", default=False, action="store_true",
                                  help="Flag to turn on position masking of the multiple sequence alignment"
                                       " [DEFAULT = False]")
-        self.optopt.add_argument('-g', '--min_seq_length', default=30, type=int,
+        self.optopt.add_argument('-w', '--min_seq_length', default=30, type=int,
                                  help='minimal sequence length after alignment trimming [DEFAULT = 30]')
         self.optopt.add_argument('-m', '--molecule', default='dna', choices=['prot', 'dna', 'rrna'],
                                  help="Type of input sequences "
@@ -78,7 +78,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                           'Recommended for large metagenomes!')
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
                                      help='overwrites previously processed output folders')
-        self.miscellany.add_argument('-T', '--num_threads', default=2, type=int,
+        self.miscellany.add_argument('-n', '--num_procs', dest="num_threads", default=2, type=int,
                                      help='The number of CPU threads or parallel processes '
                                           'to use in various pipeline steps [DEFAULT = 2]')
 
@@ -136,9 +136,9 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
     parser.add_io()
     parser.add_seq_params()
     # The required parameters
-    parser.reqs.add_argument("-c", "--code_name",
+    parser.reqs.add_argument("-c", "--refpkg_name",
                              help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
-                                  "(Refer to first column of 'cog_list.txt' under the '#functional cogs' section)",
+                                  "Examples are 'McrA', 'DsrAB', and 'p_amoA'.",
                              required=True)
     parser.reqs.add_argument("-p", "--identity",
                              help="Fractional identity value (between 0.50 and 1.0)\n"
@@ -173,7 +173,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
 
     taxa_args = parser.add_argument_group("Taxonomic-lineage arguments")
     taxa_args.add_argument("-s", "--screen",
-                           help="Keywords (taxonomic regular expressions) for including specific taxa in the tree.\n"
+                           help="Keywords for including specific taxa in the tree.\n"
                                 "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
                                 "[ DEFAULT is no screen ]",
                            default="", required=False)
@@ -373,14 +373,22 @@ def check_classify_arguments(assigner_instance: Assigner, args):
     return args
 
 
-def check_create_arguments(args):
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+def check_create_arguments(create_instance: Creator, args):
     if not args.output:
         args.output = os.getcwd() + os.sep + args.code_name + "_treesapp_refpkg"
-    args.final_output_dir = args.output + "TreeSAPP_files_%s" % args.code_name + os.sep
+
+    # Names of files and directories to be created
+    create_instance.refpkg_output = create_instance.final_output_dir + "TreeSAPP_files_%s" % args.code_name + os.sep
+    create_instance.phy_dir = create_instance.output_dir + "phylogeny_files" + os.sep
+    create_instance.acc_to_lin = create_instance.output_dir + os.sep + "accession_id_lineage_map.tsv"
+    create_instance.hmm_purified_seqs = create_instance.output_dir + create_instance.refpkg_name + "_hmm_purified.fasta"
+    create_instance.filtered_fasta = create_instance.output_dir + create_instance.sample_prefix + "_filtered.fa"
+    create_instance.uclust_prefix = create_instance.output_dir + create_instance.sample_prefix + "_uclust" + create_instance.prop_sim
+    create_instance.unaln_ref_fasta = create_instance.output_dir + create_instance.refpkg_name + "_ref.fa"
+    create_instance.phylip_file = create_instance.output_dir + create_instance.refpkg_name + ".phy"
 
     if len(args.code_name) > 6:
-        logging.error("code_name must be <= 6 characters!\n")
+        logging.error("Name must be <= 6 characters!\n")
         sys.exit(13)
 
     if args.rfam_cm is None and args.molecule == "rrna":
@@ -390,10 +398,13 @@ def check_create_arguments(args):
     # Check the RAxML model
     raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALGF", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
                     "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
-    if args.raxml_model and args.raxml_model not in raxml_models:
-        sys.stderr.write("ERROR: --raxml_model (" + args.raxml_model + ") not valid!\n")
-        sys.stderr.write("If this model is valid (not a typo), add if to `raxml_models` list and re-run.\n")
-        sys.exit(13)
+    if args.raxml_model:
+        if args.raxml_model not in raxml_models:
+            logging.error("Phylogenetic substitution model '" + args.raxml_model + "' is not valid!\n" +
+                          "If this model is valid (not a typo), add it to `raxml_models` list and re-run.\n")
+            sys.exit(13)
+        else:
+            create_instance.ref_pkg.sub_model = args.raxml_model
 
     if args.cluster:
         if args.multiple_alignment:
@@ -405,9 +416,10 @@ def check_create_arguments(args):
         if not 0.5 < float(args.identity) < 1.0:
             if 0.5 < float(args.identity)/100 < 1.0:
                 args.identity = str(float(args.identity)/100)
-                sys.stderr.write("WARNING: --identity  set to " + args.identity + " for compatibility with USEARCH \n")
+                logging.warning("--identity  set to " + args.identity + " for compatibility with USEARCH \n")
             else:
-                sys.exit("ERROR: --identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+                logging.error("--identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+                sys.exit(13)
 
     if args.taxa_lca:
         if not args.cluster and not args.uc:
@@ -422,5 +434,5 @@ def check_create_arguments(args):
                           " in " + args.fasta_input + " and re-run without --guarantee\n")
             sys.exit(13)
 
-    return args
+    return
 

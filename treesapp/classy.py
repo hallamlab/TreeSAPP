@@ -1160,10 +1160,32 @@ class Creator(TreeSAPP):
         logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
         logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
         super(Creator, self).__init__("create")
+        self.refpkg_name = ""  # Name of the new reference package - determined by args.refpkg_name
+        self.refpkg_output = ""  # Directory for the reference package files: tree, accession-lineage map, hmm, fasta
+        self.ref_pkg = ReferencePackage()
+        self.prop_sim = 1.0
+        self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank
+        self.acc_to_lin = ""  # Path to the accession_lineage_map.tsv
+        self.phy_dir = ""  # Directory for intermediate or unnecessary files created during phylogeny inference
+        self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
+        self.filtered_fasta = ""
+        self.uclust_prefix = ""  # FASTA file prefix for cluster centroids
+        self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
+        self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
+
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("lineages", 0),
-                       1: ModuleFunction("build", 1, ),
-                       2: ModuleFunction("train", 2, )}
+        self.stages = {0: ModuleFunction("clean", 0),
+                       1: ModuleFunction("lineages", 1),
+                       2: ModuleFunction("sift", 2),
+                       3: ModuleFunction("cluster", 3),
+                       4: ModuleFunction("build", 4),
+                       5: ModuleFunction("train", 5),
+                       6: ModuleFunction("cc", 6)}
+
+    def get_info(self):
+        info_string = "Creator instance summary:\n"
+        info_string += super(Creator, self).get_info() + "\n\t"
+        return info_string
 
 
 class Evaluator(TreeSAPP):

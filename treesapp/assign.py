@@ -26,7 +26,7 @@ try:
 
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
-        TreeLeafReference, TreeProtein, ReferenceSequence, prep_logging, MarkerBuild
+        TreeLeafReference, TreeProtein, ReferenceSequence, MarkerBuild
     from .fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
     from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
@@ -171,84 +171,6 @@ def validate_inputs(args, marker_build_dict):
     else:
         logging.info("Reference trees appear to be formatted correctly. Continuing with TreeSAPP.\n")
     return
-
-
-def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
-    prodigal_command = [args.executables["prodigal"]]
-    prodigal_command += ["-i", fasta_file]
-    prodigal_command += ["-p", "meta"]
-    prodigal_command += ["-a", output_file]
-    if nucleotide_orfs:
-        prodigal_command += ["-d", nucleotide_orfs]
-    stdout, proc_code = launch_write_command(prodigal_command)
-
-    if proc_code != 0:
-        logging.error("Prodigal did not complete successfully!\n" +
-                      "Command used:\n" + ' '.join(prodigal_command), "err", "\n")
-        sys.exit(3)
-    return
-
-
-def hmmsearch_orfs(hmmsearch_exe, hmm_dir, marker_build_dict, fasta_file, output_dir, num_threads=2):
-    hmm_domtbl_files = list()
-    nucl_target_hmm_files = list()
-    prot_target_hmm_files = list()
-
-    # Find all of the available HMM profile files
-    try:
-        os.path.isdir(hmm_dir)
-    except IOError:
-        logging.error(hmm_dir + "does not exist!")
-        sys.exit(3)
-    hmm_files = glob.glob(hmm_dir + "*.hmm")
-
-    if len(hmm_files) == 0:
-        logging.error(hmm_dir + "does not contain any files with '.hmm' extension... so no HMMs.\n")
-        sys.exit(3)
-
-    # Filter the HMM files to only the target markers
-    for marker_code in marker_build_dict:
-        ref_marker = marker_build_dict[marker_code]
-        hmm_profile = hmm_dir + ref_marker.cog + ".hmm"
-        if hmm_profile not in hmm_files:
-            logging.error("Unable to locate HMM-profile for " + ref_marker.cog + "(" + marker_code + ").\n")
-        else:
-            if ref_marker.molecule == "prot":
-                prot_target_hmm_files.append(hmm_profile)
-            else:
-                nucl_target_hmm_files.append(hmm_profile)
-
-    acc = 0.0
-    logging.info("Searching for marker proteins in ORFs using hmmsearch.\n")
-    step_proportion = setup_progress_bar(len(prot_target_hmm_files) + len(nucl_target_hmm_files))
-
-    # Create and launch the hmmsearch commands iteratively.
-    # Since its already rippin' fast, don't need to run in parallel
-    hmmsearch_command_base = [hmmsearch_exe]
-    hmmsearch_command_base += ["--cpu", str(num_threads)]
-    hmmsearch_command_base.append("--noali")
-    for hmm_file in prot_target_hmm_files:
-        rp_marker = re.sub(".hmm", '', os.path.basename(hmm_file))
-        domtbl = output_dir + rp_marker + "_to_ORFs_domtbl.txt"
-        hmm_domtbl_files.append(domtbl)
-        final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
-        final_hmmsearch_command += [hmm_file, fasta_file]
-        stdout, ret_code = launch_write_command(final_hmmsearch_command)
-        if ret_code != 0:
-            logging.error("hmmsearch did not complete successfully! Output:\n" + stdout + "\n" +
-                          "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
-            sys.exit(3)
-
-        # Update the progress bar
-        acc += 1.0
-        if acc >= step_proportion:
-            acc -= step_proportion
-            time.sleep(0.1)
-            sys.stdout.write("-")
-            sys.stdout.flush()
-
-    sys.stdout.write("-]\n")
-    return hmm_domtbl_files
 
 
 def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict):
@@ -1792,38 +1714,6 @@ def get_new_ref_sequences(args, update_tree):
     sys.stdout.flush()
 
     return aa_dictionary
-
-
-def cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta):
-    logging.info("Clustering sequences at %s percent identity with USEARCH... " % str(update_tree.cluster_id))
-
-    usearch_command = [args.executables["usearch"]]
-    usearch_command += ["-sortbylength", new_ref_seqs_fasta]
-    usearch_command += ["-fastaout", update_tree.Output + "usearch_sorted.fasta"]
-    usearch_command += ["--log", update_tree.Output + os.sep + "usearch_sort.log"]
-    # usearch_command += ["1>", "/dev/null", "2>", "/dev/null"]
-
-    launch_write_command(usearch_command)
-
-    uclust_id = "0." + str(int(update_tree.cluster_id))
-    try:
-        float(uclust_id)
-    except ValueError:
-        logging.error("Weird formatting of cluster_id: " + uclust_id + "\n")
-
-    uclust_command = [args.executables["usearch"]]
-    uclust_command += ["-cluster_fast", update_tree.Output + "usearch_sorted.fasta"]
-    uclust_command += ["--id", uclust_id]
-    uclust_command += ["--centroids", update_tree.Output + "uclust_" + update_tree.COG + ".fasta"]
-    uclust_command += ["--uc", update_tree.Output + "uclust_" + update_tree.COG + ".uc"]
-    uclust_command += ["--log", update_tree.Output + os.sep + "usearch_cluster.log"]
-    # uclust_command += ["1>", "/dev/null", "2>", "/dev/null"]
-
-    launch_write_command(uclust_command)
-
-    logging.info("done.\n")
-
-    return
 
 
 def filter_short_sequences(args, aa_dictionary, length_threshold):

@@ -14,6 +14,7 @@ from .fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequen
 from .file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming,\
     parse_ref_build_params, multiple_alignment_dimensions, parse_domain_tables
 from . import utilities
+from . import wrapper
 from .entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
     write_accession_lineage_map, verify_lineage_information, \
     entrez_records_to_accessions, entrez_records_to_accession_lineage_map
@@ -216,7 +217,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     uclust_prefix = output_dir + os.sep + "uclust" + str(similarity)
 
     # Cluster the training sequences to mitigate harmful redundancy
-    utilities.cluster_sequences(executables["usearch"], fasta_input, uclust_prefix, similarity)
+    wrapper.cluster_sequences(executables["usearch"], fasta_input, uclust_prefix, similarity)
     uclust_fasta_dict = read_fasta_to_dict(uclust_prefix + ".fa")
     logging.debug("\t" + str(len(uclust_fasta_dict.keys())) + " sequence clusters\n")
 
@@ -383,9 +384,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 # Write the reference MSA with sequences of `taxonomy` removed
                 phy_dict = utilities.reformat_fasta_to_phy(pruned_ref_fasta_dict)
                 utilities.write_phy_file(temp_ref_phylip_file, phy_dict)
-                aln_stdout = utilities.run_papara(executables["papara"],
-                                                  temp_tree_file, temp_ref_phylip_file, temp_query_fasta_file,
-                                        "prot")
+                aln_stdout = wrapper.run_papara(executables["papara"],
+                                                temp_tree_file, temp_ref_phylip_file, temp_query_fasta_file,
+                                                "prot")
                 intermediate_files.append(temp_ref_phylip_file)
                 os.rename("papara_alignment.default", query_multiple_alignment)
             elif aligner == "hmmalign":
@@ -395,9 +396,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 # Write the pruned reference FASTA file
                 write_new_fasta(pruned_ref_fasta_dict, temp_ref_fasta_file)
                 # Build the HMM profile that doesn't include pruned reference sequences
-                utilities.build_hmm_profile(executables["hmmbuild"], temp_ref_fasta_file, temp_ref_profile)
+                wrapper.build_hmm_profile(executables["hmmbuild"], temp_ref_fasta_file, temp_ref_profile)
                 # Currently not supporting rRNA references (phylogenetic_rRNA)
-                aln_stdout = utilities.profile_aligner(executables, temp_ref_fasta_file, temp_ref_profile,
+                aln_stdout = wrapper.profile_aligner(executables, temp_ref_fasta_file, temp_ref_profile,
                                                        temp_query_fasta_file, sto_file)
                 # Reformat the Stockholm format created by cmalign or hmmalign to Phylip
                 sto_dict = read_stockholm_to_dict(sto_file)
@@ -433,9 +434,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
 
             # Run RAxML with the parameters specified
-            raxml_files = utilities.raxml_evolutionary_placement(executables["raxmlHPC"], temp_tree_file,
-                                                                 query_filtered_multiple_alignment, ref_pkg.sub_model, "./",
-                                                                 query_name, raxml_threads)
+            raxml_files = wrapper.raxml_evolutionary_placement(executables["raxmlHPC"], temp_tree_file,
+                                                               query_filtered_multiple_alignment, ref_pkg.sub_model, "./",
+                                                               query_name, raxml_threads)
 
             # Parse the JPlace file to pull distal_length+pendant_length for each placement
             jplace_data = jplace_parser(raxml_files["jplace"])
@@ -578,7 +579,7 @@ def main():
     if args.domain:
         hmm_purified_fasta = args.output_dir + args.name + "_hmm_purified.fasta"
         logging.info("Searching for domain sequences... ")
-        hmm_domtbl_files = utilities.hmmsearch_input_references(args, args.fasta_input)
+        hmm_domtbl_files = wrapper.hmmsearch_input_references(args, args.fasta_input)
         logging.info("done.\n")
         hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
         fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
