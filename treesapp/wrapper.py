@@ -285,6 +285,38 @@ def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
     return
 
 
+def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output_dir: str, num_threads=2):
+    """
+    Function for searching a fasta file with an hmm profile
+    :param hmmsearch_exe: Path to the executable for hmmsearch
+    :param hmm_profile: Path to the HMM profile file
+    :param query_fasta: Path to the FASTA file to be queried by the profile
+    :param output_dir: Path to the directory for writing the outputs
+    :param num_threads: Number of threads to be used by hmmsearch
+    :return:
+    """
+    # Find the name of the HMM. Use it to name the output file
+    rp_marker = re.sub(".hmm", '', os.path.basename(hmm_profile))
+    domtbl = output_dir + rp_marker + "_to_ORFs_domtbl.txt"
+
+    # Basic hmmsearch command
+    hmmsearch_command_base = [hmmsearch_exe]
+    hmmsearch_command_base += ["--cpu", str(num_threads)]
+    hmmsearch_command_base.append("--noali")
+    # Customize the command for this input and HMM
+    final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
+    final_hmmsearch_command += [hmm_profile, query_fasta]
+    stdout, ret_code = launch_write_command(final_hmmsearch_command)
+
+    # Check to ensure the job finished properly
+    if ret_code != 0:
+        logging.error("hmmsearch did not complete successfully! Output:\n" + stdout + "\n" +
+                      "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
+        sys.exit(13)
+
+    return [domtbl]
+
+
 def hmmsearch_orfs(hmmsearch_exe, hmm_dir, marker_build_dict, fasta_file, output_dir, num_threads=2):
     hmm_domtbl_files = list()
     nucl_target_hmm_files = list()
@@ -319,21 +351,9 @@ def hmmsearch_orfs(hmmsearch_exe, hmm_dir, marker_build_dict, fasta_file, output
     step_proportion = setup_progress_bar(len(prot_target_hmm_files) + len(nucl_target_hmm_files))
 
     # Create and launch the hmmsearch commands iteratively.
-    # Since its already rippin' fast, don't need to run in parallel
-    hmmsearch_command_base = [hmmsearch_exe]
-    hmmsearch_command_base += ["--cpu", str(num_threads)]
-    hmmsearch_command_base.append("--noali")
     for hmm_file in prot_target_hmm_files:
-        rp_marker = re.sub(".hmm", '', os.path.basename(hmm_file))
-        domtbl = output_dir + rp_marker + "_to_ORFs_domtbl.txt"
-        hmm_domtbl_files.append(domtbl)
-        final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
-        final_hmmsearch_command += [hmm_file, fasta_file]
-        stdout, ret_code = launch_write_command(final_hmmsearch_command)
-        if ret_code != 0:
-            logging.error("hmmsearch did not complete successfully! Output:\n" + stdout + "\n" +
-                          "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
-            sys.exit(3)
+        # TODO: Parallelize this by allocating no more than 2 threads per process
+        hmm_domtbl_files += run_hmmsearch(hmmsearch_exe, hmm_file, fasta_file, output_dir, num_threads)
 
         # Update the progress bar
         acc += 1.0
@@ -342,38 +362,9 @@ def hmmsearch_orfs(hmmsearch_exe, hmm_dir, marker_build_dict, fasta_file, output
             time.sleep(0.1)
             sys.stdout.write("-")
             sys.stdout.flush()
-
     sys.stdout.write("-]\n")
+
     return hmm_domtbl_files
-
-
-def hmmsearch_input_references(args, fasta_replaced_file):
-    """
-    Function for searching a fasta file with an hmm profile
-    :param args: Argparse.parser object with 'domain', 'output_dir', 'executables' and 'num_threads' in namespace
-    :param fasta_replaced_file:
-    :return:
-    """
-    # Find the name of the HMM. Use it to name the output file
-    rp_marker = re.sub(".hmm", '', os.path.basename(args.domain))
-    domtbl = args.output + rp_marker + "_to_ORFs_domtbl.txt"
-
-    # Basic hmmsearch command
-    hmmsearch_command_base = [args.executables["hmmsearch"]]
-    hmmsearch_command_base += ["--cpu", str(args.num_threads)]
-    hmmsearch_command_base.append("--noali")
-    # Customize the command for this input and HMM
-    final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
-    final_hmmsearch_command += [args.domain, fasta_replaced_file]
-    stdout, ret_code = launch_write_command(final_hmmsearch_command)
-
-    # Check to ensure the job finished properly
-    if ret_code != 0:
-        logging.error("hmmsearch did not complete successfully!\n" + stdout + "\n" +
-                      "Command used:\n" + ' '.join(final_hmmsearch_command) + "\n")
-        sys.exit(13)
-
-    return [domtbl]
 
 
 def generate_blast_database(args, fasta, molecule, prefix, multiple=True):

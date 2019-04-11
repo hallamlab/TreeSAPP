@@ -101,7 +101,8 @@ def create(args):
     if ts_create.stage_status("clean"):
         logging.info("Searching for domain sequences... ")
         # TODO: integrate this with hmmsearch_orfs in assign.py
-        hmm_domtbl_files = wrapper.hmmsearch_input_references(args, args.input)
+        hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], args.domain, args.input,
+                                                 ts_create.var_output_dir)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         fasta_dict = format_read_fasta(args.input, args.molecule, args.output)
