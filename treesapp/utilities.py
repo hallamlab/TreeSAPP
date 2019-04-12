@@ -714,3 +714,20 @@ def find_msa_type(msa_files):
         sys.exit(3)
     else:
         return file_types.pop()
+
+
+def swap_tree_names(tree_to_swap, final_mltree, code_name):
+    original_tree = open(tree_to_swap, 'r')
+    raxml_tree = open(final_mltree, 'w')
+
+    tree = original_tree.readlines()
+    original_tree.close()
+    if len(tree) > 1:
+        logging.error(">1 line contained in RAxML tree " + tree_to_swap + "\n")
+        sys.exit(13)
+
+    new_tree = re.sub('_' + re.escape(code_name), '', str(tree[0]))
+    raxml_tree.write(new_tree)
+
+    raxml_tree.close()
+    return

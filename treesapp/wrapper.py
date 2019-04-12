@@ -6,7 +6,89 @@ import glob
 import logging
 from shutil import copy
 from .external_command_interface import launch_write_command, setup_progress_bar
-from .utilities import remove_dashes_from_msa
+from .fasta import read_fasta_to_dict
+from .utilities import remove_dashes_from_msa, swap_tree_names
+
+
+def construct_tree(executables: dict, molecule, multiple_alignment_file, tree_output_dir, tree_file, args):
+    """
+    Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
+
+    :param executables: Dictionary containing paths to executables, crucially FastTree and RAxML
+    :param molecule: Molecule type of the sequences being used to infer the phylogeny
+    :param multiple_alignment_file: Path to the multiple sequence alignment file
+    :param tree_output_dir: Path to the directory where output files should be written to
+    :param tree_file: Path to write the inferred phylogenetic tree
+    :param args: Command-line arguments parsed using ArgParse
+    :return: Stylized name of the tree-building software used
+    """
+
+    # Decide on the command to build the tree, make some directories and files when necessary
+    if args.fast:
+        tree_build_cmd = [executables["FastTree"]]
+        if molecule == "rrna" or molecule == "dna":
+            tree_build_cmd += ["-nt", "-gtr"]
+        else:
+            tree_build_cmd += ["-lg", "-wag"]
+        tree_build_cmd += ["-out", tree_file]
+        tree_build_cmd.append(multiple_alignment_file)
+        tree_builder = "FastTree"
+    else:
+        tree_build_cmd = [executables["raxmlHPC"]]
+        tree_build_cmd += ["-f", "a"]
+        tree_build_cmd += ["-p", "12345"]
+        tree_build_cmd += ["-x", "12345"]
+        tree_build_cmd += ["-#", args.bootstraps]
+        tree_build_cmd += ["-s", multiple_alignment_file]
+        tree_build_cmd += ["-n", args.code_name]
+        tree_build_cmd += ["-w", tree_output_dir]
+        tree_build_cmd += ["-T", args.num_threads]
+
+        if args.raxml_model:
+            tree_build_cmd += ["-m", args.raxml_model]
+        elif args.molecule == "prot":
+            tree_build_cmd += ["-m", "PROTGAMMAAUTO"]
+        elif args.molecule == "rrna" or molecule == "dna":
+            tree_build_cmd += ["-m", "GTRGAMMA"]
+        else:
+            logging.error("A substitution model could not be specified with the 'molecule' argument: " + args.molecule)
+            sys.exit(13)
+        tree_builder = "RAxML"
+
+    # Ensure the tree from a previous run isn't going to be over-written
+    if not os.path.exists(tree_output_dir):
+        os.makedirs(tree_output_dir)
+    else:
+        logging.error(tree_output_dir + " already exists from a previous run! " +
+                      "Please delete or rename it and try again.\n")
+        sys.exit(13)
+
+    logging.info("Building phylogenetic tree with " + tree_builder + "... ")
+    if args.fast:
+        stdout, returncode = launch_write_command(tree_build_cmd, True)
+        with open(tree_output_dir + os.sep + "FastTree_info." + args.code_name, 'w') as fast_info:
+            fast_info.write(stdout + "\n")
+    else:
+        stdout, returncode = launch_write_command(tree_build_cmd, False)
+    logging.info("done.\n")
+
+    if returncode != 0:
+        logging.error(tree_builder + " did not complete successfully! " +
+                      "Look in " + tree_output_dir + os.sep +
+                      tree_builder + "_info." + args.code_name + " for an error message.\n" +
+                      tree_builder + " command used:\n" + ' '.join(tree_build_cmd) + "\n")
+        sys.exit(13)
+
+    if not args.fast:
+        raw_newick_tree = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
+        bootstrap_tree = tree_output_dir + os.sep + "RAxML_bipartitionsBranchLabels." + args.code_name
+        bootstrap_nameswap = args.final_output_dir + args.code_name + "_bipartitions.txt"
+        copy(multiple_alignment_file, tree_output_dir)
+        os.remove(multiple_alignment_file)
+        swap_tree_names(raw_newick_tree, tree_file, args.code_name)
+        swap_tree_names(bootstrap_tree, bootstrap_nameswap, args.code_name)
+
+    return tree_builder
 
 
 def launch_evolutionary_placement_queries(executables, tree_dir, phy_files, marker_build_dict, output_dir, num_threads):
@@ -266,7 +348,6 @@ def build_hmm_profile(hmmbuild_exe, msa_in, output_hmm):
         logging.error("hmmbuild did not complete successfully for:\n" +
                       ' '.join(hmm_build_command) + "\n")
         sys.exit(7)
-    return
 
 
 def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
@@ -404,4 +485,60 @@ def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
     logging.info("done\n")
 
     return stdout, blastdb_out
+
+
+def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads):
+    """
+    Wrapper function for the MAFFT multiple sequence alignment tool.
+    Runs MAFFT using `--auto` and checks if the output is empty.
+    :param mafft_exe: Path to the executable for mafft
+    :param fasta_in: An unaligned FASTA file
+    :param fasta_out: The path to a file MAFFT will write aligned sequences to
+    :param num_threads: Integer (or string) for the number of threads MAFFT can use
+    :return:
+    """
+    mafft_align_command = [mafft_exe]
+    mafft_align_command += ["--maxiterate", str(1000)]
+    mafft_align_command += ["--thread", str(num_threads)]
+    mafft_align_command.append("--auto")
+    mafft_align_command += ["--randomseed", str(12345)]
+    mafft_align_command += [fasta_in, '1>' + fasta_out]
+    mafft_align_command += ["2>", "/dev/null"]
+
+    stdout, mafft_proc_returncode = launch_write_command(mafft_align_command, False)
+
+    if mafft_proc_returncode != 0:
+        logging.error("Multiple sequence alignment using " + mafft_exe +
+                      " did not complete successfully! Command used:\n" + ' '.join(mafft_align_command) + "\n")
+        sys.exit(7)
+    else:
+        mfa = read_fasta_to_dict(fasta_out)
+        if len(mfa.keys()) < 1:
+            logging.error("MAFFT did not generate a proper FASTA file. " +
+                          "Check the output by running:\n" + ' '.join(mafft_align_command) + "\n")
+            sys.exit(7)
+
+    return
+
+
+def run_odseq(odseq_exe, fasta_in, outliers_fa, num_threads):
+    odseq_command = [odseq_exe]
+    odseq_command += ["-i", fasta_in]
+    odseq_command += ["-f", "fasta"]
+    odseq_command += ["-o", outliers_fa]
+    odseq_command += ["-m", "linear"]
+    odseq_command += ["--boot-rep", str(1000)]
+    odseq_command += ["--threads", str(num_threads)]
+    odseq_command += ["--score", str(5)]
+    odseq_command.append("--full")
+
+    stdout, odseq_proc_returncode = launch_write_command(odseq_command)
+
+    if odseq_proc_returncode != 0:
+        logging.error("Outlier detection using " + odseq_exe +
+                      " did not complete successfully! Command used:\n" + ' '.join(odseq_command) + "\n")
+        sys.exit(7)
+
+    return
+
 

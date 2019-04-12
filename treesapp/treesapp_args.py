@@ -386,6 +386,7 @@ def check_create_arguments(create_instance: Creator, args):
     create_instance.uclust_prefix = create_instance.output_dir + create_instance.sample_prefix + "_uclust" + create_instance.prop_sim
     create_instance.unaln_ref_fasta = create_instance.output_dir + create_instance.refpkg_name + "_ref.fa"
     create_instance.phylip_file = create_instance.output_dir + create_instance.refpkg_name + ".phy"
+    create_instance.tree_file = create_instance.refpkg_output + create_instance.refpkg_name + "_tree.txt"
 
     if len(args.code_name) > 6:
         logging.error("Name must be <= 6 characters!\n")

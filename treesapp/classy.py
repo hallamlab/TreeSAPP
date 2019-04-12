@@ -10,8 +10,8 @@ import time
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
-from .fasta import get_header_format, format_read_fasta, write_new_fasta
-from .utilities import reformat_string, return_sequence_info_groups, median, which, is_exe
+from .fasta import format_read_fasta, write_new_fasta, get_header_format
+from .utilities import median, which, is_exe, return_sequence_info_groups
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from numpy import var
 
@@ -760,32 +760,6 @@ class NodeRetrieverWorker(Process):
         return
 
 
-class Header:
-    def __init__(self, header):
-        self.original = header
-        self.formatted = ""
-        self.treesapp_name = ""
-        self.post_align = ""
-        self.first_split = ""
-
-    def get_info(self):
-        info_string = "TreeSAPP ID = '" + self.treesapp_name + "'\tPrefix = '" + self.first_split + "'\n"
-        info_string += "Original =  " + self.original + "\nFormatted = " + self.formatted
-        return info_string
-
-
-def register_headers(header_list):
-    header_registry = dict()
-    acc = 1
-    for header in header_list:
-        new_header = Header(header)
-        new_header.formatted = reformat_string(header)
-        new_header.first_split = header.split()[0]
-        header_registry[str(acc)] = new_header
-        acc += 1
-    return header_registry
-
-
 def get_header_info(header_registry, code_name=''):
     """
 
@@ -1172,11 +1146,12 @@ class Creator(TreeSAPP):
         self.uclust_prefix = ""  # FASTA file prefix for cluster centroids
         self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
+        self.tree_file = ""
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("clean", 0),
+        self.stages = {0: ModuleFunction("search", 0),
                        1: ModuleFunction("lineages", 1),
-                       2: ModuleFunction("sift", 2),
+                       2: ModuleFunction("clean", 2),
                        3: ModuleFunction("cluster", 3),
                        4: ModuleFunction("build", 4),
                        5: ModuleFunction("train", 5),
@@ -1186,6 +1161,45 @@ class Creator(TreeSAPP):
         info_string = "Creator instance summary:\n"
         info_string += super(Creator, self).get_info() + "\n\t"
         return info_string
+
+    def remove_intermediates(self):
+        if os.path.exists(self.unaln_ref_fasta):
+            os.remove(self.unaln_ref_fasta)
+        if os.path.exists(self.phylip_file + ".reduced"):
+            os.remove(self.phylip_file + ".reduced")
+        if os.path.exists(self.final_output_dir + "fasta_reader_log.txt"):
+            os.remove(self.final_output_dir + "fasta_reader_log.txt")
+        return
+
+    def determine_model(self, fast):
+        model = ""
+        if fast:
+            if self.molecule_type == "prot":
+                model = "LG"
+            else:
+                model = "GTRGAMMA"
+        else:
+            raxml_info_file = self.refpkg_output + os.sep + "RAxML_info." + self.refpkg_name
+            model_statement_re = re.compile(r".* model: ([A-Z]+) likelihood.*")
+            command_line = ""
+            with open(raxml_info_file) as raxml_info:
+                for line in raxml_info:
+                    if model_statement_re.search(line):
+                        model = model_statement_re.search(line).group(1)
+                        break
+                    elif re.match('^.*/raxml.*-m ([A-Z]+)$', line):
+                        command_line = line
+                    else:
+                        pass
+            if model == "":
+                if command_line == "":
+                    logging.warning("Unable to parse model used from " + raxml_info_file + "!\n")
+                else:
+                    model = re.match('^.*/raxml.*-m ([A-Z]+)$', command_line).group(1)
+        if self.molecule_type == "prot":
+            model = "PROTGAMMA" + model
+        self.ref_pkg.sub_model = model
+        return model
 
 
 class Evaluator(TreeSAPP):
@@ -1348,7 +1362,6 @@ class Assigner(TreeSAPP):
 
         if num_threads > 1 and composition == "meta":
             # Split the input FASTA into num_threads files to run Prodigal in parallel
-            # TODO: low-priority - split into multiple files based on total sequence length rather than number of sequences
             input_fasta_dict = format_read_fasta(self.input_sequences, self.molecule_type, self.output_dir)
             n_seqs = len(input_fasta_dict.keys())
             chunk_size = int(n_seqs / num_threads) + (n_seqs % num_threads)
@@ -1411,6 +1424,33 @@ class Assigner(TreeSAPP):
 
     def classify(self):
         return
+
+
+class PhyTrainer(TreeSAPP):
+    def __init__(self):
+        logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
+        logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
+        super(PhyTrainer, self).__init__("train")
+        self.ref_pkg = ReferencePackage()
+        self.acc_to_lin = ""
+
+        # Limit this to just Class, Family, and Species - other ranks are inferred through regression
+        self.training_ranks = {"Class": 3, "Species": 7}
+
+        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
+        self.stages = {0: ModuleFunction("", 0),}
+
+    def get_info(self):
+        info_string = "PhyTrainer instance summary:\n"
+        info_string += super(PhyTrainer, self).get_info() + "\n\t"
+        info_string += "\n\t".join(["Target reference packages = " + str(self.ref_pkg.prefix),
+                                    "Taxonomy map: " + self.ref_pkg.lineage_ids,
+                                    "Reference tree: " + self.ref_pkg.tree,
+                                    "Reference FASTA: " + self.ref_pkg.msa,
+                                    "Lineage map: " + str(self.acc_to_lin),
+                                    "Ranks tested: " + ','.join(self.training_ranks.keys())]) + "\n"
+
+        return info_string
 
 
 class TaxonTest:

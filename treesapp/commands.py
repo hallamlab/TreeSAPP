@@ -6,8 +6,8 @@ import os
 import shutil
 from random import randint
 from . import file_parsers
-from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, summarize_fasta_sequences, get_headers,\
-    read_fasta_to_dict
+from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, get_headers,\
+    read_fasta_to_dict, register_headers, FASTA
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments, check_classify_arguments,\
     check_create_arguments
@@ -18,8 +18,8 @@ from . import entish
 from . import lca_calculations
 from . import placement_trainer
 from .phylo_dist import trim_lineages_to_rank
-from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator,\
-    register_headers, get_header_info, prep_logging
+from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer,\
+    get_header_info, prep_logging
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
@@ -27,7 +27,6 @@ from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
     write_classified_nuc_sequences, summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs,\
     update_func_tree_workflow
-from .external_command_interface import launch_write_command
 from .jplace_utils import sub_indices_for_seq_names_jplace
 from .clade_exclusion_evaluator import load_ref_seqs, pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, get_classification_performance,\
@@ -98,18 +97,21 @@ def create(args):
     marker_package.kind = args.kind
     marker_package.denominator = "Z1111"
 
-    if ts_create.stage_status("clean"):
+    ref_seqs = FASTA(args.input)
+
+    if ts_create.stage_status("search"):
+        # Read the FASTA into a dictionary - homologous sequences will be extracted from this
+        ref_seqs.fasta_dict = format_read_fasta(args.input, ts_create.molecule_type, ts_create.output_dir)
+        ref_seqs.header_registry = register_headers(get_headers(args.input))
+
         logging.info("Searching for domain sequences... ")
-        # TODO: integrate this with hmmsearch_orfs in assign.py
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], args.domain, args.input,
                                                  ts_create.var_output_dir)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        fasta_dict = format_read_fasta(args.input, args.molecule, args.output)
-        header_registry = register_headers(get_headers(args.input))
-        marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
+        marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
+        ref_seqs.summarize_fasta_sequences()
         write_new_fasta(marker_gene_dict, ts_create.hmm_purified_seqs)
-        summarize_fasta_sequences(ts_create.hmm_purified_seqs)
         utilities.hmm_pile(hmm_matches)
     else:
         ts_create.hmm_purified_seqs = ts_create.input_sequences
@@ -117,41 +119,20 @@ def create(args):
     ##
     # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
     ##
-    fasta_dict = format_read_fasta(ts_create.hmm_purified_seqs, marker_package.molecule, ts_create.output_dir,
-                                   110, args.min_seq_length)
-    header_registry = register_headers(get_headers(ts_create.hmm_purified_seqs))
-    if len(fasta_dict.keys()) != len(header_registry):
-        sync_header_registry = dict()
-        excluded_headers = list()
-        for num_id in header_registry:
-            if header_registry[num_id].formatted not in fasta_dict:
-                excluded_headers.append(header_registry[num_id].original)
-            else:
-                sync_header_registry[num_id] = header_registry[num_id]
-        logging.debug("The following " + str(len(excluded_headers)) + " sequences have been excluded:\n" +
-                      "\n".join(excluded_headers) + "\n")
-        header_registry = sync_header_registry
+    ref_seqs.fasta_dict = format_read_fasta(ts_create.hmm_purified_seqs, marker_package.molecule, ts_create.output_dir,
+                                            110, args.min_seq_length)
+    ref_seqs.header_registry = register_headers(get_headers(ts_create.hmm_purified_seqs))
+    ref_seqs.synchronize_seqs_n_headers()
 
     ##
     # If there are sequences that needs to be guaranteed to be included,
     #  add them now as its easier to work with more sequences than repeat everything
     ##
     if args.guarantee:
-        if not os.path.isfile(args.guarantee):
-            logging.error("File '" + args.guarantee + "' does not exist!\n")
-            sys.exit(13)
-        important_seqs = format_read_fasta(args.guarantee, args.molecule, args.output)
-        important_headers = register_headers(get_headers(args.guarantee))
-        fasta_dict.update(important_seqs)
-        acc = max([int(x) for x in header_registry.keys()])
-        for num_id in sorted(important_headers, key=int):
-            acc += 1
-            header_registry[str(acc)] = important_headers[num_id]
-    else:
-        important_seqs = None
+        ref_seqs.update(args.guarantee)
 
-    fasta_record_objects = get_header_info(header_registry)
-    fasta_record_objects = load_ref_seqs(fasta_dict, header_registry, fasta_record_objects)
+    fasta_record_objects = get_header_info(ref_seqs.header_registry)
+    fasta_record_objects = load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, fasta_record_objects)
     entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
 
     logging.debug("\tNumber of input sequences =\t" + str(len(fasta_record_objects)) + "\n")
@@ -176,24 +157,25 @@ def create(args):
         logging.info("done.\n")
     create_refpkg.finalize_ref_seq_lineages(fasta_record_objects, accession_lineage_map)
 
-    # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
-    fasta_record_objects = create_refpkg.screen_filter_taxa(args, fasta_record_objects)
-    # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
-    fasta_record_objects = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_record_objects)
+    if ts_create.stage_status("clean"):
+        # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
+        fasta_record_objects = create_refpkg.screen_filter_taxa(args, fasta_record_objects)
+        # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
+        fasta_record_objects = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_record_objects)
 
-    fasta_record_objects = create_refpkg.remove_duplicate_records(fasta_record_objects)
+        fasta_record_objects = create_refpkg.remove_duplicate_records(fasta_record_objects)
 
-    if len(fasta_record_objects.keys()) < 2:
-        logging.error(str(len(fasta_record_objects)) + " sequences post-homology + taxonomy filtering\n")
-        sys.exit(11)
+        if len(fasta_record_objects.keys()) < 2:
+            logging.error(str(len(fasta_record_objects)) + " sequences post-homology + taxonomy filtering\n")
+            sys.exit(11)
 
-    # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
-    filtered_fasta_dict = dict()
-    for num_id in fasta_record_objects:
-        refseq_object = fasta_record_objects[num_id]
-        formatted_header = header_registry[num_id].formatted
-        filtered_fasta_dict[formatted_header] = refseq_object.sequence
-    write_new_fasta(filtered_fasta_dict, ts_create.filtered_fasta)
+        # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
+        filtered_fasta_dict = dict()
+        for num_id in fasta_record_objects:
+            refseq_object = fasta_record_objects[num_id]
+            formatted_header = ref_seqs.header_registry[num_id].formatted
+            filtered_fasta_dict[formatted_header] = refseq_object.sequence
+        write_new_fasta(filtered_fasta_dict, ts_create.filtered_fasta)
 
     ##
     # Optionally cluster the input sequences using USEARCH at the specified identity
@@ -202,224 +184,168 @@ def create(args):
         if args.cluster:
             wrapper.cluster_sequences(args.executables["usearch"], ts_create.filtered_fasta,
                                       ts_create.uclust_prefix, ts_create.prop_sim)
-            args.uc = ts_create.uclust_prefix + ".uc"
+            ts_create.uc = ts_create.uclust_prefix + ".uc"
+        # Read the uc file if present
+        if ts_create.uc:
+            cluster_dict = file_parsers.read_uc(args.uc)
 
-    ##
-    # Read the uc file if present
-    ##
-    if args.uc:
-        cluster_dict = file_parsers.read_uc(args.uc)
-
-        # Ensure the headers in cluster_dict have been reformatted if UC file was not generated internally
-        if not args.cluster:
-            members = list()
-            for num_id in cluster_dict:
-                cluster = cluster_dict[num_id]
-                cluster.representative = utilities.reformat_string(cluster.representative)
-                for member in cluster.members:
-                    header, identity = member
-                    members.append([utilities.reformat_string(header), identity])
-                cluster.members = members
-                members.clear()
-        logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
-        ##
-        # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
-        ##
-        # Create a temporary dictionary for faster mapping
-        formatted_to_num_map = dict()
-        for num_id in fasta_record_objects:
-            formatted_to_num_map[header_registry[num_id].formatted] = num_id
-
-        lineages = list()
-        for cluster_id in sorted(cluster_dict, key=int):
-            members = [cluster_dict[cluster_id].representative]
-            # format of member list is: [header, identity, member_seq_length/representative_seq_length]
-            members += [member[0] for member in cluster_dict[cluster_id].members]
-            # Create a lineage list for all sequences in the cluster
-            for member in members:
-                try:
-                    num_id = formatted_to_num_map[member]
-                    lineages.append(fasta_record_objects[num_id].lineage)
-                except KeyError:
-                    logging.warning("Unable to map " + str(member) + " to a TreeSAPP numeric ID.\n")
-            cleaned_lineages = lca_calculations.clean_lineage_list(lineages)
-            cluster_dict[cluster_id].lca = lca_calculations.megan_lca(cleaned_lineages)
-            # For debugging
-            # if len(lineages) != len(cleaned_lineages) and len(lineages) > 1:
-            #     print("Before:")
-            #     for l in lineages:
-            #         print(l)
-            #     print("After:")
-            #     for l in cleaned_lineages:
-            #         print(l)
-            #     print("LCA:", cluster_dict[cluster_id].lca)
-            lineages.clear()
-        formatted_to_num_map.clear()
-    else:
-        cluster_dict = None
-
-    ##
-    # Swap sequences in 'guarantee' for the representatives, creating new clusters
-    ##
-    if args.guarantee and args.uc:
-        # We don't want to make the tree redundant so instead of simply adding the sequences in guarantee,
-        #  we will swap them for their respective representative sequences.
-        # All important sequences become representative, even if multiple are in the same cluster
-        cluster_dict = create_refpkg.guarantee_ref_seqs(cluster_dict, important_seqs)
-
-    # TODO: Taxonomic normalization
-
-    ##
-    # Set the cluster-specific values for ReferenceSequence objects
-    ##
-    if args.uc and not args.headless:
-        # Allow user to select the representative sequence based on organism name, sequence length and similarity
-        fasta_record_objects = create_refpkg.present_cluster_rep_options(cluster_dict,
-                                                                         fasta_record_objects,
-                                                                         header_registry,
-                                                                         important_seqs)
-    elif args.uc and args.headless:
-        create_refpkg.finalize_cluster_reps(cluster_dict, fasta_record_objects, header_registry)
-    else:
-        for num_id in fasta_record_objects:
-            fasta_record_objects[num_id].cluster_rep = True
-            # fasta_record_objects[num_id].cluster_lca is left empty
-
-    fasta_record_objects = create_refpkg.remove_outlier_sequences(fasta_record_objects,
-                                                                  args.executables["OD-seq"], args.executables["mafft"],
-                                                                  args.output, args.num_threads)
-
-    ##
-    # Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
-    # Remove the cluster members since they will no longer be used
-    ##
-    fasta_replace_dict = create_refpkg.order_dict_by_lineage(fasta_record_objects)
-
-    # For debugging. This is the finalized set of reference sequences:
-    # for num_id in sorted(fasta_replace_dict, key=int):
-    #     fasta_replace_dict[num_id].get_info()
-
-    warnings = create_refpkg.write_tax_ids(args, fasta_replace_dict, ts_create.ref_pkg.lineage_ids)
-    if warnings:
-        logging.warning(warnings + "\n")
-
-    logging.info("Generated the taxonomic lineage map " + ts_create.ref_pkg.lineage_ids + "\n")
-    taxonomic_summary = create_refpkg.summarize_reference_taxa(fasta_replace_dict, args.taxa_lca)
-    logging.info(taxonomic_summary)
-    marker_package.lowest_confident_rank = create_refpkg.estimate_taxonomic_redundancy(args, fasta_replace_dict)
-
-    ##
-    # Perform multiple sequence alignment
-    ##
-    if args.multiple_alignment:
-        create_refpkg.create_new_ref_fasta(ts_create.unaln_ref_fasta, fasta_replace_dict, True)
-    else:
-        create_refpkg.create_new_ref_fasta(ts_create.unaln_ref_fasta, fasta_replace_dict)
-
-    if args.molecule == 'rrna':
-        create_refpkg.generate_cm_data(args, ts_create.unaln_ref_fasta)
-        args.multiple_alignment = True
-    elif args.multiple_alignment is False:
-        logging.info("Aligning the sequences using MAFFT... ")
-        create_refpkg.run_mafft(args.executables["mafft"], ts_create.unaln_ref_fasta, ts_create.ref_pkg.msa, args.num_threads)
-        logging.info("done.\n")
-    else:
-        pass
-    ref_aligned_fasta_dict = read_fasta_to_dict(ts_create.ref_pkg.msa)
-    marker_package.num_reps = len(ref_aligned_fasta_dict.keys())
-    n_rows, n_cols = file_parsers.multiple_alignment_dimensions(seq_dict=ref_aligned_fasta_dict,
-                                                                mfa_file=ts_create.ref_pkg.msa)
-    logging.debug("Reference alignment contains " +
-                  str(n_rows) + " sequences with " +
-                  str(n_cols) + " character positions.\n")
-
-    ##
-    # Build the HMM profile from the aligned reference FASTA file
-    ##
-    if args.molecule == "rrna":
-        # A .cm file has already been generated, no need for HMM
-        pass
-    else:
-        logging.info("Building HMM profile... ")
-        hmm_build_command = [args.executables["hmmbuild"],
-                             args.final_output_dir + args.code_name + ".hmm",
-                             ts_create.ref_pkg.msa]
-        stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
-        logging.info("done.\n")
-        logging.debug("\n### HMMBUILD ###\n\n" + stdout)
-
-        if hmmbuild_pro_returncode != 0:
-            logging.error("hmmbuild did not complete successfully for:\n" +
-                          ' '.join(hmm_build_command) + "\n")
-            sys.exit(7)
-    ##
-    # Optionally trim with BMGE and create the Phylip multiple alignment file
-    ##
-    dict_for_phy = dict()
-    if args.trim_align:
-        logging.info("Running BMGE... ")
-        trimmed_msa_file = trim_multiple_alignment(args.executables["BMGE.jar"], ts_create.ref_pkg.msa, args.molecule)
-        logging.info("done.\n")
-
-        unique_ref_headers = set(
-            [re.sub('_' + re.escape(ts_create.ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
-        msa_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming([trimmed_msa_file], unique_ref_headers)
-        logging.debug("Number of sequences discarded: " + summary_str + "\n")
-        if trimmed_msa_file not in msa_dict.keys():
-            # At least one of the reference sequences were discarded and therefore this package is invalid.
-            logging.error("Trimming removed reference sequences. This indicates you have non-homologous sequences.\n" +
-                          "Please improve sequence quality-control and/or re-run without the '--trim_align' flag.\n")
-            sys.exit(13)
-        aligned_fasta_dict = msa_dict[trimmed_msa_file]
-        os.remove(trimmed_msa_file)
-    else:
-        aligned_fasta_dict = ref_aligned_fasta_dict
-
-    for seq_name in aligned_fasta_dict:
-        dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
-    phy_dict = utilities.reformat_fasta_to_phy(dict_for_phy)
-    utilities.write_phy_file(ts_create.phylip_file, phy_dict)
-
-    ##
-    # Build the tree using either RAxML or FastTree
-    ##
-    marker_package.tree_tool = create_refpkg.construct_tree(args, ts_create.phylip_file, ts_create.refpkg_output)
-
-    if os.path.exists(ts_create.unaln_ref_fasta):
-        os.remove(ts_create.unaln_ref_fasta)
-    if os.path.exists(ts_create.phylip_file + ".reduced"):
-        os.remove(ts_create.phylip_file + ".reduced")
-    if os.path.exists(args.final_output_dir + "fasta_reader_log.txt"):
-        os.remove(args.final_output_dir + "fasta_reader_log.txt")
-
-    if args.fast:
-        if args.molecule == "prot":
-            marker_package.model = "LG"
+            # Ensure the headers in cluster_dict have been reformatted if UC file was not generated internally
+            if not args.cluster:
+                create_refpkg.rename_cluster_headers(cluster_dict)
+            logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
+            ##
+            # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
+            ##
+            create_refpkg.cluster_lca(cluster_dict, fasta_record_objects, ref_seqs.header_registry)
         else:
-            marker_package.model = "GTRGAMMA"
-    else:
-        entish.annotate_partition_tree(args.code_name,
-                                       fasta_replace_dict,
-                                       ts_create.refpkg_output + os.sep + "RAxML_bipartitions." + args.code_name)
-        marker_package.model = create_refpkg.find_model_used(ts_create.refpkg_output + os.sep + "RAxML_info." + args.code_name)
-    if marker_package.molecule == "prot":
-        marker_package.model = "PROTGAMMA" + marker_package.model
-    ts_create.ref_pkg.sub_model = marker_package.model
+            cluster_dict = None
 
-    # Build the regression model of placement distances to taxonomic ranks
-    marker_package.pfit, _, _ = placement_trainer.regress_rank_distance(args, ts_create.ref_pkg,
-                                                                        accession_lineage_map, ref_aligned_fasta_dict)
+        ##
+        # Swap sequences in 'guarantee' for the representatives, creating new clusters
+        ##
+        if args.guarantee and args.uc:
+            # We don't want to make the tree redundant so instead of simply adding the sequences in guarantee,
+            #  we will swap them for their respective representative sequences.
+            # All important sequences become representative, even if multiple are in the same cluster
+            cluster_dict = create_refpkg.guarantee_ref_seqs(cluster_dict, ref_seqs.amendments)
 
+        ##
+        # Set the cluster-specific values for ReferenceSequence objects
+        ##
+        if args.uc and not args.headless:
+            # Allow user to select the representative sequence based on organism name, sequence length and similarity
+            fasta_record_objects = create_refpkg.present_cluster_rep_options(cluster_dict,
+                                                                             fasta_record_objects,
+                                                                             ref_seqs.header_registry,
+                                                                             ref_seqs.amendments)
+        elif args.uc and args.headless:
+            create_refpkg.finalize_cluster_reps(cluster_dict, fasta_record_objects, ref_seqs.header_registry)
+        else:
+            for num_id in fasta_record_objects:
+                fasta_record_objects[num_id].cluster_rep = True
+                # fasta_record_objects[num_id].cluster_lca is left empty
+
+    if ts_create.stage_status("build"):
+        fasta_record_objects = create_refpkg.remove_outlier_sequences(fasta_record_objects,
+                                                                      args.executables["OD-seq"],
+                                                                      args.executables["mafft"],
+                                                                      args.output, args.num_threads)
+
+        ##
+        # Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
+        # Remove the cluster members since they will no longer be used
+        ##
+        fasta_replace_dict = create_refpkg.order_dict_by_lineage(fasta_record_objects)
+
+        # For debugging. This is the finalized set of reference sequences:
+        # for num_id in sorted(fasta_replace_dict, key=int):
+        #     fasta_replace_dict[num_id].get_info()
+
+        warnings = create_refpkg.write_tax_ids(fasta_replace_dict, ts_create.ref_pkg.lineage_ids, args.taxa_lca)
+        if warnings:
+            logging.warning(warnings + "\n")
+
+        logging.info("Generated the taxonomic lineage map " + ts_create.ref_pkg.lineage_ids + "\n")
+        taxonomic_summary = create_refpkg.summarize_reference_taxa(fasta_replace_dict, args.taxa_lca)
+        logging.info(taxonomic_summary)
+        marker_package.lowest_confident_rank = create_refpkg.estimate_taxonomic_redundancy(fasta_replace_dict)
+
+        ##
+        # Perform multiple sequence alignment
+        ##
+        if args.multiple_alignment:
+            create_refpkg.create_new_ref_fasta(ts_create.unaln_ref_fasta, fasta_replace_dict, True)
+        else:
+            create_refpkg.create_new_ref_fasta(ts_create.unaln_ref_fasta, fasta_replace_dict)
+
+        if ts_create.molecule_type == 'rrna':
+            create_refpkg.generate_cm_data(args, ts_create.unaln_ref_fasta)
+            args.multiple_alignment = True
+        elif args.multiple_alignment is False:
+            logging.info("Aligning the sequences using MAFFT... ")
+            create_refpkg.run_mafft(ts_create.executables["mafft"],
+                                    ts_create.unaln_ref_fasta, ts_create.ref_pkg.msa, args.num_threads)
+            logging.info("done.\n")
+        else:
+            pass
+        ref_aligned_fasta_dict = read_fasta_to_dict(ts_create.ref_pkg.msa)
+        marker_package.num_reps = len(ref_aligned_fasta_dict.keys())
+        n_rows, n_cols = file_parsers.multiple_alignment_dimensions(seq_dict=ref_aligned_fasta_dict,
+                                                                    mfa_file=ts_create.ref_pkg.msa)
+        logging.debug("Reference alignment contains " +
+                      str(n_rows) + " sequences with " +
+                      str(n_cols) + " character positions.\n")
+
+        ##
+        # Build the HMM profile from the aligned reference FASTA file
+        ##
+        if args.molecule == "rrna":
+            # A .cm file has already been generated, no need for HMM
+            pass
+        else:
+            wrapper.build_hmm_profile(ts_create.executables["hmmbuild"],
+                                      ts_create.refpkg_output + ts_create.refpkg_name + ".hmm",
+                                      ts_create.ref_pkg.msa)
+        ##
+        # Optionally trim with BMGE and create the Phylip multiple alignment file
+        ##
+        dict_for_phy = dict()
+        if args.trim_align:
+            logging.info("Running BMGE... ")
+            trimmed_msa_file = trim_multiple_alignment(ts_create.executables["BMGE.jar"],
+                                                       ts_create.ref_pkg.msa,
+                                                       ts_create.molecule_type)
+            logging.info("done.\n")
+
+            unique_ref_headers = set(
+                [re.sub('_' + re.escape(ts_create.ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
+            msa_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming([trimmed_msa_file],
+                                                                                                 unique_ref_headers)
+            logging.debug("Number of sequences discarded: " + summary_str + "\n")
+            if trimmed_msa_file not in msa_dict.keys():
+                # At least one of the reference sequences were discarded and therefore this package is invalid.
+                logging.error("Trimming removed reference sequences. This indicates you have non-homologous sequences.\n" +
+                              "Please improve sequence quality-control and/or re-run without the '--trim_align' flag.\n")
+                sys.exit(13)
+            aligned_fasta_dict = msa_dict[trimmed_msa_file]
+            os.remove(trimmed_msa_file)
+        else:
+            aligned_fasta_dict = ref_aligned_fasta_dict
+
+        for seq_name in aligned_fasta_dict:
+            dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
+        phy_dict = utilities.reformat_fasta_to_phy(dict_for_phy)
+        utilities.write_phy_file(ts_create.phylip_file, phy_dict)
+
+        ##
+        # Build the tree using either RAxML or FastTree
+        ##
+        marker_package.tree_tool = wrapper.construct_tree(ts_create.executables, ts_create.molecule_type,
+                                                          ts_create.phylip_file, ts_create.refpkg_output,
+                                                          ts_create.tree_file, args)
+        marker_package.model = ts_create.determine_model(args.fast)
+        if not args.fast:
+            entish.annotate_partition_tree(args.code_name,
+                                           fasta_replace_dict,
+                                           ts_create.refpkg_output + os.sep + "RAxML_bipartitions." + args.code_name)
+
+    if ts_create.stage_status("train"):
+        # Build the regression model of placement distances to taxonomic ranks
+        marker_package.pfit, _, _ = placement_trainer.regress_rank_distance(args, ts_create.ref_pkg,
+                                                                            accession_lineage_map, ref_aligned_fasta_dict)
+
+    ts_create.remove_intermediates()
     ##
     # Finish validating the file and append the reference package build parameters to the master table
     ##
-    ts_create.ref_pkg.validate(marker_package.num_reps)
-    param_file = args.treesapp + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
-    create_refpkg.update_build_parameters(param_file, marker_package)
-
-    logging.info("Data for " + args.code_name + " has been generated successfully.\n")
     if ts_create.stage_status("cc"):
-        create_refpkg.terminal_commands(args.final_output_dir, args.code_name)
+        ts_create.ref_pkg.validate(marker_package.num_reps)
+        param_file = args.treesapp + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
+        create_refpkg.update_build_parameters(param_file, marker_package)
+
+        logging.info("Data for " + args.code_name + " has been generated successfully.\n")
+        if ts_create.stage_status("cc"):
+            create_refpkg.terminal_commands(args.final_output_dir, args.code_name)
 
     return
 
@@ -817,4 +743,96 @@ def update(args):
 def train(args):
     parser = TreeSAPPArgumentParser(description='Model phylogenetic distances across taxonomic ranks.')
     args = parser.parse_args(args)
+
+    prep_logging(args.output_dir + os.sep + "placement_trainer_log.txt", args.verbose)
+
+    ts_trainer = PhyTrainer()
+    ts_trainer.ref_pkg.gather_package_files(args.name, args.pkg_path)
+    ts_trainer.ref_pkg.validate()
+
+    # Get the model to be used for phylogenetic placement
+    marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, ts_trainer.ref_pkg.prefix)
+    for denominator in marker_build_dict:
+        marker_build = marker_build_dict[denominator]
+        if marker_build.cog == args.name and args.molecule == marker_build.molecule:
+            ref_pkg.sub_model = marker_build_dict[denominator].model
+            break
+    if not ref_pkg.sub_model:
+        logging.error("Unable to find the substitution model used for " + args.name + ".\n")
+        sys.exit(33)
+
+    if args.domain:
+        hmm_purified_fasta = args.output_dir + args.name + "_hmm_purified.fasta"
+        logging.info("Searching for domain sequences... ")
+        hmm_domtbl_files = wrapper.hmmsearch_input_references(args, args.fasta_input)
+        logging.info("done.\n")
+        hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
+        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
+        header_registry = register_headers(get_headers(args.fasta_input))
+        marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
+        write_new_fasta(marker_gene_dict, hmm_purified_fasta)
+        summarize_fasta_sequences(hmm_purified_fasta)
+        utilities.hmm_pile(hmm_matches)
+        # Point all future operations to the HMM purified FASTA file as the original input
+        args.fasta_input = hmm_purified_fasta
+
+    # Get the lineage information for the training/query sequences
+    if args.lineages:
+        accession_lineage_map = read_accession_taxa_map(args.lineages)
+    else:
+        header_registry = register_headers(get_headers(args.fasta_input))
+        fasta_record_objects = get_header_info(header_registry)
+        query_accession_list, num_lineages_provided = build_entrez_queries(fasta_record_objects)
+        entrez_records = get_multiple_lineages(query_accession_list, args.molecule)
+        accession_lineage_map = entrez_records_to_accession_lineage_map(entrez_records)
+        all_accessions = entrez_records_to_accessions(entrez_records, query_accession_list)
+        fasta_record_objects, accession_lineage_map = verify_lineage_information(accession_lineage_map,
+                                                                                 all_accessions,
+                                                                                 fasta_record_objects,
+                                                                                 num_lineages_provided)
+        write_accession_lineage_map(args.output_dir + os.sep + "placement_trainer_accession_lineage_map.tsv",
+                                    accession_lineage_map)
+
+    # Read in the reference fasta file
+    ref_fasta_dict = read_fasta_to_dict(ref_pkg.msa)
+
+    placement_table_file = args.output_dir + os.sep + "placement_info.tsv"
+    placement_summary_file = args.output_dir + os.sep + "placement_trainer_results.txt"
+    taxonomic_placement_distances = dict()
+
+    # Goal is to use the distances already calculated but re-print
+    if os.path.isfile(placement_summary_file) and not args.overwrite:
+        # Read the summary file and pull the phylogenetic distances for each rank
+        taxonomic_placement_distances = read_placement_summary(placement_summary_file)
+        # Remove any ranks that are not to be used in this estimation
+        estimated_ranks = set(taxonomic_placement_distances.keys())
+        for rank_key in estimated_ranks.difference(set(training_ranks.keys())):
+            taxonomic_placement_distances.pop(rank_key)
+
+    if len(set(training_ranks.keys()).difference(set(taxonomic_placement_distances.keys()))) > 0:
+        pfit_array, taxonomic_placement_distances, pqueries = regress_rank_distance(args,
+                                                                                    ref_pkg,
+                                                                                    accession_lineage_map,
+                                                                                    ref_fasta_dict,
+                                                                                    training_ranks)
+        # Write the tab-delimited file with metadata included for each placement
+        write_placement_table(pqueries, placement_table_file, args.name)
+    else:
+        pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
+        if pfit_array:
+            logging.info("Placement distance regression model complete.\n")
+        else:
+            logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
+
+    # Write the text file containing distances used in the regression analysis
+    with open(placement_summary_file, 'w') as out_handler:
+        trained_string = "Regression parameters = " + re.sub(' ', '', str(pfit_array)) + "\n"
+        ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
+        for rank in ranks:
+            trained_string += "# " + rank + "\n"
+            if rank in taxonomic_placement_distances:
+                trained_string += str(sorted(taxonomic_placement_distances[rank], key=float)) + "\n"
+            trained_string += "\n"
+        out_handler.write(trained_string)
+
     return

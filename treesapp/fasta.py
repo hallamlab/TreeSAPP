@@ -2,10 +2,11 @@ __author__ = 'Connor Morgan-Lang'
 
 import sys
 import re
+import os
 import logging
 
 import _fasta_reader
-from .utilities import median
+from .utilities import median, reformat_string
 from .external_command_interface import launch_write_command
 
 
@@ -57,6 +58,116 @@ def read_fasta_to_dict(fasta_file):
         name, sequence = record
         fasta_dict[name] = sequence.upper()
     return fasta_dict
+
+
+class Header:
+    def __init__(self, header):
+        self.original = header
+        self.formatted = ""
+        self.treesapp_name = ""
+        self.post_align = ""
+        self.first_split = ""
+
+    def get_info(self):
+        info_string = "TreeSAPP ID = '" + self.treesapp_name + "'\tPrefix = '" + self.first_split + "'\n"
+        info_string += "Original =  " + self.original + "\nFormatted = " + self.formatted
+        return info_string
+
+
+def register_headers(header_list):
+    acc = 1
+    header_registry = dict()
+    for header in header_list:
+        new_header = Header(header)
+        new_header.formatted = reformat_string(header)
+        new_header.first_split = header.split()[0]
+        header_registry[str(acc)] = new_header
+        acc += 1
+    return header_registry
+
+
+class FASTA:
+    def __init__(self, file_name):
+        self.file = file_name
+        self.fasta_dict = dict()
+        self.header_registry = dict()
+        self.amendments = dict()
+
+    def synchronize_seqs_n_headers(self):
+        if len(self.fasta_dict.keys()) != len(self.header_registry):
+            sync_header_registry = dict()
+            excluded_headers = list()
+            for num_id in self.header_registry:
+                if self.header_registry[num_id].formatted not in self.fasta_dict:
+                    excluded_headers.append(self.header_registry[num_id].original)
+                else:
+                    sync_header_registry[num_id] = self.header_registry[num_id]
+            self.header_registry = sync_header_registry
+
+    def summarize_fasta_sequences(self):
+        num_headers = 0
+        longest = 0
+        shortest = 0
+        sequence_lengths = []
+        for name in self.fasta_dict:
+            sequence = self.fasta_dict[name]
+            # Calculate stats
+            num_headers += 1
+            if longest == 0 and shortest == 0:
+                longest = len(sequence)
+                shortest = len(sequence)
+            elif len(sequence) > longest:
+                longest = len(sequence)
+            elif len(sequence) < shortest:
+                shortest = len(sequence)
+            else:
+                pass
+            sequence_lengths.append(len(sequence))
+
+        stats_string = "\tNumber of sequences: " + str(num_headers) + "\n"
+        stats_string += "\tLongest sequence length: " + str(longest) + "\n"
+        stats_string += "\tShortest sequence length: " + str(shortest) + "\n"
+        stats_string += "\tMean sequence length: " + str(round(sum(sequence_lengths) / num_headers, 1)) + "\n"
+        stats_string += "\tMedian sequence length: " + str(median(sequence_lengths)) + "\n"
+
+        logging.info(stats_string)
+        return
+
+    def deduplicate_fasta_sequences(self):
+        """
+        Removes exact duplicate sequences from a FASTA-formatted dictionary of sequence records
+        """
+        dedup_dict = dict()
+        if len(set(self.fasta_dict.values())) == len(self.fasta_dict):
+            return
+        else:
+            for header in self.fasta_dict.keys():
+                if self.fasta_dict[header] not in dedup_dict.values():
+                    dedup_dict[header] = self.fasta_dict[header]
+            self.fasta_dict = dedup_dict
+        return
+
+    def update(self, fasta, file=True):
+        # Format the inputs
+        if file:
+            if not os.path.isfile(fasta):
+                logging.error("File '" + fasta + "' does not exist!\n")
+                sys.exit(13)
+            new_fasta = read_fasta_to_dict(fasta)
+            new_fasta_headers = register_headers(get_headers(fasta))
+        else:
+            new_fasta = fasta
+            new_fasta_headers = register_headers(fasta.keys())
+
+        self.amendments.update(new_fasta_headers)
+        # Load the new fasta and headers
+        for seq_name in new_fasta:
+            self.fasta_dict[seq_name] = new_fasta[seq_name]
+        acc = max([int(x) for x in self.header_registry.keys()])
+        for num_id in sorted(new_fasta_headers, key=int):
+            acc += 1
+            self.header_registry[str(acc)] = new_fasta_headers[num_id]
+        return
 
 
 def format_read_fasta(fasta_input, molecule, output_dir, max_header_length=110, min_seq_length=10):
@@ -388,16 +499,3 @@ def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
         sys.exit(5)
 
     return trimmed_msa_file
-
-
-def deduplicate_fasta_sequences(fasta_dict):
-    """
-    Removes exact duplicate sequences from a FASTA-formatted dictionary of sequence records
-    :param fasta_dict: dict() where headers are keys, sequences are values
-    :return:
-    """
-    dedup_dict = dict()
-    for header in fasta_dict.keys():
-        if fasta_dict[header] not in dedup_dict.values():
-            dedup_dict[header] = fasta_dict[header]
-    return dedup_dict
