@@ -23,7 +23,6 @@ try:
     from .entish import annotate_partition_tree
     from .lca_calculations import megan_lca, clean_lineage_list
     from .entrez_utils import *
-    from .placement_trainer import regress_rank_distance
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")

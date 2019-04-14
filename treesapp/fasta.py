@@ -147,6 +147,19 @@ class FASTA:
             self.fasta_dict = dedup_dict
         return
 
+    def use_first_split(self):
+        first_split_dict = dict()
+        for acc in self.header_registry:
+            header = self.header_registry[acc]  # type: Header
+            if header.original in self.fasta_dict:
+                first_split_dict[header.first_split] = self.fasta_dict[header.original]
+            elif header.formatted in self.fasta_dict:
+                first_split_dict[header.first_split] = self.fasta_dict[header.formatted]
+            else:
+                pass
+        self.fasta_dict = first_split_dict
+        return
+
     def update(self, fasta, file=True):
         # Format the inputs
         if file:

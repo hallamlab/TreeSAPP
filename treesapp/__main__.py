@@ -15,6 +15,7 @@ create         Create a reference package for a new gene, domain or orthologous 
 evaluate       Evaluate the classification performance using Clade-exclusion analysis
 assign         Classify query [protein|genomic] sequences using reference packages 
 update         Update an existing reference package with sequences found in a `classify` run
+train          Train a reference package's model used for correcting taxonomic rank classifications 
 ** Other commands:
 info           Display TreeSAPP version and other information.
 Use '-h' to get subcommand-specific help, e.g.

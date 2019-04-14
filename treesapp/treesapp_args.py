@@ -255,6 +255,12 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
                                help="Cluster sequences that mapped to the reference tree prior to updating")
 
 
+def add_trainer_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_io()
+    parser.add_seq_params()
+    parser.add_accession_params()
+
+
 def check_parser_arguments(args):
     """
     Function for checking arguments that are found in args.namespace()

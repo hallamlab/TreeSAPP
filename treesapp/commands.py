@@ -10,7 +10,7 @@ from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, 
     read_fasta_to_dict, register_headers, FASTA
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments, check_classify_arguments,\
-    check_create_arguments
+    check_create_arguments, add_trainer_arguments
 from . import utilities
 from . import wrapper
 from . import entrez_utils
@@ -331,8 +331,10 @@ def create(args):
 
     if ts_create.stage_status("train"):
         # Build the regression model of placement distances to taxonomic ranks
-        marker_package.pfit, _, _ = placement_trainer.regress_rank_distance(args, ts_create.ref_pkg,
-                                                                            accession_lineage_map, ref_aligned_fasta_dict)
+        marker_package.pfit, _, _ = placement_trainer.regress_rank_distance(args,
+                                                                            ts_create.ref_pkg,
+                                                                            accession_lineage_map,
+                                                                            ref_aligned_fasta_dict)
 
     ts_create.remove_intermediates()
     ##
@@ -742,59 +744,72 @@ def update(args):
 
 def train(args):
     parser = TreeSAPPArgumentParser(description='Model phylogenetic distances across taxonomic ranks.')
+    add_trainer_arguments(parser)
     args = parser.parse_args(args)
 
-    prep_logging(args.output_dir + os.sep + "placement_trainer_log.txt", args.verbose)
+    log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
+    prep_logging(log_file_name, args.verbose)
 
     ts_trainer = PhyTrainer()
     ts_trainer.ref_pkg.gather_package_files(args.name, args.pkg_path)
     ts_trainer.ref_pkg.validate()
+
+    ref_seqs = FASTA(args.input)
 
     # Get the model to be used for phylogenetic placement
     marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, ts_trainer.ref_pkg.prefix)
     for denominator in marker_build_dict:
         marker_build = marker_build_dict[denominator]
         if marker_build.cog == args.name and args.molecule == marker_build.molecule:
-            ref_pkg.sub_model = marker_build_dict[denominator].model
+            ts_trainer.ref_pkg.sub_model = marker_build_dict[denominator].model
             break
-    if not ref_pkg.sub_model:
+    if not ts_trainer.ref_pkg.sub_model:
         logging.error("Unable to find the substitution model used for " + args.name + ".\n")
         sys.exit(33)
 
-    if args.domain:
-        hmm_purified_fasta = args.output_dir + args.name + "_hmm_purified.fasta"
+    if ts_trainer.stage_status("search"):
+        # Read the FASTA into a dictionary - homologous sequences will be extracted from this
+        ref_seqs.fasta_dict = format_read_fasta(args.input, ts_trainer.molecule_type, ts_trainer.output_dir)
+        ref_seqs.header_registry = register_headers(get_headers(args.input))
+
         logging.info("Searching for domain sequences... ")
-        hmm_domtbl_files = wrapper.hmmsearch_input_references(args, args.fasta_input)
+        hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"], args.domain, args.input,
+                                                 ts_trainer.var_output_dir)
         logging.info("done.\n")
-        hmm_matches = parse_domain_tables(args, hmm_domtbl_files)
-        fasta_dict = format_read_fasta(args.fasta_input, args.molecule, args.output_dir)
-        header_registry = register_headers(get_headers(args.fasta_input))
-        marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, fasta_dict, header_registry)
-        write_new_fasta(marker_gene_dict, hmm_purified_fasta)
-        summarize_fasta_sequences(hmm_purified_fasta)
+        hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
+        marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
+        ref_seqs.summarize_fasta_sequences()
+        write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
         utilities.hmm_pile(hmm_matches)
-        # Point all future operations to the HMM purified FASTA file as the original input
-        args.fasta_input = hmm_purified_fasta
+    else:
+        ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
     # Get the lineage information for the training/query sequences
-    if args.lineages:
-        accession_lineage_map = read_accession_taxa_map(args.lineages)
+    fasta_record_objects = get_header_info(ref_seqs.header_registry)
+    fasta_record_objects = load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, fasta_record_objects)
+    entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
+
+    if ts_trainer.stage_status("lineages"):
+        entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, args.molecule, args.acc_to_taxid)
+        accession_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
+        all_accessions = entrez_utils.entrez_records_to_accessions(entrez_records, entrez_query_list)
+
+        # Download lineages separately for those accessions that failed
+        # Map proper accession to lineage from the tuple keys (accession, accession.version)
+        #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
+        fasta_record_objects, accession_lineage_map = entrez_utils.verify_lineage_information(accession_lineage_map,
+                                                                                              all_accessions,
+                                                                                              fasta_record_objects,
+                                                                                              num_lineages_provided)
+        entrez_utils.write_accession_lineage_map(ts_trainer.acc_to_lin, accession_lineage_map)
+        # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
     else:
-        header_registry = register_headers(get_headers(args.fasta_input))
-        fasta_record_objects = get_header_info(header_registry)
-        query_accession_list, num_lineages_provided = build_entrez_queries(fasta_record_objects)
-        entrez_records = get_multiple_lineages(query_accession_list, args.molecule)
-        accession_lineage_map = entrez_records_to_accession_lineage_map(entrez_records)
-        all_accessions = entrez_records_to_accessions(entrez_records, query_accession_list)
-        fasta_record_objects, accession_lineage_map = verify_lineage_information(accession_lineage_map,
-                                                                                 all_accessions,
-                                                                                 fasta_record_objects,
-                                                                                 num_lineages_provided)
-        write_accession_lineage_map(args.output_dir + os.sep + "placement_trainer_accession_lineage_map.tsv",
-                                    accession_lineage_map)
+        logging.info("Reading cached lineages in '" + ts_trainer.acc_to_lin + "'... ")
+        accession_lineage_map = entrez_utils.read_accession_taxa_map(ts_trainer.acc_to_lin)
+        logging.info("done.\n")
 
     # Read in the reference fasta file
-    ref_fasta_dict = read_fasta_to_dict(ref_pkg.msa)
+    ref_fasta_dict = read_fasta_to_dict(ts_trainer.ref_pkg.msa)
 
     placement_table_file = args.output_dir + os.sep + "placement_info.tsv"
     placement_summary_file = args.output_dir + os.sep + "placement_trainer_results.txt"
@@ -803,22 +818,22 @@ def train(args):
     # Goal is to use the distances already calculated but re-print
     if os.path.isfile(placement_summary_file) and not args.overwrite:
         # Read the summary file and pull the phylogenetic distances for each rank
-        taxonomic_placement_distances = read_placement_summary(placement_summary_file)
+        taxonomic_placement_distances = placement_trainer.read_placement_summary(placement_summary_file)
         # Remove any ranks that are not to be used in this estimation
         estimated_ranks = set(taxonomic_placement_distances.keys())
-        for rank_key in estimated_ranks.difference(set(training_ranks.keys())):
+        for rank_key in estimated_ranks.difference(set(ts_trainer.training_ranks.keys())):
             taxonomic_placement_distances.pop(rank_key)
 
-    if len(set(training_ranks.keys()).difference(set(taxonomic_placement_distances.keys()))) > 0:
-        pfit_array, taxonomic_placement_distances, pqueries = regress_rank_distance(args,
-                                                                                    ref_pkg,
-                                                                                    accession_lineage_map,
-                                                                                    ref_fasta_dict,
-                                                                                    training_ranks)
+    if len(set(ts_trainer.training_ranks.keys()).difference(set(taxonomic_placement_distances.keys()))) > 0:
+        pfit_array, taxonomic_placement_distances, pqueries = placement_trainer.regress_rank_distance(args,
+                                                                                                      ts_trainer.ref_pkg,
+                                                                                                      accession_lineage_map,
+                                                                                                      ref_fasta_dict,
+                                                                                                      ts_trainer.training_ranks)
         # Write the tab-delimited file with metadata included for each placement
-        write_placement_table(pqueries, placement_table_file, args.name)
+        placement_trainer.write_placement_table(pqueries, placement_table_file, args.name)
     else:
-        pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
+        pfit_array = placement_trainer.complete_regression(taxonomic_placement_distances, ts_trainer.training_ranks)
         if pfit_array:
             logging.info("Placement distance regression model complete.\n")
         else:

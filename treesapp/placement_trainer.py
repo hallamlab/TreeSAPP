@@ -9,19 +9,15 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from .fasta import read_fasta_to_dict, write_new_fasta, deduplicate_fasta_sequences, trim_multiple_alignment,\
-    get_headers, summarize_fasta_sequences, format_read_fasta
+from .fasta import read_fasta_to_dict, write_new_fasta, trim_multiple_alignment, FASTA, register_headers, get_headers
 from .file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming,\
-    parse_ref_build_params, multiple_alignment_dimensions, parse_domain_tables
+    multiple_alignment_dimensions
 from . import utilities
 from . import wrapper
-from .entrez_utils import read_accession_taxa_map, get_multiple_lineages, build_entrez_queries, \
-    write_accession_lineage_map, verify_lineage_information, \
-    entrez_records_to_accessions, entrez_records_to_accession_lineage_map
 from .phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
 from .external_command_interface import setup_progress_bar
 from .jplace_utils import jplace_parser
-from .classy import prep_logging, register_headers, get_header_info, ReferencePackage
+from .classy import ReferencePackage
 from .entish import map_internal_nodes_leaves
 
 __author__ = 'Connor Morgan-Lang'
@@ -197,7 +193,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
                           leaf_taxa_map: dict, accession_lineage_map: dict, taxonomic_ranks):
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
-    linear model. Removes sequences that share an identical accession, are more than 95% similar and limits the
+    linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
     number of taxonomically-identical sequences to 30.
 
     :param fasta_input: Path to a FASTA-formatted file
@@ -218,16 +214,15 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
 
     # Cluster the training sequences to mitigate harmful redundancy
     wrapper.cluster_sequences(executables["usearch"], fasta_input, uclust_prefix, similarity)
-    uclust_fasta_dict = read_fasta_to_dict(uclust_prefix + ".fa")
-    logging.debug("\t" + str(len(uclust_fasta_dict.keys())) + " sequence clusters\n")
+    test_seqs = FASTA(uclust_prefix + ".fa")
+    test_seqs.fasta_dict = read_fasta_to_dict(test_seqs.file)
+    test_seqs.header_registry = register_headers(get_headers(test_seqs.file))
+    logging.debug("\t" + str(len(test_seqs.fasta_dict.keys())) + " sequence clusters\n")
 
     logging.info("Preparing deduplicated sequence set for training... ")
     # Remove sequences with duplicate accessions
-    nr_fasta_dict = deduplicate_fasta_sequences(uclust_fasta_dict)
-    uclust_fasta_dict.clear()
-    for seq_name in nr_fasta_dict.keys():
-        uclust_fasta_dict[seq_name.split(" ")[0]] = nr_fasta_dict[seq_name]
-    nr_fasta_dict.clear()
+    test_seqs.deduplicate_fasta_sequences()
+    test_seqs.use_first_split()
 
     # Determine the set of reference sequences to use at each rank
     for rank in taxonomic_ranks:
@@ -245,7 +240,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
                 for seq_name in sorted(accession_lineage_map):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
                     if re.search(taxonomy,
-                                 utilities.clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in uclust_fasta_dict:
+                                 utilities.clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in test_seqs.fasta_dict:
                         taxon_training_queries.append(seq_name)
                     if len(taxon_training_queries) == max_reps:
                         break
@@ -257,7 +252,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     logging.debug("Optimal placement target is not found in the pruned tree for following taxa:\n\t" +
                   "\n\t".join(optimal_placement_missing) + "\n")
 
-    return rank_training_seqs, uclust_fasta_dict
+    return rank_training_seqs
 
 
 def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
@@ -502,13 +497,16 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     return taxonomic_placement_distances, pqueries
 
 
-def regress_rank_distance(args, ref_pkg: ReferencePackage, accession_lineage_map, ref_fasta_dict, training_ranks=None):
+def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, accession_lineage_map,
+                          ref_fasta_dict, args, training_ranks=None):
     """
 
-    :param args:
+    :param fasta_input:
+    :param executables:
     :param ref_pkg: A ReferencePackage instance
     :param accession_lineage_map:
     :param ref_fasta_dict:
+    :param args:
     :param training_ranks:
     :return:
     """
@@ -520,13 +518,13 @@ def regress_rank_distance(args, ref_pkg: ReferencePackage, accession_lineage_map
     for ref_seq in ref_taxa_map:
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train
-    rank_training_seqs, dedup_fasta_dict = prepare_training_data(args.fasta_input, args.output_dir, args.executables,
+    rank_training_seqs, dedup_fasta_dict = prepare_training_data(fasta_input, args.output_dir, executables,
                                                                  leaf_taxa_map, accession_lineage_map, training_ranks)
     # Perform the rank-wise clade exclusion analysis for estimating placement distances
     taxonomic_placement_distances, pqueries = train_placement_distances(rank_training_seqs, training_ranks,
                                                                         ref_fasta_dict, dedup_fasta_dict,
                                                                         ref_pkg, leaf_taxa_map,
-                                                                        args.molecule, args.executables,
+                                                                        args.molecule, executables,
                                                                         args.num_threads)
     # Finish up
     pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
