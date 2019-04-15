@@ -35,6 +35,7 @@ class ModuleFunction:
 class ReferencePackage:
     def __init__(self):
         self.prefix = ""
+        self.refpkg_code = ""
         self.msa = ""
         self.profile = ""
         self.tree = ""
@@ -61,38 +62,51 @@ class ReferencePackage:
         # TODO: Compare the number of sequences in the tax_ids file
         return True
 
-    def gather_package_files(self, ref_name: str, pkg_path: str, pkg_format="hierarchical", molecule="prot"):
+    def gather_package_files(self, ref_name: str, pkg_path: str, molecule="prot"):
         """
         Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
          files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
          in the same directory.
         :param ref_name: Prefix name of all the files of a reference package
         :param pkg_path: Path to the reference package
-        :param pkg_format: The format of the files within the pkg_path directory
         :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
         :return:
         """
         self.prefix = ref_name
-        if pkg_format == "flat":
-            self.msa = pkg_path + os.sep + ref_name + ".fa"
-            self.profile = pkg_path + os.sep + ref_name
-            self.tree = pkg_path + os.sep + ref_name + "_tree.txt"
-            self.boot_tree = pkg_path + os.sep + ref_name + "_bipartitions.txt"
-            self.lineage_ids = pkg_path + os.sep + "tax_ids_" + ref_name + ".txt"
-        elif pkg_format == "hierarchical":
-            self.msa = pkg_path + os.sep + "alignment_data" + os.sep + ref_name + ".fa"
-            self.profile = pkg_path + os.sep + "hmm_data" + os.sep + ref_name
-            self.tree = pkg_path + os.sep + "tree_data" + os.sep + ref_name + "_tree.txt"
-            self.boot_tree = pkg_path + os.sep + "tree_data" + os.sep + ref_name + "_bipartitions.txt"
-            self.lineage_ids = pkg_path + os.sep + "tree_data" + os.sep + "tax_ids_" + ref_name + ".txt"
-        else:
-            logging.error("Unrecognised reference package format '" + pkg_format + "'\n")
-            sys.exit(17)
-
         if molecule == "rRNA":
-            self.profile += ".cm"
+            profile_ext = ".cm"
         else:
-            self.profile += ".hmm"
+            profile_ext = ".hmm"
+
+        flat = {"msa": pkg_path + os.sep + ref_name + ".fa",
+                "tree": pkg_path + os.sep + ref_name + "_tree.txt",
+                "profile": pkg_path + os.sep + ref_name + profile_ext,
+                "taxid": pkg_path + os.sep + "tax_ids_" + ref_name + ".txt"}
+        hierarchical = {"msa": pkg_path + os.sep + "alignment_data" + os.sep + ref_name + ".fa",
+                        "tree": pkg_path + os.sep + "tree_data" + os.sep + ref_name + "_tree.txt",
+                        "profile": pkg_path + os.sep + "hmm_data" + os.sep + ref_name + profile_ext,
+                        "taxid": pkg_path + os.sep + "tree_data" + os.sep + "tax_ids_" + ref_name + ".txt"}
+
+        # Exhaustively test whether all predicted files exist for each layout
+        acc = 0
+        for layout in [flat, hierarchical]:
+            for f_type in layout:
+                if os.path.exists(layout[f_type]):
+                    acc += 1
+                else:
+                    break
+            if acc == len(layout):
+                break
+
+        if layout and acc == len(layout):
+            self.msa = layout["msa"]
+            self.tree = layout["tree"]
+            self.profile = layout["profile"]
+            self.lineage_ids = layout["taxid"]
+            self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + ref_name + "_bipartitions.txt"
+        else:
+            logging.error("Unable to gather reference package files from '" + pkg_path + "'\n")
+            sys.exit(17)
 
         self.core_ref_files += [self.msa, self.profile, self.tree, self.lineage_ids]
 
@@ -937,8 +951,8 @@ class TreeSAPP:
             self.input_sequences = args.input
             self.molecule_type = args.molecule
             self.output_dir = args.output
-            self.final_output_dir = args.final_output_dir
-            self.var_output_dir = args.var_output_dir
+            self.final_output_dir = args.output + "final_outputs" + os.sep
+            self.var_output_dir = args.output + "intermediates" + os.sep
             self.sample_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
             self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
         self.executables = self.find_executables(args)
@@ -1432,13 +1446,19 @@ class PhyTrainer(TreeSAPP):
         logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
         super(PhyTrainer, self).__init__("train")
         self.ref_pkg = ReferencePackage()
+        self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
         self.acc_to_lin = ""
+        self.placement_table = ""
+        self.placement_summary = ""
 
         # Limit this to just Class, Family, and Species - other ranks are inferred through regression
         self.training_ranks = {"Class": 3, "Species": 7}
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("", 0),}
+        self.stages = {0: ModuleFunction("search", 0),
+                       1: ModuleFunction("lineages", 1),
+                       2: ModuleFunction("place", 2),
+                       3: ModuleFunction("regress", 3)}
 
     def get_info(self):
         info_string = "PhyTrainer instance summary:\n"

@@ -18,6 +18,9 @@ def parse_ref_build_params(base_dir: str, targets: list):
     :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
     """
     ref_build_parameters = base_dir + os.sep + "data" + os.sep + 'ref_build_parameters.tsv'
+    if type(targets) is str:
+        targets = [targets]
+
     try:
         param_handler = open(ref_build_parameters, 'r')
     except IOError:

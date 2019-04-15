@@ -3,7 +3,7 @@ import os
 import sys
 import re
 import logging
-from .classy import Assigner, Evaluator, Creator
+from .classy import Assigner, Evaluator, Creator, PhyTrainer
 from .utilities import available_cpu_count, check_previous_output, get_refpkg_build
 
 
@@ -259,6 +259,12 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser):
     parser.add_io()
     parser.add_seq_params()
     parser.add_accession_params()
+    parser.add_compute_miscellany()
+    parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
+                             help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
+                                  "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
+    parser.reqs.add_argument("-p", "--pkg_path", required=True,
+                             help="Path to the reference package.\n",)
 
 
 def check_parser_arguments(args):
@@ -332,6 +338,32 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
 
     if not os.path.isdir(evaluator_instance.var_output_dir):
         os.makedirs(evaluator_instance.var_output_dir)
+
+    return
+
+
+def check_trainer_arguments(trainer_instance: PhyTrainer, args, marker_build_dict):
+    target_marker_build = get_refpkg_build(args.name,
+                                           marker_build_dict,
+                                           trainer_instance.refpkg_code_re)
+    trainer_instance.ref_pkg.prefix = target_marker_build.cog
+    trainer_instance.ref_pkg.refpkg_code = target_marker_build.denominator
+
+    if args.acc_to_lin and os.path.isfile(args.acc_to_lin):
+        trainer_instance.acc_to_lin = args.acc_to_lin
+        trainer_instance.change_stage_status("lineages", False)
+    else:
+        trainer_instance.acc_to_lin = args.output + os.sep + "accession_id_lineage_map.tsv"
+
+    ##
+    # Define locations of files TreeSAPP outputs
+    ##
+    trainer_instance.placement_table = trainer_instance.output_dir + os.sep + "placement_info.tsv"
+    trainer_instance.placement_summary = trainer_instance.output_dir + os.sep + "placement_trainer_results.txt"
+    trainer_instance.hmm_purified_seqs = trainer_instance.output_dir + trainer_instance.ref_pkg.prefix + "_hmm_purified.fasta"
+
+    if not os.path.isdir(trainer_instance.var_output_dir):
+        os.makedirs(trainer_instance.var_output_dir)
 
     return
 

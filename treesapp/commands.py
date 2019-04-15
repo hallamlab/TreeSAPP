@@ -9,8 +9,8 @@ from . import file_parsers
 from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, get_headers,\
     read_fasta_to_dict, register_headers, FASTA
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments,\
-    add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments, check_classify_arguments,\
-    check_create_arguments, add_trainer_arguments
+    add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
+    check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments
 from . import utilities
 from . import wrapper
 from . import entrez_utils
@@ -751,29 +751,33 @@ def train(args):
     prep_logging(log_file_name, args.verbose)
 
     ts_trainer = PhyTrainer()
+    ts_trainer.furnish_with_arguments(args)
     ts_trainer.ref_pkg.gather_package_files(args.name, args.pkg_path)
     ts_trainer.ref_pkg.validate()
 
     ref_seqs = FASTA(args.input)
 
     # Get the model to be used for phylogenetic placement
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, ts_trainer.ref_pkg.prefix)
+    marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, [])
+    check_trainer_arguments(ts_trainer, args, marker_build_dict)
     for denominator in marker_build_dict:
         marker_build = marker_build_dict[denominator]
-        if marker_build.cog == args.name and args.molecule == marker_build.molecule:
+        if marker_build.cog == ts_trainer.ref_pkg.prefix and args.molecule == marker_build.molecule:
             ts_trainer.ref_pkg.sub_model = marker_build_dict[denominator].model
             break
     if not ts_trainer.ref_pkg.sub_model:
-        logging.error("Unable to find the substitution model used for " + args.name + ".\n")
+        logging.error("Unable to find the substitution model used for " + ts_trainer.ref_pkg.prefix + ".\n")
         sys.exit(33)
 
     if ts_trainer.stage_status("search"):
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = format_read_fasta(args.input, ts_trainer.molecule_type, ts_trainer.output_dir)
-        ref_seqs.header_registry = register_headers(get_headers(args.input))
+        ref_seqs.fasta_dict = format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type, ts_trainer.output_dir)
+        ref_seqs.header_registry = register_headers(get_headers(ts_trainer.input_sequences))
 
         logging.info("Searching for domain sequences... ")
-        hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"], args.domain, args.input,
+        hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
+                                                 ts_trainer.ref_pkg.profile,
+                                                 ts_trainer.input_sequences,
                                                  ts_trainer.var_output_dir)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
@@ -811,42 +815,44 @@ def train(args):
     # Read in the reference fasta file
     ref_fasta_dict = read_fasta_to_dict(ts_trainer.ref_pkg.msa)
 
-    placement_table_file = args.output_dir + os.sep + "placement_info.tsv"
-    placement_summary_file = args.output_dir + os.sep + "placement_trainer_results.txt"
-    taxonomic_placement_distances = dict()
+    taxa_evo_dists = dict()
 
     # Goal is to use the distances already calculated but re-print
-    if os.path.isfile(placement_summary_file) and not args.overwrite:
+    if os.path.isfile(ts_trainer.placement_summary) and not args.overwrite:
         # Read the summary file and pull the phylogenetic distances for each rank
-        taxonomic_placement_distances = placement_trainer.read_placement_summary(placement_summary_file)
+        taxa_evo_dists = placement_trainer.read_placement_summary(ts_trainer.placement_summary)
         # Remove any ranks that are not to be used in this estimation
-        estimated_ranks = set(taxonomic_placement_distances.keys())
+        estimated_ranks = set(taxa_evo_dists.keys())
         for rank_key in estimated_ranks.difference(set(ts_trainer.training_ranks.keys())):
-            taxonomic_placement_distances.pop(rank_key)
+            taxa_evo_dists.pop(rank_key)
 
-    if len(set(ts_trainer.training_ranks.keys()).difference(set(taxonomic_placement_distances.keys()))) > 0:
-        pfit_array, taxonomic_placement_distances, pqueries = placement_trainer.regress_rank_distance(args,
-                                                                                                      ts_trainer.ref_pkg,
-                                                                                                      accession_lineage_map,
-                                                                                                      ref_fasta_dict,
-                                                                                                      ts_trainer.training_ranks)
+    if len(set(ts_trainer.training_ranks.keys()).difference(set(taxa_evo_dists.keys()))) > 0:
+        pfit_array, taxa_evo_dists, pqueries = placement_trainer.regress_rank_distance(ts_trainer.hmm_purified_seqs,
+                                                                                       ts_trainer.executables,
+                                                                                       ts_trainer.ref_pkg,
+                                                                                       accession_lineage_map,
+                                                                                       ref_fasta_dict,
+                                                                                       ts_trainer.var_output_dir,
+                                                                                       ts_trainer.molecule_type,
+                                                                                       ts_trainer.training_ranks,
+                                                                                       args.num_threads)
         # Write the tab-delimited file with metadata included for each placement
-        placement_trainer.write_placement_table(pqueries, placement_table_file, args.name)
+        placement_trainer.write_placement_table(pqueries, ts_trainer.placement_table, args.name)
     else:
-        pfit_array = placement_trainer.complete_regression(taxonomic_placement_distances, ts_trainer.training_ranks)
+        pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if pfit_array:
             logging.info("Placement distance regression model complete.\n")
         else:
             logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
     # Write the text file containing distances used in the regression analysis
-    with open(placement_summary_file, 'w') as out_handler:
+    with open(ts_trainer.placement_summary, 'w') as out_handler:
         trained_string = "Regression parameters = " + re.sub(' ', '', str(pfit_array)) + "\n"
         ranks = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
         for rank in ranks:
             trained_string += "# " + rank + "\n"
-            if rank in taxonomic_placement_distances:
-                trained_string += str(sorted(taxonomic_placement_distances[rank], key=float)) + "\n"
+            if rank in taxa_evo_dists:
+                trained_string += str(sorted(taxa_evo_dists[rank], key=float)) + "\n"
             trained_string += "\n"
         out_handler.write(trained_string)
 

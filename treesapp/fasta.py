@@ -98,7 +98,8 @@ class FASTA:
             sync_header_registry = dict()
             excluded_headers = list()
             for num_id in self.header_registry:
-                if self.header_registry[num_id].formatted not in self.fasta_dict:
+                header = self.header_registry[num_id]
+                if header.formatted not in self.fasta_dict and header.original not in self.fasta_dict:
                     excluded_headers.append(self.header_registry[num_id].original)
                 else:
                     sync_header_registry[num_id] = self.header_registry[num_id]
@@ -145,6 +146,7 @@ class FASTA:
                 if self.fasta_dict[header] not in dedup_dict.values():
                     dedup_dict[header] = self.fasta_dict[header]
             self.fasta_dict = dedup_dict
+        self.synchronize_seqs_n_headers()
         return
 
     def use_first_split(self):

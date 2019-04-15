@@ -498,7 +498,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
 
 def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, accession_lineage_map,
-                          ref_fasta_dict, args, training_ranks=None):
+                          ref_fasta_dict, output_dir, molecule, training_ranks=None, num_threads=2):
     """
 
     :param fasta_input:
@@ -506,7 +506,9 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
     :param ref_pkg: A ReferencePackage instance
     :param accession_lineage_map:
     :param ref_fasta_dict:
-    :param args:
+    :param output_dir:
+    :param molecule:
+    :param num_threads:
     :param training_ranks:
     :return:
     """
@@ -518,14 +520,14 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
     for ref_seq in ref_taxa_map:
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train
-    rank_training_seqs, dedup_fasta_dict = prepare_training_data(fasta_input, args.output_dir, executables,
+    rank_training_seqs, dedup_fasta_dict = prepare_training_data(fasta_input, output_dir, executables,
                                                                  leaf_taxa_map, accession_lineage_map, training_ranks)
     # Perform the rank-wise clade exclusion analysis for estimating placement distances
     taxonomic_placement_distances, pqueries = train_placement_distances(rank_training_seqs, training_ranks,
                                                                         ref_fasta_dict, dedup_fasta_dict,
                                                                         ref_pkg, leaf_taxa_map,
-                                                                        args.molecule, executables,
-                                                                        args.num_threads)
+                                                                        molecule, executables,
+                                                                        num_threads)
     # Finish up
     pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
     if pfit_array:
