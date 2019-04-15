@@ -74,10 +74,12 @@ class Header:
         return info_string
 
 
-def register_headers(header_list):
+def register_headers(header_list, drop=False):
     acc = 1
     header_registry = dict()
     for header in header_list:
+        if drop:
+            header = header[1:]
         new_header = Header(header)
         new_header.formatted = reformat_string(header)
         new_header.first_split = header.split()[0]
@@ -92,6 +94,43 @@ class FASTA:
         self.fasta_dict = dict()
         self.header_registry = dict()
         self.amendments = dict()
+
+    def load_fasta(self):
+        self.fasta_dict = read_fasta_to_dict(self.file)
+        self.header_registry = register_headers(get_headers(self.file), True)
+        if len(self.fasta_dict) == 0 and len(self.header_registry) == 0:
+            logging.error("FASTA file '" + str(self.file) + "' is empty or corrupted - no sequences were found!\n")
+            sys.exit(3)
+
+    def change_dict_keys(self, repl="original"):
+        repl_fasta_dict = dict()
+        for acc in sorted(self.header_registry, key=int):
+            header = self.header_registry[acc]  # type: Header
+            # Get the new header
+            if repl == "original":
+                new_header = header.original
+            elif repl == "first_split":
+                new_header = header.first_split
+            elif repl == "formatted":
+                new_header = header.formatted
+            elif repl == "num":
+                new_header = acc
+            else:
+                logging.error("Unknown replacement type.\n")
+                sys.exit(3)
+            # Find the old header to be replaced
+            if header.original in self.fasta_dict:
+                repl_fasta_dict[new_header] = self.fasta_dict[header.original]
+            elif header.formatted in self.fasta_dict:
+                repl_fasta_dict[new_header] = self.fasta_dict[header.formatted]
+            elif acc in self.fasta_dict:
+                repl_fasta_dict[new_header] = self.fasta_dict[acc]
+            elif header.first_split in self.fasta_dict:
+                repl_fasta_dict[new_header] = self.fasta_dict[header.first_split]
+            else:
+                pass
+        self.fasta_dict = repl_fasta_dict
+        return
 
     def synchronize_seqs_n_headers(self):
         if len(self.fasta_dict.keys()) != len(self.header_registry):
@@ -147,19 +186,6 @@ class FASTA:
                     dedup_dict[header] = self.fasta_dict[header]
             self.fasta_dict = dedup_dict
         self.synchronize_seqs_n_headers()
-        return
-
-    def use_first_split(self):
-        first_split_dict = dict()
-        for acc in self.header_registry:
-            header = self.header_registry[acc]  # type: Header
-            if header.original in self.fasta_dict:
-                first_split_dict[header.first_split] = self.fasta_dict[header.original]
-            elif header.formatted in self.fasta_dict:
-                first_split_dict[header.first_split] = self.fasta_dict[header.formatted]
-            else:
-                pass
-        self.fasta_dict = first_split_dict
         return
 
     def update(self, fasta, file=True):
@@ -333,20 +359,20 @@ def get_header_format(header, code_name=""):
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
-    gi_re = re.compile(">gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);?.*$")  # a
-    gi_prepend_proper_re = re.compile(">gi\|\d+\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")  # a, d, o
-    gi_prepend_mess_re = re.compile(">gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-\()]+)$")  # a
-    dbj_re = re.compile(">dbj\|(.*)\|.*\[(.*)\]")  # a, o
-    emb_re = re.compile(">emb\|(.*)\|.*\[(.*)\]")
-    gb_re = re.compile(">gb\|(.*)\|.*\[(.*)\]")
-    ref_re = re.compile(">ref\|(.*)\|.*\[(.*)\]")
-    pdb_re = re.compile(">pdb\|(.*)\|.+$")  # a
-    pir_re = re.compile(">pir\|.*\|(\w+).* - (.*)$")  # a, o
-    presf_re = re.compile(">prf\|.*\|([A-Z0-9]+)\s+.*$")  # a
-    sp_re = re.compile(">sp\|(.*)\|.*Full=.*;?.*$")  # a
-    fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
-    mltree_re = re.compile("^>(\d+)_" + re.escape(code_name) + "$")
-    pfam_re = re.compile("^>([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
+    gi_re = re.compile(r">?gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);?.*$")  # a
+    gi_prepend_proper_re = re.compile(r">?gi\|\d+\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")  # a, d, o
+    gi_prepend_mess_re = re.compile(r">?gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-\()]+)$")  # a
+    dbj_re = re.compile(r">?dbj\|(.*)\|.*\[(.*)\]")  # a, o
+    emb_re = re.compile(r">?emb\|(.*)\|.*\[(.*)\]")
+    gb_re = re.compile(r">?gb\|(.*)\|.*\[(.*)\]")
+    ref_re = re.compile(r">?ref\|(.*)\|.*\[(.*)\]")
+    pdb_re = re.compile(r">?pdb\|(.*)\|.+$")  # a
+    pir_re = re.compile(r">?pir\|.*\|(\w+).* - (.*)$")  # a, o
+    presf_re = re.compile(r">?prf\|.*\|([A-Z0-9]+)\s+.*$")  # a
+    sp_re = re.compile(r">?sp\|(.*)\|.*Full=.*;?.*$")  # a
+    fungene_gi_bad = re.compile(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
+    mltree_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
+    pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
 
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
@@ -355,16 +381,16 @@ def get_header_format(header, code_name=""):
 
     # Ambiguous:
     # genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
-    accession_only = re.compile(r"^>([A-Z]+_?[0-9]+\.?[0-9]?)$")  # a
-    ncbi_ambiguous = re.compile(r"^>([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
-    ncbi_org = re.compile(r"^>([A-Z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
+    accession_only = re.compile(r"^>?([A-Z]+_?[0-9]+\.?[0-9]?)$")  # a
+    ncbi_ambiguous = re.compile(r"^>?([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
+    ncbi_org = re.compile(r"^>?([A-Z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
 
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
     # There are no character restrictions on the first and third groups
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
-    custom_tax = re.compile(r"^>(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")  # a, l, o
+    custom_tax = re.compile(r"^>?(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")  # a, l, o
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",

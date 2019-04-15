@@ -73,9 +73,6 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       "[DEFAULT = relaxed]")
 
     def add_compute_miscellany(self):
-        self.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
-                                     help='Delete intermediate file to save disk space\n'
-                                          'Recommended for large metagenomes!')
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
                                      help='overwrites previously processed output folders')
         self.miscellany.add_argument('-n', '--num_procs', dest="num_threads", default=2, type=int,
@@ -128,6 +125,9 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
                                    ' Change to code to map query sequences to specific phylogenetic tree.')
     parser.miscellany.add_argument("--check_trees", action="store_true", default=False,
                                    help="Quality-check the reference trees before running TreeSAPP")
+    parser.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
+                                   help='Delete intermediate file to save disk space. '
+                                        'Recommended for large metagenomes!')
 
     return
 
@@ -265,6 +265,11 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser):
                                   "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
     parser.reqs.add_argument("-p", "--pkg_path", required=True,
                              help="Path to the reference package.\n",)
+    parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
+                               help="Flag indicating input sequences need to be purified using an HMM profile.")
+    parser.optopt.add_argument("--stage", default="continue", required=False,
+                               choices=["continue", "search", "lineages", "place", "regress"],
+                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
 
 def check_parser_arguments(args):
@@ -358,8 +363,8 @@ def check_trainer_arguments(trainer_instance: PhyTrainer, args, marker_build_dic
     ##
     # Define locations of files TreeSAPP outputs
     ##
-    trainer_instance.placement_table = trainer_instance.output_dir + os.sep + "placement_info.tsv"
-    trainer_instance.placement_summary = trainer_instance.output_dir + os.sep + "placement_trainer_results.txt"
+    trainer_instance.placement_table = trainer_instance.output_dir + "placement_info.tsv"
+    trainer_instance.placement_summary = trainer_instance.output_dir + "placement_trainer_results.txt"
     trainer_instance.hmm_purified_seqs = trainer_instance.output_dir + trainer_instance.ref_pkg.prefix + "_hmm_purified.fasta"
 
     if not os.path.isdir(trainer_instance.var_output_dir):

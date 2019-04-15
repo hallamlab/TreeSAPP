@@ -215,14 +215,13 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     # Cluster the training sequences to mitigate harmful redundancy
     wrapper.cluster_sequences(executables["usearch"], fasta_input, uclust_prefix, similarity)
     test_seqs = FASTA(uclust_prefix + ".fa")
-    test_seqs.fasta_dict = read_fasta_to_dict(test_seqs.file)
-    test_seqs.header_registry = register_headers(get_headers(test_seqs.file))
+    test_seqs.load_fasta()
+    test_seqs.change_dict_keys("first_split")
     logging.debug("\t" + str(len(test_seqs.fasta_dict.keys())) + " sequence clusters\n")
 
     logging.info("Preparing deduplicated sequence set for training... ")
     # Remove sequences with duplicate accessions
     test_seqs.deduplicate_fasta_sequences()
-    test_seqs.use_first_split()
 
     # Determine the set of reference sequences to use at each rank
     for rank in taxonomic_ranks:
@@ -252,11 +251,11 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     logging.debug("Optimal placement target is not found in the pruned tree for following taxa:\n\t" +
                   "\n\t".join(optimal_placement_missing) + "\n")
 
-    return rank_training_seqs
+    return rank_training_seqs, test_seqs
 
 
 def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
-                              ref_fasta_dict: dict, dedup_fasta_dict: dict,
+                              ref_fasta_dict: dict, test_fasta: FASTA,
                               ref_pkg: ReferencePackage, leaf_taxa_map: dict,
                               molecule: str, executables: dict, raxml_threads=4):
     """
@@ -267,7 +266,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
      to rank depth values where Kingdom is 0, Phylum is 1, etc.
     :param ref_fasta_dict: A dictionary with headers as keys and sequences as values containing only reference sequences
-    :param dedup_fasta_dict: Dictionary with headers as keys and sequences as values for deduplicated training sequences
+    :param test_fasta: Dictionary with headers as keys and sequences as values for deduplicated training sequences
     :param ref_pkg: A ReferencePackage instance
     :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric sequence identifiers to taxonomic lineages
     :param executables: A dictionary mapping software to a path of their respective executable
@@ -341,7 +340,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             query_seq_decrementor = -1
             for seq_name in rank_training_seqs[rank][taxonomy]:
                 query_seq_name_map[query_seq_decrementor] = seq_name
-                taxonomy_filtered_query_seqs[str(query_seq_decrementor)] = dedup_fasta_dict[seq_name]
+                taxonomy_filtered_query_seqs[str(query_seq_decrementor)] = test_fasta.fasta_dict[seq_name]
                 query_seq_decrementor -= 1
             logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
             acc += len(taxonomy_filtered_query_seqs.keys())

@@ -947,6 +947,8 @@ class TreeSAPP:
         return info_string
 
     def furnish_with_arguments(self, args):
+        if args.output[-1] != os.sep:
+            args.output += os.sep
         if self.command != "info":
             self.input_sequences = args.input
             self.molecule_type = args.molecule
@@ -1068,7 +1070,8 @@ class TreeSAPP:
         elif self.command == "evaluate":
             pass
         elif self.command == "train":
-            pass
+            if not args.profile:
+                self.change_stage_status("search", False)
         else:
             logging.error("Unknown sub-command: " + str(self.command) + "\n")
             sys.exit(3)

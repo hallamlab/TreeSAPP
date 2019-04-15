@@ -760,6 +760,7 @@ def train(args):
     # Get the model to be used for phylogenetic placement
     marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, [])
     check_trainer_arguments(ts_trainer, args, marker_build_dict)
+    ts_trainer.validate_continue(args)
     for denominator in marker_build_dict:
         marker_build = marker_build_dict[denominator]
         if marker_build.cog == ts_trainer.ref_pkg.prefix and args.molecule == marker_build.molecule:
@@ -786,6 +787,8 @@ def train(args):
         write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
         utilities.hmm_pile(hmm_matches)
     else:
+        ref_seqs.load_fasta()
+        ref_seqs.change_dict_keys("formatted")
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
     # Get the lineage information for the training/query sequences
