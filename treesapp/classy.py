@@ -13,6 +13,7 @@ from json import loads, dumps
 from .fasta import format_read_fasta, write_new_fasta, get_header_format
 from .utilities import median, which, is_exe, return_sequence_info_groups
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
+from .lca_calculations import determine_offset
 from numpy import var
 
 import _tree_parser
@@ -1246,6 +1247,7 @@ class Evaluator(TreeSAPP):
         super(Evaluator, self).__init__("evaluate")
         self.targets = []  # Left empty to appease parse_ref_build_parameters()
         self.target_marker = None  # A MarkerBuild object
+        self.rank_depth_map = None
         self.acc_to_lin = ""
         self.ranks = list()
         self.markers = set()
@@ -1351,6 +1353,150 @@ class Evaluator(TreeSAPP):
             return distals, pendants, tips
         else:
             return None, None, None
+
+    def summarize_taxonomic_diversity(self):
+        """
+        Function for summarizing the taxonomic diversity of a reference dataset by rank
+
+        :return: None
+        """
+        depth = 1  # Accumulator for parsing _RANK_DEPTH_MAP; not really interested in Cellular Organisms or Strains.
+        info_str = ""
+        while depth < 8:
+            rank = self.rank_depth_map[depth]
+            unique_taxa = self.get_unique_taxa_tested(rank)
+            if unique_taxa:
+                buffer = " "
+                while len(rank) + len(str(len(unique_taxa))) + len(buffer) < 12:
+                    buffer += ' '
+                info_str += "\t" + rank + buffer + str(len(unique_taxa)) + "\n"
+            else:
+                pass
+            depth += 1
+        logging.info("Number of unique lineages tested:\n" + info_str)
+        return
+
+    def get_classification_performance(self):
+        """
+        Correct if: optimal_assignment == query_lineage
+
+        :return: List of strings to be written to Evaluator.performance_table
+        """
+        clade_exclusion_tabular_string = ""
+        std_out_report_string = ""
+        clade_exclusion_strings = list()
+        rank_assigned_dict = self.classifications
+
+        sys.stdout.write("Rank-level performance of " + self.target_marker.cog + ":\n")
+        sys.stdout.write("\tRank\tQueries\tClassified\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\tD=6\tD=7\n")
+
+        for depth in sorted(self.rank_depth_map):
+            rank = self.rank_depth_map[depth]
+            if rank == "Cellular organisms":
+                continue
+            correct = 0
+            incorrect = 0
+            taxonomic_distance = dict()
+            n_queries, n_classified, sensitivity = self.get_sensitivity(rank)
+            for dist in range(0, 8):
+                taxonomic_distance[dist] = 0
+            std_out_report_string += "\t" + rank + "\t"
+            if rank not in rank_assigned_dict or len(rank_assigned_dict[rank]) == 0:
+                std_out_report_string += "0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n"
+            else:
+                acc = 0
+                for assignments in rank_assigned_dict[rank]:
+                    for classified in assignments:
+                        acc += 1
+                        if classified.split("; ")[0] == "Cellular organisms":
+                            logging.error("Lineage string cleaning has gone awry somewhere. "
+                                          "The root rank should be a Kingdom (e.g. Bacteria or Archaea) but nope.\n")
+                            sys.exit(21)
+                        optimal, query = assignments[classified]
+                        if optimal == classified:
+                            offset = 0
+                            correct += 1
+                        else:
+                            offset = determine_offset(classified, optimal)
+                            incorrect += 1
+                        if offset > 7:
+                            # This shouldn't be possible since there are no more than 7 taxonomic ranks
+                            logging.error("Offset found to be greater than what is possible (" + str(offset) + ").\n" +
+                                          "Classified: " + classified + "\n" +
+                                          "Optimal: " + optimal + "\n" +
+                                          "Query: " + query + "\n")
+                        taxonomic_distance[offset] += 1
+                std_out_report_string += str(n_queries) + "\t" + str(n_classified) + "\t\t"
+
+                dist_sum = 0
+                for dist in taxonomic_distance:
+                    dist_sum += taxonomic_distance[dist]
+                    if taxonomic_distance[dist] > 0:
+                        if n_classified == 0:
+                            logging.error("No sequences were classified at rank '" + rank +
+                                          "' but optimal placements were pointed here. " +
+                                          "This is a bug - please alert the developers!\n")
+                            sys.exit(21)
+                        else:
+                            taxonomic_distance[dist] = round(float((taxonomic_distance[dist] * 100) / n_classified), 1)
+                    else:
+                        taxonomic_distance[dist] = 0.0
+                    clade_exclusion_tabular_string += self.target_marker.cog + "\t" + rank + "\t"
+                    clade_exclusion_tabular_string += str(n_queries) + "\t" + str(n_classified) + "\t"
+                    clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist])
+                    clade_exclusion_strings.append(clade_exclusion_tabular_string)
+                    clade_exclusion_tabular_string = ""
+                if dist_sum != n_classified:
+                    logging.error("Discrepancy between classified sequences at each distance (" + str(dist_sum) +
+                                  ") and total (" + str(n_classified) + ").\n")
+                    sys.exit(15)
+
+                std_out_report_string += '\t'.join([str(val) for val in taxonomic_distance.values()]) + "\n"
+                if sum(taxonomic_distance.values()) > 101.0:
+                    logging.error("Sum of proportional assignments at all distances is greater than 100.\n" +
+                                  "\n".join(["Rank = " + rank,
+                                             "Queries = " + str(n_queries),
+                                             "Classified = " + str(n_classified),
+                                             "Classifications = " + str(len(rank_assigned_dict[rank]))]) + "\n")
+                    sys.exit(21)
+
+        sys.stdout.write(std_out_report_string)
+
+        return clade_exclusion_strings
+
+    # TODO: Merge the two table-writing functions below
+    def write_containment_table(self, containment_strings, tool):
+        try:
+            output_handler = open(self.containment_table, 'w')
+        except IOError:
+            logging.error("Unable to open " + self.containment_table + " for writing.\n")
+            sys.exit(21)
+
+        output_handler.write("# Input file for testing: " + self.input_sequences + "\n")
+        output_name = os.path.dirname(self.output_dir)
+        for line in containment_strings:
+            # Line has a "\t" prefix already
+            line = output_name + "\t" + self.target_marker.cog + "\t" + tool + line + "\n"
+            output_handler.write(line)
+
+        output_handler.close()
+        return
+
+    def write_performance_table(self, clade_exclusion_strings: list, tool):
+        try:
+            output_handler = open(self.performance_table, 'w')
+        except IOError:
+            logging.error("Unable to open " + self.performance_table + " for writing.\n")
+            sys.exit(21)
+
+        output_handler.write("# Input file for testing: " + self.input_sequences + "\n")
+        output_name = os.path.dirname(self.output_dir)
+        for line in clade_exclusion_strings:
+            line = output_name + "\t" + tool + "\t" + line + "\n"
+            output_handler.write(line)
+
+        output_handler.close()
+        return
 
 
 class Assigner(TreeSAPP):

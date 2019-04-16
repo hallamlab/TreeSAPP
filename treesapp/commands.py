@@ -29,10 +29,9 @@ from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     update_func_tree_workflow
 from .jplace_utils import sub_indices_for_seq_names_jplace
 from .clade_exclusion_evaluator import load_ref_seqs, pick_taxonomic_representatives, select_rep_seqs,\
-    map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, get_classification_performance,\
-    write_containment_table, map_headers_to_lineage, graftm_classify, validate_ref_package_files, \
-    restore_reference_package, exclude_clade_from_ref_files, determine_containment, parse_distances,\
-    write_performance_table, summarize_taxonomic_diversity, remove_clade_exclusion_files
+    map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
+    validate_ref_package_files, restore_reference_package, exclude_clade_from_ref_files, determine_containment,\
+    parse_distances, remove_clade_exclusion_files, load_rank_depth_map
 
 
 def info(sys_args):
@@ -634,6 +633,7 @@ def evaluate(sys_args):
     marker_build_dict = file_parsers.parse_ref_build_params(ts_evaluate.treesapp_dir, ts_evaluate.targets)
     check_evaluate_arguments(ts_evaluate, args, marker_build_dict)
     ts_evaluate.validate_continue(args)
+    load_rank_depth_map(ts_evaluate)
 
     ref_leaves = file_parsers.tax_ids_file_to_leaves(ts_evaluate.tree_dir + "tax_ids_" + args.reference_marker + ".txt")
     ref_lineages = dict()
@@ -776,7 +776,7 @@ def evaluate(sys_args):
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
                         assign_args = ["-i", test_rep_taxa_fasta, "-o", treesapp_output,
-                                       "-m", ts_evaluate.molecule_type, "-T", str(args.num_threads),
+                                       "-m", ts_evaluate.molecule_type, "-n", str(args.num_threads),
                                        "--min_seq_length", str(min_seq_length), "--overwrite", "--delete"]
                         if args.trim_align:
                             assign_args.append("--trim_align")
@@ -796,7 +796,7 @@ def evaluate(sys_args):
                     if os.path.isfile(classification_table):
                         assigned_lines = file_parsers.read_marker_classification_table(classification_table)
                         test_obj.assignments = file_parsers.parse_assignments(assigned_lines)
-                        test_obj.filter_assignments(ts_evaluate.target_marker)
+                        test_obj.filter_assignments(ts_evaluate.target_marker.cog)
                         test_obj.distances = parse_distances(assigned_lines)
                     else:
                         logging.error("marker_contig_map.tsv is missing from output directory '" +
@@ -823,7 +823,7 @@ def evaluate(sys_args):
 
                     rank_assignments = lca_calculations.identify_excluded_clade(marker_assignments,
                                                                                 test_obj.taxonomic_tree,
-                                                                                ts_evaluate.target_marker)
+                                                                                ts_evaluate.target_marker.cog)
                     for a_rank in rank_assignments:
                         if a_rank != rank and len(rank_assignments[a_rank]) > 0:
                             logging.warning(
@@ -858,11 +858,11 @@ def evaluate(sys_args):
         #     distal, pendant, tip = ts_evaluate.summarize_rankwise_distances(rank)
 
         # Determine the specificity for each rank
-        clade_exclusion_strings = get_classification_performance(ts_evaluate)
-        write_performance_table(args, ts_evaluate.performance_table, clade_exclusion_strings)
-        summarize_taxonomic_diversity(ts_evaluate)
+        clade_exclusion_strings = ts_evaluate.get_classification_performance()
+        ts_evaluate.write_performance_table(clade_exclusion_strings, args.tool)
+        ts_evaluate.summarize_taxonomic_diversity()
         containment_strings = determine_containment(ts_evaluate)
-        write_containment_table(args, ts_evaluate.containment_table, containment_strings)
+        ts_evaluate.write_containment_table(containment_strings, args.tool)
 
     return
 

@@ -11,13 +11,16 @@ from .fasta import write_new_fasta, read_fasta_to_dict
 from .utilities import return_sequence_info_groups
 from .external_command_interface import launch_write_command
 from .file_parsers import tax_ids_file_to_leaves
-from .classy import get_header_format
+from .classy import get_header_format, Evaluator
 from .entrez_utils import *
 
-# TODO: Ensure this dictionary works for every taxonomic hierarchy scheme
 _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
                    2: "Phylum", 3: "Class", 4: "Order",
                    5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+
+
+def load_rank_depth_map(evaluator: Evaluator):
+    evaluator.rank_depth_map = _RANK_DEPTH_MAP
 
 
 def parse_distances(classification_lines):
@@ -93,142 +96,6 @@ def write_intermediate_assignments(inter_class_file, assignments):
     return
 
 
-def determine_offset(classified, optimal):
-    # Figure out which taxonomic lineage is longer
-    offset = 0
-    while classified != optimal and offset < 7:
-        offset += 1
-        classified_ranks = classified.split("; ")
-        optimal_ranks = optimal.split("; ")
-        if len(classified_ranks) > len(optimal_ranks):
-            classified = "; ".join(classified_ranks[:-1])
-        elif len(classified_ranks) < len(optimal_ranks):
-            optimal = "; ".join(optimal_ranks[:-1])
-        else:
-            optimal = "; ".join(optimal_ranks[:-1])
-            classified = "; ".join(classified_ranks[:-1])
-    return offset
-
-
-def summarize_taxonomic_diversity(marker_eval_instance):
-    """
-    Function for summarizing the taxonomic diversity of a reference dataset by rank
-
-    :param marker_eval_instance: An instance of the MarkerTest class.
-        The following instance variables need to be populated:
-        taxa_tests: list of TaxonTest objects, resulting from a GraftM or TreeSAPP analysis
-    :return:
-    """
-    depth = 1  # Accumulator for parsing _RANK_DEPTH_MAP; not really interested in Cellular Organisms or Strains.
-    info_str = ""
-    while depth < 8:
-        rank = _RANK_DEPTH_MAP[depth]
-        unique_taxa = marker_eval_instance.get_unique_taxa_tested(rank)
-        if unique_taxa:
-            buffer = " "
-            while len(rank) + len(str(len(unique_taxa))) + len(buffer) < 12:
-                buffer += ' '
-            info_str += "\t" + rank + buffer + str(len(unique_taxa)) + "\n"
-        else:
-            pass
-        depth += 1
-    logging.info("Number of unique lineages tested:\n" + info_str)
-    return
-
-
-def get_classification_performance(marker_eval_instance):
-    """
-    Correct if: optimal_assignment == query_lineage
-
-    :param marker_eval_instance: An instance of the MarkerTest class.
-        The following instance variables need to be populated:
-        marker: Name of the marker currently being evaluated (e.g., nifHc1, mcrA)
-        classifications: The rank-wise classification dictionary
-    :return:
-    """
-    clade_exclusion_tabular_string = ""
-    std_out_report_string = ""
-    clade_exclusion_strings = list()
-    rank_assigned_dict = marker_eval_instance.classifications
-
-    sys.stdout.write("Rank-level performance of " + marker_eval_instance.target_marker + ":\n")
-    sys.stdout.write("\tRank\tQueries\tClassified\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\tD=6\tD=7\n")
-
-    for depth in sorted(_RANK_DEPTH_MAP):
-        rank = _RANK_DEPTH_MAP[depth]
-        if rank == "Cellular organisms":
-            continue
-        correct = 0
-        incorrect = 0
-        taxonomic_distance = dict()
-        n_queries, n_classified, sensitivity = marker_eval_instance.get_sensitivity(rank)
-        for dist in range(0, 8):
-            taxonomic_distance[dist] = 0
-        std_out_report_string += "\t" + rank + "\t"
-        if rank not in rank_assigned_dict or len(rank_assigned_dict[rank]) == 0:
-            std_out_report_string += "0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n"
-        else:
-            acc = 0
-            for assignments in rank_assigned_dict[rank]:
-                for classified in assignments:
-                    acc += 1
-                    if classified.split("; ")[0] == "Cellular organisms":
-                        logging.error("Lineage string cleaning has gone awry somewhere. "
-                                      "The root rank should be a Kingdom (e.g. Bacteria or Archaea) but nope.\n")
-                        sys.exit(21)
-                    optimal, query = assignments[classified]
-                    if optimal == classified:
-                        offset = 0
-                        correct += 1
-                    else:
-                        offset = determine_offset(classified, optimal)
-                        incorrect += 1
-                    if offset > 7:
-                        # This shouldn't be possible since there are no more than 7 taxonomic ranks
-                        logging.error("Offset found to be greater than what is possible (" + str(offset) + ").\n" +
-                                      "Classified: " + classified + "\n" +
-                                      "Optimal: " + optimal + "\n" +
-                                      "Query: " + query + "\n")
-                    taxonomic_distance[offset] += 1
-            std_out_report_string += str(n_queries) + "\t" + str(n_classified) + "\t\t"
-
-            dist_sum = 0
-            for dist in taxonomic_distance:
-                dist_sum += taxonomic_distance[dist]
-                if taxonomic_distance[dist] > 0:
-                    if n_classified == 0:
-                        logging.error("No sequences were classified at rank '" + rank +
-                                      "' but optimal placements were pointed here. " +
-                                      "This is a bug - please alert the developers!\n")
-                        sys.exit(21)
-                    else:
-                        taxonomic_distance[dist] = round(float((taxonomic_distance[dist]*100)/n_classified), 1)
-                else:
-                    taxonomic_distance[dist] = 0.0
-                clade_exclusion_tabular_string += marker_eval_instance.target_marker + "\t" + rank + "\t"
-                clade_exclusion_tabular_string += str(n_queries) + "\t" + str(n_classified) + "\t"
-                clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist])
-                clade_exclusion_strings.append(clade_exclusion_tabular_string)
-                clade_exclusion_tabular_string = ""
-            if dist_sum != n_classified:
-                logging.error("Discrepancy between classified sequences at each distance (" + str(dist_sum) +
-                              ") and total (" + str(n_classified) + ").\n")
-                sys.exit(15)
-
-            std_out_report_string += '\t'.join([str(val) for val in taxonomic_distance.values()]) + "\n"
-            if sum(taxonomic_distance.values()) > 101.0:
-                logging.error("Sum of proportional assignments at all distances is greater than 100.\n" +
-                              "\n".join(["Rank = " + rank,
-                                         "Queries = " + str(n_queries),
-                                         "Classified = " + str(n_classified),
-                                         "Classifications = " + str(len(rank_assigned_dict[rank]))]) + "\n")
-                sys.exit(21)
-
-    sys.stdout.write(std_out_report_string)
-
-    return clade_exclusion_strings
-
-
 def determine_containment(marker_eval_inst):
     """
     Determines the accuracy of sequence classifications of all sequences contained at different taxonomic ranks
@@ -241,7 +108,6 @@ def determine_containment(marker_eval_inst):
         E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
     """
     rank_assigned_dict = marker_eval_inst.classifications
-    marker = marker_eval_inst.target_marker
     # Set up collection for this analysis
     lowest_rank = ""
     for depth in sorted(_RANK_DEPTH_MAP):
@@ -251,8 +117,9 @@ def determine_containment(marker_eval_inst):
     containment_strings = list()
     n_queries, n_classified, _ = marker_eval_inst.get_sensitivity(lowest_rank)
 
-    sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker + " classifications at " + lowest_rank + ":\n")
-    sys.stdout.write("\tRank\tCorrect\tToo Shallow (%)\n")
+    sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker_eval_inst.target_marker.cog +
+                     " classifications at " + lowest_rank + ":\n" +
+                     "\tRank\tCorrect\tToo Shallow (%)\n")
 
     # Begin parsing through the depths
     if lowest_rank == "Cellular organisms":
@@ -607,41 +474,6 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     unique_query_taxonomies += len(lineage_enumerator)
 
     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
-
-
-def write_containment_table(args, containment_table, containment_strings):
-    try:
-        output_handler = open(containment_table, 'w')
-    except IOError:
-        logging.error("Unable to open " + containment_table + " for writing.\n")
-        sys.exit(21)
-
-    output_handler.write("# Input file for testing: " + args.fasta_input + "\n")
-    output_name = os.path.dirname(args.output)
-    for line in containment_strings:
-        # Line has a "\t" prefix already
-        line = output_name + "\t" + args.reference_marker + "\t" + args.tool + line + "\n"
-        output_handler.write(line)
-
-    output_handler.close()
-    return
-
-
-def write_performance_table(args, performance_table, clade_exclusion_strings):
-    try:
-        output_handler = open(performance_table, 'w')
-    except IOError:
-        logging.error("Unable to open " + performance_table + " for writing.\n")
-        sys.exit(21)
-
-    output_handler.write("# Input file for testing: " + args.fasta_input + "\n")
-    output_name = os.path.dirname(args.output)
-    for line in clade_exclusion_strings:
-        line = output_name + "\t" + args.tool + "\t" + line + "\n"
-        output_handler.write(line)
-
-    output_handler.close()
-    return
 
 
 def correct_accession(description):

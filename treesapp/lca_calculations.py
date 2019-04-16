@@ -348,6 +348,23 @@ def compute_taxonomic_distance(ref_lineage: str, query_lineage: str):
     return distance, 0
 
 
+def determine_offset(classified, optimal):
+    # Figure out which taxonomic lineage is longer
+    offset = 0
+    while classified != optimal and offset < 7:
+        offset += 1
+        classified_ranks = classified.split("; ")
+        optimal_ranks = optimal.split("; ")
+        if len(classified_ranks) > len(optimal_ranks):
+            classified = "; ".join(classified_ranks[:-1])
+        elif len(classified_ranks) < len(optimal_ranks):
+            optimal = "; ".join(optimal_ranks[:-1])
+        else:
+            optimal = "; ".join(optimal_ranks[:-1])
+            classified = "; ".join(classified_ranks[:-1])
+    return offset
+
+
 def clean_lineage_list(lineage_list):
     """
     Removes deeply unclassified sequences:
