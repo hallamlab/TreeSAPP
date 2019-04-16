@@ -62,7 +62,7 @@ class ReferencePackage:
         # TODO: Compare the number of sequences in the tax_ids file
         return True
 
-    def gather_package_files(self, ref_name: str, pkg_path: str, molecule="prot"):
+    def gather_package_files(self, ref_name: str, pkg_path: str, molecule="prot", layout=None):
         """
         Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
          files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
@@ -70,6 +70,7 @@ class ReferencePackage:
         :param ref_name: Prefix name of all the files of a reference package
         :param pkg_path: Path to the reference package
         :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
+        :param layout: An optional string indicating what layout to use (flat | hierarchical)
         :return:
         """
         self.prefix = ref_name
@@ -87,18 +88,24 @@ class ReferencePackage:
                         "profile": pkg_path + os.sep + "hmm_data" + os.sep + ref_name + profile_ext,
                         "taxid": pkg_path + os.sep + "tree_data" + os.sep + "tax_ids_" + ref_name + ".txt"}
 
-        # Exhaustively test whether all predicted files exist for each layout
-        acc = 0
-        for layout in [flat, hierarchical]:
-            for f_type in layout:
-                if os.path.exists(layout[f_type]):
-                    acc += 1
-                else:
-                    break
-            if acc == len(layout):
-                break
+        if layout == "flat":
+            layout = flat
+        elif layout == "hierarchical":
+            layout = hierarchical
+        else:
+            # Exhaustively test whether all predicted files exist for each layout
+            layout = None
+            acc = 0
+            for option in [flat, hierarchical]:
+                for f_type in option:
+                    if os.path.exists(option[f_type]):
+                        acc += 1
+                    else:
+                        break
+                if acc == len(option):
+                    layout = option
 
-        if layout and acc == len(layout):
+        if layout:
             self.msa = layout["msa"]
             self.tree = layout["tree"]
             self.profile = layout["profile"]
@@ -947,9 +954,9 @@ class TreeSAPP:
         return info_string
 
     def furnish_with_arguments(self, args):
-        if args.output[-1] != os.sep:
-            args.output += os.sep
         if self.command != "info":
+            if args.output[-1] != os.sep:
+                args.output += os.sep
             self.input_sequences = args.input
             self.molecule_type = args.molecule
             self.output_dir = args.output
@@ -1066,7 +1073,8 @@ class TreeSAPP:
                 else:
                     logging.warning("Update-tree impossible as " + self.output_dir + " is missing input files.\n")
         elif self.command == "create":
-            pass
+            if not args.profile:
+                self.change_stage_status("search", False)
         elif self.command == "evaluate":
             pass
         elif self.command == "train":

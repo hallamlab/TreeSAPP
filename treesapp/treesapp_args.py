@@ -135,6 +135,8 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
 def add_create_arguments(parser: TreeSAPPArgumentParser):
     parser.add_io()
     parser.add_seq_params()
+    parser.add_accession_params()
+    parser.add_compute_miscellany()
     # The required parameters
     parser.reqs.add_argument("-c", "--refpkg_name",
                              help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
@@ -156,7 +158,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                     'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
                                action="store_true",
                                default=False)
-    parser.seqops.add_argument("-d", "--domain",
+    parser.seqops.add_argument("-d", "--profile",
                                help="An HMM profile representing a specific domain.\n"
                                     "Domains will be excised from input sequences based on hmmsearch alignments.",
                                required=False, default=None)
@@ -212,6 +214,9 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
     parser.optopt.add_argument("--kind", default="functional", choices=["functional", "taxonomic"], required=False,
                                help="The broad classification of marker gene type, either "
                                     "functional or taxonomic. [ DEFAULT = functional ]")
+    parser.optopt.add_argument("--stage", default="continue", required=False,
+                               choices=["continue", "lineages", "clean", "cluster", "build", "train", "cc"],
+                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
     parser.miscellany.add_argument('--pc', action='store_true', default=False,
                                    help='Prints the final commands to complete\n'
@@ -418,20 +423,20 @@ def check_classify_arguments(assigner_instance: Assigner, args):
 
 def check_create_arguments(create_instance: Creator, args):
     if not args.output:
-        args.output = os.getcwd() + os.sep + args.code_name + "_treesapp_refpkg"
+        args.output = os.getcwd() + os.sep + args.refpkg_name + "_treesapp_refpkg"
 
     # Names of files and directories to be created
-    create_instance.refpkg_output = create_instance.final_output_dir + "TreeSAPP_files_%s" % args.code_name + os.sep
+    create_instance.refpkg_output = create_instance.final_output_dir + "TreeSAPP_files_%s" % args.refpkg_name + os.sep
     create_instance.phy_dir = create_instance.output_dir + "phylogeny_files" + os.sep
     create_instance.acc_to_lin = create_instance.output_dir + os.sep + "accession_id_lineage_map.tsv"
     create_instance.hmm_purified_seqs = create_instance.output_dir + create_instance.refpkg_name + "_hmm_purified.fasta"
     create_instance.filtered_fasta = create_instance.output_dir + create_instance.sample_prefix + "_filtered.fa"
-    create_instance.uclust_prefix = create_instance.output_dir + create_instance.sample_prefix + "_uclust" + create_instance.prop_sim
+    create_instance.uclust_prefix = create_instance.output_dir + create_instance.sample_prefix + "_uclust" + str(create_instance.prop_sim)
     create_instance.unaln_ref_fasta = create_instance.output_dir + create_instance.refpkg_name + "_ref.fa"
     create_instance.phylip_file = create_instance.output_dir + create_instance.refpkg_name + ".phy"
     create_instance.tree_file = create_instance.refpkg_output + create_instance.refpkg_name + "_tree.txt"
 
-    if len(args.code_name) > 6:
+    if len(args.refpkg_name) > 6:
         logging.error("Name must be <= 6 characters!\n")
         sys.exit(13)
 
@@ -457,7 +462,7 @@ def check_create_arguments(create_instance: Creator, args):
         if args.uc:
             logging.error("--cluster and --uc are mutually exclusive!\n")
             sys.exit(13)
-        if not 0.5 < float(args.identity) < 1.0:
+        if not 0.5 <= float(args.identity) <= 1.0:
             if 0.5 < float(args.identity)/100 < 1.0:
                 args.identity = str(float(args.identity)/100)
                 logging.warning("--identity  set to " + args.identity + " for compatibility with USEARCH \n")
