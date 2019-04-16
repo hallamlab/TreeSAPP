@@ -72,7 +72,9 @@ def check_previous_output(args):
             os.mkdir(output_dir)
     elif not args.overwrite and not glob(args.final_output_dir + "*"):
         # Last run didn't complete so use the intermediates if possible
-        pass
+        for output_dir in main_output_dirs:
+            if not os.path.isdir(output_dir):
+                os.mkdir(output_dir)
     elif args.overwrite:
         if os.path.isdir(args.output):
             rmtree(args.output)

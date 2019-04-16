@@ -10,7 +10,8 @@ from .fasta import read_fasta_to_dict
 from .utilities import remove_dashes_from_msa, swap_tree_names
 
 
-def construct_tree(executables: dict, molecule, multiple_alignment_file, tree_output_dir, tree_file, args):
+def construct_tree(executables: dict, molecule: str, multiple_alignment_file: str,
+                   tree_output_dir, tree_file, tree_prefix, args):
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
 
@@ -19,6 +20,7 @@ def construct_tree(executables: dict, molecule, multiple_alignment_file, tree_ou
     :param multiple_alignment_file: Path to the multiple sequence alignment file
     :param tree_output_dir: Path to the directory where output files should be written to
     :param tree_file: Path to write the inferred phylogenetic tree
+    :param tree_prefix: Prefix to be used for the outputs
     :param args: Command-line arguments parsed using ArgParse
     :return: Stylized name of the tree-building software used
     """
@@ -40,7 +42,7 @@ def construct_tree(executables: dict, molecule, multiple_alignment_file, tree_ou
         tree_build_cmd += ["-x", "12345"]
         tree_build_cmd += ["-#", args.bootstraps]
         tree_build_cmd += ["-s", multiple_alignment_file]
-        tree_build_cmd += ["-n", args.code_name]
+        tree_build_cmd += ["-n", tree_prefix]
         tree_build_cmd += ["-w", tree_output_dir]
         tree_build_cmd += ["-T", args.num_threads]
 
@@ -66,7 +68,7 @@ def construct_tree(executables: dict, molecule, multiple_alignment_file, tree_ou
     logging.info("Building phylogenetic tree with " + tree_builder + "... ")
     if args.fast:
         stdout, returncode = launch_write_command(tree_build_cmd, True)
-        with open(tree_output_dir + os.sep + "FastTree_info." + args.code_name, 'w') as fast_info:
+        with open(tree_output_dir + os.sep + "FastTree_info." + tree_prefix, 'w') as fast_info:
             fast_info.write(stdout + "\n")
     else:
         stdout, returncode = launch_write_command(tree_build_cmd, False)
@@ -75,18 +77,18 @@ def construct_tree(executables: dict, molecule, multiple_alignment_file, tree_ou
     if returncode != 0:
         logging.error(tree_builder + " did not complete successfully! " +
                       "Look in " + tree_output_dir + os.sep +
-                      tree_builder + "_info." + args.code_name + " for an error message.\n" +
+                      tree_builder + "_info." + tree_prefix + " for an error message.\n" +
                       tree_builder + " command used:\n" + ' '.join(tree_build_cmd) + "\n")
         sys.exit(13)
 
     if not args.fast:
-        raw_newick_tree = "%s/RAxML_bestTree.%s" % (tree_output_dir, args.code_name)
-        bootstrap_tree = tree_output_dir + os.sep + "RAxML_bipartitionsBranchLabels." + args.code_name
-        bootstrap_nameswap = args.final_output_dir + args.code_name + "_bipartitions.txt"
+        raw_newick_tree = "%s/RAxML_bestTree.%s" % (tree_output_dir, tree_prefix)
+        bootstrap_tree = tree_output_dir + os.sep + "RAxML_bipartitionsBranchLabels." + tree_prefix
+        bootstrap_nameswap = args.final_output_dir + tree_prefix + "_bipartitions.txt"
         copy(multiple_alignment_file, tree_output_dir)
         os.remove(multiple_alignment_file)
-        swap_tree_names(raw_newick_tree, tree_file, args.code_name)
-        swap_tree_names(bootstrap_tree, bootstrap_nameswap, args.code_name)
+        swap_tree_names(raw_newick_tree, tree_file, tree_prefix)
+        swap_tree_names(bootstrap_tree, bootstrap_nameswap, tree_prefix)
 
     return tree_builder
 

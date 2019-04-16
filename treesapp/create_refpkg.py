@@ -749,16 +749,6 @@ def update_build_parameters(param_file, marker_package: classy.MarkerBuild):
     return
 
 
-def terminal_commands(final_output_folder, code_name):
-    logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n" +
-                 "1. Write a properly formatted reference package 'code' in data/tree_data/ref_build_parameters.tsv\n" +
-                 "2. $ cp " + final_output_folder + os.sep + "tax_ids_%s.txt" % code_name + " data/tree_data/\n" +
-                 "3. $ cp " + final_output_folder + os.sep + code_name + "_tree.txt data/tree_data/\n" +
-                 "4. $ cp " + final_output_folder + os.sep + code_name + ".hmm data/hmm_data/\n" +
-                 "5. $ cp " + final_output_folder + os.sep + code_name + ".fa data/alignment_data/\n")
-    return
-
-
 def update_tax_ids_with_lineage(args, tree_taxa_list):
     tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + "tax_ids_%s.txt" % args.code_name
     if not os.path.exists(tax_ids_file):

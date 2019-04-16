@@ -35,12 +35,12 @@ from .clade_exclusion_evaluator import load_ref_seqs, pick_taxonomic_representat
     write_performance_table, summarize_taxonomic_diversity, remove_clade_exclusion_files
 
 
-def info(args):
+def info(sys_args):
     """
 
     """
     parser = TreeSAPPArgumentParser(description="Return package, executable and refpkg information.")
-    args = parser.parse_args(args)
+    args = parser.parse_args(sys_args)
     prep_logging()
     ts = TreeSAPP("info")
 
@@ -71,24 +71,26 @@ def info(args):
     return
 
 
-def train(args):
+def train(sys_args):
     parser = TreeSAPPArgumentParser(description='Model phylogenetic distances across taxonomic ranks.')
     add_trainer_arguments(parser)
-    args = parser.parse_args(args)
-
+    args = parser.parse_args(sys_args)
+    # TODO: Prevent hmmalign_queries_aligned-BMGE.fasta.reduced file from being written to cwd
     log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
     prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
 
+    check_parser_arguments(args, sys_args)
     ts_trainer = PhyTrainer()
     ts_trainer.furnish_with_arguments(args)
-    ts_trainer.ref_pkg.gather_package_files(args.name, args.pkg_path)
+    marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, [])
+    check_trainer_arguments(ts_trainer, args, marker_build_dict)
+    ts_trainer.ref_pkg.gather_package_files(args.pkg_path)
     ts_trainer.ref_pkg.validate()
 
     ref_seqs = FASTA(args.input)
 
     # Get the model to be used for phylogenetic placement
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, [])
-    check_trainer_arguments(ts_trainer, args, marker_build_dict)
     ts_trainer.validate_continue(args)
     for denominator in marker_build_dict:
         marker_build = marker_build_dict[denominator]
@@ -191,29 +193,30 @@ def train(args):
     return
 
 
-def create(args):
+def create(sys_args):
     parser = TreeSAPPArgumentParser(description="Create a reference package for TreeSAPP.")
     add_create_arguments(parser)
-    args = parser.parse_args(args)
+    args = parser.parse_args(sys_args)
 
     log_file_name = args.output + os.sep + "TreeSAPP_create_" + args.refpkg_name + "_log.txt"
     prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
+    # TODO: prevent the log file being removed by overwrite
 
-    check_parser_arguments(args)
+    check_parser_arguments(args, sys_args)
     ts_create = Creator()
     ts_create.furnish_with_arguments(args)
     check_create_arguments(ts_create, args)
     ts_create.validate_continue(args)
 
     # Gather all the final TreeSAPP reference files
-    ts_create.ref_pkg.gather_package_files(ts_create.refpkg_name, ts_create.refpkg_output,
-                                           ts_create.molecule_type, "flat")
+    ts_create.ref_pkg.gather_package_files(ts_create.final_output_dir, ts_create.molecule_type, "flat")
 
     # Create a new MarkerBuild instance to hold all relevant information for recording in ref_build_parameters.tsv
     # TODO: Merge the MarkerBuild and ReferencePackage classes
     marker_package = MarkerBuild()
     marker_package.pid = args.identity
-    marker_package.cog = args.refpkg_name
+    marker_package.cog = ts_create.ref_pkg.prefix
     marker_package.molecule = args.molecule
     marker_package.kind = args.kind
     marker_package.denominator = "Z1111"
@@ -240,9 +243,10 @@ def create(args):
     ##
     # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
     ##
-    ref_seqs.fasta_dict = format_read_fasta(ts_create.hmm_purified_seqs, marker_package.molecule, ts_create.output_dir,
+    ref_seqs.file = ts_create.hmm_purified_seqs
+    ref_seqs.fasta_dict = format_read_fasta(ref_seqs.file, marker_package.molecule, ts_create.output_dir,
                                             110, args.min_seq_length)
-    ref_seqs.header_registry = register_headers(get_headers(ts_create.hmm_purified_seqs))
+    ref_seqs.header_registry = register_headers(get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
 
     ##
@@ -252,7 +256,7 @@ def create(args):
     if args.guarantee:
         ref_seqs.update(args.guarantee)
 
-    fasta_record_objects = get_header_info(ref_seqs.header_registry)
+    fasta_record_objects = get_header_info(ref_seqs.header_registry, ts_create.ref_pkg.prefix)
     fasta_record_objects = load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, fasta_record_objects)
     entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
 
@@ -350,7 +354,7 @@ def create(args):
         fasta_record_objects = create_refpkg.remove_outlier_sequences(fasta_record_objects,
                                                                       ts_create.executables["OD-seq"],
                                                                       ts_create.executables["mafft"],
-                                                                      args.output, args.num_threads)
+                                                                      ts_create.var_output_dir, args.num_threads)
 
         ##
         # Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
@@ -405,8 +409,8 @@ def create(args):
             pass
         else:
             wrapper.build_hmm_profile(ts_create.executables["hmmbuild"],
-                                      ts_create.refpkg_output + ts_create.refpkg_name + ".hmm",
-                                      ts_create.ref_pkg.msa)
+                                      ts_create.ref_pkg.msa,
+                                      ts_create.ref_pkg.profile)
         ##
         # Optionally trim with BMGE and create the Phylip multiple alignment file
         ##
@@ -442,47 +446,53 @@ def create(args):
         # Build the tree using either RAxML or FastTree
         ##
         marker_package.tree_tool = wrapper.construct_tree(ts_create.executables, ts_create.molecule_type,
-                                                          ts_create.phylip_file, ts_create.refpkg_output,
-                                                          ts_create.tree_file, args)
+                                                          ts_create.phylip_file, ts_create.phy_dir,
+                                                          ts_create.ref_pkg.tree, ts_create.ref_pkg.prefix, args)
         marker_package.model = ts_create.determine_model(args.fast)
         if not args.fast:
-            entish.annotate_partition_tree(args.refpkg_name,
+            entish.annotate_partition_tree(ts_create.ref_pkg.prefix,
                                            fasta_replace_dict,
-                                           ts_create.refpkg_output + os.sep + "RAxML_bipartitions." + args.refpkg_name)
+                                           ts_create.final_output_dir + os.sep + "RAxML_bipartitions." + ts_create.ref_pkg.prefix)
 
     if ts_create.stage_status("train"):
         # Build the regression model of placement distances to taxonomic ranks
-        marker_package.pfit, _, _ = placement_trainer.regress_rank_distance(args,
-                                                                            ts_create.ref_pkg,
-                                                                            accession_lineage_map,
-                                                                            ref_aligned_fasta_dict)
+        trainer_cmd = ["-i", ts_create.input_sequences,
+                       "-c", ts_create.ref_pkg.prefix,
+                       "-p", ts_create.final_output_dir,
+                       "-o", ts_create.var_output_dir + "placement_trainer" + os.sep,
+                       "-m", ts_create.molecule_type,
+                       "-a", ts_create.acc_to_lin,
+                       "-n", str(args.num_threads)]
+        if args.trim_align:
+            trainer_cmd.append("--trim_align")
+        train(trainer_cmd)
 
     ts_create.remove_intermediates()
     ##
     # Finish validating the file and append the reference package build parameters to the master table
     ##
-    if ts_create.stage_status("cc"):
-        ts_create.ref_pkg.validate(marker_package.num_reps)
-        param_file = args.treesapp + "data" + os.sep + "tree_data" + os.sep + "ref_build_parameters.tsv"
-        create_refpkg.update_build_parameters(param_file, marker_package)
+    ts_create.ref_pkg.validate(marker_package.num_reps)
+    param_file = ts_create.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
+    create_refpkg.update_build_parameters(param_file, marker_package)
 
-        logging.info("Data for " + args.refpkg_name + " has been generated successfully.\n")
-        if ts_create.stage_status("cc"):
-            create_refpkg.terminal_commands(args.final_output_dir, args.refpkg_name)
+    logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
+    if ts_create.stage_status("cc"):
+        ts_create.print_terminal_commands()
 
     return
 
 
-def assign(args):
+def assign(sys_args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
     add_classify_arguments(parser)
-    args = parser.parse_args(args)
+    args = parser.parse_args(sys_args)
 
     log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
     prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
 
-    check_parser_arguments(args)
+    check_parser_arguments(args, sys_args)
     ts_assign = Assigner()
     ts_assign.furnish_with_arguments(args)
     check_classify_arguments(ts_assign, args)
@@ -601,7 +611,7 @@ def assign(args):
     return
 
 
-def evaluate(cmd_args):
+def evaluate(sys_args):
     """
     Method for running this script:
         Provide it a FASTA file for which it will determine the taxonomic lineage for each sequence
@@ -611,12 +621,13 @@ def evaluate(cmd_args):
     """
     parser = TreeSAPPArgumentParser(description='Evaluate classification performance using clade-exclusion analysis.')
     add_evaluate_arguments(parser)
-    args = parser.parse_args(cmd_args)
+    args = parser.parse_args(sys_args)
 
     log_file_name = args.output + os.sep + "TreeSAPP_evaluation_log.txt"
     prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
 
-    check_parser_arguments(args)
+    check_parser_arguments(args, sys_args)
     ts_evaluate = Evaluator()
     ts_evaluate.furnish_with_arguments(args)
 
@@ -856,8 +867,10 @@ def evaluate(cmd_args):
     return
 
 
-def update(args):
+def update(sys_args):
     parser = TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with newly identified sequences.')
     add_update_arguments(parser)
-    args = parser.parse_args(args)
+    args = parser.parse_args(sys_args)
+
+    check_parser_arguments(args, sys_args)
     return

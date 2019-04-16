@@ -277,16 +277,18 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser):
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
 
-def check_parser_arguments(args):
+def check_parser_arguments(args, sys_args):
     """
     Function for checking arguments that are found in args.namespace()
     This is the only parser validation function used by clade exclusion evaluator
-    :param args:
-    :return:
+    :param args: Parsed command-line arguments
+    :param sys_args: Unparsed command-line arguments passed to the current TreeSAPP module
+    :return: None
     """
     ##
     # Remove the output directory if it exists and overwrite permission granted.
     ##
+    logging.info("Arguments used:\n" + ' '.join(sys_args) + "\n")
     if re.match(r"^/$", args.output):
         logging.error("Output directory specified as root. Bailing out to prevent future catastrophe!\n")
         sys.exit(1)
@@ -421,22 +423,21 @@ def check_classify_arguments(assigner_instance: Assigner, args):
     return args
 
 
-def check_create_arguments(create_instance: Creator, args):
+def check_create_arguments(creator: Creator, args):
+    creator.ref_pkg.prefix = args.refpkg_name
     if not args.output:
-        args.output = os.getcwd() + os.sep + args.refpkg_name + "_treesapp_refpkg"
+        args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg"
 
     # Names of files and directories to be created
-    create_instance.refpkg_output = create_instance.final_output_dir + "TreeSAPP_files_%s" % args.refpkg_name + os.sep
-    create_instance.phy_dir = create_instance.output_dir + "phylogeny_files" + os.sep
-    create_instance.acc_to_lin = create_instance.output_dir + os.sep + "accession_id_lineage_map.tsv"
-    create_instance.hmm_purified_seqs = create_instance.output_dir + create_instance.refpkg_name + "_hmm_purified.fasta"
-    create_instance.filtered_fasta = create_instance.output_dir + create_instance.sample_prefix + "_filtered.fa"
-    create_instance.uclust_prefix = create_instance.output_dir + create_instance.sample_prefix + "_uclust" + str(create_instance.prop_sim)
-    create_instance.unaln_ref_fasta = create_instance.output_dir + create_instance.refpkg_name + "_ref.fa"
-    create_instance.phylip_file = create_instance.output_dir + create_instance.refpkg_name + ".phy"
-    create_instance.tree_file = create_instance.refpkg_output + create_instance.refpkg_name + "_tree.txt"
+    creator.phy_dir = creator.var_output_dir + "phylogeny_files" + os.sep
+    creator.acc_to_lin = creator.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+    creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
+    creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
+    creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
+    creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
+    creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
 
-    if len(args.refpkg_name) > 6:
+    if len(creator.ref_pkg.prefix) > 6:
         logging.error("Name must be <= 6 characters!\n")
         sys.exit(13)
 
@@ -453,7 +454,7 @@ def check_create_arguments(create_instance: Creator, args):
                           "If this model is valid (not a typo), add it to `raxml_models` list and re-run.\n")
             sys.exit(13)
         else:
-            create_instance.ref_pkg.sub_model = args.raxml_model
+            creator.ref_pkg.sub_model = args.raxml_model
 
     if args.cluster:
         if args.multiple_alignment:

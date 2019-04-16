@@ -62,31 +62,34 @@ class ReferencePackage:
         # TODO: Compare the number of sequences in the tax_ids file
         return True
 
-    def gather_package_files(self, ref_name: str, pkg_path: str, molecule="prot", layout=None):
+    def gather_package_files(self, pkg_path: str, molecule="prot", layout=None):
         """
         Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
          files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
          in the same directory.
-        :param ref_name: Prefix name of all the files of a reference package
         :param pkg_path: Path to the reference package
         :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
         :param layout: An optional string indicating what layout to use (flat | hierarchical)
         :return:
         """
-        self.prefix = ref_name
+        if not self.prefix:
+            logging.error("ReferencePackage.prefix not set - unable to gather package files.\n")
+            sys.exit(3)
         if molecule == "rRNA":
             profile_ext = ".cm"
         else:
             profile_ext = ".hmm"
+        if pkg_path[-1] != os.sep:
+            pkg_path += os.sep
 
-        flat = {"msa": pkg_path + os.sep + ref_name + ".fa",
-                "tree": pkg_path + os.sep + ref_name + "_tree.txt",
-                "profile": pkg_path + os.sep + ref_name + profile_ext,
-                "taxid": pkg_path + os.sep + "tax_ids_" + ref_name + ".txt"}
-        hierarchical = {"msa": pkg_path + os.sep + "alignment_data" + os.sep + ref_name + ".fa",
-                        "tree": pkg_path + os.sep + "tree_data" + os.sep + ref_name + "_tree.txt",
-                        "profile": pkg_path + os.sep + "hmm_data" + os.sep + ref_name + profile_ext,
-                        "taxid": pkg_path + os.sep + "tree_data" + os.sep + "tax_ids_" + ref_name + ".txt"}
+        flat = {"msa": pkg_path + self.prefix + ".fa",
+                "tree": pkg_path + self.prefix + "_tree.txt",
+                "profile": pkg_path + self.prefix + profile_ext,
+                "taxid": pkg_path + "tax_ids_" + self.prefix + ".txt"}
+        hierarchical = {"msa": pkg_path + "alignment_data" + os.sep + self.prefix + ".fa",
+                        "tree": pkg_path + "tree_data" + os.sep + self.prefix + "_tree.txt",
+                        "profile": pkg_path + "hmm_data" + os.sep + self.prefix + profile_ext,
+                        "taxid": pkg_path + "tree_data" + os.sep + "tax_ids_" + self.prefix + ".txt"}
 
         if layout == "flat":
             layout = flat
@@ -95,8 +98,8 @@ class ReferencePackage:
         else:
             # Exhaustively test whether all predicted files exist for each layout
             layout = None
-            acc = 0
             for option in [flat, hierarchical]:
+                acc = 0
                 for f_type in option:
                     if os.path.exists(option[f_type]):
                         acc += 1
@@ -110,7 +113,7 @@ class ReferencePackage:
             self.tree = layout["tree"]
             self.profile = layout["profile"]
             self.lineage_ids = layout["taxid"]
-            self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + ref_name + "_bipartitions.txt"
+            self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"
         else:
             logging.error("Unable to gather reference package files from '" + pkg_path + "'\n")
             sys.exit(17)
@@ -922,11 +925,11 @@ class TreeSAPP:
         self.refpkg_code_re = re.compile(r'[A-Z]{1,2}[0-9]{4,5}')
         # TODO: fix this... perhaps import treesapp, treesapp.__path__?
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-        self.refpkg_dir = self.treesapp_dir + os.sep + 'data' + os.sep
-        self.tree_dir = self.treesapp_dir + os.sep + 'data' + os.sep + "tree_data" + os.sep
-        self.hmm_dir = self.treesapp_dir + os.sep + 'data' + os.sep + "hmm_data" + os.sep
-        self.aln_dir = self.treesapp_dir + os.sep + 'data' + os.sep + "alignment_data" + os.sep
-        self.itol_dir = self.treesapp_dir + os.sep + 'data' + os.sep + "iTOL_data" + os.sep
+        self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
+        self.tree_dir = self.treesapp_dir + 'data' + os.sep + "tree_data" + os.sep
+        self.hmm_dir = self.treesapp_dir + 'data' + os.sep + "hmm_data" + os.sep
+        self.aln_dir = self.treesapp_dir + 'data' + os.sep + "alignment_data" + os.sep
+        self.itol_dir = self.treesapp_dir + 'data' + os.sep + "iTOL_data" + os.sep
 
         # Values derived from the command-line arguments
         self.input_sequences = ""
@@ -954,6 +957,12 @@ class TreeSAPP:
         return info_string
 
     def furnish_with_arguments(self, args):
+        """
+        Carries over the basic TreeSAPP arguments to the respective TreeSAPP-subclass.
+         All auxiliary arguments are pushed to the TreeSAPP classes in check_module_arguments
+        :param args:
+        :return:
+        """
         if self.command != "info":
             if args.output[-1] != os.sep:
                 args.output += os.sep
@@ -1156,11 +1165,7 @@ class TreeSAPP:
 
 class Creator(TreeSAPP):
     def __init__(self):
-        logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
-        logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
         super(Creator, self).__init__("create")
-        self.refpkg_name = ""  # Name of the new reference package - determined by args.refpkg_name
-        self.refpkg_output = ""  # Directory for the reference package files: tree, accession-lineage map, hmm, fasta
         self.ref_pkg = ReferencePackage()
         self.prop_sim = 1.0
         self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank
@@ -1171,7 +1176,6 @@ class Creator(TreeSAPP):
         self.uclust_prefix = ""  # FASTA file prefix for cluster centroids
         self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
-        self.tree_file = ""
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),
@@ -1204,7 +1208,7 @@ class Creator(TreeSAPP):
             else:
                 model = "GTRGAMMA"
         else:
-            raxml_info_file = self.refpkg_output + os.sep + "RAxML_info." + self.refpkg_name
+            raxml_info_file = self.final_output_dir + os.sep + "RAxML_info." + self.ref_pkg.prefix
             model_statement_re = re.compile(r".* model: ([A-Z]+) likelihood.*")
             command_line = ""
             with open(raxml_info_file) as raxml_info:
@@ -1226,11 +1230,19 @@ class Creator(TreeSAPP):
         self.ref_pkg.sub_model = model
         return model
 
+    def print_terminal_commands(self):
+        param_file = self.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
+        logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n" +
+                     "1. Write a properly formatted reference package 'code' in " + param_file + "\n" +
+                     "2. $ cp " + self.ref_pkg.lineage_ids + ' ' + self.tree_dir + "\n" +
+                     "3. $ cp " + self.ref_pkg.tree + ' ' + self.tree_dir + "\n" +
+                     "4. $ cp " + self.ref_pkg.profile + ' ' + self.hmm_dir + "\n" +
+                     "5. $ cp " + self.ref_pkg.msa + ' ' + self.aln_dir + "\n")
+        return
+
 
 class Evaluator(TreeSAPP):
     def __init__(self):
-        logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
-        logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
         super(Evaluator, self).__init__("evaluate")
         self.targets = []  # Left empty to appease parse_ref_build_parameters()
         self.target_marker = None  # A MarkerBuild object
@@ -1346,8 +1358,6 @@ class Assigner(TreeSAPP):
         """
 
         """
-        logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
-        logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
         self.aa_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.faa"
@@ -1453,8 +1463,6 @@ class Assigner(TreeSAPP):
 
 class PhyTrainer(TreeSAPP):
     def __init__(self):
-        logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
-        logging.info("Command used:\n" + ' '.join(sys.argv) + "\n")
         super(PhyTrainer, self).__init__("train")
         self.ref_pkg = ReferencePackage()
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
