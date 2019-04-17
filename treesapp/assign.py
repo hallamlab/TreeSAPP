@@ -35,7 +35,6 @@ try:
     from .jplace_utils import *
     from .file_parsers import *
     from .phylo_dist import *
-    from .update_refpkg import CreateFuncTreeUtility
     from . import utilities
     from . import wrapper
 
@@ -45,107 +44,6 @@ except ImportWarning:
     sys.stderr.write("Could not load some user defined module functions")
     sys.stderr.write(traceback.print_exc(10))
     sys.exit(3)
-
-
-def get_hmm_length(hmm_file):
-    """
-    Function to open the ref_tree's hmm file and determine its length
-    :param hmm_file: The HMM file produced by hmmbuild to parse for the HMM length
-    :return: The length (int value) of the HMM
-    """
-    try:
-        hmm = open(hmm_file, 'r')
-    except IOError:
-        raise IOError("Unable to open " + hmm_file + " for reading! Exiting.")
-
-    line = hmm.readline()
-    length = 0
-    while line:
-        # LENG XXX
-        if re.match(r"^LENG\s+([0-9]+)", line):
-            length = int(line.split()[1])
-        line = hmm.readline()
-    if length > 0:
-        return length
-    else:
-        raise AssertionError("Unable to parse the HMM length from " + hmm_file + ". Exiting.")
-
-
-def align_ref_queries(args, new_ref_queries, update_tree):
-    """
-    Function queries the candidate set of proteins to be used for updating the tree against the reference set
-    The output feeds into find_novel_refs. Necessary to determine whether there are interesting new proteins or
-    just more of the same
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param new_ref_queries:
-    :param update_tree:
-    :return: Path to tabular alignment file
-    """
-    alignments = update_tree.Output + "candidate_alignments.tsv"
-
-    ref_fasta = os.sep.join([args.treesapp, "data",  "alignment_data",  update_tree.COG + ".fa"])
-    db_prefix = update_tree.Output + os.sep + update_tree.COG
-    # Make a temporary BLAST database to see what is novel
-    # Needs a path to write the temporary unaligned FASTA file
-    utilities.generate_blast_database(args, ref_fasta, "prot", db_prefix)
-
-    logging.info("Aligning the candidate sequences to the current reference sequences using blastp... ")
-
-    align_cmd = [args.executables["blastp"]]
-    align_cmd += ["-query", new_ref_queries]
-    align_cmd += ["-db", db_prefix + ".fa"]
-    align_cmd += ["-outfmt", str(6)]
-    align_cmd += ["-out", alignments]
-    align_cmd += ["-num_alignments", str(1)]
-
-    launch_write_command(align_cmd)
-
-    # Remove the temporary BLAST database
-    db_suffixes = ['', ".phr", ".pin", ".psq"]
-    for db_file in db_suffixes:
-        if os.path.isfile(db_prefix + ".fa" + db_file):
-            os.remove(db_prefix + ".fa" + db_file)
-
-    logging.info("done.\n")
-
-    return alignments
-
-
-def find_novel_refs(ref_candidate_alignments, aa_dictionary, create_func_tree):
-    new_refs = dict()
-    try:
-        alignments = open(ref_candidate_alignments, 'r')
-    except IOError:
-        raise IOError("Unable to open " + ref_candidate_alignments + " for reading! Exiting.")
-
-    line = alignments.readline()
-    while line:
-        fields = line.split("\t")
-        if float(fields[2]) <= create_func_tree.cluster_id:
-            query = '>' + fields[0]
-            new_refs[query] = aa_dictionary[query]
-        else:
-            pass
-        line = alignments.readline()
-
-    alignments.close()
-    return new_refs
-
-
-def build_hmm(args, msa_file, hmm_output):
-
-    sys.stdout.write("Building HMM... ")
-    sys.stdout.flush()
-
-    if os.path.isfile(hmm_output):
-        os.remove(hmm_output)
-    command = [args.executables["hmmbuild"], hmm_output, msa_file]
-
-    launch_write_command(command)
-
-    sys.stdout.write("done.\n")
-
-    return
 
 
 def validate_inputs(args, marker_build_dict):
@@ -1679,44 +1577,6 @@ def read_marker_classification_table(assignment_file):
 
     assignments_handle.close()
     return assignments, n_classified
-
-
-def get_new_ref_sequences(args, update_tree):
-    """
-    Function for retrieving the protein sequences from the TreeSAPP hmm-purified outputs
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param update_tree: An instance of CreateFuncTreeUtility class
-    :return: aa_dictionary is a dictionary of fasta sequences with headers as keys and protein sequences as values
-    """
-    logging.info("Retrieving candidate reference sequences... ")
-
-    candidate_fa = update_tree.InputData + os.sep + "final_outputs" + os.sep + update_tree.COG + "_hmm_purified.fasta"
-    aa_dictionary = dict()
-    if os.path.isfile(candidate_fa):
-        candidate_fa_handler = open(candidate_fa, 'r')
-        sequence = ""
-        header = ""
-        line = candidate_fa_handler.readline().strip()
-        while line:
-            if line[0] == '>':
-                if header and sequence:
-                    aa_dictionary[header] = sequence
-                header = line.split('|')[0]
-                sequence = ""
-            else:
-                sequence += line.strip()
-            line = candidate_fa_handler.readline().strip()
-        candidate_fa_handler.close()
-        aa_dictionary[header] = sequence
-    else:
-        logging.error("File necessary for updating the reference tree (" + candidate_fa + ") is missing!\n")
-        sys.exit(3)
-
-    logging.info("done.\n")
-    logging.debug("\t" + str(len(aa_dictionary)) + " candidate " + update_tree.COG + " reference sequences.\n")
-    sys.stdout.flush()
-
-    return aa_dictionary
 
 
 def filter_short_sequences(args, aa_dictionary, length_threshold):

@@ -17,6 +17,7 @@ from . import entrez_utils
 from . import entish
 from . import lca_calculations
 from . import placement_trainer
+from . import update_refpkg
 from .phylo_dist import trim_lineages_to_rank
 from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater,\
     get_header_info, prep_logging
@@ -493,6 +494,7 @@ def update(sys_args):
     ts_updater = Updater()
     ts_updater.furnish_with_arguments(args)
     marker_build_dict = file_parsers.parse_ref_build_params(ts_updater.treesapp_dir, [])
+    # TODO: make the marker_build_dict specific to the target marker
     check_updater_arguments(ts_updater, args, marker_build_dict)
     ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
     ts_updater.ref_pkg.validate()
@@ -505,121 +507,96 @@ def update(sys_args):
     classified_fasta.load_fasta()
     classified_fasta.summarize_fasta_sequences()
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.original_headers())
+    if len(classified_targets) == 0:
+        logging.error("No new candidate reference sequences. Skipping update.\n")
+        return
     classified_fasta.keep_only(classified_targets)
+    hmm_length = utilities.get_hmm_length(ts_updater.ref_pkg.profile)
+    # Use the smaller of the two minimum sequence length or half HMM profile to remove sequence fragments
+    length_threshold = 0.5*hmm_length if args.min_seq_length < 0.5*hmm_length else args.min_seq_length
+    classified_fasta.remove_shorter_than(length_threshold)
+    if classified_fasta.n_seqs() == 0:
+        logging.error("No sequences exceed minimum length threshold " + str(length_threshold) + ". Skipping update.\n")
+        return
 
     ##
     # Add lineages - use taxa if provided with a table mapping contigs to taxa, TreeSAPP-assigned taxonomy otherwise
     ##
-
+    if ts_updater.seq_names_to_taxa:
+        classified_seq_lineage_map = file_parsers.read_seq_taxa_table(ts_updater.seq_names_to_taxa)
+    else:
+        # Begin finding and filtering the new candidate reference sequences
+        classified_lines = file_parsers.read_marker_classification_table(ts_updater.final_output_dir +
+                                                                         "marker_contig_map.tsv")
+        # TODO: Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
+    ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
 
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
     ##
+    ref_fasta = FASTA(ts_updater.ref_pkg.msa)
+    ref_fasta.load_fasta()
+    # TODO: Update the original reference headers using info from the tax_ids file
+    # print(ref_seq_lineage_info)
+    # sys.exit()
+    header_map = {}
+    ref_fasta.swap_headers(header_map)
 
-    #     # Get HMM, sequence, reference build, and taxonomic information for the original sequences
-    #     ref_hmm_file = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
-    #     hmm_length = get_hmm_length(ref_hmm_file)
-    #     unaligned_ref_seqs = get_reference_sequence_dict(args, update_tree)
-    #     # read_species_translation_files expects the entire marker_build_dict, so we're making a mock one
-    #     ref_organism_lineage_info = read_species_translation_files(args, {ref_marker.denominator: ref_marker})
-    #
-    #     # Set up the output directories
-    #     time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
-    #     project_folder = update_tree.Output + str(time_of_run) + os.sep
-    #     raxml_destination_folder = project_folder + "phy_files_%s" % update_tree.COG
-    #     final_tree_dir = project_folder + "tree_data" + os.sep
-    #     alignment_files_dir = project_folder + "alignment_data" + os.sep
-    #     hmm_files_dir = project_folder + "hmm_data" + os.sep
-    #     classification_table = update_tree.InputData + os.sep + "final_outputs" + os.sep + "marker_contig_map.tsv"
-    #     os.makedirs(project_folder)
-    #     os.makedirs(final_tree_dir)
-    #     os.makedirs(alignment_files_dir)
-    #     os.makedirs(hmm_files_dir)
-    #
-    #     # Begin finding and filtering the new candidate reference sequences
-    #     aa_dictionary = get_new_ref_sequences(args, update_tree)
-    #     assignments, n_classified = read_marker_classification_table(classification_table)
-    #     if len(aa_dictionary) == 0:
-    #         sys.stderr.write("WARNING: No new " + update_tree.COG + " sequences. Skipping update.\n")
-    #         return
-    #     if n_classified == 0 or update_tree.COG not in assignments.keys():
-    #         sys.stderr.write("WARNING: No " + update_tree.COG + " sequences were classified. Skipping update.\n")
-    #         return
-    #     aa_dictionary = filter_short_sequences(args, aa_dictionary, 0.5 * hmm_length)
-    #     if not aa_dictionary:
-    #         return
-    #     new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
-    #                          "_" + update_tree.COG + "_unaligned.fasta"
-    #     # Write only the sequences that have been properly classified
-    #     write_new_fasta(aa_dictionary, new_ref_seqs_fasta, None, list(assignments[update_tree.COG].keys()))
-    #     # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
-    #     ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
-    #     # Get the sequences that pass the similarity threshold
-    #     new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary, update_tree)
-    #     write_new_fasta(new_refs, new_ref_seqs_fasta)
-    #     if args.uclust and len(new_refs.keys()) > 1:
-    #         cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
-    #         centroids_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
-    #     else:
-    #         if len(aa_dictionary) == 1 and args.uclust:
-    #             sys.stderr.write("WARNING: Not clustering new " + update_tree.COG + " since there is 1 sequence\n")
-    #             sys.stderr.flush()
-    #         centroids_fasta = new_ref_seqs_fasta
-    #
-    #     # The candidate set has been finalized. Begin rebuilding!
-    #     update_tree.load_new_refs_fasta(args, centroids_fasta, ref_organism_lineage_info)
-    #     aligned_fasta = update_tree.align_multiple_sequences(unaligned_ref_seqs, args)
-    #     trimal_file = trim_multiple_alignment(args.executables["BMGE.jar"], aligned_fasta, update_tree.marker_molecule)
-    #
-    #     shutil.move(trimal_file, alignment_files_dir + update_tree.COG + ".fa")
-    #     aligned_fasta = alignment_files_dir + update_tree.COG + ".fa"
-    #     update_tree.update_tax_ids(args, ref_organism_lineage_info, assignments)
-    #
-    #     new_hmm_file = update_tree.Output + os.sep + update_tree.COG + ".hmm"
-    #     build_hmm(args, alignment_files_dir + update_tree.COG + ".fa", new_hmm_file)
-    #     new_hmm_length = get_hmm_length(new_hmm_file)
-    #     logging.debug("\tOld HMM length = " + str(hmm_length) + "\n" +
-    #                   "\tNew HMM length = " + str(new_hmm_length) + "\n")
-    #
-    #     os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % aligned_fasta)
-    #
-    #     phylip_file = update_tree.Output + "%s.phy" % update_tree.COG
-    #     os.system('mv %s.phylip %s' % (aligned_fasta, phylip_file))
-    #
-    #     update_tree.execute_raxml(phylip_file, raxml_destination_folder, args)
-    #
-    #     # Organize outputs
-    #     shutil.move(new_hmm_file, hmm_files_dir)
-    #     shutil.move(update_tree.Output + "tax_ids_" + update_tree.COG + ".txt", final_tree_dir)
-    #
-    #     best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
-    #     bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitionsBranchLabels." + update_tree.COG
-    #     best_tree_nameswap = final_tree_dir + update_tree.COG + "_tree.txt"
-    #     bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bipartitions.txt"
-    #     update_tree.swap_tree_names(best_tree, best_tree_nameswap)
-    #     update_tree.swap_tree_names(bootstrap_tree, bootstrap_nameswap)
-    #     annotate_partition_tree(update_tree.COG,
-    #                             update_tree.master_reference_index,
-    #                             raxml_destination_folder + os.sep + "RAxML_bipartitions." + update_tree.COG)
-    #
-    #     prefix = update_tree.Output + update_tree.COG
-    #     os.system('mv %s* %s' % (prefix, project_folder))
-    #
-    #     if args.uclust:
-    #         uclust_output_dir = prefix + "_uclust"
-    #         os.system('mkdir %s' % uclust_output_dir)
-    #
-    #         os.system('mv %suclust_* %s' % (update_tree.Output, uclust_output_dir))
-    #         os.system('mv %susearch_* %s' % (update_tree.Output, uclust_output_dir))
-    #
-    #     intermediate_files = [project_folder + update_tree.COG + ".phy",
-    #                           project_folder + update_tree.COG + "_gap_removed.fa",
-    #                           project_folder + update_tree.COG + "_d_aligned.fasta"]
-    #     for useless_file in intermediate_files:
-    #         try:
-    #             os.remove(useless_file)
-    #         except OSError:
-    #             sys.stderr.write("WARNING: unable to remove intermediate file " + useless_file + "\n")
+    # Write only the sequences that have been properly classified
+    write_new_fasta(aa_dictionary, ts_updater.combined_fasta)
+    # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
+    ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
+    # Get the sequences that pass the similarity threshold
+    new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary, update_tree)
+    write_new_fasta(new_refs, new_ref_seqs_fasta)
+    if args.uclust and len(new_refs.keys()) > 1:
+        cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
+        centroids_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
+    else:
+        if len(aa_dictionary) == 1 and args.uclust:
+            sys.stderr.write("WARNING: Not clustering new " + update_tree.COG + " since there is 1 sequence\n")
+            sys.stderr.flush()
+        centroids_fasta = new_ref_seqs_fasta
+
+    ##
+    # Call create to create a new, updated reference package where the new sequences are guaranteed
+    ##
+    create_cmd = ["-i", ts_updater.combined_fasta,
+                  "-c", ts_updater.ref_pkg.prefix,
+                  "-p", tmp_pid,
+                  "--guarantee", old_ref_seqs,
+                  "-o", ts_updater.output_dir,
+                  "--accession2lin", acc2lin,
+                  "--num_procs", str(args.num_threads)]
+    if args.trim_align:
+        create_cmd.append("--trim_align")
+    if args.fast:
+        create_cmd.append("--fast")
+    if args.taxa_lca:
+        create_cmd.append("--taxa_lca")
+    if args.screen:
+        create_cmd += ["--screen", args.screen]
+    if args.filter:
+        create_cmd += ["--filter", args.filter]
+    if args.min_taxonomic_rank:
+        create_cmd += args.min_taxonomic_rank
+    create(create_cmd)
+
+    ##
+    # Summarize some key parts of the new reference package, compared to the old one
+    ##
+    new_hmm_length = utilities.get_hmm_length(new_hmm_file)
+    logging.debug("\tOld HMM length = " + str(hmm_length) + "\n" +
+                  "\tNew HMM length = " + str(new_hmm_length) + "\n")
+
+    intermediate_files = [project_folder + update_tree.COG + ".phy",
+                          project_folder + update_tree.COG + "_gap_removed.fa",
+                          project_folder + update_tree.COG + "_d_aligned.fasta"]
+    for useless_file in intermediate_files:
+        try:
+            os.remove(useless_file)
+        except OSError:
+            sys.stderr.write("WARNING: unable to remove intermediate file " + useless_file + "\n")
 
     return
 

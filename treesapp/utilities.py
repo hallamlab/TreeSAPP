@@ -742,3 +742,27 @@ def match_target_marker(refpkg_name: str, headers: list):
         if classified_target.search(seq_name):
             matches.append(seq_name)
     return matches
+
+
+def get_hmm_length(hmm_file):
+    """
+    Function to open the ref_tree's hmm file and determine its length
+    :param hmm_file: The HMM file produced by hmmbuild to parse for the HMM length
+    :return: The length (int value) of the HMM
+    """
+    try:
+        hmm = open(hmm_file, 'r')
+    except IOError:
+        raise IOError("Unable to open " + hmm_file + " for reading! Exiting.")
+
+    line = hmm.readline()
+    length = 0
+    while line:
+        # LENG XXX
+        if re.match(r"^LENG\s+([0-9]+)", line):
+            length = int(line.split()[1])
+        line = hmm.readline()
+    if length > 0:
+        return length
+    else:
+        raise AssertionError("Unable to parse the HMM length from " + hmm_file + ". Exiting.")

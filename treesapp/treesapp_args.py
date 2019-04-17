@@ -27,6 +27,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.rpkm_opts = self.add_argument_group("RPKM options")
         self.optopt = self.add_argument_group("Optional options")
         self.miscellany = self.add_argument_group("Miscellaneous options")
+        self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
 
         self.miscellany.add_argument("-v", "--verbose", action="store_true", default=False,
                                      help="Prints a more verbose runtime log")
@@ -87,6 +88,28 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                  help="Path to a file that maps sequence accessions to taxonomic lineages, "
                                       "possibly made by `treesapp create`...")
 
+    def add_taxa_args(self):
+        self.taxa_args.add_argument("-s", "--screen",
+                                    help="Keywords for including specific taxa in the tree.\n"
+                                         "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
+                                         "[ DEFAULT is no screen ]",
+                                    default="", required=False)
+        self.taxa_args.add_argument("-f", "--filter",
+                                    help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
+                                         "[ DEFAULT is no filter ]",
+                                    default="", required=False)
+        self.taxa_args.add_argument("-t", "--min_taxonomic_rank",
+                                    required=False, default='k', choices=['k', 'p', 'c', 'o', 'f', 'g', 's'],
+                                    help="The minimum taxonomic lineage resolution for reference sequences [ DEFAULT = k ].\n")
+        self.taxa_args.add_argument("--taxa_lca",
+                                    help="Set taxonomy of representative sequences to LCA of cluster member's taxa.\n"
+                                         "[ --cluster or --uc REQUIRED ]",
+                                    default=False, required=False, action="store_true")
+        self.taxa_args.add_argument("--taxa_norm",
+                                    help="[ IN DEVELOPMENT ] Perform taxonomic normalization on the provided sequences.\n"
+                                         "A comma-separated argument with the Rank (e.g. Phylum) and\n"
+                                         "number of representatives is required.\n")
+
 
 def add_classify_arguments(parser: TreeSAPPArgumentParser):
     """
@@ -135,6 +158,7 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
 def add_create_arguments(parser: TreeSAPPArgumentParser):
     parser.add_io()
     parser.add_seq_params()
+    parser.add_taxa_args()
     parser.add_accession_params()
     parser.add_compute_miscellany()
     # The required parameters
@@ -172,28 +196,6 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                     "REQUIRED if molecule is rRNA!",
                                default=None,
                                required=False)
-
-    taxa_args = parser.add_argument_group("Taxonomic-lineage arguments")
-    taxa_args.add_argument("-s", "--screen",
-                           help="Keywords for including specific taxa in the tree.\n"
-                                "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
-                                "[ DEFAULT is no screen ]",
-                           default="", required=False)
-    taxa_args.add_argument("-f", "--filter",
-                           help="Keywords for removing specific taxa; the opposite of `--screen`.\n"
-                                "[ DEFAULT is no filter ]",
-                           default="", required=False)
-    taxa_args.add_argument("-t", "--min_taxonomic_rank",
-                           required=False, default='k', choices=['k', 'p', 'c', 'o', 'f', 'g', 's'],
-                           help="The minimum taxonomic lineage resolution for reference sequences [ DEFAULT = k ].\n")
-    taxa_args.add_argument("--taxa_lca",
-                           help="Set taxonomy of representative sequences to LCA of cluster member's taxa.\n"
-                                "[ --cluster or --uc REQUIRED ]",
-                           default=False, required=False, action="store_true")
-    taxa_args.add_argument("--taxa_norm",
-                           help="[ IN DEVELOPMENT ] Perform taxonomic normalization on the provided sequences.\n"
-                                "A comma-separated argument with the Rank (e.g. Phylum) and\n"
-                                "number of representatives is required.\n")
 
     parser.optopt.add_argument("-b", "--bootstraps",
                                help="The number of bootstrap replicates RAxML should perform\n"
@@ -258,11 +260,12 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
 def add_update_arguments(parser: TreeSAPPArgumentParser):
     parser.add_io()
     parser.add_seq_params()
+    parser.add_taxa_args()
     parser.add_compute_miscellany()
     parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
                              help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
                                   "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
-    parser.reqs.add_argument("-t", "--treesapp_output", dest="ts_out", required=True,
+    parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
     parser.optopt.add_argument("-a", "--seqs2taxa", dest="seq_names_to_taxa", required=False, default=None,
@@ -271,6 +274,8 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
                                help="Cluster sequences that mapped to the reference tree prior to updating")
     parser.seqops.add_argument("-p", "--identity", required=False, type=float,
                                help="Fractional similarity (between 0.50 and 1.0) to cluster sequences.")
+    parser.miscellany.add_argument("--headless", action="store_true", default=False,
+                                   help="Do not require any user input during runtime.")
 
 
 def add_trainer_arguments(parser: TreeSAPPArgumentParser):

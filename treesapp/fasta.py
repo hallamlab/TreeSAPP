@@ -108,6 +108,9 @@ class FASTA:
                       "And example names from the FASTA dict:\n\t" + "\n\t".join(self.fasta_dict.keys())[0:6] + "\n")
         sys.exit(3)
 
+    def n_seqs(self):
+        return len(self.fasta_dict.keys())
+
     def original_headers(self):
         return [self.header_registry[index].original for index in self.header_registry]
 
@@ -122,8 +125,22 @@ class FASTA:
         if len(pruned_fasta_dict) == 0:
             self.mapping_error(header_subset)
         self.fasta_dict = pruned_fasta_dict
+        self.synchronize_seqs_n_headers()
         if unmapped >= 1:
             logging.warning(str(unmapped) + " sequences were not mapped to FASTA dictionary.\n")
+        return
+
+    def remove_shorter_than(self, min_len: int):
+        long_seqs = list()
+        dropped = 0
+        for seq_name in self.fasta_dict:
+            if len(self.fasta_dict[seq_name]) > min_len:
+                long_seqs.append(seq_name)
+            else:
+                dropped += 1
+        if dropped >= 1:
+            logging.debug(str(dropped) + " sequences were found to be shorter than " + str(min_len) + " and removed.\n")
+        self.keep_only(long_seqs)
         return
 
     def change_dict_keys(self, repl="original"):
