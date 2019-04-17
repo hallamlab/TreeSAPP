@@ -519,7 +519,7 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
                 logging.error("--identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
                 sys.exit(13)
 
-    if not os.path.isfile(updater.seq_names_to_taxa):
+    if updater.seq_names_to_taxa and not os.path.isfile(updater.seq_names_to_taxa):
         logging.error("Unable to find file mapping sequence names to taxonomic lineages '" +
                       updater.seq_names_to_taxa + "'.\n")
 
@@ -529,7 +529,7 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
     updater.treesapp_output = args.ts_out
     if updater.treesapp_output[-1] != os.sep:
         updater.treesapp_output += os.sep
-    updater.final_output_dir = args.treesapp_output + "final_outputs" + os.sep
-    updater.var_output_dir = args.treesapp_output + "intermediates" + os.sep
+    updater.final_output_dir = updater.treesapp_output + "final_outputs" + os.sep
+    updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
 
     return

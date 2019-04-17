@@ -494,26 +494,28 @@ def update(sys_args):
     ts_updater.furnish_with_arguments(args)
     marker_build_dict = file_parsers.parse_ref_build_params(ts_updater.treesapp_dir, [])
     check_updater_arguments(ts_updater, args, marker_build_dict)
-    ts_updater.ref_pkg.gather_package_files()
+    ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
     ts_updater.ref_pkg.validate()
 
     ##
     # Pull out sequences from TreeSAPP output
     ##
+    classified_fasta_file = ts_updater.final_output_dir + ts_updater.sample_prefix + "_classified.faa"
+    classified_fasta = FASTA(classified_fasta_file)
+    classified_fasta.load_fasta()
+    classified_fasta.summarize_fasta_sequences()
+    classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.original_headers())
+    classified_fasta.keep_only(classified_targets)
 
     ##
     # Add lineages - use taxa if provided with a table mapping contigs to taxa, TreeSAPP-assigned taxonomy otherwise
     ##
 
+
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
     ##
-    #
-    # def update_func_tree_workflow(args, ref_marker: MarkerBuild):
-    #
-    #     # Load information essential to updating the reference data into a CreateFuncTreeUtility class object
-    #     update_tree = CreateFuncTreeUtility(args.output, ref_marker.denominator)
-    #
+
     #     # Get HMM, sequence, reference build, and taxonomic information for the original sequences
     #     ref_hmm_file = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
     #     hmm_length = get_hmm_length(ref_hmm_file)

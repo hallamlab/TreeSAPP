@@ -102,6 +102,30 @@ class FASTA:
             logging.error("FASTA file '" + str(self.file) + "' is empty or corrupted - no sequences were found!\n")
             sys.exit(3)
 
+    def mapping_error(self, bad_headers):
+        logging.error("No sequences were mapped in to '" + self.file + "' FASTA dictionary.\n" +
+                      "Here are some example names from the mapping list:\n\t" + "\n\t".join(bad_headers[0:6]) + "\n" +
+                      "And example names from the FASTA dict:\n\t" + "\n\t".join(self.fasta_dict.keys())[0:6] + "\n")
+        sys.exit(3)
+
+    def original_headers(self):
+        return [self.header_registry[index].original for index in self.header_registry]
+
+    def keep_only(self, header_subset):
+        pruned_fasta_dict = dict()
+        unmapped = 0
+        for seq_name in header_subset:
+            try:
+                pruned_fasta_dict[seq_name] = self.fasta_dict[seq_name]
+            except KeyError:
+                unmapped += 1
+        if len(pruned_fasta_dict) == 0:
+            self.mapping_error(header_subset)
+        self.fasta_dict = pruned_fasta_dict
+        if unmapped >= 1:
+            logging.warning(str(unmapped) + " sequences were not mapped to FASTA dictionary.\n")
+        return
+
     def change_dict_keys(self, repl="original"):
         repl_fasta_dict = dict()
         for acc in sorted(self.header_registry, key=int):
