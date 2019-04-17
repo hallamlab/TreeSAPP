@@ -1531,10 +1531,10 @@ class Assigner(TreeSAPP):
         """
         super(Assigner, self).__init__("assign")
         self.reference_tree = None
-        self.aa_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.faa"
-        self.nuc_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.fna"
-        self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
-        self.classified_nuc_seqs = self.final_output_dir + self.sample_prefix + "_classified.fna"
+        self.aa_orfs_file = ""
+        self.nuc_orfs_file = ""
+        self.classified_aa_seqs = ""
+        self.classified_nuc_seqs = ""
         self.composition = ""
         self.target_refpkgs = list()
 

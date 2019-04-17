@@ -393,26 +393,31 @@ def check_trainer_arguments(trainer_instance: PhyTrainer, args, marker_build_dic
     return
 
 
-def check_classify_arguments(assigner_instance: Assigner, args):
+def check_classify_arguments(assigner: Assigner, args):
     """
     Ensures the command-line arguments returned by argparse are sensible
-    :param assigner_instance: An instantiated Assigner object
+    :param assigner: An instantiated Assigner object
     :param args: object with parameters returned by argparse.parse_args()
     :return: 'args', a summary of TreeSAPP settings.
     """
+    assigner.aa_orfs_file = assigner.final_output_dir + assigner.sample_prefix + "_ORFs.faa"
+    assigner.nuc_orfs_file = assigner.final_output_dir + assigner.sample_prefix + "_ORFs.fna"
+    assigner.classified_aa_seqs = assigner.final_output_dir + assigner.sample_prefix + "_classified.faa"
+    assigner.classified_nuc_seqs = assigner.final_output_dir + assigner.sample_prefix + "_classified.fna"
+    
     if args.targets:
-        assigner_instance.target_refpkgs = args.targets.split(',')
-        for marker in assigner_instance.target_refpkgs:
-            if not assigner_instance.refpkg_code_re.match(marker):
+        assigner.target_refpkgs = args.targets.split(',')
+        for marker in assigner.target_refpkgs:
+            if not assigner.refpkg_code_re.match(marker):
                 logging.error("Incorrect format for target: " + str(marker) +
-                              "\nRefer to column 'Denominator' in " + assigner_instance.treesapp_dir +
+                              "\nRefer to column 'Denominator' in " + assigner.treesapp_dir +
                               "data/ref_build_parameters.tsv for identifiers that can be used.\n")
                 sys.exit(3)
     else:
-        assigner_instance.target_refpkgs = []
+        assigner.target_refpkgs = []
 
     if args.molecule == "prot":
-        assigner_instance.change_stage_status("orf-call", False)
+        assigner.change_stage_status("orf-call", False)
         if args.rpkm:
             logging.error("Unable to calculate RPKM values for protein sequences.\n")
             sys.exit(3)

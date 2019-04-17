@@ -211,6 +211,15 @@ class FASTA:
         return
 
 
+def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
+    merged_extracted_seq_dict = dict()
+    for marker in extracted_seq_dict:
+        for bin_num in extracted_seq_dict[marker]:
+            for i in extracted_seq_dict[marker][bin_num]:
+                merged_extracted_seq_dict[numeric_contig_index[marker][i]] = extracted_seq_dict[marker][bin_num][i]
+    return merged_extracted_seq_dict
+
+
 def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
     """
     Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
@@ -223,13 +232,18 @@ def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
     # >contig_name|marker_gene
 
     output_fasta_string = ""
+    prefix = ''  # For adding a '>' if the formatted_fasta_dict sequences have them
+    for seq_name in formatted_fasta_dict:
+        if seq_name[0] == '>':
+            prefix = '>'
+        break
 
     for denominator in tree_saps:
         for placed_sequence in tree_saps[denominator]:
             if placed_sequence.classified:
                 try:
                     output_fasta_string += '>' + placed_sequence.contig_name + '|' + placed_sequence.name + "\n"
-                    output_fasta_string += formatted_fasta_dict['>' + placed_sequence.contig_name] + "\n"
+                    output_fasta_string += formatted_fasta_dict[prefix + placed_sequence.contig_name] + "\n"
                 except KeyError:
                     logging.error("Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n" +
                                   "Example headers in the predicted ORFs file:\n\t" +

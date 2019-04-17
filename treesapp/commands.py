@@ -7,7 +7,7 @@ import shutil
 from random import randint
 from . import file_parsers
 from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, get_headers,\
-    read_fasta_to_dict, register_headers, write_classified_sequences, FASTA
+    read_fasta_to_dict, register_headers, write_classified_sequences, FASTA, merge_fasta_dicts_by_index
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
     check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, check_updater_arguments
@@ -710,8 +710,9 @@ def assign(sys_args):
     if ts_assign.stage_status("classify"):
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, ts_assign.tree_dir, marker_build_dict)
         tree_saps = filter_placements(tree_saps, marker_build_dict, ts_assign.tree_dir, args.min_likelihood)
-        # TODO: Write a FASTA file containing the classified sequences
-        # write_classified_sequences(tree_saps, nuc_orfs_formatted_dict, ts_assign.classified_aa_seqs)
+        # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
+        extracted_seq_dict = merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
+        write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         if args.molecule == "dna":
             if not os.path.isfile(ts_assign.classified_nuc_seqs):
