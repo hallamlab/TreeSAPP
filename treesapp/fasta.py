@@ -211,6 +211,44 @@ class FASTA:
         return
 
 
+def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
+    """
+    Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
+    :param tree_saps: A dictionary of gene_codes as keys and TreeSap objects as values
+    :param formatted_fasta_dict: A dictionary with headers/sequence names as keys and sequences as values
+    :param fasta_file: Path to a file to write the sequences to in FASTA format
+    :return: None
+    """
+    # Header format:
+    # >contig_name|marker_gene
+
+    output_fasta_string = ""
+
+    for denominator in tree_saps:
+        for placed_sequence in tree_saps[denominator]:
+            if placed_sequence.classified:
+                try:
+                    output_fasta_string += '>' + placed_sequence.contig_name + '|' + placed_sequence.name + "\n"
+                    output_fasta_string += formatted_fasta_dict['>' + placed_sequence.contig_name] + "\n"
+                except KeyError:
+                    logging.error("Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n" +
+                                  "Example headers in the predicted ORFs file:\n\t" +
+                                  '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
+                    sys.exit(3)
+
+    if output_fasta_string:
+        try:
+            fna_output = open(fasta_file, 'w')
+        except IOError:
+            logging.error("Unable to open " + fasta_file + " for writing!")
+            sys.exit(3)
+
+        fna_output.write(output_fasta_string)
+        fna_output.close()
+
+    return
+
+
 def format_read_fasta(fasta_input, molecule, output_dir, max_header_length=110, min_seq_length=10):
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid.

@@ -1164,6 +1164,31 @@ class TreeSAPP:
         return exec_paths
 
 
+class Updater(TreeSAPP):
+    def __init__(self):
+        super(Updater, self).__init__("update")
+        self.ref_pkg = ReferencePackage()
+        self.seq_names_to_taxa = ""
+        self.treesapp_output = ""
+        self.target_marker = None
+
+        # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
+        self.stages = {0: ModuleFunction("search", 0),
+                       1: ModuleFunction("lineages", 1),
+                       2: ModuleFunction("rebuild", 2)}
+
+    def get_info(self):
+        info_string = "Updater instance summary:\n"
+        info_string += super(Updater, self).get_info() + "\n\t"
+        info_string += "\n\t".join(["Target reference packages = " + str(self.ref_pkg.prefix),
+                                    "Taxonomy map: " + self.ref_pkg.lineage_ids,
+                                    "Reference tree: " + self.ref_pkg.tree,
+                                    "Reference FASTA: " + self.ref_pkg.msa,
+                                    "Lineage map: " + str(self.seq_names_to_taxa)]) + "\n"
+
+        return info_string
+
+
 class Creator(TreeSAPP):
     def __init__(self):
         super(Creator, self).__init__("create")
@@ -1508,6 +1533,8 @@ class Assigner(TreeSAPP):
         self.reference_tree = None
         self.aa_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.faa"
         self.nuc_orfs_file = self.final_output_dir + self.sample_prefix + "_ORFs.fna"
+        self.classified_aa_seqs = self.final_output_dir + self.sample_prefix + "_classified.faa"
+        self.classified_nuc_seqs = self.final_output_dir + self.sample_prefix + "_classified.fna"
         self.composition = ""
         self.target_refpkgs = list()
 

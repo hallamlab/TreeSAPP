@@ -3,7 +3,7 @@ import os
 import sys
 import re
 import logging
-from .classy import Assigner, Evaluator, Creator, PhyTrainer
+from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater
 from .utilities import available_cpu_count, check_previous_output, get_refpkg_build
 
 
@@ -256,8 +256,21 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
 
 
 def add_update_arguments(parser: TreeSAPPArgumentParser):
-    parser.optopt.add_argument("--cluster", required=False, default=False, action="store_true",
+    parser.add_io()
+    parser.add_seq_params()
+    parser.add_compute_miscellany()
+    parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
+                             help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
+                                  "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
+    parser.reqs.add_argument("-t", "--treesapp_output", dest="ts_out", required=True,
+                             help="Path to the directory containing TreeSAPP outputs, "
+                                  "including sequences to be used for the update.")
+    parser.optopt.add_argument("-a", "--seqs2taxa", dest="seq_names_to_taxa", required=False, default=None,
+                               help="Path to a file mapping sequence names (i.e. contig headers) to taxonomic lineages")
+    parser.seqops.add_argument("--cluster", required=False, default=False, action="store_true",
                                help="Cluster sequences that mapped to the reference tree prior to updating")
+    parser.seqops.add_argument("-p", "--identity", required=False, type=float,
+                               help="Fractional similarity (between 0.50 and 1.0) to cluster sequences.")
 
 
 def add_trainer_arguments(parser: TreeSAPPArgumentParser):
@@ -426,7 +439,7 @@ def check_classify_arguments(assigner_instance: Assigner, args):
 def check_create_arguments(creator: Creator, args):
     creator.ref_pkg.prefix = args.refpkg_name
     if not args.output:
-        args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg"
+        args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
 
     # Names of files and directories to be created
     creator.phy_dir = creator.var_output_dir + "phylogeny_files" + os.sep
@@ -486,3 +499,32 @@ def check_create_arguments(creator: Creator, args):
 
     return
 
+
+def check_updater_arguments(updater: Updater, args, marker_build_dict):
+    updater.ref_pkg.prefix = args.name
+    updater.seq_names_to_taxa = args.seq_names_to_taxa
+    updater.target_marker = get_refpkg_build(updater.ref_pkg.prefix, marker_build_dict, updater.refpkg_code_re)
+
+    if args.cluster:
+        if not 0.5 <= float(args.identity) <= 1.0:
+            if 0.5 < float(args.identity)/100 < 1.0:
+                args.identity = str(float(args.identity)/100)
+                logging.warning("--identity  set to " + args.identity + " for compatibility with USEARCH \n")
+            else:
+                logging.error("--identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+                sys.exit(13)
+
+    if not os.path.isfile(updater.seq_names_to_taxa):
+        logging.error("Unable to find file mapping sequence names to taxonomic lineages '" +
+                      updater.seq_names_to_taxa + "'.\n")
+
+    # TODO: Write a TreeSAPP function for validating outputs
+
+    # Reset these values to reflect the paths for the TreeSAPP output that will be parsed
+    updater.treesapp_output = args.ts_out
+    if updater.treesapp_output[-1] != os.sep:
+        updater.treesapp_output += os.sep
+    updater.final_output_dir = args.treesapp_output + "final_outputs" + os.sep
+    updater.var_output_dir = args.treesapp_output + "intermediates" + os.sep
+
+    return

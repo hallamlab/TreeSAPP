@@ -7,10 +7,10 @@ import shutil
 from random import randint
 from . import file_parsers
 from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, get_headers,\
-    read_fasta_to_dict, register_headers, FASTA
+    read_fasta_to_dict, register_headers, write_classified_sequences, FASTA
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
-    check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments
+    check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, check_updater_arguments
 from . import utilities
 from . import wrapper
 from . import entrez_utils
@@ -18,15 +18,14 @@ from . import entish
 from . import lca_calculations
 from . import placement_trainer
 from .phylo_dist import trim_lineages_to_rank
-from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer,\
+from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater,\
     get_header_info, prep_logging
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, filter_multiple_alignments, check_for_removed_sequences,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
-    write_classified_nuc_sequences, summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs,\
-    update_func_tree_workflow
+    summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs
 from .jplace_utils import sub_indices_for_seq_names_jplace
 from .clade_exclusion_evaluator import load_ref_seqs, pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -481,6 +480,148 @@ def create(sys_args):
     return
 
 
+def update(sys_args):
+    parser = TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with newly identified sequences.')
+    add_update_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
+    prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
+
+    check_parser_arguments(args, sys_args)
+    ts_updater = Updater()
+    ts_updater.furnish_with_arguments(args)
+    marker_build_dict = file_parsers.parse_ref_build_params(ts_updater.treesapp_dir, [])
+    check_updater_arguments(ts_updater, args, marker_build_dict)
+    ts_updater.ref_pkg.gather_package_files()
+    ts_updater.ref_pkg.validate()
+
+    ##
+    # Pull out sequences from TreeSAPP output
+    ##
+
+    ##
+    # Add lineages - use taxa if provided with a table mapping contigs to taxa, TreeSAPP-assigned taxonomy otherwise
+    ##
+
+    ##
+    # Call create to create a new, updated reference package where the new sequences are guaranteed
+    ##
+    #
+    # def update_func_tree_workflow(args, ref_marker: MarkerBuild):
+    #
+    #     # Load information essential to updating the reference data into a CreateFuncTreeUtility class object
+    #     update_tree = CreateFuncTreeUtility(args.output, ref_marker.denominator)
+    #
+    #     # Get HMM, sequence, reference build, and taxonomic information for the original sequences
+    #     ref_hmm_file = args.treesapp + os.sep + 'data' + os.sep + "hmm_data" + os.sep + update_tree.COG + ".hmm"
+    #     hmm_length = get_hmm_length(ref_hmm_file)
+    #     unaligned_ref_seqs = get_reference_sequence_dict(args, update_tree)
+    #     # read_species_translation_files expects the entire marker_build_dict, so we're making a mock one
+    #     ref_organism_lineage_info = read_species_translation_files(args, {ref_marker.denominator: ref_marker})
+    #
+    #     # Set up the output directories
+    #     time_of_run = strftime("%d_%b_%Y_%H_%M", gmtime())
+    #     project_folder = update_tree.Output + str(time_of_run) + os.sep
+    #     raxml_destination_folder = project_folder + "phy_files_%s" % update_tree.COG
+    #     final_tree_dir = project_folder + "tree_data" + os.sep
+    #     alignment_files_dir = project_folder + "alignment_data" + os.sep
+    #     hmm_files_dir = project_folder + "hmm_data" + os.sep
+    #     classification_table = update_tree.InputData + os.sep + "final_outputs" + os.sep + "marker_contig_map.tsv"
+    #     os.makedirs(project_folder)
+    #     os.makedirs(final_tree_dir)
+    #     os.makedirs(alignment_files_dir)
+    #     os.makedirs(hmm_files_dir)
+    #
+    #     # Begin finding and filtering the new candidate reference sequences
+    #     aa_dictionary = get_new_ref_sequences(args, update_tree)
+    #     assignments, n_classified = read_marker_classification_table(classification_table)
+    #     if len(aa_dictionary) == 0:
+    #         sys.stderr.write("WARNING: No new " + update_tree.COG + " sequences. Skipping update.\n")
+    #         return
+    #     if n_classified == 0 or update_tree.COG not in assignments.keys():
+    #         sys.stderr.write("WARNING: No " + update_tree.COG + " sequences were classified. Skipping update.\n")
+    #         return
+    #     aa_dictionary = filter_short_sequences(args, aa_dictionary, 0.5 * hmm_length)
+    #     if not aa_dictionary:
+    #         return
+    #     new_ref_seqs_fasta = update_tree.Output + os.path.basename(update_tree.InputData) + \
+    #                          "_" + update_tree.COG + "_unaligned.fasta"
+    #     # Write only the sequences that have been properly classified
+    #     write_new_fasta(aa_dictionary, new_ref_seqs_fasta, None, list(assignments[update_tree.COG].keys()))
+    #     # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
+    #     ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
+    #     # Get the sequences that pass the similarity threshold
+    #     new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary, update_tree)
+    #     write_new_fasta(new_refs, new_ref_seqs_fasta)
+    #     if args.uclust and len(new_refs.keys()) > 1:
+    #         cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
+    #         centroids_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
+    #     else:
+    #         if len(aa_dictionary) == 1 and args.uclust:
+    #             sys.stderr.write("WARNING: Not clustering new " + update_tree.COG + " since there is 1 sequence\n")
+    #             sys.stderr.flush()
+    #         centroids_fasta = new_ref_seqs_fasta
+    #
+    #     # The candidate set has been finalized. Begin rebuilding!
+    #     update_tree.load_new_refs_fasta(args, centroids_fasta, ref_organism_lineage_info)
+    #     aligned_fasta = update_tree.align_multiple_sequences(unaligned_ref_seqs, args)
+    #     trimal_file = trim_multiple_alignment(args.executables["BMGE.jar"], aligned_fasta, update_tree.marker_molecule)
+    #
+    #     shutil.move(trimal_file, alignment_files_dir + update_tree.COG + ".fa")
+    #     aligned_fasta = alignment_files_dir + update_tree.COG + ".fa"
+    #     update_tree.update_tax_ids(args, ref_organism_lineage_info, assignments)
+    #
+    #     new_hmm_file = update_tree.Output + os.sep + update_tree.COG + ".hmm"
+    #     build_hmm(args, alignment_files_dir + update_tree.COG + ".fa", new_hmm_file)
+    #     new_hmm_length = get_hmm_length(new_hmm_file)
+    #     logging.debug("\tOld HMM length = " + str(hmm_length) + "\n" +
+    #                   "\tNew HMM length = " + str(new_hmm_length) + "\n")
+    #
+    #     os.system('java -cp sub_binaries/readseq.jar run -a -f=12 %s' % aligned_fasta)
+    #
+    #     phylip_file = update_tree.Output + "%s.phy" % update_tree.COG
+    #     os.system('mv %s.phylip %s' % (aligned_fasta, phylip_file))
+    #
+    #     update_tree.execute_raxml(phylip_file, raxml_destination_folder, args)
+    #
+    #     # Organize outputs
+    #     shutil.move(new_hmm_file, hmm_files_dir)
+    #     shutil.move(update_tree.Output + "tax_ids_" + update_tree.COG + ".txt", final_tree_dir)
+    #
+    #     best_tree = raxml_destination_folder + "/RAxML_bestTree." + update_tree.COG
+    #     bootstrap_tree = raxml_destination_folder + "/RAxML_bipartitionsBranchLabels." + update_tree.COG
+    #     best_tree_nameswap = final_tree_dir + update_tree.COG + "_tree.txt"
+    #     bootstrap_nameswap = final_tree_dir + update_tree.COG + "_bipartitions.txt"
+    #     update_tree.swap_tree_names(best_tree, best_tree_nameswap)
+    #     update_tree.swap_tree_names(bootstrap_tree, bootstrap_nameswap)
+    #     annotate_partition_tree(update_tree.COG,
+    #                             update_tree.master_reference_index,
+    #                             raxml_destination_folder + os.sep + "RAxML_bipartitions." + update_tree.COG)
+    #
+    #     prefix = update_tree.Output + update_tree.COG
+    #     os.system('mv %s* %s' % (prefix, project_folder))
+    #
+    #     if args.uclust:
+    #         uclust_output_dir = prefix + "_uclust"
+    #         os.system('mkdir %s' % uclust_output_dir)
+    #
+    #         os.system('mv %suclust_* %s' % (update_tree.Output, uclust_output_dir))
+    #         os.system('mv %susearch_* %s' % (update_tree.Output, uclust_output_dir))
+    #
+    #     intermediate_files = [project_folder + update_tree.COG + ".phy",
+    #                           project_folder + update_tree.COG + "_gap_removed.fa",
+    #                           project_folder + update_tree.COG + "_d_aligned.fasta"]
+    #     for useless_file in intermediate_files:
+    #         try:
+    #             os.remove(useless_file)
+    #         except OSError:
+    #             sys.stderr.write("WARNING: unable to remove intermediate file " + useless_file + "\n")
+
+    return
+
+
 def assign(sys_args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
     parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
@@ -569,22 +710,23 @@ def assign(sys_args):
     if ts_assign.stage_status("classify"):
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, ts_assign.tree_dir, marker_build_dict)
         tree_saps = filter_placements(tree_saps, marker_build_dict, ts_assign.tree_dir, args.min_likelihood)
-
+        # TODO: Write a FASTA file containing the classified sequences
+        # write_classified_sequences(tree_saps, nuc_orfs_formatted_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         if args.molecule == "dna":
-            orf_nuc_fasta = ts_assign.final_output_dir + ts_assign.sample_prefix + "_classified_seqs.fna"
-            if not os.path.isfile(orf_nuc_fasta):
-                logging.info("Creating nucleotide FASTA file of classified sequences '" + orf_nuc_fasta + "'... ")
+            if not os.path.isfile(ts_assign.classified_nuc_seqs):
+                logging.info("Creating nucleotide FASTA file of classified sequences '" +
+                             ts_assign.classified_nuc_seqs + "'... ")
                 if os.path.isfile(ts_assign.nuc_orfs_file):
                     nuc_orfs_formatted_dict = format_read_fasta(ts_assign.nuc_orfs_file, 'dna', args.output)
-                    write_classified_nuc_sequences(tree_saps, nuc_orfs_formatted_dict, orf_nuc_fasta)
+                    write_classified_sequences(tree_saps, nuc_orfs_formatted_dict, ts_assign.classified_nuc_seqs)
                     logging.info("done.\n")
                 else:
                     logging.info("failed.\nWARNING: Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
                                  "Cannot create the nucleotide FASTA file of classified sequences!\n")
             if args.rpkm:
-                sam_file = align_reads_to_nucs(args, orf_nuc_fasta)
-                rpkm_output_file = run_rpkm(args, sam_file, orf_nuc_fasta)
+                sam_file = align_reads_to_nucs(args, ts_assign.classified_nuc_seqs)
+                rpkm_output_file = run_rpkm(args, sam_file, ts_assign.classified_nuc_seqs)
                 abundance_dict = file_parsers.read_rpkm(rpkm_output_file)
                 summarize_placements_rpkm(args, abundance_dict, marker_build_dict)
         else:
@@ -603,7 +745,17 @@ def assign(sys_args):
     ##
     if "update" in ts_assign.stages and ts_assign.stage_status("update"):
         for marker_code in args.targets:
-            update_func_tree_workflow(args, marker_build_dict[marker_code])
+            update_args = ["-i", ts_assign.input_sequences,
+                           "-c", marker_code,
+                           "-t", ts_assign.output_dir,
+                           "-o", ts_assign.output_dir + marker_code + "_update" + os.sep,
+                           "-m", ts_assign.molecule_type,
+                           "-n", str(args.num_threads)]
+            if args.cluster:
+                update_args.append("--cluster")
+            if args.trim_align:
+                update_args.append("--trim_align")
+            update(update_args)
 
     delete_files(args.delete, ts_assign.var_output_dir, 5)
 
@@ -864,13 +1016,4 @@ def evaluate(sys_args):
         containment_strings = determine_containment(ts_evaluate)
         ts_evaluate.write_containment_table(containment_strings, args.tool)
 
-    return
-
-
-def update(sys_args):
-    parser = TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with newly identified sequences.')
-    add_update_arguments(parser)
-    args = parser.parse_args(sys_args)
-
-    check_parser_arguments(args, sys_args)
     return
