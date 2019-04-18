@@ -122,7 +122,7 @@ def train(sys_args):
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
     # Get the lineage information for the training/query sequences
-    fasta_record_objects = get_header_info(ref_seqs.header_registry)
+    fasta_record_objects = get_header_info(ref_seqs.header_registry, ts_trainer.ref_pkg.prefix)
     fasta_record_objects = load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, fasta_record_objects)
     entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
 
@@ -206,6 +206,7 @@ def create(sys_args):
     ts_create = Creator()
     ts_create.furnish_with_arguments(args)
     check_create_arguments(ts_create, args)
+    # TODO: If all of the sequences are mapped to in the provided acc_to_lin, change staus of lineages to False
     ts_create.validate_continue(args)
 
     # Gather all the final TreeSAPP reference files
@@ -255,6 +256,12 @@ def create(sys_args):
     if args.guarantee:
         ref_seqs.update(args.guarantee)
 
+    # TODO: Allow for unaccessioned sequences (such as those from update) to be used
+    ##
+    # Save all sequence names in the header registry as EntrezRecord instances
+    # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
+    # Proceed with creating the Entrez-queries for sequences lacking lineage information
+    ##
     fasta_record_objects = get_header_info(ref_seqs.header_registry, ts_create.ref_pkg.prefix)
     fasta_record_objects = load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, fasta_record_objects)
     entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
@@ -275,10 +282,6 @@ def create(sys_args):
                                                                                               num_lineages_provided)
         entrez_utils.write_accession_lineage_map(ts_create.acc_to_lin, accession_lineage_map)
         # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
-    else:
-        logging.info("Reading cached lineages in '" + ts_create.acc_to_lin + "'... ")
-        accession_lineage_map = entrez_utils.read_accession_taxa_map(ts_create.acc_to_lin)
-        logging.info("done.\n")
     create_refpkg.finalize_ref_seq_lineages(fasta_record_objects, accession_lineage_map)
 
     if ts_create.stage_status("clean"):
@@ -536,7 +539,8 @@ def update(sys_args):
                     classified_seq_lineage_map[seq_name] = lineage
     ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
-    classified_seq_lineage_map.update({leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.lineage for
+    ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)
+    classified_seq_lineage_map.update({ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix]: leaf.lineage for
                                        leaf in ref_seq_lineage_info})
     update_refpkg.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
 
@@ -630,7 +634,7 @@ def assign(sys_args):
         ts_assign.predict_orfs(args.composition, args.num_threads)
     else:
         ts_assign.orf_file = ts_assign.input_sequences
-
+    # TODO: Use a FASTA instance to track headers and filtering - use original ORF name in the outputs, not formatted
     if ts_assign.stage_status("clean"):
         logging.info("Formatting " + ts_assign.input_sequences + " for pipeline... ")
         formatted_fasta_dict = format_read_fasta(ts_assign.input_sequences, "prot", ts_assign.output_dir)

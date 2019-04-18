@@ -5,6 +5,7 @@ import re
 import logging
 from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater
 from .utilities import available_cpu_count, check_previous_output, get_refpkg_build
+from .entrez_utils import read_accession_taxa_map
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -453,9 +454,20 @@ def check_create_arguments(creator: Creator, args):
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
 
+    if args.acc_to_lin:
+        creator.acc_to_lin = args.acc_to_lin
+    else:
+        creator.acc_to_lin = creator.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+    if os.path.isfile(creator.acc_to_lin):
+        logging.info("Reading cached lineages in '" + creator.acc_to_lin + "'... ")
+        creator.seq_lineage_map.update(read_accession_taxa_map(creator.acc_to_lin))
+        logging.info("done.\n")
+    else:
+        logging.error("Unable to find accession-lineage mapping file '" + creator.acc_to_lin + "'\n")
+        sys.exit(3)
+
     # Names of files and directories to be created
     creator.phy_dir = creator.var_output_dir + "phylogeny_files" + os.sep
-    creator.acc_to_lin = creator.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
     creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
     creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
     creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)

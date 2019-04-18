@@ -239,7 +239,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
                 else:
                     header_format_re, header_db, header_molecule = get_header_format(original_header)
                     sequence_info = header_format_re.match(original_header)
-                    q_accession, _, _, _, _ = return_sequence_info_groups(sequence_info, header_db, original_header)
+                    q_accession = return_sequence_info_groups(sequence_info, header_db, original_header).accession
                 # print(q_accession)
                 entrez_query_list.append((q_accession, database))
                 marker_assignments[robust_classification].append(q_accession)
@@ -479,8 +479,7 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
 def correct_accession(description):
     header_format_re, header_db, header_molecule = get_header_format(description)
     sequence_info = header_format_re.match(description)
-    accession, _, _, _, _ = return_sequence_info_groups(sequence_info, header_db, description)
-    return accession
+    return return_sequence_info_groups(sequence_info, header_db, description).accession
 
 
 def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):

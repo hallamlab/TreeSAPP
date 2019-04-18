@@ -302,7 +302,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
     """
 
     logging.info("Extracting information from headers for formatting purposes... ")
-    fungene_gi_bad = re.compile("^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
+    fungene_gi_bad = re.compile(r"^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     swapped_headers = []
     if len(fasta_replace_dict.keys()) > 0:
         for mltree_id in sorted(fasta_replace_dict):
@@ -313,7 +313,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
                 original_header = header_registry[mltree_id].original
                 header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, code_name)
                 sequence_info = header_format_re.match(original_header)
-                _, fasta_header_organism, _, _, _ = utilities.return_sequence_info_groups(sequence_info, header_db, header)
+                fasta_header_organism = utilities.return_sequence_info_groups(sequence_info, header_db, header).organism
                 if re.search(ref_seq.accession, header):
                     if re.search(utilities.reformat_string(ref_seq.organism), utilities.reformat_string(fasta_header_organism)):
                         ref_seq.sequence = fasta_dict[header]
@@ -375,11 +375,12 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
                 sys.exit(13)
             header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, code_name)
             sequence_info = header_format_re.match(original_header)
-            ref_seq.accession,\
-                ref_seq.organism,\
-                ref_seq.locus,\
-                ref_seq.description,\
-                ref_seq.lineage = utilities.return_sequence_info_groups(sequence_info, header_db, original_header)
+            seq_info_tuple = utilities.return_sequence_info_groups(sequence_info, header_db, original_header)
+            ref_seq.accession = seq_info_tuple.accession
+            ref_seq.organism = seq_info_tuple.organism
+            ref_seq.locus = seq_info_tuple.locus
+            ref_seq.description = seq_info_tuple.description
+            ref_seq.lineage = seq_info_tuple.lineage
 
             ref_seq.short_id = mltree_id + '_' + code_name
             fasta_replace_dict[mltree_id] = ref_seq

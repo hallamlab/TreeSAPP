@@ -6,6 +6,7 @@ import sys
 import subprocess
 import logging
 import time
+from collections import namedtuple
 from shutil import rmtree
 from glob import glob
 from .external_command_interface import launch_write_command
@@ -316,17 +317,32 @@ class Autovivify(dict):
             return value
 
 
-def return_sequence_info_groups(regex_match_groups, header_db, header):
+def return_sequence_info_groups(regex_match_groups, header_db: str, header: str):
+    """
+    Depending on the header formats, returns a namedtuple with certain fields filled
+    :param regex_match_groups: regular expression (re) match groups
+    :param header_db: The name of the assumed database/source of the sequence
+    :param header: Header i.e. sequence name that was analyzed
+    :return: namedtuple called seq_info with "description", "locus", "organism", "lineage" and "taxid" fields
+    """
+    seq_info = namedtuple(typename="seq_info",
+                          field_names=["accession", "description", "locus", "organism", "lineage", "taxid"])
     description = ""
     locus = ""
     organism = ""
     lineage = ""
+    taxid = ""
+
     if regex_match_groups:
         accession = regex_match_groups.group(1)
         if header_db == "custom":
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
             description = regex_match_groups.group(3)
+        elif header_db == "eggnog":
+            taxid = regex_match_groups.group(1)
+            accession = ""
+            organism = regex_match_groups.group(2)
         elif header_db == "silva":
             locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
             lineage = regex_match_groups.group(4)
@@ -340,12 +356,13 @@ def return_sequence_info_groups(regex_match_groups, header_db, header):
         logging.error("Unable to handle header: " + header + "\n")
         sys.exit(13)
 
-    if not accession and not organism:
+    seq_info = seq_info(accession, description, locus, organism, lineage, taxid)
+    if not seq_info.accession and not seq_info.organism:
         logging.error("Insufficient information was loaded for header:\n" +
                       header + "\n" + "regex_match: " + header_db + '\n')
         sys.exit(13)
 
-    return accession, organism, locus, description, lineage
+    return seq_info
 
 
 def remove_dashes_from_msa(fasta_in, fasta_out):

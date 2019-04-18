@@ -299,8 +299,8 @@ def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
     for denominator in tree_saps:
         for placed_sequence in tree_saps[denominator]:
             if placed_sequence.classified:
+                output_fasta_string += '>' + placed_sequence.contig_name + "\n"
                 try:
-                    output_fasta_string += '>' + placed_sequence.contig_name + '|' + placed_sequence.name + "\n"
                     output_fasta_string += formatted_fasta_dict[prefix + placed_sequence.contig_name] + "\n"
                 except KeyError:
                     logging.error("Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n" +
@@ -481,8 +481,10 @@ def get_header_format(header, code_name=""):
     presf_re = re.compile(r">?prf\|.*\|([A-Z0-9]+)\s+.*$")  # a
     sp_re = re.compile(r">?sp\|(.*)\|.*Full=.*;?.*$")  # a
     fungene_gi_bad = re.compile(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
-    mltree_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
+    treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
+    assign_re = re.compile(r"^>?(.*)\|{0}\|\d+_\d+$".format(re.escape(code_name)))  # a
     pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
+    eggnog_re = re.compile(r"^>?(\d+).[A-Z0-9]_\d+")  # t
 
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
@@ -493,7 +495,7 @@ def get_header_format(header, code_name=""):
     # genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
     accession_only = re.compile(r"^>?([A-Z]+_?[0-9]+\.?[0-9]?)$")  # a
     ncbi_ambiguous = re.compile(r"^>?([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
-    ncbi_org = re.compile(r"^>?([A-Z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
+    ncbi_org = re.compile(r"^>?([A-Za-z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
 
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
@@ -513,12 +515,14 @@ def get_header_format(header, code_name=""):
                                gi_prepend_proper_re: "gi_proper",
                                gi_prepend_mess_re: "gi_mess",
                                pfam_re: "pfam",
-                               presf_re: "prf"},
-                      "dna": {mltree_re: "mltree"},
+                               presf_re: "prf",
+                               eggnog_re: "eggnog"},
+                      "dna": {treesapp_re: "treesapp"},
                       "ambig": {accession_only: "bare",
                                 ncbi_ambiguous: "ncbi_ambig",
                                 ncbi_org: "ncbi_org",
-                                custom_tax: "custom"}
+                                custom_tax: "custom",
+                                assign_re: "ts_assign"}
                       }
 
     if fungene_gi_bad.match(header):

@@ -799,17 +799,18 @@ def get_header_info(header_registry, code_name=''):
         formatted_header = header_registry[treesapp_id].formatted
         header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
         sequence_info = header_format_re.match(original_header)
-        accession, organism, locus, description, lineage = return_sequence_info_groups(sequence_info,
-                                                                                       header_db,
-                                                                                       formatted_header)
-        ref_seq = ReferenceSequence()
-        ref_seq.organism = organism
-        ref_seq.accession = accession
-        ref_seq.lineage = lineage
-        ref_seq.description = description
-        ref_seq.locus = locus
+        seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, formatted_header)
+
+        # Load the parsed sequences info into the EntrezRecord objects
+        ref_seq = EntrezRecord(seq_info_tuple.accession, seq_info_tuple.accession)
+        ref_seq.organism = seq_info_tuple.organism
+        ref_seq.lineage = seq_info_tuple.lineage
+        ref_seq.taxid = seq_info_tuple.taxid
+        ref_seq.description = seq_info_tuple.description
+        ref_seq.locus = seq_info_tuple.locus
         ref_seq.short_id = '>' + treesapp_id + '_' + code_name
         fasta_record_objects[treesapp_id] = ref_seq
+        print(ref_seq.get_info())
 
     logging.info("done.\n")
 
@@ -1198,8 +1199,10 @@ class Creator(TreeSAPP):
         super(Creator, self).__init__("create")
         self.ref_pkg = ReferencePackage()
         self.prop_sim = 1.0
+        self.candidates = dict()  # Dictionary tracking all candidate ReferenceSequences
+        self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
         self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank
-        self.acc_to_lin = ""  # Path to the accession_lineage_map.tsv
+        self.acc_to_lin = ""  # Path to an accession-lineage mapping file
         self.phy_dir = ""  # Directory for intermediate or unnecessary files created during phylogeny inference
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
         self.filtered_fasta = ""
