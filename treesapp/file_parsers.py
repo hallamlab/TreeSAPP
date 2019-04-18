@@ -419,15 +419,15 @@ def tax_ids_file_to_leaves(tax_ids_file):
                           " generated " + str(len(line.split("\t"))) + " fields.\n")
             sys.exit(5)
         if len(fields) == 2:
-            number, translation = fields
+            number, seq_name = fields
             lineage = ""
         elif len(fields) == 3:
-            number, translation, lineage = fields
+            number, seq_name, lineage = fields
         else:
             logging.error("ValueError: Unexpected number of fields in " + tax_ids_file +
                           ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
             raise ValueError
-        leaf = TreeLeafReference(number, translation)
+        leaf = TreeLeafReference(number, seq_name)
         if lineage:
             leaf.lineage = lineage
             leaf.complete = True

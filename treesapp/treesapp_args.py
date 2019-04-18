@@ -268,6 +268,8 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
     parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
+    parser.optopt.add_argument("--fast", default=False, required=False, action="store_true",
+                               help="A flag indicating the tree should be built rapidly, using FastTree.")
     parser.optopt.add_argument("-a", "--seqs2taxa", dest="seq_names_to_taxa", required=False, default=None,
                                help="Path to a file mapping sequence names (i.e. contig headers) to taxonomic lineages")
     parser.seqops.add_argument("--cluster", required=False, default=False, action="store_true",
@@ -514,14 +516,18 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
     updater.ref_pkg.prefix = args.name
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.target_marker = get_refpkg_build(updater.ref_pkg.prefix, marker_build_dict, updater.refpkg_code_re)
+    if not args.identity:
+        updater.perc_id = updater.target_marker.pid
+    else:
+        updater.perc_id = args.identity
 
     if args.cluster:
-        if not 0.5 <= float(args.identity) <= 1.0:
-            if 0.5 < float(args.identity)/100 < 1.0:
-                args.identity = str(float(args.identity)/100)
-                logging.warning("--identity  set to " + args.identity + " for compatibility with USEARCH \n")
+        if not 0.5 <= float(updater.perc_id) <= 1.0:
+            if 0.5 < float(updater.perc_id)/100 < 1.0:
+                updater.perc_id = str(float(updater.perc_id)/100)
+                logging.warning("--identity  set to " + updater.perc_id + " for compatibility with USEARCH \n")
             else:
-                logging.error("--identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
+                logging.error("--identity " + updater.perc_id + " is not between the supported range [0.5-1.0]\n")
                 sys.exit(13)
 
     if updater.seq_names_to_taxa and not os.path.isfile(updater.seq_names_to_taxa):
@@ -536,5 +542,8 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
         updater.treesapp_output += os.sep
     updater.final_output_dir = updater.treesapp_output + "final_outputs" + os.sep
     updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
+    updater.old_ref_fasta = updater.output_dir + "original_refs.fasta"
+    updater.combined_fasta = updater.output_dir + "all_refs.fasta"
+    updater.lineage_map_file = updater.output_dir + "sequence_lineage_map.tsv"
 
     return

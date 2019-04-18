@@ -78,7 +78,7 @@ def register_headers(header_list, drop=False):
     acc = 1
     header_registry = dict()
     for header in header_list:
-        if drop:
+        if drop and header[0] == '>':
             header = header[1:]
         new_header = Header(header)
         new_header.formatted = reformat_string(header)
@@ -105,7 +105,7 @@ class FASTA:
     def mapping_error(self, bad_headers):
         logging.error("No sequences were mapped in to '" + self.file + "' FASTA dictionary.\n" +
                       "Here are some example names from the mapping list:\n\t" + "\n\t".join(bad_headers[0:6]) + "\n" +
-                      "And example names from the FASTA dict:\n\t" + "\n\t".join(self.fasta_dict.keys())[0:6] + "\n")
+                      "And example names from FASTA dict:\n\t" + "\n\t".join(list(self.fasta_dict.keys()))[0:6] + "\n")
         sys.exit(3)
 
     def n_seqs(self):
@@ -184,6 +184,23 @@ class FASTA:
                 else:
                     sync_header_registry[num_id] = self.header_registry[num_id]
             self.header_registry = sync_header_registry
+
+    def swap_headers(self, header_map):
+        swapped_fasta_dict = dict()
+        unmapped = []
+        for og_header in header_map:
+            new_header = header_map[og_header]
+            try:
+                swapped_fasta_dict[new_header] = self.fasta_dict[og_header]
+            except KeyError:
+                unmapped.append(og_header)
+        if len(unmapped) == len(header_map):
+            self.mapping_error(list(header_map.keys()))
+        elif len(unmapped) >= 1:
+            logging.warning(str(len(unmapped)) + " headers were not found in FASTA dictionary.\n")
+        self.fasta_dict = swapped_fasta_dict
+        self.header_registry = register_headers(list(self.fasta_dict.keys()), True)
+        return
 
     def summarize_fasta_sequences(self):
         num_headers = 0

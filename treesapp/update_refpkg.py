@@ -1,7 +1,8 @@
 import os
+import sys
 import logging
 from .external_command_interface import launch_write_command
-from . import utilities
+from . import wrapper
 
 
 def align_ref_queries(args, new_ref_queries, update_tree):
@@ -20,7 +21,7 @@ def align_ref_queries(args, new_ref_queries, update_tree):
     db_prefix = update_tree.Output + os.sep + update_tree.COG
     # Make a temporary BLAST database to see what is novel
     # Needs a path to write the temporary unaligned FASTA file
-    utilities.generate_blast_database(args, ref_fasta, "prot", db_prefix)
+    wrapper.generate_blast_database(args, ref_fasta, "prot", db_prefix)
 
     logging.info("Aligning the candidate sequences to the current reference sequences using blastp... ")
 
@@ -64,3 +65,24 @@ def find_novel_refs(ref_candidate_alignments, aa_dictionary, create_func_tree):
     alignments.close()
     return new_refs
 
+
+def write_dict_to_table(data_dict: dict, output_file: str, sep="\t"):
+    data_strings = []
+    for key in data_dict:
+        values = data_dict[key]
+        if type(values) is str:
+            data_strings.append(sep.join([key, values]))
+        elif type(values) is list:
+            data_strings.append(sep.join([key, sep.join(values)]))
+        else:
+            logging.error("Unable to tabularize values of type '" + str(type(values)) + "'\n")
+            sys.exit(5)
+    try:
+        handler = open(output_file, 'w')
+    except IOError:
+        logging.error("Unable to open file '" + output_file + "' for writing.\n")
+        sys.exit(3)
+    handler.write("\n".join(data_strings) + "\n")
+    handler.close()
+
+    return

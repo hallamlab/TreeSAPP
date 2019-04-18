@@ -1169,9 +1169,12 @@ class Updater(TreeSAPP):
         super(Updater, self).__init__("update")
         self.ref_pkg = ReferencePackage()
         self.seq_names_to_taxa = ""  # Optional user-provided file mapping query sequence contigs to lineages
+        self.lineage_map_file = ""  # File that is passed to create() containing lineage info for all sequences
         self.treesapp_output = ""  # Path to the TreeSAPP output directory - modified by args
-        self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the old ref seqs
+        self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the original ref seqs
+        self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.target_marker = None
+        self.perc_id = 1.0
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),

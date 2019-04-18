@@ -486,9 +486,9 @@ def update(sys_args):
     add_update_arguments(parser)
     args = parser.parse_args(sys_args)
 
-    log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
+    log_file_name = args.output + os.sep + "TreeSAPP_updater_log.txt"
     prep_logging(log_file_name, args.verbose)
-    logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
+    logging.info("\n##\t\t\tUpdating TreeSAPP reference package\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
     ts_updater = Updater()
@@ -522,51 +522,47 @@ def update(sys_args):
     ##
     # Add lineages - use taxa if provided with a table mapping contigs to taxa, TreeSAPP-assigned taxonomy otherwise
     ##
+    classified_seq_lineage_map = dict()
     if ts_updater.seq_names_to_taxa:
         classified_seq_lineage_map = file_parsers.read_seq_taxa_table(ts_updater.seq_names_to_taxa)
     else:
-        # Begin finding and filtering the new candidate reference sequences
+        # Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
         classified_lines = file_parsers.read_marker_classification_table(ts_updater.final_output_dir +
                                                                          "marker_contig_map.tsv")
-        # TODO: Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
+        assignments = file_parsers.parse_assignments(classified_lines)
+        for marker in assignments:
+            for lineage in assignments[marker]:
+                for seq_name in assignments[marker][lineage]:
+                    classified_seq_lineage_map[seq_name] = lineage
     ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
+    ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
+    classified_seq_lineage_map.update({leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.lineage for
+                                       leaf in ref_seq_lineage_info})
+    update_refpkg.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
 
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
     ##
     ref_fasta = FASTA(ts_updater.ref_pkg.msa)
     ref_fasta.load_fasta()
-    # TODO: Update the original reference headers using info from the tax_ids file
-    # print(ref_seq_lineage_info)
-    # sys.exit()
-    header_map = {}
-    ref_fasta.swap_headers(header_map)
+    # Update the original reference headers using info from the tax_ids file
+    ref_fasta.swap_headers(ref_header_map)
+    classified_fasta.update(ref_fasta.fasta_dict, False)
 
     # Write only the sequences that have been properly classified
-    write_new_fasta(aa_dictionary, ts_updater.combined_fasta)
-    # Make sure the tree is updated only if there are novel sequences (i.e. <97% similar to ref sequences)
-    ref_candidate_alignments = align_ref_queries(args, new_ref_seqs_fasta, update_tree)
-    # Get the sequences that pass the similarity threshold
-    new_refs = find_novel_refs(ref_candidate_alignments, aa_dictionary, update_tree)
-    write_new_fasta(new_refs, new_ref_seqs_fasta)
-    if args.uclust and len(new_refs.keys()) > 1:
-        cluster_new_reference_sequences(update_tree, args, new_ref_seqs_fasta)
-        centroids_fasta = update_tree.Output + "uclust_" + update_tree.COG + ".fasta"
-    else:
-        if len(aa_dictionary) == 1 and args.uclust:
-            sys.stderr.write("WARNING: Not clustering new " + update_tree.COG + " since there is 1 sequence\n")
-            sys.stderr.flush()
-        centroids_fasta = new_ref_seqs_fasta
+    write_new_fasta(classified_fasta.fasta_dict, ts_updater.combined_fasta)
+    write_new_fasta(ref_fasta.fasta_dict, ts_updater.old_ref_fasta)
 
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
     ##
     create_cmd = ["-i", ts_updater.combined_fasta,
                   "-c", ts_updater.ref_pkg.prefix,
-                  "-p", tmp_pid,
-                  "--guarantee", old_ref_seqs,
+                  "-p", str(ts_updater.perc_id),
+                  "-m", ts_updater.molecule_type,
+                  "--guarantee", ts_updater.old_ref_fasta,
                   "-o", ts_updater.output_dir,
-                  "--accession2lin", acc2lin,
+                  "--accession2lin", ts_updater.lineage_map_file,
                   "--num_procs", str(args.num_threads)]
     if args.trim_align:
         create_cmd.append("--trim_align")
@@ -574,29 +570,32 @@ def update(sys_args):
         create_cmd.append("--fast")
     if args.taxa_lca:
         create_cmd.append("--taxa_lca")
+    if args.cluster:
+        create_cmd.append("--cluster")
     if args.screen:
         create_cmd += ["--screen", args.screen]
     if args.filter:
         create_cmd += ["--filter", args.filter]
     if args.min_taxonomic_rank:
-        create_cmd += args.min_taxonomic_rank
+        create_cmd += ["--min_taxonomic_rank", args.min_taxonomic_rank]
     create(create_cmd)
 
     ##
     # Summarize some key parts of the new reference package, compared to the old one
     ##
-    new_hmm_length = utilities.get_hmm_length(new_hmm_file)
+    new_hmm_length = utilities.get_hmm_length(ts_updater.output_dir + "final_outputs" + os.sep +
+                                              ts_updater.ref_pkg.prefix + ".hmm")
     logging.debug("\tOld HMM length = " + str(hmm_length) + "\n" +
                   "\tNew HMM length = " + str(new_hmm_length) + "\n")
 
-    intermediate_files = [project_folder + update_tree.COG + ".phy",
-                          project_folder + update_tree.COG + "_gap_removed.fa",
-                          project_folder + update_tree.COG + "_d_aligned.fasta"]
-    for useless_file in intermediate_files:
-        try:
-            os.remove(useless_file)
-        except OSError:
-            sys.stderr.write("WARNING: unable to remove intermediate file " + useless_file + "\n")
+    # intermediate_files = [project_folder + update_tree.COG + ".phy",
+    #                       project_folder + update_tree.COG + "_gap_removed.fa",
+    #                       project_folder + update_tree.COG + "_d_aligned.fasta"]
+    # for useless_file in intermediate_files:
+    #     try:
+    #         os.remove(useless_file)
+    #     except OSError:
+    #         sys.stderr.write("WARNING: unable to remove intermediate file " + useless_file + "\n")
 
     return
 
