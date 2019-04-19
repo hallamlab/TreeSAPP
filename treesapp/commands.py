@@ -41,7 +41,7 @@ def info(sys_args):
     parser = TreeSAPPArgumentParser(description="Return package, executable and refpkg information.")
     args = parser.parse_args(sys_args)
     prep_logging()
-    ts = TreeSAPP("info")
+    ts_info = TreeSAPP("info")
 
     import treesapp
     import Bio
@@ -60,12 +60,18 @@ def info(sys_args):
                  "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
 
     # Write the version of executable deps
-    ts.furnish_with_arguments(args)
-    logging.info(utilities.executable_dependency_versions(ts.executables))
+    ts_info.furnish_with_arguments(args)
+    logging.info(utilities.executable_dependency_versions(ts_info.executables))
 
     if args.verbose:
-        # TODO: Write relevant reference package information (e.g. codes, gene names, descriptions)
-        pass
+        marker_build_dict = file_parsers.parse_ref_build_params(ts_info.treesapp_dir, [])
+        refpkg_summary_str = ""
+        for refpkg_code in marker_build_dict:
+            refpkg = marker_build_dict[refpkg_code]  # type: MarkerBuild
+            refpkg_summary_str += refpkg_code + " -> " + ", ".join(
+                [refpkg.cog, refpkg.molecule, refpkg.kind, refpkg.description, refpkg.update]
+            ) + "\n"
+        logging.info(refpkg_summary_str)
 
     return
 
@@ -535,7 +541,9 @@ def update(sys_args):
     ##
     classified_seq_lineage_map = dict()
     if ts_updater.seq_names_to_taxa:
-        classified_seq_lineage_map = file_parsers.read_seq_taxa_table(ts_updater.seq_names_to_taxa)
+        seq_lineage_map = file_parsers.read_seq_taxa_table(ts_updater.seq_names_to_taxa)
+        classified_seq_lineage_map.update(ts_updater.map_orf_lineages(seq_lineage_map,
+                                                                      classified_fasta.header_registry))
     else:
         # Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
         classified_lines = file_parsers.read_marker_classification_table(ts_updater.final_output_dir +
@@ -645,12 +653,13 @@ def assign(sys_args):
     ##
     if ts_assign.stage_status("orf-call"):
         ts_assign.predict_orfs(args.composition, args.num_threads)
+        ts_assign.query_sequences = ts_assign.aa_orfs_file
     else:
-        ts_assign.orf_file = ts_assign.input_sequences
+        ts_assign.query_sequences = ts_assign.input_sequences
     # TODO: Use a FASTA instance to track headers and filtering - use original ORF name in the outputs, not formatted
     if ts_assign.stage_status("clean"):
-        logging.info("Formatting " + ts_assign.input_sequences + " for pipeline... ")
-        formatted_fasta_dict = format_read_fasta(ts_assign.input_sequences, "prot", ts_assign.output_dir)
+        logging.info("Formatting " + ts_assign.query_sequences + " for pipeline... ")
+        formatted_fasta_dict = format_read_fasta(ts_assign.query_sequences, "prot", ts_assign.output_dir)
         logging.info("done.\n")
         logging.info("\tTreeSAPP will analyze the " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
         logging.info("Writing formatted FASTA file to " + ts_assign.formatted_input + "... ")
@@ -667,7 +676,7 @@ def assign(sys_args):
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, formatted_fasta_dict)
         homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
-                                                 marker_build_dict, args.var_output_dir)
+                                                 marker_build_dict, ts_assign.var_output_dir)
 
     ##
     # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
@@ -709,6 +718,9 @@ def assign(sys_args):
         extracted_seq_dict = merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
         write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
+        for refpkg_code in tree_saps:
+            for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
+                abundance_dict[placed_seq.contig_name + '|' + placed_seq.name] = 1.0
         if args.molecule == "dna":
             if not os.path.isfile(ts_assign.classified_nuc_seqs):
                 logging.info("Creating nucleotide FASTA file of classified sequences '" +
@@ -725,33 +737,13 @@ def assign(sys_args):
                 rpkm_output_file = run_rpkm(args, sam_file, ts_assign.classified_nuc_seqs)
                 abundance_dict = file_parsers.read_rpkm(rpkm_output_file)
                 summarize_placements_rpkm(args, abundance_dict, marker_build_dict)
-        else:
-            for refpkg_code in tree_saps:
-                for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
-                    abundance_dict[placed_seq.contig_name + '|' + placed_seq.name] = 1.0
 
         abundify_tree_saps(tree_saps, abundance_dict)
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
+        # TODO: Fix the lengths set to 0 when input sequences are nucs
         write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_assign.sample_prefix, assign_out)
         produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
         delete_files(args.delete, ts_assign.var_output_dir, 4, args.rpkm)
-
-    ##
-    # STAGE 6: Optionally update the reference tree
-    ##
-    if "update" in ts_assign.stages and ts_assign.stage_status("update"):
-        for marker_code in args.targets:
-            update_args = ["-i", ts_assign.input_sequences,
-                           "-c", marker_code,
-                           "-t", ts_assign.output_dir,
-                           "-o", ts_assign.output_dir + marker_code + "_update" + os.sep,
-                           "-m", ts_assign.molecule_type,
-                           "-n", str(args.num_threads)]
-            if args.cluster:
-                update_args.append("--cluster")
-            if args.trim_align:
-                update_args.append("--trim_align")
-            update(update_args)
 
     delete_files(args.delete, ts_assign.var_output_dir, 5)
 
