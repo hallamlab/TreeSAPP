@@ -49,46 +49,6 @@ def get_refpkg_build(name: str, marker_build_dict: dict, refpkg_code_re):
         sys.exit(21)
 
 
-def check_previous_output(args):
-    """
-    Prompts the user to determine how to deal with a pre-existing output directory.
-    By the end of this function, all directories should exist and be in the correct state for a new analysis run
-
-    :rtype: Namespace object
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :return None
-    """
-
-    main_output_dirs = [args.var_output_dir, args.final_output_dir]
-
-    # Identify all the various reasons someone may not want to have their previous results overwritten
-    if not os.path.isdir(args.output):
-        os.mkdir(args.output)
-        # Create the output directories
-        for output_dir in main_output_dirs:
-            os.mkdir(output_dir)
-    elif not args.overwrite and glob(args.final_output_dir + "*"):
-        reluctant_remove_replace(args.output)
-        for output_dir in main_output_dirs:
-            os.mkdir(output_dir)
-    elif not args.overwrite and not glob(args.final_output_dir + "*"):
-        # Last run didn't complete so use the intermediates if possible
-        for output_dir in main_output_dirs:
-            if not os.path.isdir(output_dir):
-                os.mkdir(output_dir)
-    elif args.overwrite:
-        if os.path.isdir(args.output):
-            rmtree(args.output)
-        os.mkdir(args.output)
-        for output_dir in main_output_dirs:
-            os.mkdir(output_dir)
-    else:
-        # Create the output directories
-        for output_dir in main_output_dirs:
-            os.mkdir(output_dir)
-    return
-
-
 def is_exe(fpath):
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 

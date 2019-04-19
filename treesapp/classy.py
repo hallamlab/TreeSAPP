@@ -7,11 +7,12 @@ import copy
 import subprocess
 import logging
 import time
+from shutil import rmtree
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
 from .fasta import format_read_fasta, write_new_fasta, get_header_format
-from .utilities import median, which, is_exe, return_sequence_info_groups
+from .utilities import median, which, is_exe, return_sequence_info_groups, reluctant_remove_replace
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset
 from numpy import var
@@ -975,6 +976,44 @@ class TreeSAPP:
             self.sample_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
             self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
         self.executables = self.find_executables(args)
+
+    def check_previous_output(self, args):
+        """
+        Prompts the user to determine how to deal with a pre-existing output directory.
+        By the end of this function, all directories should exist and be in the correct state for a new analysis run
+
+        :param args: Command-line argument object from get_options and check_parser_arguments
+        :return None
+        """
+
+        main_output_dirs = [self.var_output_dir, self.final_output_dir]
+
+        # Identify all the various reasons someone may not want to have their previous results overwritten
+        if not os.path.isdir(self.output_dir):
+            os.mkdir(self.output_dir)
+            # Create the output directories
+            for output_dir in main_output_dirs:
+                os.mkdir(output_dir)
+        elif not args.overwrite and glob(self.final_output_dir + "*"):
+            reluctant_remove_replace(self.output_dir)
+            for output_dir in main_output_dirs:
+                os.mkdir(output_dir)
+        elif not args.overwrite and not glob(self.final_output_dir + "*"):
+            # Last run didn't complete so use the intermediates if possible
+            for output_dir in main_output_dirs:
+                if not os.path.isdir(output_dir):
+                    os.mkdir(output_dir)
+        elif args.overwrite:
+            if os.path.isdir(self.output_dir):
+                rmtree(self.output_dir)
+            os.mkdir(self.output_dir)
+            for output_dir in main_output_dirs:
+                os.mkdir(output_dir)
+        else:
+            # Create the output directories
+            for output_dir in main_output_dirs:
+                os.mkdir(output_dir)
+        return
 
     def log_progress(self):
         """

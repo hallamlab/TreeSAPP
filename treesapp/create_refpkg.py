@@ -206,7 +206,7 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects, header_registry):
     tmp_dict = dict()
     for treesapp_id in header_registry:
         tmp_dict[header_registry[treesapp_id].formatted] = treesapp_id
-    print(sorted(refseq_objects))
+
     for cluster_id in sorted(cluster_dict, key=int):
         cluster_info = cluster_dict[cluster_id]
         treesapp_id = tmp_dict[cluster_info.representative]

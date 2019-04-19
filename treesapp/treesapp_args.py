@@ -4,7 +4,7 @@ import sys
 import re
 import logging
 from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater
-from .utilities import available_cpu_count, check_previous_output, get_refpkg_build
+from .utilities import available_cpu_count, get_refpkg_build
 from .entrez_utils import read_accession_taxa_map
 
 
@@ -320,12 +320,6 @@ def check_parser_arguments(args, sys_args):
     if not re.match(r'^/.*', args.output):
         args.output = os.getcwd() + os.sep + args.output  # args.output is now the absolute path
 
-    args.var_output_dir = args.output + 'intermediates' + os.sep
-    args.final_output_dir = args.output + 'final_outputs' + os.sep
-
-    # Determine whether the output directory should be removed, creates output directory if it doesn't exist
-    check_previous_output(args)
-
     if "min_seq_length" not in vars(args):
         args.min_seq_length = 1
 
@@ -454,6 +448,7 @@ def check_create_arguments(creator: Creator, args):
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
 
+    # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
     if args.acc_to_lin:
         creator.acc_to_lin = args.acc_to_lin
     else:

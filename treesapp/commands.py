@@ -74,14 +74,17 @@ def train(sys_args):
     parser = TreeSAPPArgumentParser(description='Model phylogenetic distances across taxonomic ranks.')
     add_trainer_arguments(parser)
     args = parser.parse_args(sys_args)
+
+    ts_trainer = PhyTrainer()
+    ts_trainer.furnish_with_arguments(args)
+    ts_trainer.check_previous_output(args)
+
     # TODO: Prevent hmmalign_queries_aligned-BMGE.fasta.reduced file from being written to cwd
     log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
-    ts_trainer = PhyTrainer()
-    ts_trainer.furnish_with_arguments(args)
     marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, [])
     check_trainer_arguments(ts_trainer, args, marker_build_dict)
     ts_trainer.ref_pkg.gather_package_files(args.pkg_path)
@@ -197,16 +200,17 @@ def create(sys_args):
     add_create_arguments(parser)
     args = parser.parse_args(sys_args)
 
+    ts_create = Creator()
+    ts_create.furnish_with_arguments(args)
+    ts_create.check_previous_output(args)
+
     log_file_name = args.output + os.sep + "TreeSAPP_create_" + args.refpkg_name + "_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
     # TODO: prevent the log file being removed by overwrite
 
     check_parser_arguments(args, sys_args)
-    ts_create = Creator()
-    ts_create.furnish_with_arguments(args)
     check_create_arguments(ts_create, args)
-    # TODO: If all of the sequences are mapped to in the provided acc_to_lin, change staus of lineages to False
     ts_create.validate_continue(args)
 
     # Gather all the final TreeSAPP reference files
@@ -491,13 +495,15 @@ def update(sys_args):
     add_update_arguments(parser)
     args = parser.parse_args(sys_args)
 
+    ts_updater = Updater()
+    ts_updater.furnish_with_arguments(args)
+    ts_updater.check_previous_output(args)
+
     log_file_name = args.output + os.sep + "TreeSAPP_updater_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tUpdating TreeSAPP reference package\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
-    ts_updater = Updater()
-    ts_updater.furnish_with_arguments(args)
     marker_build_dict = file_parsers.parse_ref_build_params(ts_updater.treesapp_dir, [])
     # TODO: make the marker_build_dict specific to the target marker
     check_updater_arguments(ts_updater, args, marker_build_dict)
@@ -615,13 +621,15 @@ def assign(sys_args):
     add_classify_arguments(parser)
     args = parser.parse_args(sys_args)
 
+    ts_assign = Assigner()
+    ts_assign.furnish_with_arguments(args)
+    ts_assign.check_previous_output(args)
+
     log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
 
     check_parser_arguments(args, sys_args)
-    ts_assign = Assigner()
-    ts_assign.furnish_with_arguments(args)
     check_classify_arguments(ts_assign, args)
     ts_assign.validate_continue(args)
 
@@ -762,14 +770,15 @@ def evaluate(sys_args):
     add_evaluate_arguments(parser)
     args = parser.parse_args(sys_args)
 
+    ts_evaluate = Evaluator()
+    ts_evaluate.furnish_with_arguments(args)
+    ts_evaluate.check_previous_output(args)
+
     log_file_name = args.output + os.sep + "TreeSAPP_evaluation_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
-    ts_evaluate = Evaluator()
-    ts_evaluate.furnish_with_arguments(args)
-
     marker_build_dict = file_parsers.parse_ref_build_params(ts_evaluate.treesapp_dir, ts_evaluate.targets)
     check_evaluate_arguments(ts_evaluate, args, marker_build_dict)
     ts_evaluate.validate_continue(args)
