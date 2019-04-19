@@ -810,7 +810,6 @@ def get_header_info(header_registry, code_name=''):
         ref_seq.locus = seq_info_tuple.locus
         ref_seq.short_id = '>' + treesapp_id + '_' + code_name
         fasta_record_objects[treesapp_id] = ref_seq
-        print(ref_seq.get_info())
 
     logging.info("done.\n")
 

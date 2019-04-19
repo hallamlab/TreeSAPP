@@ -264,11 +264,11 @@ def create(sys_args):
     ##
     fasta_record_objects = get_header_info(ref_seqs.header_registry, ts_create.ref_pkg.prefix)
     fasta_record_objects = load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, fasta_record_objects)
-    entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
 
     logging.debug("\tNumber of input sequences =\t" + str(len(fasta_record_objects)) + "\n")
 
     if ts_create.stage_status("lineages"):
+        entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
         entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, args.molecule, args.acc_to_taxid)
         accession_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
         all_accessions = entrez_utils.entrez_records_to_accessions(entrez_records, entrez_query_list)
@@ -281,8 +281,9 @@ def create(sys_args):
                                                                                               fasta_record_objects,
                                                                                               num_lineages_provided)
         entrez_utils.write_accession_lineage_map(ts_create.acc_to_lin, accession_lineage_map)
+    else:
         # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
-    create_refpkg.finalize_ref_seq_lineages(fasta_record_objects, accession_lineage_map)
+        create_refpkg.fill_ref_seq_lineages(fasta_record_objects, ts_create.seq_lineage_map)
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
@@ -290,7 +291,8 @@ def create(sys_args):
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
         fasta_record_objects = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_record_objects)
 
-        fasta_record_objects = create_refpkg.remove_duplicate_records(fasta_record_objects)
+        fasta_record_objects, ref_seqs.header_registry = create_refpkg.remove_duplicate_records(fasta_record_objects,
+                                                                                                ref_seqs.header_registry)
 
         if len(fasta_record_objects.keys()) < 2:
             logging.error(str(len(fasta_record_objects)) + " sequences post-homology + taxonomy filtering\n")
@@ -540,8 +542,9 @@ def update(sys_args):
     ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)
-    classified_seq_lineage_map.update({ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix]: leaf.lineage for
-                                       leaf in ref_seq_lineage_info})
+    classified_seq_lineage_map.update(
+        {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]: leaf.lineage for
+         leaf in ref_seq_lineage_info})
     update_refpkg.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
 
     ##
@@ -576,6 +579,8 @@ def update(sys_args):
         create_cmd.append("--taxa_lca")
     if args.cluster:
         create_cmd.append("--cluster")
+    if args.headless:
+        create_cmd.append("--headless")
     if args.screen:
         create_cmd += ["--screen", args.screen]
     if args.filter:
@@ -812,7 +817,7 @@ def evaluate(sys_args):
         logging.info("Reading cached lineages in '" + ts_evaluate.acc_to_lin + "'... ")
         accession_lineage_map = entrez_utils.read_accession_taxa_map(ts_evaluate.acc_to_lin)
         logging.info("done.\n")
-        create_refpkg.finalize_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
+        create_refpkg.fill_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
 
     fasta_record_objects = complete_ref_sequences.values()
 

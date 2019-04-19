@@ -206,7 +206,7 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects, header_registry):
     tmp_dict = dict()
     for treesapp_id in header_registry:
         tmp_dict[header_registry[treesapp_id].formatted] = treesapp_id
-
+    print(sorted(refseq_objects))
     for cluster_id in sorted(cluster_dict, key=int):
         cluster_info = cluster_dict[cluster_id]
         treesapp_id = tmp_dict[cluster_info.representative]
@@ -472,15 +472,17 @@ def remove_by_truncated_lineages(min_taxonomic_rank, fasta_replace_dict):
     return purified_fasta_dict
 
 
-def remove_duplicate_records(fasta_record_objects):
+def remove_duplicate_records(fasta_record_objects, header_registry):
     nr_record_dict = dict()
+    nr_header_dict = dict()
     accessions = dict()
     dups = False
-    for treesapp_id in fasta_record_objects:
+    for treesapp_id in sorted(fasta_record_objects, key=int):
         ref_seq = fasta_record_objects[treesapp_id]
         if ref_seq.accession not in accessions:
             accessions[ref_seq.accession] = 0
             nr_record_dict[treesapp_id] = ref_seq
+            nr_header_dict[treesapp_id] = header_registry[treesapp_id]
         else:
             dups = True
         accessions[ref_seq.accession] += 1
@@ -493,7 +495,7 @@ def remove_duplicate_records(fasta_record_objects):
             if accessions[acc] > 1:
                 msg += "\t" + acc + "\t" + str(accessions[acc]) + "\n"
         logging.debug(msg)
-    return nr_record_dict
+    return nr_record_dict, nr_header_dict
 
 
 def order_dict_by_lineage(fasta_object_dict):
@@ -780,7 +782,7 @@ def update_tax_ids_with_lineage(args, tree_taxa_list):
     return
 
 
-def finalize_ref_seq_lineages(fasta_record_objects, accession_lineages):
+def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
     """
     Adds lineage information from accession_lineages to fasta_record_objects
 

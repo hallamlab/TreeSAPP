@@ -462,6 +462,7 @@ def check_create_arguments(creator: Creator, args):
         logging.info("Reading cached lineages in '" + creator.acc_to_lin + "'... ")
         creator.seq_lineage_map.update(read_accession_taxa_map(creator.acc_to_lin))
         logging.info("done.\n")
+        creator.change_stage_status("lineages", False)
     else:
         logging.error("Unable to find accession-lineage mapping file '" + creator.acc_to_lin + "'\n")
         sys.exit(3)

@@ -40,11 +40,11 @@ def construct_tree(executables: dict, molecule: str, multiple_alignment_file: st
         tree_build_cmd += ["-f", "a"]
         tree_build_cmd += ["-p", "12345"]
         tree_build_cmd += ["-x", "12345"]
-        tree_build_cmd += ["-#", args.bootstraps]
+        tree_build_cmd += ["-#", str(args.bootstraps)]
         tree_build_cmd += ["-s", multiple_alignment_file]
         tree_build_cmd += ["-n", tree_prefix]
         tree_build_cmd += ["-w", tree_output_dir]
-        tree_build_cmd += ["-T", args.num_threads]
+        tree_build_cmd += ["-T", str(args.num_threads)]
 
         if args.raxml_model:
             tree_build_cmd += ["-m", args.raxml_model]
