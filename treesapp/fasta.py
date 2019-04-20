@@ -268,6 +268,14 @@ class FASTA:
             self.header_registry[str(acc)] = new_fasta_headers[num_id]
         return
 
+    def unalign(self):
+        unaligned_dict = {}
+        for header in self.fasta_dict:
+            seq = self.fasta_dict[header]
+            unaligned_dict[header] = re.sub("[-.]", '', seq)
+        self.fasta_dict = unaligned_dict
+        return
+
 
 def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
     merged_extracted_seq_dict = dict()
@@ -286,8 +294,8 @@ def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
     :param fasta_file: Path to a file to write the sequences to in FASTA format
     :return: None
     """
-    # Header format:
-    # >contig_name|marker_gene
+    # placed_sequence.contig_name and output format:
+    # >contig_name|RefPkg|StartCoord_StopCoord
 
     output_fasta_string = ""
     prefix = ''  # For adding a '>' if the formatted_fasta_dict sequences have them
@@ -297,16 +305,20 @@ def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
         break
 
     for denominator in tree_saps:
-        for placed_sequence in tree_saps[denominator]:
+        for placed_sequence in tree_saps[denominator]:  # type ItolJplace
             if placed_sequence.classified:
                 output_fasta_string += '>' + placed_sequence.contig_name + "\n"
                 try:
                     output_fasta_string += formatted_fasta_dict[prefix + placed_sequence.contig_name] + "\n"
                 except KeyError:
-                    logging.error("Unable to find '>" + placed_sequence.contig_name + "' in predicted ORFs file!\n" +
-                                  "Example headers in the predicted ORFs file:\n\t" +
-                                  '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
-                    sys.exit(3)
+                    seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.name), '', placed_sequence.contig_name)
+                    try:
+                        output_fasta_string += formatted_fasta_dict[prefix + seq_name] + "\n"
+                    except KeyError:
+                        logging.error("Unable to find '" + prefix + placed_sequence.contig_name +
+                                      "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
+                                      '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
+                        sys.exit(3)
 
     if output_fasta_string:
         try:

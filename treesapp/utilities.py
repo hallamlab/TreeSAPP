@@ -718,7 +718,7 @@ def swap_tree_names(tree_to_swap, final_mltree, code_name):
 
 def match_target_marker(refpkg_name: str, headers: list):
     matches = list()
-    classified_target = re.compile(r'|{0}|'.format(re.escape(refpkg_name)))
+    classified_target = re.compile(r'\|{0}\|\d+_\d+$'.format(re.escape(refpkg_name)))
     for seq_name in headers:
         if classified_target.search(seq_name):
             matches.append(seq_name)

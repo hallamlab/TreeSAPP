@@ -14,7 +14,7 @@ from json import loads, dumps
 from .fasta import format_read_fasta, write_new_fasta, get_header_format
 from .utilities import median, which, is_exe, return_sequence_info_groups, reluctant_remove_replace
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
-from .lca_calculations import determine_offset
+from .lca_calculations import determine_offset, clean_lineage_string
 from numpy import var
 
 import _tree_parser
@@ -935,6 +935,7 @@ class TreeSAPP:
 
         # Values derived from the command-line arguments
         self.input_sequences = ""
+        self.query_sequences = ""  # This could be any of the input_sequencesm aa_orfs or nuc_orfs files
         self.sample_prefix = ""
         self.formatted_input = ""
         self.molecule_type = ""
@@ -1230,6 +1231,23 @@ class Updater(TreeSAPP):
                                     "Lineage map: " + str(self.seq_names_to_taxa)]) + "\n"
 
         return info_string
+
+    def map_orf_lineages(self, seq_lineage_map, header_registry):
+        classified_seq_lineage_map = dict()
+        for num_id in header_registry:
+            header = header_registry[num_id].original
+            parent_seq = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
+            # Its slow to perform so many re.search's but without having a guaranteed ORF pattern we can't use hashes
+            lineage = ""
+            for seq_name in seq_lineage_map:
+                if re.search(seq_name, parent_seq):
+                    lineage = seq_lineage_map[seq_name]
+                    break
+            if not lineage:
+                logging.error("Unable to find parent contig for ORF '" + header + "' in sequence-lineage map.\n")
+                sys.exit(3)
+            classified_seq_lineage_map[header] = clean_lineage_string(lineage)
+        return classified_seq_lineage_map
 
 
 class Creator(TreeSAPP):

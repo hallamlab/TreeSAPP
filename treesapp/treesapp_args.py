@@ -3,6 +3,7 @@ import os
 import sys
 import re
 import logging
+from glob import glob
 from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater
 from .utilities import available_cpu_count, get_refpkg_build
 from .entrez_utils import read_accession_taxa_map
@@ -553,5 +554,11 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
     updater.old_ref_fasta = updater.output_dir + "original_refs.fasta"
     updater.combined_fasta = updater.output_dir + "all_refs.fasta"
     updater.lineage_map_file = updater.output_dir + "sequence_lineage_map.tsv"
+    classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
+    if len(classified_seqs) == 1:
+        updater.query_sequences = classified_seqs.pop()
+    else:
+        logging.error("Multiple classified sequence files in '" + updater.final_output_dir + "' but only 1 expected.\n")
+        sys.exit(5)
 
     return

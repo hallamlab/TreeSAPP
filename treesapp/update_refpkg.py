@@ -91,10 +91,12 @@ def write_dict_to_table(data_dict: dict, output_file: str, sep="\t"):
 def reformat_ref_seq_descriptions(original_header_map):
     reformatted_header_map = dict()
     for treesapp_id in original_header_map:
-        fields = original_header_map[treesapp_id].split(" | ")
-        if len(fields) == 2:
-            organism_info, accession = fields
-            reformatted_header_map[treesapp_id] = accession + " [" + organism_info + "]"
-        else:
+        try:
+            organism_info, accession = original_header_map[treesapp_id].split(" | ")
+            if organism_info and accession:
+                reformatted_header_map[treesapp_id] = accession + " [" + organism_info + "]"
+            else:
+                reformatted_header_map[treesapp_id] = original_header_map[treesapp_id]
+        except IndexError:
             reformatted_header_map[treesapp_id] = original_header_map[treesapp_id]
     return reformatted_header_map

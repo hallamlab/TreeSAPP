@@ -183,7 +183,7 @@ def train(sys_args):
     else:
         pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if pfit_array:
-            logging.info("Placement distance regression model complete.\n")
+            logging.info("Placement distance model complete.\n")
         else:
             logging.info("Unable to complete phylogenetic distance and rank correlation.\n")
 
@@ -511,7 +511,6 @@ def update(sys_args):
 
     check_parser_arguments(args, sys_args)
     marker_build_dict = file_parsers.parse_ref_build_params(ts_updater.treesapp_dir, [])
-    # TODO: make the marker_build_dict specific to the target marker
     check_updater_arguments(ts_updater, args, marker_build_dict)
     ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
     ts_updater.ref_pkg.validate()
@@ -519,8 +518,7 @@ def update(sys_args):
     ##
     # Pull out sequences from TreeSAPP output
     ##
-    classified_fasta_file = ts_updater.final_output_dir + ts_updater.sample_prefix + "_classified.faa"
-    classified_fasta = FASTA(classified_fasta_file)
+    classified_fasta = FASTA(ts_updater.query_sequences)
     classified_fasta.load_fasta()
     classified_fasta.summarize_fasta_sequences()
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.original_headers())
@@ -569,6 +567,7 @@ def update(sys_args):
     # Update the original reference headers using info from the tax_ids file
     ref_fasta.swap_headers(ref_header_map)
     classified_fasta.update(ref_fasta.fasta_dict, False)
+    classified_fasta.unalign()
 
     # Write only the sequences that have been properly classified
     write_new_fasta(classified_fasta.fasta_dict, ts_updater.combined_fasta)
@@ -610,15 +609,6 @@ def update(sys_args):
                                               ts_updater.ref_pkg.prefix + ".hmm")
     logging.debug("\tOld HMM length = " + str(hmm_length) + "\n" +
                   "\tNew HMM length = " + str(new_hmm_length) + "\n")
-
-    # intermediate_files = [project_folder + update_tree.COG + ".phy",
-    #                       project_folder + update_tree.COG + "_gap_removed.fa",
-    #                       project_folder + update_tree.COG + "_d_aligned.fasta"]
-    # for useless_file in intermediate_files:
-    #     try:
-    #         os.remove(useless_file)
-    #     except OSError:
-    #         sys.stderr.write("WARNING: unable to remove intermediate file " + useless_file + "\n")
 
     return
 

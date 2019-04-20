@@ -794,3 +794,23 @@ def multiple_alignment_dimensions(seq_dict, mfa_file):
             pass
             # Sequence is the right length, carrying on
     return len(seq_dict), sequence_length
+
+
+def read_seq_taxa_table(seq_names_to_taxa: str):
+    seq_lineage_map = dict()
+    try:
+        handler = open(seq_names_to_taxa, 'r')
+    except IOError:
+        logging.error("Unable to open '" + seq_names_to_taxa + "' for reading!\n")
+        sys.exit(3)
+
+    for line in handler:
+        try:
+            seq_name, lineage = line.strip().split("\t")
+        except (ValueError, IndexError):
+            logging.error("Bad line encountered in '" + seq_names_to_taxa + "' - expected two tab-separated fields:\n" +
+                          line)
+            sys.exit(3)
+        seq_lineage_map[seq_name] = lineage
+    handler.close()
+    return seq_lineage_map
