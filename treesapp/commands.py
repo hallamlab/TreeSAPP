@@ -186,10 +186,10 @@ def create(sys_args):
     ts_create.furnish_with_arguments(args)
     ts_create.check_previous_output(args)
 
+    # TODO: Logging fails when previous output exists and no overwrite flag
     log_file_name = args.output + os.sep + "TreeSAPP_create_" + args.refpkg_name + "_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
-    # TODO: prevent the log file being removed by overwrite
 
     check_parser_arguments(args, sys_args)
     check_create_arguments(ts_create, args)
@@ -201,7 +201,7 @@ def create(sys_args):
     # Create a new MarkerBuild instance to hold all relevant information for recording in ref_build_parameters.tsv
     # TODO: Merge the MarkerBuild and ReferencePackage classes
     marker_package = MarkerBuild()
-    marker_package.pid = args.identity
+    marker_package.pid = ts_create.prop_sim
     marker_package.cog = ts_create.ref_pkg.prefix
     marker_package.molecule = args.molecule
     marker_package.kind = args.kind
@@ -309,12 +309,10 @@ def create(sys_args):
         ##
         if ts_create.uc and not args.headless:
             # Allow user to select the representative sequence based on organism name, sequence length and similarity
-            fasta_records = create_refpkg.present_cluster_rep_options(cluster_dict,
-                                                                             fasta_records,
-                                                                             ref_seqs.header_registry,
-                                                                             ref_seqs.amendments)
+            fasta_records = create_refpkg.present_cluster_rep_options(cluster_dict, fasta_records,
+                                                                      ref_seqs.header_registry, ref_seqs.amendments)
         elif ts_create.uc and args.headless:
-            create_refpkg.finalize_cluster_reps(cluster_dict, fasta_records, ref_seqs.header_registry)
+            fasta_records = create_refpkg.finalize_cluster_reps(cluster_dict, fasta_records, ref_seqs.header_registry)
         else:
             for num_id in fasta_records:
                 fasta_records[num_id].cluster_rep = True
@@ -322,9 +320,9 @@ def create(sys_args):
 
     if ts_create.stage_status("build"):
         fasta_records = create_refpkg.remove_outlier_sequences(fasta_records,
-                                                                      ts_create.executables["OD-seq"],
-                                                                      ts_create.executables["mafft"],
-                                                                      ts_create.var_output_dir, args.num_threads)
+                                                               ts_create.executables["OD-seq"],
+                                                               ts_create.executables["mafft"],
+                                                               ts_create.var_output_dir, args.num_threads)
 
         ##
         # Re-order the fasta_records by their lineages (not phylogenetic, just alphabetical sort)
@@ -438,6 +436,8 @@ def create(sys_args):
         if args.trim_align:
             trainer_cmd.append("--trim_align")
         train(trainer_cmd)
+        marker_package.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir + "placement_trainer" +
+                                                                   os.sep + "placement_trainer_results.txt")
 
     ts_create.remove_intermediates()
     ##

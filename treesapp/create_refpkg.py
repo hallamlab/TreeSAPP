@@ -735,21 +735,53 @@ def update_build_parameters(param_file, marker_package: classy.MarkerBuild):
     :param marker_package: A MarkerBuild instance
     :return: None
     """
-    try:
-        params = open(param_file, 'a')
-    except IOError:
-        logging.error("Unable to open " + param_file + "for appending.\n")
-        sys.exit(13)
+    with open(param_file) as param_handler:
+        param_lines = param_handler.readlines()
 
     marker_package.update = strftime("%d_%b_%Y", gmtime())
-
     build_list = [marker_package.cog, marker_package.denominator, marker_package.molecule, marker_package.model,
                   marker_package.kind, str(marker_package.pid), str(marker_package.num_reps), marker_package.tree_tool,
                   ','.join([str(param) for param in marker_package.pfit]),
                   marker_package.lowest_confident_rank, marker_package.update, marker_package.description]
-    params.write("\t".join(build_list) + "\n")
+
+    updated_lines = []
+    for line in param_lines:
+        fields = line.strip("\n").split("\t")
+        if fields[0] != marker_package.cog:
+            updated_lines.append("\t".join(fields))
+    updated_lines.append("\t".join(build_list))
+
+    try:
+        params = open(param_file, 'w')
+    except IOError:
+        logging.error("Unable to open " + param_file + "for appending.\n")
+        sys.exit(13)
+    params.write("\n".join(updated_lines) + "\n")
+    params.close()
 
     return
+
+
+def parse_model_parameters(placement_trainer_file):
+    """
+    Returns the model parameters on the line formatted like
+     'Regression parameters = (m,b)'
+    in the file placement_trainer_results.txt
+    :return: tuple
+    """
+    trainer_result_re = re.compile(r"^Regression parameters = \(([0-9,.-]+)\)$")
+    try:
+        trainer_handler = open(placement_trainer_file, 'r')
+    except IOError:
+        logging.error("Unable to open '" + placement_trainer_file + "' for reading!\n")
+        sys.exit(3)
+    params = None
+    for line in trainer_handler:
+        match = trainer_result_re.match(line)
+        if match:
+            params = match.group(1).split(',')
+    trainer_handler.close()
+    return params
 
 
 def update_tax_ids_with_lineage(args, tree_taxa_list):

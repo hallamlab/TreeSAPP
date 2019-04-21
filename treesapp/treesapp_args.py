@@ -518,6 +518,7 @@ def check_create_arguments(creator: Creator, args):
             else:
                 logging.error("--identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
                 sys.exit(13)
+        creator.prop_sim = args.identity
 
     if args.taxa_lca:
         if not args.cluster and not args.uc:
