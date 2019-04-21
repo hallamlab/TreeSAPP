@@ -360,7 +360,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
                     original_header = header_registry[num].original
                     mltree_id = str(num)
                     break
-            ref_seq = classy.ReferenceSequence()
+            ref_seq = ReferenceSequence()
             ref_seq.sequence = fasta_dict[header]
 
             if swappers and header in swappers.keys():
@@ -710,7 +710,7 @@ def read_tax_ids(tree_taxa_list):
         else:
             mltree_id_key, seq_info = fields
             lineage = ""
-        ref_seq = classy.ReferenceSequence()
+        ref_seq = ReferenceSequence()
         try:
             ref_seq.organism = seq_info.split(" | ")[0]
             ref_seq.accession = seq_info.split(" | ")[1]
@@ -780,32 +780,6 @@ def update_tax_ids_with_lineage(args, tree_taxa_list):
                     ref_seq_dict[mltree_id_key] = ref_seq
         # write_tax_ids(args, fasta_replace_dict, tax_ids_file, args.molecule)
     return
-
-
-def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
-    """
-    Adds lineage information from accession_lineages to fasta_record_objects
-
-    :param fasta_record_objects: dict() indexed by TreeSAPP numeric identifiers mapped to ReferenceSequence instances
-    :param accession_lineages: a dictionary mapping {accession: lineage}
-    :return:
-    """
-    for treesapp_id in fasta_record_objects:
-        ref_seq = fasta_record_objects[treesapp_id]
-        if not ref_seq.lineage:
-            try:
-                lineage = accession_lineages[ref_seq.accession]
-            except KeyError:
-                logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
-                              "Please remove the output directory and restart.\n")
-                sys.exit(13)
-            # Add the species designation since it is often not included in the sequence record's lineage
-            ref_seq.lineage = lineage
-        if not ref_seq.organism and ref_seq.lineage:
-            ref_seq.organism = ref_seq.lineage.split("; ")[-1]
-        else:
-            pass
-    return fasta_record_objects
 
 
 def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output_dir="./outliers", num_threads=2):

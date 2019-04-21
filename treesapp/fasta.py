@@ -496,7 +496,7 @@ def get_header_format(header, code_name=""):
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
     assign_re = re.compile(r"^>?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
     pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
-    eggnog_re = re.compile(r"^>?(\d+).[A-Z0-9]_\d+")  # t
+    eggnog_re = re.compile(r"^>?(\d+)\.([A-Za-z0-9]+)(_\w+)?$")  # t, o
 
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")

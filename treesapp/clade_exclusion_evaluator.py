@@ -482,36 +482,6 @@ def correct_accession(description):
     return return_sequence_info_groups(sequence_info, header_db, description).accession
 
 
-def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
-    """
-    Function for adding sequences from a fasta-formatted dictionary into dictionary of ReferenceSequence objects
-
-    :param fasta_dict:
-    :param header_registry: An optional dictionary of Header objects
-    :param ref_seq_dict: A dictionary indexed by arbitrary integers mapping to ReferenceSequence instances
-    :return:
-    """
-    missing = list()
-    if len(header_registry) != len(fasta_dict):
-        logging.warning("Number of records in FASTA collection and header list differ.\n" +
-                        "Chances are these were short sequences that didn't pass the filter. Carrying on.\n")
-
-    for num_id in ref_seq_dict.keys():
-        ref_seq = ref_seq_dict[num_id]
-        formatted_header = header_registry[num_id].formatted
-        try:
-            ref_seq.sequence = fasta_dict[formatted_header]
-        except KeyError:
-            if len(header_registry) == len(fasta_dict):
-                logging.error(formatted_header + " not found in FASTA records due to format incompatibilities.\n")
-                sys.exit(21)
-            missing.append(str(header_registry[num_id].original))
-    if len(missing) > 0:
-        logging.debug("The following sequences have been removed from further analyses:\n\t" +
-                      "\n\t".join(missing) + "\n")
-    return ref_seq_dict
-
-
 def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker, depth):
     # Move the original FASTA, tree and tax_ids files to a temporary location
     marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])

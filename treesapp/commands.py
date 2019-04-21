@@ -13,14 +13,12 @@ from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_c
     check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, check_updater_arguments
 from . import utilities
 from . import wrapper
-from . import entrez_utils
 from . import entish
 from . import lca_calculations
 from . import placement_trainer
 from . import update_refpkg
 from .phylo_dist import trim_lineages_to_rank
-from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater,\
-    get_header_info, prep_logging
+from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, prep_logging
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
@@ -28,7 +26,7 @@ from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
     summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs
 from .jplace_utils import sub_indices_for_seq_names_jplace
-from .clade_exclusion_evaluator import load_ref_seqs, pick_taxonomic_representatives, select_rep_seqs,\
+from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
     validate_ref_package_files, restore_reference_package, exclude_clade_from_ref_files, determine_containment,\
     parse_distances, remove_clade_exclusion_files, load_rank_depth_map
@@ -130,29 +128,7 @@ def train(sys_args):
         ref_seqs.change_dict_keys("formatted")
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
-    # Get the lineage information for the training/query sequences
-    fasta_record_objects = get_header_info(ref_seqs.header_registry, ts_trainer.ref_pkg.prefix)
-    fasta_record_objects = load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, fasta_record_objects)
-    entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
-
-    if ts_trainer.stage_status("lineages"):
-        entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, args.molecule, args.acc_to_taxid)
-        accession_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
-        all_accessions = entrez_utils.entrez_records_to_accessions(entrez_records, entrez_query_list)
-
-        # Download lineages separately for those accessions that failed
-        # Map proper accession to lineage from the tuple keys (accession, accession.version)
-        #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
-        fasta_record_objects, accession_lineage_map = entrez_utils.verify_lineage_information(accession_lineage_map,
-                                                                                              all_accessions,
-                                                                                              fasta_record_objects,
-                                                                                              num_lineages_provided)
-        entrez_utils.write_accession_lineage_map(ts_trainer.acc_to_lin, accession_lineage_map)
-        # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
-    else:
-        logging.info("Reading cached lineages in '" + ts_trainer.acc_to_lin + "'... ")
-        accession_lineage_map = entrez_utils.read_accession_taxa_map(ts_trainer.acc_to_lin)
-        logging.info("done.\n")
+    fasta_records = ts_trainer.fetch_entrez_lineages(ref_seqs, args)
 
     # Read in the reference fasta file
     ref_fasta_dict = read_fasta_to_dict(ts_trainer.ref_pkg.msa)
@@ -172,7 +148,7 @@ def train(sys_args):
         pfit_array, taxa_evo_dists, pqueries = placement_trainer.regress_rank_distance(ts_trainer.hmm_purified_seqs,
                                                                                        ts_trainer.executables,
                                                                                        ts_trainer.ref_pkg,
-                                                                                       accession_lineage_map,
+                                                                                       ts_trainer.seq_lineage_map,
                                                                                        ref_fasta_dict,
                                                                                        ts_trainer.var_output_dir,
                                                                                        ts_trainer.molecule_type,
@@ -272,46 +248,26 @@ def create(sys_args):
     # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
-    fasta_record_objects = get_header_info(ref_seqs.header_registry, ts_create.ref_pkg.prefix)
-    fasta_record_objects = load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, fasta_record_objects)
-
-    logging.debug("\tNumber of input sequences =\t" + str(len(fasta_record_objects)) + "\n")
-
-    if ts_create.stage_status("lineages"):
-        entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(fasta_record_objects)
-        entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, args.molecule, args.acc_to_taxid)
-        accession_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
-        all_accessions = entrez_utils.entrez_records_to_accessions(entrez_records, entrez_query_list)
-
-        # Download lineages separately for those accessions that failed
-        # Map proper accession to lineage from the tuple keys (accession, accession.version)
-        #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
-        fasta_record_objects, accession_lineage_map = entrez_utils.verify_lineage_information(accession_lineage_map,
-                                                                                              all_accessions,
-                                                                                              fasta_record_objects,
-                                                                                              num_lineages_provided)
-        entrez_utils.write_accession_lineage_map(ts_create.acc_to_lin, accession_lineage_map)
-    else:
-        # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
-        create_refpkg.fill_ref_seq_lineages(fasta_record_objects, ts_create.seq_lineage_map)
+    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args)
+    create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
-        fasta_record_objects = create_refpkg.screen_filter_taxa(args, fasta_record_objects)
+        fasta_records = create_refpkg.screen_filter_taxa(args, fasta_records)
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
-        fasta_record_objects = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_record_objects)
+        fasta_records = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_records)
 
-        fasta_record_objects, ref_seqs.header_registry = create_refpkg.remove_duplicate_records(fasta_record_objects,
+        fasta_records, ref_seqs.header_registry = create_refpkg.remove_duplicate_records(fasta_records,
                                                                                                 ref_seqs.header_registry)
 
-        if len(fasta_record_objects.keys()) < 2:
-            logging.error(str(len(fasta_record_objects)) + " sequences post-homology + taxonomy filtering\n")
+        if len(fasta_records.keys()) < 2:
+            logging.error(str(len(fasta_records)) + " sequences post-homology + taxonomy filtering\n")
             sys.exit(11)
 
         # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
         filtered_fasta_dict = dict()
-        for num_id in fasta_record_objects:
-            refseq_object = fasta_record_objects[num_id]
+        for num_id in fasta_records:
+            refseq_object = fasta_records[num_id]
             formatted_header = ref_seqs.header_registry[num_id].formatted
             filtered_fasta_dict[formatted_header] = refseq_object.sequence
         write_new_fasta(filtered_fasta_dict, ts_create.filtered_fasta)
@@ -335,7 +291,7 @@ def create(sys_args):
             ##
             # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
             ##
-            create_refpkg.cluster_lca(cluster_dict, fasta_record_objects, ref_seqs.header_registry)
+            create_refpkg.cluster_lca(cluster_dict, fasta_records, ref_seqs.header_registry)
         else:
             cluster_dict = None
 
@@ -353,28 +309,28 @@ def create(sys_args):
         ##
         if ts_create.uc and not args.headless:
             # Allow user to select the representative sequence based on organism name, sequence length and similarity
-            fasta_record_objects = create_refpkg.present_cluster_rep_options(cluster_dict,
-                                                                             fasta_record_objects,
+            fasta_records = create_refpkg.present_cluster_rep_options(cluster_dict,
+                                                                             fasta_records,
                                                                              ref_seqs.header_registry,
                                                                              ref_seqs.amendments)
         elif ts_create.uc and args.headless:
-            create_refpkg.finalize_cluster_reps(cluster_dict, fasta_record_objects, ref_seqs.header_registry)
+            create_refpkg.finalize_cluster_reps(cluster_dict, fasta_records, ref_seqs.header_registry)
         else:
-            for num_id in fasta_record_objects:
-                fasta_record_objects[num_id].cluster_rep = True
-                # fasta_record_objects[num_id].cluster_lca is left empty
+            for num_id in fasta_records:
+                fasta_records[num_id].cluster_rep = True
+                # fasta_records[num_id].cluster_lca is left empty
 
     if ts_create.stage_status("build"):
-        fasta_record_objects = create_refpkg.remove_outlier_sequences(fasta_record_objects,
+        fasta_records = create_refpkg.remove_outlier_sequences(fasta_records,
                                                                       ts_create.executables["OD-seq"],
                                                                       ts_create.executables["mafft"],
                                                                       ts_create.var_output_dir, args.num_threads)
 
         ##
-        # Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
+        # Re-order the fasta_records by their lineages (not phylogenetic, just alphabetical sort)
         # Remove the cluster members since they will no longer be used
         ##
-        fasta_replace_dict = create_refpkg.order_dict_by_lineage(fasta_record_objects)
+        fasta_replace_dict = create_refpkg.order_dict_by_lineage(fasta_records)
 
         # For debugging. This is the finalized set of reference sequences:
         # for num_id in sorted(fasta_replace_dict, key=int):
@@ -468,6 +424,8 @@ def create(sys_args):
                                            fasta_replace_dict,
                                            ts_create.final_output_dir + os.sep + "RAxML_bipartitions." + ts_create.ref_pkg.prefix)
 
+    param_file = ts_create.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
+    create_refpkg.update_build_parameters(param_file, marker_package)
     if ts_create.stage_status("train"):
         # Build the regression model of placement distances to taxonomic ranks
         trainer_cmd = ["-i", ts_create.input_sequences,
@@ -486,7 +444,6 @@ def create(sys_args):
     # Finish validating the file and append the reference package build parameters to the master table
     ##
     ts_create.ref_pkg.validate(marker_package.num_reps)
-    param_file = ts_create.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
     create_refpkg.update_build_parameters(param_file, marker_package)
 
     logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
@@ -772,54 +729,28 @@ def evaluate(sys_args):
         ref_lineages[leaf.number] = leaf.lineage
 
     # Load FASTA data
-    fasta_dict = format_read_fasta(args.input, args.molecule, ts_evaluate.output_dir, 110)
+    ref_seqs = FASTA(args.input)
+    ref_seqs.fasta_dict = format_read_fasta(ref_seqs.file, args.molecule, ts_evaluate.output_dir, 110)
     if args.length:
-        for seq_id in fasta_dict:
-            if len(fasta_dict[seq_id]) < args.length:
+        for seq_id in ref_seqs.fasta_dict:
+            if len(ref_seqs.fasta_dict[seq_id]) < args.length:
                 logging.warning(seq_id + " sequence is shorter than " + str(args.length) + "\n")
             else:
-                max_stop = len(fasta_dict[seq_id]) - args.length
+                max_stop = len(ref_seqs.fasta_dict[seq_id]) - args.length
                 random_start = randint(0, max_stop)
-                fasta_dict[seq_id] = fasta_dict[seq_id][random_start:random_start + args.length]
-    header_registry = register_headers(get_headers(args.input))
-    # Load the query test sequences as ReferenceSequence objects
-    complete_ref_sequences = get_header_info(header_registry)
-    complete_ref_sequences = load_ref_seqs(fasta_dict, header_registry, complete_ref_sequences)
-    entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(complete_ref_sequences)
+                ref_seqs.fasta_dict[seq_id] = ref_seqs.fasta_dict[seq_id][random_start:random_start + args.length]
+    ref_seqs.header_registry = register_headers(get_headers(ref_seqs.file))
 
-    logging.debug("\tNumber of input sequences =\t" + str(len(complete_ref_sequences)) + "\n")
-
-    if ts_evaluate.stage_status("lineages"):
-        entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, args.molecule, args.acc_to_taxid)
-        accession_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
-        all_accessions = entrez_utils.entrez_records_to_accessions(entrez_records, entrez_query_list)
-
-        # Download lineages separately for those accessions that failed
-        # Map proper accession to lineage from the tuple keys (accession, accession.version)
-        #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
-        fasta_record_objects, accession_lineage_map = entrez_utils.verify_lineage_information(accession_lineage_map,
-                                                                                              all_accessions,
-                                                                                              complete_ref_sequences,
-                                                                                              num_lineages_provided)
-        entrez_utils.write_accession_lineage_map(ts_evaluate.acc_to_lin, accession_lineage_map)
-        # Add lineage information to the ReferenceSequence() objects in fasta_record_objects if not contained
-
-    else:
-        logging.info("Reading cached lineages in '" + ts_evaluate.acc_to_lin + "'... ")
-        accession_lineage_map = entrez_utils.read_accession_taxa_map(ts_evaluate.acc_to_lin)
-        logging.info("done.\n")
-        create_refpkg.fill_ref_seq_lineages(complete_ref_sequences, accession_lineage_map)
-
-    fasta_record_objects = complete_ref_sequences.values()
+    fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args).values()
 
     logging.info("Selecting representative sequences for each taxon.\n")
 
     # Filter the sequences from redundant taxonomic lineages, picking up to 5 representative sequences
-    representative_seqs, ts_evaluate.taxa_filter = pick_taxonomic_representatives(fasta_record_objects,
+    representative_seqs, ts_evaluate.taxa_filter = pick_taxonomic_representatives(fasta_records,
                                                                                   ts_evaluate.taxa_filter)
-    deduplicated_fasta_dict = select_rep_seqs(representative_seqs, fasta_record_objects)
+    deduplicated_fasta_dict = select_rep_seqs(representative_seqs, fasta_records)
     write_new_fasta(deduplicated_fasta_dict, ts_evaluate.test_rep_taxa_fasta)
-    rep_accession_lineage_map = map_seqs_to_lineages(accession_lineage_map, deduplicated_fasta_dict)
+    rep_accession_lineage_map = map_seqs_to_lineages(ts_evaluate.seq_lineage_map, deduplicated_fasta_dict)
 
     # Checkpoint three: We have accessions linked to taxa, and sequences to analyze with TreeSAPP, but not classified
     if ts_evaluate.stage_status("classify"):
@@ -849,7 +780,7 @@ def evaluate(sys_args):
                     continue
 
                 # Select representative sequences belonging to the taxon being tested
-                taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_record_objects, lineage)
+                taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_records, lineage)
                 # Decide whether to continue analyzing taxon based on number of query sequences
                 if len(taxon_rep_seqs.keys()) == 0:
                     logging.debug("No query sequences for " + lineage + ".\n")
@@ -942,7 +873,7 @@ def evaluate(sys_args):
         for rank in sorted(ts_evaluate.taxa_tests):
             for test_obj in ts_evaluate.taxa_tests[rank]:
                 if test_obj.assignments:
-                    marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_record_objects)
+                    marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_records)
                     # Return the number of correct, classified, and total sequences of that taxon at the current rank
                     # Identify the excluded rank for each query sequence
                     if len(marker_assignments) == 0:

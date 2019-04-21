@@ -9,7 +9,7 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from .fasta import read_fasta_to_dict, write_new_fasta, trim_multiple_alignment, FASTA, register_headers, get_headers
+from .fasta import read_fasta_to_dict, write_new_fasta, trim_multiple_alignment, FASTA
 from .file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming,\
     multiple_alignment_dimensions
 from . import utilities

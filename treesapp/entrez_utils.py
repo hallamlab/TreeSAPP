@@ -8,7 +8,53 @@ import logging
 from Bio import Entrez
 from urllib import error
 from .utilities import clean_lineage_string
-from .classy import EntrezRecord
+
+
+class ReferenceSequence:
+    def __init__(self):
+        self.accession = ""
+        self.description = ""
+        self.organism = ""
+        self.lineage = ""
+        self.short_id = ""
+        self.sequence = ""
+        self.locus = ""
+        self.ncbi_tax = ""
+        self.cluster_rep = False
+        self.cluster_rep_similarity = 0
+        self.cluster_lca = None
+
+    def get_info(self):
+        """
+        Returns a string with the ReferenceSequence instance's current fields
+
+        :return: str
+        """
+        info_string = ""
+        info_string += "accession = " + self.accession + ", " + "treesapp_id = " + self.short_id + "\n"
+        info_string += "organism = " + self.organism + ", " + "NCBI taxid = " + self.ncbi_tax + "\n"
+        info_string += "description = " + self.description + ", " + "locus = " + self.locus + "\n"
+        info_string += "lineage = " + self.lineage + "\n"
+        return info_string
+
+
+class EntrezRecord(ReferenceSequence):
+    def __init__(self, acc, ver):
+        super().__init__()
+        self.accession = acc
+        self.versioned = ver
+        self.bitflag = 0  # For monitoring progress during download stage
+
+    def tracking_stamp(self):
+        num = 0
+        if self.organism:
+            num += 1
+        if self.ncbi_tax:
+            num += 2
+        if self.lineage:
+            num += 4
+        self.bitflag = num
+        return
 
 
 def validate_target_db(db_type: str):
@@ -321,7 +367,7 @@ def fetch_lineages_from_taxids(entrez_records: list):
     for e_record in entrez_records:  # type: EntrezRecord
         if e_record.bitflag == 7:
             continue
-        elif e_record.bitflag < 3:
+        elif e_record.bitflag < 2:
             continue
         taxid = e_record.ncbi_tax
         if taxid and taxid not in tax_id_map:
@@ -343,15 +389,13 @@ def fetch_lineages_from_taxids(entrez_records: list):
         try:
             for e_record in tax_id_map[tax_id]:
                 e_record.lineage = tax_lineage
-                # If the lineage can be mapped to the original taxonomy, then add 4 indicating success
-                if e_record.lineage:
-                    e_record.bitflag += 4
+                e_record.tracking_stamp()
         except KeyError:
             pass
     return entrez_records
 
-
-def entrez_records_to_accessions(entrez_records_list, search_term_list):
+# TODO: Remove?
+def entrez_records_to_accession_dict(entrez_records_list, search_term_list):
     all_accessions = dict()
     # Instantiate all query terms with a 0, indicating a failure
     for term in search_term_list:
@@ -360,6 +404,37 @@ def entrez_records_to_accessions(entrez_records_list, search_term_list):
     for record in entrez_records_list:
         all_accessions.update({record.accession: record.bitflag, record.versioned: record.bitflag})
     return all_accessions
+
+
+def entrez_records_to_accession_set(entrez_records_list: list, bitflag_filter=7):
+    query_dict = dict()
+    for record in entrez_records_list:  # type: EntrezRecord
+        if record.bitflag > bitflag_filter:
+            continue
+        # Uses the versioned accession ID if available, regular accession otherwise
+        if record.versioned:
+            query_dict[record.versioned] = record
+        elif record.accession:
+            query_dict[record.accession] = record
+        else:
+            continue
+    return query_dict
+
+
+def entrez_records_to_organism_set(entrez_records_list: list, bitflag_filter=7):
+    query_dict = dict()
+    for record in entrez_records_list:  # type: EntrezRecord
+        if record.bitflag > bitflag_filter:
+            continue
+        if record.organism:
+            # Index the accession_lineage_map by organism and map to list of EntrezRecord object
+            if record.organism in query_dict:
+                query_dict[record.organism + "[All Names]"].append(record)
+            else:
+                query_dict[record.organism + "[All Names]"] = [record]
+        else:
+            continue
+    return query_dict
 
 
 def entrez_records_to_accession_lineage_map(entrez_records_list):
@@ -372,7 +447,7 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
     failed = 0
     accession_lineage_map = dict()
 
-    for e_record in entrez_records_list:
+    for e_record in entrez_records_list:  # type: EntrezRecord
         if e_record.bitflag == 0:
             failed += 1
             continue
@@ -384,7 +459,7 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
             success += 1
         elif e_record.bitflag == 6:
             rescued += 1
-        elif e_record.bitflag == 3:
+        elif 3 >= e_record.bitflag >= 2:
             bad_tax += 1
         elif e_record.bitflag == 1:
             bad_org += 1
@@ -402,25 +477,20 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
     return accession_lineage_map
 
 
-def get_multiple_lineages(search_term_list: list, molecule_type: str):
+def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
     """
     Function for retrieving taxonomic lineage information from accession IDs - accomplished in 2 steps:
      1. Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
      2. Query Entrez's Taxonomy database using organism names to obtain corresponding TaxIds
      3. Query Entrez's Taxonomy database using TaxIds to obtain corresponding taxonomic lineages
 
-    :param search_term_list: A list of GenBank accession IDs to be mapped to lineages
+    :param entrez_query_list: A list of GenBank accession IDs to be mapped to lineages
     :param molecule_type: The type of molecule (e.g. prot, nuc) to be mapped to a proper Entrez database name
     :return: List of EntrezRecord instances
     """
-    if not search_term_list:
+    if not entrez_query_list:
         logging.error("Search_term for Entrez query is empty\n")
         sys.exit(9)
-
-    entrez_record_map = dict()
-    entrez_records = list()
-    organism_map = dict()
-    unique_organisms = set()
 
     prep_for_entrez_query()
     entrez_db = validate_target_db(molecule_type)
@@ -428,23 +498,29 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
     ##
     # Step 1: Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
     ##
+    search_terms = entrez_records_to_accession_set(entrez_query_list, 1)
+    print("Accession search terms:", search_terms)
     logging.info("Retrieving taxonomy Entrez records for each accession... ")
-    records_batch, durations, org_failures = tolerant_entrez_query(search_term_list, entrez_db)
+    records_batch, durations, org_failures = tolerant_entrez_query(list(search_terms.keys()), entrez_db)
     logging.info("done.\n")
 
     # Parse the records returned by tolerant_entrez_query, mapping accessions to organism names
     for record in records_batch:
+        e_record = None
         accession, ver, alt = parse_accessions_from_entrez_xml(record)
-        e_record = EntrezRecord(accession, ver)
-        if not accession and not ver:
-            logging.debug("Neither accession nor accession.version parsed from:\n" + str(record) + "\n")
-            continue
-        elif accession not in search_term_list and ver not in search_term_list:
+        if accession in search_terms:
+            e_record = search_terms[accession]
+        elif ver in search_terms:
+            e_record = search_terms[ver]
+        else:
             for alt_key in alt:
-                if alt_key in search_term_list:
-                    e_record.accession = alt_key
+                if alt_key in search_terms:
+                    e_record = search_terms[alt_key]
                     break
-        e_record.bitflag += 1
+        if not e_record:
+            logging.warning("Unable to map neither a record' accession or accession.version to an EntrezRecord:\n" +
+                            str(record) + "\n")
+            continue
         e_record.organism = parse_gbseq_info_from_entrez_xml(record)
         # Entrez replaces special characters with whitespace in organism queries, so doing it here for compatibility
         e_record.organism = re.sub('[:]', ' ', e_record.organism)
@@ -454,27 +530,22 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
         # If the full taxonomic lineage was not found, then add it to the unique organisms for further querying
         if len(tax_lineage) >= 7 or tax_lineage[-1] == e_record.organism:
             e_record.lineage = "; ".join(tax_lineage)
-            e_record.bitflag += 6
-        else:
-            # Add the organism to unique_organisms set for taxonomic lineage querying
-            unique_organisms.add(e_record.organism + "[All Names]")
-        # Index the accession_lineage_map by organism and map to list of EntrezRecord object
-        if e_record.organism in entrez_record_map:
-            entrez_record_map[e_record.organism].append(e_record)
-        else:
-            entrez_record_map[e_record.organism] = [e_record]
+        e_record.tracking_stamp()
 
     ##
     # Step 2: Query Entrez's Taxonomy database using organism names to obtain corresponding taxonomic lineages
     ##
+    search_terms = entrez_records_to_organism_set(entrez_query_list, 3)
+    print("Organism search terms:", search_terms)
     logging.info("Retrieving NCBI taxonomy IDs for each organism... ")
-    records_batch, durations, lin_failures = tolerant_entrez_query(list(unique_organisms),
+    records_batch, durations, lin_failures = tolerant_entrez_query(list(search_terms.keys()),
                                                                    "Taxonomy", "search", "xml", 1)
     logging.info("done.\n")
 
     for record in records_batch:
         try:
-            organism = re.sub("\[All Names]", '', parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term'])
+            # TODO: Remove the All names after mapping as these are used in the hash
+            organism = parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term']
         except (IndexError, KeyError, TypeError):
             logging.warning("Value for 'TranslationStack' not found in Entrez record:" + str(record) + ".\n" +
                             "Unable to link taxonomy ID to organism.\n")
@@ -484,29 +555,26 @@ def get_multiple_lineages(search_term_list: list, molecule_type: str):
             logging.warning("Entrez returned an empty TaxId for organism '" + organism + "'\n")
         try:
             # This can, and will, lead to multiple accessions being assigned the same tax_id - not a problem, though
-            for e_record in entrez_record_map[organism]:
+            for e_record in search_terms[organism]:
                 if e_record.bitflag == 7:
                     continue
                 e_record.ncbi_tax = tax_id
-                e_record.bitflag += 2
+                e_record.tracking_stamp()
         except KeyError:
-            organism_map[organism] = tax_id
+            logging.warning("Unable to map organism '" + organism + "' to an EntrezRecord:\n")
+            continue
 
-    for organism in entrez_record_map:
-        entrez_records += entrez_record_map[organism]
+    entrez_query_list = fetch_lineages_from_taxids(entrez_query_list)
 
-    entrez_records = fetch_lineages_from_taxids(entrez_records)
-
-    return entrez_records
+    return entrez_query_list
 
 
-def verify_lineage_information(accession_lineage_map, all_accessions, fasta_record_objects, taxa_searched):
+def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa_searched):
     """
     Function used for parsing records returned by Bio.Entrez.efetch queries and identifying inconsistencies
     between the search terms and the results
 
     :param accession_lineage_map: A dictionary mapping accession.versionID tuples to taxonomic lineages
-    :param all_accessions:
     :param fasta_record_objects:
     :param taxa_searched: An integer for tracking number of accessions queried (currently number of lineages provided)
     :return:
@@ -523,8 +591,9 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
     # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
     unambiguous_accession_lineage_map = dict()
     for mltree_id_key in fasta_record_objects.keys():
-        ref_seq = fasta_record_objects[mltree_id_key]
-        if ref_seq.accession in all_accessions:
+        ref_seq = fasta_record_objects[mltree_id_key]  # type: EntrezRecord
+        ref_seq.tracking_stamp()
+        if ref_seq.bitflag >= 1:
             taxa_searched += 1
         # Could have been set previously, in custom header format for example
         if ref_seq.lineage:
@@ -542,11 +611,11 @@ def verify_lineage_information(accession_lineage_map, all_accessions, fasta_reco
                     if not ref_seq.organism and accession_lineage_map[tuple_key]["organism"]:
                         ref_seq.organism = accession_lineage_map[tuple_key]["organism"]
 
-            if not lineage and ref_seq.accession not in all_accessions:
+            if not lineage and ref_seq.bitflag == 0:
                 logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
                               "Please remove the output directory and restart.\n")
                 sys.exit(13)
-            elif not lineage and all_accessions[ref_seq.accession] == 0:
+            elif not lineage and ref_seq.bitflag >= 1:
                 lineage = "Unclassified"
 
             ref_seq.lineage = clean_lineage_string("; ".join(check_lineage(lineage, ref_seq.organism)))
@@ -576,7 +645,10 @@ def write_accession_lineage_map(mapping_file, accession_lineage_map):
         sys.exit(9)
 
     for accession in accession_lineage_map:
-        map_file_handler.write(accession + "\t" + accession_lineage_map[accession] + "\n")
+        lineage = accession_lineage_map[accession]
+        if accession[0] == '>':
+            accession = accession[1:]
+        map_file_handler.write(accession + "\t" + lineage + "\n")
 
     map_file_handler.close()
     return
@@ -610,38 +682,94 @@ def read_accession_taxa_map(mapping_file):
 
 def build_entrez_queries(fasta_record_objects: dict):
     """
-    Function to create data collections to fulfill entrez query searches
+    Function to create data collections to fulfill entrez query searches.
+    The queries are EntrezRecord instances lacking lineage information; they could have either accessions or NCBI taxids
 
     :param fasta_record_objects: A list of ReferenceSequence objects - lineage information to be filled
-    :return: Set containing unique accessions to query Entrez
+    :return: List containing Entrez queries
     """
     num_lineages_provided = 0
-    entrez_query_list = set()
+    entrez_query_list = list()
     unavailable = list()
     for num_id in fasta_record_objects:
-        ref_seq = fasta_record_objects[num_id]
+        ref_seq = fasta_record_objects[num_id]  # type: EntrezRecord
         # Only need to download the lineage information for those sequences that don't have it encoded in their header
         if ref_seq.lineage:
             num_lineages_provided += 1
+        elif ref_seq.accession or ref_seq.ncbi_tax:
+            entrez_query_list.append(ref_seq)
         else:
-            if ref_seq.accession:
-                entrez_query_list.add(ref_seq.accession)
-            else:
-                unavailable.append(ref_seq.description)
+            unavailable.append(ref_seq.get_info())
     if len(unavailable) > 0:
         logging.warning("Neither accession nor lineage available for:\n\t" +
                         "\n\t".join(unavailable))
     return list(entrez_query_list), num_lineages_provided
 
 
-def map_accessions_to_lineages(query_accession_list, molecule, accession_to_taxid=None):
+def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
+    """
+    Adds lineage information from accession_lineages to fasta_record_objects
+
+    :param fasta_record_objects: dict() indexed by TreeSAPP numeric identifiers mapped to ReferenceSequence instances
+    :param accession_lineages: a dictionary mapping {accession: lineage}
+    :return:
+    """
+    for treesapp_id in fasta_record_objects:
+        ref_seq = fasta_record_objects[treesapp_id]
+        if not ref_seq.lineage:
+            try:
+                lineage = accession_lineages[ref_seq.accession]
+            except KeyError:
+                logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
+                              "Please remove the output directory and restart.\n")
+                sys.exit(13)
+            # Add the species designation since it is often not included in the sequence record's lineage
+            ref_seq.lineage = lineage
+        if not ref_seq.organism and ref_seq.lineage:
+            ref_seq.organism = ref_seq.lineage.split("; ")[-1]
+        else:
+            pass
+    return fasta_record_objects
+
+
+def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
+    """
+    Function for adding sequences from a fasta-formatted dictionary into dictionary of ReferenceSequence objects
+
+    :param fasta_dict:
+    :param header_registry: An optional dictionary of Header objects
+    :param ref_seq_dict: A dictionary indexed by arbitrary integers mapping to ReferenceSequence instances
+    :return:
+    """
+    missing = list()
+    if len(header_registry) != len(fasta_dict):
+        logging.warning("Number of records in FASTA collection and header list differ.\n" +
+                        "Chances are these were short sequences that didn't pass the filter. Carrying on.\n")
+
+    for num_id in ref_seq_dict.keys():
+        ref_seq = ref_seq_dict[num_id]
+        formatted_header = header_registry[num_id].formatted
+        try:
+            ref_seq.sequence = fasta_dict[formatted_header]
+        except KeyError:
+            if len(header_registry) == len(fasta_dict):
+                logging.error(formatted_header + " not found in FASTA records due to format incompatibilities.\n")
+                sys.exit(21)
+            missing.append(str(header_registry[num_id].original))
+    if len(missing) > 0:
+        logging.debug("The following sequences have been removed from further analyses:\n\t" +
+                      "\n\t".join(missing) + "\n")
+    return ref_seq_dict
+
+
+def map_accessions_to_lineages(query_accession_list: list, molecule: str, accession_to_taxid=None):
     if accession_to_taxid:
         # Determine find the query accessions that are located in the provided accession2taxid file
         entrez_record_dict = map_accession2taxid(query_accession_list, accession_to_taxid)
         # Map lineages to taxids for successfully-mapped query sequences
-        fetch_lineages_from_taxids(entrez_record_dict.values())
+        fetch_lineages_from_taxids(list(entrez_record_dict.values()))
         # Use the normal querying functions to obtain lineage information for the unmapped queries
-        unmapped_queries = pull_unmapped_entrez_records(entrez_record_dict.values())
+        unmapped_queries = pull_unmapped_entrez_records(list(entrez_record_dict.values()))
         if len(unmapped_queries) > 0:
             # This tends to be a minority so shouldn't be too taxing
             for e_record in get_multiple_lineages(unmapped_queries, molecule):  # type: EntrezRecord

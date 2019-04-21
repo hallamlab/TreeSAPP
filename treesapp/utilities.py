@@ -8,7 +8,6 @@ import logging
 import time
 from collections import namedtuple
 from shutil import rmtree
-from glob import glob
 from .external_command_interface import launch_write_command
 
 
@@ -302,7 +301,6 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
         elif header_db == "eggnog":
             taxid = regex_match_groups.group(1)
             accession = ""
-            organism = regex_match_groups.group(2)
         elif header_db == "ts_assign":
             accession = '|'.join(regex_match_groups.groups())
             description = regex_match_groups.group(1)
@@ -320,11 +318,13 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
         logging.error("Unable to handle header: " + header + "\n")
         sys.exit(13)
 
-    seq_info = seq_info(accession, description, locus, organism, lineage, taxid)
-    if not seq_info.accession and not seq_info.organism:
+    if not (accession or organism or lineage or taxid):
         logging.error("Insufficient information was loaded for header:\n" +
                       header + "\n" + "regex_match: " + header_db + '\n')
         sys.exit(13)
+    if not accession:
+        accession = header
+    seq_info = seq_info(accession, description, locus, organism, lineage, taxid)
 
     return seq_info
 

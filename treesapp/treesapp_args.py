@@ -350,11 +350,18 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
                                                         evaluator_instance.refpkg_code_re)
     evaluator_instance.targets.append(evaluator_instance.target_marker.denominator)
 
-    if args.acc_to_lin and os.path.isfile(args.acc_to_lin):
+    if args.acc_to_lin:
         evaluator_instance.acc_to_lin = args.acc_to_lin
-        evaluator_instance.change_stage_status("lineages", False)
+        if os.path.isfile(evaluator_instance.acc_to_lin):
+            logging.info("Reading cached lineages in '" + evaluator_instance.acc_to_lin + "'... ")
+            evaluator_instance.seq_lineage_map.update(read_accession_taxa_map(evaluator_instance.acc_to_lin))
+            logging.info("done.\n")
+            evaluator_instance.change_stage_status("lineages", False)
+        else:
+            logging.error("Unable to find accession-lineage mapping file '" + evaluator_instance.acc_to_lin + "'\n")
+            sys.exit(3)
     else:
-        evaluator_instance.acc_to_lin = args.output + os.sep + "accession_id_lineage_map.tsv"
+        evaluator_instance.acc_to_lin = evaluator_instance.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
 
     ##
     # Define locations of files TreeSAPP outputs
@@ -377,11 +384,18 @@ def check_trainer_arguments(trainer_instance: PhyTrainer, args, marker_build_dic
     trainer_instance.ref_pkg.prefix = target_marker_build.cog
     trainer_instance.ref_pkg.refpkg_code = target_marker_build.denominator
 
-    if args.acc_to_lin and os.path.isfile(args.acc_to_lin):
+    if args.acc_to_lin:
         trainer_instance.acc_to_lin = args.acc_to_lin
-        trainer_instance.change_stage_status("lineages", False)
+        if os.path.isfile(trainer_instance.acc_to_lin):
+            logging.info("Reading cached lineages in '" + trainer_instance.acc_to_lin + "'... ")
+            trainer_instance.seq_lineage_map.update(read_accession_taxa_map(trainer_instance.acc_to_lin))
+            logging.info("done.\n")
+            trainer_instance.change_stage_status("lineages", False)
+        else:
+            logging.error("Unable to find accession-lineage mapping file '" + trainer_instance.acc_to_lin + "'\n")
+            sys.exit(3)
     else:
-        trainer_instance.acc_to_lin = args.output + os.sep + "accession_id_lineage_map.tsv"
+        trainer_instance.acc_to_lin = trainer_instance.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
 
     ##
     # Define locations of files TreeSAPP outputs
@@ -452,16 +466,16 @@ def check_create_arguments(creator: Creator, args):
     # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
     if args.acc_to_lin:
         creator.acc_to_lin = args.acc_to_lin
+        if os.path.isfile(creator.acc_to_lin):
+            logging.info("Reading cached lineages in '" + creator.acc_to_lin + "'... ")
+            creator.seq_lineage_map.update(read_accession_taxa_map(creator.acc_to_lin))
+            logging.info("done.\n")
+            creator.change_stage_status("lineages", False)
+        else:
+            logging.error("Unable to find accession-lineage mapping file '" + creator.acc_to_lin + "'\n")
+            sys.exit(3)
     else:
         creator.acc_to_lin = creator.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
-    if os.path.isfile(creator.acc_to_lin):
-        logging.info("Reading cached lineages in '" + creator.acc_to_lin + "'... ")
-        creator.seq_lineage_map.update(read_accession_taxa_map(creator.acc_to_lin))
-        logging.info("done.\n")
-        creator.change_stage_status("lineages", False)
-    else:
-        logging.error("Unable to find accession-lineage mapping file '" + creator.acc_to_lin + "'\n")
-        sys.exit(3)
 
     # Names of files and directories to be created
     creator.phy_dir = creator.var_output_dir + "phylogeny_files" + os.sep

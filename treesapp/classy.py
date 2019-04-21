@@ -11,10 +11,11 @@ from shutil import rmtree
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
-from .fasta import format_read_fasta, write_new_fasta, get_header_format
+from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA
 from .utilities import median, which, is_exe, return_sequence_info_groups, reluctant_remove_replace
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset, clean_lineage_string
+from . import entrez_utils
 from numpy import var
 
 import _tree_parser
@@ -658,42 +659,6 @@ class TreeLeafReference:
             self.analysis_type = ""
 
 
-class ReferenceSequence:
-    def __init__(self):
-        self.accession = ""
-        self.description = ""
-        self.organism = ""
-        self.lineage = ""
-        self.short_id = ""
-        self.sequence = ""
-        self.locus = ""
-        self.cluster_rep = False
-        self.cluster_rep_similarity = 0
-        self.cluster_lca = None
-
-    def get_info(self):
-        """
-        Returns a string with the ReferenceSequence instance's current fields
-
-        :return: str
-        """
-        info_string = ""
-        info_string += "accession = " + self.accession + ", " + "mltree_id = " + self.short_id + "\n"
-        info_string += "description = " + self.description + ", " + "locus = " + self.locus + "\n"
-        info_string += "organism = " + self.organism + "\n"
-        info_string += "lineage = " + self.lineage + "\n"
-        return info_string
-
-
-class EntrezRecord(ReferenceSequence):
-    def __init__(self, acc, ver):
-        super().__init__()
-        self.accession = acc
-        self.versioned = ver
-        self.ncbi_tax = ""
-        self.bitflag = 0  # For monitoring progress during download stage
-
-
 class CommandLineWorker(Process):
     def __init__(self, task_queue, commander):
         Process.__init__(self)
@@ -794,27 +759,28 @@ def get_header_info(header_registry, code_name=''):
     :return: Dictionary where keys are numerical treesapp_ids and values are ReferenceSequence instances
     """
     logging.info("Extracting information from headers... ")
-    fasta_record_objects = dict()
+    fasta_records = dict()
     for treesapp_id in sorted(header_registry.keys(), key=int):
         original_header = header_registry[treesapp_id].original
         formatted_header = header_registry[treesapp_id].formatted
         header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
         sequence_info = header_format_re.match(original_header)
-        seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, formatted_header)
+        seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, original_header)
 
         # Load the parsed sequences info into the EntrezRecord objects
-        ref_seq = EntrezRecord(seq_info_tuple.accession, seq_info_tuple.accession)
+        ref_seq = entrez_utils.EntrezRecord(seq_info_tuple.accession, seq_info_tuple.accession)
         ref_seq.organism = seq_info_tuple.organism
         ref_seq.lineage = seq_info_tuple.lineage
-        ref_seq.taxid = seq_info_tuple.taxid
+        ref_seq.ncbi_tax = seq_info_tuple.taxid
         ref_seq.description = seq_info_tuple.description
         ref_seq.locus = seq_info_tuple.locus
         ref_seq.short_id = '>' + treesapp_id + '_' + code_name
-        fasta_record_objects[treesapp_id] = ref_seq
+        ref_seq.tracking_stamp()
+        fasta_records[treesapp_id] = ref_seq
 
     logging.info("done.\n")
 
-    return fasta_record_objects
+    return fasta_records
 
 
 class Cluster:
@@ -932,6 +898,10 @@ class TreeSAPP:
         self.hmm_dir = self.treesapp_dir + 'data' + os.sep + "hmm_data" + os.sep
         self.aln_dir = self.treesapp_dir + 'data' + os.sep + "alignment_data" + os.sep
         self.itol_dir = self.treesapp_dir + 'data' + os.sep + "iTOL_data" + os.sep
+        # Necessary for Evaluator, Creator and PhyTrainer:
+        self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
+        self.acc_to_lin = ""  # Path to an accession-lineage mapping file
+        self.ref_pkg = ReferencePackage()
 
         # Values derived from the command-line arguments
         self.input_sequences = ""
@@ -1203,11 +1173,34 @@ class TreeSAPP:
 
         return exec_paths
 
+    def fetch_entrez_lineages(self, ref_seqs: FASTA, args):
+        # Get the lineage information for the training/query sequences
+        ref_seq_records = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
+        ref_seq_records = entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, ref_seq_records)
+        logging.debug("\tNumber of input sequences =\t" + str(len(ref_seq_records)) + "\n")
+
+        if self.stage_status("lineages"):
+            entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(ref_seq_records)
+            entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list,
+                                                                     args.molecule,
+                                                                     args.acc_to_taxid)
+            self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
+            # Download lineages separately for those accessions that failed
+            # Map proper accession to lineage from the tuple keys (accession, accession.version)
+            #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
+            ref_seq_records, self.seq_lineage_map = entrez_utils.verify_lineage_information(self.seq_lineage_map,
+                                                                                            ref_seq_records,
+                                                                                            num_lineages_provided)
+            entrez_utils.write_accession_lineage_map(self.acc_to_lin, self.seq_lineage_map)
+            # Add lineage information to the ReferenceSequence() objects in ref_seq_records if not contained
+        else:
+            entrez_utils.fill_ref_seq_lineages(ref_seq_records, self.seq_lineage_map)
+        return ref_seq_records
+
 
 class Updater(TreeSAPP):
     def __init__(self):
         super(Updater, self).__init__("update")
-        self.ref_pkg = ReferencePackage()
         self.seq_names_to_taxa = ""  # Optional user-provided file mapping query sequence contigs to lineages
         self.lineage_map_file = ""  # File that is passed to create() containing lineage info for all sequences
         self.treesapp_output = ""  # Path to the TreeSAPP output directory - modified by args
@@ -1253,18 +1246,15 @@ class Updater(TreeSAPP):
 class Creator(TreeSAPP):
     def __init__(self):
         super(Creator, self).__init__("create")
-        self.ref_pkg = ReferencePackage()
         self.prop_sim = 1.0
         self.candidates = dict()  # Dictionary tracking all candidate ReferenceSequences
-        self.seq_lineage_map = dict()  # Dictionary holding the accession-lineage mapping information
-        self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank
-        self.acc_to_lin = ""  # Path to an accession-lineage mapping file
         self.phy_dir = ""  # Directory for intermediate or unnecessary files created during phylogeny inference
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
         self.filtered_fasta = ""
         self.uclust_prefix = ""  # FASTA file prefix for cluster centroids
         self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
+        self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),
@@ -1336,7 +1326,6 @@ class Evaluator(TreeSAPP):
         self.targets = []  # Left empty to appease parse_ref_build_parameters()
         self.target_marker = None  # A MarkerBuild object
         self.rank_depth_map = None
-        self.acc_to_lin = ""
         self.ranks = list()
         self.markers = set()
         self.taxa_filter = dict()
@@ -1700,9 +1689,7 @@ class Assigner(TreeSAPP):
 class PhyTrainer(TreeSAPP):
     def __init__(self):
         super(PhyTrainer, self).__init__("train")
-        self.ref_pkg = ReferencePackage()
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
-        self.acc_to_lin = ""
         self.placement_table = ""
         self.placement_summary = ""
 
