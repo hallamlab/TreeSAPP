@@ -186,7 +186,6 @@ def create(sys_args):
     ts_create.furnish_with_arguments(args)
     ts_create.check_previous_output(args)
 
-    # TODO: Logging fails when previous output exists and no overwrite flag
     log_file_name = args.output + os.sep + "TreeSAPP_create_" + args.refpkg_name + "_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
@@ -242,7 +241,6 @@ def create(sys_args):
     if args.guarantee:
         ref_seqs.update(args.guarantee)
 
-    # TODO: Allow for unaccessioned sequences (such as those from update) to be used
     ##
     # Save all sequence names in the header registry as EntrezRecord instances
     # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
@@ -504,10 +502,9 @@ def update(sys_args):
         classified_lines = file_parsers.read_marker_classification_table(ts_updater.final_output_dir +
                                                                          "marker_contig_map.tsv")
         assignments = file_parsers.parse_assignments(classified_lines)
-        for marker in assignments:
-            for lineage in assignments[marker]:
-                for seq_name in assignments[marker][lineage]:
-                    classified_seq_lineage_map[seq_name] = lineage
+        for lineage in assignments[ts_updater.ref_pkg.prefix]:
+            for seq_name in assignments[ts_updater.ref_pkg.prefix][lineage]:
+                classified_seq_lineage_map[seq_name] = lineage
     ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)

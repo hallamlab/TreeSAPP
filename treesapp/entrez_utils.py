@@ -278,15 +278,13 @@ def map_accession2taxid(query_accession_list, accession2taxid_list):
     unmapped_queries = list()
 
     # Create a dictionary for O(1) look-ups, load all the query accessions into unmapped queries
-    for acc in query_accession_list:  # type: str
-        if acc.find('.') >= 0:
-            ver = acc
+    for e_record in query_accession_list:  # type: EntrezRecord
+        if e_record.accession.find('.') >= 0:
+            e_record.versioned = e_record.accession
             # Strip off any version numbers from the accessions so we only need to check for one item
-            acc = '.'.join(acc.split('.')[0:-1])
-        else:
-            ver = ""
-        er_acc_dict[acc] = EntrezRecord(acc, ver)
-        unmapped_queries.append(acc)
+            e_record.accession = '.'.join(e_record.accession.split('.')[0:-1])
+        er_acc_dict[e_record.accession] = e_record
+        unmapped_queries.append(e_record.accession)
 
     logging.info("Mapping query accessions to NCBI taxonomy IDs... ")
     for accession2taxid in accession2taxid_list.split(','):
@@ -348,7 +346,7 @@ def pull_unmapped_entrez_records(entrez_records: list):
     unmapped_queries = list()
     for e_record in entrez_records:
         if e_record.bitflag != 7:
-            unmapped_queries.append(e_record.accession)
+            unmapped_queries.append(e_record)
     return unmapped_queries
 
 
@@ -373,8 +371,8 @@ def fetch_lineages_from_taxids(entrez_records: list):
         if taxid and taxid not in tax_id_map:
             tax_id_map[taxid] = []
         elif not taxid:
-            logging.warning("Empty NCBI taxonomy ID for incomplete EntrezRecord query:\n" +
-                            e_record.get_info() + "\n")
+            logging.debug("Empty NCBI taxonomy ID for incomplete EntrezRecord query:\n" +
+                          e_record.get_info() + "\n")
             continue
         tax_id_map[taxid].append(e_record)
 
@@ -393,17 +391,6 @@ def fetch_lineages_from_taxids(entrez_records: list):
         except KeyError:
             pass
     return entrez_records
-
-# TODO: Remove?
-def entrez_records_to_accession_dict(entrez_records_list, search_term_list):
-    all_accessions = dict()
-    # Instantiate all query terms with a 0, indicating a failure
-    for term in search_term_list:
-        all_accessions[term] = 0
-    # Update the bitflags for those queries that were searched for
-    for record in entrez_records_list:
-        all_accessions.update({record.accession: record.bitflag, record.versioned: record.bitflag})
-    return all_accessions
 
 
 def entrez_records_to_accession_set(entrez_records_list: list, bitflag_filter=7):
@@ -451,15 +438,12 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
         if e_record.bitflag == 0:
             failed += 1
             continue
-        accession_lineage_map[(e_record.accession, e_record.versioned)] = dict()
-        accession_lineage_map[(e_record.accession, e_record.versioned)]["lineage"] = e_record.lineage
-        accession_lineage_map[(e_record.accession, e_record.versioned)]["organism"] = e_record.organism
         # Report on the tolerance for failed Entrez accession queries
         if e_record.bitflag == 7:
             success += 1
         elif e_record.bitflag == 6:
             rescued += 1
-        elif 3 >= e_record.bitflag >= 2:
+        elif 5 >= e_record.bitflag >= 2:
             bad_tax += 1
         elif e_record.bitflag == 1:
             bad_org += 1
@@ -467,6 +451,9 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
             logging.error("Unexpected bitflag (" + str(e_record.bitflag) + ") encountered for EntrezRecord:\n" +
                           e_record.get_info() + "tax_id = " + str(e_record.ncbi_tax) + "\n")
             sys.exit(19)
+        accession_lineage_map[(e_record.accession, e_record.versioned)] = dict()
+        accession_lineage_map[(e_record.accession, e_record.versioned)]["lineage"] = e_record.lineage
+        accession_lineage_map[(e_record.accession, e_record.versioned)]["organism"] = e_record.organism
 
     logging.debug("Queries mapped ideally = " + str(success) +
                   "\nQueries with organism unmapped = " + str(bad_org) +
@@ -499,7 +486,6 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
     # Step 1: Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
     ##
     search_terms = entrez_records_to_accession_set(entrez_query_list, 1)
-    print("Accession search terms:", search_terms)
     logging.info("Retrieving taxonomy Entrez records for each accession... ")
     records_batch, durations, org_failures = tolerant_entrez_query(list(search_terms.keys()), entrez_db)
     logging.info("done.\n")
@@ -536,7 +522,6 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
     # Step 2: Query Entrez's Taxonomy database using organism names to obtain corresponding taxonomic lineages
     ##
     search_terms = entrez_records_to_organism_set(entrez_query_list, 3)
-    print("Organism search terms:", search_terms)
     logging.info("Retrieving NCBI taxonomy IDs for each organism... ")
     records_batch, durations, lin_failures = tolerant_entrez_query(list(search_terms.keys()),
                                                                    "Taxonomy", "search", "xml", 1)
@@ -544,7 +529,6 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
 
     for record in records_batch:
         try:
-            # TODO: Remove the All names after mapping as these are used in the hash
             organism = parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term']
         except (IndexError, KeyError, TypeError):
             logging.warning("Value for 'TranslationStack' not found in Entrez record:" + str(record) + ".\n" +

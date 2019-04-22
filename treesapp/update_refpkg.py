@@ -99,4 +99,7 @@ def reformat_ref_seq_descriptions(original_header_map):
                 reformatted_header_map[treesapp_id] = original_header_map[treesapp_id]
         except IndexError:
             reformatted_header_map[treesapp_id] = original_header_map[treesapp_id]
+        # Remove the side-chevron character
+        if reformatted_header_map[treesapp_id][0] == '>':
+            reformatted_header_map[treesapp_id] = reformatted_header_map[treesapp_id][1:]
     return reformatted_header_map

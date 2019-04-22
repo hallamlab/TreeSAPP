@@ -12,9 +12,10 @@ from .external_command_interface import launch_write_command
 
 
 def reluctant_remove_replace(dir_path):
+    # DO NOT USE LOGGING - this function can (and does) appear before the logger is instantiated
     # Warn user then remove all main output directories, leaving log in output
-    logging.warning("Removing previous outputs in '" + dir_path + "'. " +
-                    "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
+    sys.stderr.write("WARNING:\nRemoving previous outputs in '" + dir_path + "'. " +
+                     "You have 10 seconds to hit Ctrl-C before this proceeds.\n")
     time.sleep(10)
     rmtree(dir_path)
     os.mkdir(dir_path)
@@ -323,7 +324,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
                       header + "\n" + "regex_match: " + header_db + '\n')
         sys.exit(13)
     if not accession:
-        accession = header
+        accession = re.sub(r"^>", '', header)
     seq_info = seq_info(accession, description, locus, organism, lineage, taxid)
 
     return seq_info
