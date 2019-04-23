@@ -2073,7 +2073,7 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
             tree_sap.lct = "Root; " + tree_sap.lct
             # tree_sap.summarize()
             tab_out_string += '\t'.join([sample_name,
-                                         tree_sap.contig_name,
+                                         re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.name), '', tree_sap.contig_name),
                                          tree_sap.name,
                                          str(tree_sap.seq_len),
                                          utilities.clean_lineage_string(tree_sap.lct),

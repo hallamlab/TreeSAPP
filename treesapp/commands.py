@@ -797,7 +797,8 @@ def evaluate(sys_args):
                                                     ts_evaluate.target_marker.cog + ".gpkg.refpkg",
                                                     ts_evaluate.target_marker.cog + "_taxonomy.csv"])
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prep_graftm_ref_files(ts_evaluate.treesapp_dir, ts_evaluate.var_output_dir, lineage, ts_evaluate.target_marker,
+                        prep_graftm_ref_files(ts_evaluate.treesapp_dir, ts_evaluate.var_output_dir,
+                                              lineage, ts_evaluate.target_marker,
                                               depth)
                         build_graftm_package(ts_evaluate.target_marker,
                                              ts_evaluate.var_output_dir,
@@ -807,7 +808,8 @@ def evaluate(sys_args):
                         # Write the query sequences
                         write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
 
-                        graftm_classify(test_rep_taxa_fasta, ts_evaluate.var_output_dir + os.sep + ts_evaluate.target_marker.cog + ".gpkg",
+                        graftm_classify(test_rep_taxa_fasta,
+                                        ts_evaluate.var_output_dir + os.sep + ts_evaluate.target_marker.cog + ".gpkg",
                                         treesapp_output, args.num_threads, args.tool)
 
                         if not os.path.isfile(classification_table):
@@ -879,7 +881,6 @@ def evaluate(sys_args):
 
                     for marker in marker_assignments:
                         ts_evaluate.markers.add(marker)
-
                     rank_assignments = lca_calculations.identify_excluded_clade(marker_assignments,
                                                                                 test_obj.taxonomic_tree,
                                                                                 ts_evaluate.target_marker.cog)

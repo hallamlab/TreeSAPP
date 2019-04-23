@@ -298,10 +298,15 @@ def map_headers_to_lineage(assignments, ref_sequences):
             c_lineage = clean_lineage_string(assigned_lineage)
             lineage_assignments[marker][c_lineage] = list()
             for query in classified_headers:
+                mapped = False
                 for ref_seq in ref_sequences:
                     if ref_seq.accession == query:
                         lineage_assignments[marker][c_lineage].append(clean_lineage_string(ref_seq.lineage))
+                        mapped = True
                         break
+                if not mapped:
+                    logging.warning("Unable to map classified sequence '" + query + "' to a lineage.\n")
+                    sys.exit()
             if len(lineage_assignments[marker][c_lineage]) > len(classified_headers):
                 logging.error(str(len(classified_headers)) + " accessions mapped to " +
                               str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
