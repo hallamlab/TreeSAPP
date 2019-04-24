@@ -1181,6 +1181,7 @@ class TreeSAPP:
 
         if self.stage_status("lineages"):
             entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(ref_seq_records)
+            logging.debug("\tNumber of queries =\t" + str(len(entrez_query_list)) + "\n")
             entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list,
                                                                      args.molecule,
                                                                      args.acc_to_taxid)

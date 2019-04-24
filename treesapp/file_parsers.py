@@ -618,10 +618,10 @@ def read_uc(uc_file):
     for line in uc:
         cluster_type, num_id, length, identity, _, _, _, cigar, header, representative = line.strip().split("\t")
         if cluster_type == "S":
-            cluster_dict[num_id] = Cluster('>' + header)
-            rep_len_map['>' + header] = length
+            cluster_dict[num_id] = Cluster(header)
+            rep_len_map[header] = length
         elif cluster_type == "H":
-            cluster_dict[num_id].members.append(['>' + header, identity])
+            cluster_dict[num_id].members.append([header, identity])
         elif cluster_type == "C":
             pass
         else:

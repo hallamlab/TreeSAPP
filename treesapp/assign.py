@@ -113,7 +113,7 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict):
             orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
             numeric_contig_index[marker][numeric_decrementor] = contig_name + '|' + marker + '|' + orf_coordinates
             # Add the FASTA record of the trimmed sequence - this one moves on for placement
-            full_sequence = fasta_dict[utilities.reformat_string('>' + contig_name)]
+            full_sequence = fasta_dict[utilities.reformat_string(contig_name)]
             binned = False
             for bin_num in sorted(bins):
                 bin_rep = bins[bin_num][0]

@@ -451,9 +451,12 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
             logging.error("Unexpected bitflag (" + str(e_record.bitflag) + ") encountered for EntrezRecord:\n" +
                           e_record.get_info() + "tax_id = " + str(e_record.ncbi_tax) + "\n")
             sys.exit(19)
-        accession_lineage_map[(e_record.accession, e_record.versioned)] = dict()
-        accession_lineage_map[(e_record.accession, e_record.versioned)]["lineage"] = e_record.lineage
-        accession_lineage_map[(e_record.accession, e_record.versioned)]["organism"] = e_record.organism
+        e_record_key = (e_record.accession, e_record.versioned)
+        if e_record_key in accession_lineage_map:
+            logging.warning(str(e_record_key) + " already present in accession-lineage map.\n")
+        accession_lineage_map[e_record_key] = dict()
+        accession_lineage_map[e_record_key]["lineage"] = e_record.lineage
+        accession_lineage_map[e_record_key]["organism"] = e_record.organism
 
     logging.debug("Queries mapped ideally = " + str(success) +
                   "\nQueries with organism unmapped = " + str(bad_org) +
@@ -574,8 +577,8 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
 
     # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
     unambiguous_accession_lineage_map = dict()
-    for mltree_id_key in fasta_record_objects.keys():
-        ref_seq = fasta_record_objects[mltree_id_key]  # type: EntrezRecord
+    for treesapp_id in fasta_record_objects.keys():
+        ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
         ref_seq.tracking_stamp()
         if ref_seq.bitflag >= 1:
             taxa_searched += 1
@@ -736,8 +739,6 @@ def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
         try:
             ref_seq.sequence = fasta_dict[formatted_header]
         except KeyError:
-            print(fasta_dict.keys())
-            print(formatted_header)
             if len(header_registry) == len(fasta_dict):
                 logging.error(formatted_header + " not found in FASTA records due to format incompatibilities.\n")
                 sys.exit(21)
