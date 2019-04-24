@@ -74,7 +74,7 @@ class Header:
         return info_string
 
 
-def register_headers(header_list, drop=False):
+def register_headers(header_list, drop=True):
     acc = 1
     header_registry = dict()
     for header in header_list:
@@ -143,6 +143,20 @@ class FASTA:
         self.keep_only(long_seqs)
         return
 
+    def get_seq_names(self, name_format="original"):
+        if name_format == "original":
+            return [self.header_registry[acc].original for acc in sorted(self.header_registry, key=int)]
+        elif name_format == "first_split":
+            return [self.header_registry[acc].first_split for acc in sorted(self.header_registry, key=int)]
+        elif name_format == "formatted":
+            return [self.header_registry[acc].formatted for acc in sorted(self.header_registry, key=int)]
+        elif name_format == "num":
+            return [acc for acc in sorted(self.header_registry, key=int)]
+        else:
+            logging.error("Unrecognized Header format '" + name_format + "'." +
+                          " Options are 'original', 'formatted', 'first_split' and 'num'.\n")
+            sys.exit(5)
+
     def change_dict_keys(self, repl="original"):
         repl_fasta_dict = dict()
         for acc in sorted(self.header_registry, key=int):
@@ -174,9 +188,9 @@ class FASTA:
         return
 
     def synchronize_seqs_n_headers(self):
+        excluded_headers = list()
         if len(self.fasta_dict.keys()) != len(self.header_registry):
             sync_header_registry = dict()
-            excluded_headers = list()
             for num_id in self.header_registry:
                 header = self.header_registry[num_id]
                 if header.formatted not in self.fasta_dict and header.original not in self.fasta_dict:
@@ -184,6 +198,10 @@ class FASTA:
                 else:
                     sync_header_registry[num_id] = self.header_registry[num_id]
             self.header_registry = sync_header_registry
+        if len(excluded_headers) >= 1:
+            logging.debug("Following sequences were excluded after synchronizing FASTA:\n" +
+                          "\n".join(excluded_headers) + "\n")
+        return
 
     def swap_headers(self, header_map):
         swapped_fasta_dict = dict()
@@ -260,12 +278,13 @@ class FASTA:
 
         self.amendments.update(new_fasta_headers)
         # Load the new fasta and headers
-        for seq_name in new_fasta:
-            self.fasta_dict[seq_name] = new_fasta[seq_name]
-        acc = max([int(x) for x in self.header_registry.keys()])
+        acc = max([int(x) for x in self.header_registry.keys()]) + 1
         for num_id in sorted(new_fasta_headers, key=int):
-            acc += 1
+            header = new_fasta_headers[num_id]  # type: Header
+            self.fasta_dict[header.formatted] = new_fasta[header.original]
             self.header_registry[str(acc)] = new_fasta_headers[num_id]
+            acc += 1
+        self.synchronize_seqs_n_headers()
         return
 
     def unalign(self):

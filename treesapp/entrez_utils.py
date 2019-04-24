@@ -730,12 +730,14 @@ def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
         logging.warning("Number of records in FASTA collection and header list differ.\n" +
                         "Chances are these were short sequences that didn't pass the filter. Carrying on.\n")
 
-    for num_id in ref_seq_dict.keys():
+    for num_id in sorted(ref_seq_dict.keys(), key=int):
         ref_seq = ref_seq_dict[num_id]
         formatted_header = header_registry[num_id].formatted
         try:
             ref_seq.sequence = fasta_dict[formatted_header]
         except KeyError:
+            print(fasta_dict.keys())
+            print(formatted_header)
             if len(header_registry) == len(fasta_dict):
                 logging.error(formatted_header + " not found in FASTA records due to format incompatibilities.\n")
                 sys.exit(21)

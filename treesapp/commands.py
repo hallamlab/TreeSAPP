@@ -502,9 +502,10 @@ def update(sys_args):
         classified_lines = file_parsers.read_marker_classification_table(ts_updater.final_output_dir +
                                                                          "marker_contig_map.tsv")
         assignments = file_parsers.parse_assignments(classified_lines)
-        for lineage in assignments[ts_updater.ref_pkg.prefix]:
-            for seq_name in assignments[ts_updater.ref_pkg.prefix][lineage]:
-                classified_seq_lineage_map[seq_name] = lineage
+        classified_seq_lineage_map.update(update_refpkg.map_classified_seqs(ts_updater.ref_pkg.prefix,
+                                                                            assignments,
+                                                                            classified_fasta.get_seq_names()))
+
     ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)

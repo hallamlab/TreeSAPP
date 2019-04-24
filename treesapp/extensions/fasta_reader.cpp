@@ -98,7 +98,7 @@ int Fasta::record_header( string line, std::size_t max_header_length) {
     line = erase_characters(line, "()[]/\\\\'<>");
     transform(line.begin(), line.end(), line.begin(), replace_operators);
     // Add the '>' back to the front of the line since it was removed by erase_characters
-    line.insert(0, 1, '>');
+//    line.insert(0, 1, '>');
 
     // Because RAxML can only work with file names having length <= 125,
     // Ensure that the sequence name length is <= 110

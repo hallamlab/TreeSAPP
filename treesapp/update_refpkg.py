@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import logging
 from .external_command_interface import launch_write_command
 from . import wrapper
@@ -103,3 +104,24 @@ def reformat_ref_seq_descriptions(original_header_map):
         if reformatted_header_map[treesapp_id][0] == '>':
             reformatted_header_map[treesapp_id] = reformatted_header_map[treesapp_id][1:]
     return reformatted_header_map
+
+
+def map_classified_seqs(ref_pkg_name, assignments, unmapped_seqs):
+    classified_seq_lineage_map = dict()
+    for lineage in assignments[ref_pkg_name]:
+        # Map the classified sequence to the header in FASTA
+        x = 0
+        while x < len(unmapped_seqs):
+            seq_name = unmapped_seqs[x]
+            original_name = re.sub(r"\|{0}\|\d+_\d+$".format(ref_pkg_name), '', seq_name)
+            if original_name in assignments[ref_pkg_name][lineage]:
+                classified_seq_lineage_map[seq_name] = lineage
+                unmapped_seqs.pop(x)
+            else:
+                x += 1
+    # Ensure all the classified sequences were mapped to lineages
+    if unmapped_seqs:
+        logging.error("Unable to map all classified sequences in to a lineage. These are missing:\n" +
+                      "\n".join(unmapped_seqs) + "\n")
+        sys.exit(5)
+    return classified_seq_lineage_map
