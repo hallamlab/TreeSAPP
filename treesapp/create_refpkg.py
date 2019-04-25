@@ -523,10 +523,10 @@ def order_dict_by_lineage(fasta_object_dict):
         # Skip the redundant sequences that are not cluster representatives
         if not ref_seq.cluster_rep:
             continue
-        if ref_seq.lineage not in lineage_dict.keys():
-            # Values of the new dictionary are lists of ReferenceSequence instances
-            lineage_dict[ref_seq.lineage] = list()
-        lineage_dict[ref_seq.lineage].append(ref_seq)
+        try:
+            lineage_dict[clean_lineage_string(ref_seq.lineage)].append(ref_seq)
+        except KeyError:
+            lineage_dict[clean_lineage_string(ref_seq.lineage)] = [ref_seq]
 
     # Now re-write the fasta_object_dict, but the numeric keys are now sorted by lineage
     #  AND it doesn't contain redundant fasta objects
@@ -661,10 +661,10 @@ def write_tax_ids(fasta_replace_dict, tax_ids_file, taxa_lca=False):
     warning_string = ""
     no_lineage = list()
 
-    for mltree_id_key in sorted(fasta_replace_dict.keys(), key=int):
+    for treesapp_id in sorted(fasta_replace_dict.keys(), key=int):
         # Definitely will not uphold phylogenetic relationships but at least sequences
         # will be in the right neighbourhood rather than ordered by their position in the FASTA file
-        reference_sequence = fasta_replace_dict[mltree_id_key]
+        reference_sequence = fasta_replace_dict[treesapp_id]
         if taxa_lca:
             lineage = reference_sequence.cluster_lca
         else:
@@ -673,7 +673,7 @@ def write_tax_ids(fasta_replace_dict, tax_ids_file, taxa_lca=False):
             no_lineage.append(reference_sequence.accession)
             lineage = ''
 
-        tree_taxa_string += "\t".join([str(mltree_id_key),
+        tree_taxa_string += "\t".join([str(treesapp_id),
                                       reference_sequence.organism + " | " + reference_sequence.accession,
                                        lineage]) + "\n"
 
@@ -706,9 +706,9 @@ def read_tax_ids(tree_taxa_list):
     while line:
         fields = line.strip().split("\t")
         if len(fields) == 3:
-            mltree_id_key, seq_info, lineage = fields
+            treesapp_id, seq_info, lineage = fields
         else:
-            mltree_id_key, seq_info = fields
+            treesapp_id, seq_info = fields
             lineage = ""
         ref_seq = ReferenceSequence()
         try:
@@ -717,7 +717,7 @@ def read_tax_ids(tree_taxa_list):
             ref_seq.lineage = lineage
         except IndexError:
             ref_seq.organism = seq_info
-        fasta_replace_dict[mltree_id_key] = ref_seq
+        fasta_replace_dict[treesapp_id] = ref_seq
         line = tree_tax_list_handle.readline()
     tree_tax_list_handle.close()
 
@@ -793,8 +793,8 @@ def update_tax_ids_with_lineage(args, tree_taxa_list):
         fasta_replace_dict = read_tax_ids(tax_ids_file)
         # Determine how many sequences already have lineage information:
         lineage_info_complete = 0
-        for mltree_id_key in fasta_replace_dict:
-            ref_seq = fasta_replace_dict[mltree_id_key]
+        for treesapp_id in fasta_replace_dict:
+            ref_seq = fasta_replace_dict[treesapp_id]
             if ref_seq.lineage:
                 lineage_info_complete += 1
         # There are some that are already complete. Should they be over-written?
@@ -805,11 +805,11 @@ def update_tax_ids_with_lineage(args, tree_taxa_list):
                 overwrite_lineages = input("Incorrect response. Please input either 'y' or 'n'. ")
             if overwrite_lineages == 'y':
                 ref_seq_dict = dict()
-                for mltree_id_key in fasta_replace_dict:
-                    ref_seq = fasta_replace_dict[mltree_id_key]
+                for treesapp_id in fasta_replace_dict:
+                    ref_seq = fasta_replace_dict[treesapp_id]
                     if ref_seq.lineage:
                         ref_seq.lineage = ""
-                    ref_seq_dict[mltree_id_key] = ref_seq
+                    ref_seq_dict[treesapp_id] = ref_seq
         # write_tax_ids(args, fasta_replace_dict, tax_ids_file, args.molecule)
     return
 

@@ -377,6 +377,8 @@ def clean_lineage_list(lineage_list):
     if len(lineage_list) <= 1:
         return [lineage_list]
 
+    lineage_list = [clean_lineage_string(lineage) for lineage in lineage_list]
+
     classified_lineages = list()
     unclassified_depths = list()
 

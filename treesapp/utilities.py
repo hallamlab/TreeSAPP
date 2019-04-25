@@ -286,7 +286,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
     :return: namedtuple called seq_info with "description", "locus", "organism", "lineage" and "taxid" fields
     """
     seq_info = namedtuple(typename="seq_info",
-                          field_names=["accession", "description", "locus", "organism", "lineage", "taxid"])
+                          field_names=["accession", "version", "description", "locus", "organism", "lineage", "taxid"])
     description = ""
     locus = ""
     organism = ""
@@ -295,6 +295,9 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
 
     if regex_match_groups:
         accession = regex_match_groups.group(1)
+        version = accession
+        if accession.find('.'):
+            accession = version.split('.')[0]
         if header_db == "custom":
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
@@ -325,7 +328,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
         sys.exit(13)
     if not accession:
         accession = re.sub(r"^>", '', header)
-    seq_info = seq_info(accession, description, locus, organism, lineage, taxid)
+    seq_info = seq_info(accession, version, description, locus, organism, lineage, taxid)
 
     return seq_info
 

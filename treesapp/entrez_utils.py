@@ -45,6 +45,11 @@ class EntrezRecord(ReferenceSequence):
         self.versioned = ver
         self.bitflag = 0  # For monitoring progress during download stage
 
+    def get_info(self):
+        info_string = super().get_info()
+        info_string += "acc.version = " + self.versioned + ", bitflag = " + str(self.bitflag)
+        return info_string
+
     def tracking_stamp(self):
         num = 0
         if self.organism:
@@ -363,17 +368,16 @@ def fetch_lineages_from_taxids(entrez_records: list):
 
     # Create a dictionary that will enable rapid look-ups and mapping to EntrezRecord instances
     for e_record in entrez_records:  # type: EntrezRecord
-        if e_record.bitflag == 7:
+        if e_record.bitflag >= 4:
+            # Lineage has been added
             continue
         elif e_record.bitflag < 2:
+            # NCBI taxonomy ID has not been added
+            logging.debug("Empty NCBI taxonomy ID for incomplete EntrezRecord query:\n" + e_record.get_info() + "\n")
             continue
         taxid = e_record.ncbi_tax
         if taxid and taxid not in tax_id_map:
             tax_id_map[taxid] = []
-        elif not taxid:
-            logging.debug("Empty NCBI taxonomy ID for incomplete EntrezRecord query:\n" +
-                          e_record.get_info() + "\n")
-            continue
         tax_id_map[taxid].append(e_record)
 
     logging.info("Retrieving lineage information for each taxonomy ID... ")
@@ -525,6 +529,7 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
     # Step 2: Query Entrez's Taxonomy database using organism names to obtain corresponding taxonomic lineages
     ##
     search_terms = entrez_records_to_organism_set(entrez_query_list, 3)
+    logging.debug(str(len(search_terms.keys())) + " unique organism queries.\n")
     logging.info("Retrieving NCBI taxonomy IDs for each organism... ")
     records_batch, durations, lin_failures = tolerant_entrez_query(list(search_terms.keys()),
                                                                    "Taxonomy", "search", "xml", 1)
@@ -577,7 +582,7 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
 
     # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
     unambiguous_accession_lineage_map = dict()
-    for treesapp_id in fasta_record_objects.keys():
+    for treesapp_id in sorted(fasta_record_objects.keys()):
         ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
         ref_seq.tracking_stamp()
         if ref_seq.bitflag >= 1:

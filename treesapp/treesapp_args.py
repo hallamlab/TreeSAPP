@@ -477,14 +477,6 @@ def check_create_arguments(creator: Creator, args):
     else:
         creator.acc_to_lin = creator.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
 
-    # Names of files and directories to be created
-    creator.phy_dir = os.path.abspath(creator.var_output_dir) + "phylogeny_files" + os.sep
-    creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
-    creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
-    creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
-    creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
-    creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
-
     if len(creator.ref_pkg.prefix) > 6:
         logging.error("Name must be <= 6 characters!\n")
         sys.exit(13)
@@ -532,6 +524,14 @@ def check_create_arguments(creator: Creator, args):
                           "Include all sequences in " + args.guarantee +
                           " in " + args.fasta_input + " and re-run without --guarantee\n")
             sys.exit(13)
+
+    # Names of files and directories to be created
+    creator.phy_dir = os.path.abspath(creator.var_output_dir) + "phylogeny_files" + os.sep
+    creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
+    creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
+    creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
+    creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
+    creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
 
     return
 

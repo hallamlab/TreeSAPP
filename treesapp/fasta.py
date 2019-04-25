@@ -77,9 +77,15 @@ class Header:
 def register_headers(header_list, drop=True):
     acc = 1
     header_registry = dict()
+    dup_checker = set()
     for header in header_list:
         if drop and header[0] == '>':
             header = header[1:]
+        if header in dup_checker:
+            logging.error("Duplicate sequence header found: " + header + "\n")
+            sys.exit(5)
+        else:
+            dup_checker.add(header)
         new_header = Header(header)
         new_header.formatted = reformat_string(header)
         new_header.first_split = header.split()[0]
