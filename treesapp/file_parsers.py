@@ -298,11 +298,10 @@ def parse_domain_tables(args, hmm_domtbl_files, single=True):
     return hmm_matches
 
 
-def read_colours_file(args, annotation_file):
+def read_colours_file(annotation_file):
     """
     Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
     marker and data_type.
-    :param args:
     :param annotation_file:
     :return: A dictionary of lists where each list is populated by tuples with start and end leaves
     """
@@ -326,7 +325,7 @@ def read_colours_file(args, annotation_file):
             elif header_fields[1] == "TAB":
                 field_sep = '\t'
             else:
-                logging.error("ERROR: Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
+                logging.error("Unknown separator used in " + annotation_file + ": " + header_fields[1] + "\n")
                 sys.exit(5)
         line = style_handler.readline()
     # For RGB
@@ -381,7 +380,7 @@ def read_colours_file(args, annotation_file):
             style_data = lone_node_rgb.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
         else:
-            logging.error("ERROR: Unrecognized line formatting in " + annotation_file + ":\n" + line + "\n")
+            logging.error("Unrecognized line formatting in " + annotation_file + ":\n" + line + "\n")
             sys.exit(5)
 
         description = style_data.groups()[-1]

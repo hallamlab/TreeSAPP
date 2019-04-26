@@ -88,14 +88,24 @@ class TreeNode:
     def __init__(self, num: int):
         self.node_id = num
         self.parent = None
-        self.l_child = None
-        self.r_child = None
 
-    def get_parents(self):
+    def all_parents(self):
         if not self.parent:
-            return []
-        parents = self.get_parents()
-        return parents.append(self.node_id)
+            return list()
+        parents = self.parent.all_parents()
+        if not parents:
+            parents = [self.parent.node_id]
+        else:
+            parents.append(self.parent.node_id)
+        return parents
+
+    def get_node_info(self):
+        info_string = "Node ID: " + str(self.node_id) + "\nParent: "
+        if self.parent:
+            info_string += str(self.parent.node_id) + "\n"
+        else:
+            info_string += "None\n"
+        return info_string
 
 
 def create_tree_internal_node_map(jplace_tree_string):
@@ -103,31 +113,21 @@ def create_tree_internal_node_map(jplace_tree_string):
     Loads a mapping between all internal nodes to their internal parents
     :return:
     """
-    no_length_tree = re.sub(r"\d+:[0-9.]+(\[\d+\])?\{", ":{", jplace_tree_string)
+    no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?\{", ":{", jplace_tree_string)
     node_map = dict()
+    parent_map = dict()
     node_stack = list()
-    leaf_stack = list()
 
     x = 0
-    num_buffer = ""
     while x < len(no_length_tree):
         c = no_length_tree[x]
-        if re.match(r"\d", c):
-            print("Here:", c)
-            while re.match(r"\d", c):
-                num_buffer += c
-                x += 1
-                c = no_length_tree[x]
-            node_stack.append([str(num_buffer)])
-            num_buffer = ""
-            x -= 1
-        elif c == ':':
+        if c == ':':
             # Append the most recent leaf
             current_node, x = get_node(no_length_tree, x + 1)
             tree_node = TreeNode(current_node)
             # node_map[current_node] = tree_node.get_parents()
-            leaf_stack.append(tree_node)
-
+            node_stack.append(tree_node)
+            node_map[tree_node.node_id] = tree_node
         elif c == ')':
             # Set the child leaves to the leaves of the current node's two children
             while c == ')' and x < len(no_length_tree):
@@ -135,15 +135,17 @@ def create_tree_internal_node_map(jplace_tree_string):
                     break
                 current_node, x = get_node(no_length_tree, x + 2)
                 tree_node = TreeNode(current_node)
-                tree_node.r_child = leaf_stack.pop()
-                tree_node.r_child.parent = tree_node
-                tree_node.l_child = leaf_stack.pop()
-                tree_node.l_child.parent = tree_node
-                leaf_stack.append(tree_node)
-                print(tree_node.node_id, tree_node.get_parents())
+                r_child = node_stack.pop()
+                r_child.parent = tree_node
+                l_child = node_stack.pop()
+                l_child.parent = tree_node
+                node_stack.append(tree_node)
+                node_map[tree_node.node_id] = tree_node
                 x += 1
                 c = no_length_tree[x]
         x += 1
+    for node in sorted(node_map):
+        parent_map[node] = node_map[node].all_parents()
     return node_map
 
 
@@ -152,7 +154,7 @@ def map_internal_nodes_leaves(tree):
     Loads a mapping between all nodes (internal and leaves) and all leaves
     :return:
     """
-    no_length_tree = re.sub(":[0-9.]+{", ":{", tree)
+    no_length_tree = re.sub(r":[0-9.]+(\[\d+\])?\{", ":{", tree)
     node_map = dict()
     node_stack = list()
     leaf_stack = list()

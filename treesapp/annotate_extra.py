@@ -7,13 +7,13 @@ import sys
 import logging
 import os
 import re
-from .jplace_utils import jplace_parser
-from .classy import TreeProtein, Layerer
+from .classy import Layerer
 
 
 def check_arguments(layerer: Layerer, args):
     """
     Check that the required files (e.g. jplace, marker_contig_map, annotation files) exist
+    :param layerer:
     :param args:
     :return:
     """
@@ -28,6 +28,37 @@ def check_arguments(layerer: Layerer, args):
             logging.error(annot_f + " does not exist!\n")
             sys.exit(3)
     return
+
+
+def identify_field_position(field_name: str, header_fields: list):
+    x = 0
+    for field in header_fields:
+        if field == field_name:
+            return x
+        x += 1
+    logging.error("Unable to find field name '" + field_name + "' in marker_contig_map.tsv header!\n")
+    sys.exit()
+
+
+class ClassifiedSequence:
+    def __init__(self, assigned_refpkg):
+        self.refpkg = assigned_refpkg
+        self.query_name = ""
+        self.i_node = ""
+        self.assignment_fields = None
+        self.expected_header = ['Sample', 'Query', 'Marker', 'Length', 'Taxonomy', 'Confident_Taxonomy',
+                                'Abundance', 'iNode', 'LWR', 'EvoDist', 'Distances']
+        self.layers = dict()
+        return
+
+    def load_assignment_line(self, fields, header_fields, query_pos, node_pos):
+        if header_fields != self.expected_header:
+            logging.error("Header in marker_contig_map.tsv is unexpected!\n")
+            sys.exit(7)
+        self.query_name = fields[query_pos]
+        self.i_node = fields[node_pos]
+        self.assignment_fields = fields
+        return
 
 
 def parse_marker_classification_table(marker_classification_file):
@@ -46,32 +77,29 @@ def parse_marker_classification_table(marker_classification_file):
         logging.error("Unable to open " + marker_classification_file + " for reading!\n")
         sys.exit(3)
 
-    header = classifications.readline()
-    header_fields = header.strip().split("\t")
+    header_fields = classifications.readline().strip().split("\t")
     x = 0
-    query_index = None
     for field in header_fields:
         field_order[x] = field
-        if field == "Query":
-            query_index = x
         x += 1
+    marker_pos = identify_field_position("Marker", header_fields)
+    node_pos = identify_field_position("iNode", header_fields)
+    query_pos = identify_field_position("Query", header_fields)
+
     line = classifications.readline()
     while line:
         fields = line.strip().split("\t")
         if len(fields) != len(header_fields):
             logging.error("Inconsistent number of columns in table! Offending line:\n" + line + "\n")
             sys.exit(3)
-        master_dat[fields[query_index]] = dict()
-        y = 1
-        while y < len(fields):
-            # TODO: format the master_dat as a dictionary indexed by the refpkg containing a list of TreeProteins
-            master_dat[fields[query_index]][header_fields[y]] = fields[y]
-            y += 1
+        if fields[marker_pos] not in master_dat:
+            master_dat[fields[marker_pos]] = list()
+        jplace_seq = ClassifiedSequence(fields[marker_pos])
+        jplace_seq.load_assignment_line(fields, header_fields, query_pos, node_pos)
+        master_dat[fields[marker_pos]].append(jplace_seq)
         line = classifications.readline()
 
     classifications.close()
-    # for query in master_dat:
-    #     print(master_dat[query])
 
     return master_dat, field_order
 
@@ -109,34 +137,33 @@ def names_for_nodes(clusters, node_map, taxa_map):
     return node_only_clusters
 
 
-def map_queries_to_annotations(marker_tree_info, marker_build_dict, master_dat):
+def map_queries_to_annotations(marker_tree_info, master_dat):
+    """
+
+    :param marker_tree_info:
+    :param master_dat:
+    :return:
+    """
     num_unclassified = 0
-    for jplace in jplace_files_to_parse:
-        file_name = os.path.basename(jplace)
-        jplace_info = re.match(r"RAxML_portableTree.([A-Z][0-9]{4})_.*.jplace", file_name)
-        refpkg_code = jplace_info.group(1)
-        if refpkg_code not in master_dat.keys():
-            num_unclassified += 1
-            continue
-        marker = marker_build_dict[refpkg_code].cog
-        for data_type in marker_tree_info:
+    metadata_placement = set()
+    for data_type in marker_tree_info:
+        for marker in master_dat:
             if marker in marker_tree_info[data_type]:
-                metadata_placement = set()
-                query_obj = TreeProtein()
-                itol_datum = jplace_parser(jplace)
-                query_obj.transfer(itol_datum)
-                query_obj.correct_decoding()
-                query_obj.filter_max_weight_placement()
-                for node in query_obj.list_placements():
+                for query_obj in master_dat[marker]:  # type: ClassifiedSequence
                     for group in marker_tree_info[data_type][marker]:
-                        if int(node) in marker_tree_info[data_type][marker][group]:
+                        if int(query_obj.i_node) in marker_tree_info[data_type][marker][group]:
                             metadata_placement.add(group)
 
-                if len(metadata_placement) == 0:
-                    metadata_placement.add("Unknown")
-                master_dat[refpkg_code][data_type] = ';'.join(sorted(metadata_placement))
+                    if len(metadata_placement) == 0:
+                        metadata_placement.add("Unknown")
+                        num_unclassified += 1
+                    query_obj.layers[data_type] = ';'.join(sorted(metadata_placement))
+                    metadata_placement.clear()
+            else:
+                num_unclassified += len(master_dat[marker])
+                continue
     if num_unclassified > 0:
-        logging.warning("Number of placed sequences that were unclassified: " + str(num_unclassified) + "\n")
+        logging.debug("Number of placed sequences that were unclassified: " + str(num_unclassified) + "\n")
     return master_dat
 
 
@@ -166,7 +193,7 @@ def annotate_internal_nodes(internal_node_map, clusters):
                         leaves_in_clusters.add(leaf)
                 except ValueError:
                     # TODO: Convert headers to internal nodes where an annotation cluster is a single leaf
-                    pass
+                    logging.warning("Unable to assign '" + str(i_node) + "' to an internal node ID.\n")
                 except KeyError:
                     logging.error("Unable to find internal node " + i_node + " in internal node map.\n")
                     sys.exit(7)
@@ -180,36 +207,36 @@ def annotate_internal_nodes(internal_node_map, clusters):
     return annotated_clade_members, leaves_in_clusters
 
 
-def write_classification_table(args, field_order, master_dat):
+def write_classification_table(output_dir, field_order, master_dat):
     """
     Writes data in master_dat to a new tabular file with original and extra annotation information
-    :param args:
+    :param output_dir:
     :param field_order:
     :param master_dat:
     :return:
     """
-    output_file = os.sep.join([args.output, "final_outputs", "extra_annotated_marker_contig_map.tsv"])
+    fields = list()
+    # Prepare the new header and write it to the new classification table
+    for order in sorted(field_order.keys()):
+        fields.append(field_order[order])
+    new_classification_lines = ["\t".join(fields)]
+
+    # Now parse the classification data in master_dat
+    for refpkg_code in master_dat:
+        for assignment in master_dat[refpkg_code]:  # type: ClassifiedSequence
+            for order in sorted(field_order.keys()):
+                field = field_order[order]
+                if field in assignment.layers:
+                    assignment.assignment_fields.append(assignment.layers[field])
+            new_classification_lines.append("\t".join(assignment.assignment_fields))
+
+    output_file = output_dir + "extra_annotated_marker_contig_map.tsv"
     try:
         table_handler = open(output_file, 'w')
     except IOError:
         logging.error("Unable to open " + output_file + " for writing!\n")
         sys.exit(3)
-
-    fields = list()
-    # Prepare the new header and write it to the new classification table
-    for order in sorted(field_order.keys()):
-        fields.append(field_order[order])
-    table_handler.write("\t".join(fields) + "\n")
-
-    # Now parse the classification data in master_dat
-    for query_name in master_dat:
-        query_classification_list = [query_name]
-        field_acc = 1
-        while field_acc < len(fields):
-            query_classification_list.append(str(master_dat[query_name][field_order[field_acc]]))
-            field_acc += 1
-        table_handler.write("\t".join(query_classification_list) + "\n")
-
+    table_handler.write("\n".join(new_classification_lines) + "\n")
     table_handler.close()
 
     return

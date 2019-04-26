@@ -628,8 +628,9 @@ def layer(sys_args):
             sys.exit(5)
     # Instantiate every query sequence in marker_contig_map with an empty string for each data_type
     for data_type in marker_subgroups:
-        for query_seq in master_dat:
-            master_dat[query_seq][data_type] = "NA"
+        for marker in master_dat:
+            for assignment in master_dat[marker]:  # type: annotate_extra.ClassifiedSequence
+                assignment.layers[data_type] = "NA"
     # Update the field_order dictionary with new fields
     field_acc = len(field_order)
     for new_datum in sorted(marker_subgroups.keys()):
@@ -646,13 +647,13 @@ def layer(sys_args):
 
             if marker in marker_subgroups[data_type]:
                 # Create the dictionary mapping an internal node to all leaves
-                # TODO: turn this into a map of internal nodes to internal child nodes
-                internal_node_map = entish.create_tree_internal_node_map(jplace_parser(jplace).tree)
-
+                internal_node_map = entish.map_internal_nodes_leaves(jplace_parser(jplace).tree)
                 # Routine for exchanging any organism designations for their respective node number
                 tax_ids_file = ts_layer.tree_dir + "tax_ids_" + marker + ".txt"
                 taxa_map = file_parsers.tax_ids_file_to_leaves(tax_ids_file)
-                clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][marker], internal_node_map, taxa_map)
+                clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][marker],
+                                                          internal_node_map,
+                                                          taxa_map)
 
                 if not internal_nodes[data_type][marker]:
                     # Convert the leaf node ranges to internal nodes for consistency
@@ -672,8 +673,8 @@ def layer(sys_args):
             else:
                 pass
     marker_subgroups.clear()
-    master_dat = annotate_extra.map_queries_to_annotations(marker_tree_info, marker_build_dict, master_dat)
-    annotate_extra.write_classification_table(args, field_order, master_dat)
+    master_dat = annotate_extra.map_queries_to_annotations(marker_tree_info, master_dat)
+    annotate_extra.write_classification_table(ts_layer.final_output_dir, field_order, master_dat)
 
     return
 
