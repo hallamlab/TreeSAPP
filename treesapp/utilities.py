@@ -424,40 +424,6 @@ def convert_outer_to_inner_nodes(clusters, internal_node_map):
     return leaf_annotation_map
 
 
-def annotate_internal_nodes(args, internal_node_map, clusters):
-    """
-    A function for mapping the clusters to all internal nodes of the tree.
-    It also adds overlapping functional annotations for deep internal nodes and ensures all the leaves are annotated.
-    :param args:
-    :param internal_node_map: A dictionary mapping the internal nodes (keys) to the leaf nodes (values)
-    :param clusters: Dictionary with the cluster names for keys and a tuple containing leaf boundaries as values
-    :return: A dictionary of the annotation (AKA group) as keys and internal nodes as values
-    """
-    annotated_clade_members = dict()
-    leaf_group_members = dict()
-    leaves_in_clusters = set()
-
-    # Create a dictionary to map the cluster name (e.g. Function, Activity, Class, etc) to all the leaf nodes
-    for annotation in clusters.keys():
-        if annotation not in annotated_clade_members:
-            annotated_clade_members[annotation] = set()
-        if annotation not in leaf_group_members:
-            leaf_group_members[annotation] = set()
-        for i_node in internal_node_map:
-            if i_node in clusters[annotation]:
-                for leaf in internal_node_map[i_node]:
-                    leaf_group_members[annotation].add(leaf)
-                    leaves_in_clusters.add(leaf)
-        # Find the set of internal nodes that are children of this annotated clade
-        for i_node in internal_node_map:
-            if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
-                annotated_clade_members[annotation].add(i_node)
-
-    logging.debug("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
-
-    return annotated_clade_members, leaves_in_clusters
-
-
 def reformat_fasta_to_phy(fasta_dict):
     phy_dict = dict()
     for seq_name in fasta_dict:

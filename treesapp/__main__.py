@@ -5,7 +5,7 @@ import sys
 import argparse
 import logging
 
-from .commands import (create, evaluate, assign, update, info, train)
+from .commands import (create, evaluate, assign, update, info, train, layer)
 # from .clade_exclusion_evaluator import main as evaluate_main
 
 usage = """
@@ -13,7 +13,8 @@ treesapp <command> [<args>]
 ** Commands include:
 create         Create a reference package for a new gene, domain or orthologous group
 evaluate       Evaluate the classification performance using Clade-exclusion analysis
-assign         Classify query [protein|genomic] sequences using reference packages 
+assign         Classify query [protein|genomic] sequences using reference packages
+layer          Layer extra annotation information on classifications with iTOL colours-style file(s)  
 update         Update an existing reference package with sequences found in a `classify` run
 train          Train a reference package's model used for correcting taxonomic rank classifications 
 ** Other commands:
@@ -28,7 +29,8 @@ def main():
                 "assign": assign,
                 "update": update,
                 "info": info,
-                "train": train}
+                "train": train,
+                "layer": layer}
     parser = argparse.ArgumentParser(description='Phylogenetic classification of biological sequences')
     parser.add_argument('command', nargs='?')
     args = parser.parse_args(sys.argv[1:2])

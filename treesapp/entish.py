@@ -20,46 +20,6 @@ def get_node(tree, pos):
     return int(node), pos
 
 
-def map_internal_nodes_leaves(tree):
-    """
-    Loads a mapping between all nodes (internal and leaves) and all leaves
-    :return:
-    """
-    no_length_tree = re.sub(":[0-9.]+{", ":{", tree)
-    node_map = dict()
-    node_stack = list()
-    leaf_stack = list()
-    x = 0
-    num_buffer = ""
-    while x < len(no_length_tree):
-        c = no_length_tree[x]
-        if re.search(r"[0-9]", c):
-            while re.search(r"[0-9]", c):
-                num_buffer += c
-                x += 1
-                c = no_length_tree[x]
-            node_stack.append([str(num_buffer)])
-            num_buffer = ""
-            x -= 1
-        elif c == ':':
-            # Append the most recent leaf
-            current_node, x = get_node(no_length_tree, x + 1)
-            node_map[current_node] = node_stack.pop()
-            leaf_stack.append(current_node)
-        elif c == ')':
-            # Set the child leaves to the leaves of the current node's two children
-            while c == ')' and x < len(no_length_tree):
-                if no_length_tree[x + 1] == ';':
-                    break
-                current_node, x = get_node(no_length_tree, x + 2)
-                node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
-                leaf_stack.append(current_node)
-                x += 1
-                c = no_length_tree[x]
-        x += 1
-    return node_map
-
-
 def find_mean_pairwise_distances(children):
     pairwise_dists = list()
     for rleaf in children:
@@ -124,47 +84,105 @@ def create_tree_info_hash():
     return tree_info
 
 
-def create_tree_internal_node_map(tree_string):
+class TreeNode:
+    def __init__(self, num: int):
+        self.node_id = num
+        self.parent = None
+        self.l_child = None
+        self.r_child = None
+
+    def get_parents(self):
+        if not self.parent:
+            return []
+        parents = self.get_parents()
+        return parents.append(self.node_id)
+
+
+def create_tree_internal_node_map(jplace_tree_string):
+    """
+    Loads a mapping between all internal nodes to their internal parents
+    :return:
+    """
+    no_length_tree = re.sub(r"\d+:[0-9.]+(\[\d+\])?\{", ":{", jplace_tree_string)
+    node_map = dict()
+    node_stack = list()
+    leaf_stack = list()
+
+    x = 0
+    num_buffer = ""
+    while x < len(no_length_tree):
+        c = no_length_tree[x]
+        if re.match(r"\d", c):
+            print("Here:", c)
+            while re.match(r"\d", c):
+                num_buffer += c
+                x += 1
+                c = no_length_tree[x]
+            node_stack.append([str(num_buffer)])
+            num_buffer = ""
+            x -= 1
+        elif c == ':':
+            # Append the most recent leaf
+            current_node, x = get_node(no_length_tree, x + 1)
+            tree_node = TreeNode(current_node)
+            # node_map[current_node] = tree_node.get_parents()
+            leaf_stack.append(tree_node)
+
+        elif c == ')':
+            # Set the child leaves to the leaves of the current node's two children
+            while c == ')' and x < len(no_length_tree):
+                if no_length_tree[x + 1] == ';':
+                    break
+                current_node, x = get_node(no_length_tree, x + 2)
+                tree_node = TreeNode(current_node)
+                tree_node.r_child = leaf_stack.pop()
+                tree_node.r_child.parent = tree_node
+                tree_node.l_child = leaf_stack.pop()
+                tree_node.l_child.parent = tree_node
+                leaf_stack.append(tree_node)
+                print(tree_node.node_id, tree_node.get_parents())
+                x += 1
+                c = no_length_tree[x]
+        x += 1
+    return node_map
+
+
+def map_internal_nodes_leaves(tree):
     """
     Loads a mapping between all nodes (internal and leaves) and all leaves
     :return:
     """
-
-    def get_node(tree, pos):
-        node = ""
-        pos += 1
-        c = tree[pos]
-        while not re.match("\d", c):
-            pos += 1
-            c = tree[pos]
-        while re.match("\d", c):
-            node += c
-            pos += 1
-            c = tree[pos]
-        return node, pos
-
-    tree_string = re.sub("-\d+", '-', tree_string)
-    internal_node_counter = 0
+    no_length_tree = re.sub(":[0-9.]+{", ":{", tree)
     node_map = dict()
-    node_stack = list()  # This stack handles the sibling nodes
+    node_stack = list()
+    leaf_stack = list()
     x = 0
-    while x < len(tree_string):
-        c = tree_string[x]
-        if re.match("\d", c):
-            num_buffer, x = get_node(tree_string, x - 1)
-            node_map[internal_node_counter] = [str(num_buffer)]
-            node_stack.append(internal_node_counter)
-            internal_node_counter += 1
-            x -= 1
-        elif c == ')':
-            while c == ')' and x < len(tree_string):
-                if tree_string[x + 1] == ';':
-                    break
-                node_map[internal_node_counter] = node_map[node_stack.pop()] + node_map[node_stack.pop()]
-                node_stack.append(internal_node_counter)
-                internal_node_counter += 1
+    num_buffer = ""
+    while x < len(no_length_tree):
+        c = no_length_tree[x]
+        if re.search(r"\d", c):
+            while re.search(r"\d", c):
+                num_buffer += c
                 x += 1
-                c = tree_string[x]
+                c = no_length_tree[x]
+            node_stack.append([str(num_buffer)])
+            num_buffer = ""
+            x -= 1
+        elif c == ':':
+            # Append the most recent leaf
+            current_node, x = get_node(no_length_tree, x + 1)
+            node_map[current_node] = node_stack.pop()
+            leaf_stack.append(current_node)
+        elif c == ')':
+            # Set the child leaves to the leaves of the current node's two children
+            while c == ')' and x < len(no_length_tree):
+                if no_length_tree[x + 1] == ';':
+                    break
+                current_node, x = get_node(no_length_tree, x + 2)
+                node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
+                leaf_stack.append(current_node)
+                x += 1
+                c = no_length_tree[x]
         x += 1
     return node_map
 
@@ -209,7 +227,7 @@ def deconvolute_assignments(reference_tree_assignments):
 def read_and_map_internal_nodes_from_newick_tree(reference_tree_file, denominator):
     # Using the C++ _tree_parser extension:
     reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-    internal_node_map = create_tree_internal_node_map(reference_tree_elements)
+    internal_node_map = map_internal_nodes_leaves(reference_tree_elements)
     return internal_node_map
 
 

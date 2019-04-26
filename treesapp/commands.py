@@ -8,7 +8,7 @@ from random import randint
 from . import file_parsers
 from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, get_headers,\
     read_fasta_to_dict, register_headers, write_classified_sequences, FASTA, merge_fasta_dicts_by_index
-from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments,\
+from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
     check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, check_updater_arguments
 from . import utilities
@@ -17,15 +17,16 @@ from . import entish
 from . import lca_calculations
 from . import placement_trainer
 from . import update_refpkg
+from . import annotate_extra
 from .phylo_dist import trim_lineages_to_rank
-from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, prep_logging
+from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer, prep_logging
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, filter_multiple_alignments, check_for_removed_sequences,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
     summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs
-from .jplace_utils import sub_indices_for_seq_names_jplace
+from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
     validate_ref_package_files, restore_reference_package, exclude_clade_from_ref_files, determine_containment,\
@@ -63,7 +64,7 @@ def info(sys_args):
 
     if args.verbose:
         marker_build_dict = file_parsers.parse_ref_build_params(ts_info.treesapp_dir, [])
-        refpkg_summary_str = ""
+        refpkg_summary_str = "\t".join(["Name", "Code-name", "Molecule", "RefPkg-type", "Description", "Last-updated"])
         for refpkg_code in marker_build_dict:
             refpkg = marker_build_dict[refpkg_code]  # type: MarkerBuild
             refpkg_summary_str += refpkg_code + " -> " + ", ".join(
@@ -564,6 +565,115 @@ def update(sys_args):
                                               ts_updater.ref_pkg.prefix + ".hmm")
     logging.debug("\tOld HMM length = " + str(hmm_length) + "\n" +
                   "\tNew HMM length = " + str(new_hmm_length) + "\n")
+
+    return
+
+
+def layer(sys_args):
+    # STAGE 1: Prompt the user and prepare files and lists for the pipeline
+    parser = TreeSAPPArgumentParser(description="This script is generally used for layering extra annotations "
+                                                "beyond taxonomy (such as Subgroup or Metabolism) to TreeSAPP outputs."
+                                                " This is accomplished by adding an extra column (to all rows) of an "
+                                                "existing marker_contig_map.tsv and annotating the relevant sequences")
+    add_layer_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    ts_layer = Layerer()
+
+    log_file_name = args.output + os.sep + "TreeSAPP_layer_log.txt"
+    prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\t\tLayering extra annotations on TreeSAPP classifications\t\t\t\t##\n\n")
+
+    annotate_extra.check_arguments(ts_layer, args)
+
+    ##
+    # Worklow:
+    #   1. Read data/tree_data/ref_build_parameters.tsv to get marker codes, denominators, and more (oh my!)
+    #   2. Read the marker_contig_map.tsv file from the output directory to create the master data structure
+    #   3. For each of the colours_styles files provided (potentially multiple for the same marker):
+    #       3.1) Add the annotation variable to master_dat for every sequence (instantiate with "NA")
+    #       3.2) Read the .jplace file for every sequence classified as marker
+    #       3.3) Add the annotation information to every sequence classified as marker in master_dat
+    #   4. Write the new classification file called "extra_annotated_marker_contig_map.tsv"
+    ##
+    marker_subgroups = dict()
+    unique_markers_annotated = set()
+    marker_tree_info = dict()
+    internal_nodes = dict()
+    marker_build_dict = file_parsers.parse_ref_build_params(ts_layer.treesapp_dir, [])
+    master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
+                                                                               "marker_contig_map.tsv")
+    # structure of master dat:
+    # {"Sequence_1": {"Field1": x, "Field2": y, "Extra": n},
+    #  "Sequence_2": {"Field1": i, "Field2": j, "Extra": n}}
+    for annot_f in args.colours_style:
+        # Determine the marker being annotated
+        marker = data_type = ""
+        for refpkg_code in marker_build_dict:
+            marker = marker_build_dict[refpkg_code].cog
+            annot_marker_re = re.compile(r"^{0}_(\w+).txt$".format(marker))
+            if annot_marker_re.match(os.path.basename(annot_f)):
+                data_type = annot_marker_re.match(os.path.basename(annot_f)).group(1)
+                unique_markers_annotated.add(refpkg_code)
+                break
+            else:
+                marker = data_type = ""
+        if marker and data_type:
+            if data_type not in marker_subgroups:
+                marker_subgroups[data_type] = dict()
+                internal_nodes[data_type] = dict()
+            marker_subgroups[data_type][marker], internal_nodes[data_type][marker] = file_parsers.read_colours_file(annot_f)
+        else:
+            logging.error("Unable to parse the marker and/or annotation type from " + annot_f + "\n")
+            sys.exit(5)
+    # Instantiate every query sequence in marker_contig_map with an empty string for each data_type
+    for data_type in marker_subgroups:
+        for query_seq in master_dat:
+            master_dat[query_seq][data_type] = "NA"
+    # Update the field_order dictionary with new fields
+    field_acc = len(field_order)
+    for new_datum in sorted(marker_subgroups.keys()):
+        field_order[field_acc] = new_datum
+        field_acc += 1
+
+    # Load the query sequence annotations
+    for data_type in marker_subgroups:
+        if data_type not in marker_tree_info:
+            marker_tree_info[data_type] = dict()
+        for refpkg_code in unique_markers_annotated:
+            marker = marker_build_dict[refpkg_code].cog
+            jplace = os.sep.join([ts_layer.treesapp_output, "iTOL_output", marker, marker + "_complete_profile.jplace"])
+
+            if marker in marker_subgroups[data_type]:
+                # Create the dictionary mapping an internal node to all leaves
+                # TODO: turn this into a map of internal nodes to internal child nodes
+                internal_node_map = entish.create_tree_internal_node_map(jplace_parser(jplace).tree)
+
+                # Routine for exchanging any organism designations for their respective node number
+                tax_ids_file = ts_layer.tree_dir + "tax_ids_" + marker + ".txt"
+                taxa_map = file_parsers.tax_ids_file_to_leaves(tax_ids_file)
+                clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][marker], internal_node_map, taxa_map)
+
+                if not internal_nodes[data_type][marker]:
+                    # Convert the leaf node ranges to internal nodes for consistency
+                    clusters = utilities.convert_outer_to_inner_nodes(clusters, internal_node_map)
+
+                marker_tree_info[data_type][marker], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
+                                                                                                                 clusters)
+                diff = len(taxa_map) - len(leaves_in_clusters)
+                if diff != 0:
+                    unannotated = set()
+                    for inode in internal_node_map:
+                        for leaf in internal_node_map[inode]:
+                            if leaf not in leaves_in_clusters:
+                                unannotated.add(str(leaf))
+                    logging.warning("The following leaf nodes were not mapped to annotation groups:\n" +
+                                    "\t" + ', '.join(sorted(unannotated, key=int)) + "\n")
+            else:
+                pass
+    marker_subgroups.clear()
+    master_dat = annotate_extra.map_queries_to_annotations(marker_tree_info, marker_build_dict, master_dat)
+    annotate_extra.write_classification_table(args, field_order, master_dat)
 
     return
 

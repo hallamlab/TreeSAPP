@@ -4,137 +4,74 @@ __author__ = 'Connor Morgan-Lang'
 
 
 import sys
-import argparse
+import logging
 import os
 import re
-import inspect
-import glob
-cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
-if cmd_folder not in sys.path:
-    sys.path.insert(0, cmd_folder)
-sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from entish import get_node
-from jplace_utils import jplace_parser
-from classy import TreeProtein
-from utilities import annotate_internal_nodes, convert_outer_to_inner_nodes
-from file_parsers import parse_ref_build_params, tax_ids_file_to_leaves, read_colours_file
+from .jplace_utils import jplace_parser
+from .classy import TreeProtein, Layerer
 
 
-def get_arguments():
-    parser = argparse.ArgumentParser(add_help=False,
-                                     description="This script is generally used for layering extra annotations "
-                                                 "beyond taxonomy (such as Subgroup or Metabolism) to TreeSAPP outputs."
-                                                 " This is accomplished by adding an extra column (to all rows) of an "
-                                                 "existing marker_contig_map.tsv and annotating the relevant sequences")
-    required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument("-c", "--colours_style",
-                               help="The colours_style file exported from iTOL with the annotation information. "
-                                    "For the variable name to be automatically inferred (rather than through `names`). "
-                                    "Format of the file should be `marker`_`var`.txt. For example: mcrA_Metabolism.txt "
-                                    "would create a new column in marker_contig_map.tsv named 'Metabolism'.",
-                               required=True,
-                               nargs='+')
-    required_args.add_argument("-o", "--output",
-                               help="The TreeSAPP output directory.",
-                               required=True)
-
-    # optopt = parser.add_argument_group("Optional options")
-    # optopt.add_argument('-n', '--names',
-    #                     help='The names corresponding to each of the colours_style files.'
-    #                          ' Provide a comma-separated list if multiple colours_style files.',
-    #                     required=False,
-    #                     default=None,
-    #                     nargs='+')
-
-    miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
-    miscellaneous_opts.add_argument('-v', '--verbose',
-                                    action='store_true',
-                                    default=False,
-                                    help='Prints a more verbose runtime log')
-    miscellaneous_opts.add_argument("-h", "--help",
-                                    action="help",
-                                    help="Show this help message and exit")
-
-    args = parser.parse_args()
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-
-    # Adding a dummy value for format_read_fasta args namespace
-    args.min_seq_length = 10
-
-    if sys.version_info > (2, 9):
-        args.py_version = 3
-    else:
-        args.py_version = 2
-
-    if not os.path.isdir(args.output):
-        os.makedirs(args.output)
-
-    return args
-
-
-def check_arguments(args):
+def check_arguments(layerer: Layerer, args):
     """
     Check that the required files (e.g. jplace, marker_contig_map, annotation files) exist
     :param args:
     :return:
     """
-    various_dir = args.output + os.sep + "various_outputs" + os.sep
-    jplace_files = glob.glob(various_dir + "*jplace")
-    if len(jplace_files) == 0:
-        sys.stderr.write("ERROR: could not find .jplace files in " + various_dir + "\n")
-        sys.exit()
-    if not os.path.isfile(os.sep.join([args.output, "final_outputs", "marker_contig_map.tsv"])):
-        sys.stderr.write("ERROR: could not find a classification file in " + args.output + os.sep + "final_outputs\n")
-        sys.exit()
+    layerer.treesapp_output = args.output
+    layerer.var_output_dir = layerer.treesapp_output + "intermediates" + os.sep
+    layerer.final_output_dir = layerer.treesapp_output + "final_outputs" + os.sep
+    if not os.path.isfile(layerer.final_output_dir + "marker_contig_map.tsv"):
+        logging.error("Could not find a classification file in " + layerer.final_output_dir + "\n")
+        sys.exit(3)
     for annot_f in args.colours_style:
         if not os.path.isfile(annot_f):
-            sys.stderr.write("ERROR: " + annot_f + " does not exist!\n")
-            sys.exit()
-    return jplace_files
+            logging.error(annot_f + " does not exist!\n")
+            sys.exit(3)
+    return
 
 
-def parse_marker_classification_table(args):
+def parse_marker_classification_table(marker_classification_file):
     """
     Function to read marker_contig_map.tsv and gather the relevant information for adding extra annotations
     This function is different from Clade_exclusion_analyzer::read_marker_classification_table(assignment_file)
     as we are interested in all fields in this function.
-    :param args:
+    :param marker_classification_file:
     :return:
     """
     master_dat = dict()
     field_order = dict()
-    marker_classification_file = os.sep.join([args.output, "final_outputs", "marker_contig_map.tsv"])
     try:
         classifications = open(marker_classification_file, 'r')
     except IOError:
-        sys.stderr.write("ERROR: Unable to open " + marker_classification_file + " for reading!\n")
-        sys.exit()
+        logging.error("Unable to open " + marker_classification_file + " for reading!\n")
+        sys.exit(3)
 
     header = classifications.readline()
     header_fields = header.strip().split("\t")
     x = 0
+    query_index = None
     for field in header_fields:
         field_order[x] = field
+        if field == "Query":
+            query_index = x
         x += 1
     line = classifications.readline()
     while line:
         fields = line.strip().split("\t")
         if len(fields) != len(header_fields):
-            sys.stderr.write("ERROR: Inconsistent number of columns in table! Offending line:\n" + line + "\n")
-            sys.exit()
-        master_dat[fields[0]] = dict()
+            logging.error("Inconsistent number of columns in table! Offending line:\n" + line + "\n")
+            sys.exit(3)
+        master_dat[fields[query_index]] = dict()
         y = 1
         while y < len(fields):
-            master_dat[fields[0]][header_fields[y]] = fields[y]
+            # TODO: format the master_dat as a dictionary indexed by the refpkg containing a list of TreeProteins
+            master_dat[fields[query_index]][header_fields[y]] = fields[y]
             y += 1
         line = classifications.readline()
 
     classifications.close()
     # for query in master_dat:
     #     print(master_dat[query])
-
-    if args.verbose:
-        sys.stdout.write("\tClassifications read:\t" + str(len(master_dat.keys())) + "\n")
 
     return master_dat, field_order
 
@@ -172,56 +109,16 @@ def names_for_nodes(clusters, node_map, taxa_map):
     return node_only_clusters
 
 
-def create_node_map(jplace_tree_string):
-    """
-    Loads a mapping between all nodes (internal and leaves) and all leaves
-    :return:
-    """
-    no_length_tree = re.sub(":[0-9.]+{", ":{", jplace_tree_string)
-    node_map = dict()
-    node_stack = list()
-    leaf_stack = list()
-    x = 0
-    num_buffer = ""
-    while x < len(no_length_tree):
-        c = no_length_tree[x]
-        if re.search(r"[0-9]", c):
-            while re.search(r"[0-9]", c):
-                num_buffer += c
-                x += 1
-                c = no_length_tree[x]
-            node_stack.append([str(num_buffer)])
-            num_buffer = ""
-            x -= 1
-        elif c == ':':
-            # Append the most recent leaf
-            current_node, x = get_node(no_length_tree, x + 1)
-            node_map[current_node] = node_stack.pop()
-            leaf_stack.append(current_node)
-        elif c == ')':
-            # Set the child leaves to the leaves of the current node's two children
-            while c == ')' and x < len(no_length_tree):
-                if no_length_tree[x + 1] == ';':
-                    break
-                current_node, x = get_node(no_length_tree, x + 2)
-                node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
-                leaf_stack.append(current_node)
-                x += 1
-                c = no_length_tree[x]
-        x += 1
-    return node_map
-
-
-def map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files_to_parse, master_dat):
+def map_queries_to_annotations(marker_tree_info, marker_build_dict, master_dat):
     num_unclassified = 0
     for jplace in jplace_files_to_parse:
         file_name = os.path.basename(jplace)
-        jplace_info = re.match("RAxML_portableTree.([A-Z][0-9]{4})_(.*).jplace", file_name)
-        gene_code, contig_name = jplace_info.groups()
-        if contig_name not in master_dat.keys():
+        jplace_info = re.match(r"RAxML_portableTree.([A-Z][0-9]{4})_.*.jplace", file_name)
+        refpkg_code = jplace_info.group(1)
+        if refpkg_code not in master_dat.keys():
             num_unclassified += 1
             continue
-        marker = marker_build_dict[gene_code].cog
+        marker = marker_build_dict[refpkg_code].cog
         for data_type in marker_tree_info:
             if marker in marker_tree_info[data_type]:
                 metadata_placement = set()
@@ -237,10 +134,50 @@ def map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files
 
                 if len(metadata_placement) == 0:
                     metadata_placement.add("Unknown")
-                master_dat[contig_name][data_type] = ';'.join(sorted(metadata_placement))
+                master_dat[refpkg_code][data_type] = ';'.join(sorted(metadata_placement))
     if num_unclassified > 0:
-        sys.stdout.write("Number of placed sequences that were unclassified: " + str(num_unclassified) + "\n")
+        logging.warning("Number of placed sequences that were unclassified: " + str(num_unclassified) + "\n")
     return master_dat
+
+
+def annotate_internal_nodes(internal_node_map, clusters):
+    """
+    A function for mapping the clusters to all internal nodes of the tree.
+    It also adds overlapping functional annotations for deep internal nodes and ensures all the leaves are annotated.
+    :param internal_node_map: A dictionary mapping the internal nodes (keys) to the leaf nodes (values)
+    :param clusters: Dictionary with the cluster names for keys and a tuple containing leaf boundaries as values
+    :return: A dictionary of the annotation (AKA group) as keys and internal nodes as values
+    """
+    annotated_clade_members = dict()
+    leaf_group_members = dict()
+    leaves_in_clusters = set()
+
+    # Create a dictionary to map the cluster name (e.g. Function, Activity, Class, etc) to all the leaf nodes
+    for annotation in clusters:
+        if annotation not in annotated_clade_members:
+            annotated_clade_members[annotation] = set()
+        if annotation not in leaf_group_members:
+            leaf_group_members[annotation] = set()
+        for i_node_range in clusters[annotation]:
+            for i_node in i_node_range:
+                try:
+                    for leaf in internal_node_map[int(i_node)]:
+                        leaf_group_members[annotation].add(leaf)
+                        leaves_in_clusters.add(leaf)
+                except ValueError:
+                    # TODO: Convert headers to internal nodes where an annotation cluster is a single leaf
+                    pass
+                except KeyError:
+                    logging.error("Unable to find internal node " + i_node + " in internal node map.\n")
+                    sys.exit(7)
+        # Find the set of internal nodes that are children of this annotated clade
+        for i_node in internal_node_map:
+            if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
+                annotated_clade_members[annotation].add(i_node)
+
+    logging.debug("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
+
+    return annotated_clade_members, leaves_in_clusters
 
 
 def write_classification_table(args, field_order, master_dat):
@@ -255,8 +192,8 @@ def write_classification_table(args, field_order, master_dat):
     try:
         table_handler = open(output_file, 'w')
     except IOError:
-        sys.stderr.write("ERROR: Unable to open " + output_file + " for writing!\n")
-        sys.exit()
+        logging.error("Unable to open " + output_file + " for writing!\n")
+        sys.exit(3)
 
     fields = list()
     # Prepare the new header and write it to the new classification table
@@ -276,106 +213,3 @@ def write_classification_table(args, field_order, master_dat):
     table_handler.close()
 
     return
-
-
-def main():
-    ##
-    # Worklow:
-    #   1. Read data/tree_data/ref_build_parameters.tsv to get marker codes, denominators, and more (oh my!)
-    #   2. Read the marker_contig_map.tsv file from the output directory to create the master data structure
-    #   3. For each of the colours_styles files provided (potentially multiple for the same marker):
-    #       3.1) Add the annotation variable to master_dat for every sequence (instantiate with "NA")
-    #       3.2) Read the .jplace file for every sequence classified as marker
-    #       3.3) Add the annotation information to every sequence classified as marker in master_dat
-    #   4. Write the new classification file called "extra_annotated_marker_contig_map.tsv"
-    ##
-    args = get_arguments()
-    jplace_files = check_arguments(args)
-    var_dir = args.output + os.sep + "various_outputs" + os.sep
-
-    marker_subgroups = dict()
-    unique_markers_annotated = set()
-    marker_tree_info = dict()
-    jplace_files_to_parse = list()
-    jplace_tree_strings = dict()
-    internal_nodes = dict()
-    marker_build_dict = parse_ref_build_params(args)
-    master_dat, field_order = parse_marker_classification_table(args)
-    # structure of master dat:
-    # {"Sequence_1": {"Field1": x, "Field2": y, "Extra": n},
-    #  "Sequence_2": {"Field1": i, "Field2": j, "Extra": n}}
-    for annot_f in args.colours_style:
-        # Determine the marker being annotated
-        marker = data_type = ""
-        for gene_code in marker_build_dict:
-            marker = marker_build_dict[gene_code].cog
-            if re.search("^" + re.escape(marker) + "_\w+.txt$", os.path.basename(annot_f)):
-                data_type = re.search("^" + re.escape(marker) + "_(\w+).txt$", os.path.basename(annot_f)).group(1)
-                unique_markers_annotated.add(gene_code)
-                break
-            else:
-                marker = data_type = ""
-        if marker and data_type:
-            if data_type not in marker_subgroups:
-                marker_subgroups[data_type] = dict()
-                internal_nodes[data_type] = dict()
-            marker_subgroups[data_type][marker], internal_nodes[data_type][marker] = read_colours_file(args, annot_f)
-        else:
-            sys.stderr.write("ERROR: Unable to parse the marker and/or annotation type from " + annot_f + "\n")
-            sys.exit()
-    # Instantiate every query sequence in marker_contig_map with an empty string for each data_type
-    for data_type in marker_subgroups:
-        for query_seq in master_dat:
-            master_dat[query_seq][data_type] = "NA"
-    # Update the field_order dictionary with new fields
-    field_acc = len(field_order)
-    for new_datum in sorted(marker_subgroups.keys()):
-        field_order[field_acc] = new_datum
-        field_acc += 1
-
-    # Load the query sequence annotations
-    for data_type in marker_subgroups:
-        if data_type not in marker_tree_info:
-            marker_tree_info[data_type] = dict()
-        for gene_code in unique_markers_annotated:
-            for jplace in jplace_files:
-                if re.match(re.escape(var_dir) + "RAxML_portableTree." + re.escape(gene_code) + "_.*.jplace", jplace):
-                    jplace_files_to_parse.append(jplace)
-                    if gene_code not in jplace_tree_strings:
-                        jplace_tree_strings[gene_code] = jplace_parser(jplace).tree
-
-            marker = marker_build_dict[gene_code].cog
-            if marker in marker_subgroups[data_type]:
-                # Create the dictionary mapping an internal node to all child nodes
-                internal_node_map = create_node_map(jplace_tree_strings[gene_code])
-
-                # Routine for exchanging any organism designations for their respective node number
-                tax_ids_file = os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + marker + ".txt"])
-                taxa_map = tax_ids_file_to_leaves(tax_ids_file)
-                clusters = names_for_nodes(marker_subgroups[data_type][marker], internal_node_map, taxa_map)
-
-                if not internal_nodes[data_type][marker]:
-                    # Convert the leaf node ranges to internal nodes for consistency
-                    clusters = convert_outer_to_inner_nodes(clusters, internal_node_map)
-
-                marker_tree_info[data_type][marker], leaves_in_clusters = annotate_internal_nodes(args,
-                                                                                                  internal_node_map,
-                                                                                                  clusters)
-                diff = len(taxa_map) - len(leaves_in_clusters)
-                if diff != 0:
-                    unannotated = set()
-                    sys.stderr.write("WARNING: the following leaf nodes were not mapped to annotation groups:\n")
-                    for inode in internal_node_map:
-                        for leaf in internal_node_map[inode]:
-                            if leaf not in leaves_in_clusters:
-                                unannotated.add(str(leaf))
-                    sys.stderr.write("\t" + ', '.join(sorted(unannotated, key=int)) + "\n")
-                    sys.stderr.flush()
-            else:
-                pass
-    marker_subgroups.clear()
-    master_dat = map_queries_to_annotations(marker_tree_info, marker_build_dict, jplace_files_to_parse, master_dat)
-    write_classification_table(args, field_order, master_dat)
-
-
-main()

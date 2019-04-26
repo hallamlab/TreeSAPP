@@ -1588,6 +1588,15 @@ class Evaluator(TreeSAPP):
         return
 
 
+class Layerer(TreeSAPP):
+    def __init__(self):
+        super(Layerer, self).__init__("layer")
+        self.stages = {}
+        self.target_refpkgs = list()
+        self.treesapp_output = ""
+        self.colours_file = ""
+
+
 class Assigner(TreeSAPP):
     def __init__(self):
         """
