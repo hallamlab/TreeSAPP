@@ -712,10 +712,10 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
                 if int(seq_name) > 0:
                     n_msa_refs += 1
             except ValueError:
-                if re.match("^_\d+", seq_name):
+                if re.match(r"^_\d+", seq_name):
                     seq_name = re.sub("^_", '-', seq_name)
                 # The section of regular expresion after '_' needs to match denominator and refpkg names
-                elif re.match("^\d+_\w{3,7}$", seq_name):
+                elif re.match(r"^\d+_\w{3,7}$", seq_name):
                     seq_name = seq_name.split('_')[0]
                 else:
                     logging.error("Unexpected sequence name " + seq_name +
