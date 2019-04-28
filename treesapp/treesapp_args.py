@@ -497,10 +497,15 @@ def check_create_arguments(creator: Creator, args):
         sys.exit(13)
 
     # Check the RAxML model
-    raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALGF", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
+    raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALG", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
                     "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
     if args.raxml_model:
-        if args.raxml_model not in raxml_models:
+        valid = False
+        for model in raxml_models:
+            if re.search(model, args.raxml_model):
+                valid = True
+                break
+        if not valid:
             logging.error("Phylogenetic substitution model '" + args.raxml_model + "' is not valid!\n" +
                           "If this model is valid (not a typo), add it to `raxml_models` list and re-run.\n")
             sys.exit(13)
@@ -537,7 +542,7 @@ def check_create_arguments(creator: Creator, args):
             sys.exit(13)
 
     # Names of files and directories to be created
-    creator.phy_dir = os.path.abspath(creator.var_output_dir) + "phylogeny_files" + os.sep
+    creator.phy_dir = os.path.abspath(creator.var_output_dir) + os.sep + "phylogeny_files" + os.sep
     creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
     creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
     creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)

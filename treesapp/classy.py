@@ -7,7 +7,7 @@ import copy
 import subprocess
 import logging
 import time
-from shutil import rmtree
+from shutil import rmtree, copy
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
@@ -1289,6 +1289,8 @@ class Creator(TreeSAPP):
             os.remove(self.phylip_file + ".reduced")
         if os.path.exists(self.final_output_dir + "fasta_reader_log.txt"):
             os.remove(self.final_output_dir + "fasta_reader_log.txt")
+        copy(self.phylip_file, self.phy_dir)
+        os.remove(self.phylip_file)
         return
 
     def determine_model(self, fast):
@@ -1299,7 +1301,7 @@ class Creator(TreeSAPP):
             else:
                 model = "GTRGAMMA"
         else:
-            raxml_info_file = self.final_output_dir + os.sep + "RAxML_info." + self.ref_pkg.prefix
+            raxml_info_file = self.phy_dir + "RAxML_info." + self.ref_pkg.prefix
             model_statement_re = re.compile(r".* model: ([A-Z]+) likelihood.*")
             command_line = ""
             with open(raxml_info_file) as raxml_info:

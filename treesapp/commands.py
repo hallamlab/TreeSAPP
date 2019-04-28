@@ -390,7 +390,7 @@ def create(sys_args):
             logging.info("done.\n")
 
             unique_ref_headers = set(
-                [re.sub('_' + re.escape(ts_create.ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
+                [re.sub(fr"_{ts_create.ref_pkg.prefix}", '', x) for x in ref_aligned_fasta_dict.keys()])
             msa_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming([trimmed_msa_file],
                                                                                                  unique_ref_headers)
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
@@ -399,13 +399,12 @@ def create(sys_args):
                 logging.error("Trimming removed reference sequences. This indicates you have non-homologous sequences.\n" +
                               "Please improve sequence quality-control and/or re-run without the '--trim_align' flag.\n")
                 sys.exit(13)
-            aligned_fasta_dict = msa_dict[trimmed_msa_file]
+            dict_for_phy = msa_dict[trimmed_msa_file]
             os.remove(trimmed_msa_file)
         else:
-            aligned_fasta_dict = ref_aligned_fasta_dict
+            for seq_name in ref_aligned_fasta_dict:
+                dict_for_phy[seq_name.split('_')[0]] = ref_aligned_fasta_dict[seq_name]
 
-        for seq_name in aligned_fasta_dict:
-            dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
         phy_dict = utilities.reformat_fasta_to_phy(dict_for_phy)
         utilities.write_phy_file(ts_create.phylip_file, phy_dict)
 
@@ -415,11 +414,17 @@ def create(sys_args):
         marker_package.tree_tool = wrapper.construct_tree(ts_create.executables, ts_create.molecule_type,
                                                           ts_create.phylip_file, ts_create.phy_dir,
                                                           ts_create.ref_pkg.tree, ts_create.ref_pkg.prefix, args)
-        marker_package.model = ts_create.determine_model(args.fast)
+        if args.raxml_model:
+            marker_package.model = args.raxml_model
+        else:
+            marker_package.model = ts_create.determine_model(args.fast)
         if not args.fast:
-            entish.annotate_partition_tree(ts_create.ref_pkg.prefix,
-                                           fasta_replace_dict,
-                                           ts_create.final_output_dir + os.sep + "RAxML_bipartitions." + ts_create.ref_pkg.prefix)
+            raw_newick_tree = ts_create.phy_dir + "RAxML_bestTree." + ts_create.ref_pkg.prefix
+            bootstrap_tree = ts_create.phy_dir + "RAxML_bipartitionsBranchLabels." + ts_create.ref_pkg.prefix
+            entish.annotate_partition_tree(ts_create.ref_pkg.prefix, fasta_replace_dict, bootstrap_tree)
+            bootstrap_nameswap = ts_create.final_output_dir + ts_create.ref_pkg.prefix + "_bipartitions.txt"
+            utilities.swap_tree_names(raw_newick_tree, ts_create.ref_pkg.tree, ts_create.ref_pkg.prefix)
+            utilities.swap_tree_names(bootstrap_tree, bootstrap_nameswap, ts_create.ref_pkg.prefix)
 
     param_file = ts_create.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
     create_refpkg.update_build_parameters(param_file, marker_package)

@@ -7,7 +7,7 @@ import logging
 from shutil import copy
 from .external_command_interface import launch_write_command, setup_progress_bar
 from .fasta import read_fasta_to_dict
-from .utilities import remove_dashes_from_msa, swap_tree_names
+from .utilities import remove_dashes_from_msa
 
 
 def construct_tree(executables: dict, molecule: str, multiple_alignment_file: str,
@@ -80,15 +80,6 @@ def construct_tree(executables: dict, molecule: str, multiple_alignment_file: st
                       tree_builder + "_info." + tree_prefix + " for an error message.\n" +
                       tree_builder + " command used:\n" + ' '.join(tree_build_cmd) + "\n")
         sys.exit(13)
-
-    if not args.fast:
-        raw_newick_tree = "%s/RAxML_bestTree.%s" % (tree_output_dir, tree_prefix)
-        bootstrap_tree = tree_output_dir + os.sep + "RAxML_bipartitionsBranchLabels." + tree_prefix
-        bootstrap_nameswap = args.final_output_dir + tree_prefix + "_bipartitions.txt"
-        copy(multiple_alignment_file, tree_output_dir)
-        os.remove(multiple_alignment_file)
-        swap_tree_names(raw_newick_tree, tree_file, tree_prefix)
-        swap_tree_names(bootstrap_tree, bootstrap_nameswap, tree_prefix)
 
     return tree_builder
 
