@@ -3,11 +3,11 @@ __author__ = 'Connor Morgan-Lang'
 import sys
 import os
 import re
-import copy
 import subprocess
 import logging
 import time
 from shutil import rmtree, copy
+from copy import deepcopy
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
@@ -445,7 +445,7 @@ class ItolJplace:
                     for k, v in placement.items():
                         if k == 'p':
                             acc = 0
-                            tmp_placements = copy.deepcopy(v)
+                            tmp_placements = deepcopy(v)
                             while acc < len(tmp_placements):
                                 candidate = tmp_placements[acc]
                                 if float(candidate[x]) > max_lwr:
