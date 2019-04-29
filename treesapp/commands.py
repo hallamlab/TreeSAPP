@@ -390,7 +390,7 @@ def create(sys_args):
             logging.info("done.\n")
 
             unique_ref_headers = set(
-                [re.sub(fr"_{ts_create.ref_pkg.prefix}", '', x) for x in ref_aligned_fasta_dict.keys()])
+                [re.sub(r"_{0}".format(ts_create.ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
             msa_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming([trimmed_msa_file],
                                                                                                  unique_ref_headers)
             logging.debug("Number of sequences discarded: " + summary_str + "\n")

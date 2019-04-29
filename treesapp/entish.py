@@ -114,7 +114,7 @@ def create_tree_internal_node_map(jplace_tree_string):
     Loads a mapping between all internal nodes to their internal parents
     :return:
     """
-    no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?\{", ":{", jplace_tree_string)
+    no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?{", ":{", jplace_tree_string)
     node_map = dict()
     parent_map = dict()
     node_stack = list()
@@ -256,11 +256,11 @@ def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
     tree = tree_txt.readline()
     tree_txt.close()
     for treesapp_id in fasta_replace_dict.keys():
-        if not re.search(fr"[,(]{treesapp_id}_{code_name}", tree):
+        if not re.search(r"[,(]{0}_{1}".format(treesapp_id, code_name), tree):
             logging.warning("Unable to find '" + treesapp_id + '_' + code_name + "' in " + bipart_tree + ".\n" +
                             "The bipartition tree will not be annotated (no effect on reference package).\n")
             break
-        tree = re.sub(fr"[,(]{treesapp_id}_{code_name}",
+        tree = re.sub(r"[,(]{0}_{1}".format(treesapp_id, code_name),
                       '(' + fasta_replace_dict[treesapp_id].organism,
                       tree)
 
