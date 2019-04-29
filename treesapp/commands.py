@@ -65,6 +65,7 @@ def info(sys_args):
     if args.verbose:
         marker_build_dict = file_parsers.parse_ref_build_params(ts_info.treesapp_dir, [])
         refpkg_summary_str = "\t".join(["Name", "Code-name", "Molecule", "RefPkg-type", "Description", "Last-updated"])
+        refpkg_summary_str += "\n"
         for refpkg_code in marker_build_dict:
             refpkg = marker_build_dict[refpkg_code]  # type: MarkerBuild
             refpkg_summary_str += refpkg_code + " -> " + ", ".join(
@@ -430,7 +431,7 @@ def create(sys_args):
     create_refpkg.update_build_parameters(param_file, marker_package)
     if ts_create.stage_status("train"):
         # Build the regression model of placement distances to taxonomic ranks
-        trainer_cmd = ["-i", ts_create.input_sequences,
+        trainer_cmd = ["-i", ts_create.filtered_fasta,
                        "-c", ts_create.ref_pkg.prefix,
                        "-p", ts_create.final_output_dir,
                        "-o", ts_create.var_output_dir + "placement_trainer" + os.sep,
