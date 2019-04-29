@@ -195,7 +195,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                     'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
                                action="store_true",
                                default=False)
-    parser.seqops.add_argument("-d", "--profile",
+    parser.seqops.add_argument("-d", "--profile", dest="profile",
                                help="An HMM profile representing a specific domain.\n"
                                     "Domains will be excised from input sequences based on hmmsearch alignments.",
                                required=False, default=None)
@@ -540,6 +540,12 @@ def check_create_arguments(creator: Creator, args):
                           "Include all sequences in " + args.guarantee +
                           " in " + args.fasta_input + " and re-run without --guarantee\n")
             sys.exit(13)
+
+    if args.profile:
+        if not os.path.isfile(args.profile):
+            logging.error("Unable to find HMM profile at '" + args.profile + "'.\n")
+            sys.exit(3)
+        creator.hmm_profile = args.profile
 
     # Names of files and directories to be created
     creator.phy_dir = os.path.abspath(creator.var_output_dir) + os.sep + "phylogeny_files" + os.sep

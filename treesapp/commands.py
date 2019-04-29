@@ -211,13 +211,14 @@ def create(sys_args):
     ref_seqs = FASTA(args.input)
 
     if ts_create.stage_status("search"):
+        # TODO: Fix: No alignments met the quality cut-offs! TreeSAPP is exiting now.
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
         ref_seqs.fasta_dict = format_read_fasta(args.input, ts_create.molecule_type, ts_create.output_dir)
         ref_seqs.header_registry = register_headers(get_headers(args.input))
 
         logging.info("Searching for domain sequences... ")
-        hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], args.domain, args.input,
-                                                 ts_create.var_output_dir)
+        hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], ts_create.hmm_profile,
+                                                 args.input, ts_create.var_output_dir)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
@@ -444,14 +445,15 @@ def create(sys_args):
         marker_package.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir + "placement_trainer" +
                                                                    os.sep + "placement_trainer_results.txt")
 
-    ts_create.remove_intermediates()
     ##
     # Finish validating the file and append the reference package build parameters to the master table
     ##
-    ts_create.ref_pkg.validate(marker_package.num_reps)
-    create_refpkg.update_build_parameters(param_file, marker_package)
+    if ts_create.stage_status("update"):
+        ts_create.ref_pkg.validate(marker_package.num_reps)
+        create_refpkg.update_build_parameters(param_file, marker_package)
 
     logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
+    ts_create.remove_intermediates()
     if ts_create.stage_status("cc"):
         ts_create.print_terminal_commands()
 

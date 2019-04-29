@@ -738,6 +738,11 @@ def update_build_parameters(param_file, marker_package: classy.MarkerBuild):
     with open(param_file) as param_handler:
         param_lines = param_handler.readlines()
 
+    if not marker_package.pfit:
+        logging.warning("Linear regression parameters could not be estimated. " +
+                        "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
+        marker_package.pfit = [0.0, 7.0]
+
     marker_package.update = strftime("%d_%b_%Y", gmtime())
     build_list = [marker_package.cog, marker_package.denominator, marker_package.molecule, marker_package.model,
                   marker_package.kind, str(marker_package.pid), str(marker_package.num_reps), marker_package.tree_tool,

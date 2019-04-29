@@ -217,9 +217,11 @@ def parse_domain_tables(args, hmm_domtbl_files, single=True):
 
     raw_alignments = 0
     seqs_identified = 0
-    dropped = 0
     fragmented = 0
     glued = 0
+    dropped = 0
+    bad = 0
+    short = 0
     multi_alignments = 0  # matches of the same query to a different HMM (>1 lines)
     hmm_matches = dict()
     orf_gene_map = dict()
@@ -234,8 +236,8 @@ def parse_domain_tables(args, hmm_domtbl_files, single=True):
                                                                                                         glued,
                                                                                                         multi_alignments,
                                                                                                         raw_alignments)
-        purified_matches, dropped = filter_poor_hits(args, distinct_matches, dropped)
-        complete_gene_hits, dropped = filter_incomplete_hits(args, purified_matches, dropped)
+        purified_matches, bad = filter_poor_hits(args, distinct_matches, bad)
+        complete_gene_hits, short = filter_incomplete_hits(args, purified_matches, short)
 
         for match in complete_gene_hits:
             match.genome = reference
@@ -244,7 +246,7 @@ def parse_domain_tables(args, hmm_domtbl_files, single=True):
             orf_gene_map[match.orf][match.target_hmm] = match
             if match.target_hmm not in hmm_matches.keys():
                 hmm_matches[match.target_hmm] = list()
-
+    dropped += bad + short
     for orf in orf_gene_map:
         if len(orf_gene_map[orf]) == 1:
             target_hmm = list(orf_gene_map[orf].keys())[0]
@@ -273,26 +275,31 @@ def parse_domain_tables(args, hmm_domtbl_files, single=True):
 
     logging.info("done.\n")
 
-    if seqs_identified == 0 and dropped == 0:
-        logging.warning("No alignments found! TreeSAPP is exiting now.\n")
-        sys.exit(0)
-    if seqs_identified == 0 and dropped > 0:
-        logging.warning("No alignments met the quality cut-offs! TreeSAPP is exiting now.\n")
-        sys.exit(0)
-
-    alignment_stat_string = "\tNumber of markers identified:\n"
-    for marker in sorted(hmm_matches):
-        alignment_stat_string += "\t\t" + marker + "\t" + str(len(hmm_matches[marker])) + "\n"
-        # For debugging:
-        # for match in hmm_matches[marker]:
-        #     match.print_info()
-
+    alignment_stat_string = ""
     alignment_stat_string += "\tInitial alignments:\t" + str(raw_alignments) + "\n"
     alignment_stat_string += "\tAlignments discarded:\t" + str(dropped) + "\n"
     alignment_stat_string += "\tFragmented alignments:\t" + str(fragmented) + "\n"
     alignment_stat_string += "\tAlignments scaffolded:\t" + str(glued) + "\n"
     alignment_stat_string += "\tMulti-alignments:\t" + str(multi_alignments) + "\n"
     alignment_stat_string += "\tSequences identified:\t" + str(seqs_identified) + "\n"
+
+    if seqs_identified == 0 and dropped == 0:
+        logging.warning("No alignments found! TreeSAPP is exiting now.\n")
+        sys.exit(0)
+    if seqs_identified == 0 and dropped > 0:
+        logging.warning("No alignments (" + str(seqs_identified) + '/' + str(dropped) +
+                        ") met the quality cut-offs! TreeSAPP is exiting now.\n")
+        alignment_stat_string += "\tPoor quality alignments:\t" + str(bad) + "\n"
+        alignment_stat_string += "\tShort alignments:\t" + str(short) + "\n"
+        logging.debug(alignment_stat_string)
+        sys.exit(0)
+
+    alignment_stat_string += "\n\tNumber of markers identified:\n"
+    for marker in sorted(hmm_matches):
+        alignment_stat_string += "\t\t" + marker + "\t" + str(len(hmm_matches[marker])) + "\n"
+        # For debugging:
+        # for match in hmm_matches[marker]:
+        #     match.print_info()
 
     logging.debug(alignment_stat_string)
     return hmm_matches

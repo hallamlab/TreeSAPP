@@ -1263,6 +1263,7 @@ class Creator(TreeSAPP):
         self.phy_dir = ""  # Directory for intermediate or unnecessary files created during phylogeny inference
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs
         self.filtered_fasta = ""
+        self.hmm_profile = ""  # HMM profile used for screening the input sequences
         self.uclust_prefix = ""  # FASTA file prefix for cluster centroids
         self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
@@ -1275,7 +1276,8 @@ class Creator(TreeSAPP):
                        3: ModuleFunction("cluster", 3),
                        4: ModuleFunction("build", 4),
                        5: ModuleFunction("train", 5),
-                       6: ModuleFunction("cc", 6)}
+                       6: ModuleFunction("update", 6),
+                       7: ModuleFunction("cc", 7)}
 
     def get_info(self):
         info_string = "Creator instance summary:\n"
@@ -1289,8 +1291,9 @@ class Creator(TreeSAPP):
             os.remove(self.phylip_file + ".reduced")
         if os.path.exists(self.final_output_dir + "fasta_reader_log.txt"):
             os.remove(self.final_output_dir + "fasta_reader_log.txt")
-        copy(self.phylip_file, self.phy_dir)
-        os.remove(self.phylip_file)
+        if os.path.exists(self.phylip_file):
+            copy(self.phylip_file, self.phy_dir)
+            os.remove(self.phylip_file)
         return
 
     def determine_model(self, fast):
