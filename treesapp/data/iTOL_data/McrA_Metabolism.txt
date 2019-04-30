@@ -1,0 +1,22 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+59	range	#9970ab	Alkanotrophic
+21	range	#9970ab	Alkanotrophic
+46	range	#9970ab	Alkanotrophic
+Methanopyrus_kandleri_AV19_|_AAM01870	range	rgb(166, 219, 160)	Hydrogenotrophic
+153	range	rgb(166, 219, 160)	Hydrogenotrophic
+446	range	rgb(166, 219, 160)	Hydrogenotrophic
+205	range	rgb(166, 219, 160)	Hydrogenotrophic
+383	range	rgb(166, 219, 160)	Hydrogenotrophic
+7	range	#e7d4e8	H2 and Methylotrophic
+120	range	#e7d4e8	H2 and Methylotrophic
+92	range	#e7d4e8	H2 and Methylotrophic
+112	range	#e7d4e8	H2 and Methylotrophic
+423	range	#e7d4e8	H2 and Methylotrophic
+162	range	rgb(217, 240, 211)	Inactive
+193	range	rgb(217, 240, 211)	Inactive
+79	range	#c2a5cf	Methanotrophic
+255	range	#c2a5cf	Methanotrophic
+268	range	rgb(90, 174, 97)	Aceticlastic
+244	range	rgb(90, 174, 97)	Aceticlastic
