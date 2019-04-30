@@ -2183,7 +2183,7 @@ def produce_itol_inputs(tree_saps, marker_build_dict, itol_data, output_dir: str
     :return: None
     """
     logging.info("Generating inputs for iTOL... ")
-    
+
     itol_base_dir = output_dir + 'iTOL_output' + os.sep
     if not os.path.exists(itol_base_dir):
         os.mkdir(itol_base_dir)  # drwxr-xr-x
@@ -2213,7 +2213,7 @@ def produce_itol_inputs(tree_saps, marker_build_dict, itol_data, output_dir: str
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(marker, itol_base_dir, treesapp_data_dir + os.sep + "tree_data")
 
-        annotation_style_files = glob.glob(os.sep.join([treesapp_data_dir, "iTOL_datasets", marker + "*"]))
+        annotation_style_files = glob.glob(os.sep.join([treesapp_data_dir, "iTOL_data", marker + "*"]))
         # Copy the respective colours and styles files for each marker found to the itol_output directories
         colours_styles = os.sep.join([treesapp_data_dir, "iTOL_data", marker + "_colours_style.txt"])
         colour_strip = os.sep.join([treesapp_data_dir, "iTOL_data", marker + "_colour_strip.txt"])
