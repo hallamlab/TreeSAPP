@@ -334,16 +334,19 @@ def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
             if placed_sequence.classified:
                 output_fasta_string += '>' + placed_sequence.contig_name + "\n"
                 try:
-                    output_fasta_string += formatted_fasta_dict[prefix + placed_sequence.contig_name] + "\n"
+                    seq = formatted_fasta_dict[prefix + placed_sequence.contig_name]
                 except KeyError:
                     seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.name), '', placed_sequence.contig_name)
                     try:
-                        output_fasta_string += formatted_fasta_dict[prefix + seq_name] + "\n"
+                        seq = formatted_fasta_dict[prefix + seq_name]
                     except KeyError:
                         logging.error("Unable to find '" + prefix + placed_sequence.contig_name +
                                       "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
                                       '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
                         sys.exit(3)
+                output_fasta_string += seq + "\n"
+                if not placed_sequence.seq_len:
+                    placed_sequence.seq_len = len(seq)
 
     if output_fasta_string:
         try:
