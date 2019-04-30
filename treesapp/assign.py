@@ -875,16 +875,24 @@ def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dic
             except TypeError:
                 logging.error("Unexpected file name format for a trimmed MSA.\n")
                 sys.exit(3)
+            pair = ""
             for msa_file in msa_files[denominator]:
                 if re.search(re.escape(prefix) + '\.', msa_file):
-                    if trimmed_msa_file in msa_failed:
-                        untrimmed_msa_failed.append(msa_file)
-                    trimmed_away_seqs[marker] += len(set(get_headers(msa_file)).difference(set(get_headers(trimmed_msa_file))))
+                    pair = msa_file
                     break
+            if pair:
+                if trimmed_msa_file in msa_failed:
+                    untrimmed_msa_failed.append(pair)
+                trimmed_away_seqs[marker] += len(set(get_headers(pair)).difference(set(get_headers(trimmed_msa_file))))
+            else:
+                logging.error("Unable to map trimmed MSA file '" + trimmed_msa_file + "' to its original MSA.\n")
+                sys.exit(5)
 
         if len(msa_failed) > 0:
             if len(untrimmed_msa_failed) != len(msa_failed):
-                logging.error("Not all of the failed, trimmed MSA files were mapped to the original MSAs.\n")
+                logging.error("Not all of the failed (" + str(len(msa_failed)) + '/' +
+                              str(len(trimmed_msa_files[denominator])) +
+                              "), trimmed MSA files were mapped to their original MSAs.\n")
                 sys.exit(3)
             untrimmed_msa_passed, _, _ = validate_alignment_trimming(untrimmed_msa_failed, unique_refs,
                                                                      True, min_len)
@@ -892,6 +900,7 @@ def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dic
         num_successful_alignments += len(msa_passed)
         qc_ma_dict[denominator] = msa_passed
         discarded_seqs_string += summary_str
+        untrimmed_msa_failed.clear()
 
     logging.debug("done.\n")
     logging.debug("\tSequences removed during trimming:\n\t\t" +
