@@ -507,7 +507,10 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
 
     logging.debug("Creating a temporary dictionary for rapid sequence name look-ups... ")
     for num in header_registry:
-        header_matching_dict[header_registry[num].first_split[1:]] = header_registry[num]
+        if header_registry[num].first_split[0] == '>':
+            header_matching_dict[header_registry[num].first_split[1:]] = header_registry[num]
+        else:
+            header_matching_dict[header_registry[num].first_split] = header_registry[num]
     logging.debug("done.\n")
 
     logging.info("Extracting the quality-controlled protein sequences... ")

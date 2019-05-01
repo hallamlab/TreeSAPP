@@ -283,6 +283,7 @@ def create(sys_args):
         if args.cluster:
             wrapper.cluster_sequences(ts_create.executables["usearch"], ts_create.cluster_input,
                                       ts_create.uclust_prefix, ts_create.prop_sim)
+            ts_create.uc = ts_create.uclust_prefix + ".uc"
         # Read the uc file if present
         if ts_create.uc:
             cluster_dict = file_parsers.read_uc(ts_create.uc)
