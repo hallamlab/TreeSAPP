@@ -551,7 +551,9 @@ def check_create_arguments(creator: Creator, args):
     creator.phy_dir = os.path.abspath(creator.var_output_dir) + os.sep + "phylogeny_files" + os.sep
     creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
     creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
+    creator.cluster_input = creator.var_output_dir + creator.sample_prefix + "_uclust_input.fasta"
     creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
+    creator.uc = creator.uclust_prefix + ".uc"
     creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
     creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
 

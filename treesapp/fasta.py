@@ -115,6 +115,8 @@ class FASTA:
         sys.exit(3)
 
     def n_seqs(self):
+        if len(self.header_registry) != len(self.fasta_dict):
+            logging.warning("FASTA header registry and fasta dictionary are out of sync!\n")
         return len(self.fasta_dict.keys())
 
     def original_headers(self):

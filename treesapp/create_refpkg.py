@@ -472,13 +472,21 @@ def remove_by_truncated_lineages(min_taxonomic_rank, fasta_replace_dict):
     return purified_fasta_dict
 
 
-def remove_duplicate_records(fasta_record_objects, header_registry):
+def remove_duplicate_records(fasta_record_objects: dict, header_registry: dict):
+    """
+    Identifies duplicate records based on accession ID.
+    Relies on fasta_record_objects and header_registry being synced such that
+     the numeric indices in both dictionaries point to the same sequence.
+    :param fasta_record_objects:
+    :param header_registry:
+    :return: The new, deduplicated fasta_record_objects and header_registry (if duplicates found, otherwise unchanged)
+    """
     nr_record_dict = dict()
     nr_header_dict = dict()
     accessions = dict()
     dups = False
     for treesapp_id in sorted(fasta_record_objects, key=int):
-        ref_seq = fasta_record_objects[treesapp_id]
+        ref_seq = fasta_record_objects[treesapp_id]  # type: ReferenceSequence
         if ref_seq.accession not in accessions:
             accessions[ref_seq.accession] = 0
             nr_record_dict[treesapp_id] = ref_seq
@@ -849,11 +857,12 @@ def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output
 
 def guarantee_ref_seqs(cluster_dict, important_seqs):
     num_swaps = 0
+    important_finds = 0
     nonredundant_guarantee_cluster_dict = dict()  # Will be used to replace cluster_dict
     expanded_cluster_id = 0
     for cluster_id in sorted(cluster_dict, key=int):
         if len(cluster_dict[cluster_id].members) == 0:
-            nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+            nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_dict[cluster_id]
         else:
             contains_important_seq = False
             # The case where a member of a cluster is a guaranteed sequence, but not the representative
@@ -865,26 +874,44 @@ def guarantee_ref_seqs(cluster_dict, important_seqs):
                     nonredundant_guarantee_cluster_dict[expanded_cluster_id].lca = cluster_dict[cluster_id].lca
                     expanded_cluster_id += 1
                     contains_important_seq = True
+                    important_finds += 1
             if contains_important_seq and representative not in important_seqs.keys():
                 num_swaps += 1
             elif contains_important_seq and representative in important_seqs.keys():
                 # So there is no opportunity for the important representative sequence to be swapped, clear members
                 cluster_dict[cluster_id].members = []
-                nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+                nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_dict[cluster_id]
+                important_finds += 1
             else:
-                nonredundant_guarantee_cluster_dict[cluster_id] = cluster_dict[cluster_id]
+                nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_dict[cluster_id]
         expanded_cluster_id += 1
+
+    # Some final accounting - in case the header formats are altered!
+    if important_finds != len(important_seqs):
+        logging.error(str(important_finds) + '/' + str(len(important_seqs)) +
+                      " sequences guaranteed found in cluster output file.\n")
+        sys.exit(7)
+    logging.debug(str(num_swaps) + " former representative sequences were succeeded by 'guaranteed-sequences'.\n")
+
     return nonredundant_guarantee_cluster_dict
 
 
-def rename_cluster_headers(cluster_dict):
+def rename_cluster_headers(cluster_dict, header_registry):
+    # Create an dictionary mapping formatted names to original names
+    format_original_names = dict()
+    for num_id in header_registry:
+        format_original_names[header_registry[num_id].formatted] = header_registry[num_id].original
     members = list()
     for num_id in cluster_dict:
         cluster = cluster_dict[num_id]
-        cluster.representative = utilities.reformat_string(cluster.representative)
+        try:
+            cluster.representative = format_original_names[cluster.representative]
+        except KeyError:
+            logging.error("Unable to find '" + cluster.representative + "' in formatted header-registry names.\n")
+            sys.exit(7)
         for member in cluster.members:
             header, identity = member
-            members.append([utilities.reformat_string(header), identity])
+            members.append([format_original_names[header], identity])
         cluster.members = members
         members.clear()
     return

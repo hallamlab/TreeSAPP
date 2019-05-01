@@ -1265,6 +1265,8 @@ class Creator(TreeSAPP):
         self.filtered_fasta = ""
         self.hmm_profile = ""  # HMM profile used for screening the input sequences
         self.uclust_prefix = ""  # FASTA file prefix for cluster centroids
+        self.uc = ""  # UCLUST-specific output file defining the clusters, members, representatives, etc.
+        self.cluster_input = ""  # Name of the file to be used for clustering
         self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
         self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank

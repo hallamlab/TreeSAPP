@@ -708,7 +708,7 @@ def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
     :return:
     """
     for treesapp_id in fasta_record_objects:
-        ref_seq = fasta_record_objects[treesapp_id]
+        ref_seq = fasta_record_objects[treesapp_id]  # type: ReferenceSequence
         if not ref_seq.lineage:
             try:
                 lineage = accession_lineages[ref_seq.accession]
@@ -722,6 +722,7 @@ def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
             ref_seq.organism = ref_seq.lineage.split("; ")[-1]
         else:
             pass
+        ref_seq.tracking_stamp()
     return fasta_record_objects
 
 

@@ -258,36 +258,37 @@ def create(sys_args):
         fasta_records = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_records)
 
         fasta_records, ref_seqs.header_registry = create_refpkg.remove_duplicate_records(fasta_records,
-                                                                                                ref_seqs.header_registry)
+                                                                                         ref_seqs.header_registry)
 
         if len(fasta_records.keys()) < 2:
             logging.error(str(len(fasta_records)) + " sequences post-homology + taxonomy filtering\n")
             sys.exit(11)
 
-        # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
-        filtered_fasta_dict = dict()
-        for num_id in fasta_records:
-            refseq_object = fasta_records[num_id]
-            # NOTE: original header must be used as this is being passed to train
-            filtered_fasta_dict[ref_seqs.header_registry[num_id].original] = refseq_object.sequence
-        write_new_fasta(filtered_fasta_dict, ts_create.filtered_fasta)
-        filtered_fasta_dict.clear()
+    # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
+    ref_seqs.file = ts_create.filtered_fasta
+    # NOTE: original header must be used as this is being passed to train
+    ref_seqs.change_dict_keys("original")
+    filtered_headers = [ref_seqs.header_registry[num_id].original for num_id in fasta_records]
+    ref_seqs.keep_only(filtered_headers)
+    write_new_fasta(ref_seqs.fasta_dict, ts_create.filtered_fasta)
 
     ##
     # Optionally cluster the input sequences using USEARCH at the specified identity
     ##
     if ts_create.stage_status("cluster"):
+        ref_seqs.change_dict_keys("formatted")
+        # Write a FASTA for clustering containing the formatted headers since
+        # not all clustering tools + versions keep whole header - spaces are replaced with underscores
+        write_new_fasta(ref_seqs.fasta_dict, ts_create.cluster_input)
         if args.cluster:
-            wrapper.cluster_sequences(ts_create.executables["usearch"], ts_create.filtered_fasta,
+            wrapper.cluster_sequences(ts_create.executables["usearch"], ts_create.cluster_input,
                                       ts_create.uclust_prefix, ts_create.prop_sim)
-            ts_create.uc = ts_create.uclust_prefix + ".uc"
         # Read the uc file if present
         if ts_create.uc:
             cluster_dict = file_parsers.read_uc(ts_create.uc)
 
-            # Ensure the headers in cluster_dict have been reformatted if UC file was not generated internally
-            if not args.cluster:
-                create_refpkg.rename_cluster_headers(cluster_dict)
+            # Revert headers in cluster_dict from 'formatted' back to 'original'
+            create_refpkg.rename_cluster_headers(cluster_dict, ref_seqs.header_registry)
             logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
             ##
             # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
