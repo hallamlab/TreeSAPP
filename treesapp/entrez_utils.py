@@ -418,11 +418,12 @@ def entrez_records_to_organism_set(entrez_records_list: list, bitflag_filter=7):
         if record.bitflag > bitflag_filter:
             continue
         if record.organism:
+            query = record.organism + "[All Names]"
             # Index the accession_lineage_map by organism and map to list of EntrezRecord object
-            if record.organism in query_dict:
-                query_dict[record.organism + "[All Names]"].append(record)
+            if query in query_dict:
+                query_dict[query].append(record)
             else:
-                query_dict[record.organism + "[All Names]"] = [record]
+                query_dict[query] = [record]
         else:
             continue
     return query_dict
@@ -531,8 +532,8 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
     search_terms = entrez_records_to_organism_set(entrez_query_list, 3)
     logging.debug(str(len(search_terms.keys())) + " unique organism queries.\n")
     logging.info("Retrieving NCBI taxonomy IDs for each organism... ")
-    records_batch, durations, lin_failures = tolerant_entrez_query(list(search_terms.keys()),
-                                                                   "Taxonomy", "search", "xml", 1)
+    records_batch, durations, taxid_failures = tolerant_entrez_query(list(search_terms.keys()),
+                                                                     "Taxonomy", "search", "xml", 1)
     logging.info("done.\n")
 
     for record in records_batch:
@@ -636,7 +637,7 @@ def write_accession_lineage_map(mapping_file, accession_lineage_map):
         logging.error("Unable to open " + mapping_file, " for writing!\n")
         sys.exit(9)
 
-    for accession in accession_lineage_map:
+    for accession in sorted(accession_lineage_map):
         lineage = accession_lineage_map[accession]
         if accession[0] == '>':
             accession = accession[1:]

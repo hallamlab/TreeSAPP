@@ -205,7 +205,7 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects, header_registry):
     # Create a temporary dictionary mapping formatted headers to TreeSAPP numeric IDs
     tmp_dict = dict()
     for treesapp_id in header_registry:
-        tmp_dict[header_registry[treesapp_id].formatted] = treesapp_id
+        tmp_dict[header_registry[treesapp_id].original] = treesapp_id
 
     for cluster_id in sorted(cluster_dict, key=int):
         cluster_info = cluster_dict[cluster_id]
@@ -236,7 +236,7 @@ def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, i
         acc = 1
         candidates.clear()
         for num_id in sorted(refseq_objects, key=int):
-            if header_registry[num_id].formatted == cluster_info.representative:
+            if header_registry[num_id].original == cluster_info.representative:
                 refseq_objects[num_id].cluster_rep_similarity = '*'
                 candidates[str(acc)] = refseq_objects[num_id]
                 acc += 1
@@ -247,7 +247,7 @@ def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, i
         if len(cluster_info.members) >= 1 and cluster_info.representative not in important_seqs.keys():
             for cluster_member_info in cluster_info.members:
                 for treesapp_id in sorted(refseq_objects, key=int):
-                    formatted_header = header_registry[treesapp_id].formatted
+                    formatted_header = header_registry[treesapp_id].original
                     if formatted_header == cluster_member_info[0]:
                         refseq_objects[treesapp_id].cluster_rep_similarity = cluster_member_info[1]
                         candidates[str(acc)] = refseq_objects[treesapp_id]
@@ -738,11 +738,6 @@ def update_build_parameters(param_file, marker_package: classy.MarkerBuild):
     with open(param_file) as param_handler:
         param_lines = param_handler.readlines()
 
-    if not marker_package.pfit:
-        logging.warning("Linear regression parameters could not be estimated. " +
-                        "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
-        marker_package.pfit = [0.0, 7.0]
-
     marker_package.update = strftime("%d_%b_%Y", gmtime())
     build_list = [marker_package.cog, marker_package.denominator, marker_package.molecule, marker_package.model,
                   marker_package.kind, str(marker_package.pid), str(marker_package.num_reps), marker_package.tree_tool,
@@ -899,7 +894,7 @@ def cluster_lca(cluster_dict: dict, fasta_record_objects, header_registry: dict)
     # Create a temporary dictionary for faster mapping
     formatted_to_num_map = dict()
     for num_id in fasta_record_objects:
-        formatted_to_num_map[header_registry[num_id].formatted] = num_id
+        formatted_to_num_map[header_registry[num_id].original] = num_id
 
     lineages = list()
     for cluster_id in sorted(cluster_dict, key=int):

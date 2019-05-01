@@ -211,7 +211,6 @@ def create(sys_args):
     ref_seqs = FASTA(args.input)
 
     if ts_create.stage_status("search"):
-        # TODO: Fix: No alignments met the quality cut-offs! TreeSAPP is exiting now.
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
         ref_seqs.fasta_dict = format_read_fasta(args.input, ts_create.molecule_type, ts_create.output_dir)
         ref_seqs.header_registry = register_headers(get_headers(args.input))
@@ -269,9 +268,10 @@ def create(sys_args):
         filtered_fasta_dict = dict()
         for num_id in fasta_records:
             refseq_object = fasta_records[num_id]
-            formatted_header = ref_seqs.header_registry[num_id].formatted
-            filtered_fasta_dict[formatted_header] = refseq_object.sequence
+            # NOTE: original header must be used as this is being passed to train
+            filtered_fasta_dict[ref_seqs.header_registry[num_id].original] = refseq_object.sequence
         write_new_fasta(filtered_fasta_dict, ts_create.filtered_fasta)
+        filtered_fasta_dict.clear()
 
     ##
     # Optionally cluster the input sequences using USEARCH at the specified identity
@@ -450,6 +450,10 @@ def create(sys_args):
     ##
     if ts_create.stage_status("update"):
         ts_create.ref_pkg.validate(marker_package.num_reps)
+        if not marker_package.pfit:
+            logging.warning("Linear regression parameters could not be estimated. " +
+                            "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
+            marker_package.pfit = [0.0, 7.0]
         create_refpkg.update_build_parameters(param_file, marker_package)
 
     logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
@@ -804,7 +808,6 @@ def assign(sys_args):
 
         abundify_tree_saps(tree_saps, abundance_dict)
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
-        # TODO: Fix the lengths set to 0 when input sequences are nucs
         write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_assign.sample_prefix, assign_out)
         produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
         delete_files(args.delete, ts_assign.var_output_dir, 4, args.rpkm)
