@@ -1894,32 +1894,6 @@ def generate_simplebar(target_marker, tree_protein_list, itol_bar_file):
     return tree_protein_list
 
 
-def lowest_confident_taxonomy(lct, depth):
-    """
-    Truncates the initial taxonomic assignment to rank of depth.
-
-    :param lct: String for the taxonomic lineage ('; ' separated)
-    :param depth: The recommended depth to truncate the taxonomy
-    :return: String representing 'confident' taxonomic assignment for the sequence
-    """
-    # Sequence likely isn't a FP but is highly divergent from reference set
-    confident_assignment = "Root"
-    if depth < 1:
-        return confident_assignment
-
-    purified_lineage_list = utilities.clean_lineage_string(lct).split("; ")
-    confident_assignment = "; ".join(purified_lineage_list[:depth])
-
-    # For debugging
-    # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order", 5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
-    # if clean_lineage_string(lct) == confident_assignment:
-    #     print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
-    # else:
-    #     print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
-
-    return confident_assignment
-
-
 def enumerate_taxonomic_lineages(lineage_list):
     rank = 1
     taxonomic_counts = dict()
@@ -2054,7 +2028,7 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
             leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 
-        for tree_sap in tree_saps[denominator]:
+        for tree_sap in tree_saps[denominator]:  # type: TreeProtein
             if not tree_sap.classified:
                 continue
 
@@ -2079,14 +2053,16 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
                 if status > 0:
                     tree_sap.summarize()
 
-            tree_sap.lct = "Root; " + tree_sap.lct
+            if tree_sap.lct.split("; ")[0] != "Root":
+                tree_sap.lct = "Root; " + tree_sap.lct
+                recommended_rank += 1
             # tree_sap.summarize()
             tab_out_string += '\t'.join([sample_name,
                                          re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.name), '', tree_sap.contig_name),
                                          tree_sap.name,
                                          str(tree_sap.seq_len),
                                          utilities.clean_lineage_string(tree_sap.lct),
-                                         lowest_confident_taxonomy(tree_sap.lct, recommended_rank),
+                                         tree_sap.lowest_confident_taxonomy(recommended_rank),
                                          str(tree_sap.abundance),
                                          str(tree_sap.inode),
                                          str(tree_sap.lwr),

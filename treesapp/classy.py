@@ -577,6 +577,32 @@ class ItolJplace:
         self.lct = ""
         self.abundance = None
 
+    def lowest_confident_taxonomy(self, depth):
+        """
+        Truncates the initial taxonomic assignment to rank of depth.
+        Uses self.lct - a string for the taxonomic lineage ('; ' separated)
+
+        :param depth: The recommended depth to truncate the taxonomy
+        :return: String representing 'confident' taxonomic assignment for the sequence
+        """
+        # Sequence likely isn't a FP but is highly divergent from reference set
+        confident_assignment = "Root"
+        if depth < 1:
+            return confident_assignment
+
+        purified_lineage_list = clean_lineage_string(self.lct).split("; ")
+        confident_assignment = "; ".join(purified_lineage_list[:depth])
+
+        # For debugging
+        # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order",
+        #               5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+        # if clean_lineage_string(self.lct) == confident_assignment:
+        #     print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
+        # else:
+        #     print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
+
+        return confident_assignment
+
 
 class TreeProtein(ItolJplace):
     """
