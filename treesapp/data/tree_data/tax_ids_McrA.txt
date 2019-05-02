@@ -180,49 +180,49 @@
 160	Thermoplasmatales archaeon BRNA1 | AGI47474	cellular organisms; Archaea; Euryarchaeota; Diaforarchaea group; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
 161	methanogenic archaeon ISO4-H5 | AHY86393	cellular organisms; Archaea; Euryarchaeota; Diaforarchaea group; Thermoplasmata; unclassified Thermoplasmata
 162	Euryarchaeota archaeon 55_53 | KUK04994	cellular organisms; Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
-180	Methanosarcinales archaeon | RLG32975	Unclassified
-187	Methanosarcinales archaeon | RLG34810	Unclassified
+180	Methanosarcinales archaeon | RLG32975	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+187	Methanosarcinales archaeon | RLG34810	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
 163	uncultured archaeon GZfos13E1 | AAU82276	cellular organisms; Archaea; environmental samples
 164	uncultured archaeon GZfos33H6 | AAU83782	cellular organisms; Archaea; environmental samples
 165	uncultured archaeon GZfos9C4 | AAU84252	cellular organisms; Archaea; environmental samples
 166	uncultured archaeon GZfos26B2 | AAU83007	cellular organisms; Archaea; environmental samples
 167	uncultured archaeon | AGF92178	cellular organisms; Archaea; environmental samples
-168	uncultured archaeon | AFI62039	Unclassified
-169	hydrocarbon metagenome | KUG17798	Unclassified
-170	uncultured archaeon | AEV59742	Unclassified
-174	uncultured archaeon | AAQ63481	Unclassified
-179	uncultured archaeon | AFI62033	Unclassified
-183	uncultured archaeon | AGF92209	Unclassified
-185	uncultured archaeon | AGF92175	Unclassified
-186	uncultured archaeon | CBH39484	Unclassified
-188	uncultured archaeon | ALG76131	Unclassified
-189	uncultured archaeon | AGF92205	Unclassified
-190	uncultured archaeon | AGF92169	Unclassified
-191	uncultured archaeon | AGF92208	Unclassified
-192	uncultured archaeon | ALK27810	Unclassified
-193	hydrocarbon metagenome | KUG20861	Unclassified
-195	uncultured archaeon | AEV59717	Unclassified
-196	Methanosarcinales archaeon | RLG38978	Unclassified
-197	uncultured archaeon | AGF92161	Unclassified
-198	Methanosarcinales archaeon | RLG25097	Unclassified
-199	uncultured archaeon | AFI62037	Unclassified
-201	uncultured archaeon | AGF92192	Unclassified
-202	uncultured archaeon | AGF92179	Unclassified
-203	uncultured archaeon | ALK27811	Unclassified
-204	uncultured archaeon | AGF92189	Unclassified
-205	uncultured archaeon | AGF92164	Unclassified
-206	Methanosarcinales archaeon | RLG21730	Unclassified
-207	Methanosarcinales archaeon | RLG26955	Unclassified
-209	Methanosarcinales archaeon | RLG34212	Unclassified
-211	Methanosarcinales archaeon | RLG37785	Unclassified
-213	uncultured archaeon | AGF92165	Unclassified
-214	uncultured archaeon | AGF92168	Unclassified
-215	uncultured archaeon | AGF92163	Unclassified
-217	uncultured archaeon | AGF92207	Unclassified
-218	uncultured archaeon | ALK27809	Unclassified
-220	uncultured archaeon | AGF92202	Unclassified
-224	uncultured archaeon | AGF92212	Unclassified
-225	uncultured archaeon | AGF92188	Unclassified
-226	uncultured archaeon | AGF92172	Unclassified
-227	uncultured archaeon | AGF92167	Unclassified
+168	uncultured archaeon | AFI62039	cellular organisms; Archaea; environmental samples
+169	hydrocarbon metagenome | KUG17798	cellular organisms; unclassified sequences; metagenomes; ecological metagenomes
+170	uncultured archaeon | AEV59742	cellular organisms; Archaea; environmental samples
+174	uncultured archaeon | AAQ63481	cellular organisms; Archaea; environmental samples
+179	uncultured archaeon | AFI62033	cellular organisms; Archaea; environmental samples
+183	uncultured archaeon | AGF92209	cellular organisms; Archaea; environmental samples
+185	uncultured archaeon | AGF92175	cellular organisms; Archaea; environmental samples
+186	uncultured archaeon | CBH39484	cellular organisms; Archaea; environmental samples
+188	uncultured archaeon | ALG76131	cellular organisms; Archaea; environmental samples
+189	uncultured archaeon | AGF92205	cellular organisms; Archaea; environmental samples
+190	uncultured archaeon | AGF92169	cellular organisms; Archaea; environmental samples
+191	uncultured archaeon | AGF92208	cellular organisms; Archaea; environmental samples
+192	uncultured archaeon | ALK27810	cellular organisms; Archaea; environmental samples
+193	hydrocarbon metagenome | KUG20861	cellular organisms; unclassified sequences; metagenomes; ecological metagenomes
+195	uncultured archaeon | AEV59717	cellular organisms; Archaea; environmental samples
+196	Methanosarcinales archaeon | RLG38978	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+197	uncultured archaeon | AGF92161	cellular organisms; Archaea; environmental samples
+198	Methanosarcinales archaeon | RLG25097	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+199	uncultured archaeon | AFI62037	cellular organisms; Archaea; environmental samples
+201	uncultured archaeon | AGF92192	cellular organisms; Archaea; environmental samples
+202	uncultured archaeon | AGF92179	cellular organisms; Archaea; environmental samples
+203	uncultured archaeon | ALK27811	cellular organisms; Archaea; environmental samples
+204	uncultured archaeon | AGF92189	cellular organisms; Archaea; environmental samples
+205	uncultured archaeon | AGF92164	cellular organisms; Archaea; environmental samples
+206	Methanosarcinales archaeon | RLG21730	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+207	Methanosarcinales archaeon | RLG26955	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+209	Methanosarcinales archaeon | RLG34212	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+211	Methanosarcinales archaeon | RLG37785	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
+213	uncultured archaeon | AGF92165	cellular organisms; Archaea; environmental samples
+214	uncultured archaeon | AGF92168	cellular organisms; Archaea; environmental samples
+215	uncultured archaeon | AGF92163	cellular organisms; Archaea; environmental samples
+217	uncultured archaeon | AGF92207	cellular organisms; Archaea; environmental samples
+218	uncultured archaeon | ALK27809	cellular organisms; Archaea; environmental samples
+220	uncultured archaeon | AGF92202	cellular organisms; Archaea; environmental samples
+224	uncultured archaeon | AGF92212	cellular organisms; Archaea; environmental samples
+225	uncultured archaeon | AGF92188	cellular organisms; Archaea; environmental samples
+226	uncultured archaeon | AGF92172	cellular organisms; Archaea; environmental samples
+227	uncultured archaeon | AGF92167	cellular organisms; Archaea; environmental samples
 228	hydrocarbon metagenome | KUG15452	unclassified sequences; metagenomes; ecological metagenomes
