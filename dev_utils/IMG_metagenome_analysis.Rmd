@@ -1,0 +1,154 @@
+---
+title: "IMG/M metagenome protein exploration"
+author: "Connor Morgan-Lang"
+date: "April 13, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(RColorBrewer)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(knitr)
+
+MoreColours = colorRampPalette(brewer.pal(9, "BrBG"))
+
+```
+
+```{r load_data}
+dat <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/IMG_metagenome_TreeSAPP_output_McrABG/final_outputs/marker_contig_map.tsv",
+                  header=TRUE,
+                  sep="\t", quote="") %>% 
+  separate(col = Query, into=c("taxon_oid", "contig_name"), sep = ':') %>% 
+  mutate(taxon_oid = gsub(taxon_oid, pattern = ".a", replacement = ''))
+
+# Specific.Ecosystem intentionally not included due to most entries being either 'Unclassified'/NA or redundant
+metadata <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/dereplicated_metagenomes_10_01_2017.tab",
+                       header=T,
+                       sep="\t", quote="", fill = T, na.strings = c('', "NA")) %>% 
+  select(taxon_oid, GOLD.Analysis.Project.ID, GOLD.Sequencing.Project.ID, Altitude, Ecosystem, Ecosystem.Category, Ecosystem.Subtype, Ecosystem.Type, Geographic.Location, Isolation, Isolation.Country, Latitude, Longitude, Depth, Habitat, pH) %>% 
+  mutate(Ecosystem = replace_na(as.character(Ecosystem), "Unavailable")) %>% 
+  mutate(Ecosystem.Category = replace_na(as.character(Ecosystem.Category), "Unavailable")) %>% 
+  mutate(Ecosystem.Subtype = replace_na(as.character(Ecosystem.Subtype), "Unavailable"))
+  
+mcra_dat <- merge(dat, metadata, by="taxon_oid") %>%
+  filter("McrA" == Marker) %>% 
+  separate(col = Confident_Taxonomy, into = c('r', 'k', 'p', 'c', 'o', 'f', 'g', 's'), sep = "; ", fill = "right", remove = T) %>% 
+  select(-Sample, -iNode, -Abundance, -LWR, -EvoDist, -Distances, -Taxonomy, -r)
+rm(dat, metadata)
+
+```
+
+Where are the really divergent sequences from and how many are there?
+
+```{r}
+divergent <- mcra_dat %>% 
+  filter(is.na(p)) %>% 
+  group_by(Ecosystem, Ecosystem.Category, Ecosystem.Subtype) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(Ecosystem.Category = reorder(Ecosystem.Category, n)) %>% 
+  mutate(Ecosystem.Subtype = reorder(Ecosystem.Subtype, n))
+
+sum(divergent$n)
+
+ggplot(divergent, aes(x=Ecosystem.Subtype, y=n, fill=Ecosystem.Category)) +
+  geom_bar(stat = "identity", colour="black", size=0.5) +
+  scale_fill_manual(values = MoreColours(length(unique(divergent$Ecosystem.Category)))) +
+  guides(fill=guide_legend(title="Sub-category"),
+         size=FALSE) +
+  ylab("Query sequences") +
+  xlab("Ecosystem") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+There are 1148 McrA sequences that could not be classified at the rank of Phylum. Most of these are derived from Aquative environments, predominantly Hydrothermal vent, ocean and lake ecosystems.
+
+
+```{r}
+
+c_census_dat <- mcra_dat %>% 
+  filter(!is.na(k)) %>% 
+  group_by(c, f, Ecosystem.Category, Ecosystem.Subtype) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(Ecosystem.Category = reorder(Ecosystem.Category, n))
+
+ggplot(c_census_dat, aes(x=Ecosystem.Category, y=f)) +
+  geom_point(aes(size=n, fill=c), position = position_jitterdodge(dodge.width = 0, jitter.width = 0.25, jitter.height = 0.25), colour="black", pch=21) +
+  scale_radius(range = c(1,8), 
+               breaks = c(min(c_census_dat$n),
+                          round(mean(c_census_dat$n)),
+                          max(c_census_dat$n))) +
+  scale_fill_manual(values = MoreColours(length(unique(c_census_dat$c)))) +
+  guides(fill=guide_legend(title="Class"),
+         size=guide_legend(title="Count")) +
+  ylab("Family") +
+  xlab("Ecosystem") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+Metabolism analysis follows. What is the distribution of metabolisms?
+
+```{r}
+
+metabolic_census <- mcra_dat %>% 
+  filter(!is.na(c)) %>% 
+  group_by(Metabolism, c) %>% 
+  count() %>% 
+  ungroup() %>%  
+  mutate(c = reorder(c, n)) %>% 
+  mutate(Metabolism = reorder(Metabolism, n))
+
+ggplot(metabolic_census, aes(x=Metabolism, y=n)) +
+  geom_bar(stat = "identity", colour="black", aes(fill=c)) +
+  scale_fill_manual(values = MoreColours(length(unique(c_census_dat$c)))) +
+  guides(fill=guide_legend(title="Class")) +
+  ylab("Count") +
+  xlab("Metabolism") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+metabolic_env <- mcra_dat %>% 
+  filter(!is.na(f)) %>% 
+  group_by(Metabolism, f, Ecosystem.Category, Ecosystem.Subtype) %>% 
+  count() %>% 
+  ungroup() %>% 
+  filter(n > 1) %>% 
+  mutate(Ecosystem.Subtype = reorder(Ecosystem.Subtype, n))
+
+ggplot(metabolic_env, aes(x=Ecosystem.Subtype, y=f)) +
+  geom_point(aes(size=n, fill=Metabolism),
+             position = position_jitterdodge(dodge.width = 0, jitter.width = 0.25, jitter.height = 0.25),
+             colour="black", pch=21) +
+  scale_radius(range = c(1,10), 
+               breaks = c(min(metabolic_env$n),
+                          round(mean(metabolic_env$n)),
+                          max(metabolic_env$n))) +
+  scale_fill_manual(values = MoreColours(length(unique(metabolic_env$Metabolism)))) +
+  guides(fill=guide_legend(title="Class"),
+         size=guide_legend(title="Count")) +
+  ylab("Metabolism") +
+  xlab("Ecosystem") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
