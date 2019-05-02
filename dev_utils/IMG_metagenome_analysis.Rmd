@@ -17,15 +17,15 @@ MoreColours = colorRampPalette(brewer.pal(9, "BrBG"))
 
 ```
 
-```{r load_data}
-dat <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/IMG_metagenome_TreeSAPP_output_McrABG/final_outputs/marker_contig_map.tsv",
+```{r load_data, include=FALSE}
+dat <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP/manuscript/IMG_metagenome_TreeSAPP_output_McrABG/final_outputs/extra_annotated_marker_contig_map.tsv",
                   header=TRUE,
                   sep="\t", quote="") %>% 
   separate(col = Query, into=c("taxon_oid", "contig_name"), sep = ':') %>% 
   mutate(taxon_oid = gsub(taxon_oid, pattern = ".a", replacement = ''))
 
 # Specific.Ecosystem intentionally not included due to most entries being either 'Unclassified'/NA or redundant
-metadata <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/dereplicated_metagenomes_10_01_2017.tab",
+metadata <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP/manuscript/dereplicated_metagenomes_10_01_2017.tab",
                        header=T,
                        sep="\t", quote="", fill = T, na.strings = c('', "NA")) %>% 
   select(taxon_oid, GOLD.Analysis.Project.ID, GOLD.Sequencing.Project.ID, Altitude, Ecosystem, Ecosystem.Category, Ecosystem.Subtype, Ecosystem.Type, Geographic.Location, Isolation, Isolation.Country, Latitude, Longitude, Depth, Habitat, pH) %>% 
@@ -36,27 +36,84 @@ metadata <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscrip
 mcra_dat <- merge(dat, metadata, by="taxon_oid") %>%
   filter("McrA" == Marker) %>% 
   separate(col = Confident_Taxonomy, into = c('r', 'k', 'p', 'c', 'o', 'f', 'g', 's'), sep = "; ", fill = "right", remove = T) %>% 
-  select(-Sample, -iNode, -Abundance, -LWR, -EvoDist, -Distances, -Taxonomy, -r)
+  select(-Sample, -iNode, -Abundance, -LWR, -Distances, -Taxonomy, -r)
 rm(dat, metadata)
 
+Rank <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
 ```
 
 Where are the really divergent sequences from and how many are there?
 
-```{r}
-divergent <- mcra_dat %>% 
+```{r classification-depth, fig.height=2, fig.width=6, fig.align="center"}
+
+u_k <- filter(mcra_dat, is.na(k)) %>% nrow()
+u_p <- filter(mcra_dat, !is.na(k)) %>% filter(is.na(p)) %>% nrow()
+u_c <- filter(mcra_dat, !is.na(p)) %>% filter(is.na(c)) %>% nrow()
+u_o <- filter(mcra_dat, !is.na(c)) %>% filter(is.na(o)) %>% nrow()
+u_f <- filter(mcra_dat, !is.na(o)) %>% filter(is.na(f)) %>% nrow()
+u_g <- filter(mcra_dat, !is.na(f)) %>% filter(is.na(g)) %>% nrow()
+u_s <- filter(mcra_dat, !is.na(g)) %>% filter(is.na(s)) %>% nrow()
+sum(c(u_k, u_p, u_c, u_o, u_f, u_g, u_s))  # total number of sequences that were not classified to at least Genus
+n_unknown <- c(u_k, u_p, u_c, u_o, u_f, u_g, u_s)
+unknown_df <- data.frame(Rank, n_unknown)
+unknown_df$Rank <- as.character(unknown_df$Rank)
+unknown_df$Rank <- factor(unknown_df$Rank, levels=unique(unknown_df$Rank))
+
+ggplot(unknown_df, aes(x=Rank, y=n_unknown)) +
+  geom_bar(stat = "identity") +
+  ylab("Unassigned Sequences") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+k_k <- filter(mcra_dat, is.na(p)) %>% filter(!is.na(k)) %>% nrow()
+k_p <- filter(mcra_dat, is.na(c)) %>% filter(!is.na(p)) %>% nrow()
+k_c <- filter(mcra_dat, is.na(o)) %>% filter(!is.na(c)) %>% nrow()
+k_o <- filter(mcra_dat, is.na(f)) %>% filter(!is.na(o)) %>% nrow()
+k_f <- filter(mcra_dat, is.na(g)) %>% filter(!is.na(f)) %>% nrow()
+k_g <- filter(mcra_dat, is.na(s)) %>% filter(!is.na(g)) %>% nrow()
+k_s <- filter(mcra_dat, !is.na(s)) %>% nrow()
+sum(c(k_k, k_p, k_c, k_o, k_f, k_g, k_s))
+n_known <- c(k_k, k_p, k_c, k_o, k_f, k_g, k_s)
+known_df <- data.frame(Rank, n_known) %>% 
+  mutate(Proportion = n_known/sum(n_known))
+known_df$Rank <- as.character(known_df$Rank)
+known_df$Rank <- factor(known_df$Rank, levels=unique(known_df$Rank))
+known_df$dummy <- 1
+
+
+ggplot(known_df, aes(fill=Rank, y=Proportion, x=1)) +
+  geom_bar(stat = "identity", colour="black") +
+  coord_flip() +
+  ylab("Assigned Sequences") +
+  scale_fill_brewer(palette = "PuOr") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+
+```{r phylum-less, fig.align="center"}
+unknowns <- mcra_dat %>% 
   filter(is.na(p)) %>% 
   group_by(Ecosystem, Ecosystem.Category, Ecosystem.Subtype) %>% 
   count() %>% 
   ungroup() %>% 
+  mutate(Percent = 100*n/sum(n)) %>% 
   mutate(Ecosystem.Category = reorder(Ecosystem.Category, n)) %>% 
   mutate(Ecosystem.Subtype = reorder(Ecosystem.Subtype, n))
 
-sum(divergent$n)
+n_unknown <- sum(unknowns$n)
 
-ggplot(divergent, aes(x=Ecosystem.Subtype, y=n, fill=Ecosystem.Category)) +
+ggplot(unknowns, aes(x=Ecosystem.Subtype, y=n, fill=Ecosystem.Category)) +
   geom_bar(stat = "identity", colour="black", size=0.5) +
-  scale_fill_manual(values = MoreColours(length(unique(divergent$Ecosystem.Category)))) +
+  scale_fill_manual(values = MoreColours(length(unique(unknowns$Ecosystem.Category)))) +
   guides(fill=guide_legend(title="Sub-category"),
          size=FALSE) +
   ylab("Query sequences") +
@@ -66,50 +123,78 @@ ggplot(divergent, aes(x=Ecosystem.Subtype, y=n, fill=Ecosystem.Category)) +
         panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
+
+filter(mcra_dat, Ecosystem.Category == "Arthropoda") %>%
+  filter(Ecosystem.Subtype == "Gut") %>%
+  filter(is.na(p)) %>%
+  select(taxon_oid) %>%
+  unique() %>%
+  dim()
 ```
 
-There are 1148 McrA sequences that could not be classified at the rank of Phylum. Most of these are derived from Aquative environments, predominantly Hydrothermal vent, ocean and lake ecosystems.
+There are 601 McrA sequences that could not be classified at the rank of Phylum. Most of these are derived from Aquative environments, predominantly Hydrothermal vent, ocean and lake ecosystems. Still, a considerable number (71 or 12%) of these unknown sequences originate from 13 metagenomes from arthropod guts.
 
 
-```{r}
+```{r census, fig.height=5, fig.width=8, fig.align="center"}
 
 c_census_dat <- mcra_dat %>% 
-  filter(!is.na(k)) %>% 
-  group_by(c, f, Ecosystem.Category, Ecosystem.Subtype) %>% 
+  filter(!is.na(c)) %>% 
+  group_by(c) %>% 
   count() %>% 
   ungroup() %>% 
+  mutate(c = reorder(c, n))
+  
+ggplot(c_census_dat, aes(x=c, y=n)) +
+  geom_bar(stat="identity") +
+  xlab("Class") +
+  ylab("Count") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r endemism, fig.height=10, fig.width=8, fig.align="center"}
+
+f_census_dat <- mcra_dat %>% 
+  filter(!is.na(c)) %>% 
+  group_by(c, f, Ecosystem.Category, Ecosystem.Subtype) %>% 
+  count() %>% 
+  ungroup() %>%
   mutate(Ecosystem.Category = reorder(Ecosystem.Category, n))
 
-ggplot(c_census_dat, aes(x=Ecosystem.Category, y=f)) +
-  geom_point(aes(size=n, fill=c), position = position_jitterdodge(dodge.width = 0, jitter.width = 0.25, jitter.height = 0.25), colour="black", pch=21) +
-  scale_radius(range = c(1,8), 
-               breaks = c(min(c_census_dat$n),
-                          round(mean(c_census_dat$n)),
-                          max(c_census_dat$n))) +
-  scale_fill_manual(values = MoreColours(length(unique(c_census_dat$c)))) +
+ggplot(f_census_dat, aes(x=Ecosystem.Category, y=f)) +
+  geom_point(aes(size=n, fill=c),
+             position = position_jitterdodge(dodge.width = 0, jitter.width = 0.25, jitter.height = 0.5),
+             colour="black", pch=21) +
+  scale_radius(range = c(2,10),
+               breaks = c(min(f_census_dat$n),
+                          round(mean(f_census_dat$n)),
+                          max(f_census_dat$n))) +
+  scale_fill_manual(values = MoreColours(length(unique(f_census_dat$c)))) +
   guides(fill=guide_legend(title="Class"),
          size=guide_legend(title="Count")) +
   ylab("Family") +
   xlab("Ecosystem") +
   theme(panel.background = element_blank(),
         panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
-        panel.grid.major.x = element_blank(),
+        panel.grid.major.x = element_line(colour = "#bdbdbd", linetype = "dotted"),
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
-
 
 ```
 
 Metabolism analysis follows. What is the distribution of metabolisms?
 
-```{r}
+```{r metabolical, fig.height=8, fig.width=10, fig.align="center"}
 
 metabolic_census <- mcra_dat %>% 
   filter(!is.na(c)) %>% 
   group_by(Metabolism, c) %>% 
   count() %>% 
-  ungroup() %>%  
-  mutate(c = reorder(c, n)) %>% 
+  ungroup() %>%
   mutate(Metabolism = reorder(Metabolism, n))
 
 ggplot(metabolic_census, aes(x=Metabolism, y=n)) +
@@ -125,8 +210,9 @@ ggplot(metabolic_census, aes(x=Metabolism, y=n)) +
         axis.text.x = element_text(angle = 45, hjust = 1))
 
 metabolic_env <- mcra_dat %>% 
+  group_by(Metabolism, f, Ecosystem.Subtype) %>% 
+  filter(Ecosystem.Subtype != "Unclassified") %>% 
   filter(!is.na(f)) %>% 
-  group_by(Metabolism, f, Ecosystem.Category, Ecosystem.Subtype) %>% 
   count() %>% 
   ungroup() %>% 
   filter(n > 1) %>% 
@@ -136,14 +222,35 @@ ggplot(metabolic_env, aes(x=Ecosystem.Subtype, y=f)) +
   geom_point(aes(size=n, fill=Metabolism),
              position = position_jitterdodge(dodge.width = 0, jitter.width = 0.25, jitter.height = 0.25),
              colour="black", pch=21) +
-  scale_radius(range = c(1,10), 
+  scale_radius(range = c(2,10), 
                breaks = c(min(metabolic_env$n),
                           round(mean(metabolic_env$n)),
                           max(metabolic_env$n))) +
   scale_fill_manual(values = MoreColours(length(unique(metabolic_env$Metabolism)))) +
-  guides(fill=guide_legend(title="Class"),
+  guides(fill=guide_legend(title="Metabolism"),
          size=guide_legend(title="Count")) +
-  ylab("Metabolism") +
+  ylab("Family") +
+  xlab("Ecosystem") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+metabolic_env <- mcra_dat %>%
+  filter(!Ecosystem.Subtype %in% c("Unclassified", "Unavailable")) %>% 
+  group_by(Metabolism, Ecosystem.Subtype) %>% 
+  count() %>% 
+  ungroup() %>% 
+  filter(n > 1) %>% 
+  mutate(Ecosystem.Subtype = reorder(Ecosystem.Subtype, n))
+
+ggplot(metabolic_env, aes(x=Ecosystem.Subtype, y=n, fill=Metabolism)) +
+  geom_bar(colour="black", stat = "identity") +
+  scale_fill_manual(values = MoreColours(length(unique(metabolic_env$Metabolism)))) +
+  guides(fill=guide_legend(title="Metabolism"),
+         size=guide_legend(title="Count")) +
+  ylab("Count") +
   xlab("Ecosystem") +
   theme(panel.background = element_blank(),
         panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
