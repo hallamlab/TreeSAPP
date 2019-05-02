@@ -1812,7 +1812,7 @@ def get_reference_sequence_dict(args, update_tree):
 
 def create_itol_labels(marker, itol_base_dir, tree_data_dir):
     """
-
+    Create the marker_labels.txt file for each marker gene that was used for classification
     :param marker: Name of the reference package
     :param itol_base_dir: Path to the directory for where these outputs should be written to
     :param tree_data_dir: Path to the directory containing reference package trees for TreeSAPP
@@ -2207,18 +2207,21 @@ def produce_itol_inputs(tree_saps, marker_build_dict, itol_data, output_dir: str
         marker = marker_build_dict[denominator].cog
         if not os.path.exists(itol_base_dir + marker):
             os.mkdir(itol_base_dir + marker)
+        marker_placements = itol_data[marker]
+        marker_treesaps = tree_saps[denominator]
 
         bipartition_file = os.sep.join([treesapp_data_dir, "tree_data", marker + "_bipartitions.txt"])
         if os.path.isfile(bipartition_file):
-            itol_data[marker] = add_bipartitions(itol_data[marker], bipartition_file)
+            marker_placements = add_bipartitions(marker_placements, bipartition_file)
 
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + marker + os.sep + marker + "_complete_profile.jplace"
-        itol_data[marker] = filter_jplace_data(itol_data[marker], tree_saps[denominator])
+        marker_placements = filter_jplace_data(marker_placements, marker_treesaps)
         # TODO: validate no distal lengths exceed their corresponding edge lengths
 
-        write_jplace(itol_data[marker], master_jplace)
+        write_jplace(marker_placements, master_jplace)
         itol_data[marker].clear_object()
+        marker_placements.clear_object()
         # Create a labels file from the tax_ids_marker.txt
         create_itol_labels(marker, itol_base_dir, treesapp_data_dir + os.sep + "tree_data")
 
@@ -2234,7 +2237,7 @@ def produce_itol_inputs(tree_saps, marker_build_dict, itol_data, output_dir: str
         for annotation_file in annotation_style_files:
             shutil.copy(annotation_file, itol_base_dir + marker)
         itol_bar_file = os.sep.join([output_dir, "iTOL_output", marker, marker + "_abundance_simplebar.txt"])
-        generate_simplebar(marker, tree_saps[denominator], itol_bar_file)
+        generate_simplebar(marker, marker_treesaps, itol_bar_file)
 
     logging.info("done.\n")
     if style_missing:

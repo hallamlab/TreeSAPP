@@ -104,17 +104,21 @@ def filter_jplace_data(jplace_data: ItolJplace, tree_saps: list):
     jplace_data.correct_decoding()
     jplace_data.filter_max_weight_placement()
     new_placement_collection = list()
+    sapling_map = {sapling.contig_name: sapling for sapling in tree_saps}
+
     for d_place in jplace_data.placements:
         dict_strings = list()
         classified = False
         for k, v in loads(d_place).items():
             if k == 'n':
                 # Find the TreeProtein that matches the placement (same contig name)
-                for sapling in tree_saps:
-                    if re.match(sapling.contig_name, v[0]):
-                        # If the TreeProtein is classified, flag to append
-                        classified = sapling.classified
-                        break
+                try:
+                    sapling = sapling_map[v[0]]
+                except KeyError:
+                    logging.error("Unable to find sequence '" + str(v[0]) + "' in sapling-map keys.\n")
+                    sys.exit(5)
+                # If the TreeProtein is classified, flag to append
+                classified = sapling.classified
                 dict_strings.append(dumps(k) + ":" + dumps(v))
             elif k == 'p':
                 dict_strings.append(dumps(k) + ":" + dumps(v))
