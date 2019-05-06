@@ -708,7 +708,7 @@ def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
     :return:
     """
     for treesapp_id in fasta_record_objects:
-        ref_seq = fasta_record_objects[treesapp_id]  # type: ReferenceSequence
+        ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
         if not ref_seq.lineage:
             try:
                 lineage = accession_lineages[ref_seq.accession]

@@ -580,7 +580,7 @@ def estimate_taxonomic_redundancy(reference_dict):
     # TODO: Factor proximity of leaves in the tree into this measure
     # For instance, if the two or so species of the same genus are in the tree,
     # are they also beside each other in the same clade or are they located in different clusters?
-    lowest_reliable_rank = "Strain"
+    lowest_reliable_rank = "Species"
     rank_depth_map = {1: "Kingdoms", 2: "Phyla", 3: "Classes", 4: "Orders", 5: "Families", 6: "Genera", 7: "Species"}
     taxa_counts = dict()
     for depth in rank_depth_map:
