@@ -3,25 +3,19 @@
 __author__ = 'Connor Morgan-Lang'
 
 import argparse
-import sys
 import os
-import inspect
 import shutil
 from glob import glob
 from numpy import sqrt
-
-cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
-if cmd_folder not in sys.path:
-    sys.path.insert(0, cmd_folder)
-sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from fasta import get_headers
-from external_command_interface import launch_write_command
-import file_parsers
-from classy import prep_logging, ReferencePackage
-from entrez_utils import *
-from lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
+from treesapp.commands import assign
+from treesapp.fasta import get_headers
+from treesapp.external_command_interface import launch_write_command
+from treesapp import file_parsers
+from treesapp.classy import prep_logging, ReferencePackage
+from treesapp.entrez_utils import *
+from treesapp.lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
     optimal_taxonomic_assignment, grab_graftm_taxa
-from utilities import fish_refpkg_from_build_params
+from treesapp.utilities import fish_refpkg_from_build_params
 
 
 class ClassifiedSequence:
@@ -483,7 +477,7 @@ def get_arguments():
 
     if args.output[-1] != os.sep:
         args.output += os.sep
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep + ".." + os.sep
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
     if args.tool == "treesapp" and not args.pkg_path:
         args.pkg_path = args.treesapp + "data" + os.sep
     args.targets = ["ALL"]
@@ -502,6 +496,7 @@ def validate_command(args):
     if args.overwrite:
         if os.path.exists(args.output):
             shutil.rmtree(args.output)
+        os.mkdir(args.output)
 
     if args.tool in ["diamond", "graftm"]:
         if not args.gpkg_dir:
@@ -558,7 +553,7 @@ def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: in
         return round(numerator/sqrt(denominator), 3)
 
 
-def main():
+def mcc():
     args = get_arguments()
     log_name = args.output + os.sep + "MCC_log.txt"
     prep_logging(log_name, args.verbose)
@@ -568,7 +563,7 @@ def main():
     # Read the file mapping reference package name to the database annotations
     ##
     pkg_name_dict = read_annotation_mapping_file(args.annot_map)
-    marker_build_dict = file_parsers.parse_ref_build_params(args)
+    marker_build_dict = file_parsers.parse_ref_build_params(args.treesapp, [])
     test_obj = ConfusionTest(pkg_name_dict.keys())
 
     ##
@@ -578,7 +573,8 @@ def main():
         for pkg_name in test_obj.ref_packages:
             refpkg = test_obj.ref_packages[pkg_name]
             marker = marker_build_dict[pkg_name].cog
-            refpkg.gather_package_files(marker, args.pkg_path)
+            refpkg.prefix = marker
+            refpkg.gather_package_files(args.pkg_path)
             test_obj.ref_packages[pkg_name].taxa_trie = all_possible_assignments(test_obj.ref_packages[pkg_name].lineage_ids)
     else:
         for gpkg in glob(args.gpkg_dir + "*gpkg"):
@@ -600,12 +596,11 @@ def main():
         ref_pkgs = ','.join(pkg_name_dict.keys())
         classification_table = os.sep.join([args.output, "TreeSAPP_output", "final_outputs", "marker_contig_map.tsv"])
         if not os.path.isfile(classification_table):
-            # TODO: Replace with a call to the treesapp main function
-            classify_call = [args.treesapp + "treesapp.py", "-i", args.fasta_input,
-                             "-t", ref_pkgs, "-T", str(args.num_threads),
+            classify_args = ["-i", args.fasta_input,
+                             "-t", ref_pkgs, "-n", str(args.num_threads),
                              "-m", "prot", "--output", args.output + "TreeSAPP_output" + os.sep,
                              "--trim_align", "--overwrite"]
-            launch_write_command(classify_call, False)
+            assign(classify_args)
         classification_lines = file_parsers.read_marker_classification_table(classification_table)
         assignments = file_parsers.parse_assignments(classification_lines)
     else:
@@ -687,4 +682,5 @@ def main():
     return
 
 
-main()
+if __name__ == '__main__':
+    mcc()
