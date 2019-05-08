@@ -463,7 +463,7 @@ def get_arguments():
                         help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
-    miscellaneous_opts.add_argument("-T", "--num_threads", default=4, required=False,
+    miscellaneous_opts.add_argument("-n", "--num_threads", default=4, required=False,
                                     help="The number of threads to use when running either TreeSAPP or GraftM")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
@@ -477,30 +477,30 @@ def get_arguments():
 
     if args.output[-1] != os.sep:
         args.output += os.sep
-    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-    if args.tool == "treesapp" and not args.pkg_path:
-        args.pkg_path = args.treesapp + "data" + os.sep
-    args.targets = ["ALL"]
-
-    if sys.version_info > (2, 9):
-        args.py_version = 3
-    else:
-        args.py_version = 2
-
-    if args.gpkg_dir and args.gpkg_dir[-1] != os.sep:
-        args.gpkf_dir += os.sep
     return args
 
 
-def validate_command(args):
+def validate_command(args, sys_args):
+    logging.debug("Command used:\n" + ' '.join(sys_args) + "\n")
+
     if args.overwrite:
         if os.path.exists(args.output):
             shutil.rmtree(args.output)
         os.mkdir(args.output)
 
+    args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+    if args.tool == "treesapp" and not args.pkg_path:
+        args.pkg_path = args.treesapp + "data" + os.sep
+
+    if sys.version_info < (2, 9):
+        logging.error("Python version '" + sys.version_info + "' not supported.\n")
+        sys.exit(3)
+
+    if args.gpkg_dir and args.gpkg_dir[-1] != os.sep:
+        args.gpkg_dir += os.sep
     if args.tool in ["diamond", "graftm"]:
         if not args.gpkg_dir:
-            logging.error(args.tool + " specified but not GraftM reference package directory specified.\n")
+            logging.error(args.tool + " specified but a GraftM reference package directory was not provided.\n")
             sys.exit(17)
         elif not os.path.isdir(args.gpkg_dir):
             logging.error(args.gpkg_dir + " GraftM reference package directory does not exist!\n")
@@ -509,7 +509,7 @@ def validate_command(args):
             logging.error("Not GraftM reference packages found in " + args.gpkg_dir + ".\n")
             sys.exit(17)
     elif args.tool == "treesapp" and args.gpkg_dir:
-        logging.warning("--gpkg specific but tool selected is 'treesapp'... it will be ignored.\n")
+        logging.warning("--gpkg specified but tool selected is 'treesapp'... it will be ignored.\n")
 
     return
 
@@ -555,9 +555,10 @@ def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: in
 
 def mcc():
     args = get_arguments()
-    log_name = args.output + os.sep + "MCC_log.txt"
+    log_name = args.output + "MCC_log.txt"
     prep_logging(log_name, args.verbose)
-    validate_command(args)
+    logging.info("\n##\t\t\tBeginning Matthews Correlation Coefficient analysis\t\t\t##\n")
+    validate_command(args, sys.argv)
 
     ##
     # Read the file mapping reference package name to the database annotations
