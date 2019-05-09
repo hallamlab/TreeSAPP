@@ -7,6 +7,7 @@ import os
 import re
 import argparse
 import logging
+import ete3
 # import seaborn as sns
 from treesapp.classy import TreeLeafReference, prep_logging
 from treesapp.utilities import clean_lineage_string
@@ -18,6 +19,15 @@ rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   8: "Strain"}
 
 
+class Clade:
+    def __init__(self):
+        self.taxon = ""
+        self.colour = ""
+        self.leaves = []  # Leaf names (not internal nodes)
+        self.i_nodes = []  # List of all internal nodes that
+        return
+
+
 class TaxaColours:
     def __init__(self, tax_ids_table):
         self.marker = re.match("tax_ids_(.*).txt$", os.path.basename(tax_ids_table)).group(1)
@@ -25,10 +35,10 @@ class TaxaColours:
         self.tax_ids_file = tax_ids_table
         self.num_seqs = 0
         self.num_taxa = 0
-        self.tree_leaves = list()
-        self.taxon_leaf_map = dict()
-        self.unique_clades = dict()
-        self.internal_node_map = dict()
+        self.tree_leaves = list()  # List of 'TreeLeafReference's
+        self.taxon_leaf_map = dict()  # taxon -> list(TreeLeafReference.number)
+        self.unique_clades = dict()  # Unique numeric ID -> taxon
+        self.internal_node_map = dict()  # Internal node -> child leaf names
 
     def get_clades(self, target_depth):
         clades = dict()
@@ -91,6 +101,19 @@ class TaxaColours:
                 self.remove_taxon_from_colours(taxon)
 
         return
+
+
+def linearize_tree_leaves(tree_string):
+    """
+    Parses a tree by depth-first search and returns the list
+    :return:
+    """
+    tree_root = ete3.Tree(tree_string)
+    leaf_order = []
+    for node in tree_root.traverse():
+        if node.name:
+            leaf_order.append(node.name)
+    return leaf_order
 
 
 def get_arguments():
@@ -270,69 +293,45 @@ def get_colours(args, taxa_colours, palette):
     return colours
 
 
-def map_colours_to_taxa(clades, lineages, colours):
+def map_colours_to_taxa(taxa_order, colours):
     """
     Function for mapping
-    :param clades:
-    :param lineages:
+    :param taxa_order: Dictionary indexed by numerical order of the taxa
     :param colours:
     :return:
     """
     palette_taxa_map = dict()
     alpha_sort_i = 0
-    num_clades = len(clades)
-    for lineage in sorted(lineages):
-        i = 0
-        while i < len(clades):
-            clade = clades[i]
-            if re.search(clean_lineage_string(clade), clean_lineage_string(lineage)):
-                palette_taxa_map[clade] = colours[alpha_sort_i]
-                clades.pop(i)
-                alpha_sort_i += 1
-                i = len(clades)
-            else:
-                pass
-            i += 1
 
-    if len(palette_taxa_map) != num_clades:
-        logging.error("Some clades were not identified in the lineages provided!\n" +
-                      "Clades = " + str(num_clades) + "\n" +
-                      "Clades mapped = " + str(len(palette_taxa_map)) + "\n" +
-                      str(clades) + "\n")
-        raise AssertionError
+    if len(taxa_order) != len(colours):
+        logging.error("Number of taxa and colours are not equal!\n")
+        sys.exit(7)
+
+    for taxon_num in sorted(taxa_order, key=int):
+        taxon = taxa_order[taxon_num]
+        palette_taxa_map[taxon] = colours[alpha_sort_i]
+        alpha_sort_i += 1
 
     return palette_taxa_map
 
 
-def write_colours_styles(colours, taxa_colours: TaxaColours):
-
-    clades = set()
-    lineages = set()
-    for leaf in taxa_colours.tree_leaves:
-        lineages.add(leaf.lineage)
-    for num in taxa_colours.unique_clades:
-        clades.add(taxa_colours.unique_clades[num])
-
-    palette_taxa_map = map_colours_to_taxa(list(clades), list(lineages), colours)
+def write_colours_styles(colours, taxa_colours: TaxaColours, taxon_order: dict):
+    palette_taxa_map = map_colours_to_taxa(taxon_order, colours)
 
     colours_style_header = "TREE_COLORS\nSEPARATOR TAB\nDATA\n"
 
     colourless = set()
 
     colours_style_string = ""
-    for leaf in taxa_colours.tree_leaves:
-        coloured = False
-        colours_style_line = list()
-        for taxon in palette_taxa_map:
-            if re.search(taxon, leaf.lineage):
-                col = palette_taxa_map[taxon]
-                coloured = True
-                colours_style_line = [str(leaf.number), "range", col, taxon]
-                break
-        if len(colours_style_line) > 0:
-            colours_style_string += "\t".join(colours_style_line) + "\n"
-        if coloured is False:
-            colourless.add(leaf.lineage)
+    for taxon in palette_taxa_map:
+        col = palette_taxa_map[taxon]
+        for leaf_num in taxa_colours.taxon_leaf_map[taxon]:
+            colours_style_line = [str(leaf_num), "range", col, taxon]
+            if len(colours_style_line) > 0:
+                colours_style_string += "\t".join(colours_style_line) + "\n"
+    # TODO: Find new way to track the uncoloured leaves
+
+    # Open the output file
     try:
         cs_handler = open(taxa_colours.output, 'w')
     except IOError:
@@ -342,7 +341,7 @@ def write_colours_styles(colours, taxa_colours: TaxaColours):
     logging.info("Output is available in " + taxa_colours.output + ".\n")
     logging.debug(str(len(colourless)) + " lineages were not assigned to a colour:\n\t" +
                   "\n\t".join(colourless) + "\n")
-
+    # Write the iTOL-formatted header and node, colour and taxon fields
     cs_handler.write(colours_style_header)
     cs_handler.write(colours_style_string)
     cs_handler.close()
@@ -372,7 +371,7 @@ def init_taxa_colours(args):
     i_node = 0
     while x < len(tree_string):
         c = tree_string[x]
-        if c in [',', ')']:
+        if c in [',', ')', ';']:
             annotated_tree += '{' + str(i_node) + '}'
             i_node += 1
         annotated_tree += c
@@ -395,6 +394,22 @@ def find_rank_depth(args):
     return target_depth
 
 
+def order_taxa(taxon_leaf_map: dict, leaf_order: list):
+    leftmost_taxon = dict()
+    taxon_order = dict()
+    indices = list()
+    i = 0
+    for taxon in taxon_leaf_map:
+        for leaf_name in taxon_leaf_map[taxon]:
+            indices.append(leaf_order.index(leaf_name))
+        leftmost_taxon[min(indices)] = taxon
+        indices.clear()
+    for index in sorted(leftmost_taxon):
+        taxon_order[i] = leftmost_taxon[index]
+        i += 1
+    return taxon_order
+
+
 def main():
     args = get_arguments()
 
@@ -410,9 +425,11 @@ def main():
     if args.no_poly:
         # Optionally not colour polyphyletic clades based on args.no_poly
         taxa_colours.filter_polyphyletic_groups()
-    # TODO: Sort the nodes by their internal node order
+    leaf_order = linearize_tree_leaves(args.tree)
     colours = get_colours(args, taxa_colours, args.palette)
-    write_colours_styles(colours, taxa_colours)
+    # TODO: Sort the nodes by their internal node order
+    taxon_order = order_taxa(taxa_colours.taxon_leaf_map, leaf_order)
+    write_colours_styles(colours, taxa_colours, taxon_order)
 
 
 if __name__ == "__main__":
