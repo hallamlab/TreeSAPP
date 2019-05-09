@@ -7,8 +7,10 @@ import os
 import re
 import argparse
 import logging
+# import seaborn as sns
 from treesapp.classy import TreeLeafReference, prep_logging
 from treesapp.utilities import clean_lineage_string
+from treesapp.entish import map_internal_nodes_leaves
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
                   2: "Phylum", 3: "Class", 4: "Order",
@@ -24,25 +26,29 @@ class TaxaColours:
         self.num_seqs = 0
         self.num_taxa = 0
         self.tree_leaves = list()
+        self.taxon_leaf_map = dict()
         self.unique_clades = dict()
+        self.internal_node_map = dict()
 
     def get_clades(self, target_depth):
         clades = dict()
-        lineages = list()
-        
-        for leaf in self.tree_leaves:
-            if leaf.lineage:
-                lineages.append(clean_lineage_string(leaf.lineage))
-
         self.num_taxa = 0
-        for lineage in sorted(lineages):
-            lineage_path = lineage.split('; ')
+
+        for leaf in sorted(self.tree_leaves, key=lambda x: x.lineage):  # type: TreeLeafReference
+            if not leaf.lineage:
+                continue
+            lineage_path = clean_lineage_string(leaf.lineage).split('; ')
             if len(lineage_path) > target_depth:
+                taxon = lineage_path[target_depth]
+                try:
+                    self.taxon_leaf_map[taxon].append(leaf.number)
+                except KeyError:
+                    self.taxon_leaf_map[taxon] = [leaf.number]
                 if len(clades) == 0 and self.num_taxa == 0:
-                    clades[self.num_taxa] = lineage_path[target_depth]
-                elif clades[self.num_taxa] != lineage_path[target_depth]:
+                    clades[self.num_taxa] = taxon
+                elif clades[self.num_taxa] != taxon:
                     self.num_taxa += 1
-                    clades[self.num_taxa] = lineage_path[target_depth]
+                    clades[self.num_taxa] = taxon
             else:
                 pass
         self.num_taxa += 1
@@ -52,21 +58,58 @@ class TaxaColours:
 
         return
 
+    def remove_taxon_from_colours(self, taxon):
+        for n in self.unique_clades:
+            if self.unique_clades[n] == taxon:
+                self.unique_clades.pop(n)
+                break
+        return
+
+    def tree_order(self):
+        return
+
+    def filter_polyphyletic_groups(self):
+        for taxon in self.taxon_leaf_map:
+            ancestral_node = None
+            leaf_nodes = set(self.taxon_leaf_map[taxon])
+
+            # Sort the internal nodes by the number of children (moving from shallow to deep)
+            for i_node in sorted(self.internal_node_map, key=lambda n: len(self.internal_node_map[n])):
+                if len(self.internal_node_map[i_node]) < len(leaf_nodes):
+                    continue
+                elif len(set(self.internal_node_map[i_node]).intersection(leaf_nodes)) == len(leaf_nodes):
+                    ancestral_node = i_node
+                    break
+                else:
+                    pass
+            if not ancestral_node:
+                logging.warning("Unable to find internal node ancestral to all children of " + taxon + ".\n")
+                self.remove_taxon_from_colours(taxon)
+                continue
+            if len(self.internal_node_map[ancestral_node]) > len(leaf_nodes):
+                logging.warning(taxon + " clade was found to be polyphyletic.\n")
+                self.remove_taxon_from_colours(taxon)
+
+        return
+
 
 def get_arguments():
     parser = argparse.ArgumentParser(add_help=False)
     required_args = parser.add_argument_group("Required arguments")
-    required_args.add_argument("-t", "--tax_ids_table", nargs='+',
+    required_args.add_argument("-t", "--tree", required=True,
+                               help="The tree for the reference package in NEWICK format.")
+    required_args.add_argument("-l", "--tax_ids_table", required=True,
                                help="tax_ids table for the TreeSAPP marker under investigation. "
-                                    "Found in data/tree_data/tax_ids*.txt.",
-                               required=True)
-    # TODO: Optionally not colour polyphyletic clades
+                                    "Found in data/tree_data/tax_ids*.txt.")
+
     optopt = parser.add_argument_group("Optional options")
     optopt.add_argument('-r', "--rank", default="Order", required=False,
                         help="The rank to generate unique colours for [ DEFAULT = 'Order' ]")
     optopt.add_argument('-p', "--palette", default="BrBG",
                         help="The ColorBrewer palette to use. Currently supported:"
                              " 'BrBG', 'PRGn', 'Set3', 'Greys', 'Paired'. [ DEFAULT = BrBG ]")
+    optopt.add_argument("--no_polyphyletic", dest="no_poly", default=False, action="store_true", required=False,
+                        help="Flag forcing the omission of all polyphyletic taxa from the colours file.")
     optopt.add_argument("-h", "--help",
                         action="help",
                         help="Show this help message and exit")
@@ -103,54 +146,50 @@ def validate_command(args):
 def read_tax_ids_file(taxa_colours):
     """
 
-    :param taxa_colours: A dictionary of TaxaColours instances
-    :return: 
+    :param taxa_colours: A TaxaColours instance
+    :return: None
     """
-    for marker in taxa_colours:
-        ref = taxa_colours[marker]
+    try:
+        cog_tax_ids = open(taxa_colours.tax_ids_file, 'r', encoding='utf-8')
+    except IOError:
+        logging.error('Can\'t open ' + str(taxa_colours.tax_ids_file) + '!\n')
+        sys.exit(3)
+    leaves = list()
+    for line in cog_tax_ids:
+        line = line.strip()
         try:
-            cog_tax_ids = open(ref.tax_ids_file, 'r', encoding='utf-8')
-        except IOError:
-            logging.error('Can\'t open ' + str(ref.tax_ids_file) + '!\n')
-            sys.exit(3)
-        leaves = list()
-        for line in cog_tax_ids:
-            line = line.strip()
-            try:
-                fields = line.split("\t")
-            except ValueError:
-                logging.error('.split(\'\\t\') on ' + str(line) +
-                              " generated " + str(len(line.split("\t"))) + " fields.")
-                sys.exit(9)
-            if len(fields) == 2:
-                number, translation = fields
-                lineage = ""
-            elif len(fields) == 3:
-                number, translation, lineage = fields
-            else:
-                logging.error("Unexpected number of fields in " + ref.tax_ids_file +
-                              ".\nInvoked .split(\'\\t\') on line " + str(line))
-                raise ValueError
-            leaf = TreeLeafReference(number, translation)
-            if lineage:
-                leaf.lineage = lineage
-                leaf.complete = True
-            leaves.append(leaf)
-        
-        ref.tree_leaves = leaves
-        cog_tax_ids.close()
+            fields = line.split("\t")
+        except ValueError:
+            logging.error('.split(\'\\t\') on ' + str(line) +
+                          " generated " + str(len(line.split("\t"))) + " fields.")
+            sys.exit(9)
+        if len(fields) == 2:
+            number, translation = fields
+            lineage = ""
+        elif len(fields) == 3:
+            number, translation, lineage = fields
+        else:
+            logging.error("Unexpected number of fields in " + taxa_colours.tax_ids_file +
+                          ".\nInvoked .split(\'\\t\') on line " + str(line))
+            raise ValueError
+        leaf = TreeLeafReference(number, translation)
+        if lineage:
+            leaf.lineage = lineage
+            leaf.complete = True
+        leaves.append(leaf)
+
+    taxa_colours.tree_leaves = leaves
+    cog_tax_ids.close()
             
-    return taxa_colours
+    return
 
 
 def get_colours(args, taxa_colours, palette):
-    # TODO: find a decent API for colorbrewer so we are able to generate a palette on the fly
+    # TODO: Use seaborn so we are able to generate a palette on the fly
 
     clades = set()
-    for marker in taxa_colours:
-        ref = taxa_colours[marker]
-        for num in ref.unique_clades:
-            clades.add(ref.unique_clades[num])
+    for num in taxa_colours.unique_clades:
+        clades.add(taxa_colours.unique_clades[num])
 
     if len(clades) <= 1:
         logging.error(str(len(clades)) + " unique clade(s) identified at rank '" + args.rank + "'\n" +
@@ -265,16 +304,14 @@ def map_colours_to_taxa(clades, lineages, colours):
     return palette_taxa_map
 
 
-def write_colours_styles(colours, taxa_colours):
+def write_colours_styles(colours, taxa_colours: TaxaColours):
 
     clades = set()
     lineages = set()
-    for marker in taxa_colours:
-        ref = taxa_colours[marker]
-        for leaf in ref.tree_leaves:
-            lineages.add(leaf.lineage)
-        for num in ref.unique_clades:
-            clades.add(ref.unique_clades[num])
+    for leaf in taxa_colours.tree_leaves:
+        lineages.add(leaf.lineage)
+    for num in taxa_colours.unique_clades:
+        clades.add(taxa_colours.unique_clades[num])
 
     palette_taxa_map = map_colours_to_taxa(list(clades), list(lineages), colours)
 
@@ -282,49 +319,66 @@ def write_colours_styles(colours, taxa_colours):
 
     colourless = set()
 
-    for marker in taxa_colours:
-        colours_style_string = ""
-        ref = taxa_colours[marker]
-        for leaf in ref.tree_leaves:
-            coloured = False
-            colours_style_line = list()
-            for taxon in palette_taxa_map:
-                if re.search(taxon, leaf.lineage):
-                    col = palette_taxa_map[taxon]
-                    coloured = True
-                    colours_style_line = [str(leaf.number), "range", col, taxon]
-                    break
-            if len(colours_style_line) > 0:
-                colours_style_string += "\t".join(colours_style_line) + "\n"
-            if coloured is False:
-                colourless.add(leaf.lineage)
-        try:
-            cs_handler = open(ref.output, 'w')
-        except IOError:
-            logging.error("Unable to open " + ref.output + " for writing!\n")
-            raise IOError
+    colours_style_string = ""
+    for leaf in taxa_colours.tree_leaves:
+        coloured = False
+        colours_style_line = list()
+        for taxon in palette_taxa_map:
+            if re.search(taxon, leaf.lineage):
+                col = palette_taxa_map[taxon]
+                coloured = True
+                colours_style_line = [str(leaf.number), "range", col, taxon]
+                break
+        if len(colours_style_line) > 0:
+            colours_style_string += "\t".join(colours_style_line) + "\n"
+        if coloured is False:
+            colourless.add(leaf.lineage)
+    try:
+        cs_handler = open(taxa_colours.output, 'w')
+    except IOError:
+        logging.error("Unable to open " + taxa_colours.output + " for writing!\n")
+        raise IOError
 
-        logging.info("Output is available in " + ref.output + ".\n")
-        logging.debug(str(len(colourless)) + " lineages were not assigned to a colour:\n\t" +
-                      "\n\t".join(colourless) + "\n")
+    logging.info("Output is available in " + taxa_colours.output + ".\n")
+    logging.debug(str(len(colourless)) + " lineages were not assigned to a colour:\n\t" +
+                  "\n\t".join(colourless) + "\n")
 
-        cs_handler.write(colours_style_header)
-        cs_handler.write(colours_style_string)
-        cs_handler.close()
+    cs_handler.write(colours_style_header)
+    cs_handler.write(colours_style_string)
+    cs_handler.close()
 
     return
 
 
 def init_taxa_colours(args):
-    taxa_colours = dict()
-    for tax_ids_table in args.tax_ids_table:
-        if re.match(".*tax_ids_(.*).txt$", tax_ids_table):
-            ref = TaxaColours(tax_ids_table)
-            taxa_colours[ref.marker] = ref
-            logging.debug("\tGenerating colour palette for " + ref.marker + ".\n")
-        else:
-            logging.error("Name of tax_ids file is formatted oddly.\n")
-            sys.exit(2)
+    if re.match(".*tax_ids_(.*).txt$", args.tax_ids_table):
+        taxa_colours = TaxaColours(args.tax_ids_table)
+        logging.debug("\tGenerating colour palette for " + taxa_colours.marker + ".\n")
+    else:
+        logging.error("Name of tax_ids file is formatted oddly.\n")
+        sys.exit(2)
+
+    # Create the internal-node to leaf-node map
+    if not os.path.isfile(args.tree):
+        logging.error("Unable to find tree file '" + args.tree + "'\n")
+    tree_string = ""
+    with open(args.tree) as tree_handler:
+        for line in tree_handler:
+            tree_string += line.strip()
+
+    # add_internal_node function:
+    annotated_tree = ""
+    x = 0
+    i_node = 0
+    while x < len(tree_string):
+        c = tree_string[x]
+        if c in [',', ')']:
+            annotated_tree += '{' + str(i_node) + '}'
+            i_node += 1
+        annotated_tree += c
+        x += 1
+    annotated_tree = re.sub(r"\)[0-9.]+:", "):", annotated_tree)
+    taxa_colours.internal_node_map = map_internal_nodes_leaves(annotated_tree)
 
     return taxa_colours
 
@@ -335,7 +389,7 @@ def find_rank_depth(args):
         if rank_depth_map[depth] == args.rank:
             target_depth = depth - 1
             break
-    if target_depth == 0:
+    if target_depth < 0:
         logging.error("Rank '" + args.rank + "' not accepted!\n")
         sys.exit(3)
     return target_depth
@@ -349,13 +403,14 @@ def main():
     logging.info("\n##\t\t\tGenerating colour-style file for iTOL\t\t\t##\n")
     validate_command(args)
 
-    taxa_colours = init_taxa_colours(args)
-    taxa_colours = read_tax_ids_file(taxa_colours)
+    taxa_colours = init_taxa_colours(args)  # type: TaxaColours
+    read_tax_ids_file(taxa_colours)
     target_depth = find_rank_depth(args)
-    for marker in sorted(taxa_colours):
-        # TODO: Sort the nodes by their internal node order
-        ref = taxa_colours[marker]
-        ref.get_clades(target_depth)
+    taxa_colours.get_clades(target_depth)
+    if args.no_poly:
+        # Optionally not colour polyphyletic clades based on args.no_poly
+        taxa_colours.filter_polyphyletic_groups()
+    # TODO: Sort the nodes by their internal node order
     colours = get_colours(args, taxa_colours, args.palette)
     write_colours_styles(colours, taxa_colours)
 
