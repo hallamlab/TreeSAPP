@@ -8,6 +8,7 @@ import re
 import argparse
 import logging
 import ete3
+from collections import namedtuple
 from seaborn import color_palette
 from treesapp.classy import TreeLeafReference, prep_logging
 from treesapp.utilities import clean_lineage_string
@@ -31,7 +32,8 @@ class Clade:
 class TaxaColours:
     def __init__(self, tax_ids_table):
         self.marker = re.match("tax_ids_(.*).txt$", os.path.basename(tax_ids_table)).group(1)
-        self.output = ""
+        self.style_output = ""
+        self.strip_output = ""
         self.tax_ids_file = tax_ids_table
         self.num_seqs = 0
         self.num_taxa = 0
@@ -117,6 +119,37 @@ class TaxaColours:
 
         return
 
+    def find_mono_clades(self) -> dict:
+        taxa_internal_node_map = dict()
+        failed_taxa = []
+        for taxon in self.taxon_leaf_map:
+            taxa_internal_node_map[taxon] = []
+            taxon_leaves = set(self.taxon_leaf_map[taxon])
+            # Sorting in descending order of number of child nodes
+            for i_node in sorted(self.internal_node_map, key=lambda n: len(self.internal_node_map[n]), reverse=True):
+                i_node_leaves = set(self.internal_node_map[i_node])
+                # if "39" in i_node_leaves:
+                #     print(i_node_leaves)
+                if len(i_node_leaves) > len(taxon_leaves):
+                    continue
+                # taxon_leaves can either be a superset or match
+                # Detect whether the internal node contains a set of only the leaves belonging to the taxon
+                if taxon_leaves.issuperset(i_node_leaves):
+                    taxa_internal_node_map[taxon].append(i_node_leaves)
+                    # Pop from the list of all taxon leaves
+                    for leaf in i_node_leaves:
+                        taxon_leaves.remove(leaf)
+                else:
+                    pass
+                if len(taxon_leaves) == 0:
+                    break
+            if taxon_leaves:
+                failed_taxa.append(taxon)
+        if failed_taxa:
+            logging.warning("Unable to find internal nodes for all children of:\n\t" +
+                            ", ".join(failed_taxa) + "\n")
+        return taxa_internal_node_map
+
 
 def linearize_tree_leaves(tree_string):
     """
@@ -129,6 +162,19 @@ def linearize_tree_leaves(tree_string):
         if node.name:
             leaf_order.append(node.name)
     return leaf_order
+
+
+def convert_clades_to_ranges(taxa_clades: dict, leaf_order: list) -> dict:
+    taxa_ranges = dict()
+    for taxon in taxa_clades:
+        taxa_ranges[taxon] = []
+        for clade_leaves in taxa_clades[taxon]:
+            if len(clade_leaves) > 1:
+                positions = clade_leaf_sides(clade_leaves, leaf_order)
+                taxa_ranges[taxon].append([positions.left, positions.right])
+            else:
+                taxa_ranges[taxon].append(clade_leaves)
+    return taxa_ranges
 
 
 def get_arguments():
@@ -144,7 +190,7 @@ def get_arguments():
     optopt.add_argument('-r', "--rank", default="Order", required=False,
                         help="The rank to generate unique colours for [ DEFAULT = 'Order' ]")
     optopt.add_argument("-o", "--output", default=None, required=False,
-                        help="Name of the output file. [ DEFAULT = ./${RefPkg}_colours_style.txt ]")
+                        help="Path to the output directory to write the output files. [ DEFAULT = ./ ]")
     optopt.add_argument('-p', "--palette", default="BrBG", required=False,
                         help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
     optopt.add_argument('-m', '--min_proportion', dest="min_prop", default=0.0, required=False, type=float,
@@ -161,6 +207,11 @@ def get_arguments():
 
     args = parser.parse_args()
 
+    if args.output and args.output[-1] != os.sep:
+        args.output += os.sep
+    else:
+        args.output = "./"
+
     return args
 
 
@@ -173,6 +224,20 @@ def validate_command(args):
         logging.error("Rank '" + args.rank + "' not accepted! Please choose one of the following:\n" +
                       ", ".join([rank_depth_map[depth] for depth in rank_depth_map]) + "\n")
         sys.exit(1)
+    return
+
+
+def create_write_file(file_name: str, text: str) -> None:
+    # Open the output file
+    try:
+        file_handler = open(file_name, 'w')
+    except IOError:
+        logging.error("Unable to open file '" + file_name + "' for writing!\n")
+        raise IOError
+
+    # Write the iTOL-formatted header and node, colour and taxon fields
+    file_handler.write(text)
+    file_handler.close()
     return
 
 
@@ -268,11 +333,9 @@ def map_colours_to_taxa(taxa_order, colours):
 
 
 def write_colours_styles(taxa_colours: TaxaColours, palette_taxa_map: dict) -> None:
-    colours_style_header = "TREE_COLORS\nSEPARATOR TAB\nDATA\n"
-
     colourless = set()
 
-    colours_style_string = ""
+    colours_style_string = "TREE_COLORS\nSEPARATOR TAB\nDATA\n"
     for taxon in palette_taxa_map:
         col = palette_taxa_map[taxon]
         for leaf_num in taxa_colours.taxon_leaf_map[taxon]:
@@ -281,21 +344,32 @@ def write_colours_styles(taxa_colours: TaxaColours, palette_taxa_map: dict) -> N
                 colours_style_string += "\t".join(colours_style_line) + "\n"
     # TODO: Find new way to track the uncoloured leaves
 
-    # Open the output file
-    try:
-        cs_handler = open(taxa_colours.output, 'w')
-    except IOError:
-        logging.error("Unable to open " + taxa_colours.output + " for writing!\n")
-        raise IOError
-
-    logging.info("Output is available in " + taxa_colours.output + ".\n")
+    logging.info("Output is available in " + taxa_colours.style_output + ".\n")
     logging.debug(str(len(colourless)) + " lineages were not assigned to a colour:\n\t" +
                   "\n\t".join(colourless) + "\n")
-    # Write the iTOL-formatted header and node, colour and taxon fields
-    cs_handler.write(colours_style_header)
-    cs_handler.write(colours_style_string)
-    cs_handler.close()
 
+    create_write_file(taxa_colours.style_output, colours_style_string)
+
+    return
+
+
+def write_colour_strip(taxa_nodes: dict, palette_taxa_map: dict, colour_strip_file: str) -> None:
+    colourless = set()
+
+    colour_strip_text = "DATASET_COLORSTRIP\nSEPARATOR SPACE\nDATASET_LABEL clade_colours\n" +\
+                        "STRIP_WIDTH 75\nMARGIN 0\nSHOW_INTERNAL 1\nDATA\n"
+    for taxon in palette_taxa_map:
+        col = palette_taxa_map[taxon]
+        for leaf_range in taxa_nodes[taxon]:
+            colours_style_line = ['|'.join(leaf_range), col, taxon]
+            if len(colours_style_line) > 0:
+                colour_strip_text += " ".join(colours_style_line) + "\n"
+
+    logging.info("Output is available in " + colour_strip_file + ".\n")
+    logging.debug(str(len(colourless)) + " lineages were not assigned to a colour:\n\t" +
+                  "\n\t".join(colourless) + "\n")
+
+    create_write_file(colour_strip_file, colour_strip_text)
     return
 
 
@@ -307,10 +381,8 @@ def init_taxa_colours(args):
         logging.error("Name of tax_ids file is formatted oddly.\n")
         sys.exit(2)
 
-    if args.output:
-        taxa_colours.output = args.output
-    else:
-        taxa_colours.output = taxa_colours.marker + "_colours_style.txt"
+    taxa_colours.style_output = args.output + taxa_colours.marker + "_colours_style.txt"
+    taxa_colours.strip_output = args.output + taxa_colours.marker + "_colour_strip.txt"
 
     # Create the internal-node to leaf-node map
     if not os.path.isfile(args.tree):
@@ -347,6 +419,18 @@ def find_rank_depth(args):
         logging.error("Rank '" + args.rank + "' not accepted!\n")
         sys.exit(3)
     return target_depth
+
+
+def clade_leaf_sides(clade_leaves, leaf_order: list) -> namedtuple:
+    positions = namedtuple("positions",
+                           ["left", "right"])
+    indices = dict()
+    for leaf in clade_leaves:
+        indices[leaf_order.index(leaf)] = leaf
+    p = positions
+    p.left = indices[min(indices.keys())]
+    p.right = indices[max(indices.keys())]
+    return p
 
 
 def order_taxa(taxon_leaf_map: dict, leaf_order: list):
@@ -389,6 +473,10 @@ def main():
     taxon_order = order_taxa(taxa_colours.taxon_leaf_map, leaf_order)
     palette_taxa_map = map_colours_to_taxa(taxon_order, colours)
     write_colours_styles(taxa_colours, palette_taxa_map)
+    # Find the minimum set of monophyletic internal nodes for each taxon
+    taxa_clades = taxa_colours.find_mono_clades()
+    taxa_ranges = convert_clades_to_ranges(taxa_clades, leaf_order)
+    write_colour_strip(taxa_ranges, palette_taxa_map, taxa_colours.strip_output)
 
 
 if __name__ == "__main__":
