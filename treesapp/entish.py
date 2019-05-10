@@ -150,12 +150,27 @@ def create_tree_internal_node_map(jplace_tree_string):
     return node_map
 
 
+def validate_internal_node_map(node_map):
+    leaves_captured = set()
+    single_map = set()
+    for i_node in node_map:
+        for leaf in node_map[i_node]:
+            leaves_captured.add(leaf)
+            if len(node_map[i_node]) == 1:
+                single_map.add(leaf)
+    if len(leaves_captured) != len(single_map):
+        logging.error("Not all leaves were mapped to internal nodes:\n\t" +
+                      str(leaves_captured.difference(single_map)) + "\n")
+        sys.exit(11)
+    return
+
+
 def map_internal_nodes_leaves(tree):
     """
-    Loads a mapping between all nodes (internal and leaves) and all leaves
+    Loads a mapping between all internal nodes and their child leaves
     :return:
     """
-    no_length_tree = re.sub(r":[0-9.]+(\[\d+\])?\{", ":{", tree)
+    no_length_tree = re.sub(r":[0-9.]+(\[\d+\])?{", ":{", tree)
     node_map = dict()
     node_stack = list()
     leaf_stack = list()
@@ -174,6 +189,9 @@ def map_internal_nodes_leaves(tree):
         elif c == ':':
             # Append the most recent leaf
             current_node, x = get_node(no_length_tree, x + 1)
+            if current_node in node_map:
+                logging.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
+                sys.exit(11)
             node_map[current_node] = node_stack.pop()
             leaf_stack.append(current_node)
         elif c == ')':
@@ -181,12 +199,24 @@ def map_internal_nodes_leaves(tree):
             while c == ')' and x < len(no_length_tree):
                 if no_length_tree[x + 1] == ';':
                     break
-                current_node, x = get_node(no_length_tree, x + 2)
+                while c != '{':
+                    x += 1
+                    c = no_length_tree[x]
+                current_node, x = get_node(no_length_tree, x)
+                if current_node in node_map:
+                    logging.error("Key '" + str(current_node) + "' being overwritten in internal-node map\n")
+                    sys.exit(11)
                 node_map[current_node] = node_map[leaf_stack.pop()] + node_map[leaf_stack.pop()]
                 leaf_stack.append(current_node)
                 x += 1
                 c = no_length_tree[x]
         x += 1
+
+    if node_stack:
+        logging.error("Node stack not empty by end of loading internal-node map:\n" + str(node_stack) + "\n")
+        sys.exit(11)
+
+    # validate_internal_node_map(node_map)
     return node_map
 
 
