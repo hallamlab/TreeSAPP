@@ -158,7 +158,7 @@ def linearize_tree_leaves(tree_string):
     """
     tree_root = ete3.Tree(tree_string)
     leaf_order = []
-    for node in tree_root.traverse():
+    for node in tree_root.traverse(strategy="postorder"):
         if node.name:
             leaf_order.append(node.name)
     return leaf_order
