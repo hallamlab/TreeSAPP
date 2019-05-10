@@ -8,7 +8,7 @@ import re
 import argparse
 import logging
 import ete3
-# import seaborn as sns
+from seaborn import color_palette
 from treesapp.classy import TreeLeafReference, prep_logging
 from treesapp.utilities import clean_lineage_string
 from treesapp.entish import map_internal_nodes_leaves
@@ -31,7 +31,7 @@ class Clade:
 class TaxaColours:
     def __init__(self, tax_ids_table):
         self.marker = re.match("tax_ids_(.*).txt$", os.path.basename(tax_ids_table)).group(1)
-        self.output = self.marker + "_colours_style.txt"
+        self.output = ""
         self.tax_ids_file = tax_ids_table
         self.num_seqs = 0
         self.num_taxa = 0
@@ -73,9 +73,24 @@ class TaxaColours:
             if self.unique_clades[n] == taxon:
                 self.unique_clades.pop(n)
                 break
+        self.taxon_leaf_map.pop(taxon)
         return
 
-    def tree_order(self):
+    def filter_rare_groups(self, min_p: float):
+        filter_str = "Taxa filtered due to proportion < " + str(min_p) + "\n"
+        filtered_taxa = []
+        for taxon in self.taxon_leaf_map:
+            leaf_nodes = set(self.taxon_leaf_map[taxon])
+            if len(leaf_nodes)/self.num_seqs < min_p:
+                filter_str += "\t" + taxon + "= " + str(round(len(leaf_nodes)/self.num_seqs, 5)) + "\n"
+                filtered_taxa.append(taxon)
+        for taxon in filtered_taxa:
+            self.num_taxa -= 1
+            self.num_seqs -= len(self.taxon_leaf_map[taxon])
+            self.remove_taxon_from_colours(taxon)
+        filter_str += "Remaining sequences for colouring\t" + str(self.num_seqs) + "\n"
+        filter_str += "Remaining taxa for colouring\t" + str(self.num_taxa) + "\n"
+        logging.info(filter_str)
         return
 
     def filter_polyphyletic_groups(self):
@@ -128,18 +143,21 @@ def get_arguments():
     optopt = parser.add_argument_group("Optional options")
     optopt.add_argument('-r', "--rank", default="Order", required=False,
                         help="The rank to generate unique colours for [ DEFAULT = 'Order' ]")
-    optopt.add_argument('-p', "--palette", default="BrBG",
-                        help="The ColorBrewer palette to use. Currently supported:"
-                             " 'BrBG', 'PRGn', 'Set3', 'Greys', 'Paired'. [ DEFAULT = BrBG ]")
+    optopt.add_argument("-o", "--output", default=None, required=False,
+                        help="Name of the output file. [ DEFAULT = ./${RefPkg}_colours_style.txt ]")
+    optopt.add_argument('-p', "--palette", default="BrBG", required=False,
+                        help="The Seaborn colour palette to use [ DEFAULT = BrBG ]")
+    optopt.add_argument('-m', '--min_proportion', dest="min_prop", default=0.0, required=False, type=float,
+                        help="Minimum proportion of sequences a group contains to assign colour [ DEFAULT = 0 ]")
     optopt.add_argument("--no_polyphyletic", dest="no_poly", default=False, action="store_true", required=False,
                         help="Flag forcing the omission of all polyphyletic taxa from the colours file.")
-    optopt.add_argument("-h", "--help",
-                        action="help",
-                        help="Show this help message and exit")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
+    miscellaneous_opts.add_argument("-h", "--help",
+                                    action="help",
+                                    help="Show this help message and exit")
 
     args = parser.parse_args()
 
@@ -150,14 +168,6 @@ def validate_command(args):
     if sys.version_info < (2, 9):
         logging.error("Python version '" + sys.version_info + "' not supported.\n")
         sys.exit(3)
-
-    palette_options = ['BrBG', 'PRGn', 'Set3', "Greys", "Paired"]
-    if args.palette not in palette_options:
-        logging.error("Palette '" + args.palette + "' is not supported. Please select one of the following options:\n" +
-                      ', '.join(palette_options) + "\n")
-        sys.exit(4)
-    else:
-        logging.info("Using palette '" + args.palette + "' for styling.\n")
 
     if args.rank not in rank_depth_map.values():
         logging.error("Rank '" + args.rank + "' not accepted! Please choose one of the following:\n" +
@@ -200,6 +210,7 @@ def read_tax_ids_file(taxa_colours):
             leaf.lineage = lineage
             leaf.complete = True
         leaves.append(leaf)
+        taxa_colours.num_seqs += 1
 
     taxa_colours.tree_leaves = leaves
     cog_tax_ids.close()
@@ -208,8 +219,6 @@ def read_tax_ids_file(taxa_colours):
 
 
 def get_colours(args, taxa_colours, palette):
-    # TODO: Use seaborn so we are able to generate a palette on the fly
-
     clades = set()
     for num in taxa_colours.unique_clades:
         clades.add(taxa_colours.unique_clades[num])
@@ -222,74 +231,17 @@ def get_colours(args, taxa_colours, palette):
     else:
         logging.debug("Identified " + str(len(clades)) + " unique clades at " + args.rank + " rank.\n")
 
-#    brbg = ["#543005", "#643906", "#744207", "#844C09", "#93570E", "#A16518", "#B07323",
-#            "#BF812C", "#C89343", "#D1A65A", "#DAB871", "#E2C786", "#E8D29A", "#EFDDAE",
-#            "#F5E7C2", "#F5EBD1", "#F5EFDF", "#F5F3ED", "#EEF3F2", "#E1F0EE", "#D4EDE9",
-#            "#C7EAE5", "#B2E1DA", "#9ED9D0", "#8AD1C6", "#75C5B9", "#5FB5AB", "#4AA69D",
-#            "#35978F", "#268981", "#177B73", "#086D65", "#006057", "#00544A", "#00483D",
-#            "#003C30"]
-    brbg = ["#543005", "#5D3505", "#663A06", "#6F3F07", "#784508", "#814A09", "#8A4F09",
-            "#92570E", "#9A5E14", "#A36619", "#AB6E1F", "#B37625", "#BB7D2A", "#C28734",
-            "#C79141", "#CC9C4E", "#D1A65B", "#D6B168", "#DBBB75", "#E0C481", "#E4CA8C",
-            "#E7D098", "#EBD6A3", "#EFDCAE", "#F3E3B9", "#F5E8C4", "#F5EACC", "#F5ECD4",
-            "#F5EEDC", "#F5F0E4", "#F5F2EC", "#F5F5F5", "#EDF3F2", "#E6F1EF", "#DEEFED",
-            "#D7EDEA", "#CFECE8", "#C8EAE5", "#BDE6E0", "#B2E1DA", "#A6DCD4", "#9BD8CE",
-            "#90D3C9", "#84CEC3", "#78C7BC", "#6CBFB4", "#60B6AC", "#54ADA3", "#48A49B",
-            "#3C9C93", "#31938B", "#298B83", "#20847C", "#187C74", "#10746C", "#076C64",
-            "#00645C", "#005D55", "#00574D", "#005046", "#00493E", "#004237", "#003C30"]
-    set3 = ["#8DD3C7", "#A0DAC3", "#B3E1C0", "#C6E9BC", "#DAF0B9", "#EDF8B6", "#FDFDB3",
-            "#F2F2BA", "#E7E6C0", "#DCDAC7", "#D1CFCE", "#C6C3D4", "#C0B8D6", "#CAAEC4",
-            "#D4A4B3", "#DF9AA1", "#E9908F", "#F3867E", "#F48276", "#DF8A87", "#CB9397",
-            "#B69BA8", "#A1A3B8", "#8CACC9", "#88B1CB", "#9DB1B8", "#B2B2A5", "#C8B291",
-            "#DDB37E", "#F2B36B", "#F6B762", "#EABE63", "#DDC564", "#D1CC66", "#C4D467",
-            "#B8DB68", "#BADC75", "#C6D98A", "#D3D69F", "#DFD3B4", "#EBD0C9", "#F8CDDE",
-            "#F7CEE3", "#F1D0E1", "#EBD2DF", "#E6D4DD", "#E0D6DB", "#DAD8D9", "#D5CCD5",
-            "#D0BDD0", "#CBAECB", "#C69FC6", "#C190C2", "#BC81BD", "#BE90BE", "#C1A2BF",
-            "#C3B4C0", "#C6C6C2", "#C9D8C3", "#CCEBC5"]
-    prgn = ["#40004B", "#490755", "#540F5F", "#5E176A", "#681F74", "#71267E", "#793187",
-            "#803E8E", "#864B96", "#8D589D", "#9365A5", "#9A71AC", "#A27BB3", "#A985B9",
-            "#B18FC0", "#B899C7", "#C0A3CD", "#C7ABD2", "#CEB4D7", "#D5BDDB", "#DCC6E0",
-            "#E2CEE5", "#E8D6E9", "#EBDDEB", "#EEE3EE", "#F1EAF1", "#F4F0F4", "#F7F7F7",
-            "#F1F5F0", "#EBF4E9", "#E6F3E3", "#E0F1DC", "#DBF0D5", "#D3EDCD", "#C9E9C3",
-            "#C0E5BA", "#B7E2B1", "#ADDEA7", "#A3D99D", "#95D192", "#87C886", "#78C07A",
-            "#6AB86F", "#5CAF63", "#50A65A", "#459C53", "#39924B", "#2D8843", "#227E3B",
-            "#197434", "#146A2F", "#0F602A", "#0A5725", "#054D20", "#00441B"]
-    greys = ["#FFFFFF", "#F6F6F6", "#ECECEC", "#DFDFDF", "#D1D1D1", "#C1C1C1", "#ACACAC",
-             "#969696", "#828282", "#6E6E6E", "#5B5B5B", "#454545", "#2B2B2B", "#151515"]
-    paired = ["#A6CEE3", "#69A7CD", "#2C80B8", "#529CA5", "#94CA92", "#92CF72", "#59B248",
-              "#519F3C", "#AB9C6D", "#F99392", "#EF595A", "#E42022", "#ED5C3D", "#F9A662",
-              "#FDAB4D", "#FE8E1B", "#F4892A", "#DCA08B", "#C0A6CF", "#9571B4", "#6A3D9A"]
-
-    color_brewer_palettes = {"BrBG": brbg, "Set3": set3, "PRGn": prgn, "Greys": greys, "Paired": paired}
-
-    brewed = color_brewer_palettes[palette]
-
     n_clade = len(clades)
-    n_brewed = len(brewed)
-    if n_clade > n_brewed:
-        logging.error("Number of clades (" + str(n_clade) + ") exceeds the number of colours in " +
-                      palette + " (" + str(n_brewed) + ")!\n" +
-                      "\tUnfortunately we have hard-coded palettes and they do not scale.\n"
-                      "\tWe are hoping to integrate a ColorBrewer API in the near future.\n"
-                      "\tIn the meantime, would you please select a higher clade? Thank you!\n")
-        sys.exit(7)
-    else:
-        colours_pre = list()
-        colours_suf = list()
-        colours = list()
-        i = 0
-        while i < n_brewed and len(colours) < n_clade:
-            if i % 2:
-                colours_pre.append(brewed[i])
-            else:
-                colours_suf.append(brewed[n_brewed-i-1])
-            i += 1
-            colours = colours_pre + colours_suf
+    try:
+        colours = color_palette(palette, n_clade).as_hex()
+        logging.info("Using palette '" + args.palette + "' for styling.\n")
+    except ValueError as e:
+        logging.error(str(e) + "\n")
+        sys.exit(4)
 
     if len(colours) != n_clade:
         logging.error("Bad colour parsing! len(colours) != number of clades.\n")
         sys.exit(8)
-
     return colours
 
 
@@ -304,7 +256,7 @@ def map_colours_to_taxa(taxa_order, colours):
     alpha_sort_i = 0
 
     if len(taxa_order) != len(colours):
-        logging.error("Number of taxa and colours are not equal!\n")
+        logging.error("Number of taxa (%d) and colours (%d) are not equal!\n" % (len(taxa_order), len(colours)))
         sys.exit(7)
 
     for taxon_num in sorted(taxa_order, key=int):
@@ -315,9 +267,7 @@ def map_colours_to_taxa(taxa_order, colours):
     return palette_taxa_map
 
 
-def write_colours_styles(colours, taxa_colours: TaxaColours, taxon_order: dict):
-    palette_taxa_map = map_colours_to_taxa(taxon_order, colours)
-
+def write_colours_styles(taxa_colours: TaxaColours, palette_taxa_map: dict) -> None:
     colours_style_header = "TREE_COLORS\nSEPARATOR TAB\nDATA\n"
 
     colourless = set()
@@ -356,6 +306,11 @@ def init_taxa_colours(args):
     else:
         logging.error("Name of tax_ids file is formatted oddly.\n")
         sys.exit(2)
+
+    if args.output:
+        taxa_colours.output = args.output
+    else:
+        taxa_colours.output = taxa_colours.marker + "_colours_style.txt"
 
     # Create the internal-node to leaf-node map
     if not os.path.isfile(args.tree):
@@ -397,12 +352,13 @@ def find_rank_depth(args):
 def order_taxa(taxon_leaf_map: dict, leaf_order: list):
     leftmost_taxon = dict()
     taxon_order = dict()
-    indices = list()
+    indices = dict()  # Could just use a list but may as well keep track of the left-most node with dict
     i = 0
     for taxon in taxon_leaf_map:
         for leaf_name in taxon_leaf_map[taxon]:
-            indices.append(leaf_order.index(leaf_name))
-        leftmost_taxon[min(indices)] = taxon
+            indices[leaf_order.index(leaf_name)] = leaf_name
+        leftmost_leaf = min(indices.keys())
+        leftmost_taxon[leftmost_leaf] = taxon
         indices.clear()
     for index in sorted(leftmost_taxon):
         taxon_order[i] = leftmost_taxon[index]
@@ -425,11 +381,14 @@ def main():
     if args.no_poly:
         # Optionally not colour polyphyletic clades based on args.no_poly
         taxa_colours.filter_polyphyletic_groups()
+    if args.min_prop:
+        taxa_colours.filter_rare_groups(args.min_prop)
     leaf_order = linearize_tree_leaves(args.tree)
     colours = get_colours(args, taxa_colours, args.palette)
-    # TODO: Sort the nodes by their internal node order
+    # Sort the nodes by their internal node order
     taxon_order = order_taxa(taxa_colours.taxon_leaf_map, leaf_order)
-    write_colours_styles(colours, taxa_colours, taxon_order)
+    palette_taxa_map = map_colours_to_taxa(taxon_order, colours)
+    write_colours_styles(taxa_colours, palette_taxa_map)
 
 
 if __name__ == "__main__":
