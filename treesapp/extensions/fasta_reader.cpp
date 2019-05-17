@@ -86,10 +86,14 @@ string erase_characters(string str, const char* targets) {
     return purified;
 }
 
+bool ascii_range(char c) {
+    return !(c>=0 && c <128);
+}
+
 string remove_non_ascii_char (string str) {
     str.erase(std::remove_if(str.begin(),
                              str.end(),
-                             [](unsigned char c){return !(c>=0 && c <128);}),
+                             ascii_range),
               str.end());
     return str;
 }
