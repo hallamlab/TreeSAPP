@@ -86,6 +86,14 @@ string erase_characters(string str, const char* targets) {
     return purified;
 }
 
+string remove_non_ascii_char (string str) {
+    str.erase(std::remove_if(str.begin(),
+                             str.end(),
+                             [](unsigned char c){return !(c>=0 && c <128);}),
+              str.end());
+    return str;
+}
+
 int Fasta::record_header( string line, std::size_t max_header_length) {
     /*
     * Function for inserting a header into the fasta_list
@@ -95,6 +103,7 @@ int Fasta::record_header( string line, std::size_t max_header_length) {
     string new_header;
 
     // Replace whitespace characters and other ASCII operators with underscores
+    line = remove_non_ascii_char(line);
     line = erase_characters(line, "()[]/\\\\'<>");
     transform(line.begin(), line.end(), line.begin(), replace_operators);
     // Add the '>' back to the front of the line since it was removed by erase_characters
@@ -241,7 +250,7 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
             ;
         else {
             if (line.at(0) == '>') {
-                // If the sequence is meets the length threshold, evaluate it's composition
+                // If the sequence meets the length threshold, evaluate it's composition
                 if ( (signed)sequence_buffer.length() >= min_length ) {
                     status = record_sequence();
                     if (status == 4) {
