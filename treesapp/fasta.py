@@ -374,13 +374,6 @@ def format_read_fasta(fasta_input, molecule, output_dir, max_header_length=110, 
     :param min_seq_length: All sequences shorter than this will not be included in the returned list.
     :return: A Python dictionary with headers as keys and sequences as values
     """
-
-    if sys.version_info > (2, 9):
-        py_version = 3
-    else:
-        py_version = 2
-        from itertools import izip
-
     fasta_list = _fasta_reader._read_format_fasta(fasta_input,
                                                   min_seq_length,
                                                   output_dir,
@@ -389,13 +382,7 @@ def format_read_fasta(fasta_input, molecule, output_dir, max_header_length=110, 
     if not fasta_list:
         sys.exit(5)
     tmp_iterable = iter(fasta_list)
-    if py_version == 2:
-        formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
-    elif py_version == 3:
-        formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
-    else:
-        logging.error("Unexpected Python version detected: " + str(py_version), )
-        sys.exit(5)
+    formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
 
     for header in formatted_fasta_dict.keys():
         if len(header) > max_header_length:
