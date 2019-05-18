@@ -65,3 +65,4 @@ nxrA	N0301	prot	PROTGAMMALG	functional	0.90	963	FastTree	-4.7531,6.2707	Classes	
 nxrB	N0302	prot	PROTGAMMALG	functional	0.90	648	FastTree	-3.1916,5.9084	Phyla	20_Mar_2019	Nitrite oxidoreductase subunit B
 McrA	M0701	prot	PROTGAMMALG	functional	0.97	228	RAxML	-5.3509,7.0	Classes	29_Apr_2019	Methyl coenzyme M reductase alpha subunit
 NrfA	D0102	prot	PROTGAMMALG	functional	0.95	345	FastTree	-3.9855,7.0	Phyla	14_May_2019	nitrite reductase (cytochrome c-552) [EC:1.7.2.2]
+DsrAB	S0001	prot	PROTGAMMALG	functional	0.95	753	RAxML	-6.2949,7.0	Kingdoms	16_May_2019	Dissimilatory sulfite reductase alpha/beta subunits [EC:1.8.99.5]
