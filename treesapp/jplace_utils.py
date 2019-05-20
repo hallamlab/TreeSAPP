@@ -10,10 +10,10 @@ from json import load, loads, dumps
 from .utilities import clean_lineage_string
 
 
-def children_lineage(leaves, pquery, node_map):
+def children_lineage(leaves_taxa_map: dict, pquery: str, node_map: dict):
     """
     From the jplace placement field ()
-    :param leaves:
+    :param leaves_taxa_map: Dictionary mapping tree leaf nodes to taxonomic lineages
     :param pquery:
     :param node_map:
     :return:
@@ -26,12 +26,16 @@ def children_lineage(leaves, pquery, node_map):
         tree_leaves = node_map[jplace_node]
         for tree_leaf in tree_leaves:
             # ref_leaf is a TreeLeafReference object
-            for ref_leaf in leaves:
-                if ref_leaf.number == tree_leaf:
-                    if ref_leaf.complete:
-                        children.append(clean_lineage_string(ref_leaf.lineage))
-                    else:
-                        children.append(clean_lineage_string(ref_leaf.description))
+            try:
+                ref_lineage = leaves_taxa_map[tree_leaf]
+            except KeyError:
+                logging.error("Unable to find '" + tree_leaf + "' in leaf-lineage map.\n")
+                sys.exit(3)
+            if ref_lineage:
+                children.append(clean_lineage_string(ref_lineage))
+            else:
+                logging.warning("No lineage information available for " + tree_leaf + ".\n")
+
     return children
 
 

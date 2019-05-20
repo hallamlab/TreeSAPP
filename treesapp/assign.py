@@ -2032,11 +2032,7 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
             if not tree_sap.classified:
                 continue
 
-            tree_sap.lineage_list = children_lineage(leaves, tree_sap.placements[0], tree_sap.node_map)
-
-            # Based on the calculated distance from the leaves, what rank is most appropriate?
-            recommended_rank = rank_recommender(tree_sap.avg_evo_dist,
-                                                marker_build_dict[denominator].pfit)
+            tree_sap.lineage_list = children_lineage(leaf_taxa_map, tree_sap.placements[0], tree_sap.node_map)
 
             if len(tree_sap.lineage_list) == 0:
                 logging.error("Unable to find lineage information for marker " +
@@ -2053,10 +2049,14 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
                 if status > 0:
                     tree_sap.summarize()
 
+            # Based on the calculated distance from the leaves, what rank is most appropriate?
+            recommended_rank = rank_recommender(tree_sap.avg_evo_dist,
+                                                marker_build_dict[denominator].pfit)
             if tree_sap.lct.split("; ")[0] != "Root":
                 tree_sap.lct = "Root; " + tree_sap.lct
                 recommended_rank += 1
             # tree_sap.summarize()
+
             tab_out_string += '\t'.join([sample_name,
                                          re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.name), '', tree_sap.contig_name),
                                          tree_sap.name,
