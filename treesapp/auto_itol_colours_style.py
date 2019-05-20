@@ -210,7 +210,7 @@ def get_arguments():
     if args.output and args.output[-1] != os.sep:
         args.output += os.sep
     else:
-        args.output = "./"
+        args.output = os.path.abspath(os.path.curdir) + os.sep
 
     return args
 
@@ -380,6 +380,9 @@ def init_taxa_colours(args):
     else:
         logging.error("Name of tax_ids file is formatted oddly.\n")
         sys.exit(2)
+
+    if not os.path.isdir(args.output):
+        os.makedirs(args.output)
 
     taxa_colours.style_output = args.output + taxa_colours.marker + "_colours_style.txt"
     taxa_colours.strip_output = args.output + taxa_colours.marker + "_colour_strip.txt"
