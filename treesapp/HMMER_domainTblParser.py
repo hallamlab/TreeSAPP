@@ -157,7 +157,7 @@ class DomainTableParser(object):
         self.alignments['query'] = str(hit[0])
         self.alignments['query_len'] = int(hit[2])
         self.alignments['hmm_name'] = str(hit[3])
-        self.alignments['hmm_len'] = str(hit[5])
+        self.alignments['hmm_len'] = int(hit[5])
         self.alignments['Eval'] = float(hit[6])  # Full-sequence E-value (in the case a sequence alignment is split)
         self.alignments['full_score'] = float(hit[7])  # Full-sequence score
         self.alignments['num'] = int(hit[9])  # HMMER is able to detect whether there are multi-hits
@@ -172,7 +172,15 @@ class DomainTableParser(object):
         self.alignments['desc'] = ' '.join(hit[22:])
 
 
-def detect_orientation(q_i, q_j, r_i, r_j):
+def detect_orientation(q_i: int, q_j: int, r_i: int, r_j: int):
+    """
+    Returns the number of positions the query (base) alignment overlaps with the reference (projected) alignment
+    :param q_i: query start position
+    :param q_j: query end position
+    :param r_i: reference start position
+    :param r_j: reference end position
+    :return:
+    """
     if q_i <= r_i <= q_j:
         if q_i <= r_j <= q_j:
             return "supersequence"
@@ -187,13 +195,65 @@ def detect_orientation(q_i, q_j, r_i, r_j):
         return "satellite"
 
 
-def scaffold_subalignments(fragmented_alignment_data):
+def overlap_length(r_i: int, r_j: int, q_i: int, q_j: int):
+    """
+    Returns the number of positions the query (base) alignment overlaps with the reference (projected) alignment
+    :param q_i: query start position
+    :param q_j: query end position
+    :param r_i: reference start position
+    :param r_j: reference end position
+    :return:
+    """
+    if r_j < q_i or q_i > r_j:
+        # Satellite alignments
+        return 0
+    else:
+        return min(r_j, q_j) - max(r_i, q_i)
+
+
+def merge_alignment_fragments(fragmented_alignment_data: list, r_i: int, q_i: int):
+    # Update the alignments that are being merged into the base/reference alignment
+    base_aln = fragmented_alignment_data[r_i]
+    projected_aln = fragmented_alignment_data.pop(q_i)
+    a_new_start = min([base_aln.start, projected_aln.start])
+    a_new_end = max([base_aln.end, projected_aln.end])
+    base_aln.start = a_new_start
+    base_aln.end = a_new_end
+    base_aln.pstart = min([base_aln.pstart, projected_aln.pstart])
+    base_aln.pend = max([base_aln.pend, projected_aln.pend])
+    base_aln.ieval = min([base_aln.ieval, projected_aln.ieval])
+
+    # Update the num/of information for the remaining alignments and add them to the merged_alignment_fragments
+    i = 0
+    while i < len(fragmented_alignment_data):
+        hmm_match = fragmented_alignment_data[i]  # type: HmmMatch
+        if i >= q_i:
+            hmm_match.num -= 1
+        hmm_match.of -= 1
+        i += 1
+
+    return
+
+
+def drop_alignment_fragment(fragmented_alignment_data: list, q_i: int):
+    fragmented_alignment_data.pop(q_i)
+    i = 0
+    while i < len(fragmented_alignment_data):
+        hmm_match = fragmented_alignment_data[i]  # type: HmmMatch
+        if i >= q_i:
+            hmm_match.num -= 1
+        hmm_match.of -= 1
+        i += 1
+    return
+
+
+def scaffold_subalignments(fragmented_alignment_data: list):
     """
     If one or more alignments do not completely redundantly cover the HMM profile,
     overlap or are within a few BPs of each other of the query sequence,
     and do not generate an alignment 120% longer than the HMM profile,
                                                 THEN
-    merge the alignment co-ordinates, average the acc, Eval, cEval and change 'num' and 'of' to 1
+    merge the alignment co-ordinates, average the acc, Eval, cEval and make 'num' and 'of' reflect number of alignments
                                             Takes this:
     -------------
                 --------------
@@ -206,36 +266,41 @@ def scaffold_subalignments(fragmented_alignment_data):
     # Since we're dealing with HMMs, its difficult to estimate the sequence length variance
     # so we're allowing for some 'wobble' in how long or short paralogs could be
     seq_length_wobble = 1.2
-    accepted_states = ["overlap", "satellite"]
-    i = j = 0
-    while i < len(fragmented_alignment_data):
-        base_aln = fragmented_alignment_data[i]
-        while j < len(fragmented_alignment_data):
-            if j != i:
-                projected_aln = fragmented_alignment_data[j]
-                # Check for sub- or super-sequence orientation on the query sequence
-                q_orientation = detect_orientation(base_aln.start, base_aln.end,
-                                                   projected_aln.start, projected_aln.end)
-                # Check for redundant profile HMM coverage
-                p_orientation = detect_orientation(base_aln.pstart, base_aln.pend,
-                                                   projected_aln.pstart, projected_aln.pend)
-                a_new_start = min([base_aln.start, projected_aln.start])
-                a_new_end = max([base_aln.end, projected_aln.end])
-                if q_orientation in accepted_states and p_orientation in accepted_states:
-                    if float(a_new_end - a_new_start) < float(seq_length_wobble * int(base_aln.hmm_len)):
-                        base_aln.start = a_new_start
-                        base_aln.end = a_new_end
-                        base_aln.pstart = min([base_aln.pstart, projected_aln.pstart])
-                        base_aln.pend = max([base_aln.pend, projected_aln.pend])
-                        if base_aln.num > 1:
-                            base_aln.num = min([base_aln.num, projected_aln.num])
-                        base_aln.of -= 1
-                        base_aln.ieval = min([base_aln.ieval, projected_aln.ieval])
-                        fragmented_alignment_data.pop(j)
-                        j -= 1
-                else:
-                    pass
-            j += 1
+    i = 0
+    while i+1 < len(fragmented_alignment_data):
+        base_aln = fragmented_alignment_data[i]  # type: HmmMatch
+        j = i + 1
+        projected_aln = fragmented_alignment_data[j]  # type: HmmMatch
+        # Check for sub- or super-sequence orientation on the query sequence
+        q_overlap_len = overlap_length(base_aln.start, base_aln.end, projected_aln.start, projected_aln.end)
+        # Check for redundant profile HMM coverage
+        p_overlap_len = overlap_length(base_aln.pstart, base_aln.pend, projected_aln.pstart, projected_aln.pend)
+        min_profile_covered = min([base_aln.pend - base_aln.pstart,
+                                   projected_aln.pend - projected_aln.pstart])
+        if p_overlap_len/min_profile_covered > 0.5:
+            # They overlap significant regions - are they overlapping sequence or are they repeats?
+            if q_overlap_len == projected_aln.seq_len:
+                # The projected alignment is a subsequence of the base alignment - DROP
+                drop_alignment_fragment(fragmented_alignment_data, j)
+                i -= 1
+            elif q_overlap_len < p_overlap_len:
+                # The two alignments represent repeats of a single profile - KEEP
+                pass
+            else:
+                # The two alignments represent something...
+                merge_alignment_fragments(fragmented_alignment_data, i, j)
+                i -= 1
+        else:
+            # They do not significantly overlap in the profile, likely part of the same alignment
+            a_new_start = min([base_aln.start, projected_aln.start])
+            a_new_end = max([base_aln.end, projected_aln.end])
+            if float(a_new_end - a_new_start) < float(seq_length_wobble * int(base_aln.hmm_len)):
+                # The proximal alignments overlap so they would probably form a homologous sequence - MERGE
+                merge_alignment_fragments(fragmented_alignment_data, i, j)
+                i -= 1
+            else:
+                # The alignments are very far apart from each other and would form a monster sequence - KEEP
+                pass
         i += 1
         # # For debugging:
         # for aln in fragmented_alignment_data:
@@ -263,24 +328,26 @@ def orient_alignments(fragmented_alignment_data):
 
 
 def consolidate_subalignments(fragmented_alignment_data, alignment_relations, distinct_alignments):
+    """
+    What is the point of this function?
+    Identify alignments that can be
+    :param fragmented_alignment_data:
+    :param alignment_relations:
+    :param distinct_alignments:
+    :return:
+    """
     alignments_to_defecate = set()
     for pair in alignment_relations:
         # If there are multiple alignments that span the whole hmm profile, report them both
         base, projected = pair
-        if alignment_relations[pair] == "satellite":
+        if alignment_relations[pair] == "satellite" or alignment_relations[pair] == "overlap":
             pass
-        elif alignment_relations[pair] == "overlap":
-            # If there are multiple overlapping alignments on the same query, take the one with the lowest E-value
-            if fragmented_alignment_data[base].ieval < fragmented_alignment_data[projected].ieval:
-                alignments_to_defecate.add(projected)
-            else:
-                alignments_to_defecate.add(base)
         elif alignment_relations[pair] == "supersequence":
             alignments_to_defecate.add(projected)
         elif alignment_relations[pair] == "subsequence":
             alignments_to_defecate.add(base)
         else:
-            sys.stderr.write("ERROR: Unexpected alignment comparison state: '" + alignment_relations[pair] + "'\n")
+            logging.error("Unexpected alignment comparison state: '" + alignment_relations[pair] + "'\n")
             sys.exit(31)
     x = 0
     # Filter out the worst of the overlapping alignments that couldn't be scaffolded
@@ -430,3 +497,18 @@ def filter_incomplete_hits(args, purified_matches, num_dropped):
                 num_dropped += 1
 
     return complete_gene_hits, num_dropped
+
+
+def rename_multi_matches(complete_gene_hits: list):
+    orf_name_index = dict()
+    # Find which names have duplicates
+    for match in sorted(complete_gene_hits, key=lambda x: x.orf):  # type: HmmMatch
+        if match.orf not in orf_name_index:
+            orf_name_index[match.orf] = []
+        orf_name_index[match.orf].append(match)
+    # Rename the ORFs with more than one alignment
+    for orf_name in orf_name_index:
+        if len(orf_name_index[orf_name]) > 1:
+            for match in orf_name_index[orf_name]:
+                match.orf = match.orf + '_' + str(match.num)
+    return

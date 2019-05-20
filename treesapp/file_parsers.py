@@ -5,7 +5,8 @@ import os
 import re
 import logging
 from .classy import TreeLeafReference, MarkerBuild, Cluster
-from .HMMER_domainTblParser import DomainTableParser, format_split_alignments, filter_incomplete_hits, filter_poor_hits
+from .HMMER_domainTblParser import DomainTableParser,\
+    format_split_alignments, filter_incomplete_hits, filter_poor_hits, rename_multi_matches
 from .fasta import read_fasta_to_dict
 
 __author__ = 'Connor Morgan-Lang'
@@ -238,6 +239,7 @@ def parse_domain_tables(args, hmm_domtbl_files, single=True):
                                                                                                         raw_alignments)
         purified_matches, bad = filter_poor_hits(args, distinct_matches, bad)
         complete_gene_hits, short = filter_incomplete_hits(args, purified_matches, short)
+        rename_multi_matches(complete_gene_hits)
 
         for match in complete_gene_hits:
             match.genome = reference
