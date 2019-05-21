@@ -6,7 +6,7 @@ import re
 import logging
 from .classy import TreeLeafReference, MarkerBuild, Cluster
 from .HMMER_domainTblParser import DomainTableParser,\
-    format_split_alignments, filter_incomplete_hits, filter_poor_hits, rename_multi_matches
+    format_split_alignments, filter_incomplete_hits, filter_poor_hits, renumber_multi_matches, detect_orientation
 from .fasta import read_fasta_to_dict
 
 __author__ = 'Connor Morgan-Lang'
@@ -176,28 +176,44 @@ def read_marker_classification_table(assignment_file):
     return classified_lines
 
 
-def best_match(matches):
+def best_discrete_matches(matches: list):
     """
     Function for finding the best alignment in a list of HmmMatch() objects
     The best match is based off of the full sequence score
     :param matches: A list of HmmMatch() objects
-    :return: The best HmmMatch
+    :return: List of the best HmmMatch's
     """
-    # TODO: Incorporate the alignment intervals to allow for proteins with multiple different functional domains
     # Code currently only permits multi-domains of the same gene
-    best_target_hmm = ""
-    best_alignment = None
-    top_score = 0
-    for match in matches:
-        # match.print_info()
-        if match.full_score > top_score:
-            best_alignment = match
-            best_target_hmm = match.target_hmm
-            top_score = match.full_score
-    return best_target_hmm, best_alignment
+    dropped_annotations = list()
+    len_sorted_matches = sorted(matches, key=lambda x: x.end - x.start)
+    i = 0
+    orf = len_sorted_matches[0].orf
+    while i+1 < len(len_sorted_matches):  # type HmmMatch
+        j = i + 1
+        a_match = len_sorted_matches[i]
+        while j < len(len_sorted_matches):
+            b_match = len_sorted_matches[j]
+            if a_match.target_hmm != b_match.target_hmm:
+                if detect_orientation(a_match.start, a_match.end, b_match.start, b_match.end) != "satellite":
+                    if a_match.full_score > b_match.full_score:
+                        dropped_annotations.append(len_sorted_matches.pop(j))
+                        j -= 1
+                    else:
+                        dropped_annotations.append(len_sorted_matches.pop(i))
+                        j = len(len_sorted_matches)
+                        i -= 1
+            j += 1
+        i += 1
+
+    logging.debug("HMM search annotations for " + orf +
+                  ":\n\tRetained\t" + 
+                  ', '.join([match.target_hmm + " (%d-%d)" % (match.start, match.end) for match in len_sorted_matches]) +
+                  "\n\tDropped\t\t" +
+                  ', '.join([match.target_hmm + " (%d-%d)" % (match.start, match.end) for match in dropped_annotations]) + "\n")
+    return len_sorted_matches
 
 
-def parse_domain_tables(args, hmm_domtbl_files, single=True):
+def parse_domain_tables(args, hmm_domtbl_files):
     # Check if the HMM filtering thresholds have been set
     if not hasattr(args, "min_e"):
         args.min_e = 1E-5
@@ -226,6 +242,7 @@ def parse_domain_tables(args, hmm_domtbl_files, single=True):
     multi_alignments = 0  # matches of the same query to a different HMM (>1 lines)
     hmm_matches = dict()
     orf_gene_map = dict()
+    optional_matches = list()
 
     # TODO: Capture multimatches across multiple domain table files
     for domtbl_file in hmm_domtbl_files:
@@ -239,41 +256,36 @@ def parse_domain_tables(args, hmm_domtbl_files, single=True):
                                                                                                         raw_alignments)
         purified_matches, bad = filter_poor_hits(args, distinct_matches, bad)
         complete_gene_hits, short = filter_incomplete_hits(args, purified_matches, short)
-        rename_multi_matches(complete_gene_hits)
+        renumber_multi_matches(complete_gene_hits)
 
         for match in complete_gene_hits:
             match.genome = reference
             if match.orf not in orf_gene_map:
                 orf_gene_map[match.orf] = dict()
-            orf_gene_map[match.orf][match.target_hmm] = match
+            try:
+                orf_gene_map[match.orf][match.target_hmm].append(match)
+            except KeyError:
+                orf_gene_map[match.orf][match.target_hmm] = [match]
             if match.target_hmm not in hmm_matches.keys():
                 hmm_matches[match.target_hmm] = list()
     dropped += bad + short
     for orf in orf_gene_map:
         if len(orf_gene_map[orf]) == 1:
-            target_hmm = list(orf_gene_map[orf].keys())[0]
-            hmm_matches[target_hmm].append(orf_gene_map[orf][target_hmm])
+            for target_hmm in orf_gene_map[orf]:
+                for match in orf_gene_map[orf][target_hmm]:
+                    hmm_matches[target_hmm].append(match)
+                    seqs_identified += 1
         else:
-            optional_matches = [orf_gene_map[orf][target_hmm] for target_hmm in orf_gene_map[orf]]
-            if single is False:
-                for match in optional_matches:
-                    hmm_matches[match.target_hmm].append(match)
-                seqs_identified += len(optional_matches) - 1
-            else:
-                target_hmm, match = best_match(optional_matches)
-                hmm_matches[target_hmm].append(match)
-                multi_alignments += 1
-                dropped += (len(optional_matches) - 1)
-
-                dropped_annotations = list()
-                for optional in optional_matches:
-                    if optional.target_hmm != target_hmm:
-                        dropped_annotations.append(optional.target_hmm)
-                logging.debug("HMM search annotations for " + orf +
-                              ":\n\tRetained\t" + target_hmm +
-                              "\n\tDropped\t\t" + ','.join(dropped_annotations) + "\n")
-
-        seqs_identified += 1
+            multi_alignments += 1
+            # Remove all the overlapping domains - there can only be one highlander
+            for target_hmm in orf_gene_map[orf]:
+                optional_matches += orf_gene_map[orf][target_hmm]
+            retained = 0
+            for discrete_match in best_discrete_matches(optional_matches):
+                hmm_matches[discrete_match.target_hmm].append(discrete_match)
+                retained += 1
+            dropped += (len(optional_matches) - retained)
+            optional_matches.clear()
 
     logging.info("done.\n")
 

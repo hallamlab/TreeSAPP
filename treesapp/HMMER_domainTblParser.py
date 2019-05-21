@@ -499,7 +499,7 @@ def filter_incomplete_hits(args, purified_matches, num_dropped):
     return complete_gene_hits, num_dropped
 
 
-def rename_multi_matches(complete_gene_hits: list):
+def renumber_multi_matches(complete_gene_hits: list):
     orf_name_index = dict()
     # Find which names have duplicates
     for match in sorted(complete_gene_hits, key=lambda x: x.orf):  # type: HmmMatch
@@ -508,7 +508,10 @@ def rename_multi_matches(complete_gene_hits: list):
         orf_name_index[match.orf].append(match)
     # Rename the ORFs with more than one alignment
     for orf_name in orf_name_index:
-        if len(orf_name_index[orf_name]) > 1:
-            for match in orf_name_index[orf_name]:
-                match.orf = match.orf + '_' + str(match.num)
+        n = 1
+        of = len(orf_name_index[orf_name])
+        for match in sorted(orf_name_index[orf_name], key=lambda x: x.num):
+            match.num = n
+            match.of = of
+            n += 1
     return
