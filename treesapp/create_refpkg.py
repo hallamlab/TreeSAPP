@@ -855,41 +855,48 @@ def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output
     return fasta_record_objects
 
 
-def guarantee_ref_seqs(cluster_dict, important_seqs):
+def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set):
     num_swaps = 0
-    important_finds = 0
+    important_finds = set()
     nonredundant_guarantee_cluster_dict = dict()  # Will be used to replace cluster_dict
     expanded_cluster_id = 0
     for cluster_id in sorted(cluster_dict, key=int):
-        if len(cluster_dict[cluster_id].members) == 0:
-            nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_dict[cluster_id]
+        cluster_inst = cluster_dict[cluster_id]  # type: classy.Cluster
+        representative = cluster_inst.representative
+        if len(cluster_inst.members) == 0:
+            if representative in important_seqs:
+                important_finds.add(representative)
+            nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_inst
         else:
             contains_important_seq = False
             # The case where a member of a cluster is a guaranteed sequence, but not the representative
-            representative = cluster_dict[cluster_id].representative
-            for member in cluster_dict[cluster_id].members:
-                if member[0] in important_seqs.keys():
+            x = 0
+            while x < len(cluster_inst.members):
+                member = cluster_inst.members[x]
+                if member[0] in important_seqs:
                     nonredundant_guarantee_cluster_dict[expanded_cluster_id] = classy.Cluster(member[0])
                     nonredundant_guarantee_cluster_dict[expanded_cluster_id].members = []
-                    nonredundant_guarantee_cluster_dict[expanded_cluster_id].lca = cluster_dict[cluster_id].lca
+                    nonredundant_guarantee_cluster_dict[expanded_cluster_id].lca = cluster_inst.lca
                     expanded_cluster_id += 1
                     contains_important_seq = True
-                    important_finds += 1
-            if contains_important_seq and representative not in important_seqs.keys():
-                num_swaps += 1
-            elif contains_important_seq and representative in important_seqs.keys():
+                    important_finds.add(member[0])
+                    cluster_inst.members.pop(x)
+                x += 1
+            if representative in important_seqs:
                 # So there is no opportunity for the important representative sequence to be swapped, clear members
-                cluster_dict[cluster_id].members = []
-                nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_dict[cluster_id]
-                important_finds += 1
+                nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_inst
+                important_finds.add(representative)
+            elif contains_important_seq and representative not in important_seqs:
+                num_swaps += 1
             else:
-                nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_dict[cluster_id]
+                nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_inst
         expanded_cluster_id += 1
 
     # Some final accounting - in case the header formats are altered!
-    if important_finds != len(important_seqs):
-        logging.error(str(important_finds) + '/' + str(len(important_seqs)) +
-                      " sequences guaranteed found in cluster output file.\n")
+    if important_seqs.difference(important_finds):
+        logging.error(str(len(important_finds)) + '/' + str(len(important_seqs)) +
+                      " guaranteed sequences found in cluster output file. The following are missing:\n" +
+                      ", ".join([vis for vis in list(important_seqs.difference(important_finds))]) + "\n")
         sys.exit(7)
     logging.debug(str(num_swaps) + " former representative sequences were succeeded by 'guaranteed-sequences'.\n")
 
@@ -901,8 +908,8 @@ def rename_cluster_headers(cluster_dict, header_registry):
     format_original_names = dict()
     for num_id in header_registry:
         format_original_names[header_registry[num_id].formatted] = header_registry[num_id].original
-    members = list()
     for num_id in cluster_dict:
+        members = list()
         cluster = cluster_dict[num_id]
         try:
             cluster.representative = format_original_names[cluster.representative]
@@ -913,7 +920,6 @@ def rename_cluster_headers(cluster_dict, header_registry):
             header, identity = member
             members.append([format_original_names[header], identity])
         cluster.members = members
-        members.clear()
     return
 
 

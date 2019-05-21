@@ -242,6 +242,7 @@ def create(sys_args):
     ##
     if args.guarantee:
         ref_seqs.update(args.guarantee)
+        ref_seqs.change_dict_keys("formatted")
 
     ##
     # Save all sequence names in the header registry as EntrezRecord instances
@@ -305,7 +306,8 @@ def create(sys_args):
             # We don't want to make the tree redundant so instead of simply adding the sequences in guarantee,
             #  we will swap them for their respective representative sequences.
             # All important sequences become representative, even if multiple are in the same cluster
-            cluster_dict = create_refpkg.guarantee_ref_seqs(cluster_dict, ref_seqs.amendments)
+            very_important_seqs = set([ref_seqs.header_registry[num].original for num in ref_seqs.amendments])
+            cluster_dict = create_refpkg.guarantee_ref_seqs(cluster_dict, very_important_seqs)
 
         ##
         # Set the cluster-specific values for ReferenceSequence objects
@@ -488,13 +490,14 @@ def update(sys_args):
     ##
     # Pull out sequences from TreeSAPP output
     ##
-    classified_fasta = FASTA(ts_updater.query_sequences)
+    classified_fasta = FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
     classified_fasta.summarize_fasta_sequences()
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.original_headers())
     if len(classified_targets) == 0:
         logging.error("No new candidate reference sequences. Skipping update.\n")
         return
+    classified_fasta.change_dict_keys("original")
     classified_fasta.keep_only(classified_targets)
     hmm_length = utilities.get_hmm_length(ts_updater.ref_pkg.profile)
     # Use the smaller of the two minimum sequence length or half HMM profile to remove sequence fragments
@@ -540,6 +543,7 @@ def update(sys_args):
     classified_fasta.unalign()
 
     # Write only the sequences that have been properly classified
+    classified_fasta.change_dict_keys("original")
     write_new_fasta(classified_fasta.fasta_dict, ts_updater.combined_fasta)
     write_new_fasta(ref_fasta.fasta_dict, ts_updater.old_ref_fasta)
 

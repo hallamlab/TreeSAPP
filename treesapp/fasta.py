@@ -99,7 +99,7 @@ class FASTA:
         self.file = file_name
         self.fasta_dict = dict()
         self.header_registry = dict()
-        self.amendments = dict()
+        self.amendments = set()  # Set of the TreeSAPP numerical identifiers for all guaranteed sequences
 
     def load_fasta(self):
         self.fasta_dict = read_fasta_to_dict(self.file)
@@ -109,9 +109,9 @@ class FASTA:
             sys.exit(3)
 
     def mapping_error(self, bad_headers):
-        logging.error("No sequences were mapped in to '" + self.file + "' FASTA dictionary.\n" +
+        logging.error("No sequences were mapped to '" + self.file + "' FASTA dictionary.\n" +
                       "Here are some example names from the mapping list:\n\t" + "\n\t".join(bad_headers[0:6]) + "\n" +
-                      "And example names from FASTA dict:\n\t" + "\n\t".join(list(self.fasta_dict.keys()))[0:6] + "\n")
+                      "And example names from FASTA dict:\n\t" + "\n\t".join(list(self.fasta_dict.keys())[0:6]) + "\n")
         sys.exit(3)
 
     def n_seqs(self):
@@ -121,6 +121,12 @@ class FASTA:
 
     def original_headers(self):
         return [self.header_registry[index].original for index in self.header_registry]
+
+    def formatted_headers(self):
+        return [self.header_registry[index].formatted for index in self.header_registry]
+
+    def treesapp_ids(self):
+        return [index for index in self.header_registry]
 
     def keep_only(self, header_subset):
         pruned_fasta_dict = dict()
@@ -278,20 +284,30 @@ class FASTA:
             if not os.path.isfile(fasta):
                 logging.error("File '" + fasta + "' does not exist!\n")
                 sys.exit(13)
-            new_fasta = read_fasta_to_dict(fasta)
-            new_fasta_headers = register_headers(get_headers(fasta))
+            new_fasta = FASTA(fasta)
+            new_fasta.load_fasta()
         else:
-            new_fasta = fasta
-            new_fasta_headers = register_headers(fasta.keys())
+            new_fasta = FASTA("dummy_name")
+            new_fasta.fasta_dict = fasta
+            new_fasta.header_registry = register_headers(fasta.keys())
 
-        self.amendments.update(new_fasta_headers)
+        # Guarantee the index type is original for both self.fasta_dict and new_fasta
+        self.change_dict_keys()
+        new_fasta.change_dict_keys()
+
         # Load the new fasta and headers
         acc = max([int(x) for x in self.header_registry.keys()]) + 1
-        for num_id in sorted(new_fasta_headers, key=int):
-            header = new_fasta_headers[num_id]  # type: Header
-            self.fasta_dict[header.formatted] = new_fasta[header.original]
-            self.header_registry[str(acc)] = new_fasta_headers[num_id]
-            acc += 1
+        for num_id in sorted(new_fasta.header_registry, key=int):
+            header = new_fasta.header_registry[num_id]  # type: Header
+            if header.original not in self.fasta_dict:
+                self.fasta_dict[header.original] = new_fasta.fasta_dict[header.original]
+                self.header_registry[str(acc)] = new_fasta.header_registry[num_id]
+                self.amendments.add(str(acc))
+                acc += 1
+            else:
+                for ts_id in self.header_registry:
+                    if header.original == self.header_registry[ts_id].original:
+                        self.amendments.add(ts_id)
         self.synchronize_seqs_n_headers()
         return
 

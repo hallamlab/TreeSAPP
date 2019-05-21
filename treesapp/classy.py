@@ -942,7 +942,7 @@ class TreeSAPP:
 
         # Values derived from the command-line arguments
         self.input_sequences = ""
-        self.query_sequences = ""  # This could be any of the input_sequencesm aa_orfs or nuc_orfs files
+        self.query_sequences = ""  # This could be any of the input_sequences aa_orfs or nuc_orfs files
         self.sample_prefix = ""
         self.formatted_input = ""
         self.molecule_type = ""
