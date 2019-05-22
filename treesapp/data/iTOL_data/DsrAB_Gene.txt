@@ -1,0 +1,20 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+936	range	#efedf5	COG2221-related
+1461	range	rgb(116, 196, 118)	DsrA-oxidative
+649	range	#bcbddc	AsrC (TIGR02912)
+972	range	#756bb1	nitrite and sulphite reductase
+146	range	rgb(186, 228, 179)	DsrB-oxidative
+1318	range	rgb(35, 139, 69)	DsrA-reductive
+1493	range	rgb(35, 139, 69)	DsrA-reductive
+1497	range	rgb(35, 139, 69)	DsrA-reductive
+421	range	rgb(237, 248, 233)	DsrB-reductive
+157	range	rgb(237, 248, 233)	DsrB-reductive
+161	range	rgb(237, 248, 233)	DsrB-reductive
+443	range	rgb(237, 248, 233)	DsrB-reductive
+26	range	rgb(237, 248, 233)	DsrB-reductive
+Caldivirga_maquilingensis_|_ABW01689	range	rgb(237, 248, 233)	DsrB-reductive
+455	range	rgb(237, 248, 233)	DsrB-reductive
+33	range	rgb(237, 248, 233)	DsrB-reductive
+460	range	rgb(237, 248, 233)	DsrB-reductive
