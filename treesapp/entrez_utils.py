@@ -158,7 +158,7 @@ def parse_accessions_from_entrez_xml(record):
     accession = ""
     versioned = ""
     alternatives = list()
-    accession_keys = ["GBSeq_locus", "GBSeq_primary-accession"]
+    accession_keys = ["GBSeq_primary-accession"]  # NOTE: "GBSeq_locus" found to occassionally map to random accessions
     version_keys = ["GBInterval_accession", "GBSeq_accession-version"]
     alternate_keys = ["GBSeq_other-seqids"]
     for accession_key in accession_keys:
@@ -173,7 +173,7 @@ def parse_accessions_from_entrez_xml(record):
         if alt_key in record:
             for alt in record[alt_key]:
                 try:
-                    alternatives.append(re.search("\|+(.*)$", alt).group(1))
+                    alternatives.append(re.search(r"\|+(.*)$", alt).group(1))
                 except AttributeError:
                     logging.debug("Unable to parse alternative accession from string: '" + str(record[alt_key]) + "'\n")
     return accession, versioned, alternatives
@@ -513,6 +513,9 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
                     break
         if not e_record:
             logging.warning("Unable to map neither a record' accession or accession.version to an EntrezRecord:\n" +
+                            "Accession: '" + str(accession) + "'\n" +
+                            "Acc.Version: '" + str(ver) + "'\n" +
+                            "Alternatives:" + str(alt) + "\n" +
                             str(record) + "\n")
             continue
         e_record.organism = parse_gbseq_info_from_entrez_xml(record)
