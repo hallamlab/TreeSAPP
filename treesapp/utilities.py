@@ -403,7 +403,14 @@ def mean(num_list: list):
     return float(sum(num_list) / len(num_list))
 
 
-def convert_outer_to_inner_nodes(clusters, internal_node_map):
+def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
+    """
+    Find the lowest common ancestor (internal node) for all leaves in the range.
+    This is only necessary if the original nodes parsed from the colours_style.txt file were leaves.
+    :param clusters: A dictionary mapping start and end leaves of a clade for a single marker's colours_style.txt layer
+    :param internal_node_map: A dictionary mapping each internal node to a list of all of its descendent leaves
+    :return:
+    """
     leaf_annotation_map = dict()
     for cluster in clusters.keys():
         if cluster not in leaf_annotation_map:
@@ -419,7 +426,7 @@ def convert_outer_to_inner_nodes(clusters, internal_node_map):
                     warm_front[inode] = clade
             for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
                 if end in warm_front[inode]:
-                    leaf_annotation_map[cluster].append(inode)
+                    leaf_annotation_map[cluster].append((inode, inode))
                     break
     return leaf_annotation_map
 

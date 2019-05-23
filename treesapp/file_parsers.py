@@ -350,25 +350,25 @@ def read_colours_file(annotation_file):
                 sys.exit(5)
         line = style_handler.readline()
     # For RGB
-    range_line_rgb = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
+    range_line_rgb = re.compile(r"^(\d+)\|(\d+)" + re.escape(field_sep) +
                                 "range" + re.escape(field_sep) +
-                                ".*\)" + re.escape(field_sep) +
+                                r".*\)" + re.escape(field_sep) +
                                 "(.*)$")
-    single_node_rgb = re.compile("^(\d+)" + re.escape(field_sep) +
+    single_node_rgb = re.compile(r"^(\d+)" + re.escape(field_sep) +
                                  "range" + re.escape(field_sep) +
-                                 ".*\)" + re.escape(field_sep) +
+                                 r".*\)" + re.escape(field_sep) +
                                  "(.*)$")
     lone_node_rgb = re.compile("^(.*)" + re.escape(field_sep) +
                                "range" + re.escape(field_sep) +
-                               ".*\)" + re.escape(field_sep) +
+                               r".*\)" + re.escape(field_sep) +
                                "(.*)$")
 
     # For hexadecimal
-    range_line = re.compile("^(\d+)\|(\d+)" + re.escape(field_sep) +
+    range_line = re.compile(r"^(\d+)\|(\d+)" + re.escape(field_sep) +
                             "range" + re.escape(field_sep) +
                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
                             "(.*)$")
-    single_node = re.compile("^(\d+)" + re.escape(field_sep) +
+    single_node = re.compile(r"^(\d+)" + re.escape(field_sep) +
                              "range" + re.escape(field_sep) +
                              "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
                              "(.*)$")
