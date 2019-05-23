@@ -1,0 +1,822 @@
+1	environmental samples | CBH37505	cellular organisms; Archaea; environmental samples
+2	Holophaga foetida DSM 6591 | EHP05240	cellular organisms; Bacteria; Acidobacteria; Holophagae; Holophagales; Holophagaceae; Holophaga; Holophaga foetida
+3	Holophaga foetida DSM 6591 | EHP11055	cellular organisms; Bacteria; Acidobacteria; Holophagae; Holophagales; Holophagaceae; Holophaga; Holophaga foetida
+4	Holophaga foetida DSM 6591 | EHP11405	cellular organisms; Bacteria; Acidobacteria; Holophagae; Holophagales; Holophagaceae; Holophaga; Holophaga foetida
+5	Holophaga foetida DSM 6591 | EHP12500	cellular organisms; Bacteria; Acidobacteria; Holophagae; Holophagales; Holophagaceae; Holophaga; Holophaga foetida
+6	Actinotalea fermentans | KGM16973	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Micrococcales; Cellulomonadaceae; Actinotalea; Actinotalea fermentans
+7	Atopobium sp. oral taxon 810 | ERI04796	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Coriobacteriales; Atopobiaceae; Atopobium; Atopobium sp. oral taxon 810
+8	Olsenella | KUH58096	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Coriobacteriales; Atopobiaceae; Olsenella
+9	Olsenella | KXB62268	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Coriobacteriales; Atopobiaceae; Olsenella
+10	Olsenella profusa | ERL08359	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Coriobacteriales; Atopobiaceae; Olsenella; Olsenella profusa
+11	Olsenella uli | KRO13268	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Coriobacteriales; Atopobiaceae; Olsenella; Olsenella uli
+12	Collinsella | CUN75162	Bacteria; Actinobacteria; Coriobacteriia; Coriobacteriales; Coriobacteriaceae; Collinsella
+13	environmental samples | CDD84539	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Coriobacteriales; Coriobacteriaceae; Collinsella; environmental samples
+14	environmental samples | SCH79010	Bacteria; Actinobacteria; Coriobacteriia; Coriobacteriales; Coriobacteriaceae; Collinsella; environmental samples
+15	Coriobacterium glomerans | AEB06951	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Coriobacteriales; Coriobacteriaceae; Coriobacterium; Coriobacterium glomerans
+16	Adlercreutzia equolifaciens | BAN78193	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Adlercreutzia; Adlercreutzia equolifaciens
+17	environmental samples | CDD78270	Bacteria; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae
+18	Eggerthella | BAK43628	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Eggerthella
+19	Eggerthella | BAK44709	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Eggerthella
+20	environmental samples | CDD59508	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Eggerthella; environmental samples
+21	environmental samples | CDD66989	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Eggerthella; environmental samples
+22	Slackia | EJU32764	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Slackia
+23	Slackia exigua | EEZ60845	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Slackia; Slackia exigua
+24	Slackia heliotrinireducens | ACV22672	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Slackia; Slackia heliotrinireducens
+25	Slackia piriformis | EJZ83433	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Coriobacteriia; Eggerthellales; Eggerthellaceae; Slackia; Slackia piriformis
+26	Bacteroides | CUP55639	Bacteria; Bacteroidetes; Bacteroidia; Bacteroidales; Bacteroidaceae; Bacteroides
+27	Bacteroides salyersiae | EOA48798	Bacteria; Bacteroidetes; Bacteroidia; Bacteroidales; Bacteroidaceae; Bacteroides
+28	environmental samples | CDD57547	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Bacteroidaceae; Bacteroides; environmental samples
+29	Proteiniphilum | KUK78667	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Dysgonamonadaceae; Proteiniphilum
+30	Proteiniphilum | KUL20169	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Dysgonamonadaceae; Proteiniphilum
+31	Odoribacter splanchnicus | ADY31293	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Odoribacteraceae; Odoribacter; Odoribacter splanchnicus
+32	environmental samples | CCZ81225	Bacteria; Bacteroidetes; Bacteroidia; Bacteroidales; Odoribacteraceae; Odoribacter; environmental samples
+33	Paludibacter | GAT64159	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Paludibacteraceae; Paludibacter
+34	Fermentimonas | CEA17124	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Porphyromonadaceae; Fermentimonas
+35	Macellibacteroides | OCW92995	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Porphyromonadaceae; Macellibacteroides
+36	Alistipes | CVI70995	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Rikenellaceae; Alistipes
+37	Alistipes | OKY83302	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Rikenellaceae; Alistipes
+38	Alistipes | OKY94041	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Rikenellaceae; Alistipes
+39	environmental samples | CCY35044	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Rikenellaceae; Alistipes; environmental samples
+40	Mucinivorans | CDN31718	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Rikenellaceae; Mucinivorans
+41	Parabacteroides | CUO64414	Bacteria; Bacteroidetes; Bacteroidia; Bacteroidales; Tannerellaceae; Parabacteroides
+42	Parabacteroides | KMM33319	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; Tannerellaceae; Parabacteroides
+43	unclassified Bacteroidales miscellaneous | AGY54023	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; unclassified Bacteroidales; unclassified Bacteroidales miscellaneous
+44	unclassified Bacteroidales miscellaneous | AGY54346	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; unclassified Bacteroidales; unclassified Bacteroidales miscellaneous
+45	unclassified Bacteroidales miscellaneous | OAV69715	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Bacteroidales; unclassified Bacteroidales; unclassified Bacteroidales miscellaneous
+46	Saccharicrinis fermentans | GAF03148	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Marinilabiliaceae; Saccharicrinis; Saccharicrinis fermentans
+47	Draconibacterium | AHW58898	Bacteria; Bacteroidetes; Bacteroidia; Marinilabiliales; Prolixibacteraceae; Draconibacterium
+48	Draconibacterium | KJF45018	Bacteria; Bacteroidetes; Bacteroidia; Marinilabiliales; Prolixibacteraceae; Draconibacterium
+49	Sunxiuqinia | KOH43148	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Prolixibacteraceae; Sunxiuqinia
+50	Sunxiuqinia | KOH46013	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Prolixibacteraceae; Sunxiuqinia
+51	Salinivirga | ALO14442	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Salinivirgaceae; Salinivirga
+52	Salinivirga | ALO14501	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; Bacteroidia; Marinilabiliales; Salinivirgaceae; Salinivirga
+53	unclassified Bacteroidetes miscellaneous | KUK59568	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Bacteroidetes; unclassified Bacteroidetes; unclassified Bacteroidetes miscellaneous
+54	Candidatus Cloacimonas acidaminovorans | CAO81042	cellular organisms; Bacteria; FCB group; Candidatus Cloacimonetes; Candidatus Cloacimonas; Candidatus Cloacimonas acidaminovorans
+55	Candidatus Fermentibacter | KZD16991	cellular organisms; Bacteria; FCB group; Candidatus Fermentibacteria; Candidatus Fermentibacteria class; Candidatus Fermentibacterales; Candidatus Fermentibacteraceae; Candidatus Fermentibacter
+56	Candidatus Marinimicrobia | KUK91018	cellular organisms; Bacteria; FCB group; Candidatus Marinimicrobia
+57	Candidatus Marinimicrobia | KUK93051	cellular organisms; Bacteria; FCB group; Candidatus Marinimicrobia
+58	Candidatus Omnitrophus | KJJ84832	cellular organisms; Bacteria; PVC group; Candidatus Omnitrophica; Candidatus Omnitrophus
+59	unclassified Chlamydiae | KPK31979	cellular organisms; Bacteria; PVC group; Chlamydiae; unclassified Chlamydiae
+60	Leptolinea | KPL73330	cellular organisms; Bacteria; Terrabacteria group; Chloroflexi; Anaerolineae; Anaerolineales; Anaerolineaceae; Leptolinea
+61	Dehalococcoides | BAQ34091	Bacteria; Chloroflexi; Dehalococcoidia; Dehalococcoidales; Dehalococcoidaceae; Dehalococcoides
+62	Coprothermobacter proteolyticus | ACI17295	cellular organisms; Bacteria; Coprothermobacterota; Coprothermobacteria; Coprothermobacterales; Coprothermobacteraceae; Coprothermobacter; Coprothermobacter proteolyticus
+63	Leptolyngbya valderiana | OAB58531	cellular organisms; Bacteria; Terrabacteria group; Cyanobacteria/Melainabacteria group; Cyanobacteria; Synechococcales; Leptolyngbyaceae; Leptolyngbya; Leptolyngbya valderiana
+64	Dictyoglomus thermophilum | ACI20052	Bacteria; Dictyoglomi; Dictyoglomia; Dictyoglomales; Dictyoglomaceae; Dictyoglomus
+65	Elusimicrobium minutum | ACC98034	cellular organisms; Bacteria; Elusimicrobia; Elusimicrobia; Elusimicrobiales; Elusimicrobiaceae; Elusimicrobium; Elusimicrobium minutum
+66	Elusimicrobium minutum | ACC98088	cellular organisms; Bacteria; Elusimicrobia; Elusimicrobia; Elusimicrobiales; Elusimicrobiaceae; Elusimicrobium; Elusimicrobium minutum
+67	Endomicrobium | AKL98107	cellular organisms; Bacteria; Elusimicrobia; Endomicrobia; Endomicrobiales; Endomicrobiaceae; Endomicrobium
+68	Endomicrobium | AKL98113	cellular organisms; Bacteria; Elusimicrobia; Endomicrobia; Endomicrobiales; Endomicrobiaceae; Endomicrobium
+69	Endomicrobium | BAV59069	cellular organisms; Bacteria; Elusimicrobia; Endomicrobia; Endomicrobiales; Endomicrobiaceae; Endomicrobium
+70	Chitinispirillum | KMQ50271	cellular organisms; Bacteria; FCB group; Fibrobacteres; Chitinispirillia; Chitinispirillales; Chitinispirillaceae; Chitinispirillum
+71	Chitinivibrio alkaliphilus | ERP32000	cellular organisms; Bacteria; FCB group; Fibrobacteres; Chitinivibrionia; Chitinivibrionales; Chitinivibrionaceae; Chitinivibrio; Chitinivibrio alkaliphilus
+72	environmental samples | CDE09225	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Bacillus; environmental samples
+73	Tepidibacillus | GAU63212	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Bacillaceae; Tepidibacillus
+74	Paenibacillus | AIQ18076	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+75	Paenibacillus | AIQ63925	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+76	Paenibacillus | AIQ69300	Bacteria; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+77	Paenibacillus | ETT65240	Bacteria; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+78	Paenibacillus | KUP24159	Bacteria; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+79	Paenibacillus barengoltzii | EOS53286	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus; Paenibacillus barengoltzii
+80	Paenibacillus polymyxa | ADM70499	Bacteria; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+81	Paenibacillus sabinae | AHV97314	Bacteria; Firmicutes; Bacilli; Bacillales; Paenibacillaceae; Paenibacillus
+82	environmental samples | CDC72607	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Bacillales; Staphylococcaceae; Staphylococcus; environmental samples
+83	Abiotrophia defectiva ATCC 49176 | EEP25573	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Aerococcaceae; Abiotrophia; Abiotrophia defectiva
+84	Enterococcus asini | EOT56639	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Enterococcaceae; Enterococcus; Enterococcus asini
+85	Enterococcus malodoratus | EOT64834	Bacteria; Firmicutes; Bacilli; Lactobacillales; Enterococcaceae; Enterococcus
+86	Lactobacillus bifermentans | KRK32533	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus bifermentans
+87	Lactobacillus composti | KRM31576	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus composti
+88	Lactobacillus rennini | KRM94131	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Bacilli; Lactobacillales; Lactobacillaceae; Lactobacillus; Lactobacillus rennini
+89	Catabacter | KKI49868	Bacteria; Firmicutes; Clostridia; Clostridiales
+90	Christensenella | KXK65054	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Christensenellaceae; Christensenella
+91	Christensenella | OAQ43042	Bacteria; Firmicutes; Clostridia; Clostridiales
+92	Alkaliphilus metalliredigens | ABR46866	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Alkaliphilus; Alkaliphilus metalliredigens
+93	Alkaliphilus metalliredigens | ABR50188	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Alkaliphilus; Alkaliphilus metalliredigens
+94	Alkaliphilus oremlandii | ABW18477	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Alkaliphilus; Alkaliphilus oremlandii
+95	Alkaliphilus oremlandii | ABW18537	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Alkaliphilus; Alkaliphilus oremlandii
+96	Butyricicoccus pullicaecorum | SKA54007	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Butyricicoccus; Butyricicoccus pullicaecorum
+97	environmental samples | SCI78086	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Butyricicoccus; environmental samples
+98	environmental samples | SCI87267	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Butyricicoccus; environmental samples
+99	Caldisalinibacter | EOC99417	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caldisalinibacter
+100	Caldisalinibacter | EOD00047	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caldisalinibacter
+101	Caldisalinibacter | EOD00116	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caldisalinibacter
+102	Caloramator | KRQ87408	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caloramator
+103	Caloramator | KRQ87825	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caloramator
+104	Caloramator | KRQ88137	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caloramator
+105	Caloramator australicus | CCC57857	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caloramator; Caloramator australicus
+106	Caloranaerobacter | AIZ97536	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caloranaerobacter
+107	Caloranaerobacter | AIZ97537	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caloranaerobacter
+108	Caloranaerobacter | KPU26576	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caloranaerobacter
+109	Caloranaerobacter | KPU26668	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Caloranaerobacter
+110	Candidatus Arthromitus | EIA30951	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Candidatus Arthromitus
+111	Candidatus Arthromitus | OAT86820	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Candidatus Arthromitus
+112	Clostridium | AEV57473	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+113	Clostridium | AJH00209	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+114	Clostridium | AJQ21778	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+115	Clostridium | AKA72068	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+116	Clostridium | AKA72074	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+117	Clostridium | AKL97003	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+118	Clostridium | ALS17154	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+119	Clostridium | AND83781	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+120	Clostridium | BAK46058	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+121	Clostridium | BAK46652	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+122	Clostridium | BAK47459	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+123	Clostridium | BAK48333	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+124	Clostridium | BAQ13683	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+125	Clostridium | CDM67648	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+126	Clostridium | CUN40439	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+127	Clostridium | CUN53169	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+128	Clostridium | CUN66450	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+129	Clostridium | CUN88047	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+130	Clostridium | CUN88345	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+131	Clostridium | CUO76067	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+132	Clostridium | CUX43032	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+133	Clostridium | EEH98995	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+134	Clostridium | EEH99039	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+135	Clostridium | EJF41284	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+136	Clostridium | EKQ50729	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+137	Clostridium | EKQ50735	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+138	Clostridium | EKQ52433	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+139	Clostridium | EKQ56687	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+140	Clostridium | EMZ26874	Bacteria; Firmicutes; Clostridia; Clostridiales
+141	Clostridium | EQB86444	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+142	Clostridium | EQB88819	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+143	Clostridium | ERI62967	Bacteria; Firmicutes; Clostridia; Clostridiales
+144	Clostridium | EXG88516	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+145	Clostridium | KEZ85862	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+146	Clostridium | KEZ85906	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+147	Clostridium | KGJ49164	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+148	Clostridium | KGJ50585	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+149	Clostridium | KJF28699	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+150	Clostridium | KLE15766	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+151	Clostridium | KLE15943	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+152	Clostridium | KOC36067	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+153	Clostridium | KOF56192	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+154	Clostridium | KOF57730	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+155	Clostridium | OBR95872	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+156	Clostridium | OBY09738	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+157	Clostridium | OBY10133	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+158	Clostridium | OCN02625	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+159	Clostridium | OOL95581	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+160	Clostridium | OOL97284	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+161	Clostridium | OOM17328	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+162	Clostridium | OOM17708	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+163	Clostridium | OOM32032	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+164	Clostridium | SHG01374	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+165	Clostridium autoethanogenum | ALU35964	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium autoethanogenum
+166	Clostridium baratii | AIY82636	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+167	Clostridium beijerinckii NCIMB 8052 | AIU04363	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+168	Clostridium botulinum | KEH97705	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium botulinum
+169	Clostridium botulinum B | CDH89033	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+170	Clostridium botulinum E | ACD51947	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium botulinum; Clostridium botulinum E
+171	Clostridium botulinum E | ACD53356	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+172	Clostridium botulinum E | EES49737	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+173	Clostridium carboxidivorans | AKN29557	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+174	Clostridium carboxidivorans | AKN31189	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+175	Clostridium carboxidivorans | AKN33046	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+176	Clostridium cellulovorans | ADL51982	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium cellulovorans
+177	Clostridium cellulovorans | ADL53759	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium cellulovorans
+178	Clostridium chauvoei | CDG02726	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium chauvoei
+179	Clostridium colicanis | ENY99707	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium colicanis
+180	Clostridium colicanis | ENZ00481	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium colicanis
+181	Clostridium colicanis | ENZ01559	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium colicanis
+182	Clostridium colicanis | KYH30252	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium colicanis
+183	Clostridium homopropionicum | KOA19989	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium homopropionicum
+184	Clostridium homopropionicum | KOA20657	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium homopropionicum
+185	Clostridium intestinale | ERK28851	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium intestinale
+186	Clostridium intestinale | ERK31603	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium intestinale
+187	Clostridium kluyveri | BAH05167	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium kluyveri
+188	Clostridium kluyveri | BAH07037	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium kluyveri
+189	Clostridium kluyveri | EDK32892	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium kluyveri
+190	Clostridium magnum | SHH17426	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium magnum
+191	Clostridium magnum | SHI08107	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium magnum
+192	Clostridium magnum | SHI18148	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium magnum
+193	Clostridium magnum | SHI26723	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium magnum
+194	Clostridium magnum | SHI41876	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium magnum
+195	Clostridium magnum | SHI42395	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium magnum
+196	Clostridium magnum | SHI74343	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium magnum
+197	Clostridium novyi A | KEH87392	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium novyi; Clostridium novyi A
+198	Clostridium novyi A | KEH94416	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+199	Clostridium pasteurianum | AGK95159	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium pasteurianum
+200	Clostridium pasteurianum | AGK99297	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium pasteurianum
+201	Clostridium pasteurianum | KRU14166	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium pasteurianum
+202	Clostridium ragsdalei | AGT29725	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+203	Clostridium saccharoperbutylacetonicum N1-4 | AAV86076	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium saccharoperbutylacetonicum; Clostridium saccharoperbutylacetonicum N1-4
+204	Clostridium saccharoperbutylacetonicum N1-4 | AGF57068	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium saccharoperbutylacetonicum; Clostridium saccharoperbutylacetonicum N1-4
+205	Clostridium saccharoperbutylacetonicum N1-4 | AGF57299	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium saccharoperbutylacetonicum; Clostridium saccharoperbutylacetonicum N1-4
+206	Clostridium sartagoforme | EOR26494	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+207	Clostridium sartagoforme | EOR27634	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium sartagoforme
+208	Clostridium tepidiprofundi | KYH34317	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium tepidiprofundi
+209	Clostridium tepidiprofundi | KYH34324	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium tepidiprofundi
+210	Clostridium tepidiprofundi | KYH35735	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium tepidiprofundi
+211	Clostridium tetani | CDI48225	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium tetani
+212	Clostridium tetanomorphum | KAJ51195	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium tetanomorphum
+213	environmental samples | CCX35635	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+214	environmental samples | CCX37348	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+215	environmental samples | CCX42670	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+216	environmental samples | CCX50795	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+217	environmental samples | CCX50827	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+218	environmental samples | CCY43821	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+219	environmental samples | CCY62429	Bacteria
+220	environmental samples | CCY69158	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+221	environmental samples | CCZ17309	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+222	environmental samples | CCZ58014	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae
+223	environmental samples | CCZ59763	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+224	environmental samples | CDA50956	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+225	environmental samples | CDA59828	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+226	environmental samples | CDA61722	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+227	environmental samples | CDC10001	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+228	environmental samples | CDC19031	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+229	environmental samples | CDC23531	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+230	environmental samples | CDC47411	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+231	environmental samples | CDC63694	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+232	environmental samples | CDD01759	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+233	environmental samples | CDD08876	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+234	environmental samples | CDD10408	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+235	environmental samples | CDD17296	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+236	environmental samples | CDD27356	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+237	environmental samples | CDD54701	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+238	environmental samples | CDD62390	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+239	environmental samples | CDD75180	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+240	environmental samples | CDE10630	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+241	environmental samples | CDE43715	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+242	environmental samples | CDE70108	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+243	environmental samples | CDE84675	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+244	environmental samples | CDE96378	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+245	environmental samples | CDE98356	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+246	environmental samples | SCH40525	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+247	environmental samples | SCH83184	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+248	environmental samples | SCI01545	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+249	environmental samples | SCI07288	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+250	environmental samples | SCI21707	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+251	environmental samples | SCI22520	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+252	environmental samples | SCI27681	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+253	environmental samples | SCI68570	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+254	environmental samples | SCI73940	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+255	environmental samples | SCI96458	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+256	environmental samples | SCJ17687	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+257	environmental samples | SCJ24104	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+258	environmental samples | SCJ29377	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+259	environmental samples | SCJ72676	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+260	environmental samples | SCJ83645	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; environmental samples
+261	Fervidicella metallireducens | EYE88229	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Fervidicella; Fervidicella metallireducens
+262	Fervidicella metallireducens | EYE88690	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Fervidicella; Fervidicella metallireducens
+263	Hungatella | CUO55215	Bacteria; Firmicutes; Clostridia; Clostridiales
+264	Hungatella hathewayi | EHI60874	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Hungatella; Hungatella hathewayi
+265	Hungatella hathewayi | EHI60914	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Hungatella; Hungatella hathewayi
+266	Oxobacter | KPU46009	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Oxobacter
+267	Oxobacter | KPU46345	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Oxobacter
+268	Thermobrachium celere | CDF57363	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Thermobrachium; Thermobrachium celere
+269	Thermobrachium celere | CDF58535	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Thermobrachium; Thermobrachium celere
+270	Thermotalea | KXG73744	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Thermotalea
+271	Thermotalea | KXG74091	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Thermotalea
+272	Thermotalea | KXG76140	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Thermotalea
+273	Thermotalea | KXG77570	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Thermotalea
+274	Youngiibacter fragilis | ETA79102	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Youngiibacter; Youngiibacter fragilis
+275	Youngiibacter fragilis | ETA80262	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Youngiibacter; Youngiibacter fragilis
+276	Mogibacterium timidum | EUC52267	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiales incertae sedis; Clostridiales Family XIII. Incertae Sedis; Mogibacterium; Mogibacterium timidum
+277	Acetobacterium | KNZ42511	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Acetobacterium
+278	Acetobacterium | KNZ43357	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Acetobacterium
+279	Acetobacterium woodii | AFA47617	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Acetobacterium; Acetobacterium woodii
+280	Acetobacterium woodii | AFA49450	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Acetobacterium; Acetobacterium woodii
+281	Anaerofustis stercorihominis | EDS71388	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Anaerofustis; Anaerofustis stercorihominis
+282	Anaerofustis stercorihominis | EDS71847	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Anaerofustis; Anaerofustis stercorihominis
+283	Eubacterium | ALU15938	Bacteria; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium
+284	Eubacterium | CUM75284	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium
+285	Eubacterium | CUM75764	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium
+286	Eubacterium | CUQ85314	Bacteria; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium
+287	Eubacterium | EOT27439	Bacteria; Firmicutes; Clostridia; Clostridiales
+288	Eubacterium | OLA14128	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium
+289	environmental samples | CCX81300	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+290	environmental samples | CCY17786	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+291	environmental samples | CCY73717	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+292	environmental samples | CCY91235	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+293	environmental samples | CCZ04406	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+294	environmental samples | CDC20639	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+295	environmental samples | CDE18914	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+296	environmental samples | CDE36526	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+297	environmental samples | SCH29564	Bacteria; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium
+298	environmental samples | SCH39357	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+299	environmental samples | SCH69864	Bacteria; Firmicutes; Clostridia; Clostridiales
+300	environmental samples | SCI01878	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+301	environmental samples | SCI65973	Bacteria; Firmicutes; Clostridia; Clostridiales
+302	environmental samples | SCJ59264	Bacteria; Firmicutes; Clostridia; Clostridiales
+303	environmental samples | SCJ78082	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+304	environmental samples | SCJ89472	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+305	environmental samples | SCJ89546	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Eubacterium; environmental samples
+306	Pseudoramibacter alactolyticus | EFV01996	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; Pseudoramibacter; Pseudoramibacter alactolyticus
+307	unclassified Eubacteriaceae | CVI65942	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; unclassified Eubacteriaceae
+308	unclassified Eubacteriaceae | CVI66198	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; unclassified Eubacteriaceae
+309	unclassified Eubacteriaceae | CZT57743	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Eubacteriaceae; unclassified Eubacteriaceae
+310	Gracilibacter | KUO62525	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Gracilibacteraceae; Gracilibacter
+311	Gracilibacter | KUO63351	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Gracilibacteraceae; Gracilibacter
+312	Heliobacillus | CAJ44289	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Heliobacteriaceae; Heliobacillus
+313	Heliobacterium modesticaldum | ABZ83545	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Heliobacteriaceae; Heliobacterium; Heliobacterium modesticaldum
+314	Hungateiclostridium clariflavum | AEV67965	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Hungateiclostridium; Hungateiclostridium clariflavum
+315	Hungateiclostridium straminisolvens | GAE88391	Bacteria; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Hungateiclostridium
+316	Hungateiclostridium straminisolvens | GAE89903	Bacteria; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Hungateiclostridium
+317	Hungateiclostridium thermocellum | ANV76643	Bacteria; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Hungateiclostridium
+318	Pseudobacteroides cellulosolvens | KNY25725	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Pseudobacteroides; Pseudobacteroides cellulosolvens
+319	Pseudobacteroides cellulosolvens | KNY27015	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Pseudobacteroides; Pseudobacteroides cellulosolvens
+320	Pseudobacteroides cellulosolvens | KNY28796	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Pseudobacteroides; Pseudobacteroides cellulosolvens
+321	Ruminiclostridium cellobioparum subsp. termitidis | EMS69621	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Ruminiclostridium; Ruminiclostridium cellobioparum; Ruminiclostridium cellobioparum subsp. termitidis
+322	Ruminiclostridium cellobioparum subsp. termitidis | EMS69721	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Ruminiclostridium; Ruminiclostridium cellobioparum; Ruminiclostridium cellobioparum subsp. termitidis
+323	Ruminiclostridium cellobioparum subsp. termitidis | EMS69880	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Ruminiclostridium; Ruminiclostridium cellobioparum; Ruminiclostridium cellobioparum subsp. termitidis
+324	Ruminiclostridium cellulolyticum | ACL76574	Bacteria; Firmicutes; Clostridia; Clostridiales
+325	Ruminiclostridium cellulolyticum | ACL76640	Bacteria; Firmicutes; Clostridia; Clostridiales
+326	Ruminiclostridium papyrosolvens | EGD46502	Bacteria; Firmicutes; Clostridia; Clostridiales
+327	Thermoclostridium stercorarium subsp. leptospartum | ANX00873	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Hungateiclostridiaceae; Thermoclostridium; Thermoclostridium stercorarium; Thermoclostridium stercorarium subsp. leptospartum
+328	Anaerostipes caccae | EDR99311	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Anaerostipes; Anaerostipes caccae
+329	environmental samples | CDC34494	Bacteria; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Anaerostipes
+330	Blautia | CUQ70835	Bacteria; Firmicutes; Clostridia; Clostridiales
+331	Blautia | CUQ80628	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Blautia
+332	Blautia hydrogenotrophica | EEG50720	Bacteria; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Blautia
+333	Ruminococcus gnavus | EDN76601	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Blautia; Ruminococcus gnavus
+334	Ruminococcus torques | EDK25445	Bacteria; Firmicutes; Clostridia; Clostridiales
+335	environmental samples | CCX57656	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Blautia; environmental samples
+336	environmental samples | CDA06192	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Blautia; environmental samples
+337	environmental samples | SCI06958	Bacteria; Firmicutes; Clostridia; Clostridiales
+338	environmental samples | SCI20102	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Blautia; environmental samples
+339	environmental samples | SCI33956	Bacteria; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Blautia
+340	Butyrivibrio fibrisolvens | CBK75094	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Butyrivibrio; Butyrivibrio fibrisolvens
+341	environmental samples | CDC40058	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Butyrivibrio; environmental samples
+342	Cellulosilyticum lentocellum | ADZ83303	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Cellulosilyticum; Cellulosilyticum lentocellum
+343	Cellulosilyticum lentocellum | ADZ84101	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Cellulosilyticum; Cellulosilyticum lentocellum
+344	Coprococcus | EPD63409	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Coprococcus
+345	Coprococcus catus | CBK79892	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Coprococcus; Coprococcus catus
+346	environmental samples | SCH76399	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Coprococcus; environmental samples
+347	environmental samples | SCI05898	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Coprococcus; environmental samples
+348	Dorea | EOS78828	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Dorea
+349	Dorea | EOS80623	Bacteria; Firmicutes; Clostridia; Clostridiales
+350	Dorea | KMZ55509	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Dorea
+351	Dorea formicigenerans | EGX73624	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Dorea; Dorea formicigenerans
+352	environmental samples | CCX73471	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Dorea; environmental samples
+353	environmental samples | CCX75773	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Dorea; environmental samples
+354	environmental samples | CDD07048	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Dorea; environmental samples
+355	environmental samples | CDE20474	Bacteria; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Dorea
+356	environmental samples | SCH35588	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Dorea; environmental samples
+357	Faecalicatena | CUN60248	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Faecalicatena
+358	Faecalicatena | CUP08708	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Faecalicatena
+359	Faecalicatena | CUP23464	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Faecalicatena
+360	Fusicatenibacter | CUP36165	Bacteria; Firmicutes; Clostridia; Clostridiales
+361	Fusicatenibacter | CUQ54066	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Fusicatenibacter
+362	Herbinix | CRZ35598	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Herbinix
+363	Herbinix | CUH93837	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Herbinix
+364	Johnsonella ignava | EHI55432	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Johnsonella; Johnsonella ignava
+365	Lachnoanaerobaculum | EJP24531	Bacteria; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Lachnoanaerobaculum
+366	Clostridium asparagiforme | EEG52537	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Lachnoclostridium; Clostridium asparagiforme
+367	Clostridium asparagiforme | EEG53053	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Lachnoclostridium; Clostridium asparagiforme
+368	Clostridium bolteae | ENZ31625	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Lachnoclostridium; Clostridium bolteae
+369	Clostridium bolteae | KMW14868	Bacteria; Firmicutes; Clostridia; Clostridiales
+370	Clostridium hylemonae | EEG73238	Bacteria; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae
+371	Clostridium saccharolyticum | CBK76139	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Lachnoclostridium; Clostridium saccharolyticum
+372	Lachnoclostridium phytofermentans | ABX40477	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Lachnoclostridium; Lachnoclostridium phytofermentans
+373	Lachnoclostridium phytofermentans | ABX44152	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Lachnoclostridium; Lachnoclostridium phytofermentans
+374	Marvinbryantia formatexigens | EET61624	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Marvinbryantia; Marvinbryantia formatexigens
+375	Oribacterium parvum | EJF12116	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Oribacterium; Oribacterium parvum
+376	Oribacterium parvum | EJF12731	Bacteria; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Oribacterium
+377	Oribacterium sinus | EEJ52003	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Oribacterium; Oribacterium sinus
+378	Robinsoniella | KLU73708	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Robinsoniella
+379	Robinsoniella | KLU73710	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Robinsoniella
+380	environmental samples | CDE01135	Bacteria; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae
+381	environmental samples | SCI24837	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Roseburia; environmental samples
+382	environmental samples | SCI25785	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Roseburia; environmental samples
+383	Tyzzerella nexilis | EEA80933	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; Tyzzerella; Tyzzerella nexilis
+384	unclassified Lachnospiraceae | EGG80222	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; unclassified Lachnospiraceae
+385	unclassified Lachnospiraceae | EGG82603	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; unclassified Lachnospiraceae
+386	unclassified Lachnospiraceae | EGN32528	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; unclassified Lachnospiraceae
+387	unclassified Lachnospiraceae | EGN37282	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; unclassified Lachnospiraceae
+388	unclassified Lachnospiraceae | EOS26211	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; unclassified Lachnospiraceae
+389	unclassified Lachnospiraceae | EOS35532	Bacteria; Firmicutes; Clostridia; Clostridiales
+390	unclassified Lachnospiraceae | EOS70680	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; unclassified Lachnospiraceae
+391	unclassified Lachnospiraceae | ETP72692	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Lachnospiraceae; unclassified Lachnospiraceae
+392	Oscillibacter | EOS67645	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Oscillospiraceae; Oscillibacter
+393	Oscillibacter valericigenes | BAK98860	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Oscillospiraceae; Oscillibacter; Oscillibacter valericigenes
+394	Oscillibacter valericigenes | BAL00160	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Oscillospiraceae; Oscillibacter; Oscillibacter valericigenes
+395	environmental samples | CDB26459	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Oscillospiraceae; Oscillibacter; environmental samples
+396	environmental samples | CDB26550	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Oscillospiraceae; Oscillibacter; environmental samples
+397	environmental samples | CDC68667	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Oscillospiraceae; Oscillibacter; environmental samples
+398	environmental samples | CDC71274	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Oscillospiraceae; Oscillibacter; environmental samples
+399	environmental samples | SCJ75455	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Oscillospiraceae; Oscillibacter; environmental samples
+400	Candidatus Desulforudis audaxviator | ACA58720	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Candidatus Desulforudis; Candidatus Desulforudis audaxviator
+401	Candidatus Desulforudis audaxviator | ACA58961	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Candidatus Desulforudis; Candidatus Desulforudis audaxviator
+402	Candidatus Desulforudis audaxviator | ACA59846	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Candidatus Desulforudis; Candidatus Desulforudis audaxviator
+403	Candidatus Desulforudis audaxviator | ACA60050	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Candidatus Desulforudis; Candidatus Desulforudis audaxviator
+404	Dehalobacter | EQB21248	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Dehalobacter
+405	Dehalobacter | OCZ52623	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Dehalobacter
+406	Dehalobacter | OCZ54641	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Dehalobacter
+407	Desulfotomaculum gibsoniae DSM 7213 | EHG03627	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfallas; Desulfallas gibsoniae
+408	Desulfitobacterium dehalogenans | AFL99065	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfitobacterium; Desulfitobacterium dehalogenans
+409	Desulfofarcimen acetoxidans | ACV61127	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfofarcimen; Desulfofarcimen acetoxidans
+410	Desulfofarcimen acetoxidans | ACV64533	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfofarcimen; Desulfofarcimen acetoxidans
+411	Desulfofundulus kuznetsovii | AEG14590	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfofundulus; Desulfofundulus kuznetsovii
+412	Desulfofundulus kuznetsovii | AEG15843	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfofundulus; Desulfofundulus kuznetsovii
+413	Desulfofundulus kuznetsovii | AEG16437	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfofundulus; Desulfofundulus kuznetsovii
+414	Desulfofundulus kuznetsovii | AEG16494	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfofundulus; Desulfofundulus kuznetsovii
+415	Desulfosporosinus | EGW39953	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfosporosinus
+416	Desulfosporosinus | EGW41662	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfosporosinus
+417	Desulfosporosinus | KLU65924	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfosporosinus
+418	Desulfosporosinus | KLU66960	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfosporosinus
+419	Desulfosporosinus acidiphilus SJ4 | EIB96208	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfosporosinus; Desulfosporosinus acidiphilus
+420	Desulfosporosinus meridiei DSM 13257 | EHC17031	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfosporosinus
+421	Desulfotomaculum | KUK52976	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum
+422	Desulfotomaculum | KUK65840	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum
+423	Desulfotomaculum | OAT80762	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum
+424	Desulfotomaculum | OAT83633	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum
+425	Desulfotomaculum | OAT85714	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum
+426	Desulfotomaculum hydrothermale | SHG87300	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum
+427	Desulfotomaculum hydrothermale | SHG87384	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum hydrothermale
+428	Desulfotomaculum hydrothermale | SHH31045	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum hydrothermale
+429	Desulfotomaculum nigrificans | AEF94837	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum nigrificans
+430	Desulfotomaculum nigrificans DSM 574 | EGB21805	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum nigrificans
+431	Desulfotomaculum nigrificans DSM 574 | EGB22826	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum nigrificans
+432	Desulfotomaculum reducens | ABO50182	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum reducens
+433	Desulfotomaculum reducens | ABO51790	Bacteria; Firmicutes; Clostridia; Clostridiales
+434	Desulfotomaculum ruminis | AEG58802	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum ruminis
+435	Desulfotomaculum ruminis | AEG60635	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Desulfotomaculum; Desulfotomaculum ruminis
+436	Pelotomaculum thermopropionicum | BAF59558	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Pelotomaculum; Pelotomaculum thermopropionicum
+437	Pelotomaculum thermopropionicum | BAF60191	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Pelotomaculum; Pelotomaculum thermopropionicum
+438	Syntrophobotulus glycolicus | ADY57183	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Syntrophobotulus; Syntrophobotulus glycolicus
+439	Thermincola | KNZ68550	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; Thermincola
+440	unclassified Peptococcaceae | KLU62111	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptococcaceae; unclassified Peptococcaceae
+441	Acetoanaerobium | CBH20964	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Acetoanaerobium
+442	Acetoanaerobium | CBH21032	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Acetoanaerobium
+443	Clostridioides | CZS01326	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Clostridioides
+444	Clostridioides difficile | EQF23058	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Clostridioides
+445	Clostridioides difficile | EQI64080	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Clostridioides
+446	Clostridioides difficile | EQJ49358	Bacteria; Firmicutes
+447	Intestinibacter | CUP25751	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Intestinibacter
+448	Intestinibacter bartlettii | ETI93409	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Intestinibacter
+449	Intestinibacter bartlettii | SKA56297	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Intestinibacter; Intestinibacter bartlettii
+450	Paeniclostridium | CEN22486	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Paeniclostridium
+451	Paeniclostridium | CEO11629	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Paeniclostridium
+452	Paraclostridium | KKY00369	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae
+453	Paraclostridium bifermentans | EQK42178	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Paraclostridium
+454	Peptoanaerobacter | EHL19203	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoanaerobacter
+455	Eubacterium yurii subsp. margaretiae | EFM38380	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoanaerobacter; Eubacterium yurii; Eubacterium yurii subsp. margaretiae
+456	Peptoclostridium acidaminophilum | AHM56143	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoclostridium; Peptoclostridium acidaminophilum
+457	Peptoclostridium acidaminophilum | AHM56319	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoclostridium; Peptoclostridium acidaminophilum
+458	Peptoclostridium acidaminophilum | AHM57771	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoclostridium; Peptoclostridium acidaminophilum
+459	Peptoclostridium acidaminophilum | CAC39231	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoclostridium; Peptoclostridium acidaminophilum
+460	Peptoclostridium litorale | KDR94859	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoclostridium; Peptoclostridium litorale
+461	Peptoclostridium litorale | KDR94948	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoclostridium; Peptoclostridium litorale
+462	Peptoclostridium litorale | KDR95577	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoclostridium; Peptoclostridium litorale
+463	Peptoclostridium litorale | KDR96652	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptoclostridium; Peptoclostridium litorale
+464	Peptostreptococcus | KXB73092	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Peptostreptococcus
+465	Clostridium hiranonis | EEA85586	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; unclassified Peptostreptococcaceae; Clostridium hiranonis
+466	Clostridium hiranonis | EEA86217	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; unclassified Peptostreptococcaceae; Clostridium hiranonis
+467	Clostridium paradoxum | KXZ39860	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; unclassified Peptostreptococcaceae; Clostridium paradoxum
+468	Clostridium paradoxum | KXZ40473	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; unclassified Peptostreptococcaceae; Clostridium paradoxum
+469	Peptostreptococcaceae bacterium oral taxon 113 | ERJ80221	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; unclassified Peptostreptococcaceae; Peptostreptococcaceae bacterium oral taxon 113
+470	Acetivibrio | KSV58038	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Acetivibrio
+471	Acutalibacter | ASB41691	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Acutalibacter
+472	Anaerotruncus | CUP44098	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Anaerotruncus
+473	Anaerotruncus | EOS56459	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Anaerotruncus
+474	environmental samples | CDE04407	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Anaerotruncus; environmental samples
+475	environmental samples | SCJ77287	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Anaerotruncus; environmental samples
+476	Ethanoligenens harbinense | ADU27806	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ethanoligenens; Ethanoligenens harbinense
+477	Ethanoligenens harbinense | ADU28107	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ethanoligenens; Ethanoligenens harbinense
+478	Flavonifractor | CUQ23167	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Flavonifractor
+479	Flavonifractor plautii | EHM51669	Bacteria; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Flavonifractor
+480	environmental samples | SCI67419	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Flavonifractor; environmental samples
+481	environmental samples | SCJ04065	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Flavonifractor; environmental samples
+482	Pseudoflavonifractor capillosus | EDM99349	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Pseudoflavonifractor; Pseudoflavonifractor capillosus
+483	Ruminococcus | KYG88292	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus
+484	Ruminococcus | OLA68122	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus
+485	Ruminococcus albus | EGC01284	Bacteria; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; Ruminococcus albus
+486	Ruminococcus flavefaciens | EWM53604	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; Ruminococcus flavefaciens
+487	Ruminococcus lactaris | ETD26120	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; Ruminococcus lactaris
+488	environmental samples | CCZ19916	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+489	environmental samples | CDA91662	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+490	environmental samples | CDB41656	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+491	environmental samples | CDD01594	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+492	environmental samples | CDD54264	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+493	environmental samples | CDE33263	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+494	environmental samples | CDF00433	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+495	environmental samples | SCH02929	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+496	environmental samples | SCH28334	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+497	environmental samples | SCH29655	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+498	environmental samples | SCH72885	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+499	environmental samples | SCI45770	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+500	environmental samples | SCJ91439	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Ruminococcus; environmental samples
+501	Subdoligranulum | EHL75636	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Subdoligranulum
+502	Subdoligranulum variabile | EFB75894	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Subdoligranulum; Subdoligranulum variabile
+503	environmental samples | CDE70664	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; Subdoligranulum; environmental samples
+504	unclassified Ruminococcaceae | CDZ23873	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; unclassified Ruminococcaceae
+505	unclassified Ruminococcaceae | CUQ83923	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; unclassified Ruminococcaceae
+506	unclassified Ruminococcaceae miscellaneous | EGJ47079	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Ruminococcaceae; unclassified Ruminococcaceae; unclassified Ruminococcaceae miscellaneous
+507	Symbiobacterium thermophilum | BAD42191	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Symbiobacteriaceae; Symbiobacterium; Symbiobacterium thermophilum
+508	Symbiobacterium thermophilum | BAD42274	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Symbiobacteriaceae; Symbiobacterium; Symbiobacterium thermophilum
+509	Dethiobacter alkaliphilus | EEG77316	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Syntrophomonadaceae; Dethiobacter; Dethiobacter alkaliphilus
+510	Syntrophomonas wolfei subsp. wolfei | ABI68331	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Syntrophomonadaceae; Syntrophomonas; Syntrophomonas wolfei; Syntrophomonas wolfei subsp. wolfei
+511	Syntrophomonas wolfei subsp. wolfei | ABI69725	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Syntrophomonadaceae; Syntrophomonas; Syntrophomonas wolfei; Syntrophomonas wolfei subsp. wolfei
+512	Syntrophomonas zehnderi | CFX26351	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Syntrophomonadaceae; Syntrophomonas; Syntrophomonas zehnderi
+513	Syntrophomonas zehnderi | CFY11692	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Syntrophomonadaceae; Syntrophomonas; Syntrophomonas zehnderi
+514	Syntrophothermus lipocalidus | ADI00925	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Syntrophomonadaceae; Syntrophothermus; Syntrophothermus lipocalidus
+515	Syntrophothermus lipocalidus | ADI01327	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Syntrophomonadaceae; Syntrophothermus; Syntrophothermus lipocalidus
+516	Bacteroides pectinophilus | EEC57378	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; Bacteroides pectinophilus
+517	Intestinimonas | ALP92790	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; Intestinimonas
+518	unclassified Clostridiales miscellaneous | CVH76163	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; unclassified Clostridiales miscellaneous
+519	unclassified Clostridiales miscellaneous | CVI69757	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; unclassified Clostridiales miscellaneous
+520	unclassified Clostridiales miscellaneous | CVI70202	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; unclassified Clostridiales miscellaneous
+521	unclassified Clostridiales miscellaneous | KKM10428	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; unclassified Clostridiales miscellaneous
+522	unclassified Clostridiales miscellaneous | KKM10454	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; unclassified Clostridiales miscellaneous
+523	unclassified Clostridiales miscellaneous | KXO17124	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; unclassified Clostridiales miscellaneous
+524	Clostridiales bacterium oral taxon 876 | ERI92013	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; unclassified Clostridiales; unclassified Clostridiales miscellaneous; Clostridiales bacterium oral taxon 876
+525	Halanaerobium | ADQ15187	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halanaerobium
+526	Halanaerobium | ADQ15280	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halanaerobium
+527	Halanaerobium | KXS48265	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halanaerobium
+528	Halanaerobium praevalens | ADO77753	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halanaerobium; Halanaerobium praevalens
+529	Halanaerobium saccharolyticum subsp. saccharolyticum | CCU77731	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halanaerobium; Halanaerobium saccharolyticum; Halanaerobium saccharolyticum subsp. saccharolyticum
+530	Halanaerobium saccharolyticum subsp. saccharolyticum | CCU77965	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halanaerobium; Halanaerobium saccharolyticum; Halanaerobium saccharolyticum subsp. saccharolyticum
+531	Halothermothrix orenii | ACL68943	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halothermothrix; Halothermothrix orenii
+532	Halothermothrix orenii | ACL69059	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halothermothrix; Halothermothrix orenii
+533	Halothermothrix orenii | ACL69390	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halanaerobiaceae; Halothermothrix; Halothermothrix orenii
+534	Acetohalobium arabaticum | ADL11777	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Acetohalobium; Acetohalobium arabaticum
+535	Acetohalobium arabaticum | ADL11820	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Acetohalobium; Acetohalobium arabaticum
+536	Acetohalobium arabaticum | ADL13386	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Acetohalobium; Acetohalobium arabaticum
+537	Candidatus Frackibacter | KXS40646	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Candidatus Frackibacter
+538	Candidatus Frackibacter | KXS44483	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Candidatus Frackibacter
+539	Candidatus Frackibacter | KXS45526	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Candidatus Frackibacter
+540	Halobacteroides halobius | AGB40372	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Halobacteroides; Halobacteroides halobius
+541	Halobacteroides halobius | AGB42159	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Halobacteroides; Halobacteroides halobius
+542	Orenia | OCL27649	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Halanaerobiales; Halobacteroidaceae; Orenia
+543	Natranaerobius thermophilus | ACB84421	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Natranaerobiales; Natranaerobiaceae; Natranaerobius; Natranaerobius thermophilus
+544	Ammonifex degensii | ACX52870	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella group; Ammonifex; Ammonifex degensii
+545	Ammonifex degensii | ACX52871	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella group; Ammonifex; Ammonifex degensii
+546	Fervidicola | KXG77404	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Fervidicola
+547	Moorella | AKX94701	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella group; Moorella
+548	Moorella | CEP66399	Bacteria; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella
+549	Moorella | KUK12000	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella group; Moorella
+550	Moorella | KUK12114	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella group; Moorella
+551	Moorella mulderi | KYH32312	Bacteria; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Moorella
+552	Tepidanaerobacter acetatoxydans | CCP26856	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Tepidanaerobacter; Tepidanaerobacter acetatoxydans
+553	Tepidanaerobacter acetatoxydans | CCP27569	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Tepidanaerobacter; Tepidanaerobacter acetatoxydans
+554	Thermoanaerobacter | AIS53102	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Thermoanaerobacter
+555	Thermoanaerobacter | AIS53140	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae; Thermoanaerobacter
+556	Thermoanaerobacter brockii subsp. finnii | ADV80057	Bacteria; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacteraceae
+557	Caldicellulosiruptor owensensis | ADQ04653	Bacteria; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family III. Incertae Sedis; Caldicellulosiruptor
+558	Thermoanaerobacterium thermosaccharolyticum | AGB18724	Bacteria; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family III. Incertae Sedis; Thermoanaerobacterium
+559	Thermosediminibacter oceani | ADL07311	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family III. Incertae Sedis; Thermosediminibacter; Thermosediminibacter oceani
+560	Thermosediminibacter oceani | ADL07466	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family III. Incertae Sedis; Thermosediminibacter; Thermosediminibacter oceani
+561	Thermovenabulum | KYO64795	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family III. Incertae Sedis; Thermovenabulum
+562	Thermovenabulum | KYO68615	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family III. Incertae Sedis; Thermovenabulum
+563	Mahella australiensis | AEE96448	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family IV. Incertae Sedis; Mahella; Mahella australiensis
+564	Mahella australiensis | AEE96574	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family IV. Incertae Sedis; Mahella; Mahella australiensis
+565	Thermodesulfobium narugense | AEE15122	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermodesulfobiaceae; Thermodesulfobium; Thermodesulfobium narugense
+566	unclassified Clostridia miscellaneous | KUK40847	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; unclassified Clostridia; unclassified Clostridia miscellaneous
+567	unclassified Clostridia miscellaneous | KUK40988	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; unclassified Clostridia; unclassified Clostridia miscellaneous
+568	unclassified Clostridia miscellaneous | KUK40990	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; unclassified Clostridia; unclassified Clostridia miscellaneous
+569	unclassified Clostridia miscellaneous | KUO72101	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; unclassified Clostridia; unclassified Clostridia miscellaneous
+570	unclassified Clostridia miscellaneous | KUO72381	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; unclassified Clostridia; unclassified Clostridia miscellaneous
+571	unclassified Clostridia miscellaneous | KUO76612	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; unclassified Clostridia; unclassified Clostridia miscellaneous
+572	Candidatus Stoquefichus | KXU41953	Bacteria; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae
+573	Coprobacillus | EHQ48115	Bacteria; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae
+574	environmental samples | CCY07860	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae; Coprobacillus; environmental samples
+575	environmental samples | CDD92610	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae; Coprobacillus; environmental samples
+576	Holdemania filiformis | EEF67834	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae; Holdemania; Holdemania filiformis
+577	Kandleria vitulina | KRN49563	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae; Kandleria; Kandleria vitulina
+578	Turicibacter | AMC09109	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae; Turicibacter
+579	Turicibacter | CUM96964	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae; Turicibacter
+580	unclassified Erysipelotrichaceae miscellaneous | OCN04276	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Erysipelotrichia; Erysipelotrichales; Erysipelotrichaceae; unclassified Erysipelotrichaceae; unclassified Erysipelotrichaceae miscellaneous
+581	Limnochorda | BAS26728	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Limnochordia; Limnochordales; Limnochordaceae; Limnochorda
+582	Acidaminococcus | ERL15828	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Acidaminococcales; Acidaminococcaceae; Acidaminococcus
+583	Acidaminococcus fermentans | ADB48307	Bacteria; Firmicutes; Negativicutes; Acidaminococcales; Acidaminococcaceae; Acidaminococcus
+584	environmental samples | CDE72744	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Acidaminococcales; Acidaminococcaceae; Acidaminococcus; environmental samples
+585	environmental samples | CDE92649	Bacteria; Firmicutes; Negativicutes; Acidaminococcales; Acidaminococcaceae; Acidaminococcus
+586	Phascolarctobacterium | CDB46303	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Acidaminococcales; Acidaminococcaceae; Phascolarctobacterium
+587	Phascolarctobacterium succinatutens | EFY04122	Bacteria; Firmicutes; Negativicutes; Acidaminococcales; Acidaminococcaceae; Phascolarctobacterium; Phascolarctobacterium succinatutens
+588	Phascolarctobacterium succinatutens | EFY04733	Bacteria; Firmicutes; Negativicutes; Acidaminococcales; Acidaminococcaceae; Phascolarctobacterium; Phascolarctobacterium succinatutens
+589	environmental samples | CDB97803	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Selenomonadaceae; Megamonas; environmental samples
+590	Mitsuokella | CUN89999	Bacteria; Firmicutes; Negativicutes; Selenomonadales; Selenomonadaceae; Mitsuokella
+591	Selenomonas | EJU30365	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Selenomonadaceae; Selenomonas
+592	Selenomonas ruminantium subsp. lactilytica | BAL84344	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Selenomonadaceae; Selenomonas; Selenomonas ruminantium; Selenomonas ruminantium subsp. lactilytica
+593	Acetonema longum | EGO64409	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Acetonema; Acetonema longum
+594	Acetonema longum | EGO64656	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Acetonema; Acetonema longum
+595	Acetonema longum | EGO65215	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Acetonema; Acetonema longum
+596	Anaerosporomusa | KYZ76811	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Anaerosporomusa
+597	Pelosinus | AIF50941	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Pelosinus
+598	Pelosinus | AIF51374	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Pelosinus
+599	Pelosinus fermentans | AJQ29036	Bacteria; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Pelosinus; Pelosinus fermentans
+600	Pelosinus fermentans | AJQ29374	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Pelosinus; Pelosinus fermentans
+601	Pelosinus fermentans B3 | EIW27738	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Pelosinus; Pelosinus fermentans
+602	Sporomusa | CQR71135	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Sporomusa
+603	Sporomusa | CQR72384	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Sporomusa
+604	Sporomusa | CQR72497	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Sporomusa
+605	Thermosinus carboxydivorans | EAX48145	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Selenomonadales; Sporomusaceae; Thermosinus; Thermosinus carboxydivorans
+606	Megasphaera | EGS35653	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera
+607	Megasphaera | EPP15079	Bacteria; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera
+608	Megasphaera | ERT61926	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera
+609	Megasphaera | KUH55992	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera
+610	Megasphaera | KXA70380	Bacteria; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera
+611	Megasphaera | SHK10978	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera
+612	Megasphaera cerevisiae | KMO86138	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera; Megasphaera cerevisiae
+613	Megasphaera cerevisiae | SJZ36992	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera; Megasphaera cerevisiae
+614	environmental samples | SCH89899	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera; environmental samples
+615	environmental samples | SCI08753	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera; environmental samples
+616	Veillonella atypica | EFL57012	Bacteria; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Veillonella
+617	Veillonella seminalis | EKU78072	Bacteria; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Veillonella
+618	Veillonella sp. oral taxon 780 | EGS40040	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Veillonella; Veillonella sp. oral taxon 780
+619	Anaerococcus | KWZ79034	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Peptoniphilaceae; Anaerococcus
+620	Anaerococcus hydrogenalis | EGC84810	Bacteria; Firmicutes; Tissierellia; Tissierellales; Peptoniphilaceae; Anaerococcus; Anaerococcus hydrogenalis
+621	Anaerococcus prevotii | ACV29112	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Peptoniphilaceae; Anaerococcus; Anaerococcus prevotii
+622	Parvimonas sp. oral taxon 110 | EGL35563	Bacteria; Firmicutes; Tissierellia; Tissierellales; Peptoniphilaceae; Parvimonas
+623	Peptoniphilus | ERT59328	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Peptoniphilaceae; Peptoniphilus
+624	Peptoniphilus | ERT65024	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Peptoniphilaceae; Peptoniphilus
+625	Peptoniphilus indolicus | EGY79763	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Peptoniphilaceae; Peptoniphilus; Peptoniphilus indolicus
+626	Clostridium ultunense | CCQ93528	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Tissierellaceae; Clostridium ultunense
+627	unclassified Tissierellia miscellaneous | KGF08384	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; unclassified Tissierellia; unclassified Tissierellia miscellaneous
+628	unclassified Tissierellia miscellaneous | KGF10948	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; unclassified Tissierellia; unclassified Tissierellia miscellaneous
+629	unclassified Tissierellia miscellaneous | KXB47614	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; unclassified Tissierellia; unclassified Tissierellia miscellaneous
+630	environmental samples | CCX40295	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+631	environmental samples | CCX71525	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+632	environmental samples | CCX73705	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+633	environmental samples | CCX90631	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+634	environmental samples | CCY26035	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+635	environmental samples | CCY28003	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+636	environmental samples | CCY93818	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+637	environmental samples | CCZ45682	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+638	environmental samples | CCZ46240	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+639	environmental samples | CCZ46678	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+640	environmental samples | CCZ85848	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+641	environmental samples | CDA15043	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+642	environmental samples | CDA81073	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+643	environmental samples | CDA91175	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+644	environmental samples | CDA91548	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+645	environmental samples | CDB02547	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+646	environmental samples | CDB25821	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+647	environmental samples | CDB88584	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+648	environmental samples | CDC41383	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+649	environmental samples | CDC46428	Bacteria; Firmicutes
+650	environmental samples | CDC91246	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+651	environmental samples | CDD21902	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+652	environmental samples | CDD30124	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+653	environmental samples | CDD63882	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+654	environmental samples | CDD69197	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; environmental samples
+655	unclassified Firmicutes sensu stricto miscellaneous | ESL15547	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; unclassified Firmicutes sensu stricto; unclassified Firmicutes sensu stricto miscellaneous
+656	Cetobacterium somerae | ERT63160	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Cetobacterium; Cetobacterium somerae
+657	Cetobacterium somerae | ERT67638	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Cetobacterium; Cetobacterium somerae
+658	Cetobacterium somerae | ERT68055	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Cetobacterium; Cetobacterium somerae
+659	Fusobacterium | KXA13102	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Fusobacterium
+660	Fusobacterium mortiferum | EEO34441	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Fusobacterium; Fusobacterium mortiferum
+661	Fusobacterium necrophorum | KYM59957	Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Fusobacterium
+662	Fusobacterium necrophorum subsp. funduliforme | EHO22078	Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Fusobacterium; Fusobacterium necrophorum
+663	Fusobacterium ulcerans | EFS24488	Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Fusobacterium
+664	Fusobacterium varium | EES65225	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Fusobacterium; Fusobacterium varium
+665	Ilyobacter polytropus | ADO82415	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Ilyobacter; Ilyobacter polytropus
+666	Ilyobacter polytropus | ADO82422	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Ilyobacter; Ilyobacter polytropus
+667	Ilyobacter polytropus | ADO82476	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Ilyobacter; Ilyobacter polytropus
+668	Ilyobacter polytropus | ADO83002	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Ilyobacter; Ilyobacter polytropus
+669	Ilyobacter polytropus | ADO84190	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Fusobacteriaceae; Ilyobacter; Ilyobacter polytropus
+670	Leptotrichia sp. oral taxon 215 | ERK66106	Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Leptotrichiaceae; Leptotrichia
+671	Sebaldella termitidis | ACZ07498	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Leptotrichiaceae; Sebaldella; Sebaldella termitidis
+672	Sebaldella termitidis | ACZ10435	cellular organisms; Bacteria; Fusobacteria; Fusobacteriia; Fusobacteriales; Leptotrichiaceae; Sebaldella; Sebaldella termitidis
+673	Ignavibacterium album | AFH47969	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Ignavibacteriae; Ignavibacteria; Ignavibacteriales; Ignavibacteriaceae; Ignavibacterium; Ignavibacterium album
+674	Ignavibacterium album | AFH48243	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Ignavibacteriae; Ignavibacteria; Ignavibacteriales; Ignavibacteriaceae; Ignavibacterium; Ignavibacterium album
+675	Melioribacter roseus | AFN73877	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Ignavibacteriae; Ignavibacteria; Ignavibacteriales; Melioribacteraceae; Melioribacter; Melioribacter roseus
+676	Melioribacter roseus | AFN75712	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Ignavibacteriae; Ignavibacteria; Ignavibacteriales; Melioribacteraceae; Melioribacter; Melioribacter roseus
+677	Melioribacter roseus | AFN75718	cellular organisms; Bacteria; FCB group; Bacteroidetes/Chlorobi group; Ignavibacteriae; Ignavibacteria; Ignavibacteriales; Melioribacteraceae; Melioribacter; Melioribacter roseus
+678	Kiritimatiella | AKJ63658	cellular organisms; Bacteria; PVC group; Kiritimatiellaeota; Kiritimatiellae; Kiritimatiellales; Kiritimatiellaceae; Kiritimatiella
+679	Kiritimatiella | AKJ64550	cellular organisms; Bacteria; PVC group; Kiritimatiellaeota; Kiritimatiellae; Kiritimatiellales; Kiritimatiellaceae; Kiritimatiella
+680	Kiritimatiella | AKJ64556	cellular organisms; Bacteria; PVC group; Kiritimatiellaeota; Kiritimatiellae; Kiritimatiellales; Kiritimatiellaceae; Kiritimatiella
+681	Victivallis vadensis ATCC BAA-548 | EFA98862	cellular organisms; Bacteria; PVC group; Lentisphaerae; Lentisphaeria; Victivallales; Victivallaceae; Victivallis; Victivallis vadensis
+682	Victivallis vadensis ATCC BAA-548 | EFA99820	cellular organisms; Bacteria; PVC group; Lentisphaerae; Lentisphaeria; Victivallales; Victivallaceae; Victivallis; Victivallis vadensis
+683	Thermodesulfovibrio yellowstonii | ACI22150	cellular organisms; Bacteria; Nitrospirae; Nitrospira; Nitrospirales; Nitrospiraceae; Thermodesulfovibrio; Thermodesulfovibrio yellowstonii
+684	unclassified Acidithiobacillales | KPK12164	cellular organisms; Bacteria; Proteobacteria; Acidithiobacillia; Acidithiobacillales; unclassified Acidithiobacillales
+685	Rhodopseudomonas palustris | ABJ07787	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Bradyrhizobiaceae; Rhodopseudomonas; Rhodopseudomonas palustris
+686	Rhodopseudomonas palustris | ADU41772	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Bradyrhizobiaceae; Rhodopseudomonas; Rhodopseudomonas palustris
+687	Blastochloris | BAR98435	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Hyphomicrobiaceae; Blastochloris
+688	Blastochloris | BAR99312	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Hyphomicrobiaceae; Blastochloris
+689	Hyphomonas | KCZ45914	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Hyphomonadaceae; Hyphomonas
+690	Hyphomonas adhaerens | KCZ85879	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Hyphomonadaceae; Hyphomonas; Hyphomonas adhaerens
+691	Rhodovulum | EJW13626	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Rhodovulum
+692	Roseibacterium elongatum | AHM04217	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Roseibacterium; Roseibacterium elongatum
+693	Thioclava pacifica | KEO55131	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodobacterales; Rhodobacteraceae; Thioclava; Thioclava pacifica
+694	environmental samples | CCZ22626	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Acetobacteraceae; Acetobacter; environmental samples
+695	environmental samples | CDE19550	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Acetobacteraceae; Acidiphilium; environmental samples
+696	environmental samples | CDB53277	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Azospirillum; environmental samples
+697	Pararhodospirillum photometricum | CCG07208	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Pararhodospirillum; Pararhodospirillum photometricum
+698	Phaeospirillum fulvum | EPY00806	Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Phaeospirillum
+699	Phaeospirillum molischianum | CCG40656	Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Phaeospirillum
+700	Hydrogenophaga | OAD40268	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Hydrogenophaga
+701	Sutterella | KXT32810	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Sutterellaceae; Sutterella
+702	Sutterella parvirubra | EHY32372	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Sutterellaceae; Sutterella; Sutterella parvirubra
+703	Sutterella wadsworthensis | EPD98710	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Sutterellaceae; Sutterella; Sutterella wadsworthensis
+704	environmental samples | CDE51258	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Sutterellaceae; Sutterella; environmental samples
+705	environmental samples | CDE78533	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Sutterellaceae; Sutterella; environmental samples
+706	unclassified Burkholderiales miscellaneous | ANU65813	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; unclassified Burkholderiales; unclassified Burkholderiales miscellaneous
+707	Laribacter hongkongensis | ACO75311	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Neisseriales; Chromobacteriaceae; Laribacter; Laribacter hongkongensis
+708	Desulfobacterium autotrophicum | ACN13281	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfobacterium; Desulfobacterium autotrophicum
+709	Desulfobacterium autotrophicum | ACN15752	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobacteraceae; Desulfobacterium; Desulfobacterium autotrophicum
+710	Desulfobulbus propionicus | ADW17753	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Desulfobulbus; Desulfobulbus propionicus
+711	Desulfotalea psychrophila | CAG35208	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfobacterales; Desulfobulbaceae; Desulfotalea; Desulfotalea psychrophila
+712	Desulfovibrio | AAA87057	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+713	Desulfovibrio | KHK01083	Bacteria; Proteobacteria; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+714	Desulfovibrio | KHK02970	Bacteria; Proteobacteria; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio
+715	Desulfovibrio fructosivorans | EFL52165	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio fructosivorans
+716	Desulfovibrio hydrothermalis | CCO24762	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio hydrothermalis
+717	Desulfovibrio magneticus | EKO37419	Bacteria; Proteobacteria; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio magneticus
+718	Desulfovibrio salexigens | ACS78430	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio salexigens
+719	Desulfovibrio vulgaris | CAA40970	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio vulgaris
+720	Pelobacter carbinolicus | ABA88849	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Desulfuromonadaceae; Pelobacter; Pelobacter carbinolicus
+721	Pelobacter carbinolicus | ABA88877	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Desulfuromonadaceae; Pelobacter; Pelobacter carbinolicus
+722	Pelobacter carbinolicus | ABA89741	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Desulfuromonadaceae; Pelobacter; Pelobacter carbinolicus
+723	Pelobacter propionicus | ABK99106	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Desulfuromonadaceae; Pelobacter; Pelobacter propionicus
+724	Geobacter | ADW13322	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfuromonadales; Geobacteraceae; Geobacter
+725	Smithella | KQC07844	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophaceae; Smithella
+726	Syntrophus aciditrophicus | ABC76974	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophaceae; Syntrophus; Syntrophus aciditrophicus
+727	Syntrophobacter fumaroxidans | ABK16541	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Syntrophobacterales; Syntrophobacteraceae; Syntrophobacter; Syntrophobacter fumaroxidans
+728	Candidatus Adiutrix | KXS55975	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; Candidatus Adiutrix
+729	Candidatus Adiutrix | KXS56216	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; unclassified Deltaproteobacteria; Candidatus Adiutrix
+730	Tolumonas auensis | ACQ93118	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Aeromonadales; Aeromonadaceae; Tolumonas; Tolumonas auensis
+731	Imhoffiella | EXJ15925	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Imhoffiella
+732	Thiorhodococcus drewsii | EGV33414	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Thiorhodococcus; Thiorhodococcus drewsii
+733	Wenzhouxiangella | AKS43037	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Wenzhouxiangellaceae; Wenzhouxiangella
+734	Coxiella | KPJ67563	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Legionellales; Coxiellaceae; Coxiella
+735	Hydrogenovibrio | KDN95291	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Piscirickettsiaceae; Hydrogenovibrio
+736	Thiomicrospira | KUJ73084	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Thiotrichales; Piscirickettsiaceae; Thiomicrospira
+737	environmental samples | CDA44949	Bacteria; Proteobacteria
+738	Brachyspira | CRF32081	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Brachyspirales; Brachyspiraceae; Brachyspira
+739	Brachyspira murdochii | ADG72234	Bacteria; Spirochaetes; Spirochaetia; Brachyspirales; Brachyspiraceae; Brachyspira
+740	environmental samples | CCY25239	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Brachyspirales; Brachyspiraceae; Brachyspira; environmental samples
+741	environmental samples | CCY74725	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Brachyspirales; Brachyspiraceae; Brachyspira; environmental samples
+742	Turneriella parva | AFM13386	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Leptospirales; Leptospiraceae; Turneriella; Turneriella parva
+743	Salinispira | AHC13718	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Salinispira
+744	Sediminispirochaeta smaragdinae | ADK79511	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sediminispirochaeta; Sediminispirochaeta smaragdinae
+745	Sediminispirochaeta smaragdinae | ADK79621	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sediminispirochaeta; Sediminispirochaeta smaragdinae
+746	Sediminispirochaeta smaragdinae | ADK82773	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sediminispirochaeta; Sediminispirochaeta smaragdinae
+747	Sphaerochaeta coccoides | AEC01584	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sphaerochaeta; Sphaerochaeta coccoides
+748	Sphaerochaeta globosa | ADY13417	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sphaerochaeta; Sphaerochaeta globosa
+749	Sphaerochaeta globosa | ADY14131	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sphaerochaeta; Sphaerochaeta globosa
+750	Sphaerochaeta globosa | ADY14696	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sphaerochaeta; Sphaerochaeta globosa
+751	Sphaerochaeta pleomorpha | AEV28063	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sphaerochaeta; Sphaerochaeta pleomorpha
+752	Sphaerochaeta pleomorpha | AEV30240	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Sphaerochaeta; Sphaerochaeta pleomorpha
+753	Spirochaeta | KGE72685	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Spirochaeta
+754	Spirochaeta | KGE73334	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Spirochaeta
+755	Spirochaeta africana | AFG37807	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Spirochaeta; Spirochaeta africana
+756	Spirochaeta africana | AFG38440	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Spirochaeta; Spirochaeta africana
+757	Spirochaeta thermophila | ADN01585	Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Spirochaeta; Spirochaeta thermophila
+758	Spirochaeta thermophila | AEJ61770	Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Spirochaeta; Spirochaeta thermophila
+759	Treponema azotonutricium | AEL20841	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema azotonutricium
+760	Treponema brennaborense | AEE15781	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema brennaborense
+761	Treponema caldarium | AEJ20869	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema caldarium
+762	Treponema denticola | EPF33108	Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema
+763	Treponema pedis | AGT43415	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema pedis
+764	Treponema pedis | AGT44783	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema pedis
+765	Treponema primitia | AEF84030	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema primitia
+766	Treponema primitia | AEF85721	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema primitia
+767	Treponema primitia | AEF86023	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema primitia
+768	Treponema primitia | AEL20818	cellular organisms; Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema primitia
+769	Treponema primitia | AEL20849	Bacteria; Spirochaetes; Spirochaetia; Spirochaetales; Spirochaetaceae; Treponema; Treponema primitia
+770	Cloacibacillus | ANZ43688	Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae
+771	Cloacibacillus | ANZ44581	cellular organisms; Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae; Cloacibacillus
+772	Cloacibacillus evryensis | EXG78936	Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae
+773	Fretibacterium | CBL28839	cellular organisms; Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae; Fretibacterium
+774	Jonquetella | ERL23623	cellular organisms; Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae; Jonquetella
+775	Pyramidobacter piscolens | EFB89727	cellular organisms; Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae; Pyramidobacter; Pyramidobacter piscolens
+776	Synergistes | KEJ92168	cellular organisms; Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae; Synergistes
+777	Synergistes | KEJ92258	cellular organisms; Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae; Synergistes
+778	Thermanaerovibrio acidaminovorans | ACZ18390	cellular organisms; Bacteria; Synergistetes; Synergistia; Synergistales; Synergistaceae; Thermanaerovibrio; Thermanaerovibrio acidaminovorans
+779	Candidatus Izimaplasma | AIO18212	cellular organisms; Bacteria; Terrabacteria group; Tenericutes; Candidatus Izimaplasma
+780	Candidatus Izimaplasma | AIO18671	cellular organisms; Bacteria; Terrabacteria group; Tenericutes; Candidatus Izimaplasma
+781	Candidatus Izimaplasma | AIO19694	cellular organisms; Bacteria; Terrabacteria group; Tenericutes; Candidatus Izimaplasma
+782	Candidatus Izimaplasma | AIO19709	cellular organisms; Bacteria; Terrabacteria group; Tenericutes; Candidatus Izimaplasma
+783	environmental samples | CCY89011	cellular organisms; Bacteria; Terrabacteria group; Tenericutes; Mollicutes; Mycoplasmatales; Mycoplasmataceae; Mycoplasma; environmental samples
+784	Thermodesulfatator indicus | AEH44377	cellular organisms; Bacteria; Thermodesulfobacteria; Thermodesulfobacteria; Thermodesulfobacteriales; Thermodesulfobacteriaceae; Thermodesulfatator; Thermodesulfatator indicus
+785	Thermodesulfobacterium | KUJ97521	cellular organisms; Bacteria; Thermodesulfobacteria; Thermodesulfobacteria; Thermodesulfobacteriales; Thermodesulfobacteriaceae; Thermodesulfobacterium
+786	Kosmotoga | OAA24877	cellular organisms; Bacteria; Thermotogae; Thermotogae; Kosmotogales; Kosmotogaceae; Kosmotoga
+787	Kosmotoga arenicorallina | OAA29483	cellular organisms; Bacteria; Thermotogae; Thermotogae; Kosmotogales; Kosmotogaceae; Kosmotoga; Kosmotoga arenicorallina
+788	Kosmotoga arenicorallina | OAA31191	Bacteria; Thermotogae; Thermotogae; Kosmotogales; Kosmotogaceae; Kosmotoga
+789	Mesotoga | CCU85708	Bacteria; Thermotogae; Thermotogae; Kosmotogales; Kosmotogaceae; Mesotoga
+790	Defluviitoga | CEP77547	cellular organisms; Bacteria; Thermotogae; Thermotogae; Petrotogales; Petrotogaceae; Defluviitoga
+791	Defluviitoga | CEP78108	cellular organisms; Bacteria; Thermotogae; Thermotogae; Petrotogales; Petrotogaceae; Defluviitoga
+792	Marinitoga | KLO21979	cellular organisms; Bacteria; Thermotogae; Thermotogae; Petrotogales; Petrotogaceae; Marinitoga
+793	Marinitoga | KLO23719	Bacteria; Thermotogae; Thermotogae; Petrotogales; Petrotogaceae; Marinitoga
+794	Marinitoga piezophila | AEX86274	cellular organisms; Bacteria; Thermotogae; Thermotogae; Petrotogales; Petrotogaceae; Marinitoga; Marinitoga piezophila
+795	Petrotoga | KUK80416	Bacteria; Thermotogae; Thermotogae; Petrotogales; Petrotogaceae; Petrotoga
+796	Petrotoga | KUK82046	Bacteria; Thermotogae; Thermotogae; Petrotogales; Petrotogaceae; Petrotoga
+797	Fervidobacterium | ANE41024	Bacteria; Thermotogae; Thermotogae; Thermotogales; Fervidobacteriaceae; Fervidobacterium
+798	Fervidobacterium nodosum | ABS60092	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Fervidobacteriaceae; Fervidobacterium; Fervidobacterium nodosum
+799	Fervidobacterium pennivorans | AFG34432	Bacteria; Thermotogae; Thermotogae; Thermotogales; Fervidobacteriaceae; Fervidobacterium
+800	Fervidobacterium pennivorans | AFG34433	Bacteria; Thermotogae; Thermotogae; Thermotogales; Fervidobacteriaceae; Fervidobacterium
+801	Thermosipho africanus | ACJ76239	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Fervidobacteriaceae; Thermosipho; Thermosipho africanus
+802	Thermosipho africanus | EKF50319	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Fervidobacteriaceae; Thermosipho; Thermosipho africanus
+803	Thermosipho melanesiensis | ABR30357	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Fervidobacteriaceae; Thermosipho; Thermosipho melanesiensis
+804	Thermosipho melanesiensis | ABR31445	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Fervidobacteriaceae; Thermosipho; Thermosipho melanesiensis
+805	Pseudothermotoga | KUK20437	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae; Pseudothermotoga
+806	Pseudothermotoga | KUK20705	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae; Pseudothermotoga
+807	Pseudothermotoga hypogea | AJC72862	Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae
+808	Pseudothermotoga thermarum | AEH50198	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae; Pseudothermotoga; Pseudothermotoga thermarum
+809	Pseudothermotoga thermarum | AEH50203	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae; Pseudothermotoga; Pseudothermotoga thermarum
+810	Thermotoga | KUK03065	Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae
+811	Thermotoga neapolitana | ACM22661	Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae; Thermotoga
+812	Thermotoga neapolitana | ACM23243	Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae; Thermotoga
+813	unclassified Thermotogales miscellaneous | KUK94929	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; unclassified Thermotogales; unclassified Thermotogales miscellaneous
+814	Opitutus terrae | ACB74828	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Opitutae; Opitutales; Opitutaceae; Opitutus; Opitutus terrae
+815	environmental samples | ACM91024	cellular organisms; Bacteria; environmental samples
+816	environmental samples | EKD25809	cellular organisms; Bacteria; environmental samples
+817	environmental samples | EKD30691	cellular organisms; Bacteria; environmental samples
+818	environmental samples | EKD30694	cellular organisms; Bacteria; environmental samples
+819	environmental samples | EKE02262	cellular organisms; Bacteria; environmental samples
+820	environmental samples | EKE02265	cellular organisms; Bacteria; environmental samples
+821	environmental samples | EKE04167	cellular organisms; Bacteria; environmental samples
+822	environmental samples | EKE11766	cellular organisms; Bacteria; environmental samples

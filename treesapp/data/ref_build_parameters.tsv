@@ -59,10 +59,9 @@ P01157	P1157	prot	PROTGAMMALG	taxonomic	0.95	437	FastTree	-4.3297,6.9325	Phyla	1
 GH20	G0020	prot	PROTGAMMALG	functional	0.75	1159	FastTree	-4.689,6.3935	Phyla	26_Feb_2019	Glycoside hydrolase family 20
 #nosZ	D0601	prot	PROTGAMMALG	functional	0.95	449	FastTree	-6.1988,6.095	Phyla	13_Mar_2019	
 nosZ	D0601	prot	PROTGAMMALG	functional	0.95	449	RAxML	-7.9763,6.2277	Phyla	16_Mar_2019	
-dsrA	S0001	prot	PROTGAMMALG	functional	0.95	535	FastTree	-7.6614,6.6422	Kingdoms	19_Mar_2019	Dissimilatory sulfite reductase alpha subunit [EC:1.8.99.5]
-dsrB	S0002	prot	PROTGAMMALG	functional	0.95	722	FastTree	-6.7889,6.6125	Families	20_Mar_2019	Dissimilatory sulfite reductase beta subunit [EC:1.8.99.5]
 nxrA	N0301	prot	PROTGAMMALG	functional	0.90	963	FastTree	-4.7531,6.2707	Classes	20_Mar_2019	Nitrite oxidoreductase subunit A
 nxrB	N0302	prot	PROTGAMMALG	functional	0.90	648	FastTree	-3.1916,5.9084	Phyla	20_Mar_2019	Nitrite oxidoreductase subunit B
 McrA	M0701	prot	PROTGAMMALG	functional	0.97	228	RAxML	-5.3509,7.0	Classes	29_Apr_2019	Methyl coenzyme M reductase alpha subunit
 NrfA	D0102	prot	PROTGAMMALG	functional	0.95	345	FastTree	-3.9855,7.0	Phyla	14_May_2019	nitrite reductase (cytochrome c-552) [EC:1.7.2.2]
 DsrAB	S0001	prot	PROTGAMMALG	functional	0.95	753	RAxML	-6.2949,7.0	Kingdoms	16_May_2019	Dissimilatory sulfite reductase alpha/beta subunits [EC:1.8.99.5]
+hydA	Z1111	prot	PROTGAMMALG	functional	0.90	822	FastTree	-5.4628,7.0	Classes	23_May_2019	
