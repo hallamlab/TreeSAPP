@@ -571,11 +571,11 @@ def threshold(lst, confidence="low"):
     return sorted(lst, reverse=True)[index]
 
 
-def estimate_taxonomic_redundancy(reference_dict):
+def estimate_taxonomic_redundancy(lineages: list):
     """
-
-    :param reference_dict:
-    :return:
+    Determines the lowest/shallowest taxonomic rank with reasonable coverage that should allow for quality assignments
+    :param lineages: A list of taxonomic lineages
+    :return: str
     """
     # TODO: Factor proximity of leaves in the tree into this measure
     # For instance, if the two or so species of the same genus are in the tree,
@@ -586,10 +586,9 @@ def estimate_taxonomic_redundancy(reference_dict):
     for depth in rank_depth_map:
         name = rank_depth_map[depth]
         taxa_counts[name] = dict()
-    for mltree_id_key in sorted(reference_dict.keys(), key=int):
-        lineage = reference_dict[mltree_id_key].lineage
-        position = 1
+    for lineage in lineages:
         taxa = lineage.split('; ')
+        position = 1
         while position < len(taxa) and position < 8:
             if taxa[position] not in taxa_counts[rank_depth_map[position]]:
                 taxa_counts[rank_depth_map[position]][taxa[position]] = 0
@@ -604,7 +603,7 @@ def estimate_taxonomic_redundancy(reference_dict):
             lowest_reliable_rank = rank
             break
 
-    logging.info("Lowest reliable rank for taxonomic classification is: " + lowest_reliable_rank + "\n")
+    logging.debug("Lowest reliable rank for taxonomic classification is: " + lowest_reliable_rank + "\n")
 
     return lowest_reliable_rank
 

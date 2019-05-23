@@ -122,7 +122,7 @@ def train(sys_args):
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
-        ref_seqs.summarize_fasta_sequences()
+        logging.info(ref_seqs.summarize_fasta_sequences())
         write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
         utilities.hmm_pile(hmm_matches)
     else:
@@ -214,6 +214,7 @@ def create(sys_args):
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
         ref_seqs.fasta_dict = format_read_fasta(args.input, ts_create.molecule_type, ts_create.output_dir)
         ref_seqs.header_registry = register_headers(get_headers(args.input))
+        logging.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
         logging.info("Searching for domain sequences... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], ts_create.hmm_profile,
@@ -221,7 +222,6 @@ def create(sys_args):
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
-        ref_seqs.summarize_fasta_sequences()
         write_new_fasta(marker_gene_dict, ts_create.hmm_purified_seqs)
         utilities.hmm_pile(hmm_matches)
     else:
@@ -235,6 +235,7 @@ def create(sys_args):
                                             110, args.min_seq_length)
     ref_seqs.header_registry = register_headers(get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
+    logging.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
     ##
     # If there are sequences that needs to be guaranteed to be included,
@@ -249,8 +250,9 @@ def create(sys_args):
     # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
-    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args)
-    create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
+    if ts_create.stage_status("lineages"):
+        fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args)
+        create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
@@ -265,13 +267,13 @@ def create(sys_args):
             logging.error(str(len(fasta_records)) + " sequences post-homology + taxonomy filtering\n")
             sys.exit(11)
 
-    # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
-    ref_seqs.file = ts_create.filtered_fasta
-    # NOTE: original header must be used as this is being passed to train
-    ref_seqs.change_dict_keys("original")
-    filtered_headers = [ref_seqs.header_registry[num_id].original for num_id in fasta_records]
-    ref_seqs.keep_only(filtered_headers)
-    write_new_fasta(ref_seqs.fasta_dict, ts_create.filtered_fasta)
+        # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
+        ref_seqs.file = ts_create.filtered_fasta
+        # NOTE: original header must be used as this is being passed to train
+        ref_seqs.change_dict_keys("original")
+        filtered_headers = [ref_seqs.header_registry[num_id].original for num_id in fasta_records]
+        ref_seqs.keep_only(filtered_headers)
+        write_new_fasta(ref_seqs.fasta_dict, ts_create.filtered_fasta)
 
     ##
     # Optionally cluster the input sequences using USEARCH at the specified identity
@@ -346,7 +348,6 @@ def create(sys_args):
         logging.info("Generated the taxonomic lineage map " + ts_create.ref_pkg.lineage_ids + "\n")
         taxonomic_summary = create_refpkg.summarize_reference_taxa(fasta_replace_dict, args.taxa_lca)
         logging.info(taxonomic_summary)
-        marker_package.lowest_confident_rank = create_refpkg.estimate_taxonomic_redundancy(fasta_replace_dict)
 
         ##
         # Perform multiple sequence alignment
@@ -417,13 +418,8 @@ def create(sys_args):
         ##
         # Build the tree using either RAxML or FastTree
         ##
-        marker_package.tree_tool = wrapper.construct_tree(ts_create.executables, ts_create.molecule_type,
-                                                          ts_create.phylip_file, ts_create.phy_dir,
-                                                          ts_create.ref_pkg.tree, ts_create.ref_pkg.prefix, args)
-        if args.raxml_model:
-            marker_package.model = args.raxml_model
-        else:
-            marker_package.model = ts_create.determine_model(args.fast)
+        wrapper.construct_tree(ts_create.executables, ts_create.molecule_type, ts_create.phylip_file,
+                               ts_create.phy_dir, ts_create.ref_pkg.tree, ts_create.ref_pkg.prefix, args)
         if not args.fast:
             raw_newick_tree = ts_create.phy_dir + "RAxML_bestTree." + ts_create.ref_pkg.prefix
             bootstrap_tree = ts_create.phy_dir + "RAxML_bipartitionsBranchLabels." + ts_create.ref_pkg.prefix
@@ -432,7 +428,13 @@ def create(sys_args):
             utilities.swap_tree_names(raw_newick_tree, ts_create.ref_pkg.tree, ts_create.ref_pkg.prefix)
             utilities.swap_tree_names(bootstrap_tree, bootstrap_nameswap, ts_create.ref_pkg.prefix)
 
+    if args.raxml_model:
+        marker_package.model = args.raxml_model
+    else:
+        marker_package.model = ts_create.determine_model(args.fast)
     param_file = ts_create.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
+    refpkg_lineages = [ref.lineage for ref in ts_create.ref_pkg.tax_ids_file_to_leaves()]
+    marker_package.lowest_confident_rank = create_refpkg.estimate_taxonomic_redundancy(refpkg_lineages)
     create_refpkg.update_build_parameters(param_file, marker_package)
     if ts_create.stage_status("train"):
         # Build the regression model of placement distances to taxonomic ranks
@@ -446,24 +448,29 @@ def create(sys_args):
         if args.trim_align:
             trainer_cmd.append("--trim_align")
         train(trainer_cmd)
-        marker_package.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir + "placement_trainer" +
-                                                                   os.sep + "placement_trainer_results.txt")
 
     ##
     # Finish validating the file and append the reference package build parameters to the master table
     ##
     if ts_create.stage_status("update"):
+        if args.fast:
+            marker_package.tree_tool = "FastTree"
+        else:
+            marker_package.tree_tool = "RAxML"
+        marker_package.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir + "placement_trainer" +
+                                                                   os.sep + "placement_trainer_results.txt")
         ts_create.ref_pkg.validate(marker_package.num_reps)
+        if not marker_package.num_reps:
+            marker_package.num_reps = ts_create.ref_pkg.num_seqs
         if not marker_package.pfit:
             logging.warning("Linear regression parameters could not be estimated. " +
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
             marker_package.pfit = [0.0, 7.0]
         create_refpkg.update_build_parameters(param_file, marker_package)
+        ts_create.print_terminal_commands()
 
     logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
     ts_create.remove_intermediates()
-    if ts_create.stage_status("cc"):
-        ts_create.print_terminal_commands()
 
     return
 
@@ -492,7 +499,7 @@ def update(sys_args):
     ##
     classified_fasta = FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
-    classified_fasta.summarize_fasta_sequences()
+    logging.info(classified_fasta.summarize_fasta_sequences())
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.original_headers())
     if len(classified_targets) == 0:
         logging.error("No new candidate reference sequences. Skipping update.\n")

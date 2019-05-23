@@ -419,18 +419,16 @@ def read_colours_file(annotation_file):
 
 
 def tax_ids_file_to_leaves(tax_ids_file):
+    # TODO: Replace all instances of this function call with that from the class ReferencePackage
     tree_leaves = list()
     unknown = 0
     try:
-        if sys.version_info > (2, 9):
-            cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
-        else:
-            cog_tax_ids = open(tax_ids_file, 'r')
+        tax_ids_handler = open(tax_ids_file, 'r', encoding='utf-8')
     except IOError:
         logging.error("Unable to open " + tax_ids_file + "\n")
         sys.exit(5)
 
-    for line in cog_tax_ids:
+    for line in tax_ids_handler:
         line = line.strip()
         try:
             fields = line.split("\t")
@@ -459,7 +457,7 @@ def tax_ids_file_to_leaves(tax_ids_file):
         logging.error("Lineage information was not properly loaded for " + tax_ids_file + "\n")
         sys.exit(5)
 
-    cog_tax_ids.close()
+    tax_ids_handler.close()
     return tree_leaves
 
 

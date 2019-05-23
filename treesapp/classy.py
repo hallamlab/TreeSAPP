@@ -11,7 +11,7 @@ from copy import deepcopy
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
-from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA
+from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
 from .utilities import median, which, is_exe, return_sequence_info_groups, reluctant_remove_replace
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset, clean_lineage_string
@@ -49,7 +49,7 @@ class ReferencePackage:
         self.core_ref_files = list()
         self.num_seqs = 0
 
-    def validate(self, num_ref_seqs=None):
+    def validate(self, num_ref_seqs=0):
         """
         Function that ensures the number of sequences is equal across all files and that in the ref_build_parameters.tsv
         :return: Boolean
@@ -60,10 +60,56 @@ class ReferencePackage:
                 logging.error("File '" + ref_file + "' does not exist for reference package: " + self.prefix + "\n")
                 sys.exit(17)
         # TODO: Compare the number of sequences in the multiple sequence alignment
+        self.num_seqs = len(get_headers(self.msa))
+        if not num_ref_seqs:
+            num_ref_seqs = self.num_seqs
         # TODO: Compare the number of sequences in the Hidden-Markov model
         # TODO: Compare the number of sequences in the Tree files
         # TODO: Compare the number of sequences in the tax_ids file
+        num_taxa = len(self.tax_ids_file_to_leaves())
+        if num_taxa != num_ref_seqs != self.num_seqs:
+            logging.error("Number of reference sequences for reference package '" +
+                          self.prefix + "' is inconsistent!\n")
+            sys.exit(3)
         return True
+
+    def tax_ids_file_to_leaves(self):
+        tree_leaves = list()
+        unknown = 0
+        try:
+            tax_ids_handler = open(self.lineage_ids, 'r', encoding='utf-8')
+        except IOError:
+            logging.error("Unable to open " + self.lineage_ids + "\n")
+            sys.exit(5)
+
+        for line in tax_ids_handler:
+            line = line.strip()
+            try:
+                fields = line.split("\t")
+            except ValueError:
+                logging.error('ValueError: .split(\'\\t\') on ' + str(line) +
+                              " generated " + str(len(line.split("\t"))) + " fields.\n")
+                sys.exit(5)
+            try:
+                number, seq_name, lineage = fields
+            except (ValueError, IndexError):
+                logging.error("Unexpected number of fields in " + self.lineage_ids +
+                              ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
+                sys.exit(5)
+            leaf = TreeLeafReference(number, seq_name)
+            if lineage:
+                leaf.lineage = lineage
+                leaf.complete = True
+            else:
+                unknown += 1
+            tree_leaves.append(leaf)
+
+        if len(tree_leaves) == unknown:
+            logging.error("Lineage information was not properly loaded for " + self.lineage_ids + "\n")
+            sys.exit(5)
+
+        tax_ids_handler.close()
+        return tree_leaves
 
     def gather_package_files(self, pkg_path: str, molecule="prot", layout=None):
         """
@@ -170,7 +216,7 @@ class MarkerBuild:
         taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
 
         if self.lowest_confident_rank not in list(taxonomies):
-            logging.error("Unable to find " + self.lowest_confident_rank + " in taxonomic map!")
+            logging.error("Unable to find '" + self.lowest_confident_rank + "' in taxonomic map!\n")
             sys.exit(17)
 
         return
@@ -999,27 +1045,19 @@ class TreeSAPP:
         # Identify all the various reasons someone may not want to have their previous results overwritten
         if not os.path.isdir(self.output_dir):
             os.mkdir(self.output_dir)
-            # Create the output directories
-            for output_dir in main_output_dirs:
-                os.mkdir(output_dir)
         elif not args.overwrite and glob(self.final_output_dir + "*"):
-            reluctant_remove_replace(self.output_dir)
-            for output_dir in main_output_dirs:
-                os.mkdir(output_dir)
+            # reluctant_remove_replace(self.output_dir)
+            pass
         elif not args.overwrite and not glob(self.final_output_dir + "*"):
             # Last run didn't complete so use the intermediates if possible
-            for output_dir in main_output_dirs:
-                if not os.path.isdir(output_dir):
-                    os.mkdir(output_dir)
+            pass
         elif args.overwrite:
             if os.path.isdir(self.output_dir):
                 rmtree(self.output_dir)
             os.mkdir(self.output_dir)
-            for output_dir in main_output_dirs:
-                os.mkdir(output_dir)
-        else:
-            # Create the output directories
-            for output_dir in main_output_dirs:
+        # Create the output directories
+        for output_dir in main_output_dirs:
+            if not os.path.isdir(output_dir):
                 os.mkdir(output_dir)
         return
 
@@ -1132,6 +1170,8 @@ class TreeSAPP:
         elif self.command == "create":
             if not args.profile:
                 self.change_stage_status("search", False)
+            if args.pc:
+                self.edit_stages(self.stage_lookup("update").order)
         elif self.command == "evaluate":
             pass
         elif self.command == "train":
@@ -1304,8 +1344,7 @@ class Creator(TreeSAPP):
                        3: ModuleFunction("cluster", 3),
                        4: ModuleFunction("build", 4),
                        5: ModuleFunction("train", 5),
-                       6: ModuleFunction("update", 6),
-                       7: ModuleFunction("cc", 7)}
+                       6: ModuleFunction("update", 6)}
 
     def get_info(self):
         info_string = "Creator instance summary:\n"

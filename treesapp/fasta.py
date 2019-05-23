@@ -260,8 +260,7 @@ class FASTA:
         stats_string += "\tMean sequence length: " + str(round(sum(sequence_lengths) / num_headers, 1)) + "\n"
         stats_string += "\tMedian sequence length: " + str(median(sequence_lengths)) + "\n"
 
-        logging.info(stats_string)
-        return
+        return stats_string
 
     def deduplicate_fasta_sequences(self):
         """
