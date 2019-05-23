@@ -250,9 +250,8 @@ def create(sys_args):
     # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
-    if ts_create.stage_status("lineages"):
-        fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args)
-        create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
+    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args)
+    create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'

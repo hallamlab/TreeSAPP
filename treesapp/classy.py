@@ -1145,6 +1145,8 @@ class TreeSAPP:
 
         This function ensures all the required inputs are present for beginning at the desired first stage,
         otherwise, the pipeline begins at the first possible stage to continue and ends once the desired stage is done.
+
+        If a
         :return: None
         """
         if self.command == "assign":
@@ -1172,11 +1174,32 @@ class TreeSAPP:
                 self.change_stage_status("search", False)
             if args.pc:
                 self.edit_stages(self.stage_lookup("update").order)
+            # TODO: Allow users to provide sequence-lineage maps for a subset of the query sequences
+            if args.acc_to_lin:
+                self.acc_to_lin = args.acc_to_lin
+                if os.path.isfile(self.acc_to_lin):
+                    self.change_stage_status("lineages", False)
+                else:
+                    logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
+                    sys.exit(3)
+            else:
+                self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+
         elif self.command == "evaluate":
             pass
         elif self.command == "train":
             if not args.profile:
                 self.change_stage_status("search", False)
+            # TODO: Remove duplicate code once the log-file parsing is implemented
+            if args.acc_to_lin:
+                self.acc_to_lin = args.acc_to_lin
+                if os.path.isfile(self.acc_to_lin):
+                    self.change_stage_status("lineages", False)
+                else:
+                    logging.error("Unable to find accession-lineage mapping file '" + self.acc_to_lin + "'\n")
+                    sys.exit(3)
+            else:
+                self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
         else:
             logging.error("Unknown sub-command: " + str(self.command) + "\n")
             sys.exit(3)
@@ -1272,7 +1295,9 @@ class TreeSAPP:
             entrez_utils.write_accession_lineage_map(self.acc_to_lin, self.seq_lineage_map)
             # Add lineage information to the ReferenceSequence() objects in ref_seq_records if not contained
         else:
-            entrez_utils.fill_ref_seq_lineages(ref_seq_records, self.seq_lineage_map)
+            logging.info("Reading cached lineages in '" + self.acc_to_lin + "'... ")
+            self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
+            logging.info("done.\n")
         return ref_seq_records
 
 
