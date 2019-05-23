@@ -304,7 +304,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
             description = regex_match_groups.group(3)
         elif header_db == "eggnog":
             taxid = regex_match_groups.group(1)
-            accession = ""
+            accession = regex_match_groups.group(1) + '.' + regex_match_groups.group(2)
         elif header_db == "ts_assign":
             accession = '|'.join(regex_match_groups.groups())
             description = regex_match_groups.group(1)

@@ -494,7 +494,7 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
     # Step 1: Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
     ##
     search_terms = entrez_records_to_accession_set(entrez_query_list, 1)
-    logging.info("Retrieving taxonomy Entrez records for each accession... ")
+    logging.info("Retrieving Entrez taxonomy records for each accession... ")
     records_batch, durations, org_failures = tolerant_entrez_query(list(search_terms.keys()), entrez_db)
     logging.info("done.\n")
 
@@ -716,7 +716,7 @@ def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
             try:
                 lineage = accession_lineages[ref_seq.accession]
             except KeyError:
-                logging.error("Lineage information was not retrieved for " + ref_seq.accession + "!\n" +
+                logging.error("Lineage information was not retrieved for accession '" + ref_seq.accession + "'.\n" +
                               "Please remove the output directory and restart.\n")
                 sys.exit(13)
             # Add the species designation since it is often not included in the sequence record's lineage

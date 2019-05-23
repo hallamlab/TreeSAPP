@@ -836,7 +836,6 @@ def get_header_info(header_registry, code_name=''):
     deduped_accessions = list()
     for treesapp_id in sorted(header_registry.keys(), key=int):
         original_header = header_registry[treesapp_id].original
-        formatted_header = header_registry[treesapp_id].formatted
         header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
         sequence_info = header_format_re.match(original_header)
         seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, original_header)
