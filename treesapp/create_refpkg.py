@@ -229,7 +229,7 @@ def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, i
     :return:
     """
     if not important_seqs:
-        important_seqs = dict()
+        important_seqs = set()
     candidates = dict()
     for cluster_id in sorted(cluster_dict, key=int):
         cluster_info = cluster_dict[cluster_id]
@@ -244,7 +244,7 @@ def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, i
         if acc != 2:
             raise AssertionError("Unable to find " + cluster_info.representative + " in ReferenceSequence objects!")
 
-        if len(cluster_info.members) >= 1 and cluster_info.representative not in important_seqs.keys():
+        if len(cluster_info.members) >= 1 and cluster_info.representative not in important_seqs:
             for cluster_member_info in cluster_info.members:
                 for treesapp_id in sorted(refseq_objects, key=int):
                     formatted_header = header_registry[treesapp_id].original
