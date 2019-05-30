@@ -27,7 +27,7 @@ try:
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, MarkerBuild
-    from .fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict
+    from .fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict, FASTA
     from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
     from .external_command_interface import launch_write_command, setup_progress_bar
@@ -72,6 +72,21 @@ def validate_inputs(args, marker_build_dict):
     return
 
 
+def replace_contig_names(numeric_contig_index: dict, fasta: FASTA):
+    for marker in numeric_contig_index:
+        assign_re = re.compile(r"(.*)\|{0}\|(\d+_\d+)$".format(marker))
+        for neg_num_id in numeric_contig_index[marker]:
+            assign_name = numeric_contig_index[marker][neg_num_id]
+            seq_name, coords = assign_re.match(assign_name).groups()
+            try:
+                original_name = fasta.header_registry[seq_name].original
+            except KeyError:
+                logging.error("Unable to find TreeSAPP numerical ID '" + seq_name + "' in header registry.\n")
+                sys.exit(3)
+            numeric_contig_index[marker][neg_num_id] = original_name + '|' + marker + '|' + coords
+    return numeric_contig_index
+
+
 def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict):
     """
     Function writes the sequences identified by the HMMs to output files in FASTA format.
@@ -106,14 +121,14 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict):
         # 4. When bins are exhausted create new bin with HmmMatch
         for hmm_match in sorted(hmm_matches[marker], key=lambda x: x.end - x.start):
             if hmm_match.desc != '-':
-                contig_name = hmm_match.orf + '_' + hmm_match.desc
+                contig_name = hmm_match.orf + ' ' + hmm_match.desc
             else:
                 contig_name = hmm_match.orf
             # Add the query sequence to the index map
             orf_coordinates = str(hmm_match.start) + '_' + str(hmm_match.end)
             numeric_contig_index[marker][numeric_decrementor] = contig_name + '|' + marker + '|' + orf_coordinates
             # Add the FASTA record of the trimmed sequence - this one moves on for placement
-            full_sequence = fasta_dict[utilities.reformat_string(contig_name)]
+            full_sequence = fasta_dict[contig_name]
             binned = False
             for bin_num in sorted(bins):
                 bin_rep = bins[bin_num][0]

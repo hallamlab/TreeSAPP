@@ -234,6 +234,34 @@ class FASTA:
         self.header_registry = register_headers(list(self.fasta_dict.keys()), True)
         return
 
+    def custom_lineage_headers(self, header_lineage_map: dict):
+        """
+        Converts a header to the TreeSAPP custom header format (below) using a dictionary
+
+        Custom fasta header with taxonomy:
+         First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
+         There are no character restrictions on the first and third groups
+         The lineage must be formatted like:
+          cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+        :param header_lineage_map: A dictionary mapping sequence names/headers to NCBI-formatted taxonomic lineages
+        :return: None
+        """
+        swap_header_map = dict()
+        skipped = []
+        header_re = re.compile(r"^>?([A-Za-z0-9.\-_]+\.?[0-9]?)\s+(\[.*\])$")
+        for seq_name in header_lineage_map:
+            try:
+                accession, organism = header_re.match(seq_name).groups()
+                swap_header_map[seq_name] = accession + " lineage=" + header_lineage_map[seq_name] + ' ' + organism
+            except TypeError:
+                skipped.append(seq_name)
+                swap_header_map[seq_name] = seq_name
+        self.swap_headers(swap_header_map)
+        if skipped:
+            logging.warning("Skipped converting sequence names to custom lineage format for the following:\n" +
+                            ", ".join(skipped) + "\n")
+        return
+
     def summarize_fasta_sequences(self):
         num_headers = 0
         longest = 0
@@ -480,7 +508,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
             split_files.append(fasta_name)
             file_counter += 1
             sequence_accumulator = 1
-            fasta_name = re.sub("_\d+.fasta$", '_' + str(file_counter) + ".fasta", fasta_name)
+            fasta_name = re.sub(r"_\d+.fasta$", '_' + str(file_counter) + ".fasta", fasta_name)
             fa_out = open(fasta_name, 'w')
 
         # Only write the records specified in `headers`, or all records if `headers` isn't provided
@@ -515,7 +543,7 @@ def get_header_format(header, code_name=""):
     # Protein databases:
     gi_re = re.compile(r">?gi\|(\d+)\|[a-z]+\|[_A-Z0-9.]+\|.* RecName: Full=([A-Za-z1-9 _\-]+);?.*$")  # a
     gi_prepend_proper_re = re.compile(r">?gi\|\d+\|[a-z]{2,4}\|([_A-Z0-9.]+)\| (.*) \[(.*)\]$")  # a, d, o
-    gi_prepend_mess_re = re.compile(r">?gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-\()]+)$")  # a
+    gi_prepend_mess_re = re.compile(r">?gi\|(\d+)\|[a-z]{2,4}\|.*\|([\w\s.,\-()]+)$")  # a
     dbj_re = re.compile(r">?dbj\|(.*)\|.*\[(.*)\]")  # a, o
     emb_re = re.compile(r">?emb\|(.*)\|.*\[(.*)\]")
     gb_re = re.compile(r">?gb\|(.*)\|.*\[(.*)\]")
@@ -526,7 +554,6 @@ def get_header_format(header, code_name=""):
     sp_re = re.compile(r">?sp\|(.*)\|.*Full=.*;?.*$")  # a
     fungene_gi_bad = re.compile(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
-    assign_re = re.compile(r"^>?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
     pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
     eggnog_re = re.compile(r"^>?(\d+)\.([A-Za-z][-A-Za-z0-9_]+)(\s\[.*\])?$")  # t, o
 
@@ -540,6 +567,7 @@ def get_header_format(header, code_name=""):
     accession_only = re.compile(r"^>?([A-Z]+_?[0-9]+\.?[0-9]?)$")  # a
     ncbi_ambiguous = re.compile(r"^>?([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
     ncbi_org = re.compile(r"^>?([A-Z][A-Za-z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
+    assign_re = re.compile(r"^>?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
 
     # Custom fasta header with taxonomy:
     # First group = contig/sequence name, second = full taxonomic lineage, third = description for tree

@@ -112,8 +112,8 @@ def create_new_ref_fasta(out_fasta, ref_seq_dict, dashes=False):
     out_fasta_handle = open(out_fasta, "w")
     num_seqs_written = 0
 
-    for mltree_id in sorted(ref_seq_dict, key=int):
-        ref_seq = ref_seq_dict[mltree_id]
+    for treesapp_id in sorted(ref_seq_dict, key=int):
+        ref_seq = ref_seq_dict[treesapp_id]
         if dashes is False:
             sequence = re.sub('[-.]', '', ref_seq.sequence)
         else:
@@ -153,10 +153,10 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
         if len(subs) >= 1:
             # If there is the possibility the header could have been swapped,
             # check if the header is in fasta_replace_dict
-            for mltree_id in fasta_replace_dict:
+            for treesapp_id in fasta_replace_dict:
                 if matched:
                     break
-                ref_seq = fasta_replace_dict[mltree_id]
+                ref_seq = fasta_replace_dict[treesapp_id]
                 # If the accession from the tax_ids file is the same as the representative
                 # this one has not been swapped for an identical sequence's header since it is in use
                 if re.search(ref_seq.accession, rep):
@@ -298,19 +298,19 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
     :param fasta_replace_dict:
     :param header_registry:
     :param swappers: A dictionary containing representative clusters (keys) and their constituents (values)
-    :return: fasta_replace_dict with a complete ReferenceSequence() value for every mltree_id key
+    :return: fasta_replace_dict with a complete ReferenceSequence() value for every treesapp_id key
     """
 
     logging.info("Extracting information from headers for formatting purposes... ")
     fungene_gi_bad = re.compile(r"^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     swapped_headers = []
     if len(fasta_replace_dict.keys()) > 0:
-        for mltree_id in sorted(fasta_replace_dict):
-            ref_seq = fasta_replace_dict[mltree_id]
-            ref_seq.short_id = mltree_id + '_' + code_name
+        for treesapp_id in sorted(fasta_replace_dict):
+            ref_seq = fasta_replace_dict[treesapp_id]
+            ref_seq.short_id = treesapp_id + '_' + code_name
             for header in fasta_dict:
                 # Find the matching header in the header_registry
-                original_header = header_registry[mltree_id].original
+                original_header = header_registry[treesapp_id].original
                 header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, code_name)
                 sequence_info = header_format_re.match(original_header)
                 fasta_header_organism = utilities.return_sequence_info_groups(sequence_info, header_db, header).organism
@@ -354,11 +354,11 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
 
             # Try to find the original header in header_registry
             original_header = ""
-            mltree_id = ""
+            treesapp_id = ""
             for num in header_registry:
                 if header == header_registry[num].formatted:
                     original_header = header_registry[num].original
-                    mltree_id = str(num)
+                    treesapp_id = str(num)
                     break
             ref_seq = ReferenceSequence()
             ref_seq.sequence = fasta_dict[header]
@@ -366,7 +366,7 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
             if swappers and header in swappers.keys():
                 header = swappers[header]
                 swapped_headers.append(header)
-            if original_header and mltree_id:
+            if original_header and treesapp_id:
                 pass
             else:
                 logging.error("Unable to find the header:\n\t" + header +
@@ -382,8 +382,8 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
             ref_seq.description = seq_info_tuple.description
             ref_seq.lineage = seq_info_tuple.lineage
 
-            ref_seq.short_id = mltree_id + '_' + code_name
-            fasta_replace_dict[mltree_id] = ref_seq
+            ref_seq.short_id = treesapp_id + '_' + code_name
+            fasta_replace_dict[treesapp_id] = ref_seq
 
         if swappers and len(swapped_headers) != len(swappers):
             logging.error("Some headers that were meant to be replaced could not be compared!\n")
@@ -410,14 +410,13 @@ def screen_filter_taxa(args, fasta_replace_dict):
         else:
             filter_terms = ''
 
-    purified_fasta_dict = dict()
     num_filtered = 0
     num_screened = 0
 
-    for mltree_id in fasta_replace_dict:
+    for treesapp_id in fasta_replace_dict:
         screen_pass = False
         filter_pass = True
-        ref_seq = fasta_replace_dict[mltree_id]
+        ref_seq = fasta_replace_dict[treesapp_id]  # type: ReferenceSequence
         # Screen
         if len(screen_terms) > 0:
             for term in screen_terms:
@@ -434,8 +433,9 @@ def screen_filter_taxa(args, fasta_replace_dict):
                     filter_pass = False
 
         if filter_pass and screen_pass:
-            purified_fasta_dict[mltree_id] = ref_seq
+            pass
         else:
+            ref_seq.cluster_rep = False
             if screen_pass is False:
                 num_screened += 1
             if filter_pass is False:
@@ -443,9 +443,9 @@ def screen_filter_taxa(args, fasta_replace_dict):
 
     logging.debug('\t' + str(num_screened) + " sequences removed after failing screen.\n" +
                   '\t' + str(num_filtered) + " sequences removed after failing filter.\n" +
-                  '\t' + str(len(purified_fasta_dict.keys())) + " sequences retained.\n")
+                  '\t' + str(len(fasta_replace_dict) - num_filtered - num_screened) + " sequences retained.\n")
 
-    return purified_fasta_dict
+    return
 
 
 def remove_by_truncated_lineages(min_taxonomic_rank, fasta_replace_dict):
@@ -454,22 +454,22 @@ def remove_by_truncated_lineages(min_taxonomic_rank, fasta_replace_dict):
     if min_taxonomic_rank == 'k':
         return fasta_replace_dict
 
-    purified_fasta_dict = dict()
     num_removed = 0
 
-    for mltree_id in fasta_replace_dict:
-        ref_seq = fasta_replace_dict[mltree_id]
+    for treesapp_id in fasta_replace_dict:
+        ref_seq = fasta_replace_dict[treesapp_id]
         if len(ref_seq.lineage.split("; ")) < min_depth:
             num_removed += 1
+            ref_seq.cluster_rep = False
         elif re.search("^unclassified", ref_seq.lineage.split("; ")[min_depth-1], re.IGNORECASE):
             num_removed += 1
         else:
-            purified_fasta_dict[mltree_id] = ref_seq
+            pass
 
     logging.debug('\t' + str(num_removed) + " sequences removed with truncated taxonomic lineages.\n" +
-                  '\t' + str(len(purified_fasta_dict.keys())) + " sequences retained for building tree.\n")
+                  '\t' + str(len(fasta_replace_dict) - num_removed) + " sequences retained for building tree.\n")
 
-    return purified_fasta_dict
+    return
 
 
 def remove_duplicate_records(fasta_record_objects: dict, header_registry: dict):
@@ -744,18 +744,24 @@ def update_build_parameters(param_file, marker_package: classy.MarkerBuild):
     """
     with open(param_file) as param_handler:
         param_lines = param_handler.readlines()
-
-    marker_package.update = strftime("%d_%b_%Y", gmtime())
-    build_list = [marker_package.cog, marker_package.denominator, marker_package.molecule, marker_package.model,
-                  marker_package.kind, str(marker_package.pid), str(marker_package.num_reps), marker_package.tree_tool,
-                  ','.join([str(param) for param in marker_package.pfit]),
-                  marker_package.lowest_confident_rank, marker_package.update, marker_package.description]
-
+    # Read the the original build parameters file, extracting useful information from the old version if present
     updated_lines = []
     for line in param_lines:
         fields = line.strip("\n").split("\t")
         if fields[0] != marker_package.cog:
             updated_lines.append("\t".join(fields))
+        else:
+            if not marker_package.denominator or marker_package.denominator == "Z1111":
+                marker_package.denominator = fields[1]
+            if not marker_package.description:
+                marker_package.description = fields[-1]
+
+    # Add the new reference package's build parameters to the list of others
+    marker_package.update = strftime("%d_%b_%Y", gmtime())
+    build_list = [marker_package.cog, marker_package.denominator, marker_package.molecule, marker_package.model,
+                  marker_package.kind, str(marker_package.pid), str(marker_package.num_reps), marker_package.tree_tool,
+                  ','.join([str(param) for param in marker_package.pfit]),
+                  marker_package.lowest_confident_rank, marker_package.update, marker_package.description]
     updated_lines.append("\t".join(build_list))
 
     try:

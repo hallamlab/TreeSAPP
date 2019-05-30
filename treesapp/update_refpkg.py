@@ -125,3 +125,14 @@ def map_classified_seqs(ref_pkg_name, assignments, unmapped_seqs):
                       "\n".join(unmapped_seqs) + "\n")
         sys.exit(5)
     return classified_seq_lineage_map
+
+
+def strip_assigment_pattern(seq_names: list, refpkg_name: str):
+    """
+    Strips the |RefPkg|start_stop pattern from the end of sequence names
+    :param seq_names: A list of sequence names (headers) that were assigned using TreeSAPP
+    :param refpkg_name: Name of the reference package that sequences were assigned to (e.g. McrA, nosZ)
+    :return: Dictionary mapping the original headers to the new headers
+    """
+    return {seq_name: re.sub(r"\|{0}\|\d+_\d+$".format(refpkg_name), '', seq_name) for seq_name in seq_names}
+

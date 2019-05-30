@@ -281,10 +281,16 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
     parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
-    parser.optopt.add_argument("--fast", default=False, required=False, action="store_true",
-                               help="A flag indicating the tree should be built rapidly, using FastTree.")
+    parser.optopt.add_argument("--stage", default="continue", required=False,
+                               choices=["continue", "lineages", "rebuild"],
+                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
     parser.optopt.add_argument("-a", "--seqs2taxa", dest="seq_names_to_taxa", required=False, default=None,
                                help="Path to a file mapping sequence names (i.e. contig headers) to taxonomic lineages")
+    parser.optopt.add_argument("--fast", default=False, required=False, action="store_true",
+                               help="A flag indicating the tree should be built rapidly, using FastTree.")
+    parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
+                               help="The assigned sequences are from a database and their database lineages "
+                                    "should be used instead of the TreeSAPP-assigned lineages.")
     parser.seqops.add_argument("--cluster", required=False, default=False, action="store_true",
                                help="Cluster sequences that mapped to the reference tree prior to updating")
     parser.seqops.add_argument("-p", "--identity", required=False, type=float,

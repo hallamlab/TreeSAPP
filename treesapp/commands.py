@@ -25,7 +25,7 @@ from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, filter_multiple_alignments, check_for_removed_sequences,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
-    summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs
+    summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names
 from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -66,7 +66,7 @@ def info(sys_args):
         marker_build_dict = file_parsers.parse_ref_build_params(ts_info.treesapp_dir, [])
         refpkg_summary_str = "\t".join(["Name", "Code-name", "Molecule", "RefPkg-type", "Description", "Last-updated"])
         refpkg_summary_str += "\n"
-        for refpkg_code in marker_build_dict:
+        for refpkg_code in sorted(marker_build_dict, key= lambda x: marker_build_dict[x].cog):
             refpkg = marker_build_dict[refpkg_code]  # type: MarkerBuild
             refpkg_summary_str += refpkg_code + " -> " + ", ".join(
                 [refpkg.cog, refpkg.molecule, refpkg.kind, refpkg.description, refpkg.update]
@@ -130,7 +130,7 @@ def train(sys_args):
         ref_seqs.change_dict_keys("formatted")
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
-    fasta_records = ts_trainer.fetch_entrez_lineages(ref_seqs, args)
+    fasta_records = ts_trainer.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
 
     # Read in the reference fasta file
     ref_fasta_dict = read_fasta_to_dict(ts_trainer.ref_pkg.msa)
@@ -250,14 +250,14 @@ def create(sys_args):
     # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
-    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args)
+    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
     create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
-        fasta_records = create_refpkg.screen_filter_taxa(args, fasta_records)
+        create_refpkg.screen_filter_taxa(args, fasta_records)
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
-        fasta_records = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_records)
+        create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_records)
 
         fasta_records, ref_seqs.header_registry = create_refpkg.remove_duplicate_records(fasta_records,
                                                                                          ref_seqs.header_registry)
@@ -490,6 +490,7 @@ def update(sys_args):
     check_parser_arguments(args, sys_args)
     marker_build_dict = file_parsers.parse_ref_build_params(ts_updater.treesapp_dir, [])
     check_updater_arguments(ts_updater, args, marker_build_dict)
+    ts_updater.validate_continue(args)
     ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
     ts_updater.ref_pkg.validate()
 
@@ -521,6 +522,15 @@ def update(sys_args):
         seq_lineage_map = file_parsers.read_seq_taxa_table(ts_updater.seq_names_to_taxa)
         classified_seq_lineage_map.update(ts_updater.map_orf_lineages(seq_lineage_map,
                                                                       classified_fasta.header_registry))
+    elif args.skip_assign:
+        name_map = update_refpkg.strip_assigment_pattern(classified_fasta.get_seq_names(),
+                                                         ts_updater.ref_pkg.prefix)
+        classified_fasta.swap_headers(name_map)
+        fasta_records = ts_updater.fetch_entrez_lineages(classified_fasta, args.molecule)
+        create_refpkg.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
+        for treesapp_id in sorted(classified_fasta.header_registry.keys(), key=int):
+            record = fasta_records[treesapp_id]
+            classified_seq_lineage_map[record.accession] = record.lineage
     else:
         # Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
         classified_lines = file_parsers.read_marker_classification_table(ts_updater.final_output_dir +
@@ -533,9 +543,10 @@ def update(sys_args):
     ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)
-    classified_seq_lineage_map.update(
-        {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]: leaf.lineage for
-         leaf in ref_seq_lineage_info})
+    ref_seq_lineage_map = {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix]:
+                           leaf.lineage for leaf in ref_seq_lineage_info}
+    classified_seq_lineage_map.update({ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]:
+                                       leaf.lineage for leaf in ref_seq_lineage_info})
     update_refpkg.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
 
     ##
@@ -545,6 +556,8 @@ def update(sys_args):
     ref_fasta.load_fasta()
     # Update the original reference headers using info from the tax_ids file
     ref_fasta.swap_headers(ref_header_map)
+    ref_fasta.custom_lineage_headers(ref_seq_lineage_map)
+
     classified_fasta.update(ref_fasta.fasta_dict, False)
     classified_fasta.unalign()
 
@@ -736,25 +749,34 @@ def assign(sys_args):
         ts_assign.query_sequences = ts_assign.aa_orfs_file
     else:
         ts_assign.query_sequences = ts_assign.input_sequences
-    # TODO: Use a FASTA instance to track headers and filtering - use original ORF name in the outputs, not formatted
+
+    query_seqs = FASTA(ts_assign.query_sequences)
+    # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
     if ts_assign.stage_status("clean"):
-        logging.info("Formatting " + ts_assign.query_sequences + " for pipeline... ")
-        formatted_fasta_dict = format_read_fasta(ts_assign.query_sequences, "prot", ts_assign.output_dir)
+        logging.info("Reading and formatting " + ts_assign.query_sequences + "... ")
+        query_seqs.fasta_dict = format_read_fasta(ts_assign.query_sequences, "prot", ts_assign.output_dir)
+        query_seqs.header_registry = register_headers(get_headers(ts_assign.query_sequences), True)
+        query_seqs.change_dict_keys("num")
         logging.info("done.\n")
-        logging.info("\tTreeSAPP will analyze the " + str(len(formatted_fasta_dict)) + " sequences found in input.\n")
         logging.info("Writing formatted FASTA file to " + ts_assign.formatted_input + "... ")
-        write_new_fasta(formatted_fasta_dict, ts_assign.formatted_input)
+        write_new_fasta(query_seqs.fasta_dict, ts_assign.formatted_input)
         logging.info("done.\n")
+    else:
+        ts_assign.formatted_input = ts_assign.query_sequences
+        query_seqs.load_fasta()
+        query_seqs.change_dict_keys("num")  # Swap the formatted headers for the numerical IDs for quick look-ups
+    logging.info("\tTreeSAPP will analyze the " + str(len(query_seqs.fasta_dict)) + " sequences found in input.\n")
 
     ##
     # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
     ##
     if ts_assign.stage_status("search"):
         hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"], ts_assign.hmm_dir,
-                                                  marker_build_dict, ts_assign.formatted_input, ts_assign.var_output_dir,
-                                                  args.num_threads)
+                                                  marker_build_dict, ts_assign.formatted_input,
+                                                  ts_assign.var_output_dir, args.num_threads)
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, formatted_fasta_dict)
+        extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, query_seqs.fasta_dict)
+        numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
         homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
                                                  marker_build_dict, ts_assign.var_output_dir)
 
@@ -873,7 +895,7 @@ def evaluate(sys_args):
                 ref_seqs.fasta_dict[seq_id] = ref_seqs.fasta_dict[seq_id][random_start:random_start + args.length]
     ref_seqs.header_registry = register_headers(get_headers(ref_seqs.file))
 
-    fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args).values()
+    fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid).values()
 
     logging.info("Selecting representative sequences for each taxon.\n")
 

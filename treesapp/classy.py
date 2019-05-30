@@ -1199,6 +1199,8 @@ class TreeSAPP:
                     sys.exit(3)
             else:
                 self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+        elif self.command == "update":
+            self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
         else:
             logging.error("Unknown sub-command: " + str(self.command) + "\n")
             sys.exit(3)
@@ -1272,18 +1274,17 @@ class TreeSAPP:
 
         return exec_paths
 
-    def fetch_entrez_lineages(self, ref_seqs: FASTA, args):
+    def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule, acc_to_taxid=None):
         # Get the lineage information for the training/query sequences
         ref_seq_records = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
+        ref_seqs.change_dict_keys("formatted")
         ref_seq_records = entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, ref_seq_records)
         logging.debug("\tNumber of input sequences =\t" + str(len(ref_seq_records)) + "\n")
 
         if self.stage_status("lineages"):
             entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(ref_seq_records)
             logging.debug("\tNumber of queries =\t" + str(len(entrez_query_list)) + "\n")
-            entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list,
-                                                                     args.molecule,
-                                                                     args.acc_to_taxid)
+            entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, molecule, acc_to_taxid)
             self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
             # Download lineages separately for those accessions that failed
             # Map proper accession to lineage from the tuple keys (accession, accession.version)
@@ -1297,6 +1298,7 @@ class TreeSAPP:
             logging.info("Reading cached lineages in '" + self.acc_to_lin + "'... ")
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
             logging.info("done.\n")
+        ref_seqs.change_dict_keys()
         return ref_seq_records
 
 
@@ -1312,9 +1314,8 @@ class Updater(TreeSAPP):
         self.perc_id = 1.0
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
-        self.stages = {0: ModuleFunction("search", 0),
-                       1: ModuleFunction("lineages", 1),
-                       2: ModuleFunction("rebuild", 2)}
+        self.stages = {0: ModuleFunction("lineages", 0),
+                       1: ModuleFunction("rebuild", 1)}
 
     def get_info(self):
         info_string = "Updater instance summary:\n"
