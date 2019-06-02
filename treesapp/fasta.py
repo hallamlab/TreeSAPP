@@ -367,7 +367,7 @@ def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
     # placed_sequence.contig_name and output format:
     # >contig_name|RefPkg|StartCoord_StopCoord
 
-    output_fasta_string = ""
+    output_fasta_dict = dict()
     prefix = ''  # For adding a '>' if the formatted_fasta_dict sequences have them
     for seq_name in formatted_fasta_dict:
         if seq_name[0] == '>':
@@ -377,31 +377,25 @@ def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
     for denominator in tree_saps:
         for placed_sequence in tree_saps[denominator]:  # type ItolJplace
             if placed_sequence.classified:
-                output_fasta_string += '>' + placed_sequence.contig_name + "\n"
+                output_fasta_dict[placed_sequence.contig_name] = ""
                 try:
-                    seq = formatted_fasta_dict[prefix + placed_sequence.contig_name]
+                    output_fasta_dict[placed_sequence.contig_name] = formatted_fasta_dict[prefix +
+                                                                                          placed_sequence.contig_name]
                 except KeyError:
                     seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(placed_sequence.name), '', placed_sequence.contig_name)
                     try:
-                        seq = formatted_fasta_dict[prefix + seq_name]
+                        output_fasta_dict[placed_sequence.contig_name] = formatted_fasta_dict[prefix + seq_name]
                     except KeyError:
                         logging.error("Unable to find '" + prefix + placed_sequence.contig_name +
                                       "' in predicted ORFs file!\nExample headers in the predicted ORFs file:\n\t" +
                                       '\n\t'.join(list(formatted_fasta_dict.keys())[:6]) + "\n")
                         sys.exit(3)
-                output_fasta_string += seq + "\n"
+
                 if not placed_sequence.seq_len:
-                    placed_sequence.seq_len = len(seq)
+                    placed_sequence.seq_len = len(output_fasta_dict[placed_sequence.contig_name])
 
-    if output_fasta_string:
-        try:
-            fna_output = open(fasta_file, 'w')
-        except IOError:
-            logging.error("Unable to open " + fasta_file + " for writing!")
-            sys.exit(3)
-
-        fna_output.write(output_fasta_string)
-        fna_output.close()
+    if output_fasta_dict:
+        write_new_fasta(output_fasta_dict, fasta_file)
 
     return
 

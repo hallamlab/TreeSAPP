@@ -828,8 +828,10 @@ def assign(sys_args):
                 logging.info("Creating nucleotide FASTA file of classified sequences '" +
                              ts_assign.classified_nuc_seqs + "'... ")
                 if os.path.isfile(ts_assign.nuc_orfs_file):
-                    nuc_orfs_formatted_dict = format_read_fasta(ts_assign.nuc_orfs_file, 'dna', args.output)
-                    write_classified_sequences(tree_saps, nuc_orfs_formatted_dict, ts_assign.classified_nuc_seqs)
+                    nuc_orfs = FASTA(ts_assign.nuc_orfs_file)
+                    nuc_orfs.load_fasta()
+                    nuc_orfs.change_dict_keys()
+                    write_classified_sequences(tree_saps, nuc_orfs.fasta_dict, ts_assign.classified_nuc_seqs)
                     logging.info("done.\n")
                 else:
                     logging.info("failed.\nWARNING: Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
