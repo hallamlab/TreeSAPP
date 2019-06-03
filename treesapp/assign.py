@@ -894,14 +894,14 @@ def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dic
         # Report the number of sequences that are removed by BMGE
         for trimmed_msa_file in trimmed_msa_files[denominator]:
             try:
-                prefix, tool = re.search(r"(" + re.escape(marker) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
+                prefix, tool = re.search('(' + re.escape(marker) + r"_.*_group\d+)-(BMGE|trimAl).fasta$",
                                          os.path.basename(trimmed_msa_file)).groups()
             except TypeError:
                 logging.error("Unexpected file name format for a trimmed MSA.\n")
                 sys.exit(3)
             pair = ""
             for msa_file in msa_files[denominator]:
-                if re.search(re.escape(prefix) + 'r\.', msa_file):
+                if re.search(re.escape(prefix) + '\.', msa_file):
                     pair = msa_file
                     break
             if pair:
