@@ -85,6 +85,7 @@ def register_headers(header_list, drop=True):
             header = header[1:]
         if header in dup_checker:
             dups.append(header)
+            continue
         else:
             dup_checker.add(header)
         new_header = Header(header)
