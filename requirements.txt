@@ -3,3 +3,4 @@ scipy
 ete3
 biopython>=1.68
 pygtrie
+six

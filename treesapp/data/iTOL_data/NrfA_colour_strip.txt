@@ -1,0 +1,71 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+7|5 #98d7cd Actinobacteria
+270|274 #91560d Proteobacteria
+220|231 #91560d Proteobacteria
+288|305 #91560d Proteobacteria
+184|159 #91560d Proteobacteria
+185|194 #91560d Proteobacteria
+143|152 #91560d Proteobacteria
+170|169 #91560d Proteobacteria
+330|328 #91560d Proteobacteria
+317|326 #91560d Proteobacteria
+316|315 #91560d Proteobacteria
+310|309 #91560d Proteobacteria
+178|179 #91560d Proteobacteria
+322|331 #91560d Proteobacteria
+323|325 #91560d Proteobacteria
+172|173 #91560d Proteobacteria
+215|216 #91560d Proteobacteria
+181|180 #91560d Proteobacteria
+165|158 #91560d Proteobacteria
+145|149 #91560d Proteobacteria
+334|324 #91560d Proteobacteria
+311 #91560d Proteobacteria
+174 #91560d Proteobacteria
+337 #91560d Proteobacteria
+175 #91560d Proteobacteria
+183 #91560d Proteobacteria
+147 #91560d Proteobacteria
+182 #91560d Proteobacteria
+138 #91560d Proteobacteria
+245 #91560d Proteobacteria
+129|126 #e7cf94 Planctomycetes
+132|131 #e7cf94 Planctomycetes
+128 #e7cf94 Planctomycetes
+111|116 #44a299 Firmicutes
+101|106 #44a299 Firmicutes
+92|98 #44a299 Firmicutes
+110|104 #44a299 Firmicutes
+89|91 #44a299 Firmicutes
+100|99 #44a299 Firmicutes
+108|93 #44a299 Firmicutes
+103 #44a299 Firmicutes
+122|123 #dbefec Nitrospirae
+121 #dbefec Nitrospirae
+124 #dbefec Nitrospirae
+340|341 #c58e3d Verrucomicrobia
+339 #c58e3d Verrucomicrobia
+342 #c58e3d Verrucomicrobia
+343 #c58e3d Verrucomicrobia
+82|85 #f6eed9 Chloroflexi
+79|81 #f6eed9 Chloroflexi
+78|80 #f6eed9 Chloroflexi
+84 #f6eed9 Chloroflexi
+16|26 #066b63 Bacteroidetes
+28|32 #066b63 Bacteroidetes
+57|70 #066b63 Bacteroidetes
+45|64 #066b63 Bacteroidetes
+60|68 #066b63 Bacteroidetes
+48|69 #066b63 Bacteroidetes
+67|74 #066b63 Bacteroidetes
+54|55 #066b63 Bacteroidetes
+75 #066b63 Bacteroidetes
+27 #066b63 Bacteroidetes
+25 #066b63 Bacteroidetes
+49 #066b63 Bacteroidetes

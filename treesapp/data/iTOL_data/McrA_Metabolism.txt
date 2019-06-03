@@ -1,0 +1,19 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+145|188	range	rgb(194, 165, 207)	Methanotrophic
+174|206	range	rgb(194, 165, 207)	Methanotrophic
+73|79	range	rgb(166, 219, 160)	Hydrogenotrophic
+153	range	rgb(166, 219, 160)	Hydrogenotrophic
+69|34	range	rgb(166, 219, 160)	Hydrogenotrophic
+5|117	range	rgb(166, 219, 160)	Hydrogenotrophic
+225|150	range	rgb(166, 219, 160)	Hydrogenotrophic
+181|147	range	rgb(153, 112, 171)	Alkanotrophic
+85|67	range	rgb(217, 240, 211)	Inactive
+151|182	range	rgb(231, 212, 232)	H2 and Methylotrophic
+23|20	range	rgb(231, 212, 232)	H2 and Methylotrophic
+158|14	range	rgb(231, 212, 232)	H2 and Methylotrophic
+155|9	range	rgb(231, 212, 232)	H2 and Methylotrophic
+47|53	range	rgb(231, 212, 232)	H2 and Methylotrophic
+121|220	range	rgb(90, 174, 97)	Aceticlastic
+131|134	range	rgb(90, 174, 97)	Aceticlastic

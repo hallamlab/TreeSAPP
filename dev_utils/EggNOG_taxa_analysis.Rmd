@@ -1,0 +1,262 @@
+---
+title: "EggNOG taxonomic classification analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(RColorBrewer)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(knitr)
+
+ggplotRegression <- function(fit){
+ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red") +
+  labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 5),
+                     " Slope =",signif(fit$coef[[2]], 5),
+                     " P =",signif(summary(fit)$coef[2,4], 5))) +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank())
+}
+
+```
+
+```{r load_data}
+
+dat <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/Performance_analyses/TreeSAPP_EggNOG_raw_classifications.tsv",
+                  header=TRUE,
+                  sep="\t", quote="")
+
+dat <- dat %>% 
+  separate(TrueLineage, c("t_root", "t_kingdom", "t_phylum", "t_class", "t_order", "t_family", "t_genus", "t_species"),
+           sep = "; ",
+           fill = "right",
+           extra = "drop") %>%
+  separate(AssignedLineage, c("a_root", "a_kingdom", "a_phylum", "a_class", "a_order", "a_family", "a_genus", "a_species"),
+           sep = "; ",
+           fill = "right",
+           remove = FALSE) %>% 
+  mutate(True.Phylum = paste(t_root, t_kingdom, t_phylum, sep="; ")) %>% 
+  mutate(Assigned.Phylum = paste(a_root, a_kingdom, a_phylum, sep="; "))
+```
+
+I used TreeSAPP to compare the taxonomic assignments in EggNOG (v4.5) to those from reference packages built using PFam-curated sequences. What taxa was TreeSAPP able to classify?
+
+```{r}
+high_tax_counts <- dat %>%
+  filter(!is.na(t_kingdom)) %>% 
+  mutate(True.Phylum = gsub("Root; ", '', x = True.Phylum, perl = TRUE)) %>%
+  count(Classified, True.Phylum, t_kingdom)
+
+overall_freq <- high_tax_counts %>%
+  group_by(True.Phylum) %>% 
+  mutate(total = sum(n)) %>%
+  ungroup() %>%
+  select(True.Phylum, total) %>%
+  unique() %>%
+  mutate(freq = total/sum(total))
+
+high_tax_counts <- merge(high_tax_counts, overall_freq, by="True.Phylum") %>% 
+  mutate(True.Phylum = reorder(True.Phylum, freq)) %>% 
+  filter(freq >= 0.005)
+
+ggplot(high_tax_counts, aes(x=True.Phylum, y=n)) +
+  geom_bar(stat="identity", size=1,
+           aes(colour=t_kingdom,
+               fill=Classified)) +
+  scale_fill_brewer(palette = "Greys") +
+  scale_colour_brewer(palette = "Paired") +
+  guides(colour=guide_legend(title="Kingdom"),
+         size=FALSE) +
+  ylab("Reference sequences") +
+  xlab("Reference Phylum") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/figures/EggNOG_taxonomic_classifications.png",
+       width = 8, height = 6)
+```
+
+What happened to the Eukaryotic sequences?
+
+```{r}
+
+euk_tax <- dat %>% 
+  filter(t_kingdom == "Eukaryota") %>% 
+  mutate(Assigned.Phylum = gsub("; NA.*", '', x = Assigned.Phylum, perl = TRUE)) %>% 
+  mutate(Assigned.Phylum = gsub("Root; ", '', x = Assigned.Phylum, perl = TRUE))
+
+euk_tax_counts <- euk_tax %>%
+  select(RefPkg, Classified, TaxDist, Assigned.Phylum) %>%
+  filter(Classified == "True") %>% 
+  group_by(Assigned.Phylum) %>% 
+  summarise(n = n()) %>%
+  mutate(freq = n / sum(n)) %>% 
+  ungroup() %>% 
+  mutate(Assigned.Phylum = reorder(Assigned.Phylum, freq)) %>% 
+  filter(freq >= 0.001)
+
+ggplot(euk_tax_counts, aes(x=Assigned.Phylum, y=freq)) +
+  geom_bar(stat="identity") +
+  ggtitle("Taxonomic assignments of Eukaryotic sequences in EggNOG") +
+  ylab("Proportion") +
+  xlab("Assigned Phylum") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/figures/EggNOG_euks.png",
+       width = 8, height = 6)
+```
+
+Alright, apprently 47% the Eukaryotic sequences are being assigned to the Proteobacteria and only 45% are assigned to either Root, Bacteria, or Archaea. How deep are these Proteobacteria assignments?
+
+Note: the contributions to these classifications are varied across reference packages - there are not just one or two reference packages causing these shallow classifications. I made a really ugly plot to validate this!
+
+```{r}
+euk_proteos <- euk_tax %>% 
+  filter(a_phylum == "Proteobacteria") %>%
+  mutate(AssignedLineage = gsub("Root; Bacteria; ", '', x = AssignedLineage, perl = TRUE)) %>%
+  group_by(AssignedLineage) %>% 
+  summarise(n = n()) %>%
+  mutate(freq = n / sum(n)) %>% 
+  ungroup() %>% 
+  filter(freq >= 0.01) %>% 
+  mutate(AssignedLineage = reorder(AssignedLineage, freq))
+
+ggplot(euk_proteos, aes(x=AssignedLineage, y=freq)) +
+  coord_flip() +
+  geom_bar(stat="identity") +
+  ylab("Proportion") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/figures/EggNOG_proteobacteria_euks.png",
+       width = 8, height = 4)
+```
+
+
+What were sequences classified as?
+
+```{r taxa_profile}
+assigned <- filter(dat, Classified == "True") %>% 
+  mutate(Assigned.Class = paste(a_root, a_kingdom, a_phylum, a_class, sep="; ")) %>%
+  mutate(True.Class = paste(t_root, t_kingdom, t_phylum, t_class, sep="; ")) %>% 
+  select(TaxDist, RefPkg, True.Phylum, True.Class, Assigned.Phylum, Assigned.Class,
+         t_kingdom,
+         a_root, a_kingdom, a_phylum, a_class, a_order, a_family, a_genus, a_species)
+assigned$TaxDist <- as.factor(assigned$TaxDist)
+
+n_species <- nrow(filter(assigned, !is.na(a_species)))
+n_genus <- nrow(filter(assigned, !is.na(a_genus)))
+n_family <- nrow(filter(assigned, !is.na(a_family)))
+n_order <- nrow(filter(assigned, !is.na(a_order)))
+n_class <- nrow(filter(assigned, !is.na(a_class)))
+n_phylum <- nrow(filter(assigned, !is.na(a_phylum)))
+n_kingdom <- nrow(filter(assigned, !is.na(a_kingdom)))
+n_root <- nrow(filter(assigned, !is.na(a_root)))
+
+rank_counts <- data.frame(Rank = c("Root", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"),
+                          Count = c(n_root, n_kingdom, n_phylum, n_class, n_order, n_family, n_genus, n_species))
+
+kable(rank_counts, format = "html")
+
+assigned_census <- assigned %>% 
+  count(Assigned.Phylum, TaxDist, sort = T, name = "Count") %>% 
+  mutate(Assigned.Phylum = gsub("; NA", '', x = Assigned.Phylum, perl = TRUE)) %>%
+  mutate(Assigned.Phylum = reorder(Assigned.Phylum, Count))
+
+ggplot(filter(assigned_census, Count > 0.01*max(Count)), aes(x=Assigned.Phylum, y=Count, fill=TaxDist)) +
+  geom_histogram(stat = "identity") +
+  scale_fill_brewer(palette = "Reds") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/figures/TreeSAPP_EggNOG_assigned.png",
+       width = 8, height = 4)
+```
+
+How do the abundances compare to each other?
+
+```{r correlation}
+assigned_counts <- assigned %>% 
+  count(Assigned.Class, sort = T, name = "Count") %>% 
+  mutate(log_n = log(Count))
+true_counts <- assigned %>%
+  count(True.Class, sort = T, name = "Count") %>% 
+  mutate(log_n = log(Count))
+
+count_comparison <- merge(true_counts, assigned_counts,
+                          by.x = "True.Class", by.y = "Assigned.Class")
+
+ggplotRegression(lm(Count.y ~ Count.x, data = count_comparison))
+ggsave(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/figures/TreeSAPP_EggNOG_abund_corr.png",
+       width = 5, height = 5)
+ggplotRegression(lm(log_n.y ~ log_n.x, data = count_comparison))
+
+```
+
+How does this compare to GraftM?
+
+```{r}
+graftm_dat <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/Performance_analyses/GraftM_EggNOG_raw_classifications.tsv",
+                  header=TRUE,
+                  sep="\t", quote="")
+assigned <- filter(graftm_dat, Classified == "True") %>%
+  separate(TrueLineage, c("t_root", "t_kingdom", "t_phylum", "t_class", "t_order", "t_family", "t_genus", "t_species"),
+           sep = "; ",
+           fill = "right",
+           extra = "drop") %>%
+  separate(AssignedLineage, c("a_root", "a_kingdom", "a_phylum", "a_class", "a_order", "a_family", "a_genus", "a_species"),
+           sep = "; ",
+           fill = "right",
+           remove = FALSE) %>% 
+  mutate(True.Phylum = paste(t_root, t_kingdom, t_phylum, sep="; ")) %>% 
+  mutate(Assigned.Phylum = paste(a_root, a_kingdom, a_phylum, sep="; ")) %>% 
+  mutate(Assigned.Class = paste(a_root, a_kingdom, a_phylum, a_class, sep="; ")) %>%
+  mutate(True.Class = paste(t_root, t_kingdom, t_phylum, t_class, sep="; ")) %>% 
+  select(TaxDist, RefPkg, True.Phylum, True.Class, Assigned.Phylum, Assigned.Class,
+         t_kingdom,
+         a_root, a_kingdom, a_phylum, a_class, a_order, a_family, a_genus, a_species)
+assigned$TaxDist <- as.factor(assigned$TaxDist)
+
+assigned_census <- assigned %>% 
+  count(Assigned.Phylum, TaxDist, sort = T, name = "Count") %>% 
+  mutate(Assigned.Phylum = gsub("; NA", '', x = Assigned.Phylum, perl = TRUE)) %>%
+  mutate(Assigned.Phylum = reorder(Assigned.Phylum, Count))
+
+ggplot(filter(assigned_census, Count > 0.01*max(Count)), aes(x=Assigned.Phylum, y=Count, fill=TaxDist)) +
+  geom_histogram(stat = "identity") +
+  scale_fill_brewer(palette = "Reds") +
+  theme(panel.background = element_blank(),
+        panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/figures/GraftM_EggNOG_assigned.png",
+       width = 8, height = 4)
+
+assigned_counts <- assigned %>% 
+  count(Assigned.Class, sort = T, name = "Count") %>% 
+  mutate(log_n = log(Count))
+true_counts <- assigned %>%
+  count(True.Class, sort = T, name = "Count") %>% 
+  mutate(log_n = log(Count))
+
+count_comparison <- merge(true_counts, assigned_counts,
+                          by.x = "True.Class", by.y = "Assigned.Class")
+
+ggplotRegression(lm(Count.y ~ Count.x, data = count_comparison))
+ggsave(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/manuscript/figures/GraftM_EggNOG_abund_corr.png",
+       width = 5, height = 5)
+
+
+```

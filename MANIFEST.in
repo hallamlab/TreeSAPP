@@ -1,0 +1,4 @@
+include LICENSE Makefile requirements.txt README.md
+recursive-include treesapp *
+global-exclude *.xml
+global-exclude *.idea

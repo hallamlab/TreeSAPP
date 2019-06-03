@@ -1,0 +1,21 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+408|96	range	rgb(116, 196, 118)	DsrA-oxidative
+156|362	range	rgb(188, 189, 220)	AsrC (TIGR02912)
+237|368	range	rgb(35, 139, 69)	DsrA-reductive
+2|29	range	rgb(35, 139, 69)	DsrA-reductive
+339|333	range	rgb(35, 139, 69)	DsrA-reductive
+629|275	range	rgb(237, 248, 233)	DsrB-reductive
+342|334	range	rgb(237, 248, 233)	DsrB-reductive
+4|28	range	rgb(237, 248, 233)	DsrB-reductive
+1	range	rgb(237, 248, 233)	DsrB-reductive
+610|330	range	rgb(237, 248, 233)	DsrB-reductive
+367|360	range	rgb(237, 248, 233)	DsrB-reductive
+241|95	range	rgb(237, 248, 233)	DsrB-reductive
+352|41	range	rgb(237, 248, 233)	DsrB-reductive
+238|300	range	rgb(237, 248, 233)	DsrB-reductive
+289	range	rgb(237, 248, 233)	DsrB-reductive
+47|50	range	rgb(117, 107, 177)	nitrite and sulphite reductase
+614|349	range	rgb(239, 237, 245)	COG2221-related
+664|391	range	rgb(186, 228, 179)	DsrB-oxidative

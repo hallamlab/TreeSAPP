@@ -2,22 +2,15 @@
 
 import re
 import sys
-import os
 import argparse
-import inspect
 import logging
 from time import sleep, time
 from urllib import error
 from Bio import Entrez
 from tqdm import tqdm
-
-cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
-if cmd_folder not in sys.path:
-    sys.path.insert(0, cmd_folder)
-sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from classy import prep_logging
-from fasta import get_headers, get_header_format
-from utilities import return_sequence_info_groups, complement_nucs
+from treesapp.classy import prep_logging
+from treesapp.fasta import get_headers, get_header_format
+from treesapp.utilities import return_sequence_info_groups, complement_nucs
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -168,7 +161,7 @@ def read_stockholm(args):
 
     logging.debug("Reading stockholm file... ")
 
-    stockholm_header_re = re.compile("^#=GS (.*)/([0-9])+-([0-9])+\w+.*")
+    stockholm_header_re = re.compile(r"^#=GS (.*)/([0-9])+-([0-9])+\w+.*")
     # We are able to include the start and end coordinates for downstream sequence slicing
     line = stklm_handler.readline()
     while not stockholm_header_re.match(line):
@@ -217,7 +210,7 @@ def parse_entrez_xml(molecule_in: str, xml_string):
                                 cds = element['GBQualifier_value']
                                 if re.search("(|)", cds):
                                     instructions = cds.split('(')[:-1]
-                                cds = re.sub(".*\(", '', re.sub("\)", '', cds))
+                                cds = re.sub(r".*\(", '', re.sub("\)", '', cds))
                                 for piece in cds.split(','):
                                     nuc_acc, piece_pos = piece.split(':')
                                     positions.append(piece_pos)

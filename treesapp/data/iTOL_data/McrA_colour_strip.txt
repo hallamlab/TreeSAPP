@@ -1,0 +1,28 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+1 #543005 TACK-group
+25 #543005 TACK-group
+19|24 #543005 TACK-group
+20|23 #543005 Verstraetearchaeota
+17 #7D4808 Bathyarchaeota
+18 #7D4808 Bathyarchaeota
+181 #7D4808 Syntrophoarchaeum
+187|180 #7D4808 Syntrophoarchaeum
+200 #7D4808 Syntrophoarchaeum
+26|194 #C66F3E Hadesarchaea
+164|145 #A4681A ANME-1
+151|152 #DDBF7A Methanonatronarchaeia
+161|214 #EFDCAE Thermoplasmata
+153 #F5EDD9 Methanopyrus
+73|79 #ECF2F2 Methanococcales
+172|184 #CAEAE6 Methanococcales-MrtA
+55|62 #97D6CD Methanobacteriales-MrtA
+69|57 #61B7AC Methanobacteriales
+198|132 #2D8F87 Methanosarcinales
+150|179 #066B63 Methanocellales
+228|95 #003C30 Methanomicrobiales
