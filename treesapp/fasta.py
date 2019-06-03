@@ -4,6 +4,7 @@ import sys
 import re
 import os
 import logging
+from time import sleep
 
 import _fasta_reader
 from .utilities import median, reformat_string
@@ -78,12 +79,12 @@ def register_headers(header_list, drop=True):
     acc = 1
     header_registry = dict()
     dup_checker = set()
+    dups = []
     for header in header_list:
         if drop and header[0] == '>':
             header = header[1:]
         if header in dup_checker:
-            logging.error("Duplicate sequence header found: " + header + "\n")
-            sys.exit(5)
+            dups.append(header)
         else:
             dup_checker.add(header)
         new_header = Header(header)
@@ -91,6 +92,14 @@ def register_headers(header_list, drop=True):
         new_header.first_split = header.split()[0]
         header_registry[str(acc)] = new_header
         acc += 1
+
+    if len(dups) > 0:
+        logging.warning(str(len(dups)) + " duplicate sequence headers found:\n" +
+                        ", ".join(dups) + "\n" +
+                        "TreeSAPP will proceed as if these duplicate sequences were never seen in 5 seconds or"
+                        " you can stop it here with Ctrl-c... the choice is yours.\n")
+        sleep(5)
+
     return header_registry
 
 
