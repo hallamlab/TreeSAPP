@@ -477,6 +477,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     split_files = list()
     file_counter = 1
     sequence_accumulator = 0
+    n_char = 0
     fasta_string = ""
 
     # Check for '>' leading sequence names. Strip them if present.
@@ -504,6 +505,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
         if name[0] != '>':
             name = '>' + name
         sequence_accumulator += 1
+        n_char += len(seq) + len(name)
         if max_seqs and sequence_accumulator > max_seqs:
             # If input is to be split and number of sequences per file has been exceeded begin writing to new file
             fa_out.write(fasta_string)
@@ -522,6 +524,11 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
             fasta_string += name + "\n" + seq + "\n"
         else:
             sequence_accumulator -= 1
+        # Write the string buffer if it hold more than 100 million characters
+        if n_char > 1E7:
+            fa_out.write(fasta_string)
+            fasta_string = ""
+            n_char = 0
 
     fa_out.write(fasta_string)
     fa_out.close()
