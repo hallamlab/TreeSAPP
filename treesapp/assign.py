@@ -188,7 +188,7 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, m
                         hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                         f_acc += 1
                         bin_fasta.clear()
-                if len(bin_fasta) > 1:
+                if len(bin_fasta) >= 1:
                     write_new_fasta(bin_fasta, output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
                     hmmalign_input_fastas.append(output_dir + marker + "_hmm_purified_group" + str(f_acc) + ".faa")
             f_acc += 1
