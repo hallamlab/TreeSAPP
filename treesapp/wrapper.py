@@ -328,6 +328,8 @@ def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
         logging.error("UCLUST did not complete successfully! Command used:\n" +
                       ' '.join(uclust_cmd) + "\n")
         sys.exit(13)
+
+    logging.debug(stdout)
     return
 
 

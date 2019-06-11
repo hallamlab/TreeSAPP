@@ -397,9 +397,10 @@ def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry
     return fasta_replace_dict
 
 
-def screen_filter_taxa(args, fasta_replace_dict):
+def screen_filter_taxa(args, fasta_records):
+    fasta_replace_dict = dict()
     if args.screen == "" and args.filter == "":
-        return fasta_replace_dict
+        return fasta_records
     else:
         if args.screen:
             screen_terms = args.screen.split(',')
@@ -413,10 +414,10 @@ def screen_filter_taxa(args, fasta_replace_dict):
     num_filtered = 0
     num_screened = 0
 
-    for treesapp_id in fasta_replace_dict:
+    for treesapp_id in fasta_records:
         screen_pass = False
         filter_pass = True
-        ref_seq = fasta_replace_dict[treesapp_id]  # type: ReferenceSequence
+        ref_seq = fasta_records[treesapp_id]  # type: ReferenceSequence
         # Screen
         if len(screen_terms) > 0:
             for term in screen_terms:
@@ -433,9 +434,8 @@ def screen_filter_taxa(args, fasta_replace_dict):
                     filter_pass = False
 
         if filter_pass and screen_pass:
-            pass
+            fasta_replace_dict[treesapp_id] = ref_seq
         else:
-            ref_seq.cluster_rep = False
             if screen_pass is False:
                 num_screened += 1
             if filter_pass is False:
@@ -443,33 +443,33 @@ def screen_filter_taxa(args, fasta_replace_dict):
 
     logging.debug('\t' + str(num_screened) + " sequences removed after failing screen.\n" +
                   '\t' + str(num_filtered) + " sequences removed after failing filter.\n" +
-                  '\t' + str(len(fasta_replace_dict) - num_filtered - num_screened) + " sequences retained.\n")
+                  '\t' + str(len(fasta_records) - num_filtered - num_screened) + " sequences retained.\n")
 
-    return
+    return fasta_replace_dict
 
 
-def remove_by_truncated_lineages(min_taxonomic_rank, fasta_replace_dict):
+def remove_by_truncated_lineages(min_taxonomic_rank, fasta_records):
     rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
     min_depth = rank_depth_map[min_taxonomic_rank]
     if min_taxonomic_rank == 'k':
-        return fasta_replace_dict
+        return fasta_records
 
     num_removed = 0
+    fasta_replace_dict = dict()
 
-    for treesapp_id in fasta_replace_dict:
-        ref_seq = fasta_replace_dict[treesapp_id]
+    for treesapp_id in fasta_records:
+        ref_seq = fasta_records[treesapp_id]
         if len(ref_seq.lineage.split("; ")) < min_depth:
             num_removed += 1
-            ref_seq.cluster_rep = False
         elif re.search("^unclassified", ref_seq.lineage.split("; ")[min_depth-1], re.IGNORECASE):
             num_removed += 1
         else:
-            pass
+            fasta_replace_dict[treesapp_id] = ref_seq
 
     logging.debug('\t' + str(num_removed) + " sequences removed with truncated taxonomic lineages.\n" +
                   '\t' + str(len(fasta_replace_dict) - num_removed) + " sequences retained for building tree.\n")
 
-    return
+    return fasta_replace_dict
 
 
 def remove_duplicate_records(fasta_record_objects: dict, header_registry: dict):
@@ -860,7 +860,15 @@ def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output
     return fasta_record_objects
 
 
-def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set):
+def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
+    """
+    Ensures all "guaranteed sequences" are representative sequences, swapping non-guaranteed sequences for the
+    Cluster.representative where necessary.
+    Also makes sure all guaranteed sequences are accounted for.
+    :param cluster_dict:
+    :param important_seqs:
+    :return:
+    """
     num_swaps = 0
     important_finds = set()
     nonredundant_guarantee_cluster_dict = dict()  # Will be used to replace cluster_dict
@@ -886,7 +894,8 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set):
                     contains_important_seq = True
                     important_finds.add(member[0])
                     cluster_inst.members.pop(x)
-                x += 1
+                else:
+                    x += 1
             if representative in important_seqs:
                 # So there is no opportunity for the important representative sequence to be swapped, clear members
                 nonredundant_guarantee_cluster_dict[expanded_cluster_id] = cluster_inst
@@ -909,21 +918,24 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set):
 
 
 def rename_cluster_headers(cluster_dict, header_registry):
-    # Create an dictionary mapping formatted names to original names
-    format_original_names = dict()
-    for num_id in header_registry:
-        format_original_names[header_registry[num_id].formatted] = header_registry[num_id].original
+    """
+    Map the numerical TreeSAPP IDs to each sequence's original header
+    cluster.representative and header are both 'treesapp_id's
+    :param cluster_dict:
+    :param header_registry:
+    :return:
+    """
     for num_id in cluster_dict:
         members = list()
         cluster = cluster_dict[num_id]
         try:
-            cluster.representative = format_original_names[cluster.representative]
+            cluster.representative = header_registry[cluster.representative].original
         except KeyError:
             logging.error("Unable to find '" + cluster.representative + "' in formatted header-registry names.\n")
             sys.exit(7)
         for member in cluster.members:
             header, identity = member
-            members.append([format_original_names[header], identity])
+            members.append([header_registry[header].original, identity])
         cluster.members = members
     return
 
