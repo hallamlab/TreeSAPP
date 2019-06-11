@@ -1278,7 +1278,7 @@ class TreeSAPP:
         # Get the lineage information for the training/query sequences
         ref_seq_records = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
         ref_seqs.change_dict_keys("formatted")
-        ref_seq_records = entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, ref_seq_records)
+        entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, ref_seq_records)
         logging.debug("\tNumber of input sequences =\t" + str(len(ref_seq_records)) + "\n")
 
         if self.stage_status("lineages"):

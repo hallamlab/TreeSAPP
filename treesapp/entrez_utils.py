@@ -113,9 +113,11 @@ def tolerant_entrez_query(search_term_list: list, db="Taxonomy", method="fetch",
         sub_list = search_term_list[i:i + chunk_size]
         try:
             if method == "fetch":
-                handle = Entrez.efetch(db=db, id=','.join([str(sid) for sid in sub_list]), retmode=retmode)
+                handle = Entrez.efetch(db=db, id=','.join([str(sid) for sid in sub_list]), retmode=retmode,
+                                       api_key="849e32266531ee0cee64c6edbbdcf7b62e09")
             else:
-                handle = Entrez.esearch(db=db, term=','.join([str(sid) for sid in sub_list]))
+                handle = Entrez.esearch(db=db, term=','.join([str(sid) for sid in sub_list]),
+                                        api_key="849e32266531ee0cee64c6edbbdcf7b62e09")
             if chunk_size > 1:
                 read_records += Entrez.read(handle)
             else:
@@ -126,9 +128,11 @@ def tolerant_entrez_query(search_term_list: list, db="Taxonomy", method="fetch",
             for sid in sub_list:
                 try:
                     if method == "fetch":
-                        handle = Entrez.efetch(db=db, id=sid, retmode=retmode)
+                        handle = Entrez.efetch(db=db, id=sid, retmode=retmode,
+                                               api_key="849e32266531ee0cee64c6edbbdcf7b62e09")
                     else:
-                        handle = Entrez.esearch(db=db, term=sid)
+                        handle = Entrez.esearch(db=db, term=sid,
+                                                api_key="849e32266531ee0cee64c6edbbdcf7b62e09")
                     record = Entrez.read(handle)
                     read_records.append(record[0])
                 except:
@@ -708,7 +712,7 @@ def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
 
     :param fasta_record_objects: dict() indexed by TreeSAPP numeric identifiers mapped to ReferenceSequence instances
     :param accession_lineages: a dictionary mapping {accession: lineage}
-    :return:
+    :return: None
     """
     for treesapp_id in fasta_record_objects:
         ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
@@ -726,7 +730,7 @@ def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
         else:
             pass
         ref_seq.tracking_stamp()
-    return fasta_record_objects
+    return
 
 
 def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
@@ -736,7 +740,7 @@ def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
     :param fasta_dict:
     :param header_registry: An optional dictionary of Header objects
     :param ref_seq_dict: A dictionary indexed by arbitrary integers mapping to ReferenceSequence instances
-    :return:
+    :return: None
     """
     missing = list()
     if len(header_registry) != len(fasta_dict):
@@ -756,7 +760,7 @@ def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):
     if len(missing) > 0:
         logging.debug("The following sequences have been removed from further analyses:\n\t" +
                       "\n\t".join(missing) + "\n")
-    return ref_seq_dict
+    return
 
 
 def map_accessions_to_lineages(query_accession_list: list, molecule: str, accession_to_taxid=None):

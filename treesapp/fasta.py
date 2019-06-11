@@ -138,7 +138,12 @@ class FASTA:
     def treesapp_ids(self):
         return [index for index in self.header_registry]
 
-    def keep_only(self, header_subset):
+    def keep_only(self, header_subset: list):
+        """
+        Removes all entries from self.fasta_dict and self.header_registry that are not in header_subset.
+        :param header_subset:
+        :return: None
+        """
         pruned_fasta_dict = dict()
         unmapped = 0
         for seq_name in header_subset:
@@ -212,6 +217,12 @@ class FASTA:
         return
 
     def synchronize_seqs_n_headers(self):
+        """
+        If the header_registry and fasta_dict objects are of different sizes,
+        the header registry is remade, excluding sequences that are not found in fasta_dict.
+        The num_id is static during the synchronization so sequences can be mapped from before-and-after.
+        :return:
+        """
         excluded_headers = list()
         if len(self.fasta_dict.keys()) != len(self.header_registry):
             sync_header_registry = dict()
@@ -223,7 +234,7 @@ class FASTA:
                     sync_header_registry[num_id] = self.header_registry[num_id]
             self.header_registry = sync_header_registry
         if len(excluded_headers) >= 1:
-            logging.debug("Following sequences were excluded after synchronizing FASTA:\n" +
+            logging.debug("The following sequences were excluded after synchronizing FASTA:\n" +
                           "\n".join(excluded_headers) + "\n")
         return
 
