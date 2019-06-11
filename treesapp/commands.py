@@ -255,33 +255,34 @@ def create(sys_args):
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
-        create_refpkg.screen_filter_taxa(args, fasta_records)
+        fasta_records = create_refpkg.screen_filter_taxa(args, fasta_records)
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
-        create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_records)
+        fasta_records = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_records)
 
-        fasta_records, ref_seqs.header_registry = create_refpkg.remove_duplicate_records(fasta_records,
-                                                                                         ref_seqs.header_registry)
+        fasta_records = create_refpkg.remove_duplicate_records(fasta_records)
 
         if len(fasta_records.keys()) < 2:
             logging.error(str(len(fasta_records)) + " sequences post-homology + taxonomy filtering\n")
             sys.exit(11)
-
         # Write a new FASTA file containing the sequences that passed the homology and taxonomy filters
-        ref_seqs.file = ts_create.filtered_fasta
-        # NOTE: original header must be used as this is being passed to train
-        ref_seqs.change_dict_keys("original")
-        filtered_headers = [ref_seqs.header_registry[num_id].original for num_id in fasta_records]
-        ref_seqs.keep_only(filtered_headers)
-        write_new_fasta(ref_seqs.fasta_dict, ts_create.filtered_fasta)
+
+    ref_seqs.file = ts_create.filtered_fasta
+    # NOTE: original header must be used as this is being passed to train
+    ref_seqs.change_dict_keys("original")
+    filtered_headers = [ref_seqs.header_registry[num_id].original for num_id in fasta_records]
+    # ref_seqs.keep_only(filtered_headers)  # Currently avoiding this as it causes a KeyError for guaranteed seqs
+    write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ref_seqs.file, headers=filtered_headers)
 
     ##
     # Optionally cluster the input sequences using USEARCH at the specified identity
     ##
     if ts_create.stage_status("cluster"):
-        ref_seqs.change_dict_keys("formatted")
+        ref_seqs.change_dict_keys("num")
         # Write a FASTA for clustering containing the formatted headers since
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
-        write_new_fasta(ref_seqs.fasta_dict, ts_create.cluster_input)
+        write_new_fasta(fasta_dict=ref_seqs.fasta_dict,
+                        fasta_name=ts_create.cluster_input,
+                        headers=list(fasta_records.keys()))
         if args.cluster:
             wrapper.cluster_sequences(ts_create.executables["usearch"], ts_create.cluster_input,
                                       ts_create.uclust_prefix, ts_create.prop_sim)

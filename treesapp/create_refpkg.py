@@ -472,17 +472,13 @@ def remove_by_truncated_lineages(min_taxonomic_rank, fasta_records):
     return fasta_replace_dict
 
 
-def remove_duplicate_records(fasta_record_objects: dict, header_registry: dict):
+def remove_duplicate_records(fasta_record_objects: dict):
     """
     Identifies duplicate records based on accession ID.
-    Relies on fasta_record_objects and header_registry being synced such that
-     the numeric indices in both dictionaries point to the same sequence.
     :param fasta_record_objects:
-    :param header_registry:
-    :return: The new, deduplicated fasta_record_objects and header_registry (if duplicates found, otherwise unchanged)
+    :return: The new, deduplicated fasta_record_objects (if duplicates found, otherwise unchanged)
     """
     nr_record_dict = dict()
-    nr_header_dict = dict()
     accessions = dict()
     dups = False
     for treesapp_id in sorted(fasta_record_objects, key=int):
@@ -490,7 +486,6 @@ def remove_duplicate_records(fasta_record_objects: dict, header_registry: dict):
         if ref_seq.accession not in accessions:
             accessions[ref_seq.accession] = 0
             nr_record_dict[treesapp_id] = ref_seq
-            nr_header_dict[treesapp_id] = header_registry[treesapp_id]
         else:
             dups = True
         accessions[ref_seq.accession] += 1
@@ -503,7 +498,7 @@ def remove_duplicate_records(fasta_record_objects: dict, header_registry: dict):
             if accessions[acc] > 1:
                 msg += "\t" + acc + "\t" + str(accessions[acc]) + "\n"
         logging.debug(msg)
-    return nr_record_dict, nr_header_dict
+    return nr_record_dict
 
 
 def order_dict_by_lineage(fasta_object_dict):
@@ -958,7 +953,7 @@ def cluster_lca(cluster_dict: dict, fasta_record_objects, header_registry: dict)
                 num_id = formatted_to_num_map[member]
                 lineages.append(fasta_record_objects[num_id].lineage)
             except KeyError:
-                logging.warning("Unable to map " + str(member) + " to a TreeSAPP numeric ID.\n")
+                logging.warning("Unable to map '" + str(member) + "' to a TreeSAPP numeric ID.\n")
         cleaned_lineages = clean_lineage_list(lineages)
         cluster_inst.lca = megan_lca(cleaned_lineages)
         # For debugging
