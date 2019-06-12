@@ -226,27 +226,32 @@ def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multi
     return epa_files
 
 
-def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_multiple_alignment, kind="functional"):
+def hmmalign_command(executable, ref_aln, ref_profile, input_fasta, output_multiple_alignment):
+    malign_command = [executable,
+                      '--mapali', ref_aln,
+                      '--outformat', 'Stockholm',
+                      ref_profile, input_fasta,
+                      '>', output_multiple_alignment]
+
+    return malign_command
+
+
+def profile_aligner(executables, ref_aln, ref_profile, input_fasta, output_sto, kind="functional"):
     """
     A wrapper for both cmalign and hmmalign for performing profile-based multiple sequence alignment
     :param executables: A dictionary containing keys "cmalign" and "hmmalign"
     :param ref_aln: Path to a FASTA or Stockholm file with the multiple alignment pattern
     :param ref_profile: Path to the HMM or CM profile for the reference gene
     :param input_fasta: Path to the FASTA containing query sequences
-    :param output_multiple_alignment: Name of the output Stockholm formatted file
+    :param output_sto: Name of the output Stockholm formatted file
     :param kind: The type of marker gene being analyzed [functional (default), phylogenetic, phylogenetic_rRNA]
     :return:
     """
 
     if kind == "phylogenetic_rRNA":
-        malign_command = [executables["cmalign"]]
+        malign_command = hmmalign_command(executables["cmalign"], ref_aln, ref_profile, input_fasta, output_sto)
     else:
-        malign_command = [executables["hmmalign"]]
-
-    malign_command += ['--mapali', ref_aln,
-                       '--outformat', 'Stockholm',
-                       ref_profile, input_fasta,
-                       '>', output_multiple_alignment]
+        malign_command = hmmalign_command(executables["hmmalign"], ref_aln, ref_profile, input_fasta, output_sto)
 
     stdout, returncode = launch_write_command(malign_command)
     if returncode != 0:

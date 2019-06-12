@@ -16,6 +16,7 @@ from .utilities import median, which, is_exe, return_sequence_info_groups, reluc
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset, clean_lineage_string
 from . import entrez_utils
+from .external_command_interface import launch_write_command
 from numpy import var
 
 import _tree_parser
@@ -744,11 +745,7 @@ class CommandLineWorker(Process):
                 # Poison pill means shutdown
                 self.task_queue.task_done()
                 break
-            p_instance = subprocess.Popen(' '.join(next_task), shell=True, preexec_fn=os.setsid)
-            p_instance.wait()
-            if p_instance.returncode != 0:
-                logging.error(self.master + " did not complete successfully for:\n" +
-                              str(' '.join(next_task)) + "\n")
+            launch_write_command(next_task)
             self.task_queue.task_done()
         return
 
@@ -768,8 +765,8 @@ class CommandLineFarmer:
         self.task_queue = JoinableQueue(self.max_size)
         self.num_threads = int(num_threads)
 
-        genewise_process_queues = [CommandLineWorker(self.task_queue, command) for i in range(int(self.num_threads))]
-        for process in genewise_process_queues:
+        process_queues = [CommandLineWorker(self.task_queue, command) for i in range(int(self.num_threads))]
+        for process in process_queues:
             process.start()
 
     def add_tasks_to_queue(self, task_list):
