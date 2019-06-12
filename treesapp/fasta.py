@@ -7,7 +7,7 @@ import logging
 from time import sleep
 
 import _fasta_reader
-from .utilities import median, reformat_string
+from .utilities import median, reformat_string, rekey_dict
 from .external_command_interface import launch_write_command
 
 
@@ -187,6 +187,8 @@ class FASTA:
             sys.exit(5)
 
     def change_dict_keys(self, repl="original"):
+        # TODO: Include a value to track the fasta dict key-type (e.g. num, original)
+        # TODO: Use utilities.rekey_dict
         repl_fasta_dict = dict()
         for acc in sorted(self.header_registry, key=int):
             header = self.header_registry[acc]  # type: Header
@@ -239,19 +241,7 @@ class FASTA:
         return
 
     def swap_headers(self, header_map):
-        swapped_fasta_dict = dict()
-        unmapped = []
-        for og_header in header_map:
-            new_header = header_map[og_header]
-            try:
-                swapped_fasta_dict[new_header] = self.fasta_dict[og_header]
-            except KeyError:
-                unmapped.append(og_header)
-        if len(unmapped) == len(header_map):
-            self.mapping_error(list(header_map.keys()))
-        elif len(unmapped) >= 1:
-            logging.warning(str(len(unmapped)) + " headers were not found in FASTA dictionary.\n")
-        self.fasta_dict = swapped_fasta_dict
+        self.fasta_dict = rekey_dict(self.fasta_dict, header_map)
         self.header_registry = register_headers(list(self.fasta_dict.keys()), True)
         return
 
@@ -377,17 +367,16 @@ def merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index):
     return merged_extracted_seq_dict
 
 
-def write_classified_sequences(tree_saps, formatted_fasta_dict, fasta_file):
+def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fasta_file: str):
     """
     Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
+    Sequence names are from ItolJplace.contig_name values so output format is:
+     >contig_name|RefPkg|StartCoord_StopCoord
     :param tree_saps: A dictionary of gene_codes as keys and TreeSap objects as values
     :param formatted_fasta_dict: A dictionary with headers/sequence names as keys and sequences as values
     :param fasta_file: Path to a file to write the sequences to in FASTA format
     :return: None
     """
-    # placed_sequence.contig_name and output format:
-    # >contig_name|RefPkg|StartCoord_StopCoord
-
     output_fasta_dict = dict()
     prefix = ''  # For adding a '>' if the formatted_fasta_dict sequences have them
     for seq_name in formatted_fasta_dict:

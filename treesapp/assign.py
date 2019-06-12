@@ -683,7 +683,7 @@ def prepare_and_run_hmmalign(executables, hmm_dir, alignment_dir, single_query_f
         else:
             ref_profile += ".hmm"
         wrapper.profile_aligner(executables, ref_alignment, ref_profile,
-                                  query_fasta, query_multiple_alignment, ref_marker.kind)
+                                query_fasta, query_multiple_alignment, ref_marker.kind)
 
         if ref_marker.denominator not in hmmalign_singlehit_files:
             hmmalign_singlehit_files[ref_marker.denominator] = []
@@ -1500,63 +1500,6 @@ def delete_files(clean_up, output_dir_var, section, rpkm_dir=None):
             os.remove(useless_file)
 
 
-def single_family_msa(args, cog_list, formatted_fasta_dict):
-    """
-    A wrapper function for hmmalign -- to generate a multiple-sequence alignment with the reference sequences
-    of the gene family being updated
-    :param args: Command-line argument object returned by argparse
-    :param cog_list: The reference gene family to be updated
-    :param formatted_fasta_dict: keys are fasta headers; values are fasta sequences. Returned by format_read_fasta
-    :return: An Autovivification mapping the summary files to each contig
-    """
-    hmmalign_singlehit_files = utilities.Autovivify()
-    logging.info("Running hmmalign... ")
-
-    cog = list(cog_list["all_cogs"].keys())[0]
-    denominator = cog_list["all_cogs"][cog]
-
-    start = 0
-
-    # Imitate the Genewise / blastp_summary_files output
-    oddly_long = False
-    for contig in formatted_fasta_dict.keys():
-        header = contig[1:]
-        sequence = formatted_fasta_dict[contig]
-        end = len(sequence)
-
-        if end > 3000:
-            oddly_long = True
-
-        f_contig = denominator + "_" + header
-        genewise_singlehit_file = args.output_dir_var + os.sep + \
-                                  f_contig + '_' + cog + "_" + str(start) + "_" + str(end)
-        hmmalign_singlehit_files[f_contig][genewise_singlehit_file + ".mfa"] = True
-        genewise_singlehit_file_fa = genewise_singlehit_file + ".fa"
-        try:
-            outfile = open(genewise_singlehit_file_fa, 'w')
-            fprintf(outfile, '>query\n%s\n', sequence)
-            outfile.close()
-        except IOError:
-            sys.stderr.write('Can\'t create ' + genewise_singlehit_file_fa + '\n')
-            sys.exit(0)
-        treesapp_resources = args.treesapp + os.sep + 'data' + os.sep
-        hmmalign_command = [args.executables["hmmalign"], '-m', '--mapali',
-                            treesapp_resources + 'alignment_data' + os.sep + cog + '.fa',
-                            '--outformat', 'Clustal',
-                            treesapp_resources + 'hmm_data' + os.sep + cog + '.hmm',
-                            genewise_singlehit_file_fa, '>', genewise_singlehit_file + '.mfa']
-        os.system(' '.join(hmmalign_command))
-
-    logging.info("done.\n")
-
-    if oddly_long:
-        sys.stderr.write("WARNING: These sequences look awfully long for a gene... "
-                         "are you sure you want to be running in this mode?\n")
-        sys.stderr.flush()
-
-    return hmmalign_singlehit_files
-
-
 def num_sequences_fasta(fasta):
     fasta_file_handle = open(fasta, "r")
     fasta_lines = fasta_file_handle.readlines()
@@ -1612,10 +1555,9 @@ def read_marker_classification_table(assignment_file):
     return assignments, n_classified
 
 
-def filter_short_sequences(args, aa_dictionary, length_threshold):
+def filter_short_sequences(aa_dictionary, length_threshold):
     """
     Removes all sequences shorter than length_threshold from a dictionary
-    :param args: Command-line argument object from get_options and check_parser_arguments
     :param aa_dictionary: Dictionary containing all candidate reference sequences from a TreeSAPP analysis
     :param length_threshold: Minimum number of AA a sequence must contain to be included in further analyses
     :return: dictionary with sequences only longer than length_threshold
@@ -1639,33 +1581,34 @@ def filter_short_sequences(args, aa_dictionary, length_threshold):
     return long_queries
 
 
-def align_reads_to_nucs(args, reference_fasta):
+def align_reads_to_nucs(bwa_exe, reference_fasta, aln_output_dir, args):
     """
     Align the predicted ORFs to the reads using BWA MEM
+    :param bwa_exe: Path to the BWA executable
+    :param aln_output_dir: Path to the directory to write the index and SAM files
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param reference_fasta: A FASTA file containing the sequences to be aligned to
     :return: Path to the SAM file
     """
-    rpkm_output_dir = args.output + "RPKM_outputs" + os.sep
-    if not os.path.exists(rpkm_output_dir):
+    if not os.path.exists(aln_output_dir):
         try:
-            os.makedirs(rpkm_output_dir)
+            os.makedirs(aln_output_dir)
         except OSError:
-            if os.path.exists(rpkm_output_dir):
-                logging.warning("Overwriting files in " + rpkm_output_dir + ".\n")
+            if os.path.exists(aln_output_dir):
+                logging.warning("Overwriting files in " + aln_output_dir + ".\n")
             else:
-                raise OSError("Unable to make " + rpkm_output_dir + "!\n")
+                raise OSError("Unable to make " + aln_output_dir + "!\n")
 
     logging.info("Aligning reads to ORFs with BWA MEM... ")
 
-    sam_file = rpkm_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
-    index_command = [args.executables["bwa"], "index"]
+    sam_file = aln_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
+    index_command = [bwa_exe, "index"]
     index_command += [reference_fasta]
-    index_command += ["1>", "/dev/null", "2>", args.output + "treesapp_bwa_index.stderr"]
+    index_command += ["1>", "/dev/null", "2>", aln_output_dir + "treesapp_bwa_index.stderr"]
 
     launch_write_command(index_command)
 
-    bwa_command = [args.executables["bwa"], "mem"]
+    bwa_command = [bwa_exe, "mem"]
     bwa_command += ["-t", str(args.num_threads)]
     if args.pairing == "pe" and not args.reverse:
         bwa_command.append("-p")
@@ -1677,7 +1620,7 @@ def align_reads_to_nucs(args, reference_fasta):
     bwa_command.append(args.reads)
     if args.pairing == "pe" and args.reverse:
         bwa_command.append(args.reverse)
-    bwa_command += ["1>", sam_file, "2>", args.output + "treesapp_bwa_mem.stderr"]
+    bwa_command += ["1>", sam_file, "2>", aln_output_dir + "treesapp_bwa_mem.stderr"]
 
     p_bwa = subprocess.Popen(' '.join(bwa_command), shell=True, preexec_fn=os.setsid)
     p_bwa.wait()
@@ -1690,20 +1633,20 @@ def align_reads_to_nucs(args, reference_fasta):
     return sam_file
 
 
-def run_rpkm(args, sam_file, orf_nuc_fasta):
+def run_rpkm(rpkm_exe: str, sam_file: str, orf_nuc_fasta: str, rpkm_output_dir: str):
     """
-    Calculate RPKM values using the rpkm executable
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param sam_file:
-    :param orf_nuc_fasta:
+    Calculate RPKM values for each reference sequence aligned to
+    :param rpkm_exe: Path to the RPKM executable
+    :param sam_file: Path to the SAM file generated by `bwa mem`
+    :param orf_nuc_fasta: Path to the nucleotide ORF sequences that were aligned to
+    :param rpkm_output_dir: Path to the directory for all rpkm outputs
     :return: Path to the RPKM output csv file
     """
     logging.info("Calculating RPKM values for each ORF... ")
 
     rpkm_output_file = '.'.join(sam_file.split('.')[0:-1]) + ".csv"
-    rpkm_output_dir = args.output + "RPKM_outputs" + os.sep
 
-    rpkm_command = [args.executables["rpkm"]]
+    rpkm_command = [rpkm_exe]
     rpkm_command += ["-c", orf_nuc_fasta]
     rpkm_command += ["-a", sam_file]
     rpkm_command += ["-o", rpkm_output_file]
@@ -1720,57 +1663,48 @@ def run_rpkm(args, sam_file, orf_nuc_fasta):
     return rpkm_output_file
 
 
-def summarize_placements_rpkm(args, abundance_dict, marker_build_dict):
+def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_build_dict: dict, final_output_dir: str):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
-    Recapitulates MLTreeMap standard out summary
-    :param args: Command-line argument object from get_options and check_parser_arguments
+    :param tree_saps:
     :param abundance_dict: A dictionary mapping predicted (not necessarily classified) seq_names to abundance values
-    :type marker_build_dict: dict
     :param marker_build_dict:
-    :return:
+    :param final_output_dir:
+    :return: None
     """
-    contig_rpkm_map = dict()
-    marker_contig_map = dict()
-    contig_placement_map = dict()
     placement_rpkm_map = dict()
     marker_rpkm_map = dict()
 
-    # Pull the RPKM values for each marker predicted; seq_name format is contig|marker
-    for seq_name in abundance_dict:
-        contig, marker = seq_name.split('|')
-        contig_rpkm_map[contig] = abundance_dict[seq_name]
-        if marker not in marker_contig_map:
-            marker_contig_map[marker] = list()
-        marker_contig_map[marker].append(contig)
+    # Identify the internal node each sequence was placed, used for iTOL outputs
+    for denominator in tree_saps:
+        for placed_sequence in tree_saps[denominator]:  # type ItolJplace
+            if not placed_sequence.classified:
+                continue
+            seq_name = re.sub(r"\|{0}\|\d+_\d+$".format(placed_sequence.name), '', placed_sequence.contig_name)
+            try:
+                placed_sequence.abundance = abundance_dict.pop(seq_name)
+            except KeyError:
+                logging.error("Unable to find sequence '" + seq_name +
+                              "' in RPKM abundance dictionary keys. Examples:\n" +
+                              "\n".join(list(abundance_dict.keys())[0:6]) + "\n")
+                sys.exit(3)
+            if placed_sequence.inode not in placement_rpkm_map:
+                placement_rpkm_map[placed_sequence.inode] = 0
 
-    # Identify the internal node each sequence was placed, used for
-    final_raxml_outputs = os.listdir(args.output_dir_raxml)
-    for raxml_contig_file in final_raxml_outputs:
-        contig_name = '_'.join(re.sub("_RAxML_parsed.txt", '', raxml_contig_file).split('_')[1:])
-        try:
-            contig_placement = open(args.output_dir_raxml + raxml_contig_file, 'r')
-        except IOError:
-            raise IOError("Unable to open " + args.output_dir_raxml + raxml_contig_file + " for reading!")
-        line = contig_placement.readline()
-        while not line.startswith("Placement"):
-            line = contig_placement.readline().strip()
+    if len(abundance_dict) > 0:
+        logging.warning(str(len(abundance_dict)) + " sequence names remain in the RPKM abundance dictionary.\n")
+        logging.debug("Leftover sequences in abundance dict:\n" + "\n".join(abundance_dict.keys()) + "\n")
 
-        placement = re.sub("^.*: ", '', line)
-        contig_placement_map[contig_name] = placement
-        if placement not in placement_rpkm_map:
-            placement_rpkm_map[placement] = 0
-        contig_placement.close()
-
-    for marker in marker_contig_map:
+    # Calculate the percentage contribution of each placed sequence
+    for denominator in tree_saps:
+        marker = marker_build_dict[denominator].cog
         marker_rpkm_total = 0
         marker_rpkm_map[marker] = dict()
-        for contig in marker_contig_map[marker]:
-            if contig in contig_placement_map:
-                placement = contig_placement_map[contig]
-                placement_rpkm_map[placement] += float(contig_rpkm_map[contig])
-                marker_rpkm_total += float(contig_rpkm_map[contig])
-                marker_rpkm_map[marker][placement] = 0
+        for placed_sequence in tree_saps[denominator]:
+            placement = placed_sequence.inode
+            placement_rpkm_map[placement] += float(placed_sequence.abundance)
+            marker_rpkm_total += float(placed_sequence.abundance)
+            marker_rpkm_map[marker][placement] = 0
         for placement in marker_rpkm_map[marker]:
             try:
                 percentage = (placement_rpkm_map[placement]*100)/marker_rpkm_total
@@ -1781,10 +1715,10 @@ def summarize_placements_rpkm(args, abundance_dict, marker_build_dict):
     for marker in marker_rpkm_map:
         ref_marker = utilities.fish_refpkg_from_build_params(marker, marker_build_dict)
 
-        final_output_file = args.final_output_dir + str(ref_marker.denominator) + "_concatenated_RAxML_outputs.txt"
+        final_output_file = final_output_dir + str(ref_marker.denominator) + "_concatenated_RAxML_outputs.txt"
         # Not all of the genes predicted will have made it to the RAxML stage
         if os.path.isfile(final_output_file):
-            shutil.move(final_output_file, args.final_output_dir + ref_marker.denominator + "_concatenated_counts.txt")
+            shutil.move(final_output_file, final_output_dir + ref_marker.denominator + "_concatenated_counts.txt")
             try:
                 cat_output = open(final_output_file, 'w')
             except IOError:
@@ -1805,17 +1739,25 @@ def summarize_placements_rpkm(args, abundance_dict, marker_build_dict):
     return
 
 
-def abundify_tree_saps(tree_saps, abundance_dict):
+def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
+    """
+    Add abundance (RPKM or presence count) values to the TreeProtein instances (abundance variable)
+    :param tree_saps: Dictionary mapping refpkg codes to all TreeProtein instances for classified sequences
+    :param abundance_dict: Dictionary mapping sequence names to floats
+    :return: None
+    """
     abundance_mapped_acc = 0
     for refpkg_code in tree_saps:
         for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
-            seq_name = placed_seq.contig_name + '|' + placed_seq.name
-            # Filter out RPKMs for contigs not associated with the target marker
-            if seq_name in abundance_dict:
-                placed_seq.abundance = abundance_dict[seq_name]
-                abundance_mapped_acc += 1
+            if not placed_seq.abundance:
+                # Filter out RPKMs for contigs not associated with the target marker
+                try:
+                    placed_seq.abundance = abundance_dict[placed_seq.contig_name]
+                    abundance_mapped_acc += 1
+                except KeyError:
+                    placed_seq.abundance = 0.0
             else:
-                placed_seq.abundance = 0.0
+                abundance_mapped_acc += 1
 
     if abundance_mapped_acc == 0:
         logging.warning("No placed sequences with abundances identified.\n")

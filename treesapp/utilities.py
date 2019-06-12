@@ -11,6 +11,40 @@ from shutil import rmtree
 from .external_command_interface import launch_write_command
 
 
+def rekey_dict(og_dict, key_map):
+    """
+    Creates a new dictionary with new keys, indicated by a map, mapped to the original values.
+    Logs a warning if not all of the original keys are popped.
+    :param og_dict: The original dictionary with keys found in key_map. Values are retained.
+    :param key_map: A dictionary mapping old keys to new keys
+    :return: Dictionary with new keys, same values
+    """
+    updated_dict = dict()
+    unmapped = list()
+
+    if len(og_dict) != len(key_map):
+        logging.error("Key map (" + str(len(key_map)) + ") and original dictionary (" + str(len(og_dict)) +
+                      ") are different sizes. Unable to re-key.\n")
+        sys.exit(5)
+
+    og_keys = sorted(list(og_dict.keys()))
+    for old_key in og_keys:
+        try:
+            new_key = key_map[old_key]
+        except KeyError:
+            unmapped.append(old_key)
+            continue
+        updated_dict[new_key] = og_dict.pop(old_key)
+
+    if len(unmapped) > 0:
+        logging.warning("Dictionary rekey incomplete - " + str(len(unmapped)) + " keys were not found in dictionary.\n")
+
+    if len(og_dict) > 0:
+        logging.warning(str(len(og_dict)) + " keys in original dictionary were not popped during re-keying process.\n")
+
+    return updated_dict
+
+
 def reluctant_remove_replace(dir_path):
     # DO NOT USE LOGGING - this function can (and does) appear before the logger is instantiated
     # Warn user then remove all main output directories, leaving log in output

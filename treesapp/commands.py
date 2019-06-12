@@ -787,8 +787,8 @@ def assign(sys_args):
     if ts_assign.stage_status("align"):
         create_ref_phy_files(ts_assign.aln_dir, ts_assign.var_output_dir,
                              homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
-        concatenated_msa_files = multiple_alignments(ts_assign.executables, ts_assign.refpkg_dir, ts_assign.var_output_dir,
-                                                     homolog_seq_files, marker_build_dict)
+        concatenated_msa_files = multiple_alignments(ts_assign.executables, ts_assign.refpkg_dir,
+                                                     ts_assign.var_output_dir, homolog_seq_files, marker_build_dict)
         file_type = utilities.find_msa_type(concatenated_msa_files)
         alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
                                                     args.verbose, file_type)
@@ -821,33 +821,44 @@ def assign(sys_args):
         extracted_seq_dict = merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
         write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
+        rpkm_output_dir = ""
         for refpkg_code in tree_saps:
             for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
-                abundance_dict[placed_seq.contig_name + '|' + placed_seq.name] = 1.0
+                abundance_dict[placed_seq.contig_name] = 1.0
         if args.molecule == "dna":
-            if not os.path.isfile(ts_assign.classified_nuc_seqs):
-                logging.info("Creating nucleotide FASTA file of classified sequences '" +
-                             ts_assign.classified_nuc_seqs + "'... ")
-                if os.path.isfile(ts_assign.nuc_orfs_file):
-                    nuc_orfs = FASTA(ts_assign.nuc_orfs_file)
-                    nuc_orfs.load_fasta()
-                    nuc_orfs.change_dict_keys()
+            if os.path.isfile(ts_assign.nuc_orfs_file):
+                nuc_orfs = FASTA(ts_assign.nuc_orfs_file)
+                nuc_orfs.load_fasta()
+                nuc_orfs.change_dict_keys()
+                if not os.path.isfile(ts_assign.classified_nuc_seqs):
+                    logging.info("Creating nucleotide FASTA file of classified sequences '" +
+                                 ts_assign.classified_nuc_seqs + "'... ")
                     write_classified_sequences(tree_saps, nuc_orfs.fasta_dict, ts_assign.classified_nuc_seqs)
                     logging.info("done.\n")
-                else:
-                    logging.info("failed.\nWARNING: Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
-                                 "Cannot create the nucleotide FASTA file of classified sequences!\n")
+            else:
+                logging.warning("Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
+                                "Cannot create the nucleotide FASTA file of classified sequences!\n")
             if args.rpkm:
-                sam_file = align_reads_to_nucs(args, ts_assign.classified_nuc_seqs)
-                rpkm_output_file = run_rpkm(args, sam_file, ts_assign.classified_nuc_seqs)
+                rpkm_output_dir = ts_assign.output_dir + "RPKM_outputs" + os.sep
+                sam_file = align_reads_to_nucs(ts_assign.executables["bwa"], ts_assign.classified_nuc_seqs,
+                                               rpkm_output_dir, args)
+                rpkm_output_file = run_rpkm(ts_assign.executables["rpkm"], sam_file,
+                                            ts_assign.classified_nuc_seqs, rpkm_output_dir)
+                # BWA chops the sequence names at the first space so all keys in abundance_dict are header.first_split
                 abundance_dict = file_parsers.read_rpkm(rpkm_output_file)
-                summarize_placements_rpkm(args, abundance_dict, marker_build_dict)
+                # Subset dict to only the classified sequences
+                header_map = {nuc_orfs.header_registry[num_id].first_split: nuc_orfs.header_registry[num_id].original
+                              for num_id in nuc_orfs.header_registry
+                              if nuc_orfs.header_registry[num_id].first_split in abundance_dict}
+                # Convert keys in abundance_dict to header.original for compatibility with sequence names in tree_saps
+                abundance_dict = utilities.rekey_dict(abundance_dict, header_map)
+                summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_assign.final_output_dir)
 
         abundify_tree_saps(tree_saps, abundance_dict)
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
         write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_assign.sample_prefix, assign_out)
         produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
-        delete_files(args.delete, ts_assign.var_output_dir, 4, args.rpkm)
+        delete_files(args.delete, ts_assign.var_output_dir, 4, rpkm_output_dir)
 
     delete_files(args.delete, ts_assign.var_output_dir, 5)
 
