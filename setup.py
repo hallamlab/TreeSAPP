@@ -20,7 +20,7 @@ CLASSIFIERS = [
 SETUP_METADATA = \
     {
         "name": "treesapp",
-        "version": "0.2.6",
+        "version": "0.4.0",
         "description": "TreeSAPP is a functional and taxonomic annotation tool",
         "long_description": LONG_DESCRIPTION,
         "long_description_content_type": "text/markdown",
