@@ -832,18 +832,17 @@ def get_header_info(header_registry, code_name=''):
     """
     logging.info("Extracting information from headers... ")
     fasta_records = dict()
-    all_accessions = set()
+    all_accessions = dict()
     deduped_accessions = list()
+
     for treesapp_id in sorted(header_registry.keys(), key=int):
         original_header = header_registry[treesapp_id].original
         header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
         sequence_info = header_format_re.match(original_header)
         seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, original_header)
-        if seq_info_tuple.accession in all_accessions:
-            deduped_accessions.append(original_header)
-            continue
-        else:
-            all_accessions.add(seq_info_tuple.accession)
+        if seq_info_tuple.accession not in all_accessions:
+            all_accessions[seq_info_tuple.accession] = []
+        all_accessions[seq_info_tuple.accession].append(treesapp_id)
 
         # Load the parsed sequences info into the EntrezRecord objects
         ref_seq = entrez_utils.EntrezRecord(seq_info_tuple.accession, seq_info_tuple.version)
@@ -855,8 +854,32 @@ def get_header_info(header_registry, code_name=''):
         ref_seq.short_id = treesapp_id + '_' + code_name
         ref_seq.tracking_stamp()
         fasta_records[treesapp_id] = ref_seq
-
     logging.info("done.\n")
+
+    # Deal with potential duplicates by removing those with the lower bitflag
+    for accession in all_accessions:
+        dup_list = all_accessions[accession]
+        if len(dup_list) > 1:
+            max_bitflag = max([fasta_records[treesapp_id].bitflag for treesapp_id in dup_list])
+            x = 0
+            while x < len(dup_list):
+                treesapp_id = dup_list[x]
+                ref_seq = fasta_records[treesapp_id]
+                if ref_seq.bitflag < max_bitflag:
+                    fasta_records.pop(treesapp_id)
+                    dup_list.pop(x)
+                    deduped_accessions.append(header_registry[treesapp_id].original)
+                else:
+                    x += 1
+            x = 1
+            # Check for records with identical bitflags
+            while len(dup_list) > 1:
+                treesapp_id = dup_list[x]
+                fasta_records.pop(treesapp_id)
+                dup_list.pop(x)
+                deduped_accessions.append(header_registry[treesapp_id].original)
+        else:
+            pass
 
     if deduped_accessions:
         logging.warning("The following sequences were removed during deduplication of accession IDs:\n\t" +

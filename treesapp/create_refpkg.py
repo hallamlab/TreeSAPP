@@ -405,11 +405,11 @@ def screen_filter_taxa(args, fasta_records):
         if args.screen:
             screen_terms = args.screen.split(',')
         else:
-            screen_terms = ''
+            screen_terms = []
         if args.filter:
             filter_terms = args.filter.split(',')
         else:
-            filter_terms = ''
+            filter_terms = []
 
     num_filtered = 0
     num_screened = 0
@@ -443,7 +443,7 @@ def screen_filter_taxa(args, fasta_records):
 
     logging.debug('\t' + str(num_screened) + " sequences removed after failing screen.\n" +
                   '\t' + str(num_filtered) + " sequences removed after failing filter.\n" +
-                  '\t' + str(len(fasta_records) - num_filtered - num_screened) + " sequences retained.\n")
+                  '\t' + str(len(fasta_replace_dict)) + " sequences retained.\n")
 
     return fasta_replace_dict
 
