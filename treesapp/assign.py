@@ -1555,6 +1555,8 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_buil
         marker_rpkm_total = 0
         marker_rpkm_map[marker] = dict()
         for placed_sequence in tree_saps[denominator]:
+            if not placed_sequence.classified:
+                continue
             placement = placed_sequence.inode
             placement_rpkm_map[placement] += float(placed_sequence.abundance)
             marker_rpkm_total += float(placed_sequence.abundance)
