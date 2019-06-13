@@ -9,13 +9,13 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from .fasta import read_fasta_to_dict, write_new_fasta, trim_multiple_alignment, FASTA
+from .fasta import read_fasta_to_dict, write_new_fasta, FASTA
 from .file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming,\
     multiple_alignment_dimensions
 from . import utilities
 from . import wrapper
 from .phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
-from .external_command_interface import setup_progress_bar
+from .external_command_interface import setup_progress_bar, launch_write_command
 from .jplace_utils import jplace_parser
 from .classy import ReferencePackage
 from .entish import map_internal_nodes_leaves
@@ -409,8 +409,10 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 sys.exit(33)
             logging.debug(str(aln_stdout) + "\n")
 
-            query_filtered_multiple_alignment = trim_multiple_alignment(bmge_file, query_multiple_alignment,
-                                                                        molecule, "BMGE")
+            trim_command, query_filtered_multiple_alignment = wrapper.get_msa_trim_command(executables,
+                                                                                           query_multiple_alignment,
+                                                                                           molecule)
+            launch_write_command(trim_command)
             intermediate_files += glob(query_filtered_multiple_alignment + "*")
 
             # Ensure reference sequences haven't been removed
@@ -429,8 +431,8 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
             # Run RAxML with the parameters specified
             raxml_files = wrapper.raxml_evolutionary_placement(executables["raxmlHPC"], temp_tree_file,
-                                                               query_filtered_multiple_alignment, ref_pkg.sub_model, "./",
-                                                               query_name, raxml_threads)
+                                                               query_filtered_multiple_alignment, ref_pkg.sub_model,
+                                                               "./", query_name, raxml_threads)
 
             # Parse the JPlace file to pull distal_length+pendant_length for each placement
             jplace_data = jplace_parser(raxml_files["jplace"])

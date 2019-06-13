@@ -8,7 +8,6 @@ from time import sleep
 
 import _fasta_reader
 from .utilities import median, reformat_string, rekey_dict
-from .external_command_interface import launch_write_command
 
 
 # No bioinformatic software would be complete without a contribution from Heng Li.
@@ -450,7 +449,7 @@ def get_headers(fasta_file):
     try:
         fasta = open(fasta_file, 'r')
     except IOError:
-        logging.error("Unable to open the FASTA file '" + fasta_file + "' for reading!")
+        logging.error("Unable to open the FASTA file '" + fasta_file + "' for reading!\n")
         sys.exit(5)
 
     n_headers = 0
@@ -687,53 +686,3 @@ def summarize_fasta_sequences(fasta_file):
 
     logging.info(stats_string)
     return
-
-
-def trim_multiple_alignment(executable, mfa_file, molecule, tool="BMGE"):
-    """
-    Trims the multiple sequence alignment using either BMGE or trimAl
-
-    :param executable: Path to the executable of `tool`
-    :param mfa_file: Name of a MSA file
-    :param molecule: prot | dna
-    :param tool: Name of the software to use for trimming [BMGE|trimAl]
-    Returns file name of the trimmed multiple alignment file in FASTA format
-    """
-    f_ext = mfa_file.split('.')[-1]
-    if not re.match("mfa|fasta|phy|fa", f_ext):
-        logging.error("Unsupported file format: '" + f_ext + "'\n")
-        sys.exit(5)
-
-    trimmed_msa_file = re.sub('.' + re.escape(f_ext), '-' + re.escape(tool) + ".fasta", mfa_file)
-    if tool == "trimAl":
-        trim_command = [executable]
-        trim_command += ['-in', mfa_file,
-                         '-out', trimmed_msa_file,
-                         '-gt', str(0.02)]
-    elif tool == "BMGE":
-        if molecule == "prot":
-            bmge_settings = ["-t", "AA", "-m", "BLOSUM30"]
-        else:
-            bmge_settings = ["-t", "DNA", "-m", "DNAPAM100:2"]
-        trim_command = ["java", "-Xmx512m", "-jar", executable]
-        trim_command += bmge_settings
-        trim_command += ["-g", "0.99:0.33"]  # Specifying the gap rate per_sequence:per_character
-        trim_command += ['-i', mfa_file,
-                         '-of', trimmed_msa_file]
-    else:
-        logging.error("Unsupported trimming software requested: '" + tool + "'")
-        sys.exit(5)
-
-    logging.debug("STAGE: Multiple sequence alignment trimming\n" +
-                  "\tINPUT: " + mfa_file + "\n" +
-                  "\tTOOL: " + tool + "\n" +
-                  "\tCOMMAND:\n" + " ".join(trim_command) + "\n" +
-                  "\tOUTPUT:\n")
-
-    stdout, return_code = launch_write_command(trim_command)
-    if return_code != 0:
-        logging.error(tool + " did not complete successfully!\n" +
-                      tool + "output:\n" + stdout + "\n")
-        sys.exit(5)
-
-    return trimmed_msa_file

@@ -27,7 +27,7 @@ try:
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, MarkerBuild
-    from .fasta import format_read_fasta, get_headers, write_new_fasta, trim_multiple_alignment, read_fasta_to_dict, FASTA
+    from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
     from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
     from .external_command_interface import launch_write_command, setup_progress_bar
@@ -357,128 +357,6 @@ def detect_ribrna_sequences(args, cog_list, formatted_fasta_dict):
     return
 
 
-def get_ribrna_hit_sequences(args, blast_hits_purified, genewise_summary_files, cog_list):
-    if args.py_version == 3:
-        izip = zip
-    else:
-        from itertools import izip
-    # TODO: It doesn't need to return anything; OR this function could return the contig_rrna_coordinates instead of writing files
-    """
-    rRNA does not get translated into protein. Regardless, we want to take the
-    rRNA and summarize it in a way that is parallel to the Genewise summary files.
-    This function does that using the provided Autovivification of purified BLAST
-    hits, list of COGs, and Autovivification of Genewise summary files.
-
-    Returns an Autovivification summarizing the coordinates for each rRNA hit.
-    Returns a list of the rRNA summary files.
-    """
-
-    logging.info("Retrieving rRNA hits... ")
-
-    contig_rrna_coordinates = utilities.Autovivify()
-    rRNA_hit_files = {}
-    rrna_seqs = 0
-
-    function_start_time = time.time()
-    
-    for contig in sorted(blast_hits_purified.keys()):
-        # note: We skipped the Genewise step (we are dealing with rRNA) but we bring the rRNA files in the
-        # same structure as the Genewise summary files and bring them back into the ordinary pipeline.
-        for identifier in sorted(blast_hits_purified[contig].keys()):
-            # if not re.search("rRNA", blast_hits_purified[contig][identifier]['cog']):
-            if blast_hits_purified[contig][identifier]['cog'] not in cog_list["phylogenetic_rRNA_cogs"]:
-                continue
-
-            start = blast_hits_purified[contig][identifier]["start"]
-            end = blast_hits_purified[contig][identifier]["end"]
-            cog = blast_hits_purified[contig][identifier]["cog"]
-            direction = blast_hits_purified[contig][identifier]["direction"]
-            contig_rrna_coordinates[contig][identifier]["start"] = start
-            contig_rrna_coordinates[contig][identifier]["end"] = end
-            contig_rrna_coordinates[contig][identifier]["cog"] = cog
-            contig_rrna_coordinates[contig][identifier]["direction"] = direction
-            outfile_name = args.output_dir_var + contig + '_rRNA_result_summary.txt'
-            contig_rrna_coordinates[contig][identifier]["outfile"] = outfile_name
-            genewise_summary_files[contig][outfile_name] = 1
-            try:
-                outfile = open(outfile_name, 'w')
-                outfile.close()
-            except IOError:
-                logging.error("Unable to create create " + outfile_name + ' for writing!\n')
-                sys.exit(3)
-
-    # This overwrites the original log file
-    fasta_list = _fasta_reader._read_format_fasta(args.fasta_input, args.min_seq_length, args.output, 'dna', 110)
-    if not fasta_list:
-        sys.exit()
-    tmp_iterable = iter(fasta_list)
-    formatted_fasta_dict = dict(izip(tmp_iterable, tmp_iterable))
-
-    for contig_name in formatted_fasta_dict:
-        sequence = formatted_fasta_dict[contig_name]
-        contig_name = contig_name[1:]
-        if contig_name in contig_rrna_coordinates:
-            # start searching for the information to shorten the file.
-            for identifier in sorted(contig_rrna_coordinates[contig_name].keys()):
-                start = contig_rrna_coordinates[contig_name][identifier]["start"]
-                end = contig_rrna_coordinates[contig_name][identifier]["end"]
-                cog = contig_rrna_coordinates[contig_name][identifier]["cog"]
-                direction = contig_rrna_coordinates[contig_name][identifier]["direction"]
-                outfile = contig_rrna_coordinates[contig_name][identifier]['outfile']
-                count = -1
-                shortened_sequence = ""
-                for nucleotide in sequence:
-                    count += 1
-                    if not (start <= count <= end):
-                        continue
-                    shortened_sequence += nucleotide
-
-                if direction == 'reverse':
-                    # ok, our hit has been on the opposite strand of the reference.
-                    # to get a proper alignment, we thus have to produce a negative strand version of the input
-                    nucleotides2 = ''.join(reversed(shortened_sequence))
-                    shortened_sequence = ""
-                    nucleotides2 = nucleotides2.lower()
-                    for nucleotide in nucleotides2:
-                        if nucleotide == 't':
-                            nucleotide = 'a'
-                        elif nucleotide == 'a':
-                            nucleotide = 't'
-                        elif nucleotide == 'c':
-                            nucleotide = 'g'
-                        elif nucleotide == 'g':
-                            nucleotide = 'c'
-
-                        shortened_sequence += nucleotide
-                rrna_seqs += 1
-                try:
-                    out = open(outfile, 'a')
-                    fprintf(out, '%s\t%s\t%s\t%s\t%s\n', cog, start, end, 'n/a', shortened_sequence)
-                    out.close()
-                except IOError:
-                    sys.stderr.write("ERROR: Can't create " + outfile + '!\n')
-                    sys.exit(0)
-
-            try:
-                output_file = open(args.output_dir_var + contig_name + '_sequence.txt', 'w')
-                fprintf(output_file, '>%s\n%s', contig_name, sequence)
-                output_file.close()
-            except IOError:
-                sys.stderr.write("ERROR: Can't create " + args.output_dir_var + contig_name + '_sequence.txt!\n')
-                sys.exit(12)
-
-    logging.info("done.\n")
-
-    function_end_time = time.time()
-    hours, remainder = divmod(function_end_time - function_start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    logging.debug("\trRNA-identification time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    logging.debug("\t" + str(rrna_seqs) + " rRNA sequences found.\n\n")
-
-    return contig_rrna_coordinates, rRNA_hit_files
-
-
 def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbosity, file_type):
     alignment_length_dict = dict()
     for denominator in concatenated_mfa_files:
@@ -721,9 +599,8 @@ def prepare_and_run_hmmalign(execs, hmm_dir, alignment_dir, single_query_fasta_f
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    logging.info("\thmmalign time required: " +
+    logging.debug("\thmmalign time required: " +
                   ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    sys.exit()
 
     return hmmalign_singlehit_files
 
@@ -836,43 +713,6 @@ def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
     return concatenated_mfa_files, nrs_of_sequences
 
 
-def filter_multiple_alignments(executables, concatenated_mfa_files, marker_build_dict, tool="BMGE"):
-    """
-    Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
-
-    :param executables:
-    :param concatenated_mfa_files: A dictionary containing f_contig keys mapping to a FASTA or Phylip sequential file
-    :param marker_build_dict:
-    :param tool: The software to use for alignment trimming
-    :return: A list of files resulting from BMGE multiple sequence alignment masking.
-    """
-    # TODO: Parallelize with multiprocessing
-
-    logging.info("Running " + tool + "... ")
-
-    start_time = time.time()
-
-    trimmed_output_files = {}
-
-    for denominator in sorted(concatenated_mfa_files.keys()):
-        if denominator not in trimmed_output_files:
-            trimmed_output_files[denominator] = []
-        mfa_files = concatenated_mfa_files[denominator]
-        for concatenated_mfa_file in mfa_files:
-            trimmed_msa_file = trim_multiple_alignment(executables["BMGE.jar"], concatenated_mfa_file,
-                                                       marker_build_dict[denominator].molecule, tool)
-            trimmed_output_files[denominator].append(trimmed_msa_file)
-
-    logging.info("done.\n")
-
-    end_time = time.time()
-    hours, remainder = divmod(end_time - start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    logging.debug("\t" + tool + " time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    return trimmed_output_files
-
-
 def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dict, marker_build_dict: dict, min_len=10):
     """
     Reads the multiple alignment files (either Phylip or FASTA formatted) and looks for both reference and query
@@ -883,8 +723,8 @@ def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dic
 
     :param aln_dir: Path to the directory containing TreeSAPP reference package multiple sequence alignments
     :param trimmed_msa_files:
-    :param msa_files: A dictionary containing the untrimmed
-    :param marker_build_dict:
+    :param msa_files: A dictionary containing the untrimmed MSA files indexed by reference package code (denominator)
+    :param marker_build_dict: A dictionary of MarkerBuild objects indexed by their refpkg codes/denominators
     :param min_len: The minimum allowable sequence length after trimming (not including gap characters)
     :return: A dictionary of denominators, with multiple alignment dictionaries as values. Example:
         {M0702: { "McrB_hmm_purified.phy-BMGE.fasta": {'1': seq1, '2': seq2}}}

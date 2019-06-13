@@ -3,7 +3,6 @@ __author__ = 'Connor Morgan-Lang'
 import sys
 import os
 import re
-import subprocess
 import logging
 import time
 from shutil import rmtree, copy
@@ -745,6 +744,8 @@ class CommandLineWorker(Process):
                 # Poison pill means shutdown
                 self.task_queue.task_done()
                 break
+            logging.debug("STAGE: " + self.master + "\n" +
+                          "\tCOMMAND:\n" + " ".join(next_task) + "\n")
             launch_write_command(next_task)
             self.task_queue.task_done()
         return

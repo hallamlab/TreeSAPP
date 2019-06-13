@@ -6,7 +6,7 @@ import os
 import shutil
 from random import randint
 from . import file_parsers
-from .fasta import format_read_fasta, trim_multiple_alignment, write_new_fasta, get_headers,\
+from .fasta import format_read_fasta, write_new_fasta, get_headers,\
     read_fasta_to_dict, register_headers, write_classified_sequences, FASTA, merge_fasta_dicts_by_index
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
@@ -23,7 +23,7 @@ from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Cre
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
-    multiple_alignments, get_sequence_counts, filter_multiple_alignments, check_for_removed_sequences,\
+    multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
     summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names
 from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser
@@ -390,24 +390,30 @@ def create(sys_args):
         ##
         dict_for_phy = dict()
         if args.trim_align:
-            logging.info("Running BMGE... ")
-            trimmed_msa_file = trim_multiple_alignment(ts_create.executables["BMGE.jar"],
-                                                       ts_create.ref_pkg.msa,
-                                                       ts_create.molecule_type)
-            logging.info("done.\n")
-
+            trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_create.executables,
+                                                                   {marker_package.denominator:
+                                                                        [ts_create.ref_pkg.msa]},
+                                                                   {marker_package.denominator:
+                                                                        marker_package})
+            trimmed_mfa_file = trimmed_mfa_files[marker_package.denominator]
             unique_ref_headers = set(
                 [re.sub(r"_{0}".format(ts_create.ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
-            msa_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming([trimmed_msa_file],
-                                                                                                 unique_ref_headers)
+            qc_ma_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming(trimmed_mfa_file,
+                                                                                                   unique_ref_headers)
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
-            if trimmed_msa_file not in msa_dict.keys():
+            if len(qc_ma_dict.keys()) == 0:
                 # At least one of the reference sequences were discarded and therefore this package is invalid.
-                logging.error("Trimming removed reference sequences. This indicates you have non-homologous sequences.\n" +
+                logging.error("Trimming removed reference sequences. This indicates non-homologous sequences.\n" +
                               "Please improve sequence quality-control and/or re-run without the '--trim_align' flag.\n")
                 sys.exit(13)
-            dict_for_phy = msa_dict[trimmed_msa_file]
-            os.remove(trimmed_msa_file)
+            elif len(qc_ma_dict.keys()) > 1:
+                logging.error("Multiple trimmed alignment files are found when only one is expected:\n" +
+                              "\n".join([str(k) + ": " + str(qc_ma_dict[k]) for k in qc_ma_dict]))
+                sys.exit(13)
+            # There is only a single trimmed-MSA file in the dictionary
+            for trimmed_msa_file in qc_ma_dict:
+                dict_for_phy = qc_ma_dict[trimmed_msa_file]
+                os.remove(trimmed_msa_file)
         else:
             for seq_name in ref_aligned_fasta_dict:
                 dict_for_phy[seq_name.split('_')[0]] = ref_aligned_fasta_dict[seq_name]
@@ -796,8 +802,8 @@ def assign(sys_args):
 
         if args.trim_align:
             tool = "BMGE"
-            trimmed_mfa_files = filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
-                                                           marker_build_dict, tool)
+            trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
+                                                                   marker_build_dict, args.num_threads, tool)
             qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
                                                      marker_build_dict, args.min_seq_length)
             evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
