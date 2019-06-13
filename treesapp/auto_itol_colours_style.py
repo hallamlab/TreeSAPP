@@ -43,13 +43,21 @@ class TaxaColours:
         self.internal_node_map = dict()  # Internal node -> child leaf names
 
     def get_clades(self, target_depth):
+        """
+        Loads unique taxa found in the tree into a dictionary where the values are all leaves of a taxon.
+        num_taxa is incremented here and represents the number of unique taxa.
+        The number of keys in taxon_leaf_map represents the number of
+        :param target_depth: A numeric value representing the taxonomic rank threshold, i.e., 0 is Kingdom, 7 is species
+        :return: None
+        """
         clades = dict()
+        truncated_lineages = dict()
         self.num_taxa = 0
 
         for leaf in sorted(self.tree_leaves, key=lambda x: x.lineage):  # type: TreeLeafReference
             if not leaf.lineage:
                 continue
-            lineage_path = clean_lineage_string(leaf.lineage).split('; ')
+            lineage_path = leaf.lineage.split('; ')
             if len(lineage_path) > target_depth:
                 taxon = lineage_path[target_depth]
                 try:
@@ -62,12 +70,15 @@ class TaxaColours:
                     self.num_taxa += 1
                     clades[self.num_taxa] = taxon
             else:
-                pass
+                try:
+                    truncated_lineages[leaf.lineage] += 1
+                except KeyError:
+                    truncated_lineages[leaf.lineage] = 1
         self.num_taxa += 1
         self.unique_clades = clades
-
-        logging.debug("\t" + self.marker + ": " + str(self.num_taxa) + " unique clades.\n")
-
+        logging.info(self.marker + ": " + str(self.num_taxa) + " unique clades.\n" +
+                     str(len(truncated_lineages)) + " truncated lineages (" +
+                     str(sum(truncated_lineages.values())) + " sequences) that will not be coloured.\n")
         return
 
     def remove_taxon_from_colours(self, taxon):
@@ -79,17 +90,22 @@ class TaxaColours:
         return
 
     def filter_rare_groups(self, min_p: float):
-        filter_str = "Taxa filtered due to proportion < " + str(min_p) + "\n"
+        filter_str = "Taxa filtered due to proportion < " + str(min_p) + ":\n"
         filtered_taxa = []
+        filtered_taxa_strings = []
         for taxon in self.taxon_leaf_map:
             leaf_nodes = set(self.taxon_leaf_map[taxon])
             if len(leaf_nodes)/self.num_seqs < min_p:
-                filter_str += "\t" + taxon + "= " + str(round(len(leaf_nodes)/self.num_seqs, 5)) + "\n"
+                filtered_taxa_strings.append("\t" + taxon + " = " + str(round(len(leaf_nodes)/self.num_seqs, 5)))
                 filtered_taxa.append(taxon)
+        if not filtered_taxa_strings:
+            filtered_taxa_strings.append("\tNone")
         for taxon in filtered_taxa:
             self.num_taxa -= 1
             self.num_seqs -= len(self.taxon_leaf_map[taxon])
             self.remove_taxon_from_colours(taxon)
+        filter_str += "\n".join(filtered_taxa_strings) + "\n"
+        filter_str += "Low-abundance taxa removed\t" + str(len(filtered_taxa)) + "\n"
         filter_str += "Remaining sequences for colouring\t" + str(self.num_seqs) + "\n"
         filter_str += "Remaining taxa for colouring\t" + str(self.num_taxa) + "\n"
         logging.info(filter_str)
@@ -272,7 +288,7 @@ def read_tax_ids_file(taxa_colours):
             raise ValueError
         leaf = TreeLeafReference(number, translation)
         if lineage:
-            leaf.lineage = lineage
+            leaf.lineage = clean_lineage_string(lineage)
             leaf.complete = True
         leaves.append(leaf)
         taxa_colours.num_seqs += 1
@@ -440,13 +456,13 @@ def order_taxa(taxon_leaf_map: dict, leaf_order: list):
     leftmost_taxon = dict()
     taxon_order = dict()
     indices = dict()  # Could just use a list but may as well keep track of the left-most node with dict
-    i = 0
     for taxon in taxon_leaf_map:
         for leaf_name in taxon_leaf_map[taxon]:
-            indices[leaf_order.index(leaf_name)] = leaf_name
+            indices[int(leaf_order.index(leaf_name))] = leaf_name
         leftmost_leaf = min(indices.keys())
         leftmost_taxon[leftmost_leaf] = taxon
         indices.clear()
+    i = 0
     for index in sorted(leftmost_taxon):
         taxon_order[i] = leftmost_taxon[index]
         i += 1
@@ -473,8 +489,8 @@ def main():
     leaf_order = linearize_tree_leaves(args.tree)
     colours = get_colours(args, taxa_colours, args.palette)
     # Sort the nodes by their internal node order
-    taxon_order = order_taxa(taxa_colours.taxon_leaf_map, leaf_order)
-    palette_taxa_map = map_colours_to_taxa(taxon_order, colours)
+    taxa_order = order_taxa(taxa_colours.taxon_leaf_map, leaf_order)
+    palette_taxa_map = map_colours_to_taxa(taxa_order, colours)
     write_colours_styles(taxa_colours, palette_taxa_map)
     # Find the minimum set of monophyletic internal nodes for each taxon
     taxa_clades = taxa_colours.find_mono_clades()
