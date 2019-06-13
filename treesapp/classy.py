@@ -833,6 +833,7 @@ def get_header_info(header_registry, code_name=''):
     all_accessions = dict()
     deduped_accessions = list()
 
+    # TODO: Fix parsing of combined EggNOG and custom headers such that the taxid is parsed from the "accession"
     for treesapp_id in sorted(header_registry.keys(), key=int):
         original_header = header_registry[treesapp_id].original
         header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)

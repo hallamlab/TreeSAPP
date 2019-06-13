@@ -326,12 +326,15 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
     organism = ""
     lineage = ""
     taxid = ""
+    version = ""
 
     if regex_match_groups:
         accession = regex_match_groups.group(1)
-        version = accession
         if accession.find('.'):
-            accession = version.split('.')[0]
+            pieces = accession.split('.')[0]
+            if len(pieces) == 2 and re.match(r"\d+", pieces[1]):
+                version = accession
+                accession = pieces[0]
         if header_db == "custom":
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
