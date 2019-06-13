@@ -517,7 +517,7 @@ def check_create_arguments(creator: Creator, args):
         if not args.uc and not args.cluster:
             logging.error("--guarantee used but without clustering there is no reason for it.\n" +
                           "Include all sequences in " + args.guarantee +
-                          " in " + args.fasta_input + " and re-run without --guarantee\n")
+                          " in " + creator.input_sequences + " and re-run without --guarantee\n")
             sys.exit(13)
 
     if args.profile:
