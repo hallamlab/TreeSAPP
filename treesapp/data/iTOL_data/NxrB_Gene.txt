@@ -1,0 +1,34 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+247	range	#bae4bc	DMSO reductase family type II enzyme, iron-sulfur
+128|129	range	#bae4bc	DMSO reductase family type II enzyme, iron-sulfur
+13|10	range	#bae4bc	DMSO reductase family type II enzyme, iron-sulfur
+20|22	range	#7bccc4	Selenate reductase
+263|190	range	#0868ac	NxrB
+262	range	#0868ac	NxrB
+169|174	range	#0868ac	NxrB
+246	range	#0868ac	NxrB
+261|237	range	#f0f9e8	Other CISM superfamily enzymes
+274|272	range	#f0f9e8	Other CISM superfamily enzymes
+248|184	range	#f0f9e8	Other CISM superfamily enzymes
+225|245	range	#f0f9e8	Other CISM superfamily enzymes
+212|279	range	#f0f9e8	Other CISM superfamily enzymes
+265|282	range	#f0f9e8	Other CISM superfamily enzymes
+250|164	range	#f0f9e8	Other CISM superfamily enzymes
+131	range	#43a2ca	NarH
+181|180	range	#43a2ca	NarH
+264	range	#43a2ca	NarH
+289|291	range	#43a2ca	NarH
+27	range	#43a2ca	NarH
+178	range	#43a2ca	NarH
+177	range	#43a2ca	NarH
+166|2	range	#43a2ca	NarH
+1|6	range	#43a2ca	NarH
+254|251	range	#43a2ca	NarH
+288|238	range	#43a2ca	NarH
+135|139	range	#43a2ca	NarH
+134|253	range	#43a2ca	NarH
+241	range	#43a2ca	NarH
+165	range	#43a2ca	NarH
+130	range	#43a2ca	NarH
