@@ -561,7 +561,8 @@ def get_header_format(header, code_name=""):
     pdb_re = re.compile(r">?pdb\|(.*)\|.+$")  # a
     pir_re = re.compile(r">?pir\|.*\|(\w+).* - (.*)$")  # a, o
     presf_re = re.compile(r">?prf\|.*\|([A-Z0-9]+)\s+.*$")  # a
-    sp_re = re.compile(r">?sp\|(.*)\|.*Full=.*;?.*$")  # a
+    sp_re = re.compile(r">?sp\|(.*)\|.*$")  # a
+    tr_re = re.compile(r">?tr\|(\w+)\|\w+_\w+ .* OS=(.*) GN=.*$")  # a, o
     fungene_gi_bad = re.compile(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
     pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
@@ -593,6 +594,7 @@ def get_header_format(header, code_name=""):
                                pir_re: "pir",
                                ref_re: "ref",
                                sp_re: "sp",
+                               tr_re: "tr",
                                gi_re: "gi_re",
                                gi_prepend_proper_re: "gi_proper",
                                gi_prepend_mess_re: "gi_mess",

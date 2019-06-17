@@ -1,0 +1,29 @@
+1	Clostridium perfringens | B2LWG7	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+2	Clostridium butyricum | A4L724	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+3	Clostridium tyrobutyricum | B6ECG6	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium
+4	Clostridium acetobutylicum DSM 1731 | F7ZNM2	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium acetobutylicum
+5	Clostridium acetobutylicum | Q59262	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium acetobutylicum
+6	Clostridium botulinum NCTC 2916 | B1QDK5	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium botulinum
+7	Clostridium carboxidivorans P7 | C6PR43	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium carboxidivorans
+8	Clostridium paraputrificum | Q6F4C7	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium paraputrificum
+9	Clostridium saccharobutylicum | Q59261	Bacteria; Firmicutes; Clostridia; Clostridiales; Clostridiaceae; Clostridium; Clostridium saccharobutylicum
+10	Heliobacillus mobilis | Q1MSH5	Bacteria; Firmicutes; Clostridia; Clostridiales; Heliobacteriaceae; Heliobacillus; Heliobacillus mobilis
+11	Clostridium difficile NAP08 | D5Q7A8	Bacteria; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Clostridioides; Clostridioides difficile
+12	Clostridioides difficile 630 | Q180F8	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Clostridiales; Peptostreptococcaceae; Clostridioides; Clostridioides difficile
+13	Thermoanaerobacter saccharolyticum | B2C7T9	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Clostridia; Thermoanaerobacterales; Thermoanaerobacterales Family III. Incertae Sedis; Thermoanaerobacterium
+14	Megasphaera elsdenii | Q9RGN3	Bacteria; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Megasphaera; Megasphaera elsdenii
+15	Veillonella parvula ACS-068-V-Sch12 | F5KZJ9	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Negativicutes; Veillonellales; Veillonellaceae; Veillonella; Veillonella parvula
+16	Anaerococcus hydrogenalis ACS-025-V-Sch4 | F0GY24	cellular organisms; Bacteria; Terrabacteria group; Firmicutes; Tissierellia; Tissierellales; Peptoniphilaceae; Anaerococcus; Anaerococcus hydrogenalis
+17	Desulfovibrio desulfuricans | Q9AM36	Bacteria; Proteobacteria; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio desulfuricans
+18	Desulfovibrio fructosivorans | O08311	Bacteria; Proteobacteria; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio fructosivorans
+19	Desulfovibrio oxamicus strain Monticello | P13629	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio oxamicus
+20	Desulfovibrio vulgaris str. Hildenborough | P07598	cellular organisms; Bacteria; Proteobacteria; delta/epsilon subdivisions; Deltaproteobacteria; Desulfovibrionales; Desulfovibrionaceae; Desulfovibrio; Desulfovibrio vulgaris
+21	Shewanella oneidensis | Q8EAI2	Bacteria; Proteobacteria; Gammaproteobacteria; Alteromonadales; Shewanellaceae; Shewanella
+22	Thermotoga maritima | O52683	cellular organisms; Bacteria; Thermotogae; Thermotogae; Thermotogales; Thermotogaceae; Thermotoga
+23	Holomastigotoides mirabile | A8J6C0	cellular organisms; Eukaryota; Parabasalia; Spirotrichonymphida; Holomastigotoididae; Holomastigotoides
+24	Pseudotrichonympha grassii | A8J6B7	cellular organisms; Eukaryota; Parabasalia; Trichonymphida; Teranymphidae; Pseudotrichonympha
+25	Pseudotrichonympha grassii | A8J6B8	cellular organisms; Eukaryota; Parabasalia; Trichonymphida; Teranymphidae; Pseudotrichonympha
+26	uncultured parabasalid eukaryote | A8J6C2	cellular organisms; Eukaryota; Parabasalia; environmental samples
+27	Chlamydomonas moewusii | Q56UD8	Eukaryota; Viridiplantae; Chlorophyta; Chlorophyceae; Chlamydomonadales; Chlamydomonadaceae; Chlamydomonas; Chlamydomonas moewusii
+28	Chlorella fusca | Q8VX03	Eukaryota; Viridiplantae; Chlorophyta
+29	Tetradesmus obliquus | Q9AR66	Eukaryota; Viridiplantae; Chlorophyta; Chlorophyceae; Sphaeropleales; Scenedesmaceae; Tetradesmus; Tetradesmus obliquus
