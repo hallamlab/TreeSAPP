@@ -109,6 +109,7 @@ class FASTA:
         self.fasta_dict = dict()
         self.header_registry = dict()
         self.amendments = set()  # Set of the TreeSAPP numerical identifiers for all guaranteed sequences
+        self.index_form = None
 
     def load_fasta(self):
         self.fasta_dict = read_fasta_to_dict(self.file)
@@ -128,14 +129,42 @@ class FASTA:
             logging.warning("FASTA header registry and fasta dictionary are out of sync!\n")
         return len(self.fasta_dict.keys())
 
-    def original_headers(self):
-        return [self.header_registry[index].original for index in self.header_registry]
+    def original_header_map(self):
+        return {self.header_registry[index].original: [index] for index in self.header_registry}
 
-    def formatted_headers(self):
-        return [self.header_registry[index].formatted for index in self.header_registry]
+    def formatted_header_map(self):
+        header_map = dict()
+        for index in self.header_registry:
+            f_h = self.header_registry[index].formatted
+            if f_h in header_map:
+                header_map[f_h].append(index)
+            else:
+                header_map[f_h] = [index]
+        return header_map
 
-    def treesapp_ids(self):
-        return [index for index in self.header_registry]
+    def first_split_header_map(self):
+        header_map = dict()
+        for index in self.header_registry:
+            fs_h = self.header_registry[index].first_split
+            if fs_h in header_map:
+                header_map[fs_h].append(index)
+            else:
+                header_map[fs_h] = [index]
+        return header_map
+
+    def get_seq_names(self, name_format="original") -> list:
+        if name_format == "original":
+            return [self.header_registry[index].original for index in sorted(self.header_registry, key=int)]
+        elif name_format == "first_split":
+            return [self.header_registry[index].first_split for index in sorted(self.header_registry, key=int)]
+        elif name_format == "formatted":
+            return [self.header_registry[index].formatted for index in sorted(self.header_registry, key=int)]
+        elif name_format == "num":
+            return [index for index in sorted(self.header_registry, key=int)]
+        else:
+            logging.error("Unrecognized Header format '" + name_format + "'." +
+                          " Options are 'original', 'formatted', 'first_split' and 'num'.\n")
+            sys.exit(5)
 
     def keep_only(self, header_subset: list):
         """
@@ -171,39 +200,38 @@ class FASTA:
         self.keep_only(long_seqs)
         return
 
-    def get_seq_names(self, name_format="original"):
-        if name_format == "original":
-            return [self.header_registry[acc].original for acc in sorted(self.header_registry, key=int)]
-        elif name_format == "first_split":
-            return [self.header_registry[acc].first_split for acc in sorted(self.header_registry, key=int)]
-        elif name_format == "formatted":
-            return [self.header_registry[acc].formatted for acc in sorted(self.header_registry, key=int)]
-        elif name_format == "num":
-            return [acc for acc in sorted(self.header_registry, key=int)]
-        else:
-            logging.error("Unrecognized Header format '" + name_format + "'." +
-                          " Options are 'original', 'formatted', 'first_split' and 'num'.\n")
-            sys.exit(5)
+    def get_header_mapping_dict(self) -> dict:
+        """
+        Creates a dictionary mapping all forms of the header formats (original, first_split, num, and formatted)
+        to the unique, numeric TreeSAPP IDs for rapid look-ups
+        :return: Dictionary for look-ups
+        """
+        mapping_dict = dict()
+        mapping_dict.update(self.original_header_map())
+        mapping_dict.update(self.formatted_header_map())
+        mapping_dict.update(self.first_split_header_map())
+        return mapping_dict
 
-    def change_dict_keys(self, repl="original"):
+    def change_dict_keys(self, index_replace="original"):
         # TODO: Include a value to track the fasta dict key-type (e.g. num, original)
         # TODO: Use utilities.rekey_dict
         repl_fasta_dict = dict()
         for acc in sorted(self.header_registry, key=int):
             header = self.header_registry[acc]  # type: Header
             # Get the new header
-            if repl == "original":
+            if index_replace == "original":
                 new_header = header.original
-            elif repl == "first_split":
+            elif index_replace == "first_split":
                 new_header = header.first_split
-            elif repl == "formatted":
+            elif index_replace == "formatted":
                 new_header = header.formatted
-            elif repl == "num":
+            elif index_replace == "num":
                 new_header = acc
             else:
                 logging.error("Unknown replacement type.\n")
                 sys.exit(3)
             # Find the old header to be replaced
+            # NOTE: Using .first_split may be lossy from duplicates. This will _not_ propagate under current scheme.
             if header.original in self.fasta_dict:
                 repl_fasta_dict[new_header] = self.fasta_dict[header.original]
             elif header.formatted in self.fasta_dict:
@@ -215,6 +243,7 @@ class FASTA:
             else:
                 pass
         self.fasta_dict = repl_fasta_dict
+        self.index_form = index_replace
         return
 
     def synchronize_seqs_n_headers(self):
@@ -330,21 +359,25 @@ class FASTA:
 
         # Guarantee the index type is original for both self.fasta_dict and new_fasta
         self.change_dict_keys()
+        header_map = self.get_header_mapping_dict()
         new_fasta.change_dict_keys()
 
         # Load the new fasta and headers
         acc = max([int(x) for x in self.header_registry.keys()]) + 1
         for num_id in sorted(new_fasta.header_registry, key=int):
             header = new_fasta.header_registry[num_id]  # type: Header
-            if header.original not in self.fasta_dict:
-                self.fasta_dict[header.original] = new_fasta.fasta_dict[header.original]
-                self.header_registry[str(acc)] = new_fasta.header_registry[num_id]
-                self.amendments.add(str(acc))
-                acc += 1
+            if header.original in header_map:
+                for ts_id in header_map[header.original]:
+                    self.amendments.add(str(ts_id))
+            elif header.first_split in header_map:
+                for ts_id in header_map[header.first_split]:
+                    self.amendments.add(str(ts_id))
             else:
-                for ts_id in self.header_registry:
-                    if header.original == self.header_registry[ts_id].original:
-                        self.amendments.add(ts_id)
+                self.fasta_dict[header.original] = new_fasta.fasta_dict[header.original]
+                ts_id = acc
+                self.header_registry[str(ts_id)] = new_fasta.header_registry[num_id]
+                self.amendments.add(str(ts_id))
+                acc += 1
         self.synchronize_seqs_n_headers()
         return
 
@@ -566,7 +599,7 @@ def get_header_format(header, code_name=""):
     fungene_gi_bad = re.compile(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
     pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
-    eggnog_re = re.compile(r"^>?(\d+)\.([A-Za-z][-A-Za-z0-9_]+)(\s\[.*\])?$")  # t, o
+    eggnog_re = re.compile(r"^>?(\d+)\.([A-Za-z][-A-Za-z0-9_]+)(\.\d)?(\s\[.*\])?$")  # t, o
 
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
