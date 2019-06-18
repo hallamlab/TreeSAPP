@@ -51,14 +51,13 @@ class EntrezRecord(ReferenceSequence):
         return info_string
 
     def tracking_stamp(self):
-        num = 0
+        self.bitflag = 0
         if self.organism:
-            num += 1
+            self.bitflag += 1
         if self.ncbi_tax:
-            num += 2
+            self.bitflag += 2
         if self.lineage:
-            num += 4
-        self.bitflag = num
+            self.bitflag += 4
         return
 
 
@@ -292,7 +291,10 @@ def map_accession2taxid(query_accession_list, accession2taxid_list):
             e_record.versioned = e_record.accession
             # Strip off any version numbers from the accessions so we only need to check for one item
             e_record.accession = '.'.join(e_record.accession.split('.')[0:-1])
-        er_acc_dict[e_record.accession] = e_record
+        try:
+            er_acc_dict[e_record.accession].append(e_record)
+        except KeyError:
+            er_acc_dict[e_record.accession] = [e_record]
         unmapped_queries.append(e_record.accession)
 
     logging.info("Mapping query accessions to NCBI taxonomy IDs... ")
@@ -315,10 +317,11 @@ def map_accession2taxid(query_accession_list, accession2taxid_list):
 
             try:
                 # Update the EntrezRecord elements
-                record = er_acc_dict[accession]
-                record.versioned = ver
-                record.ncbi_tax = taxid
-                record.bitflag = 3  # Necessary for downstream filters - indicates taxid has been found
+                records = er_acc_dict[accession]
+                for record in records:
+                    record.versioned = ver
+                    record.ncbi_tax = taxid
+                    record.bitflag = 3  # Necessary for downstream filters - indicates taxid has been found
                 # Remove accession from unmapped queries
                 i = 0
                 while i < final_qlen:
@@ -350,12 +353,18 @@ def pull_unmapped_entrez_records(entrez_records: list):
     Prepares a list of accession identifiers for EntrezRecord instances where the bitflag is not equal to 7,
      inferring lineage information was not properly entered.
     :param entrez_records: A list of EntrezRecord instances
-    :return: List of strings, each being an accession of an EntrezRecord with bitflag != 7
+    :return: List of EntrezRecords with bitflag != 7
     """
     unmapped_queries = list()
-    for e_record in entrez_records:
-        if e_record.bitflag != 7:
+    x = 0
+    while x < len(entrez_records):
+        e_record = entrez_records[x]  # type: EntrezRecord
+        e_record.tracking_stamp()
+        if e_record.bitflag < 6:  # Set threshold to 6 as the organism may not have been entered
             unmapped_queries.append(e_record)
+            entrez_records.pop(x)
+        else:
+            x += 1
     return unmapped_queries
 
 
@@ -444,6 +453,7 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
     accession_lineage_map = dict()
 
     for e_record in entrez_records_list:  # type: EntrezRecord
+        e_record.tracking_stamp()
         if e_record.bitflag == 0:
             failed += 1
             continue
@@ -461,8 +471,11 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
                           e_record.get_info() + "tax_id = " + str(e_record.ncbi_tax) + "\n")
             sys.exit(19)
         e_record_key = (e_record.accession, e_record.versioned)
-        if e_record_key in accession_lineage_map:
-            logging.warning(str(e_record_key) + " already present in accession-lineage map.\n")
+        if e_record_key in accession_lineage_map and e_record.lineage != accession_lineage_map[e_record_key]["lineage"]:
+            logging.warning(str(e_record_key) + " already present in accession-lineage map with different lineage.\n" +
+                            "The most complete lineage will be used.\n")
+            if len(e_record.lineage) <= len(accession_lineage_map[e_record_key]["lineage"]):
+                continue
         accession_lineage_map[e_record_key] = dict()
         accession_lineage_map[e_record_key]["lineage"] = e_record.lineage
         accession_lineage_map[e_record_key]["organism"] = e_record.organism
@@ -593,8 +606,6 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
     for treesapp_id in sorted(fasta_record_objects.keys()):
         ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
         ref_seq.tracking_stamp()
-        if ref_seq.bitflag >= 1:
-            taxa_searched += 1
         # Could have been set previously, in custom header format for example
         if ref_seq.lineage:
             unambiguous_accession_lineage_map[ref_seq.accession] = clean_lineage_string(ref_seq.lineage)
@@ -620,6 +631,9 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
 
             ref_seq.lineage = clean_lineage_string("; ".join(check_lineage(lineage, ref_seq.organism)))
             unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
+        ref_seq.tracking_stamp()
+        if ref_seq.bitflag >= 1:
+            taxa_searched += 1
 
     if taxa_searched < len(fasta_record_objects.keys()):
         logging.error("Not all sequences (" + str(taxa_searched) + '/'
@@ -767,19 +781,22 @@ def map_accessions_to_lineages(query_accession_list: list, molecule: str, access
     if accession_to_taxid:
         # Determine find the query accessions that are located in the provided accession2taxid file
         entrez_record_dict = map_accession2taxid(query_accession_list, accession_to_taxid)
+        entrez_records = []
+        for index in entrez_record_dict:
+            entrez_records += entrez_record_dict[index]
         # Map lineages to taxids for successfully-mapped query sequences
-        fetch_lineages_from_taxids(list(entrez_record_dict.values()))
+        fetch_lineages_from_taxids(entrez_records)
         # Use the normal querying functions to obtain lineage information for the unmapped queries
-        unmapped_queries = pull_unmapped_entrez_records(list(entrez_record_dict.values()))
+        unmapped_queries = pull_unmapped_entrez_records(entrez_records)
         if len(unmapped_queries) > 0:
             # This tends to be a minority so shouldn't be too taxing
             for e_record in get_multiple_lineages(unmapped_queries, molecule):  # type: EntrezRecord
                 try:
-                    entrez_record_dict[e_record.accession] = e_record
+                    entrez_record_dict[e_record.accession].append(e_record)
                 except KeyError:
                     logging.warning(e_record.accession + " not found in original query list.\n")
                     continue
-        entrez_records = list(entrez_record_dict.values())
+                entrez_records.append(e_record)
         entrez_record_dict.clear()
         unmapped_queries.clear()
     else:
