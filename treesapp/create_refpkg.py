@@ -289,114 +289,6 @@ def reformat_headers(header_dict):
     return swappers
 
 
-def get_sequence_info(code_name, fasta_dict, fasta_replace_dict, header_registry, swappers=None):
-    """
-    This function is used to find the accession ID and description of each sequence from the FASTA file
-
-    :param code_name: code_name from the command-line parameters
-    :param fasta_dict: a dictionary with headers as keys and sequences as values (returned by format_read_fasta)
-    :param fasta_replace_dict:
-    :param header_registry:
-    :param swappers: A dictionary containing representative clusters (keys) and their constituents (values)
-    :return: fasta_replace_dict with a complete ReferenceSequence() value for every treesapp_id key
-    """
-
-    logging.info("Extracting information from headers for formatting purposes... ")
-    fungene_gi_bad = re.compile(r"^>[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
-    swapped_headers = []
-    if len(fasta_replace_dict.keys()) > 0:
-        for treesapp_id in sorted(fasta_replace_dict):
-            ref_seq = fasta_replace_dict[treesapp_id]
-            ref_seq.short_id = treesapp_id + '_' + code_name
-            for header in fasta_dict:
-                # Find the matching header in the header_registry
-                original_header = header_registry[treesapp_id].original
-                header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, code_name)
-                sequence_info = header_format_re.match(original_header)
-                fasta_header_organism = utilities.return_sequence_info_groups(sequence_info, header_db, header).organism
-                if re.search(ref_seq.accession, header):
-                    if re.search(utilities.reformat_string(ref_seq.organism), utilities.reformat_string(fasta_header_organism)):
-                        ref_seq.sequence = fasta_dict[header]
-                    else:
-                        logging.warning("Accession '" + ref_seq.accession + "' matches, organism differs:\n" +
-                                        "'" + ref_seq.organism + "' versus '" + fasta_header_organism + "'\n")
-            if not ref_seq.sequence:
-                # TODO: test this case (uc file provided, both fresh attempt and re-attempt)
-                # Ensure the header isn't a value within the swappers dictionary
-                for swapped in swappers.keys():
-                    header = swappers[swapped]
-                    original_header = ""
-                    # Find the original header of the swapped header
-                    for num in header_registry:
-                        if header_registry[num].first_split[1:] == header:
-                            original_header = header_registry[num].original
-                        elif re.search(header_registry[num].first_split[1:], header):
-                            original_header = header_registry[num].original
-                        else:
-                            pass
-                    if not original_header:
-                        logging.error("Unable to find the original header for " + header + "\n")
-                        sys.exit(13)
-                    if re.search(ref_seq.accession, header) and re.search(ref_seq.organism, original_header):
-                        # It is and therefore the header was swapped last run
-                        ref_seq.sequence = fasta_dict[swapped]
-                        break
-                if not ref_seq.sequence:
-                    # Unable to find sequence in swappers too
-                    logging.error("Unable to find header for " + ref_seq.accession)
-                    sys.exit(13)
-
-    else:  # if fasta_replace_dict needs to be populated, this is a new run
-        for header in sorted(fasta_dict.keys()):
-            if fungene_gi_bad.match(header):
-                logging.warning("Input sequences use 'GIs' which are obsolete and may be non-unique. " +
-                                "For everyone's sanity, please download sequences with the `accno` instead.\n")
-
-            # Try to find the original header in header_registry
-            original_header = ""
-            treesapp_id = ""
-            for num in header_registry:
-                if header == header_registry[num].formatted:
-                    original_header = header_registry[num].original
-                    treesapp_id = str(num)
-                    break
-            ref_seq = ReferenceSequence()
-            ref_seq.sequence = fasta_dict[header]
-
-            if swappers and header in swappers.keys():
-                header = swappers[header]
-                swapped_headers.append(header)
-            if original_header and treesapp_id:
-                pass
-            else:
-                logging.error("Unable to find the header:\n\t" + header +
-                              "\nin header_map (constructed from either the input FASTA or .uc file).\n" +
-                              "There is a chance this is due to the FASTA file and .uc being generated separately.\n")
-                sys.exit(13)
-            header_format_re, header_db, header_molecule = fasta.get_header_format(original_header, code_name)
-            sequence_info = header_format_re.match(original_header)
-            seq_info_tuple = utilities.return_sequence_info_groups(sequence_info, header_db, original_header)
-            ref_seq.accession = seq_info_tuple.accession
-            ref_seq.organism = seq_info_tuple.organism
-            ref_seq.locus = seq_info_tuple.locus
-            ref_seq.description = seq_info_tuple.description
-            ref_seq.lineage = seq_info_tuple.lineage
-
-            ref_seq.short_id = treesapp_id + '_' + code_name
-            fasta_replace_dict[treesapp_id] = ref_seq
-
-        if swappers and len(swapped_headers) != len(swappers):
-            logging.error("Some headers that were meant to be replaced could not be compared!\n")
-            for header in swappers.keys():
-                if header not in swapped_headers:
-                    sys.stdout.write(header + "\n")
-            sys.exit(13)
-
-    logging.info("done.\n")
-
-    return fasta_replace_dict
-
-
 def screen_filter_taxa(args, fasta_records):
     fasta_replace_dict = dict()
     if args.screen == "" and args.filter == "":
@@ -472,35 +364,6 @@ def remove_by_truncated_lineages(min_taxonomic_rank, fasta_records):
     return fasta_replace_dict
 
 
-def remove_duplicate_records(fasta_record_objects: dict):
-    """
-    Identifies duplicate records based on accession ID.
-    :param fasta_record_objects:
-    :return: The new, deduplicated fasta_record_objects (if duplicates found, otherwise unchanged)
-    """
-    nr_record_dict = dict()
-    accessions = dict()
-    dups = False
-    for treesapp_id in sorted(fasta_record_objects, key=int):
-        ref_seq = fasta_record_objects[treesapp_id]  # type: ReferenceSequence
-        if ref_seq.accession not in accessions:
-            accessions[ref_seq.accession] = 0
-            nr_record_dict[treesapp_id] = ref_seq
-        else:
-            dups = True
-        accessions[ref_seq.accession] += 1
-    if dups:
-        logging.warning("Redundant accessions have been detected in your input FASTA.\n" +
-                        "The duplicates have been removed leaving a single copy for further analysis.\n" +
-                        "Please view the log file for the list of redundant accessions and their copy numbers.\n")
-        msg = "Redundant accessions found and copies:\n"
-        for acc in accessions:
-            if accessions[acc] > 1:
-                msg += "\t" + acc + "\t" + str(accessions[acc]) + "\n"
-        logging.debug(msg)
-    return nr_record_dict
-
-
 def order_dict_by_lineage(fasta_object_dict):
     """
     Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
@@ -513,16 +376,8 @@ def order_dict_by_lineage(fasta_object_dict):
     logging.debug("Re-enumerating the reference sequences in taxonomic order... ")
     lineage_dict = dict()
     sorted_lineage_dict = dict()
-    accessions = list()
     for treesapp_id in fasta_object_dict:
         ref_seq = fasta_object_dict[treesapp_id]
-        if ref_seq.accession in accessions:
-            logging.error("Uh oh... duplicate accession identifiers '" + ref_seq.accession + "' found!\n" +
-                          "TreeSAPP should have removed these by now. " +
-                          "Please alert the developers so they can cobble a fix together.\n")
-            sys.exit(13)
-        else:
-            accessions.append(ref_seq.accession)
         # Skip the redundant sequences that are not cluster representatives
         if not ref_seq.cluster_rep:
             continue

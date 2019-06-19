@@ -331,7 +331,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
     if regex_match_groups:
         accession = regex_match_groups.group(1)
         if accession.find('.'):
-            pieces = accession.split('.')[0]
+            pieces = accession.split('.')
             if len(pieces) == 2 and re.match(r"\d+", pieces[1]):
                 version = accession
                 accession = pieces[0]

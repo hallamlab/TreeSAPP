@@ -287,10 +287,6 @@ def map_accession2taxid(query_accession_list, accession2taxid_list):
 
     # Create a dictionary for O(1) look-ups, load all the query accessions into unmapped queries
     for e_record in query_accession_list:  # type: EntrezRecord
-        if e_record.accession.find('.') >= 0:
-            e_record.versioned = e_record.accession
-            # Strip off any version numbers from the accessions so we only need to check for one item
-            e_record.accession = '.'.join(e_record.accession.split('.')[0:-1])
         try:
             er_acc_dict[e_record.accession].append(e_record)
         except KeyError:
@@ -319,7 +315,8 @@ def map_accession2taxid(query_accession_list, accession2taxid_list):
                 # Update the EntrezRecord elements
                 records = er_acc_dict[accession]
                 for record in records:
-                    record.versioned = ver
+                    if not record.versioned:
+                        record.versioned = ver
                     record.ncbi_tax = taxid
                     record.bitflag = 3  # Necessary for downstream filters - indicates taxid has been found
                 # Remove accession from unmapped queries
