@@ -255,11 +255,10 @@ def create(sys_args):
     create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
 
     if ts_create.stage_status("clean"):
-        # TODO: Better integrate these filters with the guaranteed sequences; currently incompatible
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
-        fasta_records = create_refpkg.screen_filter_taxa(args, fasta_records)
+        fasta_records = create_refpkg.screen_filter_taxa(fasta_records, args.screen, args.filter, ref_seqs.amendments)
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
-        fasta_records = create_refpkg.remove_by_truncated_lineages(args.min_taxonomic_rank, fasta_records)
+        fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records, args.min_taxonomic_rank, ref_seqs.amendments)
         # Ensure there are no records with redundant headers and sequences
         fasta_records = dedup_records(ref_seqs, fasta_records)
 

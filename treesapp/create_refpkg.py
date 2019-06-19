@@ -289,23 +289,33 @@ def reformat_headers(header_dict):
     return swappers
 
 
-def screen_filter_taxa(args, fasta_records):
+def screen_filter_taxa(fasta_records: dict, screen_strs="", filter_strs="", guarantees=None) -> dict:
+    """
+    Searches the ReferenceSequence lineages in fasta_records for taxa that are either
+    not meant to be retained (controlled by screen_strs) or supposed to be filtered out (controlled by filter_strs).
+
+    :param fasta_records: A dictionary mapping `treesapp_id`s (integers) to ReferenceSequence objects
+    :param screen_strs: The comma-separated string of taxa that should be RETAINED
+    :param filter_strs: The comma-separated string of taxa that should be REMOVED
+    :param guarantees: Optional set of numerical treesapp IDs that should not be removed from fasta_records
+    :return: A new fasta_records dictionary with only the target taxa
+    """
     fasta_replace_dict = dict()
-    if args.screen == "" and args.filter == "":
+    if not screen_strs and not filter_strs:
         return fasta_records
+
+    if screen_strs:
+        screen_terms = screen_strs.split(',')
     else:
-        if args.screen:
-            screen_terms = args.screen.split(',')
-        else:
-            screen_terms = []
-        if args.filter:
-            filter_terms = args.filter.split(',')
-        else:
-            filter_terms = []
+        screen_terms = []
+    if filter_strs:
+        filter_terms = filter_strs.split(',')
+    else:
+        filter_terms = []
 
     num_filtered = 0
     num_screened = 0
-
+    saved = set()
     for treesapp_id in fasta_records:
         screen_pass = False
         filter_pass = True
@@ -327,6 +337,9 @@ def screen_filter_taxa(args, fasta_records):
 
         if filter_pass and screen_pass:
             fasta_replace_dict[treesapp_id] = ref_seq
+        elif guarantees and treesapp_id in guarantees:
+            saved.add(treesapp_id)
+            fasta_replace_dict[treesapp_id] = ref_seq
         else:
             if screen_pass is False:
                 num_screened += 1
@@ -336,11 +349,13 @@ def screen_filter_taxa(args, fasta_records):
     logging.debug('\t' + str(num_screened) + " sequences removed after failing screen.\n" +
                   '\t' + str(num_filtered) + " sequences removed after failing filter.\n" +
                   '\t' + str(len(fasta_replace_dict)) + " sequences retained.\n")
+    if saved:
+        logging.debug('\t' + str(len(saved)) + " guaranteed sequences saved from taxonomic filtering.\n")
 
     return fasta_replace_dict
 
 
-def remove_by_truncated_lineages(min_taxonomic_rank, fasta_records):
+def remove_by_truncated_lineages(fasta_records, min_taxonomic_rank, guarantees=None):
     rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
     min_depth = rank_depth_map[min_taxonomic_rank]
     if min_taxonomic_rank == 'k':
@@ -351,6 +366,9 @@ def remove_by_truncated_lineages(min_taxonomic_rank, fasta_records):
 
     for treesapp_id in fasta_records:
         ref_seq = fasta_records[treesapp_id]
+        if guarantees and treesapp_id in guarantees:
+            fasta_replace_dict[treesapp_id] = ref_seq
+            continue
         if len(ref_seq.lineage.split("; ")) < min_depth:
             num_removed += 1
         elif re.search("^unclassified", ref_seq.lineage.split("; ")[min_depth-1], re.IGNORECASE):
