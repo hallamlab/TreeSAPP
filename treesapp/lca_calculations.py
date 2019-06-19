@@ -64,7 +64,7 @@ def grab_graftm_taxa(tax_ids_file):
                 if rank:
                     # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
                     # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
-                    lineage_list.append(re.sub('e\d+$', '', rank))
+                    lineage_list.append(re.sub(r'e\d+$', '', rank))
                     # lineage_list.append(rank)
             lineage = re.sub('_', ' ', clean_lineage_string('; '.join(lineage_list)))
             i = 0
@@ -138,18 +138,18 @@ def identify_excluded_clade(assignment_dict, trie, marker):
     return rank_assigned_dict
 
 
-def disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_list):
+def disseminate_vote_weights(base_lca, taxonomic_counts, lineages_list):
     lca_depth = 0
     max_depth = max([len(lineage) for lineage in lineages_list])
-    nucleus = float(len(lineages_list)/taxonomic_counts[megan_lca])
+    nucleus = float(len(lineages_list)/taxonomic_counts[base_lca])
     vote_weights = dict()
     taxonomic_tree = dict()
     subtree_taxonomic_counts = dict()
-    vote_weights[megan_lca] = nucleus
-    taxonomic_tree[megan_lca] = set()
+    vote_weights[base_lca] = nucleus
+    taxonomic_tree[base_lca] = set()
 
     # Find the depth of the LCA
-    while "; ".join(lineages_list[0][:lca_depth]) != megan_lca:
+    while "; ".join(lineages_list[0][:lca_depth]) != base_lca:
         lca_depth += 1
 
     # Load the taxonomic subtree into a dictionary
@@ -218,12 +218,12 @@ def megan_lca(lineage_list: list):
     return "; ".join(lca_lineage_strings)
 
 
-def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA*"):
+def lowest_common_taxonomy(children, base_lca, taxonomic_counts, algorithm="LCA*"):
     """
     Input is a list >= 2, potentially either a leaf string or NCBI lineage
 
     :param children: Lineages of all leaves for this sequence
-    :param megan_lca:
+    :param base_lca:
     :param taxonomic_counts:
     :param algorithm: A string indicating what lowest common ancestor algorithm should be used [ MEGAN | LCA* | LCAp ]
     :return: string - represent the consensus lineage for that node
@@ -247,7 +247,7 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
 
     if algorithm == "MEGAN":
         # Already calculated by tree_sap.megan_lca()
-        lineage_string = megan_lca
+        lineage_string = base_lca
     elif algorithm == "LCA*":
         # approximate LCA* (no entropy calculations):
         hits = dict()
@@ -276,8 +276,8 @@ def lowest_common_taxonomy(children, megan_lca, taxonomic_counts, algorithm="LCA
             i += 1
         lineage_string = "; ".join(consensus)
     elif algorithm == "LCAp":
-        lineage_string = megan_lca
-        vote_weights, t_tree, majority = disseminate_vote_weights(megan_lca, taxonomic_counts, lineages_considered)
+        lineage_string = base_lca
+        vote_weights, t_tree, majority = disseminate_vote_weights(base_lca, taxonomic_counts, lineages_considered)
         for parent in sorted(t_tree, key=lambda x: x.count(';')):
             if len(t_tree[parent]) == 0:
                 break
