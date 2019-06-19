@@ -277,7 +277,15 @@ def scaffold_subalignments(fragmented_alignment_data: list):
         p_overlap_len = overlap_length(base_aln.pstart, base_aln.pend, projected_aln.pstart, projected_aln.pend)
         min_profile_covered = min([base_aln.pend - base_aln.pstart,
                                    projected_aln.pend - projected_aln.pstart])
-        if p_overlap_len/min_profile_covered > 0.5:
+        try:
+            aln_overlap_proportion = p_overlap_len / min_profile_covered
+        except ZeroDivisionError:
+            if base_aln.pend - base_aln.pstart < projected_aln.pend - projected_aln.pstart:
+                drop_alignment_fragment(fragmented_alignment_data, i)
+            else:
+                drop_alignment_fragment(fragmented_alignment_data, j)
+            continue
+        if aln_overlap_proportion > 0.5:
             # They overlap significant regions - are they overlapping sequence or are they repeats?
             if q_overlap_len == projected_aln.seq_len:
                 # The projected alignment is a subsequence of the base alignment - DROP
