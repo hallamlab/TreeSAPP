@@ -618,7 +618,7 @@ def get_header_format(header, code_name=""):
     # There are no character restrictions on the first and third groups
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
-    custom_tax = re.compile(r"^>?(.*) lineage=([A-Za-z ]+; .*) \[(.*)\]$")  # a, l, o
+    custom_tax = re.compile(r"^>?(.*) lineage=([A-Za-z ]+.*) \[(.*)\]$")  # a, l, o
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
@@ -660,6 +660,8 @@ def get_header_format(header, code_name=""):
             else:
                 pass
     if len(format_matches) > 1:
+        if "ts_assign" in format_matches:
+            return assign_re, "ts_assign", "ambig"
         logging.error("Header '" + header + "' matches multiple potential formats:\n\t" +
                       ", ".join(format_matches) + "\n" +
                       "TreeSAPP is unable to parse necessary information properly.\n")
