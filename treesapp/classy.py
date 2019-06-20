@@ -1385,21 +1385,34 @@ class Updater(TreeSAPP):
 
         return info_string
 
-    def map_orf_lineages(self, seq_lineage_map, header_registry):
+    def map_orf_lineages(self, seq_lineage_map: dict, header_registry: dict) -> dict:
+        """
+        The classified sequences have a signature at the end (|RefPkg_name|start_stop) that needs to be removed
+        :param seq_lineage_map: A dictionary mapping contig sequence names to taxonomic lineages
+        :param header_registry: A dictionary mapping numerical TreeSAPP identifiers to Header instances
+        :return: A dictionary mapping each classified sequence to a lineage
+        """
+        logging.info("Mapping assigned sequences to provided taxonomic lineages... ")
         classified_seq_lineage_map = dict()
         for num_id in header_registry:
             header = header_registry[num_id].original
-            parent_seq = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
+            # This sequence was not assigned to the reference package currently being updated
+            if not re.match(r".*\|{0}\|\d+_\d+$".format(self.ref_pkg.prefix), header):
+                continue
+            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
             # Its slow to perform so many re.search's but without having a guaranteed ORF pattern we can't use hashes
             lineage = ""
             for seq_name in seq_lineage_map:
-                if re.search(seq_name, parent_seq):
+                if seq_name[0] == '>':
+                    seq_name = seq_name[1:]
+                if re.search(seq_name, assigned_seq_name):
                     lineage = seq_lineage_map[seq_name]
                     break
             if not lineage:
                 logging.error("Unable to find parent contig for ORF '" + header + "' in sequence-lineage map.\n")
                 sys.exit(3)
             classified_seq_lineage_map[header] = clean_lineage_string(lineage)
+        logging.info("done.\n")
         return classified_seq_lineage_map
 
 
