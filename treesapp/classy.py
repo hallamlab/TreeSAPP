@@ -1394,26 +1394,28 @@ class Updater(TreeSAPP):
         """
         logging.info("Mapping assigned sequences to provided taxonomic lineages... ")
         classified_seq_lineage_map = dict()
-        for num_id in header_registry:
-            header = header_registry[num_id].original
-            # This sequence was not assigned to the reference package currently being updated
-            if not re.match(r".*\|{0}\|\d+_\d+$".format(self.ref_pkg.prefix), header):
-                continue
-            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
+        treesapp_nums = list(header_registry.keys())
+        for seq_name in seq_lineage_map:
             # Its slow to perform so many re.search's but without having a guaranteed ORF pattern we can't use hashes
-            lineage = ""
-            for seq_name in seq_lineage_map:
-                if seq_name[0] == '>':
-                    seq_name = seq_name[1:]
-                if re.search(seq_name, assigned_seq_name):
-                    lineage = seq_lineage_map[seq_name]
-                    break
-            if not lineage:
-                logging.error("Unable to find parent contig for ORF '" + header + "' in sequence-lineage map.\n")
-                sys.exit(3)
-            classified_seq_lineage_map[header] = clean_lineage_string(lineage)
-        logging.info("done.\n")
-        return classified_seq_lineage_map
+            if seq_name[0] == '>':
+                parent_re = re.compile(seq_name[1:])
+            else:
+                parent_re = re.compile(seq_name)
+            x = 0
+            while x < len(treesapp_nums):
+                header = header_registry[treesapp_nums[x]].original
+                assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
+                if parent_re.search(assigned_seq_name):
+                    classified_seq_lineage_map[header] = clean_lineage_string(seq_lineage_map[seq_name])
+                    treesapp_nums.pop(x)
+                else:
+                    x += 1
+            if len(treesapp_nums) == 0:
+                logging.info("done.\n")
+                return classified_seq_lineage_map
+        logging.error("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
+                      "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
+        sys.exit(3)
 
 
 class Creator(TreeSAPP):

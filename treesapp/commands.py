@@ -507,13 +507,13 @@ def update(sys_args):
     ##
     classified_fasta = FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
-    logging.info(classified_fasta.summarize_fasta_sequences())
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
     if len(classified_targets) == 0:
         logging.error("No new candidate reference sequences. Skipping update.\n")
         return
     classified_fasta.change_dict_keys("original")
     classified_fasta.keep_only(classified_targets)
+    logging.info(classified_fasta.summarize_fasta_sequences())
     hmm_length = utilities.get_hmm_length(ts_updater.ref_pkg.profile)
     # Use the smaller of the two minimum sequence length or half HMM profile to remove sequence fragments
     length_threshold = 0.5*hmm_length if args.min_seq_length < 0.5*hmm_length else args.min_seq_length
