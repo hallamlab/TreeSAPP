@@ -1,11 +1,11 @@
 # TreeSAPP: Tree-based Sensitive and Accurate Protein Profiler
 
-Connor Morgan-Lang, Kishori M. Konwar, Ryan McLaughlin, Grace Zhang,
-Zachary Armstrong, Young C. Song, and Steven J. Hallam
+Connor Morgan-Lang, Ryan McLaughlin, Grace Zhang, Kevin Chan,
+Zachary Armstrong, Kishori M. Konwar, and Steven J. Hallam
 
 ## Overview:
 
-TreeSAPP is a python pipeline for identifying and mapping marker gene sequences onto reference phylogenetic trees.
+TreeSAPP is a python package for phylogenetically annotating genomes and metagenomes.
  Here is diagram of the workflow:
 
 ![alt text](https://github.com/hallamlab/TreeSAPP/blob/master/dev_utils/pipeline_figure_horizontal.png)
@@ -13,13 +13,16 @@ TreeSAPP is a python pipeline for identifying and mapping marker gene sequences 
 ## Download and installation:
 
 To install TreeSAPP locally, you can use `git clone` to pull down the latest version.
-The first command will clone the TreeSAPP repository from the GitHub page
- while the second and third compile C++ and Python extensions required by the pipeline.
+We recommend using a virtual environment using the python package [`virtualenv`](https://virtualenv.pypa.io/en/latest/) 
+while installing TreeSAPP and all dependencies. For the 
 
 ```
+cd ~/bin
+virtualenv ~/bin/treesapp_venv
+source ~/bin/treesapp_venv/bin/activate
 git clone git@github.com:hallamlab/TreeSAPP.git
-make
-make install
+cd TreeSAPP/
+python setup.py install
 ```
 
 However, the pipeline will not run without several dependencies.
@@ -31,15 +34,14 @@ If you do not already have the dependencies for TreeSAPP installed on your compu
 
 #### RAxML
 A simple `git clone` of their [GitHub page](https://github.com/stamatak/standard-RAxML) should work
-for Linux and Mac operating systems. From here, consult the README file in the standard-RAxML directory for
-installation instructions using make.
-We have tested several versions and found no problems from V.7.1 to the most recent release as of 
-December 1st, 2015. However, the executable MUST be named `raxmlHPC` or it will not be found by TreeSAPP!
-If you find an incompatibility please notify us through the Issues feed.
+for Linux and Mac operating systems.
+From here, consult the README file in the standard-RAxML directory for installation instructions using make. 
+We highly recommend *only using release 8.2.12* as older versions were found to not estimate pendant distances of placements as accurately.
+However, the executable MUST be named `raxmlHPC` or it will not be found by TreeSAPP!
 
 #### HMMER
 TreeSAPP uses HMMER for identifying marker gene sequences in proteins and genomes.
-The latest version (HMMER3.1b2) is available at http://hmmer.org/.
+The latest version (v3.2.1) is available at http://hmmer.org/.
 Download it from there and follow their installation guide under DOCUMENTATION.
 
 #### Prodigal
@@ -65,29 +67,33 @@ There is an upcoming version 3 so these links may become outdated soon!
   the University College Dublin's website using this [link](http://www.bioinf.ucd.ie/download/od-seq.tar.gz).
 
 #### Finishing up
-I hope that wasn't too painful. If you think you have installed everything, try running TreeSAPP!
+I hope that wasn't too painful. If you think you have installed everything, try running `treesapp info`!
 It will check for the required executables up front and you will be
 quickly notified if some are missing, or at least TreeSAPP is unable to find them.
 In the case you do not have sudo permissions to move these executables to a globally-available directory (e.g. /usr/local/bin/),
-you can move them to `TreeSAPP/sub_binaries/` and TreeSAPP will be able to find and use them.
+you can copy them to `treesapp_venv/lib/python*/site-packages/treesapp-*.egg/treesapp/sub_binaries/` and TreeSAPP will be able to find and use them.
 
 ## Running TreeSAPP
 
-To list all the options with brief help statements `./treesapp.py -h`.
+To list all the sub-commands run `treesapp`.
 
-To perform a basic run with only the required arguments:
+To test the `assign` workflow, run:
 ```
-./treesapp.py -i input.fasta -o ~/path/to/output/directory/
+treesapp assign -i ~/bin/TreeSAPP/test_data/marker_test_suite.faa -m prot --trim_align -o assign_test -t M0701,M0702,M0705
 ```
-Executables are automatically detected in both the $PATH and in the
-sub_binaries/mac or sub_binaries/ubuntu, depending on your OS. However, if your executables
-are together elsewhere, TreeSAPP can be directed to them with `--executables`.
+
+To assign sequences in your genome of interest:
+```
+treesapp -i Any.fasta -o ~/path/to/output/directory/
+```
+though, as in the previous assign command, we recommend using the `--trim_align` flag,
+ and increasing the number of threads and processors to use with `-n`!
 
 
 ## Tutorials
 
 The easiest way to get started with TreeSAPP is by using [Terraform](https://github.com/hallamlab/TreeSAPP/tree/master/terraform)
- to provision a Google Cloud Platform instance with TreeSAPP and all its dependencies.
+ to provision a Google Cloud Platform instance with TreeSAPP and all its dependencies. __OUTDATED__
 
 If we do not yet have a reference package for a gene you are interested in,
 please try [building a new reference package](https://github.com/hallamlab/TreeSAPP/blob/master/Marker_package_creation_tutorial.md).
