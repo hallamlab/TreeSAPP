@@ -41,9 +41,8 @@ sudo update-alternatives --set java /usr/lib/jvm/jdk1.8.0_211/bin/java
 sudo update-alternatives --set javac /usr/lib/jvm/jdk1.8.0_211/bin/javac
 
 #Miscellaneous dependencies
-sudo pip install numpy biopython scipy 
 sudo apt-get install python-qt4 python-lxml python-six -y
-sudo pip install --upgrade ete3 
+cd ~/TreeSAPP/; python3 setup.py install
 
 GITHUB_PATH="/root/github"
 
