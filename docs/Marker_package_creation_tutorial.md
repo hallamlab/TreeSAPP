@@ -7,23 +7,21 @@ This tutorial is meant for users who would like to analyze a marker gene
 
 ## Ingredients
 
-The script we will need to use for this tutorial is `create_treesapp_refpkg.py`.
- It is packaged within the TreeSAPP GitHub repository and has been used extensively to
-build all the reference packages available. The most basic usage of this pipeline
-is visualized below:
+The subcommand we will need to use for this tutorial is `treesapp create`.
+It has been used extensively to build all the TreeSAPP reference packages available.
+The most basic usage of this pipeline is visualized below:
 
 ![alt text](https://github.com/hallamlab/TreeSAPP/blob/master/dev_utils/Create_TreeSAPP_RefPkg_pipeline.png)
 
-As you can see `create_treesapp_refpkg.py` depends on several other open source software.
-Many of these are also dependencies of `treesapp.py` (e.g. HMMER, RAxML)
+As you can see `treesapp create` depends on several other open source software.
+Many of these are also dependencies of `treesapp assign` (e.g. HMMER, RAxML)
 but some are not. These are: MAFFT, TrimAl, USEARCH and potentially
 FastTree if you're interested in `fast` mode as well as the Python package BioPython (>1.67).
 
 Last but not least: the input sequences. To promote transparency and reproducibility,
 TreeSAPP assumes that the sequences (either nucleotide or protein) are accessioned
-on the NCBI and therefore, available through Entrez through BioPython's
-Entrez API. This allows TreeSAPP to automatically determine the
-taxonomic lineage assigned to each sequence without this information being provided by other means
+on the NCBI and therefore, available through Entrez through BioPython's Entrez API.
+This allows TreeSAPP to automatically determine the taxonomic lineage assigned to each sequence without this information being provided by other means
  (manual or in a mapping file... basically leading to more work for you!).
  However, seeing as folks will invariably want to work with the latest and greatest sequences,
  and don't like being restricted there is a way to semi-automatically include lineage information
@@ -64,9 +62,9 @@ A multiple sequence alignment file in FASTA format, a HMM, a table mapping tree 
 
 A basic command could look something like this:
 ```
-$ ./create_treesapp_refpkg.py \
+$ treesapp create \
  --fasta_input rpoB_proteins.faa --output_dir rpoB_TreeSAPP_create \
- --code_name rpoB --identity 90 \
+ --code_name rpoB --cluster --identity 90 \
  --num_threads 8 --verbose
 ```
 
@@ -94,7 +92,7 @@ A significant time sink is waiting for TreeSAPP to download the lineages
  those directories. Here is an example:
 
 ```
-$ ./create_treesapp_refpkg.py \
+$ treesapp create \
  -i rpoB_proteins.faa -o rpoB_create_90/ \
  -T 4 -c rpoB -p 90 --cluster --verbose --taxa_lca
 $ mkdir rpoB_create_80/
@@ -103,4 +101,4 @@ $ cp rpoB_create_90/accessions_id_lineage_map.tsv rpoB_create_80/
 $ cp rpoB_create_90/accessions_id_lineage_map.tsv rpoB_create_70/
 ```
 
-Following this, run `create_treesapp_refpkg.py` for the other versions.
+Following this, run `treesapp create` for the other versions.

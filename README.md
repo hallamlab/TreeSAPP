@@ -84,10 +84,10 @@ treesapp assign -i ~/bin/TreeSAPP/test_data/marker_test_suite.faa -m prot --trim
 
 To assign sequences in your genome of interest:
 ```
-treesapp -i Any.fasta -o ~/path/to/output/directory/
+treesapp assign -i Any.fasta -o ~/path/to/output/directory/
 ```
 though, as in the previous assign command, we recommend using the `--trim_align` flag,
- and increasing the number of threads and processors to use with `-n`!
+ and increasing the number of threads and processors to use with `-n`.
 
 
 ## Tutorials
