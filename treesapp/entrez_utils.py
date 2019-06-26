@@ -426,8 +426,12 @@ def entrez_records_to_organism_set(entrez_records_list: list, bitflag_filter=7):
     query_dict = dict()
     for record in entrez_records_list:  # type: EntrezRecord
         if record.bitflag > bitflag_filter:
+
             continue
         if record.organism:
+            record.organism = re.sub('[:]', ' ', record.organism)
+            record.organism = re.sub(' =.*', '', record.organism)
+            record.organism = re.sub(r' \(.*\)', '', record.organism)
             query = record.organism + "[All Names]"
             # Index the accession_lineage_map by organism and map to list of EntrezRecord object
             if query in query_dict:
@@ -534,8 +538,6 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
             continue
         e_record.organism = parse_gbseq_info_from_entrez_xml(record)
         # Entrez replaces special characters with whitespace in organism queries, so doing it here for compatibility
-        e_record.organism = re.sub('[:]', ' ', e_record.organism)
-        e_record.organism = re.sub(' =.*', '', e_record.organism)
         tax_lineage = check_lineage(parse_gbseq_info_from_entrez_xml(record, "GBSeq_taxonomy"), e_record.organism)
 
         # If the full taxonomic lineage was not found, then add it to the unique organisms for further querying
