@@ -213,6 +213,9 @@ def get_arguments():
                         help="Minimum proportion of sequences a group contains to assign colour [ DEFAULT = 0 ]")
     optopt.add_argument("--no_polyphyletic", dest="no_poly", default=False, action="store_true", required=False,
                         help="Flag forcing the omission of all polyphyletic taxa from the colours file.")
+    optopt.add_argument("-f", "--filter", dest="taxa_filter", default="", required=False,
+                        help="Keywords for excluding specific taxa from the colour palette.\n"
+                             "[ DEFAULT is no filter ]")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
@@ -223,10 +226,10 @@ def get_arguments():
 
     args = parser.parse_args()
 
-    if args.output and args.output[-1] != os.sep:
+    if not args.output:
+        args.output = os.path.abspath(os.path.curdir)
+    if args.output[-1] != os.sep:
         args.output += os.sep
-    else:
-        args.output = os.path.abspath(os.path.curdir) + os.sep
 
     return args
 
