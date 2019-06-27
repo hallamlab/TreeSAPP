@@ -148,9 +148,6 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
                                help='A comma-separated list specifying which marker genes to query in input by'
                                ' the "denominator" column in data/tree_data/cog_list.tsv'
                                ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
-    parser.optopt.add_argument("--update_tree", action="store_true", default=False,
-                               help="Flag indicating the reference tree specified by `--reftree` "
-                                    "is to be updated using the sequences found in TreeSAPP output")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "orf-call", "search", "align", "place", "classify"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")

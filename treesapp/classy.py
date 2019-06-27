@@ -1219,11 +1219,6 @@ class TreeSAPP:
                     self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
                 else:
                     logging.warning("RPKM impossible as " + self.output_dir + " is missing input files.\n")
-            if args.update_tree:
-                if os.path.isfile(assignments_file):
-                    self.stages[len(self.stages)] = ModuleFunction("update", len(self.stages))
-                else:
-                    logging.warning("Update-tree impossible as " + self.output_dir + " is missing input files.\n")
         elif self.command == "create":
             if not args.profile:
                 self.change_stage_status("search", False)
@@ -1296,14 +1291,13 @@ class TreeSAPP:
         :return: exec_paths beings the absolute path to each executable
         """
         exec_paths = dict()
-        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC",
-                        "usearch", "trimal", "BMGE.jar", "papara"]
+        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "usearch", "BMGE.jar"]
+
+        # extensions = ["papara", "trimal"]
 
         # Extra executables necessary for certain modes of TreeSAPP
         if self.command == "assign":
             dependencies += ["bwa", "rpkm"]
-            if args.update_tree:
-                dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]
 
         if self.command == "update":
             dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]

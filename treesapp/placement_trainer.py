@@ -312,7 +312,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
     if num_training_queries < 30:
         logging.error("Too few (" + str(num_training_queries) + ") sequences for training placement distance model.\n")
-        sys.exit(19)
+        return taxonomic_placement_distances, pqueries
     if num_training_queries < 50:
         logging.warning("Only " + str(num_training_queries) + " sequences for training placement distance model.\n")
     step_proportion = setup_progress_bar(num_training_queries)
