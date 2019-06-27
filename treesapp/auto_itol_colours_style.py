@@ -89,6 +89,40 @@ class TaxaColours:
         self.taxon_leaf_map.pop(taxon)
         return
 
+    def filter_unwanted_taxa(self, taxa_filter, target_depth):
+        """
+        A lineage-based string filter for excluding taxa from the output colour palette.
+        Even though the palette is for taxa, and not complete lineages,
+        we may want to filter out a very large group of organisms, such as Eukaryota.
+        This facilitates that operation so not all taxa from that larger group need to be individually named
+        :param taxa_filter:
+        :param target_depth:
+        :return:
+        """
+        filter_str = str(taxa_filter) + " taxa that won't be coloured:\n\t"
+        filtered_taxa = set()
+        filtered_seqs = 0
+        filter_terms = taxa_filter.split(',')
+        for leaf in self.tree_leaves:  # type: TreeLeafReference
+            if len(filter_terms) > 0:
+                for term in filter_terms:
+                    if re.search(term, leaf.lineage):
+                        lineage_path = leaf.lineage.split('; ')
+                        taxon = lineage_path[target_depth]
+                        filtered_taxa.add(taxon)
+        for taxon in filtered_taxa:
+            self.num_taxa -= 1
+            filtered_seqs += len(self.taxon_leaf_map[taxon])
+            self.num_seqs -= len(self.taxon_leaf_map[taxon])
+            self.remove_taxon_from_colours(taxon)
+        filter_str += ", ".join(filtered_taxa) + "\n"
+        filter_str += "Sequences from unwanted taxa removed\t" + str(filtered_seqs) + "\n"
+        filter_str += "Unwanted taxa removed\t" + str(len(filtered_taxa)) + "\n"
+        filter_str += "Remaining sequences for colouring\t" + str(self.num_seqs) + "\n"
+        filter_str += "Remaining taxa for colouring\t" + str(self.num_taxa) + "\n"
+        logging.info(filter_str)
+        return
+
     def filter_rare_groups(self, min_p: float):
         filter_str = "Taxa filtered due to proportion < " + str(min_p) + ":\n"
         filtered_taxa = []
@@ -484,6 +518,8 @@ def main():
     read_tax_ids_file(taxa_colours)
     target_depth = find_rank_depth(args)
     taxa_colours.get_clades(target_depth)
+    if args.taxa_filter:
+        taxa_colours.filter_unwanted_taxa(args.taxa_filter, target_depth)
     if args.no_poly:
         # Optionally not colour polyphyletic clades based on args.no_poly
         taxa_colours.filter_polyphyletic_groups()
