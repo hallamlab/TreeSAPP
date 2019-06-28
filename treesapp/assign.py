@@ -1833,6 +1833,7 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
     :return: None
     """
     leaf_taxa_map = dict()
+    # TODO: Add the start and stop positions of the extracted sequence to the classification table
     tab_out_string = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
     try:
         tab_out = open(output_file, 'w')

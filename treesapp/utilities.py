@@ -733,7 +733,13 @@ def swap_tree_names(tree_to_swap, final_mltree, code_name):
     return
 
 
-def match_target_marker(refpkg_name: str, headers: list):
+def match_target_marker(refpkg_name: str, headers: list) -> list:
+    """
+    Returns the list of sequences with TreeSAPP classification tags matching the refpkg_name
+    :param refpkg_name: The refpkg name (e.g. McrA) not code (e.g. M0701) for desired classified sequences
+    :param headers: List of classified sequences
+    :return: List of headers that match the refpkg_name
+    """
     matches = list()
     classified_target = re.compile(r'\|{0}\|\d+_\d+$'.format(re.escape(refpkg_name)))
     for seq_name in headers:

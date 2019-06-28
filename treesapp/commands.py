@@ -507,19 +507,31 @@ def update(sys_args):
     ##
     classified_fasta = FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
+    classified_lines = file_parsers.read_marker_classification_table(ts_updater.assignment_table)
+    high_likelihood_seqs = update_refpkg.filter_by_lwr(classified_lines, args.min_lwr)
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
+    name_map = update_refpkg.strip_assigment_pattern(classified_fasta.get_seq_names(), ts_updater.ref_pkg.prefix)
+    classified_targets = update_refpkg.intersect_incomparable_lists(classified_targets, high_likelihood_seqs, name_map)
+
     if len(classified_targets) == 0:
         logging.error("No new candidate reference sequences. Skipping update.\n")
         return
     classified_fasta.change_dict_keys("original")
+
+    ##
+    # Filter out sequences that shouldn't be used in the update: different refpkg, too short, low LWR, etc.
+    ##
     classified_fasta.keep_only(classified_targets)
     logging.info(classified_fasta.summarize_fasta_sequences())
     hmm_length = utilities.get_hmm_length(ts_updater.ref_pkg.profile)
-    # Use the smaller of the two minimum sequence length or half HMM profile to remove sequence fragments
-    length_threshold = 0.5*hmm_length if args.min_seq_length < 0.5*hmm_length else args.min_seq_length
-    classified_fasta.remove_shorter_than(length_threshold)
+    # Use the smaller of the minimum sequence length or 2/3 HMM profile to remove sequence fragments
+    if args.min_seq_length < 0.66*hmm_length:
+        logging.debug("New minimum sequence length threshold set to 2/3 of HMM length (" +
+                      str(0.66*hmm_length) + ") instead of " + str(args.min_seq_length) + "\n")
+        args.min_seq_length = 0.66*hmm_length
+    classified_fasta.remove_shorter_than(args.min_seq_length)
     if classified_fasta.n_seqs() == 0:
-        logging.error("No sequences exceed minimum length threshold " + str(length_threshold) + ". Skipping update.\n")
+        logging.error("No classified sequences exceed minimum length threshold of " + str(args.min_seq_length) + ".\n")
         return
 
     ##
@@ -541,8 +553,6 @@ def update(sys_args):
             classified_seq_lineage_map[record.accession] = record.lineage
     else:
         # Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
-        classified_lines = file_parsers.read_marker_classification_table(ts_updater.final_output_dir +
-                                                                         "marker_contig_map.tsv")
         assignments = file_parsers.parse_assignments(classified_lines)
         classified_seq_lineage_map.update(update_refpkg.map_classified_seqs(ts_updater.ref_pkg.prefix,
                                                                             assignments,
