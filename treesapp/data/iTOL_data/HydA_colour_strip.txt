@@ -1,0 +1,435 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+173|259 #663a07 Clostridia
+614|263 #663a07 Clostridia
+154|241 #663a07 Clostridia
+335|145 #663a07 Clostridia
+463|506 #663a07 Clostridia
+437|400 #663a07 Clostridia
+188|226 #663a07 Clostridia
+513|445 #663a07 Clostridia
+703|591 #663a07 Clostridia
+654|296 #663a07 Clostridia
+636|674 #663a07 Clostridia
+550|584 #663a07 Clostridia
+119|597 #663a07 Clostridia
+229|602 #663a07 Clostridia
+175|417 #663a07 Clostridia
+412|420 #663a07 Clostridia
+436|486 #663a07 Clostridia
+651|387 #663a07 Clostridia
+461|370 #663a07 Clostridia
+542|572 #663a07 Clostridia
+596|334 #663a07 Clostridia
+469|481 #663a07 Clostridia
+672|449 #663a07 Clostridia
+707|268 #663a07 Clostridia
+680|682 #663a07 Clostridia
+315|310 #663a07 Clostridia
+566|551 #663a07 Clostridia
+545|345 #663a07 Clostridia
+726|714 #663a07 Clostridia
+341|225 #663a07 Clostridia
+760|580 #663a07 Clostridia
+380|388 #663a07 Clostridia
+499|531 #663a07 Clostridia
+161|729 #663a07 Clostridia
+701|573 #663a07 Clostridia
+693|696 #663a07 Clostridia
+741|751 #663a07 Clostridia
+732|547 #663a07 Clostridia
+120|753 #663a07 Clostridia
+406|632 #663a07 Clostridia
+689|630 #663a07 Clostridia
+363|362 #663a07 Clostridia
+608|246 #663a07 Clostridia
+375|502 #663a07 Clostridia
+399|371 #663a07 Clostridia
+480|474 #663a07 Clostridia
+336|687 #663a07 Clostridia
+433|435 #663a07 Clostridia
+500|521 #663a07 Clostridia
+644|539 #663a07 Clostridia
+367|441 #663a07 Clostridia
+691|352 #663a07 Clostridia
+256|340 #663a07 Clostridia
+121|625 #663a07 Clostridia
+738|588 #663a07 Clostridia
+593|567 #663a07 Clostridia
+138|490 #663a07 Clostridia
+285|288 #663a07 Clostridia
+468|648 #663a07 Clostridia
+165|242 #663a07 Clostridia
+294|609 #663a07 Clostridia
+313|522 #663a07 Clostridia
+529|489 #663a07 Clostridia
+743|748 #663a07 Clostridia
+631|655 #663a07 Clostridia
+633|108 #663a07 Clostridia
+643|647 #663a07 Clostridia
+744|125 #663a07 Clostridia
+670|512 #663a07 Clostridia
+718|724 #663a07 Clostridia
+129|543 #663a07 Clostridia
+576|585 #663a07 Clostridia
+578|583 #663a07 Clostridia
+559|570 #663a07 Clostridia
+137|357 #663a07 Clostridia
+123|126 #663a07 Clostridia
+408|409 #663a07 Clostridia
+592|722 #663a07 Clostridia
+612|706 #663a07 Clostridia
+613|619 #663a07 Clostridia
+111|178 #663a07 Clostridia
+533|534 #663a07 Clostridia
+116|117 #663a07 Clostridia
+153|198 #663a07 Clostridia
+176|623 #663a07 Clostridia
+320|514 #663a07 Clostridia
+373|470 #663a07 Clostridia
+344|346 #663a07 Clostridia
+736|750 #663a07 Clostridia
+731|737 #663a07 Clostridia
+298|328 #663a07 Clostridia
+504|505 #663a07 Clostridia
+395|640 #663a07 Clostridia
+398|282 #663a07 Clostridia
+410|411 #663a07 Clostridia
+600|611 #663a07 Clostridia
+162|520 #663a07 Clostridia
+308|497 #663a07 Clostridia
+164|637 #663a07 Clostridia
+641|684 #663a07 Clostridia
+621|622 #663a07 Clostridia
+710|713 #663a07 Clostridia
+555|752 #663a07 Clostridia
+394|659 #663a07 Clostridia
+442|228 #663a07 Clostridia
+582 #663a07 Clostridia
+739 #663a07 Clostridia
+754 #663a07 Clostridia
+290 #663a07 Clostridia
+702 #663a07 Clostridia
+759 #663a07 Clostridia
+540 #663a07 Clostridia
+733 #663a07 Clostridia
+755 #663a07 Clostridia
+758 #663a07 Clostridia
+541 #663a07 Clostridia
+589 #663a07 Clostridia
+569 #663a07 Clostridia
+275 #663a07 Clostridia
+762 #663a07 Clostridia
+110 #663a07 Clostridia
+746 #663a07 Clostridia
+734 #663a07 Clostridia
+698 #663a07 Clostridia
+322 #663a07 Clostridia
+664 #663a07 Clostridia
+140 #663a07 Clostridia
+349 #663a07 Clostridia
+721 #663a07 Clostridia
+167 #663a07 Clostridia
+444 #663a07 Clostridia
+466 #663a07 Clostridia
+610 #663a07 Clostridia
+350 #663a07 Clostridia
+356 #663a07 Clostridia
+742 #663a07 Clostridia
+301 #663a07 Clostridia
+697 #663a07 Clostridia
+699 #663a07 Clostridia
+537 #663a07 Clostridia
+397 #663a07 Clostridia
+299 #663a07 Clostridia
+279 #663a07 Clostridia
+401 #663a07 Clostridia
+451 #663a07 Clostridia
+530 #663a07 Clostridia
+590 #663a07 Clostridia
+286 #663a07 Clostridia
+311 #663a07 Clostridia
+239 #663a07 Clostridia
+114 #663a07 Clostridia
+422 #663a07 Clostridia
+150 #663a07 Clostridia
+333 #663a07 Clostridia
+365 #663a07 Clostridia
+317 #663a07 Clostridia
+756 #663a07 Clostridia
+740 #663a07 Clostridia
+265 #663a07 Clostridia
+185 #663a07 Clostridia
+224 #663a07 Clostridia
+594 #663a07 Clostridia
+565 #663a07 Clostridia
+413 #663a07 Clostridia
+276 #663a07 Clostridia
+324 #663a07 Clostridia
+688 #663a07 Clostridia
+404 #663a07 Clostridia
+447 #663a07 Clostridia
+485 #663a07 Clostridia
+628 #663a07 Clostridia
+438 #663a07 Clostridia
+439 #663a07 Clostridia
+385 #663a07 Clostridia
+402 #663a07 Clostridia
+679 #663a07 Clostridia
+690 #663a07 Clostridia
+661 #663a07 Clostridia
+295 #663a07 Clostridia
+601 #663a07 Clostridia
+364 #663a07 Clostridia
+318 #663a07 Clostridia
+423 #663a07 Clostridia
+528 #663a07 Clostridia
+510 #663a07 Clostridia
+677 #663a07 Clostridia
+403 #663a07 Clostridia
+467 #663a07 Clostridia
+115 #663a07 Clostridia
+319 #663a07 Clostridia
+511 #663a07 Clostridia
+381 #663a07 Clostridia
+536 #663a07 Clostridia
+627 #663a07 Clostridia
+704 #663a07 Clostridia
+347 #663a07 Clostridia
+374 #663a07 Clostridia
+686 #663a07 Clostridia
+717 #663a07 Clostridia
+719 #663a07 Clostridia
+716 #663a07 Clostridia
+586 #663a07 Clostridia
+560 #663a07 Clostridia
+639 #663a07 Clostridia
+280 #663a07 Clostridia
+535 #663a07 Clostridia
+274 #663a07 Clostridia
+312 #663a07 Clostridia
+316 #663a07 Clostridia
+685 #663a07 Clostridia
+303 #663a07 Clostridia
+715 #663a07 Clostridia
+709 #663a07 Clostridia
+720 #663a07 Clostridia
+43|50 #794608 Bacteroidia
+71|54 #794608 Bacteroidia
+55|41 #794608 Bacteroidia
+72|76 #794608 Bacteroidia
+27|36 #794608 Bacteroidia
+39|44 #794608 Bacteroidia
+74|77 #794608 Bacteroidia
+38|45 #794608 Bacteroidia
+42|73 #794608 Bacteroidia
+68 #794608 Bacteroidia
+58 #794608 Bacteroidia
+67 #794608 Bacteroidia
+33 #794608 Bacteroidia
+1009|1036 #8b500a Spirochaetia
+1029|1023 #8b500a Spirochaetia
+1007|1017 #8b500a Spirochaetia
+1014|1016 #8b500a Spirochaetia
+1031|1033 #8b500a Spirochaetia
+1027|1032 #8b500a Spirochaetia
+1018|1020 #8b500a Spirochaetia
+1022 #8b500a Spirochaetia
+1021 #8b500a Spirochaetia
+1035 #8b500a Spirochaetia
+1012 #8b500a Spirochaetia
+1025 #8b500a Spirochaetia
+1024 #8b500a Spirochaetia
+1013 #8b500a Spirochaetia
+1010 #8b500a Spirochaetia
+784|811 #9d6116 Negativicutes
+838|842 #9d6116 Negativicutes
+787|840 #9d6116 Negativicutes
+823|802 #9d6116 Negativicutes
+809|820 #9d6116 Negativicutes
+843|847 #9d6116 Negativicutes
+799|816 #9d6116 Negativicutes
+808|817 #9d6116 Negativicutes
+794|841 #9d6116 Negativicutes
+792|795 #9d6116 Negativicutes
+807|821 #9d6116 Negativicutes
+798 #9d6116 Negativicutes
+786 #9d6116 Negativicutes
+844 #9d6116 Negativicutes
+796 #9d6116 Negativicutes
+788 #9d6116 Negativicutes
+815 #9d6116 Negativicutes
+803 #9d6116 Negativicutes
+789 #9d6116 Negativicutes
+1053 #ad7021 Thermodesulfobacteria
+1054 #ad7021 Thermodesulfobacteria
+1052 #ad7021 Thermodesulfobacteria
+991|995 #bf812d Deltaproteobacteria
+955|975 #bf812d Deltaproteobacteria
+988|990 #bf812d Deltaproteobacteria
+957|977 #bf812d Deltaproteobacteria
+992|993 #bf812d Deltaproteobacteria
+956|989 #bf812d Deltaproteobacteria
+962|980 #bf812d Deltaproteobacteria
+960|968 #bf812d Deltaproteobacteria
+994 #bf812d Deltaproteobacteria
+958 #bf812d Deltaproteobacteria
+986 #bf812d Deltaproteobacteria
+996 #bf812d Deltaproteobacteria
+997 #bf812d Deltaproteobacteria
+1045|1046 #c99546 Synergistia
+1040 #c99546 Synergistia
+1047 #c99546 Synergistia
+1043 #c99546 Synergistia
+1044 #c99546 Synergistia
+1041 #c99546 Synergistia
+1039 #c99546 Synergistia
+1042 #c99546 Synergistia
+79 #d4ac62 unclassified Bacteroidetes
+80 #d4ac62 unclassified Bacteroidetes
+1001|1003 #dec17b Gammaproteobacteria
+1005 #dec17b Gammaproteobacteria
+1006 #dec17b Gammaproteobacteria
+1004 #dec17b Gammaproteobacteria
+920|922 #e7cf94 Ignavibacteria
+921 #e7cf94 Ignavibacteria
+4|5 #eedbaa Holophagae
+1 #eedbaa Holophagae
+3 #eedbaa Holophagae
+2 #eedbaa Holophagae
+1073|1083 #f6e8c3 Bacteria candidate phyla
+1075|1076 #f6e8c3 Bacteria candidate phyla
+1084 #f6e8c3 Bacteria candidate phyla
+1078 #f6e8c3 Bacteria candidate phyla
+1087 #f6ecd3 Haloplasmatales
+1086 #f6ecd3 Haloplasmatales
+1085 #f6ecd3 Haloplasmatales
+776|777 #f5f1e4 Erysipelotrichia
+765|766 #f5f1e4 Erysipelotrichia
+774|770 #f5f1e4 Erysipelotrichia
+764|775 #f5f1e4 Erysipelotrichia
+778|781 #f5f1e4 Erysipelotrichia
+779|780 #f5f1e4 Erysipelotrichia
+773 #f5f1e4 Erysipelotrichia
+769 #f5f1e4 Erysipelotrichia
+767 #f5f1e4 Erysipelotrichia
+783 #f5f1e4 Erysipelotrichia
+782 #f5f1e4 Erysipelotrichia
+763 #f5f1e4 Erysipelotrichia
+771 #f5f1e4 Erysipelotrichia
+772 #f5f1e4 Erysipelotrichia
+768 #f5f1e4 Erysipelotrichia
+870|871 #f4f5f5 environmental samples
+897 #f4f5f5 environmental samples
+892 #f4f5f5 environmental samples
+881 #f4f5f5 environmental samples
+885 #f4f5f5 environmental samples
+896 #f4f5f5 environmental samples
+876 #f4f5f5 environmental samples
+887 #f4f5f5 environmental samples
+883 #f4f5f5 environmental samples
+873 #f4f5f5 environmental samples
+879 #f4f5f5 environmental samples
+1096 #f4f5f5 environmental samples
+900 #f4f5f5 environmental samples
+899 #f4f5f5 environmental samples
+869 #f4f5f5 environmental samples
+868 #f4f5f5 environmental samples
+894 #f4f5f5 environmental samples
+880 #f4f5f5 environmental samples
+890 #f4f5f5 environmental samples
+893 #f4f5f5 environmental samples
+898 #f4f5f5 environmental samples
+877 #f4f5f5 environmental samples
+901 #f4f5f5 environmental samples
+878 #f4f5f5 environmental samples
+889 #f4f5f5 environmental samples
+891 #f4f5f5 environmental samples
+884 #f4f5f5 environmental samples
+872 #f4f5f5 environmental samples
+875 #f4f5f5 environmental samples
+882 #f4f5f5 environmental samples
+895 #f4f5f5 environmental samples
+874 #f4f5f5 environmental samples
+888 #f4f5f5 environmental samples
+886 #f4f5f5 environmental samples
+928|931 #e6f1f0 Alphaproteobacteria
+933 #e6f1f0 Alphaproteobacteria
+934 #e6f1f0 Alphaproteobacteria
+935 #e6f1f0 Alphaproteobacteria
+932 #e6f1f0 Alphaproteobacteria
+13|19 #d5edea Coriobacteriia
+9|14 #d5edea Coriobacteriia
+12|18 #d5edea Coriobacteriia
+21|24 #d5edea Coriobacteriia
+23 #d5edea Coriobacteriia
+22 #d5edea Coriobacteriia
+7 #d5edea Coriobacteriia
+8 #d5edea Coriobacteriia
+101|99 #c7eae5 Bacilli
+106|107 #c7eae5 Bacilli
+98|97 #c7eae5 Bacilli
+94 #c7eae5 Bacilli
+93 #c7eae5 Bacilli
+102 #c7eae5 Bacilli
+104 #c7eae5 Bacilli
+103 #c7eae5 Bacilli
+925 #aee0d8 Lentisphaeria
+926 #aee0d8 Lentisphaeria
+923 #aee0d8 Lentisphaeria
+924 #aee0d8 Lentisphaeria
+917|918 #98d7cd Fusobacteriia
+906|910 #98d7cd Fusobacteriia
+905|909 #98d7cd Fusobacteriia
+903 #98d7cd Fusobacteriia
+908 #98d7cd Fusobacteriia
+915 #98d7cd Fusobacteriia
+902 #98d7cd Fusobacteriia
+914 #98d7cd Fusobacteriia
+904 #98d7cd Fusobacteriia
+911 #98d7cd Fusobacteriia
+907 #98d7cd Fusobacteriia
+913 #98d7cd Fusobacteriia
+912 #98d7cd Fusobacteriia
+919 #98d7cd Fusobacteriia
+866|854 #7fccc0 Tissierellia
+850|853 #7fccc0 Tissierellia
+857|858 #7fccc0 Tissierellia
+855 #7fccc0 Tissierellia
+867 #7fccc0 Tissierellia
+862 #7fccc0 Tissierellia
+864 #7fccc0 Tissierellia
+856 #7fccc0 Tissierellia
+859 #7fccc0 Tissierellia
+861 #7fccc0 Tissierellia
+860 #7fccc0 Tissierellia
+863 #7fccc0 Tissierellia
+865 #7fccc0 Tissierellia
+951|952 #67bbb0 Betaproteobacteria
+938|949 #67bbb0 Betaproteobacteria
+941|950 #67bbb0 Betaproteobacteria
+954 #67bbb0 Betaproteobacteria
+937 #67bbb0 Betaproteobacteria
+1093 #4da89f Trichomonadida
+1092 #4da89f Trichomonadida
+1095 #35978f Trichonymphida
+1094 #35978f Trichonymphida
+1051 #23867e Mollicutes
+1050 #23867e Mollicutes
+1049 #23867e Mollicutes
+1097|1099 #12766e Chlorophyta
+1066|1067 #01655d Thermotogae
+1059|1070 #01655d Thermotogae
+1057 #01655d Thermotogae
+1058 #01655d Thermotogae
+998 #01584f Epsilonproteobacteria
+1000 #01584f Epsilonproteobacteria
+999 #01584f Epsilonproteobacteria
+88|89 #00493e Endomicrobia
+91 #00493e Endomicrobia
+90 #00493e Endomicrobia
