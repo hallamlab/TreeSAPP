@@ -22,8 +22,6 @@ nifD	N0401	prot	PROTGAMMALG	functional	0.90	402	RAxML	-8.1368,6.5444	Orders	07_D
 nifH	N0402	prot	PROTGAMMALG	functional	0.95	301	RAxML	-5.1159,6.3582	Phyla	07_Dec_2018	nitrogenase iron protein NifH (K02588)
 nirK	D0301	prot	PROTGAMMALG	functional	0.97	120	RAxML	-11.3207,6.9484	Orders	07_Dec_2018	nitrite reductase (NO-forming)
 nirS	D0302	prot	PROTGAMMALG	functional	0.97	184	RAxML	-8.1424,6.2904	Classes	07_Dec_2018	nitrite reductase (NO-forming) / hydroxylamine reductase
-norB	D0501	prot	PROTGAMMALG	functional	0.80	329	RAxML	-6.109,6.6475	Orders	08_Dec_2018	nitric oxide reductase subunit B
-norC	D0502	prot	PROTGAMMALG	functional	0.90	223	RAxML	-5.3221,6.3809	Classes	08_Dec_2018	nitric oxide reductase subunit C
 p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	RAxML	-3.9091,6.0388	Families	04_Dec_2018	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase
 #RecA	P0001	prot	PROTGAMMALG	taxonomic	0.80	1110	RAxML	-5.4758,6.3838	Classes	12_Dec_2018	
 GH94	C0094	prot	PROTGAMMALG	functional	0.90	486	FastTree	-4.27462347201,6.34905731298	Classes	16_Dec_2018	Glycoside hydrolase family 94
@@ -66,3 +64,6 @@ DsrAB	S0001	prot	PROTGAMMALG	functional	0.95	753	RAxML	-6.2949,7.0	Kingdoms	16_M
 NxrA	N0301	prot	PROTGAMMALG	functional	0.90	993	FastTree	-5.4813,7.0	Classes	23_May_2019	Nitrate reductase / Nitrite oxidoreductase subunit A
 NxrB	N0302	prot	PROTGAMMALG	functional	0.97	299	FastTree	-6.2768,7.0	Phyla	13_Jun_2019	Nitrite oxidoreductase subunit B
 HydA	H0001	prot	PROTGAMMALG	functional	0.9	1100	FastTree	-8.134,7.0	Kingdoms	29_Jun_2019	H-cluster of [FeFe]-hydrogenase (PF02906 & PF02256)
+#norB	D0501	prot	PROTGAMMALG	functional	0.80	329	RAxML	-6.109,6.6475	Orders	08_Dec_2018	nitric oxide reductase subunit B
+#norC	D0502	prot	PROTGAMMALG	functional	0.90	223	RAxML	-5.3221,6.3809	Classes	08_Dec_2018	nitric oxide reductase subunit C
+NorB	D0501	prot	PROTGAMMALG	functional	0.90	429	RAxML	-5.2635,7.0	Orders	01_Jul_2019	nitric oxide reductase subunit B
