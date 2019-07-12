@@ -827,7 +827,11 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
     trimming_performance_string = "\tAverage columns removed:\n"
     for denominator in trimmed_length_dict:
         trimming_performance_string += "\t\t" + denominator + "\t"
-        trimming_performance_string += str(round(sum(trimmed_length_dict[denominator])/len(trimmed_length_dict[denominator]), 1)) + "\n"
+        n_trimmed_files = len(trimmed_length_dict[denominator])
+        if n_trimmed_files > 0:
+            trimming_performance_string += str(round(sum(trimmed_length_dict[denominator])/n_trimmed_files, 1)) + "\n"
+        else:
+            trimming_performance_string += str(0.0) + "\n"
 
     logging.debug(trimming_performance_string + "\n")
     return

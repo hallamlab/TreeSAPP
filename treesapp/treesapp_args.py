@@ -93,7 +93,7 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
     def add_taxa_args(self):
         self.taxa_args.add_argument("-s", "--screen",
                                     help="Keywords for including specific taxa in the tree.\n"
-                                         "Example: to only include Bacteria and Archaea do `--screen Bacteria,Archaea`\n"
+                                         "To only include Bacteria and Archaea use `--screen Bacteria,Archaea`\n"
                                          "[ DEFAULT is no screen ]",
                                     default="", required=False)
         self.taxa_args.add_argument("-f", "--filter",
@@ -102,13 +102,13 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                     default="", required=False)
         self.taxa_args.add_argument("-t", "--min_taxonomic_rank",
                                     required=False, default='k', choices=['k', 'p', 'c', 'o', 'f', 'g', 's'],
-                                    help="The minimum taxonomic lineage resolution for reference sequences [ DEFAULT = k ].\n")
+                                    help="The minimum taxonomic resolution for reference sequences [ DEFAULT = k ].\n")
         self.taxa_args.add_argument("--taxa_lca",
                                     help="Set taxonomy of representative sequences to LCA of cluster member's taxa.\n"
                                          "[ --cluster or --uc REQUIRED ]",
                                     default=False, required=False, action="store_true")
         self.taxa_args.add_argument("--taxa_norm",
-                                    help="[ IN DEVELOPMENT ] Perform taxonomic normalization on the provided sequences.\n"
+                                    help="[ IN DEVELOPMENT ] Subsample leaves by taxonomic lineage.\n"
                                          "A comma-separated argument with the Rank (e.g. Phylum) and\n"
                                          "number of representatives is required.\n")
 
