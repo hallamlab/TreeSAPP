@@ -136,3 +136,28 @@ def strip_assigment_pattern(seq_names: list, refpkg_name: str):
     """
     return {seq_name: re.sub(r"\|{0}\|\d+_\d+$".format(refpkg_name), '', seq_name) for seq_name in seq_names}
 
+
+def filter_by_lwr(classified_lines: list, min_lwr: float) -> set:
+    high_lwr_placements = set()
+    for classification in classified_lines:
+        lwr = float(classification[8])
+        assert 0.0 < lwr <= 1.0
+        if lwr >= min_lwr:
+            high_lwr_placements.add(classification[1])
+    return high_lwr_placements
+
+
+def intersect_incomparable_lists(superset, subset, name_map: dict) -> list:
+    """
+
+    :param superset: A list or set of strings
+    :param subset: A list or set of strings
+    :param name_map: A dictionary whose keys are in superset and values are in subset
+    :return: A list of strings that are in both superset and subset
+    """
+    intersection = list()
+    for seq_name in superset:  # type: str
+        alt_name = name_map[seq_name]  # type: str
+        if alt_name in subset:
+            intersection.append(seq_name)
+    return intersection

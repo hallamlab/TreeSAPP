@@ -1359,6 +1359,7 @@ class Updater(TreeSAPP):
         self.seq_names_to_taxa = ""  # Optional user-provided file mapping query sequence contigs to lineages
         self.lineage_map_file = ""  # File that is passed to create() containing lineage info for all sequences
         self.treesapp_output = ""  # Path to the TreeSAPP output directory - modified by args
+        self.assignment_table = ""  # Path to the marker_contig_map.tsv file written by treesapp assign
         self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the original ref seqs
         self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.target_marker = None
