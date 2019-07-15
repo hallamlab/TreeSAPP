@@ -100,8 +100,12 @@ please try [building a new reference package](https://github.com/hallamlab/TreeS
 Of course, if you run into any problems or would like to collaborate on building many reference packages
 don't hesitate to email us or create a new issue with an 'enhancement' label.
 
+If you are working with a particularly complex reference package, from an orthologous group for example, or have extra
+ phylogenetic information you'd like to include in your classifications,
+ try [annotating extra features](https://github.com/hallamlab/TreeSAPP/blob/master/layering_tutorial.md) with `treesapp layer`.
+
 
 Yet to come:
 - [Evaluating classification accuracy]()
-- [Annotating extra features]()
+- [Taxonomically decorating trees for iTOL]()
 

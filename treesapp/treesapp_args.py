@@ -114,13 +114,15 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
 
 def add_layer_arguments(parser: TreeSAPPArgumentParser):
-    parser.reqs.add_argument("-c", "--colours_style", required=True, nargs='+',
-                             help="The colours_style file exported from iTOL with the annotation information. "
-                                   "For the variable name to be automatically inferred (rather than through `names`). "
-                                   "Format of the file should be `marker`_`var`.txt. For example: mcrA_Metabolism.txt "
-                                   "would create a new column in marker_contig_map.tsv named 'Metabolism'.")
     parser.reqs.add_argument("-o", "--treesapp_output", dest="output", required=True,
                              help="The TreeSAPP output directory.")
+    parser.optopt.add_argument("-c", "--colours_style", required=False, nargs='+',
+                               help="The colours_style file exported from iTOL with the annotation information. "
+                                     "For the variable name to be automatically inferred (rather than through `names`). "
+                                     "Format of the file should be `marker`_`var`.txt. For example: mcrA_Metabolism.txt "
+                                     "would create a new column in marker_contig_map.tsv named 'Metabolism'.")
+    parser.optopt.add_argument("-d", "--annot_dir", required=False, default=None,
+                               help="Path to a directory containing iTOL annotation files for layering.")
     return
 
 

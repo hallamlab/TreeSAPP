@@ -1755,7 +1755,10 @@ class Evaluator(TreeSAPP):
 class Layerer(TreeSAPP):
     def __init__(self):
         super(Layerer, self).__init__("layer")
+        self.c_style_re = re.compile(".*_style.txt$")
+        self.c_strip_re = re.compile(".*_strip.txt$")
         self.stages = {}
+        self.annot_files = list()
         self.target_refpkgs = list()
         self.treesapp_output = ""
         self.colours_file = ""

@@ -8,6 +8,7 @@ import logging
 import os
 import re
 from .classy import Layerer
+import glob
 
 
 def check_arguments(layerer: Layerer, args):
@@ -23,10 +24,20 @@ def check_arguments(layerer: Layerer, args):
     if not os.path.isfile(layerer.final_output_dir + "marker_contig_map.tsv"):
         logging.error("Could not find a classification file in " + layerer.final_output_dir + "\n")
         sys.exit(3)
-    for annot_f in args.colours_style:
-        if not os.path.isfile(annot_f):
-            logging.error(annot_f + " does not exist!\n")
-            sys.exit(3)
+    if args.colours_style:
+        for annot_f in args.colours_style:
+            if not os.path.isfile(annot_f):
+                logging.error(annot_f + " does not exist!\n")
+                sys.exit(3)
+            layerer.annot_files.append(annot_f)
+    # If a directory containing annotation files isn't given, set it to the default data/iTOL_data directory
+    if args.annot_dir is None:
+        args.annot_dir = layerer.itol_dir
+    annotation_files = glob.glob(args.annot_dir + '*')
+    # Add all files in the annot_dir to the colours_style list
+    for af in annotation_files:
+        if not layerer.c_strip_re.match(af) and not layerer.c_style_re.match(af):
+            layerer.annot_files.append(af)
     return
 
 

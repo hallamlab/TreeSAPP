@@ -327,6 +327,7 @@ def create(sys_args):
                 # fasta_records[num_id].cluster_lca is left empty
 
     if ts_create.stage_status("build"):
+        # TODO: Have a command-line flag to toggle this on (DEFAULT) and off
         fasta_records = create_refpkg.remove_outlier_sequences(fasta_records,
                                                                ts_create.executables["OD-seq"],
                                                                ts_create.executables["mafft"],
@@ -661,26 +662,30 @@ def layer(sys_args):
     # structure of master dat:
     # {"Sequence_1": {"Field1": x, "Field2": y, "Extra": n},
     #  "Sequence_2": {"Field1": i, "Field2": j, "Extra": n}}
-    for annot_f in args.colours_style:
+    for annot_f in ts_layer.annot_files:
         # Determine the marker being annotated
-        marker = data_type = ""
-        for refpkg_code in marker_build_dict:
-            marker = marker_build_dict[refpkg_code].cog
+        marker = data_type = refpkg = ""
+        for code in marker_build_dict:
+            marker = marker_build_dict[code].cog
             annot_marker_re = re.compile(r"^{0}_(\w+).txt$".format(marker))
             if annot_marker_re.match(os.path.basename(annot_f)):
                 data_type = annot_marker_re.match(os.path.basename(annot_f)).group(1)
-                unique_markers_annotated.add(refpkg_code)
+                refpkg = code
                 break
             else:
-                marker = data_type = ""
+                marker = data_type = refpkg = ""
+        if marker not in master_dat.keys():
+            continue
         if marker and data_type:
+            unique_markers_annotated.add(refpkg)
             if data_type not in marker_subgroups:
                 marker_subgroups[data_type] = dict()
                 internal_nodes[data_type] = dict()
             marker_subgroups[data_type][marker], internal_nodes[data_type][marker] = file_parsers.read_colours_file(annot_f)
         else:
-            logging.error("Unable to parse the marker and/or annotation type from " + annot_f + "\n")
-            sys.exit(5)
+            logging.warning("Unable to parse the marker and/or annotation type from " + annot_f + ".\n" +
+                            "Is it possible this reference package is not in " +
+                            ts_layer.treesapp_dir + os.sep + "data" + os.sep + "ref_build_parameters.tsv?\n")
     # Instantiate every query sequence in marker_contig_map with an empty string for each data_type
     for data_type in marker_subgroups:
         for marker in master_dat:
