@@ -19,6 +19,8 @@ def check_arguments(layerer: Layerer, args):
     :return:
     """
     layerer.treesapp_output = args.output
+    if layerer.treesapp_output[-1] != os.sep:
+        layerer.treesapp_output += os.sep
     layerer.var_output_dir = layerer.treesapp_output + "intermediates" + os.sep
     layerer.final_output_dir = layerer.treesapp_output + "final_outputs" + os.sep
     if not os.path.isfile(layerer.final_output_dir + "marker_contig_map.tsv"):
