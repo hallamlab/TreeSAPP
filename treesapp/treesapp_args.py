@@ -371,9 +371,6 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
     if args.acc_to_lin:
         evaluator_instance.acc_to_lin = args.acc_to_lin
         if os.path.isfile(evaluator_instance.acc_to_lin):
-            logging.info("Reading cached lineages in '" + evaluator_instance.acc_to_lin + "'... ")
-            evaluator_instance.seq_lineage_map.update(read_accession_taxa_map(evaluator_instance.acc_to_lin))
-            logging.info("done.\n")
             evaluator_instance.change_stage_status("lineages", False)
         else:
             logging.error("Unable to find accession-lineage mapping file '" + evaluator_instance.acc_to_lin + "'\n")

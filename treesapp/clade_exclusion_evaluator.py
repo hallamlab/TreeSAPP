@@ -306,7 +306,7 @@ def map_headers_to_lineage(assignments, ref_sequences):
                         break
                 if not mapped:
                     logging.warning("Unable to map classified sequence '" + query + "' to a lineage.\n")
-                    sys.exit()
+                    sys.exit(3)
             if len(lineage_assignments[marker][c_lineage]) > len(classified_headers):
                 logging.error(str(len(classified_headers)) + " accessions mapped to " +
                               str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
@@ -314,6 +314,7 @@ def map_headers_to_lineage(assignments, ref_sequences):
             elif len(lineage_assignments[marker][c_lineage]) < len(classified_headers):
                 logging.debug(str(len(classified_headers)) + " accessions mapped to " +
                               str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
+        print(lineage_assignments[marker])
     return lineage_assignments
 
 
@@ -346,8 +347,10 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
     dereplicated_lineages = dict()
     num_rep_seqs = 0
     for ref_seq in ref_seqs_list:
+        print(ref_seq.lineage)
         query_taxonomy = clean_lineage_string(ref_seq.lineage)
-        if len(clean_lineage_string(query_taxonomy).split("; ")) < 7:
+        if len(query_taxonomy.split("; ")) < 7:
+            print("Skipping", query_taxonomy)
             continue
         if query_taxonomy not in good_classified_lineages:
             good_classified_lineages[query_taxonomy] = list()
@@ -393,7 +396,7 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
 
     taxonomic_filter_stats["Unique_taxa"] += len(dereplicated_lineages)
 
-    logging.info("\t" + str(num_rep_seqs) + " representative sequences will be used for TreeSAPP analysis.\n")
+    logging.info("\t" + str(num_rep_seqs) + " representative sequences will be used for TreeSAPP evaluate analysis.\n")
 
     logging.debug("Representative sequence stats:\n\t" +
                   "Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t" +

@@ -1,3 +1,5 @@
+from typing import Dict, Any, Union
+
 __author__ = 'Connor Morgan-Lang'
 
 import sys
@@ -10,6 +12,7 @@ from copy import deepcopy
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
+from collections import namedtuple
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
 from .utilities import median, which, is_exe, return_sequence_info_groups, reluctant_remove_replace
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
@@ -831,6 +834,9 @@ def get_header_info(header_registry, code_name=''):
     logging.info("Extracting information from headers... ")
     ref_records = dict()
 
+    if len(header_registry) == 0:
+        logging.error("No headers read from ")
+
     # TODO: Fix parsing of combined EggNOG and custom headers such that the taxid is parsed from the "accession"
     for treesapp_id in sorted(header_registry.keys(), key=int):
         original_header = header_registry[treesapp_id].original
@@ -1510,6 +1516,8 @@ class Evaluator(TreeSAPP):
         self.taxa_filter["Unique_taxa"] = 0
         self.taxa_tests = dict()
         self.classifications = dict()
+        self.ce_stats = namedtuple(typename="ce_stats",
+                                   field_names=["offset", "queries", "correct", "cumulative", "under_pred", "over_pred"])
 
         self.test_rep_taxa_fasta = ""
         self.performance_table = ""
@@ -1647,12 +1655,12 @@ class Evaluator(TreeSAPP):
             rank = self.rank_depth_map[depth]
             if rank == "Cellular organisms":
                 continue
-            correct = 0
-            incorrect = 0
             taxonomic_distance = dict()
             n_queries, n_classified, sensitivity = self.get_sensitivity(rank)
             for dist in range(0, 8):
-                taxonomic_distance[dist] = 0
+                taxonomic_distance[dist] = self.ce_stats(offset=dist, queries=n_queries,
+                                                         over_pred=0, under_pred=0, correct=0, cumulative=0)
+                print(taxonomic_distance[dist])
             std_out_report_string += "\t" + rank + "\t"
             if rank not in rank_assigned_dict or len(rank_assigned_dict[rank]) == 0:
                 std_out_report_string += "0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n"
@@ -1668,17 +1676,27 @@ class Evaluator(TreeSAPP):
                         optimal, query = assignments[classified]
                         if optimal == classified:
                             offset = 0
-                            correct += 1
                         else:
                             offset = determine_offset(classified, optimal)
-                            incorrect += 1
                         if offset > 7:
                             # This shouldn't be possible since there are no more than 7 taxonomic ranks
                             logging.error("Offset found to be greater than what is possible (" + str(offset) + ").\n" +
                                           "Classified: " + classified + "\n" +
                                           "Optimal: " + optimal + "\n" +
                                           "Query: " + query + "\n")
-                        taxonomic_distance[offset] += 1
+                            continue
+                        for dist in taxonomic_distance:
+                            dist_ce_stats = taxonomic_distance[offset]  # type: namedtuple
+                            if dist > offset:
+                                if len(classified.split("; ")) > len(optimal.split("; ")):
+                                    dist_ce_stats.over_pred += 1
+                                else:
+                                    dist_ce_stats.under_pred += 1
+                            elif dist == offset:
+                                dist_ce_stats.correct += 1
+                            else:
+                                dist_ce_stats.cumulative += 1
+
                 std_out_report_string += str(n_queries) + "\t" + str(n_classified) + "\t\t"
 
                 dist_sum = 0
@@ -1694,9 +1712,14 @@ class Evaluator(TreeSAPP):
                             taxonomic_distance[dist] = round(float((taxonomic_distance[dist] * 100) / n_classified), 1)
                     else:
                         taxonomic_distance[dist] = 0.0
+                    print("Queries:", str(n_queries), str(taxonomic_distance[dist].queries))
+                    print("Classified:", str(n_classified), str(taxonomic_distance[dist].correct))
                     clade_exclusion_tabular_string += self.target_marker.cog + "\t" + rank + "\t"
-                    clade_exclusion_tabular_string += str(n_queries) + "\t" + str(n_classified) + "\t"
-                    clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist])
+                    clade_exclusion_tabular_string += str(dist) + "\t" + str(n_queries) + "\t"
+                    clade_exclusion_tabular_string += str(n_classified) + "\t" + str(taxonomic_distance[dist].correct)
+                    clade_exclusion_tabular_string += str(taxonomic_distance[dist].cumulative) + "\t"
+                    clade_exclusion_tabular_string += str(taxonomic_distance[dist].over_pred) + "\t"
+                    clade_exclusion_tabular_string += str(taxonomic_distance[dist].under_pred) + "\t"
                     clade_exclusion_strings.append(clade_exclusion_tabular_string)
                     clade_exclusion_tabular_string = ""
                 if dist_sum != n_classified:
@@ -1704,7 +1727,10 @@ class Evaluator(TreeSAPP):
                                   ") and total (" + str(n_classified) + ").\n")
                     sys.exit(15)
 
-                std_out_report_string += '\t'.join([str(val) for val in taxonomic_distance.values()]) + "\n"
+                print(taxonomic_distance)
+
+                std_out_report_string += '\t'.join([str((val.correct*100)/val.queries) for val
+                                                    in taxonomic_distance.values()]) + "\n"
                 if sum(taxonomic_distance.values()) > 101.0:
                     logging.error("Sum of proportional assignments at all distances is greater than 100.\n" +
                                   "\n".join(["Rank = " + rank,
@@ -1729,7 +1755,7 @@ class Evaluator(TreeSAPP):
         output_name = os.path.dirname(self.output_dir)
         for line in containment_strings:
             # Line has a "\t" prefix already
-            line = output_name + "\t" + self.target_marker.cog + "\t" + tool + line + "\n"
+            line = os.path.basename(output_name) + "\t" + self.target_marker.cog + "\t" + tool + line + "\n"
             output_handler.write(line)
 
         output_handler.close()
@@ -1745,7 +1771,7 @@ class Evaluator(TreeSAPP):
         output_handler.write("# Input file for testing: " + self.input_sequences + "\n")
         output_name = os.path.dirname(self.output_dir)
         for line in clade_exclusion_strings:
-            line = output_name + "\t" + tool + "\t" + line + "\n"
+            line = os.path.basename(output_name) + "\t" + tool + "\t" + line + "\n"
             output_handler.write(line)
 
         output_handler.close()

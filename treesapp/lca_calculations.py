@@ -115,9 +115,9 @@ def identify_excluded_clade(assignment_dict, trie, marker):
 
     for ref_lineage in assignment_dict[marker]:
         log_stats += "Assigned reference lineage: " + ref_lineage + "\n"
-        for query_lineage in assignment_dict[marker][ref_lineage]:
-            if not re.search(r"^Root; ", query_lineage):
-                query_lineage = "Root; " + query_lineage
+        for query_lineage in assignment_dict[marker][ref_lineage]:  # type: str
+            if query_lineage.split('; ')[0] != "Root":
+                query_lineage = "; ".join(["Root"] + query_lineage.split("; "))
             # if query_lineage == ref_lineage:
             #     logging.debug("\tQuery lineage: " + query_lineage + ", " +
             #                   "Optimal lineage: " + ref_lineage + "\n")

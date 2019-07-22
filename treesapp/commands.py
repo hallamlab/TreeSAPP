@@ -933,6 +933,7 @@ def evaluate(sys_args):
     ref_seqs.header_registry = register_headers(get_headers(ref_seqs.file))
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid).values()
+    create_refpkg.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
 
     logging.info("Selecting representative sequences for each taxon.\n")
 

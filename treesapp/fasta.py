@@ -491,6 +491,9 @@ def get_headers(fasta_file):
         original_headers.append('>' + str(name))
 
     fasta.close()
+    if len(original_headers) == 0:
+        logging.error("No sequence headers read from FASTA file " + fasta_file + "\n")
+        sys.exit(3)
     logging.debug("Read " + str(n_headers) + " headers from " + fasta_file + ".\n")
 
     return original_headers
