@@ -1,3 +1,4 @@
+
 __author__ = 'Connor Morgan-Lang'
 
 import sys
@@ -11,7 +12,7 @@ from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
-from .utilities import median, which, is_exe, return_sequence_info_groups, reluctant_remove_replace
+from .utilities import median, which, is_exe, return_sequence_info_groups
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset, clean_lineage_string
 from . import entrez_utils
@@ -1635,7 +1636,6 @@ class Evaluator(TreeSAPP):
 
         :return: List of strings to be written to Evaluator.performance_table
         """
-        clade_exclusion_tabular_string = ""
         std_out_report_string = ""
         clade_exclusion_strings = list()
         rank_assigned_dict = self.classifications
@@ -1647,12 +1647,11 @@ class Evaluator(TreeSAPP):
             rank = self.rank_depth_map[depth]
             if rank == "Cellular organisms":
                 continue
-            correct = 0
-            incorrect = 0
             taxonomic_distance = dict()
             n_queries, n_classified, sensitivity = self.get_sensitivity(rank)
             for dist in range(0, 8):
-                taxonomic_distance[dist] = 0
+                taxonomic_distance[dist] = EvaluateStats(self.target_marker.cog, rank, dist)
+                taxonomic_distance[dist].n_qs = n_queries
             std_out_report_string += "\t" + rank + "\t"
             if rank not in rank_assigned_dict or len(rank_assigned_dict[rank]) == 0:
                 std_out_report_string += "0\t0\t\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\n"
@@ -1668,44 +1667,51 @@ class Evaluator(TreeSAPP):
                         optimal, query = assignments[classified]
                         if optimal == classified:
                             offset = 0
-                            correct += 1
                         else:
                             offset = determine_offset(classified, optimal)
-                            incorrect += 1
                         if offset > 7:
                             # This shouldn't be possible since there are no more than 7 taxonomic ranks
                             logging.error("Offset found to be greater than what is possible (" + str(offset) + ").\n" +
                                           "Classified: " + classified + "\n" +
                                           "Optimal: " + optimal + "\n" +
                                           "Query: " + query + "\n")
-                        taxonomic_distance[offset] += 1
+                            continue
+                        for dist in taxonomic_distance:
+                            eval_stats = taxonomic_distance[dist]  # type: EvaluateStats
+                            if offset > dist:
+                                if len(classified.split("; ")) > len(optimal.split("; ")):
+                                    eval_stats.over_p += 1
+                                else:
+                                    eval_stats.under_p += 1
+                            elif dist == offset:
+                                eval_stats.correct += 1
+
                 std_out_report_string += str(n_queries) + "\t" + str(n_classified) + "\t\t"
 
-                dist_sum = 0
-                for dist in taxonomic_distance:
-                    dist_sum += taxonomic_distance[dist]
-                    if taxonomic_distance[dist] > 0:
+                classified_acc = 0
+                for dist in sorted(taxonomic_distance.keys()):  # type: int
+                    eval_stats = taxonomic_distance[dist]  # type: EvaluateStats
+                    eval_stats.cumulative = eval_stats.correct + classified_acc
+                    classified_acc += eval_stats.correct
+                    if eval_stats.correct > 0:
                         if n_classified == 0:
                             logging.error("No sequences were classified at rank '" + rank +
                                           "' but optimal placements were pointed here. " +
                                           "This is a bug - please alert the developers!\n")
                             sys.exit(21)
                         else:
-                            taxonomic_distance[dist] = round(float((taxonomic_distance[dist] * 100) / n_classified), 1)
+                            eval_stats.proportion = float(eval_stats.correct / n_classified)
                     else:
-                        taxonomic_distance[dist] = 0.0
-                    clade_exclusion_tabular_string += self.target_marker.cog + "\t" + rank + "\t"
-                    clade_exclusion_tabular_string += str(n_queries) + "\t" + str(n_classified) + "\t"
-                    clade_exclusion_tabular_string += str(dist) + "\t" + str(taxonomic_distance[dist])
-                    clade_exclusion_strings.append(clade_exclusion_tabular_string)
-                    clade_exclusion_tabular_string = ""
-                if dist_sum != n_classified:
-                    logging.error("Discrepancy between classified sequences at each distance (" + str(dist_sum) +
+                        eval_stats.proportion = 0.0
+                    clade_exclusion_strings.append(eval_stats.linear_stats())
+                if classified_acc != n_classified:
+                    logging.error("Discrepancy between classified sequences at each distance (" + str(classified_acc) +
                                   ") and total (" + str(n_classified) + ").\n")
                     sys.exit(15)
 
-                std_out_report_string += '\t'.join([str(val) for val in taxonomic_distance.values()]) + "\n"
-                if sum(taxonomic_distance.values()) > 101.0:
+                std_out_report_string += '\t'.join([str(round(val.proportion*100, 1)) for val in
+                                                    taxonomic_distance.values()]) + "\n"
+                if (classified_acc*100)/n_queries > 101.0:
                     logging.error("Sum of proportional assignments at all distances is greater than 100.\n" +
                                   "\n".join(["Rank = " + rank,
                                              "Queries = " + str(n_queries),
@@ -1726,10 +1732,10 @@ class Evaluator(TreeSAPP):
             sys.exit(21)
 
         output_handler.write("# Input file for testing: " + self.input_sequences + "\n")
-        output_name = os.path.dirname(self.output_dir)
+        trial_name = os.path.basename(self.output_dir)
         for line in containment_strings:
             # Line has a "\t" prefix already
-            line = output_name + "\t" + self.target_marker.cog + "\t" + tool + line + "\n"
+            line = trial_name + "\t" + self.target_marker.cog + "\t" + tool + line + "\n"
             output_handler.write(line)
 
         output_handler.close()
@@ -1742,10 +1748,12 @@ class Evaluator(TreeSAPP):
             logging.error("Unable to open " + self.performance_table + " for writing.\n")
             sys.exit(21)
 
+        header = ["Trial", "Tool", "RefPkg", "Rank", "TaxDist", "Queries", "Correct", "Cumulative", "Over", "Under"]
         output_handler.write("# Input file for testing: " + self.input_sequences + "\n")
-        output_name = os.path.dirname(self.output_dir)
+        output_handler.write("\t".join(header) + "\n")
+        trial_name = os.path.basename(self.output_dir)
         for line in clade_exclusion_strings:
-            line = output_name + "\t" + tool + "\t" + line + "\n"
+            line = trial_name + "\t" + tool + "\t" + line + "\n"
             output_handler.write(line)
 
         output_handler.close()
@@ -1901,6 +1909,38 @@ class PhyTrainer(TreeSAPP):
                                     "Ranks tested: " + ','.join(self.training_ranks.keys())]) + "\n"
 
         return info_string
+
+
+class EvaluateStats:
+    def __init__(self, refpkg: str, rank: str, dist: int):
+        self.refpkg = refpkg
+        self.rank = rank
+        self.offset = dist
+        self.n_qs = 0  # The number of query sequences used to evaluate this Rank
+        self.correct = 0  # The number of query sequences that were correctly assigned at this taxonomic distance
+        self.cumulative = 0  # Number of query sequences assigned at this taxonomic distance or less
+        self.over_p = 0  # For the over-predictions: the assignment is wrong and more ranks are included than optimal
+        self.under_p = 0  # For the under-predictions: the assignment is wrong and deeper than optimal
+        self.proportion = 0.0
+
+    def get_info(self):
+        info_str = "# Evaluation stats for '" + self.refpkg + "' at rank: " + self.rank + "\n"
+        info_str += "Taxonomic rank distance = " + str(self.offset) + "\n"
+        info_str += "Queries\tCorrect\tCumulative\tOver-Pred\tUnder-Pred\n"
+        info_str += "\t".join([str(val) for val in
+                               [self.n_qs, self.correct, self.cumulative, self.over_p, self.under_p]]) + "\n"
+        return info_str
+
+    def linear_stats(self):
+        stat_fields = [self.refpkg, self.rank, self.offset,
+                       self.n_qs, self.correct, self.cumulative, self.over_p, self.under_p]
+        return "\t".join([str(val) for val in stat_fields])
+
+    def recall(self):
+        return self.correct/self.n_qs
+
+    def precision(self):
+        return self.correct/sum([self.correct, self.over_p, self.under_p])
 
 
 class TaxonTest:

@@ -299,14 +299,14 @@ def map_headers_to_lineage(assignments, ref_sequences):
             lineage_assignments[marker][c_lineage] = list()
             for query in classified_headers:
                 mapped = False
-                for ref_seq in ref_sequences:
+                for treesapp_id, ref_seq in ref_sequences.items():
                     if ref_seq.accession == query:
                         lineage_assignments[marker][c_lineage].append(clean_lineage_string(ref_seq.lineage))
                         mapped = True
                         break
                 if not mapped:
                     logging.warning("Unable to map classified sequence '" + query + "' to a lineage.\n")
-                    sys.exit()
+                    sys.exit(3)
             if len(lineage_assignments[marker][c_lineage]) > len(classified_headers):
                 logging.error(str(len(classified_headers)) + " accessions mapped to " +
                               str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
@@ -324,20 +324,20 @@ def get_unclassified_rank(pos, split_lineage):
     :param split_lineage:
     :return:
     """
-    if re.search("nclassified", split_lineage[pos]):
+    if re.search("unclassified", split_lineage[pos], re.IGNORECASE):
         return pos
     else:
         pos = get_unclassified_rank(pos+1, split_lineage)
     return pos
 
 
-def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cluster_size=5):
+def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict, max_cluster_size=5):
     """
     Removes queries with duplicate taxa - to prevent the taxonomic composition of the input
     from biasing the accuracy to over- or under-perform by classifying many sequences from very few groups.
     Also removes taxonomies with "*nclassified" in their lineage or are derived from environmental samples
 
-    :param ref_seqs_list: A dictionary mapping accessions to lineages that need to be filtered
+    :param ref_seqs: A dictionary mapping accessions to lineages that need to be filtered
     :param taxonomic_filter_stats: A dictionary for tracking the number sequences filtered, those unique, etc.
     :param max_cluster_size: The maximum number of sequences representing a taxonomic cluster
     :return: dereplicated_lineages dict with lineages mapping to a (short) list of accessions
@@ -345,9 +345,9 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
     good_classified_lineages = dict()
     dereplicated_lineages = dict()
     num_rep_seqs = 0
-    for ref_seq in ref_seqs_list:
+    for tree_id, ref_seq in ref_seqs.items():
         query_taxonomy = clean_lineage_string(ref_seq.lineage)
-        if len(clean_lineage_string(query_taxonomy).split("; ")) < 7:
+        if len(query_taxonomy.split("; ")) < 5:
             continue
         if query_taxonomy not in good_classified_lineages:
             good_classified_lineages[query_taxonomy] = list()
@@ -362,7 +362,7 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
             taxonomic_filter_stats["Classified"] += 1
             good_classified_lineages[query_taxonomy].append(ref_seq.accession)
 
-    if taxonomic_filter_stats["Unclassified"] == len(ref_seqs_list):
+    if taxonomic_filter_stats["Unclassified"] == len(ref_seqs):
         logging.error("All sequences provided are derived from uncultured, unclassified organisms.\n")
         sys.exit(21)
 
@@ -393,7 +393,7 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
 
     taxonomic_filter_stats["Unique_taxa"] += len(dereplicated_lineages)
 
-    logging.info("\t" + str(num_rep_seqs) + " representative sequences will be used for TreeSAPP analysis.\n")
+    logging.info("\t" + str(num_rep_seqs) + " representative sequences will be used for TreeSAPP evaluate analysis.\n")
 
     logging.debug("Representative sequence stats:\n\t" +
                   "Maximum representative sequences for a taxon " + str(taxonomic_filter_stats["Max"]) + "\n\t" +
@@ -403,7 +403,7 @@ def pick_taxonomic_representatives(ref_seqs_list, taxonomic_filter_stats, max_cl
     return dereplicated_lineages, taxonomic_filter_stats
 
 
-def select_rep_seqs(deduplicated_assignments: dict, test_sequences: list, taxon=None):
+def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict, taxon=None):
     """
     Function for creating a fasta-formatted dict from the accessions representing unique taxa in the test sequences
 
@@ -424,7 +424,7 @@ def select_rep_seqs(deduplicated_assignments: dict, test_sequences: list, taxon=
     for lineage in sorted(filtered_assignments):
         for accession in filtered_assignments[lineage]:
             matched = False
-            for ref_seq in test_sequences:
+            for treesapp_id, ref_seq in test_sequences.items():
                 if ref_seq.accession == accession:
                     deduplicated_fasta_dict[accession] = ref_seq.sequence
                     matched = True
