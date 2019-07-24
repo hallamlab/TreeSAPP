@@ -1036,7 +1036,10 @@ def evaluate(sys_args):
                                        "--min_seq_length", str(min_seq_length), "--overwrite", "--delete"]
                         if args.trim_align:
                             assign_args.append("--trim_align")
-                        assign(assign_args)
+                        try:
+                            assign(assign_args)
+                        except:  # Just in case treesapp assign fails, just continue
+                            pass
                         restore_reference_package(ts_evaluate.treesapp_dir, prefix,
                                                   treesapp_output, ts_evaluate.target_marker.cog)
                         if not os.path.isfile(classification_table):
