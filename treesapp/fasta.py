@@ -242,6 +242,10 @@ class FASTA:
                 repl_fasta_dict[new_header] = self.fasta_dict[header.first_split]
             else:
                 pass
+
+        if not repl_fasta_dict:
+            logging.error("Unable to change dictionary keys as no headers in '" + self.file + "' were found in dict.\n")
+            sys.exit(3)
         self.fasta_dict = repl_fasta_dict
         self.index_form = index_replace
         return

@@ -90,7 +90,13 @@ bool ascii_range(char c) {
     return !(c>=0 && c <128);
 }
 
-string remove_non_ascii_char (string str) {
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+            std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+}
+
+string remove_non_ascii_char(std::string str) {
     str.erase(std::remove_if(str.begin(),
                              str.end(),
                              ascii_range),
@@ -107,16 +113,16 @@ int Fasta::record_header( string line, std::size_t max_header_length) {
     string new_header;
 
     // Replace whitespace characters and other ASCII operators with underscores
+
+    rtrim(line);
     line = remove_non_ascii_char(line);
     line = erase_characters(line, "()[]/\\\\'<>");
     transform(line.begin(), line.end(), line.begin(), replace_operators);
-    // Add the '>' back to the front of the line since it was removed by erase_characters
-//    line.insert(0, 1, '>');
 
     // Because RAxML can only work with file names having length <= 125,
     // Ensure that the sequence name length is <= 110
     if (line.length() > max_header_length)
-        new_header = line.substr(0,max_header_length-1);
+        new_header = line.substr(0, max_header_length-1);
     else
         new_header = line;
 
@@ -211,7 +217,7 @@ int Fasta::record_sequence() {
         }
         // Skip sequence if the character is not a standard amino acid or nucleotide character
         else if (acceptable==std::string::npos) {
-            cerr << "\nWARNING: '" << *it << "' is not an accepted character! ";
+            cerr << "\nWARNING: '" << *it << "' at position " << pos << " is not an accepted character! ";
             free(purified_seq);
             return 4;
         }
@@ -253,7 +259,7 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
         if ( line.empty() )
             ;
         else {
-            if (line.at(0) == '>') {
+            if (line[0] == '>') {
                 // If the sequence meets the length threshold, evaluate it's composition
                 if ( (signed)sequence_buffer.length() >= min_length ) {
                     status = record_sequence();
@@ -282,11 +288,15 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
                 header = line;
                 sequence_buffer.clear();
             }
-            else
+            else {
+                rtrim(line);
                 sequence_buffer.append(line);
+            }
         }
         getline( *fasta_file, line );
     }
+    rtrim(line);
+    sequence_buffer.append(line);
     // Ensure the last sequence is appended to fasta_list
     if ( (signed)sequence_buffer.length() >= min_length ) {
         status = record_sequence();
