@@ -1,0 +1,48 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+12|17 #714108 Bacteroidales
+15|16 #714108 Bacteroidales
+8 #714108 Bacteroidales
+10 #714108 Bacteroidales
+20|23 #8d520b Chitinophagales
+21 #8d520b Chitinophagales
+24 #8d520b Chitinophagales
+22 #8d520b Chitinophagales
+19 #8d520b Chitinophagales
+49|30 #a96c1e Flavobacteriales
+47|48 #a96c1e Flavobacteriales
+34|38 #a96c1e Flavobacteriales
+35|36 #a96c1e Flavobacteriales
+42|43 #a96c1e Flavobacteriales
+37 #a96c1e Flavobacteriales
+51 #a96c1e Flavobacteriales
+33 #a96c1e Flavobacteriales
+50 #a96c1e Flavobacteriales
+32 #a96c1e Flavobacteriales
+31 #a96c1e Flavobacteriales
+1 #c28633 Acidobacteriales
+28|27 #d3aa5f Cytophagales
+29 #d3aa5f Cytophagales
+52 #e2c787 Sphingobacteriales
+54 #e2c787 Sphingobacteriales
+53 #e2c787 Sphingobacteriales
+61 #efdcad Planctomycetales
+62 #efdcad Planctomycetales
+63 #efdcad Planctomycetales
+56|57 #f6ebcd Bacillales
+67|69 #f5f2e8 Burkholderiales
+71 #e9f2f1 Nitrosomonadales
+64 #d0ece8 Rhizobiales
+72 #b1e1da Rhodocyclales
+3 #8ad1c6 Micrococcales
+4 #8ad1c6 Micrococcales
+5|6 #64b9ae Propionibacteriales
+59|60 #3b9b93 Victivallales
+7 #1f827a Fimbriimonadales
+2 #02675f Acidobacteria subdivision 22
+73 #015147 Verrucomicrobiales

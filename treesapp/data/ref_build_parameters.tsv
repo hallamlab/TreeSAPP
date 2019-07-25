@@ -67,3 +67,5 @@ HydA	H0001	prot	PROTGAMMALG	functional	0.9	1100	FastTree	-8.134,7.0	Kingdoms	29_
 #norB	D0501	prot	PROTGAMMALG	functional	0.80	329	RAxML	-6.109,6.6475	Orders	08_Dec_2018	nitric oxide reductase subunit B
 #norC	D0502	prot	PROTGAMMALG	functional	0.90	223	RAxML	-5.3221,6.3809	Classes	08_Dec_2018	nitric oxide reductase subunit C
 NorB	D0501	prot	PROTGAMMALG	functional	0.90	429	RAxML	-5.2635,7.0	Orders	01_Jul_2019	nitric oxide reductase subunit B
+GH101	G0101	prot	PROTGAMMALG	functional	0.95	118	FastTree	0.0,7.0	Orders	25_Jul_2019	
+GH163	G0163	prot	PROTGAMMALG	functional	0.97	75	FastTree	0.0,7.0	Classes	25_Jul_2019	

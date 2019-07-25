@@ -1,0 +1,40 @@
+DATASET_COLORSTRIP
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
+DATA
+23|22 #824b09 Micrococcales
+18|20 #824b09 Micrococcales
+15|14 #824b09 Micrococcales
+16 #824b09 Micrococcales
+67|64 #ad7021 Streptomycetales
+35|53 #ad7021 Streptomycetales
+72|65 #ad7021 Streptomycetales
+57 #ad7021 Streptomycetales
+56 #ad7021 Streptomycetales
+69 #ad7021 Streptomycetales
+117 #cfa256 unclassified Phycisphaerae
+116 #cfa256 unclassified Phycisphaerae
+118 #cfa256 unclassified Phycisphaerae
+78|85 #e7cf94 Bacillales
+92|97 #e7cf94 Bacillales
+79|82 #e7cf94 Bacillales
+90 #e7cf94 Bacillales
+89 #e7cf94 Bacillales
+88 #e7cf94 Bacillales
+110|113 #f6eacb Clostridiales
+108 #f6eacb Clostridiales
+111 #f6eacb Clostridiales
+114 #f6eacb Clostridiales
+29 #f4f5f5 Pseudonocardiales
+28 #f4f5f5 Pseudonocardiales
+107|98 #ceece8 Lactobacillales
+101|99 #ceece8 Lactobacillales
+7|11 #98d7cd Bifidobacteriales
+75|76 #58b0a7 Streptosporangiales
+4|6 #23867e Actinomycetales
+2|3 #23867e Actinomycetales
+1 #23867e Actinomycetales
+26|27 #015f56 Propionibacteriales
