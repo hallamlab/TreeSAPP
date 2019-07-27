@@ -785,29 +785,6 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
     return nonredundant_guarantee_cluster_dict
 
 
-def rename_cluster_headers(cluster_dict, header_registry):
-    """
-    Map the numerical TreeSAPP IDs to each sequence's original header
-    cluster.representative and header are both 'treesapp_id's
-    :param cluster_dict:
-    :param header_registry:
-    :return:
-    """
-    for num_id in cluster_dict:
-        members = list()
-        cluster = cluster_dict[num_id]
-        try:
-            cluster.representative = header_registry[cluster.representative].original
-        except KeyError:
-            logging.error("Unable to find '" + cluster.representative + "' in formatted header-registry names.\n")
-            sys.exit(7)
-        for member in cluster.members:
-            header, identity = member
-            members.append([header_registry[header].original, identity])
-        cluster.members = members
-    return
-
-
 def cluster_lca(cluster_dict: dict, fasta_record_objects, header_registry: dict):
     # Create a temporary dictionary for faster mapping
     formatted_to_num_map = dict()

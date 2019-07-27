@@ -9,9 +9,8 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from .fasta import read_fasta_to_dict, write_new_fasta, FASTA
-from .file_parsers import tax_ids_file_to_leaves, read_stockholm_to_dict, validate_alignment_trimming,\
-    multiple_alignment_dimensions
+from .fasta import read_fasta_to_dict, write_new_fasta, rename_cluster_headers, FASTA
+from . import file_parsers
 from . import utilities
 from . import wrapper
 from .phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
@@ -211,17 +210,26 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     similarity = 0.97  # The proportional similarity to cluster the training sequences
     max_reps = 30  # The maximum number of representative sequences from a specific taxon for training
     uclust_prefix = output_dir + os.sep + "uclust" + str(similarity)
+    uclust_input = output_dir + os.sep + "uclust_input.fasta"
 
     # Cluster the training sequences to mitigate harmful redundancy
-    wrapper.cluster_sequences(executables["usearch"], fasta_input, uclust_prefix, similarity)
-    test_seqs = FASTA(uclust_prefix + ".fa")
+    test_seqs = FASTA(fasta_input)
     test_seqs.load_fasta()
-    test_seqs.change_dict_keys("first_split")
+    test_seqs.add_accession_to_headers()
+    # Remove fasta records with duplicate accessions
+    test_seqs.dedup_by_accession()
+    # Remove fasta records with duplicate sequences
+    test_seqs.dedup_by_sequences()
+    test_seqs.change_dict_keys("num")
+    write_new_fasta(test_seqs.fasta_dict, uclust_input)
+
+    wrapper.cluster_sequences(executables["usearch"], uclust_input, uclust_prefix, similarity)
+    cluster_dict = file_parsers.read_uc(uclust_prefix + ".uc")
+    test_seqs.keep_only([cluster_dict[clust_id].representative for clust_id in cluster_dict.keys()])
     logging.debug("\t" + str(len(test_seqs.fasta_dict.keys())) + " sequence clusters\n")
 
     logging.info("Preparing deduplicated sequence set for training... ")
-    # Remove sequences with duplicate accessions
-    test_seqs.deduplicate_fasta_sequences()
+    test_seqs.change_dict_keys("accession")
 
     # Determine the set of reference sequences to use at each rank
     for rank in taxonomic_ranks:
@@ -393,9 +401,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 wrapper.build_hmm_profile(executables["hmmbuild"], temp_ref_fasta_file, temp_ref_profile)
                 # Currently not supporting rRNA references (phylogenetic_rRNA)
                 aln_stdout = wrapper.profile_aligner(executables, temp_ref_fasta_file, temp_ref_profile,
-                                                       temp_query_fasta_file, sto_file)
+                                                     temp_query_fasta_file, sto_file)
                 # Reformat the Stockholm format created by cmalign or hmmalign to Phylip
-                sto_dict = read_stockholm_to_dict(sto_file)
+                sto_dict = file_parsers.read_stockholm_to_dict(sto_file)
                 for seq_name in sto_dict:
                     try:
                         int(seq_name.split('_')[0])
@@ -416,10 +424,10 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             intermediate_files += glob(query_filtered_multiple_alignment + "*")
 
             # Ensure reference sequences haven't been removed
-            msa_dict, failed_msa_files, summary_str = validate_alignment_trimming([query_filtered_multiple_alignment],
-                                                                                  unique_ref_headers, True)
-            nrow, ncolumn = multiple_alignment_dimensions(seq_dict=read_fasta_to_dict(query_filtered_multiple_alignment),
-                                                          mfa_file=query_filtered_multiple_alignment)
+            msa_dict, failed_msa_files, summary_str = file_parsers.validate_alignment_trimming([query_filtered_multiple_alignment],
+                                                                                               unique_ref_headers, True)
+            nrow, ncolumn = file_parsers.multiple_alignment_dimensions(seq_dict=read_fasta_to_dict(query_filtered_multiple_alignment),
+                                                                       mfa_file=query_filtered_multiple_alignment)
             logging.debug("Columns = " + str(ncolumn) + "\n")
             if query_filtered_multiple_alignment not in msa_dict.keys():
                 logging.debug("Placements for '" + taxonomy + "' are being skipped after failing MSA validation.\n")
@@ -517,7 +525,7 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
         training_ranks = {"Class": 3, "Species": 7}
     # Read the taxonomic map; the final sequences used to build the tree are inferred from this
     leaf_taxa_map = dict()
-    ref_taxa_map = tax_ids_file_to_leaves(ref_pkg.lineage_ids)
+    ref_taxa_map = file_parsers.tax_ids_file_to_leaves(ref_pkg.lineage_ids)
     for ref_seq in ref_taxa_map:
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train

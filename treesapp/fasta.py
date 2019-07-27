@@ -7,7 +7,7 @@ import logging
 from time import sleep
 
 import _fasta_reader
-from .utilities import median, reformat_string, rekey_dict
+from .utilities import median, reformat_string, rekey_dict, return_sequence_info_groups
 
 
 # No bioinformatic software would be complete without a contribution from Heng Li.
@@ -67,11 +67,19 @@ class Header:
         self.treesapp_name = ""
         self.post_align = ""
         self.first_split = ""
+        self.accession = ""
 
     def get_info(self):
         info_string = "TreeSAPP ID = '" + self.treesapp_name + "'\tPrefix = '" + self.first_split + "'\n"
         info_string += "Original =  " + self.original + "\nFormatted = " + self.formatted
+        if self.accession:
+            info_string += "Accession = " + self.accession + "\n"
         return info_string
+
+    def find_accession(self):
+        header_format_re, header_db, header_molecule = get_header_format(self.original)
+        sequence_info = header_format_re.match(self.original)
+        self.accession = return_sequence_info_groups(sequence_info, header_db, self.original).accession
 
 
 def register_headers(header_list, drop=True):
@@ -117,6 +125,11 @@ class FASTA:
         if len(self.fasta_dict) == 0 and len(self.header_registry) == 0:
             logging.error("FASTA file '" + str(self.file) + "' is empty or corrupted - no sequences were found!\n")
             sys.exit(3)
+
+    def add_accession_to_headers(self):
+        for acc in self.header_registry:
+            header = self.header_registry[acc]  # type: Header
+            header.find_accession()
 
     def mapping_error(self, bad_headers):
         logging.error("No sequences were mapped to '" + self.file + "' FASTA dictionary.\n" +
@@ -173,18 +186,24 @@ class FASTA:
         :return: None
         """
         pruned_fasta_dict = dict()
-        unmapped = 0
+        unmapped = list()
         for seq_name in header_subset:
             try:
                 pruned_fasta_dict[seq_name] = self.fasta_dict[seq_name]
             except KeyError:
-                unmapped += 1
+                unmapped.append(seq_name)
         if len(pruned_fasta_dict) == 0:
             self.mapping_error(header_subset)
+
+        if unmapped:
+            logging.warning(str(len(unmapped)) + " sequences were not mapped to FASTA dictionary.\n")
+            logging.debug("Headers that were not mapped to FASTA dictionary:\n\t" +
+                          "\n\t".join(unmapped) + "\n")
+
         self.fasta_dict = pruned_fasta_dict
+        self.change_dict_keys("original")
         self.synchronize_seqs_n_headers()
-        if unmapped >= 1:
-            logging.warning(str(unmapped) + " sequences were not mapped to FASTA dictionary.\n")
+
         return
 
     def remove_shorter_than(self, min_len: int):
@@ -227,6 +246,8 @@ class FASTA:
                 new_header = header.formatted
             elif index_replace == "num":
                 new_header = acc
+            elif index_replace == "accession":
+                new_header = header.accession
             else:
                 logging.error("Unknown replacement type.\n")
                 sys.exit(3)
@@ -240,6 +261,8 @@ class FASTA:
                 repl_fasta_dict[new_header] = self.fasta_dict[acc]
             elif header.first_split in self.fasta_dict:
                 repl_fasta_dict[new_header] = self.fasta_dict[header.first_split]
+            elif header.accession in self.fasta_dict:
+                repl_fasta_dict[new_header] = self.fasta_dict[header.accession]
             else:
                 pass
 
@@ -268,8 +291,8 @@ class FASTA:
                     sync_header_registry[num_id] = self.header_registry[num_id]
             self.header_registry = sync_header_registry
         if len(excluded_headers) >= 1:
-            logging.debug("The following sequences were excluded after synchronizing FASTA:\n" +
-                          "\n".join(excluded_headers) + "\n")
+            logging.debug("The following sequences were excluded after synchronizing FASTA:\n\t" +
+                          "\n\t".join(excluded_headers) + "\n")
         return
 
     def swap_headers(self, header_map):
@@ -333,18 +356,54 @@ class FASTA:
 
         return stats_string
 
-    def deduplicate_fasta_sequences(self):
+    def dedup_by_sequences(self):
         """
         Removes exact duplicate sequences from a FASTA-formatted dictionary of sequence records
         """
         dedup_dict = dict()
+        duplicates = list()
+        logging.debug("Checking for redundant FASTA records with duplicate sequences... ")
         if len(set(self.fasta_dict.values())) == len(self.fasta_dict):
             return
         else:
             for header in self.fasta_dict.keys():
                 if self.fasta_dict[header] not in dedup_dict.values():
                     dedup_dict[header] = self.fasta_dict[header]
+                else:
+                    duplicates.append(header)
             self.fasta_dict = dedup_dict
+        logging.debug("done.\n")
+
+        if duplicates:
+            logging.debug("Removed " + str(len(duplicates)) + " sequences with duplicate sequences.\n")
+        self.synchronize_seqs_n_headers()
+
+        return
+
+    def dedup_by_accession(self):
+        count_dict = dict()
+        dedup_header_dict = dict()
+        duplicates = list()
+        logging.debug("Checking for redundant sequences with duplicate accessions.\n")
+        for acc in self.header_registry:
+            header = self.header_registry[acc]
+            if not header.accession:
+                continue
+            try:
+                count_dict[header.accession].append(acc)
+            except KeyError:
+                count_dict[header.accession] = [acc]
+        for accession in count_dict:
+            if len(count_dict[accession]) > 1:
+                while len(count_dict[accession]) > 1:
+                    # Discard the duplicates
+                    duplicates.append(count_dict[accession].pop())
+            rep_acc = count_dict[accession].pop()
+            dedup_header_dict[rep_acc] = self.header_registry[rep_acc]
+        if duplicates:
+            logging.debug("Removed " + str(len(duplicates)) + " sequences with duplicate accessions:\n\t" +
+                          "\n\t".join(duplicates) + "\n")
+        self.header_registry = dedup_header_dict
         self.synchronize_seqs_n_headers()
         return
 
@@ -729,4 +788,27 @@ def summarize_fasta_sequences(fasta_file):
     stats_string += "\tMedian sequence length: " + str(median(sequence_lengths)) + "\n"
 
     logging.info(stats_string)
+    return
+
+
+def rename_cluster_headers(cluster_dict, header_registry):
+    """
+    Map the numerical TreeSAPP IDs to each sequence's original header
+    cluster.representative and header are both 'treesapp_id's
+    :param cluster_dict:
+    :param header_registry:
+    :return:
+    """
+    for num_id in cluster_dict:
+        members = list()
+        cluster = cluster_dict[num_id]
+        try:
+            cluster.representative = header_registry[cluster.representative].original
+        except KeyError:
+            logging.error("Unable to find '" + cluster.representative + "' in formatted header-registry names.\n")
+            sys.exit(7)
+        for member in cluster.members:
+            header, identity = member
+            members.append([header_registry[header].original, identity])
+        cluster.members = members
     return

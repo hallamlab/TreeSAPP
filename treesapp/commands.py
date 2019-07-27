@@ -6,8 +6,7 @@ import os
 import shutil
 from random import randint
 from . import file_parsers
-from .fasta import format_read_fasta, write_new_fasta, get_headers,\
-    read_fasta_to_dict, register_headers, write_classified_sequences, FASTA, merge_fasta_dicts_by_index
+from . import fasta
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
     check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, check_updater_arguments
@@ -97,7 +96,7 @@ def train(sys_args):
     ts_trainer.ref_pkg.gather_package_files(args.pkg_path)
     ts_trainer.ref_pkg.validate()
 
-    ref_seqs = FASTA(args.input)
+    ref_seqs = fasta.FASTA(ts_trainer.input_sequences)
 
     # Get the model to be used for phylogenetic placement
     ts_trainer.validate_continue(args)
@@ -112,8 +111,8 @@ def train(sys_args):
 
     if ts_trainer.stage_status("search"):
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type, ts_trainer.output_dir)
-        ref_seqs.header_registry = register_headers(get_headers(ts_trainer.input_sequences))
+        ref_seqs.fasta_dict = fasta.format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type, ts_trainer.output_dir)
+        ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_trainer.input_sequences))
 
         logging.info("Searching for domain sequences... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
@@ -124,17 +123,17 @@ def train(sys_args):
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
         logging.info(ref_seqs.summarize_fasta_sequences())
-        write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
+        fasta.write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
         utilities.hmm_pile(hmm_matches)
     else:
         ref_seqs.load_fasta()
         ref_seqs.change_dict_keys("formatted")
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
-    fasta_records = ts_trainer.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
+    ts_trainer.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
 
     # Read in the reference fasta file
-    ref_fasta_dict = read_fasta_to_dict(ts_trainer.ref_pkg.msa)
+    ref_fasta_dict = fasta.read_fasta_to_dict(ts_trainer.ref_pkg.msa)
 
     taxa_evo_dists = dict()
 
@@ -209,12 +208,12 @@ def create(sys_args):
     marker_package.kind = args.kind
     marker_package.denominator = "Z1111"
 
-    ref_seqs = FASTA(args.input)
+    ref_seqs = fasta.FASTA(args.input)
 
     if ts_create.stage_status("search"):
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = format_read_fasta(args.input, ts_create.molecule_type, ts_create.output_dir)
-        ref_seqs.header_registry = register_headers(get_headers(args.input))
+        ref_seqs.fasta_dict = fasta.format_read_fasta(args.input, ts_create.molecule_type, ts_create.output_dir)
+        ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(args.input))
         logging.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
         logging.info("Searching for domain sequences... ")
@@ -223,7 +222,7 @@ def create(sys_args):
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
-        write_new_fasta(marker_gene_dict, ts_create.hmm_purified_seqs)
+        fasta.write_new_fasta(marker_gene_dict, ts_create.hmm_purified_seqs)
         utilities.hmm_pile(hmm_matches)
     else:
         ts_create.hmm_purified_seqs = ts_create.input_sequences
@@ -232,9 +231,9 @@ def create(sys_args):
     # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
     ##
     ref_seqs.file = ts_create.hmm_purified_seqs
-    ref_seqs.fasta_dict = format_read_fasta(ref_seqs.file, marker_package.molecule, ts_create.output_dir,
-                                            110, args.min_seq_length)
-    ref_seqs.header_registry = register_headers(get_headers(ref_seqs.file))
+    ref_seqs.fasta_dict = fasta.format_read_fasta(ref_seqs.file, marker_package.molecule, ts_create.output_dir,
+                                                  110, args.min_seq_length)
+    ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
     logging.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
@@ -272,7 +271,7 @@ def create(sys_args):
     ref_seqs.change_dict_keys("original")
     filtered_headers = [ref_seqs.header_registry[num_id].original for num_id in fasta_records]
     # ref_seqs.keep_only(filtered_headers)  # Currently avoiding this as it causes a KeyError for guaranteed seqs
-    write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ref_seqs.file, headers=filtered_headers)
+    fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict, fasta_name=ref_seqs.file, headers=filtered_headers)
 
     ##
     # Optionally cluster the input sequences using USEARCH at the specified identity
@@ -281,9 +280,9 @@ def create(sys_args):
         ref_seqs.change_dict_keys("num")
         # Write a FASTA for clustering containing the formatted headers since
         # not all clustering tools + versions keep whole header - spaces are replaced with underscores
-        write_new_fasta(fasta_dict=ref_seqs.fasta_dict,
-                        fasta_name=ts_create.cluster_input,
-                        headers=list(fasta_records.keys()))
+        fasta.write_new_fasta(fasta_dict=ref_seqs.fasta_dict,
+                              fasta_name=ts_create.cluster_input,
+                              headers=list(fasta_records.keys()))
         if args.cluster:
             wrapper.cluster_sequences(ts_create.executables["usearch"], ts_create.cluster_input,
                                       ts_create.uclust_prefix, ts_create.prop_sim)
@@ -293,7 +292,7 @@ def create(sys_args):
             cluster_dict = file_parsers.read_uc(ts_create.uc)
 
             # Revert headers in cluster_dict from 'formatted' back to 'original'
-            create_refpkg.rename_cluster_headers(cluster_dict, ref_seqs.header_registry)
+            fasta.rename_cluster_headers(cluster_dict, ref_seqs.header_registry)
             logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
             ##
             # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
@@ -369,7 +368,7 @@ def create(sys_args):
             logging.info("done.\n")
         else:
             pass
-        ref_aligned_fasta_dict = read_fasta_to_dict(ts_create.ref_pkg.msa)
+        ref_aligned_fasta_dict = fasta.read_fasta_to_dict(ts_create.ref_pkg.msa)
         marker_package.num_reps = len(ref_aligned_fasta_dict.keys())
         n_rows, n_cols = file_parsers.multiple_alignment_dimensions(seq_dict=ref_aligned_fasta_dict,
                                                                     mfa_file=ts_create.ref_pkg.msa)
@@ -506,7 +505,7 @@ def update(sys_args):
     ##
     # Pull out sequences from TreeSAPP output
     ##
-    classified_fasta = FASTA(ts_updater.query_sequences)  # These are the classified sequences
+    classified_fasta = fasta.FASTA(ts_updater.query_sequences)  # These are the classified sequences
     classified_fasta.load_fasta()
     classified_lines = file_parsers.read_marker_classification_table(ts_updater.assignment_table)
     high_likelihood_seqs = update_refpkg.filter_by_lwr(classified_lines, args.min_lwr)
@@ -571,7 +570,7 @@ def update(sys_args):
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
     ##
-    ref_fasta = FASTA(ts_updater.ref_pkg.msa)
+    ref_fasta = fasta.FASTA(ts_updater.ref_pkg.msa)
     ref_fasta.load_fasta()
     # Update the original reference headers using info from the tax_ids file
     ref_fasta.swap_headers(ref_header_map)
@@ -582,8 +581,8 @@ def update(sys_args):
 
     # Write only the sequences that have been properly classified
     classified_fasta.change_dict_keys("original")
-    write_new_fasta(classified_fasta.fasta_dict, ts_updater.combined_fasta)
-    write_new_fasta(ref_fasta.fasta_dict, ts_updater.old_ref_fasta)
+    fasta.write_new_fasta(classified_fasta.fasta_dict, ts_updater.combined_fasta)
+    fasta.write_new_fasta(ref_fasta.fasta_dict, ts_updater.old_ref_fasta)
 
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
@@ -773,16 +772,16 @@ def assign(sys_args):
     else:
         ts_assign.query_sequences = ts_assign.input_sequences
 
-    query_seqs = FASTA(ts_assign.query_sequences)
+    query_seqs = fasta.FASTA(ts_assign.query_sequences)
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
     if ts_assign.stage_status("clean"):
         logging.info("Reading and formatting " + ts_assign.query_sequences + "... ")
-        query_seqs.fasta_dict = format_read_fasta(ts_assign.query_sequences, "prot", ts_assign.output_dir)
-        query_seqs.header_registry = register_headers(get_headers(ts_assign.query_sequences), True)
+        query_seqs.fasta_dict = fasta.format_read_fasta(ts_assign.query_sequences, "prot", ts_assign.output_dir)
+        query_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_assign.query_sequences), True)
         query_seqs.change_dict_keys("num")
         logging.info("done.\n")
         logging.info("Writing formatted FASTA file to " + ts_assign.formatted_input + "... ")
-        write_new_fasta(query_seqs.fasta_dict, ts_assign.formatted_input)
+        fasta.write_new_fasta(query_seqs.fasta_dict, ts_assign.formatted_input)
         logging.info("done.\n")
     else:
         ts_assign.formatted_input = ts_assign.query_sequences
@@ -841,8 +840,8 @@ def assign(sys_args):
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, ts_assign.tree_dir, marker_build_dict)
         tree_saps = filter_placements(tree_saps, marker_build_dict, ts_assign.tree_dir, args.min_likelihood)
         # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
-        extracted_seq_dict = merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
-        write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
+        extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
+        fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         rpkm_output_dir = ""
         for refpkg_code in tree_saps:
@@ -850,13 +849,13 @@ def assign(sys_args):
                 abundance_dict[placed_seq.contig_name] = 1.0
         if args.molecule == "dna":
             if os.path.isfile(ts_assign.nuc_orfs_file):
-                nuc_orfs = FASTA(ts_assign.nuc_orfs_file)
+                nuc_orfs = fasta.FASTA(ts_assign.nuc_orfs_file)
                 nuc_orfs.load_fasta()
                 nuc_orfs.change_dict_keys()
                 if not os.path.isfile(ts_assign.classified_nuc_seqs):
                     logging.info("Creating nucleotide FASTA file of classified sequences '" +
                                  ts_assign.classified_nuc_seqs + "'... ")
-                    write_classified_sequences(tree_saps, nuc_orfs.fasta_dict, ts_assign.classified_nuc_seqs)
+                    fasta.write_classified_sequences(tree_saps, nuc_orfs.fasta_dict, ts_assign.classified_nuc_seqs)
                     logging.info("done.\n")
             else:
                 logging.warning("Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
@@ -920,8 +919,8 @@ def evaluate(sys_args):
         ref_lineages[leaf.number] = leaf.lineage
 
     # Load FASTA data
-    ref_seqs = FASTA(args.input)
-    ref_seqs.fasta_dict = format_read_fasta(ref_seqs.file, args.molecule, ts_evaluate.output_dir, 110)
+    ref_seqs = fasta.FASTA(args.input)
+    ref_seqs.fasta_dict = fasta.format_read_fasta(ref_seqs.file, args.molecule, ts_evaluate.output_dir, 110)
     if args.length:
         for seq_id in ref_seqs.fasta_dict:
             if len(ref_seqs.fasta_dict[seq_id]) < args.length:
@@ -930,7 +929,7 @@ def evaluate(sys_args):
                 max_stop = len(ref_seqs.fasta_dict[seq_id]) - args.length
                 random_start = randint(0, max_stop)
                 ref_seqs.fasta_dict[seq_id] = ref_seqs.fasta_dict[seq_id][random_start:random_start + args.length]
-    ref_seqs.header_registry = register_headers(get_headers(ref_seqs.file))
+    ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
     create_refpkg.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
@@ -941,7 +940,7 @@ def evaluate(sys_args):
     representative_seqs, ts_evaluate.taxa_filter = pick_taxonomic_representatives(fasta_records,
                                                                                   ts_evaluate.taxa_filter)
     deduplicated_fasta_dict = select_rep_seqs(representative_seqs, fasta_records)
-    write_new_fasta(deduplicated_fasta_dict, ts_evaluate.test_rep_taxa_fasta)
+    fasta.write_new_fasta(deduplicated_fasta_dict, ts_evaluate.test_rep_taxa_fasta)
     rep_accession_lineage_map = map_seqs_to_lineages(ts_evaluate.seq_lineage_map, deduplicated_fasta_dict)
 
     # Checkpoint three: We have accessions linked to taxa, and sequences to analyze with TreeSAPP, but not classified
@@ -1001,7 +1000,7 @@ def evaluate(sys_args):
                                              fa_file=ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + ".fa",
                                              threads=args.num_threads)
                         # Write the query sequences
-                        write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
+                        fasta.write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
 
                         graftm_classify(test_rep_taxa_fasta,
                                         ts_evaluate.var_output_dir + os.sep + ts_evaluate.target_marker.cog + ".gpkg",
@@ -1030,7 +1029,7 @@ def evaluate(sys_args):
                                                               ts_evaluate.var_output_dir, lineage, depth,
                                                               ts_evaluate.executables, args.fresh, args.molecule)
                         # Write the query sequences
-                        write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
+                        fasta.write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
                         assign_args = ["-i", test_rep_taxa_fasta, "-o", treesapp_output,
                                        "-m", ts_evaluate.molecule_type, "-n", str(args.num_threads),
                                        "--min_seq_length", str(min_seq_length), "--overwrite", "--delete"]

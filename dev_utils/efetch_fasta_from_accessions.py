@@ -465,8 +465,8 @@ def main():
         for header in input_headers:
             header_format_re, header_db, header_molecule = get_header_format(header)
             sequence_info = header_format_re.match(header)
-            accession, _, _, _, _ = return_sequence_info_groups(sequence_info, header_db, header)
-            accessions.add(accession)
+            seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, header)
+            accessions.add(seq_info_tuple.accession)
         logging.debug(str(len(input_headers) - len(accessions)) + " duplicate accessions found in " + args.input + "\n")
     elif args.format == "list":
         accessions = read_accession_list(args)
