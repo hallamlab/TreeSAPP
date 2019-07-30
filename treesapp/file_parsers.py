@@ -176,7 +176,7 @@ def read_marker_classification_table(assignment_file):
     return classified_lines
 
 
-def best_discrete_matches(matches: list):
+def best_discrete_matches(matches: list) -> list:
     """
     Function for finding the best alignment in a list of HmmMatch() objects
     The best match is based off of the full sequence score
@@ -188,11 +188,11 @@ def best_discrete_matches(matches: list):
     len_sorted_matches = sorted(matches, key=lambda x: x.end - x.start)
     i = 0
     orf = len_sorted_matches[0].orf
-    while i+1 < len(len_sorted_matches):  # type HmmMatch
+    while i+1 < len(len_sorted_matches):
         j = i + 1
-        a_match = len_sorted_matches[i]
+        a_match = len_sorted_matches[i]  # type HmmMatch
         while j < len(len_sorted_matches):
-            b_match = len_sorted_matches[j]
+            b_match = len_sorted_matches[j]  # type HmmMatch
             if a_match.target_hmm != b_match.target_hmm:
                 if detect_orientation(a_match.start, a_match.end, b_match.start, b_match.end) != "satellite":
                     if a_match.full_score > b_match.full_score:
@@ -204,6 +204,10 @@ def best_discrete_matches(matches: list):
                         i -= 1
             j += 1
         i += 1
+
+    if len(len_sorted_matches) == 0:
+        logging.error("All alignments were discarded while deciding the best discrete HMM-match.\n")
+        sys.exit(3)
 
     logging.debug("HMM search annotations for " + orf +
                   ":\n\tRetained\t" + 
@@ -285,6 +289,7 @@ def parse_domain_tables(args, hmm_domtbl_files):
                 hmm_matches[discrete_match.target_hmm].append(discrete_match)
                 retained += 1
             dropped += (len(optional_matches) - retained)
+            seqs_identified += retained
             optional_matches.clear()
 
     logging.info("done.\n")
