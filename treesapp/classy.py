@@ -1751,7 +1751,10 @@ class Evaluator(TreeSAPP):
         header = ["Trial", "Tool", "RefPkg", "Rank", "TaxDist", "Queries", "Correct", "Cumulative", "Over", "Under"]
         output_handler.write("# Input file for testing: " + self.input_sequences + "\n")
         output_handler.write("\t".join(header) + "\n")
-        trial_name = os.path.basename(self.output_dir)
+        if self.output_dir[-1] == os.sep:
+            trial_name = self.output_dir.split(os.sep)[-2]
+        else:
+            trial_name = self.output_dir.split(os.sep)[-1]
         for line in clade_exclusion_strings:
             line = trial_name + "\t" + tool + "\t" + line + "\n"
             output_handler.write(line)
@@ -1964,7 +1967,7 @@ class TaxonTest:
                     summary_string += str(len(self.assignments[marker][lineage])) + "\t'" + lineage + "'\n"
         return summary_string
 
-    def filter_assignments(self, target_marker):
+    def filter_assignments(self, target_marker: str):
         """
         Filters the assignments from TreeSAPP for the target marker.
         Off-target classifications are accounted for and reported.

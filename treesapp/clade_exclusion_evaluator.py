@@ -11,7 +11,7 @@ from .fasta import write_new_fasta, read_fasta_to_dict
 from .utilities import return_sequence_info_groups
 from .external_command_interface import launch_write_command
 from .file_parsers import tax_ids_file_to_leaves
-from .classy import get_header_format, Evaluator
+from .classy import get_header_format, Evaluator, MarkerBuild
 from .entrez_utils import *
 
 _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
@@ -487,14 +487,14 @@ def correct_accession(description):
     return return_sequence_info_groups(sequence_info, header_db, description).accession
 
 
-def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker, depth):
+def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_clade: str, marker: MarkerBuild, depth: int):
     # Move the original FASTA, tree and tax_ids files to a temporary location
-    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
-    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker.cog + ".fa"])
+    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker.cog + ".txt"])
     off_target_ref_leaves = dict()
     # tax_ids file
     ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
-    with open(intermediate_dir + "tax_ids_" + marker + ".txt", 'w') as tax_ids_handle:
+    with open(intermediate_dir + "tax_ids_" + marker.cog + ".txt", 'w') as tax_ids_handle:
         tax_ids_strings = list()
         for ref_leaf in ref_tree_leaves:
             c_lineage = clean_lineage_string(ref_leaf.lineage)
@@ -526,10 +526,10 @@ def prep_graftm_ref_files(treesapp_dir, intermediate_dir, target_clade, marker, 
             accession_fasta_dict[off_target_ref_leaves[num_key]] = ref_fasta_dict[key_id]
         else:
             pass
-    write_new_fasta(accession_fasta_dict, intermediate_dir + marker + ".mfa")
+    write_new_fasta(accession_fasta_dict, intermediate_dir + marker.cog + ".mfa")
     for acc in accession_fasta_dict:
         accession_fasta_dict[acc] = re.sub('-', '', accession_fasta_dict[acc])
-    write_new_fasta(accession_fasta_dict, intermediate_dir + marker + ".fa")
+    write_new_fasta(accession_fasta_dict, intermediate_dir + marker.cog + ".fa")
     return
 
 
@@ -678,13 +678,13 @@ def restore_reference_package(treesapp_dir, prefix, output_dir, marker):
     return
 
 
-def build_graftm_package(target_marker, output_dir, mfa_file, fa_file, threads):
+def build_graftm_package(target_marker: MarkerBuild, output_dir: str, mfa_file: str, fa_file: str, threads: int):
     create_command = ["graftM", "create"]
     create_command += ["--threads", str(threads)]
     create_command += ["--alignment", mfa_file]
     create_command += ["--sequences", fa_file]
-    create_command += ["--taxonomy", output_dir + os.sep + "tax_ids_" + target_marker + ".txt"]
-    create_command += ["--output", output_dir + target_marker + ".gpkg"]
+    create_command += ["--taxonomy", output_dir + os.sep + "tax_ids_" + target_marker.cog + ".txt"]
+    create_command += ["--output", output_dir + target_marker.cog + ".gpkg"]
     create_command.append("--force")
 
     logging.debug("Command used:\n" + ' '.join(create_command) + "\n")

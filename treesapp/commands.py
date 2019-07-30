@@ -1018,7 +1018,7 @@ def evaluate(sys_args):
                     test_obj.taxonomic_tree = lca_calculations.grab_graftm_taxa(tax_ids_file)
                     graftm_assignments = file_parsers.read_graftm_classifications(classification_table)
                     test_obj.assignments = {ts_evaluate.target_marker.cog: graftm_assignments}
-                    test_obj.filter_assignments(ts_evaluate.target_marker)
+                    test_obj.filter_assignments(ts_evaluate.target_marker.cog)
                 else:
                     tax_ids_file = treesapp_output + "tax_ids_" + ts_evaluate.target_marker.cog + ".txt"
                     classification_table = treesapp_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
