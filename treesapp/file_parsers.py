@@ -834,6 +834,8 @@ def read_seq_taxa_table(seq_names_to_taxa: str):
             logging.error("Bad line encountered in '" + seq_names_to_taxa + "' - expected two tab-separated fields:\n" +
                           line)
             sys.exit(3)
+        if seq_name[0] == '>':
+            seq_name = seq_name[1:]
         seq_lineage_map[seq_name] = lineage
     handler.close()
     return seq_lineage_map

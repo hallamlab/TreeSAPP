@@ -526,12 +526,14 @@ def update(sys_args):
     hmm_length = utilities.get_hmm_length(ts_updater.ref_pkg.profile)
     # Use the smaller of the minimum sequence length or 2/3 HMM profile to remove sequence fragments
     if args.min_seq_length < 0.66*hmm_length:
+        ts_updater.min_length = int(round(0.66*hmm_length))
         logging.debug("New minimum sequence length threshold set to 2/3 of HMM length (" +
-                      str(0.66*hmm_length) + ") instead of " + str(args.min_seq_length) + "\n")
-        args.min_seq_length = 0.66*hmm_length
-    classified_fasta.remove_shorter_than(args.min_seq_length)
+                      str(ts_updater.min_length) + ") instead of " + str(args.min_seq_length) + "\n")
+    else:
+        ts_updater.min_length = args.min_seq_length
+    classified_fasta.remove_shorter_than(ts_updater.min_length)
     if classified_fasta.n_seqs() == 0:
-        logging.error("No classified sequences exceed minimum length threshold of " + str(args.min_seq_length) + ".\n")
+        logging.error("No classified sequences exceed minimum length threshold of " + str(ts_updater.min_length) + ".\n")
         return
 
     ##

@@ -1365,6 +1365,7 @@ class Updater(TreeSAPP):
         self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.target_marker = None
         self.perc_id = 1.0
+        self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
@@ -1393,10 +1394,7 @@ class Updater(TreeSAPP):
         treesapp_nums = list(header_registry.keys())
         for seq_name in seq_lineage_map:
             # Its slow to perform so many re.search's but without having a guaranteed ORF pattern we can't use hashes
-            if seq_name[0] == '>':
-                parent_re = re.compile(seq_name[1:])
-            else:
-                parent_re = re.compile(seq_name)
+            parent_re = re.compile(seq_name)
             x = 0
             while x < len(treesapp_nums):
                 header = header_registry[treesapp_nums[x]].original

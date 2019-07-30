@@ -132,9 +132,11 @@ class FASTA:
             header.find_accession()
 
     def mapping_error(self, bad_headers):
-        logging.error("No sequences were mapped to '" + self.file + "' FASTA dictionary.\n" +
-                      "Here are some example names from the mapping list:\n\t" + "\n\t".join(bad_headers[0:6]) + "\n" +
-                      "And example names from FASTA dict:\n\t" + "\n\t".join(list(self.fasta_dict.keys())[0:6]) + "\n")
+        logging.error("No classified sequences were mapped to '" + self.file + "' FASTA dictionary.\n" +
+                      "Here are some example names from the mapping list:\n\t" +
+                      "\n\t".join(sorted(bad_headers)[0:6]) + "\n" +
+                      "And example names from FASTA dict:\n\t" +
+                      "\n\t".join(list(sorted(self.fasta_dict.keys()))[0:6]) + "\n")
         sys.exit(3)
 
     def n_seqs(self):
@@ -182,9 +184,16 @@ class FASTA:
     def keep_only(self, header_subset: list):
         """
         Removes all entries from self.fasta_dict and self.header_registry that are not in header_subset.
-        :param header_subset:
+        :param header_subset: The list of headers found in self.fasta_dict that are to be kept
         :return: None
         """
+
+        if not header_subset:
+            logging.debug("List of headers to retain was empty. fasta_dict cleared.\n")
+            self.fasta_dict.clear()
+            self.synchronize_seqs_n_headers()
+            return
+
         pruned_fasta_dict = dict()
         unmapped = list()
         for seq_name in header_subset:
