@@ -12,8 +12,30 @@ library(tidyr)
 library(dplyr)
 library(stringr)
 library(knitr)
+library(purrr)
 
-MoreColours = colorRampPalette(brewer.pal(9, "BrBG"))
+Rank <- c("Root", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+Depth <- c(1, 2, 3, 4, 5, 6, 7, 8)
+
+rank_depth_map <- data.frame(Rank, Depth)
+
+MoreColours <- function(n_o, palette="BrBG") {
+  ramp_func <- colorRampPalette(brewer.pal(9, palette))
+  ramp_func(n_o)
+}
+
+test_str <- "Root; Archaea; Euryarchaeota; Methanomicrobia; Methanomicrobiales; Methanomicrobiaceae"
+resolved_rank <- function(lineage_str) {
+  taxa <- str_split(lineage_str, pattern="; ")
+  len <- length(unlist(taxa))
+  if (len == 0) {
+    return("Unclassified")
+  }
+  rank <- as.character(with(rank_depth_map, Rank[Depth %in% len])) %>% 
+    unlist()
+  return(rank)
+}
+resolved_rank(test_str)
 
 ```
 
@@ -35,38 +57,34 @@ metadata <- read.table(file="~/Bioinformatics/Hallam_projects/TreeSAPP_manuscrip
   
 mcra_dat <- merge(dat, metadata, by="taxon_oid") %>%
   filter("McrA" == Marker) %>% 
+  mutate(Resolved = as.character(lapply(Confident_Taxonomy, resolved_rank))) %>%
   separate(col = Confident_Taxonomy, into = c('r', 'k', 'p', 'c', 'o', 'f', 'g', 's'), sep = "; ", fill = "right", remove = T) %>% 
   select(-Sample, -iNode, -Abundance, -LWR, -Distances, -Taxonomy, -r)
 mcra_dat$Ecosystem.Subtype <- gsub("Unclassified", "Unavailable", mcra_dat$Ecosystem.Subtype)
 rm(dat, metadata)
 
-Rank <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
 ```
 
 First off, I want to see the spread of classifications across different taxonomic ranks. Were most sequences going to Root? Each of the following variables represent the number of sequences that were classified at a rank, and the following rank was not assigned (i.e. non-cumulative).
 
 ```{r classification-depth, fig.height=2, fig.width=6, fig.align="center"}
-k_r <- filter(mcra_dat, is.na(k)) %>% nrow()
-k_k <- filter(mcra_dat, is.na(p)) %>% filter(!is.na(k)) %>% nrow()
-k_p <- filter(mcra_dat, is.na(c)) %>% filter(!is.na(p)) %>% nrow()
-k_c <- filter(mcra_dat, is.na(o)) %>% filter(!is.na(c)) %>% nrow()
-k_o <- filter(mcra_dat, is.na(f)) %>% filter(!is.na(o)) %>% nrow()
-k_f <- filter(mcra_dat, is.na(g)) %>% filter(!is.na(f)) %>% nrow()
-k_g <- filter(mcra_dat, is.na(s)) %>% filter(!is.na(g)) %>% nrow()
-k_s <- filter(mcra_dat, !is.na(s)) %>% nrow()
-sum(c(k_r, k_k, k_p, k_c, k_o, k_f, k_g, k_s))  # All sequences
-n_known <- c(k_k, k_p, k_c, k_o, k_f, k_g, k_s)
-known_df <- data.frame(Rank, n_known) %>% 
-  mutate(Proportion = n_known/sum(n_known))
-known_df$Rank <- as.character(known_df$Rank)
-known_df$Rank <- factor(known_df$Rank, levels=unique(known_df$Rank))
-known_df$dummy <- 1
+known_df <- mcra_dat %>% 
+  group_by(Resolved) %>% 
+  count() %>% 
+  ungroup() %>% 
+  merge(rank_depth_map, by.x="Resolved", by.y="Rank") %>% 
+  mutate(Proportion = n/sum(n)) %>% 
+  mutate(Resolved = reorder(Resolved, Depth))
 
-ggplot(known_df, aes(fill=Rank, y=Proportion, x=1)) +
+k_r <- filter(known_df, Resolved == "Root")$n
+k_k <- filter(known_df, Resolved == "Kingdom")$n
+k_p <- filter(known_df, Resolved == "Phylum")$n
+
+ggplot(known_df, aes(fill=Resolved, y=Proportion, x=1)) +
   geom_bar(stat = "identity", colour="black") +
-  coord_flip() +
   ylab("Assigned Sequences") +
   scale_fill_brewer(palette = "PuOr") +
+  coord_flip() +
   theme(panel.background = element_blank(),
         panel.grid.major.y = element_blank(),
         panel.grid.major.x = element_blank(),
@@ -74,6 +92,7 @@ ggplot(known_df, aes(fill=Rank, y=Proportion, x=1)) +
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank())
+
 ```
 Great! We were actually able to assign a reasonable portion of McrA sequences to a Species and over 50% of the sequences were assigned to Genus or greater resolution. I envision this single bar being a component of a multi-part figure summarizing the IMG metagenome classification results.
 
@@ -235,7 +254,7 @@ metabolic_env <- mcra_dat %>%
 
 ggplot(metabolic_env, aes(x=Ecosystem.Subtype, y=Percentage, fill=Metabolism)) +
   geom_bar(colour="black", stat = "identity") +
-  scale_fill_manual(values = MoreColours(length(unique(metabolic_env$Metabolism)))) +
+  scale_fill_manual(values = MoreColours(length(unique(metabolic_env$Metabolism)), "RdYlBu")) +
   guides(fill=guide_legend(title="Metabolism"),
          size=guide_legend(title="Count")) +
   ylab("Percentage of Total") +
@@ -246,6 +265,32 @@ ggplot(metabolic_env, aes(x=Ecosystem.Subtype, y=Percentage, fill=Metabolism)) +
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
 
+
+pred_rank_df <- mcra_dat %>% 
+  filter(!Ecosystem.Subtype %in% c("Unclassified", "Unavailable")) %>%
+  filter(Resolved != "Root") %>% 
+  group_by(Ecosystem.Subtype, Resolved) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(Percentage = (100*n)/sum(n)) %>% 
+  filter(Percentage >= 0.1) %>% 
+  mutate(Ecosystem.Subtype = reorder(Ecosystem.Subtype, Percentage, FUN = sum)) %>% 
+  merge(rank_depth_map, by.x="Resolved", by.y="Rank") %>% 
+  mutate(Resolved = reorder(Resolved, Depth))
+
+ggplot(pred_rank_df, aes(x=Ecosystem.Subtype, y=Percentage, fill=Resolved)) +
+  geom_bar(colour="black", stat = "identity") +
+  scale_fill_manual(values = MoreColours(length(unique(pred_rank_df$Resolved)), "PuOr")) +
+  guides(fill=guide_legend(title="Rank Resolved"),
+         size=guide_legend(title="Count")) +
+  scale_y_reverse() +
+  ylab("Percentage of Total") +
+  xlab("Ecosystem") +
+  theme(panel.background = element_blank(),
+        panel.grid.major.y = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.major.x = element_line(colour = "#bdbdbd", linetype = "dotted"),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 ```{r n_metag, include=FALSE}
