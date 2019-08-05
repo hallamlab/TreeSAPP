@@ -1,11 +1,21 @@
+deps <- c("ggplot2", "RColorBrewer", "Rmisc", "dplyr", "tidyr", "optparse", "stringr", "Cairo")
+
+new.packages <- deps[!(deps %in% installed.packages()[,"Package"])]
+if(length(new.packages))
+  install.packages(new.packages)
+
 library(ggplot2)
 library(RColorBrewer)
-library(Rmisc)
-library(dplyr)
+library(Cairo)
 library(tidyr)
 library(optparse)
 library(stringr)
+library(Rmisc)
+library(dplyr)
 
+setHook(packageEvent("grDevices", "onLoad"),
+        function(...) grDevices::X11.options(type='cairo'))
+options(device='x11')
 option_list = list(make_option(c("-i", "--input_table"), type="character", default=NULL,
                                help="Tab-separated value file output by Clade_exclusion_analyzer.py", metavar="character"),
                    make_option(c("-p", "--prefix"), type="character", default="~/Clade_Exclusion",
@@ -25,18 +35,24 @@ if (is.null(opt$input_table)){
 # For debugging
 ##
 # prefix <- "~/Desktop/treesapp_evaluate_test"
-# input_table <- "~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/clade_exclusion_performance_compilation.tsv"
+# input_table <- "~/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/Performance_analyses/clade_exclusion_performance_compilation.tsv"
 # build_params <- "~/Bioinformatics/Hallam_projects/TreeSAPP/treesapp/data/ref_build_parameters.tsv"
 # opt <- data.frame(input_table, prefix, build_params, stringsAsFactors = FALSE)
 
 ##
 # Set figure names here
 ##
-spec_out <- paste(opt$prefix, "Classification_specificity_bars.eps", sep='_')
-sens_out <- paste(opt$prefix, "Classification_sensitivity.eps", sep='_')
-pdist_out <- paste(opt$prefix, "Classification_MeanDistance.eps", sep='_')
-f1_out <- paste(opt$prefix, "F1-score.eps", sep='_')
-o_u_bars <- paste(opt$prefix, "Prediction_bars.eps", sep='_')
+img_format <- "eps"
+spec_out <- paste(paste(opt$prefix, "Classification_specificity_bars",  sep='_'),
+                  img_format, sep='.')
+sens_out <- paste(paste(opt$prefix, "Classification_sensitivity", sep='_'),
+                  img_format, sep='.')
+pdist_out <- paste(paste(opt$prefix, "Classification_MeanDistance", sep='_'),
+                   img_format, sep='.')
+f1_out <- paste(paste(opt$prefix, "F1-score", sep='_'),
+                img_format, sep='.')
+o_u_bars <- paste(paste(opt$prefix, "Prediction_bars", sep='_'),
+                  img_format, sep='.')
 
 ##
 # Function definitions
@@ -60,26 +76,35 @@ acc_dat$Software <- str_replace_all(acc_dat$Tool, c("treesapp" = "TreeSAPP", "gr
 build_params <- read.table(opt$build_params, sep="\t", header=TRUE)
 
 acc_dat$TaxDist <- as.character(acc_dat$TaxDist)
-Ranks <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Strain")
-Position <- c(1,2,3,4,5,6,7,8)
-taxonomic_hierarchy <- data.frame(Ranks, Position)
+taxonomic_hierarchy <- data.frame(Ranks = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Strain"),
+                                  Depth = c(1,2,3,4,5,6,7,8))
 
-acc_dat <- merge(acc_dat, taxonomic_hierarchy, by.x = "Rank", by.y = "Ranks")
+refpkg_plt_dat <- data.frame(Cycle = c("Carbon", "Carbon", "Carbon", "Carbon",
+                                       "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen",
+                                       "Sulphur"),
+                             RefPkg = c("McrA", "McrB", "McrG", "p_amoA",
+                                        "napA", "nirK", "nirS", "nifD", "NorB", "NxrB",
+                                        "DsrAB"),
+                             Position = as.numeric(seq(1, 11)))
+
+acc_dat <- merge(acc_dat, taxonomic_hierarchy, by.x = "Rank", by.y = "Ranks") %>% 
+  merge(refpkg_plt_dat, by="RefPkg")
+
 ## end
 
 ##
 # Figure 1: Rank-exclusion specificity in relation to optimal placement distance
 ##
-spec_se <- summarySE(acc_dat, measurevar="Proportion", groupvars=c("Rank", "Software", "TaxDist", "Position")) %>% 
-  select(c("Rank", "Software", "TaxDist", "Position", "Proportion", "se")) %>% 
+spec_se <- summarySE(acc_dat, measurevar="Proportion", groupvars=c("Rank", "Software", "TaxDist", "Depth")) %>% 
+  select(c("Rank", "Software", "TaxDist", "Depth", "Proportion", "se")) %>% 
   filter(TaxDist <= 6) %>% 
-  mutate(Rank = reorder(Rank, Position))
+  mutate(Rank = reorder(Rank, Depth))
 filter(spec_se, TaxDist >= 4) %>% 
   filter(Proportion > 0)
 pd <- position_dodge(width = 0.75)
 
-ggplot(spec_se, aes(x=TaxDist, y=Proportion, fill=Rank)) +
-  geom_bar(stat="identity", position=pd, colour="black", width = 0.75) +
+spec_plot <- ggplot(spec_se, aes(x=TaxDist, y=Proportion, fill=Rank)) +
+  geom_bar(stat="identity", position=pd, colour="black", width = 0.75, alpha = 2/3) +
   facet_wrap(~Software) +
   geom_errorbar(aes(ymin=Proportion-se, ymax=Proportion+se),
                 width=0.5, position=pd) +
@@ -91,7 +116,8 @@ ggplot(spec_se, aes(x=TaxDist, y=Proportion, fill=Rank)) +
         panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
         panel.grid.minor = element_blank())
 
-ggsave(filename = spec_out, width = 10, height = 6, dpi = 400)
+ggsave(plot = spec_plot, filename = spec_out,
+       width = 10, height = 6, dpi = 400, device = cairo_ps)
 ## end
 
 
@@ -102,25 +128,29 @@ acc_dat$TaxDist <- as.numeric(acc_dat$TaxDist)
 harm_dist_dat <- acc_dat %>% 
   filter(Proportion > 0) %>% 
   merge(build_params, by.x = "RefPkg", by.y = "name") %>% 
-  mutate(RefPkg = reorder(RefPkg, ref_sequences)) %>% 
-  mutate(Rank = reorder(Rank, Position)) %>%
+  mutate(RefPkg = reorder(RefPkg, Position)) %>% 
+  mutate(Rank = reorder(Rank, Depth)) %>%
   mutate(PlaceDist = TaxDist*Proportion) %>% 
   group_by(Software, RefPkg, Rank, ref_sequences) %>% 
   summarise_at(vars(PlaceDist), funs(sum)) %>% 
-  mutate(AvgDist = PlaceDist/100)
+  mutate(AvgDist = PlaceDist/100) %>% 
+  ungroup()
 
-ggplot(harm_dist_dat, aes(x=RefPkg, y=AvgDist)) +
+avg_dist_plot <- harm_dist_dat %>% 
+  ggplot(aes(x=RefPkg, y=AvgDist)) +
   geom_point(aes(fill=Rank), colour="black",
              shape=21, size=3, alpha=2/3) +
   geom_rug(sides="l") +
   scale_fill_brewer(palette = "PuOr") +
-  facet_wrap(~Software) +
+  facet_wrap(~ Software) +
+  xlab("Reference Package") +
   ylab("Average Taxonomic Distance") +
   theme(panel.background = element_blank(),
         panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave(filename = pdist_out, width = 8, height = 5, dpi = 400)
+ggsave(plot = avg_dist_plot, filename = pdist_out,
+       width = 8, height = 5, dpi = 400, device = cairo_ps)
 ## end
 
 
@@ -129,7 +159,7 @@ ggsave(filename = pdist_out, width = 8, height = 5, dpi = 400)
 ##
 summary_dat <- acc_dat %>% 
   filter(TaxDist == 2) %>% 
-  group_by(Software, RefPkg, Rank, Position) %>% 
+  group_by(Software, RefPkg, Rank, Depth, Position) %>% 
   summarize(Queries = sum(Queries),
             Cumulative = sum(Cumulative),
             Over = sum(Over),
@@ -137,13 +167,15 @@ summary_dat <- acc_dat %>%
   mutate("Precision" = (Cumulative/(Cumulative+Over))) %>% 
   mutate("Recall" = (Cumulative/Queries)) %>%
   ungroup() %>% 
-  mutate(Rank = reorder(Rank, Position)) 
+  mutate(RefPkg = reorder(RefPkg, Position)) %>% 
+  mutate(Rank = reorder(Rank, Depth)) 
 
 ##
 # Figure 3: Rank-exclusion sensitivity in relation to taxonomic rank 
 ##
-ggplot(summary_dat, aes(x=RefPkg, y=Recall, fill=Rank)) +
-  geom_point(colour="black", shape=21, size=3, stroke=1) +
+sens_plot <- summary_dat %>% 
+  ggplot(aes(x=RefPkg, y=Recall, fill=Rank)) +
+  geom_point(colour="black", shape=21, size=3, stroke=1, alpha=2/3) +
   facet_wrap(~Software) +
   scale_fill_brewer(palette = "PuOr") +
   scale_y_continuous(breaks=seq(0,1.05,0.1), limits = c(0,1)) +
@@ -152,7 +184,8 @@ ggplot(summary_dat, aes(x=RefPkg, y=Recall, fill=Rank)) +
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(filename = sens_out, width = 8, height = 5, dpi = 400)
+ggsave(plot = sens_plot, filename = sens_out,
+       width = 8, height = 5, dpi = 400, device = cairo_ps)
 ## end
 
 
@@ -160,7 +193,7 @@ ggsave(filename = sens_out, width = 8, height = 5, dpi = 400)
 # Figure 4: Plot of F1-score across taxonomic distance
 ##
 f1_dat <- summary_dat %>% 
-  group_by(Software, Rank, Position) %>% 
+  group_by(Software, Rank, Depth) %>% 
   summarize(Queries = sum(Queries),
             Cumulative = sum(Cumulative),
             Over = sum(Over),
@@ -169,9 +202,10 @@ f1_dat <- summary_dat %>%
   mutate("Precision" = (Cumulative/(Cumulative+Over))) %>% 
   mutate("Recall" = (Cumulative/Queries)) %>% 
   mutate("F1_score" = f1_score(Precision, Recall)) %>% 
-  mutate(Rank = reorder(Rank, Position))
+  mutate(Rank = reorder(Rank, Depth))
 
-ggplot(f1_dat, aes(x=Rank, y=F1_score, group=Software, colour=Software)) +
+fone_plot <- f1_dat %>% 
+  ggplot(aes(x=Rank, y=F1_score, group=Software, colour=Software)) +
   geom_point(colour="black", size=3) +
   geom_line(size=2) +
   scale_colour_brewer(palette = "Set2") +
@@ -181,7 +215,8 @@ ggplot(f1_dat, aes(x=Rank, y=F1_score, group=Software, colour=Software)) +
         panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave(filename = f1_out, width = 7, height = 7, dpi = 400)
+ggsave(plot = fone_plot, filename = f1_out,
+       width = 7, height = 7, dpi = 400, device = cairo_ps)
 ## end
 
 
@@ -204,18 +239,20 @@ t.test(filter(harm_dist_dat, Software == unique(harm_dist_dat$Software)[2])$AvgD
 ##
 over_under_dat <- acc_dat %>% 
   filter(TaxDist == 2) %>% 
-  group_by(Software, RefPkg) %>% 
+  group_by(Software, RefPkg, Position) %>% 
   summarize(Queries = sum(Queries),
             Cumulative = sum(Cumulative),
             Over = sum(Over),
             Under = sum(Under)) %>% 
   ungroup() %>% 
+  mutate(RefPkg = reorder(RefPkg, Position)) %>% 
   mutate("P_over" = Over/Queries) %>% 
   mutate("P_under" = (Under/Queries)*-1) %>% 
   gather("P_over", "P_under",
          key="Predict_type", value = "Predict_count")
 
-ggplot(over_under_dat, aes(x=RefPkg, y=Predict_count, fill=Software, colour=Predict_type)) +
+o_u_plot <- over_under_dat %>% 
+  ggplot(aes(x=RefPkg, y=Predict_count, fill=Software, colour=Predict_type)) +
   geom_bar(stat = "identity",
            position = "dodge",
            size = 1) +
@@ -228,5 +265,6 @@ ggplot(over_under_dat, aes(x=RefPkg, y=Predict_count, fill=Software, colour=Pred
         panel.grid.major = element_line(colour = "#bdbdbd", linetype = "dotted"),
         panel.grid.minor = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave(filename = o_u_bars, width = 8, height = 5, dpi = 400)
+ggsave(plot = o_u_plot, filename = o_u_bars,
+       width = 8, height = 5, dpi = 400, device = cairo_ps)
 ## end
