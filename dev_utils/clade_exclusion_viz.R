@@ -118,6 +118,8 @@ spec_plot <- ggplot(spec_se, aes(x=TaxDist, y=Proportion, fill=Rank)) +
 
 ggsave(plot = spec_plot, filename = spec_out,
        width = 10, height = 6, dpi = 400, device = cairo_ps)
+ggsave(plot = spec_plot, filename = gsub(img_format, "png", spec_out),
+       width = 10, height = 6, dpi = 400)
 ## end
 
 
@@ -151,6 +153,8 @@ avg_dist_plot <- harm_dist_dat %>%
         axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave(plot = avg_dist_plot, filename = pdist_out,
        width = 8, height = 5, dpi = 400, device = cairo_ps)
+ggsave(plot = avg_dist_plot, filename = gsub(img_format, "png", pdist_out),
+       width = 8, height = 5, dpi = 400)
 ## end
 
 
@@ -186,6 +190,8 @@ sens_plot <- summary_dat %>%
 
 ggsave(plot = sens_plot, filename = sens_out,
        width = 8, height = 5, dpi = 400, device = cairo_ps)
+ggsave(plot = sens_plot, filename = gsub(img_format, "png", sens_out),
+       width = 8, height = 5, dpi = 400)
 ## end
 
 
@@ -217,6 +223,8 @@ fone_plot <- f1_dat %>%
         axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave(plot = fone_plot, filename = f1_out,
        width = 7, height = 7, dpi = 400, device = cairo_ps)
+ggsave(plot = fone_plot, filename = gsub(img_format, "png", f1_out),
+       width = 7, height = 7, dpi = 400)
 ## end
 
 
@@ -267,4 +275,6 @@ o_u_plot <- over_under_dat %>%
         axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave(plot = o_u_plot, filename = o_u_bars,
        width = 8, height = 5, dpi = 400, device = cairo_ps)
+ggsave(plot = o_u_plot, filename = gsub(img_format, "png", o_u_bars),
+       width = 8, height = 5, dpi = 400)
 ## end
