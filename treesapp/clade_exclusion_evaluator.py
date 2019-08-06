@@ -678,13 +678,13 @@ def restore_reference_package(treesapp_dir, prefix, output_dir, marker):
     return
 
 
-def build_graftm_package(target_marker: MarkerBuild, output_dir: str, mfa_file: str, fa_file: str, threads: int):
+def build_graftm_package(gpkg_path: str, tax_file: str, mfa_file: str, fa_file: str, threads: int):
     create_command = ["graftM", "create"]
     create_command += ["--threads", str(threads)]
     create_command += ["--alignment", mfa_file]
     create_command += ["--sequences", fa_file]
-    create_command += ["--taxonomy", output_dir + os.sep + "tax_ids_" + target_marker.cog + ".txt"]
-    create_command += ["--output", output_dir + target_marker.cog + ".gpkg"]
+    create_command += ["--taxonomy", tax_file]
+    create_command += ["--output", gpkg_path]
     create_command.append("--force")
 
     logging.debug("Command used:\n" + ' '.join(create_command) + "\n")

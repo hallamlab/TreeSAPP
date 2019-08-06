@@ -986,32 +986,34 @@ def evaluate(sys_args):
 
                 if args.tool in ["graftm", "diamond"]:
                     classification_table = os.sep.join([treesapp_output, rank_tax, rank_tax + "_read_tax.tsv"])
+                    gpkg_path = ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + '_' + rank_tax + ".gpkg"
 
                     if not os.path.isfile(classification_table):
-                        tax_ids_file = os.sep.join([ts_evaluate.var_output_dir,
-                                                    ts_evaluate.target_marker.cog + ".gpkg",
+                        tax_ids_file = os.sep.join([gpkg_path,
                                                     ts_evaluate.target_marker.cog + ".gpkg.refpkg",
                                                     ts_evaluate.target_marker.cog + "_taxonomy.csv"])
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
                         prep_graftm_ref_files(ts_evaluate.treesapp_dir, ts_evaluate.var_output_dir,
                                               lineage, ts_evaluate.target_marker,
                                               depth)
-                        build_graftm_package(ts_evaluate.target_marker,
-                                             ts_evaluate.var_output_dir,
-                                             mfa_file=ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + ".mfa",
-                                             fa_file=ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + ".fa",
-                                             threads=args.num_threads)
+
+                        if not os.path.isdir(gpkg_path):
+                            build_graftm_package(gpkg_path=gpkg_path,
+                                                 tax_file=ts_evaluate.var_output_dir + "tax_ids_" + ts_evaluate.target_marker.cog + ".txt",
+                                                 mfa_file=ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + ".mfa",
+                                                 fa_file=ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + ".fa",
+                                                 threads=args.num_threads)
                         # Write the query sequences
                         fasta.write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
 
                         graftm_classify(test_rep_taxa_fasta,
-                                        ts_evaluate.var_output_dir + os.sep + ts_evaluate.target_marker.cog + ".gpkg",
+                                        ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + '_' + rank_tax + ".gpkg",
                                         treesapp_output, args.num_threads, args.tool)
 
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                             logging.warning("GraftM did not generate output for " + lineage + ". Skipping.\n")
-                            # shutil.rmtree(treesapp_output)
+                            shutil.rmtree(treesapp_output)
                             continue
 
                         shutil.copy(tax_ids_file, treesapp_output + os.sep + rank_tax + os.sep)
