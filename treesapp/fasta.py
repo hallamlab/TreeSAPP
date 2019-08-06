@@ -675,7 +675,7 @@ def get_header_format(header, code_name=""):
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
     pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
     eggnog_re = re.compile(r"^>?(\d+)\.([A-Za-z][-A-Za-z0-9_]+)(\.\d)?(\s\[.*\])?$")  # t, o
-
+    eggnot_re = re.compile(r">?eggnog\|(\d+)\|(.*)")  # a
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
     # refseq_nuc_re = re.compile("^>([A-Z]+_[0-9]+\.[0-9])_.+$")  # a
@@ -708,7 +708,8 @@ def get_header_format(header, code_name=""):
                                gi_prepend_mess_re: "gi_mess",
                                pfam_re: "pfam",
                                presf_re: "prf",
-                               eggnog_re: "eggnog"},
+                               eggnog_re: "eggnog",
+                               eggnot_re: "eggnot"},
                       "dna": {treesapp_re: "treesapp"},
                       "ambig": {accession_only: "bare",
                                 ncbi_ambiguous: "ncbi_ambig",

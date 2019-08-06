@@ -339,7 +339,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
             description = regex_match_groups.group(3)
-        elif header_db == "eggnog":
+        elif header_db in ["eggnog", "eggnot"]:
             taxid = regex_match_groups.group(1)
             accession = regex_match_groups.group(1) + '.' + regex_match_groups.group(2)
         elif header_db == "ts_assign":
