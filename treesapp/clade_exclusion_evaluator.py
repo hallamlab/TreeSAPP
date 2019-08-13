@@ -487,7 +487,18 @@ def correct_accession(description):
     return return_sequence_info_groups(sequence_info, header_db, description).accession
 
 
-def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_clade: str, marker: MarkerBuild, depth: int):
+def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon: str, marker: MarkerBuild, depth: int):
+    """
+    From the original TreeSAPP reference package files, the necessary GraftM create input files are generated
+    with all reference sequences related to the target_taxon removed from the multiple sequence alignment,
+    unaligned reference FASTA file and the tax_ids file.
+    :param treesapp_dir: Path to the TreeSAPP reference package directory
+    :param intermediate_dir:  Path to write the intermediate files with target references removed
+    :param target_taxon: Name of the taxon that is being tested in the current clade exclusion iteration
+    :param marker: MarkerBuild instance for the reference package being tested
+    :param depth: Depth of the current taxonomic rank in hierarchy (e.g. Phylum = 2, Class = 3, etc.)
+    :return: None
+    """
     # Move the original FASTA, tree and tax_ids files to a temporary location
     marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker.cog + ".fa"])
     marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker.cog + ".txt"])
@@ -498,7 +509,7 @@ def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_clade
         tax_ids_strings = list()
         for ref_leaf in ref_tree_leaves:
             c_lineage = clean_lineage_string(ref_leaf.lineage)
-            if re.search(target_clade, c_lineage):
+            if re.search(target_taxon, c_lineage):
                 continue
             sc_lineage = c_lineage.split("; ")
             if len(sc_lineage) < depth:
@@ -651,9 +662,12 @@ def validate_ref_package_files(treesapp_dir, marker, intermediate_dir):
 
 
 def remove_clade_exclusion_files(intermediate_dir):
-    remnants = glob(intermediate_dir + "ORIGINAL*")
+    remnants = glob(intermediate_dir + "ORIGINAL*", recursive=True)
+    if not remnants:
+        logging.warning("No remaining original reference package files found for destruction.\n")
     for tmp_file in remnants:
         os.remove(tmp_file)
+    return
 
 
 def restore_reference_package(treesapp_dir, prefix, output_dir, marker):
@@ -663,14 +677,15 @@ def restore_reference_package(treesapp_dir, prefix, output_dir, marker):
 
     :return: The paths to the classification table and the taxon-excluded tax_ids file
     """
+    # The edited tax_ids file with clade excluded is required for performance analysis
+    # Copy the edited, clade-excluded tax_ids file to the output directory
+    shutil.copy(os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"]), output_dir)
 
     # Move the original FASTA, tree and tax_ids files back to the proper directories
     shutil.copy(prefix + "_tree.txt", os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"]))
     if os.path.isfile(prefix + "_bipartitions.txt"):
         shutil.copy(prefix + "_bipartitions.txt",
                     os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"]))
-    # The edited tax_ids file with clade excluded is required for performance analysis
-    shutil.copy(os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"]), output_dir)
     shutil.copy(prefix + "_tax_ids.txt", os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"]))
     shutil.copy(prefix + ".fa", os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"]))
     shutil.copy(prefix + ".hmm", os.sep.join([treesapp_dir, "data", "hmm_data", marker + ".hmm"]))

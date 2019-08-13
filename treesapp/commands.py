@@ -914,6 +914,7 @@ def evaluate(sys_args):
     check_evaluate_arguments(ts_evaluate, args, marker_build_dict)
     ts_evaluate.validate_continue(args)
     load_rank_depth_map(ts_evaluate)
+    refpkg_name = ts_evaluate.target_marker.cog
 
     ref_leaves = file_parsers.tax_ids_file_to_leaves(ts_evaluate.tree_dir + "tax_ids_" + args.reference_marker + ".txt")
     ref_lineages = dict()
@@ -953,7 +954,7 @@ def evaluate(sys_args):
         else:
             min_seq_length = str(30)
 
-        validate_ref_package_files(ts_evaluate.treesapp_dir, ts_evaluate.target_marker.cog, ts_evaluate.output_dir)
+        validate_ref_package_files(ts_evaluate.treesapp_dir, refpkg_name, ts_evaluate.output_dir)
 
         ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
         for rank in args.taxon_rank:
@@ -962,10 +963,7 @@ def evaluate(sys_args):
             unique_query_lineages = sorted(set(trim_lineages_to_rank(rep_accession_lineage_map, rank).values()))
             depth = ranks[rank]
             for lineage in unique_query_lineages:
-                taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
-                rank_tax = rank[0] + '_' + taxon
-                treesapp_output = ts_evaluate.var_output_dir + os.sep + rank_tax + os.sep
-
+                # Check number one: Is the optimal placement in the pruned reference tree?
                 optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
                 if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages
                                                 if tl != lineage]:
@@ -974,67 +972,86 @@ def evaluate(sys_args):
 
                 # Select representative sequences belonging to the taxon being tested
                 taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_records, lineage)
-                # Decide whether to continue analyzing taxon based on number of query sequences
+                # Check number 2: Decide whether to continue analyzing taxon based on number of query sequences
                 if len(taxon_rep_seqs.keys()) == 0:
                     logging.debug("No query sequences for " + lineage + ".\n")
                     continue
 
-                logging.info("Classifications for the " + rank + " '" + taxon + "' put " + treesapp_output + "\n")
+                # Continuing with classification
+                # Refpkg input files in ts_evaluate.var_output_dir/refpkg_name/rank_tax/
+                # Refpkg built in ts_evaluate.var_output_dir/refpkg_name/rank_tax/{refpkg_name}_{rank_tax}.gpkg/
+                taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
+                rank_tax = rank[0] + '_' + taxon
+                intermediates_path = ts_evaluate.var_output_dir + refpkg_name + os.sep + rank_tax + os.sep
+                if not os.path.isdir(intermediates_path):
+                    os.makedirs(intermediates_path)
+
+                logging.info("Classifications for the " + rank + " '" + taxon + "' put " + intermediates_path + "\n")
                 test_obj = ts_evaluate.new_taxa_test(rank, lineage)
                 test_obj.queries = taxon_rep_seqs.keys()
-                test_rep_taxa_fasta = ts_evaluate.var_output_dir + rank_tax + ".fa"
+                test_rep_taxa_fasta = intermediates_path + rank_tax + ".fa"
+                test_refpkg_prefix = refpkg_name + '_' + rank_tax
+                classifier_output = intermediates_path + args.tool + "_output" + os.sep
 
                 if args.tool in ["graftm", "diamond"]:
-                    classification_table = os.sep.join([treesapp_output, rank_tax, rank_tax + "_read_tax.tsv"])
-                    gpkg_path = ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + '_' + rank_tax + ".gpkg"
+                    tax_ids_file = intermediates_path + os.sep + refpkg_name + "_taxonomy.csv"
+                    classification_table = classifier_output + rank_tax + os.sep + rank_tax + "_read_tax.tsv"
+                    gpkg_path = intermediates_path + test_refpkg_prefix + ".gpkg"
 
                     if not os.path.isfile(classification_table):
-                        tax_ids_file = os.sep.join([gpkg_path,
-                                                    ts_evaluate.target_marker.cog + ".gpkg.refpkg",
-                                                    ts_evaluate.target_marker.cog + "_taxonomy.csv"])
+                        # GraftM refpkg input paths:
+                        filtered_gpkg_tax_ids = intermediates_path + "tax_ids_" + refpkg_name + ".txt"
+                        filtered_mfa = intermediates_path + refpkg_name + ".mfa"
+                        filtered_fasta = intermediates_path + refpkg_name + ".fa"
+                        # GraftM refpkg output files:
+                        gpkg_refpkg_path = gpkg_path + os.sep + test_refpkg_prefix + ".gpkg.refpkg" + os.sep
+                        gpkg_tax_ids_file = gpkg_refpkg_path + refpkg_name + "_taxonomy.csv"
+
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prep_graftm_ref_files(ts_evaluate.treesapp_dir, ts_evaluate.var_output_dir,
-                                              lineage, ts_evaluate.target_marker,
-                                              depth)
+                        prep_graftm_ref_files(treesapp_dir=ts_evaluate.treesapp_dir,
+                                              intermediate_dir=intermediates_path,
+                                              target_taxon=lineage,
+                                              marker=ts_evaluate.target_marker,
+                                              depth=depth)
 
                         if not os.path.isdir(gpkg_path):
                             build_graftm_package(gpkg_path=gpkg_path,
-                                                 tax_file=ts_evaluate.var_output_dir + "tax_ids_" + ts_evaluate.target_marker.cog + ".txt",
-                                                 mfa_file=ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + ".mfa",
-                                                 fa_file=ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + ".fa",
+                                                 tax_file=filtered_gpkg_tax_ids,
+                                                 mfa_file=filtered_mfa,
+                                                 fa_file=filtered_fasta,
                                                  threads=args.num_threads)
+                        shutil.copy(gpkg_tax_ids_file, tax_ids_file)
                         # Write the query sequences
                         fasta.write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
 
                         graftm_classify(test_rep_taxa_fasta,
-                                        ts_evaluate.var_output_dir + ts_evaluate.target_marker.cog + '_' + rank_tax + ".gpkg",
-                                        treesapp_output, args.num_threads, args.tool)
+                                        gpkg_path,
+                                        classifier_output,
+                                        args.num_threads, args.tool)
 
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                             logging.warning("GraftM did not generate output for " + lineage + ". Skipping.\n")
-                            shutil.rmtree(treesapp_output)
+                            shutil.rmtree(intermediates_path)
                             continue
 
-                        shutil.copy(tax_ids_file, treesapp_output + os.sep + rank_tax + os.sep)
-
-                    tax_ids_file = os.sep.join([treesapp_output, rank_tax, ts_evaluate.target_marker.cog + "_taxonomy.csv"])
                     test_obj.taxonomic_tree = lca_calculations.grab_graftm_taxa(tax_ids_file)
                     graftm_assignments = file_parsers.read_graftm_classifications(classification_table)
-                    test_obj.assignments = {ts_evaluate.target_marker.cog: graftm_assignments}
-                    test_obj.filter_assignments(ts_evaluate.target_marker.cog)
+                    test_obj.assignments = {refpkg_name: graftm_assignments}
+                    test_obj.filter_assignments(refpkg_name)
                 else:
-                    tax_ids_file = treesapp_output + "tax_ids_" + ts_evaluate.target_marker.cog + ".txt"
-                    classification_table = treesapp_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
+                    tax_ids_file = intermediates_path + "tax_ids_" + refpkg_name + ".txt"
+                    classification_table = classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
 
                     if not os.path.isfile(classification_table) or not os.path.isfile(tax_ids_file):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prefix = exclude_clade_from_ref_files(ts_evaluate.treesapp_dir, ts_evaluate.target_marker.cog,
-                                                              ts_evaluate.var_output_dir, lineage, depth,
+                        prefix = exclude_clade_from_ref_files(ts_evaluate.treesapp_dir, refpkg_name,
+                                                              ts_evaluate.var_output_dir + refpkg_name + os.sep,
+                                                              lineage, depth,
                                                               ts_evaluate.executables, args.fresh, args.molecule)
                         # Write the query sequences
                         fasta.write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
-                        assign_args = ["-i", test_rep_taxa_fasta, "-o", treesapp_output,
+                        assign_args = ["-i", test_rep_taxa_fasta, "-o", classifier_output,
                                        "-m", ts_evaluate.molecule_type, "-n", str(args.num_threads),
                                        "--min_seq_length", str(min_seq_length), "--overwrite", "--delete"]
                         if args.trim_align:
@@ -1044,11 +1061,11 @@ def evaluate(sys_args):
                         except:  # Just in case treesapp assign fails, just continue
                             pass
                         restore_reference_package(ts_evaluate.treesapp_dir, prefix,
-                                                  treesapp_output, ts_evaluate.target_marker.cog)
+                                                  intermediates_path, refpkg_name)
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                             logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
-                            shutil.rmtree(treesapp_output)
+                            shutil.rmtree(classifier_output)
                             continue
                     else:
                         # Valid number of queries and these sequences have already been classified
@@ -1058,14 +1075,14 @@ def evaluate(sys_args):
                     if os.path.isfile(classification_table):
                         assigned_lines = file_parsers.read_marker_classification_table(classification_table)
                         test_obj.assignments = file_parsers.parse_assignments(assigned_lines)
-                        test_obj.filter_assignments(ts_evaluate.target_marker.cog)
+                        test_obj.filter_assignments(refpkg_name)
                         test_obj.distances = parse_distances(assigned_lines)
                     else:
                         logging.error("marker_contig_map.tsv is missing from output directory '" +
                                       os.path.basename(classification_table) + "'\n" +
                                       "Please remove this directory and re-run.\n")
                         sys.exit(21)
-        remove_clade_exclusion_files(ts_evaluate.var_output_dir)
+        remove_clade_exclusion_files(ts_evaluate.var_output_dir + refpkg_name + os.sep)
 
     if ts_evaluate.stage_status("calculate"):
         # everything has been prepared, only need to parse the classifications and map lineages
@@ -1084,7 +1101,7 @@ def evaluate(sys_args):
                         ts_evaluate.markers.add(marker)
                     rank_assignments = lca_calculations.identify_excluded_clade(marker_assignments,
                                                                                 test_obj.taxonomic_tree,
-                                                                                ts_evaluate.target_marker.cog)
+                                                                                refpkg_name)
                     for a_rank in rank_assignments:
                         if a_rank != rank and len(rank_assignments[a_rank]) > 0:
                             logging.warning(
@@ -1110,8 +1127,8 @@ def evaluate(sys_args):
                           "This is not a problem, its just they have 'unclassified' somewhere in their lineages\n" +
                           "(e.g. Unclassified Bacteria) and this is not good for assessing placement accuracy.\n\n")
 
-        if ts_evaluate.target_marker.denominator not in ts_evaluate.markers and ts_evaluate.target_marker.cog not in ts_evaluate.markers:
-            logging.error("No sequences were classified as " + ts_evaluate.target_marker.cog + ".\n")
+        if ts_evaluate.target_marker.denominator not in ts_evaluate.markers and refpkg_name not in ts_evaluate.markers:
+            logging.error("No sequences were classified as " + refpkg_name + ".\n")
             sys.exit(21)
 
         # For debugging:

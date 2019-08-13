@@ -384,7 +384,7 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
     evaluator_instance.test_rep_taxa_fasta = args.output + os.sep + "representative_taxa_sequences.fasta"
     evaluator_instance.performance_table = args.output + os.sep + "clade_exclusion_performance.tsv"
     evaluator_instance.containment_table = args.output + os.sep + "accuracy.tsv"
-    evaluator_instance.var_output_dir = args.output + "TreeSAPP_output" + os.sep
+    evaluator_instance.var_output_dir = args.output + "intermediates" + os.sep
 
     if not os.path.isdir(evaluator_instance.var_output_dir):
         os.makedirs(evaluator_instance.var_output_dir)
