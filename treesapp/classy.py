@@ -12,7 +12,7 @@ from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
-from .utilities import median, which, is_exe, return_sequence_info_groups
+from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset, clean_lineage_string
 from . import entrez_utils
@@ -1344,7 +1344,11 @@ class TreeSAPP:
             ref_seq_records, self.seq_lineage_map = entrez_utils.verify_lineage_information(self.seq_lineage_map,
                                                                                             ref_seq_records,
                                                                                             num_lineages_provided)
-            entrez_utils.write_accession_lineage_map(self.acc_to_lin, self.seq_lineage_map)
+            # Ensure the accession IDs are stripped of '>'s
+            for accession in sorted(self.seq_lineage_map):
+                if accession[0] == '>':
+                    self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
+            write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
             # Add lineage information to the ReferenceSequence() objects in ref_seq_records if not contained
         else:
             logging.info("Reading cached lineages in '" + self.acc_to_lin + "'... ")

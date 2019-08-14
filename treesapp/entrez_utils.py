@@ -642,31 +642,6 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
     return fasta_record_objects, unambiguous_accession_lineage_map
 
 
-def write_accession_lineage_map(mapping_file, accession_lineage_map):
-    """
-    Function for writing a map of NCBI accession IDs to their respective taxonomic lineages
-     using a list of ReferenceSequence objects
-
-    :param mapping_file: Name of a file to write these data
-    :param accession_lineage_map: A dictionary mapping accessions to lineages
-    :return:
-    """
-    try:
-        map_file_handler = open(mapping_file, 'w')
-    except IOError:
-        logging.error("Unable to open " + mapping_file, " for writing!\n")
-        sys.exit(9)
-
-    for accession in sorted(accession_lineage_map):
-        lineage = accession_lineage_map[accession]
-        if accession[0] == '>':
-            accession = accession[1:]
-        map_file_handler.write(accession + "\t" + lineage + "\n")
-
-    map_file_handler.close()
-    return
-
-
 def read_accession_taxa_map(mapping_file):
     """
     A function for reading intermediate files made by write_accession_lineage_map to avoid the time-consuming download

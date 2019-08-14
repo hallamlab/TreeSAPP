@@ -567,7 +567,7 @@ def update(sys_args):
                            leaf.lineage for leaf in ref_seq_lineage_info}
     classified_seq_lineage_map.update({ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]:
                                        leaf.lineage for leaf in ref_seq_lineage_info})
-    update_refpkg.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
+    utilities.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
 
     ##
     # Call create to create a new, updated reference package where the new sequences are guaranteed
@@ -1082,6 +1082,7 @@ def evaluate(sys_args):
                                       os.path.basename(classification_table) + "'\n" +
                                       "Please remove this directory and re-run.\n")
                         sys.exit(21)
+        # TODO: Currently emits warning for GraftM and DIAMOND - only needed when running TreeSAPP
         remove_clade_exclusion_files(ts_evaluate.var_output_dir + refpkg_name + os.sep)
 
     if ts_evaluate.stage_status("calculate"):

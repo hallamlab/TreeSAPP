@@ -67,28 +67,6 @@ def find_novel_refs(ref_candidate_alignments, aa_dictionary, create_func_tree):
     return new_refs
 
 
-def write_dict_to_table(data_dict: dict, output_file: str, sep="\t"):
-    data_strings = []
-    for key in data_dict:
-        values = data_dict[key]
-        if type(values) is str:
-            data_strings.append(sep.join([key, values]))
-        elif type(values) is list:
-            data_strings.append(sep.join([key, sep.join(values)]))
-        else:
-            logging.error("Unable to tabularize values of type '" + str(type(values)) + "'\n")
-            sys.exit(5)
-    try:
-        handler = open(output_file, 'w')
-    except IOError:
-        logging.error("Unable to open file '" + output_file + "' for writing.\n")
-        sys.exit(3)
-    handler.write("\n".join(data_strings) + "\n")
-    handler.close()
-
-    return
-
-
 def reformat_ref_seq_descriptions(original_header_map):
     reformatted_header_map = dict()
     for treesapp_id in original_header_map:

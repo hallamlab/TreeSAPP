@@ -568,7 +568,7 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
     updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
     updater.old_ref_fasta = updater.output_dir + "original_refs.fasta"
     updater.combined_fasta = updater.output_dir + "all_refs.fasta"
-    updater.lineage_map_file = updater.output_dir + "sequence_lineage_map.tsv"
+    updater.lineage_map_file = updater.output_dir + "accession_id_lineage_map.tsv"
     updater.assignment_table = updater.final_output_dir + "marker_contig_map.tsv"
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
     if len(classified_seqs) == 1:

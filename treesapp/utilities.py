@@ -770,3 +770,32 @@ def get_hmm_length(hmm_file):
         return length
     else:
         raise AssertionError("Unable to parse the HMM length from " + hmm_file + ". Exiting.")
+
+
+def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:
+    """
+    Function for writing a dictionary of key: value pairs separated to a file.
+    :param data_dict: Dictionary containing keys (e.g. accessions) and values (e.g. lineages)
+    :param output_file: Path to a file to write to
+    :param sep: Separator to use between the keys and values. Default is tab.
+    :return: None
+    """
+    data_strings = []
+    for key in data_dict:
+        values = data_dict[key]
+        if type(values) is str:
+            data_strings.append(sep.join([key, values]))
+        elif type(values) is list:
+            data_strings.append(sep.join([key, sep.join(values)]))
+        else:
+            logging.error("Unable to tabularize values of type '" + str(type(values)) + "'\n")
+            sys.exit(5)
+    try:
+        handler = open(output_file, 'w')
+    except IOError:
+        logging.error("Unable to open file '" + output_file + "' for writing.\n")
+        sys.exit(3)
+    handler.write("\n".join(data_strings) + "\n")
+    handler.close()
+
+    return
