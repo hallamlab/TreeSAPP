@@ -4,6 +4,7 @@ import sys
 import os
 import re
 import logging
+from collections import namedtuple
 from .classy import TreeLeafReference, MarkerBuild, Cluster
 from .HMMER_domainTblParser import DomainTableParser,\
     format_split_alignments, filter_incomplete_hits, filter_poor_hits, renumber_multi_matches, detect_orientation
@@ -119,22 +120,44 @@ def parse_assignments(classified_lines: list):
     """
     Parses the marker_contig_map.tsv lines loaded to retrieve lineage assignment and marker information
 
+     Now also looks for fragments of identical parent sequences that were individually classified.
+     If these are found, the longest fragment is selected for classification.
+     Removing redundant fragments is performed to ease downstream classifications as
+     the number of query sequences is calculated separately and we don't want to exceed 100% classifications!
+      Alternatively, the number of query sequences could be calculated from the classification tables
+      but we don't think this is the best route as unclassified seqs would wreak havoc.
+
     :param classified_lines: A list of classification lines returned by read_marker_classification_table
     :return: A dictionary of lineage information for each assignment, indexed by the marker gene it was classified as
     """
+    classified = namedtuple("classified", ["refpkg", "taxon", "length"])
     assignments = dict()
+    unique_headers = dict()  # Temporary storage for classified sequences prior to filtering
+    dups = set()  # For storing the names of all query sequences that were split and classified separately
     for fields in classified_lines:
-        _, header, marker, _, raw_tax, rob_class, _, _, _, _, _ = fields
+        _, header, marker, length, raw_tax, rob_class, _, _, _, _, _ = fields
         if marker and rob_class:
             if marker not in assignments:
                 assignments[marker] = dict()
             if rob_class not in assignments[marker]:
                 assignments[marker][rob_class] = list()
-            assignments[marker][rob_class].append(header)
+            if header not in unique_headers:
+                unique_headers[header] = None
+            # If fragments from the same parent query had identical lengths these would be overwritten anyway
+            unique_headers[header] = {int(length): classified(refpkg=marker, taxon=rob_class, length=int(length))}
         else:
             logging.error("Bad line in classification table - no robust taxonomic classification:\n" +
                           '\t'.join(fields) + "\n")
             sys.exit(21)
+    for header in unique_headers:
+        if len(unique_headers[header]) > 1:
+            dups.add(header)
+        max_len = max(unique_headers[header])
+        best_dat = unique_headers[header][max_len]
+        assignments[best_dat.refpkg][best_dat.taxon].append(header)
+
+    if dups:
+        logging.debug(str(len(dups)) + " fragments from identical parent sequences were removed post-classification.\n")
     return assignments
 
 
