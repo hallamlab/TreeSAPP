@@ -80,12 +80,12 @@ taxonomic_hierarchy <- data.frame(Ranks = c("Kingdom", "Phylum", "Class", "Order
                                   Depth = c(1,2,3,4,5,6,7,8))
 
 refpkg_plt_dat <- data.frame(Cycle = c("Carbon", "Carbon", "Carbon", "Carbon",
-                                       "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen",
+                                       "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen",
                                        "Sulphur"),
                              RefPkg = c("McrA", "McrB", "McrG", "p_amoA",
-                                        "napA", "nirK", "nirS", "nifD", "NorB", "NxrB",
+                                        "napA", "nirK", "nirS", "nifD", "NorB", "NxrA", "NxrB", "nosZ",
                                         "DsrAB"),
-                             Position = as.numeric(seq(1, 11)))
+                             Position = as.numeric(seq(1, 13)))
 
 acc_dat <- merge(acc_dat, taxonomic_hierarchy, by.x = "Rank", by.y = "Ranks") %>% 
   merge(refpkg_plt_dat, by="RefPkg")
