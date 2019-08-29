@@ -51,8 +51,17 @@ manual review is required. I'd reserve this for "experts only".
 FunGene and the NCBI are my favourite options, though this leaves out
 the vast majority of biological sequence databases for no reason other than simplicity.
  IMG, KEGG, UniProt, Pfam, and other similar databases are all great but,
-  in my experience I have been unable to find an API for these to retrieve lineage information,
- and therefore this needs to be provided in the header.
+  they lack an API to retrieve lineage information,
+  and therefore this needs to be provided in the header.
+ 
+ If you want to include sequences that haven't been uploaded and accessioned in Entrez,
+  you can do so by modifying the sequence's FASTA header to follow the format:
+ >SeqID lineage=cellular organisms; Domain; Phylum; Class [Organism_name]
+ 
+ where `SeqID` should be replaced with a temporary, unique accession or ID (e.g. AMH87091),
+  "Domain; Phylum; Class" need to be replaced with the appropriate values for the organism this sequence was derived from, 
+  and `Organism_name` should be replaced with the appropriate organism name, such as 'Candidatus Moimicrobe mangepain'.
+  No quotes required, though.
 
 ## Step 2. Creating the reference package
 
@@ -64,14 +73,14 @@ A basic command could look something like this:
 ```
 $ treesapp create \
  --fasta_input rpoB_proteins.faa --output_dir rpoB_TreeSAPP_create \
- --code_name rpoB --cluster --identity 90 \
- --num_threads 8 --verbose
+ --refpkg_name rpoB --cluster --identity 0.90 \
+ --num_procs 8 --molecule prot
 ```
 
 ## Step 3. Integration
 
 Congrats, you've created your TreeSAPP reference package! The final step
-is to run those commands that were printed as `create_treesapp_refpkg.py` finished.
+is to run those final commands that were printed as `treesapp create` completed.
 They should look something like this:
 ```
 To integrate these data for use in TreeSAPP, the following steps must be performed:
@@ -81,6 +90,14 @@ To integrate these data for use in TreeSAPP, the following steps must be perform
 4. $ cp rpoB_create_85/TreeSAPP_files_rpoB/rpoB.hmm data/hmm_data/
 ```
 
+These need to be executed outside of `treesapp create` since it looks for all reference package files in subdirectories
+of a single location. These are not copied automatically for two reasons: 
+1. Prevent over-writing existing reference packages that users may want to retain (sentimental value, etc.)
+2. Give the user an opportunity to inspect and test the reference package before (blindly) using it for analyses
+
+This brings us, dear reader, to evaluating the quality of reference packages with `treesapp evaluate`.
+If you want to know how solid your taxonomic classifications are, then [look no further](). 
+  
 ## Creating multiple versions
 
 A significant time sink is waiting for TreeSAPP to download the lineages
@@ -94,11 +111,11 @@ A significant time sink is waiting for TreeSAPP to download the lineages
 ```
 $ treesapp create \
  -i rpoB_proteins.faa -o rpoB_create_90/ \
- -T 4 -c rpoB -p 90 --cluster --verbose --taxa_lca
+ -n 4 -c rpoB -p 0.90 --cluster --taxa_lca
 $ mkdir rpoB_create_80/
 $ mkdir rpoB_create_70/
-$ cp rpoB_create_90/accessions_id_lineage_map.tsv rpoB_create_80/
-$ cp rpoB_create_90/accessions_id_lineage_map.tsv rpoB_create_70/
+$ cp rpoB_create_90/intermediates/accessions_id_lineage_map.tsv rpoB_create_80/
+$ cp rpoB_create_90/intermediates/accessions_id_lineage_map.tsv rpoB_create_70/
 ```
 
 Following this, run `treesapp create` for the other versions.
