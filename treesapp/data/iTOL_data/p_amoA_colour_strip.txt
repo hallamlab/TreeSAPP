@@ -1,29 +1,69 @@
 DATASET_COLORSTRIP
-SEPARATOR TAB
-DATASET_LABEL	Orders
-STRIP_WIDTH	75
-MARGIN	0
-SHOW_INTERNAL	1
+SEPARATOR SPACE
+DATASET_LABEL clade_colours
+STRIP_WIDTH 75
+MARGIN 0
+SHOW_INTERNAL 1
 DATA
-1	#5D3505	Nitrosopumilaceae
-3|5	#814A09	Nitrososphaerales
-2	#6F3F07	Candidatus Nitrosocaldales
-6	#92570E	Candidatus Nitrosopelagicus
-7	#A36619	Candidatus Nitrosotalea
-8	#B37625	Candidatus Nitrosotenuis
-9	#C28734	Marine Group I
-10	#003C30	unclassified Thaumarchaeota 
-14|12	#00493E	Methylacidiphilales
-17|19	#00574D	Rhizobiales
-35|34	#10746C	Nitrosomonadales
-22|23	#10746C	Nitrosomonadales
-24	#10746C	Nitrosomonadales
-25	#10746C	Nitrosomonadales
-26|27	#10746C	Nitrosomonadales
-37|38	#20847C	Cellvibrionales
-39|41	#31938B	Chromatiales
-78|58	#48A49B	Methylococcales
-59	#48A49B	Methylococcales
-60|62	#48A49B	Methylococcales
-69|71	#48A49B	Methylococcales
-21	#00645C	unclassified Alphaproteobacteria
+5|6 #774508 Nitrososphaerales
+4 #774508 Nitrososphaerales
+166|122 #995d13 Methylococcales
+129|132 #995d13 Methylococcales
+133|146 #995d13 Methylococcales
+110|128 #995d13 Methylococcales
+157|158 #995d13 Methylococcales
+159|160 #995d13 Methylococcales
+137|154 #995d13 Methylococcales
+152|161 #995d13 Methylococcales
+153|155 #995d13 Methylococcales
+130 #995d13 Methylococcales
+149 #995d13 Methylococcales
+108 #995d13 Methylococcales
+136 #995d13 Methylococcales
+118 #995d13 Methylococcales
+115 #995d13 Methylococcales
+164 #995d13 Methylococcales
+114 #995d13 Methylococcales
+156 #995d13 Methylococcales
+117 #995d13 Methylococcales
+113 #995d13 Methylococcales
+127 #995d13 Methylococcales
+134 #995d13 Methylococcales
+36|30 #b97b29 Rhizobiales
+27|28 #b97b29 Rhizobiales
+54|50 #b97b29 Rhizobiales
+61|60 #b97b29 Rhizobiales
+22|21 #b97b29 Rhizobiales
+43|44 #b97b29 Rhizobiales
+32|41 #b97b29 Rhizobiales
+24|25 #b97b29 Rhizobiales
+57|56 #b97b29 Rhizobiales
+23 #b97b29 Rhizobiales
+55 #b97b29 Rhizobiales
+38 #b97b29 Rhizobiales
+33 #b97b29 Rhizobiales
+31 #b97b29 Rhizobiales
+51 #b97b29 Rhizobiales
+42 #b97b29 Rhizobiales
+47 #b97b29 Rhizobiales
+39 #b97b29 Rhizobiales
+37 #b97b29 Rhizobiales
+89|88 #cfa256 Nitrosomonadales
+18|19 #e2c787 Nitrospirales
+17 #e2c787 Nitrospirales
+169 #f1dfb3 Nevskiales
+168 #f1dfb3 Nevskiales
+98|99 #f6edd7 Cellvibrionales
+64 #f4f5f5 unclassified Alphaproteobacteria
+66 #f4f5f5 unclassified Alphaproteobacteria
+65 #f4f5f5 unclassified Alphaproteobacteria
+100|102 #d7eeeb Chromatiales
+177|175 #b4e2db Methylacidiphilales
+172|178 #b4e2db Methylacidiphilales
+182|179 #87d0c5 Methylacidimicrobium
+15 #58b0a7 Propionibacteriales
+14 #58b0a7 Propionibacteriales
+13|12 #2d8f87 Corynebacteriales
+11 #0c7169 unclassified Thaumarchaeota miscellaneous
+10 #0c7169 unclassified Thaumarchaeota miscellaneous
+2|1 #01554b Nitrosopumilaceae
