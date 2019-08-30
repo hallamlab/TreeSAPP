@@ -1,80 +1,182 @@
-1	Candidatus Nitrosoarchaeum limnia | EPA04544	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosoarchaeum; Candidatus Nitrosoarchaeum limnia
-2	Nitrosopumilus | ALK01329	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus
-3	Nitrosopumilus | AJM93357	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus
-4	Candidatus Nitrosocaldus | ABY83788	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Candidatus Nitrosocaldales; Candidatus Nitrosocaldaceae; Candidatus Nitrosocaldus
-5	Candidatus Nitrosocosmicus | AMH87091	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Candidatus Nitrosocosmicus
-6	Nitrososphaera | ABY77592	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera
-7	Nitrososphaera | AET10423	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera
-8	Candidatus Nitrosotalea | AHZ90671	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; Candidatus Nitrosotalea
-9	Candidatus Nitrosotenuis | AJZ76360	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; Candidatus Nitrosotenuis
-10	unclassified Thaumarchaeota (miscellaneous) | CDI06186	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota (miscellaneous)
-11	Methylacidiphilum fumariolicum | CCG92750	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum fumariolicum
-12	Methylacidiphilum fumariolicum | ABU88152	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum fumariolicum
-13	Methylacidiphilum infernorum | ACD83564	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum infernorum
-14	Methylacidiphilum kamchatkense | ACK55191	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum kamchatkense
-15	Methylacidiphilum kamchatkense | ACK55192	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum kamchatkense
-16	Methylocapsa acidiphila | CAJ01617	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Beijerinckiaceae; Methylocapsa; Methylocapsa acidiphila
-17	Methylocystis | CAE48352	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
-18	Methylocystis | AHI95955	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
-19	Methylocystis | EFY00784	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
-20	Methylosinus trichosporium | ATQ68209	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus trichosporium
-21	unclassified Alphaproteobacteria (miscellaneous) | AAQ10308	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; unclassified Alphaproteobacteria; unclassified Alphaproteobacteria (miscellaneous)
-22	Nitrosomonas | ABB69926	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
-23	Nitrosomonas | AEJ00940	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
-24	Nitrosomonas | AAL86638	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
-25	Nitrosomonas | BAB84331	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
-26	Nitrosomonas | ADZ25731	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
-27	Nitrosomonas cryotolerans | AAG60667	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas cryotolerans
-28	Nitrosomonas europaea | AII16085	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas europaea
-29	Nitrosospira | AAB53437	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
-30	Nitrosospira | ABB69922	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
-31	Nitrosospira | ABM54173	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
-32	Nitrosospira | ABM54175	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
-33	Nitrosospira | AAB70814	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
-34	Nitrosospira briensis | AAB38709	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
-35	Nitrosospira multiformis | CAA62336	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira; Nitrosospira multiformis
-36	Nitrosovibrio | ABB69924	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosovibrio
-37	Haliea | BAM38053	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cellvibrionales; Halieaceae; Haliea
-38	Haliea | BAM38059	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cellvibrionales; Halieaceae; Haliea
-39	Nitrosococcus halophilus | ADE13856	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus halophilus
-40	Nitrosococcus oceani | AAM34724	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus oceani
-41	Nitrosococcus watsonii | AAF03938	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus watsonii
-42	Methylobacter | AAG13080	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter
-43	Methylobacter | AAB70518	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter
-44	Methylobacter | AGU99225	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter
-45	Methylocaldum | AAM44822	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum
-46	Methylocaldum marinum | BAO51827	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum; Methylocaldum marinum
-47	Methylocaldum szegediense | AAC04381	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum; Methylocaldum szegediense
-48	Methylococcus capsulatus | AAQ10311	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylococcus; Methylococcus capsulatus
-49	Methylococcus capsulatus | AAU92182	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylococcus; Methylococcus capsulatus
-50	Methyloglobulus morosus | AET87441	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methyloglobulus; Methyloglobulus morosus
-51	Methylomagnum ishizawai | BAK78887	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomagnum; Methylomagnum ishizawai
-52	Methylomarinum vadi | BAH22842	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomarinum; Methylomarinum vadi
-53	Methylomicrobium album | AAA87217	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomicrobium; Methylomicrobium album
-54	Methylomicrobium japanense | BAE86885	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomicrobium; Methylomicrobium japanense
-55	Methylomicrobium pelagicum | AAC61804	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomicrobium; Methylomicrobium pelagicum
-56	Methylomonas | BAM37124	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
-57	Methylomonas | AEF15856	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
-58	Methylomonas | AAM44820	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
-59	Methylomonas | CDM21890	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
-60	Methylomonas | ACE95890	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
-61	Methylomonas methanica | AEF98753	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas methanica
-62	Methylomonas methanica | ACE95893	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas methanica
-63	Methylomonas paludis | CCH22593	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas paludis
-64	Methyloparacoccus murrellii | BAL04120	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methyloparacoccus; Methyloparacoccus murrellii
-65	Methyloprofundus sedimenti | AHA46880	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methyloprofundus; Methyloprofundus sedimenti
-66	Methylosarcina lacus | AAG13081	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylosarcina; Methylosarcina lacus
-67	Methylosoma difficile | ABD13901	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylosoma; Methylosoma difficile
-68	Methylovulum miyakonense | BAJ17641	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylovulum; Methylovulum miyakonense
-69	unclassified Methylococcaceae | BAH22830	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
-70	unclassified Methylococcaceae | AEF15857	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
-71	unclassified Methylococcaceae | AAG16907	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
-72	unclassified Methylococcaceae | BAH22845	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
-73	unclassified Methylococcaceae | BAH22839	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
-74	unclassified Methylococcaceae | BAB56133	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
-75	unclassified Methylococcaceae | BAH22836	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
-76	unclassified Methylococcaceae | BAH22833	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
-77	Methylohalobius crimeensis | BAM71040	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylothermaceae; Methylohalobius; Methylohalobius crimeensis
-78	Methylomarinovum caldicuralii | BAF62078	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylothermaceae; Methylomarinovum; Methylomarinovum caldicuralii
-79	unclassified Gammaproteobacteria (miscellaneous) | AAD02578	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria (miscellaneous)
-80	unclassified Bacteria (miscellaneous) | CAL47025	cellular organisms; Bacteria; unclassified Bacteria; unclassified Bacteria (miscellaneous)
+1	Nitrosopumilus sp. DDS1 | ALK01329	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus
+2	Nitrosopumilus maritimus SCM1 | ABX13396	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrosopumilales; Nitrosopumilaceae; Nitrosopumilus; Nitrosopumilus maritimus
+3	Candidatus Nitrosocaldus yellowstonensis | ABY83788	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Candidatus Nitrosocaldales; Candidatus Nitrosocaldaceae; Candidatus Nitrosocaldus
+4	Candidatus Nitrosocosmicus franklandus | AMH87091	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Candidatus Nitrosocosmicus
+5	Candidatus Nitrososphaera gargensis Ga9.2 | AFU59457	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera; Candidatus Nitrososphaera gargensis
+6	Nitrososphaera viennensis EN76 | AIC17003	cellular organisms; Archaea; TACK group; Thaumarchaeota; Nitrososphaeria; Nitrososphaerales; Nitrososphaeraceae; Nitrososphaera; Nitrososphaera viennensis
+7	Candidatus Nitrosopelagicus brevis | AJA91890	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; Candidatus Nitrosopelagicus
+8	Candidatus Nitrosotalea devanaterra | CUR52539	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; Candidatus Nitrosotalea
+9	Candidatus Nitrosotenuis aquarius | ANC98542	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; Candidatus Nitrosotenuis
+10	Thaumarchaeota archaeon NAOA2 | ALV66057	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota miscellaneous
+11	Thaumarchaeota archaeon N4 | CDI06186	cellular organisms; Archaea; TACK group; Thaumarchaeota; unclassified Thaumarchaeota; unclassified Thaumarchaeota miscellaneous
+12	Mycobacterium dioxanotrophicus | ART74457	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycobacterium
+13	Mycolicibacterium chubuense NBB4 | ADT71671	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Corynebacteriales; Mycobacteriaceae; Mycolicibacterium; Mycolicibacterium chubuense
+14	Nocardioides sp. CF8 | ADW80613	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Nocardioidaceae; Nocardioides
+15	Nocardioides luteus | OIJ27996	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Propionibacteriales; Nocardioidaceae; Nocardioides
+16	Streptomyces thermoautotrophicus | KWX00979	cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Streptomycetales; Streptomycetaceae; Streptomyces
+17	Candidatus Nitrospira nitrificans | CUS38627	cellular organisms; Bacteria; Nitrospirae; Nitrospira; Nitrospirales; Nitrospiraceae; Nitrospira
+18	Candidatus Nitrospira inopinata | CUQ66826	cellular organisms; Bacteria; Nitrospirae; Nitrospira; Nitrospirales; Nitrospiraceae; Nitrospira
+19	Candidatus Nitrospira nitrosa | CUS38424	cellular organisms; Bacteria; Nitrospirae; Nitrospira; Nitrospirales; Nitrospiraceae; Nitrospira
+20	Methylocapsa acidiphila | CAJ01617	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Beijerinckiaceae; Methylocapsa; Methylocapsa acidiphila
+21	Methylocapsa aurea | CBA11953	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Beijerinckiaceae; Methylocapsa; Methylocapsa aurea
+22	Methylocapsa palsarum | SFK40498	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Beijerinckiaceae; Methylocapsa; Methylocapsa palsarum
+23	Bradyrhizobium sp. NAS96.2 | OKO66812	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Bradyrhizobiaceae; Bradyrhizobium
+24	Bradyrhizobium manausense | KRQ16351	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Bradyrhizobiaceae; Bradyrhizobium; Bradyrhizobium manausense
+25	Bradyrhizobium shewense | SCB45705	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Bradyrhizobiaceae; Bradyrhizobium; Bradyrhizobium shewense
+26	Methylocystis sp. SC2 | CCJ05654	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
+27	Methylocystis sp. SC2 | CCJ08278	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
+28	Methylocystis sp. JTC3 | AHI95955	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
+29	Methylocystis sp. SH31p | BAL04124	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis
+30	Methylocystis bryophila | ARN81925	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis; Methylocystis bryophila
+31	Methylocystis bryophila | ARN82780	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis; Methylocystis bryophila
+32	Methylocystis bryophila | ARN79806	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis; Methylocystis bryophila
+33	Methylocystis heyeri | CAK95256	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis; Methylocystis heyeri
+34	Methylocystis parvus OBBP | AAQ10310	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis; Methylocystis parvus
+35	Methylocystis parvus OBBP | AAA87219	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis; Methylocystis parvus
+36	Methylocystis parvus | CAD66442	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylocystis; Methylocystis parvus
+37	Methylosinus sp. PW1 | AAF08219	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus
+38	Methylosinus sp. ML19 | AAM44824	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus
+39	Methylosinus sp. R-45379 | OAI31388	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus
+40	Methylosinus sp. R-45379 | OAI27658	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus
+41	Methylosinus sp. R-45379 | OAI30590	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus
+42	Methylosinus sp. D15a | CAD30423	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus
+43	Methylosinus acidophilus | AAY83387	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus acidophilus
+44	Methylosinus sporium | CAD30375	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus sporium
+45	Methylosinus sporium | AEM42897	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus sporium
+46	Methylosinus sporium | CAD66445	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus sporium
+47	Methylosinus sporium | ACN73466	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus sporium
+48	Methylosinus trichosporium OB3b | AAA87220	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus trichosporium
+49	Methylosinus trichosporium | CAD30381	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus trichosporium
+50	Methylosinus trichosporium | CAD30425	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus trichosporium
+51	Methylosinus trichosporium | CAD24093	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus trichosporium
+52	Methylosinus trichosporium | CAD24094	Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; Methylosinus; Methylosinus trichosporium
+53	methanotroph FL20 | AAG16906	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+54	methanotroph M8 | AAG16913	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+55	methanotroph RSKB-FBF5 | AOX49512	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+56	methanotroph RSKB-FBF6 | AOX49513	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+57	methanotroph RSKB-FBF8 | AOX49514	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+58	type II methanotrophic bacterium | BAK78882	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+59	methanotroph K3-21 | AAN62858	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+60	methanotroph K2-14 | AAN62856	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+61	methanotroph K3-16 | AAN62857	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhizobiales; Methylocystaceae; unclassified Methylocystaceae
+62	Skermanella aerolata KACC 11604 | KJB91180	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Rhodospirillales; Rhodospirillaceae; Skermanella; Skermanella aerolata
+63	Sphingobium sp. SCG-1 | AUW60608	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; Sphingomonadales; Sphingomonadaceae; Sphingobium
+64	methanotrophic bacterium LK5 | AAQ10308	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; unclassified Alphaproteobacteria; unclassified Alphaproteobacteria miscellaneous
+65	methanotrophic bacterium Y | AAQ10309	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; unclassified Alphaproteobacteria; unclassified Alphaproteobacteria miscellaneous
+66	methanotrophic alpha proteobacterium arc2 | CAI30619	cellular organisms; Bacteria; Proteobacteria; Alphaproteobacteria; unclassified Alphaproteobacteria; unclassified Alphaproteobacteria miscellaneous
+67	Hydrogenophaga sp. T4 | EWS66135	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Burkholderiales; Comamonadaceae; Hydrogenophaga
+68	Nitrosomonas sp. JL21 | AAL86638	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
+69	Nitrosomonas sp. Is79A3 | AEJ02636	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
+70	Nitrosomonas sp. AL212 | AAL86637	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
+71	Nitrosomonas sp. Nm132 | SDI11441	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
+72	Nitrosomonas sp. Nm33 | SDZ11758	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
+73	Nitrosomonas sp. | APZ84165	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas
+74	Nitrosomonas aestuarii | SFK36912	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas aestuarii
+75	Nitrosomonas communis | SDX19239	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas communis
+76	Nitrosomonas communis | SFN18330	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas communis
+77	Nitrosomonas cryotolerans | SFQ18048	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas cryotolerans
+78	Nitrosomonas eutropha | SFU84057	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas eutropha
+79	Nitrosomonas halophila | SDZ04661	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas halophila
+80	Nitrosomonas marina | SEN26221	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas marina
+81	Nitrosomonas mobilis | AAC31361	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas mobilis
+82	Nitrosomonas mobilis | SCZ86996	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas mobilis
+83	Nitrosomonas nitrosa | SFM93401	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas nitrosa
+84	Nitrosomonas oligotropha | SDX61716	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas oligotropha
+85	Nitrosomonas ureae | ALQ50000	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosomonas; Nitrosomonas ureae
+86	Nitrosospira sp. Np39-19 | AAB65662	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
+87	Nitrosospira sp. NIJS16 | ABB69922	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
+88	Nitrosospira sp. | AAA87222	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
+89	Nitrosospira sp. Nsp14 | SFH38457	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
+90	Nitrosospira sp. Nl5 | SCY45393	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
+91	Nitrosospira sp. Nsp1 | SCX63633	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
+92	Nitrosospira sp. | APZ84161	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira
+93	Nitrosospira multiformis | AAC25057	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira; Nitrosospira multiformis
+94	Nitrosospira multiformis | SDQ35722	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira; Nitrosospira multiformis
+95	Nitrosospira multiformis | SEN16582	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosospira; Nitrosospira multiformis
+96	Nitrosovibrio sp. FJI82 | ABB69924	cellular organisms; Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosovibrio
+97	Nitrosovibrio tenuis | AAB38710	Bacteria; Proteobacteria; Betaproteobacteria; Nitrosomonadales; Nitrosomonadaceae; Nitrosovibrio; Nitrosovibrio tenuis
+98	Haliea sp. ETY-M | BAM38053	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cellvibrionales; Halieaceae; Haliea
+99	Haliea sp. ETY-NAG | BAM38059	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Cellvibrionales; Halieaceae; Haliea
+100	Candidatus Nitrosoglobus terrae | BAW80891	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Candidatus Nitrosoglobus
+101	Nitrosococcus halophilus Nc 4 | ADE13856	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus halophilus
+102	Nitrosococcus oceani ATCC 19707 | AAC25091	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus oceani
+103	Nitrosococcus oceani | AAM34728	Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus oceani
+104	Nitrosococcus oceani | AAM34725	Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus oceani
+105	Nitrosococcus oceani | AAM34721	Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus oceani
+106	Nitrosococcus oceani | AAM34727	Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus oceani
+107	Nitrosococcus watsonii C-113 | ADJ27588	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Chromatiales; Chromatiaceae; Nitrosococcus; Nitrosococcus watsonii
+108	Crenothrix polyspora | ABC59825	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Crenotrichaceae; Crenothrix; Crenothrix polyspora
+109	Crenothrix polyspora | SJM94736	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Crenotrichaceae; Crenothrix; Crenothrix polyspora
+110	Crenothrix polyspora | SJM96179	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Crenotrichaceae; Crenothrix; Crenothrix polyspora
+111	Crenothrix polyspora | SJM89294	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Crenotrichaceae; Crenothrix; Crenothrix polyspora
+112	Candidatus Methylospira mobilis | AMN88683	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Candidatus Methylospira
+113	Methylobacter sp. CMS7 | AGU99225	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter
+114	Methylobacter sp. BB5.1 | AAB70518	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter
+115	Methylobacter sp. LW12 | AAG13080	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter
+116	Methylobacter marinus | ACE95886	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter; Methylobacter marinus
+117	Methylobacter psychrophilus | AAX48776	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter; Methylobacter psychrophilus
+118	Methylobacter tundripaludum SV96 | CAC94471	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylobacter; Methylobacter tundripaludum
+119	Methylocaldum sp. T-025 | BAF49660	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum
+120	Methylocaldum sp. ML65 | AAM47267	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum
+121	Methylocaldum sp. ML39 | AAM47266	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum
+122	Methylocaldum sp. BFH1 | ADC94866	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum
+123	Methylocaldum sp. E10_A | CAD66436	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum
+124	Methylocaldum marinum | BBA35909	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocaldum; Methylocaldum marinum
+125	Methylococcus capsulatus str. Bath | AAU91114	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylococcus; Methylococcus capsulatus
+126	Methylococcus capsulatus | AAQ10311	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylococcus; Methylococcus capsulatus
+127	Methylocucumis oryzae | KJV05401	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylocucumis; Methylocucumis oryzae
+128	Methyloglobulus morosus KoM1 | ESS72026	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methyloglobulus; Methyloglobulus morosus
+129	Methyloglobulus morosus KoM1 | ESS70437	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methyloglobulus; Methyloglobulus morosus
+130	Methyloglobulus morosus KoM1 | ESS67386	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methyloglobulus; Methyloglobulus morosus
+131	Methylomagnum ishizawai | SMF95735	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomagnum; Methylomagnum ishizawai
+132	Methylomagnum ishizawai | SMF97433	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomagnum; Methylomagnum ishizawai
+133	Methylomarinum vadi | BAH22842	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomarinum; Methylomarinum vadi
+134	Methylomicrobium album BG8 | ACN73465	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomicrobium; Methylomicrobium album
+135	Methylomicrobium album | ACE95888	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomicrobium; Methylomicrobium album
+136	Methylomicrobium japanense | BAE86885	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomicrobium; Methylomicrobium japanense
+137	Methylomicrobium pelagicum | AAC61804	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomicrobium; Methylomicrobium pelagicum
+138	Methylomonas sp. LW13 | ACE95890	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
+139	Methylomonas sp. M5 | AEF15856	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
+140	Methylomonas sp. B2Z | BAM37124	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
+141	Methylomonas sp. M5 | AEF15859	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
+142	Methylomonas sp. SM-2017 | BAX00468	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas
+143	Methylomonas koyamae | ATG92172	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas koyamae
+144	Methylomonas koyamae | OAI24036	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas koyamae
+145	Methylomonas koyamae | OAI18884	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas koyamae
+146	Methylomonas lenta | OAI10795	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas lenta
+147	Methylomonas methanica | ACE95893	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas methanica
+148	Methylomonas methanica | OAI07298	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas methanica
+149	Methylomonas methanica | OAI07208	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas methanica
+150	Methylomonas paludis | CCH22593	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylomonas; Methylomonas paludis
+151	Methyloparacoccus murrellii | BAL04120	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methyloparacoccus; Methyloparacoccus murrellii
+152	Methyloprofundus sedimenti | AHA46880	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methyloprofundus; Methyloprofundus sedimenti
+153	Methylosoma difficile | ABD13901	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylosoma; Methylosoma difficile
+154	Methylovulum miyakonense HT12 | BAJ17641	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylovulum; Methylovulum miyakonense
+155	Methylovulum psychrotolerans | ASF47706	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; Methylovulum; Methylovulum psychrotolerans
+156	Methylococcaceae bacterium SF-BR | BAH22845	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+157	Methylococcaceae bacterium ET-SHO | BAH22833	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+158	Methylococcaceae bacterium ET-HIRO | BAH22839	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+159	Methylococcaceae bacterium ET-SHO | BAH22830	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+160	Methylococcaceae bacterium ET-HIRO | BAH22836	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+161	Bathymodiolus symbiont pMMOA-1 | BAB56133	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+162	methanotroph FL-DIKO | AAG16907	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+163	Methylococcaceae bacterium M200 | AEF15858	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+164	methanotroph 'isolate 1' | AAG16916	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylococcaceae; unclassified Methylococcaceae
+165	Methylohalobius crimeensis 10Ki | BAM71040	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylothermaceae; Methylohalobius; Methylohalobius crimeensis
+166	Methylomarinovum caldicuralii | BAF62078	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylothermaceae; Methylomarinovum; Methylomarinovum caldicuralii
+167	Methylothermus subterraneus | BAI52935	Bacteria; Proteobacteria; Gammaproteobacteria; Methylococcales; Methylothermaceae; Methylothermus; Methylothermus subterraneus
+168	Solimonas aquatica | SEQ16222	Bacteria; Proteobacteria; Gammaproteobacteria; Nevskiales; Sinobacteraceae; Solimonas; Solimonas aquatica
+169	Solimonas aquatica | SEQ84470	Bacteria; Proteobacteria; Gammaproteobacteria; Nevskiales; Sinobacteraceae; Solimonas; Solimonas aquatica
+170	endosymbiont of Bathymodiolus azoricus | AAX48775	cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria; unclassified Gammaproteobacteria; unclassified Gammaproteobacteria miscellaneous
+171	Methylacidiphilum sp. RTK17.1 | ANC58170	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum
+172	Methylacidiphilum sp. RTK17.1 | ANC58118	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum
+173	Methylacidiphilum fumariolicum SolV | ABU88152	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum fumariolicum
+174	Methylacidiphilum fumariolicum SolV | CCG92750	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum fumariolicum
+175	Methylacidiphilum infernorum V4 | ABX56601	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum infernorum
+176	Methylacidiphilum kamchatkense Kam1 | ACK55191	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum kamchatkense
+177	Methylacidiphilum kamchatkense Kam1 | ACK55194	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum kamchatkense
+178	Methylacidiphilum kamchatkense Kam1 | ACK55193	cellular organisms; Bacteria; PVC group; Verrucomicrobia; Methylacidiphilae; Methylacidiphilales; Methylacidiphilaceae; Methylacidiphilum; Methylacidiphilum kamchatkense
+179	Methylacidimicrobium tartarophylax | AIN39740	cellular organisms; Bacteria; PVC group; Verrucomicrobia; unclassified Verrucomicrobia; Methylacidimicrobium
+180	Methylacidimicrobium fagopyrum | AIN39737	cellular organisms; Bacteria; PVC group; Verrucomicrobia; unclassified Verrucomicrobia; Methylacidimicrobium
+181	Methylacidimicrobium cyclopophantes | AIN39738	cellular organisms; Bacteria; PVC group; Verrucomicrobia; unclassified Verrucomicrobia; Methylacidimicrobium
+182	Methylacidimicrobium cyclopophantes | AIN39739	cellular organisms; Bacteria; PVC group; Verrucomicrobia; unclassified Verrucomicrobia; Methylacidimicrobium
