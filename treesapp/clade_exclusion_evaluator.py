@@ -593,11 +593,18 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
             tax_ids_string += "\t".join([ref_leaf.number, ref_leaf.description, ref_leaf.lineage])
             tax_ids_handle.write(tax_ids_string + "\n")
 
-    # print("Matching =", n_match, "\tUnclassified =", n_unclassified, "\tShallow =", n_shallow)
+    logging.debug("Reference sequence filtering stats for " + target_clade + "\n" +
+                  "\n".join(["Match taxon\t" + str(n_match),
+                             "Unclassified\t" + str(n_unclassified),
+                             "Too shallow\t" + str(n_shallow),
+                             "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
 
     # fasta
     ref_fasta_dict = read_fasta_to_dict(marker_fa)
     off_target_headers = [num_id + '_' + marker for num_id in off_target_ref_leaves]
+    if len(off_target_headers) == 0:
+        logging.error("No reference sequences were retained for building testing " + target_clade + "\n")
+        sys.exit(19)
     split_files = write_new_fasta(ref_fasta_dict, marker_fa, len(off_target_ref_leaves)+1, off_target_headers)
     if len(split_files) > 1:
         logging.error("Only one FASTA file should have been written.\n")

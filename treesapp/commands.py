@@ -443,18 +443,21 @@ def create(sys_args):
     refpkg_lineages = [ref.lineage for ref in ts_create.ref_pkg.tax_ids_file_to_leaves()]
     marker_package.lowest_confident_rank = create_refpkg.estimate_taxonomic_redundancy(refpkg_lineages)
     create_refpkg.update_build_parameters(param_file, marker_package)
+
+    # Build the regression model of placement distances to taxonomic ranks
+    trainer_cmd = ["-i", ts_create.filtered_fasta,
+                   "-c", ts_create.ref_pkg.prefix,
+                   "-p", ts_create.final_output_dir,
+                   "-o", ts_create.var_output_dir + "placement_trainer" + os.sep,
+                   "-m", ts_create.molecule_type,
+                   "-a", ts_create.acc_to_lin,
+                   "-n", str(args.num_threads)]
+    if args.trim_align:
+        trainer_cmd.append("--trim_align")
     if ts_create.stage_status("train"):
-        # Build the regression model of placement distances to taxonomic ranks
-        trainer_cmd = ["-i", ts_create.filtered_fasta,
-                       "-c", ts_create.ref_pkg.prefix,
-                       "-p", ts_create.final_output_dir,
-                       "-o", ts_create.var_output_dir + "placement_trainer" + os.sep,
-                       "-m", ts_create.molecule_type,
-                       "-a", ts_create.acc_to_lin,
-                       "-n", str(args.num_threads)]
-        if args.trim_align:
-            trainer_cmd.append("--trim_align")
         train(trainer_cmd)
+    else:
+        logging.info("Skipping training:\n$ treesapp train" + ' '.join(trainer_cmd))
 
     ##
     # Finish validating the file and append the reference package build parameters to the master table
@@ -936,6 +939,8 @@ def evaluate(sys_args):
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
     create_refpkg.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
+
+    fasta_records = utilities.remove_elongated_lineages(fasta_records)
 
     logging.info("Selecting representative sequences for each taxon.\n")
 

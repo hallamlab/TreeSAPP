@@ -1021,7 +1021,6 @@ def prep_logging(log_file_name=None, verbosity=False):
     return
 
 
-# TODO: Classes for each of the different analysis types - create, evaluate, assign, update and train
 class TreeSAPP:
     """
     Abstract class for each of the different analysis types - create, evaluate, assign, update and train
@@ -1029,8 +1028,7 @@ class TreeSAPP:
     def __init__(self, cmd):
         # Static values
         self.command = cmd
-        self.refpkg_code_re = re.compile(r'[A-Z]{1,2}[0-9]{4,5}')
-        # TODO: fix this... perhaps import treesapp, treesapp.__path__?
+        self.refpkg_code_re = re.compile(r'[A-Z][0-9]{4,5}')
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
         self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
         self.tree_dir = self.treesapp_dir + 'data' + os.sep + "tree_data" + os.sep
