@@ -305,7 +305,7 @@ def map_headers_to_lineage(assignments, ref_sequences):
                         mapped = True
                         break
                 if not mapped:
-                    logging.warning("Unable to map classified sequence '" + query + "' to a lineage.\n")
+                    logging.error("Unable to map classified sequence '" + query + "' to a lineage.\n")
                     sys.exit(3)
             if len(lineage_assignments[marker][c_lineage]) > len(classified_headers):
                 logging.error(str(len(classified_headers)) + " accessions mapped to " +
@@ -403,20 +403,67 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
     return dereplicated_lineages, taxonomic_filter_stats
 
 
-def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict, taxon=None):
+def str_list_index(lst: list, query: str):
+    i = 0
+    while i < len(lst):
+        if query == lst[i]:
+            break
+        i += 1
+    return i
+
+
+def same_lineage(target_lineage: str, candidate_lineage: str) -> bool:
+    """
+    Identify which candidate lineages are belong to target lineage and are at least as specific
+    1. "Root; Bacteria", "Root"                           False
+    2. "Root; Bacteria", "Root; Archaea"                  False
+    3. "Root; Bacteria", "Root; Bacteria"                 True
+    4. "Root; Bacteria", "Root; Bacteria; Proteobacteria" True
+    5. "Bacteria", "Root; Bacteria; Proteobacteria"       True
+    Runs in O(n) complexity
+    :param target_lineage:
+    :param candidate_lineage:
+    :return: Boolean
+    """
+    target_lineage = clean_lineage_string(target_lineage).split("; ")
+    candidate_lineage = clean_lineage_string(candidate_lineage).split("; ")
+    tlen = len(target_lineage)
+    clen = len(candidate_lineage)
+    k = 0  # For tracking the overlapping positions
+    i = str_list_index(target_lineage, candidate_lineage[0])  # Lineage offset for the target
+    j = str_list_index(candidate_lineage, target_lineage[0])  # Lineage offset for the candidate
+
+    if i == tlen and j == clen:
+        if set(target_lineage).intersection(set(candidate_lineage)):
+            logging.debug("Target '%s' and candidate '%s' lineages were not overlapped " %
+                          (target_lineage, candidate_lineage))
+        return False
+
+    # There is a common string
+    while i+k < tlen and j+k < clen and target_lineage[i+k] == candidate_lineage[j+k]:
+        k += 1
+
+    # The verdict...
+    if i+k == len(target_lineage):
+        return True
+    else:
+        return False
+
+
+def select_rep_seqs(deduplicated_assignments: dict, test_sequences: dict, target_lineage=None):
     """
     Function for creating a fasta-formatted dict from the accessions representing unique taxa in the test sequences
 
     :param deduplicated_assignments: dict of lineages mapped to a list of accessions
     :param test_sequences: list of ReferenceSequence objects
-    :param taxon: A taxonomic lineage to filter the lineages (and sequences) in deduplicated assignments
+    :param target_lineage: A taxonomic lineage to filter the lineages (and sequences) in deduplicated assignments
     :return: Dictionary containing accessions as keys and sequences as values
     """
-    if taxon:
+    if target_lineage:
         filtered_assignments = dict()
-        for lineage in sorted(deduplicated_assignments):
-            if re.search(taxon, lineage):
-                filtered_assignments[lineage] = deduplicated_assignments[lineage]
+        for candidate_lineage in sorted(deduplicated_assignments):
+            if same_lineage(target_lineage, candidate_lineage):
+                filtered_assignments[candidate_lineage] = deduplicated_assignments[candidate_lineage]
     else:
         filtered_assignments = deduplicated_assignments
 
@@ -568,16 +615,17 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
     n_unclassified = 0
     # tax_ids file
     ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
+    target_clade = clean_lineage_string(target_clade, ["Root; "])
     with open(marker_tax_ids, 'w') as tax_ids_handle:
         for ref_leaf in ref_tree_leaves:
             tax_ids_string = ""
-            c_lineage = clean_lineage_string(ref_leaf.lineage)
-            if re.search(target_clade, c_lineage):
-                n_match += 1
-                continue
+            c_lineage = clean_lineage_string(ref_leaf.lineage, ["Root; "])
             sc_lineage = c_lineage.split("; ")
             if len(sc_lineage) < depth:
                 n_shallow += 1
+                continue
+            if target_clade == '; '.join(sc_lineage[:depth+1]):
+                n_match += 1
                 continue
             if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
                 i = 0

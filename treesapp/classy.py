@@ -14,7 +14,7 @@ from json import loads, dumps
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
 from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
-from .lca_calculations import determine_offset, clean_lineage_string
+from .lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
 from . import entrez_utils
 from .external_command_interface import launch_write_command
 from numpy import var
@@ -1956,6 +1956,11 @@ class TaxonTest:
         self.assignments = dict()
         self.taxonomic_tree = None
 
+    def get_optimal_assignment(self):
+        if self.lineage.split('; ')[0] != "Root":
+            self.lineage = "; ".join(["Root"] + self.lineage.split("; "))
+        return optimal_taxonomic_assignment(self.taxonomic_tree, self.lineage)
+
     def summarise_taxon_test(self):
         summary_string = "Test for taxonomic lineage '" + self.lineage + "':\n" + \
                          "\tNumber of query sequences = " + str(len(self.queries)) + "\n" + \
@@ -1965,6 +1970,8 @@ class TaxonTest:
                 summary_string += "Sequences classified as marker '" + marker + "':\n"
                 for lineage in self.assignments[marker]:
                     summary_string += str(len(self.assignments[marker][lineage])) + "\t'" + lineage + "'\n"
+        if self.taxonomic_tree:
+            summary_string += "Optimal taxonomic assignment: '" + self.get_optimal_assignment() + "'\n"
         return summary_string
 
     def filter_assignments(self, target_marker: str):

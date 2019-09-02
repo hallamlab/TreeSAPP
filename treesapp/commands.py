@@ -19,7 +19,7 @@ from . import update_refpkg
 from . import annotate_extra
 from .phylo_dist import trim_lineages_to_rank
 from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
-    prep_logging, dedup_records
+    prep_logging, dedup_records, TaxonTest
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
@@ -1094,7 +1094,7 @@ def evaluate(sys_args):
         # everything has been prepared, only need to parse the classifications and map lineages
         logging.info("Finishing up the mapping of classified, filtered taxonomic sequences.\n")
         for rank in sorted(ts_evaluate.taxa_tests):
-            for test_obj in ts_evaluate.taxa_tests[rank]:
+            for test_obj in ts_evaluate.taxa_tests[rank]:  # type: TaxonTest
                 if test_obj.assignments:
                     marker_assignments = map_headers_to_lineage(test_obj.assignments, fasta_records)
                     # Return the number of correct, classified, and total sequences of that taxon at the current rank
@@ -1111,7 +1111,7 @@ def evaluate(sys_args):
                     for a_rank in rank_assignments:
                         if a_rank != rank and len(rank_assignments[a_rank]) > 0:
                             logging.warning(
-                                rank + "-level clade excluded but classifications were found to be " + a_rank +
+                                rank + "-level clade excluded but optimal classification was found to be " + a_rank +
                                 "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
                             continue
                         if a_rank not in ts_evaluate.classifications:
