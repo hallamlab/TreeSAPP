@@ -11,6 +11,7 @@ from copy import deepcopy
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
+from collections import namedtuple
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
 from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
@@ -1505,12 +1506,13 @@ class Purity(TreeSAPP):
         self.assign_dir = ""
         self.classifications = ""
         self.summarize_dir = ""
+        self.metadata_file = ""
         self.assignments = None
         self.refpkg_build = MarkerBuild()
         self.stages = {0: ModuleFunction("assign", 0),
                        1: ModuleFunction("summarize", 1)}
 
-    def identify_groups_assigned(self):
+    def summarize_groups_assigned(self, metadata: dict):
         unique_orthologs = dict()
         for refpkg, info in self.assignments.items():
             for lineage in info:
@@ -1520,9 +1522,33 @@ class Purity(TreeSAPP):
                         unique_orthologs[bits_pieces[0]] = []
                     unique_orthologs[bits_pieces[0]].append('_'.join(bits_pieces[1:]))
 
-        logging.info("Ortholog\tHits\n" + "-"*20 + "\n" +
-                     "\n".join([k + "\t" + str(len(v)) for k, v in unique_orthologs.items()]) + "\n")
+        logging.info("Ortholog\tHits\tDescription\n" + "-"*36 + "\n" +
+                     "\n".join([k + "\t" + str(len(v)) + "\t" + metadata[k].de
+                                for k, v in unique_orthologs.items()]) + "\n\n")
         return unique_orthologs
+
+    def load_metadata(self):
+        metadat_dict = dict()
+        xtra_dat = namedtuple("xtra_dat", ["id", "ac", "de"])
+        if not os.path.isfile(self.metadata_file):
+            logging.error("Extra information file '" + self.metadata_file + "' doesn't exist!\n")
+            sys.exit(3)
+        try:
+            metadata_handler = open(self.metadata_file, 'r')
+        except IOError:
+            logging.error("Unable to open extra information file '" + self.metadata_file + "' for reading!\n")
+            sys.exit(3)
+        for line in metadata_handler:
+            try:
+                id, accession, desc = line.strip().split("\t")
+            except ValueError:
+                logging.error("Bad format for '" + self.metadata_file + "'. Three tab-separated fields expected.\n" +
+                              "Example line:\n" +
+                              str(line) + "\n")
+                sys.exit(7)
+            metadat_dict[accession] = xtra_dat(id, accession, desc)
+        metadata_handler.close()
+        return metadat_dict
 
 
 class Evaluator(TreeSAPP):

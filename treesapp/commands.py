@@ -920,32 +920,33 @@ def purity(sys_args):
     ref_seqs = fasta.FASTA(args.input)
     ref_seqs.load_fasta()
 
-    assign_args = ["-i", ts_purity.input_sequences, "-o", ts_purity.assign_dir,
-                   "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
-                   "-t", ts_purity.refpkg_build.denominator,
-                   "--overwrite", "--delete"]
-    if args.trim_align:
-        assign_args.append("--trim_align")
-    try:
-        assign(assign_args)
-    except:  # Just in case treesapp assign fails, just continue
-        logging.error("TreeSAPP failed.\n")
+    if ts_purity.stage_status("assign"):
+        assign_args = ["-i", ts_purity.input_sequences, "-o", ts_purity.assign_dir,
+                       "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
+                       "-t", ts_purity.refpkg_build.denominator,
+                       "--overwrite", "--delete"]
+        try:
+            assign(assign_args)
+        except:  # Just in case treesapp assign fails, just continue
+            logging.error("TreeSAPP failed.\n")
 
-    # Parse classification table and identify the groups that were assigned
-    if os.path.isfile(ts_purity.classifications):
-        assigned_lines = file_parsers.read_marker_classification_table(ts_purity.classifications)
-        ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
-    else:
-        logging.error("marker_contig_map.tsv is missing from output directory '" +
-                      os.path.dirname(ts_purity.classifications) + "'\n" +
-                      "Please remove this directory and re-run.\n")
-        sys.exit(5)
+    if ts_purity.stage_status("summarize"):
+        # Parse classification table and identify the groups that were assigned
+        if os.path.isfile(ts_purity.classifications):
+            assigned_lines = file_parsers.read_marker_classification_table(ts_purity.classifications)
+            ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
+        else:
+            logging.error("marker_contig_map.tsv is missing from output directory '" +
+                          os.path.dirname(ts_purity.classifications) + "'\n" +
+                          "Please remove this directory and re-run.\n")
+            sys.exit(5)
 
-    logging.info("\nSummarizing assignments for reference package " + ts_purity.refpkg_build.cog + "\n")
-    # Identify the clades that had multiple groups mapping to them
-    ts_purity.identify_groups_assigned()
-    # TODO: If an information table was provided, map the metadata to classified markers
-    # ts_purity.
+        logging.info("\nSummarizing assignments for reference package " + ts_purity.refpkg_build.cog + "\n")
+        # If an information table was provided, map the metadata to classified markers
+        metadat_dict = ts_purity.load_metadata()
+        # Identify the clades that had multiple groups mapping to them
+        ts_purity.summarize_groups_assigned(metadat_dict)
+
     return
 
 

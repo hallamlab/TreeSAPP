@@ -252,6 +252,7 @@ def add_purity_arguments(parser: TreeSAPPArgumentParser):
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "lineages", "classify", "calculate"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    # TODO: Remove --trim_align from command-line options in parser.add_seq_params()
     return
 
 
@@ -384,6 +385,7 @@ def check_purity_arguments(purity_instance: Purity, args, marker_build_dict: dic
     purity_instance.assign_dir = purity_instance.var_output_dir + "assign" + os.sep
     purity_instance.summarize_dir = purity_instance.var_output_dir + "summarize" + os.sep
     purity_instance.classifications = purity_instance.assign_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
+    purity_instance.metadata_file = args.extra_info
 
     if not os.path.isdir(purity_instance.var_output_dir):
         os.makedirs(purity_instance.var_output_dir)
