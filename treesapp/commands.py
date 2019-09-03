@@ -9,7 +9,8 @@ from . import file_parsers
 from . import fasta
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
-    check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, check_updater_arguments
+    check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments,\
+    check_updater_arguments, check_purity_arguments, add_purity_arguments
 from . import utilities
 from . import wrapper
 from . import entish
@@ -19,7 +20,7 @@ from . import update_refpkg
 from . import annotate_extra
 from .phylo_dist import trim_lineages_to_rank
 from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
-    prep_logging, dedup_records, TaxonTest
+    prep_logging, dedup_records, TaxonTest, Purity
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
@@ -892,6 +893,62 @@ def assign(sys_args):
     return
 
 
+def purity(sys_args):
+    """
+
+    :param sys_args:
+    :return:
+    """
+    parser = TreeSAPPArgumentParser(description="Validate the functional purity of a reference package.")
+    add_purity_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    ts_purity = Purity()
+    ts_purity.furnish_with_arguments(args)
+    ts_purity.check_previous_output(args)
+
+    log_file_name = args.output + os.sep + "TreeSAPP_purity_log.txt"
+    prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\tBeginning purity analysis\t\t\t##\n")
+
+    check_parser_arguments(args, sys_args)
+    marker_build_dict = file_parsers.parse_ref_build_params(ts_purity.treesapp_dir)
+    check_purity_arguments(ts_purity, args, marker_build_dict)
+    ts_purity.validate_continue(args)
+
+    # Load FASTA data
+    ref_seqs = fasta.FASTA(args.input)
+    ref_seqs.load_fasta()
+
+    assign_args = ["-i", ts_purity.input_sequences, "-o", ts_purity.assign_dir,
+                   "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
+                   "-t", ts_purity.refpkg_build.denominator,
+                   "--overwrite", "--delete"]
+    if args.trim_align:
+        assign_args.append("--trim_align")
+    try:
+        assign(assign_args)
+    except:  # Just in case treesapp assign fails, just continue
+        logging.error("TreeSAPP failed.\n")
+
+    # Parse classification table and identify the groups that were assigned
+    if os.path.isfile(ts_purity.classifications):
+        assigned_lines = file_parsers.read_marker_classification_table(ts_purity.classifications)
+        ts_purity.assignments = file_parsers.parse_assignments(assigned_lines)
+    else:
+        logging.error("marker_contig_map.tsv is missing from output directory '" +
+                      os.path.dirname(ts_purity.classifications) + "'\n" +
+                      "Please remove this directory and re-run.\n")
+        sys.exit(5)
+
+    logging.info("\nSummarizing assignments for reference package " + ts_purity.refpkg_build.cog + "\n")
+    # Identify the clades that had multiple groups mapping to them
+    ts_purity.identify_groups_assigned()
+    # TODO: If an information table was provided, map the metadata to classified markers
+    # ts_purity.
+    return
+
+
 def evaluate(sys_args):
     """
     Method for running this script:
@@ -1084,7 +1141,7 @@ def evaluate(sys_args):
                         test_obj.distances = parse_distances(assigned_lines)
                     else:
                         logging.error("marker_contig_map.tsv is missing from output directory '" +
-                                      os.path.basename(classification_table) + "'\n" +
+                                      os.path.dirname(classification_table) + "'\n" +
                                       "Please remove this directory and re-run.\n")
                         sys.exit(21)
         # TODO: Currently emits warning for GraftM and DIAMOND - only needed when running TreeSAPP

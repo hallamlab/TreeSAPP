@@ -1251,6 +1251,8 @@ class TreeSAPP:
                 self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
         elif self.command == "update":
             self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+        elif self.command == "purity":
+            pass
         else:
             logging.error("Unknown sub-command: " + str(self.command) + "\n")
             sys.exit(3)
@@ -1495,6 +1497,32 @@ class Creator(TreeSAPP):
                      "4. $ cp " + self.ref_pkg.profile + ' ' + self.hmm_dir + "\n" +
                      "5. $ cp " + self.ref_pkg.msa + ' ' + self.aln_dir + "\n")
         return
+
+
+class Purity(TreeSAPP):
+    def __init__(self):
+        super(Purity, self).__init__("purity")
+        self.assign_dir = ""
+        self.classifications = ""
+        self.summarize_dir = ""
+        self.assignments = None
+        self.refpkg_build = MarkerBuild()
+        self.stages = {0: ModuleFunction("assign", 0),
+                       1: ModuleFunction("summarize", 1)}
+
+    def identify_groups_assigned(self):
+        unique_orthologs = dict()
+        for refpkg, info in self.assignments.items():
+            for lineage in info:
+                for seq_name in info[lineage]:
+                    bits_pieces = seq_name.split('_')
+                    if bits_pieces[0] not in unique_orthologs:
+                        unique_orthologs[bits_pieces[0]] = []
+                    unique_orthologs[bits_pieces[0]].append('_'.join(bits_pieces[1:]))
+
+        logging.info("Ortholog\tHits\n" + "-"*20 + "\n" +
+                     "\n".join([k + "\t" + str(len(v)) for k, v in unique_orthologs.items()]) + "\n")
+        return unique_orthologs
 
 
 class Evaluator(TreeSAPP):
