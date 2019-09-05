@@ -27,7 +27,7 @@ from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
     summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names
-from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser
+from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
     validate_ref_package_files, restore_reference_package, exclude_clade_from_ref_files, determine_containment,\
@@ -931,6 +931,7 @@ def purity(sys_args):
             logging.error("TreeSAPP failed.\n")
 
     if ts_purity.stage_status("summarize"):
+        metadat_dict = dict()
         # Parse classification table and identify the groups that were assigned
         if os.path.isfile(ts_purity.classifications):
             assigned_lines = file_parsers.read_marker_classification_table(ts_purity.classifications)
@@ -943,9 +944,24 @@ def purity(sys_args):
 
         logging.info("\nSummarizing assignments for reference package " + ts_purity.refpkg_build.cog + "\n")
         # If an information table was provided, map the metadata to classified markers
-        metadat_dict = ts_purity.load_metadata()
-        # Identify the clades that had multiple groups mapping to them
-        ts_purity.summarize_groups_assigned(metadat_dict)
+        if ts_purity.metadata_file:
+            metadat_dict.update(ts_purity.load_metadata())
+        # Identify the number of sequences that are descendents of each orthologous group
+        jplace_file = os.sep.join([ts_purity.assign_dir, "iTOL_output", ts_purity.refpkg_build.cog,
+                                   ts_purity.refpkg_build.cog + "_complete_profile.jplace"])
+        jplace_data = jplace_parser(jplace_file)
+        tree_placement_queries = demultiplex_pqueries(jplace_data)
+        placement_tree = jplace_data.tree
+        node_map = entish.map_internal_nodes_leaves(placement_tree)
+        ortholog_map = ts_purity.assign_leaves_to_orthologs(tree_placement_queries, node_map)
+        ts_purity.summarize_groups_assigned(ortholog_map, metadat_dict)
+
+        # Write each sequence name that can be assigned to an ortholog to the log
+        summary_str = ""
+        for ortholog_name in sorted(ortholog_map, key=lambda x: len(ortholog_map[x])):
+            summary_str += ortholog_name + ":\n\t"
+            summary_str += "\n\t".join(ortholog_map[ortholog_name]) + "\n"
+        logging.debug(summary_str)
 
     return
 
