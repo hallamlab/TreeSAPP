@@ -1204,20 +1204,22 @@ class TreeSAPP:
         :return: None
         """
         if self.command == "assign":
-            assignments_file = self.final_output_dir + os.sep + "marker_contig_map.tsv"
-
             if args.rpkm:
                 if not args.reads:
-                    logging.error("At least one FASTQ file must be provided if -rpkm flag is active!")
+                    if args.reverse:
+                        logging.error("File containing reverse reads provided but forward mates file missing!\n")
+                        sys.exit(3)
+                    else:
+                        logging.error("At least one FASTQ file must be provided if -rpkm flag is active!\n")
+                        sys.exit(3)
+                elif args.reads and not os.path.isfile(args.reads):
+                    logging.error("Path to forward reads ('%s') doesn't exist.\n" % args.reads)
                     sys.exit(3)
-                if args.reverse and not args.reads:
-                    logging.error("File containing reverse reads provided but forward mates file missing!")
+                elif args.reverse and not os.path.isfile(args.reverse):
+                    logging.error("Path to reverse reads ('%s') doesn't exist.\n" % args.reverse)
                     sys.exit(3)
-
-                if os.path.isfile(args.reads) and os.path.isfile(assignments_file):
-                    self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
                 else:
-                    logging.warning("RPKM impossible as " + self.output_dir + " is missing input files.\n")
+                    self.stages[len(self.stages)] = ModuleFunction("rpkm", len(self.stages))
         elif self.command == "create":
             if not args.profile:
                 self.change_stage_status("search", False)

@@ -1504,6 +1504,10 @@ def run_rpkm(rpkm_exe: str, sam_file: str, orf_nuc_fasta: str, rpkm_output_dir: 
 
     rpkm_output_file = '.'.join(sam_file.split('.')[0:-1]) + ".csv"
 
+    if not os.path.isfile(sam_file) or not os.path.isfile(orf_nuc_fasta):
+        logging.warning("RPKM impossible as input files are missing.\n")
+        return None
+
     rpkm_command = [rpkm_exe]
     rpkm_command += ["-c", orf_nuc_fasta]
     rpkm_command += ["-a", sam_file]

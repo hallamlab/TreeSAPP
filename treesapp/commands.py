@@ -871,15 +871,16 @@ def assign(sys_args):
                                                rpkm_output_dir, args)
                 rpkm_output_file = run_rpkm(ts_assign.executables["rpkm"], sam_file,
                                             ts_assign.classified_nuc_seqs, rpkm_output_dir)
-                # BWA chops the sequence names at the first space so all keys in abundance_dict are header.first_split
-                abundance_dict = file_parsers.read_rpkm(rpkm_output_file)
-                # Subset dict to only the classified sequences
-                header_map = {nuc_orfs.header_registry[num_id].first_split: nuc_orfs.header_registry[num_id].original
-                              for num_id in nuc_orfs.header_registry
-                              if nuc_orfs.header_registry[num_id].first_split in abundance_dict}
-                # Convert keys in abundance_dict to header.original for compatibility with sequence names in tree_saps
-                abundance_dict = utilities.rekey_dict(abundance_dict, header_map)
-                summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_assign.final_output_dir)
+                if rpkm_output_file:
+                    # BWA chops the sequence names at spaces so all keys in abundance_dict are header.first_split
+                    abundance_dict = file_parsers.read_rpkm(rpkm_output_file)
+                    # Subset dict to only the classified sequences
+                    header_map = {nuc_orfs.header_registry[num_id].first_split: nuc_orfs.header_registry[num_id].original
+                                  for num_id in nuc_orfs.header_registry
+                                  if nuc_orfs.header_registry[num_id].first_split in abundance_dict}
+                    # Convert keys in abundance_dict to header.original for compatibility with tree_saps sequence names
+                    abundance_dict = utilities.rekey_dict(abundance_dict, header_map)
+                    summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_assign.final_output_dir)
 
         abundify_tree_saps(tree_saps, abundance_dict)
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
