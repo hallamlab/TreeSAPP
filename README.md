@@ -92,18 +92,22 @@ though, as in the previous assign command, we recommend using the `--trim_align`
 
 ## Tutorials
 
-The easiest way to get started with TreeSAPP is by using [Terraform](https://github.com/hallamlab/TreeSAPP/tree/master/terraform)
- to provision a Google Cloud Platform instance with TreeSAPP and all its dependencies. __OUTDATED__
-
 If we do not yet have a reference package for a gene you are interested in,
 please try [building a new reference package](https://github.com/hallamlab/TreeSAPP/blob/master/docs/Marker_package_creation_tutorial.md).
 Of course, if you run into any problems or would like to collaborate on building many reference packages
 don't hesitate to email us or create a new issue with an 'enhancement' label.
 
+To determine whether the sequences used to build your new reference package are what you think they are,
+ and whether it might unexpectedly annotate homologous sequences,
+ see the [purity tutorial](https://github.com/hallamlab/TreeSAPP/blob/master/docs/purity_tutorial.md).
+
 If you are working with a particularly complex reference package, from an orthologous group for example, or have extra
  phylogenetic information you'd like to include in your classifications,
  try [annotating extra features](https://github.com/hallamlab/TreeSAPP/blob/master/docs/layering_tutorial.md) with `treesapp layer`.
 
+The easiest way to get started with TreeSAPP is by using [Terraform](https://github.com/hallamlab/TreeSAPP/tree/master/terraform)
+ to provision a Google Cloud Platform instance with TreeSAPP and all its dependencies.
+ __This is outdated and scripts supporting this are under repair__
 
 Yet to come:
 - [Evaluating classification accuracy]()
