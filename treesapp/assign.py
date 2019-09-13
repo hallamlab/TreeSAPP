@@ -1528,14 +1528,17 @@ def run_rpkm(rpkm_exe: str, sam_file: str, orf_nuc_fasta: str, rpkm_output_dir: 
 def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_build_dict: dict, final_output_dir: str):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
-    :param tree_saps:
+    The abundance_dict contains RPKM values ot contigs whereas tree_saps may be fragments of contigs,
+     and if multiple fragments are classified this could "inflate" the RPKM values. Currently, this is not handled.
+    :param tree_saps: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
     :param abundance_dict: A dictionary mapping predicted (not necessarily classified) seq_names to abundance values
     :param marker_build_dict:
     :param final_output_dir:
     :return: None
     """
-    placement_rpkm_map = dict()
-    marker_rpkm_map = dict()
+    placement_rpkm_map = dict()  # Used to map the internal nodes to the total RPKM of all descendent nodes
+    marker_rpkm_map = dict()  # Used to hold the RPKM sums for each marker
+    orf_rpkms = dict()  # Essentially a duplicate of abundance_dict after the first for-loop
 
     # Identify the internal node each sequence was placed, used for iTOL outputs
     for denominator in tree_saps:
@@ -1545,17 +1548,22 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_buil
             seq_name = re.sub(r"\|{0}\|\d+_\d+$".format(placed_sequence.name), '', placed_sequence.contig_name)
             try:
                 placed_sequence.abundance = abundance_dict.pop(seq_name)
+                orf_rpkms[seq_name] = placed_sequence.abundance
             except KeyError:
-                logging.error("Unable to find sequence '" + seq_name +
-                              "' in RPKM abundance dictionary keys. Examples:\n" +
-                              "\n".join(list(abundance_dict.keys())[0:6]) + "\n")
-                sys.exit(3)
+                if seq_name in orf_rpkms:
+                    placed_sequence.abundance = orf_rpkms[seq_name]
+                else:
+                    logging.error("Unable to find sequence '" + seq_name +
+                                  "' in RPKM abundance dictionary keys. Examples:\n" +
+                                  "\n".join("'" + f + "'" for f in list(abundance_dict.keys())[0:6]) + "\n")
+                    sys.exit(3)
             if placed_sequence.inode not in placement_rpkm_map:
                 placement_rpkm_map[placed_sequence.inode] = 0
 
     if len(abundance_dict) > 0:
         logging.warning(str(len(abundance_dict)) + " sequence names remain in the RPKM abundance dictionary.\n")
         logging.debug("Leftover sequences in abundance dict:\n" + "\n".join(abundance_dict.keys()) + "\n")
+    orf_rpkms.clear()
 
     # Calculate the percentage contribution of each placed sequence
     for denominator in tree_saps:
@@ -1565,10 +1573,9 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_buil
         for placed_sequence in tree_saps[denominator]:
             if not placed_sequence.classified:
                 continue
-            placement = placed_sequence.inode
-            placement_rpkm_map[placement] += float(placed_sequence.abundance)
+            placement_rpkm_map[placed_sequence.inode] += float(placed_sequence.abundance)
             marker_rpkm_total += float(placed_sequence.abundance)
-            marker_rpkm_map[marker][placement] = 0
+            marker_rpkm_map[marker][placed_sequence.inode] = 0
         for placement in marker_rpkm_map[marker]:
             try:
                 percentage = (placement_rpkm_map[placement]*100)/marker_rpkm_total
@@ -1576,6 +1583,7 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_buil
                 percentage = 0
             marker_rpkm_map[marker][placement] = percentage
 
+    # TODO: currently doesn't work as required files are missing. Fix or abandon?
     for marker in marker_rpkm_map:
         ref_marker = utilities.fish_refpkg_from_build_params(marker, marker_build_dict)
 
