@@ -179,7 +179,7 @@
 159	Methanomassiliicoccales archaeon RumEn M2 | KQM10793	cellular organisms; Archaea; Euryarchaeota; Diaforarchaea group; Thermoplasmata; Methanomassiliicoccales; unclassified Methanomassiliicoccales
 160	Thermoplasmatales archaeon BRNA1 | AGI47474	cellular organisms; Archaea; Euryarchaeota; Diaforarchaea group; Thermoplasmata; Thermoplasmatales; unclassified Thermoplasmatales; unclassified Thermoplasmatales miscellaneous
 161	methanogenic archaeon ISO4-H5 | AHY86393	cellular organisms; Archaea; Euryarchaeota; Diaforarchaea group; Thermoplasmata; unclassified Thermoplasmata
-162	Euryarchaeota archaeon 55_53 | KUK04994	cellular organisms; Archaea; Euryarchaeota; unclassified Euryarchaeota; unclassified Euryarchaeota miscellaneous
+162	Methermicoccus shengliensis | WP_084174107	cellular organisms; Archaea; Euryarchaeota; Stenosarchaea group; Methanomicrobia; Methanosarcinales; Methermicoccaceae; Methermicoccus; Methermicoccus shengliensis
 180	Methanosarcinales archaeon | RLG32975	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
 187	Methanosarcinales archaeon | RLG34810	cellular organisms; Archaea; Euryarchaeota; Methanomicrobia; Methanosarcinales; unclassified Methanosarcinales
 163	uncultured archaeon GZfos13E1 | AAU82276	cellular organisms; Archaea; environmental samples
