@@ -189,7 +189,7 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
 
 
 def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
-                          leaf_taxa_map: dict, accession_lineage_map: dict, taxonomic_ranks):
+                          leaf_taxa_map: dict, accession_lineage_map: dict, taxonomic_ranks, refpkg_name):
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
     linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
@@ -201,6 +201,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric sequence identifiers to taxonomic lineages
     :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
     :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
+    :param refpkg_name: The human-readable name for the reference package (ReferencePackage.prefix)
      to rank depth values where Kingdom is 0, Phylum is 1, etc.
     :return: A dictionary storing the sequence names being used to test each taxon within each rank
     """
@@ -215,7 +216,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     # Cluster the training sequences to mitigate harmful redundancy
     test_seqs = FASTA(fasta_input)
     test_seqs.load_fasta()
-    test_seqs.add_accession_to_headers()
+    test_seqs.add_accession_to_headers(refpkg_name)
     # Remove fasta records with duplicate accessions
     test_seqs.dedup_by_accession()
     # Remove fasta records with duplicate sequences
@@ -530,7 +531,8 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train
     rank_training_seqs, dedup_fasta_dict = prepare_training_data(fasta_input, output_dir, executables,
-                                                                 leaf_taxa_map, accession_lineage_map, training_ranks)
+                                                                 leaf_taxa_map, accession_lineage_map, training_ranks,
+                                                                 ref_pkg.prefix)
     # Perform the rank-wise clade exclusion analysis for estimating placement distances
     taxonomic_placement_distances, pqueries = train_placement_distances(rank_training_seqs, training_ranks,
                                                                         ref_fasta_dict, dedup_fasta_dict,

@@ -76,8 +76,8 @@ class Header:
             info_string += "Accession = " + self.accession + "\n"
         return info_string
 
-    def find_accession(self):
-        header_format_re, header_db, header_molecule = get_header_format(self.original)
+    def find_accession(self, refpkg_name=""):
+        header_format_re, header_db, header_molecule = get_header_format(self.original, refpkg_name)
         sequence_info = header_format_re.match(self.original)
         self.accession = return_sequence_info_groups(sequence_info, header_db, self.original).accession
 
@@ -126,10 +126,10 @@ class FASTA:
             logging.error("FASTA file '" + str(self.file) + "' is empty or corrupted - no sequences were found!\n")
             sys.exit(3)
 
-    def add_accession_to_headers(self):
+    def add_accession_to_headers(self, refpkg_name=""):
         for acc in self.header_registry:
             header = self.header_registry[acc]  # type: Header
-            header.find_accession()
+            header.find_accession(refpkg_name)
 
     def mapping_error(self, bad_headers):
         logging.error("No classified sequences were mapped to '" + self.file + "' FASTA dictionary.\n" +
