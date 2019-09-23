@@ -2,9 +2,10 @@ TREE_COLORS
 SEPARATOR TAB
 DATA
 2	range	#d9f0d3	CH3-dependent hydrogenotrophic
-8|149	range	#d9f0d3	CH3-dependent hydrogenotrophic
+8	range	#d9f0d3	CH3-dependent hydrogenotrophic
+148|149	range	#d9f0d3	CH3-dependent hydrogenotrophic
 181|147	range	#762a83	Short-chain alkane oxidation
-145|188	range	#9970ab	Methanotrophic
+145|164	range	#9970ab	Methanotrophic
 174|206	range	#9970ab	Methanotrophic
 5|117	range	#9970ab	Methanotrophic
 73|79	range	#5aae61	CO2-dependent hydrogenotrophic
