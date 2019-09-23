@@ -1,5 +1,5 @@
 1	NM4 | NM423249334157	cellular organisms; Archaea
-2	ANM41 | NM412872330390	cellular organisms; Archaea
+2	ANM41 | NM412872330390	cellular organisms; Archaea; TACK group; Candidatus Verstraetearchaeota
 3	ANME-1-THS | EURA2336EURA1606	cellular organisms; Archaea
 4	Gom-Arc1-GOS | MSRB0112	cellular organisms; Archaea
 5	ANME-2a | ANME2a2303	cellular organisms; Archaea

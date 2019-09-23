@@ -1,19 +1,28 @@
 TREE_COLORS
 SEPARATOR SPACE
 DATA
-175|173 range #543005 Verstraetearchaeota
-204|203 range #A4681A Bathyarchaeota
-166 range #C66F3E Syntrophoarchaeum
-164|165 range #C66F3E Syntrophoarchaeum
-168 range #C66F3E Syntrophoarchaeum
-10|201 range #7D4808 ANME-1
-95|11 range #DDBF7A Methanonatronarchaeia
-17|15 range #EFDCAE Methanomassiliicoccales
-98 range #F5EDD9 Methanopyrus
-84|86 range #ECF2F2 Methanococcales
-80|81 range #CAEAE6 Methanococcales-MrtA
-49|67 range #97D6CD Methanobacteriales-MrtA
-73|59 range #61B7AC Methanobacteriales
-160|144 range #2D8F87 Methanosarcinales
-100|99 range #066B63 Methanocellales
-192|107 range #003C30 Methanomicrobiales
+25 range #714108 Archaeoglobi
+1 range #8d520b TACK-group
+19|24 range #8d520b TACK-group
+2 range #a96c1e Verstraetearchaeota
+20|23 range #a96c1e Verstraetearchaeota
+144|207 range #c28633 GOM-ArcI cluster
+7|13 range #d3aa5f Methanoliparia
+12|16 range #d3aa5f Methanoliparia
+17 range #e2c787 Bathyarchaeota
+18 range #e2c787 Bathyarchaeota
+181 range #efdcad Syntrophoarchaeum
+187|180 range #efdcad Syntrophoarchaeum
+200 range #efdcad Syntrophoarchaeum
+26|194 range #f6ebcd Hadesarchaea
+164|145 range #f5f2e8 ANME-1
+151|152 range #e9f2f1 Methanonatronarchaeia
+161|214 range #d0ece8 Thermoplasmata
+153 range #b1e1da Methanopyrus
+73|79 range #8ad1c6 Methanococcales
+172|184 range #8ad1c6 Methanococcales-MrtA
+55|62 range #3b9b93 Methanobacteriales-MrtA
+69|57 range #3b9b93 Methanobacteriales
+198|132 range #1f827a Methanosarcinales
+150|179 range #02675f Methanocellales
+228|95 range #015147 Methanomicrobiales

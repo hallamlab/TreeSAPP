@@ -5,24 +5,28 @@ STRIP_WIDTH 75
 MARGIN 0
 SHOW_INTERNAL 1
 DATA
-1 #543005 TACK-group
-25 #543005 TACK-group
-19|24 #543005 TACK-group
-20|23 #543005 Verstraetearchaeota
-17 #7D4808 Bathyarchaeota
-18 #7D4808 Bathyarchaeota
-181 #7D4808 Syntrophoarchaeum
-187|180 #7D4808 Syntrophoarchaeum
-200 #7D4808 Syntrophoarchaeum
-26|194 #C66F3E Hadesarchaea
-164|145 #A4681A ANME-1
-151|152 #DDBF7A Methanonatronarchaeia
-161|214 #EFDCAE Thermoplasmata
-153 #F5EDD9 Methanopyrus
-73|79 #ECF2F2 Methanococcales
-172|184 #CAEAE6 Methanococcales-MrtA
-55|62 #97D6CD Methanobacteriales-MrtA
-69|57 #61B7AC Methanobacteriales
-198|132 #2D8F87 Methanosarcinales
-150|179 #066B63 Methanocellales
-228|95 #003C30 Methanomicrobiales
+25 #714108 Archaeoglobi
+1 #8d520b TACK-group
+19|24 #8d520b TACK-group
+2 #a96c1e Verstraetearchaeota
+20|23 #a96c1e Verstraetearchaeota
+144|207 #c28633 GOM-ArcI cluster
+7|13 #d3aa5f Methanoliparia
+12|16 #d3aa5f Methanoliparia
+17 #e2c787 Bathyarchaeota
+18 #e2c787 Bathyarchaeota
+181 #efdcad Syntrophoarchaeum
+187|180 #efdcad Syntrophoarchaeum
+200 #efdcad Syntrophoarchaeum
+26|194 #f6ebcd Hadesarchaea
+164|145 #f5f2e8 ANME-1
+151|152 #e9f2f1 Methanonatronarchaeia
+161|214 #d0ece8 Thermoplasmata
+153 #b1e1da Methanopyrus
+73|79 #8ad1c6 Methanococcales
+172|184 #8ad1c6 Methanococcales-MrtA
+55|62 #3b9b93 Methanobacteriales-MrtA
+69|57 #3b9b93 Methanobacteriales
+198|132 #1f827a Methanosarcinales
+150|179 #02675f Methanocellales
+228|95 #015147 Methanomicrobiales
