@@ -11,6 +11,7 @@ from copy import deepcopy
 from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
+from collections import namedtuple
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
 from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table
 from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
@@ -264,7 +265,7 @@ class ItolJplace:
         :return:
         """
         summary_string = ""
-        summary_string += "\nInformation for query sequence '" + self.contig_name + "'\n"
+        summary_string += "\nInformation for query sequence '" + str(self.contig_name) + "'\n"
         summary_string += str(len(self.placements)) + " sequence(s) grafted onto the " + self.name + " tree.\n"
         # summary_string += "Reference tree:\n")
         # summary_string += self.tree + "\n")
@@ -1253,6 +1254,8 @@ class TreeSAPP:
                 self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
         elif self.command == "update":
             self.acc_to_lin = self.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
+        elif self.command == "purity":
+            pass
         else:
             logging.error("Unknown sub-command: " + str(self.command) + "\n")
             sys.exit(3)
@@ -1497,6 +1500,91 @@ class Creator(TreeSAPP):
                      "4. $ cp " + self.ref_pkg.profile + ' ' + self.hmm_dir + "\n" +
                      "5. $ cp " + self.ref_pkg.msa + ' ' + self.aln_dir + "\n")
         return
+
+
+class Purity(TreeSAPP):
+    def __init__(self):
+        super(Purity, self).__init__("purity")
+        self.assign_dir = ""
+        self.classifications = ""
+        self.summarize_dir = ""
+        self.metadata_file = ""
+        self.assignments = None
+        self.refpkg_build = MarkerBuild()
+        self.stages = {0: ModuleFunction("assign", 0),
+                       1: ModuleFunction("summarize", 1)}
+
+    def summarize_groups_assigned(self, ortholog_map: dict, metadata=None):
+        unique_orthologs = dict()
+        tree_leaves = self.ref_pkg.tax_ids_file_to_leaves()
+        for refpkg, info in self.assignments.items():
+            for lineage in info:
+                for seq_name in info[lineage]:
+                    bits_pieces = seq_name.split('_')
+                    if bits_pieces[0] not in unique_orthologs:
+                        unique_orthologs[bits_pieces[0]] = []
+                    unique_orthologs[bits_pieces[0]].append('_'.join(bits_pieces[1:]))
+
+        # Summarize the counts in the log file
+        summary_str = "Ortholog\tHits\tLeaves\tTree-coverage\tDescription\n" + '-'*80 + "\n"
+        for og_name in sorted(ortholog_map, key=lambda x: len(ortholog_map[x])):
+            n_leaves = len(ortholog_map[og_name])
+            perc_coverage = round(float((n_leaves*100)/len(tree_leaves)), 1)
+            try:
+                desc = metadata[og_name].de
+            except (TypeError, KeyError):
+                desc = "NA"
+            summary_str += "\t".join([og_name,
+                                      str(len(unique_orthologs[og_name])), str(n_leaves), str(perc_coverage),
+                                      desc]) + "\n"
+        logging.info(summary_str + "\n")
+
+        return
+
+    def load_metadata(self) -> dict:
+        metadat_dict = dict()
+        xtra_dat = namedtuple("xtra_dat", ["id", "ac", "de"])
+        if not os.path.isfile(self.metadata_file):
+            logging.error("Extra information file '" + self.metadata_file + "' doesn't exist!\n")
+            sys.exit(3)
+        try:
+            metadata_handler = open(self.metadata_file, 'r')
+        except IOError:
+            logging.error("Unable to open extra information file '" + self.metadata_file + "' for reading!\n")
+            sys.exit(3)
+        for line in metadata_handler:
+            try:
+                id, accession, desc = line.strip().split("\t")
+            except ValueError:
+                logging.error("Bad format for '" + self.metadata_file + "'. Three tab-separated fields expected.\n" +
+                              "Example line:\n" +
+                              str(line) + "\n")
+                sys.exit(7)
+            metadat_dict[accession] = xtra_dat(id, accession, desc)
+        metadata_handler.close()
+        return metadat_dict
+
+    def assign_leaves_to_orthologs(self, p_queries: list, internal_node_map: dict) -> dict:
+        ortholog_map = dict()
+        leaf_map = dict()
+        tree_leaves = self.ref_pkg.tax_ids_file_to_leaves()
+        for leaf in tree_leaves:
+            leaf_map[leaf.number] = leaf.description
+        for p_query in p_queries:  # type: TreeProtein
+            if type(p_query.contig_name) is list and len(p_query.contig_name):
+                p_query.contig_name = p_query.contig_name[0]
+            seq_info = re.match(r"(.*)\|" + re.escape(p_query.name) + r"\|(\\d+)_(\\d+)$", p_query.contig_name)
+            if seq_info:
+                p_query.contig_name = seq_info.group(1)
+            p_query.inode = int(p_query.get_jplace_element("edge_num"))
+            leaves = internal_node_map[p_query.inode]
+            ortholog_name = p_query.contig_name.split('_')[0]
+            if ortholog_name not in ortholog_map:
+                ortholog_map[ortholog_name] = []
+            for descendent in leaves:
+                ortholog_map[ortholog_name].append(leaf_map[descendent])
+
+        return ortholog_map
 
 
 class Evaluator(TreeSAPP):

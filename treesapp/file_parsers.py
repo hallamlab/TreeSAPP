@@ -13,7 +13,7 @@ from .fasta import read_fasta_to_dict
 __author__ = 'Connor Morgan-Lang'
 
 
-def parse_ref_build_params(base_dir: str, targets: list):
+def parse_ref_build_params(base_dir: str, targets=None):
     """
     Returns a dictionary of MarkerBuild objects storing information pertaining to the build parameters of each marker.
     :param base_dir: Path to the treesapp package directory containing 'data/ref_build_parameters.tsv'
