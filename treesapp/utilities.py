@@ -444,7 +444,7 @@ def clean_lineage_string(lineage: str, also=None) -> str:
                 reconstructed_lineage = reconstructed_lineage + str(rank) + '; '
         reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
         lineage = reconstructed_lineage
-    return lineage
+    return re.sub(r"^; ", '', lineage)
 
 
 def remove_elongated_lineages(fasta_records: dict, guarantees=None):
