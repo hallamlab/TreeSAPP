@@ -333,6 +333,12 @@ def create(sys_args):
                                                                ts_create.executables["mafft"],
                                                                ts_create.var_output_dir, args.num_threads)
 
+        # This precautionary measure is for `create` called from `update` and reference seqs have the assign signature
+        accession_ids = [fasta_records[num_id].accession for num_id in fasta_records]
+        name_map = update_refpkg.strip_assigment_pattern(accession_ids, ts_create.ref_pkg.prefix)
+        for num_id in fasta_records:
+            record = fasta_records[num_id]
+            record.accession = name_map[record.accession]
         ##
         # Re-order the fasta_records by their lineages (not phylogenetic, just alphabetical sort)
         # Remove the cluster members since they will no longer be used
@@ -394,9 +400,9 @@ def create(sys_args):
         if args.trim_align:
             trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_create.executables,
                                                                    {marker_package.denominator:
-                                                                        [ts_create.ref_pkg.msa]},
+                                                                    [ts_create.ref_pkg.msa]},
                                                                    {marker_package.denominator:
-                                                                        marker_package})
+                                                                    marker_package})
             trimmed_mfa_file = trimmed_mfa_files[marker_package.denominator]
             unique_ref_headers = set(
                 [re.sub(r"_{0}".format(ts_create.ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])

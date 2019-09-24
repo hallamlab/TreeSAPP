@@ -82,7 +82,7 @@ def validate_mixed_lineages(mixed_seq_lineage_map: dict) -> None:
     return
 
 
-def strip_assigment_pattern(seq_names: list, refpkg_name: str):
+def strip_assigment_pattern(seq_names: list, refpkg_name: str) -> dict:
     """
     Strips the |RefPkg|start_stop pattern from the end of sequence names
     :param seq_names: A list of sequence names (headers) that were assigned using TreeSAPP

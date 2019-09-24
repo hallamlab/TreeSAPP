@@ -34,7 +34,7 @@ def prepend_deep_rank(seq_lineage_dict):
     return
 
 
-def rekey_dict(og_dict, key_map):
+def rekey_dict(og_dict: dict, key_map: dict) -> dict:
     """
     Creates a new dictionary with new keys, indicated by a map, mapped to the original values.
     Logs a warning if not all of the original keys are popped.
