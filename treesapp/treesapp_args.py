@@ -4,7 +4,7 @@ import sys
 import re
 import logging
 from glob import glob
-from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater
+from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
 from .utilities import available_cpu_count, get_refpkg_build
 from .entrez_utils import read_accession_taxa_map
 
@@ -239,6 +239,23 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                    help="Do not require any user input during runtime.")
 
 
+def add_purity_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_io()
+    parser.add_seq_params()
+    parser.add_compute_miscellany()
+    parser.reqs.add_argument("-r", "--reference_marker", dest="refpkg", required=True,
+                             help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)")
+    parser.reqs.add_argument("-p", "--pkg_path", dest="pkg_path", required=True,
+                             help="Path to the reference package.\n")
+    parser.optopt.add_argument("-x", "--extra_info", required=False, default=None,
+                               help="File mapping header prefixes to description information.")
+    parser.optopt.add_argument("--stage", default="continue", required=False,
+                               choices=["continue", "lineages", "classify", "calculate"],
+                               help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    # TODO: Remove --trim_align from command-line options in parser.add_seq_params()
+    return
+
+
 def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
     parser.add_io()
     parser.add_seq_params()
@@ -309,7 +326,7 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser):
                              help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
                                   "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
     parser.reqs.add_argument("-p", "--pkg_path", required=True,
-                             help="Path to the reference package.\n",)
+                             help="Path to the reference package.\n")
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
                                help="Flag indicating input sequences need to be purified using an HMM profile.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
@@ -350,6 +367,28 @@ def check_parser_arguments(args, sys_args):
         logging.warning("Number of threads specified is greater than those available! "
                         "Using maximum threads available (" + str(available_cpu_count()) + ")\n")
         args.num_threads = available_cpu_count()
+
+    return
+
+
+def check_purity_arguments(purity_instance: Purity, args, marker_build_dict: dict):
+    purity_instance.ref_pkg.prefix = args.refpkg
+    purity_instance.refpkg_build = get_refpkg_build(purity_instance.ref_pkg.prefix,
+                                                    marker_build_dict,
+                                                    purity_instance.refpkg_code_re)
+    purity_instance.pkg_path = args.pkg_path
+    purity_instance.ref_pkg.gather_package_files(purity_instance.pkg_path, purity_instance.molecule_type)
+
+    ##
+    # Define locations of files TreeSAPP outputs
+    ##
+    purity_instance.assign_dir = purity_instance.var_output_dir + "assign" + os.sep
+    purity_instance.summarize_dir = purity_instance.var_output_dir + "summarize" + os.sep
+    purity_instance.classifications = purity_instance.assign_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
+    purity_instance.metadata_file = args.extra_info
+
+    if not os.path.isdir(purity_instance.var_output_dir):
+        os.makedirs(purity_instance.var_output_dir)
 
     return
 
