@@ -2,7 +2,9 @@ import os
 import sys
 import re
 import logging
+from pygtrie import StringTrie
 from .external_command_interface import launch_write_command
+from treesapp.utilities import clean_lineage_string, load_taxonomic_trie
 from . import wrapper
 
 
@@ -84,7 +86,16 @@ def reformat_ref_seq_descriptions(original_header_map):
     return reformatted_header_map
 
 
-def map_classified_seqs(ref_pkg_name, assignments, unmapped_seqs):
+def map_classified_seqs(ref_pkg_name: str, assignments: dict, unmapped_seqs: list) -> dict:
+    """
+    An algorithmically slow, O(n^2), process to assign sequences to their respective taxonomic lineages.
+    This function is necessary as the sequence names in assignments and unmapped_seqs are not identical!
+
+    :param ref_pkg_name: Name of the reference package (e.g. McrA). Necessary for matching regex of classified sequence
+    :param assignments: Dictionary mapping queries assigned to taxonomic lineages, indexed by refpkg name
+    :param unmapped_seqs: List of sequence names
+    :return: Dictionary mapping classified query sequences to their respective taxonomic lineage
+    """
     classified_seq_lineage_map = dict()
     for lineage in assignments[ref_pkg_name]:
         # Map the classified sequence to the header in FASTA
@@ -103,6 +114,33 @@ def map_classified_seqs(ref_pkg_name, assignments, unmapped_seqs):
                       "\n".join(unmapped_seqs) + "\n")
         sys.exit(5)
     return classified_seq_lineage_map
+
+
+def validate_mixed_lineages(mixed_seq_lineage_map: dict) -> None:
+    """
+    Function to ensure all lineages begin at the same rank, typically either 'Root' or 'cellular organisms' if appropriate
+    :param mixed_seq_lineage_map: A dictionary mapping sequence names (keys) to taxonomic lineages (values)
+    :return: None
+    """
+    superfluous_prefixes = set()
+    
+    lineage_list = list(mixed_seq_lineage_map.values())
+    taxa_trie = load_taxonomic_trie(lineage_list)  # type: StringTrie
+    for taxon in taxa_trie:
+        # Find all the prefixes that are inconsistent across lineages,
+        # by seeing if the entire subtrees are present in the trie
+        i = 0
+        lineage_ranks = taxon.split('; ')
+        while i < len(lineage_ranks) and taxa_trie.has_subtrie('; '.join(lineage_ranks[i+1:])):
+            superfluous_prefixes.add(lineage_ranks[i])
+            i += 1
+
+    # Don't want to use `clean_lineage_string` here to maintain auxiliary ranks - just remove prefixes
+    prefix_re = re.compile("|".join([prefix + "; " for prefix in superfluous_prefixes]))
+    for seq_name in sorted(mixed_seq_lineage_map, key=lambda x: mixed_seq_lineage_map[x]):
+        mixed_seq_lineage_map[seq_name] = prefix_re.sub('', mixed_seq_lineage_map[seq_name])
+
+    return
 
 
 def strip_assigment_pattern(seq_names: list, refpkg_name: str):

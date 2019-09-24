@@ -5,17 +5,17 @@ import sys
 import re
 import logging
 from pygtrie import StringTrie
-from .utilities import median, clean_lineage_string
+from .utilities import median, clean_lineage_string, load_taxonomic_trie
 
 
 def all_possible_assignments(tax_ids_file):
-    taxonomic_tree = StringTrie(separator='; ')
     try:
         cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
     except IOError:
         logging.error("Unable to open " + str(tax_ids_file) + " for reading.\n")
         sys.exit(21)
 
+    lineage_list = list()
     for line in cog_tax_ids:
         line = line.strip()
         try:
@@ -32,15 +32,11 @@ def all_possible_assignments(tax_ids_file):
             logging.error("Unexpected number of fields in " + tax_ids_file +
                           ".\nInvoked .split(\'\\t\') on line " + str(line))
             sys.exit(21)
-
-        i = 0
-        ranks = len(lineage)
-        while i < len(lineage):
-            taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
-            i += 1
+        lineage_list.append(lineage)
 
     cog_tax_ids.close()
-    return taxonomic_tree
+
+    return load_taxonomic_trie(lineage_list)
 
 
 def grab_graftm_taxa(tax_ids_file):

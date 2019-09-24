@@ -571,6 +571,9 @@ def update(sys_args):
                            leaf.lineage for leaf in ref_seq_lineage_info}
     classified_seq_lineage_map.update({ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]:
                                        leaf.lineage for leaf in ref_seq_lineage_info})
+    update_refpkg.validate_mixed_lineages(classified_seq_lineage_map)
+    utilities.prepend_deep_rank(classified_seq_lineage_map)
+
     utilities.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
 
     ##

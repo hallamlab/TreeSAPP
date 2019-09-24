@@ -9,6 +9,29 @@ import time
 from collections import namedtuple
 from shutil import rmtree
 from .external_command_interface import launch_write_command
+from pygtrie import StringTrie
+
+
+def load_taxonomic_trie(lineages: list) -> StringTrie:
+    taxonomic_tree = StringTrie(separator='; ')
+
+    for lineage in lineages:
+        i = 0
+        ranks = len(lineage)
+        while i < len(lineage):
+            taxonomic_tree["; ".join(lineage.split("; ")[:ranks - i])] = True
+            i += 1
+
+    return taxonomic_tree
+
+
+def prepend_deep_rank(seq_lineage_dict):
+    cellular_organisms = ["Bacteria", "Archaea", "Eukaryota"]
+    for seq_name in seq_lineage_dict:
+        lineage = seq_lineage_dict[seq_name]
+        if lineage.split("; ")[0] in cellular_organisms:
+            seq_lineage_dict[seq_name] = "cellular organisms; " + lineage
+    return
 
 
 def rekey_dict(og_dict, key_map):
