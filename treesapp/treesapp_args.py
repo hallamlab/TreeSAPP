@@ -578,6 +578,7 @@ def check_create_arguments(creator: Creator, args):
 def check_updater_arguments(updater: Updater, args, marker_build_dict):
     updater.ref_pkg.prefix = args.name
     updater.seq_names_to_taxa = args.seq_names_to_taxa
+    updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
     updater.target_marker = get_refpkg_build(updater.ref_pkg.prefix, marker_build_dict, updater.refpkg_code_re)
     if not args.identity:
         updater.perc_id = updater.target_marker.pid

@@ -513,9 +513,12 @@ def update(sys_args):
     classified_fasta.load_fasta()
     classified_lines = file_parsers.read_marker_classification_table(ts_updater.assignment_table)
     high_likelihood_seqs = update_refpkg.filter_by_lwr(classified_lines, args.min_lwr)
+    resolved_seqs = update_refpkg.filter_by_lineage_depth(classified_lines,
+                                                          ts_updater.rank_depth_map[args.min_taxonomic_rank])
+    candidate_update_seqs = high_likelihood_seqs.intersection(resolved_seqs)
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
     name_map = update_refpkg.strip_assigment_pattern(classified_fasta.get_seq_names(), ts_updater.ref_pkg.prefix)
-    classified_targets = update_refpkg.intersect_incomparable_lists(classified_targets, high_likelihood_seqs, name_map)
+    classified_targets = update_refpkg.intersect_incomparable_lists(classified_targets, candidate_update_seqs, name_map)
 
     if len(classified_targets) == 0:
         logging.error("No new candidate reference sequences. Skipping update.\n")
