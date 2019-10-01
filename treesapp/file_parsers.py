@@ -6,7 +6,7 @@ import re
 import logging
 from collections import namedtuple
 from .classy import TreeLeafReference, MarkerBuild, Cluster
-from .HMMER_domainTblParser import DomainTableParser,\
+from .HMMER_domainTblParser import DomainTableParser, HmmSearchStats,\
     format_split_alignments, filter_incomplete_hits, filter_poor_hits, renumber_multi_matches, detect_orientation
 from .fasta import read_fasta_to_dict
 
@@ -259,14 +259,7 @@ def parse_domain_tables(args, hmm_domtbl_files):
 
     logging.info("Parsing HMMER domain tables for high-quality matches... ")
 
-    raw_alignments = 0
-    seqs_identified = 0
-    fragmented = 0
-    glued = 0
-    dropped = 0
-    bad = 0
-    short = 0
-    multi_alignments = 0  # matches of the same query to a different HMM (>1 lines)
+    search_stats = HmmSearchStats()
     hmm_matches = dict()
     orf_gene_map = dict()
     optional_matches = list()
@@ -276,13 +269,9 @@ def parse_domain_tables(args, hmm_domtbl_files):
         rp_marker, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
         domain_table = DomainTableParser(domtbl_file)
         domain_table.read_domtbl_lines()
-        distinct_matches, fragmented, glued, multi_alignments, raw_alignments = format_split_alignments(domain_table,
-                                                                                                        fragmented,
-                                                                                                        glued,
-                                                                                                        multi_alignments,
-                                                                                                        raw_alignments)
-        purified_matches, bad = filter_poor_hits(args, distinct_matches, bad)
-        complete_gene_hits, short = filter_incomplete_hits(args, purified_matches, short)
+        distinct_matches = format_split_alignments(domain_table, search_stats)
+        purified_matches = filter_poor_hits(args, distinct_matches, search_stats)
+        complete_gene_hits = filter_incomplete_hits(args, purified_matches, search_stats)
         renumber_multi_matches(complete_gene_hits)
 
         for match in complete_gene_hits:
@@ -295,15 +284,15 @@ def parse_domain_tables(args, hmm_domtbl_files):
                 orf_gene_map[match.orf][match.target_hmm] = [match]
             if match.target_hmm not in hmm_matches.keys():
                 hmm_matches[match.target_hmm] = list()
-    dropped += bad + short
+    search_stats.num_dropped()
     for orf in orf_gene_map:
         if len(orf_gene_map[orf]) == 1:
             for target_hmm in orf_gene_map[orf]:
                 for match in orf_gene_map[orf][target_hmm]:
                     hmm_matches[target_hmm].append(match)
-                    seqs_identified += 1
+                    search_stats.seqs_identified += 1
         else:
-            multi_alignments += 1
+            search_stats.multi_alignments += 1
             # Remove all the overlapping domains - there can only be one highlander
             for target_hmm in orf_gene_map[orf]:
                 optional_matches += orf_gene_map[orf][target_hmm]
@@ -311,28 +300,22 @@ def parse_domain_tables(args, hmm_domtbl_files):
             for discrete_match in best_discrete_matches(optional_matches):
                 hmm_matches[discrete_match.target_hmm].append(discrete_match)
                 retained += 1
-            dropped += (len(optional_matches) - retained)
-            seqs_identified += retained
+            search_stats.dropped += (len(optional_matches) - retained)
+            search_stats.seqs_identified += retained
             optional_matches.clear()
 
     logging.info("done.\n")
 
-    alignment_stat_string = ""
-    alignment_stat_string += "\tInitial alignments:\t" + str(raw_alignments) + "\n"
-    alignment_stat_string += "\tAlignments discarded:\t" + str(dropped) + "\n"
-    alignment_stat_string += "\tFragmented alignments:\t" + str(fragmented) + "\n"
-    alignment_stat_string += "\tAlignments scaffolded:\t" + str(glued) + "\n"
-    alignment_stat_string += "\tMulti-alignments:\t" + str(multi_alignments) + "\n"
-    alignment_stat_string += "\tSequences identified:\t" + str(seqs_identified) + "\n"
+    alignment_stat_string = search_stats.summarize()
 
-    if seqs_identified == 0 and dropped == 0:
+    if search_stats.seqs_identified == 0 and search_stats.dropped == 0:
         logging.warning("No alignments found! TreeSAPP is exiting now.\n")
         sys.exit(0)
-    if seqs_identified == 0 and dropped > 0:
-        logging.warning("No alignments (" + str(seqs_identified) + '/' + str(dropped) +
+    if search_stats.seqs_identified == 0 and search_stats.dropped > 0:
+        logging.warning("No alignments (" + str(search_stats.seqs_identified) + '/' + str(search_stats.dropped) +
                         ") met the quality cut-offs! TreeSAPP is exiting now.\n")
-        alignment_stat_string += "\tPoor quality alignments:\t" + str(bad) + "\n"
-        alignment_stat_string += "\tShort alignments:\t" + str(short) + "\n"
+        alignment_stat_string += "\tPoor quality alignments:\t" + str(search_stats.bad) + "\n"
+        alignment_stat_string += "\tShort alignments:\t" + str(search_stats.short) + "\n"
         logging.debug(alignment_stat_string)
         sys.exit(0)
 

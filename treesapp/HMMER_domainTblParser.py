@@ -68,6 +68,34 @@ def format_hmmer_domtbl_line(line):
     return stats
 
 
+class HmmSearchStats:
+    def __init__(self):
+        self.raw_alignments = 0
+        self.seqs_identified = 0
+        self.fragmented = 0
+        self.inverted = 0
+        self.glued = 0
+        self.dropped = 0
+        self.bad = 0
+        self.short = 0
+        self.multi_alignments = 0  # matches of the same query to a different HMM (>1 lines)
+
+    def num_dropped(self):
+        self.dropped = self.inverted + self.bad + self.short
+        return self.dropped
+
+    def summarize(self):
+        alignment_stat_string = ""
+        alignment_stat_string += "\tInitial alignments:\t" + str(self.raw_alignments) + "\n"
+        alignment_stat_string += "\tAlignments discarded:\t" + str(self.dropped) + "\n"
+        alignment_stat_string += "\tFragmented alignments:\t" + str(self.fragmented) + "\n"
+        alignment_stat_string += "\tInversions detected:\t" + str(self.inverted) + "\n"
+        alignment_stat_string += "\tAlignments scaffolded:\t" + str(self.glued) + "\n"
+        alignment_stat_string += "\tMulti-alignments:\t" + str(self.multi_alignments) + "\n"
+        alignment_stat_string += "\tSequences identified:\t" + str(self.seqs_identified) + "\n"
+        return alignment_stat_string
+
+
 class HmmMatch:
     def __init__(self):
         self.genome = ""  # Name of the input file (Metagenome, SAG, MAG, or isolate genome)
@@ -86,9 +114,10 @@ class HmmMatch:
         self.ieval = 0.0
         self.eval = 0.0
         self.full_score = 0
+        self.next_domain = None  # The next domain aligned by hmmsearch
 
     def get_info(self):
-        info_string = "Info for " + str(self.orf) + " in " + self.genome + ":\n"
+        info_string = "Info for query " + str(self.orf) + ":\n"
         info_string += "\tHMM = " + self.target_hmm + ", length = " + str(self.hmm_len) + "\n"
         info_string += "\tSequence length = " + str(self.seq_len) + "\n"
         info_string += "\tAligned length = " + str(self.end - self.start) + "\n"
@@ -99,6 +128,40 @@ class HmmMatch:
         info_string += "\tacc = " + str(self.acc) + "\n"
         info_string += "\tfull score = " + str(self.full_score) + "\n"
         return info_string
+
+    def subsequent_matches(self):
+        if not self.next_domain:
+            return [self]
+        return [self] + self.next_domain.subsequent_matches()
+
+    def colinear(self):
+        if not self.next_domain:
+            return True
+        if self.next_domain.colinear():
+            if self.pend < self.next_domain.pend and self.pstart < self.next_domain.pstart:
+                return True
+        return False
+
+    def contains_inversion(self):
+        """
+        Asserting this HmmMatch instance is the first alignment (and therefore the left-most alignment on the query)
+        this checks the profile-start and profile-stop positions against the other alignment fragments to ensure
+        they are the smallest (derived from the left-most position of the HMM profile).
+        Otherwise, the positions have been inverted, in other words a section of the gene has been rearranged.
+        :return:
+        """
+        if self.of <= 1 or not self.next_domain:
+            return False
+        if self.num != 1:
+            logging.warning("Iterator bug found while detecting chimeric alignments: HmmMatch.num != 1.\n")
+        elif self.num == 1 and self.next_domain:
+            if self.colinear():
+                return False
+            else:
+                return True
+        else:
+            logging.error("Unexpected HmmMatch state.\n")
+            sys.exit(13)
 
 
 class DomainTableParser(object):
@@ -370,27 +433,39 @@ def consolidate_subalignments(fragmented_alignment_data, alignment_relations, di
     return distinct_alignments
 
 
-def format_split_alignments(domain_table, num_fragmented, glued, multi_alignments, raw_alignments):
+def assemble_domain_aligments(fragmented_domain_alignments: list, search_stats: HmmSearchStats, distinct_alignments):
+    frags_pre_scaffolding = len(fragmented_domain_alignments)
+    # STEP 1: Scaffold the alignments covering overlapping regions on the query sequence
+    scaffold_subalignments(fragmented_domain_alignments)
+    if frags_pre_scaffolding != len(fragmented_domain_alignments):
+        search_stats.glued += (frags_pre_scaffolding - len(fragmented_domain_alignments))
+
+    # STEP 2: Determine the order and orientation of the alignments
+    alignment_relations = orient_alignments(fragmented_domain_alignments)
+
+    # STEP 3: Decide what to do with the fragmented alignments: join or split?
+    distinct_alignments = consolidate_subalignments(fragmented_domain_alignments,
+                                                    alignment_relations,
+                                                    distinct_alignments)
+    return distinct_alignments
+
+
+def format_split_alignments(domain_table, search_stats: HmmSearchStats):
     """
     Handles the alignments where 'of' > 1
     If the alignment covers the whole target HMM or if the distance between the two parts of the alignment
     are very far apart, then the alignment will be divided into two unrelated alignments
     If the alignment parts are near together and/or each part covers a portion of the HMM, then they will be joined
-    :param num_fragmented: Accumulator for the number of HMM alignments with greater than 1 sub-alignments ('of')
-    :param glued:
-    :param multi_alignments: Accumulator for the number of query sequences with alignments to >1 HMM profiles
-    :param raw_alignments: Accumulator for the number of alignments in all domain tables
     :param domain_table: DomainTableParser() object
+    :param search_stats: HmmSearchStats() instance containing accumulators to track alignment parsing
     :return:
     """
     # Dictionary of single sequence alignments to return
     distinct_alignments = dict()
 
     # Query-relevant parsing variables
-    split_query_name = ""
-    previous_hmm_target = ""
+    first_match = previous_match = HmmMatch()
     previous_query_header = ""
-    fragmented_alignment_data = list()
     while domain_table.next():
         data = domain_table.alignments
         hmm_match = HmmMatch()
@@ -410,59 +485,53 @@ def format_split_alignments(domain_table, num_fragmented, glued, multi_alignment
         hmm_match.eval = data['Eval']  # Used for filtering
         hmm_match.full_score = data['full_score']  # Used for filtering
 
-        raw_alignments += 1
+        search_stats.raw_alignments += 1
+
+        query_header = ' '.join([hmm_match.orf, hmm_match.desc])
         # Finish off "old business" (sub-alignments)
-        if split_query_name != data["query"] and len(fragmented_alignment_data) > 0:
-            num_fragmented += 1
-            # STEP 1: Scaffold the alignments covering overlapping regions on the query sequence
-            before_scaffolding = len(fragmented_alignment_data)
-            scaffolded_alignment_data = scaffold_subalignments(fragmented_alignment_data)
-            if before_scaffolding != len(fragmented_alignment_data):
-                glued += (before_scaffolding - len(fragmented_alignment_data))
-
-            # STEP 2: Determine the order and orientation of the alignments
-            alignment_relations = orient_alignments(scaffolded_alignment_data)
-
-            # STEP 3: Decide what to do with the fragmented alignments: join or split?
-            distinct_alignments = consolidate_subalignments(fragmented_alignment_data,
-                                                            alignment_relations,
-                                                            distinct_alignments)
-            fragmented_alignment_data.clear()
+        if previous_match.orf != hmm_match.orf and first_match.orf == previous_match.orf:
+            if first_match.contains_inversion():
+                search_stats.inverted += 1
+            elif first_match.next_domain:
+                distinct_alignments = assemble_domain_aligments(first_match.subsequent_matches(),
+                                                                search_stats,
+                                                                distinct_alignments)
+        if hmm_match.target_hmm != previous_match.target_hmm and query_header == previous_query_header:
+            # New HMM (target), same ORF (query)
+            search_stats.multi_alignments += 1
 
         # Carry on with this new alignment
         query_header_desc_aln = ' '.join([hmm_match.orf, hmm_match.desc]) + \
                                 '_' + str(hmm_match.num) + '_' + str(hmm_match.of)
-        query_header = ' '.join([hmm_match.orf, hmm_match.desc])
         if not hmm_match.orf:
             logging.error("Double-line parsing encountered: hmm_match.orf is empty!\n")
             sys.exit(9)
 
-        if hmm_match.target_hmm != previous_hmm_target and query_header == previous_query_header:
-            # New HMM (target), same ORF (query)
-            multi_alignments += 1
-
         if data["of"] == 1:
             distinct_alignments[query_header_desc_aln] = hmm_match
+        elif hmm_match.num == 1:
+            search_stats.fragmented += 1
+            first_match = hmm_match
         else:
-            split_query_name = hmm_match.orf
-            fragmented_alignment_data.append(hmm_match)
+            search_stats.fragmented += 1
+            previous_match.next_domain = hmm_match
 
         previous_query_header = query_header
-        previous_hmm_target = hmm_match.target_hmm
+        previous_match = hmm_match
 
     # Check to see if the last alignment was part of multiple alignments, just like before
-    if len(fragmented_alignment_data) > 0:
-        num_fragmented += 1
-        scaffolded_alignment_data = scaffold_subalignments(fragmented_alignment_data)
-        alignment_relations = orient_alignments(scaffolded_alignment_data)
-        distinct_alignments = consolidate_subalignments(fragmented_alignment_data,
-                                                        alignment_relations,
-                                                        distinct_alignments)
+    if first_match.next_domain:
+        if first_match.contains_inversion():
+            search_stats.inverted += 1
+        elif first_match.next_domain:
+            distinct_alignments = assemble_domain_aligments(first_match.subsequent_matches(),
+                                                            search_stats,
+                                                            distinct_alignments)
 
-    return distinct_alignments, num_fragmented, glued, multi_alignments, raw_alignments
+    return distinct_alignments
 
 
-def filter_poor_hits(args, distinct_alignments, num_dropped):
+def filter_poor_hits(args, distinct_alignments, search_stats: HmmSearchStats):
     """
     Filters the homology matches based on their E-values and mean posterior probability of aligned residues from
     the maximum expected accuracy (MEA) calculation.
@@ -487,12 +556,13 @@ def filter_poor_hits(args, distinct_alignments, num_dropped):
             if hmm_match.acc >= min_acc and hmm_match.full_score >= min_score:
                 purified_matches[query_header_desc].append(hmm_match)
         else:
-            num_dropped += 1
+            search_stats.num_dropped += 1
+            search_stats.bad += 1
 
-    return purified_matches, num_dropped
+    return purified_matches
 
 
-def filter_incomplete_hits(args, purified_matches, num_dropped):
+def filter_incomplete_hits(args, purified_matches, search_stats: HmmSearchStats):
     complete_gene_hits = list()
 
     for query in purified_matches:
@@ -502,9 +572,10 @@ def filter_incomplete_hits(args, purified_matches, num_dropped):
             if perc_aligned >= args.perc_aligned:
                 complete_gene_hits.append(hmm_match)
             else:
-                num_dropped += 1
+                search_stats.num_dropped += 1
+                search_stats.short += 1
 
-    return complete_gene_hits, num_dropped
+    return complete_gene_hits
 
 
 def renumber_multi_matches(complete_gene_hits: list):
