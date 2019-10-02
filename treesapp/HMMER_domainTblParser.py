@@ -302,6 +302,50 @@ class HmmMatch:
         else:
             return True
 
+    def orient_alignments(self) -> dict:
+        alignment_relations = dict()
+        if not self.next_domain:
+            return alignment_relations
+        alignment_relations.update(self.next_domain.orient_alignments())
+
+        for next_match in self.subsequent_matches():
+            if self.num != next_match.num:
+                alignment_relations[(self.num, next_match.num)] = detect_orientation(self.start, self.end,
+                                                                                     next_match.start, next_match.end)
+        return alignment_relations
+
+    def consolidate_subalignments(self, alignment_relations: dict) -> dict:
+        """
+        What is the point of this function?
+        Identify alignments that can be
+
+        :param alignment_relations:
+        :return: Dictionary of HmmMatch instances indexed by their respective query names
+        """
+        alignments_for_disposal = set()
+        scaffolded_alignments = dict()
+        for pair in alignment_relations:
+            # If there are multiple alignments that span the whole hmm profile, report them both
+            base, projected = pair
+            if alignment_relations[pair] == "satellite" or alignment_relations[pair] == "overlap":
+                pass
+            elif alignment_relations[pair] == "supersequence":
+                alignments_for_disposal.add(projected)
+            elif alignment_relations[pair] == "subsequence":
+                alignments_for_disposal.add(base)
+            else:
+                logging.error("Unexpected alignment comparison state: '" + alignment_relations[pair] + "'\n")
+                sys.exit(31)
+
+        for hmm_match in self.subsequent_matches():
+            # Filter out the worst of the overlapping alignments that couldn't be scaffolded
+            if hmm_match.num not in alignments_for_disposal:
+                query_header = ' '.join([hmm_match.orf, hmm_match.desc]) + \
+                               '_' + str(hmm_match.num) + '_' + str(hmm_match.of)
+                scaffolded_alignments[query_header] = hmm_match
+
+        return scaffolded_alignments
+
 
 class DomainTableParser(object):
 
@@ -414,61 +458,6 @@ def overlap_length(r_i: int, r_j: int, q_i: int, q_j: int) -> int:
         return min(r_j, q_j) - max(r_i, q_i)
 
 
-def orient_alignments(fragmented_alignment_data):
-    alignment_relations = dict()
-    i = 0
-    j = 0
-    while i < len(fragmented_alignment_data):
-        initial_start = fragmented_alignment_data[i].start
-        initial_stop = fragmented_alignment_data[i].end
-        while j < len(fragmented_alignment_data):
-            if j != i:
-                alignment_relations[(i, j)] = detect_orientation(initial_start,
-                                                                 initial_stop,
-                                                                 fragmented_alignment_data[j].start,
-                                                                 fragmented_alignment_data[j].end)
-            j += 1
-        j = i
-        i += 1
-    return alignment_relations
-
-
-def consolidate_subalignments(fragmented_alignment_data: list, alignment_relations: dict) -> dict:
-    """
-    What is the point of this function?
-    Identify alignments that can be
-
-    :param fragmented_alignment_data:
-    :param alignment_relations:
-    :return: Dictionary of HmmMatch instances indexed by their respective query names
-    """
-    alignments_for_disposal = set()
-    scaffolded_alignments = dict()
-    for pair in alignment_relations:
-        # If there are multiple alignments that span the whole hmm profile, report them both
-        base, projected = pair
-        if alignment_relations[pair] == "satellite" or alignment_relations[pair] == "overlap":
-            pass
-        elif alignment_relations[pair] == "supersequence":
-            alignments_for_disposal.add(projected)
-        elif alignment_relations[pair] == "subsequence":
-            alignments_for_disposal.add(base)
-        else:
-            logging.error("Unexpected alignment comparison state: '" + alignment_relations[pair] + "'\n")
-            sys.exit(31)
-    x = 0
-    # Filter out the worst of the overlapping alignments that couldn't be scaffolded
-    while x < len(fragmented_alignment_data):
-        if x not in alignments_for_disposal:
-            hmm_match = fragmented_alignment_data[x]
-            query_header = ' '.join([hmm_match.orf, hmm_match.desc]) + \
-                           '_' + str(hmm_match.num) + '_' + str(hmm_match.of)
-            scaffolded_alignments[query_header] = hmm_match
-        x += 1
-
-    return scaffolded_alignments
-
-
 def assemble_domain_aligments(first_match: HmmMatch, search_stats: HmmSearchStats):
     distinct_alignments = dict()
     if first_match.next_domain:
@@ -482,10 +471,11 @@ def assemble_domain_aligments(first_match: HmmMatch, search_stats: HmmSearchStat
         search_stats.glued += (frags_pre_scaffolding - len(first_match.subsequent_matches()))
 
         # STEP 2: Determine the order and orientation of the alignments
-        alignment_relations = orient_alignments(first_match.subsequent_matches())
+        # alignment_relations = orient_alignments(first_match.subsequent_matches())
+        alignment_relations = first_match.orient_alignments()
 
         # STEP 3: Decide what to do with the fragmented alignments: join or split?
-        distinct_alignments = consolidate_subalignments(first_match.subsequent_matches(), alignment_relations)
+        distinct_alignments = first_match.consolidate_subalignments(alignment_relations)
         first_match.enumerate()
     return distinct_alignments
 
