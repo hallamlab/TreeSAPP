@@ -134,34 +134,173 @@ class HmmMatch:
             return [self]
         return [self] + self.next_domain.subsequent_matches()
 
-    def colinear(self):
+    def collinear(self) -> bool:
+        """
+        This checks the profile-start and profile-stop positions against the other alignment fragments to ensure
+        they are the smallest (derived from the left-most position of the HMM profile).
+
+        :return: Boolean representing whether all domains/alignment fragments are collinear (True) or not (False)
+        """
         if not self.next_domain:
             return True
-        if self.next_domain.colinear():
+        if self.next_domain.collinear():
             if self.pend < self.next_domain.pend and self.pstart < self.next_domain.pstart:
                 return True
         return False
 
-    def contains_inversion(self):
+    def contains_duplicate_loci(self, overlap_threshold=0.33) -> bool:
+        if not self.next_domain:
+            return False
+        if self.next_domain.contains_duplicate_loci():
+            return True
+        for subsequent_match in sorted(self.subsequent_matches(), key=lambda x: x.num):
+            if self.num != subsequent_match.num:
+                # Check for redundant profile HMM coverage
+                p_overlap_len = overlap_length(self.pstart, self.pend,
+                                               subsequent_match.pstart, subsequent_match.pend)
+                if p_overlap_len > (overlap_threshold*self.hmm_len):
+                    return True
+            else:
+                pass
+        return False
+
+    def enumerate(self) -> None:
+        i = 1
+        next_matches = sorted(self.subsequent_matches(), key=lambda x: x.num)
+        of = len(next_matches)
+        for hmm_match in next_matches:  # type: HmmMatch
+            hmm_match.num = i
+            hmm_match.of = of
+            i += 1
+        return
+
+    def drop_next_alignment(self, index: int) -> None:
+        """
+        Function for removing an element from the linked list formed by HmmMatch.next_domain
+
+        :param index: The index in the linked list that is to be dropped
+        :return: None
+        """
+        if index == 0:
+            logging.error("Unable to drop current HmmMatch from next_domain linked list.\n")
+            sys.exit(9)
+
+        fragmented_alignment_data = self.subsequent_matches()
+        i = 1
+        while i < len(fragmented_alignment_data):
+            if i == index:
+                try:
+                    fragmented_alignment_data[i-1].next_domain = fragmented_alignment_data[i+1]
+                except IndexError:
+                    fragmented_alignment_data[i - 1].next_domain = None
+                return
+        logging.warning("Next HmmMatch at index %s was not dropped from linked list.\n" % index)
+        return
+
+    def merge_alignment_fragments(self, index: int) -> None:
+        # Update the alignments that are being merged into the base/reference alignment
+        merging_aln = self.subsequent_matches()[index]
+        self.start = min([self.start, merging_aln.start])
+        self.end = max([self.end, merging_aln.end])
+        self.pstart = min([self.pstart, merging_aln.pstart])
+        self.pend = max([self.pend, merging_aln.pend])
+        self.ieval = min([self.ieval, merging_aln.ieval])
+
+        self.drop_next_alignment(index)
+        return
+
+    def scaffold_domain_alignments(self, seq_length_wobble=1.2) -> None:
+        """
+        If one or more alignments do not completely redundantly cover the HMM profile,
+        overlap or are within a few BPs of each other of the query sequence,
+        and do not generate an alignment 120% longer than the HMM profile,
+                                                    THEN
+        merge the alignment co-ordinates, average the acc, Eval, cEval and make 'num' and 'of' reflect number of alignments
+                                                Takes this:
+        -------------
+                    --------------
+                                                                --------------------------------------
+                                     ----------------
+                                            and converts it to:
+        ---------------------------------------------           --------------------------------------
+        
+        :param seq_length_wobble: The scalar threshold controlling the maximum size of a scaffold.
+        Since we're dealing with HMMs, its difficult to estimate the sequence length variance so we're allowing for
+        some 'wobble' in how long or short paralogs could be.
+        :return: None
+        """
+        if not self.next_domain:
+            return
+        self.next_domain.scaffold_domain_alignments()
+
+        if self.contains_inversion():
+            return
+        i = 1
+        while i < len(self.subsequent_matches()):
+            next_match = sorted(self.subsequent_matches(), key=lambda x: x.num)[i]  # type: HmmMatch
+            if self.num == next_match.num:
+                logging.error("Iteration of HmmMatch.subsequent_matches() begins at current instance (%s).\n" % self.num)
+                sys.exit(9)
+            # Check for sub- or super-sequence orientation on the query sequence
+            q_overlap_len = overlap_length(self.start, self.end, next_match.start, next_match.end)
+            # Check for redundant profile HMM coverage
+            p_overlap_len = overlap_length(self.pstart, self.pend, next_match.pstart, next_match.pend)
+
+            min_profile_covered = min([self.pend - self.pstart,
+                                       next_match.pend - next_match.pstart])
+            try:
+                aln_overlap_proportion = p_overlap_len / min_profile_covered
+            except ZeroDivisionError:
+                if self.pend - self.pstart < next_match.pend - next_match.pstart:
+                    self.drop_next_alignment(0)
+                else:
+                    self.drop_next_alignment(i)
+                continue
+            if aln_overlap_proportion > 0.5:
+                # They overlap significant regions - are they overlapping sequence or are they repeats?
+                if q_overlap_len == next_match.seq_len:
+                    # The projected alignment is a subsequence of the base alignment - DROP
+                    self.drop_next_alignment(i)
+                    i -= 1
+                elif q_overlap_len < p_overlap_len:
+                    # The two alignments represent repeats of a single profile - KEEP
+                    pass
+                else:
+                    # The two alignments represent something...
+                    self.merge_alignment_fragments(i)
+                    i -= 1
+            else:
+                # They do not significantly overlap in the profile, likely part of the same alignment
+                a_new_start = min([self.start, next_match.start])
+                a_new_end = max([self.end, next_match.end])
+                if float(a_new_end - a_new_start) < float(seq_length_wobble * int(self.hmm_len)):
+                    # The proximal alignments overlap so they would probably form a homologous sequence - MERGE
+                    self.merge_alignment_fragments(i)
+                    i -= 1
+                else:
+                    # The alignments are very far apart from each other and would form a monster sequence - KEEP
+                    pass
+            i += 1
+        return
+
+    def contains_inversion(self) -> bool:
         """
         Asserting this HmmMatch instance is the first alignment (and therefore the left-most alignment on the query)
-        this checks the profile-start and profile-stop positions against the other alignment fragments to ensure
-        they are the smallest (derived from the left-most position of the HMM profile).
-        Otherwise, the positions have been inverted, in other words a section of the gene has been rearranged.
-        :return:
+        this checks for collinearity along the HMM profile and query sequences.
+        If they are not collinear and additional operation to look for duplicated HMM profile regions in the query,
+        indicating multiple domains, is performed.
+        Otherwise the positions have been inverted, or in other words, a section of the gene has been rearranged.
+
+        :return: Failing both tests for collinearity and duplication return True, else False
         """
         if self.of <= 1 or not self.next_domain:
             return False
-        if self.num != 1:
-            logging.warning("Iterator bug found while detecting chimeric alignments: HmmMatch.num != 1.\n")
-        elif self.num == 1 and self.next_domain:
-            if self.colinear():
-                return False
-            else:
-                return True
+        if self.collinear():
+            return False
+        elif self.contains_duplicate_loci():
+            return False
         else:
-            logging.error("Unexpected HmmMatch state.\n")
-            sys.exit(13)
+            return True
 
 
 class DomainTableParser(object):
@@ -258,125 +397,21 @@ def detect_orientation(q_i: int, q_j: int, r_i: int, r_j: int):
         return "satellite"
 
 
-def overlap_length(r_i: int, r_j: int, q_i: int, q_j: int):
+def overlap_length(r_i: int, r_j: int, q_i: int, q_j: int) -> int:
     """
     Returns the number of positions the query (base) alignment overlaps with the reference (projected) alignment
+
     :param q_i: query start position
     :param q_j: query end position
     :param r_i: reference start position
     :param r_j: reference end position
-    :return:
+    :return: Number of positions the two alignments overlap
     """
     if r_j < q_i or q_i > r_j:
         # Satellite alignments
         return 0
     else:
         return min(r_j, q_j) - max(r_i, q_i)
-
-
-def merge_alignment_fragments(fragmented_alignment_data: list, r_i: int, q_i: int):
-    # Update the alignments that are being merged into the base/reference alignment
-    base_aln = fragmented_alignment_data[r_i]
-    projected_aln = fragmented_alignment_data.pop(q_i)
-    a_new_start = min([base_aln.start, projected_aln.start])
-    a_new_end = max([base_aln.end, projected_aln.end])
-    base_aln.start = a_new_start
-    base_aln.end = a_new_end
-    base_aln.pstart = min([base_aln.pstart, projected_aln.pstart])
-    base_aln.pend = max([base_aln.pend, projected_aln.pend])
-    base_aln.ieval = min([base_aln.ieval, projected_aln.ieval])
-
-    # Update the num/of information for the remaining alignments and add them to the merged_alignment_fragments
-    i = 0
-    while i < len(fragmented_alignment_data):
-        hmm_match = fragmented_alignment_data[i]  # type: HmmMatch
-        if i >= q_i:
-            hmm_match.num -= 1
-        hmm_match.of -= 1
-        i += 1
-
-    return
-
-
-def drop_alignment_fragment(fragmented_alignment_data: list, q_i: int):
-    fragmented_alignment_data.pop(q_i)
-    i = 0
-    while i < len(fragmented_alignment_data):
-        hmm_match = fragmented_alignment_data[i]  # type: HmmMatch
-        if i >= q_i:
-            hmm_match.num -= 1
-        hmm_match.of -= 1
-        i += 1
-    return
-
-
-def scaffold_subalignments(fragmented_alignment_data: list):
-    """
-    If one or more alignments do not completely redundantly cover the HMM profile,
-    overlap or are within a few BPs of each other of the query sequence,
-    and do not generate an alignment 120% longer than the HMM profile,
-                                                THEN
-    merge the alignment co-ordinates, average the acc, Eval, cEval and make 'num' and 'of' reflect number of alignments
-                                            Takes this:
-    -------------
-                --------------
-                                                            --------------------------------------
-                                 ----------------
-                                        and converts it to:
-    ---------------------------------------------           --------------------------------------
-    :return:
-    """
-    # Since we're dealing with HMMs, its difficult to estimate the sequence length variance
-    # so we're allowing for some 'wobble' in how long or short paralogs could be
-    seq_length_wobble = 1.2
-    i = 0
-    while i+1 < len(fragmented_alignment_data):
-        base_aln = fragmented_alignment_data[i]  # type: HmmMatch
-        j = i + 1
-        projected_aln = fragmented_alignment_data[j]  # type: HmmMatch
-        # Check for sub- or super-sequence orientation on the query sequence
-        q_overlap_len = overlap_length(base_aln.start, base_aln.end, projected_aln.start, projected_aln.end)
-        # Check for redundant profile HMM coverage
-        p_overlap_len = overlap_length(base_aln.pstart, base_aln.pend, projected_aln.pstart, projected_aln.pend)
-        min_profile_covered = min([base_aln.pend - base_aln.pstart,
-                                   projected_aln.pend - projected_aln.pstart])
-        try:
-            aln_overlap_proportion = p_overlap_len / min_profile_covered
-        except ZeroDivisionError:
-            if base_aln.pend - base_aln.pstart < projected_aln.pend - projected_aln.pstart:
-                drop_alignment_fragment(fragmented_alignment_data, i)
-            else:
-                drop_alignment_fragment(fragmented_alignment_data, j)
-            continue
-        if aln_overlap_proportion > 0.5:
-            # They overlap significant regions - are they overlapping sequence or are they repeats?
-            if q_overlap_len == projected_aln.seq_len:
-                # The projected alignment is a subsequence of the base alignment - DROP
-                drop_alignment_fragment(fragmented_alignment_data, j)
-                i -= 1
-            elif q_overlap_len < p_overlap_len:
-                # The two alignments represent repeats of a single profile - KEEP
-                pass
-            else:
-                # The two alignments represent something...
-                merge_alignment_fragments(fragmented_alignment_data, i, j)
-                i -= 1
-        else:
-            # They do not significantly overlap in the profile, likely part of the same alignment
-            a_new_start = min([base_aln.start, projected_aln.start])
-            a_new_end = max([base_aln.end, projected_aln.end])
-            if float(a_new_end - a_new_start) < float(seq_length_wobble * int(base_aln.hmm_len)):
-                # The proximal alignments overlap so they would probably form a homologous sequence - MERGE
-                merge_alignment_fragments(fragmented_alignment_data, i, j)
-                i -= 1
-            else:
-                # The alignments are very far apart from each other and would form a monster sequence - KEEP
-                pass
-        i += 1
-        # # For debugging:
-        # for aln in fragmented_alignment_data:
-        #     aln.print_info()
-    return fragmented_alignment_data
 
 
 def orient_alignments(fragmented_alignment_data):
@@ -398,55 +433,60 @@ def orient_alignments(fragmented_alignment_data):
     return alignment_relations
 
 
-def consolidate_subalignments(fragmented_alignment_data, alignment_relations, distinct_alignments):
+def consolidate_subalignments(fragmented_alignment_data: list, alignment_relations: dict) -> dict:
     """
     What is the point of this function?
     Identify alignments that can be
+
     :param fragmented_alignment_data:
     :param alignment_relations:
-    :param distinct_alignments:
-    :return:
+    :return: Dictionary of HmmMatch instances indexed by their respective query names
     """
-    alignments_to_defecate = set()
+    alignments_for_disposal = set()
+    scaffolded_alignments = dict()
     for pair in alignment_relations:
         # If there are multiple alignments that span the whole hmm profile, report them both
         base, projected = pair
         if alignment_relations[pair] == "satellite" or alignment_relations[pair] == "overlap":
             pass
         elif alignment_relations[pair] == "supersequence":
-            alignments_to_defecate.add(projected)
+            alignments_for_disposal.add(projected)
         elif alignment_relations[pair] == "subsequence":
-            alignments_to_defecate.add(base)
+            alignments_for_disposal.add(base)
         else:
             logging.error("Unexpected alignment comparison state: '" + alignment_relations[pair] + "'\n")
             sys.exit(31)
     x = 0
     # Filter out the worst of the overlapping alignments that couldn't be scaffolded
     while x < len(fragmented_alignment_data):
-        if x not in alignments_to_defecate:
+        if x not in alignments_for_disposal:
             hmm_match = fragmented_alignment_data[x]
-            query_header_strand = ' '.join([hmm_match.orf, hmm_match.desc]) + \
-                                  '_' + str(hmm_match.num) + '_' + str(hmm_match.of)
-            distinct_alignments[query_header_strand] = hmm_match
+            query_header = ' '.join([hmm_match.orf, hmm_match.desc]) + \
+                           '_' + str(hmm_match.num) + '_' + str(hmm_match.of)
+            scaffolded_alignments[query_header] = hmm_match
         x += 1
 
-    return distinct_alignments
+    return scaffolded_alignments
 
 
-def assemble_domain_aligments(fragmented_domain_alignments: list, search_stats: HmmSearchStats, distinct_alignments):
-    frags_pre_scaffolding = len(fragmented_domain_alignments)
-    # STEP 1: Scaffold the alignments covering overlapping regions on the query sequence
-    scaffold_subalignments(fragmented_domain_alignments)
-    if frags_pre_scaffolding != len(fragmented_domain_alignments):
-        search_stats.glued += (frags_pre_scaffolding - len(fragmented_domain_alignments))
+def assemble_domain_aligments(first_match: HmmMatch, search_stats: HmmSearchStats):
+    distinct_alignments = dict()
+    if first_match.next_domain:
+        # STEP 1: Scaffold the alignments covering overlapping regions on the query sequence
+        frags_pre_scaffolding = len(first_match.subsequent_matches())
+        first_match.scaffold_domain_alignments()
+        if first_match.contains_inversion():
+            search_stats.inverted += 1
+            return distinct_alignments
+        first_match.enumerate()
+        search_stats.glued += (frags_pre_scaffolding - len(first_match.subsequent_matches()))
 
-    # STEP 2: Determine the order and orientation of the alignments
-    alignment_relations = orient_alignments(fragmented_domain_alignments)
+        # STEP 2: Determine the order and orientation of the alignments
+        alignment_relations = orient_alignments(first_match.subsequent_matches())
 
-    # STEP 3: Decide what to do with the fragmented alignments: join or split?
-    distinct_alignments = consolidate_subalignments(fragmented_domain_alignments,
-                                                    alignment_relations,
-                                                    distinct_alignments)
+        # STEP 3: Decide what to do with the fragmented alignments: join or split?
+        distinct_alignments = consolidate_subalignments(first_match.subsequent_matches(), alignment_relations)
+        first_match.enumerate()
     return distinct_alignments
 
 
@@ -490,12 +530,7 @@ def format_split_alignments(domain_table, search_stats: HmmSearchStats):
         query_header = ' '.join([hmm_match.orf, hmm_match.desc])
         # Finish off "old business" (sub-alignments)
         if previous_match.orf != hmm_match.orf and first_match.orf == previous_match.orf:
-            if first_match.contains_inversion():
-                search_stats.inverted += 1
-            elif first_match.next_domain:
-                distinct_alignments = assemble_domain_aligments(first_match.subsequent_matches(),
-                                                                search_stats,
-                                                                distinct_alignments)
+            distinct_alignments.update(assemble_domain_aligments(first_match, search_stats))
         if hmm_match.target_hmm != previous_match.target_hmm and query_header == previous_query_header:
             # New HMM (target), same ORF (query)
             search_stats.multi_alignments += 1
@@ -520,13 +555,8 @@ def format_split_alignments(domain_table, search_stats: HmmSearchStats):
         previous_match = hmm_match
 
     # Check to see if the last alignment was part of multiple alignments, just like before
-    if first_match.next_domain:
-        if first_match.contains_inversion():
-            search_stats.inverted += 1
-        elif first_match.next_domain:
-            distinct_alignments = assemble_domain_aligments(first_match.subsequent_matches(),
-                                                            search_stats,
-                                                            distinct_alignments)
+    if first_match.next_domain and first_match.orf == previous_match.orf:
+        distinct_alignments.update(assemble_domain_aligments(first_match, search_stats))
 
     return distinct_alignments
 
@@ -556,7 +586,7 @@ def filter_poor_hits(args, distinct_alignments, search_stats: HmmSearchStats):
             if hmm_match.acc >= min_acc and hmm_match.full_score >= min_score:
                 purified_matches[query_header_desc].append(hmm_match)
         else:
-            search_stats.num_dropped += 1
+            search_stats.dropped += 1
             search_stats.bad += 1
 
     return purified_matches
@@ -572,7 +602,7 @@ def filter_incomplete_hits(args, purified_matches, search_stats: HmmSearchStats)
             if perc_aligned >= args.perc_aligned:
                 complete_gene_hits.append(hmm_match)
             else:
-                search_stats.num_dropped += 1
+                search_stats.dropped += 1
                 search_stats.short += 1
 
     return complete_gene_hits
