@@ -194,6 +194,7 @@ class HmmMatch:
                 except IndexError:
                     fragmented_alignment_data[i - 1].next_domain = None
                 return
+            i += 1
         logging.warning("Next HmmMatch at index %s was not dropped from linked list.\n" % index)
         return
 
