@@ -1606,6 +1606,7 @@ class Evaluator(TreeSAPP):
         self.test_rep_taxa_fasta = ""
         self.performance_table = ""
         self.containment_table = ""
+        self.recall_table = ""
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("lineages", 0),
@@ -1641,7 +1642,7 @@ class Evaluator(TreeSAPP):
         total_queries = 0
         total_classified = 0
         if rank in self.taxa_tests:
-            for tt in self.taxa_tests[rank]:
+            for tt in self.taxa_tests[rank]:  # type: TaxonTest
                 total_queries += len(tt.queries)
                 total_classified += len(tt.classifieds)
             return total_queries, total_classified, float(total_classified/total_queries)
@@ -1719,6 +1720,49 @@ class Evaluator(TreeSAPP):
                 pass
             depth += 1
         logging.info("Number of unique lineages tested:\n" + info_str)
+        return
+
+    def taxonomic_recall_tree(self):
+        tree_summary_str = "Recall taxonomic tree:\n\n"
+        taxa_tests_list = []
+        observed = set()
+        for rank in self.taxa_tests:
+            taxa_tests_list += self.taxa_tests[rank]
+        for tt in sorted(taxa_tests_list, key=lambda t: t.lineage):  # type: TaxonTest
+            if len(tt.queries) == 0:
+                continue
+            lineage = tt.lineage.split("; ")
+            x = 0
+            while x < len(lineage)-1:
+                if lineage[x] not in observed:
+                    tree_summary_str += "\t"*x + lineage[x] + " = NA\n"
+                    observed.add(lineage[x])
+                x += 1
+            tree_summary_str += "\t"*x
+            tree_summary_str += "%s = %.1f\n" % (lineage[-1], float(100*len(tt.classifieds)/len(tt.queries)))
+            observed.add(lineage[-1])
+
+        logging.debug(tree_summary_str + "\n")
+        logging.info("An alphabetically-sorted tree displaying recall of all taxa evaluated is in the log file.\n")
+        return
+
+    def taxonomic_recall_table(self):
+        taxa_recall_str = "Rank\tTaxon\tRecall\n"
+        for depth in sorted(self.rank_depth_map):
+            rank = self.rank_depth_map[depth]
+            if rank == "Cellular organisms":
+                continue
+            if rank not in self.classifications or len(self.classifications[rank]) == 0:
+                continue
+            for tt in sorted(self.taxa_tests[rank], key=lambda x: x.lineage):
+                if len(tt.queries) == 0:
+                    continue
+                taxa_recall_str += "\t".join([rank, tt.taxon,
+                                              str(round(float(100*len(tt.classifieds))/len(tt.queries), 2))]) + "\n"
+        with open(self.recall_table, 'w') as recall_tbl_handler:
+            recall_tbl_handler.write(taxa_recall_str)
+
+        logging.info("Wrote taxon-wise recall to %s.\n" % self.recall_table)
         return
 
     def get_classification_performance(self):

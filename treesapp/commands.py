@@ -1230,6 +1230,8 @@ def evaluate(sys_args):
 
         # Determine the specificity for each rank
         clade_exclusion_strings = ts_evaluate.get_classification_performance()
+        ts_evaluate.taxonomic_recall_table()
+        ts_evaluate.taxonomic_recall_tree()
         ts_evaluate.write_performance_table(clade_exclusion_strings, args.tool)
         ts_evaluate.summarize_taxonomic_diversity()
         containment_strings = determine_containment(ts_evaluate)

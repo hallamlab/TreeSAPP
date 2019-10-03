@@ -420,9 +420,10 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
     ##
     # Define locations of files TreeSAPP outputs
     ##
-    evaluator_instance.test_rep_taxa_fasta = args.output + os.sep + "representative_taxa_sequences.fasta"
-    evaluator_instance.performance_table = args.output + os.sep + "clade_exclusion_performance.tsv"
-    evaluator_instance.containment_table = args.output + os.sep + "accuracy.tsv"
+    evaluator_instance.test_rep_taxa_fasta = evaluator_instance.final_output_dir + "representative_taxa_sequences.fasta"
+    evaluator_instance.performance_table = evaluator_instance.final_output_dir + "clade_exclusion_performance.tsv"
+    evaluator_instance.recall_table = evaluator_instance.final_output_dir + "taxonomic_recall.tsv"
+    evaluator_instance.containment_table = evaluator_instance.final_output_dir + "accuracy.tsv"
     evaluator_instance.var_output_dir = args.output + "intermediates" + os.sep
 
     if not os.path.isdir(evaluator_instance.var_output_dir):
