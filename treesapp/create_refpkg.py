@@ -218,7 +218,7 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects, header_registry):
     return refseq_objects
 
 
-def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, important_seqs=None):
+def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, important_seqs=None, each_lineage=False):
     """
     Present the headers of identical sequences to user for them to decide on representative header
 
@@ -226,6 +226,7 @@ def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, i
     :param refseq_objects:
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
     :param important_seqs: If --guarantee is provided, a dictionary mapping headers to seqs from format_read_fasta()
+    :param each_lineage: If set to True, each candidate's lineage is shown as well as the cluster's LCA
     :return:
     """
     if not important_seqs:
@@ -253,13 +254,15 @@ def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, i
                         candidates[str(acc)] = refseq_objects[treesapp_id]
                         acc += 1
                         break
-
             sys.stderr.write("Sequences in '" + cluster_info.lca + "' cluster:\n")
             for num in sorted(candidates.keys(), key=int):
                 sys.stderr.write("\t" + num + ". ")
                 sys.stderr.write('\t'.join([candidates[num].organism + " | " + candidates[num].accession + "\t",
-                                            str(len(candidates[num].sequence)) + "bp",
-                                            str(candidates[num].cluster_rep_similarity)]) + "\n")
+                                            str(len(candidates[num].sequence)) + "bp or aa",
+                                            str(candidates[num].cluster_rep_similarity)]))
+                if each_lineage:
+                    sys.stderr.write("\t" + "(lineage = " + candidates[num].lineage + ")")
+                sys.stderr.write("\n")
             sys.stderr.flush()
 
             best = input("Number of the best representative? ")

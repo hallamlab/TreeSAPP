@@ -306,6 +306,10 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
     parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
                                help="The assigned sequences are from a database and their database lineages "
                                     "should be used instead of the TreeSAPP-assigned lineages.")
+    parser.optopt.add_argument("--resolve", default=False, required=False, action="store_true",
+                               help="Flag indicating candidate references with better resolved lineages and"
+                                    " comparable sequence lengths can replace old references."
+                                    " Useful when updating with sequences from isolates, SAGs and maybe quality MAGs.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "lineages", "rebuild"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
@@ -582,17 +586,17 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
     updater.target_marker = get_refpkg_build(updater.ref_pkg.prefix, marker_build_dict, updater.refpkg_code_re)
     if not args.identity:
-        updater.perc_id = updater.target_marker.pid
+        updater.prop_sim = updater.target_marker.pid
     else:
-        updater.perc_id = args.identity
+        updater.prop_sim = args.identity
 
     if args.cluster:
-        if not 0.5 <= float(updater.perc_id) <= 1.0:
-            if 0.5 < float(updater.perc_id)/100 < 1.0:
-                updater.perc_id = str(float(updater.perc_id)/100)
-                logging.warning("--identity  set to " + updater.perc_id + " for compatibility with USEARCH \n")
+        if not 0.5 <= float(updater.prop_sim) <= 1.0:
+            if 0.5 < float(updater.prop_sim)/100 < 1.0:
+                updater.prop_sim = str(float(updater.prop_sim) / 100)
+                logging.warning("--identity  set to " + updater.prop_sim + " for compatibility with USEARCH \n")
             else:
-                logging.error("--identity " + updater.perc_id + " is not between the supported range [0.5-1.0]\n")
+                logging.error("--identity " + updater.prop_sim + " is not between the supported range [0.5-1.0]\n")
                 sys.exit(13)
 
     if updater.seq_names_to_taxa and not os.path.isfile(updater.seq_names_to_taxa):
@@ -611,6 +615,8 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
     updater.combined_fasta = updater.output_dir + "all_refs.fasta"
     updater.lineage_map_file = updater.output_dir + "accession_id_lineage_map.tsv"
     updater.assignment_table = updater.final_output_dir + "marker_contig_map.tsv"
+    updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_uclust_input.fasta"
+    updater.uclust_prefix = updater.var_output_dir + updater.sample_prefix + "_uclust" + str(updater.prop_sim)
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
     if len(classified_seqs) == 1:
         updater.query_sequences = classified_seqs.pop()

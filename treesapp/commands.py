@@ -5,6 +5,7 @@ import re
 import os
 import shutil
 from random import randint
+from . import entrez_utils
 from . import file_parsers
 from . import fasta
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments,\
@@ -563,9 +564,23 @@ def update(sys_args):
         classified_fasta.swap_headers(name_map)
         fasta_records = ts_updater.fetch_entrez_lineages(classified_fasta, args.molecule)
         create_refpkg.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
+        deduped = []
         for treesapp_id in sorted(classified_fasta.header_registry.keys(), key=int):
-            record = fasta_records[treesapp_id]
-            classified_seq_lineage_map[record.accession] = record.lineage
+            try:
+                record = fasta_records[treesapp_id]  # type: entrez_utils.EntrezRecord
+            except KeyError:
+                deduped.append(treesapp_id)
+                continue
+            classified_seq_lineage_map[record.versioned] = record.lineage
+        if deduped:
+            logging.warning(str(len(deduped)) + " sequences were not assigned a taxonomic lineage.\n" +
+                            "This should match the number of accessions deduplicated while fetching lineage information.\n")
+            for treesapp_id in deduped:
+                logging.debug("Unable to find '" + treesapp_id + "' in fasta records. More info:\n" +
+                              classified_fasta.header_registry[treesapp_id].original + "\n")
+                classified_fasta.header_registry.pop(treesapp_id)
+            deduped.clear()
+            classified_fasta.synchronize_seqs_n_headers()
     else:
         # Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
         assignments = file_parsers.parse_assignments(classified_lines)
@@ -578,16 +593,19 @@ def update(sys_args):
     ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)
     ref_seq_lineage_map = {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix]:
                            leaf.lineage for leaf in ref_seq_lineage_info}
+    num_assigned_candidates = len(classified_seq_lineage_map)
+    num_ref_seqs = len(ref_seq_lineage_map)
     classified_seq_lineage_map.update({ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]:
                                        leaf.lineage for leaf in ref_seq_lineage_info})
+    if len(classified_seq_lineage_map) != (num_ref_seqs + num_assigned_candidates):
+        logging.error("Duplicates in references and candidates. Didn't think this would happen but here we are...\n")
+        sys.exit()
+
     update_refpkg.validate_mixed_lineages(classified_seq_lineage_map)
     utilities.prepend_deep_rank(classified_seq_lineage_map)
 
     utilities.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
 
-    ##
-    # Call create to create a new, updated reference package where the new sequences are guaranteed
-    ##
     ref_fasta = fasta.FASTA(ts_updater.ref_pkg.msa)
     ref_fasta.load_fasta()
     # Update the original reference headers using info from the tax_ids file
@@ -596,6 +614,49 @@ def update(sys_args):
 
     classified_fasta.update(ref_fasta.fasta_dict, False)
     classified_fasta.unalign()
+    
+    if args.resolve:
+        classified_fasta.change_dict_keys("num")
+        # Write a FASTA for clustering containing the formatted headers since
+        # not all clustering tools + versions keep whole header - spaces are replaced with underscores
+        fasta.write_new_fasta(fasta_dict=classified_fasta.fasta_dict,
+                              fasta_name=ts_updater.cluster_input)
+        wrapper.cluster_sequences(ts_updater.executables["usearch"], ts_updater.cluster_input,
+                                  ts_updater.uclust_prefix, ts_updater.prop_sim)
+        ts_updater.uc = ts_updater.uclust_prefix + ".uc"
+
+        cluster_dict = file_parsers.read_uc(ts_updater.uc)
+
+        # Revert headers in cluster_dict from 'formatted' back to 'original'
+        fasta.rename_cluster_headers(cluster_dict, classified_fasta.header_registry)
+        logging.debug("\t" + str(len(cluster_dict.keys())) + " sequence clusters\n")
+
+        # Calculate LCA of each cluster to represent the taxonomy of the representative sequence
+        entrez_records = update_refpkg.simulate_entrez_records(classified_fasta, classified_seq_lineage_map)
+        create_refpkg.cluster_lca(cluster_dict, entrez_records, classified_fasta.header_registry)
+
+        # Ensure centroids are the original reference sequences and skip clusters with identical lineages
+        collapsed = update_refpkg.prefilter_clusters(cluster_dict, entrez_records,
+                                                     list(ref_fasta.original_header_map().keys()))
+        if collapsed:
+            logging.warning(str(len(collapsed)) + " original reference sequences removed while resolving:\n\t" +
+                            "\n\t".join(collapsed) + "\n")
+        # Allow user to select the representative sequence based on organism name, sequence length and similarity
+        entrez_records = create_refpkg.present_cluster_rep_options(cluster_dict, entrez_records,
+                                                                   classified_fasta.header_registry,
+                                                                   classified_fasta.amendments, True)
+        # Remove sequences that were replaced by resolve from ts_updater.old_ref_fasta
+        still_repping = []
+        for num_id in entrez_records:
+            ref_seq = entrez_records[num_id]  # type: entrez_utils.ReferenceSequence
+            if ref_seq.cluster_rep:
+                still_repping.append(ref_seq.accession + ' ' + ref_seq.description)
+        ref_fasta.keep_only(still_repping, True)  # This removes the original reference sequences to be replaced
+        # TODO: Ensure all the newly classified candidate sequences are present
+        classified_fasta.change_dict_keys("original")
+        # print(classified_fasta.n_seqs())
+        classified_fasta.keep_only(still_repping)
+        # print(classified_fasta.n_seqs())
 
     # Write only the sequences that have been properly classified
     classified_fasta.change_dict_keys("original")
@@ -607,7 +668,7 @@ def update(sys_args):
     ##
     create_cmd = ["-i", ts_updater.combined_fasta,
                   "-c", ts_updater.ref_pkg.prefix,
-                  "-p", str(ts_updater.perc_id),
+                  "-p", str(ts_updater.prop_sim),
                   "-m", ts_updater.molecule_type,
                   "--guarantee", ts_updater.old_ref_fasta,
                   "-o", ts_updater.output_dir,

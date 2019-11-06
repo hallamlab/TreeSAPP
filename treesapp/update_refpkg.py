@@ -6,6 +6,9 @@ from pygtrie import StringTrie
 from .external_command_interface import launch_write_command
 from treesapp.utilities import clean_lineage_string, load_taxonomic_trie
 from . import wrapper
+from treesapp.classy import Cluster
+from treesapp.entrez_utils import EntrezRecord
+from treesapp.fasta import FASTA
 
 
 def reformat_ref_seq_descriptions(original_header_map):
@@ -148,3 +151,65 @@ def intersect_incomparable_lists(superset, subset, name_map: dict) -> list:
         if alt_name in subset:
             intersection.append(seq_name)
     return intersection
+
+
+def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict:
+    entrez_records = dict()
+    header_map = fasta_records.get_header_mapping_dict()
+    for seq_name in sorted(seq_lineage_map):
+        er = EntrezRecord(seq_name, "")
+        er.lineage = seq_lineage_map[seq_name]
+        er.organism = er.lineage.split("; ")[-1]
+        for header in header_map[seq_name]:
+            er.description = " ".join(header.original.split(" ")[1:])
+            er.sequence = fasta_records.fasta_dict[str(header.treesapp_num_id)]
+            entrez_records[str(header.treesapp_num_id)] = er
+    return entrez_records
+
+
+def prefilter_clusters(cluster_dict: dict, entrez_records: dict, guaranteed_seqs: list, lineage_collapse=True) -> list:
+    """
+
+    :param cluster_dict: Dictionary mapping unique cluster IDs to Cluster instances
+    :param entrez_records: Dictionary mapping numerical IDs to EntrezRecord instances
+    :param guaranteed_seqs: List of sequences that should be centroids, if not already
+    :param lineage_collapse: Flag indicating whether clusters whose members have identical lineages are removed
+    :return:
+    """
+    # A temporary dictionary for rapid mapping of sequence names to lineages
+    lineage_lookup = {er.accession + ' ' + er.description: er.lineage for (num_id, er) in entrez_records.items()}
+    # cluster_ids list is used for iterating through dictionary keys and allowing dict to change size with 'pop's
+    cluster_ids = list(cluster_dict.keys())
+    # Track the number of guaranteed_seqs that remained members of clusters
+    guaranteed_redundant = list()
+    # Begin iterating over cluster_dict, improving the
+    for cluster_id in sorted(cluster_ids, key=int):
+        cluster_info = cluster_dict[cluster_id]  # type: Cluster
+        if len(cluster_info.members) == 0:
+            continue
+        # Insure the centroids/representatives are the original reference sequences
+        if cluster_info.representative in guaranteed_seqs:
+            rep_found = True
+        else:
+            rep_found = False
+        i = 0
+        while i < len(cluster_info.members):
+            seq_name, seq_similarity = cluster_info.members[i]
+            if seq_name in guaranteed_seqs:
+                if rep_found:
+                    guaranteed_redundant.append(seq_name)
+                else:
+                    cluster_info.members[i] = [cluster_info.representative, seq_similarity]
+                    cluster_info.representative = seq_name
+                    rep_found = True
+            i += 1
+        # Remove the cluster members from the dictionary if the lineages are identical
+        if lineage_collapse:
+            identical = True
+            for member_seq in cluster_info.members:
+                seq_name, seq_similarity = member_seq
+                if clean_lineage_string(lineage_lookup[seq_name]) != cluster_info.lca:
+                    identical = False
+            if identical:
+                cluster_info.members = []
+    return guaranteed_redundant

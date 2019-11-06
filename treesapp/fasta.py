@@ -63,14 +63,14 @@ def read_fasta_to_dict(fasta_file):
 class Header:
     def __init__(self, header):
         self.original = header
+        self.treesapp_num_id = 0
         self.formatted = ""
-        self.treesapp_name = ""
         self.post_align = ""
         self.first_split = ""
         self.accession = ""
 
     def get_info(self):
-        info_string = "TreeSAPP ID = '" + self.treesapp_name + "'\tPrefix = '" + self.first_split + "'\n"
+        info_string = "TreeSAPP ID = '" + str(self.treesapp_num_id) + "'\tPrefix = '" + self.first_split + "'\n"
         info_string += "Original =  " + self.original + "\nFormatted = " + self.formatted
         if self.accession:
             info_string += "Accession = " + self.accession + "\n"
@@ -98,6 +98,7 @@ def register_headers(header_list, drop=True):
         new_header = Header(header)
         new_header.formatted = reformat_string(header)
         new_header.first_split = header.split()[0]
+        new_header.treesapp_num_id = str(acc)
         header_registry[str(acc)] = new_header
         acc += 1
 
@@ -145,27 +146,35 @@ class FASTA:
         return len(self.fasta_dict.keys())
 
     def original_header_map(self):
-        return {self.header_registry[index].original: [index] for index in self.header_registry}
+        return {self.header_registry[index].original: [self.header_registry[index]] for index in self.header_registry}
 
     def formatted_header_map(self):
         header_map = dict()
         for index in self.header_registry:
-            f_h = self.header_registry[index].formatted
+            header = self.header_registry[index]
+            f_h = header.formatted
             if f_h in header_map:
-                header_map[f_h].append(index)
+                header_map[f_h].append(header)
             else:
-                header_map[f_h] = [index]
+                header_map[f_h] = [header]
         return header_map
 
     def first_split_header_map(self):
         header_map = dict()
         for index in self.header_registry:
-            fs_h = self.header_registry[index].first_split
+            header = self.header_registry[index]
+            fs_h = header.first_split
             if fs_h in header_map:
-                header_map[fs_h].append(index)
+                header_map[fs_h].append(header)
             else:
-                header_map[fs_h] = [index]
+                header_map[fs_h] = [header]
         return header_map
+
+    def unversion_first_split_header_map(self):
+        first_splits = self.first_split_header_map()
+        for accession in first_splits:
+            first_splits[re.sub(r'\.\d$', '', accession)] = first_splits[accession]
+        return first_splits
 
     def get_seq_names(self, name_format="original") -> list:
         if name_format == "original":
@@ -181,10 +190,11 @@ class FASTA:
                           " Options are 'original', 'formatted', 'first_split' and 'num'.\n")
             sys.exit(5)
 
-    def keep_only(self, header_subset: list):
+    def keep_only(self, header_subset: list, superset=False):
         """
         Removes all entries from self.fasta_dict and self.header_registry that are not in header_subset.
         :param header_subset: The list of headers found in self.fasta_dict that are to be kept
+        :param superset: The header_subset list is a superset so not all headers will be found - do not emit a warning
         :return: None
         """
 
@@ -204,13 +214,15 @@ class FASTA:
         if len(pruned_fasta_dict) == 0:
             self.mapping_error(header_subset)
 
+        if superset:
+            unmapped.clear()
+
         if unmapped:
             logging.warning(str(len(unmapped)) + " sequences were not mapped to FASTA dictionary.\n")
             logging.debug("Headers that were not mapped to FASTA dictionary:\n\t" +
                           "\n\t".join(unmapped) + "\n")
 
         self.fasta_dict = pruned_fasta_dict
-        self.change_dict_keys("original")
         self.synchronize_seqs_n_headers()
 
         return
@@ -290,18 +302,30 @@ class FASTA:
         :return:
         """
         excluded_headers = list()
+        self.change_dict_keys("num")
         if len(self.fasta_dict.keys()) != len(self.header_registry):
             sync_header_registry = dict()
-            for num_id in self.header_registry:
-                header = self.header_registry[num_id]
-                if header.formatted not in self.fasta_dict and header.original not in self.fasta_dict:
+            sync_fasta_dict = dict()
+            header_num_set = set(self.header_registry.keys())
+            fasta_num_set = set(self.fasta_dict.keys())
+            for num_id in header_num_set.intersection(fasta_num_set):
+                sync_header_registry[num_id] = self.header_registry[num_id]
+                sync_fasta_dict[num_id] = self.fasta_dict[num_id]
+            for num_id in header_num_set.difference(fasta_num_set):
+                try:
                     excluded_headers.append(self.header_registry[num_id].original)
-                else:
-                    sync_header_registry[num_id] = self.header_registry[num_id]
+                except KeyError:
+                    logging.error("Unable to find TreeSAPP ID '%s' in header_registry.\n" % num_id)
+                    sys.exit()
             self.header_registry = sync_header_registry
+            self.fasta_dict = sync_fasta_dict
         if len(excluded_headers) >= 1:
             logging.debug("The following sequences were excluded after synchronizing FASTA:\n\t" +
                           "\n\t".join(excluded_headers) + "\n")
+        if len(self.header_registry) == 0:
+            logging.error("All sequences were discarded during header_registry and fasta_dict synchronization.\n")
+            sys.exit()
+        self.change_dict_keys()
         return
 
     def swap_headers(self, header_map):
@@ -395,7 +419,7 @@ class FASTA:
         duplicates = list()
         logging.debug("Checking for redundant sequences with duplicate accessions.\n")
         for acc in self.header_registry:
-            header = self.header_registry[acc]
+            header = self.header_registry[acc]  # type: Header
             if not header.accession:
                 continue
             try:
@@ -439,15 +463,16 @@ class FASTA:
         for num_id in sorted(new_fasta.header_registry, key=int):
             header = new_fasta.header_registry[num_id]  # type: Header
             if header.original in header_map:
-                for ts_id in header_map[header.original]:
-                    self.amendments.add(str(ts_id))
+                for h_i in header_map[header.original]:  # type: Header
+                    self.amendments.add(str(h_i.treesapp_num_id))
             elif header.first_split in header_map:
-                for ts_id in header_map[header.first_split]:
-                    self.amendments.add(str(ts_id))
+                for h_i in header_map[header.first_split]:  # type: Header
+                    self.amendments.add(str(h_i.treesapp_num_id))
             else:
                 self.fasta_dict[header.original] = new_fasta.fasta_dict[header.original]
                 ts_id = acc
                 self.header_registry[str(ts_id)] = new_fasta.header_registry[num_id]
+                self.header_registry[str(ts_id)].treesapp_num_id = ts_id
                 self.amendments.add(str(ts_id))
                 acc += 1
         self.synchronize_seqs_n_headers()

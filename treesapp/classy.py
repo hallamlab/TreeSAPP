@@ -1370,9 +1370,11 @@ class Updater(TreeSAPP):
         self.assignment_table = ""  # Path to the marker_contig_map.tsv file written by treesapp assign
         self.combined_fasta = ""  # Holds the newly identified candidate reference sequences and the original ref seqs
         self.old_ref_fasta = ""  # Contains only the original reference sequences
+        self.cluster_input = ""  # Used only if resolve is True
+        self.uclust_prefix = ""  # Used only if resolve is True
         self.target_marker = None
         self.rank_depth_map = None
-        self.perc_id = 1.0
+        self.prop_sim = 1.0
         self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
@@ -1401,7 +1403,8 @@ class Updater(TreeSAPP):
         classified_seq_lineage_map = dict()
         treesapp_nums = list(header_registry.keys())
         for seq_name in seq_lineage_map:
-            # Its slow to perform so many re.search's but without having a guaranteed ORF pattern we can't use hashes
+            # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
+            # we can't use hash-based data structures to bring it to O(N)
             parent_re = re.compile(seq_name)
             x = 0
             while x < len(treesapp_nums):
