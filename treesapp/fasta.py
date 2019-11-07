@@ -170,11 +170,12 @@ class FASTA:
                 header_map[fs_h] = [header]
         return header_map
 
-    def unversion_first_split_header_map(self):
+    def unversion_first_split_header_map(self) -> dict:
         first_splits = self.first_split_header_map()
+        accession_header_map = dict()
         for accession in first_splits:
-            first_splits[re.sub(r'\.\d$', '', accession)] = first_splits[accession]
-        return first_splits
+            accession_header_map[re.sub(r'\.\d$', '', accession)] = first_splits[accession]
+        return accession_header_map
 
     def get_seq_names(self, name_format="original") -> list:
         if name_format == "original":
@@ -440,7 +441,16 @@ class FASTA:
         self.synchronize_seqs_n_headers()
         return
 
-    def update(self, fasta, file=True):
+    def update(self, fasta, file=True) -> None:
+        """
+        Used to append sequences to the current FASTA object. All new sequence records are assigned a new numerical ID,
+        continuing from the largest ID found in the original FASTA instance.
+
+        :param fasta: Either a fasta-formatted dictionary (keys are sequence names (i.e. headers) and values are seqs)
+        or the name of a file, which will be read to generate a fasta-formatted dictionary
+        :param file: Flag indicating whether the update is using a file or a fasta-formatted dictionary
+        :return: None
+        """
         # Format the inputs
         if file:
             if not os.path.isfile(fasta):
@@ -458,6 +468,7 @@ class FASTA:
         header_map = self.get_header_mapping_dict()
         new_fasta.change_dict_keys()
 
+        # TODO: Potentially refactor the following code into a function called 'join' used to merge two FASTA objects
         # Load the new fasta and headers
         acc = max([int(x) for x in self.header_registry.keys()]) + 1
         for num_id in sorted(new_fasta.header_registry, key=int):

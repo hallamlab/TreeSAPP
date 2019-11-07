@@ -571,7 +571,7 @@ def update(sys_args):
             except KeyError:
                 deduped.append(treesapp_id)
                 continue
-            classified_seq_lineage_map[record.versioned] = record.lineage
+            classified_seq_lineage_map[record.accession] = record.lineage
         if deduped:
             logging.warning(str(len(deduped)) + " sequences were not assigned a taxonomic lineage.\n" +
                             "This should match the number of accessions deduplicated while fetching lineage information.\n")
@@ -587,6 +587,7 @@ def update(sys_args):
         classified_seq_lineage_map.update(update_refpkg.map_classified_seqs(ts_updater.ref_pkg.prefix,
                                                                             assignments,
                                                                             classified_fasta.get_seq_names()))
+    classified_seq_indices = classified_fasta.get_seq_names("num")
 
     ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
@@ -645,18 +646,18 @@ def update(sys_args):
         entrez_records = create_refpkg.present_cluster_rep_options(cluster_dict, entrez_records,
                                                                    classified_fasta.header_registry,
                                                                    classified_fasta.amendments, True)
+        # Set all the newly classified candidate reference sequences to cluster_reps to make sure they're still included
+        update_refpkg.break_clusters(entrez_records, classified_seq_indices)
+
         # Remove sequences that were replaced by resolve from ts_updater.old_ref_fasta
         still_repping = []
         for num_id in entrez_records:
-            ref_seq = entrez_records[num_id]  # type: entrez_utils.ReferenceSequence
+            ref_seq = entrez_records[num_id]  # type: entrez_utils.EntrezRecord
             if ref_seq.cluster_rep:
-                still_repping.append(ref_seq.accession + ' ' + ref_seq.description)
+                still_repping.append(ref_seq.versioned + ' ' + ref_seq.description)
         ref_fasta.keep_only(still_repping, True)  # This removes the original reference sequences to be replaced
-        # TODO: Ensure all the newly classified candidate sequences are present
         classified_fasta.change_dict_keys("original")
-        # print(classified_fasta.n_seqs())
         classified_fasta.keep_only(still_repping)
-        # print(classified_fasta.n_seqs())
 
     # Write only the sequences that have been properly classified
     classified_fasta.change_dict_keys("original")

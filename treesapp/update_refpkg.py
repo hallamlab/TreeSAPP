@@ -154,33 +154,61 @@ def intersect_incomparable_lists(superset, subset, name_map: dict) -> list:
 
 
 def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict:
+    """
+    Creates new EntrezRecord instances for each sequence: lineage pair in seq_lineage_map.
+    This function circumvents downloading lineage information for accessions, organism names or NCBI taxonomic IDs
+    if the lineage is provided via other means, and enables compatibility with downstream functions.
+
+    :param fasta_records: FASTA object containing sequences that can be mapped to
+    :param seq_lineage_map: A dictionary mapping parsed sequence accessions to taxonomic lineages
+    :return: A dictionary of EntrezRecord instances indexed by their respective TreeSAPP numerical IDs
+    """
     entrez_records = dict()
-    header_map = fasta_records.get_header_mapping_dict()
+    header_map = fasta_records.unversion_first_split_header_map()
     for seq_name in sorted(seq_lineage_map):
         er = EntrezRecord(seq_name, "")
         er.lineage = seq_lineage_map[seq_name]
         er.organism = er.lineage.split("; ")[-1]
         for header in header_map[seq_name]:
             er.description = " ".join(header.original.split(" ")[1:])
+            er.versioned = header.original.split(" ")[0]
             er.sequence = fasta_records.fasta_dict[str(header.treesapp_num_id)]
             entrez_records[str(header.treesapp_num_id)] = er
     return entrez_records
 
 
-def prefilter_clusters(cluster_dict: dict, entrez_records: dict, guaranteed_seqs: list, lineage_collapse=True) -> list:
+def break_clusters(entrez_records: dict, guaranteed: list) -> None:
     """
+    Sets the `cluster_rep` variable to True for each EntrezRecord with its num_id found in guaranteed.
+
+    :param entrez_records: Dictionary mapping unique TreeSAPP numerical IDs to Cluster instances
+    :param guaranteed: List of sequences to be set to cluster representatives to ensure they are retained downstream
+    :return: None
+    """
+    for num_id in entrez_records:
+        if num_id in guaranteed:
+            er = entrez_records[num_id]  # type: EntrezRecord
+            er.cluster_rep = True
+    return
+
+
+def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list, lineage_collapse=True) -> list:
+    """
+    Switches the representative sequence of a Cluster instance based on a priority list.
+    Optionally, clusters can be set to have zero members if their all members (including the representative) have
+    identical taxonomic lineages.
 
     :param cluster_dict: Dictionary mapping unique cluster IDs to Cluster instances
     :param entrez_records: Dictionary mapping numerical IDs to EntrezRecord instances
-    :param guaranteed_seqs: List of sequences that should be centroids, if not already
+    :param priority: List of sequences that should be centroids, if not already
     :param lineage_collapse: Flag indicating whether clusters whose members have identical lineages are removed
-    :return:
+    :return: Sequence names in `priority` that were members of a cluster represented by another priority sequence
     """
     # A temporary dictionary for rapid mapping of sequence names to lineages
-    lineage_lookup = {er.accession + ' ' + er.description: er.lineage for (num_id, er) in entrez_records.items()}
+    lineage_lookup = {er.versioned + ' ' + er.description: er.lineage for (num_id, er) in entrez_records.items()}
     # cluster_ids list is used for iterating through dictionary keys and allowing dict to change size with 'pop's
     cluster_ids = list(cluster_dict.keys())
-    # Track the number of guaranteed_seqs that remained members of clusters
+    # Track the number of priority sequences that remained members of clusters
     guaranteed_redundant = list()
     # Begin iterating over cluster_dict, improving the
     for cluster_id in sorted(cluster_ids, key=int):
@@ -188,14 +216,14 @@ def prefilter_clusters(cluster_dict: dict, entrez_records: dict, guaranteed_seqs
         if len(cluster_info.members) == 0:
             continue
         # Insure the centroids/representatives are the original reference sequences
-        if cluster_info.representative in guaranteed_seqs:
+        if cluster_info.representative in priority:
             rep_found = True
         else:
             rep_found = False
         i = 0
         while i < len(cluster_info.members):
             seq_name, seq_similarity = cluster_info.members[i]
-            if seq_name in guaranteed_seqs:
+            if seq_name in priority:
                 if rep_found:
                     guaranteed_redundant.append(seq_name)
                 else:
