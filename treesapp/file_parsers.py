@@ -447,16 +447,17 @@ def tax_ids_file_to_leaves(tax_ids_file):
             logging.error('ValueError: .split(\'\\t\') on ' + str(line) +
                           " generated " + str(len(line.split("\t"))) + " fields.\n")
             sys.exit(5)
-        if len(fields) == 2:
-            number, seq_name = fields
-            lineage = ""
-        elif len(fields) == 3:
+        if len(fields) == 3:
             number, seq_name, lineage = fields
         else:
             logging.error("ValueError: Unexpected number of fields in " + tax_ids_file +
                           ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
             raise ValueError
         leaf = TreeLeafReference(number, seq_name)
+        try:
+            leaf.accession = seq_name.split(" | ")[1]
+        except IndexError:
+            pass
         if lineage:
             leaf.lineage = lineage
             leaf.complete = True

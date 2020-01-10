@@ -139,6 +139,8 @@ def filter_by_lineage_depth(classified_lines: list, min_lineage_depth: int) -> s
 
 def intersect_incomparable_lists(superset, subset, name_map: dict) -> list:
     """
+    Function for identifying the intersection of two lists by
+    using a proxy identifier (alt_name) for elements in superset.
 
     :param superset: A list or set of strings
     :param subset: A list or set of strings
@@ -151,6 +153,17 @@ def intersect_incomparable_lists(superset, subset, name_map: dict) -> list:
         if alt_name in subset:
             intersection.append(seq_name)
     return intersection
+
+
+def drop_queries_by_accession(query_seqs: list, ref_seq_leaves: list):
+    ref_seq_accessions = {leaf.accession for leaf in ref_seq_leaves}
+    i = 0
+    while i < len(query_seqs):
+        if query_seqs[i].split()[0] in ref_seq_accessions:
+            query_seqs.pop(i)
+        else:
+            i += 1
+    return
 
 
 def simulate_entrez_records(fasta_records: FASTA, seq_lineage_map: dict) -> dict:

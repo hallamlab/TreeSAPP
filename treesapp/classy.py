@@ -704,20 +704,19 @@ class TreeLeafReference:
     Objects for each leaf in a tree
     """
     def __init__(self, number, description):
-        # self.tree = ""
         self.number = number
         self.description = description
         self.lineage = ""
+        self.accession = ""
         self.complete = False
 
     def summarize_tree_leaf(self):
         summary_string = "Leaf ID:\n\t" + str(self.number) + "\n" +\
                          "Description:\n\t" + str(self.description) + "\n"
-
-        # summary_string += "Tree:\n\t" + str(self.tree) + "\n"
+        summary_string += "Accession:\n\t'" + self.accession + "'\n"
         if self.complete:
             summary_string += "Lineage:\n\t" + str(self.lineage) + "\n"
-        logging.debug(summary_string)
+        return summary_string
 
     class MarkerInfo:
         """
@@ -1392,16 +1391,20 @@ class Updater(TreeSAPP):
 
         return info_string
 
-    def map_orf_lineages(self, seq_lineage_map: dict, header_registry: dict) -> dict:
+    def map_orf_lineages(self, seq_lineage_map: dict, header_registry: dict) -> (dict, list):
         """
         The classified sequences have a signature at the end (|RefPkg_name|start_stop) that needs to be removed
+        Iterates over the dictionary of sequence names and attempts to match those with headers in the registry.
+        If a match is found the header is assigned the corresponding lineage in seq_lineage_map.
+
         :param seq_lineage_map: A dictionary mapping contig sequence names to taxonomic lineages
         :param header_registry: A dictionary mapping numerical TreeSAPP identifiers to Header instances
-        :return: A dictionary mapping each classified sequence to a lineage
+        :return: A dictionary mapping each classified sequence to a lineage and list of TreeSAPP IDs that were mapped
         """
         logging.info("Mapping assigned sequences to provided taxonomic lineages... ")
         classified_seq_lineage_map = dict()
         treesapp_nums = list(header_registry.keys())
+        mapped_treesapp_nums = []
         for seq_name in seq_lineage_map:
             # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
             # we can't use hash-based data structures to bring it to O(N)
@@ -1412,15 +1415,15 @@ class Updater(TreeSAPP):
                 assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
                 if parent_re.search(assigned_seq_name):
                     classified_seq_lineage_map[header] = clean_lineage_string(seq_lineage_map[seq_name])
-                    treesapp_nums.pop(x)
+                    mapped_treesapp_nums.append(treesapp_nums.pop(x))
                 else:
                     x += 1
             if len(treesapp_nums) == 0:
                 logging.info("done.\n")
-                return classified_seq_lineage_map
-        logging.error("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
+                return classified_seq_lineage_map, mapped_treesapp_nums
+        logging.debug("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
                       "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
-        sys.exit(3)
+        return classified_seq_lineage_map, mapped_treesapp_nums
 
 
 class Creator(TreeSAPP):

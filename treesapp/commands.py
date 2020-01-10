@@ -512,6 +512,7 @@ def update(sys_args):
     ts_updater.validate_continue(args)
     ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
     ts_updater.ref_pkg.validate()
+    ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
 
     ##
     # Pull out sequences from TreeSAPP output
@@ -526,6 +527,8 @@ def update(sys_args):
     classified_targets = utilities.match_target_marker(ts_updater.ref_pkg.prefix, classified_fasta.get_seq_names())
     name_map = update_refpkg.strip_assigment_pattern(classified_fasta.get_seq_names(), ts_updater.ref_pkg.prefix)
     classified_targets = update_refpkg.intersect_incomparable_lists(classified_targets, candidate_update_seqs, name_map)
+    # Remove classified sequences that are already in the reference package
+    update_refpkg.drop_queries_by_accession(classified_targets, ref_seq_lineage_info)
 
     if len(classified_targets) == 0:
         logging.error("No new candidate reference sequences. Skipping update.\n")
@@ -554,18 +557,24 @@ def update(sys_args):
     # Add lineages - use taxa if provided with a table mapping contigs to taxa, TreeSAPP-assigned taxonomy otherwise
     ##
     classified_seq_lineage_map = dict()
+    # need_lineage_list = set(classified_fasta.header_registry.keys())  # TreeSAPP IDs that still need lineages
+    querying_classified_fasta = classified_fasta
     if ts_updater.seq_names_to_taxa:
         seq_lineage_map = file_parsers.read_seq_taxa_table(ts_updater.seq_names_to_taxa)
-        classified_seq_lineage_map.update(ts_updater.map_orf_lineages(seq_lineage_map,
-                                                                      classified_fasta.header_registry))
-    elif args.skip_assign:
-        name_map = update_refpkg.strip_assigment_pattern(classified_fasta.get_seq_names(),
+        lineage_map, mapped_treesapp_ids = ts_updater.map_orf_lineages(seq_lineage_map,
+                                                                       querying_classified_fasta.header_registry)
+        classified_seq_lineage_map.update(lineage_map)
+        for ts_num in mapped_treesapp_ids:
+            querying_classified_fasta.header_registry.pop(ts_num)
+    if args.skip_assign:
+        name_map = update_refpkg.strip_assigment_pattern(querying_classified_fasta.get_seq_names(),
                                                          ts_updater.ref_pkg.prefix)
-        classified_fasta.swap_headers(name_map)
-        fasta_records = ts_updater.fetch_entrez_lineages(classified_fasta, args.molecule)
+        querying_classified_fasta.synchronize_seqs_n_headers()
+        querying_classified_fasta.swap_headers(name_map)
+        fasta_records = ts_updater.fetch_entrez_lineages(querying_classified_fasta, args.molecule)
         create_refpkg.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
         deduped = []
-        for treesapp_id in sorted(classified_fasta.header_registry.keys(), key=int):
+        for treesapp_id in sorted(querying_classified_fasta.header_registry.keys(), key=int):
             try:
                 record = fasta_records[treesapp_id]  # type: entrez_utils.EntrezRecord
             except KeyError:
@@ -577,19 +586,18 @@ def update(sys_args):
                             "This should match the number of accessions deduplicated while fetching lineage information.\n")
             for treesapp_id in deduped:
                 logging.debug("Unable to find '" + treesapp_id + "' in fasta records. More info:\n" +
-                              classified_fasta.header_registry[treesapp_id].original + "\n")
-                classified_fasta.header_registry.pop(treesapp_id)
+                              querying_classified_fasta.header_registry[treesapp_id].original + "\n")
+                querying_classified_fasta.header_registry.pop(treesapp_id)
             deduped.clear()
-            classified_fasta.synchronize_seqs_n_headers()
+            querying_classified_fasta.synchronize_seqs_n_headers()
     else:
         # Map candidate reference sequence names to their TreeSAPP-assigned taxonomies
         assignments = file_parsers.parse_assignments(classified_lines)
         classified_seq_lineage_map.update(update_refpkg.map_classified_seqs(ts_updater.ref_pkg.prefix,
                                                                             assignments,
-                                                                            classified_fasta.get_seq_names()))
+                                                                            querying_classified_fasta.get_seq_names()))
     classified_seq_indices = classified_fasta.get_seq_names("num")
 
-    ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
     ref_header_map = {leaf.number + '_' + ts_updater.ref_pkg.prefix: leaf.description for leaf in ref_seq_lineage_info}
     ref_header_map = update_refpkg.reformat_ref_seq_descriptions(ref_header_map)
     ref_seq_lineage_map = {ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix]:
@@ -598,8 +606,13 @@ def update(sys_args):
     num_ref_seqs = len(ref_seq_lineage_map)
     classified_seq_lineage_map.update({ref_header_map[leaf.number + '_' + ts_updater.ref_pkg.prefix].split(' ')[0]:
                                        leaf.lineage for leaf in ref_seq_lineage_info})
-    if len(classified_seq_lineage_map) != (num_ref_seqs + num_assigned_candidates):
-        logging.error("Duplicates in references and candidates. Didn't think this would happen but here we are...\n")
+    diff = num_ref_seqs + num_assigned_candidates - len(classified_seq_lineage_map)
+    if diff > 0:
+        logging.warning(str(diff) + "candidate sequences are already in the reference package.\n")
+    elif diff < 0:
+        logging.error("Something's not adding up between the reference (%d), candidate (%d) and complete (%d) "
+                      "sequence collections. Reference and candidate should sum to equal complete.\n" %
+                      (num_ref_seqs, num_assigned_candidates, len(classified_seq_lineage_map)))
         sys.exit()
 
     update_refpkg.validate_mixed_lineages(classified_seq_lineage_map)
