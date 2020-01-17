@@ -5,7 +5,7 @@ import os
 import re
 import logging
 from collections import namedtuple
-from .classy import TreeLeafReference, MarkerBuild, Cluster
+from .classy import TreeLeafReference, MarkerBuild, Cluster, ReferencePackage
 from .HMMER_domainTblParser import DomainTableParser, HmmSearchStats,\
     format_split_alignments, filter_incomplete_hits, filter_poor_hits, renumber_multi_matches, detect_orientation
 from .fasta import read_fasta_to_dict
@@ -16,6 +16,7 @@ __author__ = 'Connor Morgan-Lang'
 def parse_ref_build_params(base_dir: str, targets=None):
     """
     Returns a dictionary of MarkerBuild objects storing information pertaining to the build parameters of each marker.
+
     :param base_dir: Path to the treesapp package directory containing 'data/ref_build_parameters.tsv'
     :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
     """
@@ -74,6 +75,40 @@ def parse_ref_build_params(base_dir: str, targets=None):
                       "Is your target '" + ','.join(targets) + "' in " + ref_build_parameters + "?\n")
         sys.exit(3)
     return marker_build_dict
+
+
+def gather_ref_packages(treesapp_dir: str, marker_build_dict: dict, targets=None) -> dict:
+    """
+    Returns a dictionary of ReferencePackage instances for each MarkerBuild instance in the marker_build_dict.
+    Optionally these markers can be subsetted further by a list of targets
+
+    :param treesapp_dir: Path to the treesapp package directory containing 'data/ref_build_parameters.tsv'
+    :param marker_build_dict: A dictionary of MarkerBuild instances indexed by their refpkg codes/denominators
+    :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
+    """
+    refpkg_dict = dict()
+    refpkg_data_dir = treesapp_dir + os.sep + "data" + os.sep
+    logging.debug("Gathering reference package files... ")
+
+    for denominator in marker_build_dict:
+        marker_build = marker_build_dict[denominator]  # type: MarkerBuild
+        refpkg = ReferencePackage()
+        refpkg.refpkg_code = denominator
+        refpkg.prefix = marker_build.cog
+        if targets:
+            if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
+                continue
+        refpkg.num_seqs = marker_build.num_reps
+        refpkg.gather_package_files(refpkg_data_dir, marker_build.molecule)
+        refpkg_dict[denominator] = refpkg
+
+    logging.debug("done.\n")
+
+    if len(refpkg_dict) == 0:
+        logging.error("No reference package data was found.\n" +
+                      "Are there reference packages in '" + refpkg_data_dir + "'?\n")
+        sys.exit(3)
+    return refpkg_dict
 
 
 def read_graftm_classifications(assignment_file):

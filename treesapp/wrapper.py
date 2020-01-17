@@ -7,7 +7,7 @@ import logging
 from shutil import copy
 
 from treesapp.external_command_interface import launch_write_command, setup_progress_bar
-from treesapp.classy import CommandLineFarmer
+from treesapp.classy import CommandLineFarmer, MarkerBuild, ReferencePackage
 from .fasta import read_fasta_to_dict
 from .utilities import remove_dashes_from_msa
 
@@ -86,67 +86,75 @@ def construct_tree(executables: dict, molecule: str, multiple_alignment_file: st
     return tree_builder
 
 
-def launch_evolutionary_placement_queries(executables, tree_dir, phy_files, marker_build_dict, output_dir, num_threads):
+def launch_evolutionary_placement_queries(executables: dict, tree_dir: str, query_msa_fastas: dict,
+                                          marker_build_dict: dict, refpkg_dict: dict, output_dir: str,
+                                          num_threads: int) -> None:
     """
-    Run EPA through RAxML using Phylip files containing the reference and query sequences, and the reference trees
+    Run EPA-ng using FASTA files containing the reference and query sequences, and the reference trees
 
-    :param executables:
-    :param tree_dir:
-    :param phy_files:
-    :param marker_build_dict:
-    :param output_dir:
-    :param num_threads:
+    :param executables: Dictionary of executables where executable name strings are keys and paths are values
+    :param tree_dir: Path to the directory containing all of the reference tree/phylogeny files
+    :param query_msa_fastas: Dictionary of FASTA files indexed by the TreeSAPP refpkg code (denominator)
+    :param marker_build_dict: Dictionary of MarkerBuild instances indexed by their TreeSAPP refpkg code (denominator)
+    :param refpkg_dict: Dictionary of ReferencePackage instances indexed by their TreeSAPP refpkg code (denominator)
+    :param output_dir: Path to write the EPA-ng outputs
+    :param num_threads: Number of threads to use during placement
     :return: None
     """
-    logging.info("Running RAxML... coffee?\n")
+    logging.info("Running EPA... ")
 
     start_time = time.time()
 
-    raxml_calls = 0
+    epa_calls = 0
     # Maximum-likelihood sequence placement analyses
     denominator_reference_tree_dict = dict()
-    for denominator in sorted(phy_files.keys()):
+    for denominator in sorted(query_msa_fastas.keys()):
         if not isinstance(denominator, str):
             logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
             raise AssertionError()
         # Establish the reference tree file to be used for this contig
-        ref_marker = marker_build_dict[denominator]
+        ref_marker = marker_build_dict[denominator]  # type: MarkerBuild
+        ref_pkg = refpkg_dict[denominator]  # type: ReferencePackage
         reference_tree_file = tree_dir + os.sep + ref_marker.cog + '_tree.txt'
         if denominator not in denominator_reference_tree_dict.keys():
             denominator_reference_tree_dict[denominator] = reference_tree_file
-        for phy_file in phy_files[denominator]:
-            query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(phy_file))
+        for query_msa in query_msa_fastas[denominator]:
+            query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(query_msa))
             query_name = re.sub(marker_build_dict[denominator].cog, denominator, query_name)
-            raxml_evolutionary_placement(executables["raxmlHPC"], reference_tree_file, phy_file,
+            raxml_evolutionary_placement(executables["epa-ng"], reference_tree_file, ref_pkg.msa, query_msa,
                                          ref_marker.model, output_dir, query_name, num_threads)
-            raxml_calls += 1
+            epa_calls += 1
 
     end_time = time.time()
     hours, remainder = divmod(end_time - start_time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    logging.debug("\tRAxML time required: " +
+    logging.info("done.\n")
+
+    logging.debug("\tEPA-ng time required: " +
                   ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    logging.debug("\tRAxML was called " + str(raxml_calls) + " times.\n")
+    logging.debug("\tEPA-ng was called " + str(epa_calls) + " times.\n")
 
     return
 
 
-def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multiple_alignment: str, model: str,
-                                 output_dir: str, query_name: str, num_threads=2):
+def raxml_evolutionary_placement(epa_exe: str, reference_tree_file: str, reference_msa: str, query_msa: str,
+                                 model: str, output_dir: str, query_name: str, num_threads=2):
     """
-    A wrapper for RAxML's evolutionary placement algorithm (EPA)
+    A wrapper for evolutionary placement algorithm (EPA) next-generation
         1. checks to ensure the output files do not already exist, and removes them if they do
-        2. ensures the output directory is an absolute path, satisfying RAxML
-        3. Runs RAxML with the provided parameters
+        2. ensures the output directory is an absolute path, satisfying EPA
+        3. Runs EPA with the provided parameters
         4. Renames the files for consistency in TreeSAPP
-    :param raxml_exe: Path to the RAxML executable to be used
+
+    :param epa_exe: Path to the EPA-ng executable to be used
     :param reference_tree_file: The reference tree for evolutionary placement to operate on
-    :param multiple_alignment: Path to a multiple alignment file containing reference and query sequences
-    :param model: The substitution model to be used by RAxML e.g. PROTGAMMALG, GTRCAT
+    :param reference_msa: The reference multiple sequence alignment for the reference package (FASTA)
+    :param query_msa: Path to a multiple alignment file containing reference and query sequences (FASTA)
+    :param model: The substitution model to be used by EPA e.g. PROTGAMMALG, GTRCAT
     :param output_dir: Path to write the EPA outputs
     :param query_name: Prefix name for all of the output files
     :param num_threads: Number of threads EPA should use (default = 2)
-    :return: A dictionary of files written by RAxML's EPA that are used by TreeSAPP. For example epa_files["jplace"]
+    :return: A dictionary of files written by EPA-ng that are used by TreeSAPP. For example epa_files["jplace"]
     """
     epa_files = dict()
     ##
@@ -169,21 +177,21 @@ def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multi
         raise AssertionError()
 
     if len(reference_tree_file) == 0:
-        logging.error("Could not find reference tree for " + query_name + " to be used by EPA.\n")
+        logging.error("Could not find reference tree for " + query_name + " to be used by EPA-ng.\n")
         raise AssertionError()
 
-    # This is the final set of files that will be written by RAxML's EPA algorithm
-    epa_files["stdout"] = output_dir + query_name + '_RAxML.txt'
-    epa_info = output_dir + 'RAxML_info.' + query_name
-    epa_files["info"] = output_dir + query_name + '.RAxML_info.txt'
-    epa_labelled_tree = output_dir + 'RAxML_labelledTree.' + query_name
-    epa_tree = output_dir + 'RAxML_originalLabelledTree.' + query_name
-    epa_files["tree"] = output_dir + query_name + '.originalRAxML_labelledTree.txt'
-    epa_classification = output_dir + 'RAxML_classification.' + query_name
-    epa_files["classification"] = output_dir + query_name + '.RAxML_classification.txt'
-    epa_files["jplace"] = output_dir + "RAxML_portableTree." + query_name + ".jplace"
-    epa_entropy = output_dir + "RAxML_entropy." + query_name
-    epa_weights = output_dir + "RAxML_classificationLikelihoodWeights." + query_name
+    # This is the final set of files that will be written by EPA-ng
+    epa_files["stdout"] = output_dir + query_name + '_EPA.txt'
+    epa_info = output_dir + 'EPA_info.' + query_name
+    epa_files["info"] = output_dir + query_name + '.EPA_info.txt'
+    epa_labelled_tree = output_dir + 'EPA_labelledTree.' + query_name
+    epa_tree = output_dir + 'EPA_originalLabelledTree.' + query_name
+    epa_files["tree"] = output_dir + query_name + '.originalEPA_labelledTree.txt'
+    epa_classification = output_dir + 'EPA_classification.' + query_name
+    epa_files["classification"] = output_dir + query_name + '.EPA_classification.txt'
+    epa_files["jplace"] = output_dir + "EPA_portableTree." + query_name + ".jplace"
+    epa_entropy = output_dir + "EPA_entropy." + query_name
+    epa_weights = output_dir + "EPA_classificationLikelihoodWeights." + query_name
 
     for raxml_file in [epa_info, epa_labelled_tree, epa_tree, epa_classification, epa_entropy, epa_weights]:
         try:
@@ -191,19 +199,20 @@ def raxml_evolutionary_placement(raxml_exe: str, reference_tree_file: str, multi
         except OSError:
             pass
 
-    # Set up the command to run RAxML
-    raxml_command = [raxml_exe,
-                     '-m', model,
-                     '-T', str(int(num_threads)),
-                     '-s', multiple_alignment,
-                     '-t', reference_tree_file,
-                     '-G', str(0.2),
-                     "--epa-prob-threshold=" + str(0.10),
-                     '-f', 'v',
-                     '-n', query_name,
-                     '-w', output_dir,
-                     '>', epa_files["stdout"]]
-    launch_write_command(raxml_command)
+    # Set up the command to run EPA-ng
+    epa_command = [epa_exe,
+                   '-s', reference_msa,
+                   '-t', reference_tree_file,
+                   '-q', query_msa,
+                   "--model", model,
+                   "--no-pre-mask",
+                   "--dyn-heur", str(0.9),
+                   "--preserve-rooting", "on",
+                   "--filter-min-lwr", str(0.01),
+                   "--outdir", output_dir,
+                   '-T', str(num_threads)]  #,
+                   # '>', epa_files["stdout"]]
+    launch_write_command(epa_command)
 
     # Rename the RAxML output files
     if os.path.exists(epa_info):

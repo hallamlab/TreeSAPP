@@ -851,6 +851,7 @@ def assign(sys_args):
 
     marker_build_dict = file_parsers.parse_ref_build_params(ts_assign.treesapp_dir,
                                                             ts_assign.target_refpkgs)
+    refpkg_dict = file_parsers.gather_ref_packages(ts_assign.treesapp_dir, marker_build_dict)
     ref_alignment_dimensions = get_alignment_dims(ts_assign.treesapp_dir, marker_build_dict)
     tree_numbers_translation = file_parsers.read_species_translation_files(ts_assign.treesapp_dir, marker_build_dict)
     if args.check_trees:
@@ -898,6 +899,7 @@ def assign(sys_args):
     ##
     # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
     ##
+    query_msa_files = dict()
     if ts_assign.stage_status("align"):
         create_ref_phy_files(ts_assign.aln_dir, ts_assign.var_output_dir,
                              homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
@@ -915,17 +917,18 @@ def assign(sys_args):
             qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
                                                      marker_build_dict, args.min_seq_length)
             evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-            phy_files = produce_phy_files(qc_ma_dict)
+            # query_msa_files = produce_phy_files(qc_ma_dict)
+            query_msa_files.update(qc_ma_dict)
         else:
-            phy_files = concatenated_msa_files
+            query_msa_files.update(concatenated_msa_files)
         delete_files(args.delete, ts_assign.var_output_dir, 3)
 
     ##
-    # STAGE 5: Run RAxML to compute the ML estimations
+    # STAGE 5: Run EPA-ng to compute the ML estimations
     ##
     if ts_assign.stage_status("place"):
         wrapper.launch_evolutionary_placement_queries(ts_assign.executables, ts_assign.tree_dir,
-                                                      phy_files, marker_build_dict,
+                                                      query_msa_files, marker_build_dict, refpkg_dict,
                                                       ts_assign.var_output_dir, args.num_threads)
         sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, marker_build_dict)
 

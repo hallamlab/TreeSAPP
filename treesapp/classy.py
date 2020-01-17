@@ -118,6 +118,7 @@ class ReferencePackage:
         Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
          files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
          in the same directory.
+
         :param pkg_path: Path to the reference package
         :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
         :param layout: An optional string indicating what layout to use (flat | hierarchical)
@@ -1294,7 +1295,7 @@ class TreeSAPP:
         :return: exec_paths beings the absolute path to each executable
         """
         exec_paths = dict()
-        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "usearch", "BMGE.jar"]
+        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxmlHPC", "usearch", "BMGE.jar"]
 
         # extensions = ["papara", "trimal"]
 
