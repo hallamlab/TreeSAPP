@@ -1,7 +1,6 @@
-# TreeSAPP: Tree-based Sensitive and Accurate Protein Profiler
+# TreeSAPP: Tree-based Sensitive and Accurate Phylogenetic Profiler
 
-Connor Morgan-Lang, Ryan McLaughlin, Grace Zhang, Kevin Chan,
-Zachary Armstrong, Kishori M. Konwar, and Steven J. Hallam
+Connor Morgan-Lang, Ryan McLaughlin, Grace Zhang, Kevin Chan, Zachary Armstrong, and Steven J. Hallam
 
 ## Overview:
 
@@ -22,6 +21,7 @@ virtualenv ~/bin/treesapp_venv
 source ~/bin/treesapp_venv/bin/activate
 git clone git@github.com:hallamlab/TreeSAPP.git
 cd TreeSAPP/
+make rpkm
 python setup.py install
 ```
 
