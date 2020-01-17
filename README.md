@@ -39,14 +39,15 @@ From here, consult the README file in the standard-RAxML directory for installat
 We highly recommend *only using release 8.2.12* as older versions were found to not estimate pendant distances of placements as accurately.
 However, the executable MUST be named `raxmlHPC` or it will not be found by TreeSAPP!
 
-#### EPA-ng
+#### EPA - Next Generation
 
 The EPA-ng [GitHub](https://github.com/Pbdas/epa-ng) contains a few methods for installing `EPA-ng` on Linux
 operating systems including using either `conda` or `brew` package managers, and installing from source.
 
-#### RAxML-ng
+#### RAxML - Next Generation
 
-RAxML-ng
+The easiest way to install RAxML-ng is by downloading the pre-compiled binary for your operating system.
+These are available for Linux and Mac on their [GitHub page](https://github.com/amkozlov/raxml-ng). 
 
 
 #### HMMER

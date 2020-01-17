@@ -12,8 +12,41 @@ from .fasta import read_fasta_to_dict
 from .utilities import remove_dashes_from_msa
 
 
+def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, prefix: str, model: str) -> str:
+    """
+    Wrapper function for RAxML-ng's `evaluate` sub-command that generates a file to be used by EPA-ng.
+    This file, in reality, is part of a reference package as it is reference tree and MSA dependent
+    and will need to be provided for phylogenetic placement.
+
+    :param raxml_exe: Path to the raxml-ng executable
+    :param ref_msa: Path to the reference package's multiple sequence alignment (FASTA)
+    :param tree_file: Path to the reference package's tree (Newick)
+    :param prefix: Prefix path for the output files
+    :param model: Substitution model (and other parameters e.g. Gamma model of rate heterogeneity) used to build tree
+    :return: Path to the bestModel file that can be used by epa-ng for phylogenetic placement
+    """
+    model_params_file = prefix + "raxml.bestModel"
+    model_eval_cmd = [raxml_exe, "--evaluate"]
+    model_eval_cmd += ["--msa", ref_msa]
+    model_eval_cmd += ["--tree", tree_file]
+    model_eval_cmd += ["--prefix", ""]
+    model_eval_cmd += ["--model", model]
+
+    logging.info("Evaluating phylogenetic tree with RAxML-ng... ")
+    stdout, returncode = launch_write_command(model_eval_cmd, False)
+    logging.info("done.\n")
+
+    if returncode != 0:
+        logging.error(raxml_exe + " did not complete successfully! " +
+                      "Look in " + prefix + "_info.txt for an error message.\n" +
+                      "RAxML-ng command used:\n" + ' '.join(model_eval_cmd) + "\n")
+        sys.exit(13)
+
+    return model_params_file
+
+
 def construct_tree(executables: dict, molecule: str, multiple_alignment_file: str,
-                   tree_output_dir, tree_file, tree_prefix, args):
+                   tree_output_dir: str, tree_file: str, tree_prefix: str, args):
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
 
@@ -38,22 +71,21 @@ def construct_tree(executables: dict, molecule: str, multiple_alignment_file: st
         tree_build_cmd.append(multiple_alignment_file)
         tree_builder = "FastTree"
     else:
-        tree_build_cmd = [executables["raxmlHPC"]]
-        tree_build_cmd += ["-f", "a"]
-        tree_build_cmd += ["-p", "12345"]
-        tree_build_cmd += ["-x", "12345"]
-        tree_build_cmd += ["-#", str(args.bootstraps)]
-        tree_build_cmd += ["-s", multiple_alignment_file]
-        tree_build_cmd += ["-n", tree_prefix]
-        tree_build_cmd += ["-w", tree_output_dir]
-        tree_build_cmd += ["-T", str(args.num_threads)]
+        tree_build_cmd = [executables["raxml-ng"]]
+        tree_build_cmd.append("--all")
+        tree_build_cmd += ["--prefix", tree_output_dir + os.sep + tree_prefix]
+        tree_build_cmd += ["--msa", multiple_alignment_file]
+        tree_build_cmd += ["--msa-format", "PHYLIP"]
+        tree_build_cmd += ["--seed", "12345"]
+        tree_build_cmd += ["--bs-trees", "autoMRE{1000}"]
+        tree_build_cmd += ["--threads", str(args.num_threads)]
 
         if args.raxml_model:
-            tree_build_cmd += ["-m", args.raxml_model]
+            tree_build_cmd += ["--model", args.raxml_model]
         elif args.molecule == "prot":
-            tree_build_cmd += ["-m", "PROTGAMMAAUTO"]
+            tree_build_cmd += ["--model", "LG+G4"]
         elif args.molecule == "rrna" or molecule == "dna":
-            tree_build_cmd += ["-m", "GTRGAMMA"]
+            tree_build_cmd += ["-m", "GTR+G"]
         else:
             logging.error("A substitution model could not be specified with the 'molecule' argument: " + args.molecule)
             sys.exit(13)
