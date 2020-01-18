@@ -737,15 +737,17 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
         1. is shorter then the min_seq_length (30 by default)
         2. is missing any reference sequences
     The number of query sequences discarded - these may have been added by hmmalign or PaPaRa - is returned via a string
-    NOTE: Initially design for sequences records with numeric names (e.g. >4889) but accomodates other TreeSAPP formats
-    :param msa_files: A list of either Phylip- or FASTA-formatted MSA files
+
+    NOTE: Initially designed for sequence records with numeric names (e.g. >4889) but accomodates other TreeSAPP formats
+
+    :param msa_files: A list of either Phylip or FASTA formatted MSA files
     :param unique_ref_headers: A set of all headers that were in the untrimmed MSA
     :param queries_mapped: Boolean indicating whether sequences should be present in addition to reference sequences.
-        While query sequences _could_ be identified as any that are not in unique_ref_headers,
-        queries have names that are negative integers for more rapid and scalable identification
+           While query sequences _could_ be identified as any that are not in unique_ref_headers,
+           queries have names that are negative integers for more rapid and scalable identification
     :param min_seq_length: Optional minimum unaligned (no '-'s) length a sequence must exceed to be retained
     :return: 1. Dictionary indexed by MSA file name mapping to FASTA-dictionaries and
-    2. A string mapping the number of query sequences removed from each MSA file
+             2. A string mapping the number of query sequences removed from each MSA file
     """
     discarded_seqs_string = ""
     successful_multiple_alignments = dict()

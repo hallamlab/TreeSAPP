@@ -419,7 +419,7 @@ def create(sys_args):
                 logging.error("Multiple trimmed alignment files are found when only one is expected:\n" +
                               "\n".join([str(k) + ": " + str(qc_ma_dict[k]) for k in qc_ma_dict]))
                 sys.exit(13)
-            # There is only a single trimmed-MSA file in the dictionary
+            # NOTE: only a single trimmed-MSA file in the dictionary
             for trimmed_msa_file in qc_ma_dict:
                 dict_for_phy = qc_ma_dict[trimmed_msa_file]
                 os.remove(trimmed_msa_file)
@@ -431,7 +431,7 @@ def create(sys_args):
         utilities.write_phy_file(ts_create.phylip_file, phy_dict)
 
         ##
-        # Build the tree using either RAxML or FastTree
+        # Build the tree using either RAxML-NG or FastTree
         ##
         marker_package.model = wrapper.select_model(args, ts_create.molecule_type)
         best_tree = wrapper.construct_tree(ts_create.executables, marker_package.model, ts_create.phylip_file,
@@ -439,14 +439,16 @@ def create(sys_args):
 
         # TODO: Ensure outputs exist and are named correctly
         if args.fast:
-            ts_create.ref_pkg.model_info = wrapper.model_parameters(ts_create.executables["raxml-ng"],
-                                                                    ts_create.phylip_file,
-                                                                    best_tree,
-                                                                    ts_create.phy_dir + ts_create.ref_pkg.prefix,
-                                                                    marker_package.model)
+            wrapper.support_tree_raxml(raxml_exe=ts_create.executables["raxml-ng"],
+                                       ref_tree=best_tree, ref_msa=ts_create.phylip_file, model=marker_package.model,
+                                       tree_prefix=ts_create.phy_dir + ts_create.ref_pkg.prefix,
+                                       mre=False, n_bootstraps=10, num_threads=args.num_threads)
+            wrapper.model_parameters(ts_create.executables["raxml-ng"],
+                                     ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
+                                     marker_package.model)
 
-        create_refpkg.clean_up_raxmlng_all_outputs(ts_create.phy_dir, ts_create.final_output_dir,
-                                                   ts_create.ref_pkg, fasta_replace_dict)
+        create_refpkg.clean_up_raxmlng_outputs(ts_create.phy_dir, ts_create.final_output_dir,
+                                               ts_create.ref_pkg, fasta_replace_dict)
 
     if args.raxml_model:
         marker_package.model = args.raxml_model

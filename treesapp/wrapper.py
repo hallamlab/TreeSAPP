@@ -58,7 +58,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     model_eval_cmd += ["--prefix", output_prefix]
     model_eval_cmd += ["--model", model]
 
-    logging.info("Evaluating phylogenetic tree with RAxML-ng... ")
+    logging.info("Evaluating phylogenetic tree with RAxML-NG... ")
     stdout, returncode = launch_write_command(model_eval_cmd)
     logging.info("done.\n")
 
@@ -69,6 +69,53 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
         sys.exit(13)
 
     return model_params_file
+
+
+def bootstrap_tree_raxml(raxml_exe: str, multiple_alignment: str, model: str, tree_prefix: str,
+                         mre=True, bootstraps=1000, num_threads=2) -> str:
+    bootstrap_cmd = [raxml_exe, "--bootstrap"]
+    bootstrap_cmd += ["--msa", multiple_alignment]
+    bootstrap_cmd += ["--model", model]
+    if mre:
+        bootstrap_cmd += ["--bs-trees", "autoMRE{%d}" % bootstraps]
+    else:
+        bootstrap_cmd += ["--bs-trees", str(bootstraps)]
+    bootstrap_cmd += ["--prefix", tree_prefix]
+    bootstrap_cmd += ["--seed", str(12345)]
+    bootstrap_cmd += ["--threads", str(num_threads)]
+
+    logging.info("Bootstrapping reference tree with RAxML-NG... ")
+    launch_write_command(bootstrap_cmd)
+    logging.info("done.\n")
+
+    bootstraps_file = tree_prefix + ".raxml.bootstraps"
+    if not os.path.isfile(bootstraps_file):
+        logging.error("Unable to find bootstrap file '%s'.\n" % bootstraps_file)
+        sys.exit(17)
+
+    return bootstraps_file
+
+
+def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, tree_prefix: str,
+                       mre=True, n_bootstraps=1000, num_threads=2) -> str:
+    bootstraps = bootstrap_tree_raxml(raxml_exe, ref_msa, model, tree_prefix, mre, n_bootstraps, num_threads)
+
+    support_cmd = [raxml_exe, "--support"]
+    support_cmd += ["--tree", ref_tree]
+    support_cmd += ["--bs-trees", bootstraps]
+    support_cmd += ["--prefix", tree_prefix]
+    support_cmd += ["--threads", str(num_threads)]
+
+    logging.info("Calculating bootstrap support for node in reference tree with RAxML-NG... ")
+    launch_write_command(support_cmd)
+    logging.info("done.\n")
+
+    support_file = tree_prefix + ".raxml.support"
+    if not os.path.isfile(support_file):
+        logging.error("Unable to find support file '%s'.\n" % support_file)
+        sys.exit(17)
+
+    return support_file
 
 
 def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: str,
@@ -98,7 +145,7 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
         tree_build_cmd += ["-out", best_tree]
         tree_build_cmd.append(multiple_alignment_file)
     else:
-        tree_builder = "RAxML-NG"
+        tree_builder = "raxml"
         best_tree = tree_output_dir + tree_prefix + ".raxml.bestTree"
         tree_build_cmd = [executables["raxml-ng"], "--all"]
         tree_build_cmd += ["--prefix", tree_output_dir + tree_prefix]
@@ -121,17 +168,18 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
 
     logging.info("Building phylogenetic tree with " + tree_builder + "... ")
     if fast_mode:
-        stdout, returncode = launch_write_command(tree_build_cmd, True)
-        with open(tree_output_dir + os.sep + "FastTree_info." + tree_prefix, 'w') as fast_info:
+        stdout, returncode = launch_write_command(tree_build_cmd)
+        with open(tree_output_dir + tree_prefix + ".FastTree.log", 'w') as fast_info:
             fast_info.write(stdout + "\n")
     else:
-        stdout, returncode = launch_write_command(tree_build_cmd, False)
+        stdout, returncode = launch_write_command(tree_build_cmd)
     logging.info("done.\n")
+    logging.debug(stdout + "\n")
 
     if returncode != 0:
         logging.error(tree_builder + " did not complete successfully! " +
-                      "Look in " + tree_output_dir + os.sep +
-                      tree_builder + "_info." + tree_prefix + " for an error message.\n" +
+                      "Look in " + tree_output_dir + '.'.join([tree_prefix, tree_builder, "log"]) +
+                      " for an error message.\n" +
                       tree_builder + " command used:\n" + ' '.join(tree_build_cmd) + "\n")
         sys.exit(13)
 

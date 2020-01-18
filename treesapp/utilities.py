@@ -531,16 +531,27 @@ def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
     return leaf_annotation_map
 
 
-def reformat_fasta_to_phy(fasta_dict):
+def reformat_fasta_to_phy(fasta_dict: dict) -> dict:
+    """
+    The fasta_dict input is a dictionary of sequence names (seq_name) keys indexing their respective sequences.
+    Each sequence in the dictionary is split into subsequences of 50 characters and indexed first by the line count
+    as well as the sequence name. These are stored in a dictionary of dictionaries and fairly trivial to iterate the
+    sorted keys.
+
+    :param fasta_dict: A dictionary of sequence names (seq_name) keys indexing their respective sequences.
+    :return: A dictionary of line counts indexing sequence names indexing that sequence's subsequence for that line
+    """
     phy_dict = dict()
     for seq_name in fasta_dict:
         sequence = fasta_dict[seq_name]
         sub_sequences = re.findall(r'.{1,50}', sequence)
         count = 0
         for sub_sequence in sub_sequences:
-            if count not in phy_dict:
+            try:
+                phy_dict[count][seq_name] = sub_sequence
+            except KeyError:
                 phy_dict[count] = dict()
-            phy_dict[count][seq_name] = sub_sequence
+                phy_dict[count][seq_name] = sub_sequence
             count += 1
     return phy_dict
 
