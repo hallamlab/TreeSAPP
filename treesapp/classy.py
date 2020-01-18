@@ -48,6 +48,7 @@ class ReferencePackage:
         self.lineage_ids = ""
         self.taxa_trie = ""
         self.sub_model = ""
+        self.model_info = ""
         self.core_ref_files = list()
         self.num_seqs = 0
 
@@ -137,11 +138,13 @@ class ReferencePackage:
         flat = {"msa": pkg_path + self.prefix + ".fa",
                 "tree": pkg_path + self.prefix + "_tree.txt",
                 "profile": pkg_path + self.prefix + profile_ext,
-                "taxid": pkg_path + "tax_ids_" + self.prefix + ".txt"}
+                "taxid": pkg_path + "tax_ids_" + self.prefix + ".txt",
+                "bestModel": pkg_path + self.prefix + "_bestModel.txt"}
         hierarchical = {"msa": pkg_path + "alignment_data" + os.sep + self.prefix + ".fa",
-                        "tree": pkg_path + "tree_data" + os.sep + self.prefix + "_tree.txt",
                         "profile": pkg_path + "hmm_data" + os.sep + self.prefix + profile_ext,
-                        "taxid": pkg_path + "tree_data" + os.sep + "tax_ids_" + self.prefix + ".txt"}
+                        "taxid": pkg_path + "tree_data" + os.sep + "tax_ids_" + self.prefix + ".txt",
+                        "tree": pkg_path + "tree_data" + os.sep + self.prefix + "_tree.txt",
+                        "bestModel": pkg_path + "tree_data" + os.sep + self.prefix + "_bestModel.txt"}
 
         if layout == "flat":
             layout = flat
@@ -165,12 +168,13 @@ class ReferencePackage:
             self.tree = layout["tree"]
             self.profile = layout["profile"]
             self.lineage_ids = layout["taxid"]
+            self.model_info = layout["bestModel"]
             self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"
         else:
             logging.error("Unable to gather reference package files from '" + pkg_path + "'\n")
             sys.exit(17)
 
-        self.core_ref_files += [self.msa, self.profile, self.tree, self.lineage_ids]
+        self.core_ref_files += [self.msa, self.profile, self.tree, self.lineage_ids, self.model_info]
 
         return
 
@@ -1295,7 +1299,7 @@ class TreeSAPP:
         :return: exec_paths beings the absolute path to each executable
         """
         exec_paths = dict()
-        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxmlHPC", "usearch", "BMGE.jar"]
+        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxml-ng", "usearch", "BMGE.jar"]
 
         # extensions = ["papara", "trimal"]
 
@@ -1503,10 +1507,10 @@ class Creator(TreeSAPP):
         param_file = self.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
         logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n" +
                      "1. Write a properly formatted reference package 'code' in " + param_file + "\n" +
-                     "2. $ cp " + self.ref_pkg.lineage_ids + ' ' + self.tree_dir + "\n" +
-                     "3. $ cp " + self.ref_pkg.tree + ' ' + self.tree_dir + "\n" +
-                     "4. $ cp " + self.ref_pkg.profile + ' ' + self.hmm_dir + "\n" +
-                     "5. $ cp " + self.ref_pkg.msa + ' ' + self.aln_dir + "\n")
+                     "2. $ cp " + ' '.join([self.ref_pkg.lineage_ids, self.ref_pkg.tree, self.ref_pkg.model_info]) +
+                     ' ' + self.tree_dir + "\n" +
+                     "3. $ cp " + self.ref_pkg.profile + ' ' + self.hmm_dir + "\n" +
+                     "4. $ cp " + self.ref_pkg.msa + ' ' + self.aln_dir + "\n")
         return
 
 

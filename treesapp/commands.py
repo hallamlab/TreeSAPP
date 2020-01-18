@@ -433,20 +433,27 @@ def create(sys_args):
         ##
         # Build the tree using either RAxML or FastTree
         ##
-        wrapper.construct_tree(ts_create.executables, ts_create.molecule_type, ts_create.phylip_file,
-                               ts_create.phy_dir, ts_create.ref_pkg.tree, ts_create.ref_pkg.prefix, args)
-        if not args.fast:
-            raw_newick_tree = ts_create.phy_dir + "RAxML_bestTree." + ts_create.ref_pkg.prefix
-            bootstrap_tree = ts_create.phy_dir + "RAxML_bipartitionsBranchLabels." + ts_create.ref_pkg.prefix
-            entish.annotate_partition_tree(ts_create.ref_pkg.prefix, fasta_replace_dict, bootstrap_tree)
-            bootstrap_nameswap = ts_create.final_output_dir + ts_create.ref_pkg.prefix + "_bipartitions.txt"
-            utilities.swap_tree_names(raw_newick_tree, ts_create.ref_pkg.tree, ts_create.ref_pkg.prefix)
-            utilities.swap_tree_names(bootstrap_tree, bootstrap_nameswap, ts_create.ref_pkg.prefix)
+        marker_package.model = wrapper.select_model(args, ts_create.molecule_type)
+        best_tree = wrapper.construct_tree(ts_create.executables, marker_package.model, ts_create.phylip_file,
+                                           ts_create.phy_dir, ts_create.ref_pkg.prefix, args.num_threads, args.fast)
+
+        # TODO: Ensure outputs exist and are named correctly
+        if args.fast:
+            ts_create.ref_pkg.model_info = wrapper.model_parameters(ts_create.executables["raxml-ng"],
+                                                                    ts_create.phylip_file,
+                                                                    best_tree,
+                                                                    ts_create.phy_dir + ts_create.ref_pkg.prefix,
+                                                                    marker_package.model)
+
+        create_refpkg.clean_up_raxmlng_all_outputs(ts_create.phy_dir, ts_create.final_output_dir,
+                                                   ts_create.ref_pkg, fasta_replace_dict)
 
     if args.raxml_model:
         marker_package.model = args.raxml_model
     else:
-        marker_package.model = ts_create.determine_model(args.fast)
+        # TODO: Update for compatibility with RAxML-NG outputs
+        # marker_package.model = ts_create.determine_model(args.fast)
+        pass
     param_file = ts_create.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
     refpkg_lineages = [ref.lineage for ref in ts_create.ref_pkg.tax_ids_file_to_leaves()]
     marker_package.lowest_confident_rank = create_refpkg.estimate_taxonomic_redundancy(refpkg_lineages)
@@ -474,7 +481,7 @@ def create(sys_args):
         if args.fast:
             marker_package.tree_tool = "FastTree"
         else:
-            marker_package.tree_tool = "RAxML"
+            marker_package.tree_tool = "RAxML-NG"
         marker_package.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir + "placement_trainer" +
                                                                    os.sep + "placement_trainer_results.txt")
         ts_create.ref_pkg.validate(marker_package.num_reps)
