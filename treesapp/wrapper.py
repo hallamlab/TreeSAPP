@@ -7,9 +7,9 @@ import logging
 from shutil import copy
 
 from treesapp.external_command_interface import launch_write_command, setup_progress_bar
-from treesapp.classy import CommandLineFarmer, MarkerBuild, ReferencePackage
-from .fasta import read_fasta_to_dict
-from .utilities import remove_dashes_from_msa
+from treesapp.classy import CommandLineFarmer, ReferencePackage
+from treesapp.fasta import read_fasta_to_dict, FASTA, write_new_fasta
+from treesapp.utilities import remove_dashes_from_msa
 
 
 def select_model(args, molecule: str) -> str:
@@ -186,16 +186,15 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
     return best_tree
 
 
-def launch_evolutionary_placement_queries(executables: dict, tree_dir: str, query_msa_fastas: dict,
-                                          marker_build_dict: dict, refpkg_dict: dict, output_dir: str,
+def launch_evolutionary_placement_queries(executables: dict, query_msa_fastas: dict,
+                                          refpkg_dict: dict, output_dir: str,
                                           num_threads: int) -> None:
     """
     Run EPA-ng using FASTA files containing the reference and query sequences, and the reference trees
 
     :param executables: Dictionary of executables where executable name strings are keys and paths are values
-    :param tree_dir: Path to the directory containing all of the reference tree/phylogeny files
-    :param query_msa_fastas: Dictionary of FASTA files indexed by the TreeSAPP refpkg code (denominator)
-    :param marker_build_dict: Dictionary of MarkerBuild instances indexed by their TreeSAPP refpkg code (denominator)
+    :param query_msa_fastas: Dictionary of FASTA files that contain aligned query sequences
+     indexed by the TreeSAPP refpkg code (denominator)
     :param refpkg_dict: Dictionary of ReferencePackage instances indexed by their TreeSAPP refpkg code (denominator)
     :param output_dir: Path to write the EPA-ng outputs
     :param num_threads: Number of threads to use during placement
@@ -207,22 +206,17 @@ def launch_evolutionary_placement_queries(executables: dict, tree_dir: str, quer
 
     epa_calls = 0
     # Maximum-likelihood sequence placement analyses
-    denominator_reference_tree_dict = dict()
     for denominator in sorted(query_msa_fastas.keys()):
         if not isinstance(denominator, str):
             logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
             raise AssertionError()
-        # Establish the reference tree file to be used for this contig
-        ref_marker = marker_build_dict[denominator]  # type: MarkerBuild
         ref_pkg = refpkg_dict[denominator]  # type: ReferencePackage
-        reference_tree_file = tree_dir + os.sep + ref_marker.cog + '_tree.txt'
-        if denominator not in denominator_reference_tree_dict.keys():
-            denominator_reference_tree_dict[denominator] = reference_tree_file
         for query_msa in query_msa_fastas[denominator]:
-            query_name = re.sub("_hmm_purified.phy.*$", '', os.path.basename(query_msa))
-            query_name = re.sub(marker_build_dict[denominator].cog, denominator, query_name)
-            raxml_evolutionary_placement(executables["epa-ng"], reference_tree_file, ref_pkg.msa, query_msa,
-                                         ref_marker.model, output_dir, query_name, num_threads)
+            query_name = re.sub("_hmm_purified.*$", '', os.path.basename(query_msa))
+            query_name = re.sub(ref_pkg.prefix, denominator, query_name)
+            # Find the query names
+            raxml_evolutionary_placement(executables["epa-ng"], ref_pkg.tree, ref_pkg.msa, ref_pkg.model_info,
+                                         query_msa, query_name, output_dir, num_threads)
             epa_calls += 1
 
     end_time = time.time()
@@ -237,8 +231,8 @@ def launch_evolutionary_placement_queries(executables: dict, tree_dir: str, quer
     return
 
 
-def raxml_evolutionary_placement(epa_exe: str, reference_tree_file: str, reference_msa: str, query_msa: str,
-                                 model: str, output_dir: str, query_name: str, num_threads=2):
+def raxml_evolutionary_placement(epa_exe: str, refpkg_tree: str, refpkg_msa: str, refpkg_model: str,
+                                 query_msa: str, query_name: str, output_dir: str, num_threads=2):
     """
     A wrapper for evolutionary placement algorithm (EPA) next-generation
         1. checks to ensure the output files do not already exist, and removes them if they do
@@ -247,12 +241,12 @@ def raxml_evolutionary_placement(epa_exe: str, reference_tree_file: str, referen
         4. Renames the files for consistency in TreeSAPP
 
     :param epa_exe: Path to the EPA-ng executable to be used
-    :param reference_tree_file: The reference tree for evolutionary placement to operate on
-    :param reference_msa: The reference multiple sequence alignment for the reference package (FASTA)
-    :param query_msa: Path to a multiple alignment file containing reference and query sequences (FASTA)
-    :param model: The substitution model to be used by EPA e.g. PROTGAMMALG, GTRCAT
-    :param output_dir: Path to write the EPA outputs
+    :param refpkg_tree: The reference tree for evolutionary placement to operate on
+    :param refpkg_msa: The reference multiple sequence alignment for the reference package (FASTA)
+    :param refpkg_model: The substitution model to be used by EPA e.g. PROTGAMMALG, GTRCAT
+    :param query_msa: Path to a multiple alignment file containing aligned query sequences (FASTA)
     :param query_name: Prefix name for all of the output files
+    :param output_dir: Path to write the EPA outputs
     :param num_threads: Number of threads EPA should use (default = 2)
     :return: A dictionary of files written by EPA-ng that are used by TreeSAPP. For example epa_files["jplace"]
     """
@@ -267,33 +261,27 @@ def raxml_evolutionary_placement(epa_exe: str, reference_tree_file: str, referen
     if output_dir[-1] != os.sep:
         output_dir += os.sep
 
-    if model is None:
+    if refpkg_model is None:
         logging.error("No substitution model provided for evolutionary placement of " + query_name + ".\n")
         raise AssertionError()
 
     # Determine the output file names, and remove any pre-existing output files
-    if not isinstance(reference_tree_file, str):
-        logging.error(str(reference_tree_file) + " is not string but " + str(type(reference_tree_file)) + "\n")
+    if not isinstance(refpkg_tree, str):
+        logging.error(str(refpkg_tree) + " is not string but " + str(type(refpkg_tree)) + "\n")
         raise AssertionError()
 
-    if len(reference_tree_file) == 0:
+    if len(refpkg_tree) == 0:
         logging.error("Could not find reference tree for " + query_name + " to be used by EPA-ng.\n")
         raise AssertionError()
 
     # This is the final set of files that will be written by EPA-ng
     epa_files["stdout"] = output_dir + query_name + '_EPA.txt'
-    epa_info = output_dir + 'EPA_info.' + query_name
+    epa_info = output_dir + 'epa_info.log'
     epa_files["info"] = output_dir + query_name + '.EPA_info.txt'
-    epa_labelled_tree = output_dir + 'EPA_labelledTree.' + query_name
-    epa_tree = output_dir + 'EPA_originalLabelledTree.' + query_name
-    epa_files["tree"] = output_dir + query_name + '.originalEPA_labelledTree.txt'
-    epa_classification = output_dir + 'EPA_classification.' + query_name
-    epa_files["classification"] = output_dir + query_name + '.EPA_classification.txt'
-    epa_files["jplace"] = output_dir + "EPA_portableTree." + query_name + ".jplace"
-    epa_entropy = output_dir + "EPA_entropy." + query_name
-    epa_weights = output_dir + "EPA_classificationLikelihoodWeights." + query_name
+    epa_jplace = output_dir + "epa_result.jplace"
+    epa_files["jplace"] = output_dir + "epa_result." + query_name + ".jplace"
 
-    for raxml_file in [epa_info, epa_labelled_tree, epa_tree, epa_classification, epa_entropy, epa_weights]:
+    for raxml_file in [epa_info, epa_jplace]:
         try:
             os.remove(raxml_file)
         except OSError:
@@ -301,38 +289,30 @@ def raxml_evolutionary_placement(epa_exe: str, reference_tree_file: str, referen
 
     # Set up the command to run EPA-ng
     epa_command = [epa_exe,
-                   '-s', reference_msa,
-                   '-t', reference_tree_file,
+                   '-s', refpkg_msa,
+                   '-t', refpkg_tree,
                    '-q', query_msa,
-                   "--model", model,
+                   "--model", refpkg_model,
                    "--no-pre-mask",
                    "--dyn-heur", str(0.9),
                    "--preserve-rooting", "on",
                    "--filter-min-lwr", str(0.01),
                    "--outdir", output_dir,
-                   '-T', str(num_threads)]  #,
-                   # '>', epa_files["stdout"]]
+                   '-T', str(num_threads),
+                   '>', epa_files["stdout"]]
     launch_write_command(epa_command)
 
     # Rename the RAxML output files
     if os.path.exists(epa_info):
         copy(epa_info, epa_files["info"])
         os.remove(epa_info)
-    if os.path.exists(epa_classification):
-        copy(epa_classification, epa_files["classification"])
-        os.remove(epa_classification)
-    if os.path.exists(epa_tree):
-        copy(epa_tree, epa_files["tree"])
-        os.remove(epa_tree)
+    if os.path.exists(epa_jplace):
+        copy(epa_jplace, epa_files["jplace"])
+        os.remove(epa_jplace)
     else:
         logging.error("Some files were not successfully created for " + query_name + "\n" +
                       "Check " + epa_files["stdout"] + " for an error!\n")
         sys.exit(3)
-    # Remove useless files
-    if os.path.exists(epa_labelled_tree):
-        os.remove(epa_labelled_tree)
-        os.remove(epa_weights)
-        os.remove(epa_entropy)
 
     return epa_files
 
@@ -707,7 +687,7 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, marker_build
 
     :param executables: A dictionary mapping software to a path of their respective executable
     :param concatenated_mfa_files: A dictionary containing f_contig keys mapping to a FASTA or Phylip sequential file
-    :param marker_build_dict:
+    :param marker_build_dict: A dictionary of MarkerBuild instances indexed by their respective denominators
     :param n_proc: The number of parallel processes to be launched for alignment trimming
     :param tool: The software to use for alignment trimming
     :return: A list of files resulting from BMGE multiple sequence alignment masking.

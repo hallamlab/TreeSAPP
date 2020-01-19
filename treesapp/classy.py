@@ -228,6 +228,15 @@ class MarkerBuild:
 
         return
 
+    def get_info(self):
+        return "\n\t".join(["MarkerBuild instance of %s (%s):" % (self.cog, self.denominator),
+                            "Molecule type:                                      " + self.molecule,
+                            "Substitution model used for phylogenetic inference: " + self.model,
+                            "Number of reference sequences (leaf nodes):         " + str(self.num_reps),
+                            "Software used to infer phylogeny:                   " + self.tree_tool,
+                            "Date of last update:                                " + self.update,
+                            "Description:                                        '%s'" % self.description]) + "\n"
+
 
 class ItolJplace:
     """

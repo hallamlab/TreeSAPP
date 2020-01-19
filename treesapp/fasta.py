@@ -194,6 +194,7 @@ class FASTA:
     def keep_only(self, header_subset: list, superset=False):
         """
         Removes all entries from self.fasta_dict and self.header_registry that are not in header_subset.
+
         :param header_subset: The list of headers found in self.fasta_dict that are to be kept
         :param superset: The header_subset list is a superset so not all headers will be found - do not emit a warning
         :return: None
@@ -857,4 +858,15 @@ def rename_cluster_headers(cluster_dict, header_registry):
             header, identity = member
             members.append([header_registry[header].original, identity])
         cluster.members = members
+    return
+
+
+def split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file) -> None:
+    combined_fasta = FASTA(combined_msa)
+    combined_fasta.load_fasta()
+    seq_names = combined_fasta.get_seq_names()
+    write_new_fasta(combined_fasta.fasta_dict, query_msa_file, None,
+                    [seq_name for seq_name in seq_names if int(seq_name) < 1])
+    write_new_fasta(combined_fasta.fasta_dict, ref_msa_file, None,
+                    [seq_name for seq_name in seq_names if int(seq_name) > 1])
     return

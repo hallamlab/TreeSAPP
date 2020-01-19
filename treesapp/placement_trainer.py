@@ -9,15 +9,15 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from .fasta import read_fasta_to_dict, write_new_fasta, rename_cluster_headers, FASTA
-from . import file_parsers
-from . import utilities
-from . import wrapper
-from .phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
-from .external_command_interface import setup_progress_bar, launch_write_command
-from .jplace_utils import jplace_parser
-from .classy import ReferencePackage
-from .entish import map_internal_nodes_leaves
+from treesapp.fasta import read_fasta_to_dict, write_new_fasta, FASTA, split_combined_ref_query_fasta
+from treesapp import file_parsers
+from treesapp import utilities
+from treesapp import wrapper
+from treesapp.phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
+from treesapp.external_command_interface import setup_progress_bar, launch_write_command
+from treesapp.jplace_utils import jplace_parser
+from treesapp.classy import ReferencePackage
+from treesapp.entish import map_internal_nodes_leaves
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -266,7 +266,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
 def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                               ref_fasta_dict: dict, test_fasta: FASTA,
                               ref_pkg: ReferencePackage, leaf_taxa_map: dict,
-                              molecule: str, executables: dict, raxml_threads=4):
+                              molecule: str, executables: dict, output_dir="./", raxml_threads=4):
     """
     Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
     yielding an estimate of placement distances corresponding to taxonomic ranks.
@@ -280,6 +280,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric sequence identifiers to taxonomic lineages
     :param executables: A dictionary mapping software to a path of their respective executable
     :param molecule: Molecule type [prot | dna | rrna]
+    :param output_dir: Path to directory where all intermediate files should be written
     :param raxml_threads: Number of threads to be used by RAxML for parallel computation
 
     :return:
@@ -295,10 +296,10 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     intermediate_files = list()
     aligner = "hmmalign"
 
-    temp_tree_file = "tmp_tree.txt"
-    temp_ref_aln_prefix = "taxonomy_filtered_ref_seqs"
-    temp_query_fasta_file = "queries.fasta"
-    query_multiple_alignment = aligner + "_queries_aligned.phy"
+    temp_tree_file = output_dir + os.sep + "tmp_tree.txt"
+    temp_ref_aln_prefix = output_dir + os.sep + "taxonomy_filtered_ref_seqs"
+    temp_query_fasta_file = output_dir + os.sep + "queries.fasta"
+    query_multiple_alignment = output_dir + os.sep + aligner + "_queries_aligned.phy"
 
     # Read the tree as ete3 Tree instance
     ref_tree = Tree(ref_pkg.tree)
@@ -395,7 +396,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             elif aligner == "hmmalign":
                 temp_ref_fasta_file = temp_ref_aln_prefix + ".fasta"
                 temp_ref_profile = temp_ref_aln_prefix + ".hmm"
-                sto_file = re.sub("\.phy$", ".sto", query_multiple_alignment)
+                sto_file = re.sub(r"\.phy$", ".sto", query_multiple_alignment)
                 # Write the pruned reference FASTA file
                 write_new_fasta(pruned_ref_fasta_dict, temp_ref_fasta_file)
                 # Build the HMM profile that doesn't include pruned reference sequences
@@ -418,19 +419,17 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 sys.exit(33)
             logging.debug(str(aln_stdout) + "\n")
 
-            trim_command, query_filtered_multiple_alignment = wrapper.get_msa_trim_command(executables,
-                                                                                           query_multiple_alignment,
-                                                                                           molecule)
+            trim_command, combined_msa = wrapper.get_msa_trim_command(executables, query_multiple_alignment, molecule)
             launch_write_command(trim_command)
-            intermediate_files += glob(query_filtered_multiple_alignment + "*")
+            intermediate_files += glob(combined_msa + "*")
 
             # Ensure reference sequences haven't been removed
-            msa_dict, failed_msa_files, summary_str = file_parsers.validate_alignment_trimming([query_filtered_multiple_alignment],
+            msa_dict, failed_msa_files, summary_str = file_parsers.validate_alignment_trimming([combined_msa],
                                                                                                unique_ref_headers, True)
-            nrow, ncolumn = file_parsers.multiple_alignment_dimensions(seq_dict=read_fasta_to_dict(query_filtered_multiple_alignment),
-                                                                       mfa_file=query_filtered_multiple_alignment)
+            nrow, ncolumn = file_parsers.multiple_alignment_dimensions(seq_dict=read_fasta_to_dict(combined_msa),
+                                                                       mfa_file=combined_msa)
             logging.debug("Columns = " + str(ncolumn) + "\n")
-            if query_filtered_multiple_alignment not in msa_dict.keys():
+            if combined_msa not in msa_dict.keys():
                 logging.debug("Placements for '" + taxonomy + "' are being skipped after failing MSA validation.\n")
                 for old_file in intermediate_files:
                     os.remove(old_file)
@@ -438,10 +437,17 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 continue
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
 
-            # Run RAxML with the parameters specified
-            raxml_files = wrapper.raxml_evolutionary_placement(executables["raxmlHPC"], temp_tree_file,
-                                                               query_filtered_multiple_alignment, ref_pkg.sub_model,
-                                                               "./", query_name, raxml_threads)
+            # Create the query-only FASTA file required by EPA-ng
+            query_msa_file = os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa"
+            ref_msa_file = os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa"
+            split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file)
+
+            raxml_files = wrapper.raxml_evolutionary_placement(epa_exe=executables["epa-ng"],
+                                                               refpkg_tree=temp_tree_file,
+                                                               refpkg_msa=ref_msa_file,
+                                                               refpkg_model=ref_pkg.model_info,
+                                                               query_msa=query_msa_file, query_name=query_name,
+                                                               output_dir=output_dir, num_threads=raxml_threads)
 
             # Parse the JPlace file to pull distal_length+pendant_length for each placement
             jplace_data = jplace_parser(raxml_files["jplace"])
@@ -538,7 +544,7 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
                                                                         ref_fasta_dict, dedup_fasta_dict,
                                                                         ref_pkg, leaf_taxa_map,
                                                                         molecule, executables,
-                                                                        num_threads)
+                                                                        output_dir, num_threads)
     # Finish up
     pfit_array = complete_regression(taxonomic_placement_distances, training_ranks)
     if pfit_array:

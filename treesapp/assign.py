@@ -413,16 +413,16 @@ def get_alignment_dims(treesapp_dir: str, marker_build_dict: dict):
     return alignment_dimensions_dict
 
 
-def multiple_alignments(executables, treesapp_data_dir, output_dir, single_query_sequence_files, marker_build_dict,
-                        tool="hmmalign", num_proc=4):
+def multiple_alignments(executables: dict, treesapp_data_dir: str, output_dir: str, single_query_sequence_files: list,
+                        marker_build_dict: dict, tool="hmmalign", num_proc=4) -> dict:
     """
     Wrapper function for the multiple alignment functions - only purpose is to make an easy decision at this point...
 
     :param executables: Dictionary mapping software names to their executables
-    :param treesapp_data_dir:
+    :param treesapp_data_dir: Path to the TreeSAPP data directory, the direct parent of reference package directories
     :param output_dir:
-    :param single_query_sequence_files:
-    :param marker_build_dict:
+    :param single_query_sequence_files: List of unaligned query sequences in FASTA format
+    :param marker_build_dict: A dictionary of MarkerBuild instances indexed by their respective denominators
     :param tool: Tool to use for aligning query sequences to a reference multiple alignment [hmmalign|papara]
     :param num_proc: The number of alignment jobs to run in parallel
     :return: Dictionary of multiple sequence alignment (FASTA) files indexed by denominator
@@ -530,7 +530,7 @@ def prepare_and_run_papara(executables, treesapp_resources, single_query_fasta_f
 
 
 def prepare_and_run_hmmalign(execs: dict, hmm_dir: str, alignment_dir: str,
-                             single_query_fasta_files: list, marker_build_dict: dict, n_proc=2):
+                             single_query_fasta_files: list, marker_build_dict: dict, n_proc=2) -> dict:
     """
     Runs `hmmalign` to add the query sequences into the reference FASTA multiple alignments
 

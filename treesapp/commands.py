@@ -103,7 +103,7 @@ def train(sys_args):
     # Get the model to be used for phylogenetic placement
     ts_trainer.validate_continue(args)
     for denominator in marker_build_dict:
-        marker_build = marker_build_dict[denominator]
+        marker_build = marker_build_dict[denominator]  # type: MarkerBuild
         if marker_build.cog == ts_trainer.ref_pkg.prefix and args.molecule == marker_build.molecule:
             ts_trainer.ref_pkg.sub_model = marker_build_dict[denominator].model
             break
@@ -908,6 +908,7 @@ def assign(sys_args):
     ##
     # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
     ##
+    combined_msa_files = dict()
     query_msa_files = dict()
     if ts_assign.stage_status("align"):
         create_ref_phy_files(ts_assign.aln_dir, ts_assign.var_output_dir,
@@ -926,18 +927,26 @@ def assign(sys_args):
             qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
                                                      marker_build_dict, args.min_seq_length)
             evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
-            # query_msa_files = produce_phy_files(qc_ma_dict)
-            query_msa_files.update(qc_ma_dict)
+            combined_msa_files.update(qc_ma_dict)
         else:
-            query_msa_files.update(concatenated_msa_files)
+            combined_msa_files.update(concatenated_msa_files)
+
+        # Subset the multiple alignment of reference sequences and queries to just contain query sequences
+        for denominator in combined_msa_files:
+            query_msa_files[denominator] = []
+            for combined_msa in combined_msa_files[denominator]:
+                query_msa_file = os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa"
+                ref_msa_file = os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa"
+                fasta.split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file)
+                query_msa_files[denominator].append(query_msa_file)
+        combined_msa_files.clear()
         delete_files(args.delete, ts_assign.var_output_dir, 3)
 
     ##
     # STAGE 5: Run EPA-ng to compute the ML estimations
     ##
     if ts_assign.stage_status("place"):
-        wrapper.launch_evolutionary_placement_queries(ts_assign.executables, ts_assign.tree_dir,
-                                                      query_msa_files, marker_build_dict, refpkg_dict,
+        wrapper.launch_evolutionary_placement_queries(ts_assign.executables, query_msa_files, refpkg_dict,
                                                       ts_assign.var_output_dir, args.num_threads)
         sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, marker_build_dict)
 
