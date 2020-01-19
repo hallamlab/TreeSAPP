@@ -186,15 +186,16 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
     return best_tree
 
 
-def launch_evolutionary_placement_queries(executables: dict, query_msa_fastas: dict,
+def launch_evolutionary_placement_queries(executables: dict, split_msa_files: dict,
                                           refpkg_dict: dict, output_dir: str,
                                           num_threads: int) -> None:
     """
     Run EPA-ng using FASTA files containing the reference and query sequences, and the reference trees
 
     :param executables: Dictionary of executables where executable name strings are keys and paths are values
-    :param query_msa_fastas: Dictionary of FASTA files that contain aligned query sequences
-     indexed by the TreeSAPP refpkg code (denominator)
+    :param split_msa_files: Dictionary of TreeSAPP refpkg code (denominator) keys indexing a list of
+     namedtuple instances called MSAs. Each instance has 'ref' and 'query' variables referring to the
+     MSA files (FASTA formatted) with aligned reference sequences and aligned query sequences, respectively.
     :param refpkg_dict: Dictionary of ReferencePackage instances indexed by their TreeSAPP refpkg code (denominator)
     :param output_dir: Path to write the EPA-ng outputs
     :param num_threads: Number of threads to use during placement
@@ -206,17 +207,17 @@ def launch_evolutionary_placement_queries(executables: dict, query_msa_fastas: d
 
     epa_calls = 0
     # Maximum-likelihood sequence placement analyses
-    for denominator in sorted(query_msa_fastas.keys()):
+    for denominator in sorted(split_msa_files.keys()):
         if not isinstance(denominator, str):
             logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
             raise AssertionError()
         ref_pkg = refpkg_dict[denominator]  # type: ReferencePackage
-        for query_msa in query_msa_fastas[denominator]:
-            query_name = re.sub("_hmm_purified.*$", '', os.path.basename(query_msa))
+        for split_msa in split_msa_files[denominator]:
+            query_name = re.sub("_hmm_purified.*$", '', os.path.basename(split_msa.query))
             query_name = re.sub(ref_pkg.prefix, denominator, query_name)
             # Find the query names
-            raxml_evolutionary_placement(executables["epa-ng"], ref_pkg.tree, ref_pkg.msa, ref_pkg.model_info,
-                                         query_msa, query_name, output_dir, num_threads)
+            raxml_evolutionary_placement(executables["epa-ng"], ref_pkg.tree, split_msa.ref, ref_pkg.model_info,
+                                         split_msa.query, query_name, output_dir, num_threads)
             epa_calls += 1
 
     end_time = time.time()

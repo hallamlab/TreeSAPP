@@ -5,6 +5,7 @@ import re
 import os
 import shutil
 from random import randint
+from collections import namedtuple
 from . import entrez_utils
 from . import file_parsers
 from . import fasta
@@ -26,7 +27,7 @@ from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
-    evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
+    evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs,\
     summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names
 from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
@@ -909,7 +910,7 @@ def assign(sys_args):
     # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
     ##
     combined_msa_files = dict()
-    query_msa_files = dict()
+    split_msa_files = dict()
     if ts_assign.stage_status("align"):
         create_ref_phy_files(ts_assign.aln_dir, ts_assign.var_output_dir,
                              homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
@@ -932,13 +933,14 @@ def assign(sys_args):
             combined_msa_files.update(concatenated_msa_files)
 
         # Subset the multiple alignment of reference sequences and queries to just contain query sequences
+        MSAs = namedtuple("MSAs", "ref query")
         for denominator in combined_msa_files:
-            query_msa_files[denominator] = []
+            split_msa_files[denominator] = []
             for combined_msa in combined_msa_files[denominator]:
-                query_msa_file = os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa"
-                ref_msa_file = os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa"
-                fasta.split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file)
-                query_msa_files[denominator].append(query_msa_file)
+                split_msa = MSAs(os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
+                                 os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
+                fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
+                split_msa_files[denominator].append(split_msa)
         combined_msa_files.clear()
         delete_files(args.delete, ts_assign.var_output_dir, 3)
 
@@ -946,7 +948,7 @@ def assign(sys_args):
     # STAGE 5: Run EPA-ng to compute the ML estimations
     ##
     if ts_assign.stage_status("place"):
-        wrapper.launch_evolutionary_placement_queries(ts_assign.executables, query_msa_files, refpkg_dict,
+        wrapper.launch_evolutionary_placement_queries(ts_assign.executables, split_msa_files, refpkg_dict,
                                                       ts_assign.var_output_dir, args.num_threads)
         sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, marker_build_dict)
 
