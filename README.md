@@ -32,16 +32,9 @@ However, the pipeline will not run without several dependencies.
 If you do not already have the dependencies for TreeSAPP installed on your computer,
  we've listed how to easily download and install each one below. Good luck!
 
-#### RAxML
-A simple `git clone` of their [GitHub page](https://github.com/stamatak/standard-RAxML) should work
-for Linux and Mac operating systems.
-From here, consult the README file in the standard-RAxML directory for installation instructions using make. 
-We highly recommend *only using release 8.2.12* as older versions were found to not estimate pendant distances of placements as accurately.
-However, the executable MUST be named `raxmlHPC` or it will not be found by TreeSAPP!
-
 #### EPA - Next Generation
 
-The EPA-ng [GitHub](https://github.com/Pbdas/epa-ng) contains a few methods for installing `EPA-ng` on Linux
+The EPA-ng [GitHub](https://github.com/Pbdas/epa-ng) contains a few methods for installing EPA-ng on Linux
 operating systems including using either `conda` or `brew` package managers, and installing from source.
 
 #### RAxML - Next Generation
