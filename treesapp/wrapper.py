@@ -38,7 +38,7 @@ def select_model(args, molecule: str) -> str:
     return evo_model
 
 
-def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix: str, model: str) -> str:
+def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix: str, model: str, threads=2) -> str:
     """
     Wrapper function for RAxML-ng's `evaluate` sub-command that generates a file to be used by EPA-ng.
     This file, in reality, is part of a reference package as it is reference tree and MSA dependent
@@ -49,6 +49,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     :param tree_file: Path to the reference package's tree (Newick)
     :param output_prefix: Prefix path for the output files
     :param model: Substitution model (and other parameters e.g. Gamma model of rate heterogeneity) used to build tree
+    :param threads: The number of threads that should be used by RAxML-NG
     :return: Path to the bestModel file that can be used by epa-ng for phylogenetic placement
     """
     model_params_file = output_prefix + "raxml.bestModel"
@@ -57,6 +58,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     model_eval_cmd += ["--tree", tree_file]
     model_eval_cmd += ["--prefix", output_prefix]
     model_eval_cmd += ["--model", model]
+    model_eval_cmd += ["--threads", str(threads)]
 
     logging.debug("Evaluating phylogenetic tree with RAxML-NG... ")
     stdout, returncode = launch_write_command(model_eval_cmd)

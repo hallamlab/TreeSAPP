@@ -406,8 +406,7 @@ def create(sys_args):
                                                                    {marker_package.denominator:
                                                                     marker_package})
             trimmed_mfa_file = trimmed_mfa_files[marker_package.denominator]
-            unique_ref_headers = set(
-                [re.sub(r"_{0}".format(ts_create.ref_pkg.prefix), '', x) for x in ref_aligned_fasta_dict.keys()])
+            unique_ref_headers = set(ref_aligned_fasta_dict.keys())
             qc_ma_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming(trimmed_mfa_file,
                                                                                                    unique_ref_headers)
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
@@ -425,8 +424,7 @@ def create(sys_args):
                 dict_for_phy = qc_ma_dict[trimmed_msa_file]
                 os.remove(trimmed_msa_file)
         else:
-            for seq_name in ref_aligned_fasta_dict:
-                dict_for_phy[seq_name] = ref_aligned_fasta_dict[seq_name]
+            dict_for_phy.update(ref_aligned_fasta_dict)
 
         phy_dict = utilities.reformat_fasta_to_phy(dict_for_phy)
         utilities.write_phy_file(ts_create.phylip_file, phy_dict)
@@ -448,7 +446,7 @@ def create(sys_args):
                                            mre=False, n_bootstraps=args.boostraps, num_threads=args.num_threads)
             wrapper.model_parameters(ts_create.executables["raxml-ng"],
                                      ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
-                                     marker_package.model)
+                                     marker_package.model, args.num_threads)
 
         create_refpkg.clean_up_raxmlng_outputs(ts_create.phy_dir, ts_create.final_output_dir,
                                                ts_create.ref_pkg, fasta_replace_dict)

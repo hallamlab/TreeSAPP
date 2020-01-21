@@ -1583,8 +1583,9 @@ class Purity(TreeSAPP):
         leaf_map = dict()
         tree_leaves = self.ref_pkg.tax_ids_file_to_leaves()
         for leaf in tree_leaves:
-            leaf_map[leaf.number] = leaf.description
+            leaf_map[leaf.number + "_" + self.ref_pkg.prefix] = leaf.description
         for p_query in p_queries:  # type: TreeProtein
+            p_query.name = self.ref_pkg.prefix
             if type(p_query.contig_name) is list and len(p_query.contig_name):
                 p_query.contig_name = p_query.contig_name[0]
             seq_info = re.match(r"(.*)\|" + re.escape(p_query.name) + r"\|(\\d+)_(\\d+)$", p_query.contig_name)

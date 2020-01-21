@@ -784,15 +784,16 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
                     n_msa_refs += 1
             except ValueError:
                 if re.match(r"^_\d+", seq_name):
-                    seq_name = re.sub("^_", '-', seq_name)
+                    leaf_num = re.sub("^_", '-', seq_name)
                 # The section of regular expresion after '_' needs to match denominator and refpkg names
                 elif re.match(r"^\d+_\w{3,7}$", seq_name):
-                    seq_name = seq_name.split('_')[0]
+                    leaf_num = seq_name.split('_')[0]
                 else:
                     logging.error("Unexpected sequence name " + seq_name +
                                   " detected in " + multi_align_file + ".\n")
                     sys.exit(13)
-                n_msa_refs += 1
+                if int(leaf_num) > 0:
+                    n_msa_refs += 1
             multi_align[seq_name] = seq
         if len(multi_align) == 0:
             logging.warning("No sequences were read from " + multi_align_file + ".\n" +
@@ -800,7 +801,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             failed_multiple_alignments.append(multi_align_file)
             continue
         # The numeric identifiers make it easy to maintain order in the Phylip file by a numerical sort
-        for seq_name in sorted(multi_align, key=int):
+        for seq_name in sorted(multi_align, key=lambda x: int(x.split('_')[0])):
             seq_dummy = re.sub('-', '', multi_align[seq_name])
             if len(seq_dummy) < min_seq_length:
                 discarded_seqs.append(seq_name)
