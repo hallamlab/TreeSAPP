@@ -8,7 +8,7 @@ from shutil import copy
 
 from treesapp.external_command_interface import launch_write_command, setup_progress_bar
 from treesapp.classy import CommandLineFarmer, ReferencePackage
-from treesapp.fasta import read_fasta_to_dict, FASTA, write_new_fasta
+from treesapp.fasta import read_fasta_to_dict
 from treesapp.utilities import remove_dashes_from_msa
 
 
@@ -52,7 +52,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     :param threads: The number of threads that should be used by RAxML-NG
     :return: Path to the bestModel file that can be used by epa-ng for phylogenetic placement
     """
-    model_params_file = output_prefix + "raxml.bestModel"
+    model_params_file = output_prefix + ".raxml.bestModel"
     model_eval_cmd = [raxml_exe, "--evaluate"]
     model_eval_cmd += ["--msa", ref_msa]
     model_eval_cmd += ["--tree", tree_file]

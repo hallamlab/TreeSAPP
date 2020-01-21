@@ -448,8 +448,7 @@ def create(sys_args):
                                      ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
                                      marker_package.model, args.num_threads)
 
-        create_refpkg.clean_up_raxmlng_outputs(ts_create.phy_dir, ts_create.final_output_dir,
-                                               ts_create.ref_pkg, fasta_replace_dict)
+        create_refpkg.clean_up_raxmlng_outputs(ts_create.phy_dir, ts_create.ref_pkg, fasta_replace_dict)
 
     if args.raxml_model:
         marker_package.model = args.raxml_model
@@ -1238,7 +1237,7 @@ def evaluate(sys_args):
 
                     if not os.path.isfile(classification_table) or not os.path.isfile(tax_ids_file):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        # TODO: Update to create new model_info
+
                         prefix = exclude_clade_from_ref_files(ts_evaluate.refpkg_dir, refpkg, args.molecule,
                                                               ts_evaluate.var_output_dir + refpkg_name + os.sep,
                                                               lineage, depth,
@@ -1254,9 +1253,8 @@ def evaluate(sys_args):
                             assign(assign_args)
                         except:  # Just in case treesapp assign fails, just continue
                             pass
-                        # TODO: Update to include model_info
-                        restore_reference_package(ts_evaluate.treesapp_dir, prefix,
-                                                  intermediates_path, refpkg_name)
+
+                        restore_reference_package(refpkg, prefix, intermediates_path)
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                             logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")

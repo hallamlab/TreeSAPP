@@ -12,6 +12,7 @@ from .utilities import return_sequence_info_groups
 from .external_command_interface import launch_write_command
 from .file_parsers import tax_ids_file_to_leaves
 from .classy import get_header_format, Evaluator, MarkerBuild, ReferencePackage
+from .create_refpkg import clean_up_raxmlng_outputs
 from .entrez_utils import *
 from treesapp.wrapper import model_parameters
 
@@ -598,6 +599,8 @@ def exclude_clade_from_ref_files(treesapp_refpkg_dir: str, refpkg: ReferencePack
     shutil.copy(refpkg.msa, intermediate_prefix + ".fa")
     shutil.copy(refpkg.profile, intermediate_prefix + ".hmm")
     shutil.copy(refpkg.tree, intermediate_prefix + "_tree.txt")
+    shutil.copy(refpkg.model_info, intermediate_prefix + "_bestModel.txt")
+    os.remove(refpkg.model_info)
     if os.path.isfile(refpkg.boot_tree):
         shutil.copy(refpkg.boot_tree, intermediate_prefix + "_bipartitions.txt")
         os.remove(refpkg.boot_tree)
@@ -643,11 +646,11 @@ def exclude_clade_from_ref_files(treesapp_refpkg_dir: str, refpkg: ReferencePack
 
     # fasta
     ref_fasta_dict = read_fasta_to_dict(refpkg.msa)
-    off_target_headers = [num_id + '_' + refpkg.prefix for num_id in off_target_ref_leaves]
-    if len(off_target_headers) == 0:
+    off_target_ref_headers = [num_id + '_' + refpkg.prefix for num_id in off_target_ref_leaves]
+    if len(off_target_ref_headers) == 0:
         logging.error("No reference sequences were retained for building testing " + target_clade + "\n")
         sys.exit(19)
-    split_files = write_new_fasta(ref_fasta_dict, refpkg.msa, len(off_target_ref_leaves)+1, off_target_headers)
+    split_files = write_new_fasta(ref_fasta_dict, refpkg.msa, len(off_target_ref_leaves)+1, off_target_ref_headers)
     if len(split_files) > 1:
         logging.error("Only one FASTA file should have been written.\n")
         sys.exit(21)
@@ -676,12 +679,13 @@ def exclude_clade_from_ref_files(treesapp_refpkg_dir: str, refpkg: ReferencePack
         logging.info("done.\n")
     else:
         ref_tree = Tree(refpkg.tree)
-        ref_tree.prune(off_target_ref_leaves)
+        ref_tree.prune(off_target_ref_headers)
         logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
         ref_tree.write(outfile=refpkg.tree, format=5)
+    # Model parameters
     model_parameters(executables["raxml-ng"], refpkg.msa, refpkg.tree,
                      treesapp_refpkg_dir + os.sep + "tree_data" + os.sep + refpkg.prefix, refpkg.sub_model)
-
+    clean_up_raxmlng_outputs(treesapp_refpkg_dir + os.sep + "tree_data" + os.sep, refpkg, {})
     return intermediate_prefix
 
 
@@ -716,25 +720,27 @@ def remove_clade_exclusion_files(intermediate_dir):
     return
 
 
-def restore_reference_package(treesapp_dir, prefix, output_dir, marker):
+def restore_reference_package(refpkg: ReferencePackage, prefix: str, output_dir: str) -> None:
     """
-      Prepares TreeSAPP tree, alignment and taxonomic identification map (tax_ids) files for clade exclusion analysis,
-    and performs classification with TreeSAPP
 
-    :return: The paths to the classification table and the taxon-excluded tax_ids file
+
+    :param refpkg: ReferencePackage instance with files that need to be restored
+    :param prefix: Prefix (path and basename) of the stored temporary files
+    :param output_dir: Path to the output directory for any temporary files that should be stored
+    :return: None
     """
     # The edited tax_ids file with clade excluded is required for performance analysis
     # Copy the edited, clade-excluded tax_ids file to the output directory
-    shutil.copy(os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"]), output_dir)
+    shutil.copy(refpkg.lineage_ids, output_dir)
 
-    # Move the original FASTA, tree and tax_ids files back to the proper directories
-    shutil.copy(prefix + "_tree.txt", os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"]))
+    # Move the original reference package files back to the proper directories
+    shutil.copy(prefix + "_tree.txt", refpkg.tree)
+    shutil.copy(prefix + "_bestModel.txt", refpkg.model_info)
     if os.path.isfile(prefix + "_bipartitions.txt"):
-        shutil.copy(prefix + "_bipartitions.txt",
-                    os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"]))
-    shutil.copy(prefix + "_tax_ids.txt", os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"]))
-    shutil.copy(prefix + ".fa", os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"]))
-    shutil.copy(prefix + ".hmm", os.sep.join([treesapp_dir, "data", "hmm_data", marker + ".hmm"]))
+        shutil.copy(prefix + "_bipartitions.txt", refpkg.boot_tree)
+    shutil.copy(prefix + "_tax_ids.txt", refpkg.lineage_ids)
+    shutil.copy(prefix + ".fa", refpkg.msa)
+    shutil.copy(prefix + ".hmm", refpkg.profile)
 
     return
 

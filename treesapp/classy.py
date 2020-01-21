@@ -162,6 +162,7 @@ class ReferencePackage:
                         break
                 if acc == len(option):
                     layout = option
+                    break
 
         if layout:
             self.msa = layout["msa"]
