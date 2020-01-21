@@ -291,7 +291,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     taxonomy_filtered_query_seqs = dict()
     pruned_ref_fasta_dict = dict()
     query_seq_name_map = dict()
-    seq_dict = dict()
+    leaf_trimmed_taxa_map = dict()
     pqueries = list()
     intermediate_files = list()
     aligner = "hmmalign"
@@ -334,7 +334,8 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             logging.error("Rank '" + rank + "' not found in ranks being used for training.\n")
             sys.exit(33)
         taxonomic_placement_distances[rank] = list()
-        leaf_trimmed_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
+        for leaf_node, lineage in trim_lineages_to_rank(leaf_taxa_map, rank).items():
+            leaf_trimmed_taxa_map[leaf_node + "_" + ref_pkg.prefix] = lineage
         
         # Add the lineages to the Tree instance
         for leaf in ref_tree:
@@ -357,15 +358,13 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
             intermediate_files.append(temp_query_fasta_file)
 
-            for key in ref_fasta_dict.keys():
-                node = key.split('_')[0]
+            for node in ref_fasta_dict.keys():
                 # Node with truncated and/or unclassified lineages are not in `leaf_trimmed_taxa_map`
                 if node in leaf_trimmed_taxa_map and not re.match(taxonomy, leaf_trimmed_taxa_map[node]):
-                    pruned_ref_fasta_dict[node] = ref_fasta_dict[key]
+                    pruned_ref_fasta_dict[node] = ref_fasta_dict[node]
                 else:
                     leaves_excluded += 1
 
-            unique_ref_headers = set([re.sub('_' + re.escape(ref_pkg.prefix), '', x) for x in pruned_ref_fasta_dict.keys()])
             logging.debug("\t" + str(leaves_excluded) + " sequences pruned from tree.\n")
 
             # Copy the tree since we are removing leaves of `taxonomy` and don't want this to be permanent
@@ -406,13 +405,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                                                      temp_query_fasta_file, sto_file)
                 # Reformat the Stockholm format created by cmalign or hmmalign to Phylip
                 sto_dict = file_parsers.read_stockholm_to_dict(sto_file)
-                for seq_name in sto_dict:
-                    try:
-                        int(seq_name.split('_')[0])
-                        seq_dict[seq_name.split('_')[0]] = sto_dict[seq_name]
-                    except ValueError:
-                        seq_dict[seq_name] = sto_dict[seq_name]
-                write_new_fasta(seq_dict, query_multiple_alignment)
+                write_new_fasta(sto_dict, query_multiple_alignment)
                 intermediate_files += [temp_ref_fasta_file, temp_ref_profile, sto_file, query_multiple_alignment]
             else:
                 logging.error("Unrecognised alignment tool '" + aligner + "'. Exiting now.\n")
@@ -425,7 +418,8 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
             # Ensure reference sequences haven't been removed
             msa_dict, failed_msa_files, summary_str = file_parsers.validate_alignment_trimming([combined_msa],
-                                                                                               unique_ref_headers, True)
+                                                                                               set(pruned_ref_fasta_dict.keys()),
+                                                                                               True)
             nrow, ncolumn = file_parsers.multiple_alignment_dimensions(seq_dict=read_fasta_to_dict(combined_msa),
                                                                        mfa_file=combined_msa)
             logging.debug("Columns = " + str(ncolumn) + "\n")
@@ -492,7 +486,6 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             taxonomy_filtered_query_seqs.clear()
             intermediate_files.clear()
             pruned_ref_fasta_dict.clear()
-            seq_dict.clear()
             query_seq_name_map.clear()
 
             while acc > step_proportion:
@@ -509,6 +502,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             stats_string += "\tMean = " + str(round(float(sum(taxonomic_placement_distances[rank])) /
                                                     len(taxonomic_placement_distances[rank]), 4)) + "\n"
             logging.debug(stats_string)
+        leaf_trimmed_taxa_map.clear()
     sys.stdout.write("-]\n")
     return taxonomic_placement_distances, pqueries
 

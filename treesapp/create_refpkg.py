@@ -841,11 +841,11 @@ def clean_up_raxmlng_outputs(phylogeny_dir: str, final_output_dir: str,
         sys.exit(17)
 
     shutil.move(model_info, ref_pkg.model_info)
-    utilities.swap_tree_names(raw_newick_tree, ref_pkg.tree, ref_pkg.prefix)
+    utilities.swap_tree_names(raw_newick_tree, ref_pkg.tree)
     bootstrap_tree = output_prefix + ".raxml.support"
     if os.path.isfile(bootstrap_tree):
         bootstrap_nameswap = final_output_dir + ref_pkg.prefix + "_bipartitions.txt"
         annotate_partition_tree(ref_pkg.prefix, fasta_replace_dict, bootstrap_tree)
-        utilities.swap_tree_names(bootstrap_tree, bootstrap_nameswap, ref_pkg.prefix)
+        utilities.swap_tree_names(bootstrap_tree, bootstrap_nameswap)
     # TODO: Remove remaining files
     return

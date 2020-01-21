@@ -866,7 +866,7 @@ def split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file) -
     combined_fasta.load_fasta()
     seq_names = combined_fasta.get_seq_names()
     write_new_fasta(combined_fasta.fasta_dict, query_msa_file, None,
-                    [seq_name for seq_name in seq_names if int(seq_name) < 0])
+                    [seq_name for seq_name in seq_names if int(seq_name.split('_')[0]) < 0])
     write_new_fasta(combined_fasta.fasta_dict, ref_msa_file, None,
-                    [seq_name for seq_name in seq_names if int(seq_name) > 0])
+                    [seq_name for seq_name in seq_names if int(seq_name.split('_')[0]) > 0])
     return

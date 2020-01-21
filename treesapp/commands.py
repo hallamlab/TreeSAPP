@@ -426,7 +426,7 @@ def create(sys_args):
                 os.remove(trimmed_msa_file)
         else:
             for seq_name in ref_aligned_fasta_dict:
-                dict_for_phy[seq_name.split('_')[0]] = ref_aligned_fasta_dict[seq_name]
+                dict_for_phy[seq_name] = ref_aligned_fasta_dict[seq_name]
 
         phy_dict = utilities.reformat_fasta_to_phy(dict_for_phy)
         utilities.write_phy_file(ts_create.phylip_file, phy_dict)

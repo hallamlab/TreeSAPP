@@ -561,6 +561,7 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
     """
     Writes a Phylip-formatted alignment file
     PaPaRa is EXTREMELY particular about the input of its Phylip file. Don't mess.
+
     :param phy_output_file: File path to write the Phylip file
     :param phy_dict: Dictionary of sequences to write
     :param alignment_dims: Tuple containing (num_seqs, alignment_len)
@@ -791,9 +792,18 @@ def find_msa_type(msa_files):
         return file_types.pop()
 
 
-def swap_tree_names(tree_to_swap, final_mltree, code_name):
+def swap_tree_names(tree_to_swap: str, final_newick: str, refpkg_name="") -> None:
+    """
+    Reads a Newick tree (first line of the input tree_to_swap) and writes the tree to a new file (final_newick).
+    Optionally, a refpkg_name (e.g. DsrAB) can be provided so matching strings are not carried into the final_tree.
+
+    :param tree_to_swap:
+    :param final_newick:
+    :param refpkg_name:
+    :return: None
+    """
     original_tree = open(tree_to_swap, 'r')
-    raxml_tree = open(final_mltree, 'w')
+    newick_tree = open(final_newick, 'w')
 
     tree = original_tree.readlines()
     original_tree.close()
@@ -801,10 +811,14 @@ def swap_tree_names(tree_to_swap, final_mltree, code_name):
         logging.error(">1 line contained in RAxML tree " + tree_to_swap + "\n")
         sys.exit(13)
 
-    new_tree = re.sub('_' + re.escape(code_name), '', str(tree[0]))
-    raxml_tree.write(new_tree)
+    if refpkg_name:
+        new_tree = re.sub('_' + re.escape(refpkg_name), '', str(tree[0]))
+    else:
+        new_tree = str(tree[0])
 
-    raxml_tree.close()
+    newick_tree.write(new_tree)
+    newick_tree.close()
+
     return
 
 

@@ -43,6 +43,7 @@ def pquery_likelihood_weight_ratio(pquery, position):
     """
     Determines the likelihood weight ratio (LWR) for a single placement. There may be multiple placements
     (or 'pquery's) in a single .jplace file. Therefore, this function is usually looped over.
+
     :param pquery:
     :param position: The position of "like_weight_ration" in the pquery fields
     :return: The float(LWR) of a single placement
@@ -59,9 +60,10 @@ def pquery_likelihood_weight_ratio(pquery, position):
     return lwr
 
 
-def jplace_parser(filename):
+def jplace_parser(filename: str):
     """
     Parses the jplace file using the load function from the JSON library
+
     :param filename: jplace file output by RAxML
     :return: ItolJplace object
     """

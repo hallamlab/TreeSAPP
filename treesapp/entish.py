@@ -10,7 +10,14 @@ from ete3 import Tree
 from scipy import log2
 
 
-def get_node(tree, pos):
+def get_node(tree: str, pos: int) -> (int, int):
+    """
+    Retrieves an internal node name from a Newick tree string
+
+    :param tree: A string of an already read Newick tree file. Tree text exists on a single line.
+    :param pos: Position in the string to start parsing from
+    :return: Tuple of an integer representing the node and an integer for the new position in the string
+    """
     node = ""
     pos += 1
     c = tree[pos]
@@ -112,6 +119,7 @@ class TreeNode:
 def create_tree_internal_node_map(jplace_tree_string):
     """
     Loads a mapping between all internal nodes to their internal parents
+
     :return:
     """
     no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?{", ":{", jplace_tree_string)
@@ -165,10 +173,13 @@ def validate_internal_node_map(node_map):
     return
 
 
-def map_internal_nodes_leaves(tree):
+def map_internal_nodes_leaves(tree: str) -> dict:
     """
-    Loads a mapping between all internal nodes and their child leaves
-    :return:
+    Loads a Newick-formatted tree into a dictionary of all internal nodes (keys) and a list of child leaves (values).
+    The Newick tree already contains internal nodes?
+
+    :param tree: A string of an already read Newick tree file. Tree text exists on a single line.
+    :return: Dictionary of all internal nodes (keys) and a list of child leaves (values)
     """
     no_length_tree = re.sub(r":[0-9.]+(\[\d+\])?{", ":{", tree)
     node_map = dict()
@@ -178,8 +189,8 @@ def map_internal_nodes_leaves(tree):
     num_buffer = ""
     while x < len(no_length_tree):
         c = no_length_tree[x]
-        if re.search(r"\d", c):
-            while re.search(r"\d", c):
+        if re.match(r"\d", c):
+            while c != ':':
                 num_buffer += c
                 x += 1
                 c = no_length_tree[x]
