@@ -210,9 +210,9 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                required=False)
 
     parser.optopt.add_argument("-b", "--bootstraps",
-                               help="The number of bootstrap replicates RAxML should perform\n"
-                                    "[ DEFAULT = autoMR ]",
-                               required=False, default="autoMR")
+                               help="The number of bootstrap replicates RAxML should perform with autoMRE algorithm.\n"
+                                    "[ DEFAULT = 1000 ]",
+                               required=False, default=1000, type=int)
     parser.optopt.add_argument("-e", "--raxml_model",
                                help="The evolutionary model for RAxML to use\n"
                                     "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",

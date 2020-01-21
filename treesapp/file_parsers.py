@@ -701,7 +701,9 @@ def read_uc(uc_file):
 def read_rpkm(rpkm_output_file):
     """
     Read the CSV file written by rpkm. A header and line with unmapped reads is expected and are skipped.
-    Each line is expected to have 4 elements: Sample ID, sequence name, number of reads recruited, RPKM
+    Each line is expected to have 4 elements:
+     Sample ID, sequence name, number of reads recruited, RPKM
+
     :param rpkm_output_file: A file path
     :return: Dictionary mapping contig names to floats
     """
@@ -746,8 +748,9 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
            While query sequences _could_ be identified as any that are not in unique_ref_headers,
            queries have names that are negative integers for more rapid and scalable identification
     :param min_seq_length: Optional minimum unaligned (no '-'s) length a sequence must exceed to be retained
-    :return: 1. Dictionary indexed by MSA file name mapping to FASTA-dictionaries and
+    :return: 1. Dictionary indexed by MSA file name mapping to FASTA-dictionaries
              2. A string mapping the number of query sequences removed from each MSA file
+             3. A string describing the number of sequences discarded
     """
     discarded_seqs_string = ""
     successful_multiple_alignments = dict()
