@@ -28,8 +28,7 @@ try:
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, MarkerBuild
     from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
-    from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
-        get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
+    from . import entish
     from .external_command_interface import launch_write_command, setup_progress_bar
     from .lca_calculations import *
     from .jplace_utils import *
@@ -444,6 +443,7 @@ def multiple_alignments(executables: dict, treesapp_data_dir: str, output_dir: s
 def create_ref_phy_files(alignment_dir, output_dir, single_query_fasta_files, marker_build_dict, ref_aln_dimensions):
     """
     Creates a phy file for every reference marker that was matched by a query sequence
+
     :param alignment_dir:
     :param output_dir:
     :param single_query_fasta_files:
@@ -467,10 +467,7 @@ def create_ref_phy_files(alignment_dir, output_dir, single_query_fasta_files, ma
 
         num_ref_seqs, ref_align_len = ref_aln_dimensions[denominator]
         aligned_fasta_dict = read_fasta_to_dict(aligned_fasta)
-        dict_for_phy = dict()
-        for seq_name in aligned_fasta_dict:
-            dict_for_phy[seq_name.split('_')[0]] = aligned_fasta_dict[seq_name]
-        phy_dict = utilities.reformat_fasta_to_phy(dict_for_phy)
+        phy_dict = utilities.reformat_fasta_to_phy(aligned_fasta_dict)
 
         utilities.write_phy_file(ref_alignment_phy, phy_dict, (num_ref_seqs, ref_align_len))
     return
@@ -596,10 +593,7 @@ def prepare_and_run_hmmalign(execs: dict, hmm_dir: str, alignment_dir: str,
     for refpkg_code in mfa_out_dict:
         for query_mfa_out in mfa_out_dict[refpkg_code]:
             mfa_file = re.sub(r"\.sto$", ".mfa", query_mfa_out)
-            tmp_dict = read_stockholm_to_dict(query_mfa_out)
-            seq_dict = dict()
-            for seq_name in tmp_dict:
-                seq_dict[seq_name.split('_')[0]] = tmp_dict[seq_name]
+            seq_dict = read_stockholm_to_dict(query_mfa_out)
             write_new_fasta(seq_dict, mfa_file)
             hmmalign_singlehit_files[refpkg_code].append(mfa_file)
 
@@ -932,7 +926,7 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
 
     for denominator in denominator_ref_tree_dict:
         reference_tree_file = denominator_ref_tree_dict[denominator]
-        pool.apply_async(func=read_and_understand_the_reference_tree,
+        pool.apply_async(func=entish.read_and_understand_the_reference_tree,
                          args=(reference_tree_file, denominator, ),
                          callback=log_tree)
     pool.close()
@@ -1005,7 +999,7 @@ def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
         sys.stderr.flush()
         return [f_contig, None, insertion_point_node_hash]
     else:
-        labelled_tree_info, terminal_children_of_labelled_tree = deconvolute_assignments(labelled_tree_assignments)
+        labelled_tree_info, terminal_children_of_labelled_tree = entish.deconvolute_assignments(labelled_tree_assignments)
         labelled_tree_info['subtree_of_node'] = terminal_children_of_labelled_tree
         labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
         rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
@@ -1780,7 +1774,7 @@ def filter_placements(tree_saps, marker_build_dict, tree_data_dir: str, min_like
         unclassified_seqs[marker]["far_beyond"] = list()
 
         tree = Tree(tree_data_dir + os.sep + marker + "_tree.txt")
-        max_dist, leaf_ds = tree_leaf_distances(tree)
+        max_dist, leaf_ds = entish.tree_leaf_distances(tree)
         # Find the maximum distance and standard deviation of distances from the root to all leaves
         max_dist_threshold = max_dist
         mean_dist_threshold = utilities.mean(leaf_ds)
@@ -1880,7 +1874,7 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
             if not tree_sap.classified:
                 continue
 
-            tree_sap.lineage_list = children_lineage(leaf_taxa_map, tree_sap.placements[0], tree_sap.node_map)
+            tree_sap.lineage_list = tree_sap.children_lineage(leaf_taxa_map)
 
             if len(tree_sap.lineage_list) == 0:
                 logging.error("Unable to find lineage information for marker " +
@@ -1952,7 +1946,7 @@ def parse_raxml_output(epa_output_dir, tree_data_dir, marker_build_dict, parsing
         for filename in jplace_collection[denominator]:
             # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
             jplace_data = jplace_parser(filename)
-            tree_index = index_tree_edges(jplace_data.tree)
+            tree_index = entish.index_tree_edges(jplace_data.tree)
             # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
             tree_placement_queries = demultiplex_pqueries(jplace_data)
             # Filter the placements, determine the likelihood associated with the harmonized placement
@@ -1963,7 +1957,7 @@ def parse_raxml_output(epa_output_dir, tree_data_dir, marker_build_dict, parsing
                     pquery.contig_name = seq_info.group(1)
                     start, end = seq_info.groups()[1:]
                     pquery.seq_len = int(end) - int(start)
-                pquery.create_jplace_node_map()
+                pquery.node_map = entish.map_internal_nodes_leaves(pquery.tree)
                 pquery.check_jplace(tree_index)
                 if parsing_method == "best":
                     pquery.filter_max_weight_placement()

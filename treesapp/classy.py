@@ -14,7 +14,7 @@ from json import loads, dumps
 from collections import namedtuple
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
 from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table
-from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
+from .entish import create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
 from . import entrez_utils
 from .external_command_interface import launch_write_command
@@ -524,45 +524,6 @@ class ItolJplace:
         self.placements = new_placement_collection
         return
 
-    def create_jplace_node_map(self):
-        """
-        Loads a mapping between all nodes (internal and leaves) and all leaves
-        :return:
-        """
-        no_length_tree = re.sub(":[0-9.]+{", ":{", self.tree)
-        self.node_map.clear()
-        node_stack = list()
-        leaf_stack = list()
-        x = 0
-        num_buffer = ""
-        while x < len(no_length_tree):
-            c = no_length_tree[x]
-            if re.search(r"[0-9]", c):
-                while re.search(r"[0-9]", c):
-                    num_buffer += c
-                    x += 1
-                    c = no_length_tree[x]
-                node_stack.append([str(num_buffer)])
-                num_buffer = ""
-                x -= 1
-            elif c == ':':
-                # Append the most recent leaf
-                current_node, x = get_node(no_length_tree, x + 1)
-                self.node_map[current_node] = node_stack.pop()
-                leaf_stack.append(current_node)
-            elif c == ')':
-                # Set the child leaves to the leaves of the current node's two children
-                while c == ')' and x < len(no_length_tree):
-                    if no_length_tree[x + 1] == ';':
-                        break
-                    current_node, x = get_node(no_length_tree, x + 2)
-                    self.node_map[current_node] = self.node_map[leaf_stack.pop()] + self.node_map[leaf_stack.pop()]
-                    leaf_stack.append(current_node)
-                    x += 1
-                    c = no_length_tree[x]
-            x += 1
-        return
-
     def check_jplace(self, tree_index):
         """
         Currently validates a pquery's JPlace distal length, ensuring it is less than or equal to the edge length
@@ -711,6 +672,38 @@ class TreeProtein(ItolJplace):
                 i = max_depth
 
         return "; ".join(lca_lineage_strings)
+
+    def children_lineage(self, leaves_taxa_map: dict):
+        """
+        From the jplace placement field ()
+
+        :param leaves_taxa_map: Dictionary mapping tree leaf nodes to taxonomic lineages
+        :return:
+        """
+        children = list()
+        pquery = self.placements[0]
+        placement = loads(pquery, encoding="utf-8")
+        loci = placement['p']
+        for locus in loci:
+            jplace_node = locus[0]
+            tree_leaves = self.node_map[jplace_node]
+            for leaf_node in tree_leaves:
+                try:
+                    leaf_num = leaf_node.split('_')[0]
+                except TypeError:
+                    logging.error("Unexpected format of leaf node: '" + str(leaf_node) + "'.\n")
+                    sys.exit(3)
+                try:
+                    ref_lineage = leaves_taxa_map[leaf_num]
+                except KeyError:
+                    logging.error("Unable to find '" + leaf_num + "' in leaf-lineage map.\n")
+                    sys.exit(3)
+                if ref_lineage:
+                    children.append(clean_lineage_string(ref_lineage))
+                else:
+                    logging.warning("No lineage information available for " + leaf_node + ".\n")
+
+        return children
 
 
 class TreeLeafReference:
