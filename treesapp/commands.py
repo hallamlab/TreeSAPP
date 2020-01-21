@@ -22,7 +22,7 @@ from . import update_refpkg
 from . import annotate_extra
 from .phylo_dist import trim_lineages_to_rank
 from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
-    prep_logging, dedup_records, TaxonTest, Purity
+    prep_logging, dedup_records, TaxonTest, Purity, ReferencePackage
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
@@ -1103,8 +1103,11 @@ def evaluate(sys_args):
     ts_evaluate.validate_continue(args)
     load_rank_depth_map(ts_evaluate)
     refpkg_name = ts_evaluate.target_marker.cog
+    refpkg = ReferencePackage(refpkg_name)
+    refpkg.gather_package_files(ts_evaluate.refpkg_dir)
+    refpkg.sub_model = ts_evaluate.target_marker.model
 
-    ref_leaves = file_parsers.tax_ids_file_to_leaves(ts_evaluate.tree_dir + "tax_ids_" + args.reference_marker + ".txt")
+    ref_leaves = file_parsers.tax_ids_file_to_leaves(refpkg.lineage_ids)
     ref_lineages = dict()
     for leaf in ref_leaves:
         ref_lineages[leaf.number] = leaf.lineage
@@ -1144,7 +1147,7 @@ def evaluate(sys_args):
         else:
             min_seq_length = str(30)
 
-        validate_ref_package_files(ts_evaluate.treesapp_dir, refpkg_name, ts_evaluate.output_dir)
+        validate_ref_package_files(refpkg, ts_evaluate.output_dir)
 
         ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
         for rank in args.taxon_rank:
@@ -1235,10 +1238,11 @@ def evaluate(sys_args):
 
                     if not os.path.isfile(classification_table) or not os.path.isfile(tax_ids_file):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prefix = exclude_clade_from_ref_files(ts_evaluate.treesapp_dir, refpkg_name,
+                        # TODO: Update to create new model_info
+                        prefix = exclude_clade_from_ref_files(ts_evaluate.refpkg_dir, refpkg, args.molecule,
                                                               ts_evaluate.var_output_dir + refpkg_name + os.sep,
                                                               lineage, depth,
-                                                              ts_evaluate.executables, args.fresh, args.molecule)
+                                                              ts_evaluate.executables, args.fresh)
                         # Write the query sequences
                         fasta.write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
                         assign_args = ["-i", test_rep_taxa_fasta, "-o", classifier_output,
@@ -1250,6 +1254,7 @@ def evaluate(sys_args):
                             assign(assign_args)
                         except:  # Just in case treesapp assign fails, just continue
                             pass
+                        # TODO: Update to include model_info
                         restore_reference_package(ts_evaluate.treesapp_dir, prefix,
                                                   intermediates_path, refpkg_name)
                         if not os.path.isfile(classification_table):

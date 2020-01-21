@@ -38,17 +38,17 @@ class ModuleFunction:
 
 
 class ReferencePackage:
-    def __init__(self):
-        self.prefix = ""
-        self.refpkg_code = ""
-        self.msa = ""
-        self.profile = ""
-        self.tree = ""
-        self.boot_tree = ""
-        self.lineage_ids = ""
+    def __init__(self, refpkg_name=""):
+        self.prefix = refpkg_name
+        self.refpkg_code = ""  # AKA denominator
+        self.msa = ""  # Reference MSA FASTA
+        self.profile = ""  # HMM file
+        self.tree = ""  # Reference tree
+        self.boot_tree = ""  # Reference tree with support values
+        self.lineage_ids = ""  # Reference sequence lineage map (tax_ids)
         self.taxa_trie = ""
-        self.sub_model = ""
-        self.model_info = ""
+        self.sub_model = ""  # EPA-NG compatible substitution model
+        self.model_info = ""  # RAxML-NG --evaluate model file
         self.core_ref_files = list()
         self.num_seqs = 0
 
@@ -1612,7 +1612,7 @@ class Evaluator(TreeSAPP):
     def __init__(self):
         super(Evaluator, self).__init__("evaluate")
         self.targets = []  # Left empty to appease parse_ref_build_parameters()
-        self.target_marker = None  # A MarkerBuild object
+        self.target_marker = MarkerBuild()
         self.rank_depth_map = None
         self.ranks = list()
         self.markers = set()

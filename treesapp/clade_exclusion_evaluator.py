@@ -11,8 +11,9 @@ from .fasta import write_new_fasta, read_fasta_to_dict
 from .utilities import return_sequence_info_groups
 from .external_command_interface import launch_write_command
 from .file_parsers import tax_ids_file_to_leaves
-from .classy import get_header_format, Evaluator, MarkerBuild
+from .classy import get_header_format, Evaluator, MarkerBuild, ReferencePackage
 from .entrez_utils import *
+from treesapp.wrapper import model_parameters
 
 _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
                    2: "Phylum", 3: "Class", 4: "Order",
@@ -591,32 +592,25 @@ def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon
     return
 
 
-def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_clade, depth,
-                                 executables, fresh, molecule):
-    # Move the original FASTA, tree and tax_ids files to a temporary location
-    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
-    marker_hmm = os.sep.join([treesapp_dir, "data", "hmm_data", marker + ".hmm"])
-    marker_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"])
-    marker_bipart_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"])
-    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+def exclude_clade_from_ref_files(treesapp_refpkg_dir: str, refpkg: ReferencePackage, molecule: str,
+                                 intermediate_dir: str, target_clade: str, depth: int, executables: dict, fresh=False):
     intermediate_prefix = intermediate_dir + "ORIGINAL"
-
-    shutil.copy(marker_fa, intermediate_prefix + ".fa")
-    shutil.copy(marker_hmm, intermediate_prefix + ".hmm")
-    shutil.copy(marker_tree, intermediate_prefix + "_tree.txt")
-    if os.path.isfile(marker_bipart_tree):
-        shutil.copy(marker_bipart_tree, intermediate_prefix + "_bipartitions.txt")
-        os.remove(marker_bipart_tree)
-    shutil.copy(marker_tax_ids, intermediate_prefix + "_tax_ids.txt")
+    shutil.copy(refpkg.msa, intermediate_prefix + ".fa")
+    shutil.copy(refpkg.profile, intermediate_prefix + ".hmm")
+    shutil.copy(refpkg.tree, intermediate_prefix + "_tree.txt")
+    if os.path.isfile(refpkg.boot_tree):
+        shutil.copy(refpkg.boot_tree, intermediate_prefix + "_bipartitions.txt")
+        os.remove(refpkg.boot_tree)
+    shutil.copy(refpkg.lineage_ids, intermediate_prefix + "_tax_ids.txt")
 
     off_target_ref_leaves = list()
     n_match = 0
     n_shallow = 0
     n_unclassified = 0
     # tax_ids file
-    ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
+    ref_tree_leaves = tax_ids_file_to_leaves(refpkg.lineage_ids)
     target_clade = clean_lineage_string(target_clade, ["Root; "])
-    with open(marker_tax_ids, 'w') as tax_ids_handle:
+    with open(refpkg.lineage_ids, 'w') as tax_ids_handle:
         for ref_leaf in ref_tree_leaves:
             tax_ids_string = ""
             c_lineage = clean_lineage_string(ref_leaf.lineage, ["Root; "])
@@ -648,22 +642,22 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
                              "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
 
     # fasta
-    ref_fasta_dict = read_fasta_to_dict(marker_fa)
-    off_target_headers = [num_id + '_' + marker for num_id in off_target_ref_leaves]
+    ref_fasta_dict = read_fasta_to_dict(refpkg.msa)
+    off_target_headers = [num_id + '_' + refpkg.prefix for num_id in off_target_ref_leaves]
     if len(off_target_headers) == 0:
         logging.error("No reference sequences were retained for building testing " + target_clade + "\n")
         sys.exit(19)
-    split_files = write_new_fasta(ref_fasta_dict, marker_fa, len(off_target_ref_leaves)+1, off_target_headers)
+    split_files = write_new_fasta(ref_fasta_dict, refpkg.msa, len(off_target_ref_leaves)+1, off_target_headers)
     if len(split_files) > 1:
         logging.error("Only one FASTA file should have been written.\n")
         sys.exit(21)
     else:
-        shutil.copy(split_files[0], marker_fa)
+        shutil.copy(split_files[0], refpkg.msa)
 
     # HMM profile
     hmm_build_command = [executables["hmmbuild"],
-                         marker_hmm,
-                         marker_fa]
+                         refpkg.profile,
+                         refpkg.msa]
     launch_write_command(hmm_build_command)
 
     # Trees
@@ -673,28 +667,25 @@ def exclude_clade_from_ref_files(treesapp_dir, marker, intermediate_dir, target_
             tree_build_cmd += ["-nt", "-gtr"]
         else:
             tree_build_cmd += ["-lg", "-wag"]
-        tree_build_cmd += ["-out", marker_tree]
-        tree_build_cmd.append(marker_fa)
+        tree_build_cmd += ["-out", refpkg.tree]
+        tree_build_cmd.append(refpkg.msa)
         logging.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
         stdout, returncode = launch_write_command(tree_build_cmd, True)
-        with open(intermediate_dir + os.sep + "FastTree_info." + marker, 'w') as fast_info:
+        with open(intermediate_dir + os.sep + "FastTree_info." + refpkg.prefix, 'w') as fast_info:
             fast_info.write(stdout + "\n")
         logging.info("done.\n")
     else:
-        ref_tree = Tree(marker_tree)
+        ref_tree = Tree(refpkg.tree)
         ref_tree.prune(off_target_ref_leaves)
         logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
-        ref_tree.write(outfile=marker_tree, format=5)
+        ref_tree.write(outfile=refpkg.tree, format=5)
+    model_parameters(executables["raxml-ng"], refpkg.msa, refpkg.tree,
+                     treesapp_refpkg_dir + os.sep + "tree_data" + os.sep + refpkg.prefix, refpkg.sub_model)
 
     return intermediate_prefix
 
 
-def validate_ref_package_files(treesapp_dir, marker, intermediate_dir):
-    # Move the original FASTA, tree and tax_ids files to a temporary location
-    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker + ".fa"])
-    marker_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_tree.txt"])
-    marker_bipart_tree = os.sep.join([treesapp_dir, "data", "tree_data", marker + "_bipartitions.txt"])
-    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker + ".txt"])
+def validate_ref_package_files(refpkg: ReferencePackage, intermediate_dir):
     intermediate_prefix = intermediate_dir + "ORIGINAL"
 
     # This prevents users from quitting mid-analysis then using bad reference package files with clades removed
@@ -704,11 +695,11 @@ def validate_ref_package_files(treesapp_dir, marker, intermediate_dir):
         logging.info("Attempting recovery... ")
         # Easiest way to recover is to move the originals back to proper location and proceed
         try:
-            shutil.copy(intermediate_prefix + ".fa", marker_fa)
-            shutil.copy(intermediate_prefix + "_tree.txt", marker_tree)
+            shutil.copy(intermediate_prefix + ".fa", refpkg.msa)
+            shutil.copy(intermediate_prefix + "_tree.txt", refpkg.tree)
             if os.path.isfile(intermediate_prefix + "_bipartitions.txt"):
-                shutil.copy(intermediate_prefix + "_bipartitions.txt", marker_bipart_tree)
-            shutil.copy(intermediate_prefix + "_tax_ids.txt", marker_tax_ids)
+                shutil.copy(intermediate_prefix + "_bipartitions.txt", refpkg.boot_tree)
+            shutil.copy(intermediate_prefix + "_tax_ids.txt", refpkg.lineage_ids)
             logging.info("succeeded.\n")
         except FileNotFoundError:
             logging.info("failed. Redownload data files and start over.\n")

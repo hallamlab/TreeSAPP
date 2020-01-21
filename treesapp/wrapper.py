@@ -58,9 +58,9 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     model_eval_cmd += ["--prefix", output_prefix]
     model_eval_cmd += ["--model", model]
 
-    logging.info("Evaluating phylogenetic tree with RAxML-NG... ")
+    logging.debug("Evaluating phylogenetic tree with RAxML-NG... ")
     stdout, returncode = launch_write_command(model_eval_cmd)
-    logging.info("done.\n")
+    logging.debug("done.\n")
 
     if returncode != 0:
         logging.error(raxml_exe + " did not complete successfully! " +
