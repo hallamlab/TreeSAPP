@@ -121,7 +121,7 @@ def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, 
 
 
 def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: str,
-                   tree_output_dir: str, tree_prefix: str, num_threads=2, fast_mode=False) -> str:
+                   tree_output_dir: str, tree_prefix: str, bootstraps=1000, num_threads=2, fast_mode=False) -> str:
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
 
@@ -130,6 +130,7 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
     :param multiple_alignment_file: Path to the multiple sequence alignment file
     :param tree_output_dir: Path to the directory where output files should be written to
     :param tree_prefix: Prefix to be used for the outputs
+    :param bootstraps: The maximum number of bootstraps to be performed with autoMRE (checking convergence)
     :param num_threads: Number of threads to use (for RAxML-NG only)
     :param fast_mode: Boolean indicating whether FastTree (True) or raxml-ng (False) is used
     :return: Stylized name of the tree-building software used
@@ -155,10 +156,10 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
         tree_build_cmd += ["--model", evo_model]
         # tree_build_cmd += ["--msa-format", "PHYLIP"]  # File isn't read properly with this parameter, use auto-detect
         tree_build_cmd += ["--seed", "12345"]
-        # tree_build_cmd += ["--bs-trees", "autoMRE{1000}"]
-        tree_build_cmd += ["--bs-trees", "2"]  # For debugging
+        tree_build_cmd += ["--bs-trees", "autoMRE{%d}" % bootstraps]
+        # tree_build_cmd += ["--bs-trees", "2"]  # For debugging
         tree_build_cmd += ["--threads", str(num_threads)]
-        tree_build_cmd += ["--tree", "rand{1},pars{1}"]  # For debugging, alternatively could use '--search1'
+        # tree_build_cmd += ["--tree", "rand{1},pars{1}"]  # For debugging, alternatively could use '--search1'
 
     # Ensure the tree from a previous run isn't going to be over-written
     if not os.path.exists(tree_output_dir):

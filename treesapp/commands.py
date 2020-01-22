@@ -434,9 +434,9 @@ def create(sys_args):
         ##
         marker_package.model = wrapper.select_model(args, ts_create.molecule_type)
         best_tree = wrapper.construct_tree(ts_create.executables, marker_package.model, ts_create.phylip_file,
-                                           ts_create.phy_dir, ts_create.ref_pkg.prefix, args.num_threads, args.fast)
+                                           ts_create.phy_dir, ts_create.ref_pkg.prefix,
+                                           args.bootstraps, args.num_threads, args.fast)
 
-        # TODO: Ensure outputs exist and are named correctly
         if args.fast:
             if int(args.bootstraps) > 0:
                 wrapper.support_tree_raxml(raxml_exe=ts_create.executables["raxml-ng"],
@@ -454,8 +454,8 @@ def create(sys_args):
         marker_package.model = args.raxml_model
     else:
         # TODO: Update for compatibility with RAxML-NG outputs
-        # marker_package.model = ts_create.determine_model(args.fast)
-        pass
+        marker_package.model = ts_create.determine_model(args.fast)
+
     param_file = ts_create.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
     refpkg_lineages = [ref.lineage for ref in ts_create.ref_pkg.tax_ids_file_to_leaves()]
     marker_package.lowest_confident_rank = create_refpkg.estimate_taxonomic_redundancy(refpkg_lineages)
