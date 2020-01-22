@@ -216,7 +216,7 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
             raise AssertionError()
         ref_pkg = refpkg_dict[denominator]  # type: ReferencePackage
         for split_msa in split_msa_files[denominator]:
-            query_name = re.sub("_hmm_purified.*$", '', os.path.basename(split_msa.query))
+            query_name = re.sub("_queries.mfa", '', os.path.basename(split_msa.query))
             query_name = re.sub(ref_pkg.prefix, denominator, query_name)
             # Find the query names
             raxml_evolutionary_placement(executables["epa-ng"], ref_pkg.tree, split_msa.ref, ref_pkg.model_info,

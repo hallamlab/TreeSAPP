@@ -936,7 +936,9 @@ def assign(sys_args):
         for denominator in combined_msa_files:
             split_msa_files[denominator] = []
             for combined_msa in combined_msa_files[denominator]:
-                split_msa = MSAs(os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
+                split_msa = MSAs(os.path.dirname(combined_msa) + os.sep +
+                                 os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa",
+                                 os.path.dirname(combined_msa) + os.sep +
                                  os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa")
                 fasta.split_combined_ref_query_fasta(combined_msa, split_msa.query, split_msa.ref)
                 split_msa_files[denominator].append(split_msa)
