@@ -52,7 +52,7 @@ PF01157	P1157	prot	PROTGAMMALG	taxonomic	0.95	437	FastTree	-3.2799,7.0	Phyla	15_
 #p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	FastTree	-2.83232814805,5.67790899421	Families	04_Dec_2018	
 #nosZ	D0601	prot	PROTGAMMALG	functional	0.95	449	FastTree	-6.1988,6.095	Phyla	13_Mar_2019
 nosZ	D0601	prot	PROTGAMMALG	functional	0.95	449	RAxML	-7.9763,6.2277	Phyla	16_Mar_2019	
-McrA	M0701	prot	PROTGAMMALG	functional	0.97	228	RAxML	-5.3509,7.0	Classes	29_Apr_2019	Methyl coenzyme M reductase alpha subunit
+#McrA	M0701	prot	PROTGAMMALG	functional	0.97	228	RAxML	-5.3509,7.0	Classes	29_Apr_2019	Methyl coenzyme M reductase alpha subunit
 NrfA	D0102	prot	PROTGAMMALG	functional	0.95	345	FastTree	-3.9855,7.0	Phyla	14_May_2019	nitrite reductase (cytochrome c-552) [EC:1.7.2.2]
 DsrAB	S0001	prot	PROTGAMMALG	functional	0.95	753	RAxML	-6.2949,7.0	Kingdoms	16_May_2019	Dissimilatory sulfite reductase alpha/beta subunits [EC:1.8.99.5]
 NxrA	N0301	prot	PROTGAMMALG	functional	0.90	993	FastTree	-5.4813,7.0	Classes	23_May_2019	Nitrate reductase / Nitrite oxidoreductase subunit A
@@ -65,3 +65,4 @@ GH20	G0020	prot	PROTGAMMALG	functional	0.75	1159	FastTree	-4.689,6.3935	Phyla	26
 GH94	C0094	prot	PROTGAMMALG	functional	0.90	486	FastTree	-4.27462347201,6.34905731298	Classes	16_Dec_2018	Glycoside hydrolase family 94
 p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	182	RAxML	-5.4116,7.0	Families	29_Aug_2019	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase
 NirK	D0301	prot	PROTGAMMALG	functional	0.97	202	FastTree	-8.4127,7.0	Classes	10_Jan_2020	nitrite reductase (NO-forming)
+McrA	M0701	prot	PROTGAMMALG	functional	0.97	246	FastTree	-11.3817,7.0	Kingdoms	23_Jan_2020	Methyl coenzyme M reductase alpha subunit
