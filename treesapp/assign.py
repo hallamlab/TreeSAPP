@@ -1654,6 +1654,7 @@ def get_reference_sequence_dict(args, update_tree):
 def create_itol_labels(marker, itol_base_dir, tree_data_dir):
     """
     Create the marker_labels.txt file for each marker gene that was used for classification
+
     :param marker: Name of the reference package
     :param itol_base_dir: Path to the directory for where these outputs should be written to
     :param tree_data_dir: Path to the directory containing reference package trees for TreeSAPP
@@ -1691,7 +1692,7 @@ def create_itol_labels(marker, itol_base_dir, tree_data_dir):
             logging.error("Unexpected number of fields in " + tax_ids_file +
                           ".\nInvoked .split(\'\\t\') on line " + str(line))
             sys.exit(3)
-        label_f.write(number + ',' + translation + "\n")
+        label_f.write(number + '_' + marker + ',' + translation + "\n")
 
     tax_ids.close()
     label_f.close()
