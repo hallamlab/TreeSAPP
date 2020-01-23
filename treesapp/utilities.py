@@ -338,6 +338,7 @@ class Autovivify(dict):
 def return_sequence_info_groups(regex_match_groups, header_db: str, header: str):
     """
     Depending on the header formats, returns a namedtuple with certain fields filled
+
     :param regex_match_groups: regular expression (re) match groups
     :param header_db: The name of the assumed database/source of the sequence
     :param header: Header i.e. sequence name that was analyzed
@@ -380,7 +381,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
         elif len(regex_match_groups.groups()) == 2:
             organism = regex_match_groups.group(2)
     else:
-        logging.error("Unable to handle header: " + header + "\n")
+        logging.error("Unable to handle header: '" + header + "'\n")
         sys.exit(13)
 
     if not (accession or organism or lineage or taxid):
@@ -398,6 +399,7 @@ def remove_dashes_from_msa(fasta_in, fasta_out):
     """
     fasta_out is the new FASTA file written with no dashes (unaligned)
     There are no line breaks in this file, whereas there may have been in fasta_in
+
     :param fasta_in: Multiply-aligned FASTA file
     :param fasta_out: FASTA file to write
     :return:
@@ -456,6 +458,7 @@ def remove_elongated_lineages(fasta_records: dict, guarantees=None):
     If a lineage has sub-ranks that haven't been filtered by `clean_lineage_string()` this can cause a problem in
     `treesapp train` as the phylogenetic distance data wouldn't reflect the rank its supposed to, and `treesapp evaluate`
     where the sequences being evaluated wouldn't reflect the performance of the target rank.
+
     :param fasta_records: Dictionary mapping numerical treesapp_id values to EntrezRecord instances
     :param guarantees: Set object containing treesapp_id values corresponding to sequences that need to be retained
     :return:
@@ -508,6 +511,7 @@ def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
     """
     Find the lowest common ancestor (internal node) for all leaves in the range.
     This is only necessary if the original nodes parsed from the colours_style.txt file were leaves.
+
     :param clusters: A dictionary mapping start and end leaves of a clade for a single marker's colours_style.txt layer
     :param internal_node_map: A dictionary mapping each internal node to a list of all of its descendent leaves
     :return:
@@ -667,6 +671,7 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
 def hmm_pile(hmm_matches):
     """
     Function to inspect the placement of query sequences on the reference HMM
+
     :param hmm_matches:
     :return:
     """
@@ -825,6 +830,7 @@ def swap_tree_names(tree_to_swap: str, final_newick: str, refpkg_name="") -> Non
 def match_target_marker(refpkg_name: str, headers: list) -> list:
     """
     Returns the list of sequences with TreeSAPP classification tags matching the refpkg_name
+
     :param refpkg_name: The refpkg name (e.g. McrA) not code (e.g. M0701) for desired classified sequences
     :param headers: List of classified sequences
     :return: List of headers that match the refpkg_name
@@ -840,6 +846,7 @@ def match_target_marker(refpkg_name: str, headers: list) -> list:
 def get_hmm_length(hmm_file):
     """
     Function to open the ref_tree's hmm file and determine its length
+
     :param hmm_file: The HMM file produced by hmmbuild to parse for the HMM length
     :return: The length (int value) of the HMM
     """
@@ -864,6 +871,7 @@ def get_hmm_length(hmm_file):
 def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:
     """
     Function for writing a dictionary of key: value pairs separated to a file.
+
     :param data_dict: Dictionary containing keys (e.g. accessions) and values (e.g. lineages)
     :param output_file: Path to a file to write to
     :param sep: Separator to use between the keys and values. Default is tab.

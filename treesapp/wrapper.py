@@ -673,7 +673,7 @@ def get_msa_trim_command(executables, mfa_file, molecule, tool="BMGE"):
         logging.error("Unsupported file format: '" + f_ext + "'\n")
         sys.exit(5)
 
-    trimmed_msa_file = re.sub('.' + re.escape(f_ext), '-' + re.escape(tool) + ".fasta", mfa_file)
+    trimmed_msa_file = '.'.join(mfa_file.split('.')[:-1]) + '-' + re.escape(tool) + ".fasta"
     if tool == "trimAl":
         trim_command = trimal_command(executables["trimal"], mfa_file, trimmed_msa_file)
     elif tool == "BMGE":

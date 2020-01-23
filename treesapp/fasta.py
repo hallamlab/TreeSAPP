@@ -88,6 +88,7 @@ def register_headers(header_list, drop=True):
     dup_checker = set()
     dups = []
     for header in header_list:
+        header = header.strip()
         if drop and header[0] == '>':
             header = header[1:]
         if header in dup_checker:
@@ -246,6 +247,7 @@ class FASTA:
         """
         Creates a dictionary mapping all forms of the header formats (original, first_split, num, and formatted)
         to the unique, numeric TreeSAPP IDs for rapid look-ups
+
         :return: Dictionary for look-ups
         """
         mapping_dict = dict()
@@ -301,7 +303,8 @@ class FASTA:
         If the header_registry and fasta_dict objects are of different sizes,
         the header registry is remade, excluding sequences that are not found in fasta_dict.
         The num_id is static during the synchronization so sequences can be mapped from before-and-after.
-        :return:
+
+        :return: None
         """
         excluded_headers = list()
         self.change_dict_keys("num")
@@ -338,12 +341,12 @@ class FASTA:
     def custom_lineage_headers(self, header_lineage_map: dict):
         """
         Converts a header to the TreeSAPP custom header format (below) using a dictionary
-
         Custom fasta header with taxonomy:
          First group = contig/sequence name, second = full taxonomic lineage, third = description for tree
          There are no character restrictions on the first and third groups
          The lineage must be formatted like:
-          cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+        cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
+
         :param header_lineage_map: A dictionary mapping sequence names/headers to NCBI-formatted taxonomic lineages
         :return: None
         """
