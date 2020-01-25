@@ -365,11 +365,12 @@ def parse_domain_tables(args, hmm_domtbl_files):
     return hmm_matches
 
 
-def read_colours_file(annotation_file):
+def read_colours_file(annotation_file: str) -> (dict, bool):
     """
     Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
     marker and data_type.
-    :param annotation_file:
+
+    :param annotation_file: Path to an iTOL-compatible annotation file (e.g. colours_styles_file.txt)
     :return: A dictionary of lists where each list is populated by tuples with start and end leaves
     """
     try:
@@ -464,7 +465,15 @@ def read_colours_file(annotation_file):
     return clusters, internal_nodes
 
 
-def tax_ids_file_to_leaves(tax_ids_file):
+def tax_ids_file_to_leaves(tax_ids_file: str) -> list:
+    """
+    Reads tax_ids files and converts them to a list of TreeLeafReference instances.
+    These instances should have their 'accession', 'lineage', 'number' and 'description' values filled.
+    If some leaves are missing lineage information this is caught and an error is issued.
+
+    :param tax_ids_file: Path to the tax_ids file, a component of a reference package
+    :return: List of TreeLeafReference instances parsed from tax_ids file
+    """
     # TODO: Replace all instances of this function call with that from the class ReferencePackage
     tree_leaves = list()
     unknown = 0

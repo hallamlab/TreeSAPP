@@ -117,13 +117,14 @@ def parse_marker_classification_table(marker_classification_file):
     return master_dat, field_order
 
 
-def names_for_nodes(clusters, node_map, taxa_map):
+def names_for_nodes(clusters: dict, node_map: dict, taxa_map: list) -> dict:
     """
     This function is used to convert from a string name of a leaf (e.g. Methylocapsa_acidiphila_|_CAJ01617)
     to an internal node number when all other nodes are internal nodes. Because consistent parsing is preferred!
-    :param clusters:
-    :param node_map:
-    :param taxa_map:
+
+    :param clusters: A dictionary of lists where each list is populated by tuples with start and end leaves
+    :param node_map: Dictionary of all internal nodes (keys) and a list of child leaves (values)
+    :param taxa_map: List of TreeLeafReference instances parsed from tax_ids file
     :return:
     """
     node_only_clusters = dict()
@@ -180,12 +181,13 @@ def map_queries_to_annotations(marker_tree_info, master_dat):
     return master_dat
 
 
-def annotate_internal_nodes(internal_node_map, clusters):
+def annotate_internal_nodes(internal_node_map: dict, clusters: dict) -> (dict, set):
     """
     A function for mapping the clusters to all internal nodes of the tree.
     It also adds overlapping functional annotations for deep internal nodes and ensures all the leaves are annotated.
+
     :param internal_node_map: A dictionary mapping the internal nodes (keys) to the leaf nodes (values)
-    :param clusters: Dictionary with the cluster names for keys and a tuple containing leaf boundaries as values
+    :param clusters: Dictionary with the cluster names for keys and a list of internal nodes as values
     :return: A dictionary of the annotation (AKA group) as keys and internal nodes as values
     """
     annotated_clade_members = dict()
@@ -198,22 +200,27 @@ def annotate_internal_nodes(internal_node_map, clusters):
             annotated_clade_members[annotation] = set()
         if annotation not in leaf_group_members:
             leaf_group_members[annotation] = set()
-        for i_node_range in clusters[annotation]:
-            for i_node in i_node_range:
-                try:
-                    for leaf in internal_node_map[int(i_node)]:
-                        leaf_group_members[annotation].add(leaf)
-                        leaves_in_clusters.add(leaf)
-                except ValueError:
-                    # TODO: Convert headers to internal nodes where an annotation cluster is a single leaf
-                    logging.warning("Unable to assign '" + str(i_node) + "' to an internal node ID.\n")
-                except KeyError:
-                    logging.error("Unable to find internal node " + i_node + " in internal node map.\n")
-                    sys.exit(7)
+        for i_node in clusters[annotation]:
+            try:
+                for leaf in internal_node_map[int(i_node)]:
+                    leaf_group_members[annotation].add(leaf)
+                    leaves_in_clusters.add(leaf)
+            except ValueError:
+                # TODO: Convert headers to internal nodes where an annotation cluster is a single leaf
+                logging.warning("Unable to assign '" + str(i_node) + "' to an internal node ID.\n")
+            except KeyError:
+                logging.error("Unable to find internal node " + i_node + " in internal node map.\n")
+                sys.exit(7)
         # Find the set of internal nodes that are children of this annotated clade
         for i_node in internal_node_map:
+            print(i_node)
             if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
                 annotated_clade_members[annotation].add(i_node)
+            else:
+                print(leaf_group_members[annotation])
+                print(internal_node_map[i_node])
+                print(internal_node_map[int(i_node)])
+                sys.exit()
 
     logging.debug("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
 

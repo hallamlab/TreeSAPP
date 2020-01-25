@@ -172,7 +172,7 @@ class ReferencePackage:
             self.model_info = layout["bestModel"]
             self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"
         else:
-            logging.error("Unable to gather reference package files from '" + pkg_path + "'\n")
+            logging.error("Unable to gather reference package files for " + self.prefix + " from '" + pkg_path + "'\n")
             sys.exit(17)
 
         self.core_ref_files += [self.msa, self.profile, self.tree, self.lineage_ids, self.model_info]

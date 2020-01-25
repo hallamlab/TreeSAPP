@@ -812,13 +812,17 @@ def layer(sys_args):
                 # Routine for exchanging any organism designations for their respective node number
                 tax_ids_file = ts_layer.tree_dir + "tax_ids_" + marker + ".txt"
                 taxa_map = file_parsers.tax_ids_file_to_leaves(tax_ids_file)
-                clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][marker],
-                                                          internal_node_map,
-                                                          taxa_map)
 
-                if not internal_nodes[data_type][marker]:
+                if internal_nodes[data_type][marker]:
+                    clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][marker],
+                                                              internal_node_map,
+                                                              taxa_map)
+                else:
                     # Convert the leaf node ranges to internal nodes for consistency
-                    clusters = utilities.convert_outer_to_inner_nodes(clusters, internal_node_map)
+                    clusters = utilities.convert_outer_to_inner_nodes(marker_subgroups[data_type][marker],
+                                                                      internal_node_map,
+                                                                      taxa_map)
+                print(clusters)
 
                 marker_tree_info[data_type][marker], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
                                                                                                                  clusters)
@@ -830,7 +834,7 @@ def layer(sys_args):
                             if leaf not in leaves_in_clusters:
                                 unannotated.add(str(leaf))
                     logging.warning("The following leaf nodes were not mapped to annotation groups:\n" +
-                                    "\t" + ', '.join(sorted(unannotated, key=int)) + "\n")
+                                    "\t" + ', '.join(sorted(unannotated, key=lambda x: int(x.split('_')[0]))) + "\n")
             else:
                 pass
     marker_subgroups.clear()

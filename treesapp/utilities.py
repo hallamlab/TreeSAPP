@@ -501,26 +501,48 @@ def median(num_list: list):
 def mean(num_list: list):
     """
     Simple function for a returning a floating-point integer for the mean of a list of numbers
+
     :param num_list: List of numbers
     :return: Float
     """
     return float(sum(num_list) / len(num_list))
 
 
-def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
+def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict, tree_leaf_nodes: list):
     """
     Find the lowest common ancestor (internal node) for all leaves in the range.
     This is only necessary if the original nodes parsed from the colours_style.txt file were leaves.
 
     :param clusters: A dictionary mapping start and end leaves of a clade for a single marker's colours_style.txt layer
     :param internal_node_map: A dictionary mapping each internal node to a list of all of its descendent leaves
-    :return:
+    :param tree_leaf_nodes: List of TreeLeafReference instances parsed from tax_ids file
+    :return: A dictionary of annotation strings mapped to internal node tuples
     """
     leaf_annotation_map = dict()
-    for cluster in clusters.keys():
-        if cluster not in leaf_annotation_map:
-            leaf_annotation_map[cluster] = list()
-        for frond_tips in clusters[cluster]:
+    node_only_clusters = dict()
+    for annotation in clusters:
+        node_only_clusters[annotation] = list()
+        leaf_annotation_map[annotation] = list()
+        for inodes in clusters[annotation]:
+            node_1, node_2 = inodes
+            try:
+                int(node_1)
+            except ValueError:
+                # print(node_1)
+                for leaf in tree_leaf_nodes:
+                    if re.sub(' ', '_', leaf.description) == node_1:
+                        leaf_node = leaf.number
+                        for inode_key, clade_value in internal_node_map.items():
+                            if clade_value[0] == leaf_node:
+                                node_1 = inode_key
+                                break
+                        break
+                    else:
+                        pass
+                # print(node_1)
+            node_only_clusters[annotation].append((node_1, node_2))
+
+        for frond_tips in node_only_clusters[annotation]:
             start, end = frond_tips
             # Find the minimum set that includes both start and end
             warm_front = dict()
@@ -531,7 +553,7 @@ def convert_outer_to_inner_nodes(clusters: dict, internal_node_map: dict):
                     warm_front[inode] = clade
             for inode in sorted(warm_front, key=lambda x: len(warm_front[x])):
                 if end in warm_front[inode]:
-                    leaf_annotation_map[cluster].append((inode, inode))
+                    leaf_annotation_map[annotation].append((inode, inode))
                     break
     return leaf_annotation_map
 
