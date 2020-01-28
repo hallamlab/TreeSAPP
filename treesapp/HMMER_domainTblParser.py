@@ -205,7 +205,8 @@ class HmmMatch:
         self.end = max([self.end, merging_aln.end])
         self.pstart = min([self.pstart, merging_aln.pstart])
         self.pend = max([self.pend, merging_aln.pend])
-        self.ieval = min([self.ieval, merging_aln.ieval])
+        self.ieval = min([self.eval, self.ieval, merging_aln.ieval])
+        self.full_score = max([self.full_score, merging_aln.full_score])
 
         self.drop_next_alignment(index)
         return
@@ -369,6 +370,7 @@ class DomainTableParser(object):
         """
         Function to read the lines in the domain table file,
         skipping those matching the comment pattern
+
         :return: self.lines is a list populated with the lines
         """
         line = self.src.readline()
@@ -422,6 +424,7 @@ class DomainTableParser(object):
 def detect_orientation(q_i: int, q_j: int, r_i: int, r_j: int):
     """
     Returns the number of positions the query (base) alignment overlaps with the reference (projected) alignment
+
     :param q_i: query start position
     :param q_j: query end position
     :param r_i: reference start position
@@ -459,7 +462,7 @@ def overlap_length(r_i: int, r_j: int, q_i: int, q_j: int) -> int:
         return min(r_j, q_j) - max(r_i, q_i)
 
 
-def assemble_domain_aligments(first_match: HmmMatch, search_stats: HmmSearchStats):
+def assemble_domain_alignments(first_match: HmmMatch, search_stats: HmmSearchStats):
     distinct_alignments = dict()
     if first_match.next_domain:
         # STEP 1: Scaffold the alignments covering overlapping regions on the query sequence
@@ -481,12 +484,13 @@ def assemble_domain_aligments(first_match: HmmMatch, search_stats: HmmSearchStat
     return distinct_alignments
 
 
-def format_split_alignments(domain_table, search_stats: HmmSearchStats):
+def format_split_alignments(domain_table: DomainTableParser, search_stats: HmmSearchStats) -> dict:
     """
     Handles the alignments where 'of' > 1
     If the alignment covers the whole target HMM or if the distance between the two parts of the alignment
     are very far apart, then the alignment will be divided into two unrelated alignments
     If the alignment parts are near together and/or each part covers a portion of the HMM, then they will be joined
+
     :param domain_table: DomainTableParser() object
     :param search_stats: HmmSearchStats() instance containing accumulators to track alignment parsing
     :return:
@@ -521,7 +525,7 @@ def format_split_alignments(domain_table, search_stats: HmmSearchStats):
         query_header = ' '.join([hmm_match.orf, hmm_match.desc])
         # Finish off "old business" (sub-alignments)
         if previous_match.orf != hmm_match.orf and first_match.orf == previous_match.orf:
-            distinct_alignments.update(assemble_domain_aligments(first_match, search_stats))
+            distinct_alignments.update(assemble_domain_alignments(first_match, search_stats))
         if hmm_match.target_hmm != previous_match.target_hmm and query_header == previous_query_header:
             # New HMM (target), same ORF (query)
             search_stats.multi_alignments += 1
@@ -547,7 +551,7 @@ def format_split_alignments(domain_table, search_stats: HmmSearchStats):
 
     # Check to see if the last alignment was part of multiple alignments, just like before
     if first_match.next_domain and first_match.orf == previous_match.orf:
-        distinct_alignments.update(assemble_domain_aligments(first_match, search_stats))
+        distinct_alignments.update(assemble_domain_alignments(first_match, search_stats))
 
     return distinct_alignments
 
