@@ -192,6 +192,13 @@ class FASTA:
                           " Options are 'original', 'formatted', 'first_split' and 'num'.\n")
             sys.exit(5)
 
+    def create_header_mapping_table(self):
+        table_str = "\t".join(["TreeSAPP number", "Accession", "Original", "Formatted"]) + "\n"
+        for acc in sorted(self.header_registry):
+            header = self.header_registry[acc]  # type: Header
+            table_str += "\t".join([header.treesapp_num_id, header.accession, header.original, header.formatted]) + "\n"
+        return table_str
+
     def keep_only(self, header_subset: list, superset=False):
         """
         Removes all entries from self.fasta_dict and self.header_registry that are not in header_subset.
