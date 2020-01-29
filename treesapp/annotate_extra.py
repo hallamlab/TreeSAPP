@@ -213,14 +213,8 @@ def annotate_internal_nodes(internal_node_map: dict, clusters: dict) -> (dict, s
                 sys.exit(7)
         # Find the set of internal nodes that are children of this annotated clade
         for i_node in internal_node_map:
-            print(i_node)
             if leaf_group_members[annotation].issuperset(internal_node_map[i_node]):
                 annotated_clade_members[annotation].add(i_node)
-            else:
-                print(leaf_group_members[annotation])
-                print(internal_node_map[i_node])
-                print(internal_node_map[int(i_node)])
-                sys.exit()
 
     logging.debug("\tCaptured " + str(len(leaves_in_clusters)) + " nodes in clusters.\n")
 
@@ -230,6 +224,7 @@ def annotate_internal_nodes(internal_node_map: dict, clusters: dict) -> (dict, s
 def write_classification_table(output_dir, field_order, master_dat):
     """
     Writes data in master_dat to a new tabular file with original and extra annotation information
+
     :param output_dir:
     :param field_order:
     :param master_dat:

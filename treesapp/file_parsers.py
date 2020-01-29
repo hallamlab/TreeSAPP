@@ -365,12 +365,13 @@ def parse_domain_tables(args, hmm_domtbl_files):
     return hmm_matches
 
 
-def read_colours_file(annotation_file: str) -> (dict, bool):
+def read_colours_file(annotation_file: str, refpkg_name: str) -> (dict, bool):
     """
     Read annotation data from 'annotation_file' and store it in marker_subgroups under the appropriate
     marker and data_type.
 
     :param annotation_file: Path to an iTOL-compatible annotation file (e.g. colours_styles_file.txt)
+    :param refpkg_name: Name of the reference package
     :return: A dictionary of lists where each list is populated by tuples with start and end leaves
     """
     try:
@@ -381,7 +382,7 @@ def read_colours_file(annotation_file: str) -> (dict, bool):
 
     clusters = dict()
     field_sep = ''
-    internal_nodes = True
+    internal_nodes = False
 
     line = style_handler.readline()
     # Skip the header
@@ -397,32 +398,32 @@ def read_colours_file(annotation_file: str) -> (dict, bool):
                 sys.exit(5)
         line = style_handler.readline()
     # For RGB
-    range_line_rgb = re.compile(r"^(\d+)\|(\d+)" + re.escape(field_sep) +
+    range_line_rgb = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + r"\|(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
                                 "range" + re.escape(field_sep) +
                                 r".*\)" + re.escape(field_sep) +
                                 "(.*)$")
-    single_node_rgb = re.compile(r"^(\d+)" + re.escape(field_sep) +
+    single_node_rgb = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
                                  "range" + re.escape(field_sep) +
                                  r".*\)" + re.escape(field_sep) +
                                  "(.*)$")
-    lone_node_rgb = re.compile("^(.*)" + re.escape(field_sep) +
-                               "range" + re.escape(field_sep) +
-                               r".*\)" + re.escape(field_sep) +
-                               "(.*)$")
+    internal_node_rgb = re.compile(r"^(\d+)" + re.escape(field_sep) +
+                                   "range" + re.escape(field_sep) +
+                                   r".*\)" + re.escape(field_sep) +
+                                   "(.*)$")
 
     # For hexadecimal
-    range_line = re.compile(r"^(\d+)\|(\d+)" + re.escape(field_sep) +
+    range_line = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + r"\|(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
                             "range" + re.escape(field_sep) +
                             "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
                             "(.*)$")
-    single_node = re.compile(r"^(\d+)" + re.escape(field_sep) +
+    single_node = re.compile(r"^(\d+)_" + re.escape(refpkg_name) + re.escape(field_sep) +
                              "range" + re.escape(field_sep) +
                              "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
                              "(.*)$")
-    lone_node = re.compile("^(.*)" + re.escape(field_sep) +
-                           "range" + re.escape(field_sep) +
-                           "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
-                           "(.*)$")
+    internal_node = re.compile(r"^(\d+)" + re.escape(field_sep) +
+                               "range" + re.escape(field_sep) +
+                               "#[0-9A-Za-z]{6}" + re.escape(field_sep) +
+                               "(.*)$")
 
     # Begin parsing the data from 4 columns
     line = style_handler.readline().strip()
@@ -430,23 +431,23 @@ def read_colours_file(annotation_file: str) -> (dict, bool):
         if range_line.match(line):
             style_data = range_line.match(line)
             start, end, description = style_data.groups()
-            internal_nodes = False
         elif range_line_rgb.match(line):
             style_data = range_line_rgb.match(line)
             start, end, description = style_data.groups()
-            internal_nodes = False
         elif single_node.match(line):
             style_data = single_node.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
         elif single_node_rgb.match(line):
             style_data = single_node_rgb.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node.match(line):
-            style_data = lone_node.match(line)
+        elif internal_node.match(line):
+            style_data = internal_node.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
-        elif lone_node_rgb.match(line):
-            style_data = lone_node_rgb.match(line)
+            internal_nodes = True
+        elif internal_node_rgb.match(line):
+            style_data = internal_node_rgb.match(line)
             start, end, description = style_data.group(1), style_data.group(1), style_data.group(2)
+            internal_nodes = True
         else:
             logging.error("Unrecognized line formatting in " + annotation_file + ":\n" + line + "\n")
             sys.exit(5)
@@ -454,7 +455,8 @@ def read_colours_file(annotation_file: str) -> (dict, bool):
         description = style_data.groups()[-1]
         if description not in clusters.keys():
             clusters[description] = list()
-        clusters[description].append((start, end))
+        clusters[description].append((start + "_" + refpkg_name,
+                                      end + "_" + refpkg_name))
 
         line = style_handler.readline().strip()
 

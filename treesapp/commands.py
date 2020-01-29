@@ -782,7 +782,8 @@ def layer(sys_args):
             if data_type not in marker_subgroups:
                 marker_subgroups[data_type] = dict()
                 internal_nodes[data_type] = dict()
-            marker_subgroups[data_type][marker], internal_nodes[data_type][marker] = file_parsers.read_colours_file(annot_f)
+            marker_subgroups[data_type][marker], internal_nodes[data_type][marker] = file_parsers.read_colours_file(annot_f,
+                                                                                                                    marker)
         else:
             logging.warning("Unable to parse the marker and/or annotation type from " + annot_f + ".\n" +
                             "Is it possible this reference package is not in " +
@@ -800,6 +801,7 @@ def layer(sys_args):
 
     # Load the query sequence annotations
     for data_type in marker_subgroups:
+        logging.info("Annotating '%s' classifications for the following reference package(s):\n" % data_type)
         if data_type not in marker_tree_info:
             marker_tree_info[data_type] = dict()
         for refpkg_code in unique_markers_annotated:
@@ -807,6 +809,7 @@ def layer(sys_args):
             jplace = os.sep.join([ts_layer.treesapp_output, "iTOL_output", marker, marker + "_complete_profile.jplace"])
 
             if marker in marker_subgroups[data_type]:
+                logging.info("\t" + marker + "\n")
                 # Create the dictionary mapping an internal node to all leaves
                 internal_node_map = entish.map_internal_nodes_leaves(jplace_parser(jplace).tree)
                 # Routine for exchanging any organism designations for their respective node number
@@ -820,9 +823,7 @@ def layer(sys_args):
                 else:
                     # Convert the leaf node ranges to internal nodes for consistency
                     clusters = utilities.convert_outer_to_inner_nodes(marker_subgroups[data_type][marker],
-                                                                      internal_node_map,
-                                                                      taxa_map)
-                print(clusters)
+                                                                      internal_node_map)
 
                 marker_tree_info[data_type][marker], leaves_in_clusters = annotate_extra.annotate_internal_nodes(internal_node_map,
                                                                                                                  clusters)
