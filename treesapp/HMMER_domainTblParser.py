@@ -149,16 +149,30 @@ class HmmMatch:
         return False
 
     def contains_duplicate_loci(self, overlap_threshold=0.33) -> bool:
+        """
+        Meant to identify whether the query sequence contains duplicate loci of the same HMM profile. If at least two
+        HMM alignments overlap on the profile by more than the threshold (default 33%) they are deemed duplicate loci.
+
+        :param overlap_threshold: A float representing the maximum HMM profile length proportion the two alignments
+         can overlap on the HMM profile to be considered discrete loci; they are considered duplicates if exceeded.
+        :return: Boolean, True indicates there are duplicate loci 
+        """
         if not self.next_domain:
             return False
-        if self.next_domain.contains_duplicate_loci():
+        if self.next_domain.contains_duplicate_loci(overlap_threshold):
             return True
-        for subsequent_match in sorted(self.subsequent_matches(), key=lambda x: x.num):
-            if self.num != subsequent_match.num:
+        for hmm_match in sorted(self.subsequent_matches(), key=lambda x: x.num):
+            # Duplicate loci should not overlap on the query
+            # Duplicate loci should overlap significantly on the HMM
+            if self.num != hmm_match.num:
                 # Check for redundant profile HMM coverage
                 p_overlap_len = overlap_length(self.pstart, self.pend,
-                                               subsequent_match.pstart, subsequent_match.pend)
-                if p_overlap_len > (overlap_threshold*self.hmm_len):
+                                               hmm_match.pstart, hmm_match.pend)
+                q_overlap_len = overlap_length(self.start, self.end,
+                                               hmm_match.start, hmm_match.end)
+                if q_overlap_len > 0 or p_overlap_len/self.hmm_len < overlap_threshold:
+                    return False
+                else:
                     return True
             else:
                 pass
@@ -291,7 +305,7 @@ class HmmMatch:
             return False
         if self.collinear():
             return False
-        elif self.contains_duplicate_loci():
+        elif self.contains_duplicate_loci(0.1):
             return False
         else:
             return True
