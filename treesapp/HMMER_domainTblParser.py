@@ -211,21 +211,65 @@ class HmmMatch:
         self.drop_next_alignment(index)
         return
 
+    def reset_head(self):
+        print("Dropping")
+        print(self.get_info())
+        return
+
+    def remove_redundant_alignments(self, index=0) -> None:
+        """
+        If multiple alignments exist, HMMER will not report alignments that overlap in both profile and query sequence,
+        however, there is a chance some redundantly cover a high proportion of the HMM profile.
+        It is the purpose of this function to identify those alignments and eliminate the worse of the two.
+
+        Algorithm:
+            For each alignment in the linked-list of alignments (subsequent_matches):
+             calculate HMM profile alignment overlaps
+              if non-zero:
+               Worse of the two alignments is determined (based on profile alignment length and score).
+               Worst alignment is dropped from the linked-list
+
+        This function is currently used as a pre-filter for alignment scaffolding and inversion detection.
+        It clears out the riff raff that cannot be scaffolded (since profile alignment co-ordinates overlap entirely)
+        and shouldn't be maintained because the alignment is garbage. Consequences of keeping these spurious alignments
+        include, but are not limited to, false alarms during inversion detection (with HmmMatch.contains_inversion).
+
+        :return: None
+        """
+        if not self.next_domain:
+            return
+        self.next_domain.remove_redundant_alignments(index+1)
+        query_orientation = detect_orientation(self.start, self.end, self.next_domain.start, self.next_domain.end)
+        profile_orientation = detect_orientation(self.pstart, self.pend, self.next_domain.pstart, self.next_domain.pend)
+
+        # TODO: implement reset head
+        profile_proportion = (self.pend - self.pstart)/self.hmm_len
+        if profile_orientation == "subsequence" and query_orientation == "satellite":
+            if profile_proportion <= 0.1:
+                self.reset_head()
+        elif profile_orientation == "supersequence" and query_orientation == "satellite":
+            self.drop_next_alignment(index+1)
+        i = 1
+        while i < len(self.subsequent_matches()):
+            next_match = sorted(self.subsequent_matches(), key=lambda x: x.num)[i]  # type: HmmMatch
+            # Determine which alignment is a substring of the other
+            i += 1
+
+        return
+
     def scaffold_domain_alignments(self, seq_length_wobble=1.2) -> None:
         """
         If one or more alignments do not completely redundantly cover the HMM profile,
         overlap or are within a few BPs of each other of the query sequence,
-        and do not generate an alignment 120% longer than the HMM profile,
-                                                    THEN
+        and do not generate an alignment 120% longer than the HMM profile, then
         merge the alignment co-ordinates, average the acc, Eval, cEval and make 'num' and 'of' reflect number of alignments
-                                                Takes this:
+        Takes this:
         -------------
                     --------------
-                                                                --------------------------------------
-                                     ----------------
-                                            and converts it to:
+                                    ----------------            --------------------------------------
+        and converts it to:
         ---------------------------------------------           --------------------------------------
-        
+
         :param seq_length_wobble: The scalar threshold controlling the maximum size of a scaffold.
         Since we're dealing with HMMs, its difficult to estimate the sequence length variance so we're allowing for
         some 'wobble' in how long or short paralogs could be.
@@ -289,7 +333,7 @@ class HmmMatch:
         """
         Asserting this HmmMatch instance is the first alignment (and therefore the left-most alignment on the query)
         this checks for collinearity along the HMM profile and query sequences.
-        If they are not collinear and additional operation to look for duplicated HMM profile regions in the query,
+        If they are not collinear an additional operation to look for duplicated HMM profile regions in the query,
         indicating multiple domains, is performed.
         Otherwise the positions have been inverted, or in other words, a section of the gene has been rearranged.
 
@@ -305,6 +349,12 @@ class HmmMatch:
             return True
 
     def orient_alignments(self) -> dict:
+        """
+        Creates a dictionary of alignment relation classes ('supersequence', 'subsequence', 'overlap' and 'satellite')
+        indexed by the HmmMatch.num of a pair of alignments.
+
+        :return: Dictionary
+        """
         alignment_relations = dict()
         if not self.next_domain:
             return alignment_relations
@@ -421,15 +471,16 @@ class DomainTableParser(object):
         self.alignments['desc'] = ' '.join(hit[22:])
 
 
-def detect_orientation(q_i: int, q_j: int, r_i: int, r_j: int):
+def detect_orientation(q_i: int, q_j: int, r_i: int, r_j: int) -> str:
     """
-    Returns the number of positions the query (base) alignment overlaps with the reference (projected) alignment
+    Returns the class of orientation ('supersequence', 'subsequence', 'overlap' and 'satellite') based on
+    the number of positions the query (base) alignment overlaps with the reference (projected) alignment.
 
     :param q_i: query start position
     :param q_j: query end position
     :param r_i: reference start position
     :param r_j: reference end position
-    :return:
+    :return: String representing the class of orientation in relation to the query (q)
     """
     if q_i <= r_i <= q_j:
         if q_i <= r_j <= q_j:
@@ -467,8 +518,11 @@ def assemble_domain_alignments(first_match: HmmMatch, search_stats: HmmSearchSta
     if first_match.next_domain:
         # STEP 1: Scaffold the alignments covering overlapping regions on the query sequence
         frags_pre_scaffolding = len(first_match.subsequent_matches())
+        print(frags_pre_scaffolding)
+        first_match.remove_redundant_alignments()
         first_match.scaffold_domain_alignments()
         if first_match.contains_inversion():
+            print("Inversion detected:", first_match.get_info())
             search_stats.inverted += 1
             return distinct_alignments
         first_match.enumerate()
@@ -556,12 +610,18 @@ def format_split_alignments(domain_table: DomainTableParser, search_stats: HmmSe
     return distinct_alignments
 
 
-def filter_poor_hits(args, distinct_alignments, search_stats: HmmSearchStats):
+def filter_poor_hits(args, distinct_alignments: dict, search_stats: HmmSearchStats) -> dict:
     """
     Filters the homology matches based on their E-values and mean posterior probability of aligned residues from
     the maximum expected accuracy (MEA) calculation.
     Takes into account multiple homology matches of an ORF to a single gene and determines the total length of the
     alignment instead of treating them as individual alignments. This information is used in the next filtering step.
+
+    :param args: An object created by argparse.ParseArguments representing command-line arguments.
+     This contains HMM alignment thresholds that must be exceeded for alignments to be included.
+    :param distinct_alignments: A dictionary of HmmMatch instances indexed by their respective header names
+    :param search_stats: An HmmSearchStats instance used for tracking various alignment parsing stats
+    :return: A dictionary of HmmMatch instances that pass thresholds indexed by their respective header names
     """
     min_acc = float(args.min_acc)
     min_score = float(args.min_score)
