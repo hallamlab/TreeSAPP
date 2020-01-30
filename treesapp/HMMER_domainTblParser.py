@@ -174,28 +174,22 @@ class HmmMatch:
             i += 1
         return
 
-    def drop_next_alignment(self, index: int) -> None:
+    def drop_match_at(self, index: int) -> None:
         """
-        Function for removing an element from the linked list formed by HmmMatch.next_domain
+        Function for removing an element from the linked list at a position
 
         :param index: The index in the linked list that is to be dropped
         :return: None
         """
-        if index == 0:
-            logging.error("Unable to drop current HmmMatch from next_domain linked list.\n")
+        if index <= 0 or index >= len(self.subsequent_matches()):
+            logging.error("Unable to drop HmmMatch from next_domain linked list at index %d.\n" % index)
             sys.exit(9)
 
-        fragmented_alignment_data = self.subsequent_matches()
-        i = 1
-        while i < len(fragmented_alignment_data):
-            if i == index:
-                try:
-                    fragmented_alignment_data[i-1].next_domain = fragmented_alignment_data[i+1]
-                except IndexError:
-                    fragmented_alignment_data[i - 1].next_domain = None
-                return
-            i += 1
-        logging.warning("Next HmmMatch at index %s was not dropped from linked list.\n" % index)
+        try:
+            self.subsequent_matches()[index-1].next_domain = self.subsequent_matches()[index+1]
+        except IndexError:
+            self.subsequent_matches()[index-1].next_domain = None
+
         return
 
     def merge_alignment_fragments(self, index: int) -> None:
@@ -208,53 +202,7 @@ class HmmMatch:
         self.ieval = min([self.eval, self.ieval, merging_aln.ieval])
         self.full_score = max([self.full_score, merging_aln.full_score])
 
-        self.drop_next_alignment(index)
-        return
-
-    def reset_head(self):
-        print("Dropping")
-        print(self.get_info())
-        return
-
-    def remove_redundant_alignments(self, index=0) -> None:
-        """
-        If multiple alignments exist, HMMER will not report alignments that overlap in both profile and query sequence,
-        however, there is a chance some redundantly cover a high proportion of the HMM profile.
-        It is the purpose of this function to identify those alignments and eliminate the worse of the two.
-
-        Algorithm:
-            For each alignment in the linked-list of alignments (subsequent_matches):
-             calculate HMM profile alignment overlaps
-              if non-zero:
-               Worse of the two alignments is determined (based on profile alignment length and score).
-               Worst alignment is dropped from the linked-list
-
-        This function is currently used as a pre-filter for alignment scaffolding and inversion detection.
-        It clears out the riff raff that cannot be scaffolded (since profile alignment co-ordinates overlap entirely)
-        and shouldn't be maintained because the alignment is garbage. Consequences of keeping these spurious alignments
-        include, but are not limited to, false alarms during inversion detection (with HmmMatch.contains_inversion).
-
-        :return: None
-        """
-        if not self.next_domain:
-            return
-        self.next_domain.remove_redundant_alignments(index+1)
-        query_orientation = detect_orientation(self.start, self.end, self.next_domain.start, self.next_domain.end)
-        profile_orientation = detect_orientation(self.pstart, self.pend, self.next_domain.pstart, self.next_domain.pend)
-
-        # TODO: implement reset head
-        profile_proportion = (self.pend - self.pstart)/self.hmm_len
-        if profile_orientation == "subsequence" and query_orientation == "satellite":
-            if profile_proportion <= 0.1:
-                self.reset_head()
-        elif profile_orientation == "supersequence" and query_orientation == "satellite":
-            self.drop_next_alignment(index+1)
-        i = 1
-        while i < len(self.subsequent_matches()):
-            next_match = sorted(self.subsequent_matches(), key=lambda x: x.num)[i]  # type: HmmMatch
-            # Determine which alignment is a substring of the other
-            i += 1
-
+        self.drop_match_at(index)
         return
 
     def scaffold_domain_alignments(self, seq_length_wobble=1.2) -> None:
@@ -298,15 +246,15 @@ class HmmMatch:
                 aln_overlap_proportion = p_overlap_len / min_profile_covered
             except ZeroDivisionError:
                 if self.pend - self.pstart < next_match.pend - next_match.pstart:
-                    self.drop_next_alignment(0)
+                    self.drop_match_at(0)
                 else:
-                    self.drop_next_alignment(i)
+                    self.drop_match_at(i)
                 continue
             if aln_overlap_proportion > 0.5:
                 # They overlap significant regions - are they overlapping sequence or are they repeats?
                 if q_overlap_len == next_match.seq_len:
                     # The projected alignment is a subsequence of the base alignment - DROP
-                    self.drop_next_alignment(i)
+                    self.drop_match_at(i)
                     i -= 1
                 elif q_overlap_len < p_overlap_len:
                     # The two alignments represent repeats of a single profile - KEEP
@@ -339,7 +287,7 @@ class HmmMatch:
 
         :return: Failing both tests for collinearity and duplication return True, else False
         """
-        if self.of <= 1 or not self.next_domain:
+        if self.of == 1 or not self.next_domain:
             return False
         if self.collinear():
             return False
@@ -518,8 +466,7 @@ def assemble_domain_alignments(first_match: HmmMatch, search_stats: HmmSearchSta
     if first_match.next_domain:
         # STEP 1: Scaffold the alignments covering overlapping regions on the query sequence
         frags_pre_scaffolding = len(first_match.subsequent_matches())
-        print(frags_pre_scaffolding)
-        first_match.remove_redundant_alignments()
+        first_match = remove_redundant_alignments(first_match)
         first_match.scaffold_domain_alignments()
         if first_match.contains_inversion():
             print("Inversion detected:", first_match.get_info())
@@ -679,3 +626,82 @@ def renumber_multi_matches(complete_gene_hits: list):
             match.of = of
             n += 1
     return
+
+
+def drop_current_match(match: HmmMatch) -> HmmMatch:
+    print("Dropping this match")
+    print(match.get_info())
+    i = 0
+    while i < len(match.subsequent_matches()):
+        if match.subsequent_matches()[i] == match:
+            match.subsequent_matches().pop(i)
+            i = len(match.subsequent_matches())
+        i += 1
+    match = match.next_domain  # type: HmmMatch
+    match.of -= 1
+    match.num -= 1
+    return match
+
+
+def drop_next_match(match: HmmMatch) -> None:
+    """
+    Function for removing an element from the linked list formed by HmmMatch.next_domain
+
+    :param match: The current HmmMatch of which the next is to be removed from the linked list subsequent_matches
+    :return: None
+    """
+    print("Dropping this match")
+    print(match.next_domain.get_info())
+    i = 0
+    while i < len(match.subsequent_matches()):
+        if match.subsequent_matches()[i] == match.next_domain:
+            match.subsequent_matches().pop(i)
+            i = len(match.subsequent_matches())
+            try:
+                match.next_domain = match.subsequent_matches()[i+1]
+            except IndexError:
+                match.next_domain = None
+            match.of -= 1
+            return
+        i += 1
+    logging.warning("Next HmmMatch was not dropped from linked list.\n")
+    return
+
+
+def remove_redundant_alignments(match: HmmMatch, index=0) -> HmmMatch:
+    """
+    If multiple alignments exist, HMMER will not report alignments that overlap in both profile and query sequence,
+    however, there is a chance some redundantly cover a high proportion of the HMM profile.
+    It is the purpose of this function to identify those alignments and eliminate the worse of the two.
+
+    Algorithm:
+        For each alignment in the linked-list of alignments (subsequent_matches):
+         calculate HMM profile alignment overlaps
+          if non-zero:
+           Worse of the two alignments is determined (based on profile alignment length and score).
+           Worst alignment is dropped from the linked-list
+
+    This function is currently used as a pre-filter for alignment scaffolding and inversion detection.
+    It clears out the riff raff that cannot be scaffolded (since profile alignment co-ordinates overlap entirely)
+    and shouldn't be maintained because the alignment is garbage. Consequences of keeping these spurious alignments
+    include, but are not limited to, false alarms during inversion detection (with HmmMatch.contains_inversion).
+
+    :return: HmmMatch pointing to the head of the linked list
+    """
+    if not match.next_domain:
+        return match
+    remove_redundant_alignments(match.next_domain, index+1)
+    query_orientation = detect_orientation(match.start, match.end,
+                                           match.next_domain.start, match.next_domain.end)
+    profile_orientation = detect_orientation(match.pstart, match.pend,
+                                             match.next_domain.pstart, match.next_domain.pend)
+
+    if query_orientation == "satellite":
+        if profile_orientation == "subsequence":
+            if ((match.pend - match.pstart)/match.hmm_len) < 0.1:
+                match = drop_current_match(match)
+        elif profile_orientation == "supersequence":
+            if ((match.next_domain.pend - match.next_domain.pstart)/match.hmm_len) < 0.1:
+                drop_next_match(match)
+
+    return match
