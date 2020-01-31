@@ -161,7 +161,7 @@ class HmmMatch:
             return False
         if self.next_domain.contains_duplicate_loci(overlap_threshold):
             return True
-        for hmm_match in sorted(self.subsequent_matches(), key=lambda x: x.num):
+        for hmm_match in sorted(self.subsequent_matches(), key=lambda x: x.num):  # type: HmmMatch
             # Duplicate loci should not overlap on the query
             # Duplicate loci should overlap significantly on the HMM
             if self.num != hmm_match.num:
@@ -468,7 +468,7 @@ def overlap_length(r_i: int, r_j: int, q_i: int, q_j: int) -> int:
     :param r_j: reference end position
     :return: Number of positions the two alignments overlap
     """
-    if r_j < q_i or q_i > r_j:
+    if r_j < q_i or q_j < r_i:
         # Satellite alignments
         return 0
     else:
@@ -483,7 +483,6 @@ def assemble_domain_alignments(first_match: HmmMatch, search_stats: HmmSearchSta
         first_match = remove_redundant_alignments(first_match)
         first_match.scaffold_domain_alignments()
         if first_match.contains_inversion():
-            print("Inversion detected:", first_match.get_info())
             search_stats.inverted += 1
             return distinct_alignments
         first_match.enumerate()
@@ -643,8 +642,6 @@ def renumber_multi_matches(complete_gene_hits: list):
 
 
 def drop_current_match(match: HmmMatch) -> HmmMatch:
-    print("Dropping this match")
-    print(match.get_info())
     i = 0
     while i < len(match.subsequent_matches()):
         if match.subsequent_matches()[i] == match:
@@ -664,8 +661,6 @@ def drop_next_match(match: HmmMatch) -> None:
     :param match: The current HmmMatch of which the next is to be removed from the linked list subsequent_matches
     :return: None
     """
-    print("Dropping this match")
-    print(match.next_domain.get_info())
     i = 0
     while i < len(match.subsequent_matches()):
         if match.subsequent_matches()[i] == match.next_domain:
