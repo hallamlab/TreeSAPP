@@ -189,7 +189,7 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
 
 
 def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
-                          leaf_taxa_map: dict, accession_lineage_map: dict, taxonomic_ranks, refpkg_name):
+                          leaf_taxa_map: dict, accession_lineage_map: dict, taxonomic_ranks: dict, refpkg_name: str):
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
     linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
@@ -198,9 +198,9 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     :param fasta_input: Path to a FASTA-formatted file
     :param output_dir: Path to write intermediate output files (such as UCLUST outputs)
     :param executables: A dictionary mapping software to a path of their respective executable
-    :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric sequence identifiers to taxonomic lineages
+    :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric identifiers of reference sequences to taxonomic lineages
     :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
-    :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
+    :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum) to their depth in the taxonomic hierarchy
     :param refpkg_name: The human-readable name for the reference package (ReferencePackage.prefix)
      to rank depth values where Kingdom is 0, Phylum is 1, etc.
     :return: A dictionary storing the sequence names being used to test each taxon within each rank
@@ -208,10 +208,17 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     rank_training_seqs = dict()
     optimal_placement_missing = list()
     taxon_training_queries = list()
-    similarity = 0.97  # The proportional similarity to cluster the training sequences
+    unrelated_queries = list()
+    related_queries = list()
+    similarity = 0.99  # The proportional similarity to cluster the training sequences
     max_reps = 30  # The maximum number of representative sequences from a specific taxon for training
     uclust_prefix = output_dir + os.sep + "uclust" + str(similarity)
     uclust_input = output_dir + os.sep + "uclust_input.fasta"
+    num_lineages = 0
+    optimal_lineages_present = 0
+    rank_test_seqs = 0
+    test_seq_found = 0
+    warning_threshold = 10
 
     # Cluster the training sequences to mitigate harmful redundancy
     test_seqs = FASTA(fasta_input)
@@ -221,9 +228,68 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
     test_seqs.dedup_by_accession()
     # Remove fasta records with duplicate sequences
     test_seqs.dedup_by_sequences()
+    test_seqs.change_dict_keys("accession")
+
+    # Remove sequences that are not related at the rank of Domain
+    ref_domains = sorted(set(trim_lineages_to_rank(leaf_taxa_map, "Kingdom").values()))
+    for seq_name in sorted(accession_lineage_map):
+        query_domain = utilities.clean_lineage_string(accession_lineage_map[seq_name]).split("; ")[0]
+        if query_domain not in ref_domains:
+            unrelated_queries.append(seq_name)
+        else:
+            related_queries.append(seq_name)
+    test_seqs.keep_only(related_queries)
+    test_seqs.change_dict_keys("accession")
+    [accession_lineage_map.pop(seq_name) for seq_name in unrelated_queries]
+
+    # Calculate the number of sequences that cannot be used in clade exclusion analysis due to no coverage in the input
+    test_taxa_summary = []
+    for rank in taxonomic_ranks:
+        test_taxa_summary.append("Sequences available for training %s-level placement distances:" % rank)
+        unique_ref_lineages = sorted(set(trim_lineages_to_rank(leaf_taxa_map, rank).values()))
+
+        # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
+        for taxonomy in unique_ref_lineages:
+            optimal_lca_taxonomy = "; ".join(taxonomy.split("; ")[:-1])
+            if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages if
+                                            tl != taxonomy]:
+                optimal_placement_missing.append(optimal_lca_taxonomy)
+            else:
+                for seq_name in sorted(accession_lineage_map, key=lambda x: accession_lineage_map[x]):
+                    # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
+                    if re.search(taxonomy,
+                                 utilities.clean_lineage_string(accession_lineage_map[seq_name])) and \
+                            seq_name in test_seqs.fasta_dict:
+                        taxon_training_queries.append(seq_name)
+                        test_seq_found = 1
+                rank_test_seqs += test_seq_found
+                optimal_lineages_present += 1
+            num_lineages += 1
+            test_seq_found = 0
+
+            test_taxa_summary.append("\t" + str(len(taxon_training_queries)) + "\t" + taxonomy)
+            taxon_training_queries.clear()
+        taxonomic_coverage = float(rank_test_seqs*100/num_lineages)
+        if rank_test_seqs == 0:
+            logging.error("No sequences were found in input FASTA that could be used to train " + rank + ".\n")
+            sys.exit(5)
+        if taxonomic_coverage < warning_threshold:
+            logging.warning("Less than %d%% of the reference package has sequences to be used for training %s.\n" %
+                            (warning_threshold, rank))
+        test_taxa_summary.append("%d/%d %s have training sequences." % (rank_test_seqs, num_lineages, rank))
+        logging.debug("%.1f%% of optimal  %s lineages are present in the pruned trees.\n" %
+                      (round(float(optimal_lineages_present*100/num_lineages), 1), rank))
+        num_lineages = 0
+        optimal_lineages_present = 0
+        rank_test_seqs = 0
+
+    logging.debug("Optimal placement target was not found in the pruned tree for following taxa:\n\t" +
+                  "\n\t".join(optimal_placement_missing) + "\n")
+
+    logging.debug("\n".join(test_taxa_summary) + "\n")
+
     test_seqs.change_dict_keys("num")
     write_new_fasta(test_seqs.fasta_dict, uclust_input)
-
     wrapper.cluster_sequences(executables["usearch"], uclust_input, uclust_prefix, similarity)
     cluster_dict = file_parsers.read_uc(uclust_prefix + ".uc")
     test_seqs.keep_only([cluster_dict[clust_id].representative for clust_id in cluster_dict.keys()])
@@ -240,11 +306,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
         for taxonomy in unique_taxonomic_lineages:
-            optimal_lca_taxonomy = "; ".join(taxonomy.split("; ")[:-1])
-            if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_taxonomic_lineages if
-                                            tl != taxonomy]:
-                optimal_placement_missing.append(optimal_lca_taxonomy)
-            else:
+            if "; ".join(taxonomy.split("; ")[:-1]) not in optimal_placement_missing:
                 for seq_name in sorted(accession_lineage_map):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
                     if re.search(taxonomy,
@@ -256,9 +318,6 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
                     rank_training_seqs[rank][taxonomy] = list(taxon_training_queries)
                     taxon_training_queries.clear()
     logging.info("done.\n")
-
-    logging.debug("Optimal placement target is not found in the pruned tree for following taxa:\n\t" +
-                  "\n\t".join(optimal_placement_missing) + "\n")
 
     return rank_training_seqs, test_seqs
 
