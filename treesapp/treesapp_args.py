@@ -509,8 +509,8 @@ def check_create_arguments(creator: Creator, args):
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
 
-    if len(creator.ref_pkg.prefix) > 6:
-        logging.error("Name must be <= 6 characters!\n")
+    if len(creator.ref_pkg.prefix) > 10:
+        logging.error("Name should be <= 10 characters.\n")
         sys.exit(13)
 
     if args.rfam_cm is None and args.molecule == "rrna":
@@ -518,6 +518,7 @@ def check_create_arguments(creator: Creator, args):
         sys.exit(13)
 
     # Check the RAxML model
+    # TODO: Change this for compatibility with RAxML-NG
     raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALG", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
                     "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
     if args.raxml_model:

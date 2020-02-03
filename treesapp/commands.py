@@ -443,7 +443,7 @@ def create(sys_args):
                                            ref_tree=best_tree, ref_msa=ts_create.phylip_file,
                                            model=marker_package.model,
                                            tree_prefix=ts_create.phy_dir + ts_create.ref_pkg.prefix,
-                                           mre=False, n_bootstraps=args.boostraps, num_threads=args.num_threads)
+                                           mre=False, n_bootstraps=args.bootstraps, num_threads=args.num_threads)
             wrapper.model_parameters(ts_create.executables["raxml-ng"],
                                      ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
                                      marker_package.model, args.num_threads)

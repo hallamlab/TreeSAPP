@@ -59,6 +59,7 @@ def model_parameters(raxml_exe: str, ref_msa: str, tree_file: str, output_prefix
     model_eval_cmd += ["--prefix", output_prefix]
     model_eval_cmd += ["--model", model]
     model_eval_cmd += ["--threads", str(threads)]
+    model_eval_cmd.append("--force")
 
     logging.debug("Evaluating phylogenetic tree with RAxML-NG... ")
     stdout, returncode = launch_write_command(model_eval_cmd)

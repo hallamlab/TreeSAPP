@@ -591,6 +591,7 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
     else:
         num_seqs, alignment_len = alignment_dims
 
+    longest_seq_name = max([len(seq_name) for seq_name in phy_dict[0]])
     with open(phy_output_file, 'w') as phy_output:
         phy_string = ' ' + str(num_seqs) + ' ' + str(alignment_len) + '\n'
         for count in sorted(phy_dict.keys(), key=int):
@@ -600,11 +601,11 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
                     phy_string += str(seq_name)
                     length = len(str(seq_name))
                     c = length
-                    while c < 11:
+                    while c < longest_seq_name + 1:
                         phy_string += ' '
                         c += 1
                 else:
-                    phy_string += 11*' '
+                    phy_string += (longest_seq_name+1)*' '
                 phy_string += ' '.join(re.findall(r'.{1,10}', sequence_part)) + '\n'
             phy_string += "\n"
 

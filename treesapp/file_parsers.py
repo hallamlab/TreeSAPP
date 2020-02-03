@@ -797,11 +797,11 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
                 if re.match(r"^_\d+", seq_name):
                     leaf_num = re.sub("^_", '-', seq_name)
                 # The section of regular expresion after '_' needs to match denominator and refpkg names
-                elif re.match(r"^\d+_\w{3,7}$", seq_name):
+                elif re.match(r"^\d+_\w{2,10}$", seq_name):
                     leaf_num = seq_name.split('_')[0]
                 else:
-                    logging.error("Unexpected sequence name " + seq_name +
-                                  " detected in " + multi_align_file + ".\n")
+                    logging.error("Unexpected sequence name '" + seq_name +
+                                  "' detected in " + multi_align_file + ".\n")
                     sys.exit(13)
                 if int(leaf_num) > 0:
                     n_msa_refs += 1
