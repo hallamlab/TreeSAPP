@@ -194,7 +194,7 @@ def parse_gbseq_info_from_entrez_xml(record, gb_key="GBSeq_organism"):
         try:
             gb_value = record[gb_key]
             # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
-            gb_value = re.sub('[)(\[\]]', '', gb_value)
+            gb_value = re.sub(r'[)(\[\]]', '', gb_value)
         except (IndexError, KeyError):
             logging.warning("'" + gb_key + "' not found in Entrez record.\n")
     return gb_value
@@ -238,6 +238,7 @@ def check_lineage(lineage: str, organism_name: str, verbosity=0):
     """
     Sometimes the NCBI lineage is incomplete.
     Currently, this function uses organism_name to ideally add Species to the lineage
+
     :param lineage: A semi-colon separated taxonomic lineage
     :param organism_name: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
     :param verbosity: 1 prints debugging messages
@@ -270,6 +271,7 @@ def check_lineage(lineage: str, organism_name: str, verbosity=0):
 def match_file_to_dict(file_handler, key_dict, sep="\t", join_by=0):
     """
     Generator function for mapping a particular field in a file, separated by 'sep', to dictionary keys
+
     :param file_handler: Opened file object
     :param key_dict: Dictionary to map the selected field to
     :param sep: Field separator
@@ -349,6 +351,7 @@ def pull_unmapped_entrez_records(entrez_records: list):
     """
     Prepares a list of accession identifiers for EntrezRecord instances where the bitflag is not equal to 7,
      inferring lineage information was not properly entered.
+
     :param entrez_records: A list of EntrezRecord instances
     :return: List of EntrezRecords with bitflag != 7
     """
@@ -369,6 +372,7 @@ def fetch_lineages_from_taxids(entrez_records: list):
     """
     Query Entrez's Taxonomy database for lineages using NCBI taxonomic IDs.
     The TaxId queries are pulled from EntrezRecord instances.
+
     :param entrez_records: A list of EntrezRecord instances that should have TaxIds in their ncbi_tax element
     :return: entrez_records where successful queries have a populated lineage element
     """
@@ -398,9 +402,11 @@ def fetch_lineages_from_taxids(entrez_records: list):
         if len(tax_id) == 0:
             logging.warning("Empty TaxId returned in Entrez XML.\n")
         tax_lineage = parse_gbseq_info_from_entrez_xml(record, "Lineage")
+        tax_organism = parse_gbseq_info_from_entrez_xml(record, "ScientificName")
         try:
-            for e_record in tax_id_map[tax_id]:
+            for e_record in tax_id_map[tax_id]:  # type: EntrezRecord
                 e_record.lineage = tax_lineage
+                e_record.organism = tax_organism
                 e_record.tracking_stamp()
         except KeyError:
             pass
@@ -606,9 +612,7 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
         ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
         ref_seq.tracking_stamp()
         # Could have been set previously, in custom header format for example
-        if ref_seq.lineage:
-            unambiguous_accession_lineage_map[ref_seq.accession] = clean_lineage_string(ref_seq.lineage)
-        else:
+        if not ref_seq.lineage:
             lineage = ""
             for tuple_key in accession_lineage_map:
                 accession, versioned = tuple_key
@@ -627,9 +631,11 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
                 sys.exit(13)
             elif not lineage and ref_seq.bitflag >= 1:
                 lineage = "Unclassified"
+        else:
+            lineage = ref_seq.lineage
 
-            ref_seq.lineage = clean_lineage_string("; ".join(check_lineage(lineage, ref_seq.organism)))
-            unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
+        ref_seq.lineage = clean_lineage_string("; ".join(check_lineage(lineage, ref_seq.organism)))
+        unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
         ref_seq.tracking_stamp()
         if ref_seq.bitflag >= 1:
             taxa_searched += 1
