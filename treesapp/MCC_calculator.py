@@ -578,11 +578,6 @@ def get_arguments():
 def validate_command(args, sys_args):
     logging.debug("Command used:\n" + ' '.join(sys_args) + "\n")
 
-    if args.overwrite:
-        if os.path.exists(args.output):
-            shutil.rmtree(args.output)
-        os.mkdir(args.output)
-
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
     if args.tool == "treesapp" and not args.pkg_path:
         args.pkg_path = args.treesapp + "data" + os.sep
@@ -650,11 +645,12 @@ def calculate_matthews_correlation_coefficient(tp: int, fp: int, fn: int, tn: in
 
 def mcc_calculator():
     args = get_arguments()
-    log_name = args.output + os.sep + "MCC_log.txt"
-    mcc_file = args.output + os.sep + "MCC_table.tsv"
     summary_rank = "Phylum"
-    taxa_dist_output = args.output + '.'.join(os.path.basename(args.input).split('.')[:-1]) + '_' + summary_rank + "_dist.tsv"
-    classification_info_output = args.output + '.'.join(os.path.basename(args.input).split('.')[:-1]) + "_classifications.tsv"
+    output_prefix = args.output + '.'.join(os.path.basename(args.input).split('.')[:-1])
+    log_name = output_prefix + "_MCC_log.txt"
+    mcc_file = output_prefix + "_MCC_table.tsv"
+    taxa_dist_output = output_prefix + '_' + summary_rank + "_dist.tsv"
+    classification_info_output = output_prefix + "_classifications.tsv"
     prep_logging(log_name, args.verbose)
     logging.info("\n##\t\t\tBeginning Matthews Correlation Coefficient analysis\t\t\t##\n")
     validate_command(args, sys.argv)
@@ -667,7 +663,10 @@ def mcc_calculator():
     test_obj = ConfusionTest(pkg_name_dict.keys())
     test_obj.map_data(output_dir=args.output, tool=args.tool)
     if args.overwrite and os.path.exists(test_obj.data_dir):
-            shutil.rmtree(test_obj.data_dir)
+        shutil.rmtree(test_obj.data_dir)
+        for f in [mcc_file, taxa_dist_output, classification_info_output]:
+            if os.path.isfile(f):
+                os.remove(f)
 
     ##
     # Load the taxonomic trie for each reference package
