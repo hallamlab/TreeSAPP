@@ -115,47 +115,47 @@ class TreeNode:
             info_string += "None\n"
         return info_string
 
-
-def create_tree_internal_node_map(jplace_tree_string):
-    """
-    Loads a mapping between all internal nodes to their internal parents
-
-    :return:
-    """
-    no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?{", ":{", jplace_tree_string)
-    node_map = dict()
-    parent_map = dict()
-    node_stack = list()
-
-    x = 0
-    while x < len(no_length_tree):
-        c = no_length_tree[x]
-        if c == ':':
-            # Append the most recent leaf
-            current_node, x = get_node(no_length_tree, x + 1)
-            tree_node = TreeNode(current_node)
-            # node_map[current_node] = tree_node.get_parents()
-            node_stack.append(tree_node)
-            node_map[tree_node.node_id] = tree_node
-        elif c == ')':
-            # Set the child leaves to the leaves of the current node's two children
-            while c == ')' and x < len(no_length_tree):
-                if no_length_tree[x + 1] == ';':
-                    break
-                current_node, x = get_node(no_length_tree, x + 2)
-                tree_node = TreeNode(current_node)
-                r_child = node_stack.pop()
-                r_child.parent = tree_node
-                l_child = node_stack.pop()
-                l_child.parent = tree_node
-                node_stack.append(tree_node)
-                node_map[tree_node.node_id] = tree_node
-                x += 1
-                c = no_length_tree[x]
-        x += 1
-    for node in sorted(node_map):
-        parent_map[node] = node_map[node].all_parents()
-    return node_map
+# Flagged for removal
+# def create_tree_internal_node_map(jplace_tree_string):
+#     """
+#     Loads a mapping between all internal nodes to their internal parents
+#
+#     :return:
+#     """
+#     no_length_tree = re.sub(r"(\d+)?:[0-9.]+(\[\d+\])?{", ":{", jplace_tree_string)
+#     node_map = dict()
+#     parent_map = dict()
+#     node_stack = list()
+#
+#     x = 0
+#     while x < len(no_length_tree):
+#         c = no_length_tree[x]
+#         if c == ':':
+#             # Append the most recent leaf
+#             current_node, x = get_node(no_length_tree, x + 1)
+#             tree_node = TreeNode(current_node)
+#             # node_map[current_node] = tree_node.get_parents()
+#             node_stack.append(tree_node)
+#             node_map[tree_node.node_id] = tree_node
+#         elif c == ')':
+#             # Set the child leaves to the leaves of the current node's two children
+#             while c == ')' and x < len(no_length_tree):
+#                 if no_length_tree[x + 1] == ';':
+#                     break
+#                 current_node, x = get_node(no_length_tree, x + 2)
+#                 tree_node = TreeNode(current_node)
+#                 r_child = node_stack.pop()
+#                 r_child.parent = tree_node
+#                 l_child = node_stack.pop()
+#                 l_child.parent = tree_node
+#                 node_stack.append(tree_node)
+#                 node_map[tree_node.node_id] = tree_node
+#                 x += 1
+#                 c = no_length_tree[x]
+#         x += 1
+#     for node in sorted(node_map):
+#         parent_map[node] = node_map[node].all_parents()
+#     return node_map
 
 
 def validate_internal_node_map(node_map):
@@ -175,8 +175,8 @@ def validate_internal_node_map(node_map):
 
 def map_internal_nodes_leaves(tree: str) -> dict:
     """
-    Loads a Newick-formatted tree into a dictionary of all internal nodes (keys) and a list of child leaves (values).
-    The Newick tree already contains internal nodes?
+    Loads a Newick-formatted tree with internal nodes into a dictionary of all internal nodes (keys)
+    and a list of child leaves (values). The Newick tree already contains internal nodes?
 
     :param tree: A string of an already read Newick tree file. Tree text exists on a single line.
     :return: Dictionary of all internal nodes (keys) and a list of child leaves (values)

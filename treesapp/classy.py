@@ -117,8 +117,8 @@ class ReferencePackage:
     def gather_package_files(self, pkg_path: str, molecule="prot", layout=None):
         """
         Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
-         files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
-         in the same directory.
+        files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
+        in the same directory.
 
         :param pkg_path: Path to the reference package
         :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
