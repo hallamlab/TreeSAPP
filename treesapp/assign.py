@@ -1806,13 +1806,13 @@ def filter_placements(tree_saps, marker_build_dict, tree_data_dir: str, min_like
                 tree_sap.classified = False
                 continue
             tree_sap.lwr = float(tree_sap.get_jplace_element("like_weight_ratio"))
-            if pendant_length > mean_dist_threshold and tree_sap.lwr < 0.66:
+            leaf_children = tree_sap.node_map[int(tree_sap.inode)]
+            if pendant_length > mean_dist_threshold and tree_sap.lwr < 0.5 and len(leaf_children) < 3:
                 unclassified_seqs[marker]["beyond"].append(tree_sap)
                 tree_sap.classified = False
                 continue
 
             # Find the length of the edge this sequence was placed onto
-            leaf_children = tree_sap.node_map[int(tree_sap.inode)]
             distal_length = float(tree_sap.get_jplace_element("distal_length"))
             # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
 
