@@ -15,8 +15,7 @@ from treesapp.classy import prep_logging, ReferencePackage
 from treesapp.entrez_utils import *
 from treesapp.lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
     optimal_taxonomic_assignment, grab_graftm_taxa
-from treesapp.utilities import fish_refpkg_from_build_params
-from treesapp.entish import map_internal_nodes_leaves
+from treesapp.utilities import fish_refpkg_from_build_params, get_hmm_length
 from ete3 import Tree
 
 
@@ -451,6 +450,7 @@ class ConfusionTest:
         internal_nodes_dict = dict()
         summary_dict = {"leaves": {}, "LWR": {}, "distances": {}}
         refpkg_map = dict()
+        hmm_lengths = dict()
         for name in self.ref_packages:
             refpkg = self.ref_packages[name]  # type: ReferencePackage
             refpkg_map[refpkg.prefix] = name
@@ -460,10 +460,13 @@ class ConfusionTest:
             except IndexError:
                 logging.error("Unable to read tree for reference package %s from '%s'.\n" % (name, refpkg.tree))
                 sys.exit(3)
+            hmm_lengths[refpkg.prefix] = get_hmm_length(refpkg.profile)
         #
         for fields in classification_lines:
-            _, header, refpkg, _, _, _, _, i_node, lwr, evo_dist, _ = fields
+            _, header, refpkg, length, _, _, _, i_node, lwr, evo_dist, dists = fields
             if header in self.fp[refpkg_map[refpkg]]:
+                distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
+                hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 0)
                 descendents = len(internal_nodes_dict[refpkg][i_node])
                 if descendents not in summary_dict["leaves"]:
                     summary_dict["leaves"][descendents] = 0
@@ -474,10 +477,12 @@ class ConfusionTest:
                     summary_dict["LWR"][lwr_bin] = 0
                 summary_dict["LWR"][lwr_bin] += 1
 
-                dist_bin = round(float(evo_dist), 1)
+                dist_bin = round(float(pendant), 1)
                 if dist_bin not in summary_dict["distances"]:
                     summary_dict["distances"][dist_bin] = 0
                 summary_dict["distances"][dist_bin] += 1
+                if descendents < 3 or descendents > 28:
+                    print("\t".join([str(n) for n in [refpkg, hmm_perc, descendents, lwr_bin, pendant, avg]]))
 
         # Convert the dictionary into a human-readable string
         summary_str = ""
@@ -642,7 +647,7 @@ def internal_node_leaf_map(tree: str) -> dict:
     node_map = dict()
     x = 0
     ete_tree = Tree(tree)
-    for node in ete_tree.traverse(strategy="preorder"):
+    for node in ete_tree.traverse(strategy="postorder"):
         node_map[str(x)] = node.get_leaf_names()
         x += 1
 
