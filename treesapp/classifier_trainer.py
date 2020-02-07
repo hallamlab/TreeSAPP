@@ -8,6 +8,7 @@ import logging
 import re
 import argparse
 import numpy
+import pickle
 # Import train_test_split function
 from sklearn import model_selection, svm, metrics
 from treesapp import file_parsers
@@ -26,9 +27,11 @@ def get_arguments():
     required_args.add_argument("--annot_map", required=True,
                                help="Path to a tabular file mapping markers being tested to their database annotations."
                                     " First column is the ")
+    required_args.add_argument("--treesapp_output", required=False, dest="output",
+                               help="Path to the `treesapp assign` output directory")
 
     optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument("--output", required=False, default="./MCC_output/",
+    optopt.add_argument("-m", "--model_file", required=False, default="./treesapp_svm.pkl",
                         help="Path to a directory for writing output files")
     optopt.add_argument("-p", "--pkg_path", required=False, default=None,
                         help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
@@ -89,7 +92,7 @@ def main():
     args = get_arguments()
     log_name = args.output + os.sep + "TreeSAPP_classifier_trainer_log.txt"
     prep_logging(log_name, args.verbose)
-    logging.info("\n##\t\t\tBeginning Matthews Correlation Coefficient analysis\t\t\t##\n")
+    logging.info("\n##\t\t\tBeginning SVM classifier build\t\t\t##\n")
     validate_command(args, sys.argv)
 
     pkg_name_dict = MCC_calculator.read_annotation_mapping_file(args.annot_map)
@@ -160,10 +163,10 @@ def main():
     logging.info("done.\n")
 
     logging.info("Training the SVM with a linear kernel... ")
-    # Split dataset into training set and test set - 70% training and 30% test
+    # Split dataset into training set and test set - 40% training and 60% test
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
-                                                                        test_size=0.3, random_state=109)
-    # Create a svm Classifier
+                                                                        test_size=0.6, random_state=12345)
+    # Create a SVM Classifier
     clf = svm.SVC(kernel='linear')  # Linear Kernel
     # Train the model using the training sets
     clf.fit(x_train, y_train)
@@ -179,6 +182,16 @@ def main():
     logging.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 3)) + "\n")
     # Model Recall: what percentage of positive tuples are labelled as such?
     logging.info("Recall\t" + str(round(metrics.recall_score(y_test, y_pred), 3)) + "\n")
+
+    logging.info("Pickling model... ")
+    try:
+        pkl_handler = open(args.model_file, 'wb')
+    except IOError:
+        logging.error("Unable to open model file '%s' for writing.\n" % args.model_file)
+        sys.exit(3)
+    pickle.dump(obj=clf, file=pkl_handler)
+    pkl_handler.close()
+    logging.info("done.\n")
 
     return
 
