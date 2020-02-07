@@ -16,6 +16,8 @@ from treesapp.entrez_utils import *
 from treesapp.lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
     optimal_taxonomic_assignment, grab_graftm_taxa
 from treesapp.utilities import fish_refpkg_from_build_params
+from treesapp.entish import map_internal_nodes_leaves
+from ete3 import Tree
 
 
 class ClassifiedSequence:
@@ -36,13 +38,15 @@ class ConfusionTest:
         self.header_regex = None
         self.ref_packages = {key: ReferencePackage() for key in gene_list}
         self.fn = {key: [] for key in gene_list}
-        self.fp = {key: [] for key in gene_list}
+        self.fp = {key: set() for key in gene_list}
         self.tp = {key: [] for key in gene_list}  # This will be a list of ClassifiedSequence instances
         self.tax_lineage_map = dict()
         self.dist_wise_tp = dict()
         self.num_total_queries = 0
         self.rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
         self.classification_table = ""
+        self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
+        self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
         self.data_dir = ""
 
     def get_info(self, verbose=False):
@@ -86,6 +90,7 @@ class ConfusionTest:
     def marker_classification_summary(self, refpkg_name):
         """
         Provide a classification summary for a specific marker gene, refpkg_name
+
         :param refpkg_name:
         :return: A string summarizing the classification performance of a single marker/refpkg_name
         """
@@ -284,6 +289,7 @@ class ConfusionTest:
     def bin_headers(self, test_seq_names, assignments, annot_map, marker_build_dict):
         """
         Function for sorting/binning the classified sequences at T/F positives/negatives based on the
+
         :param test_seq_names: List of all headers in the input FASTA file
         :param assignments: Dictionary mapping taxonomic lineages to a list of headers that were classified as lineage
         :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
@@ -370,7 +376,7 @@ class ConfusionTest:
                         self.tp[refpkg].append(tp_inst)
                         true_positives.add(seq_name)
                     else:
-                        self.fp[refpkg].append(seq_name)
+                        self.fp[refpkg].add(seq_name)
 
             # Identify the False Negatives using set difference - those that were not classified but should have been
             self.fn[refpkg] = list(positives.difference(true_positives))
@@ -401,14 +407,14 @@ class ConfusionTest:
             tp_names += self.og_names(self.fn[marker])
 
         for marker in self.fp:
-            validated_fp = []
+            validated_fp = set()
             for seq_name in self.fp[marker]:
                 og_name = self.header_regex.match(seq_name).group(1)
                 original_name = re.sub(og_name + '_', '', seq_name)
                 if original_name[0] == '>':
                     original_name = original_name[1:]
                 if original_name not in tp_names:
-                    validated_fp.append(seq_name)
+                    validated_fp.add(seq_name)
             self.fp[marker] = validated_fp
         return
 
@@ -432,6 +438,54 @@ class ConfusionTest:
             # Remove all sequences from this marker's false negatives that are found in a homologous TP set
             self.fn[marker] = set(self.fn[marker]).difference(homologous_tps)
         return
+
+    def summarise_type_one_placements(self, classification_lines) -> str:
+        """
+        Its nice to understand the placement distances and where on the phylogeny false positives were inserted.
+        First, figure out which headers are false positives, then
+
+        :param classification_lines:
+        :return: Summary of the distances and internal nodes for each of the false positives
+        """
+        # Read internal node maps for each refpkg
+        internal_nodes_dict = dict()
+        summary_dict = {"leaves": {}, "LWR": {}, "distances": {}}
+        refpkg_map = dict()
+        for name in self.ref_packages:
+            refpkg = self.ref_packages[name]  # type: ReferencePackage
+            refpkg_map[refpkg.prefix] = name
+            refpkg.gather_package_files(pkg_path=self.refpkg_dir)
+            try:
+                internal_nodes_dict[refpkg.prefix] = internal_node_leaf_map(refpkg.tree)
+            except IndexError:
+                logging.error("Unable to read tree for reference package %s from '%s'.\n" % (name, refpkg.tree))
+                sys.exit(3)
+        #
+        for fields in classification_lines:
+            _, header, refpkg, _, _, _, _, i_node, lwr, evo_dist, _ = fields
+            if header in self.fp[refpkg_map[refpkg]]:
+                descendents = len(internal_nodes_dict[refpkg][i_node])
+                if descendents not in summary_dict["leaves"]:
+                    summary_dict["leaves"][descendents] = 0
+                summary_dict["leaves"][descendents] += 1
+
+                lwr_bin = round(float(lwr), 2)
+                if lwr_bin not in summary_dict["LWR"]:
+                    summary_dict["LWR"][lwr_bin] = 0
+                summary_dict["LWR"][lwr_bin] += 1
+
+                dist_bin = round(float(evo_dist), 1)
+                if dist_bin not in summary_dict["distances"]:
+                    summary_dict["distances"][dist_bin] = 0
+                summary_dict["distances"][dist_bin] += 1
+
+        # Convert the dictionary into a human-readable string
+        summary_str = ""
+        for measure in summary_dict:
+            summary_str += "Summary of false positive %s:\n" % measure
+            for n in sorted(summary_dict[measure], key=float):
+                summary_str += "\t" + str(n) + "\t" + str(summary_dict[measure][n]) + "\n"
+        return summary_str
 
     def summarize_type_two_taxa(self, rank="Phylum"):
         lineage_list = []
@@ -484,6 +538,7 @@ def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
     Given a list of taxonomic lineages and a taxonomic rank for which to summarise at
     it will count the number of instances for each taxon at the desired rank.
     E.g. {''}
+
     :return: A dictionary mapping a taxon to the number of representatives seen
     """
     if not rank_depth_map:
@@ -520,6 +575,7 @@ def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
 def write_dict_to_table(data_dict, file_name, sep="\t"):
     """
     Basic function for writing the key, value pairs into a file with a specified separator
+
     :param data_dict: A dictionary object
     :param file_name: Path to a file for the dictionary to be written to
     :param sep: The separator to use. Tabs by default
@@ -573,6 +629,24 @@ def get_arguments():
     if args.output[-1] != os.sep:
         args.output += os.sep
     return args
+
+
+def internal_node_leaf_map(tree: str) -> dict:
+    """
+    Loads a Newick-formatted tree with internal nodes into a dictionary of
+    all internal nodes (keys) and a list of child leaves (values).
+
+    :param tree: Path to a Newick tree file.
+    :return: Dictionary of all internal nodes (keys) and a list of child leaves (values)
+    """
+    node_map = dict()
+    x = 0
+    ete_tree = Tree(tree)
+    for node in ete_tree.traverse(strategy="preorder"):
+        node_map[str(x)] = node.get_leaf_names()
+        x += 1
+
+    return node_map
 
 
 def validate_command(args, sys_args):
@@ -694,6 +768,7 @@ def mcc_calculator():
     ##
     assignments = {}
     test_fa_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
+    classification_lines = []
     if args.tool == "treesapp":
         ref_pkgs = ','.join(pkg_name_dict.keys())
         classification_table = os.sep.join([args.output, "TreeSAPP_output", "final_outputs", "marker_contig_map.tsv"])
@@ -765,6 +840,8 @@ def mcc_calculator():
     test_obj.validate_false_negatives(pkg_name_dict)
 
     test_obj.summarise_reference_taxa(taxa_dist_output, classification_info_output, summary_rank)
+    if args.tool == "treesapp" and classification_lines:
+        logging.debug(test_obj.summarise_type_one_placements(classification_lines))
     logging.debug(test_obj.summarize_type_two_taxa(summary_rank))
     logging.debug(test_obj.true_positive_taxonomic_summary(summary_rank, True))
 
