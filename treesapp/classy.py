@@ -51,6 +51,7 @@ class ReferencePackage:
         self.model_info = ""  # RAxML-NG --evaluate model file
         self.core_ref_files = list()
         self.num_seqs = 0
+        self.profile_length = 0  # LENG of the HMM profile
 
     def validate(self, num_ref_seqs=0):
         """

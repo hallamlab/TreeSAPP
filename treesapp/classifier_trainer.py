@@ -8,8 +8,7 @@ import logging
 import re
 import argparse
 import numpy
-import pickle
-# Import train_test_split function
+import joblib
 from sklearn import model_selection, svm, metrics
 from treesapp import file_parsers
 from treesapp.classy import prep_logging, ReferencePackage
@@ -78,8 +77,8 @@ def vectorize_placement_data(condition_names: dict, classifieds: list,
         _, header, refpkg, length, _, _, _, i_node, lwr, _, dists = fields
         if header in condition_names[refpkg_map[refpkg]]:
             # Calculate the features
-            distal, pendant, avg = [round(float(x), 2) for x in dists.split(',')]
-            hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 0)
+            distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
+            hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 1)
             descendents = len(internal_nodes[refpkg][i_node])
             lwr_bin = round(float(lwr), 2)
 
@@ -189,7 +188,7 @@ def main():
     except IOError:
         logging.error("Unable to open model file '%s' for writing.\n" % args.model_file)
         sys.exit(3)
-    pickle.dump(obj=clf, file=pkl_handler)
+    joblib.dump(value=clf, filename=pkl_handler)
     pkl_handler.close()
     logging.info("done.\n")
 

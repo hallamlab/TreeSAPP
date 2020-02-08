@@ -5,10 +5,11 @@ import os
 import re
 import logging
 from collections import namedtuple
-from .classy import TreeLeafReference, MarkerBuild, Cluster, ReferencePackage
-from .HMMER_domainTblParser import DomainTableParser, HmmSearchStats,\
+from treesapp.classy import TreeLeafReference, MarkerBuild, Cluster, ReferencePackage
+from treesapp.HMMER_domainTblParser import DomainTableParser, HmmSearchStats,\
     format_split_alignments, filter_incomplete_hits, filter_poor_hits, renumber_multi_matches, detect_orientation
-from .fasta import read_fasta_to_dict
+from treesapp.fasta import read_fasta_to_dict
+from treesapp.utilities import get_hmm_length
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -100,6 +101,7 @@ def gather_ref_packages(treesapp_dir: str, marker_build_dict: dict, targets=None
                 continue
         refpkg.num_seqs = marker_build.num_reps
         refpkg.gather_package_files(refpkg_data_dir, marker_build.molecule)
+        refpkg.profile_length = get_hmm_length(refpkg.profile)
         refpkg_dict[denominator] = refpkg
 
     logging.debug("done.\n")

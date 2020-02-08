@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-__author__ = "Connor Morgan-Lang and Kishori Konwar"
+__author__ = "Connor Morgan-Lang"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
 
@@ -23,6 +23,7 @@ try:
     from os import listdir
     from os.path import isfile, join
     from time import gmtime, strftime
+    from numpy import array as np_array
 
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
@@ -1101,7 +1102,7 @@ def split_tree_string(tree_string):
     count = -1
     previous_symbol = ''
     tree_elements = utilities.Autovivify()
-    
+
     for tree_symbol_raw in tree_symbols_raw:
         if re.search(r'\d', tree_symbol_raw) and (re.search(r'\d', previous_symbol) or previous_symbol == '-'):
             tree_elements[count] += tree_symbol_raw
@@ -1139,7 +1140,7 @@ def build_newly_rooted_trees(tree_info):
     tree_number = 0
     list_of_already_used_attachments = utilities.Autovivify()
     rooted_trees = utilities.Autovivify()
-    
+
     for node in sorted(tree_info['quartets'].keys(), key=int):
         if node in list_of_already_used_attachments:
             continue
@@ -1610,7 +1611,7 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_buil
                     cat_output.write(placement + "\n")
 
             cat_output.close()
-            
+
     return
 
 
@@ -1751,13 +1752,14 @@ def enumerate_taxonomic_lineages(lineage_list):
     return taxonomic_counts
 
 
-def filter_placements(tree_saps, marker_build_dict, tree_data_dir: str, min_likelihood: float):
+def filter_placements(tree_saps, refpkg_dict, svm, tree_data_dir: str, min_likelihood: float):
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
 
     :param tree_saps: A dictionary containing TreeProtein objects
-    :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
+    :param refpkg_dict: A dictionary of ReferencePackage objects
+    :param svm:
     :param tree_data_dir: Directory containing reference package tree files (Newick)
     :param min_likelihood: Likelihood-weight-ratio (LWR) threshold for filtering pqueries
     :return:
@@ -1767,23 +1769,18 @@ def filter_placements(tree_saps, marker_build_dict, tree_data_dir: str, min_like
     unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
 
     for denominator in tree_saps:
-        marker = marker_build_dict[denominator].cog
-        unclassified_seqs[marker] = dict()
-        unclassified_seqs[marker]["low_lwr"] = list()
-        unclassified_seqs[marker]["np"] = list()
-        unclassified_seqs[marker]["beyond"] = list()
-        unclassified_seqs[marker]["far_beyond"] = list()
+        refpkg = refpkg_dict[denominator]  # type: ReferencePackage
+        unclassified_seqs[refpkg.prefix] = dict()
+        unclassified_seqs[refpkg.prefix]["low_lwr"] = list()
+        unclassified_seqs[refpkg.prefix]["np"] = list()
+        unclassified_seqs[refpkg.prefix]["svm"] = list()
 
-        tree = Tree(tree_data_dir + os.sep + marker + "_tree.txt")
-        max_dist_threshold, leaf_ds = entish.tree_leaf_distances(tree)
-        # Find the maximum distance and standard deviation of distances from the root to all leaves
-        logging.debug(denominator + " maximum pendant length distance threshold: " + str(max_dist_threshold) + "\n")
-        mean_branch_length = utilities.mean(leaf_ds)
+        tree = Tree(tree_data_dir + os.sep + refpkg.prefix + "_tree.txt")
 
-        for tree_sap in tree_saps[denominator]:
+        for tree_sap in tree_saps[denominator]:  # type: TreeProtein
             tree_sap.filter_min_weight_threshold(min_likelihood)
             if not tree_sap.classified:
-                unclassified_seqs[marker]["low_lwr"].append(tree_sap)
+                unclassified_seqs[refpkg.prefix]["low_lwr"].append(tree_sap)
                 continue
             if not tree_sap.placements:
                 unclassified_seqs[tree_sap.name]["np"].append(tree_sap)
@@ -1794,11 +1791,12 @@ def filter_placements(tree_saps, marker_build_dict, tree_data_dir: str, min_like
                 tree_sap.classified = False
                 continue
             elif tree_sap.placements[0] == '{}':
-                unclassified_seqs[marker]["np"].append(tree_sap)
+                unclassified_seqs[refpkg.prefix]["np"].append(tree_sap)
                 tree_sap.classified = False
                 continue
 
             leaf_children = tree_sap.node_map[int(tree_sap.inode)]
+            # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
             if len(leaf_children) > 1:
                 # We need to find the LCA in the Tree instance to find the distances to tips for ete3
                 parent = tree.get_common_ancestor(leaf_children)
@@ -1806,25 +1804,25 @@ def filter_placements(tree_saps, marker_build_dict, tree_data_dir: str, min_like
             else:
                 tip_distances = [0.0]
 
-            avg_tip_dist = sum(tip_distances) / len(tip_distances)
-            pendant_length = float(tree_sap.get_jplace_element("pendant_length"))
-            # Discard this placement as a false positive if the pendant_length exceeds max_dist_threshold
-            if pendant_length > max_dist_threshold:
-                unclassified_seqs[tree_sap.name]["far_beyond"].append(tree_sap)
-                tree_sap.classified = False
-                continue
-            tree_sap.lwr = float(tree_sap.get_jplace_element("like_weight_ratio"))
-            if pendant_length > mean_branch_length and len(leaf_children) < 3 and tree_sap.lwr < 0.66:
-                unclassified_seqs[marker]["beyond"].append(tree_sap)
-                tree_sap.classified = False
-                continue
-
+            avg_tip_dist = round(sum(tip_distances) / len(tip_distances), 3)
+            pendant_length = round(float(tree_sap.get_jplace_element("pendant_length")), 3)
             # Find the length of the edge this sequence was placed onto
-            distal_length = float(tree_sap.get_jplace_element("distal_length"))
-            # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
+            distal_length = round(float(tree_sap.get_jplace_element("distal_length")), 3)
 
-            tree_sap.avg_evo_dist = round(distal_length + pendant_length + avg_tip_dist, 4)
+            tree_sap.avg_evo_dist = round(distal_length + pendant_length + avg_tip_dist, 3)
             tree_sap.distances = ','.join([str(distal_length), str(pendant_length), str(avg_tip_dist)])
+
+            hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
+
+            # features = [hmm_perc, len(leaf_children), round(tree_sap.lwr, 3), distal_length, pendant_length, avg_tip_dist]
+            # print(np_array(features).reshape(1, -1))
+            call = svm.predict(np_array([hmm_perc, len(leaf_children), round(tree_sap.lwr, 3),
+                                         distal_length, pendant_length, avg_tip_dist]).reshape(1, -1))
+            # Discard this placement as a false positive classifier calls this a 0
+            if call == 0:
+                unclassified_seqs[tree_sap.name]["svm"].append(tree_sap)
+                tree_sap.classified = False
+                continue
 
     logging.info("done.\n")
 
@@ -1951,7 +1949,7 @@ def parse_raxml_output(epa_output_dir, tree_data_dir, marker_build_dict, parsing
             # Filter the placements, determine the likelihood associated with the harmonized placement
             for pquery in tree_placement_queries:
                 pquery.name = marker
-                seq_info = re.match(r"(.*)\|" + re.escape(marker) + r"\|(\\d+)_(\\d+)$", pquery.contig_name)
+                seq_info = re.match(r"(.*)\|" + re.escape(marker) + r"\|(\d+)_(\d+)$", pquery.contig_name)
                 if seq_info:
                     pquery.contig_name = seq_info.group(1)
                     start, end = seq_info.groups()[1:]
@@ -2014,7 +2012,7 @@ def produce_itol_inputs(tree_saps, marker_build_dict, itol_data, output_dir: str
     if not os.path.exists(itol_base_dir):
         os.mkdir(itol_base_dir)  # drwxr-xr-x
     # Now that all the JPlace files have been loaded, generate the abundance stats for each marker
-    
+
     strip_missing = []
     style_missing = []
     for denominator in tree_saps:

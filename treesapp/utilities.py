@@ -6,10 +6,24 @@ import sys
 import subprocess
 import logging
 import time
+import joblib
 from collections import namedtuple
 from shutil import rmtree
 from .external_command_interface import launch_write_command
 from pygtrie import StringTrie
+
+
+def load_pickle(filename: str):
+    if not os.path.isfile(filename):
+        logging.error("Pickled file '%s' does not exist!\n" % filename)
+    try:
+        pickled_handler = open(filename, 'rb')
+    except IOError:
+        logging.error("Unable to open pickled file '%s' for reading in binary.\n" % filename)
+        sys.exit(3)
+    pkl_dat = joblib.load(pickled_handler)
+    pickled_handler.close()
+    return pkl_dat
 
 
 def load_taxonomic_trie(lineages: list) -> StringTrie:
@@ -852,17 +866,19 @@ def get_hmm_length(hmm_file):
     :return: The length (int value) of the HMM
     """
     try:
-        hmm = open(hmm_file, 'r')
+        hmm_handler = open(hmm_file, 'r')
     except IOError:
         raise IOError("Unable to open " + hmm_file + " for reading! Exiting.")
 
-    line = hmm.readline()
+    line = hmm_handler.readline()
     length = 0
     while line:
         # LENG XXX
         if re.match(r"^LENG\s+([0-9]+)", line):
             length = int(line.split()[1])
-        line = hmm.readline()
+            break
+        line = hmm_handler.readline()
+    hmm_handler.close()
     if length > 0:
         return length
     else:

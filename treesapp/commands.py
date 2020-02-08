@@ -960,7 +960,8 @@ def assign(sys_args):
 
     if ts_assign.stage_status("classify"):
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, ts_assign.tree_dir, marker_build_dict)
-        tree_saps = filter_placements(tree_saps, marker_build_dict, ts_assign.tree_dir, args.min_likelihood)
+        clf = utilities.load_pickle(ts_assign.refpkg_dir + "treesapp_svm.pkl")
+        tree_saps = filter_placements(tree_saps, refpkg_dict, clf, ts_assign.tree_dir, args.min_likelihood)
         # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
         extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
