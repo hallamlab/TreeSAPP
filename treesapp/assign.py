@@ -1951,7 +1951,7 @@ def parse_raxml_output(epa_output_dir, tree_data_dir, marker_build_dict, parsing
                 pquery.name = marker
                 seq_info = re.match(r"(.*)\|" + re.escape(marker) + r"\|(\d+)_(\d+)$", pquery.contig_name)
                 if seq_info:
-                    pquery.contig_name = seq_info.group(1)
+                    # pquery.contig_name = seq_info.group(1)  # Messes up key mapping downstream
                     start, end = seq_info.groups()[1:]
                     pquery.seq_len = int(end) - int(start)
                 pquery.node_map = entish.map_internal_nodes_leaves(pquery.tree)

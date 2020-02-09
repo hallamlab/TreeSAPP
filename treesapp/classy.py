@@ -12,12 +12,12 @@ from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
 from collections import namedtuple
-from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
-from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table
-from .entish import create_tree_info_hash, subtrees_to_dictionary
-from .lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
-from . import entrez_utils
-from .external_command_interface import launch_write_command
+from treesapp.fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
+from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle
+from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
+from treesapp.lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
+from treesapp import entrez_utils
+from treesapp.external_command_interface import launch_write_command
 from numpy import var
 
 import _tree_parser
@@ -1939,6 +1939,7 @@ class Assigner(TreeSAPP):
         self.classified_nuc_seqs = ""
         self.composition = ""
         self.target_refpkgs = list()
+        self.clf = load_pickle(self.refpkg_dir + "treesapp_svm.pkl")
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("orf-call", 0, self.predict_orfs),
