@@ -617,6 +617,8 @@ def get_arguments():
                         help="Path to a directory for writing output files")
     optopt.add_argument("-p", "--pkg_path", required=False, default=None,
                         help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
+    optopt.add_argument("--trim_align", default=False, action="store_true",
+                        help="Flag to turn on position masking of the multiple sequence alignment [DEFAULT = False]")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument("-n", "--num_threads", default=4, required=False,
@@ -782,7 +784,9 @@ def mcc_calculator():
                              "-t", ref_pkgs, "-n", str(args.num_threads),
                              "-m", "prot",
                              "--output", test_obj.data_dir,
-                             "--trim_align", "--overwrite"]
+                             "--overwrite"]
+            if args.trim_align:
+                classify_args.append("--trim_align")
             assign(classify_args)
         classification_lines = file_parsers.read_marker_classification_table(classification_table)
         assignments = file_parsers.parse_assignments(classification_lines)
