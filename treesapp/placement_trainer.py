@@ -110,7 +110,16 @@ def write_placement_table(pqueries, placement_table_file, marker):
     return
 
 
-def rarefy_rank_distances(rank_distances):
+def rarefy_rank_distances(rank_distances: dict) -> dict:
+    """
+    The number of observations (phylogenetic distances) for each key (taxonomic rank) are rarefied to
+    number of observations found for the rank with the fewest observations.
+    First, the minimum number is identified by finding the smallest list in the rank_distances.values().
+    Then observations from the input dictionary are randomly copied into a new dictionary for each rank.
+
+    :param rank_distances: A dictionary of floats indexed by taxonomic rank
+    :return: Dictionary of floats indexed by taxonomic rank
+    """
     rarefied_dists = dict()
     min_samples = min([len(rank_distances[rank]) for rank in rank_distances])
     for rank in rank_distances:
@@ -126,9 +135,10 @@ def rarefy_rank_distances(rank_distances):
     return rarefied_dists
 
 
-def read_placement_summary(placement_summary_file):
+def read_placement_summary(placement_summary_file: str) -> dict:
     """
     Reads a specially-formatted file and returns the rank-wise clade-exclusion placement distances
+
     :param placement_summary_file:
     :return:
     """
@@ -150,14 +160,14 @@ def read_placement_summary(placement_summary_file):
     return taxonomic_placement_distances
 
 
-def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
+def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> (float, float):
     """
     Wrapper for performing outlier removal, normalization via rarefaction, and regression
 
     :param taxonomic_placement_distances:
     :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum)
     to rank depth values where Kingdom is 0, Phylum is 1, etc.
-    :return:
+    :return: Tuple of floats representing the slope and intercept estimated from linear regression
     """
     if not taxonomic_placement_distances:
         return []
@@ -188,8 +198,8 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None):
     return regress_ranks(rarefied_pds, taxonomic_ranks)
 
 
-def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
-                          leaf_taxa_map: dict, accession_lineage_map: dict, taxonomic_ranks: dict, refpkg_name: str):
+def prepare_training_data(fasta_input: str, output_dir: str, executables: dict, leaf_taxa_map: dict,
+                          accession_lineage_map: dict, taxonomic_ranks: dict, refpkg_name: str) -> (dict, FASTA):
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
     linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
@@ -272,7 +282,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
         taxonomic_coverage = float(rank_test_seqs*100/num_lineages)
         if rank_test_seqs == 0:
             logging.error("No sequences were found in input FASTA that could be used to train " + rank + ".\n")
-            sys.exit(5)
+            return rank_training_seqs, test_seqs
         if taxonomic_coverage < warning_threshold:
             logging.warning("Less than %d%% of the reference package has sequences to be used for training %s.\n" %
                             (warning_threshold, rank))
@@ -325,7 +335,8 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict,
 def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                               ref_fasta_dict: dict, test_fasta: FASTA,
                               ref_pkg: ReferencePackage, leaf_taxa_map: dict,
-                              molecule: str, executables: dict, output_dir="./", raxml_threads=4):
+                              molecule: str, executables: dict,
+                              output_dir="./", raxml_threads=4) -> (dict, list):
     """
     Function for iteratively performing leave-one-out analysis for every taxonomic lineage represented in the tree,
     yielding an estimate of placement distances corresponding to taxonomic ranks.
@@ -342,7 +353,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     :param output_dir: Path to directory where all intermediate files should be written
     :param raxml_threads: Number of threads to be used by RAxML for parallel computation
 
-    :return:
+    :return: tuple(Dictionary of ranks indexing placement distances, list of PQuery instances)
     """
 
     logging.info("\nEstimating branch-length placement distances for taxonomic ranks. Progress:\n")
@@ -566,8 +577,9 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     return taxonomic_placement_distances, pqueries
 
 
-def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, accession_lineage_map,
-                          ref_fasta_dict, output_dir, molecule, training_ranks=None, num_threads=2):
+def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, accession_lineage_map, ref_fasta_dict,
+                          output_dir, molecule,
+                          training_ranks=None, num_threads=2) -> (tuple, ):
     """
 
     :param fasta_input:
@@ -592,6 +604,8 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
     rank_training_seqs, dedup_fasta_dict = prepare_training_data(fasta_input, output_dir, executables,
                                                                  leaf_taxa_map, accession_lineage_map, training_ranks,
                                                                  ref_pkg.prefix)
+    if len(rank_training_seqs) == 0:
+        return (0.0, 7.0), {}, []
     # Perform the rank-wise clade exclusion analysis for estimating placement distances
     taxonomic_placement_distances, pqueries = train_placement_distances(rank_training_seqs, training_ranks,
                                                                         ref_fasta_dict, dedup_fasta_dict,
