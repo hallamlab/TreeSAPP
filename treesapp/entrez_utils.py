@@ -32,9 +32,9 @@ class ReferenceSequence:
         """
         info_string = ""
         info_string += "accession = " + self.accession + ", " + "treesapp_id = " + self.short_id + "\n"
-        info_string += "organism = " + self.organism + ", " + "NCBI taxid = " + self.ncbi_tax + "\n"
-        info_string += "description = " + self.description + ", " + "locus = " + self.locus + "\n"
-        info_string += "lineage = " + self.lineage + "\n"
+        info_string += "organism = " + str(self.organism) + ", " + "NCBI taxid = " + str(self.ncbi_tax) + "\n"
+        info_string += "description = " + str(self.description) + ", " + "locus = " + str(self.locus) + "\n"
+        info_string += "lineage = " + str(self.lineage) + "\n"
         return info_string
 
 
