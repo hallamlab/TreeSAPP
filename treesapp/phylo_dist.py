@@ -37,7 +37,14 @@ def cull_outliers(data: list, dev=3):
     return list(noo_a)
 
 
-def regress_ranks(rank_distance_ranges, taxonomic_ranks):
+def regress_ranks(rank_distance_ranges: dict, taxonomic_ranks: dict) -> (float, float):
+    """
+    Uses linear regression to correlate phylogenetic distance with taxonomic rank
+
+    :param rank_distance_ranges: A dictionary with taxonomic ranks as keys and a list of distances (floats) as values
+    :param taxonomic_ranks: A dictionary mapping taxonomic ranks (keys) to their depth (int) in the taxonomic hierarchy
+    :return: A tuple with the slope and intercept estimated by a linear regression
+    """
 
     all_distances = list()
     for rank in rank_distance_ranges:

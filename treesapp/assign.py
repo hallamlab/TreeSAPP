@@ -1752,7 +1752,7 @@ def enumerate_taxonomic_lineages(lineage_list):
     return taxonomic_counts
 
 
-def filter_placements(tree_saps, refpkg_dict, svm, tree_data_dir: str, min_likelihood: float):
+def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: str, min_likelihood: float):
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
@@ -1814,15 +1814,13 @@ def filter_placements(tree_saps, refpkg_dict, svm, tree_data_dir: str, min_likel
 
             hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
 
-            # features = [hmm_perc, len(leaf_children), round(tree_sap.lwr, 3), distal_length, pendant_length, avg_tip_dist]
-            # print(np_array(features).reshape(1, -1))
-            call = svm.predict(np_array([hmm_perc, len(leaf_children), round(tree_sap.lwr, 3),
-                                         distal_length, pendant_length, avg_tip_dist]).reshape(1, -1))
-            # Discard this placement as a false positive classifier calls this a 0
-            if call == 0:
-                unclassified_seqs[tree_sap.name]["svm"].append(tree_sap)
-                tree_sap.classified = False
-                continue
+            if svm:
+                call = svm.predict(np_array([hmm_perc, len(leaf_children), round(tree_sap.lwr, 3),
+                                             distal_length, pendant_length, avg_tip_dist]).reshape(1, -1))
+                # Discard this placement as a false positive classifier calls this a 0
+                if call == 0:
+                    unclassified_seqs[tree_sap.name]["svm"].append(tree_sap)
+                    tree_sap.classified = False
 
     logging.info("done.\n")
 

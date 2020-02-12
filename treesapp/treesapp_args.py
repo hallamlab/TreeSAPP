@@ -75,6 +75,20 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                  help="HMM-threshold mode affects the number of query sequences that advance "
                                       "[DEFAULT = relaxed]")
 
+    def add_phylogeny_params(self):
+        self.optopt.add_argument("-b", "--bootstraps",
+                                 help="The maximum number of bootstrap replicates RAxML-NG should perform using "
+                                      "the autoMRE algorithm.\n"
+                                      "[ DEFAULT = 1000 ]",
+                                 required=False, default=1000, type=int)
+        self.optopt.add_argument("-e", "--raxml_model",
+                                 help="The evolutionary model for RAxML to use\n"
+                                      "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",
+                                 required=False, default=None)
+        self.optopt.add_argument("--fast",
+                                 help="A flag indicating the tree should be built rapidly, using FastTree.",
+                                 required=False, default=False, action="store_true")
+
     def add_compute_miscellany(self):
         self.miscellany.add_argument('--overwrite', action='store_true', default=False,
                                      help='overwrites previously processed output folders')
@@ -126,9 +140,11 @@ def add_layer_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_classify_arguments(parser: TreeSAPPArgumentParser):
+def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     """
-    Returns the parser to interpret user options.
+    Adds command-line arguments that are specific to *treesapp assign*
+
+    :return: None
     """
     parser.add_io()
     parser.add_rpkm_params()
@@ -150,14 +166,17 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
                                help='A comma-separated list specifying which marker genes to query in input by'
                                ' the "denominator" column in data/tree_data/cog_list.tsv'
                                ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
+    parser.optopt.add_argument("--no_svm", default=False, required=False, action="store_true",
+                               help="Disables the support vector machine (SVM) classifier. "
+                                    "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "orf-call", "search", "align", "place", "classify"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
 
     # The miscellany
-    parser.miscellany.add_argument('-R', '--reftree', default='p', type=str,
-                                   help='Reference tree (p = MLTreeMap reference phylogenetic tree [DEFAULT])'
-                                   ' Change to code to map query sequences to specific phylogenetic tree.')
+    parser.miscellany.add_argument('-R', '--reftree', required=False, default="", type=str,
+                                   help="[IN PROGRESS] Reference package that all queries should be immediately and "
+                                        "directly classified as (i.e. homology search step is skipped).")
     parser.miscellany.add_argument("--check_trees", action="store_true", default=False,
                                    help="Quality-check the reference trees before running TreeSAPP")
     parser.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
@@ -167,10 +186,16 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_create_arguments(parser: TreeSAPPArgumentParser):
+def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp create*
+
+    :return: None
+    """
     parser.add_io()
     parser.add_seq_params()
     parser.add_taxa_args()
+    parser.add_phylogeny_params()
     parser.add_accession_params()
     parser.add_compute_miscellany()
     # The required parameters
@@ -209,22 +234,10 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                default=None,
                                required=False)
 
-    parser.optopt.add_argument("-b", "--bootstraps",
-                               help="The number of bootstrap replicates RAxML should perform with autoMRE algorithm.\n"
-                                    "[ DEFAULT = 1000 ]",
-                               required=False, default=1000, type=int)
-    parser.optopt.add_argument("-e", "--raxml_model",
-                               help="The evolutionary model for RAxML to use\n"
-                                    "[ Proteins = PROTGAMMAAUTO | Nucleotides =  GTRGAMMA ]",
-                               required=False, default=None)
     parser.optopt.add_argument("-u", "--uc",
                                help="The USEARCH cluster format file produced from clustering reference sequences.\n"
                                     "This can be used for selecting representative headers from identical sequences.",
                                required=False, default=None)
-    parser.optopt.add_argument("--fast",
-                               help="A flag indicating the tree should be built rapidly, using FastTree.",
-                               default=False, required=False,
-                               action="store_true")
     parser.optopt.add_argument("--kind", default="functional", choices=["functional", "taxonomic"], required=False,
                                help="The broad classification of marker gene type, either "
                                     "functional or taxonomic. [ DEFAULT = functional ]")
@@ -239,7 +252,12 @@ def add_create_arguments(parser: TreeSAPPArgumentParser):
                                    help="Do not require any user input during runtime.")
 
 
-def add_purity_arguments(parser: TreeSAPPArgumentParser):
+def add_purity_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp purity*
+
+    :return: None
+    """
     parser.add_io()
     parser.add_seq_params()
     parser.add_compute_miscellany()
@@ -256,7 +274,12 @@ def add_purity_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
+def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp evaluate*
+
+    :return: None
+    """
     parser.add_io()
     parser.add_seq_params()
     parser.add_accession_params()
@@ -286,10 +309,16 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser):
     return
 
 
-def add_update_arguments(parser: TreeSAPPArgumentParser):
+def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp update*
+
+    :return: None
+    """
     parser.add_io()
     parser.add_seq_params()
     parser.add_taxa_args()
+    parser.add_phylogeny_params()
     parser.add_compute_miscellany()
     parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
                              help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
@@ -301,8 +330,6 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
                                help="The minimum likelihood weight ratio for a sequence to be included in update.")
     parser.optopt.add_argument("-a", "--seqs2taxa", dest="seq_names_to_taxa", required=False, default=None,
                                help="Path to a file mapping sequence names (i.e. contig headers) to taxonomic lineages")
-    parser.optopt.add_argument("--fast", default=False, required=False, action="store_true",
-                               help="A flag indicating the tree should be built rapidly, using FastTree.")
     parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
                                help="The assigned sequences are from a database and their database lineages "
                                     "should be used instead of the TreeSAPP-assigned lineages.")
@@ -321,7 +348,12 @@ def add_update_arguments(parser: TreeSAPPArgumentParser):
                                    help="Do not require any user input during runtime.")
 
 
-def add_trainer_arguments(parser: TreeSAPPArgumentParser):
+def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
+    """
+    Adds command-line arguments that are specific to *treesapp train*
+
+    :return: None
+    """
     parser.add_io()
     parser.add_seq_params()
     parser.add_accession_params()
@@ -342,6 +374,7 @@ def check_parser_arguments(args, sys_args):
     """
     Function for checking arguments that are found in args.namespace()
     This is the only parser validation function used by clade exclusion evaluator
+
     :param args: Parsed command-line arguments
     :param sys_args: Unparsed command-line arguments passed to the current TreeSAPP module
     :return: None
@@ -458,7 +491,8 @@ def check_trainer_arguments(trainer_instance: PhyTrainer, args, marker_build_dic
 
 def check_classify_arguments(assigner: Assigner, args):
     """
-    Ensures the command-line arguments returned by argparse are sensible
+    Ensures the command-line arguments returned by argparse are sensible.
+
     :param assigner: An instantiated Assigner object
     :param args: object with parameters returned by argparse.parse_args()
     :return: 'args', a summary of TreeSAPP settings.
@@ -484,6 +518,9 @@ def check_classify_arguments(assigner: Assigner, args):
         if args.rpkm:
             logging.error("Unable to calculate RPKM values for protein sequences.\n")
             sys.exit(3)
+
+    if args.no_svm:
+        assigner.clf = None
 
     # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
     # Parameterizing the hmmsearch output parsing:
