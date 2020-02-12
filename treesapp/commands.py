@@ -702,7 +702,8 @@ def update(sys_args):
                   "--guarantee", ts_updater.old_ref_fasta,
                   "-o", ts_updater.output_dir,
                   "--accession2lin", ts_updater.lineage_map_file,
-                  "--num_procs", str(args.num_threads)]
+                  "--num_procs", str(args.num_threads),
+                  "--bootstraps", str(args.bootstraps)]
     if args.trim_align:
         create_cmd.append("--trim_align")
     if args.fast:
