@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
 
-import sys
 import os
 import argparse
-import inspect
 import re
 import logging
 
-cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
-if cmd_folder not in sys.path:
-    sys.path.insert(0, cmd_folder)
-sys.path.insert(0, cmd_folder + os.sep + ".." + os.sep)
-from classy import prep_logging
-from fasta import read_fasta_to_dict, write_new_fasta
+from treesapp.classy import prep_logging
+from treesapp.fasta import write_new_fasta, FASTA
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -51,14 +45,19 @@ def main():
     args = get_options()
     prep_logging(os.path.dirname(args.output_fa) + os.sep + "unaligner_log.txt", args.verbose)
     logging.info("Reading FASTA file '" + args.input_fa + "'... ")
-    fasta_dict = read_fasta_to_dict(args.input_fa)
+    msa_fa = FASTA(args.input_fa)
+    msa_fa.load_fasta()
     logging.info("done.\n")
+
     logging.info("Stripping alignment characters from sequences... ")
-    unaligned_dict = strip_alignment(fasta_dict)
+    msa_fa.unalign()
     logging.info("done.\n")
+    msa_fa.change_dict_keys()
+
     logging.info("Writing unaligned sequences to " + args.output_fa + "... ")
-    write_new_fasta(unaligned_dict, args.output_fa)
+    write_new_fasta(msa_fa.fasta_dict, args.output_fa)
     logging.info("done.\n")
+
     logging.info("The unaligner has finished successfully!\n")
 
 
