@@ -366,10 +366,12 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     intermediate_files = list()
     aligner = "hmmalign"
 
-    temp_tree_file = output_dir + os.sep + "tmp_tree.txt"
-    temp_ref_aln_prefix = output_dir + os.sep + "taxonomy_filtered_ref_seqs"
-    temp_query_fasta_file = output_dir + os.sep + "queries.fasta"
-    query_multiple_alignment = output_dir + os.sep + aligner + "_queries_aligned.phy"
+    if output_dir[-1] != os.sep:
+        output_dir += os.sep
+    temp_tree_file = output_dir + "tmp_tree.txt"
+    temp_ref_aln_prefix = output_dir + "taxonomy_filtered_ref_seqs"
+    temp_query_fasta_file = output_dir + "queries.fasta"
+    query_multiple_alignment = output_dir + aligner + "_queries_aligned.phy"
 
     # Read the tree as ete3 Tree instance
     ref_tree = Tree(ref_pkg.tree)
@@ -502,8 +504,8 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
 
             # Create the query-only FASTA file required by EPA-ng
-            query_msa_file = os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa"
-            ref_msa_file = os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa"
+            query_msa_file = output_dir + os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa"
+            ref_msa_file = output_dir + os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa"
             split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file)
 
             raxml_files = wrapper.raxml_evolutionary_placement(epa_exe=executables["epa-ng"],
@@ -549,6 +551,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                     taxonomic_placement_distances[rank].append(top_placement.total_distance())
 
             # Remove intermediate files from the analysis of this taxon
+            intermediate_files += [query_msa_file, ref_msa_file]
             intermediate_files += list(raxml_files.values())
             for old_file in intermediate_files:
                 os.remove(old_file)
@@ -579,7 +582,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
 def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, accession_lineage_map, ref_fasta_dict,
                           output_dir, molecule,
-                          training_ranks=None, num_threads=2) -> (tuple, ):
+                          training_ranks=None, num_threads=2) -> (tuple, dict, list):
     """
 
     :param fasta_input:

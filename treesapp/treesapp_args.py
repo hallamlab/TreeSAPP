@@ -479,8 +479,8 @@ def check_trainer_arguments(trainer_instance: PhyTrainer, args, marker_build_dic
     ##
     # Define locations of files TreeSAPP outputs
     ##
-    trainer_instance.placement_table = trainer_instance.output_dir + "placement_info.tsv"
-    trainer_instance.placement_summary = trainer_instance.output_dir + "placement_trainer_results.txt"
+    trainer_instance.placement_table = trainer_instance.final_output_dir + "placement_info.tsv"
+    trainer_instance.placement_summary = trainer_instance.final_output_dir + "placement_trainer_results.txt"
     trainer_instance.hmm_purified_seqs = trainer_instance.output_dir + trainer_instance.ref_pkg.prefix + "_hmm_purified.fasta"
 
     if not os.path.isdir(trainer_instance.var_output_dir):

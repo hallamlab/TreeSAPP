@@ -490,8 +490,10 @@ def create(sys_args):
             marker_package.tree_tool = "FastTree"
         else:
             marker_package.tree_tool = "RAxML-NG"
-        marker_package.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir + "placement_trainer" +
-                                                                   os.sep + "placement_trainer_results.txt")
+        marker_package.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir +
+                                                                   os.sep.join(["placement_trainer",
+                                                                                "final_outputs",
+                                                                                "placement_trainer_results.txt"]))
         ts_create.ref_pkg.validate(marker_package.num_reps)
         if not marker_package.num_reps:
             marker_package.num_reps = ts_create.ref_pkg.num_seqs
@@ -969,7 +971,7 @@ def assign(sys_args):
 
     if ts_assign.stage_status("classify"):
         tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, ts_assign.tree_dir, marker_build_dict)
-        tree_saps = filter_placements(tree_saps, refpkg_dict, ts_assign.clf, ts_assign.tree_dir, args.min_likelihood)
+        filter_placements(tree_saps, refpkg_dict, ts_assign.clf, ts_assign.tree_dir, args.min_likelihood)
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
         rpkm_output_dir = ""

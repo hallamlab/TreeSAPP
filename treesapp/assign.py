@@ -1752,17 +1752,17 @@ def enumerate_taxonomic_lineages(lineage_list):
     return taxonomic_counts
 
 
-def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: str, min_likelihood: float):
+def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: str, min_likelihood: float) -> None:
     """
     Determines the total distance of each placement from its branch point on the tree
     and removes the placement if the distance is deemed too great
 
     :param tree_saps: A dictionary containing TreeProtein objects
     :param refpkg_dict: A dictionary of ReferencePackage objects
-    :param svm:
+    :param svm: A Support Vector Machine classifier created by sklearn.svm.SVC(), pickled and read by joblib.load()
     :param tree_data_dir: Directory containing reference package tree files (Newick)
     :param min_likelihood: Likelihood-weight-ratio (LWR) threshold for filtering pqueries
-    :return:
+    :return: None
     """
 
     logging.info("Filtering low-quality placements... ")
@@ -1832,7 +1832,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
 
     logging.debug(declass_summary)
 
-    return tree_saps
+    return
 
 
 def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, sample_name, output_file):
