@@ -12,7 +12,7 @@ from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
 from collections import namedtuple
-from treesapp.fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
+from treesapp.fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers, load_fasta_header_regexes
 from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
@@ -840,11 +840,11 @@ def get_header_info(header_registry, code_name=''):
     """
     logging.info("Extracting information from headers... ")
     ref_records = dict()
-
+    header_regexes = load_fasta_header_regexes(code_name)
     # TODO: Fix parsing of combined EggNOG and custom headers such that the taxid is parsed from the "accession"
     for treesapp_id in sorted(header_registry.keys(), key=int):
         original_header = header_registry[treesapp_id].original
-        header_format_re, header_db, header_molecule = get_header_format(original_header, code_name)
+        header_format_re, header_db, header_molecule = get_header_format(original_header, header_regexes)
         sequence_info = header_format_re.match(original_header)
         seq_info_tuple = return_sequence_info_groups(sequence_info, header_db, original_header)
 

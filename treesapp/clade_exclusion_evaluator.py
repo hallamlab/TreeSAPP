@@ -7,7 +7,7 @@ import shutil
 from ete3 import Tree
 from glob import glob
 
-from .fasta import write_new_fasta, read_fasta_to_dict
+from treesapp.fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes
 from .utilities import return_sequence_info_groups
 from .external_command_interface import launch_write_command
 from .file_parsers import tax_ids_file_to_leaves
@@ -220,6 +220,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     marker_assignments = dict()
     entrez_query_list = list()
     num_queries = 0
+    header_regex_dict = load_fasta_header_regexes()
     for robust_classification in assignments.keys():
         marker_assignments[robust_classification] = list()
         for query in assignments[robust_classification]:
@@ -239,7 +240,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
                     q_accession = genome_position_re.match(query).group(1)
                     database = "dna"
                 else:
-                    header_format_re, header_db, header_molecule = get_header_format(original_header)
+                    header_format_re, header_db, header_molecule = get_header_format(original_header, header_regex_dict)
                     sequence_info = header_format_re.match(original_header)
                     q_accession = return_sequence_info_groups(sequence_info, header_db, original_header).accession
                 # print(q_accession)
@@ -528,12 +529,6 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     unique_query_taxonomies += len(lineage_enumerator)
 
     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
-
-
-def correct_accession(description):
-    header_format_re, header_db, header_molecule = get_header_format(description)
-    sequence_info = header_format_re.match(description)
-    return return_sequence_info_groups(sequence_info, header_db, description).accession
 
 
 def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon: str, marker: MarkerBuild, depth: int):

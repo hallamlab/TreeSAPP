@@ -77,7 +77,8 @@ class Header:
         return info_string
 
     def find_accession(self, refpkg_name=""):
-        header_format_re, header_db, header_molecule = get_header_format(self.original, refpkg_name)
+        header_regexes = load_fasta_header_regexes(refpkg_name)
+        header_format_re, header_db, header_molecule = get_header_format(self.original, header_regexes)
         sequence_info = header_format_re.match(self.original)
         self.accession = return_sequence_info_groups(sequence_info, header_db, self.original).accession
 
@@ -698,18 +699,17 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     return split_files
 
 
-def get_header_format(header, code_name=""):
+def load_fasta_header_regexes(code_name="") -> dict:
     """
-    Used to decipher which formatting style was used and parse information, ideally reliably
+    Create the dictionary of all currently known regular expressions that match database-specific fasta headers
     HOW TO ADD A NEW REGULAR EXPRESSION:
         1. create a new compiled regex pattern, like below
         2. add the name of the compiled regex pattern to the header_regexes dictionary
         3. if the regex groups are new and complicated (parsing more than the accession and organism info),
         alter return_sequence_info_groups in create_treesapp_ref_data to add another case
 
-    :param header: A sequences header from a FASTA file
-    :param code_name:
-    :return:
+    :param code_name: Reference package name/prefix (e.g. DsrAB, p_amoA)
+    :return: Dictionary of regular expressions that match database-specific fasta headers indexed by molecule type (str)
     """
     # The regular expressions with the accession and organism name grouped
     # Protein databases:
@@ -725,10 +725,9 @@ def get_header_format(header, code_name=""):
     presf_re = re.compile(r">?prf\|.*\|([A-Z0-9]+)\s+.*$")  # a
     sp_re = re.compile(r">?sp\|(.*)\|.*$")  # a
     tr_re = re.compile(r">?tr\|(\w+)\|\w+_\w+ .* OS=(.*) GN=.*$")  # a, o
-    fungene_gi_bad = re.compile(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$")
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
-    pfam_re = re.compile(r"^>?([A-Za-z0-9_|]+)/[0-9]+-[0-9]+$")  # a
-    eggnog_re = re.compile(r"^>?(\d+)\.([A-Za-z][-A-Za-z0-9_]+)(\.\d)?(\s\[.*\])?$")  # t, o
+    pfam_re = re.compile(r">?[A-Z]+\|([A-Z0-9_]+)(\.\d)?/\d+-\d+$")  # a
+    eggnog_re = re.compile(r"^>?(\d+)\.([-A-Za-z0-9]+)(_\w+)?(?!\s\[.*\])$")  # t, o
     eggnot_re = re.compile(r">?eggnog\|(\d+)\|(.*)")  # a
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
@@ -771,8 +770,18 @@ def get_header_format(header, code_name=""):
                                 custom_tax: "custom",
                                 assign_re: "ts_assign"}
                       }
+    return header_regexes
 
-    if fungene_gi_bad.match(header):
+
+def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, str):
+    """
+    Used to decipher which formatting style was used and parse information, ideally reliably
+
+    :param header: A sequences header from a FASTA file
+    :param header_regexes: Dictionary of regular expressions matching database-specific headers indexed by molecule type
+    :return: Tuple containing the compiled regular expression, matched database name and assumed molecule type
+    """
+    if re.match(r"^>?[0-9]+\s+coded_by=.+,organism=.+,definition=.+$", header):
         logging.warning(header + " uses GI numbers which are now unsupported by the NCBI! " +
                         "Consider switching to Accession.Version identifiers instead.\n")
 
@@ -791,7 +800,7 @@ def get_header_format(header, code_name=""):
                 pass
     if len(format_matches) > 1:
         if "ts_assign" in format_matches:
-            return assign_re, "ts_assign", "ambig"
+            return header_regexes["ts_assign"], "ts_assign", "ambig"
         logging.error("Header '" + header + "' matches multiple potential formats:\n\t" +
                       ", ".join(format_matches) + "\n" +
                       "TreeSAPP is unable to parse necessary information properly.\n")

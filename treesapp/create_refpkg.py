@@ -138,6 +138,7 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
     """
     Function to regenerate the swappers dictionary with the original headers as keys and
     the new header (swapped in the previous attempt based on USEARCH's uc file) as a value
+
     :param args: command-line arguments objects
     :param cluster_dict: Dictionary where keys are centroid headers and values are headers of identical sequences
     :param fasta_replace_dict: Immature (lacking sequences) dictionary with header information parsed from tax_ids file
@@ -146,6 +147,8 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
     swappers = dict()
     if args.verbose:
         sys.stderr.write("Centroids with identical sequences in the unclustered input file:\n")
+
+    header_regexes = fasta.load_fasta_header_regexes(args.code_name)
     for rep in sorted(cluster_dict):
         matched = False
         subs = cluster_dict[rep]
@@ -172,7 +175,7 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
                         break
 
                     # parse the accession from the header
-                    header_format_re, header_db, header_molecule = fasta.get_header_format(candidate, args.code_name)
+                    header_format_re, header_db, header_molecule = fasta.get_header_format(candidate, header_regexes)
                     sequence_info = header_format_re.match(candidate)
                     if sequence_info:
                         candidate_acc = sequence_info.group(1)
