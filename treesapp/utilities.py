@@ -360,6 +360,7 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
     """
     seq_info = namedtuple(typename="seq_info",
                           field_names=["accession", "version", "description", "locus", "organism", "lineage", "taxid"])
+    accession = ""
     description = ""
     locus = ""
     organism = ""
@@ -368,12 +369,6 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
     version = ""
 
     if regex_match_groups:
-        accession = regex_match_groups.group(1)
-        if accession.find('.'):
-            pieces = accession.split('.')
-            if len(pieces) == 2 and re.match(r"\d+", pieces[1]):
-                version = accession
-                accession = pieces[0]
         if header_db == "custom":
             lineage = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
@@ -389,11 +384,20 @@ def return_sequence_info_groups(regex_match_groups, header_db: str, header: str)
             locus = str(regex_match_groups.group(2)) + '-' + str(regex_match_groups.group(3))
             lineage = regex_match_groups.group(4)
             description = regex_match_groups.group(4)
+        elif header_db == "pfam":
+            accession = str(regex_match_groups.group(2))
         elif len(regex_match_groups.groups()) == 3:
             description = regex_match_groups.group(2)
             organism = regex_match_groups.group(3)
         elif len(regex_match_groups.groups()) == 2:
             organism = regex_match_groups.group(2)
+        if not accession:
+            accession = regex_match_groups.group(1)
+        if accession.find('.'):
+            pieces = accession.split('.')
+            if len(pieces) == 2 and re.match(r"\d+", pieces[1]):
+                version = accession
+                accession = pieces[0]
     else:
         logging.error("Unable to handle header: '" + header + "'\n")
         sys.exit(13)
