@@ -4,6 +4,7 @@ import sys
 import re
 import argparse
 import logging
+from collections import namedtuple
 
 
 def get_options():
@@ -431,6 +432,45 @@ class DomainTableParser(object):
         self.alignments['qend'] = int(hit[20])  # env coord to
         self.alignments['acc'] = float(hit[21])
         self.alignments['desc'] = ' '.join(hit[22:])
+
+
+def prep_args_for_parsing(args) -> namedtuple:
+    """
+    Check whether specific attributes used for filtering alignments exist in
+    the args object created by Argparse.parse_args(), and add them if they do not.
+    Create a namedtuple object with min_e, min_ie, min_acc, min_score and perc_aligned attributes and
+    populate it with the filtering attributes in args.
+
+    :param args: An object created by Argparse.parse_args()
+    :return: A namedtuple with min_e, min_ie, min_acc, min_score and perc_aligned attributes
+    """
+    thresholds = namedtuple("thresholds", "min_e min_ie min_acc min_score perc_aligned")
+    if not hasattr(args, "min_e"):
+        args.min_e = 1E-5
+    thresholds.min_e = args.min_e
+    if not hasattr(args, "min_ie"):
+        args.min_ie = 1E-3
+    thresholds.min_ie = args.min_ie
+    if not hasattr(args, "min_acc"):
+        args.min_acc = 0.7
+    thresholds.min_acc = args.min_acc
+    if not hasattr(args, "min_score"):
+        args.min_score = 20
+    thresholds.min_score = args.min_score
+    if not hasattr(args, "perc_aligned"):
+        args.perc_aligned = 60
+    thresholds.perc_aligned = args.perc_aligned
+
+    # Print some stuff to inform the user what they're running and what thresholds are being used.
+    info_string = "Filtering HMM alignments using the following thresholds:\n"
+    info_string += "\tMaximum E-value = " + str(thresholds.min_e) + "\n"
+    info_string += "\tMaximum i-Evalue = " + str(thresholds.min_ie) + "\n"
+    info_string += "\tMinimum acc = " + str(thresholds.min_acc) + "\n"
+    info_string += "\tMinimum score = " + str(thresholds.min_score) + "\n"
+    info_string += "\tMinimum percentage of the HMM covered = " + str(thresholds.perc_aligned) + "%\n"
+    logging.debug(info_string)
+
+    return thresholds
 
 
 def detect_orientation(q_i: int, q_j: int, r_i: int, r_j: int) -> str:

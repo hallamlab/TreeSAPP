@@ -6,8 +6,7 @@ import re
 import logging
 from collections import namedtuple
 from treesapp.classy import TreeLeafReference, MarkerBuild, Cluster, ReferencePackage
-from treesapp.HMMER_domainTblParser import DomainTableParser, HmmSearchStats,\
-    format_split_alignments, filter_incomplete_hits, filter_poor_hits, renumber_multi_matches, detect_orientation
+import treesapp.HMMER_domainTblParser
 from treesapp.fasta import read_fasta_to_dict
 from treesapp.utilities import get_hmm_length
 
@@ -254,7 +253,8 @@ def best_discrete_matches(matches: list) -> list:
         while j < len(len_sorted_matches):
             b_match = len_sorted_matches[j]  # type HmmMatch
             if a_match.target_hmm != b_match.target_hmm:
-                if detect_orientation(a_match.start, a_match.end, b_match.start, b_match.end) != "satellite":
+                if treesapp.HMMER_domainTblParser.detect_orientation(a_match.start, a_match.end,
+                                                                     b_match.start, b_match.end) != "satellite":
                     if a_match.full_score > b_match.full_score:
                         dropped_annotations.append(len_sorted_matches.pop(j))
                         j -= 1
@@ -271,32 +271,27 @@ def best_discrete_matches(matches: list) -> list:
 
     logging.debug("HMM search annotations for " + orf +
                   ":\n\tRetained\t" + 
-                  ', '.join([match.target_hmm + " (%d-%d)" % (match.start, match.end) for match in len_sorted_matches]) +
+                  ', '.join([match.target_hmm +
+                             " (%d-%d)" % (match.start, match.end) for match in len_sorted_matches]) +
                   "\n\tDropped\t\t" +
-                  ', '.join([match.target_hmm + " (%d-%d)" % (match.start, match.end) for match in dropped_annotations]) + "\n")
+                  ', '.join([match.target_hmm +
+                             " (%d-%d)" % (match.start, match.end) for match in dropped_annotations]) + "\n")
     return len_sorted_matches
 
 
-def parse_domain_tables(args, hmm_domtbl_files):
+def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
+    """
+
+    :param args:
+    :param hmm_domtbl_files: A list of domain table files written by hmmsearch
+    :return: Dictionary of HmmMatch objects indexed by their reference package and/or HMM name
+    """
     # Check if the HMM filtering thresholds have been set
-    if not hasattr(args, "min_e"):
-        args.min_e = 1E-5
-        args.min_ie = 1E-3
-        args.min_acc = 0.7
-        args.min_score = 20
-        args.perc_aligned = 80
-    # Print some stuff to inform the user what they're running and what thresholds are being used.
-    info_string = "Filtering HMM alignments using the following thresholds:\n"
-    info_string += "\tMaximum E-value = " + str(args.min_e) + "\n"
-    info_string += "\tMaximum i-Evalue = " + str(args.min_ie) + "\n"
-    info_string += "\tMinimum acc = " + str(args.min_acc) + "\n"
-    info_string += "\tMinimum score = " + str(args.min_score) + "\n"
-    info_string += "\tMinimum percentage of the HMM covered = " + str(args.perc_aligned) + "%\n"
-    logging.debug(info_string)
+    thresholds = treesapp.HMMER_domainTblParser.prep_args_for_parsing(args)
 
     logging.info("Parsing HMMER domain tables for high-quality matches... ")
 
-    search_stats = HmmSearchStats()
+    search_stats = treesapp.HMMER_domainTblParser.HmmSearchStats()
     hmm_matches = dict()
     orf_gene_map = dict()
     optional_matches = list()
@@ -304,14 +299,14 @@ def parse_domain_tables(args, hmm_domtbl_files):
     # TODO: Capture multimatches across multiple domain table files
     for domtbl_file in hmm_domtbl_files:
         rp_marker, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
-        domain_table = DomainTableParser(domtbl_file)
+        domain_table = treesapp.HMMER_domainTblParser.DomainTableParser(domtbl_file)
         domain_table.read_domtbl_lines()
-        distinct_matches = format_split_alignments(domain_table, search_stats)
-        purified_matches = filter_poor_hits(args, distinct_matches, search_stats)
-        complete_gene_hits = filter_incomplete_hits(args, purified_matches, search_stats)
-        renumber_multi_matches(complete_gene_hits)
+        distinct_hits = treesapp.HMMER_domainTblParser.format_split_alignments(domain_table, search_stats)
+        purified_hits = treesapp.HMMER_domainTblParser.filter_poor_hits(thresholds, distinct_hits, search_stats)
+        complete_hits = treesapp.HMMER_domainTblParser.filter_incomplete_hits(thresholds, purified_hits, search_stats)
+        treesapp.HMMER_domainTblParser.renumber_multi_matches(complete_hits)
 
-        for match in complete_gene_hits:
+        for match in complete_hits:
             match.genome = reference
             if match.orf not in orf_gene_map:
                 orf_gene_map[match.orf] = dict()
