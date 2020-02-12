@@ -610,23 +610,23 @@ def format_split_alignments(domain_table: DomainTableParser, search_stats: HmmSe
     return distinct_alignments
 
 
-def filter_poor_hits(args, distinct_alignments: dict, search_stats: HmmSearchStats) -> dict:
+def filter_poor_hits(thresholds: namedtuple, distinct_alignments: dict, search_stats: HmmSearchStats) -> dict:
     """
     Filters the homology matches based on their E-values and mean posterior probability of aligned residues from
     the maximum expected accuracy (MEA) calculation.
     Takes into account multiple homology matches of an ORF to a single gene and determines the total length of the
     alignment instead of treating them as individual alignments. This information is used in the next filtering step.
 
-    :param args: An object created by argparse.ParseArguments representing command-line arguments.
-     This contains HMM alignment thresholds that must be exceeded for alignments to be included.
+    :param thresholds: A namedtuple with min_e, min_ie, min_acc, min_score and perc_aligned attributes
+     that must be exceeded for alignments to be included.
     :param distinct_alignments: A dictionary of HmmMatch instances indexed by their respective header names
     :param search_stats: An HmmSearchStats instance used for tracking various alignment parsing stats
     :return: A dictionary of HmmMatch instances that pass thresholds indexed by their respective header names
     """
-    min_acc = float(args.min_acc)
-    min_score = float(args.min_score)
-    min_ie = float(args.min_ie)
-    min_e = float(args.min_e)
+    min_acc = float(thresholds.min_acc)
+    min_score = float(thresholds.min_score)
+    min_ie = float(thresholds.min_ie)
+    min_e = float(thresholds.min_e)
 
     purified_matches = dict()
 
@@ -647,14 +647,24 @@ def filter_poor_hits(args, distinct_alignments: dict, search_stats: HmmSearchSta
     return purified_matches
 
 
-def filter_incomplete_hits(args, purified_matches, search_stats: HmmSearchStats):
+def filter_incomplete_hits(thresholds: namedtuple, purified_matches: dict, search_stats: HmmSearchStats) -> list:
+    """
+    Removes all alignments of each query-HMM pair that do not meet the threholds.perc_alignment cut-off.
+    The alignment length is based on the start and end positions on the HMM profile, not the query sequence.
+
+    :param thresholds:  A namedtuple with min_e, min_ie, min_acc, min_score and perc_aligned attributes
+     that must be exceeded for alignments to be included.
+    :param purified_matches: A dictionary of HmmMatch instances indexed by their respective header names
+    :param search_stats: An HmmSearchStats instance for tracking the number of sequences filtered out
+    :return: List of HmmMatch instances that meet or exceed the minimum percentage aligned threshold to be retained
+    """
     complete_gene_hits = list()
 
     for query in purified_matches:
-        for hmm_match in purified_matches[query]:
+        for hmm_match in purified_matches[query]:  # type: HmmMatch
             ali_len = hmm_match.pend - hmm_match.pstart
             perc_aligned = (float((int(ali_len)*100)/int(hmm_match.hmm_len)))
-            if perc_aligned >= args.perc_aligned:
+            if perc_aligned >= thresholds.perc_aligned:
                 complete_gene_hits.append(hmm_match)
             else:
                 search_stats.dropped += 1
