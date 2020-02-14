@@ -12,6 +12,7 @@ try:
     import re
     import traceback
     import glob
+    import json
 
     from time import gmtime, strftime, sleep
 
@@ -604,6 +605,27 @@ def read_tax_ids(tree_taxa_list):
     tree_tax_list_handle.close()
 
     return fasta_replace_dict
+
+
+def write_refpkg_metadata(metadata_file: str, marker_build: classy.MarkerBuild) -> None:
+    """
+    Writes a JSON-formatted file with all metadata associated with a reference package that are available in the file
+    ref_build_parameters.tsv.
+
+    :param metadata_file: Path to file for writing metadata
+    :param marker_build: A MarkerBuild instance with all elements filled
+    :return: None
+    """
+    try:
+        f_handler = open(metadata_file, 'w')
+    except IOError:
+        logging.error("Unable to open file '%s' for writing.\n" % metadata_file)
+        sys.exit(3)
+
+    json.dump(marker_build.attributes_to_dict(), f_handler)
+    f_handler.close()
+
+    return
 
 
 def update_build_parameters(param_file, marker_package: classy.MarkerBuild):

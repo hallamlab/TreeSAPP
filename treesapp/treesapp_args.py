@@ -614,6 +614,7 @@ def check_create_arguments(creator: Creator, args):
     creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
     creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
     creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
+    creator.metadata_file = creator.final_output_dir + creator.ref_pkg.prefix + "_build.json"
 
     return
 
@@ -649,13 +650,14 @@ def check_updater_arguments(updater: Updater, args, marker_build_dict):
         updater.treesapp_output += os.sep
     updater.final_output_dir = updater.treesapp_output + "final_outputs" + os.sep
     updater.var_output_dir = updater.treesapp_output + "intermediates" + os.sep
-    updater.old_ref_fasta = updater.output_dir + "original_refs.fasta"
-    updater.combined_fasta = updater.output_dir + "all_refs.fasta"
-    updater.lineage_map_file = updater.output_dir + "accession_id_lineage_map.tsv"
+    updater.old_ref_fasta = updater.var_output_dir + "original_refs.fasta"
+    updater.combined_fasta = updater.var_output_dir + "all_refs.fasta"
+    updater.lineage_map_file = updater.var_output_dir + "accession_id_lineage_map.tsv"
     updater.assignment_table = updater.final_output_dir + "marker_contig_map.tsv"
     updater.cluster_input = updater.var_output_dir + updater.sample_prefix + "_uclust_input.fasta"
     updater.uclust_prefix = updater.var_output_dir + updater.sample_prefix + "_uclust" + str(updater.prop_sim)
     classified_seqs = glob(updater.final_output_dir + "*_classified.faa")
+    updater.metadata_file = updater.final_output_dir + updater.ref_pkg.prefix + "_build.json"
     if len(classified_seqs) == 1:
         updater.query_sequences = classified_seqs.pop()
     else:

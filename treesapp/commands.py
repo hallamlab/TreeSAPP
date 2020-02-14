@@ -502,6 +502,7 @@ def create(sys_args):
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
             marker_package.pfit = [0.0, 7.0]
         create_refpkg.update_build_parameters(param_file, marker_package)
+        create_refpkg.write_refpkg_metadata(ts_create.metadata_file, marker_package)
         ts_create.print_terminal_commands()
 
     logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")

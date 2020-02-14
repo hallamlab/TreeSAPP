@@ -239,6 +239,38 @@ class MarkerBuild:
                             "Date of last update:                                " + self.update,
                             "Description:                                        '%s'" % self.description]) + "\n"
 
+    def attributes_to_dict(self) -> dict:
+        metadata = {"RefPkg":
+                        {"name": self.cog,
+                         "code": self.denominator,
+                         "molecule": self.molecule,
+                         "sequences": self.num_reps,
+                         "model": self.model,
+                         "lowest_confident_rank": self.lowest_confident_rank,
+                         "kind": self.kind,
+                         "tree-tool": self.tree_tool,
+                         "regression-parameters": self.pfit,
+                         "cluster-similarity": self.pid,
+                         "description": self.description}
+                    }
+        return metadata
+
+    def dict_to_attributes(self, build_params: dict) -> None:
+        refpkg_params = build_params["RefPkg"]
+        self.cog = refpkg_params["name"]
+        self.denominator = refpkg_params["code"]
+        self.description = refpkg_params["description"]
+        self.kind = refpkg_params["kind"]
+        self.lowest_confident_rank = refpkg_params["lowest_confident_rank"]
+        self.model = refpkg_params["model"]
+        self.molecule = refpkg_params["molecule"]
+        self.num_reps = refpkg_params["sequences"]
+        self.pfit = refpkg_params["regression-parameters"] 
+        self.pid = refpkg_params["cluster-similarity"] 
+        self.tree_tool = refpkg_params["tree-tool"]
+
+        return
+
 
 class ItolJplace:
     """
@@ -1450,6 +1482,7 @@ class Creator(TreeSAPP):
         self.unaln_ref_fasta = ""  # FASTA file of unaligned reference sequences
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
         self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank
+        self.metadata_file = ""
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),

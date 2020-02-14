@@ -4,6 +4,7 @@ import sys
 import os
 import re
 import logging
+import json
 from collections import namedtuple
 from treesapp.classy import TreeLeafReference, MarkerBuild, Cluster, ReferencePackage
 import treesapp.HMMER_domainTblParser
@@ -75,6 +76,19 @@ def parse_ref_build_params(base_dir: str, targets=None):
                       "Is your target '" + ','.join(targets) + "' in " + ref_build_parameters + "?\n")
         sys.exit(3)
     return marker_build_dict
+
+
+def load_json_build(json_file: str) -> dict:
+    try:
+        json_handler = open(json_file, 'r')
+    except IOError:
+        logging.error("Unable to open JSON file '%s' for reading.\n" % json_file)
+        sys.exit(3)
+
+    build_params = json.load(json_handler)
+    json_handler.close()
+
+    return build_params
 
 
 def gather_ref_packages(treesapp_dir: str, marker_build_dict: dict, targets=None) -> dict:
