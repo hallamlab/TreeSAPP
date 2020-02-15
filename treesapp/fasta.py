@@ -727,7 +727,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
     tr_re = re.compile(r">?tr\|(\w+)\|\w+_\w+ .* OS=(.*) GN=.*$")  # a, o
     treesapp_re = re.compile(r"^>?(\d+)_" + re.escape(code_name) + "$")
     pfam_re = re.compile(r">?([A-Z]+\|)?([A-Z0-9]+)(\.\d)?(_[A-Z0-9]+)?/\d+-\d+$")  # a
-    eggnog_re = re.compile(r"^>?(\d+)\.([-A-Za-z0-9]+)(_\w+)?(?!\s\[.*\])$")  # t, o
+    eggnog_re = re.compile(r"^>?(\d+)\.([-\w]+)((\.[\w-]+){0,2})?(?!\s\[.*\])$")  # t, o
     eggnot_re = re.compile(r">?eggnog\|(\d+)\|(.*)")  # a
     # Nucleotide databases:
     # silva_arb_re = re.compile("^>([A-Z0-9]+)\.([0-9]+)\.([0-9]+)_(.*)$")
