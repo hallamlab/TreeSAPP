@@ -250,7 +250,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
                                         'installation for a provided `code_name`')
     parser.miscellany.add_argument("--headless", action="store_true", default=False,
                                    help="Do not require any user input during runtime.")
-    parser.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
+    parser.miscellany.add_argument('--delete', default=False, action="store_true",
                                    help='Delete all intermediate files.')
 
 
