@@ -1498,7 +1498,7 @@ class Creator(TreeSAPP):
         info_string += super(Creator, self).get_info() + "\n\t"
         return info_string
 
-    def remove_intermediates(self):
+    def remove_intermediates(self, detonate=False) -> None:
         if os.path.exists(self.unaln_ref_fasta):
             os.remove(self.unaln_ref_fasta)
         if os.path.exists(self.phylip_file + ".reduced"):
@@ -1508,6 +1508,9 @@ class Creator(TreeSAPP):
         if os.path.exists(self.phylip_file):
             copy(self.phylip_file, self.phy_dir)
             os.remove(self.phylip_file)
+
+        if detonate and os.path.isdir(self.var_output_dir):
+            rmtree(self.var_output_dir)
         return
 
     def determine_model(self, fast):

@@ -180,7 +180,7 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.miscellany.add_argument("--check_trees", action="store_true", default=False,
                                    help="Quality-check the reference trees before running TreeSAPP")
     parser.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
-                                   help='Delete intermediate file to save disk space. '
+                                   help='Delete intermediate files to save disk space. '
                                         'Recommended for large metagenomes!')
 
     return
@@ -250,6 +250,8 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
                                         'installation for a provided `code_name`')
     parser.miscellany.add_argument("--headless", action="store_true", default=False,
                                    help="Do not require any user input during runtime.")
+    parser.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
+                                   help='Delete all intermediate files.')
 
 
 def add_purity_arguments(parser: TreeSAPPArgumentParser) -> None:

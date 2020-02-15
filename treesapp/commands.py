@@ -506,7 +506,7 @@ def create(sys_args):
         ts_create.print_terminal_commands()
 
     logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
-    ts_create.remove_intermediates()
+    ts_create.remove_intermediates(args.delete)
 
     return
 
