@@ -634,6 +634,7 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
 def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
     """
     Function for slicing sequences guided by alignment co-ordinates.
+
     :param hmm_matches: Dictionary containing a list HmmMatch() objects as values for each 'marker' key
     :param fasta_dict: A dictionary with headers as keys and sequences as values
     :param header_registry: A list of Header() objects, each used to map various header formats to each other

@@ -50,6 +50,7 @@ def validate_inputs(args, marker_build_dict):
     """
     This function filters the files in data/alignment_data/ for sequences that are entirely ambiguity characters
     or if there are any sequences in the MSA that are not the consistent length
+
     :param args: the command-line and default options
     :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
     :return: list of files that were edited
@@ -87,14 +88,16 @@ def replace_contig_names(numeric_contig_index: dict, fasta: FASTA):
     return numeric_contig_index
 
 
-def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict):
+def bin_hmm_matches(hmm_matches: dict, fasta_dict: dict) -> (dict, dict):
     """
-    Function writes the sequences identified by the HMMs to output files in FASTA format.
-    Full-length query sequences with homologous regions are put into two FASTA files:
-        1. Numeric index headers, used for downstream phylogenetic placement
-        2. Contains the original headers along with marker, start, and end positions included
-    The negative integers (or numeric indexes) are stored in a dictionary and returned
-    Sequences are grouped based on the location on the HMM profile they mapped to
+    Used for extracting query sequences that mapped to reference package HMM profiles. These are binned into groups
+    based on the location on the HMM profile they mapped to such that MSAs downstream will have more conserved positions
+
+    The first nested dictionary returned "extracted_seq_dict" contains marker (i.e. refpkg names) strings mapped
+    to bin numbers mapped to query sequence negative integer code names mapped to their extracted, or sliced, sequence.
+
+    The second dictionary returned "numeric_contig_index" is used for mapping query sequence negative integer code names
+    mapped to their original header names with the alignment coordinates appended at the end for each marker.
 
     :param hmm_matches: Contains lists of HmmMatch objects mapped to the marker they matched
     :param fasta_dict: Stores either the original or ORF-predicted input FASTA. Headers are keys, sequences are values
@@ -203,38 +206,11 @@ def write_grouped_fastas(extracted_seq_dict: dict, numeric_contig_index: dict, m
     return hmmalign_input_fastas
 
 
-def collect_blast_outputs(args):
-    """
-    Deletes empty BLAST results files.
-
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    Returns a list of non-empty BLAST results files.
-    """
-    cog_blast_result = args.output_dir_var + path.basename(args.fasta_input) + "_formatted.BLAST_results_raw.txt"
-    rrna_blast_result = args.output_dir_var + path.basename(args.fasta_input) + "_formatted.rRNA_BLAST_results_raw.txt"
-
-    blast_tables = [cog_blast_result, rrna_blast_result]
-    total_size = 0
-    for blast_out in blast_tables:
-        if os.path.exists(blast_out):
-            total_size += path.getsize(blast_out)
-            if path.getsize(blast_out) <= 0:
-                os.remove(blast_out)
-                blast_tables.pop()
-        else:
-            blast_tables.pop()
-
-    if total_size <= 0:
-        logging.error("No marker genes detected in input! Exiting...\n")
-        sys.exit(3)
-
-    return blast_tables
-
-
 def subsequence(fasta_dictionary, contig_name, start, end):
     """
     Extracts a sub-sequence from `start` to `end` of `contig_name` in `fasta_dictionary`
      with headers for keys and sequences as values. `contig_name` does not contain the '>' character
+
     :param fasta_dictionary:
     :param contig_name:
     :param start:
@@ -248,6 +224,7 @@ def subsequence(fasta_dictionary, contig_name, start, end):
 def write_nuc_sequences(args, gene_coordinates, formatted_fasta_dict):
     """
     Function to write the nucleotide sequences representing the BLAST alignment region for each hit in the fasta
+
     :param args: Command-line argument object from get_options and check_parser_arguments
     :param gene_coordinates:
     :param formatted_fasta_dict:
@@ -944,6 +921,7 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
 def pparse_raxml_out_trees(labelled_trees, args):
     """
     The wrapper command for parsing all trees of a gene family (denominator) in parallel
+
     :param labelled_trees: Dictionary containing labelled tree files for each f_contig
     :param args: args object (for num_threads)
     :return: Dictionary containing all parsed trees for each contig
@@ -1025,6 +1003,7 @@ def identify_the_correct_terminal_children_of_each_assignment(terminal_children_
 def read_the_raxml_out_tree(labelled_tree_file):
     """
     Reads and reformats the labelled_tree_file for downstream interpretation
+
     :param labelled_tree_file: RAxML output f_contig.originalRAxML_labelledTree.txt file in various_outputs directory
     :return: An easily interpretable labelled tree and a collection of
     """

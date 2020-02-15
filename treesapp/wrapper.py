@@ -485,18 +485,19 @@ def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
     return
 
 
-def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output_dir: str, num_threads=2):
+def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output_dir: str, num_threads=2) -> list:
     """
-    Function for searching a fasta file with an hmm profile
+    Function for searching a fasta file with a HMM profile using HMMER's hmmsearch
+
     :param hmmsearch_exe: Path to the executable for hmmsearch
     :param hmm_profile: Path to the HMM profile file
     :param query_fasta: Path to the FASTA file to be queried by the profile
     :param output_dir: Path to the directory for writing the outputs
     :param num_threads: Number of threads to be used by hmmsearch
-    :return:
+    :return: A list of domain tables created
     """
     # Find the name of the HMM. Use it to name the output file
-    rp_marker = re.sub(".hmm", '', os.path.basename(hmm_profile))
+    rp_marker = re.sub(r".hmm", '', os.path.basename(hmm_profile), flags=re.IGNORECASE)
     domtbl = output_dir + rp_marker + "_to_ORFs_domtbl.txt"
 
     # Basic hmmsearch command

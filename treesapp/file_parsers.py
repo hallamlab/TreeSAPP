@@ -312,7 +312,7 @@ def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
 
     # TODO: Capture multimatches across multiple domain table files
     for domtbl_file in hmm_domtbl_files:
-        rp_marker, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
+        prefix, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
         domain_table = treesapp.HMMER_domainTblParser.DomainTableParser(domtbl_file)
         domain_table.read_domtbl_lines()
         distinct_hits = treesapp.HMMER_domainTblParser.format_split_alignments(domain_table, search_stats)

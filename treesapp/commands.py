@@ -25,7 +25,7 @@ from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Cre
     prep_logging, dedup_records, TaxonTest, Purity, ReferencePackage
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
-    get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
+    get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs,\
     summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names
@@ -227,7 +227,7 @@ def create(sys_args):
 
         logging.info("Searching for domain sequences... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_create.executables["hmmsearch"], ts_create.hmm_profile,
-                                                 args.input, ts_create.var_output_dir)
+                                                 args.input, ts_create.var_output_dir, args.num_threads)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
@@ -915,7 +915,7 @@ def assign(sys_args):
                                                   marker_build_dict, ts_assign.formatted_input,
                                                   ts_assign.var_output_dir, args.num_threads)
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        extracted_seq_dict, numeric_contig_index = extract_hmm_matches(hmm_matches, query_seqs.fasta_dict)
+        extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
         numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
         homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
                                                  marker_build_dict, ts_assign.var_output_dir)
