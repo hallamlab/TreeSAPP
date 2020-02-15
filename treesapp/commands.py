@@ -130,9 +130,12 @@ def train(sys_args):
                                                  ts_trainer.var_output_dir)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
+        marker_gene_dict = dict()
+        for k, v in utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry).values():
+            marker_gene_dict.update(v)
         logging.info(ref_seqs.summarize_fasta_sequences())
         fasta.write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
+        marker_gene_dict.clear()
         utilities.hmm_pile(hmm_matches)
     else:
         ref_seqs.load_fasta()
@@ -220,6 +223,7 @@ def create(sys_args):
     ref_seqs = fasta.FASTA(args.input)
 
     if ts_create.stage_status("search"):
+        profile_match_dict = dict()
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
         ref_seqs.fasta_dict = fasta.format_read_fasta(args.input, ts_create.molecule_type, ts_create.output_dir)
         ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(args.input))
@@ -230,8 +234,11 @@ def create(sys_args):
                                                  args.input, ts_create.var_output_dir, args.num_threads)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
-        marker_gene_dict = utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry)
-        fasta.write_new_fasta(marker_gene_dict, ts_create.hmm_purified_seqs)
+        for k, v in utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry).items():
+            profile_match_dict.update(v)
+        fasta.write_new_fasta(profile_match_dict, ts_create.hmm_purified_seqs)
+        profile_match_dict.clear()
+
         utilities.hmm_pile(hmm_matches)
     else:
         ts_create.hmm_purified_seqs = ts_create.input_sequences

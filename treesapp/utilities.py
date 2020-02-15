@@ -631,20 +631,16 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
     return
 
 
-def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
+def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: dict) -> dict:
     """
     Function for slicing sequences guided by alignment co-ordinates.
 
     :param hmm_matches: Dictionary containing a list HmmMatch() objects as values for each 'marker' key
     :param fasta_dict: A dictionary with headers as keys and sequences as values
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
-    :return:
+    :return: Dictionary containing a modified query name mapped to its corresponding (sub)sequence that was aligned
+     to the HMM, indexed by the HMM profile name (i.e. marker or reference package name)
     """
-
-    if len(hmm_matches.keys()) > 1:
-        logging.error("Number of markers found from HMM alignments is >1\n" +
-                      "Does your HMM file contain more than 1 profile? TreeSAPP is unprepared for this.\n")
-        sys.exit(13)
 
     marker_gene_dict = dict()
     header_matching_dict = dict()
@@ -660,40 +656,38 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
     logging.info("Extracting the quality-controlled protein sequences... ")
 
     for marker in hmm_matches:
-        if marker not in marker_gene_dict:
-            marker_gene_dict[marker] = dict()
-
+        extracted_loci = dict()
         for hmm_match in hmm_matches[marker]:
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
             query_names = header_matching_dict[hmm_match.orf]
-            try:
-                sequence = fasta_dict[query_names.formatted]
-            except KeyError:
-                logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
-                continue
             if hmm_match.of > 1:
                 query_names.post_align = ' '.join([query_names.first_split,
                                                    str(hmm_match.num) + '.' + str(hmm_match.of),
                                                    re.sub(re.escape(query_names.first_split), '', query_names.original)])
             else:
                 query_names.post_align = query_names.original
-            bulk_header = query_names.post_align
 
-            if bulk_header in marker_gene_dict[marker]:
-                logging.warning(bulk_header + " being overwritten by an alternative alignment!\n" + hmm_match.get_info())
-            marker_gene_dict[marker][bulk_header] = sequence[hmm_match.start-1:hmm_match.end]
+            if query_names.post_align in extracted_loci:
+                logging.warning("Query '%s' being overwritten by an alternative alignment:\n%s\n" %
+                                (query_names.post_align, hmm_match.get_info()))
+            try:
+                extracted_loci[query_names.post_align] = fasta_dict[query_names.formatted][hmm_match.start-1:hmm_match.end]
+            except KeyError:
+                logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
+
+        marker_gene_dict[marker] = extracted_loci
 
     logging.info("done.\n")
-    return marker_gene_dict[marker]
+    return marker_gene_dict
 
 
-def hmm_pile(hmm_matches):
+def hmm_pile(hmm_matches: dict) -> None:
     """
     Function to inspect the placement of query sequences on the reference HMM
 
-    :param hmm_matches:
-    :return:
+    :param hmm_matches: A dictionary of HmmMatch instances indexed by the HMM profile name they mapped to
+    :return: None
     """
     hmm_bins = dict()
     window_size = 2
@@ -741,8 +735,8 @@ def hmm_pile(hmm_matches):
             low_cov_summary += "\t" + str(low_coverage_start) + "-end\n"
 
         if low_cov_summary:
-            logging.info("Low coverage HMM windows (start-stop):\n" + low_cov_summary)
-        logging.info("Maximum coverage = " + str(maximum_coverage) + " sequences\n")
+            logging.info("Low coverage " + marker + " profile windows (start-stop):\n" + low_cov_summary)
+        logging.info("Maximum coverage for " + marker + " = " + str(maximum_coverage) + " sequences\n")
     return
 
 
