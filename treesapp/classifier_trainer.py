@@ -63,18 +63,33 @@ def validate_command(args, sys_args):
 def vectorize_placement_data(condition_names: dict, classifieds: list,
                              internal_nodes: dict, hmm_lengths: dict, refpkg_map: dict) -> numpy.array:
     """
+    Parses out the relevant fields from the *treesapp assign* classification table (marker_contig_map.tsv) to create
+a numpy array from each query's data:
 
-    :param condition_names:
-    :param classifieds:
-    :param internal_nodes:
-    :param hmm_lengths:
-    :param refpkg_map:
+1. the percentage of HMM profile covered
+2. number of nodes in reference phylogeny
+3. number of leaf node descendents of the query's placement edge
+4. the likelihood weight ratio and
+5. 6, 7, distal, pendant and average distance from placement position on an edge to all leaf tips.
+
+    :param condition_names: A dictionary of header names indexed by refpkg names. Used to determine whether the query
+     belongs to this class condition (e.g. true positive, false positive)
+    :param classifieds: A list of fields from the *treesapp assign* classification table
+    :param internal_nodes: Dictionary mapping the internal tree nodes to descendent leaf nodes indexed by refpkg
+    :param hmm_lengths: Dictionary mapping refpkg names to HMM profile lengths
+    :param refpkg_map: Dictionary mapping refpkg names to
     :return: Summary of the distances and internal nodes for each of the false positives
     """
     #
     features = []
+    tree_size_dict = {}
     for fields in classifieds:
         _, header, refpkg, length, _, _, _, i_node, lwr, _, dists = fields
+        try:
+            num_nodes = tree_size_dict[refpkg]
+        except KeyError:
+            num_nodes = len(internal_nodes[refpkg].values())
+            tree_size_dict[refpkg] = num_nodes
         if header in condition_names[refpkg_map[refpkg]]:
             # Calculate the features
             distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
@@ -82,7 +97,7 @@ def vectorize_placement_data(condition_names: dict, classifieds: list,
             descendents = len(internal_nodes[refpkg][i_node])
             lwr_bin = round(float(lwr), 2)
 
-            features.append(numpy.array([hmm_perc, descendents, lwr_bin, distal, pendant, avg]))
+            features.append(numpy.array([hmm_perc, num_nodes, descendents, lwr_bin, distal, pendant, avg]))
 
     return numpy.array(features)
 
@@ -116,7 +131,7 @@ def main():
     ##
     # Read the classification lines from the output
     ##
-    classification_table = os.sep.join([args.output, "TreeSAPP_output", "final_outputs", "marker_contig_map.tsv"])
+    classification_table = os.sep.join([args.output, "final_outputs", "marker_contig_map.tsv"])
     if not os.path.isfile(classification_table):
         logging.error("Path to classification table '%s' doesn't exist.\n" % classification_table)
         sys.exit(3)
@@ -161,10 +176,12 @@ def main():
         sys.exit(5)
     logging.info("done.\n")
 
+    logging.info("Using %d true positives and %d false positives to train and test.\n" % (len(tp), len(fp)))
+
     logging.info("Training the SVM with a linear kernel... ")
-    # Split dataset into training set and test set - 40% training and 60% test
+    # Split dataset into the two training and testing sets - 60% training and 40% testing
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
-                                                                        test_size=0.6, random_state=12345)
+                                                                        test_size=0.4, random_state=12345)
     # Create a SVM Classifier
     clf = svm.SVC(kernel='linear')  # Linear Kernel
     # Train the model using the training sets
@@ -180,7 +197,7 @@ def main():
     # Model Precision: what percentage of positive tuples are labeled as such?
     logging.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 3)) + "\n")
     # Model Recall: what percentage of positive tuples are labelled as such?
-    logging.info("Recall\t" + str(round(metrics.recall_score(y_test, y_pred), 3)) + "\n")
+    logging.info("Recall\t\t" + str(round(metrics.recall_score(y_test, y_pred), 3)) + "\n")
 
     logging.info("Pickling model... ")
     try:
