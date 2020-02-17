@@ -6,7 +6,6 @@ import logging
 from glob import glob
 from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
 from .utilities import available_cpu_count, get_refpkg_build
-from .entrez_utils import read_accession_taxa_map
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -159,9 +158,6 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.optopt.add_argument("-l", "--min_likelihood", default=0.1, type=float,
                                help="The minimum likelihood weight ratio required for a RAxML placement. "
                                "[DEFAULT = 0.1]")
-    parser.optopt.add_argument("-P", "--placement_parser", default="best", type=str, choices=["best", "lca"],
-                               help="Algorithm used for parsing each sequence's potential RAxML placements. "
-                               "[DEFAULT = 'best']")
     parser.optopt.add_argument('-t', '--targets', default='', type=str,
                                help='A comma-separated list specifying which marker genes to query in input by'
                                ' the "denominator" column in data/tree_data/cog_list.tsv'

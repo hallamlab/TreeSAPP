@@ -369,12 +369,12 @@ class ItolJplace:
                 sys.exit(17)
         return nodes
 
-    def correct_decoding(self):
+    def correct_decoding(self) -> None:
         """
         Since the JSON decoding is unable to decode recursively, this needs to be fixed for each placement
         Formatting and string conversion are also performed here
 
-        :return:
+        :return: None
         """
         new_placement_collection = []  # a list of dictionary-like strings
         placement_string = ""  # e.g. {"p":[[226, -31067.028237, 0.999987, 0.012003, 2e-06]], "n":["query"]}
@@ -398,17 +398,6 @@ class ItolJplace:
         self.fields = decoded_fields
         return
 
-    def rename_placed_sequence(self, seq_name):
-        new_placement_collection = dict()
-        for d_place in self.placements:
-            for key, value in d_place.items():
-                if key == 'n':
-                    new_placement_collection['n'] = [seq_name]
-                else:
-                    new_placement_collection[key] = value
-        self.placements = [new_placement_collection]
-        return
-
     def name_placed_sequence(self):
         for d_place in self.placements:
             for key, value in d_place.items():
@@ -416,10 +405,11 @@ class ItolJplace:
                     self.contig_name = value[0]
         return
 
-    def get_field_position_from_jplace_fields(self, field_name):
+    def get_field_position_from_jplace_fields(self, field_name) -> int:
         """
-        Find the position in self.fields of 'like_weight_ratio'
-        :return: position in self.fields of 'like_weight_ratio'
+        Find the position of a specific field in self.fields
+
+        :return: The integer position of a field name (string)
         """
         x = 0
         # Find the position of field_name in the placements from fields descriptor
@@ -434,11 +424,13 @@ class ItolJplace:
             return None
         return x
 
-    def get_jplace_element(self, element_name):
+    def get_jplace_element(self, element_name) -> str:
         """
         Determines the element value (e.g. likelihood, edge_num) for a single placement.
-        There may be multiple placements (or 'pquery's) in a single .jplace file.
-        Therefore, this function is usually looped over.
+        There may be multiple placements (or 'pquery's) in a single .jplace file, therefore, this function is usually looped over.
+
+        :param element_name:
+        :return:
         """
         position = self.get_field_position_from_jplace_fields(element_name)
         placement = loads(self.placements[0], encoding="utf-8")
@@ -452,51 +444,28 @@ class ItolJplace:
                     acc += 1
         return element_value
 
-    def filter_min_weight_threshold(self, threshold=0.1):
+    def filter_min_weight_threshold(self, threshold=0.1) -> None:
         """
-        Remove all placements with likelihood weight ratios less than threshold
-        :param threshold: The threshold which all placements with LWRs less than this are removed
-        :return:
-        """
-        # Find the position of like_weight_ratio in the placements from fields descriptor
-        x = self.get_field_position_from_jplace_fields("like_weight_ratio")
-        if not x:
-            return
-        # Filter the placements
-        new_placement_collection = list()
-        placement_string = ""
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            dict_strings = list()
-            if len(placement["p"]) >= 1:
-                for k, v in placement.items():
-                    if k == 'p':
-                        tmp_placements = []
-                        for candidate in v:
-                            if float(candidate[x]) >= threshold:
-                                tmp_placements.append(candidate)
+        Sets the instance's *classified* attribute to False if the likelihood weight ratio (LWR)
+        threshold is not met or exceeded.
 
-                        # If no placements met the likelihood filter then the sequence cannot be classified
-                        # Alternatively: first two will be returned and used for LCA - can test...
-                        if len(tmp_placements) > 0:
-                            v = tmp_placements
-                            dict_strings.append(dumps(k) + ':' + dumps(v))
-                            placement_string = ', '.join(dict_strings)
-                        else:
-                            self.classified = False
-                # Add the filtered placements back to the object.placements
-                new_placement_collection.append('{' + placement_string + '}')
-            else:
-                # If there is only one placement, the LWR is 1.0 so no filtering required!
-                new_placement_collection.append(pquery)
-        if self.classified:
-            self.placements = new_placement_collection
+        :param threshold: The threshold which all placements with LWRs less than this are removed
+        :return: None
+        """
+        if len(self.placements) != 1:
+            logging.error("Only one placement is expected here, but %d were found.\n%s" %
+                          (len(self.placements), self.summarize()))
+            sys.exit(5)
+
+        if self.lwr < threshold:
+            self.classified = False
         return
 
     def sum_rpkms_per_node(self, leaf_rpkm_sums):
         """
         Function that adds the RPKM value of a contig to the node it was placed.
         For contigs mapping to internal nodes: the proportional RPKM assigned is summed for all children.
+
         :param leaf_rpkm_sums: A dictionary mapping tree leaf numbers to abundances (RPKM sums)
         :return: dict()
         """
@@ -518,11 +487,11 @@ class ItolJplace:
                             leaf_rpkm_sums[tree_leaf] += normalized_abundance
         return leaf_rpkm_sums
 
-    def filter_max_weight_placement(self):
+    def filter_max_weight_placement(self) -> None:
         """
-        Removes all secondary placements of each pquery,
-        leaving only the placement with maximum like_weight_ratio
-        :return:
+        Removes all secondary placements of each pquery, leaving only the placement with the maximum like_weight_ratio
+
+        :return: None
         """
         # Find the position of like_weight_ratio in the placements from fields descriptor
         x = self.get_field_position_from_jplace_fields("like_weight_ratio")
@@ -558,7 +527,7 @@ class ItolJplace:
         self.placements = new_placement_collection
         return
 
-    def check_jplace(self, tree_index):
+    def check_jplace(self, tree_index) -> None:
         """
         Currently validates a pquery's JPlace distal length, ensuring it is less than or equal to the edge length
         This is necessary to handle a case found in RAxML v8.2.12 (and possibly older versions) where the distal length
@@ -585,40 +554,6 @@ class ItolJplace:
                 else:
                     pass
 
-        return
-
-    def harmonize_placements(self, tree_data_dir):
-        """
-        Often times, the placements field in a jplace file contains multiple possible tree locations.
-        In order to consolidate these into a single tree location, the LCA algorithm is utilized.
-        Since all placements are valid, there is no need to be uncertain about including all nodes during LCA compute
-        :return: The single internal node which is the parent node of all possible placements is returned.
-        """
-        if self.name == "nr":
-            self.name = "COGrRNA"
-        reference_tree_file = tree_data_dir + os.sep + self.name + "_tree.txt"
-        reference_tree_elements = _tree_parser._read_the_reference_tree(reference_tree_file)
-        lwr_pos = self.get_field_position_from_jplace_fields("like_weight_ratio")
-        if not lwr_pos:
-            return
-        singular_placements = list()
-        for pquery in self.placements:
-            placement = loads(pquery, encoding="utf-8")
-            dict_strings = list()
-            for k, v in placement.items():
-                if len(v) > 1:
-                    lwr_sum = 0
-                    loci = list()
-                    for locus in v:
-                        lwr_sum += float(locus[lwr_pos])
-                        loci.append(str(self.node_map[locus[0]][0]))
-                    ancestral_node = _tree_parser._lowest_common_ancestor(reference_tree_elements, ','.join(loci))
-                    # Create a placement from the ancestor, and the first locus in loci fields
-                    v = [[ancestral_node, v[0][1], round(lwr_sum, 2), 0, 0]]
-                dict_strings.append(dumps(k) + ':' + dumps(v))
-            singular_placements.append('{' + ','.join(dict_strings) + '}')
-
-        self.placements = singular_placements
         return
 
     def clear_object(self):

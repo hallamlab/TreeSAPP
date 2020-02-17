@@ -1746,6 +1746,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
 
     logging.info("Filtering low-quality placements... ")
     unclassified_seqs = dict()  # A dictionary tracking the seqs unclassified for each marker
+    parent_leaf_memoizer = dict()
 
     for denominator in tree_saps:
         refpkg = refpkg_dict[denominator]  # type: ReferencePackage
@@ -1778,14 +1779,17 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
             # Find the distance away from this edge's bifurcation (if internal) or tip (if leaf)
             if len(leaf_children) > 1:
                 # We need to find the LCA in the Tree instance to find the distances to tips for ete3
-                parent = tree.get_common_ancestor(leaf_children)
+                try:
+                    parent = parent_leaf_memoizer[int(tree_sap.inode)]
+                except KeyError:
+                    parent = tree.get_common_ancestor(leaf_children)
+                    parent_leaf_memoizer[int(tree_sap.inode)] = parent
                 tip_distances = parent_to_tip_distances(parent, leaf_children)
             else:
                 tip_distances = [0.0]
 
             avg_tip_dist = round(sum(tip_distances) / len(tip_distances), 3)
             pendant_length = round(float(tree_sap.get_jplace_element("pendant_length")), 3)
-            # Find the length of the edge this sequence was placed onto
             distal_length = round(float(tree_sap.get_jplace_element("distal_length")), 3)
 
             tree_sap.avg_evo_dist = round(distal_length + pendant_length + avg_tip_dist, 3)
@@ -1800,6 +1804,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
                 if call == 0:
                     unclassified_seqs[tree_sap.name]["svm"].append(tree_sap)
                     tree_sap.classified = False
+        parent_leaf_memoizer.clear()
 
     logging.info("done.\n")
 
@@ -1812,6 +1817,120 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
     logging.debug(declass_summary)
 
     return
+
+
+def select_query_placements(tree_saps: dict):
+    """
+
+
+    :return:
+        1. Dictionary of TreeProtein instances indexed by denominator (refpkg code e.g. M0701)
+        2. Dictionary of an ItolJplace instance (values) mapped to marker name
+    """
+
+    logging.info('Selecting the optimal query placements... ')
+
+    function_start_time = time.time()
+    classified_seqs = 0
+
+    for refpkg_code in tree_saps:
+        for pquery in tree_saps[refpkg_code]:  # type: TreeProtein
+            seq_info = re.match(r"(.*)\|" + re.escape(pquery.name) + r"\|(\d+)_(\d+)$", pquery.contig_name)
+            if seq_info:
+                # pquery.contig_name = seq_info.group(1)  # Messes up key mapping downstream
+                start, end = seq_info.groups()[1:]
+                pquery.seq_len = int(end) - int(start)
+            else:
+                logging.error("Bad regular expression pattern, unable to calculate sequence length for '%s'\n"
+                              % pquery.contig_name)
+                sys.exit(3)
+
+            pquery.filter_max_weight_placement()
+            if pquery.classified and len(pquery.placements) != 1:
+                logging.error("Number of JPlace pqueries is " + str(len(pquery.placements)) +
+                              " when only 1 is expected at this point.\n" +
+                              pquery.summarize())
+                sys.exit(3)
+            pquery.inode = str(pquery.get_jplace_element("edge_num"))
+            pquery.lwr = float(pquery.get_jplace_element("like_weight_ratio"))
+            pquery.likelihood = float(pquery.get_jplace_element("likelihood"))
+
+            classified_seqs += 1
+
+            # I have decided to not remove the original JPlace files since some may find these useful
+            # os.remove(filename)
+
+    logging.info("done.\n")
+
+    function_end_time = time.time()
+    hours, remainder = divmod(function_end_time - function_start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tPQuery parsing time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    logging.debug("\t" + str(classified_seqs) + " sequences placed into trees by EPA-NG.\n")
+
+    return tree_saps
+
+
+def parse_raxml_output(epa_output_dir: str, marker_build_dict: dict):
+    """
+    For every JPlace file found in the directory **epa_output_dir**, all placed query sequences in the JPlace
+    are demultiplexed, each becoming a TreeProtein instance.
+    The JPlace data are validated by ensuring the distal placement lengths reported by EPA are less than or equal to
+    the corresponding edge length in the JPlace tree.
+
+    :param epa_output_dir: Directory where EPA wrote the JPlace files
+    :param marker_build_dict: Dictionary of MarkerBuild instances indexed by denominator (refpkg code e.g. M0701)
+    :return:
+        1. Dictionary of TreeProtein instances indexed by denominator (refpkg code e.g. M0701)
+        2. Dictionary of an ItolJplace instance (values) mapped to marker name
+    """
+
+    logging.info('Parsing the EPA-NG outputs... ')
+
+    function_start_time = time.time()
+
+    jplace_files = glob.glob(epa_output_dir + '*.jplace')
+    itol_data = dict()  # contains all pqueries, indexed by marker name (e.g. McrA, nosZ, 16srRNA)
+    tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
+    # Use the jplace files to guide which markers iTOL outputs should be created for
+    for denominator, jplace_list in organize_jplace_files(jplace_files).items():
+        marker = marker_build_dict[denominator].cog
+        if denominator not in tree_saps:
+            tree_saps[denominator] = list()
+        for filename in jplace_list:
+            # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
+            jplace_data = jplace_parser(filename)
+            edge_dist_index = entish.index_tree_edges(jplace_data.tree)
+            internal_node_leaf_map = entish.map_internal_nodes_leaves(jplace_data.tree)
+            # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
+            for pquery in demultiplex_pqueries(jplace_data):  # type: TreeProtein
+                # Flesh out the internal-leaf node map
+                pquery.name = marker
+                pquery.node_map = internal_node_leaf_map
+                pquery.check_jplace(edge_dist_index)
+                tree_saps[denominator].append(pquery)
+
+            if marker not in itol_data:
+                itol_data[marker] = jplace_data
+                itol_data[marker].name = marker
+            else:
+                # If a JPlace file for that tree has already been parsed, just append the placements
+                itol_data[marker].placements = itol_data[marker].placements + jplace_data.placements
+
+            # I have decided to not remove the original JPlace files since some may find these useful
+            # os.remove(filename)
+
+    logging.info("done.\n")
+
+    function_end_time = time.time()
+    hours, remainder = divmod(function_end_time - function_start_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    logging.debug("\tJPlace parsing time required: " +
+                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
+    logging.debug("\t" + str(len(jplace_files)) + " JPlace files.\n")
+
+    return tree_saps, itol_data
 
 
 def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, sample_name, output_file):
@@ -1888,87 +2007,6 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
     tab_out.close()
 
     return
-
-
-def parse_raxml_output(epa_output_dir, tree_data_dir, marker_build_dict, parsing_method="best"):
-    """
-
-    :param epa_output_dir: Directory where EPA wrote the JPlace files
-    :param tree_data_dir: Directory containing reference package tree files (Newick)
-    :param marker_build_dict: Dictionary of MarkerBuild instances indexed by denominator (refpkg code e.g. M0701)
-    :param parsing_method: Method for parsing the final placement edge position [best | lca]
-    :return:
-        1. Dictionary of TreeProtein instances indexed by denominator (refpkg code e.g. M0701)
-        2. Dictionary of an ItolJplace instance (values) mapped to marker name
-        3. Dictionary mapping the number of sequences that were unclassified (value) to a marker (key)
-    """
-
-    logging.info('Parsing the RAxML outputs... ')
-
-    function_start_time = time.time()
-
-    jplace_files = glob.glob(epa_output_dir + '*.jplace')
-    jplace_collection = organize_jplace_files(jplace_files)
-    itol_data = dict()  # contains all pqueries, indexed by marker name (e.g. McrA, nosZ, 16srRNA)
-    tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
-    # Use the jplace files to guide which markers iTOL outputs should be created for
-    classified_seqs = 0
-    for denominator in jplace_collection:
-        marker = marker_build_dict[denominator].cog
-        if denominator not in tree_saps:
-            tree_saps[denominator] = list()
-        for filename in jplace_collection[denominator]:
-            # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
-            jplace_data = jplace_parser(filename)
-            tree_index = entish.index_tree_edges(jplace_data.tree)
-            # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
-            tree_placement_queries = demultiplex_pqueries(jplace_data)
-            # Filter the placements, determine the likelihood associated with the harmonized placement
-            for pquery in tree_placement_queries:
-                pquery.name = marker
-                seq_info = re.match(r"(.*)\|" + re.escape(marker) + r"\|(\d+)_(\d+)$", pquery.contig_name)
-                if seq_info:
-                    # pquery.contig_name = seq_info.group(1)  # Messes up key mapping downstream
-                    start, end = seq_info.groups()[1:]
-                    pquery.seq_len = int(end) - int(start)
-                pquery.node_map = entish.map_internal_nodes_leaves(pquery.tree)
-                pquery.check_jplace(tree_index)
-                if parsing_method == "best":
-                    pquery.filter_max_weight_placement()
-                else:
-                    pquery.harmonize_placements(tree_data_dir)
-                if pquery.classified and len(pquery.placements) != 1:
-                    logging.error("Number of JPlace pqueries is " + str(len(pquery.placements)) +
-                                  " when only 1 is expected at this point.\n" +
-                                  pquery.summarize())
-                    sys.exit(3)
-                pquery.inode = str(pquery.get_jplace_element("edge_num"))
-                pquery.lwr = float(pquery.get_jplace_element("like_weight_ratio"))
-                pquery.likelihood = float(pquery.get_jplace_element("likelihood"))
-                tree_saps[denominator].append(pquery)
-                classified_seqs += 1
-
-            if marker not in itol_data:
-                itol_data[marker] = jplace_data
-                itol_data[marker].name = marker
-            else:
-                # If a JPlace file for that tree has already been parsed, just append the placements
-                itol_data[marker].placements = itol_data[marker].placements + jplace_data.placements
-
-            # I have decided to not remove the original JPlace files since some may find these useful
-            # os.remove(filename)
-
-    logging.info("done.\n")
-
-    function_end_time = time.time()
-    hours, remainder = divmod(function_end_time - function_start_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    logging.debug("\tTree parsing time required: " +
-                  ':'.join([str(hours), str(minutes), str(round(seconds, 2))]) + "\n")
-    logging.debug("\t" + str(len(jplace_files)) + " RAxML output files.\n" +
-                  "\t" + str(classified_seqs) + " sequences placed into trees by RAxML.\n\n")
-
-    return tree_saps, itol_data
 
 
 def produce_itol_inputs(tree_saps, marker_build_dict, itol_data, output_dir: str, treesapp_data_dir: str):

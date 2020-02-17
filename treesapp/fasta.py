@@ -598,7 +598,7 @@ def format_read_fasta(fasta_input, molecule, output_dir, max_header_length=110, 
     return formatted_fasta_dict
 
 
-def get_headers(fasta_file):
+def get_headers(fasta_file: str) -> list:
     """
     Reads a FASTA file and returns a list of all headers it found in the file. No reformatting or filtering performed.
 
@@ -619,14 +619,15 @@ def get_headers(fasta_file):
 
     fasta.close()
     if len(original_headers) == 0:
-        logging.error("No sequence headers read from FASTA file " + fasta_file + "\n")
-        sys.exit(3)
-    logging.debug("Read " + str(n_headers) + " headers from " + fasta_file + ".\n")
+        # Not a good idea to exit right from here, handle it case-by-case
+        logging.warning("No sequence headers read from FASTA file " + fasta_file + "\n")
+    else:
+        logging.debug("Read " + str(n_headers) + " headers from " + fasta_file + ".\n")
 
     return original_headers
 
 
-def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
+def write_new_fasta(fasta_dict: dict, fasta_name: str, max_seqs=None, headers=None) -> list:
     """
     Function for writing sequences stored in dictionary to file in FASTA format; optional filtering with headers list
 
@@ -634,7 +635,7 @@ def write_new_fasta(fasta_dict, fasta_name, max_seqs=None, headers=None):
     :param fasta_name: Name of the FASTA file to write to
     :param max_seqs: If not None, the maximum number of sequences to write to a single FASTA file
     :param headers: Optional list of sequence headers. Only fasta_dict keys in headers will be written
-    :return:
+    :return: List of FASTA files written to
     """
     split_files = list()
     file_counter = 1
