@@ -183,7 +183,7 @@ def main():
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
                                                                         test_size=0.4, random_state=12345)
     # Create a SVM Classifier
-    clf = svm.SVC(kernel='linear')  # Linear Kernel
+    clf = svm.LinearSVC(random_state=12345, tol=1E-5, max_iter=1E6, dual=False)  # Linear Kernel
     # Train the model using the training sets
     clf.fit(x_train, y_train)
     logging.info("done.\n")
