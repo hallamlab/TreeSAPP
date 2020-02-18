@@ -466,7 +466,7 @@ class ConfusionTest:
             _, header, refpkg, length, _, _, _, i_node, lwr, evo_dist, dists = fields
             if header in self.fp[refpkg_map[refpkg]]:
                 distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
-                hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 0)
+                # hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 0)
                 descendents = len(internal_nodes_dict[refpkg][i_node])
                 if descendents not in summary_dict["leaves"]:
                     summary_dict["leaves"][descendents] = 0
@@ -481,8 +481,6 @@ class ConfusionTest:
                 if dist_bin not in summary_dict["distances"]:
                     summary_dict["distances"][dist_bin] = 0
                 summary_dict["distances"][dist_bin] += 1
-                if descendents < 3 or descendents > 28:
-                    print("\t".join([str(n) for n in [refpkg, hmm_perc, descendents, lwr_bin, pendant, avg]]))
 
         # Convert the dictionary into a human-readable string
         summary_str = ""

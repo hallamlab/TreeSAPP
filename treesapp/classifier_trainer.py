@@ -82,14 +82,14 @@ a numpy array from each query's data:
     """
     #
     features = []
-    tree_size_dict = {}
+    # tree_size_dict = {}
     for fields in classifieds:
         _, header, refpkg, length, _, _, _, i_node, lwr, _, dists = fields
-        try:
-            num_nodes = tree_size_dict[refpkg]
-        except KeyError:
-            num_nodes = len(internal_nodes[refpkg].values())
-            tree_size_dict[refpkg] = num_nodes
+        # try:
+        #     num_nodes = tree_size_dict[refpkg]
+        # except KeyError:
+        #     num_nodes = len(internal_nodes[refpkg].values())
+        #     tree_size_dict[refpkg] = num_nodes
         if header in condition_names[refpkg_map[refpkg]]:
             # Calculate the features
             distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
@@ -97,7 +97,7 @@ a numpy array from each query's data:
             descendents = len(internal_nodes[refpkg][i_node])
             lwr_bin = round(float(lwr), 2)
 
-            features.append(numpy.array([hmm_perc, num_nodes, descendents, lwr_bin, distal, pendant, avg]))
+            features.append(numpy.array([hmm_perc, descendents, lwr_bin, distal, pendant, avg]))
 
     return numpy.array(features)
 
