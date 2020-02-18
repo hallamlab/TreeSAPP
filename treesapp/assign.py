@@ -1780,11 +1780,10 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
             if len(leaf_children) > 1:
                 # We need to find the LCA in the Tree instance to find the distances to tips for ete3
                 try:
-                    parent = parent_leaf_memoizer[int(tree_sap.inode)]
+                    tip_distances = parent_leaf_memoizer[int(tree_sap.inode)]
                 except KeyError:
-                    parent = tree.get_common_ancestor(leaf_children)
-                    parent_leaf_memoizer[int(tree_sap.inode)] = parent
-                tip_distances = parent_to_tip_distances(parent, leaf_children)
+                    tip_distances = parent_to_tip_distances(tree.get_common_ancestor(leaf_children), leaf_children)
+                    parent_leaf_memoizer[int(tree_sap.inode)] = tip_distances
             else:
                 tip_distances = [0.0]
 
