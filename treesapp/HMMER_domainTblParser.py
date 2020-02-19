@@ -34,7 +34,7 @@ def get_options():
                           help="The minimum percentage of the HMM that was covered by the target sequence (ORF) "
                                "for the COG hit to be included [default=90]")
     opt_args.add_argument("-e",
-                          dest="min_e",
+                          dest="max_e",
                           type=float,
                           default=0.0001,
                           help="The largest E-value for the search to be accepted as significant [default=1E-3]")
@@ -438,19 +438,19 @@ def prep_args_for_parsing(args) -> namedtuple:
     """
     Check whether specific attributes used for filtering alignments exist in
     the args object created by Argparse.parse_args(), and add them if they do not.
-    Create a namedtuple object with min_e, min_ie, min_acc, min_score and perc_aligned attributes and
+    Create a namedtuple object with max_e, max_ie, min_acc, min_score and perc_aligned attributes and
     populate it with the filtering attributes in args.
 
     :param args: An object created by Argparse.parse_args()
-    :return: A namedtuple with min_e, min_ie, min_acc, min_score and perc_aligned attributes
+    :return: A namedtuple with max_e, max_ie, min_acc, min_score and perc_aligned attributes
     """
-    thresholds = namedtuple("thresholds", "min_e min_ie min_acc min_score perc_aligned")
-    if not hasattr(args, "min_e"):
-        args.min_e = 1E-5
-    thresholds.min_e = args.min_e
-    if not hasattr(args, "min_ie"):
-        args.min_ie = 1E-3
-    thresholds.min_ie = args.min_ie
+    thresholds = namedtuple("thresholds", "max_e max_ie min_acc min_score perc_aligned")
+    if not hasattr(args, "max_e"):
+        args.max_e = 1E-5
+    thresholds.max_e = args.max_e
+    if not hasattr(args, "max_ie"):
+        args.max_ie = 1E-3
+    thresholds.max_ie = args.max_ie
     if not hasattr(args, "min_acc"):
         args.min_acc = 0.7
     thresholds.min_acc = args.min_acc
@@ -463,8 +463,8 @@ def prep_args_for_parsing(args) -> namedtuple:
 
     # Print some stuff to inform the user what they're running and what thresholds are being used.
     info_string = "Filtering HMM alignments using the following thresholds:\n"
-    info_string += "\tMaximum E-value = " + str(thresholds.min_e) + "\n"
-    info_string += "\tMaximum i-Evalue = " + str(thresholds.min_ie) + "\n"
+    info_string += "\tMaximum E-value = " + str(thresholds.max_e) + "\n"
+    info_string += "\tMaximum i-Evalue = " + str(thresholds.max_ie) + "\n"
     info_string += "\tMinimum acc = " + str(thresholds.min_acc) + "\n"
     info_string += "\tMinimum score = " + str(thresholds.min_score) + "\n"
     info_string += "\tMinimum percentage of the HMM covered = " + str(thresholds.perc_aligned) + "%\n"
@@ -617,7 +617,7 @@ def filter_poor_hits(thresholds: namedtuple, distinct_alignments: dict, search_s
     Takes into account multiple homology matches of an ORF to a single gene and determines the total length of the
     alignment instead of treating them as individual alignments. This information is used in the next filtering step.
 
-    :param thresholds: A namedtuple with min_e, min_ie, min_acc, min_score and perc_aligned attributes
+    :param thresholds: A namedtuple with max_e, max_ie, min_acc, min_score and perc_aligned attributes
      that must be exceeded for alignments to be included.
     :param distinct_alignments: A dictionary of HmmMatch instances indexed by their respective header names
     :param search_stats: An HmmSearchStats instance used for tracking various alignment parsing stats
@@ -625,8 +625,8 @@ def filter_poor_hits(thresholds: namedtuple, distinct_alignments: dict, search_s
     """
     min_acc = float(thresholds.min_acc)
     min_score = float(thresholds.min_score)
-    min_ie = float(thresholds.min_ie)
-    min_e = float(thresholds.min_e)
+    max_ie = float(thresholds.max_ie)
+    max_e = float(thresholds.max_e)
 
     purified_matches = dict()
 
@@ -637,7 +637,7 @@ def filter_poor_hits(thresholds: namedtuple, distinct_alignments: dict, search_s
         if query_header_desc not in purified_matches:
             purified_matches[query_header_desc] = list()
 
-        if hmm_match.eval <= min_e and hmm_match.ieval <= min_ie:
+        if hmm_match.eval <= max_e and hmm_match.ieval <= max_ie:
             if hmm_match.acc >= min_acc and hmm_match.full_score >= min_score:
                 purified_matches[query_header_desc].append(hmm_match)
         else:
@@ -652,7 +652,7 @@ def filter_incomplete_hits(thresholds: namedtuple, purified_matches: dict, searc
     Removes all alignments of each query-HMM pair that do not meet the threholds.perc_alignment cut-off.
     The alignment length is based on the start and end positions on the HMM profile, not the query sequence.
 
-    :param thresholds:  A namedtuple with min_e, min_ie, min_acc, min_score and perc_aligned attributes
+    :param thresholds:  A namedtuple with max_e, max_ie, min_acc, min_score and perc_aligned attributes
      that must be exceeded for alignments to be included.
     :param purified_matches: A dictionary of HmmMatch instances indexed by their respective header names
     :param search_stats: An HmmSearchStats instance for tracking the number of sequences filtered out
