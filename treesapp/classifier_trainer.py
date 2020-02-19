@@ -85,14 +85,14 @@ a numpy array from each query's data:
     """
     #
     features = []
-    # tree_size_dict = {}
+    tree_size_dict = {}
     for fields in classifieds:
         _, header, refpkg, length, _, _, _, i_node, lwr, _, dists = fields
-        # try:
-        #     num_nodes = tree_size_dict[refpkg]
-        # except KeyError:
-        #     num_nodes = len(internal_nodes[refpkg].values())
-        #     tree_size_dict[refpkg] = num_nodes
+        try:
+            num_nodes = tree_size_dict[refpkg]
+        except KeyError:
+            num_nodes = len(internal_nodes[refpkg].values())
+            tree_size_dict[refpkg] = num_nodes
         if header in condition_names[refpkg_map[refpkg]]:
             # Calculate the features
             distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
@@ -101,6 +101,7 @@ a numpy array from each query's data:
             lwr_bin = round(float(lwr), 2)
 
             features.append(np.array([hmm_perc, descendents, lwr_bin, distal, pendant, avg]))
+            # features.append(np.array([hmm_perc, int(length), num_nodes, descendents, lwr_bin, distal, pendant, avg]))
 
     return np.array(features)
 
@@ -187,7 +188,7 @@ def main():
 
     # Create a SVM Classifier
     if args.kernel == "lin":
-        clf = svm.LinearSVC(random_state=12345, tol=1E-5, dual=False)  # Linear Kernel
+        clf = svm.LinearSVC(random_state=12345, max_iter=1E7, tol=1E-5, dual=False)  # Linear Kernel
         k_name = "linear"
     elif args.kernel == "rbf":
         clf = svm.SVC(kernel="rbf", tol=1E-5, gamma="auto", C=1)
