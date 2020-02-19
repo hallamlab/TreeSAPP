@@ -33,10 +33,10 @@ def get_arguments():
     optopt.add_argument("-m", "--model_file", required=False, default="./treesapp_svm.pkl",
                         help="Path to a directory for writing output files")
     optopt.add_argument("-p", "--pkg_path", required=False, default=None,
-                        help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
-    optopt.add_argument("-k", "--svm_kernel", required=False, default="rbf", choices=["lin", "rbf"], dest="kernel",
+                        help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = None ].")
+    optopt.add_argument("-k", "--svm_kernel", required=False, default="lin", choices=["lin", "rbf"], dest="kernel",
                         help="Specifies the kernel type to be used in the SVM algorithm."
-                             "It must be either ‘linear’ or ‘rbf’. [ DEFAULT = rbf ]")
+                             "It must be either ‘lin’ or ‘rbf’. [ DEFAULT = lin ]")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
@@ -58,7 +58,8 @@ def validate_command(args, sys_args):
     logging.debug("Command used:\n" + ' '.join(sys_args) + "\n")
 
     args.treesapp = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
-    args.pkg_path = args.treesapp + "data" + os.sep
+    if not args.pkg_path:
+        args.pkg_path = args.treesapp + "data" + os.sep
 
     return
 
@@ -97,7 +98,14 @@ a numpy array from each query's data:
             # Calculate the features
             distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
             hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 1)
-            descendents = len(internal_nodes[refpkg][i_node])
+            try:
+                descendents = len(internal_nodes[refpkg][i_node])
+            except KeyError:
+                logging.error("Unable to find internal node '%d' in the %s node-leaf map indicating a discrepancy "
+                              "between reference package versions used by treesapp assign and those used here.\n"
+                              "Was the correct output directory provided?" %
+                              (i_node, refpkg))
+                sys.exit(5)
             lwr_bin = round(float(lwr), 2)
 
             features.append(np.array([hmm_perc, descendents, lwr_bin, distal, pendant, avg]))
