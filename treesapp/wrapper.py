@@ -299,8 +299,8 @@ def raxml_evolutionary_placement(epa_exe: str, refpkg_tree: str, refpkg_msa: str
                    '-q', query_msa,
                    "--model", refpkg_model,
                    "--no-pre-mask",
-                   # "--dyn-heur", str(0.9),
-                   "--fix-heur", str(0.2),
+                   "--dyn-heur", str(0.9),
+                   # "--fix-heur", str(0.2),
                    "--preserve-rooting", "on",
                    "--filter-min-lwr", str(0.01),
                    "--outdir", output_dir,
@@ -565,45 +565,6 @@ def hmmsearch_orfs(hmmsearch_exe, hmm_dir, marker_build_dict, fasta_file, output
     sys.stdout.write("-]\n")
 
     return hmm_domtbl_files
-
-
-def generate_blast_database(args, fasta, molecule, prefix, multiple=True):
-    """
-
-    :param args:
-    :param fasta: File to make a BLAST database for
-    :param molecule: 'prot' or 'nucl' - necessary argument for makeblastdb
-    :param prefix: prefix string for the output BLAST database
-    :param multiple: Flag indicating the input `fasta` is a MSA. Alignment information is removed prior to makeblastdb
-    :return:
-    """
-
-    # Remove the multiple alignment information from fasta_replaced_file and write to fasta_mltree
-    blastdb_out = prefix + ".fa"
-    if multiple:
-        if blastdb_out == fasta:
-            logging.error("prefix.fa is the same as " + fasta + " and would be overwritten!\n")
-            sys.exit(13)
-        remove_dashes_from_msa(fasta, blastdb_out)
-        blastdb_in = blastdb_out
-    else:
-        blastdb_in = fasta
-
-    logging.info("Making the BLAST database for " + blastdb_in + "... ")
-
-    # Format the `makeblastdb` command
-    makeblastdb_command = [args.executables["makeblastdb"]]
-    makeblastdb_command += ["-in", blastdb_in]
-    makeblastdb_command += ["-out", blastdb_out]
-    makeblastdb_command += ["-input_type", "fasta"]
-    makeblastdb_command += ["-dbtype", molecule]
-
-    # Launch the command
-    stdout, makeblastdb_pro_returncode = launch_write_command(makeblastdb_command)
-
-    logging.info("done\n")
-
-    return stdout, blastdb_out
 
 
 def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads):

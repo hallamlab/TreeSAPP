@@ -7,8 +7,8 @@ import sys
 import logging
 import re
 import argparse
-import numpy
 import joblib
+import numpy as np
 from sklearn import model_selection, svm, metrics
 from treesapp import file_parsers
 from treesapp.classy import prep_logging, ReferencePackage
@@ -34,6 +34,9 @@ def get_arguments():
                         help="Path to a directory for writing output files")
     optopt.add_argument("-p", "--pkg_path", required=False, default=None,
                         help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
+    optopt.add_argument("-k", "--svm_kernel", required=False, default="rbf", choices=["lin", "rbf"], dest="kernel",
+                        help="Specifies the kernel type to be used in the SVM algorithm."
+                             "It must be either ‘linear’ or ‘rbf’. [ DEFAULT = rbf ]")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
@@ -61,7 +64,7 @@ def validate_command(args, sys_args):
 
 
 def vectorize_placement_data(condition_names: dict, classifieds: list,
-                             internal_nodes: dict, hmm_lengths: dict, refpkg_map: dict) -> numpy.array:
+                             internal_nodes: dict, hmm_lengths: dict, refpkg_map: dict) -> np.array:
     """
     Parses out the relevant fields from the *treesapp assign* classification table (marker_contig_map.tsv) to create
 a numpy array from each query's data:
@@ -97,9 +100,9 @@ a numpy array from each query's data:
             descendents = len(internal_nodes[refpkg][i_node])
             lwr_bin = round(float(lwr), 2)
 
-            features.append(numpy.array([hmm_perc, descendents, lwr_bin, distal, pendant, avg]))
+            features.append(np.array([hmm_perc, descendents, lwr_bin, distal, pendant, avg]))
 
-    return numpy.array(features)
+    return np.array(features)
 
 
 def main():
@@ -168,8 +171,8 @@ def main():
                                   hmm_lengths=hmm_lengths, internal_nodes=internal_nodes_dict, refpkg_map=refpkg_map)
     tp = vectorize_placement_data(condition_names=test_obj.tp, classifieds=classification_lines,
                                   hmm_lengths=hmm_lengths, internal_nodes=internal_nodes_dict, refpkg_map=refpkg_map)
-    classified_data = numpy.append(fp, tp, axis=0)
-    conditions = numpy.append(numpy.array([0]*len(fp)), numpy.array([1]*len(tp)))
+    classified_data = np.append(fp, tp, axis=0)
+    conditions = np.append(np.array([0]*len(fp)), np.array([1]*len(tp)))
     if len(conditions) != len(classified_data):
         logging.error("Inconsistent array lengths between data points (%d) and targets (%d).\n"
                       % (len(classified_data), len(conditions)))
@@ -178,12 +181,23 @@ def main():
 
     logging.info("Using %d true positives and %d false positives to train and test.\n" % (len(tp), len(fp)))
 
-    logging.info("Training the SVM with a linear kernel... ")
     # Split dataset into the two training and testing sets - 60% training and 40% testing
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
                                                                         test_size=0.4, random_state=12345)
+
     # Create a SVM Classifier
-    clf = svm.LinearSVC(random_state=12345, tol=1E-5, max_iter=1E6, dual=False)  # Linear Kernel
+    if args.kernel == "lin":
+        clf = svm.LinearSVC(random_state=12345, tol=1E-5, dual=False)  # Linear Kernel
+        k_name = "linear"
+    elif args.kernel == "rbf":
+        clf = svm.SVC(kernel="rbf", tol=1E-5, gamma="auto", C=1)
+        k_name = "Radial Basis Function (RBF)"
+    else:
+        logging.error("Unknown SVM kernel '%s'.\n" % args.kernel)
+        # poly_clf = svm.SVC(kernel="poly", tol=1E-3, max_iter=1E6, degree=6, gamma="auto")
+        sys.exit(3)
+
+    logging.info("Training the SVM with a %s kernel... " % k_name)
     # Train the model using the training sets
     clf.fit(x_train, y_train)
     logging.info("done.\n")
