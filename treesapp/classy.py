@@ -43,6 +43,7 @@ class ReferencePackage:
         self.refpkg_code = ""  # AKA denominator
         self.msa = ""  # Reference MSA FASTA
         self.profile = ""  # HMM file
+        self.search_profile = ""  # HMM file
         self.tree = ""  # Reference tree
         self.boot_tree = ""  # Reference tree with support values
         self.lineage_ids = ""  # Reference sequence lineage map (tax_ids)
@@ -139,10 +140,12 @@ class ReferencePackage:
         flat = {"msa": pkg_path + self.prefix + ".fa",
                 "tree": pkg_path + self.prefix + "_tree.txt",
                 "profile": pkg_path + self.prefix + profile_ext,
+                "search_profile": pkg_path + self.prefix + "_search" + profile_ext,
                 "taxid": pkg_path + "tax_ids_" + self.prefix + ".txt",
                 "bestModel": pkg_path + self.prefix + "_bestModel.txt"}
         hierarchical = {"msa": pkg_path + "alignment_data" + os.sep + self.prefix + ".fa",
                         "profile": pkg_path + "hmm_data" + os.sep + self.prefix + profile_ext,
+                        "search_profile": pkg_path + "hmm_data" + os.sep + self.prefix + "_search" + profile_ext,
                         "taxid": pkg_path + "tree_data" + os.sep + "tax_ids_" + self.prefix + ".txt",
                         "tree": pkg_path + "tree_data" + os.sep + self.prefix + "_tree.txt",
                         "bestModel": pkg_path + "tree_data" + os.sep + self.prefix + "_bestModel.txt"}
@@ -169,6 +172,7 @@ class ReferencePackage:
             self.msa = layout["msa"]
             self.tree = layout["tree"]
             self.profile = layout["profile"]
+            self.search_profile = layout["search_profile"]
             self.lineage_ids = layout["taxid"]
             self.model_info = layout["bestModel"]
             self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"

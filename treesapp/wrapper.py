@@ -535,7 +535,7 @@ def hmmsearch_orfs(hmmsearch_exe: str, hmm_dir: str, marker_build_dict: dict,
     except IOError:
         logging.error(hmm_dir + "does not exist!")
         sys.exit(3)
-    hmm_files = glob.glob(hmm_dir + "*.hmm")
+    hmm_files = glob.glob(hmm_dir + "*_search.hmm")
 
     if len(hmm_files) == 0:
         logging.error(hmm_dir + "does not contain any files with '.hmm' extension... so no HMMs.\n")
@@ -544,7 +544,7 @@ def hmmsearch_orfs(hmmsearch_exe: str, hmm_dir: str, marker_build_dict: dict,
     # Filter the HMM files to only the target markers
     for marker_code in marker_build_dict:
         ref_marker = marker_build_dict[marker_code]
-        hmm_profile = hmm_dir + ref_marker.cog + ".hmm"
+        hmm_profile = hmm_dir + ref_marker.cog + "_search.hmm"
         if hmm_profile not in hmm_files:
             logging.error("Unable to locate HMM-profile for " + ref_marker.cog + "(" + marker_code + ").\n")
         else:
