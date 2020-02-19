@@ -456,9 +456,12 @@ def cluster_sequences(uclust_exe, fasta_input, uclust_prefix, similarity=0.60):
     return
 
 
-def build_hmm_profile(hmmbuild_exe, msa_in, output_hmm):
+def build_hmm_profile(hmmbuild_exe: str, msa_in: str, output_hmm: str, name=None):
     logging.debug("Building HMM profile... ")
-    hmm_build_command = [hmmbuild_exe, output_hmm, msa_in]
+    hmm_build_command = [hmmbuild_exe]
+    if name:
+        hmm_build_command += ["-n", str(name)]
+    hmm_build_command += [output_hmm, msa_in]
     stdout, hmmbuild_pro_returncode = launch_write_command(hmm_build_command)
     logging.debug("done.\n")
 
@@ -484,7 +487,8 @@ def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
     return
 
 
-def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output_dir: str, num_threads=2) -> list:
+def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output_dir: str,
+                  num_threads=2, e_value=1) -> list:
     """
     Function for searching a fasta file with a HMM profile using HMMER's hmmsearch
 
@@ -493,6 +497,7 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
     :param query_fasta: Path to the FASTA file to be queried by the profile
     :param output_dir: Path to the directory for writing the outputs
     :param num_threads: Number of threads to be used by hmmsearch
+    :param e_value: report sequences <= this E-value threshold in output
     :return: A list of domain tables created
     """
     # Find the name of the HMM. Use it to name the output file
@@ -502,6 +507,7 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
     # Basic hmmsearch command
     hmmsearch_command_base = [hmmsearch_exe]
     hmmsearch_command_base += ["--cpu", str(num_threads)]
+    hmmsearch_command_base += ["-E", str(e_value)]
     hmmsearch_command_base.append("--noali")
     # Customize the command for this input and HMM
     final_hmmsearch_command = hmmsearch_command_base + ["--domtblout", domtbl]
@@ -517,7 +523,8 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
     return [domtbl]
 
 
-def hmmsearch_orfs(hmmsearch_exe, hmm_dir, marker_build_dict, fasta_file, output_dir, num_threads=2):
+def hmmsearch_orfs(hmmsearch_exe: str, hmm_dir: str, marker_build_dict: dict,
+                   fasta_file: str, output_dir: str, num_threads=2, e_value=1) -> list:
     hmm_domtbl_files = list()
     nucl_target_hmm_files = list()
     prot_target_hmm_files = list()
@@ -553,7 +560,7 @@ def hmmsearch_orfs(hmmsearch_exe, hmm_dir, marker_build_dict, fasta_file, output
     # Create and launch the hmmsearch commands iteratively.
     for hmm_file in prot_target_hmm_files:
         # TODO: Parallelize this by allocating no more than 2 threads per process
-        hmm_domtbl_files += run_hmmsearch(hmmsearch_exe, hmm_file, fasta_file, output_dir, num_threads)
+        hmm_domtbl_files += run_hmmsearch(hmmsearch_exe, hmm_file, fasta_file, output_dir, num_threads, e_value)
 
         # Update the progress bar
         acc += 1.0
@@ -567,10 +574,11 @@ def hmmsearch_orfs(hmmsearch_exe, hmm_dir, marker_build_dict, fasta_file, output
     return hmm_domtbl_files
 
 
-def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads):
+def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads) -> None:
     """
     Wrapper function for the MAFFT multiple sequence alignment tool.
     Runs MAFFT using `--auto` and checks if the output is empty.
+
     :param mafft_exe: Path to the executable for mafft
     :param fasta_in: An unaligned FASTA file
     :param fasta_out: The path to a file MAFFT will write aligned sequences to

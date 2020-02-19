@@ -920,7 +920,7 @@ def assign(sys_args):
     if ts_assign.stage_status("search"):
         hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"], ts_assign.hmm_dir,
                                                   marker_build_dict, ts_assign.formatted_input,
-                                                  ts_assign.var_output_dir, args.num_threads)
+                                                  ts_assign.var_output_dir, args.num_threads, args.max_e)
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
         numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)

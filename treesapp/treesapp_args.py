@@ -523,11 +523,11 @@ def check_classify_arguments(assigner: Assigner, args):
     # TODO: transfer all of this HMM-parsing stuff to the assigner_instance
     # Parameterizing the hmmsearch output parsing:
     args.perc_aligned = 10
-    args.min_acc = 0.5
+    args.min_acc = 0.7
     if args.stringency == "relaxed":
-        args.max_e = 1E-2
-        args.max_ie = 1
-        args.min_score = 20
+        args.max_e = 1E-3
+        args.max_ie = 1E-1
+        args.min_score = 15
     elif args.stringency == "strict":
         args.max_e = 1E-7
         args.max_ie = 1E-5

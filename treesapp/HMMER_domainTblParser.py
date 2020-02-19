@@ -113,7 +113,7 @@ class HmmMatch:
         self.desc = ""
         self.acc = 0.0
         self.ieval = 0.0
-        self.eval = 0.0
+        self.eval = 0.0  # Full-sequence E-value (in the case a sequence alignment is split)
         self.full_score = 0
         self.next_domain = None  # The next domain aligned by hmmsearch
 
@@ -623,10 +623,6 @@ def filter_poor_hits(thresholds: namedtuple, distinct_alignments: dict, search_s
     :param search_stats: An HmmSearchStats instance used for tracking various alignment parsing stats
     :return: A dictionary of HmmMatch instances that pass thresholds indexed by their respective header names
     """
-    min_acc = float(thresholds.min_acc)
-    min_score = float(thresholds.min_score)
-    max_ie = float(thresholds.max_ie)
-    max_e = float(thresholds.max_e)
 
     purified_matches = dict()
 
@@ -637,12 +633,12 @@ def filter_poor_hits(thresholds: namedtuple, distinct_alignments: dict, search_s
         if query_header_desc not in purified_matches:
             purified_matches[query_header_desc] = list()
 
-        if hmm_match.eval <= max_e and hmm_match.ieval <= max_ie:
-            if hmm_match.acc >= min_acc and hmm_match.full_score >= min_score:
+        if hmm_match.eval <= float(thresholds.max_e) and hmm_match.ieval <= float(thresholds.max_ie):
+            if hmm_match.acc >= float(thresholds.min_acc) and hmm_match.full_score >= float(thresholds.min_score):
                 purified_matches[query_header_desc].append(hmm_match)
-        else:
-            search_stats.dropped += 1
-            search_stats.bad += 1
+                continue
+        search_stats.dropped += 1
+        search_stats.bad += 1
 
     return purified_matches
 
