@@ -43,15 +43,21 @@ def grab_graftm_taxa(tax_ids_file):
     taxonomic_tree = StringTrie(separator='; ')
     with open(tax_ids_file) as tax_ids:
         header = tax_ids.readline().strip()
-        if header != "tax_id,parent_id,rank,tax_name,root,kingdom,phylum,class,order,family,genus,species":
+        last_rank = int(header[-1])
+        final_index = 6 - last_rank
+        if not re.search("parent_id,rank,tax_name,root,rank_0,rank_1,rank_2,rank_3,rank_4,rank_5,rank_6", header):
             logging.error("Unable to handle format of " + tax_ids_file + "!")
             sys.exit(21)
         line = tax_ids.readline().strip()
         while line:
+            fields = line.split(',')
+            if final_index < 0:
+                fields = line.split(',')[:final_index]
             try:
-                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_ = line.split(',')
-            except IndexError:
-                logging.error("Unexpected format of line in " + tax_ids_file + ":\n" + line)
+                _, _, _, _, _, k_, p_, c_, o_, f_, g_, s_, = fields
+            except (IndexError, ValueError):
+                logging.error("Unexpected format of line with %d fields in " % len(line.split(',')) +
+                              tax_ids_file + ":\n" + line)
                 sys.exit(21)
             ranks = ["Root", k_, p_, c_, o_, f_, g_, s_]
             lineage_list = []
@@ -60,7 +66,7 @@ def grab_graftm_taxa(tax_ids_file):
                 if rank:
                     # GraftM seems to append an 'e1' to taxa that are duplicated in the taxonomic lineage.
                     # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
-                    lineage_list.append(re.sub(r'e\d+$', '', rank))
+                    lineage_list.append(re.sub(r'_graftm_\d+$', '', rank))
                     # lineage_list.append(rank)
             lineage = re.sub('_', ' ', clean_lineage_string('; '.join(lineage_list)))
             i = 0

@@ -327,16 +327,17 @@ class ConfusionTest:
                     if not marker:
                         logging.error("Bad marker name in " + str(mapping_dict.keys()) + "\n")
                         sys.exit(5)
-                    if marker not in positive_queries:
-                        positive_queries[marker] = []
-                        if ref_g in og_names_mapped:
-                            i = 0
-                            while i < len(og_names_mapped):
-                                if og_names_mapped[i] == ref_g:
-                                    og_names_mapped.pop(i)
-                                    i = len(og_names_mapped)
-                                i += 1
-                    positive_queries[marker].append(header)
+                    try:
+                        positive_queries[marker].append(header)
+                    except KeyError:
+                        positive_queries[marker] = [header]
+                    if ref_g in og_names_mapped:
+                        i = 0
+                        while i < len(og_names_mapped):
+                            if og_names_mapped[i] == ref_g:
+                                og_names_mapped.pop(i)
+                                i = len(og_names_mapped)
+                            i += 1
         logging.info("done.\n")
 
         # Ensure all reference genes in mapping_dict have been used
