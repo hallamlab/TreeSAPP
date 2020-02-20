@@ -34,6 +34,7 @@ from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_re
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
     validate_ref_package_files, restore_reference_package, exclude_clade_from_ref_files, determine_containment,\
     parse_distances, remove_clade_exclusion_files, load_rank_depth_map
+from treesapp.dereplicate_hmm import make_dereplicated_hmm
 
 
 def info(sys_args):
@@ -408,6 +409,11 @@ def create(sys_args):
             wrapper.build_hmm_profile(ts_create.executables["hmmbuild"],
                                       ts_create.ref_pkg.msa,
                                       ts_create.ref_pkg.profile)
+        make_dereplicated_hmm(aln_file=ts_create.ref_pkg.msa, taxonomic_ids=ts_create.ref_pkg.lineage_ids,
+                              dereplication_rank="Genus", hmm_file=ts_create.ref_pkg.search_profile,
+                              hmmbuild=ts_create.executables["hmmbuild"], mafft=ts_create.executables["mafft"],
+                              n_threads=args.num_threads, intermediates_dir=ts_create.var_output_dir)
+
         ##
         # Optionally trim with BMGE and create the Phylip multiple alignment file
         ##

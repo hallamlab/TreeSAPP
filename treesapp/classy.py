@@ -1488,7 +1488,7 @@ class Creator(TreeSAPP):
                      "1. Write a properly formatted reference package 'code' in " + param_file + "\n" +
                      "2. $ cp " + ' '.join([self.ref_pkg.lineage_ids, self.ref_pkg.tree, self.ref_pkg.model_info]) +
                      ' ' + self.tree_dir + "\n" +
-                     "3. $ cp " + self.ref_pkg.profile + ' ' + self.hmm_dir + "\n" +
+                     "3. $ cp " + self.ref_pkg.profile + self.ref_pkg.search_profile + ' ' + self.hmm_dir + "\n" +
                      "4. $ cp " + self.ref_pkg.msa + ' ' + self.aln_dir + "\n")
         return
 
