@@ -529,8 +529,8 @@ def check_classify_arguments(assigner: Assigner, args):
         args.max_ie = 1E-1
         args.min_score = 15
     elif args.stringency == "strict":
-        args.max_e = 1E-7
-        args.max_ie = 1E-5
+        args.max_e = 1E-5
+        args.max_ie = 1E-3
         args.min_score = 30
     else:
         logging.error("Unknown HMM-parsing stringency argument '" + args.stringency + "'.\n")
