@@ -451,7 +451,7 @@ def create(sys_args):
         ##
         # Build the tree using either RAxML-NG or FastTree
         ##
-        marker_package.model = wrapper.select_model(args, ts_create.molecule_type)
+        marker_package.model = wrapper.select_model(ts_create.molecule_type, args.fast, args.raxml_model)
         best_tree = wrapper.construct_tree(ts_create.executables, marker_package.model, ts_create.phylip_file,
                                            ts_create.phy_dir, ts_create.ref_pkg.prefix,
                                            args.bootstraps, args.num_threads, args.fast)
@@ -1135,7 +1135,7 @@ def evaluate(sys_args):
     refpkg_name = ts_evaluate.target_marker.cog
     refpkg = ReferencePackage(refpkg_name)
     refpkg.gather_package_files(ts_evaluate.refpkg_dir)
-    refpkg.sub_model = ts_evaluate.target_marker.model
+    refpkg.sub_model = wrapper.select_model(ts_evaluate.molecule_type)
 
     ref_leaves = file_parsers.tax_ids_file_to_leaves(refpkg.lineage_ids)
     ref_lineages = dict()

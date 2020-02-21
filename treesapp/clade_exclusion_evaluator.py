@@ -8,12 +8,12 @@ from ete3 import Tree
 from glob import glob
 
 from treesapp.fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes
-from .utilities import return_sequence_info_groups
-from .external_command_interface import launch_write_command
-from .file_parsers import tax_ids_file_to_leaves
-from .classy import get_header_format, Evaluator, MarkerBuild, ReferencePackage
-from .create_refpkg import clean_up_raxmlng_outputs
-from .entrez_utils import *
+from treesapp.utilities import return_sequence_info_groups
+from treesapp.external_command_interface import launch_write_command
+from treesapp.file_parsers import tax_ids_file_to_leaves
+from treesapp.classy import get_header_format, Evaluator, MarkerBuild, ReferencePackage
+from treesapp.create_refpkg import clean_up_raxmlng_outputs
+from treesapp.entrez_utils import *
 from treesapp.wrapper import model_parameters
 
 _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",

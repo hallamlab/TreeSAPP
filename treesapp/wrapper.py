@@ -9,31 +9,31 @@ from shutil import copy
 from treesapp.external_command_interface import launch_write_command, setup_progress_bar
 from treesapp.classy import CommandLineFarmer, ReferencePackage
 from treesapp.fasta import read_fasta_to_dict
-from treesapp.utilities import remove_dashes_from_msa
 
 
-def select_model(args, molecule: str) -> str:
+def select_model(molecule: str, fast=False, raxml_model=None) -> str:
     """
     Eventually this function will be a wrapper for ModelTest-ng or IQTree's ModelFinder.
 
-    :param args:
+    :param fast: Boolean indicating whether the phylogeny was made with FastTree or not
+    :param raxml_model: An optional string with the RAxML-NG model used
     :param molecule: A string indicating the molecule-type of the reference package: 'rrna', 'prot' or 'dna'
     :return: A RAxML-ng and EPA-ng compatible string representing the substitution model
     """
-    if args.fast:
+    if fast:
         if molecule == "rrna" or molecule == "dna":
             evo_model = "GTR"
         else:
             evo_model = "LG"
     else:
-        if args.raxml_model:
-            evo_model = args.raxml_model
-        elif args.molecule == "prot":
+        if raxml_model:
+            evo_model = raxml_model
+        elif molecule == "prot":
             evo_model = "LG+G4"
-        elif args.molecule == "rrna" or molecule == "dna":
+        elif molecule == "rrna" or molecule == "dna":
             evo_model = "GTR+G"
         else:
-            logging.error("A substitution model could not be specified with the 'molecule' argument: " + args.molecule)
+            logging.error("A substitution model could not be specified with the 'molecule' argument: " + molecule)
             sys.exit(13)
     return evo_model
 
