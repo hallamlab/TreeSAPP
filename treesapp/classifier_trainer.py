@@ -111,7 +111,7 @@ a numpy array from each query's data:
             distal, pendant, avg = [round(float(x), 3) for x in dists.split(',')]
             hmm_perc = round((int(length)*100)/hmm_lengths[refpkg], 1)
             try:
-                descendents = len(internal_nodes[refpkg][i_node])
+                leaf_children = len(internal_nodes[refpkg][i_node])
             except KeyError:
                 logging.error("Unable to find internal node '%d' in the %s node-leaf map indicating a discrepancy "
                               "between reference package versions used by treesapp assign and those used here.\n"
@@ -119,7 +119,7 @@ a numpy array from each query's data:
                               (i_node, refpkg))
                 sys.exit(5)
             lwr_bin = round(float(lwr), 2)
-            features.append(np.array([descendents, lwr_bin, distal, pendant, avg]))
+            features.append(np.array([leaf_children, lwr_bin, distal, pendant, avg]))
 
     return preprocessing.normalize(np.array(features), norm='l1')
 

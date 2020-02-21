@@ -1799,7 +1799,7 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
 
             if svm:
                 call = svm.predict(preprocessing.normalize(np_array([len(leaf_children),
-                                                                     round(tree_sap.lwr, 3),
+                                                                     round(tree_sap.lwr, 2),
                                                                      distal_length,
                                                                      pendant_length,
                                                                      avg_tip_dist]).reshape(1, -1)))
