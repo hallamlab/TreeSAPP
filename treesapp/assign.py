@@ -24,6 +24,7 @@ try:
     from os.path import isfile, join
     from time import gmtime, strftime
     from numpy import array as np_array
+    from sklearn import preprocessing
 
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
@@ -1794,11 +1795,14 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
             tree_sap.avg_evo_dist = round(distal_length + pendant_length + avg_tip_dist, 3)
             tree_sap.distances = ','.join([str(distal_length), str(pendant_length), str(avg_tip_dist)])
 
-            hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
+            # hmm_perc = round((int(tree_sap.seq_len) * 100) / refpkg.profile_length, 1)
 
             if svm:
-                call = svm.predict(np_array([hmm_perc, len(leaf_children), round(tree_sap.lwr, 3),
-                                             distal_length, pendant_length, avg_tip_dist]).reshape(1, -1))
+                call = svm.predict(preprocessing.normalize(np_array([len(leaf_children),
+                                                                     round(tree_sap.lwr, 3),
+                                                                     distal_length,
+                                                                     pendant_length,
+                                                                     avg_tip_dist]).reshape(1, -1)))
                 # Discard this placement as a false positive classifier calls this a 0
                 if call == 0:
                     unclassified_seqs[tree_sap.name]["svm"].append(tree_sap)

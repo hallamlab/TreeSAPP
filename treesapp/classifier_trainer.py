@@ -9,7 +9,7 @@ import re
 import argparse
 import joblib
 import numpy as np
-from sklearn import model_selection, svm, metrics
+from sklearn import model_selection, svm, metrics, preprocessing
 from treesapp import file_parsers
 from treesapp.classy import prep_logging, ReferencePackage
 from treesapp.fasta import get_headers
@@ -34,9 +34,12 @@ def get_arguments():
                         help="Path to a directory for writing output files")
     optopt.add_argument("-p", "--pkg_path", required=False, default=None,
                         help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = None ].")
-    optopt.add_argument("-k", "--svm_kernel", required=False, default="lin", choices=["lin", "rbf"], dest="kernel",
+    optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
+                        choices=["lin", "rbf", "poly"], dest="kernel",
                         help="Specifies the kernel type to be used in the SVM algorithm."
-                             "It must be either ‘lin’ or ‘rbf’. [ DEFAULT = lin ]")
+                             "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
+    optopt.add_argument("--grid_search", default=False, required=False, action="store_true",
+                        help="Perform a grid search across hyperparameters.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
@@ -107,11 +110,56 @@ a numpy array from each query's data:
                               (i_node, refpkg))
                 sys.exit(5)
             lwr_bin = round(float(lwr), 2)
+            features.append(np.array([descendents, lwr_bin, distal, pendant, avg]))
 
-            features.append(np.array([hmm_perc, descendents, lwr_bin, distal, pendant, avg]))
-            # features.append(np.array([hmm_perc, int(length), num_nodes, descendents, lwr_bin, distal, pendant, avg]))
+    return preprocessing.normalize(np.array(features), norm='l2')
 
-    return np.array(features)
+
+def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1"):
+    print("# Tuning hyper-parameters for '%s'" % kernel)
+    print()
+
+    if kernel == "lin":
+        grid_params = [{'C': [0.1, 1, 10, 100, 1000]}]
+        svc = svm.LinearSVC(dual=False)
+    elif kernel == "rbf":
+        grid_params = [{'C': [0.1, 1, 10, 100, 1000], 'gamma': [0.01, 0.001, 0.001, 0.0001]}]
+        svc = svm.SVC(kernel="rbf")
+    elif kernel == "poly":
+        grid_params = [
+            {'C': [0.1, 1, 10, 100, 1000], 'gamma': [0.01, 0.001, 0.001, 0.0001], 'degree': [1, 3, 5, 7]}]
+        svc = svm.SVC(kernel="poly")
+    else:
+        logging.error("Unsupported kernel %s" % kernel)
+        sys.exit()
+
+    print("# Parameters: %s" % svc.get_params())
+
+    clf = model_selection.GridSearchCV(estimator=svc, param_grid=grid_params, scoring=score, n_jobs=8)
+
+    clf.fit(x_train, y_train)
+
+    print("Best parameters set found on development set:")
+    print()
+    print(clf.best_params_)
+    print()
+    print("Grid scores on development set:")
+    print()
+    means = clf.cv_results_['mean_test_score']
+    stds = clf.cv_results_['std_test_score']
+    for mean, std, params in zip(means, stds, clf.cv_results_['params']):
+        print("%0.3f (+/-%0.03f) for %r"
+              % (mean, std * 2, params))
+    print()
+
+    print("Detailed classification report:")
+    print()
+    print("The model is trained on the full development set.")
+    print("The scores are computed on the full evaluation set.")
+    print()
+    y_true, y_pred = y_test, clf.predict(x_test)
+    print(metrics.classification_report(y_true, y_pred))
+    print()
 
 
 def main():
@@ -192,15 +240,24 @@ def main():
 
     # Split dataset into the two training and testing sets - 60% training and 40% testing
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
-                                                                        test_size=0.4, random_state=12345)
+                                                                        test_size=0.2, random_state=12345)
+
+    if args.grid_search:
+        kernels = ["lin", "rbf", "poly"]
+        for k in kernels:
+            evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
+        return
 
     # Create a SVM Classifier
     if args.kernel == "lin":
-        clf = svm.LinearSVC(random_state=12345, max_iter=1E7, tol=1E-5, dual=False)  # Linear Kernel
+        clf = svm.LinearSVC(random_state=12345, max_iter=1E7, tol=1E-5, dual=False, C=100)  # Linear Kernel
         k_name = "linear"
     elif args.kernel == "rbf":
-        clf = svm.SVC(kernel="rbf", tol=1E-5, gamma="auto", C=1)
+        clf = svm.SVC(kernel="rbf", tol=1E-5, gamma="auto", C=100)
         k_name = "Radial Basis Function (RBF)"
+    elif args.kernel == "poly":
+        clf = svm.SVC(kernel="poly", tol=1E-5, gamma="auto", C=100)
+        k_name = "polynomial"
     else:
         logging.error("Unknown SVM kernel '%s'.\n" % args.kernel)
         # poly_clf = svm.SVC(kernel="poly", tol=1E-3, max_iter=1E6, degree=6, gamma="auto")
@@ -215,12 +272,15 @@ def main():
     # Predict the response for test dataset
     y_pred = clf.predict(x_test)
     logging.info("done.\n")
+
+    scores = model_selection.cross_val_score(clf, classified_data, conditions, cv=10, scoring='f1')
+    logging.info("F1-score\t%0.2f (+/- %0.2f)\n" % (scores.mean(), scores.std() * 2))
     # Model Accuracy: how often is the classifier correct?
-    logging.info("Accuracy\t" + str(round(metrics.accuracy_score(y_test, y_pred), 3)) + "\n")
+    logging.info("Accuracy\t" + str(round(metrics.accuracy_score(y_test, y_pred), 2)) + "\n")
     # Model Precision: what percentage of positive tuples are labeled as such?
-    logging.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 3)) + "\n")
+    logging.info("Precision\t" + str(round(metrics.precision_score(y_test, y_pred), 2)) + "\n")
     # Model Recall: what percentage of positive tuples are labelled as such?
-    logging.info("Recall\t\t" + str(round(metrics.recall_score(y_test, y_pred), 3)) + "\n")
+    logging.info("Recall\t\t" + str(round(metrics.recall_score(y_test, y_pred), 2)) + "\n")
 
     logging.info("Pickling model... ")
     try:
