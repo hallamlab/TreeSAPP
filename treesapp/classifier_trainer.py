@@ -8,8 +8,12 @@ import logging
 import re
 import argparse
 import joblib
+import seaborn
+import time
 import numpy as np
-from sklearn import model_selection, svm, metrics, preprocessing
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn import model_selection, svm, metrics, preprocessing, manifold
 from treesapp import file_parsers
 from treesapp.classy import prep_logging, ReferencePackage
 from treesapp.fasta import get_headers
@@ -25,11 +29,14 @@ def get_arguments():
                                help="FASTA-formatted file used for testing the classifiers")
     required_args.add_argument("--annot_map", required=True,
                                help="Path to a tabular file mapping markers being tested to their database annotations."
-                                    " First column is the ")
+                                    " Columns are:  1. RefPkg code name 2. OG 3. PFam Accession.Version"
+                                    " 4. PFam Accession 5. RefPkg Name 6. Description 7. HMM Length")
     required_args.add_argument("--treesapp_output", required=False, dest="output",
                                help="Path to the `treesapp assign` output directory")
 
     optopt = parser.add_argument_group("Optional options")
+    optopt.add_argument("-n", "--num_procs", required=False, default=2, dest="procs", type=int,
+                        help="The number of parallel processes to use during grid search [ DEFAULT = 2 ]")
     optopt.add_argument("-m", "--model_file", required=False, default="./treesapp_svm.pkl",
                         help="Path to a directory for writing output files")
     optopt.add_argument("-p", "--pkg_path", required=False, default=None,
@@ -40,6 +47,8 @@ def get_arguments():
                              "It must be either 'lin' 'poly' or 'rbf'. [ DEFAULT = lin ]")
     optopt.add_argument("--grid_search", default=False, required=False, action="store_true",
                         help="Perform a grid search across hyperparameters.")
+    optopt.add_argument("--tsne", default=False, required=False, action="store_true",
+                        help="Generate a tSNE plot. Output will be in the same directory as the model file.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
@@ -112,10 +121,35 @@ a numpy array from each query's data:
             lwr_bin = round(float(lwr), 2)
             features.append(np.array([descendents, lwr_bin, distal, pendant, avg]))
 
-    return preprocessing.normalize(np.array(features), norm='l2')
+    return preprocessing.normalize(np.array(features), norm='l1')
 
 
-def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1"):
+def generate_tsne(x, y, tsne_file):
+    feat_cols = ['pixel' + str(i) for i in range(x.shape[1])]
+    df = pd.DataFrame(x, columns=feat_cols)
+    df['y'] = y
+    df['label'] = df['y'].apply(lambda i: str(i))
+
+    time_start = time.time()
+    tsne = manifold.TSNE(n_components=2, verbose=1, perplexity=30, n_iter=300)
+    tsne_results = tsne.fit_transform(df)
+    print('t-SNE done! Time elapsed: {} seconds'.format(time.time() - time_start))
+
+    df['tsne-2d-one'] = tsne_results[:, 0]
+    df['tsne-2d-two'] = tsne_results[:, 1]
+    plt.figure(figsize=(16, 10))
+    seaborn.scatterplot(
+        x="tsne-2d-one", y="tsne-2d-two",
+        hue="y",
+        palette=seaborn.color_palette("hls", 2),
+        data=df,
+        legend="full",
+        alpha=0.3
+    )
+    plt.savefig(tsne_file, format="png")
+
+
+def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1", jobs=4):
     print("# Tuning hyper-parameters for '%s'" % kernel)
     print()
 
@@ -135,7 +169,7 @@ def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1"):
 
     print("# Parameters: %s" % svc.get_params())
 
-    clf = model_selection.GridSearchCV(estimator=svc, param_grid=grid_params, scoring=score, n_jobs=8)
+    clf = model_selection.GridSearchCV(estimator=svc, param_grid=grid_params, scoring=score, n_jobs=jobs)
 
     clf.fit(x_train, y_train)
 
@@ -165,6 +199,8 @@ def evaluate_grid_scores(kernel, x_train, x_test, y_train, y_test, score="f1"):
 def main():
     args = get_arguments()
     log_name = args.output + os.sep + "TreeSAPP_classifier_trainer_log.txt"
+    pickled_model = args.model_file
+    tsne_file = '.'.join(pickled_model.split('.')[:-1]) + "_t-SNE.png"
     prep_logging(log_name, args.verbose)
     logging.info("\n##\t\t\tBeginning SVM classifier build\t\t\t##\n")
     validate_command(args, sys.argv)
@@ -242,15 +278,18 @@ def main():
     x_train, x_test, y_train, y_test = model_selection.train_test_split(classified_data, conditions,
                                                                         test_size=0.2, random_state=12345)
 
+    if args.tsne:
+        generate_tsne(classified_data, conditions, tsne_file)
+
     if args.grid_search:
         kernels = ["lin", "rbf", "poly"]
         for k in kernels:
-            evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
+            evaluate_grid_scores(k, x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test, jobs=args.procs)
         return
 
     # Create a SVM Classifier
     if args.kernel == "lin":
-        clf = svm.LinearSVC(random_state=12345, max_iter=1E7, tol=1E-5, dual=False, C=100)  # Linear Kernel
+        clf = svm.LinearSVC(random_state=12345, max_iter=1E7, tol=1E-5, dual=False, C=10)  # Linear Kernel
         k_name = "linear"
     elif args.kernel == "rbf":
         clf = svm.SVC(kernel="rbf", tol=1E-5, gamma="auto", C=100)
@@ -284,9 +323,9 @@ def main():
 
     logging.info("Pickling model... ")
     try:
-        pkl_handler = open(args.model_file, 'wb')
+        pkl_handler = open(pickled_model, 'wb')
     except IOError:
-        logging.error("Unable to open model file '%s' for writing.\n" % args.model_file)
+        logging.error("Unable to open model file '%s' for writing.\n" % pickled_model)
         sys.exit(3)
     joblib.dump(value=clf, filename=pkl_handler)
     pkl_handler.close()
