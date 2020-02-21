@@ -585,10 +585,9 @@ def run_mafft(mafft_exe: str, fasta_in: str, fasta_out: str, num_threads) -> Non
     :param num_threads: Integer (or string) for the number of threads MAFFT can use
     :return:
     """
-    mafft_align_command = [mafft_exe]
+    mafft_align_command = [mafft_exe, "--auto", "--anysymbol"]
     mafft_align_command += ["--maxiterate", str(1000)]
     mafft_align_command += ["--thread", str(num_threads)]
-    mafft_align_command.append("--auto")
     mafft_align_command += ["--randomseed", str(12345)]
     mafft_align_command += [fasta_in, '1>' + fasta_out]
     mafft_align_command += ["2>", "/dev/null"]

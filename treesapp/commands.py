@@ -252,6 +252,8 @@ def create(sys_args):
                                                   110, args.min_seq_length)
     ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
+    # Get rid of ambiguity or unusual characters
+    ref_seqs.replace_ambiguity_chars(ts_create.molecule_type)
     logging.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
     ##

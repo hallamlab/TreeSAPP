@@ -238,6 +238,23 @@ class FASTA:
 
         return
 
+    def replace_ambiguity_chars(self, molecule, replace_char='X'):
+        if molecule == "prot":
+            invalid = {'U', 'O'}
+        else:
+            logging.debug("FASTA.replace_ambiguity_chars is not equipped to handle molecule type '%s'.\n" % molecule)
+            return
+        invalid_re = re.compile('|'.join(invalid))
+        bad_seqs = 0
+        for seq_name in self.fasta_dict:
+            if invalid_re.search(self.fasta_dict[seq_name]):
+                bad_seqs += 1
+            self.fasta_dict[seq_name] = invalid_re.sub(replace_char, self.fasta_dict[seq_name])
+
+        logging.debug("Identified and replaced invalid ambiguity characters in %d sequences.\n" % bad_seqs)
+
+        return
+
     def remove_shorter_than(self, min_len: int):
         long_seqs = list()
         dropped = 0
