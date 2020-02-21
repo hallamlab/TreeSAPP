@@ -606,18 +606,27 @@ def get_arguments():
                                     " First column is the ")
 
     optopt = parser.add_argument_group("Optional options")
+    ts = parser.add_argument_group("TreeSAPP options")
+    gm = parser.add_argument_group("GraftM options")
     optopt.add_argument("--tool", default="treesapp", required=False,
                         choices=["treesapp", "graftm", "diamond"],
                         help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
-    optopt.add_argument("--gpkg_dir", required=False, default=None,
-                        help="Path to a directory containing all GraftM reference packages to test."
-                             " Files must follow 'name.gpkg' scheme and 'name' is in the first column of --annot_map")
     optopt.add_argument("--output", required=False, default="./MCC_output/",
                         help="Path to a directory for writing output files")
-    optopt.add_argument("-p", "--pkg_path", required=False, default=None,
-                        help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
-    optopt.add_argument("--trim_align", default=False, action="store_true",
-                        help="Flag to turn on position masking of the multiple sequence alignment [DEFAULT = False]")
+
+    ts.add_argument("--no_svm", default=False, required=False, action="store_true",
+                    help="Disables the support vector machine (SVM) classifier. "
+                         "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
+    ts.add_argument("-s", "--stringency", choices=["relaxed", "strict"], default="relaxed", required=False,
+                    help="HMM-threshold mode affects the number of query sequences that advance [DEFAULT = relaxed]")
+    ts.add_argument("-p", "--pkg_path", required=False, default=None,
+                    help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = TreeSAPP/data/ ].")
+    ts.add_argument("--trim_align", default=False, action="store_true",
+                    help="Flag to turn on position masking of the multiple sequence alignment [DEFAULT = False]")
+
+    gm.add_argument("--gpkg_dir", required=False, default=None,
+                    help="Path to a directory containing all GraftM reference packages to test."
+                         " Files must follow 'name.gpkg' scheme and 'name' is in the first column of --annot_map")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
     miscellaneous_opts.add_argument("-n", "--num_threads", default=4, required=False,
@@ -783,9 +792,12 @@ def mcc_calculator():
                              "-t", ref_pkgs, "-n", str(args.num_threads),
                              "-m", "prot",
                              "--output", test_obj.data_dir,
-                             "--overwrite"]
+                             "--overwrite",
+                             "--stringency", args.stringency]
             if args.trim_align:
                 classify_args.append("--trim_align")
+            if args.no_svm:
+                classify_args.append("--no_svm")
             assign(classify_args)
         classification_lines = file_parsers.read_marker_classification_table(classification_table)
         assignments = file_parsers.parse_assignments(classification_lines)
