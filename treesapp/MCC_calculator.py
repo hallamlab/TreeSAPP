@@ -20,7 +20,12 @@ from ete3 import Tree
 
 
 class ClassifiedSequence:
-    def __init__(self, header):
+    def __init__(self, header: str) -> None:
+        """
+        Initialization function for ClassifiedSequence objects. Sets self.name attribute to header if provided
+
+        :param header: Name of the classified sequence, used to set self.name
+        """
         self.name = header
         self.ref = ""
         self.ncbi_tax = ""
@@ -29,6 +34,7 @@ class ClassifiedSequence:
         self.true_lineage = ""
         self.optimal_lineage = ""
         self.tax_dist = 0
+        return
 
 
 class ConfusionTest:
@@ -42,7 +48,7 @@ class ConfusionTest:
         self.tax_lineage_map = dict()
         self.dist_wise_tp = dict()
         self.num_total_queries = 0
-        self.rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+        self.rank_depth_map = {"Domain": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
         self.classification_table = ""
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
         self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
@@ -217,6 +223,23 @@ class ConfusionTest:
                     self.dist_wise_tp[marker][tp_inst.tax_dist] = [tp_inst.name]
         return
 
+    def enumerate_optimal_rank_distances(self) -> dict:
+        rank_representation = dict()
+        for marker in self.tp:
+            for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
+                # Find the optimal taxonomic assignment
+                optimal_taxon = clean_lineage_string(optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie,
+                                                                                  tp_inst.true_lineage))
+                if not optimal_taxon:
+                    logging.debug("Optimal taxonomic assignment '" + tp_inst.true_lineage + "' for " +
+                                  tp_inst.name + " not found in reference hierarchy.\n")
+                    continue
+                try:
+                    rank_representation[len(optimal_taxon.split("; "))] += 1
+                except KeyError:
+                    rank_representation[len(optimal_taxon.split("; "))] = 1
+        return rank_representation
+
     def check_dist(self):
         if self._MAX_TAX_DIST < 0:
             logging.error("ConfusionTest's _MAX_TAX_DIST has yet to be set.\n")
@@ -285,14 +308,14 @@ class ConfusionTest:
                 unique_fn.update(self.fn[marker])
             return unique_fn
 
-    def bin_headers(self, test_seq_names, assignments, annot_map, marker_build_dict):
+    def bin_headers(self, test_seq_names: list, assignments: dict, annot_map: dict, marker_build_dict: dict) -> None:
         """
         Function for sorting/binning the classified sequences at T/F positives/negatives based on the
 
         :param test_seq_names: List of all headers in the input FASTA file
         :param assignments: Dictionary mapping taxonomic lineages to a list of headers that were classified as lineage
         :param annot_map: Dictionary mapping reference package (gene) name keys to database names values
-        :param marker_build_dict:
+        :param marker_build_dict: Dictionary of MarkerBuild objects indexed by their refpkg code names
         :return: None
         """
         # False positives: those that do not belong to the annotation matching a reference package name
@@ -546,7 +569,7 @@ def summarize_taxonomy(taxa_list, rank, rank_depth_map=None):
     :return: A dictionary mapping a taxon to the number of representatives seen
     """
     if not rank_depth_map:
-        rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+        rank_depth_map = {"Domain": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
 
     try:
         depth = rank_depth_map[rank] + 1

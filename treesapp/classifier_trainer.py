@@ -13,12 +13,17 @@ import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from shutil import rmtree
 from sklearn import model_selection, svm, metrics, preprocessing, manifold
 from treesapp import file_parsers
-from treesapp.classy import prep_logging, ReferencePackage
-from treesapp.fasta import get_headers
+from treesapp.classy import prep_logging, ReferencePackage, Evaluator
+from treesapp.fasta import FASTA
 from treesapp.utilities import get_hmm_length
+from treesapp.lca_calculations import all_possible_assignments
 from treesapp import MCC_calculator
+from treesapp.clade_exclusion_evaluator import get_testable_lineages_for_rank, restore_reference_package,\
+    remove_clade_exclusion_files
+from treesapp.commands import assign
 
 
 def get_arguments():
@@ -31,15 +36,17 @@ def get_arguments():
                                help="Path to a tabular file mapping markers being tested to their database annotations."
                                     " Columns are:  1. RefPkg code name 2. OG 3. PFam Accession.Version"
                                     " 4. PFam Accession 5. RefPkg Name 6. Description 7. HMM Length")
-    required_args.add_argument("--treesapp_output", required=False, dest="output",
+    required_args.add_argument("--treesapp_output", required=True,
                                help="Path to the `treesapp assign` output directory")
 
     optopt = parser.add_argument_group("Optional options")
-    optopt.add_argument("-n", "--num_procs", required=False, default=2, dest="procs", type=int,
-                        help="The number of parallel processes to use during grid search [ DEFAULT = 2 ]")
-    optopt.add_argument("-m", "--model_file", required=False, default="./treesapp_svm.pkl",
+    optopt.add_argument("-o", "--output", required=False, default="./classifier_trainer_outputs/",
+                        help="Path to write the intermediate files from training.")
+    optopt.add_argument("-m", "--molecule", required=False, default="prot", choices=["prot", "dna", "rna"],
+                        help="Molecule type of input sequences (prot [DEFAULT], dna, or rna)")
+    optopt.add_argument("-p", "--model_pickle", required=False, default="./treesapp_svm.pkl", dest="model_file",
                         help="Path to a directory for writing output files")
-    optopt.add_argument("-p", "--pkg_path", required=False, default=None,
+    optopt.add_argument("-r", "--refpkg_path", required=False, default=None, dest="pkg_path",
                         help="The path to the TreeSAPP-formatted reference package(s) [ DEFAULT = None ].")
     optopt.add_argument("-k", "--svm_kernel", required=False, default="lin",
                         choices=["lin", "rbf", "poly"], dest="kernel",
@@ -51,18 +58,22 @@ def get_arguments():
                         help="Generate a tSNE plot. Output will be in the same directory as the model file.")
 
     miscellaneous_opts = parser.add_argument_group("Miscellaneous options")
+    miscellaneous_opts.add_argument("-h", "--help",
+                                    action="help",
+                                    help="Show this help message and exit")
+    miscellaneous_opts.add_argument("-n", "--num_procs", required=False, default=2, dest="procs", type=int,
+                                    help="The number of parallel processes to use during grid search [ DEFAULT = 2 ]")
     miscellaneous_opts.add_argument('--overwrite', action='store_true', default=False,
                                     help='overwrites previously processed output folders')
     miscellaneous_opts.add_argument('-v', '--verbose', action='store_true', default=False,
                                     help='Prints a more verbose runtime log')
-    miscellaneous_opts.add_argument("-h", "--help",
-                                    action="help",
-                                    help="Show this help message and exit")
 
     args = parser.parse_args()
 
     if args.output[-1] != os.sep:
         args.output += os.sep
+    if args.treesapp_output[-1] != os.sep:
+        args.treesapp_output += os.sep
     return args
 
 
@@ -208,7 +219,7 @@ def main():
     pkg_name_dict = MCC_calculator.read_annotation_mapping_file(args.annot_map)
     marker_build_dict = file_parsers.parse_ref_build_params(args.treesapp, [])
     test_obj = MCC_calculator.ConfusionTest(pkg_name_dict.keys())
-    test_obj.map_data(output_dir=args.output, tool="treesapp")
+    test_obj.map_data(output_dir=args.treesapp_output, tool="treesapp")
 
     ##
     # Create internal node to leaf, HMM model length and refpkg name maps for each refpkg
@@ -223,19 +234,23 @@ def main():
         refpkg_map[refpkg.prefix] = pkg_name
         internal_nodes_dict[refpkg.prefix] = MCC_calculator.internal_node_leaf_map(refpkg.tree)
         hmm_lengths[refpkg.prefix] = get_hmm_length(refpkg.profile)
+        test_obj.ref_packages[pkg_name].taxa_trie = all_possible_assignments(test_obj.ref_packages[pkg_name].lineage_ids)
 
     ##
     # Read the classification lines from the output
     ##
-    classification_table = os.sep.join([args.output, "final_outputs", "marker_contig_map.tsv"])
+    classification_table = os.sep.join([args.treesapp_output, "final_outputs", "marker_contig_map.tsv"])
     if not os.path.isfile(classification_table):
         logging.error("Path to classification table '%s' doesn't exist.\n" % classification_table)
         sys.exit(3)
     classification_lines = file_parsers.read_marker_classification_table(classification_table)
     assignments = file_parsers.parse_assignments(classification_lines)
 
-    logging.info("Reading headers in " + args.input + "... ")
-    test_seq_names = [seq_name[1:] if seq_name[0] == '>' else seq_name for seq_name in get_headers(args.input)]
+    logging.info("Reading " + args.input + "... ")
+    # Read all sequences that are related to the reference packages from the test data (e.g. EggNOG) into FASTA
+    test_fasta = FASTA(args.input)
+    test_fasta.load_fasta()
+    test_seq_names = [seq_name[1:] if seq_name[0] == '>' else seq_name for seq_name in test_fasta.get_seq_names()]
     logging.info("done.\n")
     test_obj.num_total_queries = len(test_seq_names)
     eggnog_re = re.compile(r"^>?(COG[A-Z0-9]+|ENOG[A-Z0-9]+)_(\d+)\..*")
@@ -246,8 +261,84 @@ def main():
     ##
     test_obj.bin_headers(test_seq_names, assignments, pkg_name_dict, marker_build_dict)
     test_seq_names.clear()
+    _TAXID_GROUP = 2
+    test_obj.retrieve_lineages(_TAXID_GROUP)
+    test_obj.map_lineages()
     test_obj.validate_false_positives()
     test_obj.validate_false_negatives(pkg_name_dict)
+
+    ##
+    # Subset the sequences in args.input to only contain the true positives. False negatives will probably be useless
+    ##
+    positive_headers = set()
+    for refpkg in test_obj.tp:
+        for seq in test_obj.tp[refpkg]:  # type: MCC_calculator.ClassifiedSequence
+            positive_headers.add(seq.name)
+    test_fasta.keep_only(list(positive_headers))
+    # TODO: Find the best set of representative sequences
+    representative_test_seqs = dict()
+
+    ##
+    # Enumerate the optimal placement ranks to determine the relative distance of reference packages to test dataset
+    ##
+    rank_representation = test_obj.enumerate_optimal_rank_distances()
+    ceiling = rank_representation[max(rank_representation.keys(),
+                                      key=(lambda key: rank_representation[key]))]
+
+    ##
+    #  Simulate data using clade exclusion analysis to ensure coverage across different ranks is even
+    ##
+    test_obj.rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+    refpkg_testable_lineages = {}
+    evaluator = Evaluator()
+    evaluator.furnish_with_arguments(args)
+    for rank in test_obj.rank_depth_map:
+        # Collect the lineages that can be tested for each reference package
+        for pkg_name in test_obj.ref_packages:
+            refpkg = test_obj.ref_packages[pkg_name]  # type: ReferencePackage
+            ref_lineages = {leaf.number: leaf.lineage for leaf in file_parsers.tax_ids_file_to_leaves(refpkg.lineage_ids)}
+            tp_lineage_map = {tp_inst.name: tp_inst.true_lineage for tp_inst in test_obj.tp[pkg_name]}
+            refpkg_testable_lineages[pkg_name] = get_testable_lineages_for_rank(rank=rank,
+                                                                                ref_lineage_map=ref_lineages,
+                                                                                query_lineage_map=tp_lineage_map)
+        x = test_obj.rank_depth_map[rank]
+        while ceiling - rank_representation[x] > 0:
+            # Pick a random reference package
+            for refpkg_code in test_obj.ref_packages:
+                refpkg = test_obj.ref_packages[refpkg_code]
+                try:
+                    lineage = refpkg_testable_lineages[refpkg_code].pop()
+                except (ValueError, IndexError):
+                    continue
+                assign_args, taxon_test = evaluator.prep_for_clade_exclusion(refpkg, lineage,
+                                                                             representative_test_seqs[refpkg.prefix][lineage],
+                                                                             rank, test_obj.rank_depth_map[rank],
+                                                                             trim_align=True, num_threads=args.procs)
+                try:
+                    assign(assign_args)
+                except:  # Just in case treesapp assign fails, just continue
+                    pass
+
+                restore_reference_package(refpkg, taxon_test.temp_files_prefix, taxon_test.intermediates_dir)
+                if not os.path.isfile(classification_table):
+                    # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
+                    logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
+                    rmtree(taxon_test.intermediates_dir + "TreeSAPP_output" + os.sep)
+                    continue
+
+                taxon_test.taxonomic_tree = all_possible_assignments(taxon_test.test_tax_ids_file)
+                if os.path.isfile(classification_table):
+                    assigned_lines = file_parsers.read_marker_classification_table(classification_table)
+                    classification_lines += assigned_lines
+                else:
+                    logging.error("marker_contig_map.tsv is missing from output directory '" +
+                                  os.path.dirname(classification_table) + "'\n" +
+                                  "Please remove this directory and re-run.\n")
+                    sys.exit(21)
+                remove_clade_exclusion_files(evaluator.var_output_dir + refpkg.prefix + os.sep)
+
+                rank_representation[x] += len(assigned_lines)
+        refpkg_testable_lineages.clear()
 
     ##
     # Convert the true positive dictionary to the same format, flattening the ClassifiedSequence instances

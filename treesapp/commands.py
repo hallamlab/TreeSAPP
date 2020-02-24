@@ -20,7 +20,6 @@ from . import lca_calculations
 from . import placement_trainer
 from . import update_refpkg
 from . import annotate_extra
-from .phylo_dist import trim_lineages_to_rank
 from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
     prep_logging, dedup_records, TaxonTest, Purity, ReferencePackage
 from . import create_refpkg
@@ -33,7 +32,7 @@ from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demul
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
     validate_ref_package_files, restore_reference_package, exclude_clade_from_ref_files, determine_containment,\
-    parse_distances, remove_clade_exclusion_files, load_rank_depth_map
+    parse_distances, remove_clade_exclusion_files, load_rank_depth_map, get_testable_lineages_for_rank
 from treesapp.dereplicate_hmm import make_dereplicated_hmm
 
 
@@ -1140,9 +1139,7 @@ def evaluate(sys_args):
     refpkg.sub_model = wrapper.select_model(ts_evaluate.molecule_type)
 
     ref_leaves = file_parsers.tax_ids_file_to_leaves(refpkg.lineage_ids)
-    ref_lineages = dict()
-    for leaf in ref_leaves:
-        ref_lineages[leaf.number] = leaf.lineage
+    ref_lineages = {leaf.number: leaf.lineage for leaf in ref_leaves}
 
     # Load FASTA data
     ref_seqs = fasta.FASTA(args.input)
@@ -1183,21 +1180,11 @@ def evaluate(sys_args):
 
         ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
         for rank in args.taxon_rank:
-            leaf_trimmed_taxa_map = trim_lineages_to_rank(ref_lineages, rank)
-            unique_ref_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
-            unique_query_lineages = sorted(set(trim_lineages_to_rank(rep_accession_lineage_map, rank).values()))
             depth = ranks[rank]
-            for lineage in unique_query_lineages:
-                # Check number one: Is the optimal placement in the pruned reference tree?
-                optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
-                if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages
-                                                if tl != lineage]:
-                    logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not in pruned tree.\n")
-                    continue
-
+            for lineage in get_testable_lineages_for_rank(ref_lineages, rep_accession_lineage_map, rank):
                 # Select representative sequences belonging to the taxon being tested
                 taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_records, lineage)
-                # Check number 2: Decide whether to continue analyzing taxon based on number of query sequences
+                # Decide whether to continue analyzing taxon based on number of query sequences
                 if len(taxon_rep_seqs.keys()) == 0:
                     logging.debug("No query sequences for " + lineage + ".\n")
                     continue
@@ -1215,10 +1202,10 @@ def evaluate(sys_args):
                 test_obj = ts_evaluate.new_taxa_test(rank, lineage)
                 test_obj.queries = taxon_rep_seqs.keys()
                 test_rep_taxa_fasta = intermediates_path + rank_tax + ".fa"
-                test_refpkg_prefix = refpkg_name + '_' + rank_tax
                 classifier_output = intermediates_path + args.tool + "_output" + os.sep
 
                 if args.tool in ["graftm", "diamond"]:
+                    test_refpkg_prefix = refpkg_name + '_' + rank_tax
                     tax_ids_file = intermediates_path + os.sep + refpkg_name + "_taxonomy.csv"
                     classification_table = classifier_output + rank_tax + os.sep + rank_tax + "_read_tax.tsv"
                     gpkg_path = intermediates_path + test_refpkg_prefix + ".gpkg"

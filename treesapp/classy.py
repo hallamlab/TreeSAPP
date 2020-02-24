@@ -12,13 +12,14 @@ from multiprocessing import Process, JoinableQueue
 from glob import glob
 from json import loads, dumps
 from collections import namedtuple
+from numpy import var
 from treesapp.fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers, load_fasta_header_regexes
 from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
 from treesapp import entrez_utils
 from treesapp.external_command_interface import launch_write_command
-from numpy import var
+from clade_exclusion_evaluator import exclude_clade_from_ref_files
 
 import _tree_parser
 
@@ -1046,12 +1047,13 @@ class TreeSAPP:
                                     "Input molecule type = " + self.molecule_type])
         return info_string
 
-    def furnish_with_arguments(self, args):
+    def furnish_with_arguments(self, args) -> None:
         """
         Carries over the basic TreeSAPP arguments to the respective TreeSAPP-subclass.
-         All auxiliary arguments are pushed to the TreeSAPP classes in check_module_arguments
-        :param args:
-        :return:
+        All auxiliary arguments are pushed to the TreeSAPP classes in check_module_arguments
+
+        :param args: arguments from argarse.ParseArgs() with output, input and molecule attributes
+        :return: None
         """
         if self.command != "info":
             if args.output[-1] != os.sep:
@@ -1064,6 +1066,7 @@ class TreeSAPP:
             self.sample_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
             self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
         self.executables = self.find_executables(args)
+        return
 
     def check_previous_output(self, args):
         """
@@ -1270,6 +1273,7 @@ class TreeSAPP:
     def find_executables(self, args):
         """
         Finds the executables in a user's path to alleviate the requirement of a sub_binaries directory
+
         :param args: The parsed command-line arguments
         :return: exec_paths beings the absolute path to each executable
         """
@@ -1577,6 +1581,67 @@ class Purity(TreeSAPP):
                 ortholog_map[ortholog_name].append(leaf_map[descendent])
 
         return ortholog_map
+
+
+class TaxonTest:
+    def __init__(self, name):
+        self.lineage = name
+        self.taxon = name.split('; ')[-1]
+        self.queries = list()
+        self.classifieds = list()
+        self.distances = dict()
+        self.assignments = dict()
+        self.taxonomic_tree = None
+        self.intermediates_dir = ""
+        self.temp_files_prefix = ""
+        self.test_tax_ids_file = ""
+        self.classification_table = ""
+
+    def get_optimal_assignment(self):
+        if self.lineage.split('; ')[0] != "Root":
+            self.lineage = "; ".join(["Root"] + self.lineage.split("; "))
+        return optimal_taxonomic_assignment(self.taxonomic_tree, self.lineage)
+
+    def summarise_taxon_test(self):
+        summary_string = "Test for taxonomic lineage '" + self.lineage + "':\n" + \
+                         "\tNumber of query sequences = " + str(len(self.queries)) + "\n" + \
+                         "\tNumber of classified queries = " + str(len(self.classifieds)) + "\n"
+        if self.assignments:
+            for marker in self.assignments:
+                summary_string += "Sequences classified as marker '" + marker + "':\n"
+                for lineage in self.assignments[marker]:
+                    summary_string += str(len(self.assignments[marker][lineage])) + "\t'" + lineage + "'\n"
+        if self.taxonomic_tree:
+            summary_string += "Optimal taxonomic assignment: '" + self.get_optimal_assignment() + "'\n"
+        return summary_string
+
+    def filter_assignments(self, target_marker: str):
+        """
+        Filters the assignments from TreeSAPP for the target marker.
+        Off-target classifications are accounted for and reported.
+        TaxonTest.classifieds only include the headers of the correctly annotated sequences
+
+        :param target_marker:
+        :return:
+        """
+        off_targets = dict()
+        num_classified = 0
+        for marker in self.assignments:
+            for lineage in self.assignments[marker]:
+                classifieds = self.assignments[marker][lineage]
+                num_classified += len(classifieds)
+                if marker == target_marker:
+                    self.classifieds += classifieds
+                else:
+                    if marker not in off_targets:
+                        off_targets[marker] = list()
+                    off_targets[marker] += classifieds
+        if off_targets:
+            for marker in off_targets:
+                logging.warning(str(len(off_targets[marker])) + '/' + str(num_classified) +
+                                " sequences were classified as " + marker + ":\n" +
+                                "\t\n".join(off_targets[marker]) + "\n")
+        return
 
 
 class Evaluator(TreeSAPP):
@@ -1888,6 +1953,56 @@ class Evaluator(TreeSAPP):
         output_handler.close()
         return
 
+    def prep_for_clade_exclusion(self, refpkg: ReferencePackage, lineage, lineage_seqs, rank, depth,
+                                 trim_align=False, min_seq_len=0, num_threads=2) -> (list, TaxonTest):
+        """
+
+        :param refpkg:
+        :param lineage:
+        :param lineage_seqs:
+        :param rank:
+        :param depth:
+        :param trim_align:
+        :param min_seq_len:
+        :param num_threads:
+        :return:
+        """
+        # Continuing with classification
+        # Refpkg input files in ts_evaluate.var_output_dir/refpkg_name/rank_tax/
+        # Refpkg built in ts_evaluate.var_output_dir/refpkg_name/rank_tax/{refpkg_name}_{rank_tax}.gpkg/
+        taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
+        rank_tax = rank[0] + '_' + taxon
+
+        test_obj = self.new_taxa_test(rank, lineage)
+        test_obj.queries = lineage_seqs.keys()
+        test_obj.intermediates_dir = self.var_output_dir + refpkg.prefix + os.sep + rank_tax + os.sep
+        if not os.path.isdir(test_obj.intermediates_dir):
+            os.makedirs(test_obj.intermediates_dir)
+
+        logging.info("Classifications for the " + rank + " '" + taxon + "' put " + test_obj.intermediates_dir + "\n")
+        test_rep_taxa_fasta = test_obj.intermediates_dir + rank_tax + ".fa"
+        classifier_output = test_obj.intermediates_dir + "TreeSAPP_output" + os.sep
+
+        test_obj.test_tax_ids_file = test_obj.intermediates_dir + "tax_ids_" + refpkg.prefix + ".txt"
+        test_obj.classification_table = classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
+
+        # Copy reference files, then exclude all clades belonging to the taxon being tested
+
+        test_obj.temp_files_prefix = exclude_clade_from_ref_files(self.refpkg_dir, refpkg, self.molecule_type,
+                                                                  self.var_output_dir + refpkg.prefix + os.sep,
+                                                                  lineage, depth, self.executables)
+        # Write the query sequences
+        write_new_fasta(lineage_seqs, test_rep_taxa_fasta)
+        assign_args = ["-i", test_rep_taxa_fasta, "-o", classifier_output,
+                       "-m", self.molecule_type, "-n", str(num_threads),
+                       "--overwrite", "--delete"]
+        if trim_align:
+            assign_args.append("--trim_align")
+        if min_seq_len:
+            assign_args += ["--min_seq_length", str(min_seq_len)]
+
+        return assign_args, test_obj
+
 
 class Layerer(TreeSAPP):
     def __init__(self):
@@ -2071,60 +2186,3 @@ class EvaluateStats:
 
     def precision(self):
         return self.correct/sum([self.correct, self.over_p, self.under_p])
-
-
-class TaxonTest:
-    def __init__(self, name):
-        self.lineage = name
-        self.taxon = name.split('; ')[-1]
-        self.queries = list()
-        self.classifieds = list()
-        self.distances = dict()
-        self.assignments = dict()
-        self.taxonomic_tree = None
-
-    def get_optimal_assignment(self):
-        if self.lineage.split('; ')[0] != "Root":
-            self.lineage = "; ".join(["Root"] + self.lineage.split("; "))
-        return optimal_taxonomic_assignment(self.taxonomic_tree, self.lineage)
-
-    def summarise_taxon_test(self):
-        summary_string = "Test for taxonomic lineage '" + self.lineage + "':\n" + \
-                         "\tNumber of query sequences = " + str(len(self.queries)) + "\n" + \
-                         "\tNumber of classified queries = " + str(len(self.classifieds)) + "\n"
-        if self.assignments:
-            for marker in self.assignments:
-                summary_string += "Sequences classified as marker '" + marker + "':\n"
-                for lineage in self.assignments[marker]:
-                    summary_string += str(len(self.assignments[marker][lineage])) + "\t'" + lineage + "'\n"
-        if self.taxonomic_tree:
-            summary_string += "Optimal taxonomic assignment: '" + self.get_optimal_assignment() + "'\n"
-        return summary_string
-
-    def filter_assignments(self, target_marker: str):
-        """
-        Filters the assignments from TreeSAPP for the target marker.
-        Off-target classifications are accounted for and reported.
-        TaxonTest.classifieds only include the headers of the correctly annotated sequences
-
-        :param target_marker:
-        :return:
-        """
-        off_targets = dict()
-        num_classified = 0
-        for marker in self.assignments:
-            for lineage in self.assignments[marker]:
-                classifieds = self.assignments[marker][lineage]
-                num_classified += len(classifieds)
-                if marker == target_marker:
-                    self.classifieds += classifieds
-                else:
-                    if marker not in off_targets:
-                        off_targets[marker] = list()
-                    off_targets[marker] += classifieds
-        if off_targets:
-            for marker in off_targets:
-                logging.warning(str(len(off_targets[marker])) + '/' + str(num_classified) +
-                                " sequences were classified as " + marker + ":\n" +
-                                "\t\n".join(off_targets[marker]) + "\n")
-        return

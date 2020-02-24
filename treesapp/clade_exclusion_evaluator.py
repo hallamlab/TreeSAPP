@@ -15,6 +15,7 @@ from treesapp.classy import get_header_format, Evaluator, MarkerBuild, Reference
 from treesapp.create_refpkg import clean_up_raxmlng_outputs
 from treesapp.entrez_utils import *
 from treesapp.wrapper import model_parameters
+from treesapp.phylo_dist import trim_lineages_to_rank
 
 _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
                    2: "Phylum", 3: "Class", 4: "Order",
@@ -210,6 +211,7 @@ def map_full_headers(fasta_headers, header_map, assignments, molecule_type):
     Since the headers used throughout the TreeSAPP pipeline are truncated,
     we read the FASTA file and use those headers instead of their short version
     in case valuable information was discarded
+
     :param fasta_headers: full-length headers that will replace those in assignments
     :param header_map:
     :param assignments: A dictionary of reference (lineage) and query names
@@ -289,6 +291,7 @@ def assign_lineages(complete_ref_seqs, assignments):
 def map_headers_to_lineage(assignments, ref_sequences):
     """
     The alternative function to map_full_headers. Using ReferenceSequence objects,
+
     :param assignments:
     :param ref_sequences:
     :return:
@@ -323,6 +326,7 @@ def map_headers_to_lineage(assignments, ref_sequences):
 def get_unclassified_rank(pos, split_lineage):
     """
     Recursive function to retrieve the first rank at which the
+
     :param pos:
     :param split_lineage:
     :return:
@@ -332,6 +336,31 @@ def get_unclassified_rank(pos, split_lineage):
     else:
         pos = get_unclassified_rank(pos+1, split_lineage)
     return pos
+
+
+def get_testable_lineages_for_rank(ref_lineage_map: dict, query_lineage_map: dict, rank: str) -> list:
+    """
+
+
+    :param ref_lineage_map: A dictionary mapping all reference sequences to their respective taxonomic lineages
+    :param query_lineage_map: A dictionary mapping representative query sequences to taxonomic lineages
+    :param rank: Name of a taxonomic rank to test and is used to guide taxonomic lineage trimming with
+     {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+    :return: List of lineages where the optimal rank exists in the reference tree after clade exclusion
+    """
+    lineages = []
+    leaf_trimmed_taxa_map = trim_lineages_to_rank(ref_lineage_map, rank)
+    unique_ref_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
+    unique_query_lineages = sorted(set(trim_lineages_to_rank(query_lineage_map, rank).values()))
+    for lineage in unique_query_lineages:
+        # Is the optimal placement in the pruned reference tree?
+        optimal_lca_taxonomy = "; ".join(lineage.split("; ")[:-1])
+        if optimal_lca_taxonomy not in ["; ".join(tl.split("; ")[:-1]) for tl in unique_ref_lineages
+                                        if tl != lineage]:
+            logging.debug("Optimal placement target '" + optimal_lca_taxonomy + "' not in pruned tree.\n")
+        else:
+            lineages.append(lineage)
+    return lineages
 
 
 def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict, max_cluster_size=5):
@@ -424,6 +453,7 @@ def same_lineage(target_lineage: str, candidate_lineage: str) -> bool:
     4. "Root; Bacteria", "Root; Bacteria; Proteobacteria" True
     5. "Bacteria", "Root; Bacteria; Proteobacteria"       True
     Runs in O(n) complexity
+
     :param target_lineage:
     :param candidate_lineage:
     :return: Boolean
@@ -536,6 +566,7 @@ def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon
     From the original TreeSAPP reference package files, the necessary GraftM create input files are generated
     with all reference sequences related to the target_taxon removed from the multiple sequence alignment,
     unaligned reference FASTA file and the tax_ids file.
+
     :param treesapp_dir: Path to the TreeSAPP reference package directory
     :param intermediate_dir:  Path to write the intermediate files with target references removed
     :param target_taxon: Name of the taxon that is being tested in the current clade exclusion iteration
@@ -589,7 +620,8 @@ def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon
 
 
 def exclude_clade_from_ref_files(treesapp_refpkg_dir: str, refpkg: ReferencePackage, molecule: str,
-                                 intermediate_dir: str, target_clade: str, depth: int, executables: dict, fresh=False):
+                                 intermediate_dir: str, target_clade: str, depth: int, executables: dict,
+                                 fresh=False) -> str:
     intermediate_prefix = intermediate_dir + "ORIGINAL"
     shutil.copy(refpkg.msa, intermediate_prefix + ".fa")
     shutil.copy(refpkg.profile, intermediate_prefix + ".hmm")
