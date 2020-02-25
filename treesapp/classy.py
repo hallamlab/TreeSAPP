@@ -19,7 +19,7 @@ from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
 from treesapp import entrez_utils
 from treesapp.external_command_interface import launch_write_command
-from clade_exclusion_evaluator import exclude_clade_from_ref_files
+from treesapp.clade_exclusion_evaluator import exclude_clade_from_ref_files
 
 import _tree_parser
 
@@ -955,13 +955,14 @@ class MyFormatter(logging.Formatter):
         return result
 
 
-def prep_logging(log_file_name=None, verbosity=False):
+def prep_logging(log_file_name=None, verbosity=False) -> None:
     """
     Allows for multiple file handlers to be added to the root logger, but only a single stream handler.
     The new file handlers must be removed outside of this function explicitly
+
     :param log_file_name:
     :param verbosity:
-    :return:
+    :return: None
     """
     if verbosity:
         logging_level = logging.DEBUG
