@@ -199,7 +199,7 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> 
 
 
 def prepare_training_data(fasta_input: str, output_dir: str, executables: dict, leaf_taxa_map: dict,
-                          accession_lineage_map: dict, taxonomic_ranks: dict, refpkg_name: str) -> (dict, FASTA):
+                          accession_lineage_map: dict, taxonomic_ranks: set, refpkg_name: str) -> (dict, FASTA):
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
     linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
@@ -210,10 +210,11 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict, 
     :param executables: A dictionary mapping software to a path of their respective executable
     :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric identifiers of reference sequences to taxonomic lineages
     :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
-    :param taxonomic_ranks: A dictionary mapping rank names (e.g. Phylum) to their depth in the taxonomic hierarchy
+    :param taxonomic_ranks: A set of rank names (e.g. Phylum) the NCBI taxonomic hierarchy
+     to that could be mapped to rank depth values where Kingdom is 0, Phylum is 1, etc.
     :param refpkg_name: The human-readable name for the reference package (ReferencePackage.prefix)
-     to rank depth values where Kingdom is 0, Phylum is 1, etc.
-    :return: A dictionary storing the sequence names being used to test each taxon within each rank
+    :return: A tuple of a dictionary storing the sequence names being used to test each taxon within each rank and a
+     FASTA object containing those sequences
     """
     rank_training_seqs = dict()
     optimal_placement_missing = list()
@@ -605,7 +606,8 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train
     rank_training_seqs, dedup_fasta_dict = prepare_training_data(fasta_input, output_dir, executables,
-                                                                 leaf_taxa_map, accession_lineage_map, training_ranks,
+                                                                 leaf_taxa_map, accession_lineage_map,
+                                                                 set(training_ranks.keys()),
                                                                  ref_pkg.prefix)
     if len(rank_training_seqs) == 0:
         return (0.0, 7.0), {}, []

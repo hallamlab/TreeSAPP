@@ -9,8 +9,12 @@ import time
 import joblib
 from collections import namedtuple
 from shutil import rmtree
-from .external_command_interface import launch_write_command
+from treesapp.external_command_interface import launch_write_command
 from pygtrie import StringTrie
+
+
+def base_file_prefix(file_path: str) -> str:
+    return '.'.join(os.path.basename(file_path).split('.')[:-1])
 
 
 def load_pickle(filename: str):
@@ -52,6 +56,7 @@ def rekey_dict(og_dict: dict, key_map: dict) -> dict:
     """
     Creates a new dictionary with new keys, indicated by a map, mapped to the original values.
     Logs a warning if not all of the original keys are popped.
+
     :param og_dict: The original dictionary with keys found in key_map. Values are retained.
     :param key_map: A dictionary mapping old keys to new keys
     :return: Dictionary with new keys, same values
@@ -260,9 +265,10 @@ def available_cpu_count():
     logging.error('Can not determine number of CPUs on this system')
 
 
-def executable_dependency_versions(exe_dict):
+def executable_dependency_versions(exe_dict: dict) -> str:
     """
     Function for retrieving the version numbers for each executable in exe_dict
+
     :param exe_dict: A dictionary mapping names of software to the path to their executable
     :return: A formatted string with the executable name and its respective version found
     """

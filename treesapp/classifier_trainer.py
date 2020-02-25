@@ -17,13 +17,14 @@ from shutil import rmtree
 from sklearn import model_selection, svm, metrics, preprocessing, manifold
 from treesapp import file_parsers
 from treesapp.classy import prep_logging, ReferencePackage, Evaluator
-from treesapp.fasta import FASTA
-from treesapp.utilities import get_hmm_length
+from treesapp.fasta import FASTA, write_new_fasta
+from treesapp.utilities import get_hmm_length, base_file_prefix
 from treesapp.lca_calculations import all_possible_assignments
 from treesapp import MCC_calculator
 from treesapp.clade_exclusion_evaluator import get_testable_lineages_for_rank, restore_reference_package,\
     remove_clade_exclusion_files
 from treesapp.commands import assign
+from treesapp.placement_trainer import prepare_training_data
 
 
 def get_arguments():
@@ -220,6 +221,9 @@ def main():
     marker_build_dict = file_parsers.parse_ref_build_params(args.treesapp, [])
     test_obj = MCC_calculator.ConfusionTest(pkg_name_dict.keys())
     test_obj.map_data(output_dir=args.treesapp_output, tool="treesapp")
+    test_obj.rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+    evaluator = Evaluator()
+    evaluator.furnish_with_arguments(args)
 
     ##
     # Create internal node to leaf, HMM model length and refpkg name maps for each refpkg
@@ -227,14 +231,14 @@ def main():
     internal_nodes_dict = dict()
     refpkg_map = dict()
     hmm_lengths = dict()
-    for pkg_name in test_obj.ref_packages:
-        refpkg = test_obj.ref_packages[pkg_name]  # type: ReferencePackage
-        refpkg.prefix = marker_build_dict[pkg_name].cog
+    for refpkg_code in test_obj.ref_packages:
+        refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
+        refpkg.prefix = marker_build_dict[refpkg_code].cog
         refpkg.gather_package_files(args.pkg_path)
-        refpkg_map[refpkg.prefix] = pkg_name
+        refpkg_map[refpkg.prefix] = refpkg_code
         internal_nodes_dict[refpkg.prefix] = MCC_calculator.internal_node_leaf_map(refpkg.tree)
         hmm_lengths[refpkg.prefix] = get_hmm_length(refpkg.profile)
-        test_obj.ref_packages[pkg_name].taxa_trie = all_possible_assignments(test_obj.ref_packages[pkg_name].lineage_ids)
+        test_obj.ref_packages[refpkg_code].taxa_trie = all_possible_assignments(test_obj.ref_packages[refpkg_code].lineage_ids)
 
     ##
     # Read the classification lines from the output
@@ -272,11 +276,24 @@ def main():
     ##
     positive_headers = set()
     for refpkg in test_obj.tp:
-        for seq in test_obj.tp[refpkg]:  # type: MCC_calculator.ClassifiedSequence
-            positive_headers.add(seq.name)
+        for tp_seq in test_obj.tp[refpkg]:  # type: MCC_calculator.ClassifiedSequence
+            positive_headers.add(tp_seq.name)
     test_fasta.keep_only(list(positive_headers))
-    # TODO: Find the best set of representative sequences
-    representative_test_seqs = dict()
+    # Find the best set of representative sequences
+    training_seq_reps = dict()
+    training_ranks = {r for r in test_obj.rank_depth_map if test_obj.rank_depth_map[r] > 2}
+    for refpkg_code in test_obj.ref_packages:  # type: str
+        # Write a FASTA file for each of the reference packages
+        refpkg = test_obj.ref_packages[refpkg_code]
+        training_fa = evaluator.var_output_dir + base_file_prefix(test_fasta.file) + "_" + refpkg.prefix + "subset.fasta"
+        write_new_fasta(test_fasta.fasta_dict, training_fa,
+                        headers=[tp_seq.name for tp_seq in test_obj.tp[refpkg_code]])
+        leaf_taxa_map = {leaf.number: leaf.lineage for leaf in
+                         file_parsers.tax_ids_file_to_leaves(refpkg.lineage_ids)}
+        training_seq_reps[refpkg_code], reps_fasta = prepare_training_data(training_fa, evaluator.var_output_dir,
+                                                                           evaluator.executables,
+                                                                           leaf_taxa_map, test_obj.tax_lineage_map,
+                                                                           training_ranks, refpkg.prefix)
 
     ##
     # Enumerate the optimal placement ranks to determine the relative distance of reference packages to test dataset
@@ -288,19 +305,16 @@ def main():
     ##
     #  Simulate data using clade exclusion analysis to ensure coverage across different ranks is even
     ##
-    test_obj.rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
     refpkg_testable_lineages = {}
-    evaluator = Evaluator()
-    evaluator.furnish_with_arguments(args)
     for rank in test_obj.rank_depth_map:
         # Collect the lineages that can be tested for each reference package
-        for pkg_name in test_obj.ref_packages:
-            refpkg = test_obj.ref_packages[pkg_name]  # type: ReferencePackage
+        for refpkg_code in test_obj.ref_packages:
+            refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
             ref_lineages = {leaf.number: leaf.lineage for leaf in file_parsers.tax_ids_file_to_leaves(refpkg.lineage_ids)}
-            tp_lineage_map = {tp_inst.name: tp_inst.true_lineage for tp_inst in test_obj.tp[pkg_name]}
-            refpkg_testable_lineages[pkg_name] = get_testable_lineages_for_rank(rank=rank,
-                                                                                ref_lineage_map=ref_lineages,
-                                                                                query_lineage_map=tp_lineage_map)
+            tp_lineage_map = {tp_inst.name: tp_inst.true_lineage for tp_inst in test_obj.tp[refpkg_code]}
+            refpkg_testable_lineages[refpkg_code] = get_testable_lineages_for_rank(rank=rank,
+                                                                                   ref_lineage_map=ref_lineages,
+                                                                                   query_lineage_map=tp_lineage_map)
         x = test_obj.rank_depth_map[rank]
         while ceiling - rank_representation[x] > 0:
             # Pick a random reference package
@@ -311,7 +325,7 @@ def main():
                 except (ValueError, IndexError):
                     continue
                 assign_args, taxon_test = evaluator.prep_for_clade_exclusion(refpkg, lineage,
-                                                                             representative_test_seqs[refpkg.prefix][lineage],
+                                                                             training_seq_reps[refpkg_code][lineage],
                                                                              rank, test_obj.rank_depth_map[rank],
                                                                              trim_align=True, num_threads=args.procs)
                 try:
