@@ -6,9 +6,8 @@ import glob
 import logging
 from shutil import copy
 
-from treesapp.external_command_interface import launch_write_command, setup_progress_bar
-from treesapp.classy import CommandLineFarmer, ReferencePackage
-from treesapp.fasta import read_fasta_to_dict
+from .external_command_interface import launch_write_command, setup_progress_bar, CommandLineFarmer
+from .fasta import read_fasta_to_dict
 
 
 def select_model(molecule: str, fast=False, raxml_model=None) -> str:
@@ -215,7 +214,7 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
         if not isinstance(denominator, str):
             logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
             raise AssertionError()
-        ref_pkg = refpkg_dict[denominator]  # type: ReferencePackage
+        ref_pkg = refpkg_dict[denominator]
         for split_msa in split_msa_files[denominator]:
             query_name = re.sub("_queries.mfa", '', os.path.basename(split_msa.query))
             query_name = re.sub(ref_pkg.prefix, denominator, query_name)

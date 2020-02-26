@@ -27,15 +27,14 @@ try:
     from sklearn import preprocessing
 
     from .treesapp_args import TreeSAPPArgumentParser
-    from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
-        TreeLeafReference, TreeProtein, MarkerBuild
+    from .classy import ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild, ReferencePackage
     from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
     from . import entish
-    from .external_command_interface import launch_write_command, setup_progress_bar
-    from .lca_calculations import *
-    from .jplace_utils import *
-    from .file_parsers import *
-    from .phylo_dist import *
+    from .external_command_interface import launch_write_command, setup_progress_bar, CommandLineFarmer
+    from . import lca_calculations
+    from . import jplace_utils
+    from . import file_parsers
+    from . import phylo_dist
     from . import utilities
     from . import wrapper
 
@@ -72,6 +71,23 @@ def validate_inputs(args, marker_build_dict):
     else:
         logging.info("Reference trees appear to be formatted correctly. Continuing with TreeSAPP.\n")
     return
+
+
+def read_refpkg_tax_ids(refpkg_dict: dict) -> dict:
+    """
+    Function to read tax_ids files for each ReferencePackage in
+
+    :param refpkg_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
+    :return: A dictionary of lists of LeafNodes indexed by the reference package codes (denominators)
+    """
+
+    tree_numbers_translation = dict()
+
+    for refpkg_code in sorted(refpkg_dict.keys()):
+        refpkg = refpkg_dict[refpkg_code]  # type: ReferencePackage
+        tree_numbers_translation[refpkg_code] = refpkg.tax_ids_file_to_leaves()
+
+    return tree_numbers_translation
 
 
 def replace_contig_names(numeric_contig_index: dict, fasta: FASTA):
@@ -347,13 +363,13 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
             if file_type == "Fasta":
                 seq_dict = read_fasta_to_dict(msa_file)
             elif file_type == "Phylip":
-                seq_dict = read_phylip_to_dict(msa_file)
+                seq_dict = file_parsers.read_phylip_to_dict(msa_file)
             elif file_type == "Stockholm":
-                seq_dict = read_stockholm_to_dict(msa_file)
+                seq_dict = file_parsers.read_stockholm_to_dict(msa_file)
             else:
                 logging.error("File type '" + file_type + "' is not recognized.")
                 sys.exit(3)
-            num_seqs, sequence_length = multiple_alignment_dimensions(seq_dict, msa_file)
+            num_seqs, sequence_length = file_parsers.multiple_alignment_dimensions(seq_dict, msa_file)
             alignment_length_dict[msa_file] = sequence_length
 
             # Warn user if the multiple sequence alignment has grown significantly
@@ -387,7 +403,7 @@ def get_alignment_dims(treesapp_dir: str, marker_build_dict: dict):
             for marker_code in marker_build_dict:
                 if marker_build_dict[marker_code].cog == cog:
                     seq_dict = read_fasta_to_dict(fasta)
-                    alignment_dimensions_dict[marker_code] = (multiple_alignment_dimensions(seq_dict, fasta))
+                    alignment_dimensions_dict[marker_code] = (file_parsers.multiple_alignment_dimensions(seq_dict, fasta))
     return alignment_dimensions_dict
 
 
@@ -572,7 +588,7 @@ def prepare_and_run_hmmalign(execs: dict, hmm_dir: str, alignment_dir: str,
     for refpkg_code in mfa_out_dict:
         for query_mfa_out in mfa_out_dict[refpkg_code]:
             mfa_file = re.sub(r"\.sto$", ".mfa", query_mfa_out)
-            seq_dict = read_stockholm_to_dict(query_mfa_out)
+            seq_dict = file_parsers.read_stockholm_to_dict(query_mfa_out)
             write_new_fasta(seq_dict, mfa_file)
             hmmalign_singlehit_files[refpkg_code].append(mfa_file)
 
@@ -723,8 +739,8 @@ def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dic
         # Create a set of the reference sequence names
         ref_headers = get_headers(aln_dir + os.sep + marker + ".fa")
         unique_refs = set([re.sub('_' + re.escape(marker), '', x)[1:] for x in ref_headers])
-        msa_passed, msa_failed, summary_str = validate_alignment_trimming(trimmed_msa_files[denominator], unique_refs,
-                                                                          True, min_len)
+        msa_passed, msa_failed, summary_str = file_parsers.validate_alignment_trimming(trimmed_msa_files[denominator],
+                                                                                       unique_refs, True, min_len)
 
         # Report the number of sequences that are removed by BMGE
         for trimmed_msa_file in trimmed_msa_files[denominator]:
@@ -754,7 +770,7 @@ def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dic
                               str(len(trimmed_msa_files[denominator])) +
                               "), trimmed MSA files were mapped to their original MSAs.\n")
                 sys.exit(3)
-            untrimmed_msa_passed, _, _ = validate_alignment_trimming(untrimmed_msa_failed, unique_refs,
+            untrimmed_msa_passed, _, _ = file_parsers.validate_alignment_trimming(untrimmed_msa_failed, unique_refs,
                                                                      True, min_len)
             msa_passed.update(untrimmed_msa_passed)
         num_successful_alignments += len(msa_passed)
@@ -796,7 +812,7 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
         for multi_align_file in qc_ma_dict[denominator]:
             file_type = multi_align_file.split('.')[-1]
             multi_align = qc_ma_dict[denominator][multi_align_file]
-            num_seqs, trimmed_seq_length = multiple_alignment_dimensions(multi_align, multi_align_file)
+            num_seqs, trimmed_seq_length = file_parsers.multiple_alignment_dimensions(multi_align, multi_align_file)
 
             original_multi_align = re.sub('-' + tool + '.' + file_type, '.' + of_ext, multi_align_file)
             raw_align_len = alignment_length_dict[original_multi_align]
@@ -1783,7 +1799,8 @@ def filter_placements(tree_saps: dict, refpkg_dict: dict, svm, tree_data_dir: st
                 try:
                     tip_distances = parent_leaf_memoizer[int(tree_sap.inode)]
                 except KeyError:
-                    tip_distances = parent_to_tip_distances(tree.get_common_ancestor(leaf_children), leaf_children)
+                    tip_distances = phylo_dist.parent_to_tip_distances(tree.get_common_ancestor(leaf_children),
+                                                                       leaf_children)
                     parent_leaf_memoizer[int(tree_sap.inode)] = tip_distances
             else:
                 tip_distances = [0.0]
@@ -1897,17 +1914,17 @@ def parse_raxml_output(epa_output_dir: str, marker_build_dict: dict):
     itol_data = dict()  # contains all pqueries, indexed by marker name (e.g. McrA, nosZ, 16srRNA)
     tree_saps = dict()  # contains individual pquery information for each mapped protein (N==1), indexed by denominator
     # Use the jplace files to guide which markers iTOL outputs should be created for
-    for denominator, jplace_list in organize_jplace_files(jplace_files).items():
+    for denominator, jplace_list in jplace_utils.organize_jplace_files(jplace_files).items():
         marker = marker_build_dict[denominator].cog
         if denominator not in tree_saps:
             tree_saps[denominator] = list()
         for filename in jplace_list:
             # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
-            jplace_data = jplace_parser(filename)
+            jplace_data = jplace_utils.jplace_parser(filename)
             edge_dist_index = entish.index_tree_edges(jplace_data.tree)
             internal_node_leaf_map = entish.map_internal_nodes_leaves(jplace_data.tree)
             # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
-            for pquery in demultiplex_pqueries(jplace_data):  # type: TreeProtein
+            for pquery in jplace_utils.demultiplex_pqueries(jplace_data):  # type: TreeProtein
                 # Flesh out the internal-leaf node map
                 pquery.name = marker
                 pquery.node_map = internal_node_leaf_map
@@ -1982,14 +1999,13 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
             else:
                 lca = tree_sap.megan_lca()
                 # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
-                tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
-                tree_sap.wtd, status = weighted_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                tree_sap.lct = lca_calculations.lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
+                tree_sap.wtd, status = lca_calculations.weighted_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
                 if status > 0:
                     tree_sap.summarize()
 
             # Based on the calculated distance from the leaves, what rank is most appropriate?
-            recommended_rank = rank_recommender(tree_sap.avg_evo_dist,
-                                                marker_build_dict[denominator].pfit)
+            recommended_rank = phylo_dist.rank_recommender(tree_sap.avg_evo_dist, marker_build_dict[denominator].pfit)
             if tree_sap.lct.split("; ")[0] != "Root":
                 tree_sap.lct = "Root; " + tree_sap.lct
                 recommended_rank += 1
@@ -2045,14 +2061,14 @@ def produce_itol_inputs(tree_saps, marker_build_dict, itol_data, output_dir: str
 
         bipartition_file = os.sep.join([treesapp_data_dir, "tree_data", marker + "_bipartitions.txt"])
         if os.path.isfile(bipartition_file):
-            marker_placements = add_bipartitions(marker_placements, bipartition_file)
+            marker_placements = jplace_utils.add_bipartitions(marker_placements, bipartition_file)
 
         # Make a master jplace file from the set of placements in all jplace files for each marker
         master_jplace = itol_base_dir + marker + os.sep + marker + "_complete_profile.jplace"
-        marker_placements = filter_jplace_data(marker_placements, marker_treesaps)
+        marker_placements = jplace_utils.filter_jplace_data(marker_placements, marker_treesaps)
         # TODO: validate no distal lengths exceed their corresponding edge lengths
 
-        write_jplace(marker_placements, master_jplace)
+        jplace_utils.write_jplace(marker_placements, master_jplace)
         itol_data[marker].clear_object()
         marker_placements.clear_object()
         # Create a labels file from the tax_ids_marker.txt

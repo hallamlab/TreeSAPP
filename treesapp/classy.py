@@ -8,18 +8,21 @@ import logging
 import time
 from shutil import rmtree, copy
 from copy import deepcopy
-from multiprocessing import Process, JoinableQueue
+from multiprocessing import Process
 from glob import glob
 from json import loads, dumps
 from collections import namedtuple
 from numpy import var
-from treesapp.fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers, load_fasta_header_regexes
-from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle
-from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
-from treesapp.lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
-from treesapp import entrez_utils
-from treesapp.external_command_interface import launch_write_command
-from treesapp.clade_exclusion_evaluator import exclude_clade_from_ref_files
+
+from ete3 import Tree
+
+from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers, load_fasta_header_regexes, read_fasta_to_dict
+from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle, swap_tree_names
+from .entish import create_tree_info_hash, subtrees_to_dictionary, annotate_partition_tree
+from .lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
+from .external_command_interface import launch_write_command
+from . import entrez_utils
+from .wrapper import model_parameters, CommandLineFarmer
 
 import _tree_parser
 
@@ -117,7 +120,7 @@ class ReferencePackage:
         tax_ids_handler.close()
         return tree_leaves
 
-    def gather_package_files(self, pkg_path: str, molecule="prot", layout=None):
+    def gather_package_files(self, pkg_path: str, molecule="prot", layout=None) -> None:
         """
         Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
         files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
@@ -126,7 +129,7 @@ class ReferencePackage:
         :param pkg_path: Path to the reference package
         :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
         :param layout: An optional string indicating what layout to use (flat | hierarchical)
-        :return:
+        :return: None
         """
         if not self.prefix:
             logging.error("ReferencePackage.prefix not set - unable to gather package files.\n")
@@ -179,11 +182,160 @@ class ReferencePackage:
             self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"
         else:
             logging.error("Unable to gather reference package files for " + self.prefix + " from '" + pkg_path + "'\n")
-            sys.exit(17)
+            raise AssertionError()
 
         self.core_ref_files += [self.msa, self.profile, self.tree, self.lineage_ids, self.model_info]
 
         return
+
+    def copy_refpkg_file_to_dest(self, destination_dir, prefix=None) -> None:
+        if prefix:
+            intermediate_prefix = destination_dir + os.sep + prefix
+        else:
+            intermediate_prefix = destination_dir + os.sep + self.prefix
+        copy(self.msa, intermediate_prefix + ".fa")
+        copy(self.profile, intermediate_prefix + ".hmm")
+        copy(self.search_profile, intermediate_prefix + "_search.hmm")
+        copy(self.tree, intermediate_prefix + "_tree.txt")
+        copy(self.model_info, intermediate_prefix + "_bestModel.txt")
+        if os.path.isfile(self.boot_tree):
+            copy(self.boot_tree, intermediate_prefix + "_bipartitions.txt")
+            os.remove(self.boot_tree)
+        copy(self.lineage_ids, intermediate_prefix + "_tax_ids.txt")
+        return
+
+    def remove_taxon_from_lineage_ids(self, target_taxon) -> list:
+        """
+        Removes all sequences/leaves from the reference package that match the target taxon. Leaves with that have a
+        taxonomic resolution lower than the target are also removed as their taxonomic provenance is uncertain.
+
+        :param target_taxon: A '; '-separated taxonomic lineage for which all matches and descendents are removed
+        :return: A list of LeafNode objects that don't match the target_taxon and have sufficient lineage depth
+        """
+        off_target_ref_leaves = list()
+        target_taxon = clean_lineage_string(target_taxon, ["Root; "])
+        depth = len(target_taxon.split("; "))
+        n_match = 0
+        n_shallow = 0
+        n_unclassified = 0
+        for ref_leaf in self.tax_ids_file_to_leaves():
+            c_lineage = clean_lineage_string(ref_leaf.lineage, ["Root; "])
+            sc_lineage = c_lineage.split("; ")
+            if len(sc_lineage) < depth:
+                n_shallow += 1
+                continue
+            if target_taxon == '; '.join(sc_lineage[:depth + 1]):
+                n_match += 1
+                continue
+            if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
+                i = 0
+                while i <= depth:
+                    if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
+                        i -= 1
+                        break
+                    i += 1
+                if i < depth:
+                    n_unclassified += 1
+                    continue
+            off_target_ref_leaves.append(ref_leaf)
+
+        logging.debug("Reference sequence filtering stats for " + target_taxon + "\n" +
+                      "\n".join(["Match taxon\t" + str(n_match),
+                                 "Unclassified\t" + str(n_unclassified),
+                                 "Too shallow\t" + str(n_shallow),
+                                 "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
+        return off_target_ref_leaves
+
+    def clean_up_raxmlng_outputs(self, phylogeny_dir: str, fasta_replace_dict: dict) -> None:
+        output_prefix = phylogeny_dir + self.prefix
+        # Gather the best tree file
+        try:
+            raw_newick_tree = glob(output_prefix + ".*.bestTree")[0]
+        except IndexError:
+            logging.error("Unable to find " + output_prefix + ".*.bestTree generated by either FastTree or RAxML-NG.\n")
+            sys.exit(17)
+        # Gather the best model file
+        try:
+            model_info = glob(output_prefix + ".*.bestModel")[0]
+        except IndexError:
+            logging.error("Unable to find " + output_prefix + ".*.bestModel generated RAxML-NG.\n")
+            sys.exit(17)
+
+        copy(model_info, self.model_info)
+        swap_tree_names(raw_newick_tree, self.tree)
+        bootstrap_tree = output_prefix + ".raxml.support"
+        if os.path.isfile(bootstrap_tree):
+            annotate_partition_tree(self.prefix, fasta_replace_dict, bootstrap_tree)
+            swap_tree_names(bootstrap_tree, self.boot_tree)
+
+        intermediates = [raw_newick_tree, model_info,
+                         output_prefix + ".raxml.log",
+                         output_prefix + ".raxml.rba",
+                         output_prefix + ".raxml.reduced.phy",
+                         output_prefix + ".raxml.startTree"]
+        for f in intermediates:
+            try:
+                os.remove(f)
+            except OSError:
+                logging.debug("Unable to remove %s as it doesn't exist.\n" % f)
+
+        return
+
+    def exclude_clade_from_ref_files(self, treesapp_refpkg_dir: str, molecule: str,
+                                     original_storage_dir: str, target_clade: str, executables: dict,
+                                     fresh=False) -> str:
+        intermediate_prefix = original_storage_dir + os.sep + "ORIGINAL"
+        self.copy_refpkg_file_to_dest(original_storage_dir, "ORIGINAL")
+
+        # tax_ids
+        off_target_ref_leaves = self.remove_taxon_from_lineage_ids(target_clade)
+        with open(self.lineage_ids, 'w') as tax_ids_handle:
+            tax_ids_string = ""
+            for ref_leaf in off_target_ref_leaves:
+                tax_ids_string += "\t".join([ref_leaf.number, ref_leaf.description, ref_leaf.lineage]) + "\n"
+            tax_ids_handle.write(tax_ids_string)
+
+        # fasta
+        ref_fasta_dict = read_fasta_to_dict(self.msa)
+        off_target_ref_headers = [ref_leaf.number + '_' + self.prefix for ref_leaf in off_target_ref_leaves]
+        if len(off_target_ref_headers) == 0:
+            logging.error("No reference sequences were retained for building testing " + target_clade + "\n")
+            sys.exit(19)
+        split_files = write_new_fasta(ref_fasta_dict, self.msa, headers=off_target_ref_headers)
+        if len(split_files) > 1:
+            logging.error("Only one FASTA file should have been written.\n")
+            sys.exit(21)
+        else:
+            copy(split_files[0], self.msa)
+
+        # HMM profile
+        hmm_build_command = [executables["hmmbuild"], self.profile, self.msa]
+        launch_write_command(hmm_build_command)
+
+        # Trees
+        if fresh:
+            tree_build_cmd = [executables["FastTree"]]
+            if molecule == "rrna" or molecule == "dna":
+                tree_build_cmd += ["-nt", "-gtr"]
+            else:
+                tree_build_cmd += ["-lg", "-wag"]
+            tree_build_cmd += ["-out", self.tree]
+            tree_build_cmd.append(self.msa)
+            logging.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
+            stdout, returncode = launch_write_command(tree_build_cmd, True)
+            with open(original_storage_dir + os.sep + "FastTree_info." + self.prefix, 'w') as fast_info:
+                fast_info.write(stdout + "\n")
+            logging.info("done.\n")
+        else:
+            ref_tree = Tree(self.tree)
+            ref_tree.prune(off_target_ref_headers)
+            logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
+            ref_tree.write(outfile=self.tree, format=5)
+        # Model parameters
+        model_parameters(executables["raxml-ng"], self.msa, self.tree,
+                         treesapp_refpkg_dir + os.sep + "tree_data" + os.sep + self.prefix, self.sub_model)
+        self.clean_up_raxmlng_outputs(treesapp_refpkg_dir + os.sep + "tree_data" + os.sep, {})
+        return intermediate_prefix
 
 
 class MarkerBuild:
@@ -711,72 +863,6 @@ class TreeLeafReference:
             self.num_reference_seqs = 0
             self.description = description
             self.analysis_type = ""
-
-
-class CommandLineWorker(Process):
-    def __init__(self, task_queue, commander):
-        Process.__init__(self)
-        self.task_queue = task_queue
-        self.master = commander
-
-    def run(self):
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                self.task_queue.task_done()
-                break
-            logging.debug("STAGE: " + self.master + "\n" +
-                          "\tCOMMAND:\n" + " ".join(next_task) + "\n")
-            launch_write_command(next_task)
-            self.task_queue.task_done()
-        return
-
-
-class CommandLineFarmer:
-    """
-    A worker that will launch command-line jobs using multiple processes in its queue
-    """
-
-    def __init__(self, command, num_threads):
-        """
-        Instantiate a CommandLineFarmer object to oversee multiprocessing of command-line jobs
-        :param command:
-        :param num_threads:
-        """
-        self.max_size = 32767  # The actual size limit of a JoinableQueue
-        self.task_queue = JoinableQueue(self.max_size)
-        self.num_threads = int(num_threads)
-
-        process_queues = [CommandLineWorker(self.task_queue, command) for i in range(int(self.num_threads))]
-        for process in process_queues:
-            process.start()
-
-    def add_tasks_to_queue(self, task_list):
-        """
-        Function for adding commands from task_list to task_queue while ensuring space in the JoinableQueue
-        :param task_list: List of commands
-        :return: Nothing
-        """
-        num_tasks = len(task_list)
-
-        task = task_list.pop()
-        while task:
-            if not self.task_queue.full():
-                self.task_queue.put(task)
-                if num_tasks > 1:
-                    task = task_list.pop()
-                    num_tasks -= 1
-                else:
-                    task = None
-
-        i = self.num_threads
-        while i:
-            if not self.task_queue.full():
-                self.task_queue.put(None)
-                i -= 1
-
-        return
 
 
 class NodeRetrieverWorker(Process):
@@ -1954,7 +2040,7 @@ class Evaluator(TreeSAPP):
         output_handler.close()
         return
 
-    def prep_for_clade_exclusion(self, refpkg: ReferencePackage, lineage, lineage_seqs, rank, depth,
+    def prep_for_clade_exclusion(self, refpkg: ReferencePackage, lineage, lineage_seqs, rank,
                                  trim_align=False, min_seq_len=0, num_threads=2) -> (list, TaxonTest):
         """
 
@@ -1962,7 +2048,6 @@ class Evaluator(TreeSAPP):
         :param lineage:
         :param lineage_seqs:
         :param rank:
-        :param depth:
         :param trim_align:
         :param min_seq_len:
         :param num_threads:
@@ -1988,10 +2073,9 @@ class Evaluator(TreeSAPP):
         test_obj.classification_table = classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
 
         # Copy reference files, then exclude all clades belonging to the taxon being tested
-
-        test_obj.temp_files_prefix = exclude_clade_from_ref_files(self.refpkg_dir, refpkg, self.molecule_type,
-                                                                  self.var_output_dir + refpkg.prefix + os.sep,
-                                                                  lineage, depth, self.executables)
+        test_obj.temp_files_prefix = refpkg.exclude_clade_from_ref_files(self.refpkg_dir, self.molecule_type,
+                                                                         self.var_output_dir + refpkg.prefix + os.sep,
+                                                                         lineage, self.executables)
         # Write the query sequences
         write_new_fasta(lineage_seqs, test_rep_taxa_fasta)
         assign_args = ["-i", test_rep_taxa_fasta, "-o", classifier_output,

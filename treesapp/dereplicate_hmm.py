@@ -3,26 +3,25 @@
 import logging
 import os
 import argparse
-import re
-import sys
 
-from treesapp import fasta
-from treesapp.file_parsers import tax_ids_file_to_leaves
-from treesapp.wrapper import build_hmm_profile, run_mafft
-from treesapp.phylo_dist import trim_lineages_to_rank
+from . import fasta
+from .classy import ReferencePackage
+from .wrapper import build_hmm_profile, run_mafft
+from .phylo_dist import trim_lineages_to_rank
+from .utilities import base_file_prefix
 
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input_fa",
+    parser.add_argument("-p", "--refpkg",
                         required=True,
-                        help="Multiple alignment FASTA file.")
+                        help="Name of the reference package")
     parser.add_argument("-o", "--output_hmm",
                         required=True,
                         help="HMM file to build")
-    parser.add_argument("-t", "--tax_ids",
+    parser.add_argument("-d", "--refpkg_dir",
                         required=True,
-                        help="The tax_ids file created by treesapp create")
+                        help="The directory containing the reference package files")
     parser.add_argument("-r", "--rank")
     parser.add_argument("--he")
     parser.add_argument("--me")
@@ -33,14 +32,14 @@ def get_arguments():
     return parser.parse_args()
 
 
-def make_dereplicated_hmm(aln_file: str, taxonomic_ids: str, dereplication_rank: str,
+def make_dereplicated_hmm(refpkg_name: str, package_path: str, dereplication_rank: str,
                           hmmbuild: str, mafft: str, hmm_file: str, n_threads=2, intermediates_dir=None) -> None:
     """
     Function to create a taxonomically-dereplicated hidden Markov model (HMM) profile. This reduces the bias from
     potentially over-represented clades, increasing the weight of their conserved positions.
 
-    :param aln_file: Path to a reference multiple sequence alignment file made by *treesapp create* as part of a refpkg
-    :param taxonomic_ids: Path to a tax_ids file created by *treesapp create* as part of a refpkg
+    :param refpkg_name: Short-form gene/protein name of the reference package (e.g. McrA, DsrAB)
+    :param package_path: Path to directory containing reference package files
     :param dereplication_rank: The taxonomic rank to dereplicate the reference sequences at
     :param hmmbuild: Path to an hmmbuild executable
     :param mafft: Path to a MAFFT executable
@@ -52,37 +51,28 @@ def make_dereplicated_hmm(aln_file: str, taxonomic_ids: str, dereplication_rank:
 
     logging.info("Creating taxonomically-dereplicated HMM... ")
 
-    aln_pattern_match = re.match(r"(\w+).fa", os.path.basename(aln_file))
-    tax_ids_pattern_match = re.match(r"^tax_ids_(\w+).txt", os.path.basename(taxonomic_ids))
-
-    if aln_pattern_match.group(1) == tax_ids_pattern_match.group(1):
-        refpkg_name = aln_pattern_match.group(1)
-    elif not aln_pattern_match:
-        logging.error("File name format is unexpected for '%s'.\n" % os.path.basename(aln_file))
-        sys.exit(3)
-    elif not tax_ids_pattern_match:
-        logging.error("File name format is unexpected for '%s'.\n" % os.path.basename(taxonomic_ids))
-        sys.exit(3)
-    else:
-        logging.error("File names suggest '%s' and '%s' represent different reference packages.\n" %
-                      (os.path.basename(aln_file), os.path.basename(taxonomic_ids)))
-        sys.exit()
+    refpkg = ReferencePackage(refpkg_name)
+    try:
+        # This is the most frequent case, where make_dereplicated_hmm is called in treesapp create
+        refpkg.gather_package_files(package_path, layout="flat")
+    except AssertionError:
+        refpkg.gather_package_files(package_path)
 
     if not intermediates_dir:
-        intermediates_dir = os.path.dirname(aln_file)
+        intermediates_dir = os.path.dirname(refpkg.msa)
     if intermediates_dir[-1] != os.sep:
         intermediates_dir += os.sep
-    derep_fa = intermediates_dir + '.'.join(os.path.basename(aln_file).split('.')[:-1]) + "_derep.fa"
-    derep_aln = intermediates_dir + '.'.join(os.path.basename(aln_file).split('.')[:-1]) + "_derep.mfa"
+    derep_fa = intermediates_dir + base_file_prefix(refpkg.msa) + "_derep.fa"
+    derep_aln = intermediates_dir + base_file_prefix(refpkg.msa) + "_derep.mfa"
     intermediates = [derep_aln, derep_fa]
 
     lineage_reps = []
     t = {}
 
-    mfa = fasta.FASTA(aln_file)
+    mfa = fasta.FASTA(refpkg.msa)
     mfa.load_fasta()
 
-    leaf_nodes = tax_ids_file_to_leaves(taxonomic_ids)
+    leaf_nodes = refpkg.tax_ids_file_to_leaves()
     # Trim the taxonomic lineages to the dereplication level
     leaf_taxa_map = {leaf.number + "_" + refpkg_name: leaf.lineage for leaf in leaf_nodes}
     trimmed_lineages = trim_lineages_to_rank(leaf_taxa_map, dereplication_rank)
@@ -130,5 +120,5 @@ def make_dereplicated_hmm(aln_file: str, taxonomic_ids: str, dereplication_rank:
 
 if __name__ == "__main__":
     args = get_arguments()
-    make_dereplicated_hmm(args.input_fa, args.tax_ids, args.rank, args.he, args.me, args.output_hmm,
+    make_dereplicated_hmm(args.refpkg, args.refpkg_dir, args.rank, args.he, args.me, args.output_hmm,
                           args.num_threads, args.tmp_dir)

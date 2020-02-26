@@ -6,10 +6,11 @@ import re
 import logging
 import json
 from collections import namedtuple
-from treesapp.classy import TreeLeafReference, MarkerBuild, Cluster, ReferencePackage
-import treesapp.HMMER_domainTblParser
-from treesapp.fasta import read_fasta_to_dict
-from treesapp.utilities import get_hmm_length
+
+from .classy import MarkerBuild, Cluster, ReferencePackage
+from .fasta import read_fasta_to_dict
+from .utilities import get_hmm_length
+from . import HMMER_domainTblParser
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -267,7 +268,7 @@ def best_discrete_matches(matches: list) -> list:
         while j < len(len_sorted_matches):
             b_match = len_sorted_matches[j]  # type HmmMatch
             if a_match.target_hmm != b_match.target_hmm:
-                if treesapp.HMMER_domainTblParser.detect_orientation(a_match.start, a_match.end,
+                if HMMER_domainTblParser.detect_orientation(a_match.start, a_match.end,
                                                                      b_match.start, b_match.end) != "satellite":
                     if a_match.full_score > b_match.full_score:
                         dropped_annotations.append(len_sorted_matches.pop(j))
@@ -301,11 +302,11 @@ def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
     :return: Dictionary of HmmMatch objects indexed by their reference package and/or HMM name
     """
     # Check if the HMM filtering thresholds have been set
-    thresholds = treesapp.HMMER_domainTblParser.prep_args_for_parsing(args)
+    thresholds = HMMER_domainTblParser.prep_args_for_parsing(args)
 
     logging.info("Parsing HMMER domain tables for high-quality matches... ")
 
-    search_stats = treesapp.HMMER_domainTblParser.HmmSearchStats()
+    search_stats = HMMER_domainTblParser.HmmSearchStats()
     hmm_matches = dict()
     orf_gene_map = dict()
     optional_matches = list()
@@ -313,12 +314,12 @@ def parse_domain_tables(args, hmm_domtbl_files: list) -> dict:
     # TODO: Capture multimatches across multiple domain table files
     for domtbl_file in hmm_domtbl_files:
         prefix, reference = re.sub("_domtbl.txt", '', os.path.basename(domtbl_file)).split("_to_")
-        domain_table = treesapp.HMMER_domainTblParser.DomainTableParser(domtbl_file)
+        domain_table = HMMER_domainTblParser.DomainTableParser(domtbl_file)
         domain_table.read_domtbl_lines()
-        distinct_hits = treesapp.HMMER_domainTblParser.format_split_alignments(domain_table, search_stats)
-        purified_hits = treesapp.HMMER_domainTblParser.filter_poor_hits(thresholds, distinct_hits, search_stats)
-        complete_hits = treesapp.HMMER_domainTblParser.filter_incomplete_hits(thresholds, purified_hits, search_stats)
-        treesapp.HMMER_domainTblParser.renumber_multi_matches(complete_hits)
+        distinct_hits = HMMER_domainTblParser.format_split_alignments(domain_table, search_stats)
+        purified_hits = HMMER_domainTblParser.filter_poor_hits(thresholds, distinct_hits, search_stats)
+        complete_hits = HMMER_domainTblParser.filter_incomplete_hits(thresholds, purified_hits, search_stats)
+        HMMER_domainTblParser.renumber_multi_matches(complete_hits)
 
         for match in complete_hits:
             match.genome = reference
@@ -478,84 +479,10 @@ def read_colours_file(annotation_file: str, refpkg_name: str) -> (dict, bool):
     return clusters, internal_nodes
 
 
-def tax_ids_file_to_leaves(tax_ids_file: str) -> list:
-    """
-    Reads tax_ids files and converts them to a list of TreeLeafReference instances.
-    These instances should have their 'accession', 'lineage', 'number' and 'description' values filled.
-    If some leaves are missing lineage information this is caught and an error is issued.
-
-    :param tax_ids_file: Path to the tax_ids file, a component of a reference package
-    :return: List of TreeLeafReference instances parsed from tax_ids file
-    """
-    # TODO: Replace all instances of this function call with that from the class ReferencePackage
-    tree_leaves = list()
-    unknown = 0
-    try:
-        tax_ids_handler = open(tax_ids_file, 'r', encoding='utf-8')
-    except IOError:
-        logging.error("Unable to open " + tax_ids_file + "\n")
-        sys.exit(5)
-
-    for line in tax_ids_handler:
-        line = line.strip()
-        try:
-            fields = line.split("\t")
-        except ValueError:
-            logging.error('ValueError: .split(\'\\t\') on ' + str(line) +
-                          " generated " + str(len(line.split("\t"))) + " fields.\n")
-            sys.exit(5)
-        if len(fields) == 3:
-            number, seq_name, lineage = fields
-        else:
-            logging.error("ValueError: Unexpected number of fields in " + tax_ids_file +
-                          ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
-            raise ValueError
-        leaf = TreeLeafReference(number, seq_name)
-        try:
-            leaf.accession = seq_name.split(" | ")[1]
-        except IndexError:
-            pass
-        if lineage:
-            leaf.lineage = lineage
-            leaf.complete = True
-        else:
-            unknown += 1
-        tree_leaves.append(leaf)
-
-    if len(tree_leaves) == unknown:
-        logging.error("Lineage information was not properly loaded for " + tax_ids_file + "\n")
-        sys.exit(5)
-
-    tax_ids_handler.close()
-    return tree_leaves
-
-
-def read_species_translation_files(treesapp_dir, marker_build_dict):
-    """
-    :param treesapp_dir: Path to the TreeSAPP python package containing the 'data' directory with Reference Packages
-    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
-    :return: The taxonomic identifiers for each of the organisms in a tree for all trees
-    """
-
-    tree_numbers_translation = dict()
-    translation_files = dict()
-    tree_resources_dir = os.sep.join([treesapp_dir, "data", "tree_data"]) + os.sep
-
-    for denominator in sorted(marker_build_dict.keys()):
-        marker_build_obj = marker_build_dict[denominator]
-        filename = 'tax_ids_' + str(marker_build_obj.cog) + '.txt'
-        translation_files[denominator] = tree_resources_dir + filename
-
-    for denominator in sorted(translation_files.keys()):
-        filename = translation_files[denominator]
-        tree_numbers_translation[denominator] = tax_ids_file_to_leaves(filename)
-
-    return tree_numbers_translation
-
-
 def xml_parser(xml_record, term):
     """
     Recursive function for parsing individual xml records
+
     :param xml_record:
     :param term:
     :return:

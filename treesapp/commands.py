@@ -20,20 +20,20 @@ from . import lca_calculations
 from . import placement_trainer
 from . import update_refpkg
 from . import annotate_extra
-from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
-    prep_logging, dedup_records, TaxonTest, Purity, ReferencePackage
+from .classy import TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
+    TreeProtein, MarkerBuild, prep_logging, dedup_records, TaxonTest, Purity, ReferencePackage
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
-    summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names
+    summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names, read_refpkg_tax_ids
 from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
-    validate_ref_package_files, restore_reference_package, exclude_clade_from_ref_files, determine_containment,\
+    validate_ref_package_files, restore_reference_package, determine_containment,\
     parse_distances, remove_clade_exclusion_files, load_rank_depth_map, get_testable_lineages_for_rank
-from treesapp.dereplicate_hmm import make_dereplicated_hmm
+from .dereplicate_hmm import make_dereplicated_hmm
 
 
 def info(sys_args):
@@ -269,7 +269,7 @@ def create(sys_args):
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
     fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
-    create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
+    entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
@@ -410,7 +410,7 @@ def create(sys_args):
             wrapper.build_hmm_profile(ts_create.executables["hmmbuild"],
                                       ts_create.ref_pkg.msa,
                                       ts_create.ref_pkg.profile)
-        make_dereplicated_hmm(aln_file=ts_create.ref_pkg.msa, taxonomic_ids=ts_create.ref_pkg.lineage_ids,
+        make_dereplicated_hmm(refpkg_name=ts_create.ref_pkg.prefix, package_path=ts_create.final_output_dir,
                               dereplication_rank="Genus", hmm_file=ts_create.ref_pkg.search_profile,
                               hmmbuild=ts_create.executables["hmmbuild"], mafft=ts_create.executables["mafft"],
                               n_threads=args.num_threads, intermediates_dir=ts_create.var_output_dir)
@@ -544,7 +544,7 @@ def update(sys_args):
     ts_updater.validate_continue(args)
     ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
     ts_updater.ref_pkg.validate()
-    ref_seq_lineage_info = file_parsers.tax_ids_file_to_leaves(ts_updater.ref_pkg.lineage_ids)
+    ref_seq_lineage_info = ts_updater.ref_pkg.tax_ids_file_to_leaves()
 
     ##
     # Pull out sequences from TreeSAPP output
@@ -604,7 +604,7 @@ def update(sys_args):
         querying_classified_fasta.synchronize_seqs_n_headers()
         querying_classified_fasta.swap_headers(name_map)
         fasta_records = ts_updater.fetch_entrez_lineages(querying_classified_fasta, args.molecule)
-        create_refpkg.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
+        entrez_utils.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
         deduped = []
         for treesapp_id in sorted(querying_classified_fasta.header_registry.keys(), key=int):
             try:
@@ -784,6 +784,9 @@ def layer(sys_args):
     marker_build_dict = file_parsers.parse_ref_build_params(ts_layer.treesapp_dir, [])
     master_dat, field_order = annotate_extra.parse_marker_classification_table(ts_layer.final_output_dir +
                                                                                "marker_contig_map.tsv")
+    refpkg_dict = file_parsers.gather_ref_packages(ts_layer.treesapp_dir, marker_build_dict)
+    tree_numbers_translation = read_refpkg_tax_ids(refpkg_dict)
+
     # structure of master dat:
     # {"Sequence_1": {"Field1": x, "Field2": y, "Extra": n},
     #  "Sequence_2": {"Field1": i, "Field2": j, "Extra": n}}
@@ -837,8 +840,7 @@ def layer(sys_args):
                 # Create the dictionary mapping an internal node to all leaves
                 internal_node_map = entish.map_internal_nodes_leaves(jplace_parser(jplace).tree)
                 # Routine for exchanging any organism designations for their respective node number
-                tax_ids_file = ts_layer.tree_dir + "tax_ids_" + marker + ".txt"
-                taxa_map = file_parsers.tax_ids_file_to_leaves(tax_ids_file)
+                taxa_map = tree_numbers_translation[refpkg_code]
 
                 if internal_nodes[data_type][marker]:
                     clusters = annotate_extra.names_for_nodes(marker_subgroups[data_type][marker],
@@ -891,7 +893,7 @@ def assign(sys_args):
                                                             ts_assign.target_refpkgs)
     refpkg_dict = file_parsers.gather_ref_packages(ts_assign.treesapp_dir, marker_build_dict)
     ref_alignment_dimensions = get_alignment_dims(ts_assign.treesapp_dir, marker_build_dict)
-    tree_numbers_translation = file_parsers.read_species_translation_files(ts_assign.treesapp_dir, marker_build_dict)
+    tree_numbers_translation = read_refpkg_tax_ids(refpkg_dict)
     if args.check_trees:
         validate_inputs(args, marker_build_dict)
 
@@ -1138,7 +1140,7 @@ def evaluate(sys_args):
     refpkg.gather_package_files(ts_evaluate.refpkg_dir)
     refpkg.sub_model = wrapper.select_model(ts_evaluate.molecule_type)
 
-    ref_leaves = file_parsers.tax_ids_file_to_leaves(refpkg.lineage_ids)
+    ref_leaves = refpkg.tax_ids_file_to_leaves()
     ref_lineages = {leaf.number: leaf.lineage for leaf in ref_leaves}
 
     # Load FASTA data
@@ -1155,7 +1157,7 @@ def evaluate(sys_args):
     ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
-    create_refpkg.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
+    entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
 
     fasta_records = utilities.remove_elongated_lineages(fasta_records)
 
@@ -1220,10 +1222,9 @@ def evaluate(sys_args):
                         gpkg_tax_ids_file = gpkg_refpkg_path + refpkg_name + "_taxonomy.csv"
 
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
-                        prep_graftm_ref_files(treesapp_dir=ts_evaluate.treesapp_dir,
-                                              intermediate_dir=intermediates_path,
+                        prep_graftm_ref_files(intermediate_dir=intermediates_path,
                                               target_taxon=lineage,
-                                              marker=ts_evaluate.target_marker,
+                                              refpkg=refpkg,
                                               depth=depth)
 
                         if not os.path.isdir(gpkg_path):
@@ -1258,10 +1259,10 @@ def evaluate(sys_args):
                     if not os.path.isfile(classification_table) or not os.path.isfile(tax_ids_file):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
 
-                        prefix = exclude_clade_from_ref_files(ts_evaluate.refpkg_dir, refpkg, args.molecule,
-                                                              ts_evaluate.var_output_dir + refpkg_name + os.sep,
-                                                              lineage, depth,
-                                                              ts_evaluate.executables, args.fresh)
+                        prefix = refpkg.exclude_clade_from_ref_files(ts_evaluate.refpkg_dir, args.molecule,
+                                                                     ts_evaluate.var_output_dir + refpkg_name + os.sep,
+                                                                     lineage,
+                                                                     ts_evaluate.executables, args.fresh)
                         # Write the query sequences
                         fasta.write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
                         assign_args = ["-i", test_rep_taxa_fasta, "-o", classifier_output,

@@ -4,18 +4,16 @@ __author__ = 'Connor Morgan-Lang'
 
 import os
 import shutil
-from ete3 import Tree
+import logging
+import sys
+import re
 from glob import glob
 
-from treesapp.fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes
-from treesapp.utilities import return_sequence_info_groups
-from treesapp.external_command_interface import launch_write_command
-from treesapp.file_parsers import tax_ids_file_to_leaves
-from treesapp.classy import get_header_format, Evaluator, MarkerBuild, ReferencePackage
-from treesapp.create_refpkg import clean_up_raxmlng_outputs
-from treesapp.entrez_utils import *
-from treesapp.wrapper import model_parameters
-from treesapp.phylo_dist import trim_lineages_to_rank
+from .fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes
+from .utilities import return_sequence_info_groups, clean_lineage_string
+from .external_command_interface import launch_write_command
+from .classy import get_header_format, Evaluator, ReferencePackage
+from .phylo_dist import trim_lineages_to_rank
 
 _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
                    2: "Phylum", 3: "Class", 4: "Order",
@@ -561,26 +559,23 @@ def filter_queries_by_taxonomy(taxonomic_lineages):
     return normalized_lineages, unclassifieds, classified, unique_query_taxonomies
 
 
-def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon: str, marker: MarkerBuild, depth: int):
+def prep_graftm_ref_files(intermediate_dir: str, target_taxon: str, refpkg: ReferencePackage, depth: int):
     """
     From the original TreeSAPP reference package files, the necessary GraftM create input files are generated
     with all reference sequences related to the target_taxon removed from the multiple sequence alignment,
     unaligned reference FASTA file and the tax_ids file.
 
-    :param treesapp_dir: Path to the TreeSAPP reference package directory
     :param intermediate_dir:  Path to write the intermediate files with target references removed
     :param target_taxon: Name of the taxon that is being tested in the current clade exclusion iteration
-    :param marker: MarkerBuild instance for the reference package being tested
+    :param refpkg: A ReferencePackage instance for the reference package being tested
     :param depth: Depth of the current taxonomic rank in hierarchy (e.g. Phylum = 2, Class = 3, etc.)
     :return: None
     """
     # Move the original FASTA, tree and tax_ids files to a temporary location
-    marker_fa = os.sep.join([treesapp_dir, "data", "alignment_data", marker.cog + ".fa"])
-    marker_tax_ids = os.sep.join([treesapp_dir, "data", "tree_data", "tax_ids_" + marker.cog + ".txt"])
     off_target_ref_leaves = dict()
     # tax_ids file
-    ref_tree_leaves = tax_ids_file_to_leaves(marker_tax_ids)
-    with open(intermediate_dir + "tax_ids_" + marker.cog + ".txt", 'w') as tax_ids_handle:
+    ref_tree_leaves = refpkg.tax_ids_file_to_leaves()
+    with open(intermediate_dir + "tax_ids_" + refpkg.prefix + ".txt", 'w') as tax_ids_handle:
         tax_ids_strings = list()
         for ref_leaf in ref_tree_leaves:
             c_lineage = clean_lineage_string(ref_leaf.lineage)
@@ -604,7 +599,7 @@ def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon
         tax_ids_handle.write("\n".join(tax_ids_strings) + "\n")
 
     # fasta
-    ref_fasta_dict = read_fasta_to_dict(marker_fa)
+    ref_fasta_dict = read_fasta_to_dict(refpkg.msa)
     accession_fasta_dict = dict()
     for key_id in ref_fasta_dict:
         num_key = key_id.split('_')[0]
@@ -612,108 +607,11 @@ def prep_graftm_ref_files(treesapp_dir: str, intermediate_dir: str, target_taxon
             accession_fasta_dict[off_target_ref_leaves[num_key]] = ref_fasta_dict[key_id]
         else:
             pass
-    write_new_fasta(accession_fasta_dict, intermediate_dir + marker.cog + ".mfa")
+    write_new_fasta(accession_fasta_dict, intermediate_dir + refpkg.prefix + ".mfa")
     for acc in accession_fasta_dict:
         accession_fasta_dict[acc] = re.sub('-', '', accession_fasta_dict[acc])
-    write_new_fasta(accession_fasta_dict, intermediate_dir + marker.cog + ".fa")
+    write_new_fasta(accession_fasta_dict, intermediate_dir + refpkg.prefix + ".fa")
     return
-
-
-def exclude_clade_from_ref_files(treesapp_refpkg_dir: str, refpkg: ReferencePackage, molecule: str,
-                                 intermediate_dir: str, target_clade: str, depth: int, executables: dict,
-                                 fresh=False) -> str:
-    intermediate_prefix = intermediate_dir + "ORIGINAL"
-    shutil.copy(refpkg.msa, intermediate_prefix + ".fa")
-    shutil.copy(refpkg.profile, intermediate_prefix + ".hmm")
-    shutil.copy(refpkg.tree, intermediate_prefix + "_tree.txt")
-    shutil.copy(refpkg.model_info, intermediate_prefix + "_bestModel.txt")
-    os.remove(refpkg.model_info)
-    if os.path.isfile(refpkg.boot_tree):
-        shutil.copy(refpkg.boot_tree, intermediate_prefix + "_bipartitions.txt")
-        os.remove(refpkg.boot_tree)
-    shutil.copy(refpkg.lineage_ids, intermediate_prefix + "_tax_ids.txt")
-
-    off_target_ref_leaves = list()
-    n_match = 0
-    n_shallow = 0
-    n_unclassified = 0
-    # tax_ids file
-    ref_tree_leaves = tax_ids_file_to_leaves(refpkg.lineage_ids)
-    target_clade = clean_lineage_string(target_clade, ["Root; "])
-    with open(refpkg.lineage_ids, 'w') as tax_ids_handle:
-        for ref_leaf in ref_tree_leaves:
-            tax_ids_string = ""
-            c_lineage = clean_lineage_string(ref_leaf.lineage, ["Root; "])
-            sc_lineage = c_lineage.split("; ")
-            if len(sc_lineage) < depth:
-                n_shallow += 1
-                continue
-            if target_clade == '; '.join(sc_lineage[:depth+1]):
-                n_match += 1
-                continue
-            if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
-                i = 0
-                while i <= depth:
-                    if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
-                        i -= 1
-                        break
-                    i += 1
-                if i < depth:
-                    n_unclassified += 1
-                    continue
-            off_target_ref_leaves.append(ref_leaf.number)
-            tax_ids_string += "\t".join([ref_leaf.number, ref_leaf.description, ref_leaf.lineage])
-            tax_ids_handle.write(tax_ids_string + "\n")
-
-    logging.debug("Reference sequence filtering stats for " + target_clade + "\n" +
-                  "\n".join(["Match taxon\t" + str(n_match),
-                             "Unclassified\t" + str(n_unclassified),
-                             "Too shallow\t" + str(n_shallow),
-                             "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
-
-    # fasta
-    ref_fasta_dict = read_fasta_to_dict(refpkg.msa)
-    off_target_ref_headers = [num_id + '_' + refpkg.prefix for num_id in off_target_ref_leaves]
-    if len(off_target_ref_headers) == 0:
-        logging.error("No reference sequences were retained for building testing " + target_clade + "\n")
-        sys.exit(19)
-    split_files = write_new_fasta(ref_fasta_dict, refpkg.msa, len(off_target_ref_leaves)+1, off_target_ref_headers)
-    if len(split_files) > 1:
-        logging.error("Only one FASTA file should have been written.\n")
-        sys.exit(21)
-    else:
-        shutil.copy(split_files[0], refpkg.msa)
-
-    # HMM profile
-    hmm_build_command = [executables["hmmbuild"],
-                         refpkg.profile,
-                         refpkg.msa]
-    launch_write_command(hmm_build_command)
-
-    # Trees
-    if fresh:
-        tree_build_cmd = [executables["FastTree"]]
-        if molecule == "rrna" or molecule == "dna":
-            tree_build_cmd += ["-nt", "-gtr"]
-        else:
-            tree_build_cmd += ["-lg", "-wag"]
-        tree_build_cmd += ["-out", refpkg.tree]
-        tree_build_cmd.append(refpkg.msa)
-        logging.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
-        stdout, returncode = launch_write_command(tree_build_cmd, True)
-        with open(intermediate_dir + os.sep + "FastTree_info." + refpkg.prefix, 'w') as fast_info:
-            fast_info.write(stdout + "\n")
-        logging.info("done.\n")
-    else:
-        ref_tree = Tree(refpkg.tree)
-        ref_tree.prune(off_target_ref_headers)
-        logging.debug("\t" + str(len(ref_tree.get_leaves())) + " leaves in pruned tree.\n")
-        ref_tree.write(outfile=refpkg.tree, format=5)
-    # Model parameters
-    model_parameters(executables["raxml-ng"], refpkg.msa, refpkg.tree,
-                     treesapp_refpkg_dir + os.sep + "tree_data" + os.sep + refpkg.prefix, refpkg.sub_model)
-    clean_up_raxmlng_outputs(treesapp_refpkg_dir + os.sep + "tree_data" + os.sep, refpkg, {})
-    return intermediate_prefix
 
 
 def validate_ref_package_files(refpkg: ReferencePackage, intermediate_dir):

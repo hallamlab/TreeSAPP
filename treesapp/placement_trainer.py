@@ -9,15 +9,15 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from treesapp.fasta import read_fasta_to_dict, write_new_fasta, FASTA, split_combined_ref_query_fasta
-from treesapp import file_parsers
-from treesapp import utilities
-from treesapp import wrapper
-from treesapp.phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
-from treesapp.external_command_interface import setup_progress_bar, launch_write_command
-from treesapp.jplace_utils import jplace_parser
-from treesapp.classy import ReferencePackage
-from treesapp.entish import map_internal_nodes_leaves
+from . import file_parsers
+from . import utilities
+from . import wrapper
+from .fasta import read_fasta_to_dict, write_new_fasta, FASTA, split_combined_ref_query_fasta
+from .phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
+from .external_command_interface import setup_progress_bar, launch_write_command
+from .jplace_utils import jplace_parser
+from .classy import ReferencePackage
+from .entish import map_internal_nodes_leaves
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -601,7 +601,7 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
         training_ranks = {"Class": 3, "Species": 7}
     # Read the taxonomic map; the final sequences used to build the tree are inferred from this
     leaf_taxa_map = dict()
-    ref_taxa_map = file_parsers.tax_ids_file_to_leaves(ref_pkg.lineage_ids)
+    ref_taxa_map = ref_pkg.tax_ids_file_to_leaves()
     for ref_seq in ref_taxa_map:
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train

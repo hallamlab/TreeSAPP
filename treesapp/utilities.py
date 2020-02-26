@@ -9,7 +9,7 @@ import time
 import joblib
 from collections import namedtuple
 from shutil import rmtree
-from treesapp.external_command_interface import launch_write_command
+from .external_command_interface import launch_write_command
 from pygtrie import StringTrie
 
 

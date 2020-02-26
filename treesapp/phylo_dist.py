@@ -4,8 +4,7 @@ import sys
 import re
 import logging
 from ete3 import Tree
-from treesapp.file_parsers import tax_ids_file_to_leaves
-from treesapp.utilities import clean_lineage_string, median
+from .utilities import clean_lineage_string
 
 import numpy as np
 import scipy.optimize as so
@@ -269,57 +268,3 @@ def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
             taxonomic_rank_intervals[rank] = ()
     return taxonomic_rank_intervals
 
-
-def validate_rank_intervals(taxonomic_rank_intervals):
-    """
-    Placeholder, for now.
-        This idea has been abandoned but a similar function will be required soon.
-    :param taxonomic_rank_intervals:
-    :return:
-    """
-    validated_intervals = dict()
-    ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
-    ci_ranges = [max_ci-min_ci for min_ci, max_ci in taxonomic_rank_intervals.values()]
-    ci_maxes = [max_ci for min_ci, max_ci in taxonomic_rank_intervals.values()]
-    p_min = p_max = 1
-    for depth in sorted(ranks):
-        rank = ranks[depth]
-        if rank not in taxonomic_rank_intervals:
-            if depth == 1:
-                min_ci = max(ci_maxes)
-                max_ci = min_ci + median(ci_ranges)
-            else:
-                max_ci = p_min
-                min_ci = max_ci - median(ci_ranges)
-        else:
-            min_ci, max_ci = taxonomic_rank_intervals[rank]
-            # Fix the ranges with CIs that exceed the previous rank's CIs
-            if max_ci > p_min:
-                max_ci = p_min
-                min_ci = max_ci - median(ci_ranges)
-        p_min, p_max = min_ci, max_ci
-        validated_intervals[rank] = (min_ci, max_ci)
-        # Fill in those that are missing; estimate the length corresponding to a rank's range
-    return validated_intervals
-
-
-def main(args: list):
-    newick_tree_file, tax_ids_file = args[:]
-    taxa = tax_ids_file_to_leaves(tax_ids_file)
-    leaf_taxa_map = dict()
-    for taxa_leaf in taxa:
-        leaf_taxa_map[taxa_leaf.number] = taxa_leaf.lineage
-    # Read the NEWICK-formatted phylogenetic tree
-    tree = Tree(newick_tree_file)
-    taxonomic_rank_intervals = bound_taxonomic_branch_distances(tree, leaf_taxa_map)
-    # taxonomic_rank_intervals = validate_rank_intervals(taxonomic_rank_intervals)
-    sys.stdout.write("Rank\tMin.   - Max.\n")
-    ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
-    for depth in sorted(ranks, key=int, reverse=True):
-        rank = ranks[depth]
-        sys.stdout.write(rank + "\t" + ' - '.join([str(x) for x in taxonomic_rank_intervals[rank]]) + "\n")
-    sys.stdout.flush()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])

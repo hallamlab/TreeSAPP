@@ -1,14 +1,11 @@
-import os
 import sys
 import re
 import logging
 from pygtrie import StringTrie
-from .external_command_interface import launch_write_command
-from treesapp.utilities import clean_lineage_string, load_taxonomic_trie
-from . import wrapper
-from treesapp.classy import Cluster
-from treesapp.entrez_utils import EntrezRecord
-from treesapp.fasta import FASTA
+from .utilities import clean_lineage_string, load_taxonomic_trie
+from .classy import Cluster
+from .entrez_utils import EntrezRecord
+from .fasta import FASTA
 
 
 def reformat_ref_seq_descriptions(original_header_map):
