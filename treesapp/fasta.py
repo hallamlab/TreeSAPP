@@ -118,9 +118,16 @@ class FASTA:
     def __init__(self, file_name):
         self.file = file_name
         self.fasta_dict = dict()
-        self.header_registry = dict()
+        self.header_registry = dict()  # A dictionary of Header instances indexed by a unique numerical identifier
         self.amendments = set()  # Set of the TreeSAPP numerical identifiers for all guaranteed sequences
         self.index_form = None
+
+    def carry_over(self, fasta):
+        self.file = fasta.file
+        self.fasta_dict = fasta.fasta_dict
+        self.header_registry = fasta.header_registry
+        self.amendments = fasta.amendments
+        self.index_form = fasta.index_form
 
     def load_fasta(self):
         self.fasta_dict = read_fasta_to_dict(self.file)

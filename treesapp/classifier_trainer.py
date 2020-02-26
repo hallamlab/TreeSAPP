@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from sklearn import model_selection, svm, metrics, preprocessing, manifold
 
 from treesapp.classy import prep_logging, ReferencePackage, Evaluator
-from treesapp.fasta import FASTA, write_new_fasta
+from treesapp.fasta import FASTA, Header, write_new_fasta
 from treesapp.utilities import get_hmm_length, base_file_prefix
 from treesapp.lca_calculations import all_possible_assignments
 from treesapp.clade_exclusion_evaluator import get_testable_lineages_for_rank, remove_clade_exclusion_files
@@ -290,14 +290,22 @@ def main():
         print(refpkg_code)
         # Write a FASTA file for each of the reference packages
         refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
-        training_fa = evaluator.var_output_dir + base_file_prefix(test_fasta.file) + "_" + refpkg.prefix + "_subset.fasta"
-        write_new_fasta(test_fasta.fasta_dict, training_fa,
-                        headers=[tp_seq.name for tp_seq in test_obj.tp[refpkg_code]])
+
+        reps_fasta = FASTA(test_fasta.file)
+        reps_fasta.carry_over(test_fasta)
+        reps_fasta.file = evaluator.var_output_dir + base_file_prefix(test_fasta.file) + "_" + refpkg.prefix + "_subset.fasta"
+        reps_fasta.keep_only(header_subset=[tp_seq.name for tp_seq in test_obj.tp[refpkg_code]])
+        for acc in sorted(reps_fasta.header_registry, key=int):
+            header = reps_fasta.header_registry[acc]  # type: Header
+            header.accession = header.original
+
         leaf_taxa_map = {leaf.number: leaf.lineage for leaf in refpkg.tax_ids_file_to_leaves()}
-        training_seq_reps[refpkg_code], reps_fasta = prepare_training_data(training_fa, evaluator.var_output_dir,
-                                                                           evaluator.executables,
-                                                                           leaf_taxa_map, test_obj.tax_lineage_map,
-                                                                           training_ranks, refpkg.prefix)
+
+        training_seq_reps[refpkg_code] = prepare_training_data(reps_fasta, evaluator.var_output_dir,
+                                                               evaluator.executables,
+                                                               leaf_taxa_map, test_obj.tax_lineage_map,
+                                                               training_ranks)
+        write_new_fasta(reps_fasta.fasta_dict, reps_fasta.file)
     logging.info("done.\n")
     ##
     # Enumerate the optimal placement ranks to determine the relative distance of reference packages to test dataset

@@ -198,21 +198,20 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> 
     return regress_ranks(rarefied_pds, taxonomic_ranks)
 
 
-def prepare_training_data(fasta_input: str, output_dir: str, executables: dict, leaf_taxa_map: dict,
-                          accession_lineage_map: dict, taxonomic_ranks: set, refpkg_name: str) -> (dict, FASTA):
+def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, leaf_taxa_map: dict,
+                          accession_lineage_map: dict, taxonomic_ranks: set) -> dict:
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
     linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
     number of taxonomically-identical sequences to 30.
 
-    :param fasta_input: Path to a FASTA-formatted file
+    :param test_seqs: A FASTA object. All headers in FASTA.header_registry must have their accession attribute filled
     :param output_dir: Path to write intermediate output files (such as UCLUST outputs)
     :param executables: A dictionary mapping software to a path of their respective executable
     :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric identifiers of reference sequences to taxonomic lineages
     :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
     :param taxonomic_ranks: A set of rank names (e.g. Phylum) the NCBI taxonomic hierarchy
      to that could be mapped to rank depth values where Kingdom is 0, Phylum is 1, etc.
-    :param refpkg_name: The human-readable name for the reference package (ReferencePackage.prefix)
     :return: A tuple of a dictionary storing the sequence names being used to test each taxon within each rank and a
      FASTA object containing those sequences
     """
@@ -232,9 +231,6 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict, 
     warning_threshold = 10
 
     # Cluster the training sequences to mitigate harmful redundancy
-    test_seqs = FASTA(fasta_input)
-    test_seqs.load_fasta()
-    test_seqs.add_accession_to_headers(refpkg_name)
     # Remove fasta records with duplicate accessions
     test_seqs.dedup_by_accession()
     # Remove fasta records with duplicate sequences
@@ -283,7 +279,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict, 
         taxonomic_coverage = float(rank_test_seqs*100/num_lineages)
         if rank_test_seqs == 0:
             logging.error("No sequences were found in input FASTA that could be used to train " + rank + ".\n")
-            return rank_training_seqs, test_seqs
+            return rank_training_seqs
         if taxonomic_coverage < warning_threshold:
             logging.warning("Less than %d%% of the reference package has sequences to be used for training %s.\n" %
                             (warning_threshold, rank))
@@ -330,7 +326,7 @@ def prepare_training_data(fasta_input: str, output_dir: str, executables: dict, 
                     taxon_training_queries.clear()
     logging.info("done.\n")
 
-    return rank_training_seqs, test_seqs
+    return rank_training_seqs
 
 
 def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
@@ -605,10 +601,12 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
     for ref_seq in ref_taxa_map:
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train
-    rank_training_seqs, dedup_fasta_dict = prepare_training_data(fasta_input, output_dir, executables,
+    test_seqs = FASTA(fasta_input)
+    test_seqs.load_fasta()
+    test_seqs.add_accession_to_headers(ref_pkg.prefix)
+    rank_training_seqs, dedup_fasta_dict = prepare_training_data(test_seqs, output_dir, executables,
                                                                  leaf_taxa_map, accession_lineage_map,
-                                                                 set(training_ranks.keys()),
-                                                                 ref_pkg.prefix)
+                                                                 set(training_ranks.keys()))
     if len(rank_training_seqs) == 0:
         return (0.0, 7.0), {}, []
     # Perform the rank-wise clade exclusion analysis for estimating placement distances
