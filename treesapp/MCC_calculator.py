@@ -11,15 +11,15 @@ import re
 from glob import glob
 from numpy import sqrt
 from ete3 import Tree
-from . import file_parsers
-from .commands import assign
-from .fasta import get_headers
-from .external_command_interface import launch_write_command
-from .classy import prep_logging, ReferencePackage
-from .entrez_utils import fetch_lineages_from_taxids, EntrezRecord
-from .lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
+from treesapp import file_parsers
+from treesapp.commands import assign
+from treesapp.fasta import get_headers
+from treesapp.external_command_interface import launch_write_command
+from treesapp.classy import prep_logging, ReferencePackage
+from treesapp.entrez_utils import fetch_lineages_from_taxids, EntrezRecord
+from treesapp.lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
     optimal_taxonomic_assignment, grab_graftm_taxa
-from .utilities import fish_refpkg_from_build_params, get_hmm_length, clean_lineage_string
+from treesapp.utilities import fish_refpkg_from_build_params, get_hmm_length, clean_lineage_string
 
 
 class ClassifiedSequence:

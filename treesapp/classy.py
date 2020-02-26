@@ -337,6 +337,29 @@ class ReferencePackage:
         self.clean_up_raxmlng_outputs(treesapp_refpkg_dir + os.sep + "tree_data" + os.sep, {})
         return intermediate_prefix
 
+    def restore_reference_package(self, prefix: str, output_dir: str) -> None:
+        """
+
+        :param prefix: Prefix (path and basename) of the stored temporary files
+        :param output_dir: Path to the output directory for any temporary files that should be stored
+        :return: None
+        """
+        # The edited tax_ids file with clade excluded is required for performance analysis
+        # Copy the edited, clade-excluded tax_ids file to the output directory
+        copy(self.lineage_ids, output_dir)
+
+        # Move the original reference package files back to the proper directories
+        copy(prefix + "_tree.txt", self.tree)
+        copy(prefix + "_bestModel.txt", self.model_info)
+        if os.path.isfile(prefix + "_bipartitions.txt"):
+            copy(prefix + "_bipartitions.txt", self.boot_tree)
+        copy(prefix + "_tax_ids.txt", self.lineage_ids)
+        copy(prefix + ".fa", self.msa)
+        copy(prefix + ".hmm", self.profile)
+        copy(prefix + "_search.hmm", self.search_profile)
+
+        return
+
 
 class MarkerBuild:
     def __init__(self):
@@ -1155,12 +1178,12 @@ class TreeSAPP:
         self.executables = self.find_executables(args)
         return
 
-    def check_previous_output(self, args):
+    def check_previous_output(self, overwrite=True) -> None:
         """
         Prompts the user to determine how to deal with a pre-existing output directory.
         By the end of this function, all directories should exist and be in the correct state for a new analysis run
 
-        :param args: Command-line argument object from get_options and check_parser_arguments
+        :param overwrite: Boolean flag controlling whether output directories are removed or not
         :return None
         """
 
@@ -1169,13 +1192,13 @@ class TreeSAPP:
         # Identify all the various reasons someone may not want to have their previous results overwritten
         if not os.path.isdir(self.output_dir):
             os.mkdir(self.output_dir)
-        elif not args.overwrite and glob(self.final_output_dir + "*"):
+        elif not overwrite and glob(self.final_output_dir + "*"):
             # reluctant_remove_replace(self.output_dir)
             pass
-        elif not args.overwrite and not glob(self.final_output_dir + "*"):
+        elif not overwrite and not glob(self.final_output_dir + "*"):
             # Last run didn't complete so use the intermediates if possible
             pass
-        elif args.overwrite:
+        elif overwrite:
             if os.path.isdir(self.output_dir):
                 rmtree(self.output_dir)
             os.mkdir(self.output_dir)
@@ -1188,6 +1211,7 @@ class TreeSAPP:
     def log_progress(self):
         """
         Write the current stage's information (e.g. number of output files) to a JSON file
+
         :return: None
         """
         # TODO: Finish this to enable continuing part-way through an analysis
@@ -1202,6 +1226,7 @@ class TreeSAPP:
     def stage_lookup(self, name: str, tolerant=False):
         """
         Used for looking up a stage in self.stages by its stage.name
+
         :param name: Name of a stage
         :param tolerant: Boolean controlling whether the function exits if look-up failed (defualt) or returns None
         :return: ModuleFunction instance that matches the name, or None if failed and tolerant, exit otherwise
@@ -1228,6 +1253,7 @@ class TreeSAPP:
     def read_progress_log(self):
         """
         Read the object's 'stage_file' and determine the completed stage
+
         :return: An integer corresponding to the last completed stage's rank in 'stage_order'
         """
         completed_int = self.first_stage()

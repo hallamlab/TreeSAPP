@@ -8,23 +8,24 @@ import logging
 import re
 import argparse
 import joblib
-import seaborn
 import time
+from shutil import rmtree
+
 import numpy as np
+import seaborn
 import pandas as pd
 import matplotlib.pyplot as plt
-from shutil import rmtree
 from sklearn import model_selection, svm, metrics, preprocessing, manifold
-from .classy import prep_logging, ReferencePackage, Evaluator
-from .fasta import FASTA, write_new_fasta
-from .utilities import get_hmm_length, base_file_prefix
-from .lca_calculations import all_possible_assignments
-from .clade_exclusion_evaluator import get_testable_lineages_for_rank, restore_reference_package,\
-    remove_clade_exclusion_files
-from .commands import assign
-from .placement_trainer import prepare_training_data
-from . import MCC_calculator as mcc
-from . import file_parsers as ts_fp
+
+from treesapp.classy import prep_logging, ReferencePackage, Evaluator
+from treesapp.fasta import FASTA, write_new_fasta
+from treesapp.utilities import get_hmm_length, base_file_prefix
+from treesapp.lca_calculations import all_possible_assignments
+from treesapp.clade_exclusion_evaluator import get_testable_lineages_for_rank, remove_clade_exclusion_files
+from treesapp.commands import assign
+from treesapp.placement_trainer import prepare_training_data
+from treesapp import MCC_calculator as ts_MCC
+from treesapp import file_parsers as ts_fp
 
 
 def get_arguments():
@@ -217,13 +218,14 @@ def main():
     logging.info("\n##\t\t\tBeginning SVM classifier build\t\t\t##\n")
     validate_command(args, sys.argv)
 
-    pkg_name_dict = mcc.read_annotation_mapping_file(args.annot_map)
+    pkg_name_dict = ts_MCC.read_annotation_mapping_file(args.annot_map)
     marker_build_dict = ts_fp.parse_ref_build_params(args.treesapp, [])
-    test_obj = mcc.ConfusionTest(pkg_name_dict.keys())
+    test_obj = ts_MCC.ConfusionTest(pkg_name_dict.keys())
     test_obj.map_data(output_dir=args.treesapp_output, tool="treesapp")
     test_obj.rank_depth_map = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
     evaluator = Evaluator()
     evaluator.furnish_with_arguments(args)
+    evaluator.check_previous_output(args.overwrite)
 
     ##
     # Create internal node to leaf, HMM model length and refpkg name maps for each refpkg
@@ -236,7 +238,7 @@ def main():
         refpkg.prefix = marker_build_dict[refpkg_code].cog
         refpkg.gather_package_files(args.pkg_path)
         refpkg_map[refpkg.prefix] = refpkg_code
-        internal_nodes_dict[refpkg.prefix] = mcc.internal_node_leaf_map(refpkg.tree)
+        internal_nodes_dict[refpkg.prefix] = ts_MCC.internal_node_leaf_map(refpkg.tree)
         hmm_lengths[refpkg.prefix] = get_hmm_length(refpkg.profile)
         test_obj.ref_packages[refpkg_code].taxa_trie = all_possible_assignments(test_obj.ref_packages[refpkg_code].lineage_ids)
 
@@ -272,20 +274,23 @@ def main():
     test_obj.validate_false_negatives(pkg_name_dict)
 
     ##
-    # Subset the sequences in args.input to only contain the true positives. False negatives will probably be useless
+    # Find the best set of representative sequences
     ##
     positive_headers = set()
-    for refpkg in test_obj.tp:
-        for tp_seq in test_obj.tp[refpkg]:  # type: mcc.ClassifiedSequence
-            positive_headers.add(tp_seq.name)
-    test_fasta.keep_only(list(positive_headers))
-    # Find the best set of representative sequences
     training_seq_reps = dict()
     training_ranks = {r for r in test_obj.rank_depth_map if test_obj.rank_depth_map[r] > 2}
+    # Subset the sequences in args.input to only contain the true positives. False negatives will probably be useless
+    for refpkg in test_obj.tp:
+        for tp_seq in test_obj.tp[refpkg]:  # type: ts_MCC.ClassifiedSequence
+            positive_headers.add(tp_seq.name)
+    test_fasta.keep_only(list(positive_headers))
+
+    logging.info("Determining the set of test query sequences for each reference package... ")
     for refpkg_code in test_obj.ref_packages:  # type: str
+        print(refpkg_code)
         # Write a FASTA file for each of the reference packages
         refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
-        training_fa = evaluator.var_output_dir + base_file_prefix(test_fasta.file) + "_" + refpkg.prefix + "subset.fasta"
+        training_fa = evaluator.var_output_dir + base_file_prefix(test_fasta.file) + "_" + refpkg.prefix + "_subset.fasta"
         write_new_fasta(test_fasta.fasta_dict, training_fa,
                         headers=[tp_seq.name for tp_seq in test_obj.tp[refpkg_code]])
         leaf_taxa_map = {leaf.number: leaf.lineage for leaf in refpkg.tax_ids_file_to_leaves()}
@@ -293,7 +298,7 @@ def main():
                                                                            evaluator.executables,
                                                                            leaf_taxa_map, test_obj.tax_lineage_map,
                                                                            training_ranks, refpkg.prefix)
-
+    logging.info("done.\n")
     ##
     # Enumerate the optimal placement ranks to determine the relative distance of reference packages to test dataset
     ##
@@ -332,7 +337,7 @@ def main():
                 except:  # Just in case treesapp assign fails, just continue
                     pass
 
-                restore_reference_package(refpkg, taxon_test.temp_files_prefix, taxon_test.intermediates_dir)
+                refpkg.restore_reference_package(taxon_test.temp_files_prefix, taxon_test.intermediates_dir)
                 if not os.path.isfile(classification_table):
                     # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                     logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
@@ -359,7 +364,7 @@ def main():
     flattened_tp = dict()
     for refpkg in test_obj.tp:
         flattened_tp[refpkg] = set()
-        for classified_seq in test_obj.tp[refpkg]:  # type: mcc.ClassifiedSequence
+        for classified_seq in test_obj.tp[refpkg]:  # type: ts_MCC.ClassifiedSequence
             flattened_tp[refpkg].add(classified_seq.name)
     test_obj.tp = flattened_tp
 

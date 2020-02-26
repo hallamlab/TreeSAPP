@@ -645,31 +645,6 @@ def remove_clade_exclusion_files(intermediate_dir):
     return
 
 
-def restore_reference_package(refpkg: ReferencePackage, prefix: str, output_dir: str) -> None:
-    """
-
-
-    :param refpkg: ReferencePackage instance with files that need to be restored
-    :param prefix: Prefix (path and basename) of the stored temporary files
-    :param output_dir: Path to the output directory for any temporary files that should be stored
-    :return: None
-    """
-    # The edited tax_ids file with clade excluded is required for performance analysis
-    # Copy the edited, clade-excluded tax_ids file to the output directory
-    shutil.copy(refpkg.lineage_ids, output_dir)
-
-    # Move the original reference package files back to the proper directories
-    shutil.copy(prefix + "_tree.txt", refpkg.tree)
-    shutil.copy(prefix + "_bestModel.txt", refpkg.model_info)
-    if os.path.isfile(prefix + "_bipartitions.txt"):
-        shutil.copy(prefix + "_bipartitions.txt", refpkg.boot_tree)
-    shutil.copy(prefix + "_tax_ids.txt", refpkg.lineage_ids)
-    shutil.copy(prefix + ".fa", refpkg.msa)
-    shutil.copy(prefix + ".hmm", refpkg.profile)
-
-    return
-
-
 def build_graftm_package(gpkg_path: str, tax_file: str, mfa_file: str, fa_file: str, threads: int):
     create_command = ["graftM", "create"]
     create_command += ["--threads", str(threads)]

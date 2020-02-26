@@ -6,6 +6,7 @@ import os
 import shutil
 from random import randint
 from collections import namedtuple
+
 from . import entrez_utils
 from . import file_parsers
 from . import fasta
@@ -31,8 +32,8 @@ from .assign import abundify_tree_saps, delete_files, validate_inputs,\
 from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
-    validate_ref_package_files, restore_reference_package, determine_containment,\
-    parse_distances, remove_clade_exclusion_files, load_rank_depth_map, get_testable_lineages_for_rank
+    validate_ref_package_files, determine_containment, parse_distances, remove_clade_exclusion_files,\
+    load_rank_depth_map, get_testable_lineages_for_rank
 from .dereplicate_hmm import make_dereplicated_hmm
 
 
@@ -92,7 +93,7 @@ def train(sys_args):
 
     ts_trainer = PhyTrainer()
     ts_trainer.furnish_with_arguments(args)
-    ts_trainer.check_previous_output(args)
+    ts_trainer.check_previous_output(args.overwrite)
 
     # TODO: Prevent hmmalign_queries_aligned-BMGE.fasta.reduced file from being written to cwd
     log_file_name = args.output + os.sep + "TreeSAPP_trainer_log.txt"
@@ -198,7 +199,7 @@ def create(sys_args):
 
     ts_create = Creator()
     ts_create.furnish_with_arguments(args)
-    ts_create.check_previous_output(args)
+    ts_create.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_create_" + args.refpkg_name + "_log.txt"
     prep_logging(log_file_name, args.verbose)
@@ -468,7 +469,7 @@ def create(sys_args):
                                      ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
                                      marker_package.model, args.num_threads)
 
-        create_refpkg.clean_up_raxmlng_outputs(ts_create.phy_dir, ts_create.ref_pkg, fasta_replace_dict)
+        ts_create.ref_pkg.clean_up_raxmlng_outputs(ts_create.phy_dir, fasta_replace_dict)
 
     if args.raxml_model:
         marker_package.model = args.raxml_model
@@ -532,7 +533,7 @@ def update(sys_args):
 
     ts_updater = Updater()
     ts_updater.furnish_with_arguments(args)
-    ts_updater.check_previous_output(args)
+    ts_updater.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_updater_log.txt"
     prep_logging(log_file_name, args.verbose)
@@ -879,7 +880,7 @@ def assign(sys_args):
 
     ts_assign = Assigner()
     ts_assign.furnish_with_arguments(args)
-    ts_assign.check_previous_output(args)
+    ts_assign.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_classify_log.txt"
     prep_logging(log_file_name, args.verbose)
@@ -1049,7 +1050,7 @@ def purity(sys_args):
 
     ts_purity = Purity()
     ts_purity.furnish_with_arguments(args)
-    ts_purity.check_previous_output(args)
+    ts_purity.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_purity_log.txt"
     prep_logging(log_file_name, args.verbose)
@@ -1124,7 +1125,7 @@ def evaluate(sys_args):
 
     ts_evaluate = Evaluator()
     ts_evaluate.furnish_with_arguments(args)
-    ts_evaluate.check_previous_output(args)
+    ts_evaluate.check_previous_output(args.overwrite)
 
     log_file_name = args.output + os.sep + "TreeSAPP_evaluation_log.txt"
     prep_logging(log_file_name, args.verbose)
@@ -1275,7 +1276,7 @@ def evaluate(sys_args):
                         except:  # Just in case treesapp assign fails, just continue
                             pass
 
-                        restore_reference_package(refpkg, prefix, intermediates_path)
+                        refpkg.restore_reference_package(prefix, intermediates_path)
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                             logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
