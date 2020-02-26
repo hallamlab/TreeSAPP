@@ -70,8 +70,8 @@ class Header:
         self.accession = ""
 
     def get_info(self):
-        info_string = "TreeSAPP ID = '" + str(self.treesapp_num_id) + "'\tPrefix = '" + self.first_split + "'\n"
-        info_string += "Original =  " + self.original + "\nFormatted = " + self.formatted
+        info_string = "TreeSAPP ID = '%s'\tPrefix = '%s'\n" % (str(self.treesapp_num_id), self.first_split)
+        info_string += "Original =  %s\nFormatted = %s\n" % (self.original, self.formatted)
         if self.accession:
             info_string += "Accession = " + self.accession + "\n"
         return info_string
@@ -309,7 +309,7 @@ class FASTA:
                 logging.error("Unknown replacement type.\n")
                 sys.exit(3)
             # Find the old header to be replaced
-            # NOTE: Using .first_split may be lossy from duplicates. This will _not_ propagate under current scheme.
+            # NOTE: Using .first_split may be lossy if duplicates exist. This will _not_ propagate under current scheme.
             if header.original in self.fasta_dict:
                 repl_fasta_dict[new_header] = self.fasta_dict[header.original]
             elif header.formatted in self.fasta_dict:
@@ -330,7 +330,7 @@ class FASTA:
         self.index_form = index_replace
         return
 
-    def synchronize_seqs_n_headers(self):
+    def synchronize_seqs_n_headers(self) -> None:
         """
         If the header_registry and fasta_dict objects are of different sizes,
         the header registry is remade, excluding sequences that are not found in fasta_dict.
@@ -361,7 +361,10 @@ class FASTA:
                           "\n\t".join(excluded_headers) + "\n")
         if len(self.header_registry) == 0:
             logging.error("All sequences were discarded during header_registry and fasta_dict synchronization.\n")
-            sys.exit()
+            sys.exit(-1)
+        if len(self.fasta_dict) == 0:
+            logging.error("No fasta sequence names were mapped to the header registry!\n")
+            sys.exit(-1)
         self.change_dict_keys()
         return
 
@@ -450,7 +453,7 @@ class FASTA:
 
         return
 
-    def dedup_by_accession(self):
+    def dedup_by_accession(self) -> None:
         count_dict = dict()
         dedup_header_dict = dict()
         duplicates = list()

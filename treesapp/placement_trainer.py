@@ -209,11 +209,10 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
     :param output_dir: Path to write intermediate output files (such as UCLUST outputs)
     :param executables: A dictionary mapping software to a path of their respective executable
     :param leaf_taxa_map: A dictionary mapping TreeSAPP numeric identifiers of reference sequences to taxonomic lineages
-    :param accession_lineage_map: A dictionary mapping NCBI accession IDs to full NCBI taxonomic lineages
+    :param accession_lineage_map: A dictionary mapping header accession IDs to full NCBI taxonomic lineages
     :param taxonomic_ranks: A set of rank names (e.g. Phylum) the NCBI taxonomic hierarchy
      to that could be mapped to rank depth values where Kingdom is 0, Phylum is 1, etc.
-    :return: A tuple of a dictionary storing the sequence names being used to test each taxon within each rank and a
-     FASTA object containing those sequences
+    :return: A dictionary storing the sequence names being used to test each taxon within each rank
     """
     rank_training_seqs = dict()
     optimal_placement_missing = list()
@@ -245,6 +244,10 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
             unrelated_queries.append(seq_name)
         else:
             related_queries.append(seq_name)
+    if not related_queries:
+        logging.error("No sequences were retained after filtering by reference sequence domains '%s'" %
+                      str(', '.join(ref_domains)))
+        sys.exit(5)
     test_seqs.keep_only(related_queries)
     test_seqs.change_dict_keys("accession")
     [accession_lineage_map.pop(seq_name) for seq_name in unrelated_queries]
