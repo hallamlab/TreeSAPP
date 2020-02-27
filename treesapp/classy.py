@@ -305,8 +305,6 @@ class ReferencePackage:
         if len(split_files) > 1:
             logging.error("Only one FASTA file should have been written.\n")
             sys.exit(21)
-        else:
-            copy(split_files[0], self.msa)
 
         # HMM profile
         hmm_build_command = [executables["hmmbuild"], self.profile, self.msa]
@@ -2066,8 +2064,8 @@ class Evaluator(TreeSAPP):
         output_handler.close()
         return
 
-    def prep_for_clade_exclusion(self, refpkg: ReferencePackage, lineage, lineage_seqs, rank,
-                                 trim_align=False, min_seq_len=0, num_threads=2) -> (list, TaxonTest):
+    def prep_for_clade_exclusion(self, refpkg: ReferencePackage, lineage: str, lineage_seqs: dict, rank: str,
+                                 trim_align=False, min_seq_len=0, targeted=False, num_threads=2) -> (list, TaxonTest):
         """
 
         :param refpkg:
@@ -2077,6 +2075,7 @@ class Evaluator(TreeSAPP):
         :param trim_align:
         :param min_seq_len:
         :param num_threads:
+        :param targeted:
         :return:
         """
         # Continuing with classification
@@ -2111,6 +2110,8 @@ class Evaluator(TreeSAPP):
             assign_args.append("--trim_align")
         if min_seq_len:
             assign_args += ["--min_seq_length", str(min_seq_len)]
+        if targeted:
+            assign_args += ["--targets", refpkg.refpkg_code]
 
         return assign_args, test_obj
 

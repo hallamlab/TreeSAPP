@@ -212,7 +212,8 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
     :param accession_lineage_map: A dictionary mapping header accession IDs to full NCBI taxonomic lineages
     :param taxonomic_ranks: A set of rank names (e.g. Phylum) the NCBI taxonomic hierarchy
      to that could be mapped to rank depth values where Kingdom is 0, Phylum is 1, etc.
-    :return: A dictionary storing the sequence names being used to test each taxon within each rank
+    :return: A dictionary storing the sequence accession names being used to test each taxon within each rank,
+     so the structure is {'rank': {'taxon': [accession_1, accession_2]}}
     """
     rank_training_seqs = dict()
     optimal_placement_missing = list()

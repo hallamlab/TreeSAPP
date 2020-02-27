@@ -19,11 +19,12 @@ from sklearn import model_selection, svm, metrics, preprocessing, manifold
 
 from treesapp.classy import prep_logging, ReferencePackage, Evaluator
 from treesapp.fasta import FASTA, Header, write_new_fasta
-from treesapp.utilities import get_hmm_length, base_file_prefix, clean_lineage_string
+from treesapp.utilities import get_hmm_length, base_file_prefix
 from treesapp.lca_calculations import all_possible_assignments
 from treesapp.clade_exclusion_evaluator import get_testable_lineages_for_rank, remove_clade_exclusion_files
 from treesapp.commands import assign
 from treesapp.placement_trainer import prepare_training_data
+from treesapp.wrapper import select_model
 from treesapp import MCC_calculator as ts_MCC
 from treesapp import file_parsers as ts_fp
 
@@ -213,7 +214,7 @@ def main():
     args = get_arguments()
     log_name = args.output + os.sep + "TreeSAPP_classifier_trainer_log.txt"
     pickled_model = args.model_file
-    tsne_file = '.'.join(pickled_model.split('.')[:-1]) + "_t-SNE.png"
+    tsne_file = args.output + os.sep + base_file_prefix(pickled_model) + "_t-SNE.png"
 
     evaluator = Evaluator()
     evaluator.furnish_with_arguments(args)
@@ -239,6 +240,7 @@ def main():
         refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
         refpkg.prefix = marker_build_dict[refpkg_code].cog
         refpkg.gather_package_files(args.pkg_path)
+        refpkg.sub_model = select_model(evaluator.molecule_type)
         refpkg_map[refpkg.prefix] = refpkg_code
         internal_nodes_dict[refpkg.prefix] = ts_MCC.internal_node_leaf_map(refpkg.tree)
         hmm_lengths[refpkg.prefix] = get_hmm_length(refpkg.profile)
@@ -276,11 +278,18 @@ def main():
     test_obj.validate_false_negatives(pkg_name_dict)
 
     ##
+    # Enumerate the optimal placement ranks to determine the relative distance of reference packages to test dataset
+    ##
+    rank_representation = test_obj.enumerate_optimal_rank_distances()
+    ceiling = rank_representation[max(rank_representation.keys(),
+                                      key=(lambda key: rank_representation[key]))]
+
+    ##
     # Find the best set of representative sequences
     ##
     positive_headers = set()
     training_seq_reps = {}
-    accession_lineage_map = {}
+    test_obj.populate_true_positive_lineage_map()
     training_ranks = {r for r in test_obj.rank_depth_map if test_obj.rank_depth_map[r] > 2}
     logging.info("Subsetting the true positives from the FASTA '%s'... " % test_fasta.file)
     # Subset the sequences in args.input to only contain the true positives. False negatives will probably be useless
@@ -295,9 +304,6 @@ def main():
         # Write a FASTA file for each of the reference packages
         refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
 
-        for tp_seq in test_obj.tp[refpkg_code]:
-            accession_lineage_map[tp_seq.name] = clean_lineage_string(tp_seq.true_lineage, ["Root; "])
-
         reps_fasta = FASTA(test_fasta.file)
         reps_fasta.carry_over(test_fasta)
         reps_fasta.file = evaluator.var_output_dir + base_file_prefix(test_fasta.file) + "_" + refpkg.prefix + "_subset.fasta"
@@ -311,21 +317,15 @@ def main():
         reps_fasta.change_dict_keys("accession")
         training_seq_reps[refpkg_code] = prepare_training_data(reps_fasta, evaluator.var_output_dir,
                                                                evaluator.executables,
-                                                               leaf_taxa_map, accession_lineage_map,
+                                                               leaf_taxa_map, test_obj.tp_lineage_map[refpkg_code],
                                                                training_ranks)
         write_new_fasta(reps_fasta.fasta_dict, reps_fasta.file)
-        accession_lineage_map.clear()
     logging.info("done.\n")
-    ##
-    # Enumerate the optimal placement ranks to determine the relative distance of reference packages to test dataset
-    ##
-    rank_representation = test_obj.enumerate_optimal_rank_distances()
-    ceiling = rank_representation[max(rank_representation.keys(),
-                                      key=(lambda key: rank_representation[key]))]
 
     ##
-    #  Simulate data using clade exclusion analysis to ensure coverage across different ranks is even
+    # Simulate data using clade exclusion analysis to ensure coverage across different ranks is even
     ##
+    test_fasta.change_dict_keys("accession")
     refpkg_testable_lineages = {}
     for rank in training_ranks:
         logging.info("Simulating %s-level relationship data... " % rank)
@@ -333,29 +333,31 @@ def main():
         for refpkg_code in test_obj.ref_packages:
             refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
             ref_lineages = {leaf.number: leaf.lineage for leaf in refpkg.tax_ids_file_to_leaves()}
-            tp_lineage_map = {tp_inst.name: tp_inst.true_lineage for tp_inst in test_obj.tp[refpkg_code]}
             refpkg_testable_lineages[refpkg_code] = get_testable_lineages_for_rank(rank=rank,
                                                                                    ref_lineage_map=ref_lineages,
-                                                                                   query_lineage_map=tp_lineage_map)
+                                                                                   query_lineage_map=test_obj.tp_lineage_map[refpkg_code])
         x = test_obj.rank_depth_map[rank]
-        while ceiling - rank_representation[x] > 0 and refpkg_testable_lineages:
+        testable_refpkgs = list(refpkg_testable_lineages.keys())
+        while ceiling - rank_representation[x] > 0 and testable_refpkgs:
             # Pick a random reference package
-            for refpkg_code in test_obj.ref_packages:
-                print(refpkg_code)
+            for refpkg_code in testable_refpkgs:
                 refpkg = test_obj.ref_packages[refpkg_code]
                 try:
                     lineage = refpkg_testable_lineages[refpkg_code].pop()
                 except (ValueError, IndexError):
-                    refpkg_testable_lineages.pop(refpkg_code)
+                    # Pop the refpkg code from the list being iterated over, since the dictionary value was exhausted
+                    testable_refpkgs.pop(testable_refpkgs.index(refpkg_code))
                     continue
                 try:
-                    lineage_seqs = training_seq_reps[refpkg_code][lineage]
+                    lineage_seqs = {seq_name: test_fasta.fasta_dict[seq_name] for seq_name in
+                                    training_seq_reps[refpkg_code][rank][lineage]}
                 except KeyError:
                     logging.warning("Unable to test lineage '%s' as its missing in %s training sequences.\n" %
                                     (lineage, refpkg_code))
                     continue
                 assign_args, taxon_test = evaluator.prep_for_clade_exclusion(refpkg, lineage, lineage_seqs, rank,
-                                                                             trim_align=True, num_threads=args.procs)
+                                                                             trim_align=True, num_threads=args.procs,
+                                                                             targeted=True)
                 try:
                     assign(assign_args)
                 except:  # Just in case treesapp assign fails, just continue
@@ -382,6 +384,12 @@ def main():
                 rank_representation[x] += len(assigned_lines)
         refpkg_testable_lineages.clear()
         logging.info("done.\n")
+
+    # Summarise the number of classifications for each rank
+    summary_string = "Rank\tClassifications\n"
+    for rank in test_obj.rank_depth_map:
+        summary_string += rank + "\t" + rank_representation[test_obj.rank_depth_map[rank]] + "\n"
+    logging.info(summary_string)
 
     ##
     # Convert the true positive dictionary to the same format, flattening the ClassifiedSequence instances

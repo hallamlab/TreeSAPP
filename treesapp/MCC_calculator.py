@@ -48,8 +48,9 @@ class ConfusionTest:
         self.fn = {key: [] for key in gene_list}
         self.fp = {key: set() for key in gene_list}
         self.tp = {key: [] for key in gene_list}  # This will be a list of ClassifiedSequence instances
-        self.tax_lineage_map = dict()
-        self.dist_wise_tp = dict()
+        self.tax_lineage_map = {}
+        self.tp_lineage_map = {}
+        self.dist_wise_tp = {}
         self.num_total_queries = 0
         self.rank_depth_map = {"Domain": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
         self.classification_table = ""
@@ -130,6 +131,11 @@ class ConfusionTest:
                 records_list.append(e_record)
                 self.tax_lineage_map[e_record.ncbi_tax] = "Root; "
         return records_list
+
+    def populate_true_positive_lineage_map(self):
+        for refpkg_code in self.ref_packages:
+            self.tp_lineage_map[refpkg_code] = {tp_inst.name: clean_lineage_string(tp_inst.true_lineage, ["Root; "])
+                                                for tp_inst in self.tp[refpkg_code]}
 
     def retrieve_lineages(self, group=1):
         if not self.header_regex:
