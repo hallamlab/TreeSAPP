@@ -284,6 +284,24 @@ class ReferencePackage:
     def exclude_clade_from_ref_files(self, treesapp_refpkg_dir: str, molecule: str,
                                      original_storage_dir: str, target_clade: str, executables: dict,
                                      fresh=False) -> str:
+        """
+        Removes all reference sequences/leaf nodes from a reference package that are descendents of a target clade.
+        All reference package files are regenerated without these sequences and written to the original reference
+        package directory.
+
+        Original reference package files (so, still containing descendent sequences) are saved to a specified location.
+
+        :param treesapp_refpkg_dir: Path to the treesapp/data (or reference package) directory for RAxML-NG to write
+         output files from its `--evaluate` routine.
+        :param molecule: Any of 'prot', 'rrna' or 'dna'
+        :param original_storage_dir: Path to directory where original reference package files need to be moved to
+        :param target_clade: Taxonomic lineage of the clade that is being excluded from the reference package.
+        :param executables: Dictionary of paths to dependency executables indexed by their names. Must include:
+         'hmmbuild', 'FastTree' and 'raxml-ng'.
+        :param fresh: Boolean indicating whether the reference package's tree should be built from scratch (True) or
+         if the clades that are descendents of 'target_clade' should just be pruned (False) by ETE3
+        :return: Path to all the original reference package files that have been copied to prevent overwriting
+        """
         intermediate_prefix = original_storage_dir + os.sep + "ORIGINAL"
         self.copy_refpkg_file_to_dest(original_storage_dir, "ORIGINAL")
 
@@ -2067,18 +2085,27 @@ class Evaluator(TreeSAPP):
     def prep_for_clade_exclusion(self, refpkg: ReferencePackage, lineage: str, lineage_seqs: dict, rank: str,
                                  trim_align=False, min_seq_len=0, targeted=False, num_threads=2) -> (list, TaxonTest):
         """
+        Creates a TaxonTest instance that stores file paths and settings relevant to a clade exclusion analysis
 
-        :param refpkg:
-        :param lineage:
-        :param lineage_seqs:
-        :param rank:
-        :param trim_align:
-        :param min_seq_len:
-        :param num_threads:
-        :param targeted:
-        :return:
+        Calls ReferencePackage.exlude_clade_from_ref_files() to remove all reference sequences/leaf nodes from the
+        reference package that are descendents of `lineage`.
+
+        Creates the TreeSAPP assign arguments list, which is to be called outside of this function.
+
+        :param refpkg: The ReferencePackage object that is to be used for clade exclusion, of which reference sequences
+         that are descendents of `lineage` will be removed.
+        :param lineage: Taxonomic lineage which is going to be used in this clade exclusion analysis
+        :param lineage_seqs: A fasta-like dictionary where headers are sequence names (accessions) and values are
+         their respective nucleotide or amino acid sequences.
+        :param rank: The taxonomic rank (to which `lineage` belongs to) that is being excluded
+        :param trim_align: Flag determining whether TreeSAPP should use BMGE to trim the multiple sequence alignments
+         prior to phylogenetic placement
+        :param min_seq_len: The minimum sequence length argument for TreeSAPP
+        :param num_threads: The maximum number or threads and processes TreeSAPP and its dependencies can use
+        :param targeted: Boolean controlling whether homology search against the query sequences just uses this
+         reference package's HMM (True) or all HMMs available in TreeSAPP (False)
+        :return: A list of arguments to be called by TreeSAPP's assign function and a TaxonTest object
         """
-        # Continuing with classification
         # Refpkg input files in ts_evaluate.var_output_dir/refpkg_name/rank_tax/
         # Refpkg built in ts_evaluate.var_output_dir/refpkg_name/rank_tax/{refpkg_name}_{rank_tax}.gpkg/
         taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])

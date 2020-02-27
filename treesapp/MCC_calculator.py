@@ -96,6 +96,12 @@ class ConfusionTest:
             sys.exit(1)
         return
 
+    def summarise_rank_coverage(self, rank_coverage: dict) -> str:
+        summary_string = "Rank\tClassifications\n"
+        for rank in self.rank_depth_map:
+            summary_string += rank + "\t" + str(rank_coverage[self.rank_depth_map[rank]]) + "\n"
+        return summary_string
+
     def marker_classification_summary(self, refpkg_name):
         """
         Provide a classification summary for a specific marker gene, refpkg_name

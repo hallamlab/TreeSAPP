@@ -239,6 +239,7 @@ def main():
     for refpkg_code in test_obj.ref_packages:
         refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
         refpkg.prefix = marker_build_dict[refpkg_code].cog
+        refpkg.refpkg_code = refpkg_code
         refpkg.gather_package_files(args.pkg_path)
         refpkg.sub_model = select_model(evaluator.molecule_type)
         refpkg_map[refpkg.prefix] = refpkg_code
@@ -283,6 +284,7 @@ def main():
     rank_representation = test_obj.enumerate_optimal_rank_distances()
     ceiling = rank_representation[max(rank_representation.keys(),
                                       key=(lambda key: rank_representation[key]))]
+    logging.info("Rank coverage before clade exclusion:\n" + test_obj.summarise_rank_coverage(rank_representation))
 
     ##
     # Find the best set of representative sequences
@@ -364,19 +366,19 @@ def main():
                     pass
 
                 refpkg.restore_reference_package(taxon_test.temp_files_prefix, taxon_test.intermediates_dir)
-                if not os.path.isfile(classification_table):
+                if not os.path.isfile(taxon_test.classification_table):
                     # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
                     logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
                     rmtree(taxon_test.intermediates_dir + "TreeSAPP_output" + os.sep)
                     continue
 
                 taxon_test.taxonomic_tree = all_possible_assignments(taxon_test.test_tax_ids_file)
-                if os.path.isfile(classification_table):
-                    assigned_lines = ts_fp.read_marker_classification_table(classification_table)
+                if os.path.isfile(taxon_test.classification_table):
+                    assigned_lines = ts_fp.read_marker_classification_table(taxon_test.classification_table)
                     classification_lines += assigned_lines
                 else:
                     logging.error("marker_contig_map.tsv is missing from output directory '" +
-                                  os.path.dirname(classification_table) + "'\n" +
+                                  os.path.dirname(taxon_test.classification_table) + "'\n" +
                                   "Please remove this directory and re-run.\n")
                     sys.exit(21)
                 remove_clade_exclusion_files(evaluator.var_output_dir + refpkg.prefix + os.sep)
@@ -386,10 +388,7 @@ def main():
         logging.info("done.\n")
 
     # Summarise the number of classifications for each rank
-    summary_string = "Rank\tClassifications\n"
-    for rank in test_obj.rank_depth_map:
-        summary_string += rank + "\t" + rank_representation[test_obj.rank_depth_map[rank]] + "\n"
-    logging.info(summary_string)
+    logging.info("Rank coverage after clade exclusion:\n" + test_obj.summarise_rank_coverage(rank_representation))
 
     ##
     # Convert the true positive dictionary to the same format, flattening the ClassifiedSequence instances
