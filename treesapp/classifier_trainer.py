@@ -11,6 +11,7 @@ import joblib
 import time
 from shutil import rmtree
 
+from tqdm import tqdm
 import numpy as np
 import seaborn
 import pandas as pd
@@ -289,6 +290,7 @@ def main():
     ##
     # Find the best set of representative sequences
     ##
+    training_lineages = 0
     positive_headers = set()
     training_seq_reps = {}
     test_obj.populate_true_positive_lineage_map()
@@ -321,6 +323,7 @@ def main():
                                                                evaluator.executables,
                                                                leaf_taxa_map, test_obj.tp_lineage_map[refpkg_code],
                                                                training_ranks)
+        training_lineages += sum([len(training_seq_reps[refpkg_code][rank]) for rank in training_seq_reps[refpkg_code]])
         write_new_fasta(reps_fasta.fasta_dict, reps_fasta.file)
     logging.info("done.\n")
 
@@ -329,8 +332,9 @@ def main():
     ##
     test_fasta.change_dict_keys("accession")
     refpkg_testable_lineages = {}
-    for rank in training_ranks:
-        logging.info("Simulating %s-level relationship data... " % rank)
+    pbar = tqdm(total=training_lineages)
+    for rank in sorted(training_ranks, key=lambda r: test_obj.rank_depth_map[r]):
+        logging.debug("Simulating %s-level relationship data... " % rank)
         # Collect the lineages that can be tested for each reference package
         for refpkg_code in test_obj.ref_packages:
             refpkg = test_obj.ref_packages[refpkg_code]  # type: ReferencePackage
@@ -340,7 +344,7 @@ def main():
                                                                                    query_lineage_map=test_obj.tp_lineage_map[refpkg_code])
         x = test_obj.rank_depth_map[rank]
         testable_refpkgs = list(refpkg_testable_lineages.keys())
-        while ceiling - rank_representation[x] > 0 and testable_refpkgs:
+        while ceiling*0.51 > rank_representation[x] and testable_refpkgs:
             # Pick a random reference package
             for refpkg_code in testable_refpkgs:
                 refpkg = test_obj.ref_packages[refpkg_code]
@@ -354,8 +358,8 @@ def main():
                     lineage_seqs = {seq_name: test_fasta.fasta_dict[seq_name] for seq_name in
                                     training_seq_reps[refpkg_code][rank][lineage]}
                 except KeyError:
-                    logging.warning("Unable to test lineage '%s' as its missing in %s training sequences.\n" %
-                                    (lineage, refpkg_code))
+                    logging.debug("Unable to test lineage '%s' as its missing in %s training sequences.\n" %
+                                  (lineage, refpkg_code))
                     continue
                 assign_args, taxon_test = evaluator.prep_for_clade_exclusion(refpkg, lineage, lineage_seqs, rank,
                                                                              trim_align=True, num_threads=args.procs,
@@ -384,9 +388,10 @@ def main():
                 remove_clade_exclusion_files(evaluator.var_output_dir + refpkg.prefix + os.sep)
 
                 rank_representation[x] += len(assigned_lines)
+                pbar.update(1)
         refpkg_testable_lineages.clear()
         logging.info("done.\n")
-
+    pbar.close()
     # Summarise the number of classifications for each rank
     logging.info("Rank coverage after clade exclusion:\n" + test_obj.summarise_rank_coverage(rank_representation))
 
