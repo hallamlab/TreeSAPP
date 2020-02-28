@@ -303,6 +303,18 @@ def main():
     test_fasta.keep_only(list(positive_headers))
     logging.info("done.\n")
 
+    # Convert the true positive dictionary to the same format, flattening the ClassifiedSequence instances
+    flattened_tp = dict()
+    for refpkg in test_obj.tp:
+        flattened_tp[refpkg] = set()
+        for classified_seq in test_obj.tp[refpkg]:  # type: ts_MCC.ClassifiedSequence
+            flattened_tp[refpkg].add(classified_seq.name)
+
+    pre_fp = len(vectorize_placement_data(condition_names=test_obj.fp, classifieds=classification_lines,
+                                  hmm_lengths=hmm_lengths, internal_nodes=internal_nodes_dict, refpkg_map=refpkg_map))
+    pre_tp = len(vectorize_placement_data(condition_names=flattened_tp, classifieds=classification_lines,
+                                  hmm_lengths=hmm_lengths, internal_nodes=internal_nodes_dict, refpkg_map=refpkg_map))
+
     logging.info("Determining the set of test query sequences for each reference package... ")
     for refpkg_code in test_obj.ref_packages:  # type: str
         # Write a FASTA file for each of the reference packages
@@ -342,9 +354,9 @@ def main():
             refpkg_testable_lineages[refpkg_code] = get_testable_lineages_for_rank(rank=rank,
                                                                                    ref_lineage_map=ref_lineages,
                                                                                    query_lineage_map=test_obj.tp_lineage_map[refpkg_code])
-        x = test_obj.rank_depth_map[rank]
+        depth = test_obj.rank_depth_map[rank]
         testable_refpkgs = list(refpkg_testable_lineages.keys())
-        while ceiling*0.51 > rank_representation[x] and testable_refpkgs:
+        while ceiling*0.51 > rank_representation[depth] and testable_refpkgs:
             # Pick a random reference package
             for refpkg_code in testable_refpkgs:
                 refpkg = test_obj.ref_packages[refpkg_code]
@@ -361,33 +373,34 @@ def main():
                     logging.debug("Unable to test lineage '%s' as its missing in %s training sequences.\n" %
                                   (lineage, refpkg_code))
                     continue
-                assign_args, taxon_test = evaluator.prep_for_clade_exclusion(refpkg, lineage, lineage_seqs, rank,
-                                                                             trim_align=True, num_threads=args.procs,
-                                                                             targeted=True)
-                try:
-                    assign(assign_args)
-                except:  # Just in case treesapp assign fails, just continue
-                    pass
+                taxon_test = evaluator.clade_exclusion_outputs(lineage, rank, refpkg.prefix)
+                classification_table = taxon_test.classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
+                if not os.path.isfile(classification_table):
+                    assign_args = evaluator.prep_for_clade_exclusion(refpkg, taxon_test, lineage, lineage_seqs,
+                                                                     trim_align=True, num_threads=args.procs,
+                                                                     no_svm=True, targeted=True)
+                    try:
+                        assign(assign_args)
+                    except:  # Just in case treesapp assign fails, just continue
+                        pass
 
-                refpkg.restore_reference_package(taxon_test.temp_files_prefix, taxon_test.intermediates_dir)
-                if not os.path.isfile(taxon_test.classification_table):
-                    # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
-                    logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
-                    rmtree(taxon_test.intermediates_dir + "TreeSAPP_output" + os.sep)
-                    continue
+                    refpkg.restore_reference_package(taxon_test.temp_files_prefix, taxon_test.intermediates_dir)
+                    if not os.path.isfile(classification_table):
+                        # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
+                        logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
+                        rmtree(taxon_test.intermediates_dir + "TreeSAPP_output" + os.sep)
+                        continue
+                    remove_clade_exclusion_files(evaluator.var_output_dir + refpkg.prefix + os.sep)
 
-                taxon_test.taxonomic_tree = all_possible_assignments(taxon_test.test_tax_ids_file)
-                if os.path.isfile(taxon_test.classification_table):
-                    assigned_lines = ts_fp.read_marker_classification_table(taxon_test.classification_table)
-                    classification_lines += assigned_lines
-                else:
+                if not os.path.isfile(classification_table):
                     logging.error("marker_contig_map.tsv is missing from output directory '" +
-                                  os.path.dirname(taxon_test.classification_table) + "'\n" +
+                                  os.path.dirname(classification_table) + "'\n" +
                                   "Please remove this directory and re-run.\n")
                     sys.exit(21)
-                remove_clade_exclusion_files(evaluator.var_output_dir + refpkg.prefix + os.sep)
 
-                rank_representation[x] += len(assigned_lines)
+                assigned_lines = ts_fp.read_marker_classification_table(classification_table)
+                classification_lines += assigned_lines
+                rank_representation[depth] += len(assigned_lines)
                 pbar.update(1)
         refpkg_testable_lineages.clear()
         logging.info("done.\n")
@@ -395,20 +408,10 @@ def main():
     # Summarise the number of classifications for each rank
     logging.info("Rank coverage after clade exclusion:\n" + test_obj.summarise_rank_coverage(rank_representation))
 
-    ##
-    # Convert the true positive dictionary to the same format, flattening the ClassifiedSequence instances
-    ##
-    flattened_tp = dict()
-    for refpkg in test_obj.tp:
-        flattened_tp[refpkg] = set()
-        for classified_seq in test_obj.tp[refpkg]:  # type: ts_MCC.ClassifiedSequence
-            flattened_tp[refpkg].add(classified_seq.name)
-    test_obj.tp = flattened_tp
-
     logging.info("Extracting features from TreeSAPP classifications... ")
     fp = vectorize_placement_data(condition_names=test_obj.fp, classifieds=classification_lines,
                                   hmm_lengths=hmm_lengths, internal_nodes=internal_nodes_dict, refpkg_map=refpkg_map)
-    tp = vectorize_placement_data(condition_names=test_obj.tp, classifieds=classification_lines,
+    tp = vectorize_placement_data(condition_names=flattened_tp, classifieds=classification_lines,
                                   hmm_lengths=hmm_lengths, internal_nodes=internal_nodes_dict, refpkg_map=refpkg_map)
     classified_data = np.append(fp, tp, axis=0)
     conditions = np.append(np.array([0]*len(fp)), np.array([1]*len(tp)))
@@ -417,6 +420,8 @@ def main():
                       % (len(classified_data), len(conditions)))
         sys.exit(5)
     logging.info("done.\n")
+
+    print("%d false positives and %d true positives prior to clade exclusion additions" % (pre_fp, pre_tp))
 
     logging.info("Using %d true positives and %d false positives to train and test.\n" % (len(tp), len(fp)))
 

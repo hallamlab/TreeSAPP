@@ -1723,8 +1723,9 @@ class TaxonTest:
         self.taxonomic_tree = None
         self.intermediates_dir = ""
         self.temp_files_prefix = ""
+        self.test_query_fasta = ""
         self.test_tax_ids_file = ""
-        self.classification_table = ""
+        self.classifier_output = ""
 
     def get_optimal_assignment(self):
         if self.lineage.split('; ')[0] != "Root":
@@ -1807,7 +1808,7 @@ class Evaluator(TreeSAPP):
 
         return info_string
 
-    def new_taxa_test(self, rank, lineage):
+    def new_taxa_test(self, rank, lineage) -> TaxonTest:
         if rank not in self.taxa_tests:
             self.taxa_tests[rank] = list()
         taxa_test_inst = TaxonTest(lineage)
@@ -2082,11 +2083,34 @@ class Evaluator(TreeSAPP):
         output_handler.close()
         return
 
-    def prep_for_clade_exclusion(self, refpkg: ReferencePackage, lineage: str, lineage_seqs: dict, rank: str,
-                                 trim_align=False, min_seq_len=0, targeted=False, num_threads=2) -> (list, TaxonTest):
+    def clade_exclusion_outputs(self, lineage, rank, refpkg_name) -> TaxonTest:
         """
         Creates a TaxonTest instance that stores file paths and settings relevant to a clade exclusion analysis
 
+        :param lineage: Taxonomic lineage which is going to be used in this clade exclusion analysis
+        :param rank: The taxonomic rank (to which `lineage` belongs to) that is being excluded
+        :param refpkg_name: Name (not code) of the ReferencePackage object that is to be used for clade exclusion
+        :return: TaxonTest instance
+        """
+        # Refpkg input files in ts_evaluate.var_output_dir/refpkg_name/rank_tax/
+        # Refpkg built in ts_evaluate.var_output_dir/refpkg_name/rank_tax/{refpkg_name}_{rank_tax}.gpkg/
+        taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
+        rank_tax = rank[0] + '_' + taxon
+
+        test_obj = self.new_taxa_test(rank, lineage)
+        test_obj.intermediates_dir = self.var_output_dir + refpkg_name + os.sep + rank_tax + os.sep
+        if not os.path.isdir(test_obj.intermediates_dir):
+            os.makedirs(test_obj.intermediates_dir)
+
+        logging.info("Classifications for the " + rank + " '" + taxon + "' put " + test_obj.intermediates_dir + "\n")
+        test_obj.test_query_fasta = test_obj.intermediates_dir + rank_tax + ".fa"
+        test_obj.test_tax_ids_file = test_obj.intermediates_dir + "tax_ids_" + refpkg_name + ".txt"
+        test_obj.classifier_output = test_obj.intermediates_dir + "TreeSAPP_output" + os.sep
+        return test_obj
+
+    def prep_for_clade_exclusion(self, refpkg: ReferencePackage, taxa_test: TaxonTest, lineage: str, lineage_seqs: dict,
+                                 trim_align=False, no_svm=False, min_seq_len=0, targeted=False, num_threads=2) -> list:
+        """
         Calls ReferencePackage.exlude_clade_from_ref_files() to remove all reference sequences/leaf nodes from the
         reference package that are descendents of `lineage`.
 
@@ -2097,50 +2121,37 @@ class Evaluator(TreeSAPP):
         :param lineage: Taxonomic lineage which is going to be used in this clade exclusion analysis
         :param lineage_seqs: A fasta-like dictionary where headers are sequence names (accessions) and values are
          their respective nucleotide or amino acid sequences.
-        :param rank: The taxonomic rank (to which `lineage` belongs to) that is being excluded
+        :param taxa_test:
         :param trim_align: Flag determining whether TreeSAPP should use BMGE to trim the multiple sequence alignments
          prior to phylogenetic placement
+        :param no_svm: Flag controlling whether SVM-filtering is applied to placements
         :param min_seq_len: The minimum sequence length argument for TreeSAPP
         :param num_threads: The maximum number or threads and processes TreeSAPP and its dependencies can use
         :param targeted: Boolean controlling whether homology search against the query sequences just uses this
          reference package's HMM (True) or all HMMs available in TreeSAPP (False)
         :return: A list of arguments to be called by TreeSAPP's assign function and a TaxonTest object
         """
-        # Refpkg input files in ts_evaluate.var_output_dir/refpkg_name/rank_tax/
-        # Refpkg built in ts_evaluate.var_output_dir/refpkg_name/rank_tax/{refpkg_name}_{rank_tax}.gpkg/
-        taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
-        rank_tax = rank[0] + '_' + taxon
-
-        test_obj = self.new_taxa_test(rank, lineage)
-        test_obj.queries = lineage_seqs.keys()
-        test_obj.intermediates_dir = self.var_output_dir + refpkg.prefix + os.sep + rank_tax + os.sep
-        if not os.path.isdir(test_obj.intermediates_dir):
-            os.makedirs(test_obj.intermediates_dir)
-
-        logging.info("Classifications for the " + rank + " '" + taxon + "' put " + test_obj.intermediates_dir + "\n")
-        test_rep_taxa_fasta = test_obj.intermediates_dir + rank_tax + ".fa"
-        classifier_output = test_obj.intermediates_dir + "TreeSAPP_output" + os.sep
-
-        test_obj.test_tax_ids_file = test_obj.intermediates_dir + "tax_ids_" + refpkg.prefix + ".txt"
-        test_obj.classification_table = classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
-
         # Copy reference files, then exclude all clades belonging to the taxon being tested
-        test_obj.temp_files_prefix = refpkg.exclude_clade_from_ref_files(self.refpkg_dir, self.molecule_type,
-                                                                         self.var_output_dir + refpkg.prefix + os.sep,
-                                                                         lineage, self.executables)
+        taxa_test.temp_files_prefix = refpkg.exclude_clade_from_ref_files(self.refpkg_dir, self.molecule_type,
+                                                                          self.var_output_dir + refpkg.prefix + os.sep,
+                                                                          lineage, self.executables)
         # Write the query sequences
-        write_new_fasta(lineage_seqs, test_rep_taxa_fasta)
-        assign_args = ["-i", test_rep_taxa_fasta, "-o", classifier_output,
+        taxa_test.queries = lineage_seqs.keys()
+        write_new_fasta(lineage_seqs, taxa_test.test_query_fasta)
+
+        assign_args = ["-i", taxa_test.test_query_fasta, "-o", taxa_test.classifier_output,
                        "-m", self.molecule_type, "-n", str(num_threads),
                        "--overwrite", "--delete"]
         if trim_align:
             assign_args.append("--trim_align")
+        if no_svm:
+            assign_args.append("--no_svm")
         if min_seq_len:
             assign_args += ["--min_seq_length", str(min_seq_len)]
         if targeted:
             assign_args += ["--targets", refpkg.refpkg_code]
 
-        return assign_args, test_obj
+        return assign_args
 
 
 class Layerer(TreeSAPP):
