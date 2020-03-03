@@ -2,22 +2,49 @@ BootStrap: library
 From: ubuntu:18.04
 Stage: build
 
+%environment
+    export TS_VERSION=0.6.0
+
 %post
+	##
+    # Install the linux package dependencies
+    ##
     apt-get -y update
-    apt install gcc dpkg-dev \
+    apt install gcc dpkg-dev curl zip \
     python3 python3-distutils \ # This is currently python 3.6.5
-    curl zip
     ln -s /usr/bin/python3 /usr/bin/python
     curl https://bootstrap.pypa.io/get-pip.py | python
-    curl -LJ0 --output TreeSAPP.zip https://github.com/hallamlab/TreeSAPP/archive/v0.6.0.zip
-    cd TreeSAPP-0.6.0/
-    make
+
+	##
+    # Download TreeSAPP from GitHub
+    ##
+    curl -LJ0 --output TreeSAPP.zip https://github.com/hallamlab/TreeSAPP/archive/v${TS_VERSION}.zip
+    cd TreeSAPP-${TS_VERSION}/
+
+	##
+    # Install TreeSAPP dependencies
+    ##
+    # RAxML-v8.2.12
+    git submodule update --init --recursive standard-RAxML; cd standard-RAxML/;
+    make -f Makefile.SSE3.PTHREADS.gcc; rm *.o; mv standard-RAxML raxmlHPC; cd -
+    # MAFFT
+	curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
+	dpkg -i mafft.deb
+	# Prodigal
+	curl -LJ0 -- output prodigal https://github.com/hyattpd/Prodigal/releases/download/v2.6.3/prodigal.linux
+	# HMMER
+	apt install hmmer
+
+	##
+    # Install TreeSAPP
+    ##
+    make all
     python setup.py install
 
 
 %labels
     Author Connor Morgan-Lang
-    Version v0.0.1
+    Version v0.0.2
 
 %help
     This container downloads the latest TreeSAPP release from GitHub:hallamlab/TreeSAPP/

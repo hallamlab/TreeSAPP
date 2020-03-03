@@ -1,0 +1,3 @@
+[submodule "standard-RAxML"]
+	path = standard-RAxML
+	url = https://github.com/stamatak/standard-RAxML

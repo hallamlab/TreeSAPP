@@ -34,8 +34,7 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
-.idea/workspace.xml
-.idea*
+.idea
 TreeSAPP.Rproj
 .Rhistory
 .RData
