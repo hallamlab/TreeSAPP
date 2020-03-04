@@ -7,10 +7,10 @@ Stage: build
 
 %post
 	##
-    # Install the linux package dependencies, this is currently python 3.6.5
+    # Install the linux package dependencies, this is currently including Python 3.6.5
     ##
     apt -y update
-    apt -y install gcc dpkg-dev curl zip git \
+    apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk \
     python3 python3-distutils python3-dev
     ln -s /usr/bin/python3 /usr/bin/python
     curl https://bootstrap.pypa.io/get-pip.py | python
@@ -29,13 +29,17 @@ Stage: build
     ##
     # RAxML-v8.2.12
     git submodule update --init --recursive standard-RAxML; cd standard-RAxML/
-    make -f Makefile.SSE3.PTHREADS.gcc; rm *.o; cd - ; mv standard-RAxML/raxmlHPC-PTHREADS-SSE3 /usr/bin/raxmlHPC
+    make -f Makefile.SSE3.PTHREADS.gcc; rm *.o; cd -; cp standard-RAxML/raxmlHPC-PTHREADS-SSE3 /usr/bin/raxmlHPC
     # MAFFT
 	curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
 	dpkg -i mafft.deb
 	# Prodigal
 	curl -LJ0 --output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v2.6.3/prodigal.linux
 	chmod +x /usr/bin/prodigal
+	# BWA
+	curl -LJ0 --output v0.7.17.tar.gz https://github.com/lh3/bwa/archive/v0.7.17.tar.gz
+	tar -xzf v0.7.17.tar.gz; cd bwa-0.7.17/; make; rm *.o; cd -; cp bwa-0.7.17/bwa /usr/bin/bwa
+	rm v0.7.17.tar.gz
 	# HMMER - not yet available on Ubuntu 18.04 so rely on Makefile
 	# apt install hmmer
 
