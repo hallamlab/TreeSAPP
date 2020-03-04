@@ -11,6 +11,12 @@ TreeSAPP is a python package for phylogenetically annotating genomes and metagen
 
 ## Download and installation:
 
+### Conda
+
+
+
+### Singularity
+
 To install TreeSAPP locally, you can use `git clone` to pull down the latest version.
 We recommend using a virtual environment using the python package [`virtualenv`](https://virtualenv.pypa.io/en/latest/) 
 while installing TreeSAPP and all dependencies. For the 
@@ -41,7 +47,7 @@ However, the executable MUST be named `raxmlHPC` or it will not be found by Tree
 
 #### HMMER
 TreeSAPP uses HMMER for identifying marker gene sequences in proteins and genomes.
-The latest version (v3.2.1) is available at http://hmmer.org/.
+The latest version (v3.3) is available at http://hmmer.org/.
 Download it from there and follow their installation guide under DOCUMENTATION.
 
 #### Prodigal
@@ -62,9 +68,11 @@ There is an upcoming version 3 so these links may become outdated soon!
  [Robert Edgar's drive5 website](https://drive5.com/usearch/download.html).
 
 #### OD-Seq
- OD-Seq is used for detecting mis-annotated or "outliers" in multiple sequence alignmnets
- when building new reference packages. It can be directly downloaded from
-  the University College Dublin's website using this [link](http://www.bioinf.ucd.ie/download/od-seq.tar.gz).
+ [OD-Seq](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-015-0702-1) 
+ is used for detecting mis-annotated or "outliers" in multiple sequence alignments when building new reference packages.
+  It can be installed into TreeSAPP as a part of `make all` or in isolation with `make odseq`.
+  Source files can also be downloaded from the University College Dublin's website using this
+   [link](http://www.bioinf.ucd.ie/download/od-seq.tar.gz).
 
 #### Finishing up
 I hope that wasn't too painful. If you think you have installed everything, try running `treesapp info`!
