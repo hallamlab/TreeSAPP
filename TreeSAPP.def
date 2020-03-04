@@ -7,33 +7,37 @@ Stage: build
 
 %post
 	##
-    # Install the linux package dependencies
+    # Install the linux package dependencies, this is currently python 3.6.5
     ##
-    apt-get -y update
-    apt install gcc dpkg-dev curl zip \
-    python3 python3-distutils \ # This is currently python 3.6.5
+    apt -y update
+    apt -y install gcc dpkg-dev curl zip git \
+    python3 python3-distutils
     ln -s /usr/bin/python3 /usr/bin/python
     curl https://bootstrap.pypa.io/get-pip.py | python
 
 	##
     # Download TreeSAPP from GitHub
     ##
-    curl -LJ0 --output TreeSAPP.zip https://github.com/hallamlab/TreeSAPP/archive/v${TS_VERSION}.zip
-    cd TreeSAPP-${TS_VERSION}/
+    # curl -LJ0 --output TreeSAPP.zip https://github.com/hallamlab/TreeSAPP/archive/v${TS_VERSION}.zip
+    # cd TreeSAPP-${TS_VERSION}/
+	git clone https://github.com/hallamlab/TreeSAPP.git
+	cd TreeSAPP/
+	git checkout port
 
 	##
     # Install TreeSAPP dependencies
     ##
     # RAxML-v8.2.12
-    git submodule update --init --recursive standard-RAxML; cd standard-RAxML/;
-    make -f Makefile.SSE3.PTHREADS.gcc; rm *.o; mv standard-RAxML raxmlHPC; cd -
+    git submodule update --init --recursive standard-RAxML; cd standard-RAxML/
+    make -f Makefile.SSE3.PTHREADS.gcc; rm *.o; cd - ; mv standard-RAxML/raxmlHPC-PTHREADS-SSE3 /usr/bin/raxmlHPC
     # MAFFT
 	curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
 	dpkg -i mafft.deb
 	# Prodigal
-	curl -LJ0 -- output prodigal https://github.com/hyattpd/Prodigal/releases/download/v2.6.3/prodigal.linux
-	# HMMER
-	apt install hmmer
+	curl -LJ0 -- output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v2.6.3/prodigal.linux
+	chmod +x /usr/bin/prodigal
+	# HMMER - not yet available on Ubuntu 18.04 so rely on Makefile
+	# apt install hmmer
 
 	##
     # Install TreeSAPP
