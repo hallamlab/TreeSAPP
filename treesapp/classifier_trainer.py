@@ -15,7 +15,7 @@ from tqdm import tqdm
 import numpy as np
 import seaborn
 import pandas as pd
-import matplotlib.pyplot as plt
+import matplotlib
 from sklearn import model_selection, svm, metrics, preprocessing, manifold
 
 from treesapp.classy import prep_logging, ReferencePackage, Evaluator
@@ -140,6 +140,8 @@ a numpy array from each query's data:
 
 
 def generate_tsne(x, y, tsne_file):
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
     feat_cols = ['pixel' + str(i) for i in range(x.shape[1])]
     df = pd.DataFrame(x, columns=feat_cols)
     df['y'] = y
