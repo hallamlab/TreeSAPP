@@ -12,7 +12,7 @@ RPKM_HEADERS= $(RPKM_SOURCES:.cpp=.h)
 
 HMMSEARCH_EXE := $(shell which hmmsearch)
 
-ODSEQ_EXE := $(shell which OD-Seq)
+ODSEQ_EXE := $(shell which OD-seq)
 ODSEQ_SOURCES= OD-Seq/AliReader.cpp OD-Seq/Bootstrap.cpp OD-Seq/DistCalc.cpp OD-Seq/DistMatReader.cpp \
 	OD-Seq/DistWriter.cpp OD-Seq/FastaWriter.cpp OD-Seq/IQR.cpp OD-Seq/ODseq.cpp OD-Seq/PairwiseAl.cpp \
 	OD-Seq/Protein.cpp OD-Seq/ResultWriter.cpp OD-Seq/runtimeargs.cpp OD-Seq/util.cpp
@@ -40,7 +40,7 @@ ifeq ($(ODSEQ_EXE),)
 	tar -xzf od-seq.tar.gz; g++ -fopenmp -o OD-Seq/OD-seq $(ODSEQ_SOURCES)
 	rm od-seq.tar.gz
 else
-	@echo OD-Seq found
+	@echo OD-seq found
 endif
 
 clean:
@@ -50,6 +50,6 @@ clean:
 
 install:
 	cp $(RPKM_SRC)/rpkm $(TS_BIN_DIR)/
-	cp OD-Seq/OD-Seq $(TS_BIN_DIR)/
+	cp OD-Seq/OD-seq $(TS_BIN_DIR)/
 	cp hmmer-3.3/src/hmmsearch hmmer-3.3/src/hmmbuild hmmer-3.3/src/hmmalign hmmer-3.3/src/hmmfetch $(TS_BIN_DIR)/
 
