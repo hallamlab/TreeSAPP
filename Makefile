@@ -23,7 +23,7 @@ ODSEQ_SOURCES= OD-Seq/AliReader.cpp OD-Seq/Bootstrap.cpp OD-Seq/DistCalc.cpp OD-
 all: rpkm hmmer odseq
 
 rpkm: $(RPKM_OBJECTS) $(RPKM_HEADERS) $(RPKM_SRC)/types.h
-	$(CC) $(CCFLAG) $(RPKM_OBJECTS) -o $(TS_BIN_DIR)/rpkm
+	$(CC) $(CCFLAG) $(RPKM_OBJECTS) -o $(RPKM_SRC)/rpkm
 
 hmmer:
 ifeq ($(HMMSEARCH_EXE),)
@@ -37,20 +37,19 @@ endif
 odseq:
 ifeq ($(ODSEQ_EXE),)
 	curl -LJ0 --output od-seq.tar.gz http://www.bioinf.ucd.ie/download/od-seq.tar.gz
-	tar -xzf od-seq.tar.gz;
-	g++ -fopenmp -o $(TS_BIN_DIR)/OD-seq $(ODSEQ_SOURCES)
+	tar -xzf od-seq.tar.gz; g++ -fopenmp -o OD-Seq/OD-seq $(ODSEQ_SOURCES)
 	rm od-seq.tar.gz
 else
 	@echo OD-Seq found
 endif
 
 clean:
-	rm -rf $(RPKM_OBJECTS) rpkm $(TS_BIN_DIR)/rpkm  _tree_parser*.so _fasta_reader*.so
+	rm -rf $(RPKM_OBJECTS) $(RPKM_SRC)/rpkm  _tree_parser*.so _fasta_reader*.so
 	rm -r OD-Seq/
 	rm -r hmmer-3.3/
 
 install:
-	cp rpkm $(TS_BIN_DIR)
+	cp $(RPKM_SRC)/rpkm $(TS_BIN_DIR)/
 	cp OD-Seq/OD-Seq $(TS_BIN_DIR)/
 	cp hmmer-3.3/src/hmmsearch hmmer-3.3/src/hmmbuild hmmer-3.3/src/hmmalign hmmer-3.3/src/hmmfetch $(TS_BIN_DIR)/
 

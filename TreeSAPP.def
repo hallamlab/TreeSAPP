@@ -11,7 +11,7 @@ Stage: build
     ##
     apt -y update
     apt -y install gcc dpkg-dev curl zip git \
-    python3 python3-distutils
+    python3 python3-distutils python3-dev
     ln -s /usr/bin/python3 /usr/bin/python
     curl https://bootstrap.pypa.io/get-pip.py | python
 
@@ -34,7 +34,7 @@ Stage: build
 	curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
 	dpkg -i mafft.deb
 	# Prodigal
-	curl -LJ0 -- output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v2.6.3/prodigal.linux
+	curl -LJ0 --output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v2.6.3/prodigal.linux
 	chmod +x /usr/bin/prodigal
 	# HMMER - not yet available on Ubuntu 18.04 so rely on Makefile
 	# apt install hmmer
@@ -43,8 +43,8 @@ Stage: build
     # Install TreeSAPP
     ##
     make all
+    make install
     python setup.py install
-
 
 %labels
     Author Connor Morgan-Lang
