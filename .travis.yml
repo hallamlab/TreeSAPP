@@ -27,7 +27,7 @@ before_install:
 #  - sudo apt install python-lxml -y
   - sudo apt install python-six -y
   - wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
-  - sudo dpkg -i mafft_7.445-1_amd64.deb
+  - sudo dpkg -i mafft_7.450-1_amd64.deb
 
 install:
     - $PIP install -r requirements.txt
