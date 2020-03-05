@@ -16,6 +16,7 @@ jobs:
 env:
   global:
     - TWINE_USERNAME=__token__
+    - TRAVIS_TAG=0.6.3
     # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
     - PIP="python3 -m pip"
     - TWINE_REPOSITORY=pypi
@@ -33,8 +34,6 @@ install:
     - $PIP install -r requirements.txt
     - $PIP install -U setuptools
     - $PIP install cibuildwheel==1.1.0
-    - cibuildwheel --output-dir wheelhouse
-    - python3 setup.py sdist --dist-dir wheelhouse
 
 #before_script:
 #    - cd /home/travis/build/hallamlab/TreeSAPP/sub_binaries; cp usearch /usr/bin; cd ../; make; make install
@@ -42,6 +41,7 @@ install:
 script:
     # build the wheels, put them into './wheelhouse'
     - python3 -m cibuildwheel --output-dir wheelhouse
+    - python3 setup.py sdist --dist-dir wheelhouse
     # - pytest
 
 branches:
@@ -54,6 +54,7 @@ notifications:
 
 after_success:
   # if the release was tagged, upload them to PyPI
+  - ls wheelhouse/
   - |
     if [[ $TRAVIS_TAG ]]; then
       $PIP install twine
