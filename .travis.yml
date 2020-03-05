@@ -1,3 +1,4 @@
+dist: bionic
 sudo: true
 language: python
 python:
@@ -21,12 +22,12 @@ env:
     - TWINE_REPOSITORY_URL=https://test.pypi.org/simple/
 
 before_install:
-  - sudo apt-get -y install gcc dpkg-dev curl zip git libz-dev default-jdk \
-    python3 python3-distutils python3-dev
-  - sudo apt-get install python3-pip -y
-  - sudo apt-get install python-qt4 -y
-  - sudo apt-get install python-lxml -y
-  - sudo apt-get install python-six -y
+  - sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk \
+    python3-distutils python3-dev
+  - sudo apt install python3-pip -y
+  - sudo apt install python-qt4 -y
+  - sudo apt install python-lxml -y
+  - sudo apt install python-six -y
   - wget https://mafft.cbrc.jp/alignment/software/mafft_7.407-1_amd64.deb
   - sudo dpkg -i mafft_7.407-1_amd64.deb
 
