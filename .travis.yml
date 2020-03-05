@@ -8,8 +8,6 @@ python:
 before_deploy:
   - git config --local user.name "cmorganl"
   - git config --local user.email "c.morganlang@gmail.com"
-  - export TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
-  - git tag $TRAVIS_TAG
 
 deploy:
   provider: pypi
@@ -35,11 +33,10 @@ env:
     - PIP="python3 -m pip"
     - TWINE_REPOSITORY=pypi
     - TWINE_REPOSITORY_URL=https://test.pypi.org/simple/
+    - export TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
 
 before_install:
   - sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk python3-distutils python3-dev
-#  - sudo apt install python-qt4 -y
-#  - sudo apt install python-lxml -y
   - sudo apt install python-six -y
   - wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
   - sudo dpkg -i mafft_7.450-1_amd64.deb
