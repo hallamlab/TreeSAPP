@@ -3,15 +3,15 @@ sudo: true
 language: python
 python:
     - "3.6"
-    - "3.5"
+#    - "3.5"
 
 jobs:
   include:
     # perform a linux build
     - services: docker
     # and a mac build
-    - os: osx
-      language: shell
+#    - os: osx
+#      language: shell
 
 env:
   global:
@@ -23,8 +23,8 @@ env:
 
 before_install:
   - sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk python3-distutils python3-dev
-  - sudo apt install python-qt4 -y
-  - sudo apt install python-lxml -y
+#  - sudo apt install python-qt4 -y
+#  - sudo apt install python-lxml -y
   - sudo apt install python-six -y
   - wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
   - sudo dpkg -i mafft_7.445-1_amd64.deb
