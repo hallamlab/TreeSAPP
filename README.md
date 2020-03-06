@@ -1,5 +1,8 @@
 # TreeSAPP: Tree-based Sensitive and Accurate Phylogenetic Profiler
 
+[![Build Status](https://travis-ci.org/hallamlab/TreeSAPP.svg?branch=master)](https://travis-ci.org/hallamlab/TreeSAPP)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/1ae0c5b20743430497e1397f6e91839f)](https://www.codacy.com/manual/TreeSAPP/TreeSAPP?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hallamlab/TreeSAPP&amp;utm_campaign=Badge_Grade)
+
 Connor Morgan-Lang, Ryan McLaughlin, Grace Zhang, Kevin Chan, Zachary Armstrong, and Steven J. Hallam
 
 ## Overview:
