@@ -14,24 +14,30 @@ TreeSAPP is a python package for phylogenetically annotating genomes and metagen
 
 ## Download and installation:
 
-### Conda
+TreeSAPP can be installed using conda:
 
+```bash
+conda install -c conda-forge -c bioconda treeesapp
+```
+If you're working in an HPC environment and don't have conda installed, we also have a 
+[singularity](https://sylabs.io/guides/3.5/user-guide/) container available:
 
+```bash
+singularity pull library://cmorganl/treesapp
+singularity exec treesapp.sif
+```
 
-### Singularity
-
-To install TreeSAPP locally, you can use `git clone` to pull down the latest version.
+Finally, if you want to install the latest version of TreeSAPP locally,
+ you can use `git clone` to pull down the latest version.
 We recommend using a virtual environment using the python package [`virtualenv`](https://virtualenv.pypa.io/en/latest/) 
-while installing TreeSAPP and all dependencies. For the 
+while installing TreeSAPP and all dependencies.
 
 ```
 cd ~/bin
 virtualenv ~/bin/treesapp_venv
 source ~/bin/treesapp_venv/bin/activate
-git clone git@github.com:hallamlab/TreeSAPP.git
-cd TreeSAPP/
+pip install treesapp
 make rpkm
-python setup.py install
 ```
 
 However, the pipeline will not run without several dependencies.
