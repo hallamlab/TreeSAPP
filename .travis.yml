@@ -15,7 +15,6 @@ deploy:
   password:
     secure: EXX4S1EylVRgNHYN9Xc60Sx/3apTvhS9Wp5HOA5atDVY2pIOMYZmMVeiABh4AyfRhwlL+5QkysK4UQ86wWCEOQD5rzC6Y0QnosO3X5y/2Qt2t18jwgcr0JxpuuDSR5lxrm4uLCUi3Az9gULX9fp5sD7meYwtyOCsL6HJfTQBgn1m1X1gKSsnnut0oZL5wp6hhavkbhz8V9VG9XAAW3PBUNs9Zb5lSe+BP9Pw4GU+RzIpkP2WsAI4QRwkUMiotiZS2JcnA+yQcCK41jKbhoevQzf2mmCA+G5JMF0XTignhoHYUkiRfuXsFrXvHYnOmMJO/T/7NTls/bTpUQbzRVJK+j7wxQmopZKhlihSmi8FEWSuBzbe1Io3LG3kj6X/qoKswYXpbyrgQSxh0aryJVwICeF+znDDYgwQB0n6ZVKUWsg/+/+Q/OAMEru/iqRDO4AOXQwqfpUL15GrCT7v+mwRvhk1iNldQRR1OaQQTmnpv62ApItUxVl9YCHJ7eC8CiSeOnyUzR9t0fPJLmAuy4Hw3Of982+DWOpVwI8IEeDmfVIrXG/Dc1HjK/q1Ny9V/4FH9P5kbFr1AnlsKFQaNiJPeijwlNLoDRHj+REDfhuvB1pB6ey94skd+MENDtM9TY9EaMiBUD0T5lhxCUrld76rJZ1u3F+ue9vBOofYCXV6urc=
   on:
-    all_branches: true
     tags: true
 
 jobs:
@@ -54,11 +53,6 @@ script:
     - python3 -m cibuildwheel --output-dir wheelhouse
     - python3 setup.py sdist --dist-dir wheelhouse
     # - pytest
-
-branches:
-  only:
-    - master
-    - port
 
 notifications:
     email: false
