@@ -6,42 +6,42 @@ python:
 #    - "3.5"
 
 before_deploy:
-  - git config --local user.name "cmorganl"
-  - git config --local user.email "c.morganlang@gmail.com"
+    - git config --local user.name "cmorganl"
+    - git config --local user.email "c.morganlang@gmail.com"
 
 deploy:
-  provider: pypi
-  user: "__token__"
-  password:
-    secure: EXX4S1EylVRgNHYN9Xc60Sx/3apTvhS9Wp5HOA5atDVY2pIOMYZmMVeiABh4AyfRhwlL+5QkysK4UQ86wWCEOQD5rzC6Y0QnosO3X5y/2Qt2t18jwgcr0JxpuuDSR5lxrm4uLCUi3Az9gULX9fp5sD7meYwtyOCsL6HJfTQBgn1m1X1gKSsnnut0oZL5wp6hhavkbhz8V9VG9XAAW3PBUNs9Zb5lSe+BP9Pw4GU+RzIpkP2WsAI4QRwkUMiotiZS2JcnA+yQcCK41jKbhoevQzf2mmCA+G5JMF0XTignhoHYUkiRfuXsFrXvHYnOmMJO/T/7NTls/bTpUQbzRVJK+j7wxQmopZKhlihSmi8FEWSuBzbe1Io3LG3kj6X/qoKswYXpbyrgQSxh0aryJVwICeF+znDDYgwQB0n6ZVKUWsg/+/+Q/OAMEru/iqRDO4AOXQwqfpUL15GrCT7v+mwRvhk1iNldQRR1OaQQTmnpv62ApItUxVl9YCHJ7eC8CiSeOnyUzR9t0fPJLmAuy4Hw3Of982+DWOpVwI8IEeDmfVIrXG/Dc1HjK/q1Ny9V/4FH9P5kbFr1AnlsKFQaNiJPeijwlNLoDRHj+REDfhuvB1pB6ey94skd+MENDtM9TY9EaMiBUD0T5lhxCUrld76rJZ1u3F+ue9vBOofYCXV6urc=
-  on:
-    branch: port
-  skip_existing: true
-  skip_cleanup: true
+    provider: pypi
+    user: "__token__"
+    password:
+      secure: EXX4S1EylVRgNHYN9Xc60Sx/3apTvhS9Wp5HOA5atDVY2pIOMYZmMVeiABh4AyfRhwlL+5QkysK4UQ86wWCEOQD5rzC6Y0QnosO3X5y/2Qt2t18jwgcr0JxpuuDSR5lxrm4uLCUi3Az9gULX9fp5sD7meYwtyOCsL6HJfTQBgn1m1X1gKSsnnut0oZL5wp6hhavkbhz8V9VG9XAAW3PBUNs9Zb5lSe+BP9Pw4GU+RzIpkP2WsAI4QRwkUMiotiZS2JcnA+yQcCK41jKbhoevQzf2mmCA+G5JMF0XTignhoHYUkiRfuXsFrXvHYnOmMJO/T/7NTls/bTpUQbzRVJK+j7wxQmopZKhlihSmi8FEWSuBzbe1Io3LG3kj6X/qoKswYXpbyrgQSxh0aryJVwICeF+znDDYgwQB0n6ZVKUWsg/+/+Q/OAMEru/iqRDO4AOXQwqfpUL15GrCT7v+mwRvhk1iNldQRR1OaQQTmnpv62ApItUxVl9YCHJ7eC8CiSeOnyUzR9t0fPJLmAuy4Hw3Of982+DWOpVwI8IEeDmfVIrXG/Dc1HjK/q1Ny9V/4FH9P5kbFr1AnlsKFQaNiJPeijwlNLoDRHj+REDfhuvB1pB6ey94skd+MENDtM9TY9EaMiBUD0T5lhxCUrld76rJZ1u3F+ue9vBOofYCXV6urc=
+    on:
+      branch: port
+    skip_existing: true
+    skip_cleanup: true
 
 jobs:
-  include:
-    # perform a linux build
-    - services: docker
-    # and a mac build
-#    - os: osx
-#      language: shell
+    include:
+      # perform a linux build
+      - services: docker
+      # and a mac build
+#      - os: osx
+#        language: shell
 
 env:
-  global:
-    - CIBW_SKIP="cp27-*"
-    - TWINE_USERNAME=__token__
-    # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
-    - PIP="python3 -m pip"
-    - TWINE_REPOSITORY=pypi
-    - TWINE_REPOSITORY_URL=https://test.pypi.org/simple/
-    - TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
+    global:
+      - CIBW_SKIP="cp27-*"
+      - TWINE_USERNAME=__token__
+      # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
+      - PIP="python3 -m pip"
+      - TWINE_REPOSITORY=pypi
+      - TWINE_REPOSITORY_URL=https://test.pypi.org/legacy/
+      - TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
 
 before_install:
-  - sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk python3-distutils python3-dev
-  - sudo apt install python-six -y
-  - wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
-  - sudo dpkg -i mafft_7.450-1_amd64.deb
+    - sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk python3-distutils python3-dev
+    - sudo apt install python-six -y
+    - wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
+    - sudo dpkg -i mafft_7.450-1_amd64.deb
 
 install:
     - $PIP install -r requirements.txt
@@ -53,6 +53,7 @@ install:
 
 script:
     # build the wheels, put them into './wheelhouse'
+    - echo $TRAVIS_TAG
     - python3 -m cibuildwheel --output-dir wheelhouse
     - python3 setup.py sdist --dist-dir wheelhouse
     # - pytest
@@ -61,11 +62,11 @@ notifications:
     email: false
 
 after_success:
-  # if the release was tagged, upload them to PyPI
-  - ls wheelhouse/
-  - |
-    if [[ $TRAVIS_TAG ]]; then
-      echo $TRAVIS_TAG
-      $PIP install twine
-      python3 -m twine upload --skip-existing wheelhouse/*.whl
-    fi
+    # if the release was tagged, upload them to PyPI
+    - ls wheelhouse/
+    - |
+      if [[ $TRAVIS_TAG ]]; then
+        echo $TRAVIS_TAG
+        $PIP install twine
+        python3 -m twine upload --skip-existing wheelhouse/*.whl
+      fi
