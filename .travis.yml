@@ -17,6 +17,7 @@ deploy:
   on:
     branch: port
   skip_existing: true
+  skip_cleanup: true
 
 jobs:
   include:
@@ -28,6 +29,7 @@ jobs:
 
 env:
   global:
+    - CIBW_SKIP="cp27-*"
     - TWINE_USERNAME=__token__
     # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
     - PIP="python3 -m pip"
