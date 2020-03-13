@@ -1,0 +1,31 @@
+{% set name = "treesapp" %}
+{% set version = "0.6.3" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  git_url: https://github.com/hallamlab/TreeSAPP.git
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - numpy
+    - scipy
+    - biopython
+    - pygtrie
+    - ete3
+
+about:
+  home: https://test.pypi.org/project/treesapp/
+  license: GNU-v3.0
+  license_family: GNU
+  summary: TreeSAPP is a functional and taxonomic annotation tool for microbial genomes and proteins
