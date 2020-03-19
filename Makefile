@@ -54,7 +54,6 @@ clean:
 
 install:
 	cp $(RPKM_SRC)/rpkm $(TS_BIN_DIR)/
-	@echo $(ODSEQ_DIR) $(HMMER_DIR)
 	cp $(ODSEQ_DIR)/OD-seq $(TS_BIN_DIR)/
 	cp $(HMMER_DIR)/hmmsearch $(HMMER_DIR)/hmmbuild $(HMMER_DIR)/hmmalign $(TS_BIN_DIR)/
 
