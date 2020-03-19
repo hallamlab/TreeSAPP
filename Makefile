@@ -30,8 +30,10 @@ ifeq ($(HMMSEARCH_EXE),)
 	curl -LJ0 --output hmmer-3.3.tar.gz http://eddylab.org/software/hmmer/hmmer-3.3.tar.gz
 	tar -xzf hmmer-3.3.tar.gz; cd hmmer-3.3/; ./configure; make -f Makefile; cd -
 	rm hmmer-3.3.tar.gz
+	HMMER_DIR = "hmmer-3.3/"
 else
-	@echo HMMER found
+	@echo "HMMER found ($(HMMSEARCH_EXE))"
+    HMMER_DIR := $(dir $(HMMSEARCH_EXE))
 endif
 
 odseq:
@@ -39,8 +41,10 @@ ifeq ($(ODSEQ_EXE),)
 	curl -LJ0 --output od-seq.tar.gz http://www.bioinf.ucd.ie/download/od-seq.tar.gz
 	tar -xzf od-seq.tar.gz; g++ -fopenmp -o OD-Seq/OD-seq $(ODSEQ_SOURCES)
 	rm od-seq.tar.gz
+	ODSEQ_DIR = "OD-Seq/"
 else
-	@echo OD-seq found
+	@echo "OD-seq found ($(ODSEQ_EXE))"
+    ODSEQ_DIR := $(dir $(ODSEQ_EXE))
 endif
 
 clean:
@@ -50,6 +54,7 @@ clean:
 
 install:
 	cp $(RPKM_SRC)/rpkm $(TS_BIN_DIR)/
-	cp OD-Seq/OD-seq $(TS_BIN_DIR)/
-	cp hmmer-3.3/src/hmmsearch hmmer-3.3/src/hmmbuild hmmer-3.3/src/hmmalign hmmer-3.3/src/hmmfetch $(TS_BIN_DIR)/
+	@echo $(ODSEQ_DIR) $(HMMER_DIR)
+	cp $(ODSEQ_DIR)/OD-seq $(TS_BIN_DIR)/
+	cp $(HMMER_DIR)/hmmsearch $(HMMER_DIR)/hmmbuild $(HMMER_DIR)/hmmalign $(TS_BIN_DIR)/
 
