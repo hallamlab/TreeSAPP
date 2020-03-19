@@ -20,7 +20,7 @@ CLASSIFIERS = [
 SETUP_METADATA = \
     {
         "name": "treesapp",
-        "version": "0.6.4",
+        "version": "0.6.5",
         "description": "TreeSAPP is a functional and taxonomic annotation tool",
         "long_description": LONG_DESCRIPTION,
         "long_description_content_type": "text/markdown",
@@ -41,7 +41,7 @@ SETUP_METADATA = \
                                   language="c++",
                                   include_dirs=["./treesapp/include"])
                         ],
-        "install_requires": ["pygtrie>=2.3", "ete3", "numpy", "biopython>=1.68", "scipy", "six"]
+        "install_requires": ["pygtrie>=2.3", "ete3>=3.1.1", "numpy>=1.18.1", "biopython>=1.68", "scipy", "six>=1.14.0"]
     }
 
 setup(**SETUP_METADATA)
