@@ -178,8 +178,14 @@ def read_marker_classification_table(assignment_file):
     except IOError:
         logging.error("Unable to open classification file '" + assignment_file + "' for reading.\n")
         sys.exit(21)
+
+    header_line = assignments_handle.readline()
+    if not header_line:
+        logging.error("Classification file '" + assignment_file + "' is empty!\n")
+        sys.exit(21)
+
     # This is the header line
-    if assignments_handle.readline() != header:
+    if header_line != header:
         logging.error("Header of assignments file is unexpected!\n")
         sys.exit(21)
 
@@ -663,39 +669,6 @@ def read_uc(uc_file):
     return cluster_dict
 
 
-def read_rpkm(rpkm_output_file):
-    """
-    Read the CSV file written by rpkm. A header and line with unmapped reads is expected and are skipped.
-    Each line is expected to have 4 elements: Sample ID, sequence name, number of reads recruited, RPKM
-    :param rpkm_output_file: A file path
-    :return: Dictionary mapping contig names to floats
-    """
-    rpkm_values = dict()
-
-    try:
-        rpkm_stats = open(rpkm_output_file)
-    except IOError:
-        logging.error("Unable to open " + rpkm_output_file + " for reading!\n")
-        sys.exit(13)
-
-    # Skip the header
-    next(rpkm_stats)
-    # Skip the line with unaligned reads
-    next(rpkm_stats)
-    for line in rpkm_stats:
-        # Line format is Sample ID (output file name), sequence name, number of reads recruited, RPKM
-        try:
-            _, seq_name, _, rpkm = line.strip().split(',')
-        except ValueError:
-            n_values = str(len(line.split(',')))
-            logging.error("Unexpected line format in RPKM file - should contain 4 elements, "
-                          "" + n_values + " encountered. Offending line:\n" + line + "\n")
-            sys.exit(13)
-        rpkm_values[seq_name] = float(rpkm)
-    rpkm_stats.close()
-    return rpkm_values
-
-
 def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, queries_mapped=False, min_seq_length=30):
     """
     Parse a list of multiple sequence alignment (MSA) files and determine whether the multiple alignment:
@@ -703,6 +676,7 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
         2. is missing any reference sequences
     The number of query sequences discarded - these may have been added by hmmalign or PaPaRa - is returned via a string
     NOTE: Initially design for sequences records with numeric names (e.g. >4889) but accomodates other TreeSAPP formats
+
     :param msa_files: A list of either Phylip- or FASTA-formatted MSA files
     :param unique_ref_headers: A set of all headers that were in the untrimmed MSA
     :param queries_mapped: Boolean indicating whether sequences should be present in addition to reference sequences.

@@ -5,13 +5,16 @@ import re
 import os
 import shutil
 from random import randint
+
+from samsum.commands import ref_sequence_abundances
+
 from . import entrez_utils
 from . import file_parsers
 from . import fasta
 from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments,\
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
     check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments,\
-    check_updater_arguments, check_purity_arguments, add_purity_arguments
+    check_updater_arguments, check_purity_arguments, add_purity_arguments, add_abundance_arguments
 from . import utilities
 from . import wrapper
 from . import entish
@@ -21,13 +24,13 @@ from . import update_refpkg
 from . import annotate_extra
 from .phylo_dist import trim_lineages_to_rank
 from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
-    prep_logging, dedup_records, TaxonTest, Purity
+    prep_logging, dedup_records, TaxonTest, Purity, Abundance
 from . import create_refpkg
 from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, extract_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
     evaluate_trimming_performance, produce_phy_files, parse_raxml_output, filter_placements, align_reads_to_nucs,\
-    summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names
+    summarize_placements_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names
 from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -936,7 +939,6 @@ def assign(sys_args):
         extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
         abundance_dict = dict()
-        rpkm_output_dir = ""
         for refpkg_code in tree_saps:
             for placed_seq in tree_saps[refpkg_code]:  # type: TreeProtein
                 abundance_dict[placed_seq.contig_name] = 1.0
@@ -954,31 +956,91 @@ def assign(sys_args):
                 logging.warning("Unable to read '" + ts_assign.nuc_orfs_file + "'.\n" +
                                 "Cannot create the nucleotide FASTA file of classified sequences!\n")
             if args.rpkm:
-                rpkm_output_dir = ts_assign.output_dir + "RPKM_outputs" + os.sep
-                sam_file = align_reads_to_nucs(ts_assign.executables["bwa"], ts_assign.classified_nuc_seqs,
-                                               rpkm_output_dir, args)
-                rpkm_output_file = run_rpkm(ts_assign.executables["rpkm"], sam_file,
-                                            ts_assign.classified_nuc_seqs, rpkm_output_dir)
-                if rpkm_output_file:
-                    # BWA chops the sequence names at spaces so all keys in abundance_dict are header.first_split
-                    abundance_dict = file_parsers.read_rpkm(rpkm_output_file)
-                    # Subset dict to only the classified sequences
-                    header_map = {nuc_orfs.header_registry[num_id].first_split: nuc_orfs.header_registry[num_id].original
-                                  for num_id in nuc_orfs.header_registry
-                                  if nuc_orfs.header_registry[num_id].first_split in abundance_dict}
-                    # Convert keys in abundance_dict to header.original for compatibility with tree_saps sequence names
-                    abundance_dict = utilities.rekey_dict(abundance_dict, header_map)
-                    summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_assign.final_output_dir)
+                abundance_args = ["--treesapp_output", ts_assign.output_dir,
+                                  "--reads", args.reads,
+                                  "--pairing", args.pairing,
+                                  "--num_procs", str(args.num_threads)]
+                if args.reverse:
+                    abundance_args += ["--reverse", args.reverse]
+                abundance_dict = abundance(abundance_args)
+                summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_assign.final_output_dir)
 
         abundify_tree_saps(tree_saps, abundance_dict)
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
         write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_assign.sample_prefix, assign_out)
         produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
-        delete_files(args.delete, ts_assign.var_output_dir, 4, rpkm_output_dir)
+        delete_files(args.delete, ts_assign.var_output_dir, 4)
 
     delete_files(args.delete, ts_assign.var_output_dir, 5)
 
     return
+
+
+def abundance(sys_args):
+    """
+    TreeSAPP subcommand that is used to add read-inferred abundance information (e.g. FPKM, TPM) to classified sequences
+    Command requires:
+
+1. Path to TreeSAPP output directory that contains classified sequences (FASTA-format) in the final_outputs/
+2. Path to read file(s) in FASTQ format
+3. Parameters indicating whether a) the reads are paired-end or single-end and b) the FASTQ is interleaved
+
+    With these arguments and the option `--report update` TreeSAPP would run BWA MEM and samsum to
+    calculate the desired abundance values (FPKM by default) and update the classification table with the
+    Sample (first column) of the classification table matching the prefix of the FASTQ.
+
+    Optionally, `treesapp abundance` can be called with `--report nothing` and a dictionary containing the abundance
+    values would be returned.
+
+    :param sys_args: treesapp abundance arguments with the treesapp subcommand removed
+    :return: A dictionary containing the abundance values indexed by the reference sequence (e.g. ORF, contig) names
+    """
+    parser = TreeSAPPArgumentParser(description="Validate the functional purity of a reference package.")
+    add_abundance_arguments(parser)
+    args = parser.parse_args(sys_args)
+
+    ts_abund = Abundance()
+    ts_abund.furnish_with_arguments(args)
+    abundance_dict = {}
+
+    log_file_name = args.output + os.sep + "TreeSAPP_purity_log.txt"
+    prep_logging(log_file_name, args.verbose)
+    logging.info("\n##\t\t\tCalculating abundance of classified sequences\t\t\t##\n")
+
+    check_parser_arguments(args, sys_args)
+    marker_build_dict = file_parsers.parse_ref_build_params(ts_abund.treesapp_dir)
+    tree_numbers_translation = file_parsers.read_species_translation_files(ts_abund.treesapp_dir, marker_build_dict)
+    ts_abund.check_arguments(args)
+    # TODO: Implement check-pointing for abundance
+    # ts_abund.validate_continue(args)
+
+    sam_file = align_reads_to_nucs(ts_abund.executables["bwa"], ts_abund.classified_nuc_seqs,
+                                   ts_abund.var_output_dir, args.reads, args.pairing, args.reverse, args.num_threads)
+    ts_abund.sample_prefix = ts_abund.fq_suffix_re.sub('', '.'.join(os.path.basename(args.reads).split('.')[:-1]))
+
+    if os.path.isfile(sam_file):
+        ref_seq_abunds = ref_sequence_abundances(aln_file=sam_file, seq_file=ts_abund.classified_nuc_seqs,
+                                                 min_aln=10, p_cov=50, map_qual=1, multireads=False)
+        for ref_name, ref_seq in ref_seq_abunds.items():
+            abundance_dict[re.sub(r"\|(.*){2,10}\|\d+_\d+$", '', ref_seq.name)] = ref_seq.fpkm
+        ref_seq_abunds.clear()
+    else:
+        logging.warning("SAM file '%s' was not generated.\n" % sam_file)
+        return abundance_dict
+
+    # TODO: Add delete argument to io, use args.delete instead
+    delete_files(True, ts_abund.var_output_dir, 4)
+
+    # TODO: Index each TreeProtein's abundance by the dataset name, write a new row for each dataset's abundance
+    if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
+        assignments = file_parsers.read_marker_classification_table(ts_abund.classifications)
+        # Convert assignments to TreeProtein instances
+        tree_saps = ts_abund.assignments_to_treesaps(assignments, marker_build_dict)
+        summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_abund.final_output_dir)
+        write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_abund.sample_prefix,
+                             ts_abund.classifications)
+
+    return abundance_dict
 
 
 def purity(sys_args):

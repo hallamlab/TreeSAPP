@@ -41,7 +41,8 @@ SETUP_METADATA = \
                                   language="c++",
                                   include_dirs=["./treesapp/include"])
                         ],
-        "install_requires": ["pygtrie>=2.3", "ete3>=3.1.1", "numpy>=1.18.1", "biopython>=1.68", "scipy", "six>=1.14.0"]
+        "install_requires": ["samsum>=0.1.0", "pygtrie>=2.3", "ete3>=3.1.1",
+                             "numpy>=1.18.1", "biopython>=1.68", "scipy", "six>=1.14.0"]
     }
 
 setup(**SETUP_METADATA)

@@ -22,7 +22,6 @@ Stage: build
     # cd TreeSAPP-${TS_VERSION}/
 	git clone https://github.com/hallamlab/TreeSAPP.git
 	cd TreeSAPP/
-	git checkout port
 
 	##
     # Install TreeSAPP dependencies
@@ -42,12 +41,21 @@ Stage: build
 	rm v0.7.17.tar.gz
 	# HMMER - not yet available on Ubuntu 18.04 so rely on Makefile
 	# apt install hmmer
+    curl -LJ0 --output hmmer-3.3.tar.gz http://eddylab.org/software/hmmer/hmmer-3.3.tar.gz
+	tar -xzf hmmer-3.3.tar.gz; cd hmmer-3.3/; ./configure; make -f Makefile
+	cp bin/hmmsearch bin/hmmbuild bin/hmmalign /usr/bin/
+	cd -; rm hmmer-3.3.tar.gz
+	# OD-Seq
+	ODSEQ_SOURCES= OD-Seq/AliReader.cpp OD-Seq/Bootstrap.cpp OD-Seq/DistCalc.cpp OD-Seq/DistMatReader.cpp \
+	OD-Seq/DistWriter.cpp OD-Seq/FastaWriter.cpp OD-Seq/IQR.cpp OD-Seq/ODseq.cpp OD-Seq/PairwiseAl.cpp \
+	OD-Seq/Protein.cpp OD-Seq/ResultWriter.cpp OD-Seq/runtimeargs.cpp OD-Seq/util.cpp
+	curl -LJ0 --output od-seq.tar.gz http://www.bioinf.ucd.ie/download/od-seq.tar.gz
+	tar -xzf od-seq.tar.gz; g++ -fopenmp -o /usr/bin/OD-seq $(ODSEQ_SOURCES)
+	rm od-seq.tar.gz
 
 	##
     # Install TreeSAPP
     ##
-    make all
-    make install
     python setup.py install
 
 %labels

@@ -5,7 +5,7 @@ import sys
 import argparse
 import logging
 
-from .commands import (create, evaluate, assign, update, info, train, layer, purity)
+from .commands import (create, evaluate, abundance, assign, update, info, train, layer, purity)
 # from .clade_exclusion_evaluator import main as evaluate_main
 
 usage = """
@@ -14,6 +14,7 @@ treesapp <command> [<args>]
 create         Create a reference package for a new gene, domain or orthologous group
 evaluate       Evaluate the classification performance using clade exclusion analysis
 purity         Characterize the sequences in a reference package using a curated database
+abundance      Calculate abundance measures for classified sequences 
 assign         Classify query [protein|genomic] sequences using reference packages
 layer          Layer extra annotation information on classifications with iTOL colours-style file(s)  
 update         Update an existing reference package with sequences found in a `classify` run
@@ -27,6 +28,7 @@ Use '-h' to get subcommand-specific help, e.g.
 def main():
     commands = {"create": create,
                 "evaluate": evaluate,
+                "abundance": abundance,
                 "assign": assign,
                 "update": update,
                 "info": info,

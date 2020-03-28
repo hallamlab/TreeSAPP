@@ -6,7 +6,6 @@ import logging
 from glob import glob
 from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
 from .utilities import available_cpu_count, get_refpkg_build
-from .entrez_utils import read_accession_taxa_map
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -61,8 +60,6 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                       "(prot = protein; dna = nucleotide [DEFAULT]; rrna = rRNA)")
 
     def add_rpkm_params(self):
-        self.rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
-                                    help="Flag indicating RPKM values should be calculated for the sequences detected")
         self.rpkm_opts.add_argument("-r", "--reads", required=False,
                                     help="FASTQ file containing to be aligned to predicted genes using BWA MEM")
         self.rpkm_opts.add_argument("-2", "--reverse", required=False,
@@ -153,6 +150,8 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
     parser.optopt.add_argument("--stage", default="continue", required=False,
                                choices=["continue", "orf-call", "search", "align", "place", "classify"],
                                help="The stage(s) for TreeSAPP to execute [DEFAULT = continue]")
+    parser.rpkm_opts.add_argument("--rpkm", action="store_true", default=False,
+                                  help="Flag indicating RPKM values should be calculated for the sequences detected")
 
     # The miscellany
     parser.miscellany.add_argument('-R', '--reftree', default='p', type=str,
@@ -165,6 +164,19 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser):
                                         'Recommended for large metagenomes!')
 
     return
+
+
+def add_abundance_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_rpkm_params()
+    parser.add_compute_miscellany()
+    parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
+                             help="Path to the directory containing TreeSAPP outputs, "
+                                  "including sequences to be used for the update.")
+    # TODO: Include an option to append new values to the classification table
+    parser.optopt.add_argument("--report", choices=["update", "nothing"], required=False, default="nothing",
+                               help="What should be done with the abundance values? The TreeSAPP classification table "
+                                    "can overwritten (update) or left unchanged. "
+                                    "[ DEFAULT = nothing ]")
 
 
 def add_create_arguments(parser: TreeSAPPArgumentParser):
