@@ -39,7 +39,7 @@ requirements:
     - bwa >=0.7.3
     - raxml ==8.2.12
     - mafft >=7.407
-    - samsum ==0.1.1
+    - samsum ==0.1.2
 
 test:
   imports:

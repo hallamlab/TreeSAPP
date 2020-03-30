@@ -83,12 +83,14 @@ refpkg_plt_dat <- data.frame(Cycle = c("Carbon", "Carbon", "Carbon", "Carbon",
                                        "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen", "Nitrogen",
                                        "Sulphur"),
                              RefPkg = c("McrA", "McrB", "McrG", "p_amoA",
-                                        "napA", "nirK", "nirS", "nifD", "NorB", "NxrA", "NxrB", "nosZ",
+                                        "napA", "NirK", "nirS", "nifD", "NorB", "NxrA", "NxrB", "nosZ",
                                         "DsrAB"),
                              Position = as.numeric(seq(1, 13)))
 
 acc_dat <- merge(acc_dat, taxonomic_hierarchy, by.x = "Rank", by.y = "Ranks") %>% 
   merge(refpkg_plt_dat, by="RefPkg")
+
+acc_dat <- filter(acc_dat, RefPkg != "nosZ")
 
 ## end
 

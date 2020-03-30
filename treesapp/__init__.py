@@ -1,4 +1,4 @@
 #! /usr/bin/env python
 
 name = "treesapp"
-version = "0.6.5"
+__version__ = "0.6.5"

@@ -52,13 +52,15 @@ def info(sys_args):
     import numpy
     import scipy
     import ete3
-    logging.info("TreeSAPP version " + treesapp.version + ".\n")
+    import samsum
+    logging.info("TreeSAPP version " + treesapp.__version__ + ".\n")
 
     # Write the version of all python deps
     py_deps = {"biopython": Bio.__version__,
                "ete3": ete3.__version__,
                "numpy": numpy.__version__,
-               "scipy": scipy.__version__}
+               "scipy": scipy.__version__,
+               "samsum": samsum.__version__}
 
     logging.info("Python package dependency versions:\n\t" +
                  "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
