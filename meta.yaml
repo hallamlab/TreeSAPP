@@ -7,26 +7,24 @@ package:
 
 source:
   git_url: https://github.com/hallamlab/TreeSAPP.git
+#  sha256:
 
 build:
   number: 0
   skip: True  # [not linux64]
-  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed --no-cache-dir -vv; make all; make install"
-#  script: "{{ PYTHON }} setup.py install -vv "  # There was a problem with attempting to install dependencies. Use pip
+  entry_points:
+    - treesapp = treesapp.__main__:main
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed --no-cache-dir -vv"
 
 requirements:
+  build:
+    - {{ compiler('cxx') }}
   host:
     - pip
-    - python >=3.5
-
-  build:
-    - python >=3.5
-    - pip
-    - setuptools >=45.0.0
-
+    - python
   run:
-    - python >=3.5
-    - numpy >=1.18.1
+    - python
+    - {{ pin_compatible('numpy') }}
     - scipy >=1.4.1
     - biopython >=1.68
     - pygtrie >=2.3.2
@@ -41,9 +39,21 @@ requirements:
     - bwa >=0.7.3
     - raxml ==8.2.12
     - mafft >=7.407
+    - samsum ==0.1.1
+
+test:
+  imports:
+    - treesapp
+  commands:
+    - {{ name }} --help
+    - {{ name }} info
 
 about:
-  home: https://test.pypi.org/project/treesapp/
+  home: https://github.com/hallamlab/TreeSAPP
   license: GNU General Public v3 (GPLv3)
   license_family: GPL3
   summary: "TreeSAPP is a functional and taxonomic annotation tool for microbial genomes and proteins"
+
+extra:
+  recipe-maintainers:
+    - cmorganl

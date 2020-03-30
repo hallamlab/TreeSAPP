@@ -1,23 +1,40 @@
+os: linux
 dist: bionic
-sudo: true
 language: python
 python:
     - "3.6"
 #    - "3.5"
 
+branches:
+  only:
+  - master
+
 before_deploy:
     - git config --local user.name "cmorganl"
     - git config --local user.email "c.morganlang@gmail.com"
 
+env:
+    global:
+      - CIBW_SKIP="cp27-* pp27-* *-manylinux_i686"
+      - TWINE_USERNAME=__token__
+      # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
+      - PIP="python3 -m pip"
+      - TWINE_REPOSITORY=pypi
+      - TWINE_REPOSITORY_URL=https://test.pypi.org/legacy/
+      - TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
+
 deploy:
     provider: pypi
-    user: "__token__"
+    username: __token__
     password:
       secure: EXX4S1EylVRgNHYN9Xc60Sx/3apTvhS9Wp5HOA5atDVY2pIOMYZmMVeiABh4AyfRhwlL+5QkysK4UQ86wWCEOQD5rzC6Y0QnosO3X5y/2Qt2t18jwgcr0JxpuuDSR5lxrm4uLCUi3Az9gULX9fp5sD7meYwtyOCsL6HJfTQBgn1m1X1gKSsnnut0oZL5wp6hhavkbhz8V9VG9XAAW3PBUNs9Zb5lSe+BP9Pw4GU+RzIpkP2WsAI4QRwkUMiotiZS2JcnA+yQcCK41jKbhoevQzf2mmCA+G5JMF0XTignhoHYUkiRfuXsFrXvHYnOmMJO/T/7NTls/bTpUQbzRVJK+j7wxQmopZKhlihSmi8FEWSuBzbe1Io3LG3kj6X/qoKswYXpbyrgQSxh0aryJVwICeF+znDDYgwQB0n6ZVKUWsg/+/+Q/OAMEru/iqRDO4AOXQwqfpUL15GrCT7v+mwRvhk1iNldQRR1OaQQTmnpv62ApItUxVl9YCHJ7eC8CiSeOnyUzR9t0fPJLmAuy4Hw3Of982+DWOpVwI8IEeDmfVIrXG/Dc1HjK/q1Ny9V/4FH9P5kbFr1AnlsKFQaNiJPeijwlNLoDRHj+REDfhuvB1pB6ey94skd+MENDtM9TY9EaMiBUD0T5lhxCUrld76rJZ1u3F+ue9vBOofYCXV6urc=
     on:
       branch: master
     skip_existing: true
-    skip_cleanup: true
+    distributions: "sdist bdist_wheel"
+    file_glob: true
+    file: wheelhouse/treesapp*.whl
+    cleanup: false
 
 jobs:
     include:
@@ -27,29 +44,23 @@ jobs:
       - os: osx
         language: shell
 
-env:
-    global:
-      - CIBW_SKIP="cp27-*"
-      - TWINE_USERNAME=__token__
-      # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
-      - PIP="python3 -m pip"
-      - TWINE_REPOSITORY=pypi
-      - TWINE_REPOSITORY_URL=https://test.pypi.org/legacy/
-      - TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
-
 before_install:
-    - sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk python3-distutils python3-dev
-    - sudo apt install python-six -y
-    - wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
-    - sudo dpkg -i mafft_7.450-1_amd64.deb
+    - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+        git -C "$(brew --repo)" remote set-url origin https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git;
+      fi
+    - if [ "$TRAVIS_OS_NAME" != "osx" ]; then
+        sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk python3-distutils python3-dev;
+        sudo apt install python-six -y;
+        wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb;
+        sudo dpkg -i mafft_7.450-1_amd64.deb;
+      fi
 
 install:
+    - $PIP install --upgrade pip
     - $PIP install -r requirements.txt
     - $PIP install -U setuptools
     - $PIP install cibuildwheel==1.1.0
-
-#before_script:
-#    - cd /home/travis/build/hallamlab/TreeSAPP/sub_binaries; cp usearch /usr/bin; cd ../; make; make install
+    - $PIP install twine
 
 script:
     # build the wheels, put them into './wheelhouse'
@@ -58,13 +69,17 @@ script:
     # - pytest
 
 notifications:
-    email: false
+  email:
+    on_success: never
+    on_failure: always
 
-after_success:
-    # if the release was tagged, upload them to PyPI
-    - ls wheelhouse/
-    - |
-      if [[ $TRAVIS_TAG ]]; then
-        $PIP install twine
-        python3 -m twine upload --skip-existing wheelhouse/*.whl
-      fi
+#after_success:
+#  # if the release was tagged, upload them to PyPI
+#  - ls wheelhouse/
+#  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+#      $PIP install twine;
+#      python3 -m twine upload --skip-existing wheelhouse/*.whl;
+#    fi
+#  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+#        python3 -m twine upload --skip-existing wheelhouse/*.whl wheelhouse/*tar.gz;
+#    fi
