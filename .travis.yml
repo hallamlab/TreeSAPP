@@ -28,8 +28,10 @@ jobs:
       # perform a linux build
       - services: docker
       # and a mac build
-      - os: osx
-        language: shell
+      - name: "Python 3.6.5 on macOS 10.13"
+        os: osx
+        osx_image: xcode9.4  # Python 3.6.5 running on macOS 10.13
+        language: shell  # 'language: python' is an error on Travis CI macOS
 
 before_install:
     - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
