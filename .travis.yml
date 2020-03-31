@@ -2,8 +2,9 @@ os: linux
 dist: bionic
 language: python
 python:
-    - "3.6"
-#    - "3.5"
+  - "3.5"
+  - "3.6"
+  - "3.7"
 
 branches:
   only:
@@ -20,7 +21,7 @@ env:
       # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
       - PIP="python3 -m pip"
       - TWINE_REPOSITORY=pypi
-      - TWINE_REPOSITORY_URL=https://test.pypi.org/legacy/
+      - TWINE_REPOSITORY_URL=https://upload.pypi.org/legacy/
       - TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
 
 jobs:
@@ -30,8 +31,8 @@ jobs:
       # and a mac build
       - name: "Python 3.6.5 on macOS 10.13"
         os: osx
-        osx_image: xcode9.4  # Python 3.6.5 running on macOS 10.13
-        language: shell  # 'language: python' is an error on Travis CI macOS
+        osx_image: xcode9.4
+        language: shell
 
 before_install:
     - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
