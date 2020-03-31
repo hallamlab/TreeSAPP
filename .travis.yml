@@ -39,7 +39,7 @@ before_install:
         curl -L 'http://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh' -o Miniconda3-latest-MacOSX-x86_64.sh;
         bash Miniconda3-latest-MacOSX-x86_64.sh -b -p ~/anaconda_ete/;
         export PATH=~/anaconda_ete/bin:$PATH;
-        conda install -c etetoolkit ete3;
+        conda install -y -c etetoolkit ete3;
       fi
     - if [ "$TRAVIS_OS_NAME" != "osx" ]; then
         sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk python3-distutils python3-dev;
