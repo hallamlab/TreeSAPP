@@ -1296,19 +1296,17 @@ class TreeSAPP:
         :return: exec_paths beings the absolute path to each executable
         """
         exec_paths = dict()
-        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "usearch", "BMGE.jar"]
-
-        # extensions = ["papara", "trimal"]
+        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "raxmlHPC", "BMGE.jar"]
 
         # Extra executables necessary for certain modes of TreeSAPP
-        if self.command in ["assign", "abundance"]:
+        if self.command == "abundance":
             dependencies += ["bwa"]
 
         if self.command == "update":
-            dependencies += ["mafft"]
+            dependencies += ["usearch", "mafft", "OD-seq"]
 
         if self.command == "create":
-            dependencies += ["mafft", "OD-seq"]
+            dependencies += ["usearch", "mafft", "OD-seq"]
             if args.fast:
                 dependencies.append("FastTree")
 
