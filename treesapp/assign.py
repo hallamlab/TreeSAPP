@@ -7,7 +7,6 @@ __license__ = "GPL-3.0"
 
 try:
     import profile
-    import argparse
     import sys
     import os
     import shutil
@@ -30,11 +29,13 @@ try:
     from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
     from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
-    from .external_command_interface import launch_write_command, setup_progress_bar
-    from .lca_calculations import *
-    from .jplace_utils import *
-    from .file_parsers import *
-    from .phylo_dist import *
+    from .external_command_interface import launch_write_command
+    from .lca_calculations import lowest_common_taxonomy, weighted_taxonomic_distance
+    from .jplace_utils import children_lineage, jplace_parser, demultiplex_pqueries, write_jplace, filter_jplace_data,\
+        organize_jplace_files, add_bipartitions
+    from .file_parsers import read_stockholm_to_dict, read_phylip_to_dict,\
+        multiple_alignment_dimensions, validate_alignment_trimming
+    from .phylo_dist import parent_to_tip_distances, rank_recommender
     from . import utilities
     from . import wrapper
 

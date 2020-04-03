@@ -4,6 +4,9 @@ __author__ = 'Connor Morgan-Lang'
 
 import argparse
 import os
+import sys
+import re
+import logging
 import shutil
 from glob import glob
 from numpy import sqrt
@@ -12,10 +15,10 @@ from treesapp.fasta import get_headers
 from treesapp.external_command_interface import launch_write_command
 from treesapp import file_parsers
 from treesapp.classy import prep_logging, ReferencePackage
-from treesapp.entrez_utils import *
+from treesapp.entrez_utils import EntrezRecord, fetch_lineages_from_taxids
 from treesapp.lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
     optimal_taxonomic_assignment, grab_graftm_taxa
-from treesapp.utilities import fish_refpkg_from_build_params
+from treesapp.utilities import fish_refpkg_from_build_params, clean_lineage_string
 
 
 class ClassifiedSequence:
