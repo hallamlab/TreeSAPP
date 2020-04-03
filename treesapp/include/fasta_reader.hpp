@@ -102,7 +102,7 @@ PyMODINIT_FUNC init_fasta_reader(void)
 
 class Fasta {
 protected:
-    int record_header( std::string, std::size_t );
+    int record_header(std::string);
     int record_sequence();
 
 public:

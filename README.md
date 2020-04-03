@@ -51,7 +51,7 @@ pip install dist/treesapp*.tar.gz
 ```
 
 If you opted to install TreeSAPP either using `pip` or by cloning the development version from GitHub you will need to
-[install dependencies](https://github.com/hallamlab/TreeSAPP/blob/master/docs/deps_install.md) that you do not already
+[install dependencies](https://github.com/hallamlab/TreeSAPP/blob/master/docs/dep_install.md) that you do not already
 have installed (i.e. they will need to be in you're environment's path).
 
 ## Running TreeSAPP

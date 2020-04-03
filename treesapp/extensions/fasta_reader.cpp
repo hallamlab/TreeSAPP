@@ -104,27 +104,20 @@ string remove_non_ascii_char(std::string str) {
     return str;
 }
 
-int Fasta::record_header( string line, std::size_t max_header_length) {
+int Fasta::record_header(string line) {
     /*
     * Function for inserting a header into the fasta_list
     * record_header additionally checks for duplicate headers and appends "_" + occurrence
     */
     std::pair<std::set<string>::iterator,bool> ret;
     string new_header;
+    new_header = line;
 
     // Replace whitespace characters and other ASCII operators with underscores
-
-    rtrim(line);
-    line = remove_non_ascii_char(line);
-    line = erase_characters(line, "()[]/\\\\'<>");
-    transform(line.begin(), line.end(), line.begin(), replace_operators);
-
-    // Because RAxML can only work with file names having length <= 125,
-    // Ensure that the sequence name length is <= 110
-    if (line.length() > max_header_length)
-        new_header = line.substr(0, max_header_length-1);
-    else
-        new_header = line;
+    rtrim(new_header);
+    new_header = remove_non_ascii_char(new_header);
+    new_header = erase_characters(new_header, "()[]/\\\\'<>");
+    transform(new_header.begin(), new_header.end(), new_header.begin(), replace_operators);
 
     // Must remove period if it is the last character - BLAST ignores it causing problems downstream
     if (new_header[new_header.length()-1] == '.') {
@@ -137,7 +130,6 @@ int Fasta::record_header( string line, std::size_t max_header_length) {
 
     ret = header_base.insert(new_header);
     if (!ret.second) {
-        new_header = new_header.substr(0, max_header_length - 4);
         string redundant_header;
         int dup_num = 1;
         char buffer [10];
@@ -275,17 +267,17 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
                     else if (status == 2) {
                         sprintf(write_buffer, " %s\n", header.c_str());
                         parse_log->write(write_buffer, 2+header.length());
-                        record_header(header, max_header_length);
+                        record_header(header);
                         PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
                     }
                     else if (status < 2) {
-                        record_header(header, max_header_length);
+                        record_header(header);
                         PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
                     }
                     else
                         return 5;
                 }
-                header = line;
+                header = line.substr(1, max_header_length - 1);
                 sequence_buffer.clear();
             }
             else {
@@ -312,11 +304,11 @@ int Fasta::parse_fasta(int min_length, std::size_t max_header_length) {
         else if (status == 2) {
             sprintf(write_buffer, " %s\n", header.c_str());
             parse_log->write(write_buffer, 2+header.length());
-            record_header(header, max_header_length);
+            record_header(header);
             PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
         }
         else if (status < 2) {
-            record_header(header, max_header_length);
+            record_header(header);
             PyList_Append(fasta_list, Py_BuildValue("s", sequence_buffer.c_str()));
         }
         else
