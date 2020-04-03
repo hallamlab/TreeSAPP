@@ -19,6 +19,8 @@ TreeSAPP is a python package for phylogenetically annotating genomes and metagen
 
 ## Installation:
 
+TreeSAPP supports Python versions 3.5, 3.6, 3.7 and 3.8.
+
 ### Conda
 TreeSAPP and most of its dependencies can be installed in its own environment using conda.
 

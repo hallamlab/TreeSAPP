@@ -14,14 +14,16 @@ CLASSIFIERS = [
     "Programming Language :: C++",
     "Programming Language :: Python :: 3.5",
     "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
 SETUP_METADATA = \
     {
         "name": "treesapp",
-        "version": "0.6.5",
-        "description": "TreeSAPP is a functional and taxonomic annotation tool",
+        "version": "0.6.6",
+        "description": "TreeSAPP is a functional and taxonomic annotation tool for genomes and metagenomes.",
         "long_description": LONG_DESCRIPTION,
         "long_description_content_type": "text/markdown",
         "author": "Connor Morgan-Lang",

@@ -4,4 +4,4 @@ ete3 >=3.1.1
 biopython >=1.68
 pygtrie >=2.3.2
 six >=1.14.0
-samsum >=0.1.1
+samsum >=0.1.2
