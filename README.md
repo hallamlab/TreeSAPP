@@ -15,7 +15,7 @@ Connor Morgan-Lang, Ryan McLaughlin, Grace Zhang, Kevin Chan, Zachary Armstrong,
 TreeSAPP is a python package for phylogenetically annotating genomes and metagenomes.
  Here is a diagram of the workflow:
 
-![alt text](https://github.com/hallamlab/TreeSAPP/blob/master/dev_utils/pipeline_figure_horizontal.png)
+![alt text](https://github.com/hallamlab/TreeSAPP/blob/master/docs/assign_workflow.png)
 
 ## Installation
 
@@ -74,7 +74,7 @@ As in the previous command, we recommend using the `--trim_align` flag and incre
 ## Tutorials
 
 If we do not yet have a reference package for a gene you are interested in,
-please try [building a new reference package](https://github.com/hallamlab/TreeSAPP/blob/master/docs/Marker_package_creation_tutorial.md).
+please try [building a new reference package](https://github.com/hallamlab/TreeSAPP/blob/master/docs/create_tutorial.md).
 Of course, if you run into any problems or would like to collaborate on building many reference packages
 don't hesitate to email us or create a new issue with an 'enhancement' label.
 

@@ -6,17 +6,18 @@ Stage: build
     /usr/local/bin/usearch
 
 %post
-    export TS_VERSION="0.6.6"
+    export TS_VERSION="0.6.7"
 
 	##
     # Install the linux package dependencies, this is currently including Python 3.6.5
     ##
     apt -y update
-    apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk \
+    apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk time \
     python3 python3-distutils python3-dev
     ln -s /usr/bin/python3 /usr/bin/python
     curl https://bootstrap.pypa.io/get-pip.py | python
     mkdir TreeSAPP/; cd TreeSAPP/
+    python -V
 
 	##
     # Install TreeSAPP dependencies
@@ -62,11 +63,11 @@ Stage: build
 	##
     # Install TreeSAPP
     ##
-    pip install treesapp==$TS_VERSION
+    pip install -v treesapp==$TS_VERSION
 
 %labels
     Author Connor Morgan-Lang
-    Version v0.6.6
+    Version v0.6.7
 
 %help
     This container installs the latest TreeSAPP release from PyPI at https://pypi.org/project/treesapp/
