@@ -1075,17 +1075,18 @@ class TreeSAPP:
         :return:
         """
         if self.command != "info":
-            if args.output[-1] != os.sep:
-                args.output += os.sep
+            self.output_dir = args.output
+            if self.output_dir[-1] != os.sep:
+                self.output_dir += os.sep
+            self.final_output_dir = self.output_dir + "final_outputs" + os.sep
+            self.var_output_dir = self.output_dir + "intermediates" + os.sep
             if set(vars(args)).issuperset({"molecule", "input"}):
                 self.input_sequences = args.input
                 self.molecule_type = args.molecule
-                self.sample_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
+                self.sample_prefix = '.'.join(os.path.basename(self.input_sequences).split('.')[:-1])
                 self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
-            self.output_dir = args.output
-            self.final_output_dir = args.output + "final_outputs" + os.sep
-            self.var_output_dir = args.output + "intermediates" + os.sep
         self.executables = self.find_executables(args)
+        return
 
     def check_previous_output(self, args):
         """
