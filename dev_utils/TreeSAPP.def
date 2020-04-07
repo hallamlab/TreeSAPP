@@ -63,7 +63,7 @@ Stage: build
 	##
     # Install TreeSAPP
     ##
-    pip install -v treesapp==$TS_VERSION
+    pip install treesapp==$TS_VERSION
 
 %labels
     Author Connor Morgan-Lang
