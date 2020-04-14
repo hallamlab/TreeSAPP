@@ -19,6 +19,9 @@ from ete3 import Tree
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers, load_fasta_header_regexes, read_fasta_to_dict
 from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle, swap_tree_names
 from .entish import create_tree_info_hash, subtrees_to_dictionary, annotate_partition_tree
+from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
+from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, fish_refpkg_from_build_params
+from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
 from .external_command_interface import launch_write_command
 from . import entrez_utils
@@ -461,8 +464,8 @@ class MarkerBuild:
         self.model = refpkg_params["model"]
         self.molecule = refpkg_params["molecule"]
         self.num_reps = refpkg_params["sequences"]
-        self.pfit = refpkg_params["regression-parameters"] 
-        self.pid = refpkg_params["cluster-similarity"] 
+        self.pfit = refpkg_params["regression-parameters"]
+        self.pid = refpkg_params["cluster-similarity"]
         self.tree_tool = refpkg_params["tree-tool"]
 
         return
@@ -486,6 +489,7 @@ class ItolJplace:
         self.lineage_list = list()  # List containing each child's lineage
         self.wtd = 0
         self.lct = ""  # The LCA taxonomy derived from lineage_list
+        self.recommended_lineage = ""
         ##
         # Information derived from Jplace pqueries:
         ##
@@ -1182,15 +1186,16 @@ class TreeSAPP:
         :return: None
         """
         if self.command != "info":
-            if args.output[-1] != os.sep:
-                args.output += os.sep
-            self.input_sequences = args.input
-            self.molecule_type = args.molecule
             self.output_dir = args.output
-            self.final_output_dir = args.output + "final_outputs" + os.sep
-            self.var_output_dir = args.output + "intermediates" + os.sep
-            self.sample_prefix = '.'.join(os.path.basename(args.input).split('.')[:-1])
-            self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
+            if self.output_dir[-1] != os.sep:
+                self.output_dir += os.sep
+            self.final_output_dir = self.output_dir + "final_outputs" + os.sep
+            self.var_output_dir = self.output_dir + "intermediates" + os.sep
+            if set(vars(args)).issuperset({"molecule", "input"}):
+                self.input_sequences = args.input
+                self.molecule_type = args.molecule
+                self.sample_prefix = '.'.join(os.path.basename(self.input_sequences).split('.')[:-1])
+                self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
         self.executables = self.find_executables(args)
         return
 
@@ -1407,21 +1412,17 @@ class TreeSAPP:
         :return: exec_paths beings the absolute path to each executable
         """
         exec_paths = dict()
-        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxml-ng", "usearch", "BMGE.jar"]
-
-        # extensions = ["papara", "trimal"]
+        dependencies = ["prodigal", "hmmbuild", "hmmalign", "hmmsearch", "epa-ng", "raxml-ng", "BMGE.jar"]
 
         # Extra executables necessary for certain modes of TreeSAPP
-        if self.command == "assign":
-            dependencies += ["bwa", "rpkm"]
+        if self.command == "abundance":
+            dependencies += ["bwa"]
 
         if self.command == "update":
-            dependencies += ["usearch", "blastn", "blastp", "makeblastdb", "mafft"]
+            dependencies += ["usearch", "mafft", "OD-seq"]
 
         if self.command == "create":
-            dependencies += ["mafft", "OD-seq"]
-            if args.cluster:
-                dependencies.append("usearch")
+            dependencies += ["usearch", "mafft", "OD-seq"]
             if args.fast:
                 dependencies.append("FastTree")
 
@@ -2164,6 +2165,53 @@ class Layerer(TreeSAPP):
         self.target_refpkgs = list()
         self.treesapp_output = ""
         self.colours_file = ""
+
+
+class Abundance(TreeSAPP):
+    def __init__(self):
+        super(Abundance, self).__init__("abundance")
+        self.stages = {}
+        self.target_refpkgs = list()
+        self.classified_nuc_seqs = ""
+        self.classifications = ""
+        self.fq_suffix_re = re.compile(r"([._-])+[pe|fq|fastq|fwd|R1]+$")
+
+    def check_arguments(self, args):
+        ##
+        # Define locations of files TreeSAPP outputs
+        ##
+        self.classified_nuc_seqs = glob(self.final_output_dir + "*_classified.fna")[0]
+        if not os.path.isfile(self.classified_nuc_seqs):
+            logging.error("Unable to find classified sequences FASTA file in %s.\n" % self.final_output_dir)
+        self.classifications = self.output_dir + "final_outputs" + os.sep + "marker_contig_map.tsv"
+
+        if not os.path.isdir(self.var_output_dir):
+            os.makedirs(self.var_output_dir)
+
+        return
+
+    def assignments_to_treesaps(self, classified_lines: list, marker_build_dict: dict) -> dict:
+        """
+
+        :param classified_lines:
+        :param marker_build_dict:
+        :return: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
+        """
+        pqueries = dict()
+        for fields in classified_lines:
+            tree_sap = ItolJplace()
+            try:
+                _, tree_sap.contig_name, tree_sap.name, tree_sap.seq_len, tree_sap.lct, tree_sap.recommended_lineage,\
+                _, tree_sap.inode, tree_sap.lwr, tree_sap.avg_evo_dist, tree_sap.distances = fields
+            except ValueError:
+                logging.error("Bad line in classification table:\n" + '\t'.join(fields) + "\n")
+                sys.exit(21)
+            refpkg = fish_refpkg_from_build_params(tree_sap.name, marker_build_dict).denominator
+            try:
+                pqueries[refpkg].append(tree_sap)
+            except KeyError:
+                pqueries[refpkg] = [tree_sap]
+        return pqueries
 
 
 class Assigner(TreeSAPP):

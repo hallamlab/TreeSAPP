@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 __author__ = "Connor Morgan-Lang"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
@@ -26,15 +25,20 @@ try:
     from numpy import array as np_array
     from sklearn import preprocessing
 
+    from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
+        TreeLeafReference, TreeProtein, MarkerBuild
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild, ReferencePackage
     from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
-    from . import entish
-    from .external_command_interface import launch_write_command, setup_progress_bar, CommandLineFarmer
-    from . import lca_calculations
-    from . import jplace_utils
-    from . import file_parsers
-    from . import phylo_dist
+    from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
+        get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
+    from .external_command_interface import launch_write_command
+    from .lca_calculations import lowest_common_taxonomy, weighted_taxonomic_distance
+    from .jplace_utils import children_lineage, jplace_parser, demultiplex_pqueries, write_jplace, filter_jplace_data,\
+        organize_jplace_files, add_bipartitions
+    from .file_parsers import read_stockholm_to_dict, read_phylip_to_dict,\
+        multiple_alignment_dimensions, validate_alignment_trimming
+    from .phylo_dist import parent_to_tip_distances, rank_recommender
     from . import utilities
     from . import wrapper
 
@@ -1319,7 +1323,7 @@ def compare_terminal_children_strings(terminal_children_of_assignments, terminal
     return real_terminal_children_of_assignments
 
 
-def delete_files(clean_up, output_dir_var, section, rpkm_dir=None):
+def delete_files(clean_up, output_dir_var, section):
     files_to_be_deleted = []
     if clean_up:
         if section == 1:
@@ -1336,8 +1340,7 @@ def delete_files(clean_up, output_dir_var, section, rpkm_dir=None):
             files_to_be_deleted += glob.glob(output_dir_var + '*.mfa')
             files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-gb')
             files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-gb.txt')
-            if rpkm_dir:
-                files_to_be_deleted += glob.glob(rpkm_dir + os.sep + "*.sam")
+            files_to_be_deleted += glob.glob(output_dir_var + "*.sam")
         if section == 5:
             files_to_be_deleted += glob.glob(output_dir_var + '*_exit_after_trimal.txt')
             files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-trimal')
@@ -1439,13 +1442,18 @@ def filter_short_sequences(aa_dictionary, length_threshold):
     return long_queries
 
 
-def align_reads_to_nucs(bwa_exe, reference_fasta, aln_output_dir, args):
+def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
+                        reads: str, pairing: str, reverse=None, num_threads=2) -> str:
     """
     Align the predicted ORFs to the reads using BWA MEM
+
     :param bwa_exe: Path to the BWA executable
-    :param aln_output_dir: Path to the directory to write the index and SAM files
-    :param args: Command-line argument object from get_options and check_parser_arguments
     :param reference_fasta: A FASTA file containing the sequences to be aligned to
+    :param aln_output_dir: Path to the directory to write the index and SAM files
+    :param reads: FASTQ file containing reads to be aligned to the reference FASTA file
+    :param pairing: Either 'se' or 'pe' indicating the reads are single-end or paired-end, respectively
+    :param reverse: Path to reverse-orientation mate pair reads [OPTIONAL]
+    :param num_threads: Number of threads for BWA MEM to use
     :return: Path to the SAM file
     """
     if not os.path.exists(aln_output_dir):
@@ -1460,6 +1468,9 @@ def align_reads_to_nucs(bwa_exe, reference_fasta, aln_output_dir, args):
     logging.info("Aligning reads to ORFs with BWA MEM... ")
 
     sam_file = aln_output_dir + '.'.join(os.path.basename(reference_fasta).split('.')[0:-1]) + ".sam"
+    if os.path.isfile(sam_file):
+        logging.info("output found.\n")
+        return sam_file
     index_command = [bwa_exe, "index"]
     index_command += [reference_fasta]
     index_command += ["1>", "/dev/null", "2>", aln_output_dir + "treesapp_bwa_index.stderr"]
@@ -1467,17 +1478,17 @@ def align_reads_to_nucs(bwa_exe, reference_fasta, aln_output_dir, args):
     launch_write_command(index_command)
 
     bwa_command = [bwa_exe, "mem"]
-    bwa_command += ["-t", str(args.num_threads)]
-    if args.pairing == "pe" and not args.reverse:
+    bwa_command += ["-t", str(num_threads)]
+    if pairing == "pe" and not reverse:
         bwa_command.append("-p")
         logging.debug("FASTQ file containing reverse mates was not provided - assuming the reads are interleaved!\n")
-    elif args.pairing == "se":
+    elif pairing == "se":
         bwa_command += ["-S", "-P"]
 
     bwa_command.append(reference_fasta)
-    bwa_command.append(args.reads)
-    if args.pairing == "pe" and args.reverse:
-        bwa_command.append(args.reverse)
+    bwa_command.append(reads)
+    if pairing == "pe" and reverse:
+        bwa_command.append(reverse)
     bwa_command += ["1>", sam_file, "2>", aln_output_dir + "treesapp_bwa_mem.stderr"]
 
     p_bwa = subprocess.Popen(' '.join(bwa_command), shell=True, preexec_fn=os.setsid)
@@ -1491,45 +1502,12 @@ def align_reads_to_nucs(bwa_exe, reference_fasta, aln_output_dir, args):
     return sam_file
 
 
-def run_rpkm(rpkm_exe: str, sam_file: str, orf_nuc_fasta: str, rpkm_output_dir: str):
-    """
-    Calculate RPKM values for each reference sequence aligned to
-    :param rpkm_exe: Path to the RPKM executable
-    :param sam_file: Path to the SAM file generated by `bwa mem`
-    :param orf_nuc_fasta: Path to the nucleotide ORF sequences that were aligned to
-    :param rpkm_output_dir: Path to the directory for all rpkm outputs
-    :return: Path to the RPKM output csv file
-    """
-    logging.info("Calculating RPKM values for each ORF... ")
-
-    rpkm_output_file = '.'.join(sam_file.split('.')[0:-1]) + ".csv"
-
-    if not os.path.isfile(sam_file) or not os.path.isfile(orf_nuc_fasta):
-        logging.warning("RPKM impossible as input files are missing.\n")
-        return None
-
-    rpkm_command = [rpkm_exe]
-    rpkm_command += ["-c", orf_nuc_fasta]
-    rpkm_command += ["-a", sam_file]
-    rpkm_command += ["-o", rpkm_output_file]
-    rpkm_command += ["1>", rpkm_output_dir + "rpkm_stdout.txt", "2>", rpkm_output_dir + "rpkm_stderr.txt"]
-
-    p_rpkm = subprocess.Popen(' '.join(rpkm_command), shell=True, preexec_fn=os.setsid)
-    p_rpkm.wait()
-    if p_rpkm.returncode != 0:
-        logging.error("RPKM calculation did not complete successfully for:\n" +
-                      str(' '.join(rpkm_command)) + "\n")
-        sys.exit(3)
-    logging.info("done.\n")
-
-    return rpkm_output_file
-
-
 def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_build_dict: dict, final_output_dir: str):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
-    The abundance_dict contains RPKM values ot contigs whereas tree_saps may be fragments of contigs,
-     and if multiple fragments are classified this could "inflate" the RPKM values. Currently, this is not handled.
+    The abundance_dict contains RPKM values of contigs whereas tree_saps may be fragments of contigs,
+    and if multiple fragments are classified this could "inflate" the RPKM values. Currently, this is not handled.
+
     :param tree_saps: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
     :param abundance_dict: A dictionary mapping predicted (not necessarily classified) seq_names to abundance values
     :param marker_build_dict:
@@ -1614,6 +1592,7 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_buil
 def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
     """
     Add abundance (RPKM or presence count) values to the TreeProtein instances (abundance variable)
+
     :param tree_saps: Dictionary mapping refpkg codes to all TreeProtein instances for classified sequences
     :param abundance_dict: Dictionary mapping sequence names to floats
     :return: None
@@ -1967,11 +1946,6 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
     leaf_taxa_map = dict()
     # TODO: Add the start and stop positions of the extracted sequence to the classification table
     tab_out_string = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
-    try:
-        tab_out = open(output_file, 'w')
-    except IOError:
-        logging.error("Unable to open " + output_file + " for writing!\n")
-        sys.exit(3)
 
     for denominator in tree_saps:
         # All the leaves for that tree [number, translation, lineage]
@@ -2022,6 +1996,12 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
                                          str(tree_sap.lwr),
                                          str(tree_sap.avg_evo_dist),
                                          tree_sap.distances]) + "\n"
+    try:
+        tab_out = open(output_file, 'w')
+    except IOError:
+        logging.error("Unable to open " + output_file + " for writing!\n")
+        sys.exit(3)
+
     tab_out.write(tab_out_string)
     tab_out.close()
 

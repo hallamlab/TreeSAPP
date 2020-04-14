@@ -1,38 +1,79 @@
-sudo: true
+os: linux
+dist: bionic
 language: python
 python:
-    - "3.6"
-    - "3.5"
-
-before_install:
-    - sudo apt-get install python3-pip -y
-    - sudo apt-get install python-qt4 -y
-    - sudo apt-get install python-lxml -y
-    - sudo apt-get install python-six -y
-    - sudo add-apt-repository ppa:webupd8team/java -y
-    - sudo apt-get update
-    - sudo echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
-    - sudo apt-get install oracle-java8-installer -y
-    - sudo apt-get install oracle-java8-set-default -y
-    - wget https://mafft.cbrc.jp/alignment/software/mafft_7.407-1_amd64.deb
-    - sudo dpkg -i mafft_7.407-1_amd64.deb
-    - wget https://sco.h-its.org/exelixis/resource/download/software/papara_nt-2.5-static_x86_64.tar.gz
-
-install:
-    - pip install -r requirements.txt
-
-before_script:
-    - cd /home/travis/build/hallamlab/TreeSAPP/sub_binaries; cp usearch /usr/bin; cd ../; make; make install
-   
-script:
-    - pytest
+  - "3.5"
+  - "3.6"
+  - "3.7"
 
 branches:
   only:
-    - travis
+  - master
 
-  except:
-    - master
-    
+before_deploy:
+    - git config --local user.name "cmorganl"
+    - git config --local user.email "c.morganlang@gmail.com"
+
+env:
+    global:
+      - CIBW_SKIP="cp27-* pp27-* *-manylinux_i686"
+      - TWINE_USERNAME=__token__
+      # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
+      - PIP="python3 -m pip"
+      - TWINE_REPOSITORY=pypi
+      - TWINE_REPOSITORY_URL=https://upload.pypi.org/legacy/
+      - TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
+
+jobs:
+    include:
+      # perform a linux build
+      - services: docker
+      # and a mac build
+      - name: "Python 3.6.5 on macOS 10.13"
+        os: osx
+        osx_image: xcode9.4
+        language: shell
+
+before_install:
+    - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+        git -C "$(brew --repo)" remote set-url origin https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git;
+        curl -L 'http://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh' -o Miniconda3-latest-MacOSX-x86_64.sh;
+        bash Miniconda3-latest-MacOSX-x86_64.sh -b -p ~/anaconda_ete/;
+        export PATH=~/anaconda_ete/bin:$PATH;
+        conda install -y -c etetoolkit ete3;
+      fi
+    - if [ "$TRAVIS_OS_NAME" != "osx" ]; then
+        sudo apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk python3-distutils python3-dev;
+        sudo apt install python-six -y;
+        wget https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb;
+        sudo dpkg -i mafft_7.450-1_amd64.deb;
+      fi
+
+install:
+    - $PIP install --upgrade pip
+    - $PIP install -r requirements.txt
+    - $PIP install -U setuptools
+    - $PIP install cibuildwheel==1.1.0
+    - $PIP install twine
+
+script:
+    # build the wheels, put them into './wheelhouse'
+    - python3 -m cibuildwheel --output-dir wheelhouse
+    - python3 setup.py sdist --dist-dir wheelhouse
+    # - pytest
+
 notifications:
-    email: false
+  email:
+    on_success: never
+    on_failure: always
+
+after_success:
+  # if the release was tagged, upload them to PyPI
+  - ls wheelhouse/
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+      $PIP install twine;
+      python3 -m twine upload --skip-existing wheelhouse/*.whl;
+    fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+        python3 -m twine upload --skip-existing wheelhouse/*.whl wheelhouse/*tar.gz;
+    fi

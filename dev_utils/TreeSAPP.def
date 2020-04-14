@@ -1,0 +1,75 @@
+BootStrap: library
+From: ubuntu:18.04
+Stage: build
+
+%files
+    /usr/local/bin/usearch
+
+%post
+    export TS_VERSION="0.6.7"
+
+	##
+    # Install the linux package dependencies, this is currently including Python 3.6.5
+    ##
+    apt -y update
+    apt -y install gcc dpkg-dev curl zip git libz-dev default-jdk time \
+    python3 python3-distutils python3-dev
+    ln -s /usr/bin/python3 /usr/bin/python
+    curl https://bootstrap.pypa.io/get-pip.py | python
+    mkdir TreeSAPP/; cd TreeSAPP/
+    python -V
+
+	##
+    # Install TreeSAPP dependencies
+    ##
+    # RAxML-v8.2.12
+    curl -LJ0 --output v8.2.12.tar.gz https://github.com/stamatak/standard-RAxML/archive/v8.2.12.tar.gz
+    tar -xzf v8.2.12.tar.gz; cd standard-RAxML-8.2.12/;
+    make -f Makefile.SSE3.PTHREADS.gcc; rm *.o; cd -; cp standard-RAxML-8.2.12/raxmlHPC-PTHREADS-SSE3 /usr/bin/raxmlHPC
+    rm v8.2.12.tar.gz
+
+    # MAFFT
+	curl -LJ0 --output mafft.deb https://mafft.cbrc.jp/alignment/software/mafft_7.450-1_amd64.deb
+	dpkg -i mafft.deb
+
+	# Prodigal
+	curl -LJ0 --output /usr/bin/prodigal https://github.com/hyattpd/Prodigal/releases/download/v2.6.3/prodigal.linux
+	chmod +x /usr/bin/prodigal
+
+	# BWA
+	curl -LJ0 --output v0.7.17.tar.gz https://github.com/lh3/bwa/archive/v0.7.17.tar.gz
+	tar -xzf v0.7.17.tar.gz; cd bwa-0.7.17/; make; rm *.o; cd -; cp bwa-0.7.17/bwa /usr/bin/bwa
+	rm v0.7.17.tar.gz
+
+	# HMMER - not yet available on Ubuntu 18.04 so rely on Makefile
+	# apt install hmmer
+    curl -LJ0 --output hmmer-3.3.tar.gz http://eddylab.org/software/hmmer/hmmer-3.3.tar.gz
+	tar -xzf hmmer-3.3.tar.gz; cd hmmer-3.3/; ./configure; make -f Makefile
+	cp src/hmmsearch src/hmmbuild src/hmmalign /usr/bin/
+	cd -; rm hmmer-3.3.tar.gz
+
+	# OD-Seq
+	curl -LJ0 --output od-seq.tar.gz http://www.bioinf.ucd.ie/download/od-seq.tar.gz; tar -xzf od-seq.tar.gz
+	ODSEQ_SOURCES="OD-Seq/AliReader.cpp OD-Seq/Bootstrap.cpp OD-Seq/DistCalc.cpp OD-Seq/DistMatReader.cpp \
+	OD-Seq/DistWriter.cpp OD-Seq/FastaWriter.cpp OD-Seq/IQR.cpp OD-Seq/ODseq.cpp OD-Seq/PairwiseAl.cpp \
+	OD-Seq/Protein.cpp OD-Seq/ResultWriter.cpp OD-Seq/runtimeargs.cpp OD-Seq/util.cpp"
+	g++ -fopenmp -o /usr/bin/OD-seq $ODSEQ_SOURCES
+	rm od-seq.tar.gz
+
+	# FastTree
+	curl -LJ0 --output /usr/bin/FastTree http://microbesonline.org/fasttree/FastTreeDbl
+    chmod +x /usr/bin/FastTree
+
+	##
+    # Install TreeSAPP
+    ##
+    pip install treesapp==$TS_VERSION
+
+%labels
+    Author Connor Morgan-Lang
+    Version v0.6.7
+
+%help
+    This container installs the latest TreeSAPP release from PyPI at https://pypi.org/project/treesapp/
+    and installs all dependencies:
+    RaxML v8.2.12; MAFFT v7.450-1; Prodigal v2.6.3; BWA v0.7.17; HMMER v3.3; OD-Seq v1.0 and FastTree v2.1.11
