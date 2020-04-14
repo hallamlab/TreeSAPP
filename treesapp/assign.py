@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 __author__ = "Connor Morgan-Lang and Kishori Konwar"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
@@ -23,7 +22,6 @@ try:
     from os.path import isfile, join
     from time import gmtime, strftime
 
-    from .treesapp_args import TreeSAPPArgumentParser
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, MarkerBuild
     from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA

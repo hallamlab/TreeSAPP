@@ -38,13 +38,15 @@ treesapp assign -i proteins.faa -o treesapp_output/ -m prot
 
 ### Recommended arguments
 
-In addition to the basics, we tend to also extract phylogenetically informative regions from multiple sequence alignments using BMGE **[6]**. This speeds up the phylogenetic placement stage without significantly harming classification performance.
+In addition to the basics, we tend to also extract phylogenetic informative regions from multiple sequence alignments using BMGE with the flag `--trim_align` **[6]**. This speeds up the phylogenetic placement stage without significantly harming classification performance.
 
-Another favourite of ours is jacking up the number of threads available to Prodigal (FASTA is split into chunks and Prodigal is ran in parallel), HMMER, and RAxML with `-n`.
+Another favourite of ours is jacking up the number of threads available to Prodigal (FASTA is split into chunks and Prodigal is ran in parallel), HMMER, and RAxML with `--num_procs`.
+
+For a list of all available arguments use `treesapp assign -h`.
 
 ### Targeted classifications
 
-`treesapp assign` by default identifies homologs using all reference packages by default, although in many circumstances this is not necessary or desired. The argument for selecting the subset of reference packages to query is `-t`. This requires reference package codes, **not** the short-form gene or protein name. These codes can be found by running `treesapp info -v`. The bottom chunk of standard output lists the gene/protein names mapped to reference package codes, descriptions and other information. Here is an example:
+`treesapp assign` identifies homologs using all reference packages by default, although in many circumstances this is not necessary or desired. The argument for selecting the subset of reference packages to query is `-t`. This requires one or more comma-separated reference package codes, **not** the short-form gene or protein name. These codes can be found by running `treesapp info -v`. The bottom chunk of standard output lists the gene/protein names mapped to reference package codes, descriptions and other information. Here is an example:
 
 ```
 S0001 -> DsrAB, prot, functional, Dissimilatory sulfite reductase alpha/beta subunits [EC:1.8.99.5], 16_May_2019
@@ -62,11 +64,11 @@ To analyze just the McrABG subunits (last three rows), you would include `-t M07
 
 ### Abundance estimates
 
-`treesapp assign` is also capable of assigning FPKM abundance values to classified sequences when the `--fpkm` flag is invoked. At least one FASTQ file is also required (using the `-r` argument) and a second if the reads are paired end and not interleaved (with `-2`). The `--pairing` options is use to specify whether the library is paired-end ('pe') or single-end ('se').
+`treesapp assign` is also capable of assigning FPKM abundance values to classified sequences when the `--fpkm` flag is invoked. At least one FASTQ file is also required (using the `-r` argument) and a second if the reads are paired end and not interleaved (path provided to `-2`). The `--pairing` option is used to specify whether the library is paired-end ('pe') or single-end ('se').
 
 BWA is used to index the classified nucleotide ORF sequences then map reads to this index **[7]**. [`samsum`](https://github.com/hallamlab/samsum), a Python package dependency, parses the SAM file written and calculates FPKM values of each ORF.
 
-This option is only available if a genome was provided and Prodigal was ran - we cannot map DNA reads to protein sequences.
+This routine is only available if a genome was provided and Prodigal was ran - we cannot map DNA reads to protein sequences.
 
 ***
 
@@ -74,11 +76,29 @@ This option is only available if a genome was provided and Prodigal was ran - we
 
 ### Classification table
 
-final_outputs/marker_contig_map.tsv
+The table containing classifications, that is the output that most people would be interested in, is `final_outputs/marker_contig_map.tsv` under the output directory. Each row contains a single classified sequence with the gene/protein name and taxonomic label it was classified as. Chances are, you are just interested in the first six columns.
+
+The column names and descriptions follow:
+
+* `Sample`: Name of the sample the ORF originated from. This is taken from the name of the FASTA file provided to `-i`/`--fasta_input` except when the `--fpkm` flag is used, in which case the name is taken from the FASTQ file(s).
+* `Query`: Name of the query protein sequence or conceptually translated ORF sequence.
+* `Marker`: Name of the reference package (i.e. gene or protein name) the query sequence was classified as. If you are unfamiliar with this name, `treesapp info -v` can give you a brief description.
+* `Length`: Length of the query sequence that was aligned to the reference profile HMM and subsequently used for phylogenetic placement. This could be, and usually is, a subsequence of the full-length ORF or protein sequence.
+* `Taxonomy`: Taxonomic label assigned to the query sequence based on LCA alone. Should only be used for development and testing purposes.
+* `Confident_Taxonomy`: Final taxonomic label assigned to the query sequence.
+* `Abundance`: The abundance of the query sequence in the dataset. If `--fpkm` was not used it is set to 1, otherwise it is a fragments per kilobase per million mappable reads (FPKM) value.
+* `iNode`: The internal node number representing where on the reference phylogeny the query sequence was placed.
+* `LWR`: Likelihood weight ratio assigned to the query by RAxML-EPA.
+* `EvoDist`: Sum of all phylogenetic distances calculated by RAxML-EPA as well as the average node-to-tip distances.
+* `Distances`: A comma-separated list of the distances that summed to equal `EvoDist`
 
 ### iTOL inputs
 
-iTOL_inputs/
+Within the root output directory, there is a directory called `iTOL_output/`. Within there is a directory for each of the reference package names that query sequences were assigned to and within *those* are files you can use to visualize your placements in [iTOL](https://itol.embl.de/).
+
+If you have an iTOL account already you should login first and once you are in your workspace click-and-drag the JPlace file from one of the iTOL output refpkg directories into a workspace. If you do not have an iTOL account (and don't want to get one) you can navigate to the "Upload" button at the top of the page and upload the JPlace file through that.
+
+Once you are viewing the phylogeny you should toggle on the "Phylogenetic Placements" dataset. Then, to finish uploading the annotation files, click-and-drag the remaining files in that directory (e.g. McrA_labels.txt, McrA_colour_strip.txt, etc.) onto the webpage *et voila*, you have a b-e-a-utiful phylogeny showing you where sequences in your dataset were placed.
 
 ***
 

@@ -362,9 +362,6 @@ class DomainTableParser(object):
             logging.error("Could not open " + dom_tbl + " or file is not available for reading.\n")
             sys.exit(0)
 
-    def __iter__(self):
-        return self
-
     def read_domtbl_lines(self):
         """
         Function to read the lines in the domain table file,

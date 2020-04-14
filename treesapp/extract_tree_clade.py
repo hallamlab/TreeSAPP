@@ -183,7 +183,7 @@ def write_cluster_fasta(args, clade_members, fasta_dict, tax_ids):
 
 def main():
     args = get_arguments()
-    marker_build_dict = parse_ref_build_params(args)
+    marker_build_dict = parse_ref_build_params(args.treesapp)
     # Find the marker name and the code name for the name inputted
     if re.match("[A-Z][0-9]{4}", args.name):
         args.code_name = args.name
@@ -207,7 +207,7 @@ def main():
     args.fasta = os.sep.join([args.treesapp, "data", "alignment_data", args.marker + ".fa"])
     args.tax_ids =os.sep.join([args.treesapp, "data", "tree_data", "tax_ids_" + args.marker + ".txt"])
 
-    clusters, internal_nodes = read_colours_file(args, args.colours_style)
+    clusters, internal_nodes = read_colours_file(args.colours_style)
     if internal_nodes:
         # The tree file needs to be read with internal nodes as keys
         pass

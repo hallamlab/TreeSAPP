@@ -1,12 +1,8 @@
-"""
-TreeSAPP command line.
-"""
 import sys
 import argparse
 import logging
 
 from .commands import (create, evaluate, abundance, assign, update, info, train, layer, purity)
-# from .clade_exclusion_evaluator import main as evaluate_main
 
 usage = """
 treesapp <command> [<args>]

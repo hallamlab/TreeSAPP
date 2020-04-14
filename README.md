@@ -50,7 +50,7 @@ If you are working with a particularly complex reference package, from an orthol
  phylogenetic information you'd like to include in your classifications,
  try [annotating extra features](https://github.com/hallamlab/TreeSAPP/wiki/Layering-annotations-onto-classifications) with `treesapp layer`.
 
-####  Yet to come
+### Yet to come
 -   [Interpreting `treesapp assign` results]()
 -   [Evaluating classification accuracy]()
 -   [Taxonomically decorating trees for iTOL]()
@@ -58,10 +58,10 @@ If you are working with a particularly complex reference package, from an orthol
 
 ## Authors
 
-   - Connor Morgan-Lang ([cmorganl](https://github.com/cmorganl), maintainer)
-   - Ryan McLaughlin ([McGlock](https://github.com/McGlock))
-   - Grace Zhang ([grace72](https://github.com/gracez72))
-   - Kevin Chan ([kevinxchan](https://github.com/kevinxchan))
-   - Zachary Armstrong
-   - Steven J. Hallam
+* Connor Morgan-Lang ([cmorganl](https://github.com/cmorganl), maintainer)
+* Ryan McLaughlin ([McGlock](https://github.com/McGlock))
+* Grace Zhang ([grace72](https://github.com/gracez72))
+* Kevin Chan ([kevinxchan](https://github.com/kevinxchan))
+* Zachary Armstrong
+* Steven J. Hallam
 
