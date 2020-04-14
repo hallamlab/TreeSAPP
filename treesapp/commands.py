@@ -32,7 +32,7 @@ from .assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
-    summarize_placements_rpkm, run_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names, read_refpkg_tax_ids
+    summarize_placements_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names, read_refpkg_tax_ids
 from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -1055,7 +1055,7 @@ def abundance(sys_args):
     :param sys_args: treesapp abundance arguments with the treesapp subcommand removed
     :return: A dictionary containing the abundance values indexed by the reference sequence (e.g. ORF, contig) names
     """
-    parser = TreeSAPPArgumentParser(description="Validate the functional purity of a reference package.")
+    parser = TreeSAPPArgumentParser(description="Calculate the abundance of classified sequences from read coverage.")
     add_abundance_arguments(parser)
     args = parser.parse_args(sys_args)
 
@@ -1063,7 +1063,7 @@ def abundance(sys_args):
     ts_abund.furnish_with_arguments(args)
     abundance_dict = {}
 
-    log_file_name = args.output + os.sep + "TreeSAPP_purity_log.txt"
+    log_file_name = args.output + os.sep + "TreeSAPP_abundance_log.txt"
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCalculating abundance of classified sequences\t\t\t##\n")
 

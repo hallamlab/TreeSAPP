@@ -25,20 +25,17 @@ try:
     from numpy import array as np_array
     from sklearn import preprocessing
 
-    from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
-        TreeLeafReference, TreeProtein, MarkerBuild
+    from .classy import CommandLineFarmer, ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild, ReferencePackage
     from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
     from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
-        get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
+        get_node, index_tree_edges, map_internal_nodes_leaves
     from .external_command_interface import launch_write_command
     from .lca_calculations import lowest_common_taxonomy, weighted_taxonomic_distance
-    from .jplace_utils import children_lineage, jplace_parser, demultiplex_pqueries, write_jplace, filter_jplace_data,\
-        organize_jplace_files, add_bipartitions
-    from .file_parsers import read_stockholm_to_dict, read_phylip_to_dict,\
-        multiple_alignment_dimensions, validate_alignment_trimming
-    from .phylo_dist import parent_to_tip_distances, rank_recommender
+    from . import jplace_utils
+    from . import file_parsers
+    from . import phylo_dist
     from . import utilities
     from . import wrapper
 
@@ -925,7 +922,7 @@ def pparse_ref_trees(denominator_ref_tree_dict, args):
 
     for denominator in denominator_ref_tree_dict:
         reference_tree_file = denominator_ref_tree_dict[denominator]
-        pool.apply_async(func=entish.read_and_understand_the_reference_tree,
+        pool.apply_async(func=read_and_understand_the_reference_tree,
                          args=(reference_tree_file, denominator, ),
                          callback=log_tree)
     pool.close()
@@ -999,7 +996,7 @@ def read_understand_and_reroot_the_labelled_tree(labelled_tree_file, f_contig):
         sys.stderr.flush()
         return [f_contig, None, insertion_point_node_hash]
     else:
-        labelled_tree_info, terminal_children_of_labelled_tree = entish.deconvolute_assignments(labelled_tree_assignments)
+        labelled_tree_info, terminal_children_of_labelled_tree = deconvolute_assignments(labelled_tree_assignments)
         labelled_tree_info['subtree_of_node'] = terminal_children_of_labelled_tree
         labelled_tree_info = build_tree_info_quartets(labelled_tree_info)
         rooted_labelled_trees = build_newly_rooted_trees(labelled_tree_info)
@@ -1900,8 +1897,8 @@ def parse_raxml_output(epa_output_dir: str, marker_build_dict: dict):
         for filename in jplace_list:
             # Load the JSON placement (jplace) file containing >= 1 pquery into ItolJplace object
             jplace_data = jplace_utils.jplace_parser(filename)
-            edge_dist_index = entish.index_tree_edges(jplace_data.tree)
-            internal_node_leaf_map = entish.map_internal_nodes_leaves(jplace_data.tree)
+            edge_dist_index = index_tree_edges(jplace_data.tree)
+            internal_node_leaf_map = map_internal_nodes_leaves(jplace_data.tree)
             # Demultiplex all pqueries in jplace_data into individual TreeProtein objects
             for pquery in jplace_utils.demultiplex_pqueries(jplace_data):  # type: TreeProtein
                 # Flesh out the internal-leaf node map
@@ -1973,8 +1970,8 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
             else:
                 lca = tree_sap.megan_lca()
                 # algorithm options are "MEGAN", "LCAp", and "LCA*" (default)
-                tree_sap.lct = lca_calculations.lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
-                tree_sap.wtd, status = lca_calculations.weighted_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
+                tree_sap.lct = lowest_common_taxonomy(tree_sap.lineage_list, lca, taxonomic_counts, "LCA*")
+                tree_sap.wtd, status = weighted_taxonomic_distance(tree_sap.lineage_list, tree_sap.lct)
                 if status > 0:
                     tree_sap.summarize()
 

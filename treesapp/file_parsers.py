@@ -610,7 +610,7 @@ def read_stockholm_to_dict(sto_file):
 
             if seq_name not in seq_dict:
                 seq_dict[seq_name] = ""
-            seq_dict[seq_name] += re.sub('\.', '-', sequence.upper())
+            seq_dict[seq_name] += re.sub(r'\.', '-', sequence.upper())
         line = sto_handler.readline()
 
     return seq_dict
