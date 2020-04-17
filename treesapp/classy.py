@@ -1415,12 +1415,9 @@ class TreeSAPP:
         if self.command == "abundance":
             dependencies += ["bwa"]
 
-        if self.command == "update":
+        if self.command in ["create", "update", "train"]:
             dependencies += ["usearch", "mafft", "OD-seq"]
-
-        if self.command == "create":
-            dependencies += ["usearch", "mafft", "OD-seq"]
-            if args.fast:
+            if hasattr(args, "fast") and args.fast:
                 dependencies.append("FastTree")
 
         if self.molecule_type == "rrna":

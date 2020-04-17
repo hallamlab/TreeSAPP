@@ -16,15 +16,15 @@ try:
 
     from time import gmtime, strftime, sleep
 
-    from .utilities import clean_lineage_string, swap_tree_names, reformat_string
+    from . import utilities
+    from . import fasta
+    from . import classy
+    from . import file_parsers
+    from . import entrez_utils
     from .wrapper import run_odseq, run_mafft
     from .external_command_interface import launch_write_command
     from .entish import annotate_partition_tree
     from .lca_calculations import megan_lca, clean_lineage_list
-    from . import entrez_utils
-    from . import fasta
-    from . import classy
-    from . import file_parsers
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
@@ -395,9 +395,9 @@ def order_dict_by_lineage(fasta_object_dict):
         if not ref_seq.cluster_rep:
             continue
         try:
-            lineage_dict[clean_lineage_string(ref_seq.lineage)].append(ref_seq)
+            lineage_dict[utilities.clean_lineage_string(ref_seq.lineage)].append(ref_seq)
         except KeyError:
-            lineage_dict[clean_lineage_string(ref_seq.lineage)] = [ref_seq]
+            lineage_dict[utilities.clean_lineage_string(ref_seq.lineage)] = [ref_seq]
 
     # Now re-write the fasta_object_dict, but the numeric keys are now sorted by lineage
     #  AND it doesn't contain redundant fasta objects
@@ -498,7 +498,7 @@ def summarize_reference_taxa(reference_dict: dict, cluster_lca=False):
 
         position = 0
         # Ensure the root/ cellular organisms designations are stripped
-        taxa = clean_lineage_string(lineage).split('; ')
+        taxa = utilities.clean_lineage_string(lineage).split('; ')
         while position < len(taxa) and position < 7:
             taxa_counts[rank_depth_map[position]].add(taxa[position])
             position += 1
