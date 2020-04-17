@@ -3,10 +3,11 @@ __author__ = 'Connor Morgan-Lang'
 import sys
 import time
 import re
-import Bio
 import logging
+
 from Bio import Entrez
 from urllib import error
+
 from .utilities import clean_lineage_string
 
 
@@ -64,6 +65,7 @@ class EntrezRecord(ReferenceSequence):
 def validate_target_db(db_type: str):
     """
     Takes a `db_type` string and matches it with the appropriate database name to be used in an Entrez query
+
     :param db_type: Molecule or database type
     :return: Proper Entrez database name
     """
@@ -86,7 +88,8 @@ def tolerant_entrez_query(search_term_list: list, db="Taxonomy", method="fetch",
     """
     Function for performing Entrez-database queries using BioPython's Entrez utilities.
     It is able to break up the complete list of search terms,
-     perform the search and if any chunks fail send individual queries for each item in the sub_list.
+    perform the search and if any chunks fail send individual queries for each item in the sub_list.
+
     :param search_term_list: A list of GenBank accessions, NCBI taxonomy IDs, or organism names
     :param db: Name of the Entrez database to query
     :param method: Either fetch or search corresponding to Entrez.efetch and Entrez.esearch, respectively
@@ -185,6 +188,7 @@ def parse_accessions_from_entrez_xml(record):
 def parse_gbseq_info_from_entrez_xml(record, gb_key="GBSeq_organism"):
     """
     Function for pulling out a value for a specific GenBank key from a dictionary
+
     :param record:
     :param gb_key:
     :return:
@@ -193,10 +197,13 @@ def parse_gbseq_info_from_entrez_xml(record, gb_key="GBSeq_organism"):
     if len(record) >= 1:
         try:
             gb_value = record[gb_key]
-            # To prevent Entrez.efectch from getting confused by non-alphanumeric characters:
-            gb_value = re.sub(r'[)(\[\]]', '', gb_value)
+            # # To prevent Entrez.efetch from getting confused by non-alphanumeric characters:
+            # try:
+            #     gb_value = re.sub(r'[)(\[\]]', '', gb_value)
+            # except TypeError:
+            #     return gb_value
         except (IndexError, KeyError):
-            logging.warning("'" + gb_key + "' not found in Entrez record.\n")
+            logging.warning("'" + gb_key + "' not found in Entrez record:\n" + record + "\n")
     return gb_value
 
 
@@ -214,13 +221,9 @@ def prep_for_entrez_query():
     """
     Tests checks to ensure the correct version of BioPython is imported,
     sends a test Entrez.efetch query to see if the internet connection is currently stable.
+
     :return:
     """
-    if float(Bio.__version__) < 1.68:
-        # This is required due to a bug in earlier versions returning a URLError
-        logging.error("Version of biopython needs to be >=1.68! " +
-                      str(Bio.__version__) + " is currently installed.\n")
-        sys.exit(9)
 
     logging.info("Preparing Bio.Entrez for NCBI queries... ")
     Entrez.email = "c.morganlang@gmail.com"
@@ -368,6 +371,25 @@ def pull_unmapped_entrez_records(entrez_records: list):
     return unmapped_queries
 
 
+def annotate_lineage_ranks(tax_lineage: str, lineage_ex: dict) -> str:
+    # Build the look-up map
+    annotated_lineage = []
+    prefix_map = {'superkingdom': 'domain'}
+
+    taxon_rank_map = {rank_ex['ScientificName']: rank_ex['Rank'] for rank_ex in lineage_ex}
+    for taxon in tax_lineage.split('; '):
+        try:
+            rank = taxon_rank_map[taxon]
+        except KeyError:
+            return ""
+        if rank in prefix_map:
+            prefix = prefix_map[rank][0]
+        else:
+            prefix = rank[0]
+        annotated_lineage.append(prefix + "__" + taxon)
+    return "; ".join(annotated_lineage)
+
+
 def fetch_lineages_from_taxids(entrez_records: list):
     """
     Query Entrez's Taxonomy database for lineages using NCBI taxonomic IDs.
@@ -403,9 +425,14 @@ def fetch_lineages_from_taxids(entrez_records: list):
             logging.warning("Empty TaxId returned in Entrez XML.\n")
         tax_lineage = parse_gbseq_info_from_entrez_xml(record, "Lineage")
         tax_organism = parse_gbseq_info_from_entrez_xml(record, "ScientificName")
+        lineage_ex = annotate_lineage_ranks(tax_lineage, parse_gbseq_info_from_entrez_xml(record, "LineageEx"))
+        if not lineage_ex:
+            logging.error("Unable to find all taxonomic ranks for lineage '{0}' in record:\n{1}\n.".format(tax_lineage,
+                                                                                                           record))
+            sys.exit(3)
         try:
             for e_record in tax_id_map[tax_id]:  # type: EntrezRecord
-                e_record.lineage = tax_lineage
+                e_record.lineage = lineage_ex
                 e_record.organism = tax_organism
                 e_record.tracking_stamp()
         except KeyError:
@@ -498,7 +525,7 @@ def entrez_records_to_accession_lineage_map(entrez_records_list):
 
 def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
     """
-    Function for retrieving taxonomic lineage information from accession IDs - accomplished in 2 steps:
+    Function for retrieving taxonomic lineage information from accession IDs - accomplished in 3 steps:
      1. Query Entrez's Taxonomy database using accession IDs to obtain corresponding organisms
      2. Query Entrez's Taxonomy database using organism names to obtain corresponding TaxIds
      3. Query Entrez's Taxonomy database using TaxIds to obtain corresponding taxonomic lineages
