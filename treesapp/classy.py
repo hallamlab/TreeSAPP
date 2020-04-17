@@ -17,11 +17,8 @@ from numpy import var
 from ete3 import Tree
 
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers, load_fasta_header_regexes, read_fasta_to_dict
-from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle, swap_tree_names
+from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle, swap_tree_names, fish_refpkg_from_build_params
 from .entish import create_tree_info_hash, subtrees_to_dictionary, annotate_partition_tree
-from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
-from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, fish_refpkg_from_build_params
-from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
 from .lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
 from .external_command_interface import launch_write_command
 from . import entrez_utils
