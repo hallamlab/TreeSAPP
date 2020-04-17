@@ -258,7 +258,7 @@ def create(sys_args):
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
     fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
-    create_refpkg.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
+    entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
@@ -577,7 +577,7 @@ def update(sys_args):
         querying_classified_fasta.synchronize_seqs_n_headers()
         querying_classified_fasta.swap_headers(name_map)
         fasta_records = ts_updater.fetch_entrez_lineages(querying_classified_fasta, args.molecule)
-        create_refpkg.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
+        entrez_utils.fill_ref_seq_lineages(fasta_records, classified_seq_lineage_map)
         deduped = []
         for treesapp_id in sorted(querying_classified_fasta.header_registry.keys(), key=int):
             try:
@@ -1164,7 +1164,7 @@ def evaluate(sys_args):
     ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
 
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
-    create_refpkg.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
+    entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
 
     fasta_records = utilities.remove_elongated_lineages(fasta_records)
 

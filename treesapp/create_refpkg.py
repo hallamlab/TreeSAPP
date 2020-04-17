@@ -18,11 +18,11 @@ try:
     from . import fasta
     from . import classy
     from . import file_parsers
+    from . import entrez_utils
     from .wrapper import run_odseq, run_mafft
     from .external_command_interface import launch_write_command
     from .entish import annotate_partition_tree
     from .lca_calculations import megan_lca, clean_lineage_list
-    from .entrez_utils import *
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
@@ -322,7 +322,7 @@ def screen_filter_taxa(fasta_records: dict, screen_strs="", filter_strs="", guar
     for treesapp_id in fasta_records:
         screen_pass = False
         filter_pass = True
-        ref_seq = fasta_records[treesapp_id]  # type: ReferenceSequence
+        ref_seq = fasta_records[treesapp_id]  # type: entrez_utils.ReferenceSequence
         # Screen
         if len(screen_terms) > 0:
             for term in screen_terms:
@@ -403,9 +403,9 @@ def order_dict_by_lineage(fasta_object_dict):
         if not ref_seq.cluster_rep:
             continue
         try:
-            lineage_dict[clean_lineage_string(ref_seq.lineage)].append(ref_seq)
+            lineage_dict[utilities.clean_lineage_string(ref_seq.lineage)].append(ref_seq)
         except KeyError:
-            lineage_dict[clean_lineage_string(ref_seq.lineage)] = [ref_seq]
+            lineage_dict[utilities.clean_lineage_string(ref_seq.lineage)] = [ref_seq]
 
     # Now re-write the fasta_object_dict, but the numeric keys are now sorted by lineage
     #  AND it doesn't contain redundant fasta objects
@@ -588,7 +588,7 @@ def read_tax_ids(tree_taxa_list):
         else:
             treesapp_id, seq_info = fields
             lineage = ""
-        ref_seq = ReferenceSequence()
+        ref_seq = entrez_utils.ReferenceSequence()
         try:
             ref_seq.organism = seq_info.split(" | ")[0]
             ref_seq.accession = seq_info.split(" | ")[1]
