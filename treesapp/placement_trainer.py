@@ -377,10 +377,6 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
     # Read the tree as ete3 Tree instance
     ref_tree = Tree(ref_pkg.tree)
 
-    bmge_file = executables["BMGE.jar"]
-    if not os.path.exists(bmge_file):
-        raise FileNotFoundError("Cannot find " + bmge_file)
-
     num_training_queries = 0
     for rank in rank_training_seqs:
         num_rank_training_seqs = 0

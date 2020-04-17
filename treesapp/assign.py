@@ -29,7 +29,7 @@ try:
     from .treesapp_args import TreeSAPPArgumentParser
     from .classy import ItolJplace, NodeRetrieverWorker, TreeLeafReference, TreeProtein, MarkerBuild, ReferencePackage
     from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
-    from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
+    from .entish import deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, index_tree_edges, map_internal_nodes_leaves
     from .external_command_interface import launch_write_command
     from .lca_calculations import lowest_common_taxonomy, weighted_taxonomic_distance

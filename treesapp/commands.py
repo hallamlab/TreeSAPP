@@ -24,7 +24,6 @@ from . import lca_calculations
 from . import placement_trainer
 from . import update_refpkg
 from . import annotate_extra
-from .phylo_dist import trim_lineages_to_rank
 from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
     prep_logging, dedup_records, TaxonTest, Purity, Abundance, ReferencePackage
 from . import create_refpkg

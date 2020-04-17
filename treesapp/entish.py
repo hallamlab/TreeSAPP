@@ -43,7 +43,7 @@ def get_tip_distances(parent_node):
     return distances
 
 
-def find_cluster(lost_node: Tree, intra_distances: list = []):
+def find_cluster(lost_node: Tree, intra_distances=None):
     """
     Recursively calculates whether a node in a tree is the root of a cluster,
     where a cluster is defined as a sub-tree (clade) whose members satisfy the condition:
@@ -56,6 +56,8 @@ def find_cluster(lost_node: Tree, intra_distances: list = []):
     :param intra_distances: A list with the current set of leaf-tip distances
     :return: Tree node, a list of float distances
     """
+    if intra_distances is None:
+        intra_distances = []
     parent = lost_node.up
     if lost_node.is_root() or parent.is_root():
         return lost_node, intra_distances
