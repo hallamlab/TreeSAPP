@@ -787,7 +787,14 @@ def multiple_alignment_dimensions(seq_dict, mfa_file):
     return len(seq_dict), sequence_length
 
 
-def read_seq_taxa_table(seq_names_to_taxa: str):
+def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
+    """
+    Reads a two-column table containing sequence names (of ORFs, contigs, etc.) in the first column
+    and lineages in the second
+
+    :param seq_names_to_taxa: Path to file containing the sequence name table
+    :return: Dictionary with sequence names as keys and lineages as values
+    """
     seq_lineage_map = dict()
     try:
         handler = open(seq_names_to_taxa, 'r')

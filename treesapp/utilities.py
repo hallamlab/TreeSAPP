@@ -448,30 +448,27 @@ def remove_dashes_from_msa(fasta_in, fasta_out):
     return
 
 
-def clean_lineage_string(lineage: str, also=None) -> str:
+def clean_lineage_string(lineage: str, bad_strings=None) -> str:
     """
     Removes superfluous taxonomic ranks and characters that make lineage comparisons difficult
 
     :param lineage: A taxonomic lineage string where each rank is separated by a semi-colon
-    :param also: An optional list containing other strings to filter out e.g. ["Root; "]
+    :param bad_strings: An optional list containing other strings to filter out e.g. ["Root; "]
     :return: String with the purified taxonomic lineage adhering to the NCBI hierarchy
     """
-    non_standard_names_re = re.compile(" group| cluster| complex", re.IGNORECASE)
-    bad_strings = ["cellular organisms; ", "delta/epsilon subdivisions; ", "\(miscellaneous\)", "[a-p]__"]
-    if also:
-        bad_strings += also
-    for bs in bad_strings:
-        lineage = re.sub(bs, '', lineage)
-    # filter 'group' and 'cluster'
-    if non_standard_names_re.search(lineage):
-        reconstructed_lineage = ""
-        ranks = lineage.split("; ")
-        for rank in ranks:
-            if not non_standard_names_re.search(rank):
-                reconstructed_lineage = reconstructed_lineage + str(rank) + '; '
-        reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
-        lineage = reconstructed_lineage
-    return re.sub(r"^; ", '', lineage)
+    no_rank = re.compile(r"^n__.*")
+    if bad_strings:
+        # Potential list of bad strings: "cellular organisms; ", "delta/epsilon subdivisions; ", "\(miscellaneous\)"
+        for bs in bad_strings:
+            lineage = re.sub(bs, '', lineage)
+
+    reconstructed_lineage = ""
+    ranks = lineage.split("; ")
+    for rank in ranks:
+        if not no_rank.match(rank):
+            reconstructed_lineage = reconstructed_lineage + str(rank) + '; '
+    reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
+    return reconstructed_lineage
 
 
 def remove_elongated_lineages(fasta_records: dict, guarantees=None):
@@ -515,11 +512,11 @@ def remove_elongated_lineages(fasta_records: dict, guarantees=None):
 def median(num_list: list):
     n = len(num_list)
     if n < 1:
-            return None
+        return None
     if n % 2 == 1:
-            return sorted(num_list)[n//2]
+        return sorted(num_list)[n//2]
     else:
-            return sum(sorted(num_list)[n//2-1:n//2+1])/2.0
+        return sum(sorted(num_list)[n//2-1:n//2+1])/2.0
 
 
 def mean(num_list: list):

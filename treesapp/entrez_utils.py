@@ -217,12 +217,12 @@ def parse_gbseq_info_from_esearch_record(record, gb_key="IdList"):
     return gb_value
 
 
-def prep_for_entrez_query():
+def prep_for_entrez_query() -> None:
     """
     Tests checks to ensure the correct version of BioPython is imported,
     sends a test Entrez.efetch query to see if the internet connection is currently stable.
 
-    :return:
+    :return: None
     """
 
     logging.info("Preparing Bio.Entrez for NCBI queries... ")
@@ -237,10 +237,143 @@ def prep_for_entrez_query():
     return
 
 
-def check_lineage(lineage: str, organism_name: str, verbosity=0):
+def repair_lineages(ref_seq_dict: dict) -> None:
     """
-    Sometimes the NCBI lineage is incomplete.
-    Currently, this function uses organism_name to ideally add Species to the lineage
+    This is used for adding rank prefixes (e.g. d__) to the taxonomic lineages in a dictionary of EntrezRecord instances
+
+    :param ref_seq_dict: A dictionary containing unique, numerical TreeSAPP identifiers mapper to EntrezRecord objects
+    :return: None
+    """
+    to_repair = set()  # A set of treesapp_ids that need to be fixed
+    unprefixed_taxa = dict()  # The unique set of taxa that lack rank prefixes mapped to repaired names
+    unprefixed_lineages = set()
+    tmp_lineages = set()
+
+    canonical_prefixes = re.compile(r"^[nrdkpcofgs]__")
+    any_prefix = re.compile(r"^.__.*")
+
+    # Search for any taxon that doesn't have a rank prefix in all the reference sequence lineages
+    for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
+        ref_seq = ref_seq_dict[treesapp_id]  # type: EntrezRecord
+        if ref_seq.lineage:
+            for taxon in ref_seq.lineage.split("; "):  # type: str
+                if not canonical_prefixes.search(taxon):
+                    if any_prefix.match(taxon):
+                        tag, taxon = taxon.split("__")
+                        logging.warning("Unknown rank prefix '{0}' in lineage '{1}'\n".format(tag, ref_seq.lineage))
+                    to_repair.add(treesapp_id)
+                    unprefixed_taxa[taxon] = ""
+                    unprefixed_lineages.add(ref_seq.lineage)
+    if len(to_repair) > 0:
+        logging.info("Repairing taxonomic lineages for {0} reference sequences... ".format(len(to_repair)))
+
+    # Add existing lineages with rank prefixes to unprefixed_taxa to reduce the number of Entrez queries
+    for treesapp_id in sorted(ref_seq_dict.keys()):
+        if treesapp_id in to_repair:
+            continue
+        lineage = ref_seq_dict[treesapp_id].lineage  # type: str
+        if lineage:
+            for taxon in lineage.split("; "):
+                try:
+                    unprefixed_taxa[taxon.split("__")[1]] = taxon
+                except KeyError:
+                    pass
+
+    # Download lineage information from Entrez for those that remain missing and add to unprefixed_taxa dict
+    # Build list of entrez queries
+    print(unprefixed_lineages)
+    entrez_query_list = entrez_records_from_lineages_and_chop(unprefixed_lineages, tmp_lineages, unprefixed_taxa)
+    while len([taxon for taxon in unprefixed_taxa if not unprefixed_taxa[taxon]]) and entrez_query_list:
+        # Gather NCBI taxid
+        o_search_terms = entrez_records_to_organism_set(entrez_query_list, 3)
+        fetch_taxids_from_organisms(o_search_terms)
+        # Fetch the lineages for each NCBI taxid
+        fetch_lineages_from_taxids(entrez_query_list)
+        # Update unprefixed_taxa with new lineages
+        while entrez_query_list:
+            er = entrez_query_list.pop()
+            print(er.lineage)
+            for rank in er.lineage.split("; "):
+                if any_prefix.match(rank):  # Ensure the new taxon is formatted properly with its rank prefix
+                    tag, taxon = rank.split("__")
+                    try:
+                        unprefixed_taxa[taxon]
+                    except KeyError:
+                        unprefixed_taxa[taxon] = ""
+                    if not unprefixed_taxa[taxon]:
+                        unprefixed_taxa[taxon] = rank
+
+        # Remove lineages from unprefixed_lineages if all ranks are repaired
+        while tmp_lineages:
+            print(tmp_lineages)
+            lineage = tmp_lineages.pop()
+            repaired = True
+            for taxon in lineage.split("; "):
+                if not unprefixed_taxa[taxon]:
+                    repaired = False
+                    break
+            if not repaired:
+                unprefixed_lineages.add(lineage)
+        # Update entrez_query_list with remaining lineages in unprefixed_lineages
+        entrez_query_list = entrez_records_from_lineages_and_chop(unprefixed_lineages, tmp_lineages, unprefixed_taxa)
+
+    # Add rank prefixes to the broken lineages
+    while to_repair:
+        treesapp_id = to_repair.pop()
+        complete_lineage = []
+        lineage = ref_seq_dict[treesapp_id].lineage.split("; ")
+        for taxon in lineage:
+            if canonical_prefixes.search(taxon):
+                complete_lineage.append(taxon)
+            elif unprefixed_taxa[taxon]:
+                complete_lineage.append(unprefixed_taxa[taxon])
+            else:
+                complete_lineage.append("n__" + taxon)
+        ref_seq_dict[treesapp_id].lineage = "; ".join(complete_lineage)
+        print(ref_seq_dict[treesapp_id].lineage)
+
+        if len(to_repair) == 0:
+            logging.info("done.\n")
+
+    sys.exit()
+    return
+
+
+def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
+    """
+    Adds lineage information from accession_lineages to fasta_record_objects
+
+    :param fasta_record_objects: dict() indexed by TreeSAPP numeric identifiers mapped to ReferenceSequence instances
+    :param accession_lineages: a dictionary mapping {accession: lineage}
+    :return: None
+    """
+    for treesapp_id in fasta_record_objects:
+        ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
+        if not ref_seq.lineage:
+            try:
+                lineage = accession_lineages[ref_seq.accession]
+            except KeyError:
+                logging.error("Lineage information was not retrieved for accession '" + ref_seq.accession + "'.\n" +
+                              "Please remove the output directory and restart.\n")
+                sys.exit(13)
+            # Add the species designation since it is often not included in the sequence record's lineage
+            ref_seq.lineage = lineage
+        print(ref_seq.lineage)
+        if not ref_seq.organism and ref_seq.lineage:
+            ref_seq.organism = ref_seq.lineage.split("; ")[-1]
+        else:
+            pass
+        ref_seq.tracking_stamp()
+    sys.exit()
+    return
+
+
+def check_lineage(lineage: str, organism_name: str, verbosity=0) -> list:
+    """
+    Sometimes the NCBI lineage is incomplete or the rank prefixes are out of order.
+    This function checks (and fixes) these things:
+    1. Uses organism_name to add Species to the lineage if it is missing
+    2. Ensure the progression of rank (i.e. from domain to species) is ordered properly
 
     :param lineage: A semi-colon separated taxonomic lineage
     :param organism_name: Name of the organism. Parsed from the sequence header (usually at the end in square brackets)
@@ -252,6 +385,9 @@ def check_lineage(lineage: str, organism_name: str, verbosity=0):
 
     if not lineage:
         return []
+
+    # TODO: Ensure the order of ranks is correct
+
     proper_species_re = re.compile("^[A-Z][a-z]+ [a-z]+$")
     lineage_list = clean_lineage_string(lineage).split("; ")
     if proper_species_re.match(lineage_list[-1]):
@@ -455,12 +591,47 @@ def entrez_records_to_accession_set(entrez_records_list: list, bitflag_filter=7)
     return query_dict
 
 
-def entrez_records_to_organism_set(entrez_records_list: list, bitflag_filter=7):
+def entrez_records_from_lineages_and_chop(lineages: set, chopped_lineages: set, skip_dict: dict):
+    """
+
+
+    :param lineages: A set of taxonomic lineages that need to be searched for in Entrez
+    :param chopped_lineages: A set to add the lineages with their most resolved taxon removed
+    :param skip_dict: A dictionary containing organism names mapped to themselves with a rank prefix
+     (e.g. {'Bacteria': 'd__Bacteria'})
+    :return: A list of EntrezRecord instances
+    """
+    entrez_query_list = []
+    while lineages:
+        lineage = lineages.pop()
+        taxon = lineage.split("; ")[-1]
+        if not skip_dict[taxon]:
+            er = EntrezRecord("NA", "NA")  # Mock EntrezRecord, with no real accession or acc.version
+            er.organism = taxon  # Set the organism to the most resolved taxon
+            er.tracking_stamp()
+            entrez_query_list.append(er)
+        if lineage.find("; ") >= 0:  # Don't add the chopped lineage if it was already the deepest element
+            chopped_lineages.add("; ".join(lineage.split("; ")[:-1]))
+    return entrez_query_list
+
+
+def entrez_records_to_organism_set(entrez_records_list: list, bitflag_filter=7) -> dict:
+    """
+    Taking a list of EntrezRecord instances, the unique set of organism names is compiled and formatted for
+    querying the Entrez database (requires '[All Names]' appended to it).
+    Additionally, a filter (bitflag_filter) can be applied that will skip adding queries from EntrezRecords with a
+    bitflag property value greater than the bitflag_filter.
+    This is to skip over records that already have the relevant information.
+
+    :param entrez_records_list: A list of EntrezRecord instances
+    :param bitflag_filter: An integer used for skipping complete EntrezRecords
+    :return: Dictionary with organism names mapped to EntrezRecords
+    """
     query_dict = dict()
     for record in entrez_records_list:  # type: EntrezRecord
         if record.bitflag > bitflag_filter:
-
             continue
+
         if record.organism:
             record.organism = re.sub('[:]', ' ', record.organism)
             record.organism = re.sub(' =.*', '', record.organism)
@@ -474,6 +645,45 @@ def entrez_records_to_organism_set(entrez_records_list: list, bitflag_filter=7):
         else:
             continue
     return query_dict
+
+
+def fetch_taxids_from_organisms(search_terms: dict) -> None:
+    """
+    This function uses the keys of the dictionary to submit queries to the Entrez database, in hopes of retrieving
+    NCBI taxonomy IDs (those unique, arbitrary numbers).
+    For each record that is returned, all EntrezRecords mapped to record's organism name in search_terms are updated
+    with the NCBI taxid (to their ncbi_tax variable) and their bitflag is recalculated.
+
+    :param search_terms: A dictionary containing organism names as keys and lists of EntrezRecords as values
+    :return: None
+    """
+    logging.debug(str(len(search_terms.keys())) + " unique organism queries.\n")
+    logging.info("Retrieving NCBI taxonomy IDs for each organism... ")
+    records_batch, durations, taxid_failures = tolerant_entrez_query(list(search_terms.keys()),
+                                                                     "Taxonomy", "search", "xml", 1)
+    logging.info("done.\n")
+
+    for record in records_batch:
+        try:
+            organism = parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term']
+        except (IndexError, KeyError, TypeError):
+            logging.warning("Value for 'TranslationStack' not found in Entrez record:" + str(record) + ".\n" +
+                            "Unable to link taxonomy ID to organism.\n")
+            continue
+        tax_id = parse_gbseq_info_from_esearch_record(record)
+        if not tax_id:
+            logging.warning("Entrez returned an empty TaxId for organism '" + organism + "'\n")
+        try:
+            # This can, and will, lead to multiple accessions being assigned the same tax_id - not a problem, though
+            for e_record in search_terms[organism]:
+                if e_record.bitflag == 7:
+                    continue
+                e_record.ncbi_tax = tax_id
+                e_record.tracking_stamp()
+        except KeyError:
+            logging.warning("Unable to map organism '" + organism + "' to an EntrezRecord:\n")
+            continue
+    return
 
 
 def entrez_records_to_accession_lineage_map(entrez_records_list):
@@ -581,48 +791,23 @@ def get_multiple_lineages(entrez_query_list: list, molecule_type: str):
     ##
     # Step 2: Query Entrez's Taxonomy database using organism names to obtain corresponding taxonomic lineages
     ##
-    search_terms = entrez_records_to_organism_set(entrez_query_list, 3)
-    logging.debug(str(len(search_terms.keys())) + " unique organism queries.\n")
-    logging.info("Retrieving NCBI taxonomy IDs for each organism... ")
-    records_batch, durations, taxid_failures = tolerant_entrez_query(list(search_terms.keys()),
-                                                                     "Taxonomy", "search", "xml", 1)
-    logging.info("done.\n")
-
-    for record in records_batch:
-        try:
-            organism = parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term']
-        except (IndexError, KeyError, TypeError):
-            logging.warning("Value for 'TranslationStack' not found in Entrez record:" + str(record) + ".\n" +
-                            "Unable to link taxonomy ID to organism.\n")
-            continue
-        tax_id = parse_gbseq_info_from_esearch_record(record)
-        if not tax_id:
-            logging.warning("Entrez returned an empty TaxId for organism '" + organism + "'\n")
-        try:
-            # This can, and will, lead to multiple accessions being assigned the same tax_id - not a problem, though
-            for e_record in search_terms[organism]:
-                if e_record.bitflag == 7:
-                    continue
-                e_record.ncbi_tax = tax_id
-                e_record.tracking_stamp()
-        except KeyError:
-            logging.warning("Unable to map organism '" + organism + "' to an EntrezRecord:\n")
-            continue
+    o_search_term_map = entrez_records_to_organism_set(entrez_query_list, 3)
+    fetch_taxids_from_organisms(o_search_term_map)
 
     entrez_query_list = fetch_lineages_from_taxids(entrez_query_list)
 
     return entrez_query_list
 
 
-def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa_searched):
+def verify_lineage_information(accession_lineage_map: dict, fasta_record_objects: dict, taxa_searched: int) -> None:
     """
     Function used for parsing records returned by Bio.Entrez.efetch queries and identifying inconsistencies
     between the search terms and the results
 
     :param accession_lineage_map: A dictionary mapping accession.versionID tuples to taxonomic lineages
-    :param fasta_record_objects:
+    :param fasta_record_objects: A dictionary of EntrezRecord instances indexed by their unique TreeSAPP numerical IDs
     :param taxa_searched: An integer for tracking number of accessions queried (currently number of lineages provided)
-    :return:
+    :return: None
     """
     if (len(accession_lineage_map.keys()) + taxa_searched) != len(fasta_record_objects):
         # Records were not returned for all sequences. Time to figure out which ones!
@@ -634,7 +819,6 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
                   "\tTotal\t\t" + str(len(fasta_record_objects)) + "\n\n")
 
     # Find the lineage searches that failed, add lineages to reference_sequences that were successfully identified
-    unambiguous_accession_lineage_map = dict()
     for treesapp_id in sorted(fasta_record_objects.keys()):
         ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
         ref_seq.tracking_stamp()
@@ -661,8 +845,7 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
         else:
             lineage = ref_seq.lineage
 
-        ref_seq.lineage = clean_lineage_string("; ".join(check_lineage(lineage, ref_seq.organism)))
-        unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
+        ref_seq.lineage = "; ".join(check_lineage(lineage, ref_seq.organism))
         ref_seq.tracking_stamp()
         if ref_seq.bitflag >= 1:
             taxa_searched += 1
@@ -672,7 +855,23 @@ def verify_lineage_information(accession_lineage_map, fasta_record_objects, taxa
                       + str(len(fasta_record_objects)) + ") were queried against the NCBI taxonomy database!\n")
         sys.exit(9)
 
-    return fasta_record_objects, unambiguous_accession_lineage_map
+    repair_lineages(fasta_record_objects)
+
+    return
+
+
+def accession_lineage_map_from_entrez_records(ref_seq_map: dict) -> dict:
+    """
+
+    :param ref_seq_map: A dictionary of EntrezRecord instances indexed by their unique TreeSAPP numerical IDs
+    :return: A dictionary mapping unique accessions to their taxonomic lineage. Will be written to accession_lineage_map
+    """
+    unambiguous_accession_lineage_map = dict()
+    for treesapp_id in sorted(ref_seq_map.keys()):
+        ref_seq = ref_seq_map[treesapp_id]  # type: EntrezRecord
+        unambiguous_accession_lineage_map[ref_seq.accession] = ref_seq.lineage
+
+    return unambiguous_accession_lineage_map
 
 
 def read_accession_taxa_map(mapping_file):
@@ -725,33 +924,6 @@ def build_entrez_queries(fasta_record_objects: dict):
         logging.warning("Neither accession nor lineage available for:\n\t" +
                         "\n\t".join(unavailable))
     return list(entrez_query_list), num_lineages_provided
-
-
-def fill_ref_seq_lineages(fasta_record_objects, accession_lineages):
-    """
-    Adds lineage information from accession_lineages to fasta_record_objects
-
-    :param fasta_record_objects: dict() indexed by TreeSAPP numeric identifiers mapped to ReferenceSequence instances
-    :param accession_lineages: a dictionary mapping {accession: lineage}
-    :return: None
-    """
-    for treesapp_id in fasta_record_objects:
-        ref_seq = fasta_record_objects[treesapp_id]  # type: EntrezRecord
-        if not ref_seq.lineage:
-            try:
-                lineage = accession_lineages[ref_seq.accession]
-            except KeyError:
-                logging.error("Lineage information was not retrieved for accession '" + ref_seq.accession + "'.\n" +
-                              "Please remove the output directory and restart.\n")
-                sys.exit(13)
-            # Add the species designation since it is often not included in the sequence record's lineage
-            ref_seq.lineage = lineage
-        if not ref_seq.organism and ref_seq.lineage:
-            ref_seq.organism = ref_seq.lineage.split("; ")[-1]
-        else:
-            pass
-        ref_seq.tracking_stamp()
-    return
 
 
 def load_ref_seqs(fasta_dict, header_registry, ref_seq_dict):

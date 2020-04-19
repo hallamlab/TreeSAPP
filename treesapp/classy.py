@@ -1457,9 +1457,9 @@ class TreeSAPP:
             # Download lineages separately for those accessions that failed
             # Map proper accession to lineage from the tuple keys (accession, accession.version)
             #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
-            ref_seq_records, self.seq_lineage_map = entrez_utils.verify_lineage_information(self.seq_lineage_map,
-                                                                                            ref_seq_records,
-                                                                                            num_lineages_provided)
+            entrez_utils.verify_lineage_information(self.seq_lineage_map, ref_seq_records, num_lineages_provided)
+            self.seq_lineage_map = entrez_utils.accession_lineage_map_from_entrez_records(ref_seq_records)
+
             # Ensure the accession IDs are stripped of '>'s
             for accession in sorted(self.seq_lineage_map):
                 if accession[0] == '>':

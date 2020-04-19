@@ -27,7 +27,7 @@ def all_possible_assignments(tax_ids_file):
         if len(fields) == 3:
             number, translation, lineage = fields
             if lineage:
-                lineage = "Root; " + clean_lineage_string(lineage)
+                lineage = "r__Root; " + clean_lineage_string(lineage)
         else:
             logging.error("Unexpected number of fields in " + tax_ids_file +
                           ".\nInvoked .split(\'\\t\') on line " + str(line))
@@ -373,6 +373,7 @@ def clean_lineage_list(lineage_list):
         If first rank == "unclassified sequences"
         If unclassified depth is < median unclassified depth
         cellular organisms; *; environmental samples
+
     :param lineage_list:
     :return: A list of lineages with mostly or entirely classified sequences, as long as they comprise the majority
     """

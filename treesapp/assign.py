@@ -1950,7 +1950,7 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
         lineage_list = list()
         # Test if the reference set have lineage information
         for leaf in leaves:
-            lineage_list.append(utilities.clean_lineage_string(leaf.lineage).split('; '))
+            lineage_list.append(leaf.lineage)
             leaf_taxa_map[leaf.number] = leaf.lineage
         taxonomic_counts = enumerate_taxonomic_lineages(lineage_list)
 

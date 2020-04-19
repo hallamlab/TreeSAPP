@@ -474,13 +474,15 @@ def estimate_taxonomic_redundancy(lineages: list):
 def summarize_reference_taxa(reference_dict: dict, cluster_lca=False):
     """
     Function for enumerating the representation of each taxonomic rank within the finalized reference sequences
+
     :param reference_dict: A dictionary holding ReferenceSequence objects indexed by their unique numerical identifier
     :param cluster_lca: Boolean specifying whether a cluster's LCA should be used for calculation or not
     :return: A formatted, human-readable string stating the number of unique taxa at each rank
     """
     taxonomic_summary_string = ""
     # Not really interested in Cellular Organisms or Strains.
-    rank_depth_map = {0: "Kingdoms", 1: "Phyla", 2: "Classes", 3: "Orders", 4: "Families", 5: "Genera", 6: "Species"}
+    rank_depth_map = {'d': "Domains", 'p': "Phyla", 'c': "Classes", 'o': "Orders",
+                      'f': "Families", 'g': "Genera", 's': "Species"}
     taxa_counts = dict()
     unclassifieds = 0
 
@@ -492,15 +494,21 @@ def summarize_reference_taxa(reference_dict: dict, cluster_lca=False):
             lineage = reference_dict[num_id].cluster_lca
         else:
             lineage = reference_dict[num_id].lineage
+        print(lineage)
 
         if re.search("unclassified", lineage, re.IGNORECASE):
             unclassifieds += 1
 
         position = 0
         # Ensure the root/ cellular organisms designations are stripped
-        taxa = clean_lineage_string(lineage).split('; ')
-        while position < len(taxa) and position < 7:
-            taxa_counts[rank_depth_map[position]].add(taxa[position])
+        taxa = lineage.split('; ')
+        while position < len(taxa):
+            tag, taxon = taxa[position].split("__")
+            print(tag, rank_depth_map[tag], taxon)
+            try:
+                taxa_counts[rank_depth_map[tag]].add(taxa[position])
+            except KeyError:
+                pass
             position += 1
 
     taxonomic_summary_string += "Number of unique lineages:\n"
