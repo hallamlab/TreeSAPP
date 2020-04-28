@@ -4,8 +4,10 @@ __author__ = 'Connor Morgan-Lang'
 import sys
 import re
 import logging
+
 from pygtrie import StringTrie
-from .utilities import median, clean_lineage_string, load_taxonomic_trie
+
+from .utilities import median, load_taxonomic_trie
 
 
 def all_possible_assignments(tax_ids_file):
@@ -27,7 +29,7 @@ def all_possible_assignments(tax_ids_file):
         if len(fields) == 3:
             number, translation, lineage = fields
             if lineage:
-                lineage = "r__Root; " + clean_lineage_string(lineage)
+                lineage = "r__Root; " + lineage
         else:
             logging.error("Unexpected number of fields in " + tax_ids_file +
                           ".\nInvoked .split(\'\\t\') on line " + str(line))
@@ -68,7 +70,7 @@ def grab_graftm_taxa(tax_ids_file):
                     # For example: Bacteria; Aquificae; Aquificaee1; Aquificales
                     lineage_list.append(re.sub(r'_graftm_\d+$', '', rank))
                     # lineage_list.append(rank)
-            lineage = re.sub('_', ' ', clean_lineage_string('; '.join(lineage_list)))
+            lineage = re.sub('_', ' ', '; '.join(lineage_list))
             i = 0
             ranks = len(lineage)
             while i < len(lineage):
@@ -235,7 +237,6 @@ def lowest_common_taxonomy(children, base_lca, taxonomic_counts, algorithm="LCA*
     # (e.g. unclassified sequences; metagenomes; ecological metagenomes)
     max_ranks = 0
     for child in children:
-        # child = clean_lineage_string(child)
         ranks = child.split("; ")
         num_ranks = len(ranks)
         if num_ranks > 3:
@@ -379,8 +380,6 @@ def clean_lineage_list(lineage_list):
     """
     if len(lineage_list) <= 1:
         return [lineage_list]
-
-    lineage_list = [clean_lineage_string(lineage) for lineage in lineage_list]
 
     classified_lineages = list()
     unclassified_depths = list()

@@ -4,7 +4,6 @@ import sys
 import re
 import logging
 from ete3 import Tree
-from .utilities import clean_lineage_string
 
 import numpy as np
 import scipy.optimize as so
@@ -120,7 +119,7 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     truncated = 0
     unclassified = 0
     for node_name in sorted(leaf_taxa_map):
-        c_lineage = clean_lineage_string(leaf_taxa_map[node_name])
+        c_lineage = leaf_taxa_map[node_name]
         c_lineage_s = c_lineage.split("; ")
 
         # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)

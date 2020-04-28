@@ -17,15 +17,14 @@ from numpy import var
 from ete3 import Tree
 
 from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers, load_fasta_header_regexes, read_fasta_to_dict
-from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle, swap_tree_names
+from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table,\
+    load_pickle, swap_tree_names, fish_refpkg_from_build_params
 from .entish import create_tree_info_hash, subtrees_to_dictionary, annotate_partition_tree
-from .fasta import format_read_fasta, write_new_fasta, get_header_format, FASTA, get_headers
-from .utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, fish_refpkg_from_build_params
-from .entish import get_node, create_tree_info_hash, subtrees_to_dictionary
-from .lca_calculations import determine_offset, clean_lineage_string, optimal_taxonomic_assignment
+from .lca_calculations import determine_offset, optimal_taxonomic_assignment
 from .external_command_interface import launch_write_command
 from . import entrez_utils
 from .wrapper import model_parameters, CommandLineFarmer
+from .taxonomic_hierarchy import TaxonomicHierarchy
 
 import _tree_parser
 
@@ -54,7 +53,7 @@ class ReferencePackage:
         self.tree = ""  # Reference tree
         self.boot_tree = ""  # Reference tree with support values
         self.lineage_ids = ""  # Reference sequence lineage map (tax_ids)
-        self.taxa_trie = ""
+        self.taxa_trie = TaxonomicHierarchy()
         self.sub_model = ""  # EPA-NG compatible substitution model
         self.model_info = ""  # RAxML-NG --evaluate model file
         self.core_ref_files = list()
@@ -216,21 +215,19 @@ class ReferencePackage:
         :return: A list of LeafNode objects that don't match the target_taxon and have sufficient lineage depth
         """
         off_target_ref_leaves = list()
-        target_taxon = clean_lineage_string(target_taxon, ["Root; "])
         depth = len(target_taxon.split("; "))
         n_match = 0
         n_shallow = 0
         n_unclassified = 0
         for ref_leaf in self.tax_ids_file_to_leaves():
-            c_lineage = clean_lineage_string(ref_leaf.lineage, ["Root; "])
-            sc_lineage = c_lineage.split("; ")
+            sc_lineage = ref_leaf.lineage.split("; ")
             if len(sc_lineage) < depth:
                 n_shallow += 1
                 continue
             if target_taxon == '; '.join(sc_lineage[:depth + 1]):
                 n_match += 1
                 continue
-            if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
+            if re.search("unclassified|environmental sample", ref_leaf.lineage, re.IGNORECASE):
                 i = 0
                 while i <= depth:
                     if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
@@ -782,16 +779,7 @@ class ItolJplace:
         if depth < 1:
             return confident_assignment
 
-        purified_lineage_list = clean_lineage_string(self.lct).split("; ")
-        confident_assignment = "; ".join(purified_lineage_list[:depth])
-
-        # For debugging
-        # rank_depth = {1: "Kingdom", 2: "Phylum", 3: "Class", 4: "Order",
-        #               5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
-        # if clean_lineage_string(self.lct) == confident_assignment:
-        #     print("Unchanged: (" + rank_depth[depth] + ')', confident_assignment)
-        # else:
-        #     print("Adjusted: (" + rank_depth[depth] + ')', confident_assignment)
+        confident_assignment = "; ".join(self.lct.split("; ")[:depth])
 
         return confident_assignment
 
@@ -868,7 +856,7 @@ class TreeProtein(ItolJplace):
                     logging.error("Unable to find '" + leaf_num + "' in leaf-lineage map.\n")
                     sys.exit(3)
                 if ref_lineage:
-                    children.append(clean_lineage_string(ref_lineage))
+                    children.append(ref_lineage)
                 else:
                     logging.warning("No lineage information available for " + leaf_node + ".\n")
 
@@ -1452,12 +1440,15 @@ class TreeSAPP:
         if self.stage_status("lineages"):
             entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(ref_seq_records)
             logging.debug("\tNumber of queries =\t" + str(len(entrez_query_list)) + "\n")
-            entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, molecule, acc_to_taxid)
+            entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, self.ref_pkg.taxa_trie,
+                                                                     molecule, acc_to_taxid)
             self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
             # Download lineages separately for those accessions that failed
             # Map proper accession to lineage from the tuple keys (accession, accession.version)
             #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
-            entrez_utils.verify_lineage_information(self.seq_lineage_map, ref_seq_records, num_lineages_provided)
+            entrez_utils.repair_lineages(ref_seq_records, self.ref_pkg.taxa_trie)
+            entrez_utils.verify_lineage_information(self.seq_lineage_map, ref_seq_records,
+                                                    self.ref_pkg.taxa_trie, num_lineages_provided)
             self.seq_lineage_map = entrez_utils.accession_lineage_map_from_entrez_records(ref_seq_records)
 
             # Ensure the accession IDs are stripped of '>'s
@@ -1528,7 +1519,7 @@ class Updater(TreeSAPP):
                 header = header_registry[treesapp_nums[x]].original
                 assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
                 if parent_re.search(assigned_seq_name):
-                    classified_seq_lineage_map[header] = clean_lineage_string(seq_lineage_map[seq_name])
+                    classified_seq_lineage_map[header] = seq_lineage_map[seq_name]
                     mapped_treesapp_nums.append(treesapp_nums.pop(x))
                 else:
                     x += 1

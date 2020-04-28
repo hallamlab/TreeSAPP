@@ -24,6 +24,7 @@ from . import lca_calculations
 from . import placement_trainer
 from . import update_refpkg
 from . import annotate_extra
+from .taxonomic_hierarchy import TaxonomicHierarchy
 from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
     prep_logging, dedup_records, TaxonTest, Purity, Abundance, ReferencePackage
 from . import create_refpkg
@@ -377,7 +378,8 @@ def create(sys_args):
             logging.warning(warnings + "\n")
 
         logging.info("Generated the taxonomic lineage map " + ts_create.ref_pkg.lineage_ids + "\n")
-        taxonomic_summary = create_refpkg.summarize_reference_taxa(fasta_replace_dict, args.taxa_lca)
+        taxonomic_summary = create_refpkg.summarize_reference_taxa(fasta_replace_dict, ts_create.ref_pkg.taxa_trie,
+                                                                   args.taxa_lca)
         logging.info(taxonomic_summary)
 
         ##
@@ -1224,7 +1226,7 @@ def evaluate(sys_args):
     fasta_records = ts_evaluate.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_evaluate.seq_lineage_map)
 
-    fasta_records = utilities.remove_elongated_lineages(fasta_records)
+    # TODO: Add function in TaxonomicHierarchy to ensure no lineages have greater than 7 ranks
 
     logging.info("Selecting representative sequences for each taxon.\n")
 

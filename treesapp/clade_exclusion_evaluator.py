@@ -10,7 +10,7 @@ import re
 from glob import glob
 
 from .fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes
-from .utilities import return_sequence_info_groups, clean_lineage_string
+from .utilities import return_sequence_info_groups
 from .external_command_interface import launch_write_command
 from .classy import get_header_format, Evaluator, ReferencePackage
 from .phylo_dist import trim_lineages_to_rank
@@ -83,13 +83,8 @@ def write_intermediate_assignments(inter_class_file, assignments):
                 logging.warning("No lineage information was downloaded for queries assigned to " +
                                 ref + "\n")
             else:
-                cleaned_ref = clean_lineage_string(ref)
-                if not cleaned_ref:
-                    logging.debug("Reference assignment is empty after cleaning the lineage:\n" +
-                                  ref + "\n")
-                else:
-                    assignments_string += marker + "\t" + cleaned_ref + "\t"
-                    assignments_string += ','.join(queries) + "\n"
+                assignments_string += marker + "\t" + ref + "\t"
+                assignments_string += ','.join(queries) + "\n"
 
     file_handler.write(assignments_string)
     file_handler.close()
@@ -190,7 +185,6 @@ def clean_classification_names(assignments):
     for marker in assignments.keys():
         cleaned_assignments[marker] = dict()
         for ref, queries in assignments[marker].items():
-            ref = clean_lineage_string(ref)
             cleaned_assignments[marker][ref] = list()
             for query in queries:
                 try:
@@ -199,7 +193,6 @@ def clean_classification_names(assignments):
                     logging.error("Unexpected type of lineage string (" + str(type(query)) + "):\n" +
                                   str(query) + "\n")
                     sys.exit(21)
-                query = clean_lineage_string(query)
                 cleaned_assignments[marker][ref].append(query)
     return cleaned_assignments
 
@@ -299,25 +292,24 @@ def map_headers_to_lineage(assignments, ref_sequences):
         lineage_assignments[marker] = dict()
         for assigned_lineage in assignments[marker].keys():
             classified_headers = assignments[marker][assigned_lineage]
-            c_lineage = clean_lineage_string(assigned_lineage)
-            lineage_assignments[marker][c_lineage] = list()
+            lineage_assignments[marker][assigned_lineage] = list()
             for query in classified_headers:
                 mapped = False
                 for treesapp_id, ref_seq in ref_sequences.items():
                     if ref_seq.accession == query:
-                        lineage_assignments[marker][c_lineage].append(clean_lineage_string(ref_seq.lineage))
+                        lineage_assignments[marker][assigned_lineage].append(ref_seq.lineage)
                         mapped = True
                         break
                 if not mapped:
                     logging.error("Unable to map classified sequence '" + query + "' to a lineage.\n")
                     sys.exit(3)
-            if len(lineage_assignments[marker][c_lineage]) > len(classified_headers):
+            if len(lineage_assignments[marker][assigned_lineage]) > len(classified_headers):
                 logging.error(str(len(classified_headers)) + " accessions mapped to " +
-                              str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
+                              str(len(lineage_assignments[marker][assigned_lineage])) + " lineages.\n")
                 sys.exit(21)
-            elif len(lineage_assignments[marker][c_lineage]) < len(classified_headers):
+            elif len(lineage_assignments[marker][assigned_lineage]) < len(classified_headers):
                 logging.debug(str(len(classified_headers)) + " accessions mapped to " +
-                              str(len(lineage_assignments[marker][c_lineage])) + " lineages.\n")
+                              str(len(lineage_assignments[marker][assigned_lineage])) + " lineages.\n")
     return lineage_assignments
 
 
@@ -376,12 +368,11 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
     dereplicated_lineages = dict()
     num_rep_seqs = 0
     for tree_id, ref_seq in ref_seqs.items():
-        query_taxonomy = clean_lineage_string(ref_seq.lineage)
-        if len(query_taxonomy.split("; ")) < 5:
+        if len(ref_seq.lineage.split("; ")) < 5:
             continue
-        if query_taxonomy not in good_classified_lineages:
-            good_classified_lineages[query_taxonomy] = list()
-        if re.search("unclassified|environmental sample", query_taxonomy, re.IGNORECASE):
+        if ref_seq.lineage not in good_classified_lineages:
+            good_classified_lineages[ref_seq.lineage] = list()
+        if re.search("unclassified|environmental sample", ref_seq.lineage, re.IGNORECASE):
             # # Remove taxonomic lineages that are unclassified at the Phylum level or higher
             # unclassified_depth = get_unclassified_rank(0, query_taxonomy.split("; "))
             # if unclassified_depth > 4:
@@ -390,7 +381,7 @@ def pick_taxonomic_representatives(ref_seqs: dict, taxonomic_filter_stats: dict,
             taxonomic_filter_stats["Unclassified"] += 1
         else:
             taxonomic_filter_stats["Classified"] += 1
-            good_classified_lineages[query_taxonomy].append(ref_seq.accession)
+            good_classified_lineages[ref_seq.lineage].append(ref_seq.accession)
 
     if taxonomic_filter_stats["Unclassified"] == len(ref_seqs):
         logging.error("All sequences provided are derived from uncultured, unclassified organisms.\n")
@@ -456,8 +447,8 @@ def same_lineage(target_lineage: str, candidate_lineage: str) -> bool:
     :param candidate_lineage:
     :return: Boolean
     """
-    target_lineage = clean_lineage_string(target_lineage).split("; ")
-    candidate_lineage = clean_lineage_string(candidate_lineage).split("; ")
+    target_lineage = target_lineage.split("; ")
+    candidate_lineage = candidate_lineage.split("; ")
     tlen = len(target_lineage)
     clen = len(candidate_lineage)
     k = 0  # For tracking the overlapping positions
@@ -578,13 +569,12 @@ def prep_graftm_ref_files(intermediate_dir: str, target_taxon: str, refpkg: Refe
     with open(intermediate_dir + "tax_ids_" + refpkg.prefix + ".txt", 'w') as tax_ids_handle:
         tax_ids_strings = list()
         for ref_leaf in ref_tree_leaves:
-            c_lineage = clean_lineage_string(ref_leaf.lineage)
-            if re.search(target_taxon, c_lineage):
+            if re.search(target_taxon, ref_leaf.lineage):
                 continue
-            sc_lineage = c_lineage.split("; ")
+            sc_lineage = ref_leaf.lineage.split("; ")
             if len(sc_lineage) < depth:
                 continue
-            if re.search("unclassified|environmental sample", c_lineage, re.IGNORECASE):
+            if re.search("unclassified|environmental sample", ref_leaf.lineage, re.IGNORECASE):
                 i = 0
                 while i <= depth:
                     if re.search("unclassified|environmental sample", sc_lineage[i], re.IGNORECASE):
@@ -595,7 +585,7 @@ def prep_graftm_ref_files(intermediate_dir: str, target_taxon: str, refpkg: Refe
                     continue
             organism, accession = ref_leaf.description.split(" | ")
             off_target_ref_leaves[ref_leaf.number] = accession
-            tax_ids_strings.append(accession + "\t" + clean_lineage_string(ref_leaf.lineage))
+            tax_ids_strings.append(accession + "\t" + ref_leaf.lineage)
         tax_ids_handle.write("\n".join(tax_ids_strings) + "\n")
 
     # fasta

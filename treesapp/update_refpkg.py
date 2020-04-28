@@ -2,7 +2,7 @@ import sys
 import re
 import logging
 from pygtrie import StringTrie
-from .utilities import clean_lineage_string, load_taxonomic_trie
+from .utilities import load_taxonomic_trie
 from .classy import Cluster
 from .entrez_utils import EntrezRecord
 from .fasta import FASTA
@@ -74,7 +74,6 @@ def validate_mixed_lineages(mixed_seq_lineage_map: dict) -> None:
             superfluous_prefixes.add(lineage_ranks[i])
             i += 1
 
-    # Don't want to use `clean_lineage_string` here to maintain auxiliary ranks - just remove prefixes
     prefix_re = re.compile("|".join([prefix + "; " for prefix in superfluous_prefixes]))
     for seq_name in sorted(mixed_seq_lineage_map, key=lambda x: mixed_seq_lineage_map[x]):
         mixed_seq_lineage_map[seq_name] = prefix_re.sub('', mixed_seq_lineage_map[seq_name])
@@ -121,7 +120,7 @@ def filter_by_lineage_depth(classified_lines: list, min_lineage_depth: int) -> s
     target_field = 5
     for classification in classified_lines:
         # Since we're dealing with classified sequences, the 'Root' prefix will also need to be removed
-        lineage = clean_lineage_string(str(classification[target_field]), ["Root"])
+        lineage = str(classification[target_field])
 
         if lineage and len(lineage.split("; ")) >= min_lineage_depth:
             resolved_placements.add(classification[1])
@@ -246,7 +245,7 @@ def prefilter_clusters(cluster_dict: dict, entrez_records: dict, priority: list,
             identical = True
             for member_seq in cluster_info.members:
                 seq_name, seq_similarity = member_seq
-                if clean_lineage_string(lineage_lookup[seq_name]) != cluster_info.lca:
+                if lineage_lookup[seq_name] != cluster_info.lca:
                     identical = False
             if identical:
                 cluster_info.members = []

@@ -16,11 +16,12 @@ try:
 
     from time import gmtime, strftime, sleep
 
-    from .utilities import clean_lineage_string, swap_tree_names, reformat_string
+    from .utilities import swap_tree_names, reformat_string
     from .wrapper import run_odseq, run_mafft
     from .external_command_interface import launch_write_command
     from .entish import annotate_partition_tree
     from .lca_calculations import megan_lca, clean_lineage_list
+    from .taxonomic_hierarchy import TaxonomicHierarchy
     from . import entrez_utils
     from . import fasta
     from . import classy
@@ -395,9 +396,9 @@ def order_dict_by_lineage(fasta_object_dict):
         if not ref_seq.cluster_rep:
             continue
         try:
-            lineage_dict[clean_lineage_string(ref_seq.lineage)].append(ref_seq)
+            lineage_dict[ref_seq.lineage].append(ref_seq)
         except KeyError:
-            lineage_dict[clean_lineage_string(ref_seq.lineage)] = [ref_seq]
+            lineage_dict[ref_seq.lineage] = [ref_seq]
 
     # Now re-write the fasta_object_dict, but the numeric keys are now sorted by lineage
     #  AND it doesn't contain redundant fasta objects
@@ -471,55 +472,30 @@ def estimate_taxonomic_redundancy(lineages: list):
     return lowest_reliable_rank
 
 
-def summarize_reference_taxa(reference_dict: dict, cluster_lca=False):
+def summarize_reference_taxa(reference_dict: dict, t_hierarchy: TaxonomicHierarchy, cluster_lca=False):
     """
     Function for enumerating the representation of each taxonomic rank within the finalized reference sequences
 
     :param reference_dict: A dictionary holding ReferenceSequence objects indexed by their unique numerical identifier
+    :param t_hierarchy: A TaxonomicHierarchy instance
     :param cluster_lca: Boolean specifying whether a cluster's LCA should be used for calculation or not
     :return: A formatted, human-readable string stating the number of unique taxa at each rank
     """
-    taxonomic_summary_string = ""
-    # Not really interested in Cellular Organisms or Strains.
-    rank_depth_map = {'d': "Domains", 'p': "Phyla", 'c': "Classes", 'o': "Orders",
-                      'f': "Families", 'g': "Genera", 's': "Species"}
-    taxa_counts = dict()
     unclassifieds = 0
 
-    for depth in rank_depth_map:
-        name = rank_depth_map[depth]
-        taxa_counts[name] = set()
+    taxonomic_summary_string = t_hierarchy.summarize_taxa()
+
     for num_id in sorted(reference_dict.keys(), key=int):
         if cluster_lca and reference_dict[num_id].cluster_lca:
             lineage = reference_dict[num_id].cluster_lca
         else:
             lineage = reference_dict[num_id].lineage
-        print(lineage)
 
-        if re.search("unclassified", lineage, re.IGNORECASE):
+        if re.search("unclassified", lineage, re.IGNORECASE) or not t_hierarchy.resolved_as(lineage, "species"):
             unclassifieds += 1
 
-        position = 0
-        # Ensure the root/ cellular organisms designations are stripped
-        taxa = lineage.split('; ')
-        while position < len(taxa):
-            tag, taxon = taxa[position].split("__")
-            print(tag, rank_depth_map[tag], taxon)
-            try:
-                taxa_counts[rank_depth_map[tag]].add(taxa[position])
-            except KeyError:
-                pass
-            position += 1
-
-    taxonomic_summary_string += "Number of unique lineages:\n"
-    for depth in rank_depth_map:
-        rank = rank_depth_map[depth]
-        buffer = " "
-        while len(rank) + len(str(len(taxa_counts[rank]))) + len(buffer) < 12:
-            buffer += ' '
-        taxonomic_summary_string += "\t" + rank + buffer + str(len(taxa_counts[rank])) + "\n"
     # Report number of "Unclassified" lineages
-    taxonomic_summary_string += "Unclassified lineages account for " +\
+    taxonomic_summary_string += "Unclassified and incomplete lineages account for " +\
                                 str(unclassifieds) + '/' + str(len(reference_dict.keys())) + ' (' +\
                                 str(round(float(unclassifieds*100)/len(reference_dict.keys()), 1)) + "%) references.\n"
 
@@ -529,6 +505,7 @@ def summarize_reference_taxa(reference_dict: dict, cluster_lca=False):
 def write_tax_ids(fasta_replace_dict, tax_ids_file, taxa_lca=False):
     """
     Write the number, organism and accession ID, if possible
+
     :param fasta_replace_dict: Dictionary mapping numbers (internal treesapp identifiers) to ReferenceSequence objects
     :param tax_ids_file: The name of the output file
     :param taxa_lca: Flag indicating whether a cluster's lineage is just the representatives or the LCA of all members
