@@ -448,78 +448,14 @@ def remove_dashes_from_msa(fasta_in, fasta_out):
     return
 
 
-def clean_lineage_string(lineage: str, also=None) -> str:
-    """
-    Removes superfluous taxonomic ranks and characters that make lineage comparisons difficult
-
-    :param lineage: A taxonomic lineage string where each rank is separated by a semi-colon
-    :param also: An optional list containing other strings to filter out e.g. ["Root; "]
-    :return: String with the purified taxonomic lineage adhering to the NCBI hierarchy
-    """
-    non_standard_names_re = re.compile(" group| cluster| complex", re.IGNORECASE)
-    bad_strings = ["cellular organisms; ", "delta/epsilon subdivisions; ", "\(miscellaneous\)", "[a-p]__"]
-    if also:
-        bad_strings += also
-    for bs in bad_strings:
-        lineage = re.sub(bs, '', lineage)
-    # filter 'group' and 'cluster'
-    if non_standard_names_re.search(lineage):
-        reconstructed_lineage = ""
-        ranks = lineage.split("; ")
-        for rank in ranks:
-            if not non_standard_names_re.search(rank):
-                reconstructed_lineage = reconstructed_lineage + str(rank) + '; '
-        reconstructed_lineage = re.sub('; $', '', reconstructed_lineage)
-        lineage = reconstructed_lineage
-    return re.sub(r"^; ", '', lineage)
-
-
-def remove_elongated_lineages(fasta_records: dict, guarantees=None):
-    """
-    Meant to address the issues caused by unreasonable long lineages -- those that are expanded beyond the canonical 7
-    (R; K; P; C; O; F; G; S). Since taxon labels are not linked or validated with a database we simply infer their
-    rank from their position in a lineage.
-    If a lineage has sub-ranks that haven't been filtered by `clean_lineage_string()` this can cause a problem in
-    `treesapp train` as the phylogenetic distance data wouldn't reflect the rank its supposed to, and `treesapp evaluate`
-    where the sequences being evaluated wouldn't reflect the performance of the target rank.
-
-    :param fasta_records: Dictionary mapping numerical treesapp_id values to EntrezRecord instances
-    :param guarantees: Set object containing treesapp_id values corresponding to sequences that need to be retained
-    :return:
-    """
-    num_removed = 0
-    fasta_replace_dict = dict()
-
-    for treesapp_id in fasta_records:
-        ref_seq = fasta_records[treesapp_id]
-        if guarantees and treesapp_id in guarantees:
-            fasta_replace_dict[treesapp_id] = ref_seq
-            continue
-        # Not much can be done here without searching for each taxon's rank
-        if len(clean_lineage_string(ref_seq.lineage, ["Root; "]).split("; ")) >= 7:
-            lp = clean_lineage_string(ref_seq.lineage, ["Root; ", "Candidatus ", "sp. "]).split("; ")
-            # Check if the Species-position matches a typical species RE
-            if not re.match(r"^[A-z][a-z]+ [.a-z0-9]+$", lp[6]):
-                num_removed += 1
-            else:
-                fasta_replace_dict[treesapp_id] = ref_seq
-        else:
-            fasta_replace_dict[treesapp_id] = ref_seq
-
-    logging.debug('\t' + str(num_removed) + " sequences removed with elongated taxonomic lineages.\n" +
-                  '\t' + str(len(fasta_replace_dict) - num_removed) + " sequences retained for building tree.\n")
-
-    return fasta_replace_dict
-
-
 def median(num_list: list):
     n = len(num_list)
     if n < 1:
-            return None
+        return None
     if n % 2 == 1:
-            return sorted(num_list)[n//2]
+        return sorted(num_list)[n//2]
     else:
-            return sum(sorted(num_list)[n//2-1:n//2+1])/2.0
+        return sum(sorted(num_list)[n//2-1:n//2+1])/2.0
 
 
 def mean(num_list: list):
@@ -918,3 +854,19 @@ def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:
     handler.close()
 
     return
+
+
+def dict_diff(snap_one: dict, snap_two: dict) -> list:
+    """
+    Takes two dictionaries and based on the difference between the two keys,
+    a list is returned of values of keys that are only present in the first dictionary.
+
+    :param snap_one: A dictionary that is a superset of snap_two
+    :param snap_two: A dictionary that is a subset of snap_one
+    :return: A list of values that are only present in the first dictionary
+    """
+    one_keys = set(snap_one.keys())
+    two_keys = set(snap_two.keys())
+    diff_indexes = one_keys.difference(two_keys)
+
+    return [snap_one[index] for index in diff_indexes]

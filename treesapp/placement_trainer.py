@@ -240,7 +240,7 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
     # Remove sequences that are not related at the rank of Domain
     ref_domains = sorted(set(trim_lineages_to_rank(leaf_taxa_map, "Kingdom").values()))
     for seq_name in sorted(accession_lineage_map):
-        query_domain = utilities.clean_lineage_string(accession_lineage_map[seq_name]).split("; ")[0]
+        query_domain = accession_lineage_map[seq_name].split("; ")[0]
         if query_domain not in ref_domains:
             unrelated_queries.append(seq_name)
         else:
@@ -268,8 +268,7 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
             else:
                 for seq_name in sorted(accession_lineage_map, key=lambda x: accession_lineage_map[x]):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
-                    if re.search(taxonomy,
-                                 utilities.clean_lineage_string(accession_lineage_map[seq_name])) and \
+                    if re.search(taxonomy, accession_lineage_map[seq_name]) and \
                             seq_name in test_seqs.fasta_dict:
                         taxon_training_queries.append(seq_name)
                         test_seq_found = 1
@@ -320,8 +319,7 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
             if "; ".join(taxonomy.split("; ")[:-1]) not in optimal_placement_missing:
                 for seq_name in sorted(accession_lineage_map):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
-                    if re.search(taxonomy,
-                                 utilities.clean_lineage_string(accession_lineage_map[seq_name])) and seq_name in test_seqs.fasta_dict:
+                    if re.search(taxonomy, accession_lineage_map[seq_name]) and seq_name in test_seqs.fasta_dict:
                         taxon_training_queries.append(seq_name)
                     if len(taxon_training_queries) == max_reps:
                         break

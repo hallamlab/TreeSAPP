@@ -22,7 +22,7 @@ from treesapp.classy import prep_logging, ReferencePackage
 from treesapp.entrez_utils import EntrezRecord, fetch_lineages_from_taxids
 from treesapp.lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
     optimal_taxonomic_assignment, grab_graftm_taxa
-from treesapp.utilities import fish_refpkg_from_build_params, get_hmm_length, clean_lineage_string
+from treesapp.utilities import fish_refpkg_from_build_params, get_hmm_length
 
 
 class ClassifiedSequence:
@@ -143,7 +143,7 @@ class ConfusionTest:
 
     def populate_true_positive_lineage_map(self):
         for refpkg_code in self.ref_packages:
-            self.tp_lineage_map[refpkg_code] = {tp_inst.name: clean_lineage_string(tp_inst.true_lineage, ["Root; "])
+            self.tp_lineage_map[refpkg_code] = {tp_inst.name: tp_inst.true_lineage
                                                 for tp_inst in self.tp[refpkg_code]}
 
     def retrieve_lineages(self, group=1):
@@ -167,7 +167,7 @@ class ConfusionTest:
                 logging.warning("Lineage information unavailable for taxonomy ID '" + e_record.ncbi_tax + "'\n")
                 self.tax_lineage_map[e_record.ncbi_tax] = ''
             else:
-                self.tax_lineage_map[e_record.ncbi_tax] += clean_lineage_string(e_record.lineage)
+                self.tax_lineage_map[e_record.ncbi_tax] += e_record.lineage
         return
 
     def map_lineages(self):
@@ -246,8 +246,7 @@ class ConfusionTest:
         for marker in self.tp:
             for tp_inst in self.tp[marker]:  # type: ClassifiedSequence
                 # Find the optimal taxonomic assignment
-                optimal_taxon = clean_lineage_string(optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie,
-                                                                                  tp_inst.true_lineage))
+                optimal_taxon = optimal_taxonomic_assignment(self.ref_packages[marker].taxa_trie, tp_inst.true_lineage)
                 if not optimal_taxon:
                     logging.debug("Optimal taxonomic assignment '" + tp_inst.true_lineage + "' for " +
                                   tp_inst.name + " not found in reference hierarchy.\n")

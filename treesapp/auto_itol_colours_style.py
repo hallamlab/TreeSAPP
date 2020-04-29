@@ -11,7 +11,6 @@ import ete3
 from collections import namedtuple
 from seaborn import color_palette
 from treesapp.classy import TreeLeafReference, prep_logging
-from treesapp.utilities import clean_lineage_string
 from treesapp.entish import map_internal_nodes_leaves
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",
@@ -336,7 +335,7 @@ def read_tax_ids_file(taxa_colours: TaxaColours) -> None:
         leaf_node = number + "_" + taxa_colours.marker
         leaf = TreeLeafReference(leaf_node, translation)
         if lineage:
-            leaf.lineage = clean_lineage_string(lineage)
+            leaf.lineage = lineage
             leaf.complete = True
         leaves.append(leaf)
         taxa_colours.num_seqs += 1
