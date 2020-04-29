@@ -195,9 +195,9 @@ def break_clusters(entrez_records: dict, guaranteed: list) -> None:
     :return: None
     """
     for num_id in entrez_records:
-        if num_id in guaranteed:
+        if num_id not in guaranteed:
             er = entrez_records[num_id]  # type: EntrezRecord
-            er.cluster_rep = True
+            er.cluster_rep = False
     return
 
 

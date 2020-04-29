@@ -925,7 +925,7 @@ def get_header_info(header_registry, code_name=''):
 
     :param header_registry: A dictionary of Header instances, indexed by numerical treesapp_id
     :param code_name: [OPTIONAL] The code_name of the reference package (marker gene/domain/family/protein)
-    :return: Dictionary where keys are numerical treesapp_ids and values are ReferenceSequence instances
+    :return: Dictionary where keys are numerical treesapp_ids and values are EntrezRecord instances
     """
     logging.info("Extracting information from headers... ")
     ref_records = dict()
@@ -1431,38 +1431,36 @@ class TreeSAPP:
 
     def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule, acc_to_taxid=None):
         # Get the lineage information for the training/query sequences
-        ref_seq_records = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
-        ref_seq_records = dedup_records(ref_seqs, ref_seq_records)
+        entrez_record_dict = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
+        entrez_record_dict = dedup_records(ref_seqs, entrez_record_dict)
         ref_seqs.change_dict_keys("formatted")
-        entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, ref_seq_records)
-        logging.debug("\tNumber of input sequences =\t" + str(len(ref_seq_records)) + "\n")
+        entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, entrez_record_dict)
+        logging.debug("\tNumber of input sequences =\t" + str(len(entrez_record_dict)) + "\n")
 
         if self.stage_status("lineages"):
-            entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(ref_seq_records)
+            entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(entrez_record_dict)
             logging.debug("\tNumber of queries =\t" + str(len(entrez_query_list)) + "\n")
-            entrez_records = entrez_utils.map_accessions_to_lineages(entrez_query_list, self.ref_pkg.taxa_trie,
-                                                                     molecule, acc_to_taxid)
-            self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_records)
-            # Download lineages separately for those accessions that failed
+            entrez_utils.map_accessions_to_lineages(entrez_query_list, self.ref_pkg.taxa_trie, molecule, acc_to_taxid)
+            # Repair entrez_record instances either lacking lineages or whose lineages do not contain rank-prefixes
+            entrez_utils.repair_lineages(entrez_record_dict, self.ref_pkg.taxa_trie)
+            self.seq_lineage_map = entrez_utils.entrez_records_to_accession_lineage_map(entrez_query_list)
             # Map proper accession to lineage from the tuple keys (accession, accession.version)
             #  in accession_lineage_map returned by entrez_utils.get_multiple_lineages.
-            entrez_utils.repair_lineages(ref_seq_records, self.ref_pkg.taxa_trie)
-            entrez_utils.verify_lineage_information(self.seq_lineage_map, ref_seq_records,
+            entrez_utils.verify_lineage_information(self.seq_lineage_map, entrez_record_dict,
                                                     self.ref_pkg.taxa_trie, num_lineages_provided)
-            self.seq_lineage_map = entrez_utils.accession_lineage_map_from_entrez_records(ref_seq_records)
 
+            self.seq_lineage_map = entrez_utils.accession_lineage_map_from_entrez_records(entrez_record_dict)
             # Ensure the accession IDs are stripped of '>'s
             for accession in sorted(self.seq_lineage_map):
                 if accession[0] == '>':
                     self.seq_lineage_map[accession[1:]] = self.seq_lineage_map.pop(accession)
             write_dict_to_table(self.seq_lineage_map, self.acc_to_lin)
-            # Add lineage information to the ReferenceSequence() objects in ref_seq_records if not contained
         else:
             logging.info("Reading cached lineages in '" + self.acc_to_lin + "'... ")
             self.seq_lineage_map.update(entrez_utils.read_accession_taxa_map(self.acc_to_lin))
             logging.info("done.\n")
         ref_seqs.change_dict_keys()
-        return ref_seq_records
+        return entrez_record_dict
 
 
 class Updater(TreeSAPP):

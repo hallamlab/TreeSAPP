@@ -196,44 +196,47 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
     return swappers
 
 
-def finalize_cluster_reps(cluster_dict: dict, refseq_objects, header_registry):
+def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_registry: dict) -> None:
     """
         Transfer information from the cluster data (representative sequence, identity and cluster taxonomic LCA) to the
     dictionary of ReferenceSequence objects. The sequences not representing a cluster will have their `cluster_rep`
-    flags remain *False* so as to not be analyzed further.
+    flags set to *False* so as to not be analyzed further.
 
-    :param cluster_dict:
-    :param refseq_objects:
-    :param header_registry: A list of Header() objects, each used to map various header formats to each other
+    :param cluster_dict: A dictionary of unique cluster IDs mapped to Cluster instances
+    :param refseq_objects: A dictionary of numerical TreeSAPP IDs mapped to ReferenceSequence instances
+    :param header_registry: A dictionary of Header() objects indexed by TreeSAPP IDs,
+     each used to map various header formats to each other
     :return: Dictionary of ReferenceSequence objects with complete clustering information
     """
     logging.debug("Finalizing representative sequence clusters... ")
-    # Create a temporary dictionary mapping formatted headers to TreeSAPP numeric IDs
-    tmp_dict = dict()
-    for treesapp_id in header_registry:
-        tmp_dict[header_registry[treesapp_id].original] = treesapp_id
 
-    for cluster_id in sorted(cluster_dict, key=int):
-        cluster_info = cluster_dict[cluster_id]
-        treesapp_id = tmp_dict[cluster_info.representative]
-        refseq_objects[treesapp_id].cluster_rep_similarity = '*'
-        refseq_objects[treesapp_id].cluster_rep = True
-        refseq_objects[treesapp_id].cluster_lca = cluster_info.lca
+    cluster_reps = set()  # A set of unique sequence names (original headers) to rapidly query
+    for cluster_id in cluster_dict:
+        cluster_reps.add(cluster_dict[cluster_id].representative)
+    for treesapp_id in header_registry:
+        header = header_registry[treesapp_id]  # type: fasta.Header
+        try:
+            ref_seq = refseq_objects[treesapp_id]  # type: entrez_utils.ReferenceSequence
+        except KeyError:
+            continue
+        if header.original not in cluster_reps:
+            ref_seq.cluster_rep = False
 
     logging.debug("done.\n")
-    return refseq_objects
+    return
 
 
-def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, important_seqs=None, each_lineage=False):
+def present_cluster_rep_options(cluster_dict: dict, refseq_objects: dict, header_registry: dict,
+                                important_seqs=None, each_lineage=False) -> None:
     """
     Present the headers of identical sequences to user for them to decide on representative header
 
     :param cluster_dict: dictionary from read_uc(uc_file)
-    :param refseq_objects:
+    :param refseq_objects: A dictionary of numerical TreeSAPP IDs mapped to ReferenceSequence instances
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
     :param important_seqs: If --guarantee is provided, a dictionary mapping headers to seqs from format_read_fasta()
     :param each_lineage: If set to True, each candidate's lineage is shown as well as the cluster's LCA
-    :return:
+    :return: None
     """
     if not important_seqs:
         important_seqs = set()
@@ -245,6 +248,7 @@ def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, i
         for num_id in sorted(refseq_objects, key=int):
             if header_registry[num_id].original == cluster_info.representative:
                 refseq_objects[num_id].cluster_rep_similarity = '*'
+                refseq_objects[num_id].cluster_lca = cluster_info.lca
                 candidates[str(acc)] = refseq_objects[num_id]
                 acc += 1
                 break
@@ -276,13 +280,11 @@ def present_cluster_rep_options(cluster_dict, refseq_objects, header_registry, i
             # best = str(1)
             while best not in candidates.keys():
                 best = input("Invalid number. Number of the best representative? ")
-            candidates[best].cluster_rep = True
-            candidates[best].cluster_lca = cluster_info.lca
-        else:
-            refseq_objects[num_id].cluster_rep = True
-            refseq_objects[num_id].cluster_lca = cluster_info.lca
+            for num_id in candidates:
+                if num_id != best:
+                    candidates[best].cluster_rep = False
 
-    return refseq_objects
+    return
 
 
 def screen_filter_taxa(fasta_records: dict, screen_strs="", filter_strs="", guarantees=None) -> dict:
@@ -544,41 +546,6 @@ def write_tax_ids(fasta_replace_dict, tax_ids_file, taxa_lca=False):
     return warning_string
 
 
-def read_tax_ids(tree_taxa_list):
-    """
-    Reads the taxonomy and accession ID affiliated with each sequence number.
-    This information is used to avoid horrible manual work if the pipeline is ran multiple times
-    :param tree_taxa_list: The name of the tax_ids file to read
-    :return:
-    """
-    try:
-        tree_tax_list_handle = open(tree_taxa_list, 'r')
-    except IOError:
-        logging.error("Unable to open taxa list file '" + tree_taxa_list + "' for reading!\n")
-        sys.exit(13)
-    fasta_replace_dict = dict()
-    line = tree_tax_list_handle.readline()
-    while line:
-        fields = line.strip().split("\t")
-        if len(fields) == 3:
-            treesapp_id, seq_info, lineage = fields
-        else:
-            treesapp_id, seq_info = fields
-            lineage = ""
-        ref_seq = entrez_utils.ReferenceSequence()
-        try:
-            ref_seq.organism = seq_info.split(" | ")[0]
-            ref_seq.accession = seq_info.split(" | ")[1]
-            ref_seq.lineage = lineage
-        except IndexError:
-            ref_seq.organism = seq_info
-        fasta_replace_dict[treesapp_id] = ref_seq
-        line = tree_tax_list_handle.readline()
-    tree_tax_list_handle.close()
-
-    return fasta_replace_dict
-
-
 def write_refpkg_metadata(metadata_file: str, marker_build: classy.MarkerBuild) -> None:
     """
     Writes a JSON-formatted file with all metadata associated with a reference package that are available in the file
@@ -666,36 +633,6 @@ def parse_model_parameters(placement_trainer_file):
     return params
 
 
-def update_tax_ids_with_lineage(args, tree_taxa_list):
-    tax_ids_file = args.treesapp + os.sep + "data" + os.sep + "tree_data" + os.sep + "tax_ids_%s.txt" % args.code_name
-    if not os.path.exists(tax_ids_file):
-        logging.error("Unable to find " + tax_ids_file + "!\n")
-        raise FileNotFoundError
-    else:
-        fasta_replace_dict = read_tax_ids(tax_ids_file)
-        # Determine how many sequences already have lineage information:
-        lineage_info_complete = 0
-        for treesapp_id in fasta_replace_dict:
-            ref_seq = fasta_replace_dict[treesapp_id]
-            if ref_seq.lineage:
-                lineage_info_complete += 1
-        # There are some that are already complete. Should they be over-written?
-        if lineage_info_complete >= 1:
-            overwrite_lineages = input(tree_taxa_list + " contains some sequences with complete lineages. "
-                                                        "Should they be over-written? [y|n] ")
-            while overwrite_lineages != "y" and overwrite_lineages != "n":
-                overwrite_lineages = input("Incorrect response. Please input either 'y' or 'n'. ")
-            if overwrite_lineages == 'y':
-                ref_seq_dict = dict()
-                for treesapp_id in fasta_replace_dict:
-                    ref_seq = fasta_replace_dict[treesapp_id]
-                    if ref_seq.lineage:
-                        ref_seq.lineage = ""
-                    ref_seq_dict[treesapp_id] = ref_seq
-        # write_tax_ids(args, fasta_replace_dict, tax_ids_file, args.molecule)
-    return
-
-
 def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output_dir="./outliers", num_threads=2):
     od_input = output_dir + "od_input.fasta"
     od_output = output_dir + "outliers.fasta"
@@ -718,7 +655,7 @@ def remove_outlier_sequences(fasta_record_objects, od_seq_exe, mafft_exe, output
         tmp_dict[ref_seq.short_id] = ref_seq
 
     for seq_name in outlier_seqs:
-        ref_seq = tmp_dict[seq_name]
+        ref_seq = tmp_dict[seq_name]  # type: entrez_utils.ReferenceSequence
         ref_seq.cluster_rep = False
         outlier_names.append(ref_seq.accession)
 

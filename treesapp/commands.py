@@ -277,11 +277,13 @@ def create(sys_args):
     ##
     fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
+    prefilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
 
     if ts_create.stage_status("clean"):
         # Remove the sequences failing 'filter' and/or only retain the sequences in 'screen'
         fasta_records = create_refpkg.screen_filter_taxa(fasta_records, args.screen, args.filter, ref_seqs.amendments)
         # Remove the sequence records with low resolution lineages, according to args.min_taxonomic_rank
+        # TODO: Replace this function with one offered by TaxonomicHierarchy
         fasta_records = create_refpkg.remove_by_truncated_lineages(fasta_records, args.min_taxonomic_rank, ref_seqs.amendments)
         # Ensure there are no records with redundant headers and sequences
         fasta_records = dedup_records(ref_seqs, fasta_records)
@@ -341,14 +343,12 @@ def create(sys_args):
         ##
         if ts_create.uc and not args.headless:
             # Allow user to select the representative sequence based on organism name, sequence length and similarity
-            fasta_records = create_refpkg.present_cluster_rep_options(cluster_dict, fasta_records,
-                                                                      ref_seqs.header_registry, ref_seqs.amendments)
+            create_refpkg.present_cluster_rep_options(cluster_dict, fasta_records, ref_seqs.header_registry,
+                                                      ref_seqs.amendments)
         elif ts_create.uc and args.headless:
-            fasta_records = create_refpkg.finalize_cluster_reps(cluster_dict, fasta_records, ref_seqs.header_registry)
+            create_refpkg.finalize_cluster_reps(cluster_dict, fasta_records, ref_seqs.header_registry)
         else:
-            for num_id in fasta_records:
-                fasta_records[num_id].cluster_rep = True
-                # fasta_records[num_id].cluster_lca is left empty
+            pass
 
     if ts_create.stage_status("build"):
         # TODO: Have a command-line flag to toggle this on (DEFAULT) and off
@@ -376,6 +376,11 @@ def create(sys_args):
         warnings = create_refpkg.write_tax_ids(fasta_replace_dict, ts_create.ref_pkg.lineage_ids, args.taxa_lca)
         if warnings:
             logging.warning(warnings + "\n")
+        postfilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
+        filtered_ref_seqs = utilities.dict_diff(prefilter_ref_seqs, postfilter_ref_seqs)
+        logging.debug("{0} references before and {1} remaining after filtering.\n".format(len(prefilter_ref_seqs),
+                                                                                          len(postfilter_ref_seqs)))
+        entrez_utils.jetison_taxa_from_hierarchy(filtered_ref_seqs, ts_create.ref_pkg.taxa_trie)
 
         logging.info("Generated the taxonomic lineage map " + ts_create.ref_pkg.lineage_ids + "\n")
         taxonomic_summary = create_refpkg.summarize_reference_taxa(fasta_replace_dict, ts_create.ref_pkg.taxa_trie,
@@ -696,9 +701,8 @@ def update(sys_args):
             logging.warning(str(len(collapsed)) + " original reference sequences removed while resolving:\n\t" +
                             "\n\t".join(collapsed) + "\n")
         # Allow user to select the representative sequence based on organism name, sequence length and similarity
-        entrez_records = create_refpkg.present_cluster_rep_options(cluster_dict, entrez_records,
-                                                                   classified_fasta.header_registry,
-                                                                   classified_fasta.amendments, True)
+        create_refpkg.present_cluster_rep_options(cluster_dict, entrez_records, classified_fasta.header_registry,
+                                                  classified_fasta.amendments, True)
         # Set all the newly classified candidate reference sequences to cluster_reps to make sure they're still included
         update_refpkg.break_clusters(entrez_records, classified_seq_indices)
 

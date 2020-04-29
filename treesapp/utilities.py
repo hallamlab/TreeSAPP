@@ -854,3 +854,19 @@ def write_dict_to_table(data_dict: dict, output_file: str, sep="\t") -> None:
     handler.close()
 
     return
+
+
+def dict_diff(snap_one: dict, snap_two: dict) -> list:
+    """
+    Takes two dictionaries and based on the difference between the two keys,
+    a list is returned of values of keys that are only present in the first dictionary.
+
+    :param snap_one: A dictionary that is a superset of snap_two
+    :param snap_two: A dictionary that is a subset of snap_one
+    :return: A list of values that are only present in the first dictionary
+    """
+    one_keys = set(snap_one.keys())
+    two_keys = set(snap_two.keys())
+    diff_indexes = one_keys.difference(two_keys)
+
+    return [snap_one[index] for index in diff_indexes]

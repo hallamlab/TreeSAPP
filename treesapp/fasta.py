@@ -896,6 +896,7 @@ def rename_cluster_headers(cluster_dict, header_registry):
     """
     Map the numerical TreeSAPP IDs to each sequence's original header
     cluster.representative and header are both 'treesapp_id's
+
     :param cluster_dict:
     :param header_registry:
     :return:
