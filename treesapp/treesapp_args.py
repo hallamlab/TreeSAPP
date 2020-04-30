@@ -22,7 +22,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
             for example verbose, help, num_threads
         :param kwargs:
         """
-        super(TreeSAPPArgumentParser, self).__init__(add_help=False, **kwargs)
+        _prog = " ".join(os.path.basename(x) for x in sys.argv[0:2])
+        super(TreeSAPPArgumentParser, self).__init__(add_help=False, prog=_prog, **kwargs)
         self.reqs = self.add_argument_group("Required parameters")
         self.seqops = self.add_argument_group("Sequence operation arguments")
         self.rpkm_opts = self.add_argument_group("RPKM options")
