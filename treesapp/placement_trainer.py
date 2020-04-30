@@ -13,11 +13,12 @@ from . import file_parsers
 from . import utilities
 from . import wrapper
 from .fasta import read_fasta_to_dict, write_new_fasta, FASTA, split_combined_ref_query_fasta
-from .phylo_dist import trim_lineages_to_rank, cull_outliers, parent_to_tip_distances, regress_ranks
+from .phylo_dist import cull_outliers, parent_to_tip_distances, regress_ranks
 from .external_command_interface import setup_progress_bar, launch_write_command
 from .jplace_utils import jplace_parser
 from .classy import ReferencePackage
 from .entish import map_internal_nodes_leaves
+from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -199,7 +200,7 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> 
 
 
 def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, leaf_taxa_map: dict,
-                          accession_lineage_map: dict, taxonomic_ranks: set) -> dict:
+                          t_hierarchy: TaxonomicHierarchy, accession_lineage_map: dict, taxonomic_ranks: set) -> dict:
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
     linear model. Removes sequences that share an identical accession, are more than 97% similar and limits the
@@ -238,9 +239,9 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
     test_seqs.change_dict_keys("accession")
 
     # Remove sequences that are not related at the rank of Domain
-    ref_domains = sorted(set(trim_lineages_to_rank(leaf_taxa_map, "Kingdom").values()))
+    ref_domains = t_hierarchy.rank_representatives("domain")
     for seq_name in sorted(accession_lineage_map):
-        query_domain = accession_lineage_map[seq_name].split("; ")[0]
+        query_domain = accession_lineage_map[seq_name].split(t_hierarchy.lin_sep)[0]
         if query_domain not in ref_domains:
             unrelated_queries.append(seq_name)
         else:
@@ -257,7 +258,7 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
     test_taxa_summary = []
     for rank in taxonomic_ranks:
         test_taxa_summary.append("Sequences available for training %s-level placement distances:" % rank)
-        unique_ref_lineages = sorted(set(trim_lineages_to_rank(leaf_taxa_map, rank).values()))
+        unique_ref_lineages = sorted(set(t_hierarchy.trim_lineages_to_rank(leaf_taxa_map, rank).values()))
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
         for taxonomy in unique_ref_lineages:
@@ -311,12 +312,12 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
     # Determine the set of reference sequences to use at each rank
     for rank in taxonomic_ranks:
         rank_training_seqs[rank] = dict()
-        leaf_trimmed_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
+        leaf_trimmed_taxa_map = t_hierarchy.trim_lineages_to_rank(leaf_taxa_map, rank)
         unique_taxonomic_lineages = sorted(set(leaf_trimmed_taxa_map.values()))
 
         # Remove all sequences belonging to a taxonomic rank from tree and reference alignment
         for taxonomy in unique_taxonomic_lineages:
-            if "; ".join(taxonomy.split("; ")[:-1]) not in optimal_placement_missing:
+            if t_hierarchy.lin_sep.join(taxonomy.split(t_hierarchy.lin_sep)[:-1]) not in optimal_placement_missing:
                 for seq_name in sorted(accession_lineage_map):
                     # Not all keys in accession_lineage_map are in fasta_dict (duplicate sequences were removed)
                     if re.search(taxonomy, accession_lineage_map[seq_name]) and seq_name in test_seqs.fasta_dict:
@@ -401,7 +402,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             logging.error("Rank '" + rank + "' not found in ranks being used for training.\n")
             sys.exit(33)
         taxonomic_placement_distances[rank] = list()
-        for leaf_node, lineage in trim_lineages_to_rank(leaf_taxa_map, rank).items():
+        for leaf_node, lineage in ref_pkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, rank).items():
             leaf_trimmed_taxa_map[leaf_node + "_" + ref_pkg.prefix] = lineage
         
         # Add the lineages to the Tree instance
@@ -592,24 +593,24 @@ def regress_rank_distance(fasta_input, executables, ref_pkg: ReferencePackage, a
     :return:
     """
     if not training_ranks:
-        training_ranks = {"Class": 3, "Species": 7}
+        training_ranks = {"class": 3, "species": 7}
     # Read the taxonomic map; the final sequences used to build the tree are inferred from this
     leaf_taxa_map = dict()
     ref_taxa_map = ref_pkg.tax_ids_file_to_leaves()
+    ref_pkg.taxa_trie.feed_leaf_nodes(ref_taxa_map)
     for ref_seq in ref_taxa_map:
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train
     test_seqs = FASTA(fasta_input)
     test_seqs.load_fasta()
     test_seqs.add_accession_to_headers(ref_pkg.prefix)
-    rank_training_seqs, dedup_fasta_dict = prepare_training_data(test_seqs, output_dir, executables,
-                                                                 leaf_taxa_map, accession_lineage_map,
-                                                                 set(training_ranks.keys()))
+    rank_training_seqs = prepare_training_data(test_seqs, output_dir, executables, leaf_taxa_map,
+                                               ref_pkg.taxa_trie, accession_lineage_map, set(training_ranks.keys()))
     if len(rank_training_seqs) == 0:
         return (0.0, 7.0), {}, []
     # Perform the rank-wise clade exclusion analysis for estimating placement distances
     taxonomic_placement_distances, pqueries = train_placement_distances(rank_training_seqs, training_ranks,
-                                                                        ref_fasta_dict, dedup_fasta_dict,
+                                                                        ref_fasta_dict, test_seqs,
                                                                         ref_pkg, leaf_taxa_map,
                                                                         molecule, executables,
                                                                         output_dir, num_threads)

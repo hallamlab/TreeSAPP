@@ -95,14 +95,9 @@ class ReferencePackage:
 
         for line in tax_ids_handler:
             line = line.strip()
+
             try:
-                fields = line.split("\t")
-            except ValueError:
-                logging.error('ValueError: .split(\'\\t\') on ' + str(line) +
-                              " generated " + str(len(line.split("\t"))) + " fields.\n")
-                sys.exit(5)
-            try:
-                number, seq_name, lineage = fields
+                number, seq_name, lineage = line.split("\t")
             except (ValueError, IndexError):
                 logging.error("Unexpected number of fields in " + self.lineage_ids +
                               ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
@@ -2319,7 +2314,7 @@ class PhyTrainer(TreeSAPP):
         self.placement_summary = ""
 
         # Limit this to just Class, Family, and Species - other ranks are inferred through regression
-        self.training_ranks = {"Class": 3, "Species": 7}
+        self.training_ranks = {"class": 3, "species": 7}
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),

@@ -7,6 +7,8 @@ from ete3 import Tree
 
 import numpy as np
 import scipy.optimize as so
+
+from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 np.random.seed(0)
 
 __author__ = 'Connor Morgan-Lang'
@@ -155,7 +157,7 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     return trimmed_lineage_map
 
 
-def prune_branches(tree, leaf_taxa_map: dict, rank="Genus"):
+def prune_branches(tree, t_hierarchy: TaxonomicHierarchy, leaf_taxa_map: dict, rank="Genus"):
     """
     Function for removing leaves of unclassified and polyphyletic lineages
 
@@ -175,7 +177,7 @@ def prune_branches(tree, leaf_taxa_map: dict, rank="Genus"):
             logging.error(str(leaf.name) + " not found in leaf_taxa_map.\n")
             raise AssertionError("Leaves in tree and tax_ids file are disparate sets.\n")
     # Raw lineages are too specific to test for monophyly, so try at a deeper rank by trimming the lineages
-    leaf_taxa_map = trim_lineages_to_rank(leaf_taxa_map, rank)
+    leaf_taxa_map = t_hierarchy.trim_lineages_to_rank(leaf_taxa_map, rank)
 
     # Add the lineages to the Tree instance
     for leaf in tree:
@@ -229,41 +231,3 @@ def parent_to_tip_distances(parent: Tree, children: Tree, estimate=False):
             distal_length += parent.dist
         branch_distances.append(distal_length)
     return branch_distances
-
-
-def bound_taxonomic_branch_distances(tree, leaf_taxa_map):
-    # Seed the final dictionary to be used for bounding
-    taxonomic_rank_distances = dict()
-    lca_nodes = dict()
-    taxonomic_rank_intervals = dict()
-    ranks = {1: "Phylum", 2: "Class", 3: "Order", 4: "Family", 5: "Genus", 6: "Species"}
-    for depth in sorted(ranks, key=int, reverse=True):
-        rank = ranks[depth]
-        lca_nodes[depth] = list()
-        taxonomic_rank_distances[rank] = list()
-        # Remove the leaves belonging to "Unclassified" lineages and/or polyphyletic clades
-        monophyletic_clades = prune_branches(tree, leaf_taxa_map, rank)
-        for lineage in monophyletic_clades:
-            for para_group in monophyletic_clades[lineage]:
-                edge_lengths = []
-                clade = monophyletic_clades[lineage][para_group]
-                if len(clade) == 1:
-                    # Unable to calculate distance with a single leaf
-                    continue
-                lca = clade[0].get_common_ancestor(clade[1:])
-                lca_nodes[depth].append(lca)
-                if depth + 1 in lca_nodes:
-                    # Ensure this parent node wasn't already used to estimate the previous rank's bounds
-                    if lca not in lca_nodes[depth + 1]:
-                        edge_lengths = parent_to_tip_distances(lca, clade, True)
-                else:
-                    edge_lengths += parent_to_tip_distances(lca, clade, True)
-                taxonomic_rank_distances[rank] += edge_lengths
-        if len(taxonomic_rank_distances[rank]) >= 5:
-            noo_taxa_rank_dists = cull_outliers(taxonomic_rank_distances[rank])
-            taxonomic_rank_intervals[rank] = (round(np.percentile(noo_taxa_rank_dists, q=2.5), 4),
-                                              round(np.percentile(noo_taxa_rank_dists, q=97.5), 4))
-        else:
-            taxonomic_rank_intervals[rank] = ()
-    return taxonomic_rank_intervals
-

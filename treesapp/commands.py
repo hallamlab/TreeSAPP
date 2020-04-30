@@ -93,7 +93,7 @@ def info(sys_args):
 
 
 def train(sys_args):
-    parser = TreeSAPPArgumentParser(description='Model phylogenetic distances across taxonomic ranks.')
+    parser = TreeSAPPArgumentParser(description='Model evolutionary distances across taxonomic ranks.')
     add_trainer_arguments(parser)
     args = parser.parse_args(sys_args)
 

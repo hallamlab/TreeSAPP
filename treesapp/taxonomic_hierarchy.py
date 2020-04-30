@@ -68,7 +68,7 @@ class TaxonomicHierarchy:
                           "lin_sep": "'" + self.lin_sep + "'"}
         return instance_state
 
-    def so_long_and_thanks_for_all_the_fish(self, error_str=""):
+    def so_long_and_thanks_for_all_the_fish(self, error_str="") -> None:
         summary_string = error_str + "Summary of TaxonomicHierarchy instance state:\n"
         for key, value in self.get_state().items():
             summary_string += "\t" + key + " = " + str(value) + "\n"
@@ -105,8 +105,7 @@ class TaxonomicHierarchy:
         :param rank_name: Name of the rank being compared to
         :return: Boolean indicating whether a lineage is as resolved as a rank
         """
-        if self.rank_prefix_map_values is set:
-            self.validate_rank_prefixes()
+        self.validate_rank_prefixes()
 
         if rank_name not in self.accepted_ranks_depths:
             self.so_long_and_thanks_for_all_the_fish("Rank name '{0}' is not valid in taxonomic hierarchy.\n")
@@ -125,13 +124,12 @@ class TaxonomicHierarchy:
         :param lineage: A taxonomic lineage *with prefixed ranks* separated by self.lin_sep
         :return: The name of the taxonomic rank a lineage was resolved to
         """
-        if self.rank_prefix_map_values is set:
-            self.validate_rank_prefixes()
+        self.validate_rank_prefixes()
 
         taxon = lineage.split(self.lin_sep)[-1]
         return self.rank_prefix_map[taxon[0]]
 
-    def validate_rank_prefixes(self):
+    def validate_rank_prefixes(self) -> None:
         rank_prefix_map = {}
         if self.rank_prefix_map_values is set:  # Work here is already done
             for prefix in self.rank_prefix_map:
@@ -148,6 +146,13 @@ class TaxonomicHierarchy:
             self.rank_prefix_map_values = str
         return
 
+    def whet(self) -> None:
+        # Ensure the rank_prefix_map values are sets that can be added to, in case self.validate_rank_prefixes was run
+        if self.rank_prefix_map_values is not set:
+            self.rank_prefix_map = {k: {v} for k, v in self.rank_prefix_map.items()}
+            self.rank_prefix_map_values = set
+        return
+
     def trie_check(self):
         """
         Ensure the trie has contemporary with all lineages that have been fed into the hierarchy.
@@ -159,6 +164,19 @@ class TaxonomicHierarchy:
         if self.lineages_fed != self.lineages_into_trie:
             self.build_multifurcating_trie(with_prefix=self.include_prefix)
         return
+
+    def digest_taxon(self, taxon: str, rank: str, rank_prefix: str, previous: Taxon) -> Taxon:
+        prefix_name = rank_prefix + self.taxon_sep + taxon
+        if prefix_name not in self.hierarchy:
+            ti = Taxon(taxon, rank)
+            ti.parent = previous
+            ti.prefix = rank_prefix
+            self.hierarchy[prefix_name] = ti
+            previous = ti
+        else:
+            self.hierarchy[prefix_name].coverage += 1
+            previous = self.hierarchy[prefix_name]
+        return previous
 
     def feed(self, lineage: str, lineage_ex: list) -> Taxon:
         """
@@ -176,10 +194,7 @@ class TaxonomicHierarchy:
         """
         previous = None
 
-        # Ensure the rank_prefix_map values are sets that can be added to, in case self.validate_rank_prefixes was run
-        if self.rank_prefix_map_values is not set:
-            self.rank_prefix_map = {k: {v} for k, v in self.rank_prefix_map.items()}
-            self.rank_prefix_map_values = set
+        self.whet()  # Convert the values in self.rank_prefix_map to set
 
         lineage = self.clean_lineage_string(lineage)
         taxa = lineage.split(self.lin_sep)
@@ -206,16 +221,7 @@ class TaxonomicHierarchy:
             except KeyError:
                 self.rank_prefix_map[rank_prefix] = {rank}
 
-            prefix_name = rank_prefix + self.taxon_sep + taxon
-            if prefix_name not in self.hierarchy:
-                ti = Taxon(taxon, rank)
-                ti.parent = previous
-                ti.prefix = rank_prefix
-                self.hierarchy[prefix_name] = ti
-                previous = ti
-            else:
-                self.hierarchy[prefix_name].coverage += 1
-                previous = self.hierarchy[prefix_name]
+            previous = self.digest_taxon(taxon, rank, rank_prefix, previous)
 
         if len(taxa) > 0 or len(lineage_ex) > 0:
             logging.error("Not all elements popped from paired lineage and lineage_ex information.\n"
@@ -226,6 +232,39 @@ class TaxonomicHierarchy:
         self.lineages_fed += 1
 
         return previous
+
+    def feed_leaf_nodes(self, ref_leaves: list, rank_prefix_name_map=None) -> None:
+        """
+        Loads TreeLeafReference instances (objects with 'lineage', 'accession' and 'number' variables among others) into
+        the TaxonomicHierarchy.hierarchy property.
+
+        Since the lineages are composed of taxa with rank-prefixes, opposed to full-length rank names,
+        a rank-prefix name map is required to infer the taxonomic rank of each prefix. One is loaded by default if none
+        are provided.
+        :param ref_leaves: A list of TreeLeafReference instances to be loaded into the hierarchy
+        :param rank_prefix_name_map: A dictionary mapping rank-prefixes (str) to a set of potential rank names
+        :return: None
+        """
+        if rank_prefix_name_map is None:
+            self.rank_prefix_map.update({'d': {"domain"}, 'p': {"phylum"}, 'c': {"class"}, 'o': {"order"},
+                                         'f': {"family"}, 'g': {"genus"}, 's': {"species"}, 't': {"type_strain"}})
+        else:
+            self.rank_prefix_map.update(rank_prefix_name_map)
+        self.validate_rank_prefixes()
+
+        previous = None
+        for ref_leaf in ref_leaves:
+            taxa = ref_leaf.lineage.split(self.lin_sep)
+            while taxa:
+                taxon = taxa.pop(0)
+                rank_prefix = taxon.split(self.taxon_sep)[0]
+                rank = self.rank_prefix_map[rank_prefix]
+                previous = self.digest_taxon(taxon, rank, rank_prefix, previous)
+
+            # Update the number of lineages provided to TaxonomicHierarchy
+            self.lineages_fed += 1
+            previous = None
+        return
 
     def emit(self, prefix_taxon: str, with_prefix=False) -> str:
         """
@@ -294,6 +333,29 @@ class TaxonomicHierarchy:
         """
         self.trie_check()
         return lineage_str in self.trie
+
+    def rank_representatives(self, rank_name: str, with_prefix=False) -> set:
+        """
+        Retrieves all taxa in the hierarchy of a specified rank
+
+        :param rank_name: Name of the rank to search for taxa
+        :param with_prefix: Flag indicating whether the taxa names should include the rank prefix (True) or not
+        :return: Set containing all taxa in the hierarchy that represent a specific rank
+        """
+        # Check rank name to see if its present in the hierarchy
+        if rank_name not in self.accepted_ranks_depths:
+            self.so_long_and_thanks_for_all_the_fish("Rank '{0}' "
+                                                     "is not in hierarchy's accepted names.\n".format(rank_name))
+
+        taxa = set()
+        for prefix_name in self.hierarchy:
+            taxon = self.hierarchy[prefix_name]
+            if taxon.rank == rank_name:
+                if with_prefix:
+                    taxa.add(prefix_name)
+                else:
+                    taxa.add(taxon.name)
+        return taxa
 
     def clean_lineage_string(self, lineage: str, with_prefix=None) -> str:
         """
@@ -381,12 +443,13 @@ class TaxonomicHierarchy:
                                 "Lineage will be truncated to '{1}'.\n".format(self.lin_sep.join(lineage_list),
                                                                                self.lin_sep.join(lineage_list[0:i])))
                 lineage_list = lineage_list[0:i]
+                # TODO: Decide whether the corresponding Taxon instances be removed from the hierarchy
                 break
             i += 1
 
         return self.lin_sep.join(lineage_list)
 
-    def remove_leaf_nodes(self, taxa: list):
+    def remove_leaf_nodes(self, taxa):
         if type(taxa) is str:
             taxa = [taxa]
         for prefix_taxon_name in taxa:
@@ -413,6 +476,7 @@ class TaxonomicHierarchy:
         """
         taxonomic_summary_string = ""
         taxa_counts = dict()
+        self.validate_rank_prefixes()
 
         for taxon_name in self.hierarchy:
             taxon = self.hierarchy[taxon_name]  # type: Taxon
@@ -420,6 +484,9 @@ class TaxonomicHierarchy:
                 taxa_counts[taxon.rank] += 1
             except KeyError:
                 taxa_counts[taxon.rank] = 1
+            except TypeError:
+                print(taxa_counts, taxon.rank, taxon)
+                sys.exit()
 
         taxonomic_summary_string += "Number of unique lineages:\n"
         for rank in sorted(self.accepted_ranks_depths, key=lambda x: self.accepted_ranks_depths[x]):
@@ -435,8 +502,50 @@ class TaxonomicHierarchy:
 
         return taxonomic_summary_string
 
+    def trim_lineages_to_rank(self, leaf_taxa_map: dict, rank: str) -> dict:
+        """
+        Iterates a dictionary and trims the lineage string values to a specified rank.
+        Also removes lineages that are unclassified at the desired rank or higher (closer to root)
+
+        :param leaf_taxa_map: Maps indices to lineages
+        :param rank: The taxonomic rank lineages need to be trimmed to
+        :return: Dictionary of keys mapped to trimmed lineages
+        """
+        trimmed_lineage_map = dict()
+        try:
+            depth = self.accepted_ranks_depths[rank]
+        except KeyError:
+            self.so_long_and_thanks_for_all_the_fish("Rank '{0}' is not in hierarchy's accepted names.\n".format(rank))
+        truncated = 0
+
+        self.validate_rank_prefixes()
+
+        for node_name in sorted(leaf_taxa_map):
+            lineage = leaf_taxa_map[node_name].split(self.lin_sep)
+
+            # Remove lineage from testing if the rank doesn't exist (unclassified at a high rank)
+            if len(lineage) < depth:
+                truncated += 1
+                continue
+
+            trimmed_lineage_map[node_name] = self.lin_sep.join(lineage[:depth])
+
+            # Ensure the last taxon in the lineage has the expected rank-prefix
+            taxon = lineage[:depth][-1]
+            try:
+                th_rank_name = self.rank_prefix_map[taxon[0]]
+            except KeyError:
+                self.so_long_and_thanks_for_all_the_fish("Rank prefix {}"
+                                                         " not found in rank prefix map.\n".format(taxon[0]))
+            if rank != th_rank_name:
+                self.so_long_and_thanks_for_all_the_fish("Rank prefix doesn't match rank name in trimmed lineage.\n")
+
+        logging.debug("{0} lineages truncated before '{1}' were removed during lineage trimming.\n".format(truncated,
+                                                                                                           rank))
+        return trimmed_lineage_map
+
     # TODO: Move these to tests
-    def test_th_feed(self):
+    def test_feed(self):
         print("Testing feed()")
         dup_lineage = "cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Actinomycetales; Actinomycetaceae; Actinomyces; Actinomyces nasicola"
         trunc_lineage = "cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria"
@@ -469,7 +578,7 @@ class TaxonomicHierarchy:
         print(self.hierarchy)
         return
 
-    def test_th_emit(self):
+    def test_emit(self):
         print("Testing emit()")
         taxon = "g__Actinomyces"
         print(self.emit(taxon))
@@ -519,19 +628,39 @@ class TaxonomicHierarchy:
 
     def test_remove_leaf_nodes(self):
         print("Testing remove_leaf_nodes()")
-        self.remove_leaf_nodes("p__Euryarchaeota")
+        self.remove_leaf_nodes("p__Euryarchaeota")  # To test whether conversion of single string to set works
+
+    def test_trim_lineages_to_rank(self):
+        print("Testing trim_lineages_to_rank()")
+        dict_in = {'1': 'd__Archaea; p__Candidatus Bathyarchaeota',
+                   '2': 'd__Archaea; p__Candidatus Micrarchaeota',
+                   '3': 'd__Archaea; p__Euryarchaeota',
+                   '4': 'd__Bacteria',
+                   '7': 'd__Bacteria; p__Acidobacteria',
+                   '9': 'd__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales;'
+                        ' f__Actinomycetaceae; g__Actinomyces; s__Actinomyces nasicola'}
+        out = self.trim_lineages_to_rank(dict_in, "class")
+        print(out)
+
+    def test_rank_representatives(self):
+        print("Testing rank_representatives()")
+        print(self.rank_representatives("domain"))
+        print(self.rank_representatives("class"))
+        print(self.rank_representatives("species"))
 
 
 def main():
     th = TaxonomicHierarchy()
     th.test_clean_lineage_string()
-    th.test_th_feed()
-    th.test_th_emit()
+    th.test_feed()
+    th.test_trim_lineages_to_rank()
+    th.test_emit()
     th.build_multifurcating_trie()
     th.test_check_lineage()
-    print(th.summarize_taxa())
+    print(th.hierarchy)
     th.test_remove_leaf_nodes()
     print(th.summarize_taxa())
+    th.test_rank_representatives()
 
 
 if __name__ == "__main__":
