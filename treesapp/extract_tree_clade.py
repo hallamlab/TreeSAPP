@@ -215,7 +215,7 @@ def main():
     tree_file = os.sep.join([args.treesapp, "data", "tree_data", args.marker + "_tree.txt"])
     clade_members = parse_clades_from_tree(args, clusters, tree_file, args.marker)
 
-    fasta_dict = format_read_fasta(args.fasta, args.molecule, args.output, 1000)
+    fasta_dict = format_read_fasta(args.fasta, args.molecule)
     fasta_dict = strip_header_prefix(fasta_dict)
     fasta_dict = remove_dashes_from_msa_dict(fasta_dict)
     tax_ids = read_tax_ids_table(args)

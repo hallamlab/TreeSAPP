@@ -598,6 +598,7 @@ def write_phy_file(phy_output_file: str, phy_dict: dict, alignment_dims=None):
 def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
     """
     Function for slicing sequences guided by alignment co-ordinates.
+
     :param hmm_matches: Dictionary containing a list HmmMatch() objects as values for each 'marker' key
     :param fasta_dict: A dictionary with headers as keys and sequences as values
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
@@ -631,7 +632,7 @@ def extract_hmm_matches(hmm_matches, fasta_dict, header_registry):
             # >contig_name|marker_gene|start_end
             query_names = header_matching_dict[hmm_match.orf]
             try:
-                sequence = fasta_dict[query_names.formatted]
+                sequence = fasta_dict[query_names.first_split]
             except KeyError:
                 logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
                 continue

@@ -391,7 +391,8 @@ def run_prodigal(args, fasta_file, output_file, nucleotide_orfs=None):
 
 def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output_dir: str, num_threads=2):
     """
-    Function for searching a fasta file with an hmm profile
+    Function for searching a fasta file with a profile HMM
+
     :param hmmsearch_exe: Path to the executable for hmmsearch
     :param hmm_profile: Path to the HMM profile file
     :param query_fasta: Path to the FASTA file to be queried by the profile

@@ -24,7 +24,7 @@ try:
 
     from .classy import CommandLineWorker, CommandLineFarmer, ItolJplace, NodeRetrieverWorker,\
         TreeLeafReference, TreeProtein, MarkerBuild
-    from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
+    from .fasta import get_headers, write_new_fasta, read_fasta_to_dict, FASTA
     from .entish import create_tree_info_hash, deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, annotate_partition_tree, find_cluster, tree_leaf_distances, index_tree_edges
     from .external_command_interface import launch_write_command
@@ -1609,17 +1609,6 @@ def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
         logging.warning("No placed sequences with abundances identified.\n")
 
     return
-
-
-def get_reference_sequence_dict(args, update_tree):
-    # Determine the name of the aligned FASTA with reference sequences
-    ref_alignment_fasta = "data" + os.sep + "alignment_data" + os.sep + update_tree.COG + ".fa"
-    # Read the FASTA to get headers and sequences
-    ref_fasta_dict = format_read_fasta(ref_alignment_fasta, update_tree.marker_molecule, args.output)
-    # Strip the '-'s since these will be re-aligned again
-    unaligned_ref_seqs = {header: re.sub('-', '', ref_fasta_dict[header]) for header in ref_fasta_dict}
-
-    return unaligned_ref_seqs
 
 
 def create_itol_labels(marker, itol_base_dir, tree_data_dir):

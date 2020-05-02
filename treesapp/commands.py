@@ -118,7 +118,7 @@ def train(sys_args):
 
     if ts_trainer.stage_status("search"):
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = fasta.format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type, ts_trainer.output_dir)
+        ref_seqs.fasta_dict = fasta.format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type)
         ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_trainer.input_sequences))
 
         logging.info("Searching for domain sequences... ")
@@ -219,7 +219,7 @@ def create(sys_args):
 
     if ts_create.stage_status("search"):
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = fasta.format_read_fasta(args.input, ts_create.molecule_type, ts_create.output_dir)
+        ref_seqs.fasta_dict = fasta.format_read_fasta(args.input, ts_create.molecule_type)
         ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(args.input))
         logging.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
@@ -238,8 +238,8 @@ def create(sys_args):
     # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
     ##
     ref_seqs.file = ts_create.hmm_purified_seqs
-    ref_seqs.fasta_dict = fasta.format_read_fasta(ref_seqs.file, marker_package.molecule, ts_create.output_dir,
-                                                  110, args.min_seq_length)
+    ref_seqs.fasta_dict = fasta.format_read_fasta(fasta_input=ref_seqs.file, molecule=marker_package.molecule,
+                                                  min_seq_length=args.min_seq_length)
     ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
     logging.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
@@ -874,7 +874,7 @@ def assign(sys_args):
     # Read the query sequences provided and (by default) write a new FASTA file with formatted headers
     if ts_assign.stage_status("clean"):
         logging.info("Reading and formatting " + ts_assign.query_sequences + "... ")
-        query_seqs.fasta_dict = fasta.format_read_fasta(ts_assign.query_sequences, "prot", ts_assign.output_dir)
+        query_seqs.fasta_dict = fasta.format_read_fasta(ts_assign.query_sequences, "prot")
         query_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_assign.query_sequences), True)
         query_seqs.change_dict_keys("num")
         logging.info("done.\n")
@@ -1152,7 +1152,7 @@ def evaluate(sys_args):
 
     # Load FASTA data
     ref_seqs = fasta.FASTA(args.input)
-    ref_seqs.fasta_dict = fasta.format_read_fasta(ref_seqs.file, args.molecule, ts_evaluate.output_dir, 110)
+    ref_seqs.fasta_dict = fasta.format_read_fasta(ref_seqs.file, args.molecule)
     if args.length:
         for seq_id in ref_seqs.fasta_dict:
             if len(ref_seqs.fasta_dict[seq_id]) < args.length:

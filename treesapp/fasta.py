@@ -4,9 +4,12 @@ import sys
 import re
 import os
 import logging
-from time import sleep
+from time import sleep, time
 
-import _fasta_reader
+from math import ceil
+import pyfastx
+from pyfastxcli import fastx_format_check
+
 from .utilities import median, reformat_string, rekey_dict, return_sequence_info_groups
 
 
@@ -39,6 +42,175 @@ def generate_fasta(fasta_handler):  # this is a generator function
             if last:  # reach EOF before reading enough quality
                 yield name, seq  # yield a fasta record instead
                 break
+
+
+def fastx_split(fastx: str, outdir: str, file_num=1) -> list:
+    fastx_type = fastx_format_check(fastx)
+
+    if fastx_type == 'fasta':
+        split_files = split_fa(fastx, outdir, file_num)
+    elif fastx_type == 'fastq':
+        split_files = fq2fa(fastx, outdir, file_num)
+    else:
+        logging.error("Unknown fastx type: '{}'\n".format(fastx_type))
+        sys.exit(3)
+    return split_files
+
+
+def split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num):
+    fh.write(fasta_string)
+    fasta_string = ""
+
+    # Reduce the number of checks
+    if seq_write > seqs_num:
+        fh.write(fasta_string)
+        fh.close()
+        seq_write = 0
+    return fasta_string, seq_write
+
+
+def spawn_new_fasta(file_num, outdir, file_name, digit):
+    file_num += 1
+
+    subfile = "{}.{}.{}".format(file_name, str(file_num).zfill(digit), "fasta")
+    if outdir is not None:
+        subfile = os.path.join(outdir, subfile)
+
+    fh = open(subfile, 'w')
+    logging.debug("Writing split FASTA to file '{}'.\n".format(subfile))
+    return fh, subfile, file_num
+
+
+def split_fa(fastx: str, outdir: str, file_num=1, seq_count=0):
+    """
+    Credit: Lianming Du of pyfastx (v0.6.10)
+
+    Differences are:
+1. Format of the output files is always uncompressed FASTA, compatible with ORF prediction tools e.g. Prodigal
+2. Batch writing of reads instead of writing a single read at a time to reduce number of  I/O operations
+
+    :param fastx: Path to a FASTQ file to be read and converted to FASTA
+    :param outdir: Path to write the output files
+    :param file_num: Number of files to split the input FASTQ file into
+    :param seq_count: Optionally, instead of splitting into N number of files FASTQ can be split by number of sequences
+    :return: List of fasta files generated
+    """
+    start = time()
+    # Fix path with tilde
+    fastx = os.path.expanduser(fastx)
+    outdir = os.path.expanduser(outdir)
+    outputs = []
+    fa = pyfastx.Fasta(file_name=fastx, build_index=False)
+
+    # Determine the number of reads in the FASTQ file - faster than building an index
+    count = 0
+    for _ in fa:
+        count += 1
+
+    if file_num > 1:
+        seqs_num = ceil(count / file_num)
+        parts_num = file_num
+    else:
+        seqs_num = seq_count
+        parts_num = ceil(count / seqs_num)
+
+    file_name, suffix1 = os.path.splitext(os.path.basename(fastx))
+
+    if fa.is_gzip:
+        file_name, suffix2 = os.path.splitext(file_name)
+
+    digit = len(str(parts_num))
+
+    seq_write = 0
+    max_buffer_size = 1E4
+    fasta_string = ""
+    fh = None
+    file_num = 0
+
+    for name, seq in fa:
+        if seq_write == 0:
+            fh, subfile, file_num = spawn_new_fasta(file_num, outdir, file_name, digit)
+            outputs.append(subfile)
+
+        fasta_string += ">%s\n%s\n" % (name, seq)
+        seq_write += 1
+        # Batch write
+        if seq_write % max_buffer_size == 0:
+            fasta_string, seq_write = split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num)
+
+    fh.write(fasta_string)
+    fh.close()
+    end = time()
+
+    logging.debug("{} completed split_fa in {}s.\n".format(fastx, end - start))
+    return outputs
+
+
+def fq2fa(fastx: str, outdir: str, file_num=1, seq_count=0) -> list:
+    """
+    Credit: Lianming Du of pyfastx (v0.6.10)
+    A modified version of the function fastq_split in the pyfastx python package: https://github.com/lmdu/pyfastx
+
+    Differences are:
+1. Format of the output files is always uncompressed FASTA, compatible with ORF prediction tools e.g. Prodigal
+2. Batch writing of reads instead of writing a single read at a time to reduce number of  I/O operations
+
+    :param fastx: Path to a FASTQ file to be read and converted to FASTA
+    :param outdir: Path to write the output files
+    :param file_num: Number of files to split the input FASTQ file into
+    :param seq_count: Optionally, instead of splitting into N number of files FASTQ can be split by number of sequences
+    :return: List of fasta files generated
+    """
+    start = time()
+    # Fix path with tilde
+    fastx = os.path.expanduser(fastx)
+    outdir = os.path.expanduser(outdir)
+    outputs = []
+    fq = pyfastx.Fastq(file_name=fastx, build_index=False)
+
+    # Determine the number of reads in the FASTQ file - faster than building an index
+    read_count = 0
+    for _ in fq:
+        read_count += 1
+
+    if file_num > 1:
+        seqs_num = ceil(read_count / file_num)
+        parts_num = file_num
+    else:
+        seqs_num = seq_count
+        parts_num = ceil(read_count / seqs_num)
+
+    name, suffix1 = os.path.splitext(os.path.basename(fastx))
+
+    if fq.is_gzip:
+        name, suffix2 = os.path.splitext(name)
+
+    digit = len(str(parts_num))
+
+    seq_write = 0
+    max_buffer_size = 1E4
+    fasta_string = ""
+    fh = None
+    file_num = 0
+
+    for read_name, seq, _ in fq:
+        if seq_write == 0:
+            fh, subfile, file_num = spawn_new_fasta(file_num, outdir, name, digit)
+            outputs.append(subfile)
+
+        fasta_string += ">%s\n%s\n" % (read_name, seq)
+        seq_write += 1
+        # Batch write
+        if seq_write % max_buffer_size == 0:
+            fasta_string, seq_write = split_seq_writer_helper(fasta_string, fh, seq_write, seqs_num)
+
+    fh.write(fasta_string)
+    fh.close()
+    end = time()
+
+    logging.debug("{} completed fq2fa in {}s.\n".format(fastx, end-start))
+
+    return outputs
 
 
 def read_fasta_to_dict(fasta_file):
@@ -511,6 +683,7 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
     """
     Function to write the nucleotide sequences representing the full-length ORF for each classified sequence
     Sequence names are from ItolJplace.contig_name values so output format is:
+
      >contig_name|RefPkg|StartCoord_StopCoord
     :param tree_saps: A dictionary of gene_codes as keys and TreeSap objects as values
     :param formatted_fasta_dict: A dictionary with headers/sequence names as keys and sequences as values
@@ -550,32 +723,53 @@ def write_classified_sequences(tree_saps: dict, formatted_fasta_dict: dict, fast
     return
 
 
-def format_read_fasta(fasta_input, molecule, output_dir, max_header_length=110, min_seq_length=10):
+def format_read_fasta(fasta_input: str, molecule: str, subset=None, min_seq_length=10):
     """
     Reads a FASTA file, ensuring each sequence and sequence name is valid.
 
     :param fasta_input: Absolute path of the FASTA file to be read
     :param molecule: Molecule type of the sequences ['prot', 'dna', 'rrna']
-    :param output_dir: Path to a directory for writing the log file to
-    :param max_header_length: The length of the header string before all characters after this length are removed
+    :param subset: A set for filtering sequences. Only sequences with names in subset will be included in the dictionary
+    :type subset: set
     :param min_seq_length: All sequences shorter than this will not be included in the returned list.
     :return: A Python dictionary with headers as keys and sequences as values
     """
-    fasta_list = _fasta_reader._read_format_fasta(fasta_input,
-                                                  min_seq_length,
-                                                  output_dir,
-                                                  molecule,
-                                                  max_header_length)
-    if not fasta_list:
-        sys.exit(5)
-    tmp_iterable = iter(fasta_list)
-    formatted_fasta_dict = dict(zip(tmp_iterable, tmp_iterable))
+    start = time()
 
-    for header in formatted_fasta_dict.keys():
-        if len(header) > max_header_length:
-            logging.error(header + " is too long (" + str(len(header)) + ")!\n" +
-                          "There is a bug in _read_format_fasta - please report!\n")
-            sys.exit(5)
+    if molecule == "prot":
+        bad_chars = re.compile(r"[OU]")
+    else:
+        bad_chars = re.compile(r"[EFIJLOPQZ]")
+    bad_seqs = set()
+
+    if subset and type(subset) is not set:
+        logging.error("Unexpected type of subset: {} instead of set.\n".format(type(subset)))
+        sys.exit(13)
+
+    formatted_fasta_dict = {}
+    for name, seq in pyfastx.Fasta(fasta_input, build_index=False):  # type: (str, str)
+        if len(seq) < min_seq_length:
+            continue
+        if subset:
+            if name in subset:
+                formatted_fasta_dict[name] = seq
+        else:
+            if bad_chars.search(seq):
+                bad_seqs.add(name)
+                continue
+            formatted_fasta_dict[name] = seq
+    end = time()
+    logging.debug("{} read by pyfastx in {} seconds.\n".format(fasta_input, end-start))
+
+    if len(formatted_fasta_dict) == 0:
+        logging.error("No sequences in FASTA {0} were saved.\n"
+                      "Either the molecule type specified ({1}) or minimum sequence length ({2}) may be unsuitable.\n"
+                      "Consider changing these before rerunning.\n".format(fasta_input, molecule, min_seq_length))
+        sys.exit(13)
+
+    if len(bad_seqs) > 0:
+        logging.debug("The following sequences were removed due to bad characters:\n" +
+                      "\n".join(bad_seqs) + "\n")
 
     return formatted_fasta_dict
 
