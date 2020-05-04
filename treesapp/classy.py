@@ -1177,7 +1177,10 @@ class TreeSAPP:
             if set(vars(args)).issuperset({"molecule", "input"}):
                 self.input_sequences = args.input
                 self.molecule_type = args.molecule
-                self.sample_prefix = '.'.join(os.path.basename(self.input_sequences).split('.')[:-1])
+                file_name, suffix1 = os.path.splitext(os.path.basename(self.input_sequences))
+                if suffix1 == ".gz":
+                    file_name, suffix2 = os.path.splitext(file_name)
+                self.sample_prefix = file_name
                 self.formatted_input = self.var_output_dir + self.sample_prefix + "_formatted.fasta"
         self.executables = self.find_executables(args)
         return
@@ -2227,7 +2230,7 @@ class Assigner(TreeSAPP):
 
         return info_string
 
-    def predict_orfs(self, composition, num_threads):
+    def predict_orfs(self, composition: str, num_threads: int) -> None:
         """
         Predict ORFs from the input FASTA file using Prodigal
 
@@ -2236,18 +2239,13 @@ class Assigner(TreeSAPP):
         :return: None
         """
 
-        logging.info("Predicting open-reading frames in the genomes using Prodigal... ")
+        logging.info("Predicting open-reading frames using Prodigal... ")
 
         start_time = time.time()
 
         if num_threads > 1 and composition == "meta":
             # Split the input FASTA into num_threads files to run Prodigal in parallel
-            input_fasta_dict = format_read_fasta(self.input_sequences, self.molecule_type, self.output_dir)
-            n_seqs = len(input_fasta_dict.keys())
-            chunk_size = int(n_seqs / num_threads) + (n_seqs % num_threads)
-            split_files = write_new_fasta(input_fasta_dict,
-                                          self.var_output_dir + self.sample_prefix,
-                                          chunk_size)
+            split_files = fastx_split(self.input_sequences, self.output_dir, num_threads)
         else:
             split_files = [self.input_sequences]
 
@@ -2270,15 +2268,22 @@ class Assigner(TreeSAPP):
             cl_farmer.task_queue.close()
             cl_farmer.task_queue.join()
 
+        tmp_prodigal_aa_orfs = glob(self.var_output_dir + self.sample_prefix + "*_ORFs.faa")
+        tmp_prodigal_nuc_orfs = glob(self.var_output_dir + self.sample_prefix + "*_ORFs.fna")
+        if not tmp_prodigal_aa_orfs or not tmp_prodigal_nuc_orfs:
+            logging.error("Prodigal outputs were not generated:\n"
+                          "Amino acid ORFs: " + ", ".join(tmp_prodigal_aa_orfs) + "\n" +
+                          "Nucleotide ORFs: " + ", ".join(tmp_prodigal_nuc_orfs) + "\n")
+            sys.exit(5)
+
         # Concatenate outputs
         if not os.path.isfile(self.aa_orfs_file) and not os.path.isfile(self.nuc_orfs_file):
-            tmp_prodigal_aa_orfs = glob(self.var_output_dir + self.sample_prefix + "*_ORFs.faa")
-            tmp_prodigal_nuc_orfs = glob(self.var_output_dir + self.sample_prefix + "*_ORFs.fna")
             os.system("cat " + ' '.join(tmp_prodigal_aa_orfs) + " > " + self.aa_orfs_file)
             os.system("cat " + ' '.join(tmp_prodigal_nuc_orfs) + " > " + self.nuc_orfs_file)
             intermediate_files = list(tmp_prodigal_aa_orfs + tmp_prodigal_nuc_orfs + split_files)
             for tmp_file in intermediate_files:
-                os.remove(tmp_file)
+                if tmp_file != self.input_sequences:
+                    os.remove(tmp_file)
 
         logging.info("done.\n")
 

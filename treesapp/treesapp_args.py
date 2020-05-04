@@ -44,8 +44,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
 
     # The following are building-block functions
     def add_io(self):
-        self.reqs.add_argument('-i', '--fasta_input', required=True, dest="input",
-                               help='An input file containing DNA or protein sequences in FASTA format')
+        self.reqs.add_argument('-i', '--fastx_input', required=True, dest="input",
+                               help='An input file containing DNA or protein sequences in either FASTA or FASTQ format')
         self.optopt.add_argument('-o', '--output', default='./output/', required=False,
                                  help='Path to an output directory [DEFAULT = ./output/]')
         return

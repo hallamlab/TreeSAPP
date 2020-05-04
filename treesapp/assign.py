@@ -1613,17 +1613,6 @@ def abundify_tree_saps(tree_saps: dict, abundance_dict: dict):
     return
 
 
-def get_reference_sequence_dict(args, update_tree):
-    # Determine the name of the aligned FASTA with reference sequences
-    ref_alignment_fasta = "data" + os.sep + "alignment_data" + os.sep + update_tree.COG + ".fa"
-    # Read the FASTA to get headers and sequences
-    ref_fasta_dict = format_read_fasta(ref_alignment_fasta, update_tree.marker_molecule, args.output)
-    # Strip the '-'s since these will be re-aligned again
-    unaligned_ref_seqs = {header: re.sub('-', '', ref_fasta_dict[header]) for header in ref_fasta_dict}
-
-    return unaligned_ref_seqs
-
-
 def create_itol_labels(marker, itol_base_dir, tree_data_dir):
     """
     Create the marker_labels.txt file for each marker gene that was used for classification
