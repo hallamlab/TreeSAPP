@@ -4,8 +4,8 @@ import sys
 import re
 import logging
 from glob import glob
-from .classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
-from .utilities import available_cpu_count, get_refpkg_build
+from treesapp.classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
+from treesapp.utilities import available_cpu_count, get_refpkg_build
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):

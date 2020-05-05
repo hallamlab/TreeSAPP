@@ -602,115 +602,6 @@ def prepare_and_run_hmmalign(execs: dict, hmm_dir: str, alignment_dir: str,
     return hmmalign_singlehit_files
 
 
-def cat_hmmalign_singlehit_files(args, hmmalign_singlehit_files):
-    """
-    The hmmalign command write a Stockholm file (because an MFA is not an option) and therefore we need to convert it
-    to a FASTA file. To do so, TreeSAPP concatenates the individual lines (~80 characters long) for each sequence.
-
-    :param args: Command-line argument object from get_options and check_parser_arguments
-    :param hmmalign_singlehit_files:
-    Returns a list of the files containing the concatenated hmmalign results.
-    Returns a list of the number of sequences found in each file.
-    """
-
-    # For each type of gene...
-    concatenated_mfa_files = {}
-    nrs_of_sequences = {}
-
-    logging.info("Reformatting hmmalign output files to FASTA... ")
-
-    for clustal_mfa_file in sorted(hmmalign_singlehit_files):
-        # Determine what type of gene is currently represented, or raise an error
-        file_name_info = re.match("^([A-Z][0-9]{4}_.*)_\d+_\d+_([A-Za-z0-9_]+).cl$",
-                                  os.path.basename(clustal_mfa_file))
-        if file_name_info:
-            f_contig, cog = file_name_info.groups()
-        else:
-            logging.error("Regular expression unable to pull contig and marker information from file name!\n" +
-                          "Offending file:\n\t" + clustal_mfa_file + "\n")
-            sys.exit(3)
-        sequences = dict()
-        query_sequence = ""
-        parsing_order = dict()
-        cog_rep_sequences = dict()
-        acc = 0
-        if cog not in cog_rep_sequences.keys():
-            acc += 1
-        cog_rep_sequences[cog] = set()
-
-        if f_contig not in concatenated_mfa_files:
-            concatenated_mfa_files[f_contig] = list()
-        cog_len = 0
-
-        # Begin reading the file
-        try:
-            hmmalign_msa = open(clustal_mfa_file, 'r')
-        except IOError:
-            logging.error("Can't open " + clustal_mfa_file + " for reading!\n")
-            sys.exit(3)
-
-        # Get sequence from file
-        for _line in hmmalign_msa:
-            line = _line.strip()
-            reached_data_part = re.match(r'\A(.+) (\S+)\Z', line)
-            if not reached_data_part:
-                continue
-            search_result = re.search(r'\A(.+) (\S+)\Z', line)
-            if search_result:
-                name_long = search_result.group(1)
-                sequence_part = search_result.group(2)
-                sequence_name = ''
-                if re.search(r'query', name_long):
-                    query_sequence += sequence_part
-                    cog_len += len(sequence_part)
-
-                elif re.search(r'(\d+)_', name_long):
-                    sequence_name = re.search(r'(\d+)_', name_long).group(1)
-                    cog_rep_sequences[cog].add(sequence_name)
-                    if sequence_name not in sequences.keys():
-                        sequences[sequence_name] = dict()
-                    if cog not in sequences[sequence_name].keys():
-                        sequences[sequence_name][cog] = ""
-                    sequences[sequence_name][cog] += sequence_part
-
-        parsing_order[acc] = cog, cog_len
-        hmmalign_msa.close()
-
-        concatenated_mfa_files[f_contig].append(args.output_dir_var + f_contig + '.mfa')
-        # Write to the output file
-        try:
-            output = open(args.output_dir_var + f_contig + '.mfa', 'w')
-        except IOError:
-            logging.error("Can't create " + args.output_dir_var + f_contig + '.mfa\n')
-            sys.exit(3)
-        output.write('>query\n' + query_sequence + '\n')
-        nrs_of_sequences[f_contig] = 1
-        qlen = len(query_sequence)
-
-        for sequence_name in sequences.keys():
-            nrs_of_sequences[f_contig] += 1
-            sequence = ""
-            for p_order in sorted(parsing_order.keys(), key=int):
-                cog, cog_len = parsing_order[p_order]
-                # print f_contig, sequence_name, p_order, cog
-                if sequence_name not in cog_rep_sequences[cog]:
-                    sequence += "." * cog_len
-                else:
-                    sequence += sequences[sequence_name][cog]
-            output.write('>' + sequence_name + '\n' + sequence + '\n')
-            if len(sequence) != qlen:
-                output.close()
-                logging.error("Inconsistent sequence lengths between query and concatenated HMM alignments!\n" +
-                              "Check " + args.output_dir_var + f_contig + ".mfa for bad sequence " + sequence_name)
-                sys.exit(3)
-
-        output.close()
-
-    logging.info("done.\n")
-
-    return concatenated_mfa_files, nrs_of_sequences
-
-
 def check_for_removed_sequences(aln_dir, trimmed_msa_files: dict, msa_files: dict, marker_build_dict: dict, min_len=10):
     """
     Reads the multiple alignment files (either Phylip or FASTA formatted) and looks for both reference and query
@@ -1057,9 +948,9 @@ def read_the_raxml_out_tree(labelled_tree_file):
         tree_string_neu += tree_symbol_raw_1
 
     tree_string = tree_string_neu
-    tree_string = re.sub('\(', 'L', tree_string)
-    tree_string = re.sub('\)', 'R', tree_string)
-    tree_string = re.sub('\[', 'Q', tree_string)
+    tree_string = re.sub(r'\(', 'L', tree_string)
+    tree_string = re.sub(r'\)', 'R', tree_string)
+    tree_string = re.sub(r'\[', 'Q', tree_string)
 
     # Remove the branch lengths
     try:

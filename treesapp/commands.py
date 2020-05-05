@@ -6,39 +6,37 @@ import os
 import shutil
 from random import randint
 
+from collections import namedtuple
 from samsum.commands import ref_sequence_abundances
 
-from collections import namedtuple
-
-from . import entrez_utils
-from . import file_parsers
-from . import fasta
-from .treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments,\
-    add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments,\
-    check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments,\
+from treesapp import entrez_utils
+from treesapp import file_parsers
+from treesapp import fasta
+from treesapp import create_refpkg
+from treesapp import utilities
+from treesapp import wrapper
+from treesapp import entish
+from treesapp import lca_calculations
+from treesapp import placement_trainer
+from treesapp import update_refpkg
+from treesapp import annotate_extra
+from treesapp.dereplicate_hmm import make_dereplicated_hmm
+from treesapp.treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments, \
+    add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments, \
+    check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, \
     check_updater_arguments, check_purity_arguments, add_purity_arguments, add_abundance_arguments
-from . import utilities
-from . import wrapper
-from . import entish
-from . import lca_calculations
-from . import placement_trainer
-from . import update_refpkg
-from . import annotate_extra
-from .taxonomic_hierarchy import TaxonomicHierarchy
-from .classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer,\
+from treesapp.classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer, \
     prep_logging, dedup_records, TaxonTest, Purity, Abundance, ReferencePackage
-from . import create_refpkg
-from .assign import abundify_tree_saps, delete_files, validate_inputs,\
+from treesapp.assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
     summarize_placements_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names, read_refpkg_tax_ids
-from .jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
-from .clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
+from treesapp.jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
+from treesapp.clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
     validate_ref_package_files, determine_containment, parse_distances, remove_clade_exclusion_files,\
     load_rank_depth_map, get_testable_lineages_for_rank
-from .dereplicate_hmm import make_dereplicated_hmm
 
 
 def info(sys_args):
@@ -59,6 +57,8 @@ def info(sys_args):
     import joblib
     import seaborn
     import samsum
+    import pyfastx
+    import pygtrie
     logging.info("TreeSAPP version " + treesapp.__version__ + ".\n")
 
     # Write the version of all python deps
@@ -69,7 +69,9 @@ def info(sys_args):
                "scipy": scipy.__version__,
                "scikit-learn": sklearn.__version__,
                "seaborn": seaborn.__version__,
-               "samsum": samsum.__version__}
+               "samsum": samsum.__version__,
+               "pyfastx": pyfastx.version(),
+               "pygtrie": pygtrie.__version__}
 
     logging.info("Python package dependency versions:\n\t" +
                  "\n\t".join([k + ": " + v for k, v in py_deps.items()]) + "\n")
