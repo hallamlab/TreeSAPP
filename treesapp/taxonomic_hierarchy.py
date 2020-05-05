@@ -202,6 +202,8 @@ class TaxonomicHierarchy:
             taxon_info = lineage_ex.pop(0)
             taxon = taxa.pop(0)
             if taxon != taxon_info["ScientificName"]:
+                if previous:
+                    self.remove_leaf_nodes(previous.prefix_taxon())
                 logging.error("Lineage and Entrez lineage extra information list don't match. Current state:\n"
                               "taxon = {0}\n"
                               "taxon_info = {1}\n".format(taxon, str(taxon_info)))
@@ -224,9 +226,12 @@ class TaxonomicHierarchy:
             previous = self.digest_taxon(taxon, rank, rank_prefix, previous)
 
         if len(taxa) > 0 or len(lineage_ex) > 0:
+            if previous:
+                self.remove_leaf_nodes(previous.prefix_taxon())
             logging.error("Not all elements popped from paired lineage and lineage_ex information.\n"
                           "lineage list = {0}\n"
                           "lineage information dictionary = {1}\n".format(taxa, lineage_ex))
+            sys.exit(11)
 
         # Update the number of lineages provided to TaxonomicHierarchy
         self.lineages_fed += 1
@@ -462,7 +467,7 @@ class TaxonomicHierarchy:
                     if taxon.coverage == 0:
                         self.hierarchy.pop(taxon.prefix_taxon())
                         # Update self.lin_fed
-                        self.lineages_fed -= 1
+                self.lineages_fed -= 1
 
         # Update self.trie is the number of lineages fed is not equal to number of lineages in the trie
         self.trie_check()
@@ -543,125 +548,3 @@ class TaxonomicHierarchy:
         logging.debug("{0} lineages truncated before '{1}' were removed during lineage trimming.\n".format(truncated,
                                                                                                            rank))
         return trimmed_lineage_map
-
-    # TODO: Move these to tests
-    def test_feed(self):
-        print("Testing feed()")
-        dup_lineage = "cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Actinomycetales; Actinomycetaceae; Actinomyces; Actinomyces nasicola"
-        trunc_lineage = "cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria"
-        diff_lineage = "cellular organisms; Bacteria; Terrabacteria group; Actinobacteria; Actinobacteria; Bifidobacteriales; Bifidobacteriaceae; Bifidobacterium"
-        dup_lineage_ex = [{'TaxId': '131567', 'ScientificName': 'cellular organisms', 'Rank': 'no rank'},
-                          {'TaxId': '2', 'ScientificName': 'Bacteria', 'Rank': 'superkingdom'},
-                          {'TaxId': '1783272', 'ScientificName': 'Terrabacteria group', 'Rank': 'no rank'},
-                          {'TaxId': '201174', 'ScientificName': 'Actinobacteria', 'Rank': 'phylum'},
-                          {'TaxId': '1760', 'ScientificName': 'Actinobacteria', 'Rank': 'class'},
-                          {'TaxId': '2037', 'ScientificName': 'Actinomycetales', 'Rank': 'order'},
-                          {'TaxId': '2049', 'ScientificName': 'Actinomycetaceae', 'Rank': 'family'},
-                          {'TaxId': '1654', 'ScientificName': 'Actinomyces', 'Rank': 'genus'},
-                          {'ScientificName': "Actinomyces nasicola", 'Rank': "species"}]
-        trunc_lineage_ex = [{'TaxId': '131567', 'ScientificName': 'cellular organisms', 'Rank': 'no rank'},
-                            {'TaxId': '2', 'ScientificName': 'Bacteria', 'Rank': 'superkingdom'},
-                            {'TaxId': '1783272', 'ScientificName': 'Terrabacteria group', 'Rank': 'no rank'},
-                            {'TaxId': '201174', 'ScientificName': 'Actinobacteria', 'Rank': 'phylum'},
-                            {'TaxId': '1760', 'ScientificName': 'Actinobacteria', 'Rank': 'class'}]
-        diff_lineage_ex = [{'TaxId': '131567', 'ScientificName': 'cellular organisms', 'Rank': 'no rank'},
-                           {'TaxId': '2', 'ScientificName': 'Bacteria', 'Rank': 'superkingdom'},
-                           {'TaxId': '1783272', 'ScientificName': 'Terrabacteria group', 'Rank': 'no rank'},
-                           {'TaxId': '201174', 'ScientificName': 'Actinobacteria', 'Rank': 'phylum'},
-                           {'TaxId': '1760', 'ScientificName': 'Actinobacteria', 'Rank': 'class'},
-                           {'TaxId': '85004', 'ScientificName': 'Bifidobacteriales', 'Rank': 'order'},
-                           {'TaxId': '31953', 'ScientificName': 'Bifidobacteriaceae', 'Rank': 'family'},
-                           {'TaxId': '1678', 'ScientificName': 'Bifidobacterium', 'Rank': 'genus'}]
-        self.feed(lineage=dup_lineage, lineage_ex=dup_lineage_ex)
-        self.feed(lineage=trunc_lineage, lineage_ex=trunc_lineage_ex)
-        self.feed(lineage=diff_lineage, lineage_ex=diff_lineage_ex)
-        print(self.hierarchy)
-        return
-
-    def test_emit(self):
-        print("Testing emit()")
-        taxon = "g__Actinomyces"
-        print(self.emit(taxon))
-        print(self.emit("g__Bifidobacterium"))
-        return
-
-    def test_check_lineage(self):
-        print("Testing check_lineage()")
-        t1_lineage = "n__cellular organisms; d__Bacteria; n__Terrabacteria group; p__Actinobacteria; c__Actinobacteria"
-        t1_organism = "Actinobacteria"
-        t2_lineage = "d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales; f__Actinomycetaceae; g__Actinomyces"
-        t2_organism = "s__Actinomyces nasicola"
-        t3_lineage = "d__Archaea"
-        t3_organism = "Archaea"
-        t4_lineage = "d__Bacteria; p__Cyanobacteria; o__Synechococcales; f__Prochloraceae; g__Prochlorococcus"
-        t4_organism = "s__Prochlorococcus marinus"
-        r = self.check_lineage(lineage=t1_lineage, organism_name=t1_organism)
-        print("Test one complete:", r)
-        r = self.check_lineage(lineage=t2_lineage, organism_name=t2_organism)
-        print("Test two complete:", r)
-        self.feed(lineage="cellular organisms; Archaea; Euryarchaeota",
-                  lineage_ex=[{'TaxId': '131567', 'ScientificName': 'cellular organisms', 'Rank': 'no rank'},
-                              {'ScientificName': 'Archaea', 'Rank': 'domain'},
-                              {'ScientificName': 'Euryarchaeota', 'Rank': 'phylum'}])
-        self.feed("Bacteria; Cyanobacteria; Synechococcales; Prochloraceae; Prochlorococcus",
-                  [{'ScientificName': 'Bacteria', 'Rank': 'domain'},
-                   {'ScientificName': 'Cyanobacteria', 'Rank': 'phylum'},
-                   {'ScientificName': 'Synechococcales', 'Rank': 'order'},
-                   {'ScientificName': 'Prochloraceae', 'Rank': 'family'},
-                   {'ScientificName': 'Prochlorococcus', 'Rank': 'genus'}])
-        r = self.check_lineage(lineage=t3_lineage, organism_name=t3_organism)
-        print("Test three complete:", r)
-        r = self.check_lineage(lineage=t4_lineage, organism_name=t4_organism)
-        print("Test four complete:", r)
-
-        return
-
-    def test_clean_lineage_string(self):
-        print("Testing clean_lineage_string()")
-        l1 = "n__cellular organisms; d__Bacteria; n__Terrabacteria group"
-        l2 = "d__Bacteria"
-        self.include_prefix = False
-        print(self.clean_lineage_string(l1) == self.clean_lineage_string(l2))
-        self.include_prefix = True
-        print(self.clean_lineage_string(l1) == self.clean_lineage_string(l2))
-        return
-
-    def test_remove_leaf_nodes(self):
-        print("Testing remove_leaf_nodes()")
-        self.remove_leaf_nodes("p__Euryarchaeota")  # To test whether conversion of single string to set works
-
-    def test_trim_lineages_to_rank(self):
-        print("Testing trim_lineages_to_rank()")
-        dict_in = {'1': 'd__Archaea; p__Candidatus Bathyarchaeota',
-                   '2': 'd__Archaea; p__Candidatus Micrarchaeota',
-                   '3': 'd__Archaea; p__Euryarchaeota',
-                   '4': 'd__Bacteria',
-                   '7': 'd__Bacteria; p__Acidobacteria',
-                   '9': 'd__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales;'
-                        ' f__Actinomycetaceae; g__Actinomyces; s__Actinomyces nasicola'}
-        out = self.trim_lineages_to_rank(dict_in, "class")
-        print(out)
-
-    def test_rank_representatives(self):
-        print("Testing rank_representatives()")
-        print(self.rank_representatives("domain"))
-        print(self.rank_representatives("class"))
-        print(self.rank_representatives("species"))
-
-
-def main():
-    th = TaxonomicHierarchy()
-    th.test_clean_lineage_string()
-    th.test_feed()
-    th.test_trim_lineages_to_rank()
-    th.test_emit()
-    th.build_multifurcating_trie()
-    th.test_check_lineage()
-    print(th.hierarchy)
-    th.test_remove_leaf_nodes()
-    print(th.summarize_taxa())
-    th.test_rank_representatives()
-
-
-if __name__ == "__main__":
-    main()
