@@ -1,4 +1,4 @@
->1_napA
+>1_NapA
 --------------------M---------------TI----------NN-PQ-------
 ------------------------------VKRRDLLKAGVAASAA--------------
 -------------------MTVG-------IPL----------SE-------------VA
@@ -23,7 +23,7 @@ AIPTGNLFGV-T-DPKPVPL--PN--KAKIFFRP----------------YAAP-VEQP-
 --DKEYDLWLCTGRILEHWHTGSMTMRVPELERAQANSFLYMNPKDAEKRGLNNGDVAVC
 ESRRGQVKAIVQTNQRNFMPRGMTWLAFFDRK--VQTNQVVIDATDPISEEPDFKKSAVK
 VY---KAQ------------------------
->2_napA
+>2_NapA
 ------------------------------------------------------------
 ------------------------------MKRRNFLKVVGVTGAG--------------
 ------------------IAAFS----------------------------------CDD
@@ -48,7 +48,7 @@ R--ETR-GQL------WPV-V---------------DGK---------------------
 --DGEYPLWLTTGRVLEHWHTGSMTRRVKQLHQAIPEAFVEVNRADARELGIKQGDRVRL
 VTRRGSLELDAEVDGRGKPPRGMLFVPFFDES--KLINRLTLDAMDNISKEPDYKKCAAR
 LE---RV-------------------------
->3_napA
+>3_NapA
 --------------------M---------------S-----------------------
 ------------------------------ISRREFLESAAAASAL-A------------
 -------------------ALSG-------LPR-------------------------PA
@@ -73,7 +73,7 @@ R--QAH-GIL------WPAPT---------------ADH----P----------------
 --DADYPMYYTTGRVIEHWHTGTMTRTCKELVHANAEAVAEMHPADAAKLGVKTGDKVKI
 SSRRGSEVFKVKVTD--TSRENLVFVHMHDDQ--HLCNLITIDALDPISKQPEFKICGVK
 VD---KA-------------------------
->4_napA
+>4_NapA
 ------------------------------------------------------------
 ------------------------------------------------------------
 ------------------------------------------------------------
@@ -98,7 +98,7 @@ KIPEGTLYGP-K-KGTKVDL--TN--KAKIFFRP----------------YMEP-PEVP-
 --DKEYPFWLATGRVLEHWHSGTMTMRVPELYRAVPEAYCYMHPEDAKKIGVKEGELVWI
 ESRRGRIKARVKTRGRNRPPRGLVFVPWFDER--VYINKVTLDQRCPISKQTDYKKCAVK
 IY---PA-------------------------
->5_napA
+>5_NapA
 --------------------M---------------G-----------------------
 ------------------------------LTRREFLKRMAAITAA--------------
 -------------------SMVG-------LNL----------PIELG----------KD
@@ -123,7 +123,7 @@ M--KRPDGVQ------WPAPT---------------VEI-AMKG----------------
 --DAEYPFYLSTGRVIDHWHTSSMTGRIAELLRANPYAYVEINPKDAKRLGIKPNDMVEV
 ETRRGKIHLPAKVVE--GPIEGMVFVYWHDMAEDRMANRVTKDAFDPGSKEPEYKICACR
 IR---KVSGPKPLRPFVVGMSKPI--------
->6_napA
+>6_NapA
 ------MEVK--EREKRETGF---------------E-----------------------
 ------------------------------LSRRDFLKTAAAVSAA--------------
 -------------------AAVG-------MKV----------PE-------------EA
@@ -148,7 +148,7 @@ SLPKGDLFGP-K-TKQKFSL--KN--KAKIFFRP----------------YMDP-PETP-
 --DSEYPFWLATGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPADAKKLGVKDGELVWV
 ESRRGKVKARVETRGRNRPPRGLVFVPWFDER--VYINKVTLDATCPISKQTDYKKCAVK
 IY---KA-------------------------
->7_napA
+>7_NapA
 ------MEEK------ENVAL---------------E-----------------------
 ------------------------------ISRRDFLKTVAAVSAA--------------
 -------------------TAIG-------MEI----------PE-------------EV
@@ -173,7 +173,7 @@ KIPKGNLHGP---SQEMVDL--KN--KAKIFFRP----------------YMDP-PEVP-
 --DEKYPIWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPKDAEKIGVKDGELVWV
 ESRRGKVKARVATRGRNRPPRGLVFVPWFDER--VYINKVTLDQTCPISKQNDFKKCAVK
 IY---KA-------------------------
->8_napA
+>8_NapA
 --------------------M---------------------------------------
 ------------------------------LSRRDFIKLSAAVATA--------------
 -------------------AAAG-------INL-------------------------SS
@@ -198,7 +198,7 @@ K--NEKAGVQ------WPCPY---------------PDH----P----------------
 --DQEYPFFLTTGRVIEHWHTSTMTMRIPEISRAQPYSFVEIHPEDAKKYGITNGDMVEV
 ASRRGKVVLPAVITQ--KSLPGILFIPMHDQHIDRMINFVCNDAVDPGSFEPEYKVAAVK
 IR---KVSGPVKLKDKYIISDV---NEKFV--
->9_napA
+>9_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRRDFIKLSIASATA--------------
 -------------------ASIG-------LSL-------------------------PK
@@ -223,7 +223,7 @@ K--KEKAGIQ------WPCPY---------------PGH----P----------------
 --DAEYPFYLTTGRVIAHWHTGTMTMRIPEIARSYPYAYVEIHPDDAKKYNIFEGDLVEI
 VSRRGKAILPARITK--NSLPGILFVPWFDQEISRMINFVCNDAVDPGSKEPEFKIAAVK
 IR---KHTGATKLTEKVIISDI---NSNYY--
->10_napA
+>10_NapA
 --------------------M---------------N-----------------------
 ------------------------------VSRRNFIKLSAAAATA--------------
 -------------------ASVG-------INF-------------------------PQ
@@ -248,7 +248,7 @@ K--KEPAGLQ------WPCPS---------------IDH----P----------------
 --SAAYPFYLTTGRVIEQWHTGTMTMRVPELARAHPNAYVEIHPDDAKKYNITSGDMIKI
 TSRRGTSILPAVIVE--NSMPGILFVPWFDQRISEMINFVCNDAVDKGSKEPEFKIAAVK
 IE---RISGPKNVADRYVIKDI---NSEFPGV
->11_napA
+>11_NapA
 --------------------M---------------D-----------------------
 ------------------------------ISRRNLIKTSLAASAA--------------
 -------------------AAAG-------ITLGC-----------------------KK
@@ -273,7 +273,7 @@ K--ESTTGVQ------WPCPS---------------EDH----P----------------
 --SKEYPFLMTTGRVIEQWHTGTMTMRIPETASAHPNSYIEIHVQDAKKLGLSQGDMVRV
 ESIRGMNILPVKIVN--MTLEGVCFVPMHDQKGNRMVNFICSDVVDATSGEPDYKVSAVK
 IV---KISGPEKVDDRYVVTKEELDNPTFS--
->12_napA
+>12_NapA
 ------------------------------------------------------------
 ----------------------MESGK---LTRRELLQ----RLSA--------------
 -------------------LAGG-------LIL--------TGPIS------GCEGFWQR
@@ -298,7 +298,7 @@ K--KER-GIL------WPAPT---------------EDH----P----------------
 --SDEYPLTLVTGRVYEHWHTLTITGKLEELEDITTD-FLVVHPRDAHRYGIRDGAPVLV
 ESQRGRAVLKARVST--DITPGIVFAPFHSPE--ALVNRVVNNTVDPISKEPAFKESAVR
 IQ---PASSAA---------------------
->13_napA
+>13_NapA
 ------MSNKK-------DDL---------------N-----------------------
 ------------------------------LSRRDFLKLTGGTVAVGGA-----------
 -------------------ALSGWGL----TEL---------------------------
@@ -323,7 +323,7 @@ R--TER-GIQ------WPCPS---------------EDH----P----------------
 --SEERPLFLTTGRVISQWHTGTMTFRVPELNHSAGPGRFVFHPSDAGAQGVKKGDKIEV
 ESSRGKMEGIVDISR-DHETPGVVFAAFYDQK--FLVNNVVSDDHDPVSKEPDYKVTAIS
 VK---KLS------------------------
->14_napA
+>14_NapA
 --------------------M---------------N-----------------------
 ------------------------------LSRRDFLKLTGGTVAVGGA-----------
 -------------------ALSGWGL----TEL---------------------------
@@ -348,7 +348,7 @@ K--KER-GIQ------WPCPS---------------EDH----P----------------
 --SEDKPLFLTTGRVISQWHTGTMTYRISELKHSAGPGRFVFHPQDAGLNNVKKGDKIEV
 ESSRGKMQGIVDISD--HETPGVVFGAFYDAK--FLVNNVVSDDHDPISKEPDYKVTAIK
 VK---KV-------------------------
->15_napA
+>15_NapA
 --------------------M---------------NQ----------------------
 ------------------EETDYIEG----LSRREFL----RLASL--------------
 -------------------GS-G-------MV-----------FL---GGCGDIRELWQR
@@ -373,7 +373,7 @@ S--QER-GFT------WPCPT---------------EDH----P----------------
 --SEEYPFILTTGRVLEHWHTDTITGRLEELQRVPVD-FVEVHPADAARLNLQQDMHVMV
 RSKRGGDVFRVRITE--NVREGLIFSTFHSIK--RIINHATTEAYDPQSKQPAYKYCAVT
 LE---PVQV-----------------------
->16_napA
+>16_NapA
 --------------------MYTS-----------TL-----------------------
 ------------------------------TDRREFIKKMAILSAM--------------
 -------------------TAAATMFP--GIIFAE------------------------E
@@ -398,7 +398,7 @@ K--KES-GAI------WPY-V---------------DGK---------------------
 --DAAYPFWLNTGRVIEHWHTGSMTRRIPVLHKAMPGAYVEFHPEDAEALGIRNGENIKV
 SSRRGSCVLPASINERGLPTKGQVFVPFFDEN--MLINDVTLDAFCPISKEPDYKKCAVK
 VE---KA-------------------------
->17_napA
+>17_NapA
 --------------------MYDS------------V-----------------------
 ------------------------------TNRRSFIKKMAMLSAI--------------
 -------------------TAAASMFP--GIIFAS------------------------E
@@ -423,7 +423,7 @@ K--KES-GAI------WPY-V---------------DGK---------------------
 --DQEYPFWLNTGRVVEHWHTGSMTRRIPVLHQAMPNAYVEFHPDDAKSLGVRNGENIKV
 TSRRGSCVLPASINERGLPTKGQVFVPFFDEN--MLINDVTLDAFCPISKEPDYKKCAVK
 VE---RV-------------------------
->18_napA
+>18_NapA
 --------------------MIQE------------S-----------------------
 ------------------------------IDRRSFIKKMAAVAAM--------------
 -------------------TTAATMFP--GIIFAS------------------------E
@@ -448,7 +448,7 @@ K--KES-GAI------WPY-V---------------NGK---------------------
 --DQEFPFWLNTGRVIEHWHTGSMTRRIPVLHKAMPHAYVEFHPEDAKTLGIRNGEKVKV
 TSRRGSCTLPASINQRGLPTRGQVFVPFFDES--MLINDVTLDAFCPISKEPDYKKCAVK
 VE---RV-------------------------
->19_napA
+>19_NapA
 --------------------MHDT------------L-----------------------
 ------------------------------LNRRNFIKKMAIMSAM--------------
 -------------------TAAATMFP--GIIFAD------------------------E
@@ -473,7 +473,7 @@ K--RES-GVI------WPY-V---------------DGK---------------------
 --DSEYPFWLNTGRVIEHWHTGSMTRRIPVLHKAMPHAYVELHPDDAARLGIVNGEKLKV
 TSRRGSCVLPASINERGLPTKGQVFVPFFDEN--MLINDVTLDAFCPISKEPDYKKCAVK
 VE---KA-------------------------
->20_napA
+>20_NapA
 --------------------MSAS------------L-----------------------
 ------------------------------TSRRSFIKKMAATAAM--------------
 -------------------TAAATMFP--GIIFAS------------------------E
@@ -498,7 +498,7 @@ K--KES-GAI------WPY-V---------------EGK---------------------
 --DETYPFWLNTGRVIEHWHTGSMTRRIPVLHKAVPNAYVELHPEDAKKMHIRNGENVKV
 TSKRGSCVLPASINERGLPTRGQIFVPFFDEN--MMINDVTLDAFCPISKEPDYKKCAVK
 IE---KA-------------------------
->21_napA
+>21_NapA
 --------------------MSAP------------L-----------------------
 ------------------------------IDRRNFIKKMAILSAM--------------
 -------------------TAATTMFP--GIMFAE------------------------E
@@ -523,7 +523,7 @@ K--SQP-GAQ------WPY-V---------------NGK---------------------
 --DNEYPYWLCTGRVIEHWHSGSMTRRVPILHKAMPHSYVEINPDEAKELQIKTGDKVRL
 TTRRGTMILPASVNERGVPVRRQVFVPFFDEN--LLINDLTLDAFCPISKQPDYKKCAVK
 IE---KV-------------------------
->22_napA
+>22_NapA
 --------------------MYTS------------L-----------------------
 ------------------------------SNRRSFLKKMAVLSAM--------------
 -------------------TAAATMFP--GILFAE------------------------E
@@ -548,7 +548,7 @@ K--ENP-GMQ------WPY-V---------------EGK---------------------
 --DQEYPFWLNTGRVVEHWHTGSMTRRIPVLHKAMPHAYVELNPDDAERMQIKNGDKVRL
 TTRRGEIILPASIKQRGIPAPMQVFVPFFDES--MLINDITLDSFCPISKEPDYKKCAVR
 VE---KA-------------------------
->23_napA
+>23_NapA
 ------------------------------------------------------------
 ------------------------------MRRRAFLETLGAGAAG--------------
 ------------------IAAYS----------------------------------CAD
@@ -573,7 +573,7 @@ T--QTR-GML------WPV-V---------------NGV---------------------
 --DGEYPFWLCTGRVLEHWHSGSMTRRVKQLHQAVPHAYVELNRADAERLGVRSGQEVRV
 VSRRGSLELPVQLDGRGQPPAGSVFIPFFDER--LLANVLTLDAMDNISKQPDFKKCAVR
 LE---RV-------------------------
->24_napA
+>24_NapA
 --------------------M-DA------------K-----------------------
 ------------------------------ISRRNFLKQSSIIAST--------------
 -------------------IGSS-------VYL---------NPFMSY------------
@@ -598,7 +598,7 @@ H--KTR-GLR------WPV-V---------------KGK---------------------
 --NADYPFWLCTGRVLEHWHSGTMTGRVESLNAAYPQATANMHPEDAKKLDLRHGDKIKI
 SSKRGEVVLQTDINGRVTPQKGMVFVPWFDEE--ILINRVTLDAYCPISKQTDFKKCAVK
 IE---KI-------------------------
->25_napA
+>25_NapA
 --------------------MVPRRLQKAVAGFATANRVSTILFALDLNRPIKSVIEHLS
 LRHWRTSTVSPEQGCLMIDGTDEPTGF---ISRRDLLKL--AGTSA--------------
 -------------------CAAC-------LL-----------PLT------GCENLWKR
@@ -623,7 +623,7 @@ K--QER-GLL------WPCPS---------------ETH----P----------------
 --TPEFPLLFNTGRILEHWHTMTITGRVPTLQFIHPD-YLEIHPYDAHALTIRDGEPVIV
 TSRRGEIELRARVTD--AVRPGTVFATMHSAR--HLINQVTQAAHDPFSKQPAYKRCAVS
 VR-RKPV-------------------------
->26_napA
+>26_NapA
 -------------------MM---------------D-----------------------
 ------------------------------SKRRNFLKSAAMAAAG--------------
 -----------------S-MVAGNTS------L----------PVV--------------
@@ -648,7 +648,7 @@ V--KAR-GLR------WPV-V------EQE------DGS-----W--------------R
 --DDEFPMWLCTGRVLEHWHTGTMTRRLAPLNRAMPTAYVEMHMEDAKAANIRQGEVVTI
 ESRRGVCDLPVWIDGRGRPPRGTVFVPFFDET--KLINNVTLDAHDPFSKQPDYKKCAVR
 VV---KKADAKVSS------------------
->27_napA
+>27_NapA
 -------------------MM---------------D-----------------------
 ------------------------------SKRRDFLKSAAMAAAG--------------
 -----------------S-MVAGN------TSL----------PVV--------------
@@ -673,7 +673,7 @@ V--KAR-GLR------WPV-V------EQD------DGS-----W--------------R
 --DEEYPMWLCTGRVLEHWHTGTMTRRLAPLNRAMPTAYVEMHMEDAKAANIRQGEVVIV
 ESRRGKCELPVWIDGRGRPPRGSIFVPFFDET--KLINDVTLDAHCPISKQPDYKKCSAR
 VV---KKT-AEVPS------------------
->28_napA
+>28_NapA
 --------------------M---------------D-----------------------
 ------------------------------NTRRAFMKQAAMAAAT--------------
 -----------------A-AAARSGSA---FAL----------PVV--------------
@@ -698,7 +698,7 @@ V--KAR-GLR------WPV-V------QQA------DGS-----W--------------R
 --DDEYPLWLCTGRVLEHWHSGSMTRRVSQLNRAMPTAYIEVHPEDASALNIRQGEVVTV
 ESRRGTCDLPVWINGRGQPPKGSIFVPFFDET--KLINNVTLEAHDPFSKQPDYKKCAVR
 IR---KQD-AEVAKK-----------------
->29_napA
+>29_NapA
 M-----------------KMM---------------N-----------------------
 ------------------------------SDRREILKSAAMAAAG--------------
 -----------------S-LVTG-------GSL----------PVV--------------
@@ -723,7 +723,7 @@ V--KAR-GLR------WPV-V------EQQ------DGS-----W--------------R
 --DEDYPLWLCTGRVLEHWHTGSMTRRVTQLSRAMPTGYVEMNKEDAKDANIRQGETVVV
 ESRRGSCQLPVWIDGRGRPPRGTIFVPFFDET--KMINNVTLEAYCPISKQPDYKKCAAR
 VR---KMTEADS--------------------
->30_napA
+>30_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRAFIKANAVAATA--------------
 -------------------AVAG-------VTI----------PG-------------VK
@@ -748,7 +748,7 @@ H--KAR-GLR------WPV-L---------------NGK---------------------
 --DKEYDLWLSTGRVLEHWHSGSMTRRVPELYRAFPDAVIFIHPNDAEKRGLKRGMVAKV
 QSRRGEITLRVETRGRNRVPEGLVFIPWFDAG--RLVNKLTLDATDPLSKETDYKKCAVK
 VL---RA-------------------------
->31_napA
+>31_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDYIKANAVAVAA--------------
 -------------------GVAG-------MTA----------P----------------
@@ -773,7 +773,7 @@ H--KER-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLSTGRVLEHWHSGSMTQRVPELYKAFPDAVVFMHPDDAGKRGLRRGQEVKI
 ISRRGEMVTRVETRGRNKPPKGLVFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 IV---ATGRA----------------------
->32_napA
+>32_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRREYIKAHAIAAAA--------------
 -------------------AAAG-------MPVAA--------PTE--------------
@@ -798,7 +798,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DAEYDMWLCTGRVLEHWHSGSMTRRVPELYRAMPDAMVYMHPNDAAKRGLKRGMSARL
 ITRRGEVIARVETRGRNRVPEGLIFIPWFDAS--RLVNKLTLDATCPISKETDYKKCAVK
 VL---KA-------------------------
->33_napA
+>33_NapA
 --------------------M---------------A-----------------------
 ------------------------------LTRRELLKAHAAAVAA--------------
 -------------------AAAN-------ISL----------P----------------
@@ -823,7 +823,7 @@ H--GNR-GMR------WPV-V---------------DGK---------------------
 --DKDYDIWLVTGRVLEHWHSGSMTMRVPELYKAFPGARVFMHAEDARARGINQGAEVRV
 VSRRGEIRTRVDTQGRNRMPRGVVFVPWFDAS--QLINKATLDATDPISKQTDFKKCAVK
 IV---PV-------------------------
->34_napA
+>34_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRRDMLKAQAAAIAA--------------
 -------------------AAAN-------ISV----------P----------------
@@ -848,7 +848,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DKEFDLWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMHAEDARERGVNQGAEIKL
 TSRRGEIRTRVDIRGRNRMPRGVVFVPWFDAS--QLINKTTLDATDPISKQTDFKKCAIR
 IT---PV-------------------------
->35_napA
+>35_NapA
 --------------------M---------------T-----------------------
 ------------------------------LSRREMLKAQAAGVAA--------------
 -------------------LAAN-------MSV----------P----------------
@@ -873,7 +873,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DTEYDLWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMHPEDARKRGLNQGAEIRL
 ISRRGEMRTRVETRGRNRMPPGVVFVPWFDAS--QLINKTTLDATDPISKQTDFKKCAVK
 IV---PVSG-----------------------
->36_napA
+>36_NapA
 --------------------M-TV-----------PK-----------------------
 ------------------------------IDRRQMLKLEAAAIAS--------------
 -------------------VAGG-------MPM----------P----------------
@@ -898,7 +898,7 @@ H--RER-GLR------WPV-V---------------NGQ---------------------
 --DDQYPFWLSTGRVLEHWHSGTMTRRVPELYRAVPEAVCFMHPDDAQEAKLRRGDEVKV
 ISRRGFIRARLETRGRDRPPRGLVFVPWFDES--KLINKVTLDATDPISLQTDFKKCAVR
 IE---KV-------------------------
->37_napA
+>37_NapA
 ------M-------------M-TS-----------PK-----------------------
 ------------------------------LDRRQMLKLEAAAIAA--------------
 -------------------AAAG-------LPV----------P----------------
@@ -923,7 +923,7 @@ H--KER-GLR------WPV-V---------------NGQ---------------------
 --DGEYPFWLSTGRVLEHWHSGTMTRRVPELYKAFPEAVCFMHPDDAQEAKIRRGDEVKV
 VSRRGFIRVRVETRGRDRPPRGLVFVPWFDES--KLINKVTLDATDPISLQTDFKKCAVR
 IE---RVNVS----------------------
->38_napA
+>38_NapA
 ------------------------------------------------------------
 ------------------------------------------------------------
 ------------------------------IAA----------P----------------
@@ -948,7 +948,7 @@ H--EVR-GLR------WPV-V---------------NGK---------------------
 --DKEYDVWLVTGRVLEHWHSGSMTMRVPELYKAYPGARVYMHAEDARARGINEGAEVRV
 VSRRGEIRSRVDTKGRNRMPRGVVFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 II---PA-------------------------
->39_napA
+>39_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRRELLKAQAAAVAA--------------
 -------------------AAAG-------MTV----------P----------------
@@ -973,7 +973,7 @@ H--EVR-GLR------WPV-V---------------NGK---------------------
 --DKEYDIWLVTGRVLEHWHSGSMTMRVPELYKAFPGARVFMHAEDARSRGINQGAEVRV
 VSRRGEIRTRVDTKGRNRMPRGVVFVPWFDAS--QLINKATLDATDPISKQADFKKCAVK
 II---LV-------------------------
->40_napA
+>40_NapA
 --------------------M-TT-----------PK-----------------------
 ------------------------------LDRRQVLKLEAAAMAA--------------
 -------------------LAGG-------IAM----------P----------------
@@ -998,7 +998,7 @@ H--RER-GLR------WPV-V---------------NGQ---------------------
 --DAEFPFWLSTGRVLEHWHSGTMTRRVPELYKAFPEAVCFMHPDDAAELKLRRGDEIKV
 ESRRGFIRTRVETRGRNKPPRGLVFVPWFDEA--QLINKVTLDATDPISLQTDYKKCAVR
 IE---RVTAS----------------------
->41_napA
+>41_NapA
 --------------------M---------------T-----------------------
 ------------------------------LSRRDMLKAQAASVAA--------------
 -------------------MAAG-------IHT---------------------------
@@ -1023,7 +1023,7 @@ H--KER-GLR------WPV-V---------------DGK---------------------
 --DTEFDLWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMHPDDARQRGLNQGAEIRL
 ISRRGEIRTRVETRGRNRMPPGVVFVPWFDAS--QLINKATLDATDPISKQTDFKKCAVK
 VV---PV-------------------------
->42_napA
+>42_NapA
 --------------------M---------------T-----------------------
 ------------------------------LTRRDMIKAHAAGVAA--------------
 -------------------AAAG-------ITL----------P----------------
@@ -1048,7 +1048,7 @@ H--RVR-GLR------WPV-V---------------EGK---------------------
 --DEEFDMWLVTGRVLEHWHSGSMTMRVPELYKAFPGALCYMHPQDARERGFNRGMEIRV
 VSRRGDMRTRLETRGRNRPPRGVIFVPWFDAS--QLINKVTLDANDPISRQTDFKKCAVK
 IE---RV-------------------------
->43_napA
+>43_NapA
 --------------------M---------------D-----------------------
 ------------------------------VSRRTVLKAQAAAAAA--------------
 -------------------AVAG-------IDL----------P----------------
@@ -1073,7 +1073,7 @@ H--EVR-GLR------WPV-V---------------DGK---------------------
 --DQEYDLWLVTGRVLEHWHSGSMTMRVPELYRAFTGAVMFMHPDDAQKRGLRRGQEVRI
 VSRRGEIRSRVETRGRNTMPPGRVFVPFFDAS--QLINKATLDATDPISKQTDFKKCAVK
 VI---GVAMTERGAE-----------------
->44_napA
+>44_NapA
 --------------------M---------------D-----------------------
 ------------------------------LTRRTVLKAQAAAAAA--------------
 -------------------AAAG-------ISL----------P----------------
@@ -1098,7 +1098,7 @@ H--QVR-GQR------WPV-V---------------NGK---------------------
 --DDEFDLWLVTGRVLEHWHSGSMTLRVPELYRAFPGAVLFMHPDDATKRHLRRGQEVRI
 ISRRGEIRSRVETRGRNKMPPGVVFVPFFDAS--QLVNKLTLDATDPISKQTDFKKCAVK
 VV---LAASADAGRQP----------------
->45_napA
+>45_NapA
 --------------------M---------------D-----------------------
 ------------------------------LTRRTLLKTQAAAAAA--------------
 -------------------AAAG-------VSL----------P----------------
@@ -1123,7 +1123,7 @@ H--QVR-GLR------WPV-V---------------NGQ---------------------
 --DGEYDLWLVTGRVLEHWHSGSMTLRVPELYRAFPGAILFMHPDDAAKRNLRRGQEVRL
 VSRRGEIRTRVETRGRNRMPPGVVFVPFFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 VV---AANVADAGSTQQ---------------
->46_napA
+>46_NapA
 --------------------M---------------T-----------------------
 -------------------------AE---LNRRELLKAQAAAVAA--------------
 -------------------ATAG-------IAL----------P----------------
@@ -1148,7 +1148,7 @@ H--EVR-GLR------WPV-V---------------DGK---------------------
 --DDEFDIWLVTGRVLEHWHSGSMTLRVPELYKAFPGARCFMNADDARKRGINQGAEVRV
 ISRRGEIRSRIETRGRNRMPSGVIFVPWFDAS--QLINKVTLDATDPISKQTDYKKCAVK
 IV---PVA------------------------
->47_napA
+>47_NapA
 --------------------M---------------T-----------------------
 -------------------------TE---LTRREVLKAHAAGIAA--------------
 -------------------AAAG-------ISL----------P----------------
@@ -1173,7 +1173,7 @@ H--EER-GLR------WPV-V---------------DGK---------------------
 --DDEFDLWLVTGRVLEHWHSGSMTMRVPELFRAFPGARCFMNADDARKRGLNQGAEIRI
 ISRRGEIRSRLETRGRNRMPSGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IV---SAA------------------------
->48_napA
+>48_NapA
 --------------------M---------------T-----------------------
 -------------------------AS---INRRDLLKAHAASLAA--------------
 -------------------ASAG-------IAL----------P----------------
@@ -1198,7 +1198,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --NDEYDIWLVTGRVLEHWHSGSMTMRVPELYKAFPGAVCFMNADDARRRGINQGAEVRV
 VSRRGEIRVRVETRGRNRMPRGVVFVPWFDAS--KLINKVTLDATDPISKQTDFKKCAVK
 VI---PV-------------------------
->49_napA
+>49_NapA
 --------------------M---------------S-----------------------
 -------------------------SE---LTRRDLLKAHAAGIAA--------------
 -------------------ATAG-------IAL----------P----------------
@@ -1223,7 +1223,7 @@ H--EVR-GMR------WPV-V---------------DGK---------------------
 --DAEFDTWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMNADDARKRGLNQGAEIRI
 VSRRGEIRSRVETRGRNRMPPGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IE---PVA------------------------
->50_napA
+>50_NapA
 --------------------M---------------S-----------------------
 ------------------------KTES--LTRRDVLKAQAAAIAA--------------
 -------------------TAAG-------ITL----------P----------------
@@ -1248,7 +1248,7 @@ H--DVR-GLR------WPV-V---------------NGQ---------------------
 --DDEYDFWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMNAEDARKRGINQGAEVRI
 ISRRGEIRSRIDIRGRNRMPPGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IV---SAI------------------------
->51_napA
+>51_NapA
 --------------------M---------------N-----------------------
 -------------------------AE---LTRRNLLKAHAAGIAA--------------
 -------------------TTAG-------IAL----------P----------------
@@ -1273,7 +1273,7 @@ H--EVR-GLR------WPV-V---------------DGK---------------------
 --DEEYDVWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMNADDARKRGINQGAEVRI
 ISRRGEMRSRVETRGRNRMPPGLIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IV---PVA------------------------
->52_napA
+>52_NapA
 --------------------M---------------T-----------------------
 -------------------------GT---LTRRDILKAHAAGIAA--------------
 -------------------ATAG-------IAL----------P----------------
@@ -1298,7 +1298,7 @@ H--EVR-GLR------WPV-V---------------NGQ---------------------
 --DDEFDVWLVTGRVLEHWHSGSMTLRVPELFKAFPGARVFMNAEDARKRGINQGAEVRI
 VSRRGEIRSRVETRGRNRMPPGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IL---PVAI-----------------------
->53_napA
+>53_NapA
 --------------------M---------------T-----------------------
 -------------------------EA---LTRRQVLKAHAAGIAA--------------
 -------------------ATAG-------ISL----------P----------------
@@ -1323,7 +1323,7 @@ H--EVR-GLR------WPV-V---------------NGQ---------------------
 --DEEFEFWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMNADDARKRGLNQGAEVRI
 VSRRGEIRTRIDTRGRNRMPTGVIFIPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IL---PVVV-----------------------
->54_napA
+>54_NapA
 --------------------M---------------T-----------------------
 -------------------------SE---LTRRDLLKAQAAAIAA--------------
 -------------------STAG-------IAL----------P----------------
@@ -1348,7 +1348,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DEEFNFWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMNGDDARKMGINQGAEIRI
 QSRRGEIISRVDTRGRNRMPHGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IL---PVA------------------------
->55_napA
+>55_NapA
 --------------------M---------------T-----------------------
 -------------------------GE---LTRRDILKAQAAGIAA--------------
 -------------------AAAG-------IAL----------P----------------
@@ -1373,7 +1373,7 @@ H--QER-GLR------WPV-V---------------NGQ---------------------
 --DDEYDFWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMNADDARKRGINQGAEVRI
 VSRRGEIRSRIETRGRNRMPSGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IL---PVAL-----------------------
->56_napA
+>56_NapA
 --------------------M---------------S-----------------------
 -------------------------AE---LTRRDILKAHAAGIAA--------------
 -------------------ATAG-------IAL----------P----------------
@@ -1398,7 +1398,7 @@ H--EVR-GLR------WPV-V---------------NGQ---------------------
 --DEEYDTWLVTGRVLEHWHSGSMTMRVPELYKAFPGARVFMNADDARKRGINQGMEVRI
 VSRRGEIRSRVDIRGRNRMPPGVVFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IL---PVTL-----------------------
->57_napA
+>57_NapA
 --------------------M---------------T-----------------------
 -------------------------TE---LTRRDILKAHAAGIAA--------------
 -------------------ATAG-------IAL----------P----------------
@@ -1423,7 +1423,7 @@ H--EER-GLR------WPV-V---------------DGK---------------------
 --DEEFDLWLVTGRVLEHWHSGSMTMRVPELYRAFPGARCFMNADDARKRGINQGAEVRI
 MSRRGEIRSRIDTRGRNRMPPGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IV---SVA------------------------
->58_napA
+>58_NapA
 ------MSKLKERSA-----M---------------T-----------------------
 -------------------------GE---LTRREMLKAHAAGIAA--------------
 -------------------ATAG-------IAL----------P----------------
@@ -1448,7 +1448,7 @@ H--EER-GLR------WPV-V---------------DGK---------------------
 --DDEYNVWLVTGRVLEHWHSGSMTMRVPELYKAFPGAVCFMNAGDARDRGINQGAEVRI
 VSRRGEIRARVETRGRNRMPPGVIFVPWFDAS--RLINKVTLDATDPISKQTDFKKCAVK
 IV---SVA------------------------
->59_napA
+>59_NapA
 --------------------M---------------T-----------------------
 -------------------------AE---LTRRDVLKAQAAAIAA--------------
 -------------------STAG-------IAM----------P----------------
@@ -1473,7 +1473,7 @@ H--QVR-GLR------WPV-V---------------NNQ---------------------
 --DDEFGFWLVTGRVLEHWHSGSMTMRVPELYKAFPGARCFMNGDDARRLGINQGGQVKI
 QSRRGEIISRVDIRGRNRMPHGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IL---PVA------------------------
->60_napA
+>60_NapA
 --------------------M---------------T-----------------------
 -------------------------AD---LNRRQLLKAHAAALAA--------------
 -------------------SAAG-------IPL----------E----------------
@@ -1498,7 +1498,7 @@ QSDEVR-GLR------WPV-V---------------DGK---------------------
 --DEEYDMWLVTGRVLEHWHSGSMTMRVPELYKAFPGAKVFMNALDARERGLNQGMEVRI
 ISRRGEIRSRIETRGRNRMPPGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVR
 IE---AVT------------------------
->61_napA
+>61_NapA
 --------------------M---------------S-----------------------
 ------------------------------PSRREILKAQAAGVAA--------------
 -------------------LAAN-------ISL----------P----------------
@@ -1523,7 +1523,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DAEYDFWLVTGRVLEHWHSGSMTMRVPELFKAFPGARCFMHAEDARKRGLNQGAEVRV
 ISRRGEMRTRIETRGRNRMPEGVVFVPWFDAS--QLINKTTLDATDPISKQTDFKKCAVK
 IV---PV-------------------------
->62_napA
+>62_NapA
 --------------------M-NE-----------FN-----------------------
 ------------------------------ITRRSVLKAQAAATAA--------------
 -------------------AAAG-------IAL----------P----------------
@@ -1548,7 +1548,7 @@ H--EVR-GLR------WPV-V---------------DGQ---------------------
 --DADYPIWLSTGRVLEHWHSGSMTRRVPELHKAVPNALCYMHIDDAREMGLRRGDEIRV
 VSRRGSIRTRVETKGRNRPPRGLVFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVR
 IE---KV-------------------------
->63_napA
+>63_NapA
 --------------------M---------------T-----------------------
 ------------------------------TSRRTFLKATAAAATA--------------
 -------------------SAAG-------ITL----------PE---------------
@@ -1573,7 +1573,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --NEEFDLWLITGRVLEHWHSGSMTRRVPELHRSFPSAVVFMHPEDAKERGLRRGQEIVI
 SSKRGEMASRVETRGRNKPPRGSVFVPWFDES--QLINKLTLDATCPISKETDFKKCACK
 VE---RA-------------------------
->64_napA
+>64_NapA
 --------------------M-TI------------S-----------------------
 ------------------------------DSRRTFLKASAAAATA--------------
 -------------------SAAG-------IPL----------ANG-------------T
@@ -1598,7 +1598,7 @@ H--QSR-GLR------WPV-V---------------DGQ---------------------
 --DAEFDLWLCTGRVLEHWHSGSMTRRVPELHRAYPAAVVYMHPEDAKARGLRRGQEINI
 STRRGDMLSRVETRGRNKVPQGLVFVPWFDEG--QLINQLTLDATCPLSKETDFKKCACK
 VE---RA-------------------------
->65_napA
+>65_NapA
 --------------------M---------------S-----------------------
 -------------------------G----ISRRDVIKAQAVAAAA--------------
 -------------------AAAG-------LPV----------P----------------
@@ -1623,7 +1623,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DEEYPFWLSTGRVLEHWHSGSMTQRVPELYKAVPDALCYMHPDDAEALGLRRGAEVRI
 KSRRGEILTRVETRGRNKPPKGLIFVPWFDAR--QLINKVTLDATDPLSKQTDFKKCAVR
 VE---AV-------------------------
->66_napA
+>66_NapA
 --------------------M-TT------------S-----------------------
 ------------------------------ESRRTFLKATAAAATA--------------
 -------------------SAAG-------ITL----------TT--------------G
@@ -1648,7 +1648,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DDDFDLWLCTGRVLEHWHSGSMTRRVPELHRAYPSAVCYMHPDDAKARDVRRGQEILI
 STRRGEMLTRVETRGRNKPPKGLVFVPWFDES--QLINKLTLDATCPLSKETDFKKCACK
 VE---RA-------------------------
->67_napA
+>67_NapA
 --------------------M-TT------------S-----------------------
 ------------------------------ESRRTFLKATAAAATA--------------
 -------------------SAAG-------ISL----------GN--------------E
@@ -1673,7 +1673,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DETFDLWFCTGRVLEHWHSGSMTRRVPELHRAFPLAVVFMHPSDAEARGLRNGQEILV
 STRRGEVRSKLATRGRNKVPQGLVFMPWFDEG--QLTNKLTLDATCPLSKETDFKKCACK
 VE---RA-------------------------
->68_napA
+>68_NapA
 --------------------M-NG-----------PK-----------------------
 ------------------------TGPKTGLTRRDAIKAQAAAAAA--------------
 -------------------LAAG-------LPV----------P----------------
@@ -1698,7 +1698,7 @@ H--EVR-GLR------WPV-V---------------NGK---------------------
 --DEEYPMWLATGRVLEHWHSGSMTQRVPELYQAVPDALCYMHPDDAKAQGFRRGTEVRV
 ISRRGEIRTRIETRGRNKPPKGLVFVPWFDAR--RLINKVTLDATDPISKQTDFKKCAVR
 IE---AV-------------------------
->69_napA
+>69_NapA
 -------------MP-----L---------------D-----------------------
 ------------------------------LTRRQLLKAHAAALAA--------------
 -------------------SAAG-------LPQ----------Q----------------
@@ -1723,7 +1723,7 @@ QSDDVR-GLR------WPV-V---------------DGQ---------------------
 --DDEFDMWLVTGRVLEHWHSGSMTMRVPELYKAFPGAKVFMNAIDARERGLNQGMEVRI
 VSRRGEIRSRVETRGRNRMPPGVIFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVR
 VE---RV-------------------------
->70_napA
+>70_NapA
 --------------------M---------------T-----------------------
 ------------------------------ISRRDLLKAQAAGIAA--------------
 -------------------MAAN-------IPL----------S----------------
@@ -1748,7 +1748,7 @@ H--EVR-GLR------WPV-V---------------DGK---------------------
 --DEEYNIWLVTGRVLEHWHSGSMTMRVPELYRAFPGARCFMNPEDARDMGFNQGAEVRI
 VSRRGEIRSRVETRGRNRMPRGVVFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 IL---PV-------------------------
->71_napA
+>71_NapA
 --------------------M-TL------------P-----------------------
 ------------------------------SSRRSFLKATAAAATA--------------
 -------------------SAAG-------ITL----------PN---------------
@@ -1773,7 +1773,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DDEFNLWLVTGRVLEHWHSGSMTRRVPELHRSYPAAVIYMHPEDAKERDLRRGQEIEI
 STRRGSVLSRVETRGRNKMPRGVVFMPWFDEG--QLTNKLTLDATCPLSKETDFKKCACK
 IE---RA-------------------------
->72_napA
+>72_NapA
 --------------------M---------------T-----------------------
 ------------------------------LTRRDVLKSQAIAAAS--------------
 -------------------AAAG-------LST----------P----------------
@@ -1798,7 +1798,7 @@ H--QVR-GLR------WPV-V---------------DGV---------------------
 --DEDFPFWLVTGRVLEHWHSGSMTDRVPELHKAYPNAMVYMHPQDAAELGLHRGSAVKL
 TSRRGDMLTRVETRGRNKVPRGLIFVPWFDAN--QLINKLTLDATDPISKQTDFKKCACK
 VE---AV-------------------------
->73_napA
+>73_NapA
 --------------------M---I-----------K-----------------------
 ------------------------------LTRRAVIKAQAVAAAA--------------
 -------------------AAAG-------ASL----------P----------------
@@ -1823,7 +1823,7 @@ H--QER-GLR------WPV-V---------------NGK---------------------
 --DEEYDFWLCTGRVIEHWHTGTMTQRVPELYKAVPDALCYMHPDDAKAKGLRRGSEVRV
 ISRRGEITTRIETRGRNKPPKGLVFVPFFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 IV---AV-------------------------
->74_napA
+>74_NapA
 --------------------M-SI------------T-----------------------
 ------------------------------ASRRDIIKSAAVAATA--------------
 -------------------SAAG-------IAL----------PK---------------
@@ -1848,7 +1848,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DNEYDLWLCTGRVLEHWHTGSMTQRVPELHRAFPSAVLFMHPQDARERGLRRGQEVTI
 STRRGEVLTRLETRGRNKVPKGLVYMPFFDAN--QLTNKLTLDATCPISKETDYKKCACK
 VE---SA-------------------------
->75_napA
+>75_NapA
 --------------------M---------------T-----------------------
 ------------------------------LTRRDLIKAQAAATAA--------------
 -------------------AAAG-------LPV----------S----------------
@@ -1873,7 +1873,7 @@ H--EVR-GLR------WPV-V---------------EGE---------------------
 --DEEFGFWLVTGRVLEHWHSGSMTLRVPELYKAFPGAVCFMHPEDARSRGLNRGSEVRV
 ISRRGEIRTRLETRGRNRMPRGVVFVPWFDAS--QLINKVTLDANDPISRQTDFKKCAVK
 IE---AV-------------------------
->76_napA
+>76_NapA
 --------------------M-TL------------S-----------------------
 ------------------------------SSRRSFLKATAAAATA--------------
 -------------------SAAG-------IPLAG--------P----------------
@@ -1898,7 +1898,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DAEFDLWLVTGRVLEHWHSGSMTRRVPELHRAFPSAVVFMHPEDAEARGLKRGQEIEI
 STRRGRMLSRIETRGRNKMPKGLVFVPWFDEG--QLINQLTLDATCPISKETDYKKCACK
 VE---RA-------------------------
->77_napA
+>77_NapA
 --------------------M-TH------------S-----------------------
 ------------------------------ESRRTFLKASAAAATA--------------
 -------------------SAAG-------IPL----------AA--------------G
@@ -1923,7 +1923,7 @@ H--EAR-GMR------WPV-V---------------DGK---------------------
 --DEEFDLWLSTGRVLEHWHSGSMTRRVPELHRAFPSAVVYMHPEDAKDRGLRRGQEIVL
 STRRGEVTSRVETRGRNKVPRGLVFMPWFDEH--QLTNKLTLDATCPLSKETDYKKCACK
 VE---RA-------------------------
->78_napA
+>78_NapA
 --------------------M-TL------------P-----------------------
 ------------------------------TSRRSFLKATAAAATA--------------
 -------------------SAAG-------ITL----------PN---------------
@@ -1948,7 +1948,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DDEFDLWLVTGRVLEHWHSGSMTRRVPELHRSFPAAVLFMHPEDAKERGLRRGQEVTV
 STRRGEVLTRVETRGRNKMPRGVVFHPWFDEG--QLTNKLTLDATCPISKETDFKKCACK
 VE---RA-------------------------
->79_napA
+>79_NapA
 ------MT------------L---------------P-----------------------
 ------------------------------TSRRTFLKASAAAATA--------------
 -------------------SAAG-------IAM----------PE---------------
@@ -1973,7 +1973,7 @@ H--NAR-GLR------WPV-V---------------DGK---------------------
 --DDEYPLWMVTGRVLEHWHSGSMTRRVPELHRSYPFAQVFMHPDDAKAKGLRRGQEIVI
 STRRGEMHSRVETRGRNKMPKGVVFVPWFDEG--QLINKLTLDATCPLSKETDFKKCACK
 VE---RA-------------------------
->80_napA
+>80_NapA
 --------------------M---------------K------------D---F------
 ------------------------------PSRRDVLKAQAAAVAA--------------
 -------------------ATAG-------LST----------P----------------
@@ -1998,7 +1998,7 @@ H--EVR-GLR------WPV-V---------------NGE---------------------
 --DEEYDFWLVTGRVLEHWHSGSMTMRVPELYKAFPGAVLFMNAADARRLGFNQGSEVRV
 VSRRGEVRMRVETRGRNRMPSGVVFVPWFDAS--KLINRVTLDATDPISKQTDFKKCAVK
 IL---RV-------------------------
->81_napA
+>81_NapA
 --------------------M---------------------------------------
 ------------------------------LDRRDFIKAQAVAAAA--------------
 -------------------TAGG-------ISL----------P----------------
@@ -2023,7 +2023,7 @@ H--EVR-GLR------WPV-V---------------EGK---------------------
 --DKDFDLWLVTGRVLEHWHSGSMTMRVPELYKAMPMALVYMHPDDAKDRGLRRGSEVKV
 MSRRGEMRTRVETRGRNRPPRGVVFVPWFDSA--RLINKCTLDATDPISKQTDFKKCAVK
 IV---AA-------------------------
->82_napA
+>82_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRRDYLKVQAAVTAA--------------
 -------------------AAAG-------VSL----------PSV------------IQ
@@ -2048,7 +2048,7 @@ H--QER-GLR------WPV-V---------------NGK---------------------
 --DKDYPFWLCTGRVVEHWHSGSMTLRVPELRKAFPSAVVFIHPDDAKDLNLRRGQEVRI
 ASRRGEVRVRVETRGRNKPPRGLVFVPFFDHT--VLINKVTLDATDPLSKQTDFKKCAVK
 II---PVA------------------------
->83_napA
+>83_NapA
 --------------------M---------------------------------------
 ------------------------------LDRRDFIKAQAVAAAA--------------
 -------------------AAGG-------IGL----------P----------------
@@ -2073,7 +2073,7 @@ H--QER-GLR------WPV-V---------------DGK---------------------
 --DKDFDLWLVTGRVLEHWHSGSMTMRVPELYKAMPMALVFMHPDDAKARGLRRGSEVKV
 MSRRGEMQTRVETRGRNKPPRGVVFVPWFDSA--RLINKCTLDATDPISKQSDFKKCAVK
 IV---AV-------------------------
->84_napA
+>84_NapA
 --------------------M---------------F-----------------------
 ------------------------------LSRRDYLKAQAAAAAA--------------
 -------------------AAAG-------ISL----------P----------------
@@ -2098,7 +2098,7 @@ H--VER-GLR------WPV-V---------------DGK---------------------
 --DADYPFWLSTGRVIEHWHSGSMTLRVPELRKAFPNAVVFMHPDDARQLNVRRGQEVRV
 TSRRGEVRVRVETRGRNKPPRGLVFVPFFDHT--VLINKVTLDATDPISKQTDYKKCAVK
 IT---PVANA----------------------
->85_napA
+>85_NapA
 --------------------M---------------K-----------------------
 ------------------------------TTRRTFIKANAAAATA--------------
 -------------------AVAG-------VSL----------PA--------------G
@@ -2123,7 +2123,7 @@ H--QSR-GLR------WPV-V---------------DDQ---------------------
 --DDEYDLWLVTGRVLEHWHSGSMTRRVPELHRSFPNAVLFMHPLDAKERGLRRGQPVDL
 QTRRGTVTTTVETRGRNKPPKGVVYIPWFDES--QLVNKLTLDATCPISKETDFKKAACR
 VV---KA-------------------------
->86_napA
+>86_NapA
 --------------------M---------------T-----------------------
 -------------------------G----FSRRDYLKAKAAAAAA--------------
 -------------------AVAN-------VSF----------P----------------
@@ -2148,7 +2148,7 @@ H--DTR-GLR------WPV-V---------------DAD---------------------
 --DDEYDMWLVTGRVLEHWHSGSMTMRVPELYKAVPQALVYMHPDDARGRGLRRGSEVQV
 ESRRGAIRARVETRGRNRPPEGLIFVPWFDAR--VLINKVTLDATDPISKQTDFKKCAVR
 VV---TV-------------------------
->87_napA
+>87_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRDFVKANAAAATA--------------
 -------------------AVAG-------LTL----------NSE------------TA
@@ -2173,7 +2173,7 @@ H--KAR-GLR------WPV-I---------------DNK---------------------
 --DAEYDLWLSTGRVLEHWHSGSMTRRVPELHKAYPNAVVFIHPEDAKKRGLRRGMEVKV
 QSRRGEVITRVETRGRNKVPEGLVFMPWFDEG--QLVNKLTLDATDPLSKETDYKKCAVR
 IV---KV-------------------------
->88_napA
+>88_NapA
 --------------------M---------------S-----------------------
 ------------------------------LNRRDFIKANAAAATA--------------
 -------------------AAAG-------ISL----------PTA--------------
@@ -2198,7 +2198,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DAEYDLWLCTGRVLEHWHSGSMTRRVPELHKAVPNAVCFMHPNDAKKRNLRNGDVVKV
 ASRRGEISLRLDTRGRNKPPEGLIFVPFFDET--ILVNKLTLDATCPISKETDYKKCAVK
 VA---KA-------------------------
->89_napA
+>89_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRRDFIKANAVPATA--------------
 -------------------AAAG-------LAT----------P----------------
@@ -2223,7 +2223,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DKDFDLWLSTGRVLEHWHSGSMTRRVPELHKSVPNAVLYMHPNDAAKRNLRNGDVVKV
 ASRRGEVTTRIDTRGRNKPPEGLVFMPFFDES--QLVNKLTLDATCPISKETDYKKCAVK
 VS---KA-------------------------
->90_napA
+>90_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRRDFIKANAAAATA--------------
 -------------------AAAG-------IAV----------P----------------
@@ -2248,7 +2248,7 @@ H--KSR-GLR------WPV-V---------------DGK---------------------
 --DAEFNLWLCTGRVLEHWHSGSMTRRVPELHKAVPNAVCFMHPNDAKSRNLRNGDVVKV
 KSRRGEINLRLDTRGRNRVPEGLIFVPFFDES--ILVNKLTLDATCPISKETDFKKCAVK
 VE---KA-------------------------
->91_napA
+>91_NapA
 ------MTAMQT-IP-----T---------------G-----------------------
 ------------------------------LSRRDFIKAQAVATAA--------------
 -------------------VAAG-------ISL----------P----------------
@@ -2273,7 +2273,7 @@ H--EER-GLR------WPV-V---------------DGK---------------------
 --DTEFDLWLVTGRVLEHWHSGSMTMRVPELYKAFPMAVVFMHPDDARARGLRRGSEVEV
 ASRRGMIRTRVETRGRNRPPRGVVFVPWFDSA--RLINKVTLDATDPISKQTDFKKCAVK
 VV---PVQA-----------------------
->92_napA
+>92_NapA
 --------------------M-FK-----------AK-----------------------
 ------------------------------ISRRDALKAKAAAVAA--------------
 -------------------AAAG-------ISL----------P----------------
@@ -2298,7 +2298,7 @@ H--EVR-GLR------WPV-V---------------DGK---------------------
 --DEEYPYWLCTGRVLEHWHSGSMTERVPELYRAFPDALCFLHPDDAAEMGMRRGDEVRV
 ISRRGEMRTRVETRGRNKPPRGLIFVPWFDAS--QLINKVTLDATDPMSKQTDFKKCAVR
 LE---KV-------------------------
->93_napA
+>93_NapA
 ------------------------------------M-----------------------
 ------------------------------TTRRDFIRASAVGAAA--------------
 -------------------SAAG-------ISV----------P----------------
@@ -2323,7 +2323,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DADYDLWLATGRVLEHWHSGSMTMRVPELYKAFPSAVVFMNPDDAKARGLKRGDEVKV
 ISRRGEMRSRVETRGRNRVPVGLVFVPWFDAA--QLINKTTLDATCPISKQTDFKKCAVK
 VV---MA-------------------------
->94_napA
+>94_NapA
 --------------------M---------------T-----------------------
 ------------------------------LTRRDYLKAQAALTAA--------------
 -------------------ASAG-------LTL----------D----------------
@@ -2348,7 +2348,7 @@ H--AER-GLR------WPV-V---------------NGK---------------------
 --DKDYPFWLSTGRVLEHWHSGSMTRRVPELHKAVPQALCYMHPDDAQAMQVRRGQEVVV
 ASRRGQVRARVETRGRNKPPRGLVFVPWFDAD--VLINRVTLDATDPISKQTDFKKCAVR
 IT---PVGEA----------------------
->95_napA
+>95_NapA
 --------------------M---------------S-----------------------
 ------------------------------MARRDFIKQSAAAAAA--------------
 -------------------TVAG-------IPI----------V----------------
@@ -2373,7 +2373,7 @@ H--EVR-GLR------WPV-V---------------DGV---------------------
 --DEEYPFWLSTGRVLEHWHSGSMTRRVPELYRAFPDAVCFMHPDDAQAMGLRRGSLVEI
 ASRRGKMQTRLETRGRNKPPRGLVFVPWFDAG--QLINKVTFDATDPISFQTDFKKCAVK
 IT---KA-------------------------
->96_napA
+>96_NapA
 --------------------M---------------A-----------------------
 ------------------------------MARRDFIKQSAAAAAA--------------
 -------------------TVAG-------IPI----------V----------------
@@ -2398,7 +2398,7 @@ H--EAR-GLR------WPV-V---------------NGK---------------------
 --DEEYPFWLSTGRVLEHWHSGSMTRRVPELYKAFPNAVCFMHPDDAQAMGLRRGVEVEV
 VSRRGRMRTRLETRGRDKPPRGLVFVPWFDAG--QLINKVTLDATDPISFQTDFKKCAVK
 IV---KV-------------------------
->97_napA
+>97_NapA
 --------------------M---------------S-----------------------
 ------------------------------MARRDFIKQTAAAAAA--------------
 -------------------TVAG-------VPL---------------------------
@@ -2423,7 +2423,7 @@ FPVLRQPR-----RQGGDLRP-ALRAAA-------RGA--------GQGVPLL--A----
 --GA--------GRAARRRGRGGVAAR----QDAHPRG-------DARTRQAAARPGVRA
 MVRRRPADQQGHA-GRHRPD----LVPDRLQEM-RGQDREGLTRTGRQP-----------
 --------------------------------
->98_napA
+>98_NapA
 --------------------M---------------S-----------------------
 ------------------------------LNRREFIKTNAVAAAA--------------
 -------------------ATAG-------MSL----------PAAA-----------LA
@@ -2448,7 +2448,7 @@ H--RAR-GLR------WPV-V---------------DGK---------------------
 --DQDYDLWLCTGRVLEHWHTGSMTRRVPELHRAVPEAVLFMHPDDAKERGLQRGMQCKI
 ASRRGEVFASLETRGRNKPPRGLVYMPFFDEG--RLVNKLTLDATCPLSKETDFKKCAVK
 VQ---KA-------------------------
->99_napA
+>99_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRRSFIKQTAAATAA--------------
 -------------------SAAG-------MAL----------P----------------
@@ -2473,7 +2473,7 @@ H--EAR-GIR------WPV-V---------------NGH---------------------
 --DKEFPFWLATGRVLEHWHSGSMTRRVPELYRAFPNAVCFMHPDDAKALGLRRGVEVKV
 MSRRGFVRTRIETRGRDKPPRGLVFIPWFDAS--QLVNKLTLDATDPISLQTDYKKCAVK
 IV---KV-------------------------
->100_napA
+>100_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRAFIKQTAAATAA--------------
 -------------------ASAG-------ITL----------P----------------
@@ -2498,7 +2498,7 @@ H--QAR-GLR------WPV-V---------------NGK---------------------
 --DKEYPFWLATGRVLEHWHSGSMTRRVPELYRAFPNAVCFMHPDDAKALGLRRGVEVRV
 ISRRGEMRTRIETRGRDKPPRGLVFVPWFDSS--QLINKVTLDATDPISFQTDFKKCAVR
 IV---RVQA-----------------------
->101_napA
+>101_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRAFIKQTAAATAA--------------
 -------------------SAAG-------ISL----------PAL------------GV
@@ -2523,7 +2523,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DKEYPFWLSTGRVLEHWHSGSMTRRVPELYRAFPNAVCFMHPDDAKALGLRRGVEVKV
 MSRRGYILTRIETRGRDKPPRGLVFVPWFDAS--QLINKVTLDATDPISFQTDYKKCAVR
 IV---KV-------------------------
->102_napA
+>102_NapA
 --------------------M---------------K-----------------------
 ------------------------------ISRRDFIKQTAITATA--------------
 -------------------SVAG-------VTL----------P----------------
@@ -2548,7 +2548,7 @@ H--EAR-GLR------WPV-V---------------NGK---------------------
 --DKEYPYWLVTGRVLEHWHSGSMTRRVPELYRSFPNAVVFMHPEDAKALGLRRGVEVEV
 VSRRGRMRSRIETRGRDAPPRGLVFVPWFDAS--QLINKVTLDATCPISLQTDFKKCAVK
 IV---KV-------------------------
->103_napA
+>103_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRTFIKQTAAATAA--------------
 -------------------SAAG-------VVL----------P----------------
@@ -2573,7 +2573,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DKEYPFWLATGRVLEHWHSGSMTRRVPELYRAFPNAVCFMHPDDAKAMGLRRGAEVKV
 MSRRGYIRTRLETRGRDKPPRGLVFVPWFDSS--QLINKVTLDATDPISLQTDYKKCAVK
 IV---KV-------------------------
->104_napA
+>104_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRREFIKQTAASAAA--------------
 -------------------AAAG-------VTL----------P----------------
@@ -2598,7 +2598,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DKEFPFWLVTGRVLEHWHSGSMTRRVPELYRAFPNAVCFMHPDDAKAMGVRRGTEVKV
 MSRRGYILTRIETRGRDRPPRGLVFVPWFDSS--QLINKVTLDATDPISLQTDFKKCAVK
 IV---RV-------------------------
->105_napA
+>105_NapA
 --------------------M---------------T-----------------------
 ------------------------------LSRRAFIKQTAAATAA--------------
 -------------------SAAG-------VVL----------P----------------
@@ -2623,7 +2623,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DKEYPFWLATGRVLEHWHSGSMTRRVPELYRAFPNAVCFMHPDDAKAMGVRRGVEVKV
 MSRRGYILTRVETRGRDKPPRGLVFVPWFDSS--QLINKVTLDATDPISLQTDYKKCAVK
 IV---KV-------------------------
->106_napA
+>106_NapA
 --------------------M---------------K-----------------------
 ------------------------------VSRRAFIKQTAAAATA--------------
 -------------------SVAG-------VTL----------P----------------
@@ -2648,7 +2648,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DKEYPFWLSTGRVLEHWHSGSMTRRVPELYRAFPNAVCFMHPEDANALGLRRGVEVEV
 ISRRGKMRTRIETRGRNQPPKGLVFVPWFDAS--QLINKVTLDATCPISLQTDFKKCAVK
 IV---KV-------------------------
->107_napA
+>107_NapA
 --------------------M---------------T-----------------------
 ------------------------------STRRDFVRQTAAAAAG--------------
 -------------------AVAG-------IPI----------H----------------
@@ -2673,7 +2673,7 @@ H--QVR-GLR------WPV-V---------------NGQ---------------------
 --DQEYPFWLSTGRVLEHWHSGSMTRRVPELHRAVPNALCYMHPEDAKALGLRRGSEVEI
 ASRRGSIRSRVETRGRNKPPRGLVYVPWFDAS--QLINKVTLDATDPISLQTDFKKCAVR
 LT---KV-------------------------
->108_napA
+>108_NapA
 ------------------------------------------------------------
 ------------------------------------------------------------
 ------------------------------------------------------------
@@ -2698,7 +2698,7 @@ H--KVR-GMR------WPV-V---------------NGK---------------------
 --DKDYPFWLSTGRVLEHWHSGSMTRRVPELHRAVPNALCYMHPDDAKALGVRRGSEVEL
 SSRRGSMRTRVETRGRNKPPRGLVYVPWFDAS--QLINKVTLDATDPISLQTDFKKCAVK
 IT---KV-------------------------
->109_napA
+>109_NapA
 --------------------M---------------S-----------------------
 ------------------------------TTRRDFVRQTAATAAG--------------
 -------------------TVAG-------IPI---------------------------
@@ -2723,7 +2723,7 @@ H--KVR-GLR------WPV-V---------------DGK---------------------
 --DKEFPFWLSTGRVLEHWHSGSMTRRVPELHRAVPNALCFMHPEDAKALGVRRGSEVEV
 ASRRGKMRTRVETRGRNKPPRGLVFVPWFDAS--QLINKVTLDATDPISLQTDFKKCAVK
 IT---KV-------------------------
->110_napA
+>110_NapA
 --------------------M---------------P-----------------------
 ------------------------------TTRRDFIRQTAAATAG--------------
 -------------------AAAG-------IPV----------P----------------
@@ -2748,7 +2748,7 @@ H--KVR-GLR------WPV-V---------------NGK---------------------
 --DKDFPFWLSTGRVLEHWHSGSMTRRVPELLRAVPNAVCYMHPEDAAALGVRRGTEVEI
 ASRRGSMRTRVETRGRNKPPRGLVFVPWFDAS--QLINKVTLDATDPISFQTDFKKCAVK
 IT---KV-------------------------
->111_napA
+>111_NapA
 --------------------M---------------------------------------
 ------------------------------TTRRDFIKRTAVAATA--------------
 -------------------SVAG-------VTL----------P----------------
@@ -2773,7 +2773,7 @@ H--ETR-GLR------WPV-V---------------NGQ---------------------
 --DKEYPFWLATGRVLEHWHSGSMTRRVPELYRAVPNAVCFMHPDDAKKLGLRRGVEVEL
 ASRRGKMRTRVETRGRNMPPPGLVFVPWFDAS--QLINKVTLDATCPISLQTDFKKCAIK
 IT---KV-------------------------
->112_napA
+>112_NapA
 --------------------M---------------K-----------------------
 ------------------------------QTRRDFITQTAAMTAA--------------
 -------------------ATAG-------IQL----------P----------------
@@ -2798,7 +2798,7 @@ H--EAR-GLR------WPV-V---------------DGK---------------------
 --DKEYPFWLSTGRMLEHWHTGTMTRRVPELYRAVPNAVCFMHPEDAKELGARRGDLIEV
 KSRRGLIQTRVETRGRNRPPRGLVFIPFFDAS--QLVNKVTLDATCPISLQTDFKKCAVS
 IR---KV-------------------------
->113_napA
+>113_NapA
 --------------------M---------------S-----------------------
 ------------------------------LDRREFIKISAVAAAV--------------
 -------------------ASAG-------IPLAG------AAPKT-------------M
@@ -2823,7 +2823,7 @@ H--QAR-GLR------WPV-V---------------NGK---------------------
 --DANFDMWLCTGRVLEHWHTGTMTRRVPELHKAVPEAMVFMNPNDAKKRGLQRGMLVKV
 SSRRGDIQARLETRGRNKPPMGLIFIPFFDEG--RLVNKLTLDATCPISKQTDFKKCAVK
 VV---KA-------------------------
->114_napA
+>114_NapA
 --------------------M---------------K-----------------------
 ------------------------------QTRRDFITQTAAVTAA--------------
 -------------------ATAG-------IPL----------A----------------
@@ -2848,7 +2848,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DKEYPFWLSTGRVLEHWHTGTMTRRVPELYRAVPNAVCFMHPDDAKALGTRRGDVIEV
 KSRRGVIQTRVETRGRNRPPRGLVFIPFFDAS--QLVNKVTLDATDPISFQTDYKKCAVS
 IR---KV-------------------------
->115_napA
+>115_NapA
 --------------------M---------------QE----------NT-QT-------
 ------------------------------LSRRDLMKAGVAASAA--------------
 -------------------ATVG-------IPI----------TP-------------VA
@@ -2873,7 +2873,7 @@ AIPQGNLDGI-T-DKTPKPL--PG--RAKIFFRP----------------YAAP-VEVP-
 --DAKYDLNLCTGRILEHWHTGSMTRRVPELHRAAPSAVLYMNPSDAAARNLKRNDLAQI
 TSRRGSIKALVETQGRWKCPKGTVWLAFFDEA--VQVNKLCIDATDPISAEPDYKKAAVY
 VT---RA-------------------------
->116_napA
+>116_NapA
 ------MENQNPVS-----AV---------------R-----------------------
 ------------------------------VSRRGLMKAGVAASAA--------------
 -------------------KIAG-------IPI----------TV-------------VA
@@ -2898,7 +2898,7 @@ AIPSGNLDAV-T-DKTPKPL--PG--KAKIFFRP----------------YAEA-VEVP-
 --DSHYDLWFDTGRFMEHWHTGSMTGRVAALHKALPEGMLYMNAADAKARGIADGDRIKI
 TSRRATVFAKACIGGRMPVTRGITFAAFFDEN--VQMNQLCLDATCPLSLEPDYKKCAIR
 VE---KA-------------------------
->117_napA
+>117_NapA
 --------------------M---------------SV----------HQ-VN-------
 ------------------------------EKRRALIKSGLAAGAA--------------
 -------------------MSIG-------IPV----------TS-------------VQ
@@ -2923,7 +2923,7 @@ PVGKGTRHAL-T-DKNAVAH--PG--TAKIFFRP----------------YMDP-VEMP-
 --DANYDLWLCTGRILEHWHTGSMTRRVPELDRAAPRAVLYMNPADAERRGIRRGDTATV
 TSRHGECKAVVETKVRNIMPRGMTWLAFFDDK--VLCNSVVIDAMDPISLEPDFKKTAVK
 VV---RDI------------------------
->118_napA
+>118_NapA
 --------------------M---------------TQ----------QQPLR-------
 ------------------------------FQRRDMIRSGLAAGAA--------------
 -------------------LSLG-------FPV----------TA--------------A
@@ -2948,7 +2948,7 @@ AMPTGNLSGV-T-DKEQKAY--PG--RAKIFARP----------------YAAP-VEQP-
 --DAEYDLWLTTGRILEHWHTGSMTRRVPELHRAAPEALLYMNPQDAEKRGMKRGDLAEV
 TSRYGTCRAKVETQVRQKMPKGSVWMAFFDER--AMVNSVVIDATDPISLEPDYKKTAVK
 VR---KAS------------------------
->119_napA
+>119_NapA
 --------------------M---------------TS----------ECPIT-------
 ------------------------------FHRRAILKTGLAASAA--------------
 -------------------MALG-------IPV----------TS-------------TA
@@ -2973,7 +2973,7 @@ PVATGDLYGV-T-NPEAKAY--KG--TAKIFFRP----------------YAAP-VEQP-
 --DGQYDLWLCTGRILEHWHTGSMTGRVPELHRAAPSALLYMNPDDAQKRGLKRGDLALV
 TSRHGECKAVVETQVRNIMPAGSTWLAFFDEK--VRTNAVVIDSTDPISLEPDFKKTAVR
 VT---RA-------------------------
->120_napA
+>120_NapA
 --------------------M---------------------------------------
 ------------------------------TTRRDFIRQTAATTTA--------------
 -------------------AAAG-------LPI----------A----------------
@@ -2998,7 +2998,7 @@ H--QVR-GLR------WPV-V---------------NGR---------------------
 --DAQFPYWLCTGRVLEHWHSGSMTRRVPELYRAFPNAVCYLHPEDAKALNVRRGDVVEL
 VSRRGSMRTRVETRGRNKPPRGLVFVPWFDAS--QLINKVTLDATCPISLQTDFKKCAIS
 IR---KV-------------------------
->121_napA
+>121_NapA
 --------------------M---------------Q-----------------------
 ------------------------------SNRRDFLKAQALAASA--------------
 -------------------AAAG-------IPIVVEAANGTAAPKT--------------
@@ -3023,7 +3023,7 @@ H--EVR-GLR------WPV-V---------------DGK---------------------
 --DKEYDLWLCTGRVLEHWHTGTMTRRVPELHRAVPEAQLFMHPDDAKARGLQRGMKVKI
 ASRRGEILLAVETKGRNKVPRGLVFVPFFDEG--KLINKLTLDATCPISKETDFKKCAVK
 VV---RA-------------------------
->122_napA
+>122_NapA
 --------------------M---------------P-----------------------
 ------------------------------IARRDFIRQTAAASAG--------------
 -------------------AVAG-------LPL----------P----------------
@@ -3048,7 +3048,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DKDFPFWLSTGRVLEHWHSGSMTRRVPELHRAVPNAVCFMHPDDAKALGVRRGDEIEV
 ASRRGAMRTRVETRGRNKPPRGLVFVPWFDAS--QLINKVTLDATDPISFQTDFKKCAVR
 IA---KVAAV----------------------
->123_napA
+>123_NapA
 --------------------M---------------TT----------NL-PQ-------
 ------------------------------VKRRELLKAGIAASAA--------------
 -------------------MTVG-------IPV----------SE-------------VA
@@ -3073,7 +3073,7 @@ AIPTGNLWGI-T-DPKPVPL--PN--KAKIFYRP----------------YAAP-VEQP-
 --DANYDLWLCTGRILEHWHTGSMTMRVPELYRAQPNAFVYMNPDDAAKRGLKNGDVATV
 ESRRGKINAIVQTNQRNFMPKGSSWLAFFDEK--VQTNQVVIDATDPISEEPDFKKSAVK
 IY---KAQ------------------------
->124_napA
+>124_NapA
 --------------------M---------------T-----------------------
 ------------------------------LTRRDFIKANAAAAAA--------------
 -------------------TAAA-------VNL----------PLV------------PS
@@ -3098,7 +3098,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DREYNMWLCTGRVLEHWHTGSMTRRVPELYRAVPDAQVFMHPADAELRGLKRGQQVKV
 ISRRGEITLTLETRGRNKPPQGLVFIPFFDEG--RLVNKLTLDATCPLSKETDYKKCAVK
 VV---RA-------------------------
->125_napA
+>125_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRREFIKTSAVAATA--------------
 -------------------VAAG-------VTV----------PGV-------------K
@@ -3123,7 +3123,7 @@ H--KSR-GMR------WPV-V---------------DNK---------------------
 --DKEYDMWLSTGRVLEHWHSGSMTQRVPELHKAFPDAWVFMHPDDAKKRGLKRGDVVKV
 VSRRGDVVTRVETRGRNKPPVGLVFIPWFDES--RLVNKLTLDATCPISKETDYKKCAIK
 VV---KV-------------------------
->126_napA
+>126_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRREFIKTNAIAAAA--------------
 -------------------STAG-------MSI----------PGV--------------
@@ -3148,7 +3148,7 @@ H--KVR-GMR------WPV-V---------------DGK---------------------
 --DKDFDLWLCTGRVLEHWHTGSMTRRAPELYKAFPDAVVWMHPKDAEKRGLKRNDVVKV
 STRRGEIELRVDTKGRNKPPEGLIFIPFFDEH--RLVNKLTLDATCPISKETDFKKCAAR
 VV---KA-------------------------
->127_napA
+>127_NapA
 --------------------MVEL------------K-----------------------
 ------------------------------LTRRDFIKSNAVAAAA--------------
 -------------------SVAG-------ISL----------P----------------
@@ -3173,7 +3173,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DAEYDLWLCTGRVLEHWHTGSMTRRVPELYKAMPDAVIYMHPDDAKKRGLLRNDVVKV
 ATRRGEIQLRVETRGRNKPPLGLVFVPFFDEH--RLVNKLTLDATCPISKETDYKKCACK
 VV---KA-------------------------
->128_napA
+>128_NapA
 --------------------M---------------K-----------------------
 ------------------------------LNRRDFIKANAVAAAI--------------
 -------------------SAAGM-------------------PGAS-------------
@@ -3198,7 +3198,7 @@ H--QAR-GLR------WPV-V---------------GGK---------------------
 --DKEYDLWLCTGRVLEHWHTGSMTRRVPELYKAFPDAVLFMHPDDAKARGLQRGMEVKV
 ASRRGEIQLRVETRGRNKPPRGLVFVPFFDAG--RLINKLTLDATCPISKETDYKKCAVK
 VI---KA-------------------------
->129_napA
+>129_NapA
 --------------------M---------------N-----------------------
 ------------------------------LTRRDFIKSSAVAAAA--------------
 -------------------NAAG-------MAV----------PGV-------------S
@@ -3223,7 +3223,7 @@ H--KAR-GLR------WPV-V---------------DNK---------------------
 --DAEYDLWLCTGRVLEHWHTGSMTRRVPELYKAMPDAWIYMHPEDAKKRGLQRGDTVKV
 QSRRGEISTRVETRGRNKPPLGLVFVPFFDEH--RLVNKLTLDATCPISKETDFKKCACK
 VV---KA-------------------------
->130_napA
+>130_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRREFIKHSAAAATA--------------
 -------------------VAAG-------IPP----------D----------------
@@ -3248,7 +3248,7 @@ H--EAR-GLR------WPV-V---------------NGR---------------------
 --DDDYPFWLCTGRVLEHWHSGSMTRRVPELHRAVPNAVCFMHPEDARKLGLRRGDAVEL
 VSRRGAMKTRVETRGRDKPPPGLVFVPWFDAS--QLINKVTLDATCPISLQTDFKKCAIN
 IR---KA-------------------------
->131_napA
+>131_NapA
 --------------------M---------------T-----------------------
 ------------------------------MDRREFIKTNAIAAAA--------------
 -------------------ATAG-------IGI----------PVVA-------------
@@ -3273,7 +3273,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DKDFDMWLCTGRVLEHWHTGTMTRRVAELHRAVPEAVIFMHPDDATKRGLQRGMMVKV
 ASRRGEITVRLETRGRNKPPVGLVFIPFFDEG--RLVNKLTLDATCPISKQTDFKKCAVK
 VL---KA-------------------------
->132_napA
+>132_NapA
 --------------------M---------------T-----------------------
 ------------------------------MDRREFIKTNAIAAAA--------------
 -------------------ATAG-------IGI----------PVVAE---------A--
@@ -3298,7 +3298,7 @@ H--KAR-GLR------WPV-V---------------EGK---------------------
 --DKDYDMWLCTGRVLEHWHTGTMTRRVPELHRSVPEAQIFMHPDDATKRGLQRGMMVKV
 VSRRGEITARLETRGRNKPPVGLIFIPFFDEG--RLVNKLTLDATCPISKETDFKKCAVK
 VL---KV-------------------------
->133_napA
+>133_NapA
 --------------------M---------------S-----------------------
 ------------------------------MDRRDFIKANAVAAAA--------------
 -------------------ASAG-------IGI----------PVVA-------------
@@ -3323,7 +3323,7 @@ H--KAR-GLR------WPV-V---------------EGK---------------------
 --DKEFDMWLCTGRVLEHWHTGSMTRRVPELHRAVPEALVFMHPEDATQRGLQRGMVVKI
 ASRRGEVVARLETRGRNKPPKGLIFVPFFDEG--RLVNKLTLDATCPISKETDFKKCAVK
 VM---KA-------------------------
->134_napA
+>134_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRAFIKQSAALSTA--------------
 -------------------AAAG-------IPA----------E----------------
@@ -3348,7 +3348,7 @@ H--QVR-GLR------WPV-V---------------NGQ---------------------
 --DKEYPFWLCTGRVLEHWHSGSMTQRVPELHRAFPNAVCFMHPDDTRKLGLRRGDEIEV
 VSRRGVMRTRVETRGRNKPPPGLVFVPWFDAS--QLINKVTLDATCPISLQTDFKKCAVN
 IR---KV-------------------------
->135_napA
+>135_NapA
 --------------------M---------------S-----------------------
 ------------------------------MNRREFIKNNAVAAAA--------------
 -------------------ATAG-------IGI----------PVVT-------------
@@ -3373,7 +3373,7 @@ H--RSR-GFR------WPV-V---------------EGK---------------------
 --DAEYDMWMCTGRVLEHWHTGSMTRRVPELHRSVPDAQVFMHPDDAQKRGLQRGMAVKI
 VSKRGEVVARLETRGRNKPPVGLIFIPFFDEG--RLVNKLILDATCPISKETDFKKCPVK
 VV---KA-------------------------
->136_napA
+>136_NapA
 --------------------M---------------S-----------------------
 ------------------------------MNRREFIKNNAVAAAA--------------
 -------------------ATAG-------IGI----------PVVTQ---------A--
@@ -3398,7 +3398,7 @@ H--KAR-GLR------WPV-V---------------DNK---------------------
 --DAEFDMWLCTGRVLEHWHTGSMTRRVPELHRSVPEAQVFMHPDDAQKRGLQRGMAVKV
 SSRRGEIVARLETRGRNKPPVGLIFVPFFDEG--RLVNKLTLDATCPISKETDYKKCAVK
 VV---KA-------------------------
->137_napA
+>137_NapA
 --------------------M---------------KL----------T-----------
 ------------------------------LNRRDFIKSQAVAAAA--------------
 -------------------SVAG-------ISV----------PGL--------------
@@ -3423,7 +3423,7 @@ H--KAR-GLR------WPV-V---------------DNK---------------------
 --DKDYDLWLCTGRVLEHWHTGSMTRRIPELYKAMPDAWLYMHPEDAKKRNLQRGDIVKL
 STRRGEIQVRVETRGRNKPPVGLVFVPFFDEH--RLVNKLTLDATCPISKETDFKKCACK
 VV---KA-------------------------
->138_napA
+>138_NapA
 --------------------M---------------KV----------T-----------
 ------------------------------LTRRDFIKSNAVAAAA--------------
 -------------------TAAG-------ISI----------PGI--------------
@@ -3448,7 +3448,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DQEYDLWLCTGRVLEHWHTGSMTRRVPELYKAMPDAWIYMHPDDAKKRGLQRGDVVKT
 VTRRGEIALRVETRGRNKPPAGLVFVPFFDEH--RLVNKLTLDATCPISKETDFKKCACK
 VV---KA-------------------------
->139_napA
+>139_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFIKSNAAAAAA--------------
 -------------------ASVG-------LPLAA--------P----------------
@@ -3473,7 +3473,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DKEYDLWLSTGRVLEHWHTGSMTRRVPELYRAFPDAVMFMHPDDARARGLQRGMVAKV
 ASRRGEIQLRVETSGRNKPPRGLVFVPFFDGG--RLINKLTLDATCPISRETDFKKCAVK
 VA---KA-------------------------
->140_napA
+>140_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAVAAAA--------------
 -------------------AAAG-------ISA----------P----------------
@@ -3498,7 +3498,7 @@ H--EAR-GLR------WPV-V---------------DGK---------------------
 --DAEFDLWLSTGRVLEHWHTGTMTRRVPELYRAFPDAVLFMHPDDAKARNLRRGDEVKV
 VSRRGEVKTRVETRGRNKPPKGLVFMPFFDAS--QLVNKLTLDATDPLSKETDFKKCAVK
 VM---KA-------------------------
->141_napA
+>141_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAVAAAA--------------
 -------------------AVAG-------VSA----------P----------------
@@ -3523,7 +3523,7 @@ H--EAR-GLR------WPV-V---------------DGK---------------------
 --DKEYDMWLSTGRVLEHWHTGTMTRRVPELYRAFPDAVLFMHPEDAKARGVRRGEEVIV
 SSRRGEVKTRVETRGRNRPPKGLVFMPFFDAS--QLVNKLTLDATDPLSKETDYKKCAVK
 VV---KA-------------------------
->142_napA
+>142_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRAFMKANAVAAAA--------------
 -------------------AAAG-------LSV----------P----------------
@@ -3548,7 +3548,7 @@ H--QAR-GLR------WPV-V---------------DGQ---------------------
 --DEEFDLWLSTGRVLEHWHSGSMTRRVPELHRSYPDAQVFMHPEDARERGLRRGDEVVV
 ASRRGEMKTRVETRGRNRPPKGLVFVPWFDEN--QLINRLTLDATCPLSKQTDFKKCAVK
 VM---KA-------------------------
->143_napA
+>143_NapA
 --------------------M---------------K-----------------------
 ------------------------------WTRRQFVKANAVSAAA--------------
 -------------------TVAG-------ISL----------P----------------
@@ -3573,7 +3573,7 @@ H--EVR-GLR------WPV-V---------------NGE---------------------
 --DEEYDLWLSTGRVLEHWHSGSMTRRVPELYRAFPDAVLFIHPEDAKQRGFKRGDEVMI
 QSRRGEVKSRIETRGRNRPPKGLVYMPWFDAK--QLTNKLTLDATDPLSKETDFKKCAVK
 LA---KV-------------------------
->144_napA
+>144_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFVKASAAQAAA--------------
 -------------------GVAG-------VPL----------T----------------
@@ -3598,7 +3598,7 @@ H--EVR-GLR------WPV-V---------------DGK---------------------
 --DDEYDLWLSTGRVLEHWHSGSMTNRVPELHRAVPYALCYMHPDDAKKRGLRRGDEVNL
 ISRRGSIRIRVETRGRNQPPEGLVFVPWFDAG--RLINKVTLDATDPISKQTDFKKCAVK
 IE---KV-------------------------
->145_napA
+>145_NapA
 ------------------------------------------------------------
 ------------------------------MTRRGFVKASAASAAA--------------
 -------------------TAAG-------ITL----------P----------------
@@ -3623,7 +3623,7 @@ H--QER-GLR------WPV-V---------------DGV---------------------
 --DKEYDLWLSTGRVLEHWHSGSMTQRVPELHKAVPDALIYMHPQDAKKRGLRRGDEVKL
 TSRRGHINIRVETRGRNKPPQGLVFVPWFDAA--RLINKVTLDATDPISKQTDFKKCAVK
 VE---KV-------------------------
->146_napA
+>146_NapA
 --------------------M---------------N-----------------------
 ------------------------------LTRREFAKANALALGA--------------
 -------------------SAAG-------LSI----------P----------------
@@ -3648,7 +3648,7 @@ H--KTR-GLR------WPV-V---------------DGK---------------------
 --DDDYPFWLCTGRVLEHWHTGSMTRRVSELHKAVPDALLYMNTEDAREQGFRRGSEVLV
 ASRRGEVRLRVETRGRVSVPKGMVYVPFFDAG--KIINKVTLDATDPISKQTDFKKCAVR
 LE---LVNLA----------------------
->147_napA
+>147_NapA
 --------------------M---------------N-----------------------
 ------------------------------LTRRDFAKANALAMAA--------------
 -------------------SAAG-------LSI----------P----------------
@@ -3673,7 +3673,7 @@ H--ATR-GLR------WPV-V---------------EGK---------------------
 --DDEYPFWLCTGRVLEHWHTGSMTRRVSELHKAVPDALLYMNADDARDKGWRRGSEVKV
 ISRRGEVRVRVETRGRVSMPKGMVYVPFFDAG--KLINKVTLDATDPISKQTDFKKCAVR
 LE---LVNLA----------------------
->148_napA
+>148_NapA
 --------------------M---------------T-----------------------
 ------------------------------INRREFIKANAIAAAA--------------
 -------------------AVAG-------VSV----------P----------------
@@ -3698,7 +3698,7 @@ H--KER-GLR------WPV-V---------------NGK---------------------
 --DEEYDLWLSTGRVLEHWHSGSMTQRVPELYKAMPDALVYMHPDDAKKRNMRRGDLVKL
 ISRRGEVQTRVETRGRNKPPVGLVYMPWFDAS--RLVNKVTLDATDPLSKETDYKKCAIK
 IV---KV-------------------------
->149_napA
+>149_NapA
 ------------------------------------------------------------
 ------------------------------MNRREFIKANAVAAAA--------------
 -------------------AVAG-------VSV----------P----------------
@@ -3723,7 +3723,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLSTGRVLEHWHTGSMTQRVPELYKAMPDAVVYMHPDDAKKRNMRRGDLVNI
 VSRRGEVQTRVETRGRNKPPKGLVYMAFFDAG--RLVNKLTLDATDPLSKETDYKKCAVK
 VV---KV-------------------------
->150_napA
+>150_NapA
 --------------------M---------------K-----------------------
 ------------------------------VSRRSFLKAKAALAAA--------------
 -------------------SVAG-------ATL----------P----------------
@@ -3748,7 +3748,7 @@ H--ETR-GLR------WPV-V---------------DGK---------------------
 --DKEYDLWFCTGRVLEHWHTGTMTNRVPELHNAYPNAKLYMHPEDAKARGLKRGDAVAV
 TSRRGTVQTRVETEGRNKPPQGMTFMPFFDAS--QLVNKLMLDATDPISKETDFKKCAVK
 VS---KA-------------------------
->151_napA
+>151_NapA
 --------------------M---------------K-----------------------
 ------------------------------LDRRHFIKANAALAAA--------------
 -------------------TAAG-------ASL----------P----------------
@@ -3773,7 +3773,7 @@ F---GE-GLR------WPV-V---------------DGK---------------------
 --DAEHDLWMCTGRILEHWHTGSMTRRVPELHKAVPHGQVFMNADDAAARGLAEGDEVIV
 SNRRGEVRSRVTTDSRYTMPPGVIFMAFFDSS--QLINKLVLDATDPISKETDFKKTPVK
 VT---KA-------------------------
->152_napA
+>152_NapA
 --------------------M---------------K-----------------------
 ------------------------------LDRRHFIKANAALAAA--------------
 -------------------TAAG-------AVL----------P----------------
@@ -3798,7 +3798,7 @@ F---GE-GLV------WPV-V---------------KGK---------------------
 --DAEHDLWMCTGRVLEHWHTGTMTTRIPELRKAVPHAQVVMNADDAADRGLVDGDEVIV
 SNRRGEVRTRVSTKNRNTMPRGVVFMAFFDSS--QLVNKLILDATDPISKETDFKKTPVK
 VT---KA-------------------------
->153_napA
+>153_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRAFVKANAAVSAA--------------
 -------------------AIAG-------VTL----------P----------------
@@ -3823,7 +3823,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --NEEYDMWLCTGRVLEHWHTGTMTARVPELYRAMPDALCYIHPDDAKQRNVRRGDEVLV
 QSVRGEVRCRVETRGRNRPPVGLVFVPFFDAR--VLINKVCLDATDPLSKQTDYKKCAVK
 IT---KV-------------------------
->154_napA
+>154_NapA
 --------------------M---------------K-----------------------
 ------------------------------FSRREFMKAQAVASAA--------------
 -------------------VVAG-------IAL----------P----------------
@@ -3848,7 +3848,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DEEYDLWLSTGRVLEHWHSGSMTRRVPELYRAFPDAVVFMHPEDAKKRGLRRGDEIIL
 ASRRGELTSRVETRGRNRPPIGLVFMPWFDAK--QLVNKITLDATDPLSKQTDYKKCAVK
 IT---KKQV-----------------------
->155_napA
+>155_NapA
 --------------------M---------------K-----------------------
 ------------------------------FTRREFMKAQAAASAA--------------
 -------------------AVAG-------IAL----------P----------------
@@ -3873,7 +3873,7 @@ H--EAR-GLR------WPV-V---------------NGK---------------------
 --DQEYDLWLSTGRVLEHWHSGSMTRRVPELYKAFPDAVVFMHPDDATARGVRRGDEIVL
 ASRRGELTSRVETRGRNRPPRGLVFMPWFDAK--QLVNKITLDATDPLSKQTDYKKCAVK
 IT---KKV------------------------
->156_napA
+>156_NapA
 ------------------------------------------------------------
 ------------------------------MNRREFMKANAAIAAA--------------
 -------------------GVAG-------MAL----------P----------------
@@ -3898,7 +3898,7 @@ H--EEH-GLR------WPV-V---------------DGK---------------------
 --DEEFDIWLSTGRVLEHWHSGSMTQRVPELYKAFPDAVCFMHPDDAKKRGLRRGDEVKV
 ISRRGEIKTRVETRGRNKPPMGLVFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 IV---KA-------------------------
->157_napA
+>157_NapA
 --------------------M---------------S-----------------------
 ------------------------------ISRREFLKANAATAAA--------------
 -------------------SAVG-------LAL----------P----------------
@@ -3923,7 +3923,7 @@ H--ENR-GKR------WPV-V---------------NGT---------------------
 --NEEFDLWMSTGRVLEHWHTASMTARVPELHKSYPDAQVFMHPKDASSRGLKNGDEVKV
 ISPRGEVKTRVETKGRNKPPVGVVFMPFFDAR--QLVNKLLLDATDPLSKETDFKKCPVK
 IV---KA-------------------------
->158_napA
+>158_NapA
 --------------------M---------------K-----------------------
 ------------------------------MNRREFMKANAALAAA--------------
 -------------------SVAG-------LAL----------P----------------
@@ -3948,7 +3948,7 @@ H--EAH-GLR------WPV-V---------------DGK---------------------
 --DAEYDMWLSTGRVLEHWHSGSMTQRVPELYRAFPDAVCFMHPDDAKARGLRRGDEVKV
 VSRRGEILTRVETRGRNKPPKGLVFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 VL---KA-------------------------
->159_napA
+>159_NapA
 --------------------M---------------S-----------------------
 ------------------------------ISRREFLKANAAVAAA--------------
 -------------------TAVG-------VTL----------P----------------
@@ -3973,7 +3973,7 @@ H--ETR-GLR------WPV-V---------------NGK---------------------
 --NAEYDLWMSTGRVLEHWHTGSMTARVPELYRAFPDAQIFMHPEDAKARGVQRGDEVIV
 ASPRGEVKTRVETKGRNKPPRGVVFMPFFDAR--QLVNKLILDATDPLSKETDFKKCPVK
 VT---KAENNQ---------------------
->160_napA
+>160_NapA
 --------------------M---------------N-----------------------
 ------------------------------MNRRDFIKANAVIAAA--------------
 -------------------GAAG-------LAL----------P----------------
@@ -3998,7 +3998,7 @@ H--EAH-GIR------WPV-V---------------NGK---------------------
 --DTEYDMWLSTGRVLEHWHSGSMTQRVPELYRAFPDAVCFMHPEDAKKRGLRRGDEVRV
 VSRRGEIKTRVETRGRNKPPVGLVFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 IV---KV-------------------------
->161_napA
+>161_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFMKANAVIAAA--------------
 -------------------SAAG-------LAL----------P----------------
@@ -4023,7 +4023,7 @@ H--KEH-GLR------WPV-V---------------DGK---------------------
 --DEEFDMWLSTGRVLEHWHSGSMTQRVPELYKAFPDAVCFMHPDDAKKRGLRRGDEVKV
 MSRRGEIKTRIETRGRNKPPVGLVFVPWFDAS--QLINKVTLDATDPISKQTDFKKCAVK
 VI---KA-------------------------
->162_napA
+>162_NapA
 --------------------M---------------S-----------------------
 ------------------------------ISRREFLKANAAAAAA--------------
 -------------------SAVG-------IAI----------P----------------
@@ -4048,7 +4048,7 @@ H--QTR-GLR------WPV-V---------------NGK---------------------
 --NEEFDLWMSTGRVLEHWHTGSMTARVPELHKAMPSAQVFMHPADAKARGLVQGDEVTV
 ASPRGEINTRVETKGRNKPPRGVVFMPFFDAK--QLVNKLLLDATDPLSKETDFKKCPVK
 IF---KA-------------------------
->163_napA
+>163_NapA
 --------------------M---------------S-----------------------
 ------------------------------ISRREFLKANAAVAAA--------------
 -------------------TVVG-------ATL----------P----------------
@@ -4073,7 +4073,7 @@ H--ESR-GMR------WPV-V---------------NGQ---------------------
 --NEEFDLWLSTGRVLEHWHTGTMTARVPELYRAFPDAQIFMHPEDAKARGVARGDEVMV
 SSPRGQLKTRVETDGRNKPPRGVVFMPFFDAR--QLVNKLLLDATDPLSKETDFKKCPVK
 VV---KA-------------------------
->164_napA
+>164_NapA
 --------------------M---------------K-----------------------
 ------------------------------MSRRDFIKANAAASAA--------------
 -------------------ALAG-------ITL----------P----------------
@@ -4098,7 +4098,7 @@ H--KER-GLR------WPV-V---------------DGK---------------------
 --DEEFPLWLCTGRVLEHWHTGTMTRRVPELYKAVPDALCYMHPDDAKSHGVRRGDEVLM
 SNKRGDIRVRVETRGRNRPPKGLVFVPFFDAR--ILINKLILDATDPLSKQTDYKKCPIK
 IT---KVG------------------------
->165_napA
+>165_NapA
 --------------------M---------------K-----------------------
 ------------------------------MNRREFMKANAAITAA--------------
 -------------------SVAG-------LAL----------P----------------
@@ -4123,7 +4123,7 @@ H--EVH-GLR------WPV-V---------------NGK---------------------
 --DEEYDIWLSTGRVLEHWHSGSMTQRVPELYKAFPDAVCFMHPDDAKKRGLRRGDEVKV
 ISRRGEIKTRVETRGRNKPPVGLVFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 IV---KA-------------------------
->166_napA
+>166_NapA
 --------------------M---------------S-----------------------
 ------------------------------ISRREFLKANAAVAAA--------------
 -------------------TTVG-------VTL----------P----------------
@@ -4148,7 +4148,7 @@ H--ETR-GLR------WPV-V---------------DGK---------------------
 --NEEFDLWMSTGRVLEHWHTGSMTARVPELYRAYPDAQIFLHPEDAKARGLKRGDEVIV
 ASPRGEVKTRVETKGRNKPPRGVVFVPFFDAR--QLVNKLLLDATDPLSKETDFKKCPVK
 VM---KA-------------------------
->167_napA
+>167_NapA
 --------------------M---------------N-----------------------
 ------------------------------ITRRLFAKANAAAVAA--------------
 -------------------AAIG-------LPL----------P----------------
@@ -4173,7 +4173,7 @@ H--EAR-GLR------WPV-V---------------EGK---------------------
 --DKDYPFWLSTGRVLEHWHTGTMTNRVEELHAAVPDALVYMNHEDAEAIGVRQGSEVRV
 ISRRGAVRVRVETRGRVKPPRGLIFIPFFDAT--KLVNNVTLDATDPISLQTDYKKCAVK
 IE---LVSLA----------------------
->168_napA
+>168_NapA
 --------------------M---------------T-----------------------
 ------------------------------VTRRDFVRHQALATAA--------------
 -------------------AAAG-------VAV----------P----------------
@@ -4198,7 +4198,7 @@ H--EER-GLR------WPV-V---------------NGE---------------------
 --NKEYPFWLCTGRVIEHWHSGSMTQRVPELYKAFPDAVCFMHPEDARSAGLRRGDKVKL
 QSIRGHIITRIETRGRNKPPKGLVFVPWFDAR--QLINKVTLDATDPISKQTDFKKCAVK
 VE---RV-------------------------
->169_napA
+>169_NapA
 ------------------------------------------------------------
 ------------------------------MKRREFIKAQALATAA--------------
 -------------------AAAG-------IQV----------P----------------
@@ -4223,7 +4223,7 @@ H--NNR-GLR------WPV-V---------------DGK---------------------
 --DKDYDLWLSTGRVLEHWHSGSMTRRVPELHKSYPNAQVFMHPDDAKDRGLRRGDQVRV
 KSRRGEILTRVETRGRNKPPRGLVFVPWFDSS--QLINKVTLDATDPLSKETDFKKCAVK
 VE---KA-------------------------
->170_napA
+>170_NapA
 --------------------M---------------E-----------------------
 ------------------------------LSRRNFLKSGVAAATA--------------
 -------------------MAVG-------IPI----------SR-------------VA
@@ -4248,7 +4248,7 @@ ELVTGNLNGP-T-TEEKTKF--PG--KAKIFFRP----------------YAAP-VESP-
 --DGNYDLWLCTGRLLEHWHTGTMTRRVPELHRAMPAAVLDMNEKDAEARGLKRQDTVWI
 ESRRGKIKAVIETTGRNRPPRGYSFMAFFDES--VFVNKLCIDATCPISKEEDFKKTAIK
 IY---KV-------------------------
->171_napA
+>171_NapA
 --------------------M---------------T-----------------------
 ------------------------------MTRREFIKTQAIGAAA--------------
 -------------------AVAG-------VAL----------PA---------------
@@ -4273,7 +4273,7 @@ H--ETR-GLR------WPV-I---------------DGK---------------------
 --DAEYNLWLCTGRVLEHWHSGSMTRRVPELYRAVPDAVVYMSKEDAKRRRLRDGQMAII
 SSRRGEIKARVETRGRNRPPDGLVFVPWFDAN--RLVNKLTLDATDPLSKETDYKKCACK
 VV---RA-------------------------
->172_napA
+>172_NapA
 --------------------M---------------T-----------------------
 ------------------------------VSRRNFLKAGIAASTA--------------
 -------------------SMAG-------LSL----------GP-------------AS
@@ -4298,7 +4298,7 @@ AIPSGDLDGV-T-DATPAPL--PG--KAKIFFRP----------------YAAP-VEQP-
 --DANYDLWFSTGRVLEHWHSGTMTRRVPELHRAVPAAVLWMHPEDARERGLQRNDLVWL
 ESRRGKVQIRVETTGRNTMPKGTCYAPFFDEG--VFINKVCIDAACPISKESDYKKCAVK
 VY---KV-------------------------
->173_napA
+>173_NapA
 --------------------M---------------T-----------------------
 ------------------------------VSRREFLKAGIAASTA--------------
 -------------------SMAG-------LSL----------GP-------------AA
@@ -4323,7 +4323,7 @@ AIPSGDLDQV-T-DTTAVPL--PN--KAKIFFRP----------------YSAP-VEQP-
 --DDNYDLWFCTGRVLEHWHSGTMTRRVPELHRAVPAAVLWMHPEDARERGLQRNDLVWL
 ESRRGKVQIRVETGGRNTMPKGTVYAPFFDEG--VFINKVCIDAACPISKESDYKKSAVK
 VY---KA-------------------------
->174_napA
+>174_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAVTAAA--------------
 -------------------VAAG-------MTI----------P----------------
@@ -4348,7 +4348,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DEEFDLWLSTGRVLEHWHTGSMTRRVPELHRAFPESVLFIHPQDAQKRGMRRGDKVKV
 QSRRGEVVTIVETRGRNRVPQGLVYMAFFDAA--QLVNVLTLDATDPLSKETDYKKCAVR
 VV---KA-------------------------
->175_napA
+>175_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRSFMKANAIAAAA--------------
 -------------------AAAG-------LSV----------P----------------
@@ -4373,7 +4373,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DKEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVLFIHPLDAKARDLRRGDKVKV
 VSRRGEVVSIVETRGRNKPPQGLVYMPFFDAA--QLVNNLTLDATDPLSKETDYKKCAVK
 LA---KV-------------------------
->176_napA
+>176_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRSFMKANAVAAAA--------------
 -------------------AAAG-------LSV----------P----------------
@@ -4398,7 +4398,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DQEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVTFIHPLDAQERGLRRGDKVKV
 ISRRGEVISIVETRGRNKPPRGLVYMPFFDAA--QLVNNLTLDATDPLSKEADFKKCAVK
 LS---KV-------------------------
->177_napA
+>177_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRSFMKANAVAAAA--------------
 -------------------AAAG-------LSV----------P----------------
@@ -4423,7 +4423,7 @@ H--KAR-GIR------WPV-V---------------NGK---------------------
 --DEEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVLFIHPLDAKKRDLRRGDKVKV
 VSRRGEVISIVETRGRNRPPQGLVYMPFFDAA--QLVNKLTLDATDPLSKETDFKKCAVK
 LE---KV-------------------------
->178_napA
+>178_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRSFMKANAVAAAA--------------
 -------------------AAAG-------LSV----------P----------------
@@ -4448,7 +4448,7 @@ H--KAR-GLR------WPV-V---------------NGQ---------------------
 --DKEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPQAVLFIHPLDAKARGFRRGDTVKV
 VSRRGAVTSIVETRGRNRPPQGLVYMPFFDAA--QLVNNLTLDATDPLSKETDFKKCAVK
 LE---KA-------------------------
->179_napA
+>179_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRSFMKANAVAAAAAATXXXXXXXXXXX
 XXXXXXXXXXXXXXVAAAGAAAG-------LSV----------P----------------
@@ -4473,7 +4473,7 @@ H--NAR-GLR------WPV-V---------------EGK---------------------
 --DNEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVVFIHPLDAKARDLRRGDKVKV
 SSRRGEVISIVETRGRNRPPQGLVYMPFFDAA--QLVNNLTLDATDPLSKETDFKKCAVK
 LA---KV-------------------------
->180_napA
+>180_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRSFMKANAVAAAA--------------
 -------------------AAAG-------LSV----------P----------------
@@ -4498,7 +4498,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DKEFDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVLFIHPLDAKARDLRRGDKVKV
 ISRRGEVVSVVETRGRNRPPRGLVYMPFFDAA--QLVNNLTLDATDPLSKETDFKKCAVR
 LM---KA-------------------------
->181_napA
+>181_NapA
 ------------------------------------------------------------
 ------------------------------------------------------------
 --------------------PAG-------LSV----------P----------------
@@ -4523,7 +4523,7 @@ H--KAR-GLR------WPV-I---------------NGK---------------------
 --DSEYDLWLSTGRVLEHWHTGSMTRRVEELHRAFPEGVVFMHPQDAKSRNLRRGDKVKV
 ISRRGEVVSIVETRGRNRTPQGLVYMAFFDAA--QLTNALTLDATDPISKETDYKKCAVK
 LA---KV-------------------------
->182_napA
+>182_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAVAAAA--------------
 -------------------AAAG-------LTI----------P----------------
@@ -4548,7 +4548,7 @@ H--KAR-GIR------WPV-V---------------NGK---------------------
 --DKEFDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVLFIHPLDAKQRGLRRGDKVKV
 SSRRGELVSIVETRGRNRVPQGLVYMPFFDAA--QLVNNLTLDATDPLSKETDFKKCAVK
 VE---KVTA-----------------------
->183_napA
+>183_NapA
 --------------------M---------------Q-----------------------
 ------------------------------LSRRDFMKANAAAAAA--------------
 -------------------TAAG-------LVI----------P----------------
@@ -4573,7 +4573,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DAEYDLWFCTGRVLEHWHTGTMTRRVPELHRAVPQALLYIHPLDAKARGLRRGEKVRV
 VSRRGEAMATVETRGRNQPPQGLVFSPFFDAG--VLVNNVTLDATDPLSKQTDYKKCAVK
 LV---KI-------------------------
->184_napA
+>184_NapA
 --------------------M---------------K-----------------------
 ------------------------------VSRREFMKANAAAAAA--------------
 -------------------VAAG-------LTI----------P----------------
@@ -4598,7 +4598,7 @@ H--EAR-GLR------WPV-V---------------NGK---------------------
 --DAEYDLWFCTGRVLEHWHTGTMTRRVPELHRAVPQALLYIHPLDAKDRGFRRGEKVRV
 MSRRGETVATVETRGRNQPPKGLVFMPFFDAG--VLANNVTLDATDPLSKQTDYKKCAVK
 LV---KI-------------------------
->185_napA
+>185_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAVAAAA--------------
 -------------------AAAG-------LTI----------P----------------
@@ -4623,7 +4623,7 @@ H--KAR-GIR------WPV-V---------------DGK---------------------
 --DQQYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVLFIHPLDAKARGLRRGDKVKV
 SSRRGEMISIVETRGRNRVPQGLVYMPFFDAA--QLVNVLTLDATDPLSKETDFKKCAVK
 VE---KV-------------------------
->186_napA
+>186_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRSFMKANAIAAAA--------------
 -------------------AAAG-------IGV----------P----------------
@@ -4648,7 +4648,7 @@ H--KAR-GIR------WPV-V---------------DGK---------------------
 --DDEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPESVVFMNPLDAKAKDLRRGDKVKV
 LSRRGEVLSTVETRGRNRPPKGLIYMAFFDAS--QLVNNLTLDATDPLSKETDYKKCAVK
 LE---KV-------------------------
->187_napA
+>187_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRHFMKANAVAAAA--------------
 -------------------AVAG-------ITI----------P----------------
@@ -4673,7 +4673,7 @@ H--KVR-GLR------WPV-V---------------DGK---------------------
 --DDEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVLFMHPQDAKARDLRRGEKVRI
 ISRRGEVVSIVETRGRNKPPRGLVYMPFFDAA--QMTNVLTLDATDPLSKEADFKKCAVK
 LA---KV-------------------------
->188_napA
+>188_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAAAAAA--------------
 -------------------AAAG-------LTI----------P----------------
@@ -4698,7 +4698,7 @@ H--QTR-GLR------WPV-V---------------DGQ---------------------
 --DKEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPESVVFIHPLDAKDRNLRRGDSVKV
 ASRRGDVVSIVETRGRNRPPQGLVFMPFFDAA--QLVNNLTLDATDPLSKETDYKKCAVK
 LE---KV-------------------------
->189_napA
+>189_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAAVAAA--------------
 -------------------AAAG-------LTI----------P----------------
@@ -4723,7 +4723,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DGEYDLWLSTGRVLEHWHTGTMTRRVPELHRAFPQAVLFIHPLDAKSRGLRRGDKVKV
 LSRRGEVISSVETRGRNRPPRGLVYMPFFDAA--QLVNNLTLDATDPLSKEVDFKKCAVK
 LQ---KV-------------------------
->190_napA
+>190_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAAVAAA--------------
 -------------------AAAG-------LTI----------P----------------
@@ -4748,7 +4748,7 @@ H--QER-GLR------WPV-V---------------NGK---------------------
 --DEEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVLFIHPLDAKKRGLHRGDKVKV
 ISRRGEVISLVETRGRNRPPEGLVYMPFFDAA--QLVNNLTLDATDPLSKETDFKKCAVK
 LA---RVVA-----------------------
->191_napA
+>191_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRDFMKANAVAAAA--------------
 -------------------AAAG-------ITL----------P----------------
@@ -4773,7 +4773,7 @@ H--QVR-GIR------WPV-V---------------DGK---------------------
 --DEEYDLWLSTGRVLEHWHTGSMTRRVPELHRAFPEAVTFIHPLDAKARGLRRGDKVKV
 ISRRGEVISIVETRGRNRVPQGLVYMPFFDAA--QLVNNLTLDATDPLSKETDFKKCAVK
 LE---KA-------------------------
->192_napA
+>192_NapA
 --------------------M---------------K-----------------------
 ------------------------------LNRREFIKINAVAATA--------------
 -------------------AAAG-------ISL----------STA--------------
@@ -4798,7 +4798,7 @@ H--EAH-GLR------WPV-V---------------AGH---------------------
 --DAEYDLWFSTGRVLEHWHSGSMTQRVPELHKAMPEALVYMHPDDAKDRGLSRGMPAKI
 KSRRGEMLAQVETRGRNRPPRGLIFIPWFDAK--RLVNKLTLDATCPISKETDYKKCAVK
 VE---KV-------------------------
->193_napA
+>193_NapA
 ------------------------------------------------------------
 ------------------------------MSRRDFIKSSAIAATA--------------
 -------------------AAAG-------VST----------P----------------
@@ -4823,7 +4823,7 @@ H--QSR-GLR------WPV-V---------------DGK---------------------
 --DDEYDLWLSTGRVLEHWHSGSMTRRVPELYRSFPDAVVYMHPDDAKSRGLRRGMEAKI
 VTRYGEVRTRVETRGRNTPPKGLVFMPFFDAG--QLVNKLILDATDPLSKETDFKKTAAK
 IV---RV-------------------------
->194_napA
+>194_NapA
 --------------------M---------------K-----------------------
 ------------------------------QSRRDFIKSSAVAATA--------------
 -------------------AAAG-------VSV----------P----------------
@@ -4848,7 +4848,7 @@ H--QTR-GKR------WPV-V---------------NGE---------------------
 --DEEYDLWLSTGRVLEHWHSGSMTRRVPELHRSYPDAQLFMHPDDAAERGLRRGEEIKV
 ISRYGEVRTRVETKGRNRMPKGLTYMAFFDAK--QLVNKLLVDATDPLSRETDFKKTAVK
 VV---KA-------------------------
->195_napA
+>195_NapA
 --------------------M---------------K-----------------------
 ------------------------------QSRRDFIKSSAVAATA--------------
 -------------------AAAG-------VSM----------N----------------
@@ -4873,7 +4873,7 @@ H--QER-GLR------WPV-V---------------DGQ---------------------
 --DEEFDLWLSTGRVLEHWHSGSMTRRVPELYRSYPDAQLFMHPDDASERGLRRGDEIRV
 TSRYGEVRTRVETKGRNRPPKGLTFMPFFDAS--QLTNKLVLDATDPLSKETDYKKTAVK
 VS---KV-------------------------
->196_napA
+>196_NapA
 --------------------M---------------N-----------------------
 ------------------------------ESRRQFLKTSAAAAAA--------------
 -------------------SAAG-------LSFAA--------P----------------
@@ -4898,7 +4898,7 @@ H--KSR-GLR------WPV-V---------------DGK---------------------
 --DEEFDLWLCTGRVLEQWHSGTMTQRVPELYKAFPDAVLFMHPDDAKERNLRRGEEALI
 ISRRGEVRSRVETRGRNTMPRGYTFIPFFDAS--ELVNKLILDATDPLSKQTDYKKCPVR
 IE---KV-------------------------
->197_napA
+>197_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRREFVKANAAAVAA--------------
 -------------------ATAG-------MSI----------P----------------
@@ -4923,7 +4923,7 @@ H--ASR-GKR------WPV-V---------------DGQ---------------------
 --DADFPYWLCTGRVLEHWHTGSMTRRVPELHRAVPAALLYMHPEDARAEGFRRGSEVKV
 ASRRGDVNLRVETRGRVKPPRGLVYVPFFDAS--YLINKVTLDATDPISKQTDFKKCAVR
 LD---LVNLA----------------------
->198_napA
+>198_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRREFAKANAAAVAA--------------
 -------------------ATAG-------MVL----------P----------------
@@ -4948,7 +4948,7 @@ H--QNR-GKR------WPV-V---------------DGE---------------------
 --DDEFPYWLSTGRVLEHWHTGSMTRRVPELHRAVPAALLYMHPEDARAEGMRRGSEVKV
 ISRRGEVRLRVETRGRVTPPQGLVYVPFFDAN--RLINNVVLDATDPISKQTDFKKCAVR
 LE---LISLA----------------------
->199_napA
+>199_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRDVIKAQAATVAA--------------
 -------------------SVAG-------ISL----------P----------------
@@ -4973,7 +4973,7 @@ H--KER-GLR------WPV-V---------------NGK---------------------
 --DAEFDMWLSTGRVLEHWHTGSMTQRVPELYKSFPDALCYMHPKDAKQRGLRRGDEVRV
 ISRRGEIKTRVETRGRNKPPVGLVFVPFFDAT--QLINKVCLDATDPISKQTDFKKCAVK
 IV---KA-------------------------
->200_napA
+>200_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRDVIKAQAAATAA--------------
 -------------------TVAG-------ISL----------P----------------
@@ -4998,7 +4998,7 @@ H--KER-GLR------WPV-V---------------NGV---------------------
 --NEEFDMWLSTGRVLEHWHSGSMTQRVPELFKAFPNAVCFMHPEDAKKRGLRRGDEVKV
 ISRRGEMKTRVETRGRNKPPVGLVFVPWFDAS--QLINKVTLDATDPLSKQTDYKKCAVK
 IE---KV-------------------------
->201_napA
+>201_NapA
 --------------------M---------------K-----------------------
 ------------------------------VNRRDFVKAQAASAAA--------------
 -------------------VAAG-------ISL----------P----------------
@@ -5023,7 +5023,7 @@ H--KVR-GLR------WPV-V---------------NGK---------------------
 --DEEYNLWLCTGRVLEHWHSGTMTRRVPELYRAFPDAVVFMHPDDAKDRGLRRGDEVKV
 ISRRGEINSRIETRGRNRVPKGLVFIPFFDAK--QLVNRLTLDATDPLSKETDYKKCAIK
 IM---KA-------------------------
->202_napA
+>202_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRDVVKAQAAAAAA--------------
 -------------------SVAG-------ISL----------P----------------
@@ -5048,7 +5048,7 @@ H--ETR-GLR------WPV-V---------------NGK---------------------
 --DDEYDLWLSTGRVLEHWHSGSMTQRVPELYKAVPDALCYMHPEDARERGLRRGDEIKV
 TSRRGEIRTRVETRGRNKPPKGLVFVPWFDAS--QLINKCTLDAIDPISKQTDFKKCAVK
 IA---KA-------------------------
->203_napA
+>203_NapA
 --------------------M---------------N-----------------------
 ------------------------------LSRRDFMKANAAMAAA--------------
 -------------------TAAG-------LSI----------P--------------VK
@@ -5073,7 +5073,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLCTGRVLEHWHTGTMTRRVPELHRSFPNNLVWMHPTDAQKRGLRHGDKVKV
 ASRRGEIISFLDTRGRNKVPEGLVYTTFFDAG--QLANKLTLDATDPISKETDFKKCAVK
 VE---KAA------------------------
->204_napA
+>204_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRRDFMKANAAMAAA--------------
 -------------------TVAG-------LTI----------P--------------VK
@@ -5098,7 +5098,7 @@ H--KAR-GLR------WPV-V---------------EGK---------------------
 --DAEYDLWLSTGRVLEHWHTGTMTRRVPELHRSFPNNVVWMHPNDAKKRGLRHGDKIKV
 SSRRGEIISYLDTRGRNKCPEGLVFTTFFDAG--QLVNKLTLDATDPISKETDFKKCAVK
 VE---KVA------------------------
->205_napA
+>205_NapA
 --------------------M---------------E-----------------------
 ------------------------------LNRRDFMKANAAAAAA--------------
 -------------------AAAG-------IAI----------P--------------IK
@@ -5123,7 +5123,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLCTGRVLEHWHTGTMTRRVPELHKAFPNNLVWMHPTDAQKRGLRHGDKVKV
 ISRRGEVISHLDTRGRNKCPEGLIYTTFFDAG--QLANKVTLDATDPISFETDFKKCAVK
 VV---KA-------------------------
->206_napA
+>206_NapA
 --------------------M---------------N-----------------------
 ------------------------------LSRRDFMKANAATAAA--------------
 -------------------AAIG-------MTI----------P--------------IK
@@ -5148,7 +5148,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DQEYDLWLSTGRVLEHWHTGTMTRRVPELHRSFPNNVLWMHPLDAKDRGLRHGDKALI
 ASRRGQMETVIDTRGRNKPPRGLVFTTFFDAG--QLANMLTLDATDPISKETDFKKCAVK
 VT---KI-------------------------
->207_napA
+>207_NapA
 --------------------M---------------E-----------------------
 ------------------------------LNRRDFMKANAAAAAA--------------
 -------------------LAAG-------ITL----------P--------------VK
@@ -5173,7 +5173,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DTEYDLWLSTGRVLEHWHSGSMTRRVPELHRSFPNNLVWMHPTDAQKRGLRHGDKVKV
 ISRRGEMISHLDTRGRNKVPEGLIYTTFFDAG--QLANKLTLDATDPISKETDFKKCAVK
 VV---KA-------------------------
->208_napA
+>208_NapA
 --------------------M---------------S-----------------------
 ------------------------------ISRRDFMKANAAAAAA--------------
 -------------------VAAG-------ISI----------P--------------IK
@@ -5198,7 +5198,7 @@ QSEEVR-GLR------WPV-V---------------NGV---------------------
 --DEEYDMWLCTGRVLEHWHTGTMTRRVPEIHRSFPNNVVYMHPLDAEARGMRHGDKIKL
 ITRRGEMVSYLDTRGRNKPPRGLVFTMFFDAG--QQVNRLTLDAADPISKETDYKKCAVK
 VV---KA-------------------------
->209_napA
+>209_NapA
 --------------------M---------------E-----------------------
 ------------------------------LSRRDFMKANAAVAAA--------------
 -------------------AAAG-------IVL----------P--------------VK
@@ -5223,7 +5223,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLSTGRVLEHWHTGTMTRRVPELHRSFPNNLVWMHPSDAKKRGLRHGDKVKV
 ITRRGEMISHLDTRGRNKCPEGLIFTTFFDAG--QLANKLTLDATDPISGETDFKKCAAK
 VV---KA-------------------------
->210_napA
+>210_NapA
 ------MGENA---------M---------------N-----------------------
 ------------------------------LSRRDFMKANAAMAAA--------------
 -------------------TAAG-------LTI----------P--------------VK
@@ -5248,7 +5248,7 @@ H--KAH-GLR------WPV-V---------------EGK---------------------
 --DNEYDLWLSTGRVLEHWHTGTMTRRVPELHRAFPNNLVWMHPLDAQARGLRHGDKIKI
 SSRRGEMISYLDTRGRNKPPRGLVFTTFFDAG--QLANSLTLDATDPISKETDFKKCAVK
 VE---KAA------------------------
->211_napA
+>211_NapA
 ------MKNNSVGKI-----M---------------E-----------------------
 ------------------------------LNRRDFMKANAAMAAA--------------
 -------------------AAAG-------MTI----------P--------------VK
@@ -5273,7 +5273,7 @@ H--QVR-GLR------WPV-VKDEK---------TGEFK---------------------
 --DEEYDLWLCTGRVLEHWHTGTMTRRVPELHRAFPNNLVWMHPADAKKRGLRHGDKVKL
 ITRRGEMISHLDTRGRNKCPEGLIFTTFFDAG--QLANKLTLDATDPISGETDYKKCAVK
 VV---KA-------------------------
->212_napA
+>212_NapA
 --------------------M---------------N-----------------------
 ------------------------------LSRRDFMKANAALAAA--------------
 -------------------SVAG-------LII----------P--------------VK
@@ -5298,7 +5298,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DRKYDLWLTTGRILEHWHTGSMTRRVPELHRSFPNNLVWMNPNDAKKRGLKHGDKIKV
 ISRRGEITSYIDTRGRNKCPEGLIYTTFFDAG--QLANKLILDATDPISKETDFKKCAVK
 VV---KA-------------------------
->213_napA
+>213_NapA
 --------------------M---------------E-----------------------
 ------------------------------LNRRDFMKANAAVAAA--------------
 -------------------AAAG-------IMI----------P--------------VK
@@ -5323,7 +5323,7 @@ H--KVR-GLR------WPV-VKDEK---------TGEYK---------------------
 --DEEYDLWFCTGRVLEHWHTGTMTRRVPELHKAFPTNLVWMHPNDAKKRGLRHGDKVKV
 ISRRGEYVSNLDTRGRNKCPEGLIYSTFFDAG--QLINKVTLDATDPISFETDFKKCAVK
 VV---KA-------------------------
->214_napA
+>214_NapA
 --------------------M---------------K-----------------------
 ------------------------------LNRRDFMKTNAAVAAA--------------
 -------------------AAAG-------IAI----------P--------------VK
@@ -5348,7 +5348,7 @@ H--QVR-GLR------WPV-V---------------DNK---------------------
 --DADYDLWLCTGRVLEHWHTGTMTRRVPELHKSFPNNLVWMHPTDAQKRGLRHGDKVKV
 ISRRGEMISHLDTRGRNKCPEGLVYSTFFDAG--QLVNKTTLDATDPISFETDFKKCAVK
 VV---KA-------------------------
->215_napA
+>215_NapA
 --------------------M---------------E-----------------------
 ------------------------------LNRREFVKANAAAAAA--------------
 -------------------AAAG-------IAI----------P--------------VK
@@ -5373,7 +5373,7 @@ H--QVR-GLR------WPV-VKDEK---------TGEYK---------------------
 --DEEYDLWLCTGRVLEHWHTGTMTRRVPELHKSFPNNLVWMHPEDAKKRGLRHGDQVKV
 ISRRGEMISHIDTRGRNKTPEGLVFSTFFDAG--QLLNKVVLDATDPISFETDYKKCAVK
 VV---KV-------------------------
->216_napA
+>216_NapA
 MVQDKYSGGNAM-------NV---------------N-----------------------
 ------------------------------LSRRDFMKTNAAVAAA--------------
 -------------------TVAG-------LAI----------P--------------VQ
@@ -5398,7 +5398,7 @@ H--KAR-GLR------WPV-V---------------DGK---------------------
 --DAEYDLWLSTGRVLEHWHTGTMTRRVPELHRSFPNNLVWMHPLDAKARGLRHGDKVKV
 TSRRGEIISHLDTRGRNKVPQGLVYTTFFDAG--QLANYLTLDATDPISKETDFKKCAVK
 VE---KA-------------------------
->217_napA
+>217_NapA
 --------------------M---------------N-----------------------
 ------------------------------LTRRQFAKANAAAIAA--------------
 -------------------AAAG-------LPI----------L----------------
@@ -5423,7 +5423,7 @@ H--EAR-GLR------WPV-V---------------DGK---------------------
 --DKEYPFWLSTGRVLEHWHTGSMTQRVPELYKAVPDAVVYMHPDDARDLKMRRGSEVKV
 ISRRGEIRARIETRGRNKPPQGLVFVPFFDAN--KLINKVTLDATDPISKQTDYKKCAVR
 IE---LVSLA----------------------
->218_napA
+>218_NapA
 --------------------M---------------P-----------------------
 ------------------------------MTRREFVKVQAAGIAA--------------
 -------------------AAAG-------LPV----------F----------------
@@ -5448,7 +5448,7 @@ H--SER-GLR------WPV-V---------------EGK---------------------
 --DADFPFWLSTGRVLEHWHTGTMTQRVEELHKAIPDALVYMHPADARALNARRGSEVKL
 ISRRGEMRARIETRGRNKPPQGLVFVPFFDAN--KLINKVTLDATDPISKQTDYKKCAIR
 IE---LIATA----------------------
->219_napA
+>219_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRREFAKANAAAIAA--------------
 -------------------AAAG-------LPL----------A----------------
@@ -5473,7 +5473,7 @@ H--AER-GLR------WPV-V---------------DGK---------------------
 --DDEFPFWLSTGRVLEHWHTGSMTQRVEELHGAVPDALVYMHPDDAKALKARRGSEVKV
 ISRRGEIRARIETRGRNKPPRGLVFVPFFDAN--KLINKVTLDATDPISKQTDYKKCAVK
 IE---LVSLA----------------------
->220_napA
+>220_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRREFAKAQAAAIAA--------------
 -------------------AAAG-------LPI----------A----------------
@@ -5498,7 +5498,7 @@ H--AER-GLR------WPV-V---------------DGR---------------------
 --DKEFPFWLSTGRVLEHWHTGSMTQRVDELHRAVPDALVYMHPDDARELKARRGSEIKV
 VSRRGEIRARVETRGRNKPPRGMVFVPFFDAN--KLINKVTLDATDPISKQTDFKKCAVR
 IE---LVSLA----------------------
->221_napA
+>221_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRRAFVKSQAAAIAA--------------
 -------------------AAAG-------LPI----------M----------------
@@ -5523,7 +5523,7 @@ H--SER-GLR------WPV-V---------------EGK---------------------
 --DADYPFWLSTGRVLEHWHTGSMTQRVEELHKAVPDALVYMHPDDAKALKARRGSEVKL
 VSRRGEIRARIETRGRNKPPQGLVFVPFFDAN--KLINKVTLDATDPISKQTDYKKCAIR
 IE---LISVA----------------------
->222_napA
+>222_NapA
 --------------------M---------------S-----------------------
 ------------------------------LNRRDFIKANAVAAAA--------------
 -------------------ATAG-------MAV----------PTTV-----------L-
@@ -5548,7 +5548,7 @@ H--RAR-GLR------WPV-V---------------DGK---------------------
 --DAEFDLWLSTGRVLEHWHTGSMTRRVPELHKAVPEAVLYIHPDDAKARGLQRGMQARI
 VSRRGEVVASIETRGRNKPPRGLVYMPFFDEG--RLVNKLLLDATCPLSKETDFKKCAVK
 VL---KA-------------------------
->223_napA
+>223_NapA
 --------------------M---------------S-----------------------
 ------------------------------MTRREFTKAQAAAIAA--------------
 -------------------AAAG-------LPI----------A----------------
@@ -5573,7 +5573,7 @@ H--SER-GLR------WPV-V---------------EGS---------------------
 --DNDYPFWLSTGRVLEHWHTGSMTQRVDELHRAVPDALVYMHPDDAKAMNARRGSEVKV
 ISRRGEIRARIETRGRNKPPRGLVFVPFFDAN--KLINKVTLDATDPISKQTDYKKCAVK
 IQ---LISAA----------------------
->224_napA
+>224_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRRQFAKANAAAIAA--------------
 -------------------SVAG-------IPI----------A----------------
@@ -5598,7 +5598,7 @@ H--QER-GLR------WPV-V---------------DGK---------------------
 --DAEYPFWLSTGRVLEHWHTGSMTQRVDELHRAVPDALVYMHPEDARELNARRGSVVKV
 ISRRGEMQARIETRGRNKPPKGLIFVPFFDAN--KLINKVTLDATDPISKQTDYKKCAVK
 IE---VVSIA----------------------
->225_napA
+>225_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRREFAKANAAAIAA--------------
 -------------------TVAG-------LPI----------A----------------
@@ -5623,7 +5623,7 @@ H--QAR-GLR------WPV-V---------------DGQ---------------------
 --DQDYPFWLSTGRVLEHWHTGSMTQRVDELHKAVPDALVYMHPEDARKLNARRGSVVKV
 ISRRGEMQARVETRGRNKPPMGLIFVPFFDAN--KLINKVTLDATDPISKQTDYKKCAVK
 IE---VVSIA----------------------
->226_napA
+>226_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRRQFAKANAAAIAA--------------
 -------------------TVAG-------MPI----------A----------------
@@ -5648,7 +5648,7 @@ H--RER-GLR------WPV-V---------------DEK---------------------
 --DEEYPFWLSTGRVLEHWHTGSMTQRVDELHKAVPDALVYMHPEDARKLSVRRGSVVKI
 VSRRGEMQGRVETRGRNKPPMGLVYVPFFDAN--KLINKVTLDATDPISKQTDFKKCAVK
 IE---VVSIA----------------------
->227_napA
+>227_NapA
 --------------------M---------------K-----------------------
 ------------------------------LNRRDFIKANAIAATA--------------
 -------------------AAAG-------VTL----------P----------------
@@ -5673,7 +5673,7 @@ H--QSR-GYR------WPV-I------QQG------EGK---EPQ---------------
 --DEEYDLWLVTGRMLEHWMAGSMTMRVPELYQAYPDAVVYMHPKDVKRRGLRRGMSVKM
 ITRRGEIIINVETRGRNRPPEGVVFVPFFDAR--RLINKLTLDATCPISKEADFKKCAVK
 VE---RA-------------------------
->228_napA
+>228_NapA
 --------------------M---------------K-----------------------
 ------------------------------ITRREFIKANAIAATA--------------
 -------------------AAAG-------VTL----------PQT--------------
@@ -5698,7 +5698,7 @@ H--QSR-GLR------WPV-I---------------DGK---------------------
 --NDEYDLWLVTGRVLEHWHSGSMTRRVPELYRAFPDAVVFMHRKDAKRRGLRRGMTAKL
 KTRRGEITAKVETRGRNRPPEGLVFIPWFDAS--RLVNKLTLDATCPISKETDYKKCAVK
 IE---RG-------------------------
->229_napA
+>229_NapA
 --------------------M---------------N-----------------------
 ------------------------------LTRRKFLKANAAAAAA--------------
 -------------------SAAG-------VTL----------P----------------
@@ -5723,7 +5723,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLSTGRVLEHWHTGTMTRRVPELYKAYPDAVVYMHPLDAKRRGLRRGDAVRV
 ISRRGEVATHVETRGRNRVPEGLVFMPFFDAG--QLVNKLTLDATDPLSKETDFKKAAVK
 VV---KA-------------------------
->230_napA
+>230_NapA
 --------------------M---------------K-----------------------
 ------------------------------CSRRKFLKAQAAASAA--------------
 -------------------AVAG-------ISI----------P----------------
@@ -5748,7 +5748,7 @@ H--ETR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLSTGRVLEHWHSGSMTRRVTELYSSYPNAQVFMHPDDAKARGLRRGDEVKV
 VSRRGEILTRVETRGRDKPPKGLVFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 VV---KA-------------------------
->231_napA
+>231_NapA
 --------------------M---------------K-----------------------
 ------------------------------CSRRQWLKAQAATTAA--------------
 -------------------AAAG-------ISI----------P----------------
@@ -5773,7 +5773,7 @@ H--QTR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLSTGRILEHWHSGSMTRRVPELFKAFPDAVVFMHPEDAKARGVRRGDAVKV
 VSRRGEIITRVETRGRNKPPQGLVFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 VM---KA-------------------------
->232_napA
+>232_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------ISL----------P----------------
@@ -5798,7 +5798,7 @@ H--KVR-GLR------WPV-V---------------DGK---------------------
 --DQDYDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDAWCYINPQDAKARNLRRGDEVLL
 ASRRGEVRCRVETRGRNRPPVGLVFVPFFDAN--ILVNKLILDATDPLSKQTDFKKCPIK
 IT---KI-------------------------
->233_napA
+>233_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------ISL----------P----------------
@@ -5823,7 +5823,7 @@ H--HVR-GLR------WPV-V---------------NGK---------------------
 --DKEYDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDAVCFIHPDDAKNRGLRRGDEVIV
 ASRRGEINCRVETRGRNRPPVGLVFIPFFDAR--ILVNKLILDATDPLSKQTDFKKCPVQ
 IR---KA-------------------------
->234_napA
+>234_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------ISL----------P----------------
@@ -5848,7 +5848,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWMSTGRVLEHWHTGTMTRRVPELYKAVPDALCYIHPDDAQSRGLRRGDEVLV
 ASRRGEVRCRVETRGRNRPPVGLVFIPFFDAR--ILVNKLILDATDPLSKQTDFKKCPVK
 IT---KV-------------------------
->235_napA
+>235_NapA
 --------------------M---------------K-----------------------
 ------------------------------CSRRKFIKAQAAASAA--------------
 -------------------AAAG-------ISI----------P----------------
@@ -5873,7 +5873,7 @@ H--EVR-GLR------WPV-V---------------DGK---------------------
 --DEEYDLWLSTGRVLEHWHSGSMTRRVPELHKSYPNAQVFMHPDDAKERGMRRGDAVKV
 ISRRGEIITRVETRGRNKPPKGLVYVPWFDSS--QLINKVTLDATDPLSKQTDFKKCAVK
 VV---KA-------------------------
->236_napA
+>236_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------ITL----------P----------------
@@ -5898,7 +5898,7 @@ H--QAR-GLR------WPV-V---------------DGK---------------------
 --DDEYDLWLCTGRVLEHWHTGTMTRRVPELYKAVPDAVCYIHPDDARKRNLRRGDEVLM
 ASRRGEVRCRVETRGRNRPPVGLVFVPFFDAR--VLINKLVLDATDPLSKQTDYKKCPVK
 IT---KA-------------------------
->237_napA
+>237_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------ITL----------P----------------
@@ -5923,7 +5923,7 @@ H--QVR-GLR------WPV-V---------------NGK---------------------
 --DNEYDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDAVCYIHPDDAKKRKLRRGDEVLL
 ASRRGEIRCRVETRGRNRPPEGLVFVPFFDAR--ILVNKLILDATDPLSKQTDFKKCPIK
 IT---KVA------------------------
->238_napA
+>238_NapA
 --------------------M---------------K-----------------------
 ------------------------------FSRRAFIKAQAAASAA--------------
 -------------------AAVG-------LTI----------P----------------
@@ -5948,7 +5948,7 @@ H--ESR-GLR------WPV-V---------------DGK---------------------
 --DKEYDLWLVTGRVLEHWHSGSMTQRVPELYKSYPNAQVFIHPDDARSRGLRRGDAVKV
 ISRRGEIITRVETRGRNKPPKGLIFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 LV---KA-------------------------
->239_napA
+>239_NapA
 --------------------M---------------K-----------------------
 ------------------------------VSRRSFLKANAAAAAA--------------
 -------------------TAAG-------LTI----------P----------------
@@ -5973,7 +5973,7 @@ H--QSR-GLR------WPV-V---------------DGK---------------------
 --DNEYDLWLSTGRVLEHWHTGSMTRRVPELYRSYPDAVVYMHPLDAKERGLRRGDAIKI
 VSRRGEVLSHIETRGRNRVPQGLVFMPFFDAG--QLTNKLTLDATDPLSKETDFKKCAVK
 VV---KA-------------------------
->240_napA
+>240_NapA
 ------MGNARE-VI-----M---------------K-----------------------
 ------------------------------VSRRKFIKAQAVASAA--------------
 -------------------AAAG-------ISI----------P----------------
@@ -5998,7 +5998,7 @@ H--ETR-GLR------WPV-V---------------DGK---------------------
 --DEEYDMWLSTGRVIEHWHSGSMTQRVPELYKAYPDAQVFMHPDDAKSRGLRRGDAVKV
 MSRRGEIITRVETRGRNKPPIGLVFVPWFDAS--QLINKVTLDATDPLSKQTDFKKCAVK
 IV---KA-------------------------
->241_napA
+>241_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------VTL----------P----------------
@@ -6023,7 +6023,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --NDEFDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDAVCYMHPEDAKARNVRRGEEVLM
 ANKRGEVRVRVETRGRNRPPKGLVFVPFFDAR--ILINKLILDATDPLSKQTDFKKCPVK
 IT---KIA------------------------
->242_napA
+>242_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------VTL----------P----------------
@@ -6048,7 +6048,7 @@ H--KVR-GLR------WPV-V---------------DGK---------------------
 --SDEYDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDALCYIHPADAKARGLRRGDEVLI
 ENKRGEVRVRVETRGRNRPPQGLVFVPFFDAR--ILINKLILDATDPLSKQTDYKKCPVK
 IT---KVS------------------------
->243_napA
+>243_NapA
 ------MYE-----N-----D---------------Q-----------------------
 ------------------------------TXXXXXXXXXXAASAA--------------
 -------------------AVAG-------ITL----------P----------------
@@ -6073,7 +6073,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --NEEYDLWLCTGRVLEHWHTGTMTRRVPELYKAVPDALCFMHHEDAQARGLRRGDEVLI
 SNSRGEVRVRVETRGRNKPPKGLVFVPFFDAR--ILVNKLILDATDPLSKQTDFKKCPVK
 IT---KVA------------------------
->244_napA
+>244_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------ITL----------P----------------
@@ -6098,7 +6098,7 @@ H--TVR-GLR------WPV-V---------------NGK---------------------
 --DEEFDLWLCTGRVLEHWHTGTMTRRVPELYKAFPDAVCFMHHDDAQARGLRRGDEVVI
 ANKRGEVRARVETRGRNKPPKGLVFVPFFDAR--ILINKLILDATDPLSKQTDFKKCPVK
 IT---KVA------------------------
->245_napA
+>245_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRREFVKANAAASAA--------------
 -------------------AVAG-------ISL----------P----------------
@@ -6123,7 +6123,7 @@ H--TVR-GLR------WPV-V---------------DGK---------------------
 --DQEFDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDAVCYMHPADAKAKDLRRGEEVLV
 SNKRGEIRVRVETRGRNRPPKGLVFIPFFDAK--ILINKLILDATDPLSKQTDFKKCPVK
 IT---KVA------------------------
->246_napA
+>246_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------ITL----------P----------------
@@ -6148,7 +6148,7 @@ H--TVR-GLR------WPV-V---------------DGK---------------------
 --NEEFDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDAVCYMHPDDAKARNVRRGEEVLM
 ANKRGEVRVRVETRGRNRPPQGLVFVPFFDAR--ILINKLILDATDPLSKQTDFKKCPVK
 IT---KVV------------------------
->247_napA
+>247_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRREFVKANAAASAA--------------
 -------------------AVAG-------ISL----------P----------------
@@ -6173,7 +6173,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DQEHDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDAVVYIHPADAKEKGLRRGDEALI
 SNKRGEVRVRVETRGRNRPPRGLIFVPFFDAR--ILINKLILDATDPLSKQTDFKKCPVK
 IT---NLNVA----------------------
->248_napA
+>248_NapA
 --------------------M---------------K-----------------------
 ------------------------------MTRRAFVKANAAASAA--------------
 -------------------AVAG-------ITL----------P----------------
@@ -6198,7 +6198,7 @@ H--QVR-GLR------WPV-V---------------DGK---------------------
 --DSEYDMWLCTGRVLEHWHTGTMTRRVPELYKAVPDAVVYIHPADAKARGVRRGEEVLI
 ENQRGEVRVRVETRGRNRPPEGLVFVPFFDAR--ILINKLILDATDPLSKQTDFKKCPVK
 IT---KIA------------------------
->249_napA
+>249_NapA
 --------------------M---------------------------------------
 ------------------------------TTRRDFIRASAIASAA--------------
 -------------------AAAG-------LPQ----------S----------------
@@ -6223,7 +6223,7 @@ H--AAR-GLR------WPV-V---------------DGK---------------------
 --DADYDLWLVTGRVLEHWHSGSMTMRIPELYRSFPAAVVFMNPDDAKARGFKRGDEVQV
 VSRRGAMRTRVETRGRNRMPPGVVFVPWFDAG--QLINKVTLDATDPISKQTDYKKCAVK
 VQ---AV-------------------------
->250_napA
+>250_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRREFIRNTAVAVAA--------------
 -------------------NVAG-------LAL----------P----------------
@@ -6248,7 +6248,7 @@ H--KAH-GLR------WPV-V---------------DGK---------------------
 --DDEYDLWLSTGRVLEHWHSGSMTMRVPELYRAFPEAVVFMHPDDARKRGFKRGDEVKV
 VSRRGEMRSRVETRGRNKPPQGLVFVPWFDAG--QLINKVTLDATDPISKQTDYKKCAVK
 IV---AV-------------------------
->251_napA
+>251_NapA
 ------------------------------------------------------------
 ------------------------------MTRREFIRETAVAIAA--------------
 -------------------NVAG-------IAL----------P----------------
@@ -6273,7 +6273,7 @@ H--QAR-GLR------WPV-V---------------DGH---------------------
 --DKEFDLWLVTGRVLEHWHSGSMTMRVPELYRAFPQAVVFMNPDDAKARGFKRGDEVRV
 VSRRGDMRSRIETRGRNHMPPGVVFVPWFDAG--QLINKVTLDATDPISKQTDYKKCAVK
 VV---AV-------------------------
->252_napA
+>252_NapA
 --------------------M---------------------------------------
 ------------------------------TTRREFVRNSAVAAAA--------------
 -------------------AAAG-------LPL----------P----------------
@@ -6298,7 +6298,7 @@ H--QER-GLR------WPV-V---------------DGQ---------------------
 --DGEYDLWLVTGRVLEHWHSGSMTMRIPELYRAFPSAVAFMHPDDARERGLKRGDEIRV
 VSRRGDMRTRVETRGRNRMPRGVIFVPWFDAA--QLINKVTLDATDPISGQTDFKKCAVR
 VV---AA-------------------------
->253_napA
+>253_NapA
 ------------------------------------M-----------------------
 ------------------------------TSRREFIRNTAIASAA--------------
 -------------------AAAG-------MPI----------P----------------
@@ -6323,7 +6323,7 @@ H--RER-GLR------WPV-V---------------DGK---------------------
 --DAEYDLWLVTGRVLEHWHSGSMTMRIPELYRSFPSAVVFMHPDDARARGLKRGDEVSV
 SSRRGAMRTRVETRGRNRMPRGVIFVPWFDAA--QLINKVTLDATDPISKQTDFKKCAAK
 VA---AVGVA----------------------
->254_napA
+>254_NapA
 --------------------M---------------A-----------------------
 ------------------------------VTRRDFIRSTAIATAA--------------
 -------------------AAAG-------IPL----------S----------------
@@ -6348,7 +6348,7 @@ H--RAR-GLR------WPV-V---------------DGK---------------------
 --DEEFDLWLVTGRVLEHWHSGSMTMRVPELYRSFPAAVVFMNPDDAKARGLKRGDPVRV
 ASRRGEMLSRLETRGRNRMPRGVIFVPWFDAG--QLINKVTLDATDPISKQTDYKKCAVR
 VQ---AA-------------------------
->255_napA
+>255_NapA
 --------------------M---------------------------------------
 ------------------------------STRRDFIRHSALATAA--------------
 -------------------AAAG-------LPL----------T----------------
@@ -6373,7 +6373,7 @@ H--KAR-GLR------WPV-V---------------KGK---------------------
 --DDEFNLWLVTGRVLEHWHSGSMTMRVPELYKAFPAAVVFMNPDDAKARGLKRGDEIIV
 ASRRGEMRSRVETRGRNRMPRGVVFVPWFDAG--QLINKVTLDATDPISKQTDYKKCAVK
 VV---AA-------------------------
->256_napA
+>256_NapA
 ------------------------------------M-----------------------
 ------------------------------TTRRDFIRNSAVATAA--------------
 -------------------AAIG-------LPT----------G----------------
@@ -6398,7 +6398,7 @@ H--QTR-GLR------WPV-V---------------DGK---------------------
 --DQEFDMWLVTGRVLEHWHSGSMTMRVPELYRAFPEAVVFMNPDDARARGLKRGDGVRV
 QSRRGEMLSRVETRGRNRMPPGVVFVPWFDAG--QLINKVTLDATDPISKQTDYKKCAVK
 VV---AA-------------------------
->257_napA
+>257_NapA
 --------------------M---------------S-----------------------
 ------------------------------TTRRDFIRTSAIATAA--------------
 -------------------AAAG-------LSL----------P----------------
@@ -6423,7 +6423,7 @@ H--RAR-GLR------WPV-V---------------AGK---------------------
 --DTEYDLWLVTGRVLEHWHSGSMTMRVPELYRAFPAAVCFMNPDDARARGLKRGDEIRV
 QSRRGEMRTRVETRGRNRMPRGVVFVPWFDAG--QLINKVTLDATDPISKQTDYKKCAVR
 VL---PA-------------------------
->258_napA
+>258_NapA
 --------------------M---------------S-----------------------
 ------------------------------TTRRDFIRHSAVATAA--------------
 -------------------AAAG-------LPL----------P----------------
@@ -6448,7 +6448,7 @@ H--QAH-GLR------WPV-V---------------DGK---------------------
 --DAEYDMWLVTGRVLEHWHSGSMTMRIPELYRSFPAAVVFMHPDDARARGLKRGDEIRV
 VSRRGEMRSRVETRGRNRMPRGMVFVPWFDAG--QLINKVTLDATDPISKQTDFKKCAVK
 VV---VA-------------------------
->259_napA
+>259_NapA
 --------------------M---------------A-----------------------
 ------------------------------ITRREFIKNSAISATA--------------
 -------------------ATAG-------VTL----------PG---------------
@@ -6473,7 +6473,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DEEFDLWMSTGRVLEHWHSGSMTRRVPELYRAVPDAVIYMHPDDAKSRGLRRGKNAKV
 VSSRGEIVAMIETKGRNKPPKGLVFVPWFDAS--RLVNKLILDATDPLSKETDYKKTPVK
 IV---KV-------------------------
->260_napA
+>260_NapA
 --------------------M---------------A-----------------------
 ------------------------------ITRREFIKNSAITATA--------------
 -------------------TTAG-------VTL----------PGI--------------
@@ -6498,7 +6498,7 @@ H--KVR-GLR------WPV-V---------------NGK---------------------
 --NEEFDLWMSTGRVLEHWHSGTMTRRVPELYRAVPDAVLYMHPEDAKSRGLRRGANAKI
 QSSRGEIVAMVETKGRNRPPKGLVFVPWFDAS--RLVNKLILDATDPLSKETDYKKTPVK
 VV---KA-------------------------
->261_napA
+>261_NapA
 --------------------M-EV------------K-----------------------
 ------------------------------LTRRDFIKSNAATAAA--------------
 -------------------VAAG-------VTL----------PAIQ-----------AA
@@ -6523,7 +6523,7 @@ H--KAR-GIR------WPV-V---------------NGK---------------------
 --DDEFDLWLCTGRVLEHWHSGSMTQRVPELHRAVPDAVVFMHKKDAKKRRLRDGQMAKL
 QTRRGEIVARVETRGRNRPPEGLVFIPWFDAT--RLVNKLTLDATDPLSKETDYKKCAVK
 IV---KV-------------------------
->262_napA
+>262_NapA
 --------------------M---------------S-----------------------
 ------------------------------LTRRDFIKSNAIAAAA--------------
 -------------------ATAG-------VTL----------PAA-------------K
@@ -6548,7 +6548,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DSEYPLWLCTGRVLEHWHSGSMTRRVPELYRAVPDAVVFMNKKDAKKLKLRNGRMAKI
 SSRRGTITCKVETRGRNQPPQGLVFVPWFDAG--RLVNKLTLDATDPLSKETDYKKCAVK
 IT---KA-------------------------
->263_napA
+>263_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRNFIKAQAVAAAA--------------
 -------------------ATAG-------LSL----------PATQL------------
@@ -6573,7 +6573,7 @@ H--KVR-GLR------WPV-V---------------NGK---------------------
 --GKEFDLWLCSGRVLEHWHTGSMTNRVPELHRAVPDALVYMNPSDARKRGIRNGAKVKI
 TSPRGSITTRVDVRGRNKPPKGLVFIPFFDAG--RLVNKLILDATDPLSKETDYKKCVVK
 IE---LA-------------------------
->264_napA
+>264_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRDFIKSNAVAAAA--------------
 -------------------SVAG-------VTL----------PA-------------IK
@@ -6598,7 +6598,7 @@ H--KAR-GIR------WPV-V---------------NGK---------------------
 --DKEYNLWLCTGRVLEHWHSGSMTRRVPELYRAVPDAVVFMSKKDAKKRKLRNGQMAKI
 TSRRGEIVCRVDTKGRNKVPDGLVFIPWFDAG--RLVNKLTLDATDPLSKETDYKKCAVK
 IS---KA-------------------------
->265_napA
+>265_NapA
 --------------------M---------------K-----------------------
 ------------------------------LTRRDFIKTNAVAATA--------------
 -------------------AAAG-------MTL----------PG-------------LN
@@ -6623,7 +6623,7 @@ H--KAR-GLR------WPV-V---------------NGK---------------------
 --DKDYDLWLCTGRVLEHWHTGTMTRRVPELYRAVPDAQVFMHPDDAKKRGLKRGDVAKL
 ATRRGEITAVVETRGRNRMPEGLVFVPFFDAG--RLVNKLTLDATDPLSKETDYKKCAVK
 VL---KA-------------------------
->266_napA
+>266_NapA
 -------------------MM---------------A-----------------------
 ------------------------------QTRRDFIKKTAALSAA--------------
 -------------------SLVG-------MQL----------PVDV-----------NT
@@ -6648,7 +6648,7 @@ G--RMADGVQ------WPAPT---------------EEF-ALKG----------------
 --DADYPFYLSTGRIIDHWHTMSMTGRIPELLRANPYAYVEINPKDAAKLGIKPGDMVEV
 RSRRGVNLLPAKVYE--GPIEGMVFVYWHDQEQTRMINKVTKDDYDPASKEPEFKICAVQ
 IQ---RVSGPRPLTPFLV--------------
->267_napA
+>267_NapA
 --------------------M---------------K-----------------------
 ------------------------------IDRRSFVKSAAAASAV--------------
 -------------------ATAASLFP--GISFAG--------W---------------K
@@ -6673,7 +6673,7 @@ K--ARS-GVQ------WPF-V---------------NGK---------------------
 --DQEYNFWLNTGRVIEHWHTGSMTRRVPVLHNSMPAAYVEINPDDAADMGIVNGEMVRI
 ISRRGEVTMPASINGRGVPPRGMVFVPFFDES--YLINEVTLDAFCPISKQPDYKKCAVK
 LE---KA-------------------------
->268_napA
+>268_NapA
 --------------------M---------------Q-----------------------
 ------------------------------MTRRDFLRSAAMSAAL-A------------
 -------------------AVAG-------P---------------------------AG
@@ -6698,7 +6698,7 @@ K--RES-GLI------WPCPT---------------ETH----P----------------
 --DQEYPFYLTSMRVIDHWHTATMTGKVPELLKANPAAFVEVNTEDASRLNIKNGDQVVV
 ETRRDALTLPAHVND--TCKPGLIAVPFFDKK--KLVNKLFLDATDPASREPEYKICAAR
 IK---KA-------------------------
->269_napA
+>269_NapA
 --------------------M---------------N-----------------------
 ------------------------------ASRREFLRCFAMSAAV-A------------
 -------------------AASG-------TGL-------------------------AG
@@ -6723,7 +6723,7 @@ R--KES-GLI------WPCPG---------------EDH----P----------------
 --DAEYPLYLTSMRVIDHWHTATMTGKVPELQKANPAAYVEINPQDAEKAGIRQDDTVIV
 ETRRAAMELPARVSD--VCRPGLIAVPFFDPK--KLVNKFFLDAFDPASQEPEYKICAAR
 IR---KA-------------------------
->270_napA
+>270_NapA
 --------------------M---------------S-----------------------
 ------------------------------TSRRDFLKYFAMSAAV-A------------
 -------------------AASG-------AGF-------------------------GS
@@ -6748,7 +6748,7 @@ R--KES-GLI------WPCPS---------------EDH----P----------------
 --DAEYPLYLTSMRVIDHWHTATMTGKVPELQKANPIAFVEINEEDAARTGIKHGDSVIV
 ETRRDAMELPARVSD--VCRPGLIAVPFFDPK--KLVNKLFLDATDPVSREPEYKICAAR
 VR---KA-------------------------
->271_napA
+>271_NapA
 --------------------M---------------E-----------------------
 ------------------------------CSRRDFLRYMALSAAL-A------------
 -------------------AVSG-------APL-------------------------PA
@@ -6773,7 +6773,7 @@ R--KES-GII------WPCPD---------------EKH----P----------------
 --DAEYPLYLTSMRVIDHWHTATMTGKVPELQKANPSAFVEINGDDAKGLGIAHGDACVV
 ETRRDKLTLPARVSD--VCRTGLIAVPFFDKE--KLVNKLFLDATDPISREPEYKICAAR
 IR---KA-------------------------
->272_napA
+>272_NapA
 --------------------M---------------G-----------------------
 ------------------------------LTRRDFIKYSAAAATA--------------
 -------------------ASIG-------ITM-------------------------PK
@@ -6798,7 +6798,7 @@ K--KSKAGLQ------WPCPT---------------EDH----P----------------
 --DADYPFFFTTGRVIEQWHTGTMTMRVPEIARAHPNGYVEIHPEDAQKYKISSGDIVEV
 ESRRGRCEFPAVITS--ASLPGILFVPMHDQKYERLVNFICNDAVDPGSFEPEYKVAAVR
 IK---RLSGPKDVADKFVISDV---NAMFESA
->273_napA
+>273_NapA
 --------------------M---------------E-----------------------
 ------------------------------WTRREFLKATAAAAAF--------------
 -------------------AAAG-----GGVTR----------P---------------G
@@ -6823,7 +6823,7 @@ H--AAR-GLR------WPV-V---------------DGK---------------------
 --DPSYPFWLCTGRVLEHWHTGTMTGRVPELKRAAGDAVAELHPDDARRIGVRNGDRVKL
 TSRRGSLTLPCSIGGRGKSERGSVFVAFFDEA--KLVNDLCLDAFCPISGEPDYKKCAVK
 VE---KG-------------------------
->274_napA
+>274_NapA
 --------------------M---------------------------------------
 -------------G----------------LTRRDFIKASAAAAAF--------------
 -------------------AAVG-------VPVLR--------PE---------------
@@ -6848,7 +6848,7 @@ A--KVR-GLR------WPVKA---------------DGT---------------------
 --DREYPFWFCTGRLLEHWHTGTMTGRVPELRRAVSGATIELHPEDAKRLGIKNRDLVRI
 SSRRGSIVLPAEINGRSTPERGSVFTTFFDET--KLINDLCIDAFDPLSKEPDFKKCAVK
 IK---KA-------------------------
->275_napA
+>275_NapA
 --------------------M---------------E-----------------------
 ------------------------------LTRRDFLKASAAAAAF--------------
 -------------------AAAG------AQALA---------P---------------R
@@ -6873,7 +6873,7 @@ F--KVR-GLR------WPVKS---------------NGQ---------------------
 --NSEYPFWYCTGRLLEHWHTATMTGRVPELKRAMPGATLEMHPEDAARLGIKNRDKVKV
 SSRRGSVVLTAEINGRGKPEKGNVFTTFFDET--KLINDLCIDAFDPLSKEPDFKKCAVK
 VE---KA-------------------------
->276_napA
+>276_NapA
 --------------------M---------------P-----------------------
 ------------------------------LTRRDFLKASAAASAL-A------------
 -------------------GL-G-------LPV-------------------------DA
@@ -6898,7 +6898,7 @@ A--ESH-GLL------WPLPS---------------EGH----P----------------
 --DAAYPLVLTTGRVIEHWHTGTMTRNCKELRHANAESVVELHPDDGKPLGIRTGDEVRV
 SSRRGAETFKAKLVD--GARPGTVFVHMHDPQ--RMCNRLTIDAVDPVSRQPEFKICAVK
 IEPVRKA-------------------------
->277_napA
+>277_NapA
 --------------------M---------------S-----------------------
 ------------------------------MTRRELLHYFGVTAA---------------
 -------------------GLAG--------------------PGCIG---------WTR
@@ -6923,7 +6923,7 @@ K--ELP-GLV------WPCPS---------------EDH----P----------------
 --TGDYPMILTTGRRLEHWHTATLTGRIPQLQGVDMD-YLEMHPGDAAVMGVNEGDLVQV
 TSARGSVRLQAKPSM--RVRPGVVFALMHSMK--HLVNAATSDHVDPISAQPEYKMAAVR
 VE---RVKEGT---------------------
->278_napA
+>278_NapA
 --------------------M---------------N-----------------------
 ------------------------------MDRRDFLKGTAMTAATLAAS----------
 ----------------R--LAYGQDKA---AGT----------PP---------------
@@ -6948,7 +6948,7 @@ V--KAR-GLR------WPV-V------QQP------DGG-----W--------------R
 --DTEFPFWLCTGRVIEHWHSGTMTMRIPQLQRAMPQAYVEMNRADARRLGVGNGDQVTV
 ETRRGKLDLPVWIGGRGEPPEGSLFVPFFDER--LLINGLTLDEHDPFSKQPDYKKCAAR
 VR---RRE-LVAEKQG----------------
->279_napA
+>279_NapA
 --------------------M---------------H-----------------------
 ------------------------------LTRRELLQYFGATAAT--------------
 -------------------GLIG--------------------PGCIG---------WTR
@@ -6973,7 +6973,7 @@ K--ALP-GLT------WPCPT---------------EQH----P----------------
 --TSDYPMTLTTGRRLEHWHTATLTGRIAQLQGIDID-SLEIHPGDAAVMGVKEGELVQV
 TSARGTVRLKALPSM--RVRPGVVFALMHSTE--HLVNAATSDYLDPTSAQPEYKLASVR
 VE---RVKEGT---------------------
->280_napA
+>280_NapA
 ------------------------------------------------------------
 --------------------------------------MGAATVAASR------------
 -------------------LALGKDGV---AAA---------------------------
@@ -6998,7 +6998,7 @@ V--KAR-GLR------WPV-V------EQP------DGS-----W--------------R
 --DAEYPFWLCTGRVLEHWHTGSLTMRIPQLQRAMPQSYLEMSREDARRLGVGDGEVVIL
 ESRRGALELPVWIEGRGAPPPGTVFVPFFDET--VMVNRATLEAHDPLSKQPDYKKCAVR
 IR---RKP---QGKRGEAR-------------
->281_napA
+>281_NapA
 --------------------M---------------A-----------------------
 ------------------------------LTRRQFIKRTAALTAA--------------
 -------------------SFCG-------VNL--------GFKN-------------EG
@@ -7023,7 +7023,7 @@ M--QMPDGVQ------WPAPT---------------KEY-ALKG----------------
 --DSQYPFYLSTGRIIDHWHTSSMTGRIPELMSANPYSFVEINPEDASRLGIKPGDMVLV
 ESRRGKNLLPAKVVE--GPMKGMVFVYWHDQHEDRMINRVTKDAFDPGSKEPEFKICSAR
 IK---RVSGPKPLKPFLVNSV-----------
->282_napA
+>282_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRRDFLKSSAAASAA--------------
 -------------------AAIG-------MSI----------PK-------------DL
@@ -7048,7 +7048,7 @@ ELAQGDLLGV-K-DKTKKSL--KN--KAKIFARP----------------YMDP-PEMP-
 --DNEYPVWLSTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPEDANKYGVKQGELAWV
 ESRRGKVKARVETRGRNRPSRGLVYVPWFDEK--VFINKVCLDATCPQSGQTDFKKCAVK
 VY---KA-------------------------
->283_napA
+>283_NapA
 -------------------MM---------------S-----------------------
 ------------------------------LSRRDFLKSSAAASAA--------------
 -------------------AAVG-------MAI----------PA-------------DL
@@ -7073,7 +7073,7 @@ ELAQGDLTGI-K-DETKKSL--KN--KAKIFARP----------------YMDP-PEVP-
 --NEEYPVWLSTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPDDATKYGVKQGSLCWV
 ESRRGKVKARVETRGRNRPSRGLVFVPWFDEK--VFINKVCLDATCPQSGQTDFKKCAVK
 IY---SA-------------------------
->284_napA
+>284_NapA
 --------------------M---------------T-----------------------
 ------------------------------LSRREFLKSSAAASAA--------------
 -------------------AAIG-------MNI----------PT-------------SV
@@ -7098,7 +7098,7 @@ ALPFGDLNGI-T-NKDKKPL--IN--KAKIFARP----------------YMDA-PEMP-
 --NEEYPVWMCTGRVLEHWHSGTMTMRVPELFRAVPEALCYMHPVDAKKYGVKQGELAWV
 ESRRGKVKARVETRGRNRPSRGLVFVPWFDEK--VFINKVCLDATCPMSKQTDYKKCAVK
 IY---KA-------------------------
->285_napA
+>285_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFIKSAAATAAC--------------
 -------------------SSVG-------ISL----------PS-------------NL
@@ -7123,7 +7123,7 @@ ALTRGDLLGS-K-TQDKFSL--KN--KAKIFFRP----------------YMEP-PETP-
 --TSEYPFWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHEQDAAKMKVAQGDTVWV
 ESRRGKVKVKVDLRGRNKPPVGLVYVPWFDEN--VFINKVCLDATCPLSFETDYKKCAVK
 IY---KA-------------------------
->286_napA
+>286_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFIKNTAIASAC--------------
 -------------------GVAG-------LSV----------PS-------------SV
@@ -7148,7 +7148,7 @@ ELPKGDLLAP-Q-TKEKYSL--KN--KVKIFFRP----------------FMKA-PERP-
 --SKEYPFWLCTGRVLEHWHSGTMTMRVPELFRAVPEALCYMNEDDAKAMKINQGDIVWV
 ESRRGKVKARVDFRGRNKPSKGLVYVPWFDEN--VYINKVTLDATCPLSNQTDFKKCAVK
 IT---KA-------------------------
->287_napA
+>287_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFIKSAAASAAC--------------
 -------------------ASAG-------IAI----------PA-------------NL
@@ -7173,7 +7173,7 @@ ALPSGDLKGV-T-DKEKTPL--TN--KAKIFFRP----------------YMDP-CEMP-
 --SSEYPFWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHEQDAAKLGVLQNEIVWI
 ESRRGKVKARVDLKGRNKPPVGLVYVPWFDEN--VFINKVTLDSTCPISKETDYKKCAVK
 IY---KA-------------------------
->288_napA
+>288_NapA
 ------------------------------------------------------------
 ------------------------------MDRREFIKSSAAAAAC--------------
 -------------------SAAG-------IAA----------PS-------------SL
@@ -7198,7 +7198,7 @@ ALLTGDLLKA-T-SKEKEAL--KS--RAKIFFRP----------------YMDP-PEMP-
 --SKEYPLWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCFMNEIDGNKLGIAQNDIVWV
 ESRRGKVKARVDFRGRNRPAEGLIYVPWFDEN--VFINKVCLDATDPISAQTDFKKCAVK
 VY---KA-------------------------
->289_napA
+>289_NapA
 ------------------------------------------------------------
 ------------------------------MDRRDFIKSSAAAAAC--------------
 -------------------SVAG-------ISL----------PS-------------SL
@@ -7223,7 +7223,7 @@ ALPSGDLKSA-TSGEEKTSL--AN--KAKIFFRP----------------YMDP-VEVP-
 --SEEYPFWLCTGRVLEHWHTGTMTMRVPELYRAVPEARCYMNEADGAKIGVQQNEIVWI
 ESRRGKVKARVDFHGRNIPPKGLIFVPFFDEK--VYINRVTLDHTCPLSKETDYKKCAVK
 IY---KA-------------------------
->290_napA
+>290_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFIKSTAAAAAC--------------
 -------------------ASAG-------IAL----------PA-------------NL
@@ -7248,7 +7248,7 @@ KLDKGDLIGI-K-GEDKVDI--NN--KAKIFFRP----------------YMDP-PEIP-
 --SEEYPFWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMNPLDAEKLKLSQGDTIWI
 ESRRGKVKVKIDTRGRNIPPVGLVYVPWFDEN--VFINKVTLDATCPLSSETDYKKCAVK
 IY---KA-------------------------
->291_napA
+>291_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFIKNTAIASAA--------------
 -------------------SVAG-------LSV----------PS-------------SM
@@ -7273,7 +7273,7 @@ MLTNGDLIAP-K-DEKEHSI--KN--KAKIFFRP----------------FMKA-PERP-
 --SKEYPFWLATGRVLEHWHSGTMTMRVPELYRAVPEALCYMSEKDGEKLGLNQGDLVWV
 ESRRGKVKARVDMRGRNKPPVGLVYVPWFDEN--VYINKVTLDATCPLSKQTDFKKCAVK
 IY---KA-------------------------
->292_napA
+>292_NapA
 ------------------------------------------------------------
 ------------------------------MDRRDFIKSAAASAAC--------------
 -------------------ASAG-------IAL----------PS-------------SM
@@ -7298,7 +7298,7 @@ KLQKGDLTKV-TSGDEKFSI--AN--KAKIFFRP----------------YMDP-CEMP-
 --DDTYPLWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHEGDAQKLNLQHNDVIWI
 ESRRGKVKARIDLRGRNKPPMGLVYVPWFDEN--VFINKVTLDATCPLSKETDYKKCAVK
 IY---KA-------------------------
->293_napA
+>293_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFIKNTAIASAA--------------
 -------------------SVAG-------MSV----------PS-------------SL
@@ -7323,7 +7323,7 @@ NLQKGDLLEP-K-TEEKFSI--KN--KAKIFFRP----------------FMKA-PERP-
 --SEEYPFWLSTGRVLEHWHSGTMTMRVPELYRAVPEALCYMNEEDCKKLKLEQGDLVWV
 ESRRGKVKAKVDMRGRNKPPKGLVYVPWFDEN--VYINKVTLDATCPLSKQTDFKKCAVK
 IT---KA-------------------------
->294_napA
+>294_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFIKSAAAASAC--------------
 -------------------SAIG-------ISV----------PS-------------SL
@@ -7348,7 +7348,7 @@ KLSAGDLAKA-K-DDEKVDI--NN--KGKIFFRP----------------YMDP-PEIP-
 --NKEYPFWLCTGRVLEHWHSGTMTMRVPELYKAVPEAMCYMSELDAGKLNLMQNDVVWI
 ESRRGKVKARVDLRGRNKPPVGLVYVPWFDEN--VFINKVCLDATCPLSNETDYKKCAVK
 IY---KA-------------------------
->295_napA
+>295_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRRDFLKTSAAASAA--------------
 -------------------AAVG-------ISV----------PA-------------EL
@@ -7373,7 +7373,7 @@ ALKKGNLVKP-T-TEETYSL--KN--KAKIFFRP----------------YMDP-CEMP-
 --DKEYDTWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPEDAKAKGLKQGDMIWI
 ESRRGSCKARVETRGRNRTPRGLVFVPWFDEK--VMINKVCLDATCPISKQTDYKKCAVK
 LY---KA-------------------------
->296_napA
+>296_NapA
 --------------------M---------------A-----------------------
 ------------------------------QTRREFLKTAAAVSAA--------------
 -------------------SVAG-------IAV----------PP-------------PQ
@@ -7398,7 +7398,7 @@ ELPRGDLKSP-K-TSEKYSL--KN--KAKIFFRP----------------YMDP-PEMP-
 --NEEYPFWLSTGRVLEHWHSGTMTMRVPELYRAVPEALCYMNPQDGEKLGVQQNDVVWV
 ESRRGKVKARVDMRGRNRPPLGLVYVPWFDEK--VYINKVCLDATCPISKQTDFKKCAVK
 VY---KA-------------------------
->297_napA
+>297_NapA
 ------------------------------------------------------------
 ------------------------------MNRRDFLKSSAVMSAA--------------
 -------------------ASVG-------MVI----------PK-------------AL
@@ -7423,7 +7423,7 @@ SIAQGDLAKP---SNQKTDI--NN--KAKIFLRP----------------YMDP-CEMP-
 --DEQYPMWLCTGRVLEHWHSGTMTMRVPELYKAVPEALCYMNDKDAQERNLQNGDVIWV
 ESRRGKVKARIDTRGRNKPPKGLIYVPWFDEN--VLINKVCLDATCPISKQTDFKKCAVK
 IY---KA-------------------------
->298_napA
+>298_NapA
 --------------------MPIS-PLNHTES--APTD------------E---------
 -------------------------------NRREFLKSVAIASAM--------------
 -------------------GSAG-------LLT----------PP-------------AL
@@ -7448,7 +7448,7 @@ KLVSGDLRGP-Q-GTEAKSL--AN--KAKIFFRP----------------FMKA-PERP-
 --SKEYPFWLATGRVLEHWHSGTMTMRVPELFRAVPEALCYMHEEDGKKLGVSQGDAVWI
 ESRRGSVKARVDMRGRNKPPAGLVYVPWFDEN--VFINKVCLDATCPISKQTDYKKCAVR
 IT---KA-------------------------
->299_napA
+>299_NapA
 --------------------MPTAIPNSHVE----PTQ------------E---------
 ------------------------------LSRRDFLKSVAITSAL--------------
 -------------------GSAG-------LLT----------PP-------------DL
@@ -7473,7 +7473,7 @@ ELVSGNLKEP-T-GSTPKSL--EN--KAKIFFRP----------------FMKA-PERP-
 --DQHYPFWLATGRVLEHWHSGTMTMRVPELFRAVPEALCYMNEKDGEKLGVSQGDAVWI
 ESRRGSVKARVDMRGRNKPPVGLVYVPWFDEN--VFINKVCLDATCPISKQTDYKKCAVK
 IT---KA-------------------------
->300_napA
+>300_NapA
 --------------------MGQKLEKDFPNN--NNSL----------NHSL--------
 ------------------------------FSRRDFIKSVAIASAA--------------
 -------------------SSAG-------MLL----------PS-------------SL
@@ -7498,7 +7498,7 @@ EIPQGDLKAP-K-EGTKVKL--DN--KAKIFFRP----------------FMKA-PERP-
 --NKEYPFWLATGRVLEHWHSGTMTMRVPELYRAVPEARCYMHEEDAKNLGVENGELVWI
 ESRRGKVKARVDLRGRNKPPMGLVYVPWFDEK--VFINKVCLDATCPISKQTDYKKCAVK
 IT---KAHNV----------------------
->301_napA
+>301_NapA
 --------------------MTNR------SS--EHRI------------Q-D-------
 ------------------------------NSRREFLKSVAITSAL--------------
 -------------------GSAG-------LLT----------PP-------------NL
@@ -7523,7 +7523,7 @@ KLVSGDLKAP-T-NDTPKSL--EN--KAKIFFRP----------------FMKA-PERP-
 --SKEYPFWLATGRVLEHWHSGTMTMRVPELFRAVPEALCYMHEEDGKKLGVNQGDAVWI
 ESRRGRVKARVDMHGRNTPPVGLVYVPWFDEN--VFINKVCLDATCPLSKQTDYKKCAVK
 IT---KA-------------------------
->302_napA
+>302_NapA
 ------MTSKI-----QGKKP---------------T-----------------------
 ------------------------------LSRRDFIKSAAAASAA--------------
 -------------------ASVG-------LSI----------PS-------------VM
@@ -7548,7 +7548,7 @@ DMPAGSLNAP---SEEKVSI--DN--KAKIFLRP----------------YMDP-CEMP-
 --DKEYPMWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPDDANAQNLEQNQVVWV
 ESRRGKVKAKLDLRGRNRPPKGLIYVPWFDEN--VFINKVCLDATCPISKQTDFKKCAVK
 VY---KA-------------------------
->303_napA
+>303_NapA
 --------------------M---------------N-----------------------
 ------------------------------INRRDFIKSAAVASAA--------------
 -------------------SAVG-------LSI----------PD-------------TL
@@ -7573,7 +7573,7 @@ SLLQGDLKAP---GNEKKPI--TN--RAKIFFRP----------------YMDP-CEMP-
 --DKNYPMWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMSEDDAKEQNLKHGDTVWI
 ESRRGKVKAKVEVNGRNRPPKGLVYVPWFDEN--VYINKVCLDATCPISKQTDFKKCAVR
 VY---KA-------------------------
->304_napA
+>304_NapA
 --------------------M---------------Q-----------------------
 ------------------------------ESRRDFLKASAATAAA--------------
 -------------------TAVG-------MVL----------PS-------------EV
@@ -7598,7 +7598,7 @@ VIQQGTLAGP-DASKPKVDL--SN--KAKIFMHP----------------YMEP-PETP-
 --SKEYPLWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPQTAKDMGAKDGELVWV
 ESRRGKVKARVETRGRNRPPKSLVFVPWFDEK--VYINKVCLDATCPISKQTDYKKCAVK
 VY---KA-------------------------
->305_napA
+>305_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRRKFLKSSAAASAA--------------
 -------------------AAIG-------MSI----------PA-------------EL
@@ -7623,7 +7623,7 @@ SLAQGDLLGI-K-DKTKQGL--KN--KAKIFARP----------------YMDP-PEVP-
 --DANYDTWLCTGRVLEHWHSGTMTMRVPELFRAVPEALCYMHPQDAKDKGLKQGSLAWV
 ESRRGRVKARVETRGRNRPSRGLVFVPWFDEK--VFINKVCLDATCPQSKQTDFKKCAVK
 IY---QA-------------------------
->306_napA
+>306_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRREFLKSSAAASAA--------------
 -------------------AAIG-------MSV----------PA-------------EL
@@ -7648,7 +7648,7 @@ ALPFGNLTGV-T-DKKKKPL--TD--KAKIFARP----------------YMDP-PEMP-
 --DEEYNLWLCTGRVLEHWHSGTMTMRVPELFRAVPEALVYMNPKAASERGLKDNDLCWV
 ESRRGRVRARVETRGRNRPPKPLVFVPWFDER--VFINKVTLDGTCPMSKQTDYKKCAVK
 IY---KA-------------------------
->307_napA
+>307_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRREFLKSSAAASAA--------------
 -------------------AAIG-------MSV----------PA-------------EL
@@ -7673,7 +7673,7 @@ ALKSGDLKGMDK-NTEQKSL--AN--KAKIFARP----------------YMDP-PEMP-
 --DDNYDVWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMNPKDAEAKDLKQGALCWI
 ESRRGKVKARVETRGRNRPPRGLVFVPWFDEK--VFINKVCLDATCPMSKQTDFKKCAVK
 IY---KA-------------------------
->308_napA
+>308_NapA
 --------------------M---------------S-----------------------
 ------------------------------LSRREFLKSSAAASAA--------------
 -------------------AAIG-------MSV----------PA-------------EL
@@ -7698,7 +7698,7 @@ ECLQGNLNGFDK-TLGKLKI--PN--KAKIFARP----------------YMDP-PEMP-
 --DANYDTWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPQDAKDKGLTQGALCWV
 ESRRGKVKARVETRGRNRTPRGLVFVPWFDEK--VFINKVCLDATCPLSKQTDYKKCAVK
 IY---KA-------------------------
->309_napA
+>309_NapA
 --------------------M---------------A-----------------------
 ------------------------------FSRREFLKSAAAASAA--------------
 -------------------SAVG-------MSV----------PS-------------QL
@@ -7723,7 +7723,7 @@ ELPRGDLLSP-K-TEEKFKL--TN--KAKIFFRP----------------YMDP-PEMP-
 --SSEYPLWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPEDAKKLGVKQNEAVWV
 ESRRGKVKARVDTRGRNRTPLGLVYVPWFDEK--VYINKVCLDATCPISKQTDFKKCAVK
 VY---KA-------------------------
->310_napA
+>310_NapA
 --------------------M---------------G-----------------------
 ------------------------------MNRRDFLKSSAAAAAA--------------
 -------------------SAVG-------ITV----------PS-------------EV
@@ -7748,7 +7748,7 @@ KLPSGDLRGV-K-DKKKKSL--AN--KAKIFARP----------------YMDP-PEMP-
 --DKEYDTWLCTGRVLEHWHSGTMTMRVPELFRAVPEALCYMNPKDAKKRGLKNGDLVWV
 ESRRGKVKVRVETRGRNRPPRGLVFVPWFDER--VLINKVTLDATCPMSKQTDYKKCAVK
 IY---KA-------------------------
->311_napA
+>311_NapA
 --------------------M---------------S-----------------------
 ------------------------------MNRRDFLKTTAAVAAA--------------
 -------------------SAAG-------IAI----------PQ-------------EA
@@ -7773,7 +7773,7 @@ TIKRGNLQGPVA-SKGKINL--KN--KAKIFFRP----------------FMVH-PEDPR
 YDKNGYNFWLCTGRVLEHWHTGTMTMRVPELYRAMPEALCYMNPEDAKELGLQRFDLVVI
 ESRRGKVKARIETRGRNKPPRGLVMVPWFDEK--ILINKVCLDATCPLSKETDYKKAAVK
 IY---KA-------------------------
->312_napA
+>312_NapA
 --------------------M---------------S-----------------------
 ------------------------------MNRREFLKTTAAAAAA--------------
 -------------------SAVG-------ISI----------PS-------------EA
@@ -7798,7 +7798,7 @@ ALKRGDLKGP-K-TKQKYSL--KN--KAKIFWRP----------------FMVH-PEDPK
 YDTKGYNFWLCTGRVLEHWHSGTMTMRVPELYRAMPEALCYMNPKDAKELGLNRFDLVVV
 ESRRGKVKARVETRGRNKPPRGLVYVPWFDEK--VLINKVCLDATCPLSKETDYKKAAVK
 VY---KA-------------------------
->313_napA
+>313_NapA
 --------------------M---------------A-----------------------
 ------------------------------LSRRDFLKSSAAAAAA--------------
 -------------------SAVG-------LSV----------PK-------------EV
@@ -7823,7 +7823,7 @@ VIPQGSLTGPDK-NKPKIHL--PN--KAKIFARP----------------YMEP-PEVP-
 --DNEYDTWLCTGRVLEHWHSGTMTMRVPELYRAVPEALCYMHPEDAKKRGVKRGDLVVI
 ESRRGKCKARVETRGRNRPPRGLVFVPWFDER--VYINLVTLDATCPISKQTDYKKCAVK
 IY---KA-------------------------
->314_napA
+>314_NapA
 --------------------M---------------A-----------------------
 ------------------------------LNRREFLKSAAAASAA--------------
 -------------------SAVG-------IAV----------PS-------------SL
@@ -7848,7 +7848,7 @@ KILQGDLKGPNK-KLGKYAL--PN--KAKIFARP----------------YMDP-PEMP-
 --DETYDTWLCTGRVLEHWHSGTMTMRVPELFRAVPEALCYMHPGDAKAKGLKRGELAWV
 ESRRGKVKARIETRGRNRPPQGLVFVPWFDEK--VFINKVCLDATCPMSKQTDYKKCAVK
 IT---KA-------------------------
->315_napA
+>315_NapA
 --------------------M---------------D-----------------------
 ------------------------------ITRRQFVKATAVALAS--------------
 -------------------AAAA-GTL---SSLVG------CASGSA-----------QG
@@ -7873,7 +7873,7 @@ WMSTKWRFADGAQADGFD--E-V-----------GVAT--YGTPGLAGGVSFY-------
 --DEEYPFYFVTGRLLEHWHTGTLTRRVPELDRALPEALLNVSPEDCEKLGVLDGDMVRV
 RSRFGQFDIKVSTAGRTEPPAGVVFAPFFAEE--ALVNLAVQDTYCPLSKEPDYKKTCVS
 IE---KI-------------------------
->316_napA
+>316_NapA
 --------------------M---------------D-----------------------
 ------------------------------ISRRAFIKSTAVAMAM--------------
 -------------------AAAA-G-----ASVTG------CAPKKN-----------D-
@@ -7898,7 +7898,7 @@ WLPTKWRFSYGLQEEGYD--Q-Y-----------GVEM--YGDEGLANDVSFY-------
 --DSEYPFVFCTGRLLEHWHTGTMTRRVPALHNALPEALLDMNEADMAELGIKDGDRVRL
 VSRWGEVEITASSAGRTKPPARYLFAPFFAEE--TLINLVQQEAYCPLSKEPDFKKTCVR
 VE---KL-------------------------
->317_napA
+>317_NapA
 --------------------M---------------D-----------------------
 ------------------------------ISRRGFVKATAVALAS--------------
 -------------------AAAA-GTM---SSLVG------CASGEG-----------QS
@@ -7923,7 +7923,7 @@ WKSTKWRFAEGSQDEGFD--E-V-----------GVKQ--YGKPGQAGGVSFY-------
 --SDEYPFYFVTGRLLEHWHTGTMTRRVPELDRALPEALLNMNPDDCKKLGIQDGDMVKV
 KSTYGEFDIKVSTAGRTEPPAGVTFAPFFAEE--TLVNLAVQDVYCPLSKEPDYKKTCVS
 IT---KL-------------------------
->318_napA
+>318_NapA
 --------------------M---------------E-----------------------
 ------------------------------LTRRAFVKSTAVALAS--------------
 -------------------AAAA-GTMAGYSSLAG------TGADSA-------------
@@ -7948,7 +7948,7 @@ WLPTLWRFCDGKQEDGFD--E-H-----------GVET--YGAHDKAGGVSFY-------
 --SEEYPFWFSTGRLLEHWHTGSMTRRVPELARALPEALLDVNPADCERLGVTDGDRVRL
 TSRFGTCDITVSTAGRTRPPEGMVFAPFFAEE--TLINLVVQDTYCPLSKEPDFKKTCVS
 IE---KIEG-----------------------
->319_napA
+>319_NapA
 --------------------M---------------E-----------------------
 ------------------------------VSRRQFVKATAVSLAM--------------
 -------------------AAAGMGT----ATLAG------CAPSGG-----------EG
@@ -7973,7 +7973,7 @@ WLPTKWRFANGSQEEGFD--P-Y-----------GVEK--YGKTGLANDVCFY-------
 --SEDYPFWFSTGRLLEHWHTGSMTMRVPELKRALPESLLYMNKQDCADLGIKDGDTVRV
 TSTYGTFEINVSTSGRVDPDPGMTFAAFFDEK--RLINLAVEDIYCPLSKEPDFKKTCVR
 IE---KA-------------------------
->320_napA
+>320_NapA
 ------------------------------------------------------------
 ------------------------------MTRRDFLKRMAAAAAA--------------
 -------------------TAAASLAP--NVTFARP-----FMP---------------E
@@ -7998,7 +7998,7 @@ K--RRP-GVM------WPF-V---------------NGK---------------------
 --DDEYPFWLSTGRVLEHWHTGSMTRRIPVLHRAMPHAYVELHPDDAKELGIRTGDFVRV
 ISRRGEIVLPAAINFRGIPQRGHVFVPFFDES--MLINEVTIDAFCPISKEPDYKKCAVR
 IE---RVVS-----------------------
->321_napA
+>321_NapA
 ------MEKQNPKTQGSTNGA---------------D-----------------------
 ------------------------------LSRRDFVKLAAAVSAA--------------
 -------------------AAAG-------VAV----------PQ-------------SA
@@ -8023,7 +8023,7 @@ RIPEGSLLGP-K-DGAKVDL--TN--RAKIFFRP----------------YMAP-PETP-
 --DAEYPFWLATGRVLEHWHTGTMTMRVPELYRAVPEAFCYMHPEDAQRLGVKDGDKVWI
 ESRRGKVQARVQTNGRNRPPKGMVFVPFFDER--VLINKVLLDQRCPISLQTDFKKVAVK
 IY---KA-------------------------
->322_napA
+>322_NapA
 ------MESS--KPKKKHEAL---------------S-----------------------
 ------------------------------TDRRSLLKAAAASAAA--------------
 -------------------AAAG-------LSV--------------------------A
@@ -8048,7 +8048,7 @@ KIPKGNLFGP-E-AGTSVDL--TN--RAKIFFRP----------------YMDP-PEMP-
 --DDRYPFWLVTGRVLEHWHSGTMTMRVPELYRAVPEALVYMNPEDAKKIGVKDGQFVWV
 ESRRGKVKARASTRGRNRPPKGLIFVPWFDER--VLINKVTNDQRCPISKQTDYKKAAVK
 VY---PA-------------------------
->323_napA
+>323_NapA
 --------------------M---------------N-----------------------
 ------------------------------LTRRTLLKATAITAAL--------------
 -------------------AAAG-------CSSKKS-----NAPKEE-----------SV
@@ -8073,7 +8073,7 @@ WIETNWRYKDGKQEDGFD--Q-Y-----------GVEQKG-----KYKDIDFY-------
 --DAEYPLWLCTGRVLEHWHSGSMTRRVPELHRAVPEAFCEIHPETAAELGIKEGDWVKV
 VSRRGECKVKATMQGRGKPPKNLVFVPFFAEE--TLINLVTLDAYCPISKQPDYKKCAVK
 IV---KA-------------------------
->324_napA
+>324_NapA
 --------------------M---------------E-----------------------
 ------------------------------FSRRNFLKTCAISAAM--------------
 -------------------MATG-------CTS-------------------------QT
@@ -8098,7 +8098,7 @@ R--EAH-GIQ------WPVK----------------DHQ-G-NK----------------
 --DKEYPYYLTTGRILEHWHTMTMTGKCPSIMKAVPKQYVELNPKDAIELGIKEGDRVRL
 VSRRGKVEISVKVGRPGEPRPGLLFALWFEPD--PLVNAVTIDAVDAASKEPEFKICAVK
 IE---KV-------------------------
->325_napA
+>325_NapA
 --------------------M---------------T-----------------------
 -------------------------GG---ISRRTFLQLSVAATAA--------------
 ------------------LGAAG-------------------------------------
@@ -8123,7 +8123,7 @@ E--ASK-GLQ------WPI-----------P-----DER---SP----------------
 --DGEYPFNLNSGRVQEHYHTGTKTRKVPELNALVPTAYVELNPRDAEALGVQYGDRVCI
 ESRRGQIEAKVVVTS--QVAPGSCFVPMHFGE--GPVNRLTVWAVDPFSKEPNYKQQAVR
 LR---RV-------------------------
->326_napA
+>326_NapA
 --------------------M---------------K-----------------------
 ------------------------------FTRRSFVKASALATAM--------------
 -------------------VAAG-------CS------------P-------------QP
@@ -8148,7 +8148,7 @@ K--QER-GLR------WPVN----------------DKQ---PA----------------
 --DAEYPFYLSTGRILEHWHTITMTKRVPEIMKGAGEFYCEIHEEDAARLGIQNGDLVKL
 TSRRGQVVATARVGGRAVPQKGLVFLLMHDDRTERLANFLTNDAVDETSKQMEYKVCAVR
 VE---KA-------------------------
->327_napA
+>327_NapA
 --------------------M---------------N-----------------------
 ------------------------------FSRRDFIKAMAASATM--------------
 -------------------AAA------------------------V-----------SG
@@ -8173,7 +8173,7 @@ V--KER-GLR------WPVL----------------DPE---GP----------------
 --DKDYPFVLTTGRVLEQWHTATMTNTVPEINRAMPEAFAELNPDDAARLGIKNGDMVKL
 VSRRGEVVIRATTKGRGTPQPGLVFAVWFDPA--KLTNLVTIDAVDPDSKEPEFKVCAVR
 VE---KA-------------------------
->328_napA
+>328_NapA
 --------------------M---------------K-----------------------
 ------------------------------FSRRDFLKAMAMSAAM--------------
 -------------------LATG-------CGTK-------RDPH-------------KG
@@ -8198,7 +8198,7 @@ R--EGH-GFT------WPVAP---------------DPN-S-SP----------------
 --DAEYPFFLTTGRMLEHWHTATMTGNVPELKNAAPEMYVEINEEDAKRLGINDGDYVNI
 TSRRATCKFKAKINGRGKPMPGLVYVSFHDKEDDRLINKVLLDAFDPGSKQPEYKVCAVQ
 IS---KAS------------------------
->329_napA
+>329_NapA
 --------------------M---------------K-----------------------
 ------------------------------FSRRDFLKAIAVSTAL--------------
 -------------------VSSG-------CSLD-------SGGRGA-----------QG
@@ -8223,7 +8223,7 @@ K--KER-GLT------WPVH----------------DPN---GP----------------
 --DAEYPFYLSTGRVLEHWHTSTMTMNVPELKRAMPEMYIELNQSDAEKIGVNDGELVKI
 TSRRGECRLKAKINGRGQPRPGMVYVPFHDTAMIRMINFVTIDAFDDISKQPEYKICAVN
 LA---KA-------------------------
->330_napA
+>330_NapA
 --------------------MA--------------E-----------------------
 ------------------------------MNRRDFLKWSAAITAA--------------
 -------------------SVVG-----FELSL----------PENLQ------------
@@ -8248,7 +8248,7 @@ I--KEH-GML------WPVPT---------------EDY-P-AP----------------
 --DKDYPFVLTTGRLIEHWHTGTMTMKVPELMRAAPQAFVEINPKDAQKLGIKTGDKVRL
 TSRRGSIVLPAKVVD--IPRPGVLFVPFHYPE--KLINDLVTDAFDALSKQPEFKISAVR
 IE---KV-------------------------
->331_napA
+>331_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRQFIKRTAALTAA--------------
 -------------------SLVG-------IEL----------PKSM-----------KD
@@ -8273,7 +8273,7 @@ K--QRPDGVQ------WPAPT---------------KEH-ALKG----------------
 --DAEYPFFLSTGRVIDHWHTSSMTGRIPELLRANPYAYVEINPKDARRLGINPNDMVEI
 ETRRGKIVLPAKVYE--GPIEGMVFIYWHDMHEERMANRVTKDAFDPGSKEPEFKICACR
 IR---KVSGPKPLRPYVVGHKM----------
->332_napA
+>332_NapA
 --------------------M---------------K-----------------------
 ------------------------------LSRRELLKTLAGASAV--------------
 -------------------ALTSPDAL---FAI----------PEGV------------A
