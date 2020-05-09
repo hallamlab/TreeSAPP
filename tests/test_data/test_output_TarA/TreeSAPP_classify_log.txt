@@ -1,0 +1,651 @@
+08/05 18:15:11 INFO:
+
+##				Assigning sequences with TreeSAPP				##
+
+
+08/05 18:15:11 INFO:
+Arguments used:
+-i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_Mcr_Dsr.fasta -o /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/ --no_svm -n 4 -t M0701,M0702,M0705,S0001 --trim_align --overwrite -c single --delete
+
+08/05 18:15:11 DEBUG:
+Continuing with stage 'orf-call'
+
+08/05 18:15:11 DEBUG:
+Reading build parameters of reference markers... 
+08/05 18:15:11 DEBUG:
+done.
+
+08/05 18:15:11 DEBUG:
+Skipped the following lines:
+	#hzs
+	#hzao
+	#nirA
+	#MtrA
+	#MtrC
+	#MtrH
+	#CO_dh
+	#RBsCO
+	#OGFOxy
+	#CitSyn
+	#GH36
+	#GH31
+	#GH109
+	#GH115
+	NapA	D0201	prot	PROTGAMMALG	functional	0.90	332	RAxML	-6.3508,6.6605	Classes	05_Dec_2018	periplasmic nitrate reductase NapA
+	#NifD	N0401	prot	PROTGAMMALG	functional	0.90	402	RAxML	-8.1368,6.5444	Orders	07_Dec_2018	nitrogenase molybdenum-iron protein alpha chain (K02586)
+	#NifH	N0402	prot	PROTGAMMALG	functional	0.95	301	RAxML	-5.1159,6.3582	Phyla	07_Dec_2018	nitrogenase iron protein NifH (K02588)
+	#nirK	D0301	prot	PROTGAMMALG	functional	0.97	120	RAxML	-11.3207,6.9484	Orders	07_Dec_2018	nitrite reductase (NO-forming)
+	#NirS	D0302	prot	PROTGAMMALG	functional	0.97	184	RAxML	-8.1424,6.2904	Classes	07_Dec_2018	nitrite reductase (NO-forming) / hydroxylamine reductase
+	#RecA	P0001	prot	PROTGAMMALG	taxonomic	0.80	1110	RAxML	-5.4758,6.3838	Classes	12_Dec_2018
+	RecA	P0001	prot	PROTGAMMALG	taxonomic	0.85	1374	FastTree	-5.3508,7.0	Phyla	18_Feb_2019	Bacterial Recombinase A
+	RpoB	P0002	prot	PROTGAMMALG	taxonomic	0.90	880	FastTree	-4.5705,6.4703	Phyla	16_Feb_2019	Beta subunit of RNA polymerase
+	RadA	P8423	prot	PROTGAMMALG	taxonomic	0.95	154	FastTree	-2.5356,7.0	Kingdoms	19_Feb_2019
+	PF00380	P0380	prot	PROTGAMMALG	taxonomic	0.80	3241	FastTree	-4.5557,7.0	Phyla	23_Jan_2019	Ribosomal protein S9/S16
+	PF00750	P0750	prot	PROTGAMMALG	taxonomic	0.60	627	FastTree	-3.9943,7.0	Kingdoms	30_Jan_2019	tRNA synthetases class I (R)
+	PF00687	P0687	prot	PROTGAMMALG	taxonomic	0.75	690	FastTree	-2.5422,7.0	Kingdoms	01_Feb_2019	Ribosomal protein L1p/L10e family
+	PF01409	P1409	prot	PROTGAMMALG	taxonomic	0.75	1140	FastTree	-6.3166,7.0	Phyla	09_Feb_2019	tRNA synthetases class II core domain (F)
+	PF01200	P1200	prot	PROTGAMMALG	taxonomic	0.95	367	FastTree	-6.4014,7.0	Phyla	22_Jan_2019	Ribosomal protein S28e
+	PF04919	P4919	prot	PROTGAMMALG	taxonomic	0.90	507	FastTree	-4.8839,7.0	Phyla	26_Jan_2019	Protein of unknown function (DUF655)
+	PF01015	P1015	prot	PROTGAMMALG	taxonomic	0.80	346	FastTree	-4.2989,7.0	Phyla	27_Jan_2019	Ribosomal S3Ae family
+	PF01092	P1092	prot	PROTGAMMALG	taxonomic	0.80	370	FastTree	-5.5104,7.0	Phyla	27_Jan_2019	Ribosomal protein S6e
+	PF01280	P1280	prot	PROTGAMMALG	taxonomic	0.80	380	FastTree	-4.7255,7.0	Phyla	27_Jan_2019	Ribosomal protein L19e
+	PF01655	P1655	prot	PROTGAMMALG	taxonomic	0.80	356	FastTree	-3.9297,7.0	Phyla	27_Jan_2019	Ribosomal protein L32
+	PF00410	P0410	prot	PROTGAMMALG	taxonomic	0.75	1100	FastTree	-3.6784,7.0	Phyla	04_Feb_2019	Ribosomal protein S8
+	PF01866	P1866	prot	PROTGAMMALG	taxonomic	0.90	247	FastTree	-4.2015,7.0	Kingdoms	05_Feb_2019	Putative diphthamide synthesis protein
+	PF00900	P0900	prot	PROTGAMMALG	taxonomic	0.97	482	FastTree	-3.5564,7.0	Classes	14_Feb_2019	Ribosomal family S4e
+	PF01157	P1157	prot	PROTGAMMALG	taxonomic	0.95	437	FastTree	-3.2799,7.0	Phyla	15_Feb_2019	Ribosomal protein L21e
+	#McrA	M0701	prot	PROTGAMMALG	functional	0.97	211	FastTree	-4.08046639871,6.03601100802	Classes	04_Dec_2018
+	#McrB	M0702	prot	PROTGAMMALG	functional	0.97	157	FastTree	-4.82025271473,6.52717228329	Classes	04_Dec_2018
+	#McrG	M0705	prot	PROTGAMMALG	functional	0.97	155	FastTree	-5.23147387413,6.5926235222	Genera	04_Dec_2018
+	#napA	D0201	prot	PROTGAMMALG	functional	0.90	332	FastTree	-7.03985324603,6.60314540283	Classes	04_Dec_2018
+	#nifD	N0401	prot	PROTGAMMALG	functional	0.90	402	FastTree	-7.72039669919,6.16543737552	Orders	04_Dec_2018
+	#nifH	N0402	prot	PROTGAMMALG	functional	0.95	301	FastTree	-6.48773434909,6.41218539511	Phyla	04_Dec_2018
+	#nirK	D0301	prot	PROTGAMMALG	functional	0.97	120	FastTree	-11.8842768413,6.77906128214	Orders	04_Dec_2018
+	#nirS	D0302	prot	PROTGAMMALG	functional	0.97	184	FastTree	-5.49173161577,6.23728973299	Classes	04_Dec_2018
+	#norB	D0501	prot	PROTGAMMALG	functional	0.80	329	FastTree	-7.6070183552,6.48567258868	Orders	04_Dec_2018
+	#norC	D0502	prot	PROTGAMMALG	functional	0.90	223	FastTree	-6.61551453189,6.60317398186	Classes	04_Dec_2018
+	#norC	D0502	prot	PROTGAMMALG	functional	0.90	223	RAxML	-5.3221,6.3809	Classes	08_Dec_2018	nitric oxide reductase subunit C
+	#p_amoA	N0102	prot	PROTGAMMALG	functional	0.97	80	FastTree	-2.83232814805,5.67790899421	Families	04_Dec_2018
+	#nosZ	D0601	prot	PROTGAMMALG	functional	0.95	449	FastTree	-6.1988,6.095	Phyla	13_Mar_2019
+	nosZ	D0601	prot	PROTGAMMALG	functional	0.95	449	RAxML	-7.9763,6.2277	Phyla	16_Mar_2019
+	#McrA	M0701	prot	PROTGAMMALG	functional	0.97	228	RAxML	-5.3509,7.0	Classes	29_Apr_2019	Methyl coenzyme M reductase alpha subunit
+	NrfA	D0102	prot	PROTGAMMALG	functional	0.95	345	FastTree	-3.9855,7.0	Phyla	14_May_2019	nitrite reductase (cytochrome c-552) [EC:1.7.2.2]
+	NxrA	N0301	prot	PROTGAMMALG	functional	0.90	993	FastTree	-5.4813,7.0	Classes	23_May_2019	Nitrate reductase / Nitrite oxidoreductase subunit A
+	NxrB	N0302	prot	PROTGAMMALG	functional	0.97	299	FastTree	-6.2768,7.0	Phyla	13_Jun_2019	Nitrite oxidoreductase subunit B
+	HydA	H0001	prot	PROTGAMMALG	functional	0.9	1100	FastTree	-8.134,7.0	Kingdoms	29_Jun_2019	H-cluster of [FeFe]-hydrogenase (PF02906 & PF02256)
+	NorB	D0501	prot	PROTGAMMALG	functional	0.90	429	RAxML	-5.2635,7.0	Orders	01_Jul_2019	nitric oxide reductase subunit B
+	GH101	G0101	prot	PROTGAMMALG	functional	0.95	118	FastTree	0.0,7.0	Orders	25_Jul_2019
+	GH163	G0163	prot	PROTGAMMALG	functional	0.97	75	FastTree	0.0,7.0	Classes	25_Jul_2019
+	GH20	G0020	prot	PROTGAMMALG	functional	0.75	1159	FastTree	-4.689,6.3935	Phyla	26_Feb_2019	Glycoside hydrolase family 20
+	GH94	C0094	prot	PROTGAMMALG	functional	0.90	486	FastTree	-4.27462347201,6.34905731298	Classes	16_Dec_2018	Glycoside hydrolase family 94
+	#P_amoA	N0102	prot	PROTGAMMALG	functional	0.97	182	RAxML	-5.4116,7.0	Families	29_Aug_2019	Ammonia monooxygenase (Archaea) and particulate methane monoxygenase
+	NirK	D0301	prot	PROTGAMMALG	functional	0.97	202	FastTree	-8.4127,7.0	Classes	10_Jan_2020	nitrite reductase (NO-forming)
+
+08/05 18:15:11 DEBUG:
+Gathering reference package files... 
+08/05 18:15:11 DEBUG:
+done.
+
+08/05 18:15:11 INFO:
+Predicting open-reading frames using Prodigal... 
+08/05 18:15:11 DEBUG:
+STAGE: Prodigal -p single
+	COMMAND:
+/home/connor/anaconda3/bin/prodigal -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_Mcr_Dsr.fasta -p single -a /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/PitchLake_TarA_Mcr_Dsr_ORFs.faa -d /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/PitchLake_TarA_Mcr_Dsr_ORFs.fna 1>/dev/null 2>/dev/null
+
+08/05 18:15:20 INFO:
+done.
+
+08/05 18:15:20 DEBUG:
+	Prodigal time required: 0.0:0.0:8.72
+
+08/05 18:15:20 INFO:
+Reading and formatting /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/final_outputs/PitchLake_TarA_Mcr_Dsr_ORFs.faa... 
+08/05 18:15:20 DEBUG:
+/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/final_outputs/PitchLake_TarA_Mcr_Dsr_ORFs.faa read by pyfastx in 0.006049156188964844 seconds.
+
+08/05 18:15:20 DEBUG:
+Read 2014 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/final_outputs/PitchLake_TarA_Mcr_Dsr_ORFs.faa.
+
+08/05 18:15:20 INFO:
+done.
+
+08/05 18:15:20 INFO:
+Writing formatted FASTA file to /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/PitchLake_TarA_Mcr_Dsr_formatted.fasta... 
+08/05 18:15:20 INFO:
+done.
+
+08/05 18:15:20 INFO:
+	TreeSAPP will analyze the 2014 sequences found in input.
+
+08/05 18:15:20 INFO:
+Searching for marker proteins in ORFs using hmmsearch.
+
+08/05 18:15:21 DEBUG:
+Filtering HMM alignments using the following thresholds:
+	Maximum E-value = 0.001
+	Maximum i-Evalue = 0.1
+	Minimum acc = 0.7
+	Minimum score = 15
+	Minimum percentage of the HMM covered = 10%
+
+08/05 18:15:21 INFO:
+Parsing HMMER domain tables for high-quality matches... 
+08/05 18:15:21 INFO:
+done.
+
+08/05 18:15:21 DEBUG:
+	Initial alignments:	317
+	Alignments discarded:	18
+	Fragmented alignments:	145
+	Inversions detected:	4
+	Alignments scaffolded:	51
+	Multi-alignments:	0
+	Sequences identified:	242
+
+	Number of markers identified:
+		DsrAB	218
+		McrA	11
+		McrB	7
+		McrG	6
+
+08/05 18:15:21 INFO:
+Extracting and grouping the quality-controlled sequences... 
+08/05 18:15:21 INFO:
+done.
+
+08/05 18:15:21 DEBUG:
+Number of query sequences in each marker's group:
+McrB	0	4
+McrB	1	2
+McrB	2	1
+McrG	0	2
+McrG	1	4
+DsrAB	0	191
+DsrAB	1	5
+DsrAB	2	2
+DsrAB	3	16
+DsrAB	4	1
+DsrAB	5	1
+DsrAB	6	1
+DsrAB	7	1
+McrA	0	3
+McrA	1	3
+McrA	2	2
+McrA	3	3
+
+
+08/05 18:15:21 INFO:
+Writing the grouped sequences to FASTA files... 
+08/05 18:15:21 INFO:
+done.
+
+08/05 18:15:21 INFO:
+Running hmmalign... 
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrG.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrG.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group1.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group1.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrG.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrG.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group0.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group0.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group2.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group2.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group1.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group1.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group0.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group0.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrA.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group3.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group3.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrA.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group2.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group2.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrA.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group1.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group1.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/McrA.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/McrA.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group0.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group0.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/DsrAB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group7.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group7.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/DsrAB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group6.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group6.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/DsrAB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group5.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group5.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/DsrAB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group4.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group4.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/DsrAB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group3.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group3.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/DsrAB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group2.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group2.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/DsrAB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group1.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group1.sto
+
+08/05 18:15:21 DEBUG:
+STAGE: cmalign/hmmalign --mapali
+	COMMAND:
+/home/connor/anaconda3/bin/hmmalign --mapali /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//alignment_data/DsrAB.fa --outformat Stockholm /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data//hmm_data/DsrAB.hmm /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group0.faa > /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group0.sto
+
+08/05 18:15:21 INFO:
+done.
+
+08/05 18:15:21 DEBUG:
+	hmmalign time required: 0.0:0.0:0.69
+
+08/05 18:15:21 INFO:
+Running BMGE... 
+08/05 18:15:21 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group7.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group7-BMGE.fasta
+
+08/05 18:15:21 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group6.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group6-BMGE.fasta
+
+08/05 18:15:21 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group5.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group5-BMGE.fasta
+
+08/05 18:15:21 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group4.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group4-BMGE.fasta
+
+08/05 18:15:23 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group3.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group3-BMGE.fasta
+
+08/05 18:15:23 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group2.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group2-BMGE.fasta
+
+08/05 18:15:23 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group1.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group1-BMGE.fasta
+
+08/05 18:15:23 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group0.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group0-BMGE.fasta
+
+08/05 18:15:25 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group1.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group1-BMGE.fasta
+
+08/05 18:15:25 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group0.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group0-BMGE.fasta
+
+08/05 18:15:25 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group2.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group2-BMGE.fasta
+
+08/05 18:15:25 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group1.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group1-BMGE.fasta
+
+08/05 18:15:25 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group0.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group0-BMGE.fasta
+
+08/05 18:15:25 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group3.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group3-BMGE.fasta
+
+08/05 18:15:26 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group2.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group2-BMGE.fasta
+
+08/05 18:15:26 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group1.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group1-BMGE.fasta
+
+08/05 18:15:26 DEBUG:
+STAGE: Multiple alignment trimming with BMGE
+	COMMAND:
+java -Xmx512m -jar /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/sub_binaries/BMGE.jar -t AA -m BLOSUM30 -g 0.99:0.33 -i /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group0.mfa -of /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group0-BMGE.fasta
+
+08/05 18:15:27 INFO:
+done.
+
+08/05 18:15:27 DEBUG:
+	BMGE time required: 0.0:0.0:5.57
+
+08/05 18:15:27 DEBUG:
+Validating trimmed multiple sequence alignment files... 
+08/05 18:15:27 DEBUG:
+Read 246 headers from /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data/alignment_data//McrA.fa.
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group0.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group0-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group1.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group1-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 248 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group2.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 248 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group2-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group3.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group3-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 158 headers from /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data/alignment_data//McrB.fa.
+
+08/05 18:15:27 DEBUG:
+Read 162 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group0.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 162 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group0-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 160 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group1.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 160 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group1-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 159 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group2.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 159 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group2-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 155 headers from /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data/alignment_data//McrG.fa.
+
+08/05 18:15:27 DEBUG:
+Read 157 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group0.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 157 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group0-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 159 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group1.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 159 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group1-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 753 headers from /home/connor/Bioinformatics/Hallam_projects/TreeSAPP_manuscript/treesapp_venv/lib/python3.7/site-packages/treesapp/data/alignment_data//DsrAB.fa.
+
+08/05 18:15:27 WARNING:
+No query sequences in /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group1-BMGE.fasta were retained after trimming.
+
+08/05 18:15:27 WARNING:
+No query sequences in /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group5-BMGE.fasta were retained after trimming.
+
+08/05 18:15:27 DEBUG:
+Read 944 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group0.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 934 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group0-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 758 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group1.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 758 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group1-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 755 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group2.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 755 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group2-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 769 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group3.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 769 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group3-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group4.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group4-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group5.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group5-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group6.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group6-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group7.mfa.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group7-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+done.
+
+08/05 18:15:27 DEBUG:
+	Sequences removed during trimming:
+		McrA: 0
+		McrB: 0
+		McrG: 0
+		DsrAB: 10
+
+08/05 18:15:27 DEBUG:
+	Sequences <30 characters removed after trimming:
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group0-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group1-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group2-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group3-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group0-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group1-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group2-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group0-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group1-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group0-BMGE.fasta = 131 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group1-BMGE.fasta = 5 (removed)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group2-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group3-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group4-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group5-BMGE.fasta = 1 (removed)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group6-BMGE.fasta = 0 (retained)
+		/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group7-BMGE.fasta = 0 (retained)
+
+08/05 18:15:27 DEBUG:
+	Average columns removed:
+		M0701	359.0
+		M0702	102.3
+		M0705	73.5
+		S0001	994.0
+
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group0-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group1-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 248 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group2-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 249 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrA_hmm_purified_group3-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 162 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group0-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 160 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group1-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 159 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrB_hmm_purified_group2-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 157 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group0-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 159 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/McrG_hmm_purified_group1-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 934 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group0-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 755 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group2-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 769 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group3-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group4-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group6-BMGE.fasta.
+
+08/05 18:15:27 DEBUG:
+Read 754 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/intermediates/DsrAB_hmm_purified_group7-BMGE.fasta.
+
+08/05 18:15:27 INFO:
+Running EPA... 
+08/05 18:15:45 INFO:
+done.
+
+08/05 18:15:45 DEBUG:
+	EPA-ng time required: 0.0:0.0:17.89
+
+08/05 18:15:45 DEBUG:
+	EPA-ng was called 15 times.
+
+08/05 18:15:45 INFO:
+Parsing the EPA-NG outputs... 
+08/05 18:15:45 INFO:
+done.
+
+08/05 18:15:45 DEBUG:
+	JPlace parsing time required: 0.0:0.0:0.26
+
+08/05 18:15:45 DEBUG:
+	15 JPlace files.
+
+08/05 18:15:45 INFO:
+Selecting the optimal query placements... 
+08/05 18:15:45 INFO:
+done.
+
+08/05 18:15:45 DEBUG:
+	PQuery parsing time required: 0.0:0.0:0.01
+
+08/05 18:15:45 DEBUG:
+	226 sequences placed into trees by EPA-NG.
+
+08/05 18:15:45 INFO:
+Filtering low-quality placements... 
+08/05 18:15:48 INFO:
+done.
+
+08/05 18:15:48 DEBUG:
+DsrAB	low_lwr	0
+DsrAB	np	0
+DsrAB	svm	0
+McrA	low_lwr	0
+McrA	np	0
+McrA	svm	0
+McrB	low_lwr	0
+McrB	np	0
+McrB	svm	0
+McrG	low_lwr	0
+McrG	np	0
+McrG	svm	0
+
+08/05 18:15:48 DEBUG:
+Read 2014 headers from /home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/final_outputs/PitchLake_TarA_Mcr_Dsr_ORFs.fna.
+
+08/05 18:15:48 INFO:
+Creating nucleotide FASTA file of classified sequences '/home/connor/Desktop/TreeSAPP_outputs/PitchLake_TarA_FD/final_outputs/PitchLake_TarA_Mcr_Dsr_classified.fna'... 
+08/05 18:15:48 INFO:
+done.
+
+08/05 18:15:48 INFO:
+Generating inputs for iTOL... 
+08/05 18:15:48 INFO:
+done.
+
+08/05 18:15:48 DEBUG:
+A colours_style.txt file does not yet exist for markers:
+	McrB
+	McrG
+
+08/05 18:15:48 DEBUG:
+A colours_strip.txt file does not yet exist for markers:
+	McrB
+	McrG
+
+08/05 18:15:48 INFO:
+TreeSAPP has finished successfully.
+

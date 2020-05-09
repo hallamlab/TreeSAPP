@@ -1,0 +1,250 @@
+LABELS
+SEPARATOR COMMA
+DATA
+#NODE_ID,LABEL
+1_McrA,NM1a_pc1 | MN1LE27704677
+2_McrA,NM1b_pc1 | NM128664353
+3_McrA,M. natro-ASL | AL1256114219
+4_McrA,NM2 | NM648286489
+5_McrA,M. archaeon | M0343248034144
+6_McrA,M. Mx2 | 2617404690
+7_McrA,M. Mx3 | 2617405898
+8_McrA,NM1a | MN1LE99113100777
+9_McrA,NM3 | NM3LE45496204
+10_McrA,NM1b | NM17892456
+11_McrA,ANME-2c | MSRA2291MSRA2292
+12_McrA,ANME-1-THS | EURA2336EURA1606
+13_McrA,unclassified Candidatus Bathyarchaeota | KPV65186
+14_McrA,unclassified Candidatus Bathyarchaeota | KPV61791
+15_McrA,Hel_GB_B | SUPR01000026
+16_McrA,Hel_GB_A | SUPS01000008
+17_McrA,Candidatus Methanodesulfokores | RSN72832
+18_McrA,Candidatus Nezhaarchaeota | TDA34547
+19_McrA,Candidatus Methanomethylicus mesodigestum isolate V1 V1 s30 | MAGS01000030
+20_McrA,Candidatus Methanomethylicus oleusabulum isolate V3 V3 s66 | MAGU01000068
+21_McrA,Candidatus Methanosuratus petracarbonis isolate V4 V4 s73 | MAGV01000073
+22_McrA,unclassified Candidatus Verstraetearchaeota | TDA37970
+23_McrA,Unclassified Verstraetearchaeota GMQP bin_44 | 2774019680
+24_McrA,Unclassified Verstraetearchaeota JZ-3 bin_107 | 2774024479
+25_McrA,Unclassified Archaeoglobales GMQP bin_32 | 2774028605
+26_McrA,unclassified Archaeoglobi | TDA25649
+27_McrA,Candidatus Methanofastidiosum | KYC51830
+28_McrA,unclassified Hadesarchaea | TDA31058
+29_McrA,Methanobacteriaceae | WP_048080940
+30_McrA,Methanobacteriaceae | WP_048081846
+31_McrA,Methanobacterium | BAI67095
+32_McrA,Methanobacterium | BAI67101
+33_McrA,Methanobacterium | ADZ08605
+34_McrA,Methanobacterium | BAI67094
+35_McrA,Methanobacterium | BAI67093
+36_McrA,Methanobacterium | BAN67657
+37_McrA,Methanobacterium | SCG86533
+38_McrA,Methanobacterium | ADM52196
+39_McrA,Methanobacterium | ADZ10495
+40_McrA,Methanobacterium | BAN67656
+41_McrA,Methanobacterium | AEG19065
+42_McrA,Methanobacterium formicicum | EKF85363
+43_McrA,Methanobacterium formicicum | EKF86694
+44_McrA,unclassified Methanobacterium | AUB57398
+45_McrA,unclassified Methanobacterium | CDG65904
+46_McrA,unclassified Methanobacterium | EKQ54655
+47_McrA,unclassified Methanobacterium | EKQ53862
+48_McrA,unclassified Methanobacterium | AXV36901
+49_McrA,unclassified Methanobacterium | AUB57552
+50_McrA,unclassified Methanobacterium | AXV37353
+51_McrA,unclassified Methanobacterium | CDG65773
+52_McrA,unclassified Methanobacterium | WP_048191628
+53_McrA,Methanobrevibacter | KZX17247
+54_McrA,Methanobrevibacter | KZX10527
+55_McrA,Methanobrevibacter | KZX12896
+56_McrA,Methanobrevibacter | KZX14437
+57_McrA,Methanobrevibacter | KZX11644
+58_McrA,Methanobrevibacter | WP_042703044
+59_McrA,Methanobrevibacter | WP_042708239
+60_McrA,Methanobrevibacter ruminantium | ADC47774
+61_McrA,Methanobrevibacter smithii | ABQ87107
+62_McrA,Methanobrevibacter smithii | EEE42042
+63_McrA,unclassified Methanobrevibacter | AHY86398
+64_McrA,unclassified Methanobrevibacter | AHY86394
+65_McrA,unclassified Methanobrevibacter | AHY86395
+66_McrA,unclassified Methanobrevibacter | AHY86397
+67_McrA,unclassified Methanobrevibacter | AHY86400
+68_McrA,unclassified Methanobrevibacter | AHY86399
+69_McrA,unclassified Methanobrevibacter | AMD18197
+70_McrA,unclassified Methanobrevibacter | AGN17395
+71_McrA,M. cuniculi_mrt | MSPA0772
+72_McrA,Methanosphaera stadtmanae | CAE48306
+73_McrA,unclassified Methanosphaera | AHY86396
+74_McrA,unclassified Methanosphaera | AWX32581
+75_McrA,Methanothermobacter | SCM58244
+76_McrA,Methanothermobacter marburgensis | ADL59091
+77_McrA,Methanothermobacter marburgensis | ADL59127
+78_McrA,Methanothermobacter thermautotrophicus | AAB85618
+79_McrA,unclassified Methanothermobacter | BAW31874
+80_McrA,Methanothermus fervidus | ADP77533
+81_McrA,Methanothermus fervidus | ADP77583
+82_McrA,Methanocaldococcus infernus | ADG12951
+83_McrA,Methanocaldococcus jannaschii | AAB98063
+84_McrA,Methanocaldococcus jannaschii | AAB98851
+85_McrA,Methanocaldococcus villosus | ENN96460
+86_McrA,Methanocaldococcus vulcanius | EET30029
+87_McrA,Methanotorris formicicus | EHP88088
+88_McrA,Methanotorris formicicus | EHP86352
+89_McrA,Methanotorris igneus | AEF96774
+90_McrA,Methanotorris igneus | AEF96001
+91_McrA,Methanococcus aeolicus | ABR56844
+92_McrA,Methanococcus maripaludis | ABX01925
+93_McrA,Methanococcus maripaludis | BAP63757
+94_McrA,Methanococcus vannielii | ABR54777
+95_McrA,Methanococcus voltae | ADI36785
+96_McrA,Methanococcus voltae | CAA30633
+97_McrA,Methanothermococcus | WP_018154763
+98_McrA,Methanothermococcus | WP_018153522
+99_McrA,Methanothermococcus okinawensis | AEH06926
+100_McrA,unclassified Methanofervidicoccus | AXI24849
+101_McrA,Methanocella arvoryzae | CAJ37204
+102_McrA,Methanocella conradii | AFC99668
+103_McrA,Methanocella paludicola | BAI60588
+104_McrA,Methanocorpusculum | WP_042697841
+105_McrA,Methanocorpusculum labreanum | ABN07725
+106_McrA,Methanoculleus | BAL72746
+107_McrA,Methanoculleus | BAL72745
+108_McrA,Methanoculleus bourgensis | CCJ36661
+109_McrA,Methanoculleus bourgensis | CCJ36444
+110_McrA,Methanoculleus marisnigri | ABN56546
+111_McrA,Methanoculleus marisnigri | ABN56311
+112_McrA,unclassified Methanoculleus | KDE55005
+113_McrA,unclassified Methanoculleus | KDE55049
+114_McrA,Methanofollis | BAL72754
+115_McrA,Methanofollis | BAL72755
+116_McrA,Methanofollis liminatans | EJG07654
+117_McrA,Methanofollis liminatans | EJG06466
+118_McrA,Methanolacinia petrolearia | ADN37161
+119_McrA,Methanolacinia petrolearia | ADN36741
+120_McrA,Methanomicrobium | WP_042705994
+121_McrA,Methanoplanus limicola | EHQ36916
+122_McrA,Methanolinea tarda | EHF09948
+123_McrA,unclassified Methanolinea | KQC10137
+124_McrA,Methanoregula boonei | ABS55100
+125_McrA,Methanoregula formicica | AGB03601
+126_McrA,Methanoregula formicica | AGB01930
+127_McrA,Methanosphaerula palustris | ACL17594
+128_McrA,Methanospirillum | AGT97393
+129_McrA,Methanospirillum | BAI45226
+130_McrA,Methanospirillum hungatei | ABD41854
+131_McrA,unclassified Methanomicrobiales miscellaneous | KUL02431
+132_McrA,environmental samples | AMK13668
+133_McrA,ANME-1 sp. CONS3730B06UFb1 | Ga0123266_1025_13
+134_McrA,ANME-1 sp. CONS3730MDAH03UFb1 | Ga0123271_1456_6
+135_McrA,ANME-1 sp. ERB6 | GZfos13E1_3
+136_McrA,ANME-1 sp. ERB6 | GZfos9C4_7
+137_McrA,ANME-1 sp. ERB7 | GZfos30H9_36
+138_McrA,ANME-1 sp. GB37 | scaffold1_size602113_G37_A1_v2_G37_A1_v2_572
+139_McrA,ANME-1 sp. GB60 | scaffold21_size25442_G60_A1_G60_A1_12
+140_McrA,ANME-1 sp. GoMg1 | GOMG1_24_Anme_sp._GoMg1_17
+141_McrA,ANME-1 sp. GoMg4 | GOMG4_62_Anme_sp._GoMg4_4
+142_McrA,ANME-1 sp. SA | PHJCHKPG_3_ANME_sp._SA_14
+143_McrA,Candidatus Methanoperedens | KCZ72673
+144_McrA,environmental samples | AQM52560
+145_McrA,environmental samples | AQM52548
+146_McrA,environmental samples | AQM52569
+147_McrA,environmental samples | AQM52553
+148_McrA,environmental samples | AQM52542
+149_McrA,environmental samples | AQM52558
+150_McrA,environmental samples | AQM52545
+151_McrA,environmental samples | AQM52563
+152_McrA,unclassified Candidatus Methanoperedens | KPQ44219
+153_McrA,ANME-2a sp. HMMV-459B4 | BCPHJLHL_1_Genus_species_strain_strain_25
+154_McrA,ANME-2b sp. HR1 | 5133_contig_8396_join_504_23
+155_McrA,ANME-2c sp. COP1 | JCNPLBNJ_63_14
+156_McrA,ANME-2c sp. E20 | lcl_contig000006_E20_A2_E20_A2_104
+157_McrA,ANME-2c sp. ERB4 | 14E1_10
+158_McrA,ANME-2c sp. ERB4 | GZfos26B2_2773120_1_19
+159_McrA,ANME-2c sp. ERB4 | GZfos35D7_28
+160_McrA,ANME-2c sp. HMMV-459B1 | LDLILCAP_37_Genus_species_strain_strain_9
+161_McrA,Methanococcoides burtonii | ABE53268
+162_McrA,Methanococcoides methylutens | AKB84612
+163_McrA,Methanohalobium evestigatum | ADI73798
+164_McrA,Methanohalophilus mahii | ADE36137
+165_McrA,Methanolobus psychrophilus | AFV23037
+166_McrA,Methanolobus tindarius | ETA68796
+167_McrA,unclassified Methanolobus | KXS44245
+168_McrA,Methanomethylovorans hollandica | AGB49863
+169_McrA,Methanosalsum zhilinae | AEH60719
+170_McrA,Methanosarcina | KKG90190
+171_McrA,Methanosarcina | AGB07531
+172_McrA,Methanosarcina barkeri | AKJ39604
+173_McrA,Methanosarcina flavescens | KPL45056
+174_McrA,Methanosarcina lacustris | AKB73417
+175_McrA,Methanosarcina siciliae | AKB38845
+176_McrA,Methanosarcina vacuolata | AKB45682
+177_McrA,unclassified Methanosarcina | AKB23569
+178_McrA,unclassified Methanosarcina | AKB20360
+179_McrA,unclassified Methanosarcina | KKG08643
+180_McrA,unclassified Methanosarcina | AKB49151
+181_McrA,ANME-3 sp. HMMV | ANME3_10_Genus_species_strain_strain_7
+182_McrA,Methanothrix | KUK94666
+183_McrA,Methanothrix | BAL63106
+184_McrA,Methanothrix | KUK43252
+185_McrA,Methanosaeta harundinacea | ADQ42341
+186_McrA,Methanothrix soehngenii | AEB67565
+187_McrA,Methanothrix thermoacetophila | ABK14360
+188_McrA,Methermicoccus shengliensis | WP_042686202
+189_McrA,unclassified Methanosarcinales | OYT62528
+190_McrA,Candidatus Argoarchaeum | RZB32666
+191_McrA,Candidatus Syntrophoarchaeum | OFV68281
+192_McrA,Candidatus Syntrophoarchaeum | OFV65745
+193_McrA,Candidatus Syntrophoarchaeum | OFV67100
+194_McrA,Candidatus Syntrophoarchaeum | OFV68676
+195_McrA,Candidatus Syntrophoarchaeum | OFV67021
+196_McrA,Candidatus Syntrophoarchaeum | OFV65760
+197_McrA,Candidatus Syntrophoarchaeum | OFV67773
+198_McrA,Methanoflorens stordalenmirensis | 2518787893
+199_McrA,Candidatus Methanohalarchaeum | OKY78426
+200_McrA,Methanonatronarchaeum | OUJ18543
+201_McrA,Methanopyrus kandleri | AAM01870
+202_McrA,Unclassified Methanomassiliicoccales JZ-2 bin_168 | 2774014847
+203_McrA,Candidatus Methanomethylophilus | AYQ54575
+204_McrA,unclassified Candidatus Methanomethylophilus | KUE73676
+205_McrA,Candidatus Methanogranum | BAN16988
+206_McrA,Candidatus Methanoplasma | AIZ56101
+207_McrA,Methanomassiliicoccus | WP_019176774
+208_McrA,Candidatus Methanomassiliicoccus intestinalis | AGN26871
+209_McrA,unclassified Methanomassiliicoccales | KQM10793
+210_McrA,unclassified Thermoplasmatales miscellaneous | AGI47474
+211_McrA,unclassified Thermoplasmata | AMH95111
+212_McrA,environmental samples | AUD55425
+213_McrA,environmental samples | AGF92175
+214_McrA,environmental samples | ALK27809
+215_McrA,environmental samples | APO18214
+216_McrA,environmental samples | AGF92168
+217_McrA,environmental samples | AGF92164
+218_McrA,environmental samples | APO18212
+219_McrA,environmental samples | AGF92189
+220_McrA,environmental samples | AFI62037
+221_McrA,environmental samples | AGF92163
+222_McrA,environmental samples | AEV59717
+223_McrA,environmental samples | AFI62033
+224_McrA,environmental samples | AGF92172
+225_McrA,environmental samples | QCY49070
+226_McrA,environmental samples | ALK27810
+227_McrA,environmental samples | APO18199
+228_McrA,environmental samples | AGF92178
+229_McrA,environmental samples | QCY49071
+230_McrA,environmental samples | AGF92161
+231_McrA,environmental samples | APO18215
+232_McrA,environmental samples | APO18211
+233_McrA,environmental samples | AGF92169
+234_McrA,environmental samples | AFI62043
+235_McrA,environmental samples | APO18213
+236_McrA,environmental samples | AGF92165
+237_McrA,environmental samples | AGF92167
+238_McrA,environmental samples | QCY49073
+239_McrA,Unclassified Crenarchaetoa JZ-2 bin_220 | 2774018586
+240_McrA,Unclassified Hadesarchaeota JZ-1 bin_103 | 2774012914
+241_McrA,Unclassified Hadesarchaeota JZ-1 bin_103 | 2774012919
+242_McrA,Unclassified Hadesarchaeota JZ-2 bin_199 | 2774016226
+243_McrA,Unclassified | KYC53403
+244_McrA,ANME-3 sp. HMMV2 | LBLEPAFP_38_Anme_HMMV2_1
+245_McrA,ecological metagenomes | KUG20861
+246_McrA,ecological metagenomes | KUG15452

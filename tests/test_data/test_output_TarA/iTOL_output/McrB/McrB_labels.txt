@@ -1,0 +1,162 @@
+LABELS
+SEPARATOR COMMA
+DATA
+#NODE_ID,LABEL
+1_McrB,NM1b | NM176038937
+2_McrB,ANME-2a | ANME2a2307
+3_McrB,NM1a | MN1LE102724104058
+4_McrB,NM1b_pc1 | NM16872057
+5_McrB,M. Mx2 | 2617404687
+6_McrB,M. Mx3 | 2617405895
+7_McrB,ANM41 | NM412659927933
+8_McrB,NM1a_pc1 | MN1LE5871951
+9_McrB,ANME-1-THS | EURA2338
+10_McrB,Gom-Arc1-GOS | MSRB0110
+11_McrB,ANME-2c | MSRA2287
+12_McrB,M. natro-ASL | AL1000411332
+13_McrB,NM3 | NM3LE21093434
+14_McrB,NM2 | NM623643689
+15_McrB,M. archaeon | M0343536436683
+16_McrB,NM4 | NM422931530643
+17_McrB,Candidatus Methanomethylophilus alvus Mx1201 | AGI85141.1
+18_McrB,Candidatus Methanoplasma termitum | AIZ56098.1
+19_McrB,Methanomassiliicoccus luminyensis | WP_026068762.1
+20_McrB,Candidatus Methanomassiliicoccus intestinalis Issoire-Mx1 | AGN26874.1
+21_McrB,Methanomassiliicoccales archaeon RumEn M2 | KQM10794.1
+22_McrB,Methanomassiliicoccales archaeon RumEn M1 | KQM11567.1
+23_McrB,Thermoplasmatales archaeon BRNA1 | AGI47471.1
+24_McrB,methanogenic archaeon ISO4-H5 | AMH95114.1
+25_McrB,M. cuniculi_mrt | MSPA0772
+26_McrB,Methanobacterium | WP_048080943.1
+27_McrB,Methanobacterium | WP_048081843.1
+28_McrB,Methanobacterium sp. Maddingley MBC34 | EKQ54652.1
+29_McrB,Methanobacterium sp. MB1 | CDG65901.1
+30_McrB,Methanobacterium formicicum | CEA13262.1
+31_McrB,Methanobacterium congolense | SCG86537.1
+32_McrB,Methanobacterium sp. SMA-27 | WP_048191635.1
+33_McrB,Methanobacterium sp. MB1 | CDG65777.1
+34_McrB,Methanobacterium lacus | ADZ08601.1
+35_McrB,Methanobacterium lacus | ADZ10492.1
+36_McrB,Methanobacterium paludis | AEG19069.1
+37_McrB,Methanobacterium formicicum DSM 3637 | EKF86691.1
+38_McrB,Methanobacterium formicicum DSM 3637 | EKF85359.1
+39_McrB,Methanobrevibacter millerae | ALT69787.1
+40_McrB,Methanobrevibacter olleyae | AMK15940.1
+41_McrB,Methanobrevibacter wolinii | WP_042708236.1
+42_McrB,Methanobrevibacter millerae | ALT69137.1
+43_McrB,Methanobrevibacter olleyae | AMK15665.1
+44_McrB,Methanobrevibacter sp. AbM4 | AGN17399.1
+45_McrB,Methanobrevibacter sp. YE315 | AMD18201.1
+46_McrB,Methanobrevibacter arboriphilus JCM 13429 = DSM 1125 | OQD59599.1
+47_McrB,Methanobrevibacter ruminantium M1 | ADC47778.1
+48_McrB,Methanobrevibacter smithii ATCC 35061 | ABQ87110.1
+49_McrB,Methanobrevibacter smithii DSM 2375 | EEE42046.1
+50_McrB,Methanosphaera stadtmanae DSM 3091 | ABC56728.1
+51_McrB,Methanothermobacter thermautotrophicus str. Delta H | AAB85621.1
+52_McrB,Methanothermobacter thermautotrophicus str. Delta H | AAB85657.1
+53_McrB,Methanobacteriaceae archaeon 41_258 | KUK00449.1
+54_McrB,Methanothermus fervidus DSM 2088 | ADP77587.1
+55_McrB,Methanothermus fervidus DSM 2088 | ADP77530.1
+56_McrB,Methanocaldococcus bathoardescens | AIJ05903.1
+57_McrB,Methanocaldococcus villosus | WP_004590268.1
+58_McrB,A64310 methyl coenzyme M reductase (EC 1.8.-.-) II beta chain - Methanococcus jannaschii | 2129109
+59_McrB,B64405 methyl coenzyme M reductase (EC 1.8.-.-) I beta chain - Methanococcus jannaschii | 2129114
+60_McrB,Methanocaldococcus fervens AG86 | ACV24752.1
+61_McrB,Methanocaldococcus infernus ME | ADG12955.1
+62_McrB,Methanocaldococcus vulcanius M7 | ACX73050.1
+63_McrB,Methanocaldococcus vulcanius M7 | ACX72013.1
+64_McrB,Methanotorris formicicus Mc-S-70 | EHP86349.1
+65_McrB,Methanotorris formicicus Mc-S-70 | EHP88092.1
+66_McrB,Methanotorris igneus Kol 5 | AEF96770.1
+67_McrB,Methanotorris igneus Kol 5 | AEF95998.1
+68_McrB,Methyl-coenzyme M reductase subunit beta | 126864
+69_McrB,Methanococcus aeolicus Nankai-3 | ABR56840.1
+70_McrB,Methanococcus maripaludis S2 | CAF31111.1
+71_McrB,Methanococcus maripaludis C7 | ABR65869.1
+72_McrB,Methanococcus vannielii SB | ABR54773.1
+73_McrB,Methanococcus voltae A3 | ADI36781.1
+74_McrB,Methanothermococcus thermolithotrophicus | WP_018154760.1
+75_McrB,Methanothermococcus thermolithotrophicus | WP_018153526.1
+76_McrB,Methanothermococcus okinawensis IH1 | AEH06930.1
+77_McrB,Methanoflorens stordalenmirensis | 2518787889_MflrDRAFT_Methanoflorens_stordalmirensis_v4_3_scaffold3.4
+78_McrB,Candidatus Methanohalarchaeum thermophilum | OKY78423.1
+79_McrB,Euryarchaeota archaeon AMET1 | OUJ18540.1
+80_McrB,Methanopyrus sp. KOL6 | WP_088335799.1
+81_McrB,Methanocella arvoryzae MRE50 | CAJ37200.1
+82_McrB,Methanocella conradii HZ254 | AFC99664.1
+83_McrB,Methanocella paludicola SANAE | BAI60584.1
+84_McrB,Methanocorpusculum | WP_042699345.1
+85_McrB,Methanocorpusculum bavaricum | WP_042697830.1
+86_McrB,Methanoculleus sediminis | KLK89041.1
+87_McrB,Methanoculleus sediminis | KLK89253.1
+88_McrB,Methanoculleus sp. MH98A | KDE55009.1
+89_McrB,Methanoculleus marisnigri | KUL00294.1
+90_McrB,Methanoculleus sp. SDB | KQC03963.1
+91_McrB,Methanoculleus bourgensis MS2 | CCJ36447.1
+92_McrB,Methanoculleus bourgensis MS2 | CCJ36657.1
+93_McrB,Methanofollis liminatans DSM 4140 | EJG07657.1
+94_McrB,Methanofollis liminatans DSM 4140 | EJG06470.1
+95_McrB,Methanolacinia petrolearia DSM 11571 | ADN36743.1
+96_McrB,Methanolacinia petrolearia DSM 11571 | ADN37165.1
+97_McrB,Methanomicrobium mobile | WP_042706171.1
+98_McrB,Methanoplanus limicola DSM 2279 | EHQ36920.1
+99_McrB,Methanolinea tarda | WP_007314357.1
+100_McrB,Methanoregula boonei 6A8 | ABS55104.1
+101_McrB,Methanoregula formicica SMSP | AGB03597.1
+102_McrB,Methanoregula formicica SMSP | AGB01927.1
+103_McrB,Methanosphaerula palustris E1-9c | ACL17590.1
+104_McrB,Methanospirillum hungatei JF-1 | ABD41850.1
+105_McrB,Methanomicrobiales archaeon 53_19 | KUL02435.1
+106_McrB,methanogenic archaeon mixed culture ISO4-G1 | AMK13665.1
+107_McrB,Candidatus Methanoperedens nitroreducens | KCZ72670.1
+108_McrB,Candidatus Methanoperedens sp. BLZ1 | KPQ44222.1
+109_McrB,Methanosaeta harundinacea | KUK43232.1
+110_McrB,Methanosaeta harundinacea | KUK43225.1
+111_McrB,Methanosaeta harundinacea 6Ac | AET63877.1
+112_McrB,Methanosaeta concilii GP6 | AEB67568.1
+113_McrB,Methanosaeta thermophila PT | ABK14363.1
+114_McrB,Methanococcoides burtonii DSM 6242 | ABE53272.1
+115_McrB,Methanococcoides methylutens MM1 | AKB84616.1
+116_McrB,Methanohalobium evestigatum Z-7303 | ADI73802.1
+117_McrB,Methanohalophilus mahii DSM 5219 | ADE36141.1
+118_McrB,Methanolobus sp. T82-4 | KXS44249.1
+119_McrB,Methanolobus psychrophilus R15 | AFV23041.1
+120_McrB,Methanolobus tindarius DSM 2278 | ETA68800.1
+121_McrB,Methanomethylovorans hollandica DSM 15978 | AGB49859.1
+122_McrB,Methanosalsum zhilinae DSM 4017 | AEH60715.1
+123_McrB,Methanosarcina sp. 2.H.T.1A.15 | KKG25359.1
+124_McrB,Methanosarcina sp. MTP4 | AKB23565.1
+125_McrB,Methanosarcina sp. 1.H.A.2.2 | KKH49360.1
+126_McrB,Methanosarcina acetivorans C2A | AAM07889.1
+127_McrB,Methanosarcina barkeri CM1 | AKJ39608.1
+128_McrB,Methanosarcina horonobensis HB-1 = JCM 15518 | AKB76563.1
+129_McrB,Methanosarcina lacustris Z-7289 | AKB73421.1
+130_McrB,Methanosarcina mazei Go1 | AAM30940.1
+131_McrB,Methanosarcina siciliae T4/M | AKB30553.1
+132_McrB,Methanosarcina thermophila TM-1 | AKB13398.1
+133_McrB,Methermicoccus shengliensis | WP_042686194.1
+134_McrB,Candidatus Syntrophoarchaeum caldarius | OFV68282.1
+135_McrB,Candidatus Syntrophoarchaeum butanivorans | OFV66177.1
+136_McrB,Candidatus Syntrophoarchaeum butanivorans | OFV66073.1
+137_McrB,Candidatus Syntrophoarchaeum caldarius | OFV67099.1
+138_McrB,Candidatus Syntrophoarchaeum butanivorans | OFV65758.1
+139_McrB,Candidatus Syntrophoarchaeum butanivorans | OFV65746.1
+140_McrB,Candidatus Syntrophoarchaeum caldarius | OFV67771.1
+141_McrB,Candidatus Syntrophoarchaeum caldarius | OFV68674.1
+142_McrB,Methanosarcinales archaeon ex4484_138 | OYT62526.1
+143_McrB,Arc I group archaeon U1lsi0528_Bin055 | KYC53406.1
+144_McrB,Arc I group archaeon ADurb1013_Bin02101 | KYC55284.1
+145_McrB,Arc I group archaeon B03fssc0709_Meth_Bin005 | KYC44342.1
+146_McrB,Candidatus Bathyarchaeota archaeon BA2 | KPV61799.1
+147_McrB,Candidatus Bathyarchaeota archaeon BA1 | KPV65184.1
+148_McrB,M. mesodigestum | MMV29649697719
+149_McrB,M. oleusabulum | MOV32564226976
+150_McrB,uncultured archaeon GZfos24D9 | AAU82958.1
+151_McrB,uncultured archaeon GZfos33H6 | AAU83780.1
+152_McrB,uncultured archaeon | AAQ63474.1
+153_McrB,uncultured archaeon | CBH37405.1
+154_McrB,uncultured archaeon | CBH39482.1
+155_McrB,uncultured archaeon | AEV59713.1
+156_McrB,uncultured archaeon GZfos11H11 | AAU82224.1
+157_McrB,uncultured archaeon GZfos9C4 | AAU84250.1
+158_McrB,uncultured archaeon | AAQ63477.1

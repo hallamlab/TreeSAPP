@@ -11,5 +11,17 @@ def get_test_data(filename):
     except ResolutionError:
         pass
     if not filepath or not os.path.isfile(filepath):
-        filepath = os.path.join(os.path.dirname(__file__), 'tests/test_data', filename)
+        filepath = os.path.join(os.path.dirname(__file__), 'test_data', filename)
     return filepath
+
+
+def get_treesapp_file(filename):
+    return resource_filename(Requirement.parse("treesapp"), filename)
+
+
+def get_treesapp_path():
+    return resource_filename(Requirement.parse("treesapp"), "")
+
+
+def get_example_output():
+    return get_test_data("test_output_TarA/")

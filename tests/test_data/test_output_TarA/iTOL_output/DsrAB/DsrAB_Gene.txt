@@ -1,0 +1,21 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+408_DsrAB|96_DsrAB	range	rgb(116, 196, 118)	DsrA-oxidative
+156_DsrAB|362_DsrAB	range	rgb(188, 189, 220)	AsrC (TIGR02912)
+237_DsrAB|368_DsrAB	range	rgb(35, 139, 69)	DsrA-reductive
+2_DsrAB|29_DsrAB	range	rgb(35, 139, 69)	DsrA-reductive
+339_DsrAB|333_DsrAB	range	rgb(35, 139, 69)	DsrA-reductive
+629_DsrAB|275_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+342_DsrAB|334_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+4_DsrAB|28_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+1_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+610_DsrAB|330_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+367_DsrAB|360_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+241_DsrAB|95_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+352_DsrAB|41_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+238_DsrAB|300_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+289_DsrAB	range	rgb(237, 248, 233)	DsrB-reductive
+47_DsrAB|50_DsrAB	range	rgb(117, 107, 177)	nitrite and sulphite reductase
+614_DsrAB|349_DsrAB	range	rgb(239, 237, 245)	COG2221-related
+664_DsrAB|391_DsrAB	range	rgb(186, 228, 179)	DsrB-oxidative

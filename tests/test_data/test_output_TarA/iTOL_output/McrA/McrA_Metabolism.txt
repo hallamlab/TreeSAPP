@@ -1,0 +1,30 @@
+TREE_COLORS
+SEPARATOR TAB
+DATA
+2	range	#d9f0d3	CH3-dependent hydrogenotrophic
+8	range	#d9f0d3	CH3-dependent hydrogenotrophic
+148|149	range	#d9f0d3	CH3-dependent hydrogenotrophic
+181|147	range	#762a83	Short-chain alkane oxidation
+145|164	range	#9970ab	Methanotrophic
+174|206	range	#9970ab	Methanotrophic
+5|117	range	#9970ab	Methanotrophic
+73|79	range	#5aae61	CO2-dependent hydrogenotrophic
+153	range	#5aae61	CO2-dependent hydrogenotrophic
+172|184	range	#5aae61	CO2-dependent hydrogenotrophic
+55|49	range	#5aae61	CO2-dependent hydrogenotrophic
+173	range	#5aae61	CO2-dependent hydrogenotrophic
+65|67	range	#5aae61	CO2-dependent hydrogenotrophic
+40|31	range	#5aae61	CO2-dependent hydrogenotrophic
+33|42	range	#5aae61	CO2-dependent hydrogenotrophic
+27	range	#5aae61	CO2-dependent hydrogenotrophic
+69|34	range	#5aae61	CO2-dependent hydrogenotrophic
+225|150	range	#5aae61	CO2-dependent hydrogenotrophic
+62|64	range	#d9f0d3	CH3-dependent hydrogenotrophic
+151|182	range	#d9f0d3	CH3-dependent hydrogenotrophic
+23|20	range	#d9f0d3	CH3-dependent hydrogenotrophic
+158|14	range	#d9f0d3	CH3-dependent hydrogenotrophic
+155|9	range	#d9f0d3	CH3-dependent hydrogenotrophic
+121|220	range	#1b7837	Aceticlastic
+141|134	range	#1b7837	Aceticlastic
+162	range	#e7d4e8	Methylotrophic
+131|129	range	#e7d4e8	Methylotrophic

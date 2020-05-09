@@ -1,4 +1,3 @@
-import pytest
 import unittest
 
 
@@ -43,11 +42,11 @@ class TreesappTester(unittest.TestCase):
                                 "--identity", "0.95",
                                 "--bootstraps", str(0),
                                 "--molecule", "prot",
-                                "--trim_align", "--cluster", "--fast", "--headless",
                                 "--screen", "Bacteria,Archaea", "--filter", "Archaea",
                                 "--min_taxonomic_rank", 'p',
                                 "--output", "./TreeSAPP_create",
-                                "--num_proc", str(2)]
+                                "--num_proc", str(2),
+                                "--trim_align", "--cluster", "--fast", "--headless", "--overwrite"]
         create(create_commands_list)
         return
 
@@ -65,8 +64,87 @@ class TreesappTester(unittest.TestCase):
         evaluate(evaluate_command_list)
         return
 
-    # TODO: Write tests for abundance, purity, layer, update and train
+    def test_abundance(self):
+        import os
+        from commands import abundance
+        from file_parsers import read_marker_classification_table
+        from . import testing_utils as utils
+        classification_table = os.path.join(utils.get_example_output(), "final_outputs", "marker_contig_map.tsv")
+        pre_lines = read_marker_classification_table(utils.get_test_data(classification_table))
+        abundance_command_list = ["--treesapp_output", utils.get_test_data("test_output_TarA/"),
+                                  "--reads", utils.get_test_data("test_TarA.1.fq"),
+                                  "--reverse", utils.get_test_data("test_TarA.2.fq"),
+                                  "--pairing", "pe",
+                                  "--num_procs", str(2),
+                                  "--delete"]
+        abundance(abundance_command_list)
+        post_lines = read_marker_classification_table(utils.get_test_data(classification_table))
+        self.assertEqual(len(pre_lines), len(post_lines))
+        return
+
+    def test_purity(self):
+        from commands import purity
+        import os
+        from . import testing_utils as utils
+        purity_command_list = ["--fastx_input", utils.get_treesapp_file("dev_utils/TIGRFAM_seed_named.faa"),
+                               "--extra_info", utils.get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
+                               "--output", "./TreeSAPP_purity",
+                               "--reference_marker", "McrA",
+                               "--pkg_path", os.path.join(utils.get_treesapp_path(), "treesapp", "data"),
+                               "--trim_align", "--molecule", "prot", "-n", str(2)]
+        purity(purity_command_list)
+        return
+
+    def test_layer(self):
+        import os
+        from commands import layer
+        from . import testing_utils as utils
+        from file_parsers import read_marker_classification_table
+        classification_table = os.path.join(utils.get_example_output(), "final_outputs", "marker_contig_map.tsv")
+        pre_lines = read_marker_classification_table(utils.get_test_data(classification_table))
+        layer_command_list = ["--treesapp_output", utils.get_test_data("test_output_TarA/")]
+        layer(layer_command_list)
+        post_lines = read_marker_classification_table(utils.get_test_data(classification_table))
+        self.assertEqual(len(pre_lines), len(post_lines))
+        return
+
+    def test_update(self):
+        from commands import update
+        from . import testing_utils as utils
+        update_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
+                               "--refpkg_name", "McrA",
+                               "--treesapp_output", utils.get_test_data("test_output_TarA/"),
+                               "--identity", str(0.97),
+                               "--output", "./TreeSAPP_update",
+                               "--num_proc", str(2),
+                               "--molecule", "prot",
+                               "-b", str(0),
+                               "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
+        update(update_command_list)
+        return
+
+    def test_train(self):
+        import os
+        from commands import train
+        from . import testing_utils as utils
+        train_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
+                              "--output", "./TreeSAPP_train",
+                              "--refpkg_name", "McrA",
+                              "--pkg_path", os.path.join(utils.get_treesapp_path(), "treesapp", "data"),
+                              "--num_proc", str(2),
+                              "--molecule", "prot",
+                              "--trim_align", "--delete", "--overwrite"]
+        train(train_command_list)
+        return
 
 
 if __name__ == '__main__':
     unittest.main()
+
+    # Clean up output directories
+    import os
+    output_prefix = "TreeSAPP_"
+    for test_name in ["assign", "train", "update", "evaluate", "create"]:
+        output_dir = output_prefix + test_name
+        if os.path.isdir(output_dir):
+            os.rmdir(output_dir)
