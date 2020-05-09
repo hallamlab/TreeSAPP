@@ -29,9 +29,9 @@ from treesapp.classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evalua
     prep_logging, dedup_records, TaxonTest, Purity, Abundance, ReferencePackage
 from treesapp.assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
-    multiple_alignments, get_sequence_counts, check_for_removed_sequences,\
+    multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
-    summarize_placements_rpkm, write_tabular_output, produce_itol_inputs, replace_contig_names, read_refpkg_tax_ids
+    summarize_placements_rpkm, write_classification_table, produce_itol_inputs, replace_contig_names, read_refpkg_tax_ids
 from treesapp.jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from treesapp.clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
@@ -951,7 +951,7 @@ def assign(sys_args):
                                                  marker_build_dict, ts_assign.var_output_dir)
         # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
         extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
-
+        delete_files(args.delete, ts_assign.var_output_dir, 1)
     ##
     # STAGE 4: Run hmmalign or PaPaRa, and optionally BMGE, to produce the MSAs required to for the ML estimations
     ##
@@ -1034,7 +1034,8 @@ def assign(sys_args):
 
         abundify_tree_saps(tree_saps, abundance_dict)
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
-        write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_assign.sample_prefix, assign_out)
+        determine_confident_lineage(tree_saps, tree_numbers_translation, marker_build_dict)
+        write_classification_table(tree_saps, ts_assign.sample_prefix, assign_out)
         produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
         delete_files(args.delete, ts_assign.var_output_dir, 4)
 
@@ -1076,8 +1077,7 @@ def abundance(sys_args):
 
     check_parser_arguments(args, sys_args)
     marker_build_dict = file_parsers.parse_ref_build_params(ts_abund.treesapp_dir)
-    tree_numbers_translation = file_parsers.read_species_translation_files(ts_abund.treesapp_dir, marker_build_dict)
-    ts_abund.check_arguments(args)
+    ts_abund.check_arguments()
     # TODO: Implement check-pointing for abundance
     # ts_abund.validate_continue(args)
 
@@ -1095,8 +1095,7 @@ def abundance(sys_args):
         logging.warning("SAM file '%s' was not generated.\n" % sam_file)
         return abundance_dict
 
-    # TODO: Add delete argument to io, use args.delete instead
-    delete_files(True, ts_abund.var_output_dir, 4)
+    delete_files(args.delete, ts_abund.var_output_dir, 4)
 
     # TODO: Index each TreeProtein's abundance by the dataset name, write a new row for each dataset's abundance
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
@@ -1104,8 +1103,7 @@ def abundance(sys_args):
         # Convert assignments to TreeProtein instances
         tree_saps = ts_abund.assignments_to_treesaps(assignments, marker_build_dict)
         summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_abund.final_output_dir)
-        write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, ts_abund.sample_prefix,
-                             ts_abund.classifications)
+        write_classification_table(tree_saps, ts_abund.sample_prefix, ts_abund.classifications)
 
     return abundance_dict
 
@@ -1134,11 +1132,14 @@ def purity(sys_args):
     ts_purity.validate_continue(args)
 
     # Load FASTA data
-    ref_seqs = fasta.FASTA(args.input)
+    ref_seqs = fasta.FASTA(ts_purity.input_sequences)
     ref_seqs.load_fasta()
+    ref_seqs.change_dict_keys()
+    ref_seqs.unalign()
+    fasta.write_new_fasta(ref_seqs.fasta_dict, ts_purity.formatted_input)
 
     if ts_purity.stage_status("assign"):
-        assign_args = ["-i", ts_purity.input_sequences, "-o", ts_purity.assign_dir,
+        assign_args = ["-i", ts_purity.formatted_input, "-o", ts_purity.assign_dir,
                        "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
                        "-t", ts_purity.refpkg_build.denominator,
                        "--overwrite", "--delete"]

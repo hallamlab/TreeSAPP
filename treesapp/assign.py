@@ -1215,32 +1215,24 @@ def delete_files(clean_up, output_dir_var, section):
     files_to_be_deleted = []
     if clean_up:
         if section == 1:
-            files_to_be_deleted += glob.glob(output_dir_var + '*BLAST_results*')
-            files_to_be_deleted += glob.glob(output_dir_var + '*blast_result_purified.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*_search_to_ORFs_domtbl.txt')
         if section == 2:
             files_to_be_deleted += glob.glob(output_dir_var + '*_sequence.txt')
             files_to_be_deleted += glob.glob(output_dir_var + '*sequence_shortened.txt')
         if section == 3:
-            files_to_be_deleted += glob.glob(output_dir_var + '*genewise.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*genewise_result_summary.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*rRNA_result_summary.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.faa')
+            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.fna')
         if section == 4:
             files_to_be_deleted += glob.glob(output_dir_var + '*.mfa')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-gb')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-gb.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*.sto')
             files_to_be_deleted += glob.glob(output_dir_var + "*.sam")
         if section == 5:
-            files_to_be_deleted += glob.glob(output_dir_var + '*_exit_after_trimal.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.mfa-trimal')
-            files_to_be_deleted += glob.glob(output_dir_var + '*.cl')
-            files_to_be_deleted += glob.glob(output_dir_var + '*_RAxML.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + 'RAxML_entropy.*')
-            files_to_be_deleted += glob.glob(output_dir_var + '*RAxML_info.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + '*RAxML_labelledTree.txt')
-            files_to_be_deleted += glob.glob(output_dir_var + 'RAxML_classificationLikelihoodWeights*')
+            files_to_be_deleted += glob.glob(output_dir_var + "*_formatted.fasta")
+            files_to_be_deleted += glob.glob(output_dir_var + '*_hmm_purified*.fasta')
+            files_to_be_deleted += glob.glob(output_dir_var + '*_EPA.txt')
+            files_to_be_deleted += glob.glob(output_dir_var + '*EPA_info.txt')
             files_to_be_deleted += glob.glob(output_dir_var + '*.phy')
             files_to_be_deleted += glob.glob(output_dir_var + '*.phy.reduced')
-            files_to_be_deleted += glob.glob(output_dir_var + '*RAxML_classification.txt')
             # Need this for annotate_extra_treesapp.py
             # files_to_be_deleted += glob.glob(output_dir_var + '*.jplace')
 
@@ -1260,48 +1252,6 @@ def num_sequences_fasta(fasta):
             num_seqs += 1
 
     return num_seqs
-
-
-def read_marker_classification_table(assignment_file):
-    """
-    Function for reading the tabular assignments file (currently marker_contig_map.tsv)
-    Assumes column 2 is the TreeSAPP assignment and column 3 is the sequence header
-    (leaving 1 for marker name and 4 for numerical abundance)
-
-    :param assignment_file: Path to the file containing sequence phylogenetic origin and assignment
-    :return: dictionary whose keys are phylogenetic origin and values are lists of TreeSAPP assignments
-    """
-    assignments = dict()
-    n_classified = 0
-    assignments_handle = open(assignment_file, 'r')
-    header = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
-    # This is the header line
-    if assignments_handle.readline() != header:
-        logging.error("Header of classification file is unexpected!\n")
-        raise AssertionError
-
-    # First line in the table containing data
-    line = assignments_handle.readline()
-    while line:
-        fields = line.strip().split('\t')
-        try:
-            _, header, marker, lineage, _, _, _, _, _, _ = fields
-            header = '>' + header
-            if marker and lineage:
-                n_classified += 1
-                if marker not in assignments:
-                    assignments[marker] = dict()
-                if header in assignments[marker]:
-                    raise AssertionError("ERROR: multiple " + marker + " annotations for " + header[1:] + '.')
-                assignments[marker][header] = lineage
-        except ValueError:
-            sys.stderr.write("ERROR: Unable to parse line:\n")
-            sys.stderr.write(str(line))
-            sys.exit(1)
-        line = assignments_handle.readline()
-
-    assignments_handle.close()
-    return assignments, n_classified
 
 
 def filter_short_sequences(aa_dictionary, length_threshold):
@@ -1809,21 +1759,20 @@ def parse_raxml_output(epa_output_dir: str, marker_build_dict: dict):
     return tree_saps, itol_data
 
 
-def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict, sample_name, output_file):
+def determine_confident_lineage(tree_saps, tree_numbers_translation, marker_build_dict):
     """
-    Write the final classification table
+    Determines the best taxonomic lineage for classified sequences based on their
+
+1. placement in the phylogeny
+2. the lowest common ancestor of all children to the placement edge
+3. the optimal rank recommended by the linear model
 
     :param tree_saps: A dictionary containing TreeProtein objects
     :param tree_numbers_translation: Dictionary containing taxonomic information for each leaf in the reference tree
     :param marker_build_dict: A dictionary of MarkerBuild objects (used here for lowest_confident_rank)
-    :param sample_name: String representing the name of the sample (i.e. Assign.sample_prefix)
-    :param output_file: Path to write the classification table
     :return: None
     """
     leaf_taxa_map = dict()
-    # TODO: Add the start and stop positions of the extracted sequence to the classification table
-    tab_out_string = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\tiNode\tLWR\tEvoDist\tDistances\n"
-
     for denominator in tree_saps:
         # All the leaves for that tree [number, translation, lineage]
         leaves = tree_numbers_translation[denominator]
@@ -1860,14 +1809,35 @@ def write_tabular_output(tree_saps, tree_numbers_translation, marker_build_dict,
             if tree_sap.lct.split("; ")[0] != "Root":
                 tree_sap.lct = "Root; " + tree_sap.lct
                 recommended_rank += 1
-            # tree_sap.summarize()
+            tree_sap.recommended_lineage = tree_sap.lowest_confident_taxonomy(recommended_rank)
+        leaf_taxa_map.clear()
+    return
+
+
+def write_classification_table(tree_saps, sample_name, output_file):
+    """
+    Write the final classification table
+
+    :param tree_saps: A dictionary containing TreeProtein objects
+    :param sample_name: String representing the name of the sample (i.e. Assign.sample_prefix)
+    :param output_file: Path to write the classification table
+    :return: None
+    """
+    # TODO: Add the start and stop positions of the extracted sequence to the classification table
+    tab_out_string = "Sample\tQuery\tMarker\tLength\tTaxonomy\tConfident_Taxonomy\tAbundance\t" \
+                     "iNode\tLWR\tEvoDist\tDistances\n"
+
+    for denominator in tree_saps:
+        for tree_sap in tree_saps[denominator]:  # type: TreeProtein
+            if not tree_sap.classified:
+                continue
 
             tab_out_string += '\t'.join([sample_name,
                                          re.sub(r"\|{0}\|\d+_\d+$".format(tree_sap.name), '', tree_sap.contig_name),
                                          tree_sap.name,
                                          str(tree_sap.seq_len),
                                          tree_sap.lct,
-                                         tree_sap.lowest_confident_taxonomy(recommended_rank),
+                                         tree_sap.recommended_lineage,
                                          str(tree_sap.abundance),
                                          str(tree_sap.inode),
                                          str(tree_sap.lwr),
