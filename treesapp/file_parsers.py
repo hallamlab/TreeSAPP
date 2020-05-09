@@ -7,10 +7,10 @@ import logging
 import json
 from collections import namedtuple
 
-from .classy import MarkerBuild, Cluster, ReferencePackage
-from .fasta import read_fasta_to_dict
-from .utilities import get_hmm_length
-from . import HMMER_domainTblParser
+from treesapp.classy import MarkerBuild, Cluster, ReferencePackage
+from treesapp.fasta import read_fasta_to_dict
+from treesapp.utilities import get_hmm_length
+from treesapp import HMMER_domainTblParser
 
 __author__ = 'Connor Morgan-Lang'
 
@@ -155,7 +155,7 @@ def read_graftm_classifications(assignment_file):
                     continue
                 else:
                     header = re.sub("_split_.*", '', header)
-            classified = '; '.join([re.sub('e\d+$', '', taxon) for taxon in classified.split('; ')])
+            classified = '; '.join([re.sub(r'e\d+$', '', taxon) for taxon in classified.split('; ')])
             if header and classified:
                 if classified not in assignments:
                     assignments[classified] = list()

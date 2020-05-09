@@ -43,11 +43,16 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         return args
 
     # The following are building-block functions
+    def add_delete(self):
+        self.miscellany.add_argument('--delete', default=False, action="store_true",
+                                     help='Delete all intermediate files to save disk space.')
+
     def add_io(self):
         self.reqs.add_argument('-i', '--fastx_input', required=True, dest="input",
                                help='An input file containing DNA or protein sequences in either FASTA or FASTQ format')
         self.optopt.add_argument('-o', '--output', default='./output/', required=False,
                                  help='Path to an output directory [DEFAULT = ./output/]')
+        self.add_delete()
         return
 
     def add_seq_params(self):
@@ -176,24 +181,21 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
                                         "directly classified as (i.e. homology search step is skipped).")
     parser.miscellany.add_argument("--check_trees", action="store_true", default=False,
                                    help="Quality-check the reference trees before running TreeSAPP")
-    parser.miscellany.add_argument('-d', '--delete', default=False, action="store_true",
-                                   help='Delete intermediate files to save disk space. '
-                                        'Recommended for large metagenomes!')
-
     return
 
 
 def add_abundance_arguments(parser: TreeSAPPArgumentParser):
     parser.add_rpkm_params()
     parser.add_compute_miscellany()
+    parser.add_delete()
     parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
     # TODO: Include an option to append new values to the classification table
-    parser.optopt.add_argument("--report", choices=["update", "nothing"], required=False, default="nothing",
+    parser.optopt.add_argument("--report", choices=["update", "nothing"], required=False, default="update",
                                help="What should be done with the abundance values? The TreeSAPP classification table "
-                                    "can overwritten (update) or left unchanged. "
-                                    "[ DEFAULT = nothing ]")
+                                    "can be overwritten (update) or left unchanged. "
+                                    "[ DEFAULT = update ]")
 
 
 def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
@@ -260,8 +262,6 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
                                         'installation for a provided `code_name`')
     parser.miscellany.add_argument("--headless", action="store_true", default=False,
                                    help="Do not require any user input during runtime.")
-    parser.miscellany.add_argument('--delete', default=False, action="store_true",
-                                   help='Delete all intermediate files.')
 
 
 def add_purity_arguments(parser: TreeSAPPArgumentParser) -> None:

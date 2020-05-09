@@ -2161,10 +2161,13 @@ class Abundance(TreeSAPP):
         self.classifications = ""
         self.fq_suffix_re = re.compile(r"([._-])+[pe|fq|fastq|fwd|R1]+$")
 
-    def check_arguments(self, args):
+    def check_arguments(self):
         ##
         # Define locations of files TreeSAPP outputs
         ##
+        if len(glob(self.final_output_dir + "*_classified.fna")) < 1:
+            logging.error("Unable to find classified ORF nucleotide sequences in '{}'.\n".format(self.final_output_dir))
+            sys.exit(5)
         self.classified_nuc_seqs = glob(self.final_output_dir + "*_classified.fna")[0]
         if not os.path.isfile(self.classified_nuc_seqs):
             logging.error("Unable to find classified sequences FASTA file in %s.\n" % self.final_output_dir)
@@ -2177,19 +2180,22 @@ class Abundance(TreeSAPP):
 
     def assignments_to_treesaps(self, classified_lines: list, marker_build_dict: dict) -> dict:
         """
+        Used for converting the TreeSAPP-assignment information of classified sequences (found in self.classifications)
+        into ItolJplace instances such that these can be reproducibly modified and written again, if needed.
 
-        :param classified_lines:
-        :param marker_build_dict:
+        :param classified_lines: A list of lists. Each sub-list represents a line from self.classifications
+        :param marker_build_dict: A dictionary of MarkerBuild instances indexed by their RefPkg codes
         :return: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
         """
         pqueries = dict()
         for fields in classified_lines:
-            tree_sap = ItolJplace()
+            tree_sap = TreeProtein()
             try:
                 _, tree_sap.contig_name, tree_sap.name, tree_sap.seq_len, tree_sap.lct, tree_sap.recommended_lineage,\
                 _, tree_sap.inode, tree_sap.lwr, tree_sap.avg_evo_dist, tree_sap.distances = fields
             except ValueError:
-                logging.error("Bad line in classification table:\n" + '\t'.join(fields) + "\n")
+                logging.error("Bad line in classification table {}:\n".format(self.classifications) +
+                              '\t'.join(fields) + "\n")
                 sys.exit(21)
             refpkg = fish_refpkg_from_build_params(tree_sap.name, marker_build_dict).denominator
             try:
