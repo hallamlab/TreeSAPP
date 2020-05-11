@@ -10,7 +10,8 @@ import logging
 import ete3
 from collections import namedtuple
 from seaborn import color_palette
-from treesapp.classy import TreeLeafReference, prep_logging
+from treesapp.classy import prep_logging
+from treesapp.phylo_seq import TreeLeafReference
 from treesapp.entish import map_internal_nodes_leaves
 
 rank_depth_map = {0: "Cellular organisms", 1: "Kingdom",

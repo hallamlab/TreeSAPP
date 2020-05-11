@@ -25,8 +25,10 @@ from treesapp.treesapp_args import TreeSAPPArgumentParser, add_classify_argument
     add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments, \
     check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, \
     check_updater_arguments, check_purity_arguments, add_purity_arguments, add_abundance_arguments
-from treesapp.classy import TreeProtein, MarkerBuild, TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer, \
-    prep_logging, dedup_records, TaxonTest, Purity, Abundance, ReferencePackage
+from treesapp.classy import TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer, \
+    prep_logging, dedup_records, TaxonTest, Purity, Abundance
+from treesapp.phylo_seq import TreeProtein
+from treesapp.refpkg import MarkerBuild, ReferencePackage
 from treesapp.assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -84,13 +86,18 @@ def info(sys_args):
         marker_build_dict = file_parsers.parse_ref_build_params(ts_info.treesapp_dir, [])
         refpkg_summary_str = "\t".join(["Name", "Code-name", "Molecule", "RefPkg-type", "Description", "Last-updated"])
         refpkg_summary_str += "\n"
-        for refpkg_code in sorted(marker_build_dict, key= lambda x: marker_build_dict[x].cog):
+        for refpkg_code in sorted(marker_build_dict, key=lambda x: marker_build_dict[x].cog):
             refpkg = marker_build_dict[refpkg_code]  # type: MarkerBuild
             refpkg_summary_str += refpkg_code + " -> " + ", ".join(
                 [refpkg.cog, refpkg.molecule, refpkg.kind, refpkg.description, refpkg.update]
             ) + "\n"
         logging.info(refpkg_summary_str)
 
+    return
+
+
+def package(sys_args):
+    parser = TreeSAPPArgumentParser(description='Model evolutionary distances across taxonomic ranks.')
     return
 
 

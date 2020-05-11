@@ -18,7 +18,8 @@ from treesapp import file_parsers
 from treesapp.commands import assign
 from treesapp.fasta import get_headers
 from treesapp.external_command_interface import launch_write_command
-from treesapp.classy import prep_logging, ReferencePackage
+from treesapp.classy import prep_logging
+from refpkg import ReferencePackage
 from treesapp.entrez_utils import EntrezRecord, fetch_lineages_from_taxids
 from treesapp.lca_calculations import compute_taxonomic_distance, all_possible_assignments, \
     optimal_taxonomic_assignment, grab_graftm_taxa

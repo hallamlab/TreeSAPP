@@ -9,11 +9,12 @@ import sys
 import re
 from glob import glob
 
-from .fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes
-from .utilities import return_sequence_info_groups
-from .external_command_interface import launch_write_command
-from .classy import get_header_format, Evaluator, ReferencePackage
-from .phylo_dist import trim_lineages_to_rank
+from treesapp.fasta import write_new_fasta, read_fasta_to_dict, load_fasta_header_regexes
+from treesapp.utilities import return_sequence_info_groups
+from treesapp.external_command_interface import launch_write_command
+from treesapp.classy import get_header_format, Evaluator
+from treesapp.refpkg import ReferencePackage
+from treesapp.phylo_dist import trim_lineages_to_rank
 
 _RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
                    2: "Phylum", 3: "Class", 4: "Order",

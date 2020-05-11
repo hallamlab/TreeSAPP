@@ -9,7 +9,7 @@ import os
 import re
 from .entish import read_and_map_internal_nodes_from_newick_tree
 from .fasta import format_read_fasta
-from .classy import TreeLeafReference
+from phylo_seq import TreeLeafReference
 from .file_parsers import read_colours_file, parse_ref_build_params
 
 

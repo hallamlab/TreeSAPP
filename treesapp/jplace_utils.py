@@ -5,7 +5,7 @@ import re
 import glob
 import os
 import logging
-from .classy import ItolJplace, TreeProtein
+from phylo_seq import ItolJplace, TreeProtein
 from json import load, loads, dumps
 
 

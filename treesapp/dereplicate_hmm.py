@@ -5,7 +5,7 @@ import os
 import argparse
 
 from . import fasta
-from .classy import ReferencePackage
+from treesapp.refpkg import ReferencePackage
 from .wrapper import build_hmm_profile, run_mafft
 from .phylo_dist import trim_lineages_to_rank
 from .utilities import base_file_prefix

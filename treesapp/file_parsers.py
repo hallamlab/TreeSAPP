@@ -7,7 +7,8 @@ import logging
 import json
 from collections import namedtuple
 
-from treesapp.classy import MarkerBuild, Cluster, ReferencePackage
+from treesapp.classy import Cluster
+from treesapp.refpkg import ReferencePackage, MarkerBuild
 from treesapp.fasta import read_fasta_to_dict
 from treesapp.utilities import get_hmm_length
 from treesapp import HMMER_domainTblParser

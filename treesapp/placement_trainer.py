@@ -16,7 +16,7 @@ from .fasta import read_fasta_to_dict, write_new_fasta, FASTA, split_combined_re
 from .phylo_dist import cull_outliers, parent_to_tip_distances, regress_ranks
 from .external_command_interface import setup_progress_bar, launch_write_command
 from .jplace_utils import jplace_parser
-from .classy import ReferencePackage
+from refpkg import ReferencePackage
 from .entish import map_internal_nodes_leaves
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 

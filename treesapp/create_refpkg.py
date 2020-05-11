@@ -26,6 +26,7 @@ try:
     from . import fasta
     from . import classy
     from . import file_parsers
+    from treesapp import refpkg
 
 except ImportError:
     sys.stderr.write("Could not load some user defined module functions:\n")
@@ -546,7 +547,7 @@ def write_tax_ids(fasta_replace_dict, tax_ids_file, taxa_lca=False):
     return warning_string
 
 
-def write_refpkg_metadata(metadata_file: str, marker_build: classy.MarkerBuild) -> None:
+def write_refpkg_metadata(metadata_file: str, marker_build: refpkg.MarkerBuild) -> None:
     """
     Writes a JSON-formatted file with all metadata associated with a reference package that are available in the file
     ref_build_parameters.tsv.
@@ -567,7 +568,7 @@ def write_refpkg_metadata(metadata_file: str, marker_build: classy.MarkerBuild) 
     return
 
 
-def update_build_parameters(param_file, marker_package: classy.MarkerBuild):
+def update_build_parameters(param_file, marker_package: refpkg.MarkerBuild):
     """
     Function to update the data/tree_data/ref_build_parameters.tsv file with information on this new reference sequence
     Format of file is:

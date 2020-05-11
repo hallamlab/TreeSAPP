@@ -18,7 +18,8 @@ import pandas as pd
 import matplotlib
 from sklearn import model_selection, svm, metrics, preprocessing, manifold
 
-from treesapp.classy import prep_logging, ReferencePackage, Evaluator
+from treesapp.classy import prep_logging, Evaluator
+from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import FASTA, Header, write_new_fasta
 from treesapp.utilities import get_hmm_length, base_file_prefix
 from treesapp.lca_calculations import all_possible_assignments
