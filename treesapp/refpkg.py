@@ -4,6 +4,7 @@ import re
 import sys
 from glob import glob
 from shutil import copy
+import json
 
 from ete3 import Tree
 
@@ -12,7 +13,7 @@ from treesapp.entish import annotate_partition_tree
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import get_headers, read_fasta_to_dict, write_new_fasta
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
-from treesapp.utilities import swap_tree_names
+from treesapp.utilities import swap_tree_names, get_hmm_length
 from treesapp.wrapper import model_parameters
 
 
@@ -20,18 +21,165 @@ class ReferencePackage:
     def __init__(self, refpkg_name=""):
         self.prefix = refpkg_name
         self.refpkg_code = ""  # AKA denominator
+
+        # These are files (with '_f' suffix) and their respective data (read with file.readlines())
+        self.json_path = ""  # Path to the JSON reference package file
         self.msa = ""  # Reference MSA FASTA
-        self.profile = ""  # HMM file
-        self.search_profile = ""  # HMM file
+        self.f__msa = self.prefix + ".fa"
+        self.profile = ""
+        self.f__profile = self.prefix + ".hmm"  # HMM file
+        self.search_profile = ""
+        self.f__search_profile = self.prefix + '_' + "search.hmm"  # profile HMM that has been dereplicated
         self.tree = ""  # Reference tree
+        self.f__tree = self.prefix + ".nwk"
         self.boot_tree = ""  # Reference tree with support values
-        self.lineage_ids = ""  # Reference sequence lineage map (tax_ids)
-        self.taxa_trie = TaxonomicHierarchy()
+        self.f__boot_tree = self.prefix + "_bipart.nwk"
+        self.model_info = ""
+        self.f__model_info = self.prefix + "_epa.model"  # RAxML-NG --evaluate model file
+        self.lineage_ids = dict()  # Reference sequence lineage map (tax_ids)
+
+        # These are metadata values
+        self.ts_version = ""
         self.sub_model = ""  # EPA-NG compatible substitution model
-        self.model_info = ""  # RAxML-NG --evaluate model file
-        self.core_ref_files = list()
-        self.num_seqs = 0
-        self.profile_length = 0  # LENG of the HMM profile
+        self.date = ""  # Date the reference package was created
+        self.update = ""  # Date the reference package was last updated
+        self.num_seqs = 0  # Number of reference sequences in the MSA, phylogeny
+        self.profile_length = 0  # LENG of the profile HMM (not search profile)
+        self.molecule = ""  # nucleotide or amino acid sequence
+        self.kind = ""  # Taxonomic or functional anchor?
+        self.tree_tool = ""  # Software used for inferring the reference phylogeny
+        self.description = ""
+        self.pid = 1.0  # Proportional sequence similarity inputs were clustered at
+        self.pfit = []  # Parameters for the polynomial regression function
+        self.cmd = ""  # The command used for building the reference package
+
+        # These are attributes only used during runtime
+        self.core_ref_files = [self.f__msa, self.f__profile, self.f__search_profile,
+                               self.f__tree, self.f__boot_tree, self.f__model_info]
+        self.taxa_trie = TaxonomicHierarchy()
+
+    def __iter__(self):
+        for attr, value in self.__dict__.items():
+            yield attr, value
+
+    def to_dict(self) -> dict:
+        # Remove all of the non-primitives from the dictionary
+        refpkg_dict = self.__dict__
+        non_primitives = ["core_ref_files", "taxa_trie"]
+        for bad_attr in non_primitives:
+            refpkg_dict.pop(bad_attr)
+        return refpkg_dict
+
+    def band(self):
+        """
+        Writes a JSON file containing all of the reference package files and metadata
+
+        :return:
+        """
+        if len(self.json_path) == 0:
+            logging.error("ReferencePackage JSON file not set. ReferencePackage band cannot be completed.\n")
+            sys.exit(11)
+
+        # Read the MSA, profile HMMs, and phylogenies
+        with open(self.f__msa) as fh:
+            self.msa = fh.readlines()
+        with open(self.f__profile) as fh:
+            self.profile = fh.readlines()
+        with open(self.f__search_profile) as fh:
+            self.search_profile = fh.readlines()
+        with open(self.f__tree) as fh:
+            self.tree = fh.readlines()
+        with open(self.f__model_info) as fh:
+            self.model_info = fh.readlines()
+        if os.path.isfile(self.f__boot_tree):  # This file isn't guaranteed to exist in all cases
+            with open(self.f__boot_tree) as fh:
+                self.boot_tree = fh.readlines()
+
+        try:
+            refpkg_handler = open(self.json_path, 'w')
+        except IOError:
+            logging.error("Unable to open reference package JSON file '{}' for writing.\n".format(self.json_path))
+            sys.exit(11)
+
+        json.dump(obj=self.to_dict(), fp=refpkg_handler)
+
+        refpkg_handler.close()
+
+        return
+
+    def write_refpkg_component(self, file_name, text):
+        try:
+            file_h = open(file_name, 'w')
+            file_h.write(text)
+            file_h.close()
+        except IOError:
+            logging.warning("Unable to write reference package component to '{}' for '{}'.\n".format(file_name,
+                                                                                                     self.prefix))
+        return
+
+    def change_file_paths(self, new_dir: str, move=False) -> None:
+        """
+        Used for changing all of the reference package file paths to another directory.
+        These include: f__msa, f__profile, f__search_profile, f__tree, f__boot_tree, f__model_info
+
+        :param new_dir: Path to another directory where the file does (or should) exist
+        :param move: Boolean indicating whether the file should be moved
+        :return: None
+        """
+        for a, v in self.__iter__():
+            if a.startswith('f__'):
+                new_path = new_dir + os.path.basename(v)
+                if move:
+                    copy(v, new_path)
+                    os.remove(v)
+                self.__dict__[a] = new_path
+        return
+
+    def disband(self, output_dir):
+        """
+        From a ReferencePackage's JSON file, the individual file components (e.g. profile HMM, MSA, phylogeny) are
+        written to their separate files in a new directory, a sub-directory of where the JSON is located.
+        The directory name follows the format: self.prefix + '_' self.refpkg_code + '_' + self.date
+
+
+        :return:
+        """
+        output_prefix = os.path.join(output_dir, '_'.join([self.prefix, self.refpkg_code, self.date])) + os.sep
+
+        if not os.path.isdir(output_prefix):
+            os.mkdir(output_prefix)
+
+        # Add the output directory prefix to each file name
+        self.change_file_paths(output_prefix)
+        print(self.f__msa)
+        self.write_refpkg_component(self.f__msa, self.msa)
+        self.write_refpkg_component(self.f__profile, self.profile)
+        self.write_refpkg_component(self.f__search_profile, self.search_profile)
+        self.write_refpkg_component(self.f__model_info, self.model_info)
+        self.write_refpkg_component(self.f__tree, self.tree)
+        if len(self.boot_tree) > 0:
+            self.write_refpkg_component(output_prefix + self.f__boot_tree, self.boot_tree)
+
+        return
+
+    def slurp(self) -> None:
+        """
+        Reads the reference package's JSON-formatted file and stores the elements in their respective variables
+
+        :return: None
+        """
+        try:
+            refpkg_handler = open(self.json_path, 'r')
+        except IOError:
+            logging.error("Unable to open reference package JSON file '{}' for reading.\n".format(self.json_path))
+            sys.exit(11)
+        refpkg_data = json.load(refpkg_handler)
+        refpkg_handler.close()
+
+        for a, v in refpkg_data.items():
+            self.__dict__[a] = v
+
+        return
 
     def validate(self, num_ref_seqs=0):
         """
@@ -144,20 +292,20 @@ class ReferencePackage:
                     break
 
         if layout:
-            self.msa = layout["msa"]
-            self.tree = layout["tree"]
-            self.profile = layout["profile"]
-            self.search_profile = layout["search_profile"]
-            self.lineage_ids = layout["taxid"]
-            self.model_info = layout["bestModel"]
-            self.boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"
+            self.f__msa = layout["msa"]
+            self.f__tree = layout["tree"]
+            self.f__profile = layout["profile"]
+            self.f__search_profile = layout["search_profile"]
+            self.f__model_info = layout["bestModel"]
+            self.f__boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"
         else:
             logging.error("Unable to gather reference package files for " + self.prefix + " from '" + pkg_path + "'\n")
             raise AssertionError()
 
-        self.core_ref_files += [self.msa, self.profile, self.tree, self.lineage_ids, self.model_info]
-
         return
+
+    def hmm_length(self):
+        self.profile_length = get_hmm_length(self.profile)
 
     def copy_refpkg_file_to_dest(self, destination_dir, prefix=None) -> None:
         if prefix:
