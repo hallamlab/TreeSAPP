@@ -28,7 +28,7 @@ from treesapp.treesapp_args import TreeSAPPArgumentParser, add_classify_argument
 from treesapp.classy import TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer, \
     prep_logging, dedup_records, TaxonTest, Purity, Abundance
 from treesapp.phylo_seq import TreeProtein
-from treesapp.refpkg import MarkerBuild, ReferencePackage
+from treesapp.refpkg import ReferencePackage
 from treesapp.assign import abundify_tree_saps, delete_files, validate_inputs,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -224,17 +224,9 @@ def create(sys_args):
     check_create_arguments(ts_create, args)
     ts_create.validate_continue(args)
 
-    # Gather all the final TreeSAPP reference files
-    ts_create.ref_pkg.gather_package_files(ts_create.final_output_dir, ts_create.molecule_type, "flat")
-
-    # Create a new MarkerBuild instance to hold all relevant information for recording in ref_build_parameters.tsv
-    # TODO: Merge the MarkerBuild and ReferencePackage classes
-    marker_package = MarkerBuild()
-    marker_package.pid = ts_create.prop_sim
-    marker_package.cog = ts_create.ref_pkg.prefix
-    marker_package.molecule = args.molecule
-    marker_package.kind = args.kind
-    marker_package.denominator = "Z1111"
+    # Populate the final TreeSAPP reference file paths with the proper output directory
+    ts_create.ref_pkg.update_file_names()
+    ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)
 
     ref_seqs = fasta.FASTA(args.input)
 
@@ -263,7 +255,7 @@ def create(sys_args):
     # Synchronize records between fasta_dict and header_registry (e.g. short ones may be removed by format_read_fasta())
     ##
     ref_seqs.file = ts_create.hmm_purified_seqs
-    ref_seqs.fasta_dict = fasta.format_read_fasta(fasta_input=ref_seqs.file, molecule=marker_package.molecule,
+    ref_seqs.fasta_dict = fasta.format_read_fasta(fasta_input=ref_seqs.file, molecule=ts_create.ref_pkg.molecule,
                                                   min_seq_length=args.min_seq_length)
     ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
@@ -378,20 +370,14 @@ def create(sys_args):
         ##
         fasta_replace_dict = create_refpkg.order_dict_by_lineage(fasta_records)
 
-        # For debugging. This is the finalized set of reference sequences:
-        # for num_id in sorted(fasta_replace_dict, key=int):
-        #     fasta_replace_dict[num_id].get_info()
+        create_refpkg.lineages_to_dict(fasta_replace_dict, ts_create.ref_pkg.lineage_ids, args.taxa_lca)
 
-        warnings = create_refpkg.write_tax_ids(fasta_replace_dict, ts_create.ref_pkg.lineage_ids, args.taxa_lca)
-        if warnings:
-            logging.warning(warnings + "\n")
         postfilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
         filtered_ref_seqs = utilities.dict_diff(prefilter_ref_seqs, postfilter_ref_seqs)
         logging.debug("{0} references before and {1} remaining after filtering.\n".format(len(prefilter_ref_seqs),
                                                                                           len(postfilter_ref_seqs)))
         entrez_utils.jetison_taxa_from_hierarchy(filtered_ref_seqs, ts_create.ref_pkg.taxa_trie)
 
-        logging.info("Generated the taxonomic lineage map " + ts_create.ref_pkg.lineage_ids + "\n")
         taxonomic_summary = create_refpkg.summarize_reference_taxa(fasta_replace_dict, ts_create.ref_pkg.taxa_trie,
                                                                    args.taxa_lca)
         logging.info(taxonomic_summary)
@@ -410,14 +396,15 @@ def create(sys_args):
         elif args.multiple_alignment is False:
             logging.info("Aligning the sequences using MAFFT... ")
             create_refpkg.run_mafft(ts_create.executables["mafft"],
-                                    ts_create.unaln_ref_fasta, ts_create.ref_pkg.msa, args.num_threads)
+                                    ts_create.unaln_ref_fasta, ts_create.ref_pkg.f__msa, args.num_threads)
             logging.info("done.\n")
         else:
             pass
-        ref_aligned_fasta_dict = fasta.read_fasta_to_dict(ts_create.ref_pkg.msa)
-        marker_package.num_reps = len(ref_aligned_fasta_dict.keys())
-        n_rows, n_cols = file_parsers.multiple_alignment_dimensions(seq_dict=ref_aligned_fasta_dict,
-                                                                    mfa_file=ts_create.ref_pkg.msa)
+        ref_seqs.file = ts_create.ref_pkg.f__msa
+        ref_seqs.load_fasta()
+        ts_create.ref_pkg.num_reps = ref_seqs.n_seqs()
+        n_rows, n_cols = file_parsers.multiple_alignment_dimensions(seq_dict=ref_seqs.fasta_dict,
+                                                                    mfa_file=ts_create.ref_pkg.f__msa)
         logging.debug("Reference alignment contains " +
                       str(n_rows) + " sequences with " +
                       str(n_cols) + " character positions.\n")
@@ -430,10 +417,11 @@ def create(sys_args):
             pass
         else:
             wrapper.build_hmm_profile(ts_create.executables["hmmbuild"],
-                                      ts_create.ref_pkg.msa,
-                                      ts_create.ref_pkg.profile)
+                                      ts_create.ref_pkg.f__msa,
+                                      ts_create.ref_pkg.f__profile)
+        ts_create.ref_pkg.band()
         make_dereplicated_hmm(refpkg_name=ts_create.ref_pkg.prefix, package_path=ts_create.final_output_dir,
-                              dereplication_rank="Genus", hmm_file=ts_create.ref_pkg.search_profile,
+                              dereplication_rank="genus", hmm_file=ts_create.ref_pkg.f__search_profile,
                               hmmbuild=ts_create.executables["hmmbuild"], mafft=ts_create.executables["mafft"],
                               n_threads=args.num_threads, intermediates_dir=ts_create.var_output_dir)
 
@@ -443,12 +431,12 @@ def create(sys_args):
         dict_for_phy = dict()
         if args.trim_align:
             trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_create.executables,
-                                                                   {marker_package.denominator:
-                                                                    [ts_create.ref_pkg.msa]},
-                                                                   {marker_package.denominator:
-                                                                    marker_package})
-            trimmed_mfa_file = trimmed_mfa_files[marker_package.denominator]
-            unique_ref_headers = set(ref_aligned_fasta_dict.keys())
+                                                                   {ts_create.ref_pkg.refpkg_code:
+                                                                    [ts_create.ref_pkg.f__msa]},
+                                                                   {ts_create.ref_pkg.refpkg_code:
+                                                                    ts_create.ref_pkg})
+            trimmed_mfa_file = trimmed_mfa_files[ts_create.ref_pkg.refpkg_code]
+            unique_ref_headers = set(ref_seqs.fasta_dict.keys())
             qc_ma_dict, failed_trimmed_msa, summary_str = file_parsers.validate_alignment_trimming(trimmed_mfa_file,
                                                                                                    unique_ref_headers)
             logging.debug("Number of sequences discarded: " + summary_str + "\n")
@@ -466,7 +454,7 @@ def create(sys_args):
                 dict_for_phy = qc_ma_dict[trimmed_msa_file]
                 os.remove(trimmed_msa_file)
         else:
-            dict_for_phy.update(ref_aligned_fasta_dict)
+            dict_for_phy.update(ref_seqs.fasta_dict)
 
         phy_dict = utilities.reformat_fasta_to_phy(dict_for_phy)
         utilities.write_phy_file(ts_create.phylip_file, phy_dict)
@@ -474,8 +462,8 @@ def create(sys_args):
         ##
         # Build the tree using either RAxML-NG or FastTree
         ##
-        marker_package.model = wrapper.select_model(ts_create.molecule_type, args.fast, args.raxml_model)
-        best_tree = wrapper.construct_tree(ts_create.executables, marker_package.model, ts_create.phylip_file,
+        ts_create.ref_pkg.model = wrapper.select_model(ts_create.molecule_type, args.fast, args.raxml_model)
+        best_tree = wrapper.construct_tree(ts_create.executables, ts_create.ref_pkg.model, ts_create.phylip_file,
                                            ts_create.phy_dir, ts_create.ref_pkg.prefix,
                                            args.bootstraps, args.num_threads, args.fast)
 
@@ -483,25 +471,20 @@ def create(sys_args):
             if int(args.bootstraps) > 0:
                 wrapper.support_tree_raxml(raxml_exe=ts_create.executables["raxml-ng"],
                                            ref_tree=best_tree, ref_msa=ts_create.phylip_file,
-                                           model=marker_package.model,
+                                           model=ts_create.ref_pkg.model,
                                            tree_prefix=ts_create.phy_dir + ts_create.ref_pkg.prefix,
                                            mre=False, n_bootstraps=args.bootstraps, num_threads=args.num_threads)
             wrapper.model_parameters(ts_create.executables["raxml-ng"],
                                      ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
-                                     marker_package.model, args.num_threads)
+                                     ts_create.ref_pkg.model, args.num_threads)
 
         ts_create.ref_pkg.clean_up_raxmlng_outputs(ts_create.phy_dir, fasta_replace_dict)
 
     if args.raxml_model:
-        marker_package.model = args.raxml_model
+        ts_create.ref_pkg.model = args.raxml_model
     else:
         # TODO: Update for compatibility with RAxML-NG outputs
-        marker_package.model = ts_create.determine_model(args.fast)
-
-    param_file = ts_create.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
-    refpkg_lineages = [ref.lineage for ref in ts_create.ref_pkg.tax_ids_file_to_leaves()]
-    marker_package.lowest_confident_rank = create_refpkg.estimate_taxonomic_redundancy(refpkg_lineages)
-    create_refpkg.update_build_parameters(param_file, marker_package)
+        ts_create.ref_pkg.model = ts_create.determine_model(args.fast)
 
     # Build the regression model of placement distances to taxonomic ranks
     trainer_cmd = ["-i", ts_create.filtered_fasta,
@@ -523,23 +506,21 @@ def create(sys_args):
     ##
     if ts_create.stage_status("update"):
         if args.fast:
-            marker_package.tree_tool = "FastTree"
+            ts_create.ref_pkg.tree_tool = "FastTree"
         else:
-            marker_package.tree_tool = "RAxML-NG"
-        marker_package.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir +
-                                                                   os.sep.join(["placement_trainer",
-                                                                                "final_outputs",
-                                                                                "placement_trainer_results.txt"]))
-        ts_create.ref_pkg.validate(marker_package.num_reps)
-        if not marker_package.num_reps:
-            marker_package.num_reps = ts_create.ref_pkg.num_seqs
-        if not marker_package.pfit:
+            ts_create.ref_pkg.tree_tool = "RAxML-NG"
+        ts_create.ref_pkg.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir +
+                                                                      os.sep.join(["placement_trainer",
+                                                                                   "final_outputs",
+                                                                                   "placement_trainer_results.txt"]))
+        ts_create.ref_pkg.validate(ts_create.ref_pkg.num_reps)
+
+        if not ts_create.ref_pkg.pfit:
             logging.warning("Linear regression parameters could not be estimated. " +
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
-            marker_package.pfit = [0.0, 7.0]
-        create_refpkg.update_build_parameters(param_file, marker_package)
-        create_refpkg.write_refpkg_metadata(ts_create.metadata_file, marker_package)
+            ts_create.ref_pkg.pfit = [0.0, 7.0]
         ts_create.print_terminal_commands()
+        ts_create.ref_pkg.band()
 
     logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
     ts_create.remove_intermediates(args.delete)
@@ -674,7 +655,7 @@ def update(sys_args):
 
     utilities.write_dict_to_table(classified_seq_lineage_map, ts_updater.lineage_map_file)
 
-    ref_fasta = fasta.FASTA(ts_updater.ref_pkg.msa)
+    ref_fasta = fasta.FASTA(ts_updater.ref_pkg.f__msa)
     ref_fasta.load_fasta()
     # Update the original reference headers using info from the tax_ids file
     ref_fasta.swap_headers(ref_header_map)

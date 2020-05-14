@@ -27,7 +27,7 @@ try:
 
     from treesapp.classy import CommandLineFarmer, NodeRetrieverWorker
     from treesapp.phylo_seq import ItolJplace, TreeProtein, TreeLeafReference
-    from treesapp.refpkg import ReferencePackage, MarkerBuild
+    from treesapp.refpkg import ReferencePackage
     from .treesapp_args import TreeSAPPArgumentParser
     from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
     from .entish import deconvolute_assignments, read_and_understand_the_reference_tree,\

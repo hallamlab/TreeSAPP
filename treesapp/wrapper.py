@@ -655,13 +655,13 @@ def get_msa_trim_command(executables, mfa_file, molecule, tool="BMGE"):
     return trim_command, trimmed_msa_file
 
 
-def filter_multiple_alignments(executables, concatenated_mfa_files, marker_build_dict, n_proc=1, tool="BMGE"):
+def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict, n_proc=1, tool="BMGE"):
     """
     Runs BMGE using the provided lists of the concatenated hmmalign files, and the number of sequences in each file.
 
     :param executables: A dictionary mapping software to a path of their respective executable
     :param concatenated_mfa_files: A dictionary containing f_contig keys mapping to a FASTA or Phylip sequential file
-    :param marker_build_dict: A dictionary of MarkerBuild instances indexed by their respective denominators
+    :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their respective denominators
     :param n_proc: The number of parallel processes to be launched for alignment trimming
     :param tool: The software to use for alignment trimming
     :return: A list of files resulting from BMGE multiple sequence alignment masking.
@@ -678,7 +678,7 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, marker_build
         mfa_files = concatenated_mfa_files[denominator]
         for concatenated_mfa_file in mfa_files:
             trim_command, trimmed_msa_file = get_msa_trim_command(executables, concatenated_mfa_file,
-                                                                  marker_build_dict[denominator].molecule, tool)
+                                                                  refpkg_dict[denominator].molecule, tool)
             trimmed_output_files[denominator].append(trimmed_msa_file)
             task_list.append(trim_command)
 

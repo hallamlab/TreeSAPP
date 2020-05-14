@@ -517,6 +517,9 @@ class TaxonomicHierarchy:
         :return: Dictionary of keys mapped to trimmed lineages
         """
         trimmed_lineage_map = dict()
+        depth = 0
+        th_rank_name = ""
+
         try:
             depth = self.accepted_ranks_depths[rank]
         except KeyError:

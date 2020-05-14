@@ -438,43 +438,6 @@ def threshold(lst, confidence="low"):
     return sorted(lst, reverse=True)[index]
 
 
-def estimate_taxonomic_redundancy(lineages: list):
-    """
-    Determines the lowest/shallowest taxonomic rank with reasonable coverage that should allow for quality assignments
-    :param lineages: A list of taxonomic lineages
-    :return: str
-    """
-    # TODO: Factor proximity of leaves in the tree into this measure
-    # For instance, if the two or so species of the same genus are in the tree,
-    # are they also beside each other in the same clade or are they located in different clusters?
-    lowest_reliable_rank = "Species"
-    rank_depth_map = {1: "Kingdoms", 2: "Phyla", 3: "Classes", 4: "Orders", 5: "Families", 6: "Genera", 7: "Species"}
-    taxa_counts = dict()
-    for depth in rank_depth_map:
-        name = rank_depth_map[depth]
-        taxa_counts[name] = dict()
-    for lineage in lineages:
-        taxa = lineage.split('; ')
-        position = 1
-        while position < len(taxa) and position < 8:
-            if taxa[position] not in taxa_counts[rank_depth_map[position]]:
-                taxa_counts[rank_depth_map[position]][taxa[position]] = 0
-            taxa_counts[rank_depth_map[position]][taxa[position]] += 1
-            position += 1
-    for depth in rank_depth_map:
-        rank = rank_depth_map[depth]
-        redundancy = list()
-        for taxon in taxa_counts[rank]:
-            redundancy.append(taxa_counts[rank][taxon])
-        if threshold(redundancy, "medium") == 1:
-            lowest_reliable_rank = rank
-            break
-
-    logging.debug("Lowest reliable rank for taxonomic classification is: " + lowest_reliable_rank + "\n")
-
-    return lowest_reliable_rank
-
-
 def summarize_reference_taxa(reference_dict: dict, t_hierarchy: TaxonomicHierarchy, cluster_lca=False):
     """
     Function for enumerating the representation of each taxonomic rank within the finalized reference sequences
@@ -505,18 +468,15 @@ def summarize_reference_taxa(reference_dict: dict, t_hierarchy: TaxonomicHierarc
     return taxonomic_summary_string
 
 
-def write_tax_ids(fasta_replace_dict, tax_ids_file, taxa_lca=False):
+def lineages_to_dict(fasta_replace_dict: dict, lineage_dict: dict, taxa_lca=False) -> None:
     """
-    Write the number, organism and accession ID, if possible
+    Populates the  organism and accession ID, if possible
 
     :param fasta_replace_dict: Dictionary mapping numbers (internal treesapp identifiers) to ReferenceSequence objects
-    :param tax_ids_file: The name of the output file
+    :param lineage_dict: The name of the output file
     :param taxa_lca: Flag indicating whether a cluster's lineage is just the representatives or the LCA of all members
     :return: Nothing
     """
-
-    tree_taxa_string = ""
-    warning_string = ""
     no_lineage = list()
 
     for treesapp_id in sorted(fasta_replace_dict.keys(), key=int):
@@ -531,83 +491,12 @@ def write_tax_ids(fasta_replace_dict, tax_ids_file, taxa_lca=False):
             no_lineage.append(reference_sequence.accession)
             lineage = ''
 
-        tree_taxa_string += "\t".join([str(treesapp_id),
-                                      reference_sequence.organism + " | " + reference_sequence.accession,
-                                       lineage]) + "\n"
-
-    # Write the tree_taxa_string to the tax_ids file
-    tree_tax_list_handle = open(tax_ids_file, "w")
-    tree_tax_list_handle.write(tree_taxa_string)
-    tree_tax_list_handle.close()
+        lineage_dict[treesapp_id] = "{0} | {1}\t{2}".format(reference_sequence.organism, reference_sequence.accession,
+                                                            lineage)
 
     if len(no_lineage) > 0:
-        warning_string += str(len(no_lineage)) + " reference sequences did not have an associated lineage!\n\t"
-        warning_string += "\n\t".join(no_lineage)
-
-    return warning_string
-
-
-def write_refpkg_metadata(metadata_file: str, marker_build: refpkg.MarkerBuild) -> None:
-    """
-    Writes a JSON-formatted file with all metadata associated with a reference package that are available in the file
-    ref_build_parameters.tsv.
-
-    :param metadata_file: Path to file for writing metadata
-    :param marker_build: A MarkerBuild instance with all elements filled
-    :return: None
-    """
-    try:
-        f_handler = open(metadata_file, 'w')
-    except IOError:
-        logging.error("Unable to open file '%s' for writing.\n" % metadata_file)
-        sys.exit(3)
-
-    json.dump(marker_build.attributes_to_dict(), f_handler)
-    f_handler.close()
-
-    return
-
-
-def update_build_parameters(param_file, marker_package: refpkg.MarkerBuild):
-    """
-    Function to update the data/tree_data/ref_build_parameters.tsv file with information on this new reference sequence
-    Format of file is:
-     "\t".join(["name","code","molecule","sub_model","cluster_identity","ref_sequences","tree-tool","poly-params",
-     "lowest_reliable_rank","last_updated","description"])
-
-    :param param_file: Path to the ref_build_parameters.tsv file used by TreeSAPP for storing refpkg metadata
-    :param marker_package: A MarkerBuild instance
-    :return: None
-    """
-    with open(param_file) as param_handler:
-        param_lines = param_handler.readlines()
-    # Read the the original build parameters file, extracting useful information from the old version if present
-    updated_lines = []
-    for line in param_lines:
-        fields = line.strip("\n").split("\t")
-        if fields[0] != marker_package.cog:
-            updated_lines.append("\t".join(fields))
-        else:
-            if not marker_package.denominator or marker_package.denominator == "Z1111":
-                marker_package.denominator = fields[1]
-            if not marker_package.description:
-                marker_package.description = fields[-1]
-
-    # Add the new reference package's build parameters to the list of others
-    marker_package.update = strftime("%d_%b_%Y", gmtime())
-    build_list = [marker_package.cog, marker_package.denominator, marker_package.molecule, marker_package.model,
-                  marker_package.kind, str(marker_package.pid), str(marker_package.num_reps), marker_package.tree_tool,
-                  ','.join([str(param) for param in marker_package.pfit]),
-                  marker_package.lowest_confident_rank, marker_package.update, marker_package.description]
-    updated_lines.append("\t".join(build_list))
-
-    try:
-        params = open(param_file, 'w')
-    except IOError:
-        logging.error("Unable to open " + param_file + "for appending.\n")
-        sys.exit(13)
-    params.write("\n".join(updated_lines) + "\n")
-    params.close()
+        logging.warning("{0} reference sequences did not have a lineage:\n\t{1}\n".format(len(no_lineage),
+                                                                                          "\n\t".join(no_lineage)))
 
     return
 

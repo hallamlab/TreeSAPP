@@ -4,93 +4,15 @@ import sys
 import os
 import re
 import logging
-import json
 from collections import namedtuple
 
 from treesapp.classy import Cluster
-from treesapp.refpkg import ReferencePackage, MarkerBuild
+from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import read_fasta_to_dict
 from treesapp.utilities import get_hmm_length
 from treesapp import HMMER_domainTblParser
 
 __author__ = 'Connor Morgan-Lang'
-
-
-def parse_ref_build_params(base_dir: str, targets=None):
-    """
-    Returns a dictionary of MarkerBuild objects storing information pertaining to the build parameters of each marker.
-
-    :param base_dir: Path to the treesapp package directory containing 'data/ref_build_parameters.tsv'
-    :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
-    """
-    ref_build_parameters = base_dir + os.sep + "data" + os.sep + 'ref_build_parameters.tsv'
-    if type(targets) is str:
-        targets = [targets]
-
-    try:
-        param_handler = open(ref_build_parameters, 'r')
-    except IOError:
-        logging.error("\tUnable to open " + ref_build_parameters + " for reading.\n")
-        sys.exit(5)
-
-    header_fields = ["name", "code", "molecule", "sub_model", "marker_info", "cluster_identity", "ref_sequences",
-                     "tree_tool", "poly-params", "lowest_reliable_rank", "last_updated", "description"]
-    header_re = re.compile("\t".join(header_fields))
-    if not header_re.match(param_handler.readline().strip()):
-        logging.error("Header of '" + ref_build_parameters + "' is unexpected!")
-        sys.exit(5)
-
-    logging.debug("Reading build parameters of reference markers... ")
-    skipped_lines = []
-    missing_info = []
-    marker_build_dict = dict()
-    for line in param_handler:
-        if header_re.match(line):
-            continue
-        if line[0] == '#':
-            skipped_lines.append(line)
-            continue
-        marker_build = MarkerBuild()
-        marker_build.load_build_params(line, len(header_fields))
-        if targets and marker_build.denominator not in targets:
-            skipped_lines.append(line)
-        else:
-            if marker_build.denominator in marker_build_dict:
-                logging.debug("Multiple '" + marker_build.denominator + "' codes in " + ref_build_parameters +
-                              ". Previous entry in marker_build_dict being overwritten...\n")
-            marker_build_dict[marker_build.denominator] = marker_build
-            if marker_build.load_pfit_params(line):
-                missing_info.append(marker_build)
-            marker_build.check_rank()
-    param_handler.close()
-
-    logging.debug("done.\n")
-
-    if missing_info:
-        logging.debug("Rank distance information missing for:\n\t" +
-                      "\n\t".join([mb.cog + '-' + mb.denominator for mb in missing_info]) + "\n")
-    if skipped_lines:
-        logging.debug("Skipped the following lines:\n\t" +
-                      "\n\t".join([line.strip() for line in skipped_lines]) + "\n")
-
-    if len(marker_build_dict) == 0:
-        logging.error("No reference package information was parsed.\n" +
-                      "Is your target '" + ','.join(targets) + "' in " + ref_build_parameters + "?\n")
-        sys.exit(3)
-    return marker_build_dict
-
-
-def load_json_build(json_file: str) -> dict:
-    try:
-        json_handler = open(json_file, 'r')
-    except IOError:
-        logging.error("Unable to open JSON file '%s' for reading.\n" % json_file)
-        sys.exit(3)
-
-    build_params = json.load(json_handler)
-    json_handler.close()
-
-    return build_params
 
 
 def gather_ref_packages(treesapp_dir: str, marker_build_dict: dict, targets=None) -> dict:

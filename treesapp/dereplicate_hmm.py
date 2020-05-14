@@ -4,42 +4,44 @@ import logging
 import os
 import argparse
 
-from . import fasta
+from treesapp import fasta
 from treesapp.refpkg import ReferencePackage
-from .wrapper import build_hmm_profile, run_mafft
-from .phylo_dist import trim_lineages_to_rank
-from .utilities import base_file_prefix
+from treesapp.wrapper import build_hmm_profile, run_mafft
+from treesapp.phylo_dist import trim_lineages_to_rank
+from treesapp.utilities import base_file_prefix, which
 
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--refpkg",
-                        required=True,
+    parser.add_argument("-p", "--refpkg", required=True,
                         help="Name of the reference package")
-    parser.add_argument("-o", "--output_hmm",
-                        required=True,
+    parser.add_argument("-o", "--output_hmm", required=True,
                         help="HMM file to build")
-    parser.add_argument("-d", "--refpkg_dir",
-                        required=True,
+    parser.add_argument("-d", "--refpkg_dir", required=True,
                         help="The directory containing the reference package files")
-    parser.add_argument("-r", "--rank")
-    parser.add_argument("--he")
-    parser.add_argument("--me")
-    parser.add_argument("-n", "--num_threads",
-                        required=False, default=2)
+    parser.add_argument("-r", "--rank", required=False,
+                        default="genus",
+                        help="Taxonomic rank to dereplicate the reference sequences to. [ DEFAULT = genus ]")
+    parser.add_argument("--he", required=False,
+                        help="Path to hmmbuild executable.")
+    parser.add_argument("--me", required=False,
+                        help="Path to MAFFT executable.")
+    parser.add_argument("-n", "--num_threads", required=False,
+                        default=2,
+                        help="Number of threads for MAFFT to use. [ DEFAULT = 2 ]")
     parser.add_argument("-x", "--tmp_dir")
 
     return parser.parse_args()
 
 
-def make_dereplicated_hmm(refpkg_name: str, package_path: str, dereplication_rank: str,
-                          hmmbuild: str, mafft: str, hmm_file: str, n_threads=2, intermediates_dir=None) -> None:
+def make_dereplicated_hmm(refpkg_name: str, package_path: str, dereplication_rank: str, hmm_file: str,
+                          hmmbuild=None, mafft=None, n_threads=2, intermediates_dir=None) -> None:
     """
     Function to create a taxonomically-dereplicated hidden Markov model (HMM) profile. This reduces the bias from
     potentially over-represented clades, increasing the weight of their conserved positions.
 
     :param refpkg_name: Short-form gene/protein name of the reference package (e.g. McrA, DsrAB)
-    :param package_path: Path to directory containing reference package files
+    :param package_path: Path to directory containing the reference package JSON
     :param dereplication_rank: The taxonomic rank to dereplicate the reference sequences at
     :param hmmbuild: Path to an hmmbuild executable
     :param mafft: Path to a MAFFT executable
@@ -52,30 +54,31 @@ def make_dereplicated_hmm(refpkg_name: str, package_path: str, dereplication_ran
     logging.info("Creating taxonomically-dereplicated HMM... ")
 
     refpkg = ReferencePackage(refpkg_name)
-    try:
-        # This is the most frequent case, where make_dereplicated_hmm is called in treesapp create
-        refpkg.gather_package_files(package_path, layout="flat")
-    except AssertionError:
-        refpkg.gather_package_files(package_path)
+    refpkg.change_file_paths(package_path)
+    refpkg.slurp()
+
+    if not hmmbuild:
+        hmmbuild = which("hmmbuild")
+    if not mafft:
+        mafft = which("mafft")
 
     if not intermediates_dir:
-        intermediates_dir = os.path.dirname(refpkg.msa)
+        intermediates_dir = os.path.dirname(refpkg.f__msa)
     if intermediates_dir[-1] != os.sep:
         intermediates_dir += os.sep
-    derep_fa = intermediates_dir + base_file_prefix(refpkg.msa) + "_derep.fa"
-    derep_aln = intermediates_dir + base_file_prefix(refpkg.msa) + "_derep.mfa"
+    derep_fa = intermediates_dir + base_file_prefix(refpkg.f__msa) + "_derep.fa"
+    derep_aln = intermediates_dir + base_file_prefix(refpkg.f__msa) + "_derep.mfa"
     intermediates = [derep_aln, derep_fa]
 
     lineage_reps = []
     t = {}
 
-    mfa = fasta.FASTA(refpkg.msa)
+    mfa = fasta.FASTA(refpkg.f__msa)
     mfa.load_fasta()
 
-    leaf_nodes = refpkg.tax_ids_file_to_leaves()
     # Trim the taxonomic lineages to the dereplication level
-    leaf_taxa_map = {leaf.number + "_" + refpkg_name: leaf.lineage for leaf in leaf_nodes}
-    trimmed_lineages = trim_lineages_to_rank(leaf_taxa_map, dereplication_rank)
+    leaf_taxa_map = {leaf.number + "_" + refpkg_name: leaf.lineage for leaf in refpkg.generate_tree_leaf_references()}
+    trimmed_lineages = refpkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, dereplication_rank)
     # Add back the sequences with truncated lineages
     for leaf_name in leaf_taxa_map:
         if leaf_name not in trimmed_lineages:

@@ -13,7 +13,6 @@ from collections import namedtuple
 from numpy import var
 
 from treesapp.phylo_seq import TreeProtein
-from treesapp.refpkg import MarkerBuild
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, write_new_fasta, get_header_format, FASTA, load_fasta_header_regexes
 from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table,\
@@ -750,13 +749,8 @@ class Creator(TreeSAPP):
         return model
 
     def print_terminal_commands(self):
-        param_file = self.treesapp_dir + "data" + os.sep + "ref_build_parameters.tsv"
         logging.info("\nTo integrate this package for use in TreeSAPP the following steps must be performed:\n" +
-                     "1. Write a properly formatted reference package 'code' in " + param_file + "\n" +
-                     "2. $ cp " + ' '.join([self.ref_pkg.lineage_ids, self.ref_pkg.tree, self.ref_pkg.model_info]) +
-                     ' ' + self.tree_dir + "\n" +
-                     "3. $ cp " + self.ref_pkg.profile + self.ref_pkg.search_profile + ' ' + self.hmm_dir + "\n" +
-                     "4. $ cp " + self.ref_pkg.msa + ' ' + self.aln_dir + "\n")
+                     "1. Write a properly formatted reference package 'code' in " + self.ref_pkg.f__json + "\n")
         return
 
 

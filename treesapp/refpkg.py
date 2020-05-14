@@ -20,10 +20,10 @@ from treesapp.wrapper import model_parameters
 class ReferencePackage:
     def __init__(self, refpkg_name=""):
         self.prefix = refpkg_name
-        self.refpkg_code = ""  # AKA denominator
+        self.refpkg_code = "Z1111"  # AKA denominator
 
         # These are files (with '_f' suffix) and their respective data (read with file.readlines())
-        self.json_path = ""  # Path to the JSON reference package file
+        self.f__json = self.prefix + "_build.json"  # Path to the JSON reference package file
         self.msa = ""  # Reference MSA FASTA
         self.f__msa = self.prefix + ".fa"
         self.profile = ""
@@ -36,7 +36,7 @@ class ReferencePackage:
         self.f__boot_tree = self.prefix + "_bipart.nwk"
         self.model_info = ""
         self.f__model_info = self.prefix + "_epa.model"  # RAxML-NG --evaluate model file
-        self.lineage_ids = dict()  # Reference sequence lineage map (tax_ids)
+        self.lineage_ids = dict()  # Reference sequence lineage map
 
         # These are metadata values
         self.ts_version = ""
@@ -76,29 +76,22 @@ class ReferencePackage:
 
         :return:
         """
-        if len(self.json_path) == 0:
-            logging.error("ReferencePackage JSON file not set. ReferencePackage band cannot be completed.\n")
+        if len(self.f__json) == 0:
+            logging.error("ReferencePackage.f__json not set. ReferencePackage band cannot be completed.\n")
             sys.exit(11)
 
-        # Read the MSA, profile HMMs, and phylogenies
-        with open(self.f__msa) as fh:
-            self.msa = fh.readlines()
-        with open(self.f__profile) as fh:
-            self.profile = fh.readlines()
-        with open(self.f__search_profile) as fh:
-            self.search_profile = fh.readlines()
-        with open(self.f__tree) as fh:
-            self.tree = fh.readlines()
-        with open(self.f__model_info) as fh:
-            self.model_info = fh.readlines()
-        if os.path.isfile(self.f__boot_tree):  # This file isn't guaranteed to exist in all cases
-            with open(self.f__boot_tree) as fh:
-                self.boot_tree = fh.readlines()
+        # Read the all of the individual reference package files that are available (e.g. MSA, HMM, phylogeny)
+        for a, v in self.__iter__():
+            if a.startswith('f__') and os.path.isfile(v):
+                dest = a.lstrip("f__")
+                if dest in self.__dict__:
+                    with open(v) as fh:
+                        self.__dict__[dest] = fh.readlines()
 
         try:
-            refpkg_handler = open(self.json_path, 'w')
+            refpkg_handler = open(self.f__json, 'w')
         except IOError:
-            logging.error("Unable to open reference package JSON file '{}' for writing.\n".format(self.json_path))
+            logging.error("Unable to open reference package JSON file '{}' for writing.\n".format(self.f__json))
             sys.exit(11)
 
         json.dump(obj=self.to_dict(), fp=refpkg_handler)
@@ -116,6 +109,21 @@ class ReferencePackage:
             logging.warning("Unable to write reference package component to '{}' for '{}'.\n".format(file_name,
                                                                                                      self.prefix))
         return
+
+    # def copy_refpkg_file_to_dest(self, destination_dir, prefix=None) -> None:
+    #     if prefix:
+    #         intermediate_prefix = destination_dir + os.sep + prefix
+    #     else:
+    #         intermediate_prefix = destination_dir + os.sep + self.prefix
+    #     copy(self.msa, intermediate_prefix + ".fa")
+    #     copy(self.profile, intermediate_prefix + ".hmm")
+    #     copy(self.search_profile, intermediate_prefix + "_search.hmm")
+    #     copy(self.tree, intermediate_prefix + "_tree.txt")
+    #     copy(self.model_info, intermediate_prefix + "_bestModel.txt")
+    #     if os.path.isfile(self.boot_tree):
+    #         copy(self.boot_tree, intermediate_prefix + "_bipartitions.txt")
+    #         os.remove(self.boot_tree)
+    #     return
 
     def change_file_paths(self, new_dir: str, move=False) -> None:
         """
@@ -135,6 +143,13 @@ class ReferencePackage:
                 self.__dict__[a] = new_path
         return
 
+    def update_file_names(self):
+        for a, v in self.__iter__():
+            if a.startswith('f__'):
+                path, name = os.path.split(v)
+                self.__dict__[a] = os.path.join(path, self.prefix + re.sub(self.prefix, '', name))
+        return
+
     def disband(self, output_dir):
         """
         From a ReferencePackage's JSON file, the individual file components (e.g. profile HMM, MSA, phylogeny) are
@@ -151,7 +166,7 @@ class ReferencePackage:
 
         # Add the output directory prefix to each file name
         self.change_file_paths(output_prefix)
-        print(self.f__msa)
+
         self.write_refpkg_component(self.f__msa, self.msa)
         self.write_refpkg_component(self.f__profile, self.profile)
         self.write_refpkg_component(self.f__search_profile, self.search_profile)
@@ -168,16 +183,26 @@ class ReferencePackage:
 
         :return: None
         """
-        try:
-            refpkg_handler = open(self.json_path, 'r')
-        except IOError:
-            logging.error("Unable to open reference package JSON file '{}' for reading.\n".format(self.json_path))
+        if len(self.f__json) == 0:
+            logging.error("ReferencePackage.f__json was not set.\n")
             sys.exit(11)
+
+        if not os.path.isfile(self.f__json):
+            logging.error("ReferencePackage JSON file '{}' doesn't exist.\n".format(self.f__json))
+            sys.exit(7)
+
+        try:
+            refpkg_handler = open(self.f__json, 'r')
+        except IOError:
+            logging.error("Unable to open reference package JSON file '{}' for reading.\n".format(self.f__json))
+            sys.exit(3)
         refpkg_data = json.load(refpkg_handler)
         refpkg_handler.close()
 
         for a, v in refpkg_data.items():
             self.__dict__[a] = v
+
+        self.load_taxonomic_hierarchy()
 
         return
 
@@ -206,122 +231,67 @@ class ReferencePackage:
             sys.exit(3)
         return True
 
-    def tax_ids_file_to_leaves(self):
-        tree_leaves = list()
-        unknown = 0
-        try:
-            tax_ids_handler = open(self.lineage_ids, 'r', encoding='utf-8')
-        except IOError:
-            logging.error("Unable to open " + self.lineage_ids + "\n")
-            sys.exit(5)
-
-        for line in tax_ids_handler:
-            line = line.strip()
-
-            try:
-                number, seq_name, lineage = line.split("\t")
-            except (ValueError, IndexError):
-                logging.error("Unexpected number of fields in " + self.lineage_ids +
-                              ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
-                sys.exit(5)
-            leaf = TreeLeafReference(number, seq_name)
-            if lineage:
-                leaf.lineage = lineage
-                leaf.complete = True
-            else:
-                unknown += 1
-            tree_leaves.append(leaf)
-
-        if len(tree_leaves) == unknown:
-            logging.error("Lineage information was not properly loaded for " + self.lineage_ids + "\n")
-            sys.exit(5)
-
-        tax_ids_handler.close()
-        return tree_leaves
-
-    def gather_package_files(self, pkg_path: str, molecule="prot", layout=None) -> None:
+    def generate_tree_leaf_references(self) -> list:
         """
-        Populates a ReferencePackage instances fields with files based on 'pkg_format' where hierarchical indicates
-        files are sorted into 'alignment_data', 'hmm_data' and 'tree_data' directories and flat indicates they are all
-        in the same directory.
+        From the dictionary containing lineage and organism information of reference sequences (self.lineage_ids)
+        this function creates a list of TreeLeafReference instances for every reference sequence
 
-        :param pkg_path: Path to the reference package
-        :param molecule: A string indicating the molecule type of the reference package. If 'rRNA' profile is CM.
-        :param layout: An optional string indicating what layout to use (flat | hierarchical)
+        :return: List of TreeLeafReference instances
+        """
+        ref_leaf_nodes = []
+        for treesapp_id in sorted(self.lineage_ids, key=int):
+            seq_name, lineage = self.lineage_ids[treesapp_id].split("\t")
+            ref = TreeLeafReference(treesapp_id, seq_name)
+            ref.lineage = lineage
+            ref_leaf_nodes.append(ref)
+        return ref_leaf_nodes
+
+    def load_taxonomic_hierarchy(self) -> None:
+        """
+        Loads the ReferencePackage's taxonomic lineages into it's TaxonomicHierarchy (self.taxa_trie) using
+        TaxonomicHierarchy.feed_leaf_nodes.
+
         :return: None
         """
-        if not self.prefix:
-            logging.error("ReferencePackage.prefix not set - unable to gather package files.\n")
-            sys.exit(3)
-        if molecule == "rRNA":
-            profile_ext = ".cm"
-        else:
-            profile_ext = ".hmm"
-        if pkg_path[-1] != os.sep:
-            pkg_path += os.sep
-
-        flat = {"msa": pkg_path + self.prefix + ".fa",
-                "tree": pkg_path + self.prefix + "_tree.txt",
-                "profile": pkg_path + self.prefix + profile_ext,
-                "search_profile": pkg_path + self.prefix + "_search" + profile_ext,
-                "taxid": pkg_path + "tax_ids_" + self.prefix + ".txt",
-                "bestModel": pkg_path + self.prefix + "_bestModel.txt"}
-        hierarchical = {"msa": pkg_path + "alignment_data" + os.sep + self.prefix + ".fa",
-                        "profile": pkg_path + "hmm_data" + os.sep + self.prefix + profile_ext,
-                        "search_profile": pkg_path + "hmm_data" + os.sep + self.prefix + "_search" + profile_ext,
-                        "taxid": pkg_path + "tree_data" + os.sep + "tax_ids_" + self.prefix + ".txt",
-                        "tree": pkg_path + "tree_data" + os.sep + self.prefix + "_tree.txt",
-                        "bestModel": pkg_path + "tree_data" + os.sep + self.prefix + "_bestModel.txt"}
-
-        if layout == "flat":
-            layout = flat
-        elif layout == "hierarchical":
-            layout = hierarchical
-        else:
-            # Exhaustively test whether all predicted files exist for each layout
-            layout = None
-            for option in [flat, hierarchical]:
-                acc = 0
-                for f_type in option:
-                    if os.path.exists(option[f_type]):
-                        acc += 1
-                    else:
-                        break
-                if acc == len(option):
-                    layout = option
-                    break
-
-        if layout:
-            self.f__msa = layout["msa"]
-            self.f__tree = layout["tree"]
-            self.f__profile = layout["profile"]
-            self.f__search_profile = layout["search_profile"]
-            self.f__model_info = layout["bestModel"]
-            self.f__boot_tree = os.path.dirname(layout["tree"]) + os.sep + self.prefix + "_bipartitions.txt"
-        else:
-            logging.error("Unable to gather reference package files for " + self.prefix + " from '" + pkg_path + "'\n")
-            raise AssertionError()
-
+        ref_leaf_nodes = self.generate_tree_leaf_references()
+        self.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
         return
+
+    # def tax_ids_file_to_leaves(self):
+    #     tree_leaves = list()
+    #     unknown = 0
+    #     try:
+    #         tax_ids_handler = open(self.lineage_ids, 'r', encoding='utf-8')
+    #     except IOError:
+    #         logging.error("Unable to open " + self.lineage_ids + "\n")
+    #         sys.exit(5)
+    #
+    #     for line in tax_ids_handler:
+    #         line = line.strip()
+    #
+    #         try:
+    #             number, seq_name, lineage = line.split("\t")
+    #         except (ValueError, IndexError):
+    #             logging.error("Unexpected number of fields in " + self.lineage_ids +
+    #                           ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
+    #             sys.exit(5)
+    #         leaf = TreeLeafReference(number, seq_name)
+    #         if lineage:
+    #             leaf.lineage = lineage
+    #             leaf.complete = True
+    #         else:
+    #             unknown += 1
+    #         tree_leaves.append(leaf)
+    #
+    #     if len(tree_leaves) == unknown:
+    #         logging.error("Lineage information was not properly loaded for " + self.lineage_ids + "\n")
+    #         sys.exit(5)
+    #
+    #     tax_ids_handler.close()
+    #     return tree_leaves
 
     def hmm_length(self):
-        self.profile_length = get_hmm_length(self.profile)
-
-    def copy_refpkg_file_to_dest(self, destination_dir, prefix=None) -> None:
-        if prefix:
-            intermediate_prefix = destination_dir + os.sep + prefix
-        else:
-            intermediate_prefix = destination_dir + os.sep + self.prefix
-        copy(self.msa, intermediate_prefix + ".fa")
-        copy(self.profile, intermediate_prefix + ".hmm")
-        copy(self.search_profile, intermediate_prefix + "_search.hmm")
-        copy(self.tree, intermediate_prefix + "_tree.txt")
-        copy(self.model_info, intermediate_prefix + "_bestModel.txt")
-        if os.path.isfile(self.boot_tree):
-            copy(self.boot_tree, intermediate_prefix + "_bipartitions.txt")
-            os.remove(self.boot_tree)
-        copy(self.lineage_ids, intermediate_prefix + "_tax_ids.txt")
-        return
+        self.profile_length = get_hmm_length(self.f__profile)
 
     def remove_taxon_from_lineage_ids(self, target_taxon) -> list:
         """
@@ -378,12 +348,12 @@ class ReferencePackage:
             logging.error("Unable to find " + output_prefix + ".*.bestModel generated RAxML-NG.\n")
             sys.exit(17)
 
-        copy(model_info, self.model_info)
-        swap_tree_names(raw_newick_tree, self.tree)
+        copy(model_info, self.f__model_info)
+        swap_tree_names(raw_newick_tree, self.f__tree)
         bootstrap_tree = output_prefix + ".raxml.support"
         if os.path.isfile(bootstrap_tree):
             annotate_partition_tree(self.prefix, fasta_replace_dict, bootstrap_tree)
-            swap_tree_names(bootstrap_tree, self.boot_tree)
+            swap_tree_names(bootstrap_tree, self.f__boot_tree)
 
         intermediates = [raw_newick_tree, model_info,
                          output_prefix + ".raxml.log",
@@ -492,41 +462,6 @@ class ReferencePackage:
         copy(prefix + "_search.hmm", self.search_profile)
 
         return
-
-
-class MarkerBuild:
-    def __init__(self):
-        self.cog = ""
-        self.denominator = ""
-        self.molecule = ""
-        self.model = ""
-        self.lowest_confident_rank = ""
-        self.update = ""
-        self.kind = ""
-        self.tree_tool = ""
-        self.description = ""
-        self.pid = 1.0
-        self.num_reps = 0
-        self.pfit = []
-
-    def load_build_params(self, build_param_line, n_fields):
-        build_param_fields = build_param_line.split('\t')
-        if len(build_param_fields) != n_fields:
-            logging.error("Incorrect number of values (" + str(len(build_param_fields)) +
-                          ") in ref_build_parameters.tsv. Line:\n" + build_param_line)
-            sys.exit(17)
-
-        self.cog = build_param_fields[0]
-        self.denominator = build_param_fields[1]
-        self.molecule = build_param_fields[2]
-        self.model = build_param_fields[3]
-        self.kind = build_param_fields[4]
-        self.pid = float(build_param_fields[5])
-        self.num_reps = int(build_param_fields[6])
-        self.tree_tool = build_param_fields[7]
-        self.lowest_confident_rank = build_param_fields[9]
-        self.update = build_param_fields[10]
-        self.description = build_param_fields[-1].strip()
 
     def load_pfit_params(self, build_param_line):
         build_param_fields = build_param_line.split("\t")

@@ -553,8 +553,15 @@ def check_classify_arguments(assigner: Assigner, args):
     return args
 
 
-def check_create_arguments(creator: Creator, args):
+def check_create_arguments(creator: Creator, args) -> None:
+    # Populate ReferencePackage attributes from command-line arguments
     creator.ref_pkg.prefix = args.refpkg_name
+    creator.ref_pkg.pid = creator.prop_sim
+    creator.ref_pkg.molecule = args.molecule
+    creator.ref_pkg.kind = args.kind
+    creator.ref_pkg.sub_model = args.raxml_model
+    creator.ref_pkg.f__json = creator.final_output_dir + creator.ref_pkg.prefix + "_build.json"
+
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
 
@@ -566,22 +573,7 @@ def check_create_arguments(creator: Creator, args):
         logging.error("Covariance model file must be provided for rRNA data!\n")
         sys.exit(13)
 
-    # Check the RAxML model
-    # TODO: Change this for compatibility with RAxML-NG
-    raxml_models = ["PROTGAMMAWAG", "PROTGAMMAAUTO", "PROTGAMMALG", "GTRCAT", "GTRCATI ", "GTRCATX", "GTRGAMMA",
-                    "ASC_GTRGAMMA", "ASC_GTRCAT", "BINGAMMA", "PROTGAMMAILGX", "PROTGTRGAMMA"]
-    if args.raxml_model:
-        valid = False
-        for model in raxml_models:
-            if re.search(model, args.raxml_model):
-                valid = True
-                break
-        if not valid:
-            logging.error("Phylogenetic substitution model '" + args.raxml_model + "' is not valid!\n" +
-                          "If this model is valid (not a typo), add it to `raxml_models` list and re-run.\n")
-            sys.exit(13)
-        else:
-            creator.ref_pkg.sub_model = args.raxml_model
+    # TODO: Check the substitution model for compatibility with RAxML-NG
 
     if args.cluster:
         if args.multiple_alignment:
@@ -626,7 +618,6 @@ def check_create_arguments(creator: Creator, args):
     creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
     creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
     creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
-    creator.metadata_file = creator.final_output_dir + creator.ref_pkg.prefix + "_build.json"
 
     return
 
