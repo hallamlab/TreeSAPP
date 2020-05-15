@@ -682,7 +682,6 @@ class Updater(TreeSAPP):
 class Creator(TreeSAPP):
     def __init__(self):
         super(Creator, self).__init__("create")
-        self.prop_sim = 1.0
         self.candidates = dict()  # Dictionary tracking all candidate ReferenceSequences
         self.phy_dir = ""  # Directory for intermediate or unnecessary files created during phylogeny inference
         self.hmm_purified_seqs = ""  # If an HMM profile of the gene is provided its a path to FASTA with homologs

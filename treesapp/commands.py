@@ -213,6 +213,7 @@ def create(sys_args):
     # Populate the final TreeSAPP reference file paths with the proper output directory
     ts_create.ref_pkg.update_file_names()
     ts_create.ref_pkg.change_file_paths(ts_create.final_output_dir)
+    ts_create.ref_pkg.cmd = ' '.join(["treesapp", "create"] + sys_args)
 
     ref_seqs = fasta.FASTA(args.input)
 
@@ -299,7 +300,7 @@ def create(sys_args):
                               headers=list(fasta_records.keys()))
         if args.cluster:
             wrapper.cluster_sequences(ts_create.executables["usearch"], ts_create.cluster_input,
-                                      ts_create.uclust_prefix, ts_create.prop_sim)
+                                      ts_create.uclust_prefix, ts_create.ref_pkg.pid)
             ts_create.uc = ts_create.uclust_prefix + ".uc"
         # Read the uc file if present
         if ts_create.uc:
@@ -388,7 +389,7 @@ def create(sys_args):
             pass
         ref_seqs.file = ts_create.ref_pkg.f__msa
         ref_seqs.load_fasta()
-        ts_create.ref_pkg.num_reps = ref_seqs.n_seqs()
+        ts_create.ref_pkg.num_seqs = ref_seqs.n_seqs()
         n_rows, n_cols = file_parsers.multiple_alignment_dimensions(seq_dict=ref_seqs.fasta_dict,
                                                                     mfa_file=ts_create.ref_pkg.f__msa)
         logging.debug("Reference alignment contains " +
@@ -405,6 +406,8 @@ def create(sys_args):
             wrapper.build_hmm_profile(ts_create.executables["hmmbuild"],
                                       ts_create.ref_pkg.f__msa,
                                       ts_create.ref_pkg.f__profile)
+            ts_create.ref_pkg.hmm_length()
+
         ts_create.ref_pkg.band()
         make_dereplicated_hmm(refpkg_name=ts_create.ref_pkg.prefix, package_path=ts_create.final_output_dir,
                               dereplication_rank="genus", hmm_file=ts_create.ref_pkg.f__search_profile,
@@ -506,8 +509,8 @@ def create(sys_args):
                             "Taxonomic ranks will not be distance-adjusted during classification for this package.\n")
             ts_create.ref_pkg.pfit = [0.0, 7.0]
         ts_create.print_terminal_commands()
-        ts_create.ref_pkg.band()
 
+    ts_create.ref_pkg.band()
     logging.info("Data for " + ts_create.ref_pkg.prefix + " has been generated successfully.\n")
     ts_create.remove_intermediates(args.delete)
 

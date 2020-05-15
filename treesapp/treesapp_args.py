@@ -211,22 +211,22 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_phylogeny_params()
     parser.add_accession_params()
     parser.add_compute_miscellany()
-    # The required parameters
+
     parser.reqs.add_argument("-c", "--refpkg_name",
                              help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
                                   "Examples are 'McrA', 'DsrAB', and 'p_amoA'.",
                              required=True)
-    parser.reqs.add_argument("-p", "--identity",
-                             help="Fractional identity value (between 0.50 and 1.0)\n"
-                                  "the input sequences were clustered at.",
-                             required=True,
-                             type=str)
 
     parser.seqops.add_argument("--cluster",
                                help="Flag indicating usearch should be used to cluster sequences\n"
                                     "at the fractional similarity indicated by identity (`-p`)",
                                action="store_true",
                                default=False)
+    parser.seqops.add_argument("-p", "--identity",
+                               help="Fractional identity value (between 0.50 and 1.0)\n"
+                                    "the input sequences were clustered at.",
+                               required=False, default=str(1.0),
+                               type=str)
     parser.seqops.add_argument("--multiple_alignment",
                                help='The FASTA input is also the multiple alignment file to be used.\n'
                                     'In this workflow, alignment with MAFFT is skipped and this file is used instead.',
@@ -549,7 +549,7 @@ def check_classify_arguments(assigner: Assigner, args):
 def check_create_arguments(creator: Creator, args) -> None:
     # Populate ReferencePackage attributes from command-line arguments
     creator.ref_pkg.prefix = args.refpkg_name
-    creator.ref_pkg.pid = creator.prop_sim
+    creator.ref_pkg.pid = args.identity
     creator.ref_pkg.molecule = args.molecule
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
@@ -583,7 +583,6 @@ def check_create_arguments(creator: Creator, args) -> None:
             else:
                 logging.error("--identity " + args.identity + " is not between the supported range [0.5-1.0]\n")
                 sys.exit(13)
-        creator.prop_sim = args.identity
 
     if args.taxa_lca:
         if not args.cluster and not args.uc:
@@ -610,7 +609,7 @@ def check_create_arguments(creator: Creator, args) -> None:
     creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
     creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
     creator.cluster_input = creator.var_output_dir + creator.sample_prefix + "_uclust_input.fasta"
-    creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
+    creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.ref_pkg.pid)
     creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
     creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
 

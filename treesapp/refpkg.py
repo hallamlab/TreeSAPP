@@ -15,6 +15,7 @@ from treesapp.fasta import get_headers, read_fasta_to_dict, write_new_fasta
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.utilities import swap_tree_names, get_hmm_length
 from treesapp.wrapper import model_parameters
+from treesapp import __version__ as ts_version
 
 
 class ReferencePackage:
@@ -39,7 +40,7 @@ class ReferencePackage:
         self.lineage_ids = dict()  # Reference sequence lineage map
 
         # These are metadata values
-        self.ts_version = ""
+        self.ts_version = ts_version
         self.sub_model = ""  # EPA-NG compatible substitution model
         self.date = ""  # Date the reference package was created
         self.update = ""  # Date the reference package was last updated
