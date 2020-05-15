@@ -62,20 +62,13 @@ class ReferencePackage:
         for attr, value in self.__dict__.items():
             yield attr, value
 
-    def to_dict(self) -> dict:
-        # Remove all of the non-primitives from the dictionary
-        refpkg_dict = self.__dict__
-        non_primitives = ["core_ref_files", "taxa_trie"]
-        for bad_attr in non_primitives:
-            refpkg_dict.pop(bad_attr)
-        return refpkg_dict
-
     def band(self):
         """
         Writes a JSON file containing all of the reference package files and metadata
 
         :return:
         """
+        refpkg_dict = {}
         if len(self.f__json) == 0:
             logging.error("ReferencePackage.f__json not set. ReferencePackage band cannot be completed.\n")
             sys.exit(11)
@@ -94,15 +87,29 @@ class ReferencePackage:
             logging.error("Unable to open reference package JSON file '{}' for writing.\n".format(self.f__json))
             sys.exit(11)
 
-        json.dump(obj=self.to_dict(), fp=refpkg_handler)
+        non_primitives = ["core_ref_files", "taxa_trie"]
+        for a, v in self.__iter__():
+            if a not in non_primitives:
+                refpkg_dict[a] = v
+
+        json.dump(obj=refpkg_dict, fp=refpkg_handler)
 
         refpkg_handler.close()
 
         return
 
-    def write_refpkg_component(self, file_name, text):
+    def write_refpkg_component(self, file_name: str, text) -> None:
+        """
+        Writes text to a file.
+
+        :param file_name: Name of the file, presumably an individual reference package file (e.g. MSA, HMM, tree)
+        :param text: Either a list (created by file_handler.readlines()) or a string to be written to file_name
+        :return: None
+        """
         try:
             file_h = open(file_name, 'w')
+            if type(text) is list:
+                text = ''.join(text)
             file_h.write(text)
             file_h.close()
         except IOError:
@@ -150,15 +157,23 @@ class ReferencePackage:
                 self.__dict__[a] = os.path.join(path, self.prefix + re.sub(self.prefix, '', name))
         return
 
-    def disband(self, output_dir):
+    def disband(self, output_dir: str):
         """
         From a ReferencePackage's JSON file, the individual file components (e.g. profile HMM, MSA, phylogeny) are
         written to their separate files in a new directory, a sub-directory of where the JSON is located.
         The directory name follows the format: self.prefix + '_' self.refpkg_code + '_' + self.date
 
-
+        :param output_dir: Output directory to write the individual reference package files
         :return:
         """
+        try:
+            if not os.path.isdir(output_dir):
+                os.mkdir(output_dir)
+        except (FileNotFoundError, IOError):
+            logging.error("Unable to create directory '{0}' for ReferencePackage '{1}'.\n"
+                          "TreeSAPP will only create a single directory at a time.\n".format(output_dir, self.prefix))
+            sys.exit(3)
+
         output_prefix = os.path.join(output_dir, '_'.join([self.prefix, self.refpkg_code, self.date])) + os.sep
 
         if not os.path.isdir(output_prefix):
@@ -206,29 +221,31 @@ class ReferencePackage:
 
         return
 
-    def validate(self, num_ref_seqs=0):
+    def validate(self, check_files=False):
         """
         Function that ensures the number of sequences is equal across all files and that in the ref_build_parameters.tsv
 
         :return: Boolean
         """
         # Check to ensure all files exist
-        for ref_file in self.core_ref_files:
-            if not os.path.isfile(ref_file):
-                logging.error("File '" + ref_file + "' does not exist for reference package: " + self.prefix + "\n")
-                sys.exit(17)
+        if check_files:
+            for ref_file in self.core_ref_files:
+                if not os.path.isfile(ref_file):
+                    logging.error("File '" + ref_file + "' does not exist for reference package: " + self.prefix + "\n")
+                    sys.exit(17)
         # TODO: Compare the number of sequences in the multiple sequence alignment
-        self.num_seqs = len(get_headers(self.msa))
-        if not num_ref_seqs:
-            num_ref_seqs = self.num_seqs
+        # self.num_seqs = len(get_headers(self.f__msa))
         # TODO: Compare the number of sequences in the Hidden-Markov model
         # TODO: Compare the number of sequences in the Tree files
         # TODO: Compare the number of sequences in the tax_ids file
-        num_taxa = len(self.tax_ids_file_to_leaves())
-        if num_taxa != num_ref_seqs != self.num_seqs:
-            logging.error("Number of reference sequences for reference package '" +
-                          self.prefix + "' is inconsistent!\n")
-            sys.exit(3)
+        # num_taxa = len(self.tax_ids_file_to_leaves())
+        # if num_taxa != num_ref_seqs != self.num_seqs:
+        #     logging.error("Number of reference sequences for reference package '" +
+        #                   self.prefix + "' is inconsistent!\n")
+        #     sys.exit(3)
+        if not self.sub_model:
+            logging.error("Unable to find the substitution model used for ReferencePackage '{}'.\n".format(self.prefix))
+            sys.exit(33)
         return True
 
     def generate_tree_leaf_references(self) -> list:
@@ -255,6 +272,7 @@ class ReferencePackage:
         """
         ref_leaf_nodes = self.generate_tree_leaf_references()
         self.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+        self.taxa_trie.validate_rank_prefixes()
         return
 
     # def tax_ids_file_to_leaves(self):
@@ -440,28 +458,28 @@ class ReferencePackage:
         self.clean_up_raxmlng_outputs(treesapp_refpkg_dir + os.sep + "tree_data" + os.sep, {})
         return intermediate_prefix
 
-    def restore_reference_package(self, prefix: str, output_dir: str) -> None:
-        """
-
-        :param prefix: Prefix (path and basename) of the stored temporary files
-        :param output_dir: Path to the output directory for any temporary files that should be stored
-        :return: None
-        """
-        # The edited tax_ids file with clade excluded is required for performance analysis
-        # Copy the edited, clade-excluded tax_ids file to the output directory
-        copy(self.lineage_ids, output_dir)
-
-        # Move the original reference package files back to the proper directories
-        copy(prefix + "_tree.txt", self.tree)
-        copy(prefix + "_bestModel.txt", self.model_info)
-        if os.path.isfile(prefix + "_bipartitions.txt"):
-            copy(prefix + "_bipartitions.txt", self.boot_tree)
-        copy(prefix + "_tax_ids.txt", self.lineage_ids)
-        copy(prefix + ".fa", self.msa)
-        copy(prefix + ".hmm", self.profile)
-        copy(prefix + "_search.hmm", self.search_profile)
-
-        return
+    # def restore_reference_package(self, prefix: str, output_dir: str) -> None:
+    #     """
+    #
+    #     :param prefix: Prefix (path and basename) of the stored temporary files
+    #     :param output_dir: Path to the output directory for any temporary files that should be stored
+    #     :return: None
+    #     """
+    #     # The edited tax_ids file with clade excluded is required for performance analysis
+    #     # Copy the edited, clade-excluded tax_ids file to the output directory
+    #     copy(self.lineage_ids, output_dir)
+    #
+    #     # Move the original reference package files back to the proper directories
+    #     copy(prefix + "_tree.txt", self.tree)
+    #     copy(prefix + "_bestModel.txt", self.model_info)
+    #     if os.path.isfile(prefix + "_bipartitions.txt"):
+    #         copy(prefix + "_bipartitions.txt", self.boot_tree)
+    #     copy(prefix + "_tax_ids.txt", self.lineage_ids)
+    #     copy(prefix + ".fa", self.msa)
+    #     copy(prefix + ".hmm", self.profile)
+    #     copy(prefix + "_search.hmm", self.search_profile)
+    #
+    #     return
 
     def load_pfit_params(self, build_param_line):
         build_param_fields = build_param_line.split("\t")
@@ -469,52 +487,11 @@ class ReferencePackage:
             self.pfit = [float(x) for x in build_param_fields[8].split(',')]
         return
 
-    def check_rank(self):
-        taxonomies = ["NA", "Kingdoms", "Phyla", "Classes", "Orders", "Families", "Genera", "Species"]
-
-        if self.lowest_confident_rank not in list(taxonomies):
-            logging.error("Unable to find '" + self.lowest_confident_rank + "' in taxonomic map!\n")
-            sys.exit(17)
-
-        return
-
     def get_info(self):
-        return "\n\t".join(["MarkerBuild instance of %s (%s):" % (self.cog, self.denominator),
+        return "\n\t".join(["MarkerBuild instance of %s (%s):" % (self.prefix, self.refpkg_code),
                             "Molecule type:                                      " + self.molecule,
-                            "Substitution model used for phylogenetic inference: " + self.model,
-                            "Number of reference sequences (leaf nodes):         " + str(self.num_reps),
+                            "Substitution model used for phylogenetic inference: " + self.sub_model,
+                            "Number of reference sequences (leaf nodes):         " + str(self.num_seqs),
                             "Software used to infer phylogeny:                   " + self.tree_tool,
                             "Date of last update:                                " + self.update,
                             "Description:                                        '%s'" % self.description]) + "\n"
-
-    def attributes_to_dict(self) -> dict:
-        metadata = {"RefPkg":
-                        {"name": self.cog,
-                         "code": self.denominator,
-                         "molecule": self.molecule,
-                         "sequences": self.num_reps,
-                         "model": self.model,
-                         "lowest_confident_rank": self.lowest_confident_rank,
-                         "kind": self.kind,
-                         "tree-tool": self.tree_tool,
-                         "regression-parameters": self.pfit,
-                         "cluster-similarity": self.pid,
-                         "description": self.description}
-                    }
-        return metadata
-
-    def dict_to_attributes(self, build_params: dict) -> None:
-        refpkg_params = build_params["RefPkg"]
-        self.cog = refpkg_params["name"]
-        self.denominator = refpkg_params["code"]
-        self.description = refpkg_params["description"]
-        self.kind = refpkg_params["kind"]
-        self.lowest_confident_rank = refpkg_params["lowest_confident_rank"]
-        self.model = refpkg_params["model"]
-        self.molecule = refpkg_params["molecule"]
-        self.num_reps = refpkg_params["sequences"]
-        self.pfit = refpkg_params["regression-parameters"]
-        self.pid = refpkg_params["cluster-similarity"]
-        self.tree_tool = refpkg_params["tree-tool"]
-
-        return

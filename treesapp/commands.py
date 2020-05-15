@@ -116,52 +116,39 @@ def train(sys_args):
     logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_trainer.treesapp_dir, [])
-    check_trainer_arguments(ts_trainer, args, marker_build_dict)
-    ts_trainer.ref_pkg.gather_package_files(args.pkg_path)
-    ts_trainer.ref_pkg.validate()
-
-    ref_seqs = fasta.FASTA(ts_trainer.input_sequences)
-
-    # Get the model to be used for phylogenetic placement
+    check_trainer_arguments(ts_trainer, args)
     ts_trainer.validate_continue(args)
-    for denominator in marker_build_dict:
-        marker_build = marker_build_dict[denominator]  # type: MarkerBuild
-        if marker_build.cog == ts_trainer.ref_pkg.prefix and args.molecule == marker_build.molecule:
-            ts_trainer.ref_pkg.sub_model = marker_build_dict[denominator].model
-            break
-    if not ts_trainer.ref_pkg.sub_model:
-        logging.error("Unable to find the substitution model used for " + ts_trainer.ref_pkg.prefix + ".\n")
-        sys.exit(33)
+    ts_trainer.ref_pkg.validate()
+    ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
+
+    train_seqs = fasta.FASTA(ts_trainer.input_sequences)
 
     if ts_trainer.stage_status("search"):
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = fasta.format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type)
-        ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_trainer.input_sequences))
+        train_seqs.fasta_dict = fasta.format_read_fasta(ts_trainer.input_sequences, ts_trainer.molecule_type)
+        train_seqs.header_registry = fasta.register_headers(fasta.get_headers(ts_trainer.input_sequences))
 
         logging.info("Searching for domain sequences... ")
         hmm_domtbl_files = wrapper.run_hmmsearch(ts_trainer.executables["hmmsearch"],
-                                                 ts_trainer.ref_pkg.profile,
+                                                 ts_trainer.ref_pkg.f__search_profile,
                                                  ts_trainer.input_sequences,
                                                  ts_trainer.var_output_dir)
         logging.info("done.\n")
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         marker_gene_dict = dict()
-        for k, v in utilities.extract_hmm_matches(hmm_matches, ref_seqs.fasta_dict, ref_seqs.header_registry).values():
+        hmm_extract_seqs = utilities.extract_hmm_matches(hmm_matches, train_seqs.fasta_dict, train_seqs.header_registry)
+        for k, v in hmm_extract_seqs.items():
             marker_gene_dict.update(v)
-        logging.info(ref_seqs.summarize_fasta_sequences())
+        logging.info(train_seqs.summarize_fasta_sequences())
         fasta.write_new_fasta(marker_gene_dict, ts_trainer.hmm_purified_seqs)
         marker_gene_dict.clear()
         utilities.hmm_pile(hmm_matches)
     else:
-        ref_seqs.load_fasta()
-        ref_seqs.change_dict_keys("formatted")
+        train_seqs.load_fasta()
+        train_seqs.change_dict_keys("formatted")
         ts_trainer.hmm_purified_seqs = ts_trainer.input_sequences
 
-    ts_trainer.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
-
-    # Read in the reference fasta file
-    ref_fasta_dict = fasta.read_fasta_to_dict(ts_trainer.ref_pkg.msa)
+    ts_trainer.fetch_entrez_lineages(train_seqs, args.molecule, args.acc_to_taxid)
 
     taxa_evo_dists = dict()
 
@@ -179,13 +166,12 @@ def train(sys_args):
                                                                                        ts_trainer.executables,
                                                                                        ts_trainer.ref_pkg,
                                                                                        ts_trainer.seq_lineage_map,
-                                                                                       ref_fasta_dict,
                                                                                        ts_trainer.var_output_dir,
                                                                                        ts_trainer.molecule_type,
                                                                                        ts_trainer.training_ranks,
                                                                                        args.num_threads)
         # Write the tab-delimited file with metadata included for each placement
-        placement_trainer.write_placement_table(pqueries, ts_trainer.placement_table, args.name)
+        placement_trainer.write_placement_table(pqueries, ts_trainer.placement_table, ts_trainer.ref_pkg.prefix)
     else:
         pfit_array = placement_trainer.complete_regression(taxa_evo_dists, ts_trainer.training_ranks)
         if pfit_array:
@@ -462,8 +448,8 @@ def create(sys_args):
         ##
         # Build the tree using either RAxML-NG or FastTree
         ##
-        ts_create.ref_pkg.model = wrapper.select_model(ts_create.molecule_type, args.fast, args.raxml_model)
-        best_tree = wrapper.construct_tree(ts_create.executables, ts_create.ref_pkg.model, ts_create.phylip_file,
+        ts_create.ref_pkg.sub_model = wrapper.select_model(ts_create.molecule_type, args.fast, args.raxml_model)
+        best_tree = wrapper.construct_tree(ts_create.executables, ts_create.ref_pkg.sub_model, ts_create.phylip_file,
                                            ts_create.phy_dir, ts_create.ref_pkg.prefix,
                                            args.bootstraps, args.num_threads, args.fast)
 
@@ -471,27 +457,27 @@ def create(sys_args):
             if int(args.bootstraps) > 0:
                 wrapper.support_tree_raxml(raxml_exe=ts_create.executables["raxml-ng"],
                                            ref_tree=best_tree, ref_msa=ts_create.phylip_file,
-                                           model=ts_create.ref_pkg.model,
+                                           model=ts_create.ref_pkg.sub_model,
                                            tree_prefix=ts_create.phy_dir + ts_create.ref_pkg.prefix,
                                            mre=False, n_bootstraps=args.bootstraps, num_threads=args.num_threads)
             wrapper.model_parameters(ts_create.executables["raxml-ng"],
                                      ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
-                                     ts_create.ref_pkg.model, args.num_threads)
+                                     ts_create.ref_pkg.sub_model, args.num_threads)
 
         ts_create.ref_pkg.clean_up_raxmlng_outputs(ts_create.phy_dir, fasta_replace_dict)
 
     if args.raxml_model:
-        ts_create.ref_pkg.model = args.raxml_model
+        ts_create.ref_pkg.sub_model = args.raxml_model
     else:
         # TODO: Update for compatibility with RAxML-NG outputs
-        ts_create.ref_pkg.model = ts_create.determine_model(args.fast)
+        ts_create.ref_pkg.sub_model = ts_create.determine_model(args.fast)
 
+    ts_create.ref_pkg.band()
     # Build the regression model of placement distances to taxonomic ranks
     trainer_cmd = ["-i", ts_create.filtered_fasta,
-                   "-c", ts_create.ref_pkg.prefix,
-                   "-p", ts_create.final_output_dir,
-                   "-o", ts_create.var_output_dir + "placement_trainer" + os.sep,
-                   "-m", ts_create.molecule_type,
+                   "-p", ts_create.ref_pkg.f__json,
+                   "-o", ts_create.training_dir,
+                   "-m", ts_create.ref_pkg.molecule,
                    "-a", ts_create.acc_to_lin,
                    "-n", str(args.num_threads)]
     if args.trim_align:
@@ -513,7 +499,7 @@ def create(sys_args):
                                                                       os.sep.join(["placement_trainer",
                                                                                    "final_outputs",
                                                                                    "placement_trainer_results.txt"]))
-        ts_create.ref_pkg.validate(ts_create.ref_pkg.num_reps)
+        ts_create.ref_pkg.validate()
 
         if not ts_create.ref_pkg.pfit:
             logging.warning("Linear regression parameters could not be estimated. " +

@@ -161,14 +161,6 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
         tree_build_cmd += ["--threads", str(num_threads)]
         # tree_build_cmd += ["--tree", "rand{1},pars{1}"]  # For debugging, alternatively could use '--search1'
 
-    # Ensure the tree from a previous run isn't going to be over-written
-    if not os.path.exists(tree_output_dir):
-        os.makedirs(tree_output_dir)
-    else:
-        logging.error(tree_output_dir + " already exists from a previous run! " +
-                      "Please delete or rename it and try again.\n")
-        sys.exit(13)
-
     logging.info("Building phylogenetic tree with " + tree_builder + "... ")
     if fast_mode:
         stdout, returncode = launch_write_command(tree_build_cmd)

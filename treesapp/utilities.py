@@ -98,34 +98,6 @@ def reluctant_remove_replace(dir_path):
     return
 
 
-def get_refpkg_build(name: str, marker_build_dict: dict, refpkg_code_re):
-    """
-    Find and return the MarkerBuild instance with a matching name
-
-    :param name:
-    :param marker_build_dict: A dictionary of MarkerBuild objects indexed by their refpkg codes/denominators
-    :param refpkg_code_re: A compiled regular expression (re) for matching refpkg code names
-    :return: MarkerBuild
-    """
-    if refpkg_code_re.match(name):
-        try:
-            return marker_build_dict[name]
-        except KeyError:
-            # Alert the user if the denominator format was (incorrectly) provided to Clade_exclusion_analyzer
-            logging.error("Unable to find '" + name + "' in ref_build_parameters collection!\n" +
-                          "Has it been added to data/tree_data/ref_build_parameters.tsv?\n")
-            sys.exit(21)
-    else:
-        for denominator in marker_build_dict:
-            refpkg_build = marker_build_dict[denominator]
-            if refpkg_build.cog == name:
-                return refpkg_build
-            elif name == denominator:
-                return refpkg_build
-        logging.error("Wrong format for the reference code_name provided: " + name + "\n")
-        sys.exit(21)
-
-
 def is_exe(fpath):
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
@@ -577,7 +549,7 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: di
     """
     Function for slicing sequences guided by alignment co-ordinates.
 
-    :param hmm_matches: Dictionary containing a list HmmMatch() objects as values for each 'marker' key
+    :param hmm_matches: A dictionary containing a list of HmmMatch() objects indexed by reference package name
     :param fasta_dict: A dictionary with headers as keys and sequences as values
     :param header_registry: A list of Header() objects, each used to map various header formats to each other
     :return: Dictionary containing a modified query name mapped to its corresponding (sub)sequence that was aligned
@@ -597,9 +569,9 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: di
 
     logging.info("Extracting the quality-controlled protein sequences... ")
 
-    for marker in hmm_matches:
+    for refpkg_name in hmm_matches:
         extracted_loci = dict()
-        for hmm_match in hmm_matches[marker]:
+        for hmm_match in hmm_matches[refpkg_name]:
             # Now for the header format to be used in the bulk FASTA:
             # >contig_name|marker_gene|start_end
             query_names = header_matching_dict[hmm_match.orf]
@@ -614,11 +586,11 @@ def extract_hmm_matches(hmm_matches: dict, fasta_dict: dict, header_registry: di
                 logging.warning("Query '%s' being overwritten by an alternative alignment:\n%s\n" %
                                 (query_names.post_align, hmm_match.get_info()))
             try:
-                extracted_loci[query_names.post_align] = fasta_dict[query_names.formatted][hmm_match.start-1:hmm_match.end]
+                extracted_loci[query_names.post_align] = fasta_dict[query_names.first_split][hmm_match.start-1:hmm_match.end]
             except KeyError:
                 logging.debug("Unable to map " + hmm_match.orf + " to a sequence in the input FASTA.\n")
 
-        marker_gene_dict[marker] = extracted_loci
+        marker_gene_dict[refpkg_name] = extracted_loci
 
     logging.info("done.\n")
     return marker_gene_dict

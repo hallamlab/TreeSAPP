@@ -4,8 +4,9 @@ import sys
 import re
 import logging
 from glob import glob
+from datetime import datetime as dt
 from treesapp.classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
-from treesapp.utilities import available_cpu_count, get_refpkg_build
+from treesapp.utilities import available_cpu_count
 
 
 class TreeSAPPArgumentParser(argparse.ArgumentParser):
@@ -273,9 +274,7 @@ def add_purity_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_io()
     parser.add_seq_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-r", "--reference_marker", dest="refpkg", required=True,
-                             help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)")
-    parser.reqs.add_argument("-p", "--pkg_path", dest="pkg_path", required=True,
+    parser.reqs.add_argument("-p", "--refpkg_path", dest="pkg_path", required=True,
                              help="Path to the reference package.\n")
     parser.optopt.add_argument("-x", "--extra_info", required=False, default=None,
                                help="File mapping header prefixes to description information.")
@@ -370,10 +369,7 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_seq_params()
     parser.add_accession_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
-                             help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
-                                  "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
-    parser.reqs.add_argument("-p", "--pkg_path", required=True,
+    parser.reqs.add_argument("-p", "--refpkg_path", required=True,
                              help="Path to the reference package.\n")
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
                                help="Flag indicating input sequences need to be purified using an HMM profile.")
@@ -481,12 +477,9 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
     return
 
 
-def check_trainer_arguments(trainer_instance: PhyTrainer, args, marker_build_dict):
-    target_marker_build = get_refpkg_build(args.name,
-                                           marker_build_dict,
-                                           trainer_instance.refpkg_code_re)
-    trainer_instance.ref_pkg.prefix = target_marker_build.cog
-    trainer_instance.ref_pkg.refpkg_code = target_marker_build.denominator
+def check_trainer_arguments(trainer_instance: PhyTrainer, args):
+    trainer_instance.ref_pkg.f__json = args.refpkg_path
+    trainer_instance.ref_pkg.slurp()
 
     ##
     # Define locations of files TreeSAPP outputs
@@ -560,8 +553,9 @@ def check_create_arguments(creator: Creator, args) -> None:
     creator.ref_pkg.molecule = args.molecule
     creator.ref_pkg.kind = args.kind
     creator.ref_pkg.sub_model = args.raxml_model
+    creator.ref_pkg.date = dt.now().strftime("%Y-%m-%d")
     creator.ref_pkg.f__json = creator.final_output_dir + creator.ref_pkg.prefix + "_build.json"
-
+    # TODO: Create placement trainer output directory and make it an attribute
     if not args.output:
         args.output = os.getcwd() + os.sep + creator.ref_pkg.prefix + "_treesapp_refpkg" + os.sep
 
@@ -612,12 +606,24 @@ def check_create_arguments(creator: Creator, args) -> None:
 
     # Names of files and directories to be created
     creator.phy_dir = os.path.abspath(creator.var_output_dir) + os.sep + "phylogeny_files" + os.sep
+    creator.training_dir = os.path.abspath(creator.var_output_dir) + os.sep + "placement_trainer" + os.sep
     creator.hmm_purified_seqs = creator.var_output_dir + creator.ref_pkg.prefix + "_hmm_purified.fasta"
     creator.filtered_fasta = creator.var_output_dir + creator.sample_prefix + "_filtered.fa"
     creator.cluster_input = creator.var_output_dir + creator.sample_prefix + "_uclust_input.fasta"
     creator.uclust_prefix = creator.var_output_dir + creator.sample_prefix + "_uclust" + str(creator.prop_sim)
     creator.unaln_ref_fasta = creator.var_output_dir + creator.ref_pkg.prefix + "_ref.fa"
     creator.phylip_file = creator.var_output_dir + creator.ref_pkg.prefix + ".phy"
+
+    # Ensure the phylogenetic tree output directory from a previous run isn't going to be over-written
+    if not os.path.exists(creator.phy_dir):
+        os.mkdir(creator.phy_dir)
+    else:
+        logging.error(creator.phy_dir + " already exists from a previous run! " +
+                      "Please delete or rename it and try again.\n")
+        sys.exit(13)
+
+    if not os.path.isdir(creator.training_dir):
+        os.mkdir(creator.training_dir)
 
     return
 

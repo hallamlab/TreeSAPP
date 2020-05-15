@@ -318,6 +318,13 @@ class TreeSAPP:
         """
         if self.command != "info":
             self.output_dir = args.output
+            # Check whether the output path exists
+            up, down = os.path.split(self.output_dir)
+            if not os.path.isdir(up):
+                logging.error("The directory above output ({}) does not exist.\n"
+                              "Please make these as TreeSAPP only creates a single new directory.".format(up))
+                sys.exit(3)
+            self.output_dir = os.path.abspath(self.output_dir)
             if self.output_dir[-1] != os.sep:
                 self.output_dir += os.sep
             self.final_output_dir = self.output_dir + "final_outputs" + os.sep
@@ -688,6 +695,7 @@ class Creator(TreeSAPP):
         self.phylip_file = ""  # Used for building the phylogenetic tree with RAxML
         self.min_tax_rank = "Kingdom"  # Minimum taxonomic rank
         self.metadata_file = ""
+        self.training_dir = ""
 
         # Stage names only holds the required stages; auxiliary stages (e.g. RPKM, update) are added elsewhere
         self.stages = {0: ModuleFunction("search", 0),
@@ -762,7 +770,6 @@ class Purity(TreeSAPP):
         self.summarize_dir = ""
         self.metadata_file = ""
         self.assignments = None
-        self.refpkg_build = MarkerBuild()
         self.stages = {0: ModuleFunction("assign", 0),
                        1: ModuleFunction("summarize", 1)}
 
@@ -906,7 +913,6 @@ class Evaluator(TreeSAPP):
     def __init__(self):
         super(Evaluator, self).__init__("evaluate")
         self.targets = []  # Left empty to appease parse_ref_build_parameters()
-        self.target_marker = MarkerBuild()
         self.rank_depth_map = None
         self.ranks = list()
         self.markers = set()

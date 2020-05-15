@@ -130,26 +130,33 @@ class TaxonomicHierarchy:
         return self.rank_prefix_map[taxon[0]]
 
     def validate_rank_prefixes(self) -> None:
-        rank_prefix_map = {}
+        """
+        Ensures that there is only a single rank name mapped to a rank prefix (in self.rank_prefix_map) and changes
+        the format of the values in self.rank_prefix_map to str from set.
+
+        :return: None
+        """
         if self.rank_prefix_map_values is set:  # Work here is already done
             for prefix in self.rank_prefix_map:
                 rank_names = self.rank_prefix_map[prefix]  # type: set
-                if len(rank_names) == 1:
-                    rank_prefix_map[prefix] = rank_names.pop()
-                elif len(rank_names) > 1:
-                    logging.error("Conflicting rank names detected for rank prefix '{0}': "
-                                  "'{1}'\n".format(prefix, ','.join(rank_names)))
-                    sys.exit(5)
-                else:
-                    logging.warning("Prefix exists for missing rank name...? This isn't going to be good.\n")
-            self.rank_prefix_map = rank_prefix_map
+                if type(rank_names) is set:
+                    if len(rank_names) == 1:
+                        self.rank_prefix_map[prefix] = rank_names.pop()
+                    elif len(rank_names) > 1:
+                        logging.error("Conflicting rank names detected for rank prefix '{0}': "
+                                      "'{1}'\n".format(prefix, ','.join(rank_names)))
+                        sys.exit(5)
+                    else:
+                        logging.warning("Prefix exists for missing rank name...? This isn't going to be good.\n")
             self.rank_prefix_map_values = str
         return
 
     def whet(self) -> None:
         # Ensure the rank_prefix_map values are sets that can be added to, in case self.validate_rank_prefixes was run
         if self.rank_prefix_map_values is not set:
-            self.rank_prefix_map = {k: {v} for k, v in self.rank_prefix_map.items()}
+            for k, v in self.rank_prefix_map.items():
+                if type(v) is not set:
+                    self.rank_prefix_map[k] = {v}
             self.rank_prefix_map_values = set
         return
 
@@ -222,6 +229,8 @@ class TaxonomicHierarchy:
                 self.rank_prefix_map[rank_prefix].add(rank)
             except KeyError:
                 self.rank_prefix_map[rank_prefix] = {rank}
+            except AttributeError:
+                self.so_long_and_thanks_for_all_the_fish("TaxonomicHierarchy.rank_prefix_map values are not all sets.\n")
 
             previous = self.digest_taxon(taxon, rank, rank_prefix, previous)
 
@@ -246,6 +255,7 @@ class TaxonomicHierarchy:
         Since the lineages are composed of taxa with rank-prefixes, opposed to full-length rank names,
         a rank-prefix name map is required to infer the taxonomic rank of each prefix. One is loaded by default if none
         are provided.
+
         :param ref_leaves: A list of TreeLeafReference instances to be loaded into the hierarchy
         :param rank_prefix_name_map: A dictionary mapping rank-prefixes (str) to a set of potential rank names
         :return: None
@@ -255,6 +265,7 @@ class TaxonomicHierarchy:
                                          'f': {"family"}, 'g': {"genus"}, 's': {"species"}, 't': {"type_strain"}})
         else:
             self.rank_prefix_map.update(rank_prefix_name_map)
+        self.whet()
         self.validate_rank_prefixes()
 
         previous = None
@@ -546,7 +557,8 @@ class TaxonomicHierarchy:
                 self.so_long_and_thanks_for_all_the_fish("Rank prefix {}"
                                                          " not found in rank prefix map.\n".format(taxon[0]))
             if rank != th_rank_name:
-                self.so_long_and_thanks_for_all_the_fish("Rank prefix doesn't match rank name in trimmed lineage.\n")
+                self.so_long_and_thanks_for_all_the_fish("Rank prefix '{}' doesn't match rank name '{}'"
+                                                         " in trimmed lineage.\n".format(rank, th_rank_name))
 
         logging.debug("{0} lineages truncated before '{1}' were removed during lineage trimming.\n".format(truncated,
                                                                                                            rank))
