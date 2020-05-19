@@ -134,6 +134,12 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.assertEqual({'Actinobacteria'}, self.db.rank_representatives("class"))
         self.assertEqual({'Actinomyces nasicola'}, self.db.rank_representatives("species"))
 
+    def test_unprefix_rank_existance(self):
+        self.db.clean_trie = True
+        self.db.build_multifurcating_trie(key_prefix=False, value_prefix=True)
+        self.assertTrue("Bacteria" in self.db.trie)
+        self.assertEqual("c__Actinobacteria", self.db.trie["Bacteria; Actinobacteria; Actinobacteria"])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -127,7 +127,10 @@ class TaxonomicHierarchy:
         self.validate_rank_prefixes()
 
         taxon = lineage.split(self.lin_sep)[-1]
-        return self.rank_prefix_map[taxon[0]]
+        try:
+            return self.rank_prefix_map[taxon[0]]
+        except IndexError:
+            self.so_long_and_thanks_for_all_the_fish("Empty taxon in lineage '{}'\n".format(lineage))
 
     def validate_rank_prefixes(self) -> None:
         """
@@ -162,14 +165,14 @@ class TaxonomicHierarchy:
 
     def trie_check(self):
         """
-        Ensure the trie has contemporary with all lineages that have been fed into the hierarchy.
+        Ensure the trie is contemporary with all lineages that have been fed into the hierarchy.
         This is accomplished by comparing the lineages_fed and lineages_into_trie properties.
         If they differ, trie rebuilds.
 
         :return: None
         """
         if self.lineages_fed != self.lineages_into_trie:
-            self.build_multifurcating_trie(with_prefix=self.include_prefix)
+            self.build_multifurcating_trie(key_prefix=self.include_prefix)
         return
 
     def digest_taxon(self, taxon: str, rank: str, rank_prefix: str, previous: Taxon) -> Taxon:
@@ -203,7 +206,6 @@ class TaxonomicHierarchy:
 
         self.whet()  # Convert the values in self.rank_prefix_map to set
 
-        lineage = self.clean_lineage_string(lineage)
         taxa = lineage.split(self.lin_sep)
         while taxa and lineage_ex:
             taxon_info = lineage_ex.pop(0)
@@ -303,7 +305,7 @@ class TaxonomicHierarchy:
         else:
             return self.lin_sep.join([taxon.name for taxon in anno_lineage])
 
-    def build_multifurcating_trie(self, with_prefix=None) -> None:
+    def build_multifurcating_trie(self, key_prefix=True, value_prefix=False) -> None:
         """
         The initial TaxonomicHierarchy is just made from a dictionary of String (e.g. d__Bacteria): Taxon pairs.
         After finding the correct key, a lineage can be formed by traversing upwards through the linked-list of 'parent's.
@@ -319,22 +321,27 @@ class TaxonomicHierarchy:
         n__cellular organisms; d__Bacteria; n__Terrabacteria group: Terrabacteria group,
         n__cellular organisms; d__Bacteria; n__Terrabacteria group; p__Actinobacteria: Actinobacteria, separator=; )
 
-        :type with_prefix: bool
-        :param with_prefix: Flag indicating whether the lineages (node keys) have their rank-prefix
+        :type key_prefix: bool
+        :param key_prefix: Flag indicating whether the lineages (node keys) have their rank-prefix
+        :param value_prefix: Flag indicating whether the taxon (node values) have their rank-prefix
         :return: None
         """
         lineages = {"r__Root"}
 
-        if with_prefix is not None:
-            # Set the include_prefix boolean for future automated updates
-            self.include_prefix = with_prefix
-
+        # Collect all lineages in self.hierarchy, retaining the rank-prefix in case they are needed later
         for taxon_name in self.hierarchy:  # type: str
             lineages.add(self.emit(taxon_name, True))
-        for lin in lineages:
+
+        # Populate the trie using lineages, with rank-prefixes where desired (keys/values)
+        for lin in sorted(lineages):
+            taxon = self.clean_lineage_string(lin, value_prefix).split("; ")[-1]
+            if not value_prefix:
+                taxon = self.canonical_prefix.sub('', taxon)
             if self.clean_trie:
-                lin = self.clean_lineage_string(lin, self.include_prefix)
-            self.trie[lin] = self.canonical_prefix.sub('', lin.split("; ")[-1])
+                lin = self.clean_lineage_string(lin, key_prefix)
+            # Only add the entry to the trie if both lineage (key) and taxon (value) are non-empty
+            if lin and taxon:
+                self.trie[lin] = taxon
 
         self.lineages_into_trie = self.lineages_fed
         return
@@ -383,10 +390,11 @@ class TaxonomicHierarchy:
         :return: String with the purified taxonomic lineage adhering to the NCBI hierarchy
         """
         reconstructed_lineage = []
-        if with_prefix is not None:
+        if with_prefix is not self.include_prefix:
             # Set the include_prefix boolean for future automated updates
             self.include_prefix = with_prefix
 
+        # TODO: If this is actually needed, say during self.feed(), make this into its own function
         if self.bad_taxa:
             # Potential list of bad strings: "cellular organisms; ", "delta/epsilon subdivisions; ", "\(miscellaneous\)"
             for bs in self.bad_taxa:
@@ -394,6 +402,11 @@ class TaxonomicHierarchy:
 
         ranks = lineage.split(self.lin_sep)
         for rank in ranks:
+            try:
+                _, _ = rank.split(self.taxon_sep)
+            except ValueError:
+                self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for clean_lineage_string().\n")
+
             if not self.no_rank.match(rank):
                 if not self.include_prefix:
                     rank = self.canonical_prefix.sub('', rank)
@@ -415,7 +428,7 @@ class TaxonomicHierarchy:
         if not self.include_prefix or not self.clean_trie:
             self.clean_trie = True
             logging.debug("Switching multifurcating trie to include rank prefixes.\n")
-            self.build_multifurcating_trie(True)
+            self.build_multifurcating_trie(key_prefix=True)
 
         if verbosity:
             logging.debug("check_lineage():\n\t"
@@ -424,7 +437,7 @@ class TaxonomicHierarchy:
                           "include_prefix = {2}\n\t"
                           "clean_trie = {3}\n".format(lineage, organism_name, self.include_prefix, self.clean_trie))
 
-        lineage = self.clean_lineage_string(lineage)
+        lineage = self.clean_lineage_string(lineage, with_prefix=True)
 
         if len(lineage) == 0:
             return ""
@@ -454,6 +467,12 @@ class TaxonomicHierarchy:
         # Ensure the order and progression of ranks is correct (no domain -> phylum -> species for example)
         i = 0
         for taxon in lineage_list:  # type: str
+            try:
+                _, _ = taxon.split(self.taxon_sep)
+            except ValueError:
+                self.so_long_and_thanks_for_all_the_fish("Rank-prefix required for check_lineage(),"
+                                                         " taxon: '{}'.\n".format(taxon))
+
             if self.accepted_ranks_depths[self.rank_prefix_map[taxon[0]]] > i+1:
                 logging.warning("Order of taxonomic ranks in cleaned lineage '{0}' is unexpected.\n"
                                 "Lineage will be truncated to '{1}'.\n".format(self.lin_sep.join(lineage_list),
