@@ -102,12 +102,9 @@ class TaxonomicHierarchyTester(unittest.TestCase):
     def test_clean_lineage_string(self):
         l1 = "n__cellular organisms; d__Bacteria; n__Terrabacteria group"
         l2 = "d__Bacteria"
-        self.db.include_prefix = False
-        self.assertEqual(self.db.clean_lineage_string(l1),
-                         self.db.clean_lineage_string(l2))
-        self.db.include_prefix = True
-        self.assertEqual(self.db.clean_lineage_string(l1),
-                         self.db.clean_lineage_string(l2))
+        self.assertEqual(self.db.clean_lineage_string(l1, with_prefix=True),
+                         self.db.clean_lineage_string(l2, with_prefix=True))
+        self.assertEqual("Bacteria", self.db.clean_lineage_string(l1, with_prefix=False))
         return
 
     def test_remove_leaf_nodes(self):
@@ -139,6 +136,28 @@ class TaxonomicHierarchyTester(unittest.TestCase):
         self.db.build_multifurcating_trie(key_prefix=False, value_prefix=True)
         self.assertTrue("Bacteria" in self.db.trie)
         self.assertEqual("c__Actinobacteria", self.db.trie["Bacteria; Actinobacteria; Actinobacteria"])
+
+    def test_rm_bad_taxa(self):
+        self.assertEqual(["Archaea"], self.db.rm_bad_taxa(["cellular organisms", "Archaea"]))
+
+    def test_get_prefixed_lineage_from_bare(self):
+        self.db.clean_trie = True
+        self.db.build_multifurcating_trie(key_prefix=False, value_prefix=True)
+        self.assertEqual("d__Bacteria",
+                         self.db.get_prefixed_lineage_from_bare("cellular organisms; Bacteria; "
+                                                                "Terrabacteria group; Actinobacteria"))
+        self.assertEqual("d__Bacteria; p__Actinobacteria; c__Actinobacteria",
+                         self.db.get_prefixed_lineage_from_bare("Bacteria; Actinobacteria; Actinobacteria"))
+
+    def test_build_multifurcating_trie(self):
+        self.db.trie_key_prefix = True
+        self.db.build_multifurcating_trie(key_prefix=False, value_prefix=True)
+        self.assertFalse(self.db.trie_key_prefix)
+        self.assertTrue(self.db.trie_value_prefix)
+
+    def test_strip_taxon(self):
+        self.assertEqual("Bacteria; Proteobacteria", self.db.strip_rank_prefix("Bacteria; Proteobacteria"))
+        self.assertEqual("Bacteria; Mock", self.db.strip_rank_prefix("d__Bacteria; n__Mock"))
 
 
 if __name__ == '__main__':
