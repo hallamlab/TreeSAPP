@@ -346,7 +346,7 @@ class TaxonomicHierarchy:
                 taxon = self.canonical_prefix.sub('', taxon)
             if self.clean_trie:
                 lin = self.clean_lineage_string(lin, with_prefix=key_prefix)
-            else:
+            elif key_prefix is False:
                 lin = self.strip_rank_prefix(lin)
             # Only add the entry to the trie if both lineage (key) and taxon (value) are non-empty
             if lin and taxon:
@@ -382,7 +382,10 @@ class TaxonomicHierarchy:
             self.build_multifurcating_trie(key_prefix=False, value_prefix=True)
 
         # Clean up the taxonomic lineage query by removing bad taxa (e.g. 'cellular organisms').
-        lineage_split = self.rm_bad_taxa(bare_lineage.split(self.lin_sep))  # Not guided by rank prefix
+        lineage_split = bare_lineage.split(self.lin_sep)
+        if self.clean_trie:
+            lineage_split = self.rm_bad_taxa(lineage_split)  # Not guided by rank prefix
+
         ref_lineage = ""
         # Iteratively climb the taxonomic lineage until a hit is found or there are no further ranks
         while not ref_lineage and lineage_split:
@@ -545,6 +548,8 @@ class TaxonomicHierarchy:
                 # TODO: Decide whether the corresponding Taxon instances be removed from the hierarchy
                 break
             i += 1
+        if len(lineage_list) == 0:
+            lineage_list = ["r__Root"]
 
         return self.lin_sep.join(lineage_list)
 
@@ -584,8 +589,8 @@ class TaxonomicHierarchy:
             except KeyError:
                 taxa_counts[taxon.rank] = 1
             except TypeError:
-                print(taxa_counts, taxon.rank, taxon)
-                sys.exit()
+                self.so_long_and_thanks_for_all_the_fish("TypeError in summarize_taxa().\n{}, {}, {}.\n"
+                                                         "".format(taxa_counts, taxon.rank, taxon))
 
         taxonomic_summary_string += "Number of unique lineages:\n"
         for rank in sorted(self.accepted_ranks_depths, key=lambda x: self.accepted_ranks_depths[x]):

@@ -8,6 +8,7 @@ import logging
 from Bio import Entrez
 from urllib import error
 
+from treesapp.utilities import get_list_positions
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 
 
@@ -240,7 +241,8 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     tmp_lineages = set()
 
     # Search for any taxon that doesn't have a rank prefix in all the reference sequence lineages
-    t_hierarchy.build_multifurcating_trie(with_prefix=True)
+    t_hierarchy.clean_trie = False
+    t_hierarchy.build_multifurcating_trie(key_prefix=True)
     for treesapp_id in sorted(ref_seq_dict.keys()):  # type: str
         ref_seq = ref_seq_dict[treesapp_id]  # type: EntrezRecord
         if ref_seq.lineage:
@@ -253,7 +255,7 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     # Build list of entrez queries for EntrezRecords with un-annotated lineages
     entrez_query_list = entrez_records_from_lineages_and_chop(unprefixed_lineages, tmp_lineages,
                                                               t_hierarchy.get_taxon_names())
-    t_hierarchy.build_multifurcating_trie(with_prefix=False)
+
     while entrez_query_list:
         logging.info("Repairing {0} taxonomic lineages for {1} references.\n".format(len(entrez_query_list),
                                                                                      len(to_repair)))
@@ -273,10 +275,16 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
                                                                   t_hierarchy.get_taxon_names())
 
     # Add rank prefixes to the broken lineages
+    # t_hierarchy.bad_taxa.append("cellular organisms")
     while to_repair:
         ref_seq = ref_seq_dict[to_repair.pop()]  # type: EntrezRecord
-        ref_organism = ref_seq.lineage.split("; ")[-1]
-        ref_seq.lineage = t_hierarchy.emit(ref_organism)
+        ref_lineage = t_hierarchy.get_prefixed_lineage_from_bare(ref_seq.lineage)
+        if not ref_lineage:
+            t_hierarchy.so_long_and_thanks_for_all_the_fish("Unable to find any ranks from lineage '{}'"
+                                                            " in taxonomic hierarchy.\n".format(ref_seq.lineage) +
+                                                            "Consider providing these data in a table or"
+                                                            " removing this sequence from your analysis.\n")
+        ref_seq.lineage = ref_lineage
         ref_seq.taxon_rank = t_hierarchy.resolved_to(ref_seq.lineage)
 
         if len(to_repair) == 0:
@@ -285,12 +293,14 @@ def repair_lineages(ref_seq_dict: dict, t_hierarchy: TaxonomicHierarchy) -> None
     return
 
 
-def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict) -> None:
+def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, incomplete=False) -> None:
     """
     Adds lineage information from accession_lineages to fasta_record_objects
 
-    :param fasta_record_objects: dict() indexed by TreeSAPP numeric identifiers mapped to ReferenceSequence instances
-    :param accession_lineages: a dictionary mapping {accession: lineage}
+    :param fasta_record_objects: A dictionary indexed by TreeSAPP numeric identifiers mapped to EntrezRecord instances
+    :param accession_lineages: A dictionary mapping {accession: lineage}
+    :param incomplete: Boolean indicating whether the accession_lineage contains lineages for all records or not.
+    If True, iteration will continue when accession_lineages is missing an accession.
     :return: None
     """
     for treesapp_id in fasta_record_objects:
@@ -299,9 +309,12 @@ def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict) 
             try:
                 lineage = accession_lineages[ref_seq.accession]
             except KeyError:
-                logging.error("Lineage information was not retrieved for accession '" + ref_seq.accession + "'.\n" +
-                              "Please remove the output directory and restart.\n")
-                sys.exit(13)
+                if incomplete:
+                    continue
+                else:
+                    logging.error("Lineage information was not retrieved for accession '{}'.\n" +
+                                  "Please remove the output directory and restart.\n".format(ref_seq.accession))
+                    sys.exit(13)
             # Add the species designation since it is often not included in the sequence record's lineage
             ref_seq.lineage = lineage
         if not ref_seq.organism and ref_seq.lineage:
@@ -436,6 +449,7 @@ def fetch_lineages_from_taxids(entrez_records: list, t_hierarchy=None) -> None:
     """
     Query Entrez's Taxonomy database for lineages using NCBI taxonomic IDs.
     The TaxId queries are pulled from EntrezRecord instances.
+    The lineage from each successful Entrez query is fed into the TaxonomicHierarchy and can be subsequently queried
 
     :param entrez_records: A list of EntrezRecord instances that should have TaxIds in their ncbi_tax element
     :param t_hierarchy: A TaxonomicHierarchy instance
@@ -901,6 +915,141 @@ def map_accessions_to_lineages(query_accession_list: list, t_hierarchy: Taxonomi
     else:
         get_multiple_lineages(query_accession_list, t_hierarchy, molecule)
     return
+
+
+class Lineage:
+    def __init__(self):
+        self.Organism = None
+        self.Lineage = None
+        self.Domain = None
+        self.Phylum = None
+        self.Class = None
+        self.Order = None
+        self.Family = None
+        self.Genus = None
+        self.Species = None
+        self.rank_attributes = ["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
+
+    def build_lineage(self, add_organism=False) -> str:
+        self.ensure_prefix()
+        if self.Lineage:
+            lineage = self.Lineage
+        else:
+            taxa = []
+            # lineage = "; ".join([self.Domain, self.Phylum, self.Class, self.Order, self.Family, self.Genus, self.Species])
+            # Cut the lineage at the first empty rank
+            for rank in self.rank_attributes:
+                taxon = self.__dict__[rank]
+                if not taxon:
+                    break
+                else:
+                    taxa.append(taxon)
+            lineage = "; ".join(taxa)
+        if not lineage:
+            logging.error("Taxonomic lineage information was found in neither lineage nor taxonomic rank fields.\n")
+            sys.exit(13)
+
+        if add_organism and self.Organism:
+            if lineage.split("; ")[-1] != self.Organism:
+                lineage += "; " + self.Organism
+
+        return lineage
+
+    def ensure_prefix(self) -> None:
+        """
+        Ensures the value for each rank attribute (taxon) has the appropriate prefix and prepends it missing
+        For example, the prefix for self.Domain is 'd__' so a taxon might be 'd__Bacteria'
+
+        :return: None
+        """
+        for rank in self.rank_attributes:
+            prefix = rank.lower()[0] + "__"
+            taxon = self.__dict__[rank]
+            # Check the prefix if there is value for the attribute
+            if taxon and not re.search(r"^" + re.escape(prefix), taxon):
+                self.__dict__[rank] = prefix + taxon
+        return
+
+
+def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
+    """
+    Reads a table containing sequence names (of ORFs, contigs, etc.) in the first column and lineage information in the
+    subsequent columns. Different types of information are indicated by their column name
+    (you can name the first column what you want :)).
+
+    Accepted columns names (case-insensitive):
+    'Organism', 'Lineage', 'Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species'
+
+    :param seq_names_to_taxa: Path to file containing the sequence name table
+    :return: Dictionary with sequence names as keys and Lineage instances as values
+    """
+    seq_lineage_map = dict()
+    try:
+        handler = open(seq_names_to_taxa, 'r')
+    except IOError:
+        logging.error("Unable to open '" + seq_names_to_taxa + "' for reading!\n")
+        sys.exit(3)
+    # Set up the named tuple that will be used for storing lineage information
+    header_names = ["Organism", "Lineage", "Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
+    fields = handler.readline().split("\t")
+    field_positions = get_list_positions(fields, header_names)
+
+    for line in handler:
+        try:
+            fields = line.strip().split("\t")
+            seq_name = fields[0]
+        except (ValueError, IndexError):
+            logging.error("Bad line encountered in '{}':\n"
+                          "{}\n".format(seq_names_to_taxa, line))
+            sys.exit(3)
+        if seq_name[0] == '>':
+            seq_name = seq_name[1:]
+        seq_lin_info = Lineage()
+        for field_name in field_positions:
+            seq_lin_info.__dict__[field_name] = fields[field_positions[field_name]].strip()
+        seq_lineage_map[seq_name] = seq_lin_info
+    handler.close()
+    return seq_lineage_map
+
+
+def map_orf_lineages(seq_lineage_tbl: str, header_registry: dict, refpkg_name=None) -> (dict, list):
+    """
+    The classified sequences have a signature at the end (|RefPkg_name|start_stop) that needs to be removed
+    Iterates over the dictionary of sequence names and attempts to match those with headers in the registry.
+    If a match is found the header is assigned the corresponding lineage in seq_lineage_map.
+
+    :param seq_lineage_tbl: Path to file containing the sequence name table
+    :param header_registry: A dictionary mapping numerical TreeSAPP identifiers to Header instances
+    :param refpkg_name: The reference package's name
+    :return: A dictionary mapping each classified sequence to a lineage and list of TreeSAPP IDs that were mapped
+    """
+    logging.info("Mapping assigned sequences to provided taxonomic lineages... ")
+    seq_lineage_map = read_seq_taxa_table(seq_lineage_tbl)
+    classified_seq_lineage_map = dict()
+    treesapp_nums = list(header_registry.keys())
+    mapped_treesapp_nums = []
+    for seq_name in seq_lineage_map:
+        # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
+        # we can't use hash-based data structures to bring it to O(N)
+        parent_re = re.compile(seq_name)
+        x = 0
+        while x < len(treesapp_nums):
+            header = header_registry[treesapp_nums[x]].original
+            assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(refpkg_name), '', header)
+            if parent_re.search(assigned_seq_name):
+                classified_seq_lineage_map[header] = seq_lineage_map[seq_name].build_lineage(add_organism=True)
+                mapped_treesapp_nums.append(treesapp_nums.pop(x))
+            else:
+                x += 1
+        if len(treesapp_nums) == 0:
+            logging.info("done.\n")
+            return classified_seq_lineage_map, mapped_treesapp_nums
+    logging.debug("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
+                  "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
+
+    logging.info("done.\n")
+
+    return classified_seq_lineage_map, mapped_treesapp_nums
 
 
 def main():

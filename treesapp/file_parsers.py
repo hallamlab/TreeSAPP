@@ -4,48 +4,46 @@ import sys
 import os
 import re
 import logging
+from glob import glob
 from collections import namedtuple
 
 from treesapp.classy import Cluster
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import read_fasta_to_dict
-from treesapp.utilities import get_hmm_length
 from treesapp import HMMER_domainTblParser
 
 __author__ = 'Connor Morgan-Lang'
 
 
-def gather_ref_packages(treesapp_dir: str, marker_build_dict: dict, targets=None) -> dict:
+def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     """
     Returns a dictionary of ReferencePackage instances for each MarkerBuild instance in the marker_build_dict.
     Optionally these markers can be subsetted further by a list of targets
 
-    :param treesapp_dir: Path to the treesapp package directory containing 'data/ref_build_parameters.tsv'
-    :param marker_build_dict: A dictionary of MarkerBuild instances indexed by their refpkg codes/denominators
+    :param refpkg_data_dir: Path to the directory containing TreeSAPP reference packages (JSON-format)
     :param targets: List of refpkg codes that are desired or an empty list suggesting all refpkgs should be used
     """
     refpkg_dict = dict()
-    refpkg_data_dir = treesapp_dir + os.sep + "data" + os.sep
     logging.debug("Gathering reference package files... ")
 
-    for denominator in marker_build_dict:
-        marker_build = marker_build_dict[denominator]  # type: MarkerBuild
+    json_files = glob(refpkg_data_dir + os.sep + "*json")
+    if len(json_files) == 0:
+        logging.error("No JSON files were found in {}".format(refpkg_data_dir))
+        sys.exit(3)
+
+    for json_file in json_files:
         refpkg = ReferencePackage()
-        refpkg.refpkg_code = denominator
-        refpkg.prefix = marker_build.cog
+        refpkg.f__json = json_file
         if targets:
             if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
                 continue
-        refpkg.num_seqs = marker_build.num_reps
-        refpkg.gather_package_files(refpkg_data_dir, marker_build.molecule)
-        refpkg.profile_length = get_hmm_length(refpkg.profile)
-        refpkg_dict[denominator] = refpkg
+        refpkg.slurp()
 
     logging.debug("done.\n")
 
     if len(refpkg_dict) == 0:
         logging.error("No reference package data was found.\n" +
-                      "Are there reference packages in '" + refpkg_data_dir + "'?\n")
+                      "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
         sys.exit(3)
     return refpkg_dict
 
@@ -708,32 +706,3 @@ def multiple_alignment_dimensions(seq_dict, mfa_file):
             pass
             # Sequence is the right length, carrying on
     return len(seq_dict), sequence_length
-
-
-def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
-    """
-    Reads a two-column table containing sequence names (of ORFs, contigs, etc.) in the first column
-    and lineages in the second
-
-    :param seq_names_to_taxa: Path to file containing the sequence name table
-    :return: Dictionary with sequence names as keys and lineages as values
-    """
-    seq_lineage_map = dict()
-    try:
-        handler = open(seq_names_to_taxa, 'r')
-    except IOError:
-        logging.error("Unable to open '" + seq_names_to_taxa + "' for reading!\n")
-        sys.exit(3)
-
-    for line in handler:
-        try:
-            seq_name, lineage = line.strip().split("\t")
-        except (ValueError, IndexError):
-            logging.error("Bad line encountered in '" + seq_names_to_taxa + "' - expected two tab-separated fields:\n" +
-                          line)
-            sys.exit(3)
-        if seq_name[0] == '>':
-            seq_name = seq_name[1:]
-        seq_lineage_map[seq_name] = lineage
-    handler.close()
-    return seq_lineage_map

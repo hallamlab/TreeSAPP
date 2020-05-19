@@ -48,33 +48,6 @@ except ImportWarning:
     sys.exit(3)
 
 
-def validate_inputs(args, marker_build_dict):
-    """
-    This function filters the files in data/alignment_data/ for sequences that are entirely ambiguity characters
-    or if there are any sequences in the MSA that are not the consistent length
-
-    :param args: the command-line and default options
-    :param marker_build_dict: A dictionary (indexed by marker 5-character 'denominator's) mapping MarkerBuild objects
-    :return: list of files that were edited
-    """
-    logging.info("Testing validity of reference trees... ")
-    ref_trees = glob.glob(args.treesapp + os.sep + "data/tree_data/*_tree.txt")
-    ref_tree_dict = dict()
-    for tree_file in ref_trees:
-        marker = os.path.basename(tree_file).strip("_tree.txt").strip("_")
-        for denominator in marker_build_dict:
-            if marker_build_dict[denominator].cog == marker:
-                ref_tree_dict[denominator] = tree_file
-    status = pparse_ref_trees(denominator_ref_tree_dict=ref_tree_dict, args=args)
-    logging.info("done.\n")
-    if status is None:
-        logging.error("Reference trees do not appear to be formatted correctly!\n")
-        sys.exit(3)
-    else:
-        logging.info("Reference trees appear to be formatted correctly. Continuing with TreeSAPP.\n")
-    return
-
-
 def read_refpkg_tax_ids(refpkg_dict: dict) -> dict:
     """
     Function to read tax_ids files for each ReferencePackage in
@@ -382,11 +355,10 @@ def get_sequence_counts(concatenated_mfa_files, ref_alignment_dimensions, verbos
     return alignment_length_dict
 
 
-def get_alignment_dims(treesapp_dir: str, marker_build_dict: dict):
+def get_alignment_dims(treesapp_dir: str):
     """
 
     :param treesapp_dir:
-    :param marker_build_dict:
     :return:
     """
     alignment_dimensions_dict = dict()

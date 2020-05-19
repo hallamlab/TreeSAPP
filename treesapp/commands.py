@@ -29,7 +29,7 @@ from treesapp.classy import TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, 
     prep_logging, dedup_records, TaxonTest, Purity, Abundance
 from treesapp.phylo_seq import TreeProtein
 from treesapp.refpkg import ReferencePackage
-from treesapp.assign import abundify_tree_saps, delete_files, validate_inputs,\
+from treesapp.assign import abundify_tree_saps, delete_files,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
@@ -263,7 +263,7 @@ def create(sys_args):
     # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
-    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid)
+    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid, args.seq_names_to_taxa)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
     prefilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
 
@@ -531,7 +531,6 @@ def update(sys_args):
     logging.info("\n##\t\t\tUpdating TreeSAPP reference package\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_updater.treesapp_dir, [])
     check_updater_arguments(ts_updater, args, marker_build_dict)
     ts_updater.validate_continue(args)
     ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
@@ -584,9 +583,8 @@ def update(sys_args):
     # need_lineage_list = set(classified_fasta.header_registry.keys())  # TreeSAPP IDs that still need lineages
     querying_classified_fasta = classified_fasta
     if ts_updater.seq_names_to_taxa:
-        seq_lineage_map = file_parsers.read_seq_taxa_table(ts_updater.seq_names_to_taxa)
-        lineage_map, mapped_treesapp_ids = ts_updater.map_orf_lineages(seq_lineage_map,
-                                                                       querying_classified_fasta.header_registry)
+        lineage_map, mapped_treesapp_ids = entrez_utils.map_orf_lineages(ts_updater.seq_names_to_taxa,
+                                                                         querying_classified_fasta.header_registry)
         classified_seq_lineage_map.update(lineage_map)
         for ts_num in mapped_treesapp_ids:
             querying_classified_fasta.header_registry.pop(ts_num)
@@ -880,13 +878,9 @@ def assign(sys_args):
     check_classify_arguments(ts_assign, args)
     ts_assign.validate_continue(args)
 
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_assign.treesapp_dir,
-                                                            ts_assign.target_refpkgs)
-    refpkg_dict = file_parsers.gather_ref_packages(ts_assign.treesapp_dir, marker_build_dict)
-    ref_alignment_dimensions = get_alignment_dims(ts_assign.treesapp_dir, marker_build_dict)
+    refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir)
+    ref_alignment_dimensions = get_alignment_dims(ts_assign.treesapp_dir)
     tree_numbers_translation = read_refpkg_tax_ids(refpkg_dict)
-    if args.check_trees:
-        validate_inputs(args, marker_build_dict)
 
     ##
     # STAGE 2: Predict open reading frames (ORFs) if the input is an assembly, read, format and write the FASTA

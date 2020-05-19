@@ -9,16 +9,16 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-from . import file_parsers
-from . import utilities
-from . import wrapper
-from .fasta import read_fasta_to_dict, write_new_fasta, FASTA, split_combined_ref_query_fasta
-from .phylo_dist import cull_outliers, parent_to_tip_distances, regress_ranks
-from .external_command_interface import setup_progress_bar, launch_write_command
-from .jplace_utils import jplace_parser
-from refpkg import ReferencePackage
-from .entish import map_internal_nodes_leaves
+from treesapp import file_parsers
+from treesapp import utilities
+from treesapp import wrapper
+from treesapp.fasta import read_fasta_to_dict, write_new_fasta, FASTA, split_combined_ref_query_fasta
+from treesapp.phylo_dist import cull_outliers, parent_to_tip_distances, regress_ranks
+from treesapp.external_command_interface import setup_progress_bar, launch_write_command
+from treesapp.jplace_utils import jplace_parser
+from treesapp.entish import map_internal_nodes_leaves
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+from treesapp.refpkg import ReferencePackage
 
 __author__ = 'Connor Morgan-Lang'
 

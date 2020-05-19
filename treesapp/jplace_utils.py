@@ -5,8 +5,9 @@ import re
 import glob
 import os
 import logging
-from phylo_seq import ItolJplace, TreeProtein
 from json import load, loads, dumps
+
+from treesapp.phylo_seq import ItolJplace, TreeProtein
 
 
 def pquery_likelihood_weight_ratio(pquery, position):

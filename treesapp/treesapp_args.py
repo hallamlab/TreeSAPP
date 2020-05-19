@@ -29,8 +29,8 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.seqops = self.add_argument_group("Sequence operation arguments")
         self.rpkm_opts = self.add_argument_group("RPKM options")
         self.optopt = self.add_argument_group("Optional options")
-        self.miscellany = self.add_argument_group("Miscellaneous options")
         self.taxa_args = self.add_argument_group("Taxonomic-lineage arguments")
+        self.miscellany = self.add_argument_group("Miscellaneous options")
 
         self.miscellany.add_argument("-v", "--verbose", action="store_true", default=False,
                                      help="Prints a more verbose runtime log")
@@ -101,12 +101,16 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                           'to use in various pipeline steps [DEFAULT = 2]')
 
     def add_accession_params(self):
-        self.optopt.add_argument("--accession2taxid", dest="acc_to_taxid", required=False, default=None,
-                                 help="Path to an NCBI accession2taxid file "
-                                      "for more rapid accession-to-lineage mapping.\n")
-        self.optopt.add_argument("-a", "--accession2lin", dest="acc_to_lin", required=False, default=None,
-                                 help="Path to a file that maps sequence accessions to taxonomic lineages, "
-                                      "possibly made by `treesapp create`...")
+        self.taxa_args.add_argument("--accession2taxid", dest="acc_to_taxid", required=False, default=None,
+                                    help="Path to an NCBI accession2taxid file "
+                                         "for more rapid accession-to-lineage mapping.\n")
+        self.taxa_args.add_argument("-a", "--accession2lin", dest="acc_to_lin", required=False, default=None,
+                                    help="Path to a file that maps sequence accessions to taxonomic lineages, "
+                                         "possibly made by `treesapp create`...")
+
+    def add_lineage_table_param(self):
+        self.taxa_args.add_argument("--seqs2lineage", dest="seq_names_to_taxa", required=False, default=None,
+                                    help="Path to a file mapping sequence names to taxonomic lineages.\n")
 
     def add_taxa_args(self):
         self.taxa_args.add_argument("-s", "--screen",
@@ -161,12 +165,15 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.optopt.add_argument('-c', '--composition', default="meta", choices=["meta", "single"],
                                help="Sample composition being either a single organism or a metagenome.")
     parser.optopt.add_argument("-l", "--min_likelihood", default=0.1, type=float,
-                               help="The minimum likelihood weight ratio required for a RAxML placement. "
+                               help="The minimum likelihood weight ratio required for an EPA placement. "
                                "[DEFAULT = 0.1]")
+    parser.optopt.add_argument("--refpkg_dir", dest="refpkg_dir", default=None,
+                               help="Path to the directory containing reference package JSON files. "
+                                    "[ DEFAULT = treesapp/data/ ]")
     parser.optopt.add_argument('-t', '--targets', default='', type=str,
-                               help='A comma-separated list specifying which marker genes to query in input by'
-                               ' the "denominator" column in data/tree_data/cog_list.tsv'
-                               ' - e.g., M0701,D0601 for mcrA and nosZ\n[DEFAULT = ALL]')
+                               help="A comma-separated list specifying which reference packages to use. "
+                                    "They are to be referenced by their 'prefix' attribute. "
+                                    "Use `treesapp info -v` to get the available list [DEFAULT = ALL]")
     parser.optopt.add_argument("--no_svm", default=False, required=False, action="store_true",
                                help="Disables the support vector machine (SVM) classifier. "
                                     "WARNING: Unless you *really* know your refpkg, you probably don't want this.")
@@ -180,8 +187,6 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.miscellany.add_argument('-R', '--reftree', required=False, default="", type=str,
                                    help="[IN PROGRESS] Reference package that all queries should be immediately and "
                                         "directly classified as (i.e. homology search step is skipped).")
-    parser.miscellany.add_argument("--check_trees", action="store_true", default=False,
-                                   help="Quality-check the reference trees before running TreeSAPP")
     return
 
 
@@ -208,6 +213,7 @@ def add_create_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_io()
     parser.add_seq_params()
     parser.add_taxa_args()
+    parser.add_lineage_table_param()
     parser.add_phylogeny_params()
     parser.add_accession_params()
     parser.add_compute_miscellany()
@@ -329,6 +335,7 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_io()
     parser.add_seq_params()
     parser.add_taxa_args()
+    parser.add_lineage_table_param()
     parser.add_phylogeny_params()
     parser.add_compute_miscellany()
     parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
@@ -339,8 +346,6 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
                                   "including sequences to be used for the update.")
     parser.optopt.add_argument("-l", "--min_lwr", dest="min_lwr", required=False, default=0.0, type=float,
                                help="The minimum likelihood weight ratio for a sequence to be included in update.")
-    parser.optopt.add_argument("-a", "--seqs2taxa", dest="seq_names_to_taxa", required=False, default=None,
-                               help="Path to a file mapping sequence names (i.e. contig headers) to taxonomic lineages")
     parser.optopt.add_argument("--skip_assign", default=False, required=False, action="store_true",
                                help="The assigned sequences are from a database and their database lineages "
                                     "should be used instead of the TreeSAPP-assigned lineages.")
@@ -517,6 +522,11 @@ def check_classify_arguments(assigner: Assigner, args):
                 sys.exit(3)
     else:
         assigner.target_refpkgs = []
+
+    if args.refpkg_dir:
+        if not os.path.isdir(args.refpkg_dir):
+            logging.error("Directory containing reference packages ({}) does not exist.\n".format(args.refpkg_dir))
+        assigner.refpkg_dir = args.refpkg_dir
 
     if args.molecule == "prot":
         assigner.change_stage_status("orf-call", False)

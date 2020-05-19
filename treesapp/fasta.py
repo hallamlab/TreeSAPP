@@ -4,6 +4,7 @@ import sys
 import re
 import os
 import logging
+import traceback
 from time import sleep, time
 
 from math import ceil
@@ -958,7 +959,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
 
     # Ambiguous:
     # genbank_exact_genome = re.compile("^>([A-Z]{1,2}[0-9]{5,6}\.?[0-9]?) .* \[(.*)\]$")  # a, o
-    accession_only = re.compile(r"^>?([A-Z]+_?[0-9]+\.?[0-9]?)$")  # a
+    accession_only = re.compile(r"^>?([A-Za-z_0-9.]+\.?[0-9]?)$")  # a
     ncbi_ambiguous = re.compile(r"^>?([A-Za-z0-9.\-_]+)\s+.*(?<!])$")  # a
     ncbi_org = re.compile(r"^>?([A-Z][A-Za-z0-9.\-_]+\.?[0-9]?)\s+(?!lineage=).*\[.*\]$")  # a
     assign_re = re.compile(r"^>?(.*)\|({0})\|(\d+_\d+)$".format(re.escape(code_name)))  # a, d, l
@@ -1029,7 +1030,7 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
         sys.exit(5)
 
     if header_format_re is None:
-        logging.error("Unable to parse header '" + header + "'\n")
+        logging.error("Unable to parse header '{}'\n".format(header))
         sys.exit(5)
 
     return header_format_re, header_db, header_molecule

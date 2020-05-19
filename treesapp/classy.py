@@ -15,8 +15,7 @@ from numpy import var
 from treesapp.phylo_seq import TreeProtein
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, write_new_fasta, get_header_format, FASTA, load_fasta_header_regexes
-from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table,\
-    load_pickle, fish_refpkg_from_build_params
+from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle
 from treesapp.entish import create_tree_info_hash, subtrees_to_dictionary
 from treesapp.lca_calculations import determine_offset, optimal_taxonomic_assignment
 from treesapp import entrez_utils
@@ -318,15 +317,15 @@ class TreeSAPP:
         """
         if self.command != "info":
             self.output_dir = args.output
+            self.output_dir = os.path.abspath(self.output_dir)
+            if self.output_dir[-1] != os.sep:
+                self.output_dir += os.sep
             # Check whether the output path exists
-            up, down = os.path.split(self.output_dir)
+            up, down = os.path.split(self.output_dir[:-1])
             if not os.path.isdir(up):
                 logging.error("The directory above output ({}) does not exist.\n"
                               "Please make these as TreeSAPP only creates a single new directory.".format(up))
                 sys.exit(3)
-            self.output_dir = os.path.abspath(self.output_dir)
-            if self.output_dir[-1] != os.sep:
-                self.output_dir += os.sep
             self.final_output_dir = self.output_dir + "final_outputs" + os.sep
             self.var_output_dir = self.output_dir + "intermediates" + os.sep
             if set(vars(args)).issuperset({"molecule", "input"}):
@@ -579,13 +578,18 @@ class TreeSAPP:
 
         return exec_paths
 
-    def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule, acc_to_taxid=None):
+    def fetch_entrez_lineages(self, ref_seqs: FASTA, molecule, acc_to_taxid=None, seqs_to_lineage=None):
         # Get the lineage information for the training/query sequences
         entrez_record_dict = get_header_info(ref_seqs.header_registry, self.ref_pkg.prefix)
         entrez_record_dict = dedup_records(ref_seqs, entrez_record_dict)
         ref_seqs.change_dict_keys("formatted")
         entrez_utils.load_ref_seqs(ref_seqs.fasta_dict, ref_seqs.header_registry, entrez_record_dict)
         logging.debug("\tNumber of input sequences =\t" + str(len(entrez_record_dict)) + "\n")
+
+        if seqs_to_lineage:
+            lineage_map, refs_mapped = entrez_utils.map_orf_lineages(seqs_to_lineage, ref_seqs.header_registry)
+            # Add lineage information to entrez records for each reference sequence
+            entrez_utils.fill_ref_seq_lineages(entrez_record_dict, lineage_map, incomplete=True)
 
         if self.stage_status("lineages"):
             entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(entrez_record_dict)
@@ -643,40 +647,6 @@ class Updater(TreeSAPP):
                                     "Lineage map: " + str(self.seq_names_to_taxa)]) + "\n"
 
         return info_string
-
-    def map_orf_lineages(self, seq_lineage_map: dict, header_registry: dict) -> (dict, list):
-        """
-        The classified sequences have a signature at the end (|RefPkg_name|start_stop) that needs to be removed
-        Iterates over the dictionary of sequence names and attempts to match those with headers in the registry.
-        If a match is found the header is assigned the corresponding lineage in seq_lineage_map.
-
-        :param seq_lineage_map: A dictionary mapping contig sequence names to taxonomic lineages
-        :param header_registry: A dictionary mapping numerical TreeSAPP identifiers to Header instances
-        :return: A dictionary mapping each classified sequence to a lineage and list of TreeSAPP IDs that were mapped
-        """
-        logging.info("Mapping assigned sequences to provided taxonomic lineages... ")
-        classified_seq_lineage_map = dict()
-        treesapp_nums = list(header_registry.keys())
-        mapped_treesapp_nums = []
-        for seq_name in seq_lineage_map:
-            # Its slow to perform so many re.search's but without having a guaranteed ORF pattern
-            # we can't use hash-based data structures to bring it to O(N)
-            parent_re = re.compile(seq_name)
-            x = 0
-            while x < len(treesapp_nums):
-                header = header_registry[treesapp_nums[x]].original
-                assigned_seq_name = re.sub(r"\|{0}\|\d+_\d+.*".format(self.ref_pkg.prefix), '', header)
-                if parent_re.search(assigned_seq_name):
-                    classified_seq_lineage_map[header] = seq_lineage_map[seq_name]
-                    mapped_treesapp_nums.append(treesapp_nums.pop(x))
-                else:
-                    x += 1
-            if len(treesapp_nums) == 0:
-                logging.info("done.\n")
-                return classified_seq_lineage_map, mapped_treesapp_nums
-        logging.debug("Unable to find parent for " + str(len(treesapp_nums)) + " ORFs in sequence-lineage map:\n" +
-                      "\n".join([header_registry[n].original for n in treesapp_nums]) + "\n")
-        return classified_seq_lineage_map, mapped_treesapp_nums
 
 
 class Creator(TreeSAPP):

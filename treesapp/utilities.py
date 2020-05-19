@@ -9,7 +9,7 @@ import time
 import joblib
 from collections import namedtuple
 from shutil import rmtree
-from .external_command_interface import launch_write_command
+from treesapp.external_command_interface import launch_write_command
 from pygtrie import StringTrie
 
 
@@ -679,25 +679,25 @@ def reverse_complement(nuc_sequence: str):
     return complement_nucs(nuc_sequence[::-1])
 
 
-def fish_refpkg_from_build_params(bait: str, marker_build_dict: dict):
-    """
-    Using a marker gene name (first column in ref_build_parameters.tsv, e.g. RecA, McrA) as bait,
-    find and return the reference package for that marker gene name by matching the 'cog' elements.
-
-    :param bait: A marker gene name
-    :param marker_build_dict: A dictionary of refpkg name keys mapping to MarkerBuild instances
-    :return: MarkerBuild object
-    """
-    refpkg = None
-    for denominator in marker_build_dict:
-        if bait == marker_build_dict[denominator].cog:
-            refpkg = marker_build_dict[denominator]
-            break
-    if refpkg is None:
-        logging.error("Unable to find '" + bait + "' in marker_build_dict!\n")
-        sys.exit(13)
-    else:
-        return refpkg
+# def fish_refpkg_from_build_params(bait: str, marker_build_dict: dict):
+#     """
+#     Using a marker gene name (first column in ref_build_parameters.tsv, e.g. RecA, McrA) as bait,
+#     find and return the reference package for that marker gene name by matching the 'cog' elements.
+#
+#     :param bait: A marker gene name
+#     :param marker_build_dict: A dictionary of refpkg name keys mapping to MarkerBuild instances
+#     :return: MarkerBuild object
+#     """
+#     refpkg = None
+#     for denominator in marker_build_dict:
+#         if bait == marker_build_dict[denominator].cog:
+#             refpkg = marker_build_dict[denominator]
+#             break
+#     if refpkg is None:
+#         logging.error("Unable to find '" + bait + "' in marker_build_dict!\n")
+#         sys.exit(13)
+#     else:
+#         return refpkg
 
 
 def find_msa_type(msa_files):
@@ -842,3 +842,29 @@ def dict_diff(snap_one: dict, snap_two: dict) -> list:
     diff_indexes = one_keys.difference(two_keys)
 
     return [snap_one[index] for index in diff_indexes]
+
+
+def get_list_positions(ref_list: list, queries: list, all_queries=False) -> dict:
+    """
+    Used for finding the position of strings (queries) in a list (ref_list)
+
+    :param ref_list: A list of strings
+    :param queries: A list of strings
+    :param all_queries: If True, all queries will be returned in the dictionary even if they are not in ref_list
+    :return: Dictionary of strings in queries as keys and their position in ref_list as values
+    """
+    # Set the default value if all queries are to be returned
+    if all_queries:
+        positions = {query: None for query in queries}
+    else:
+        positions = {}
+
+    # Ensure the references and queries are both lowercase and can be compared
+    ref_list = [i.strip().lower() for i in ref_list]
+    for query in queries:  # type: str
+        try:
+            positions[query] = ref_list.index(query.lower())
+        except ValueError:
+            continue
+
+    return positions
