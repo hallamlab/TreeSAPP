@@ -573,6 +573,7 @@ def entrez_records_to_organism_set(entrez_records_list: list, bitflag_filter=7) 
             continue
 
         if record.organism:
+            record.organism = re.sub(r"[a-z]__", '', record.organism)
             record.organism = re.sub('[:]', ' ', record.organism)
             record.organism = re.sub(' =.*', '', record.organism)
             record.organism = re.sub(r' \(.*\)', '', record.organism)
@@ -607,9 +608,9 @@ def fetch_taxids_from_organisms(search_terms: dict) -> None:
         try:
             organism = parse_gbseq_info_from_esearch_record(record, 'TranslationStack')['Term']
         except (IndexError, KeyError, TypeError):
-            logging.warning("Value for 'TranslationStack' not found in Entrez record."
-                            " It is likely this organism name doesn't exist in Entrez's taxonomy database.\n" +
-                            "Unable to link taxonomy ID to organism.\nRecord:\n{}\n".format(record))
+            logging.debug("Value for 'TranslationStack' not found in Entrez record."
+                          " It is likely this organism name doesn't exist in Entrez's taxonomy database.\n" +
+                          "Unable to link taxonomy ID to organism.\nRecord:\n{}\n".format(record))
             continue
         tax_id = parse_gbseq_info_from_esearch_record(record)
         if not tax_id:
@@ -705,6 +706,7 @@ def get_multiple_lineages(entrez_query_list: list, t_hierarchy: TaxonomicHierarc
     for record in records_batch:
         e_record = None
         accession, ver, alt = parse_accessions_from_entrez_xml(record)
+        # Try to find the EntrezRecord matching the accession or accession.version
         if accession in search_terms:
             e_record = search_terms[accession]
         elif ver in search_terms:
@@ -715,7 +717,7 @@ def get_multiple_lineages(entrez_query_list: list, t_hierarchy: TaxonomicHierarc
                     e_record = search_terms[alt_key]
                     break
         if not e_record:
-            logging.warning("Unable to map neither a record' accession or accession.version to an EntrezRecord:\n" +
+            logging.warning("Unable to map neither a record's accession nor accession.version to an EntrezRecord:\n" +
                             "Accession: '" + str(accession) + "'\n" +
                             "Acc.Version: '" + str(ver) + "'\n" +
                             "Alternatives:" + str(alt) + "\n" +
@@ -972,6 +974,11 @@ class Lineage:
             # Check the prefix if there is value for the attribute
             if taxon and not re.search(r"^" + re.escape(prefix), taxon):
                 self.__dict__[rank] = prefix + taxon
+
+        # Add a no_rank prefix to the Organism name
+        if self.Organism:
+            if not re.match(r"^[a-z]__.*", self.Organism):
+                self.Organism = "n__" + self.Organism
         return
 
     def domain_check(self) -> None:

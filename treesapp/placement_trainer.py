@@ -240,7 +240,7 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
     test_seqs.change_dict_keys("accession")
 
     # Remove sequences that are not related at the rank of Domain
-    ref_domains = t_hierarchy.rank_representatives("domain")
+    ref_domains = t_hierarchy.rank_representatives("domain", True)
     for seq_name in sorted(accession_lineage_map):
         query_domain = accession_lineage_map[seq_name].split(t_hierarchy.lin_sep)[0]
         if query_domain not in ref_domains:
@@ -248,7 +248,7 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
         else:
             related_queries.append(seq_name)
     if not related_queries:
-        logging.error("No sequences were retained after filtering by reference sequence domains '%s'" %
+        logging.error("No sequences were retained after filtering by reference sequence domains '%s'\n" %
                       str(', '.join(ref_domains)))
         sys.exit(5)
     test_seqs.keep_only(related_queries)
