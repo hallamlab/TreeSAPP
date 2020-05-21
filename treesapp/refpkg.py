@@ -249,7 +249,7 @@ class ReferencePackage:
             sys.exit(33)
         return True
 
-    def generate_tree_leaf_references(self) -> list:
+    def generate_tree_leaf_references_from_refpkg(self) -> list:
         """
         From the dictionary containing lineage and organism information of reference sequences (self.lineage_ids)
         this function creates a list of TreeLeafReference instances for every reference sequence
@@ -271,7 +271,7 @@ class ReferencePackage:
 
         :return: None
         """
-        ref_leaf_nodes = self.generate_tree_leaf_references()
+        ref_leaf_nodes = self.generate_tree_leaf_references_from_refpkg()
         self.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
         self.taxa_trie.validate_rank_prefixes()
         return

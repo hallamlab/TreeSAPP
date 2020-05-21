@@ -77,7 +77,7 @@ def make_dereplicated_hmm(refpkg_name: str, package_path: str, dereplication_ran
     mfa.load_fasta()
 
     # Trim the taxonomic lineages to the dereplication level
-    leaf_taxa_map = {leaf.number + "_" + refpkg_name: leaf.lineage for leaf in refpkg.generate_tree_leaf_references()}
+    leaf_taxa_map = {leaf.number + "_" + refpkg_name: leaf.lineage for leaf in refpkg.generate_tree_leaf_references_from_refpkg()}
     trimmed_lineages = refpkg.taxa_trie.trim_lineages_to_rank(leaf_taxa_map, dereplication_rank)
     # Add back the sequences with truncated lineages
     for leaf_name in leaf_taxa_map:

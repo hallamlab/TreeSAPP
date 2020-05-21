@@ -322,6 +322,9 @@ def fill_ref_seq_lineages(fasta_record_objects: dict, accession_lineages: dict, 
             ref_seq.organism = ref_seq.lineage.split("; ")[-1]
         else:
             pass
+        # TODO: Come up with a better way of removing the organism name after filling the organism attribute
+        if len(ref_seq.lineage.split("; ")) > 7 and not re.match(r"[a-z]__.*", ref_seq.organism):
+            ref_seq.lineage = "; ".join(ref_seq.lineage.split("; ")[:-1])
         ref_seq.tracking_stamp()
     return
 
@@ -849,7 +852,7 @@ def build_entrez_queries(fasta_record_objects: dict):
         # Only need to download the lineage information for those sequences that don't have it encoded in their header
         if ref_seq.lineage:
             num_lineages_provided += 1
-        if ref_seq.accession or ref_seq.ncbi_tax:
+        elif ref_seq.accession or ref_seq.ncbi_tax:
             entrez_query_list.append(ref_seq)
         else:
             unavailable.append(ref_seq.get_info())
@@ -1023,8 +1026,8 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
             for field_name in field_positions:
                 seq_lin_info.__dict__[field_name] = row[field_positions[field_name]].strip()
             seq_lineage_map[seq_name] = seq_lin_info
-    except csv.Error as e:
-        logging.error("Reading file '{}', line {}: {}".format(seq_names_to_taxa, tbl_reader.line_num, e))
+    except (csv.Error, IndexError) as e:
+        logging.error("Reading file '{}', line {}:\n{}\n".format(seq_names_to_taxa, tbl_reader.line_num, e))
         sys.exit(3)
 
     handler.close()

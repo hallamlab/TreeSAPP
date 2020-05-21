@@ -412,9 +412,25 @@ class TreeLeafReference:
         self.complete = False
 
     def summarize_tree_leaf(self):
-        summary_string = "Leaf ID:\n\t" + str(self.number) + "\n" +\
-                         "Description:\n\t" + str(self.description) + "\n"
-        summary_string += "Accession:\n\t'" + self.accession + "'\n"
-        if self.complete:
-            summary_string += "Lineage:\n\t" + str(self.lineage) + "\n"
+        summary_string = "Leaf ID:\n\t{}\n".format(str(self.number)) +\
+                         "Description:\n\t'{}'\n".format(str(self.description))
+        summary_string += "Accession:\n\t'{}'\n".format(self.accession)
+        summary_string += "Lineage:\n\t'{}'\n".format(str(self.lineage))
         return summary_string
+
+
+def convert_entrez_to_tree_leaf_references(entrez_records: dict) -> list:
+    """
+    From the dictionary containing lineage and organism information of reference sequences (self.lineage_ids)
+    this function creates a list of TreeLeafReference instances for every reference sequence
+
+    :return: List of TreeLeafReference instances
+    """
+    ref_leaf_nodes = []
+    for treesapp_id in sorted(entrez_records, key=int):
+        record = entrez_records[treesapp_id]
+        ref = TreeLeafReference(treesapp_id, record.description)
+        ref.accession = record.accession
+        ref.lineage = record.lineage
+        ref_leaf_nodes.append(ref)
+    return ref_leaf_nodes

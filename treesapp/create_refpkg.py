@@ -647,3 +647,5 @@ def cluster_lca(cluster_dict: dict, fasta_record_objects, header_registry: dict)
     formatted_to_num_map.clear()
     return
 
+
+

@@ -12,7 +12,7 @@ from glob import glob
 from collections import namedtuple
 from numpy import var
 
-from treesapp.phylo_seq import TreeProtein
+from treesapp.phylo_seq import TreeProtein, convert_entrez_to_tree_leaf_references
 from treesapp.refpkg import ReferencePackage
 from treesapp.fasta import fastx_split, write_new_fasta, get_header_format, FASTA, load_fasta_header_regexes
 from treesapp.utilities import median, which, is_exe, return_sequence_info_groups, write_dict_to_table, load_pickle
@@ -590,6 +590,10 @@ class TreeSAPP:
             lineage_map, refs_mapped = entrez_utils.map_orf_lineages(seqs_to_lineage, ref_seqs.header_registry)
             # Add lineage information to entrez records for each reference sequence
             entrez_utils.fill_ref_seq_lineages(entrez_record_dict, lineage_map, incomplete=True)
+            ref_leaf_nodes = convert_entrez_to_tree_leaf_references(entrez_record_dict)
+            self.ref_pkg.taxa_trie.feed_leaf_nodes(ref_leaf_nodes)
+            self.ref_pkg.taxa_trie.validate_rank_prefixes()
+            self.ref_pkg.taxa_trie.build_multifurcating_trie()
 
         if self.stage_status("lineages"):
             entrez_query_list, num_lineages_provided = entrez_utils.build_entrez_queries(entrez_record_dict)

@@ -5,6 +5,8 @@ import sys
 import re
 from pygtrie import StringTrie
 
+from treesapp.phylo_seq import TreeLeafReference
+
 
 class Taxon:
     def __init__(self, name, rank):
@@ -178,7 +180,11 @@ class TaxonomicHierarchy:
         return
 
     def digest_taxon(self, taxon: str, rank: str, rank_prefix: str, previous: Taxon) -> Taxon:
+        # taxon can come with the rank_prefix included and we don't want to prepend it again
+        if taxon.startswith(rank_prefix + self.taxon_sep):
+            taxon = taxon.lstrip(rank_prefix + self.taxon_sep)
         prefix_name = rank_prefix + self.taxon_sep + taxon
+
         if prefix_name not in self.hierarchy:
             ti = Taxon(taxon, rank)
             ti.parent = previous
@@ -273,12 +279,19 @@ class TaxonomicHierarchy:
         self.validate_rank_prefixes()
 
         previous = None
-        for ref_leaf in ref_leaves:
+        for ref_leaf in ref_leaves:  # type: TreeLeafReference
+            if not ref_leaf.lineage:
+                continue
             taxa = ref_leaf.lineage.split(self.lin_sep)
             while taxa:
                 taxon = taxa.pop(0)
                 rank_prefix = taxon.split(self.taxon_sep)[0]
-                rank = self.rank_prefix_map[rank_prefix]
+                try:
+                    rank = self.rank_prefix_map[rank_prefix]
+                except KeyError:
+                    logging.debug("Unexpected format of taxon '{}' in lineage {} -"
+                                 " no rank prefix separated by '{}'?\n".format(taxon, ref_leaf.lineage, self.taxon_sep))
+                    continue
                 previous = self.digest_taxon(taxon, rank, rank_prefix, previous)
 
             # Update the number of lineages provided to TaxonomicHierarchy

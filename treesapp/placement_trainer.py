@@ -596,7 +596,7 @@ def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: Referenc
     # Read the taxonomic map; the final sequences used to build the tree are inferred from this
     leaf_taxa_map = dict()
     ref_pkg.load_taxonomic_hierarchy()
-    for ref_seq in ref_pkg.generate_tree_leaf_references():
+    for ref_seq in ref_pkg.generate_tree_leaf_references_from_refpkg():
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train
     test_seqs = FASTA(fasta_input)
