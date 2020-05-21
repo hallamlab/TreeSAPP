@@ -970,6 +970,7 @@ def load_fasta_header_regexes(code_name="") -> dict:
     # The lineage must be formatted like:
     #   cellular organisms; Bacteria; Proteobacteria; Gammaproteobacteria
     custom_tax = re.compile(r"^>?(.*) lineage=([A-Za-z ]+.*) \[(.*)\]$")  # a, l, o
+    unformat_re = re.compile(r"(.*)")
 
     header_regexes = {"prot": {dbj_re: "dbj",
                                emb_re: "emb",
@@ -991,7 +992,8 @@ def load_fasta_header_regexes(code_name="") -> dict:
                                 ncbi_ambiguous: "ncbi_ambig",
                                 ncbi_org: "ncbi_org",
                                 custom_tax: "custom",
-                                assign_re: "ts_assign"}
+                                assign_re: "ts_assign",
+                                unformat_re: "unformatted"}
                       }
     return header_regexes
 
@@ -1021,6 +1023,9 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
                 format_matches.append(header_db)
             else:
                 pass
+
+    if len(format_matches) == 2 and "unformatted" in format_matches:
+        format_matches.remove("unformatted")
     if len(format_matches) > 1:
         if "ts_assign" in format_matches:
             return header_regexes["ts_assign"], "ts_assign", "ambig"

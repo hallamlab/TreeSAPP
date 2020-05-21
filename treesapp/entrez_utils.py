@@ -4,6 +4,7 @@ import sys
 import time
 import re
 import logging
+import csv
 
 from Bio import Entrez
 from urllib import error
@@ -931,12 +932,12 @@ class Lineage:
         self.rank_attributes = ["Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
 
     def build_lineage(self, add_organism=False) -> str:
+        self.domain_check()
         self.ensure_prefix()
         if self.Lineage:
             lineage = self.Lineage
         else:
             taxa = []
-            # lineage = "; ".join([self.Domain, self.Phylum, self.Class, self.Order, self.Family, self.Genus, self.Species])
             # Cut the lineage at the first empty rank
             for rank in self.rank_attributes:
                 taxon = self.__dict__[rank]
@@ -946,8 +947,8 @@ class Lineage:
                     taxa.append(taxon)
             lineage = "; ".join(taxa)
         if not lineage:
-            logging.error("Taxonomic lineage information was found in neither lineage nor taxonomic rank fields.\n")
-            sys.exit(13)
+            logging.warning("Taxonomic lineage information was found in neither lineage nor taxonomic rank fields.\n")
+            return ""
 
         if add_organism and self.Organism:
             if lineage.split("; ")[-1] != self.Organism:
@@ -970,6 +971,22 @@ class Lineage:
                 self.__dict__[rank] = prefix + taxon
         return
 
+    def domain_check(self) -> None:
+        """
+        Checks for whether or not the Domain is valid.
+        Options are Bacteria, Archaea, Eukaryota and Viruses (I know, but...)
+
+        :return: None
+        """
+        if not self.Domain:
+            return
+        else:
+            if re.sub(r"[a-z]__", '', self.Domain) not in ["Bacteria", "Archaea", "Eukaryota", "Viruses"]:
+                logging.error("I've seen some taxonomic domains in my time and, friend, '{}' isn't one of them.\n"
+                              "This may indicate a problem parsing your seqs2lineage file.\n".format(self.Domain))
+                sys.exit(19)
+            return
+
 
 def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
     """
@@ -987,29 +1004,29 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
     sep = get_field_delimiter(seq_names_to_taxa)
 
     try:
-        handler = open(seq_names_to_taxa, 'r')
+        handler = open(seq_names_to_taxa, 'r', newline='')
     except IOError:
         logging.error("Unable to open '" + seq_names_to_taxa + "' for reading!\n")
         sys.exit(3)
+    tbl_reader = csv.reader(handler, delimiter=sep)
     # Set up the named tuple that will be used for storing lineage information
     header_names = ["Organism", "Lineage", "Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
-    fields = handler.readline().split(sep)
+    fields = next(tbl_reader)
     field_positions = get_list_positions(fields, header_names)
 
-    for line in handler:
-        try:
-            fields = line.strip().split(sep)
-            seq_name = fields[0]
-        except (ValueError, IndexError):
-            logging.error("Bad line encountered in '{}':\n"
-                          "{}\n".format(seq_names_to_taxa, line))
-            sys.exit(3)
-        if seq_name[0] == '>':
-            seq_name = seq_name[1:]
-        seq_lin_info = Lineage()
-        for field_name in field_positions:
-            seq_lin_info.__dict__[field_name] = fields[field_positions[field_name]].strip()
-        seq_lineage_map[seq_name] = seq_lin_info
+    try:
+        for row in tbl_reader:
+            seq_name = row[0]
+            if seq_name[0] == '>':
+                seq_name = seq_name[1:]
+            seq_lin_info = Lineage()
+            for field_name in field_positions:
+                seq_lin_info.__dict__[field_name] = row[field_positions[field_name]].strip()
+            seq_lineage_map[seq_name] = seq_lin_info
+    except csv.Error as e:
+        logging.error("Reading file '{}', line {}: {}".format(seq_names_to_taxa, tbl_reader.line_num, e))
+        sys.exit(3)
+
     handler.close()
     return seq_lineage_map
 
