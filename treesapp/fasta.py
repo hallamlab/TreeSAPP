@@ -1010,22 +1010,24 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
         logging.warning(header + " uses GI numbers which are now unsupported by the NCBI! " +
                         "Consider switching to Accession.Version identifiers instead.\n")
 
-    header_format_re = None
-    header_db = None
-    header_molecule = None
-    format_matches = list()
+    # Gather all possible matches
+    format_matches = dict()
     for molecule in header_regexes:
         for regex in header_regexes[molecule]:
             if regex.match(header):
-                header_format_re = regex
                 header_db = header_regexes[molecule][regex]
-                header_molecule = molecule
-                format_matches.append(header_db)
+                format_matches[header_db] = (molecule, regex)
             else:
                 pass
 
+    # Exit if there were no matches
+    if len(format_matches) == 0:
+        logging.error("Unable to parse header '{}'. Unknown format.\n".format(header))
+        sys.exit(5)
+
+    # Sort through the matches to find the most specific
     if len(format_matches) == 2 and "unformatted" in format_matches:
-        format_matches.remove("unformatted")
+        format_matches.pop("unformatted")
     if len(format_matches) > 1:
         if "ts_assign" in format_matches:
             return header_regexes["ts_assign"], "ts_assign", "ambig"
@@ -1034,10 +1036,8 @@ def get_header_format(header: str, header_regexes: dict) -> (re.compile, str, st
                       "TreeSAPP is unable to parse necessary information properly.\n")
         sys.exit(5)
 
-    if header_format_re is None:
-        logging.error("Unable to parse header '{}'\n".format(header))
-        sys.exit(5)
-
+    header_db, info = format_matches.popitem()
+    header_molecule, header_format_re = info
     return header_format_re, header_db, header_molecule
 
 
