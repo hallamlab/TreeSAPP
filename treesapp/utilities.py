@@ -7,6 +7,7 @@ import subprocess
 import logging
 import time
 import joblib
+from csv import Sniffer
 from collections import namedtuple
 from shutil import rmtree
 from treesapp.external_command_interface import launch_write_command
@@ -868,3 +869,27 @@ def get_list_positions(ref_list: list, queries: list, all_queries=False) -> dict
             continue
 
     return positions
+
+
+def get_field_delimiter(file_path: str, sniff_size=50) -> str:
+    with open(file_path, newline='') as csvfile:
+        sniffer = Sniffer()
+        sniffer.preferred = ["\t", ","]
+
+        # Ensure there are at least sniff_size lines in the file
+        x = 1
+        line = csvfile.readline()
+        sample = ""
+        while line and x <= sniff_size:
+            sample += line
+            x += 1
+            line = csvfile.readline()
+
+        # Return to the beginning
+        csvfile.seek(0)
+        if x < sniff_size:
+            logging.info("{} contains {} lines which were used to determine field delimiter.\n".format(file_path, x))
+
+        # Read the file to determine its delimiter
+        dialect = sniffer.sniff(sample, delimiters=',;\t')
+    return str(dialect.delimiter)

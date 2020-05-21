@@ -8,7 +8,7 @@ import logging
 from Bio import Entrez
 from urllib import error
 
-from treesapp.utilities import get_list_positions
+from treesapp.utilities import get_list_positions, get_field_delimiter
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 
 
@@ -984,6 +984,8 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
     :return: Dictionary with sequence names as keys and Lineage instances as values
     """
     seq_lineage_map = dict()
+    sep = get_field_delimiter(seq_names_to_taxa)
+
     try:
         handler = open(seq_names_to_taxa, 'r')
     except IOError:
@@ -991,12 +993,12 @@ def read_seq_taxa_table(seq_names_to_taxa: str) -> dict:
         sys.exit(3)
     # Set up the named tuple that will be used for storing lineage information
     header_names = ["Organism", "Lineage", "Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species"]
-    fields = handler.readline().split("\t")
+    fields = handler.readline().split(sep)
     field_positions = get_list_positions(fields, header_names)
 
     for line in handler:
         try:
-            fields = line.strip().split("\t")
+            fields = line.strip().split(sep)
             seq_name = fields[0]
         except (ValueError, IndexError):
             logging.error("Bad line encountered in '{}':\n"
