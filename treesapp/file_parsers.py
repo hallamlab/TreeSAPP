@@ -38,7 +38,8 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
             if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
                 continue
         refpkg.slurp()
-
+        refpkg.validate()
+        refpkg_dict[refpkg.prefix] = refpkg
     logging.debug("done.\n")
 
     if len(refpkg_dict) == 0:
@@ -684,25 +685,3 @@ def validate_alignment_trimming(msa_files: list, unique_ref_headers: set, querie
             discarded_seqs_string += " (removed)"
 
     return successful_multiple_alignments, failed_multiple_alignments, discarded_seqs_string
-
-
-def multiple_alignment_dimensions(seq_dict, mfa_file):
-    """
-    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
-
-    :param seq_dict: A dictionary containing headers as keys and sequences as values
-    :param mfa_file: The name of the multiple alignment FASTA file being validated
-    :return: tuple = (nrow, ncolumn)
-    """
-    sequence_length = 0
-    for seq_name in seq_dict:
-        sequence = seq_dict[seq_name]
-        if sequence_length == 0:
-            sequence_length = len(sequence)
-        elif sequence_length != len(sequence) and sequence_length > 0:
-            logging.error("Number of aligned columns is inconsistent in " + mfa_file + "!\n")
-            sys.exit(3)
-        else:
-            pass
-            # Sequence is the right length, carrying on
-    return len(seq_dict), sequence_length

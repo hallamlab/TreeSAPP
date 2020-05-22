@@ -9,6 +9,7 @@ from random import randint
 from collections import namedtuple
 from samsum.commands import ref_sequence_abundances
 
+import fasta
 from treesapp import entrez_utils
 from treesapp import file_parsers
 from treesapp import fasta
@@ -29,7 +30,7 @@ from treesapp.classy import TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, 
     prep_logging, dedup_records, TaxonTest, Purity, Abundance
 from treesapp.phylo_seq import TreeProtein
 from treesapp.refpkg import ReferencePackage
-from treesapp.assign import abundify_tree_saps, delete_files,\
+from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
     evaluate_trimming_performance, parse_raxml_output, filter_placements, align_reads_to_nucs, select_query_placements,\
@@ -390,8 +391,8 @@ def create(sys_args):
         ref_seqs.file = ts_create.ref_pkg.f__msa
         ref_seqs.load_fasta()
         ts_create.ref_pkg.num_seqs = ref_seqs.n_seqs()
-        n_rows, n_cols = file_parsers.multiple_alignment_dimensions(seq_dict=ref_seqs.fasta_dict,
-                                                                    mfa_file=ts_create.ref_pkg.f__msa)
+        n_rows, n_cols = fasta.multiple_alignment_dimensions(mfa_file=ts_create.ref_pkg.f__msa,
+                                                             seq_dict=ref_seqs.fasta_dict)
         logging.debug("Reference alignment contains " +
                       str(n_rows) + " sequences with " +
                       str(n_cols) + " character positions.\n")
@@ -879,7 +880,8 @@ def assign(sys_args):
     ts_assign.validate_continue(args)
 
     refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir)
-    ref_alignment_dimensions = get_alignment_dims(ts_assign.treesapp_dir)
+    prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
+    ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
     tree_numbers_translation = read_refpkg_tax_ids(refpkg_dict)
 
     ##
@@ -912,14 +914,14 @@ def assign(sys_args):
     # STAGE 3: Run hmmsearch on the query sequences to search for marker homologs
     ##
     if ts_assign.stage_status("search"):
-        hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"], ts_assign.hmm_dir,
-                                                  marker_build_dict, ts_assign.formatted_input,
+        hmm_domtbl_files = wrapper.hmmsearch_orfs(ts_assign.executables["hmmsearch"],
+                                                  refpkg_dict, ts_assign.formatted_input,
                                                   ts_assign.var_output_dir, args.num_threads, args.max_e)
         hmm_matches = file_parsers.parse_domain_tables(args, hmm_domtbl_files)
         extracted_seq_dict, numeric_contig_index = bin_hmm_matches(hmm_matches, query_seqs.fasta_dict)
         numeric_contig_index = replace_contig_names(numeric_contig_index, query_seqs)
         homolog_seq_files = write_grouped_fastas(extracted_seq_dict, numeric_contig_index,
-                                                 marker_build_dict, ts_assign.var_output_dir)
+                                                 refpkg_dict, ts_assign.var_output_dir)
         # TODO: Replace this merge_fasta_dicts_by_index with FASTA - only necessary for writing the classified sequences
         extracted_seq_dict = fasta.merge_fasta_dicts_by_index(extracted_seq_dict, numeric_contig_index)
         delete_files(args.delete, ts_assign.var_output_dir, 1)
@@ -929,10 +931,9 @@ def assign(sys_args):
     combined_msa_files = dict()
     split_msa_files = dict()
     if ts_assign.stage_status("align"):
-        create_ref_phy_files(ts_assign.aln_dir, ts_assign.var_output_dir,
-                             homolog_seq_files, marker_build_dict, ref_alignment_dimensions)
+        create_ref_phy_files(refpkg_dict, ts_assign.var_output_dir, homolog_seq_files, ref_alignment_dimensions)
         concatenated_msa_files = multiple_alignments(ts_assign.executables, ts_assign.refpkg_dir,
-                                                     ts_assign.var_output_dir, homolog_seq_files, marker_build_dict,
+                                                     ts_assign.var_output_dir, homolog_seq_files, refpkg_dict,
                                                      "hmmalign", args.num_threads)
         file_type = utilities.find_msa_type(concatenated_msa_files)
         alignment_length_dict = get_sequence_counts(concatenated_msa_files, ref_alignment_dimensions,
@@ -941,9 +942,9 @@ def assign(sys_args):
         if args.trim_align:
             tool = "BMGE"
             trimmed_mfa_files = wrapper.filter_multiple_alignments(ts_assign.executables, concatenated_msa_files,
-                                                                   marker_build_dict, args.num_threads, tool)
+                                                                   refpkg_dict, args.num_threads, tool)
             qc_ma_dict = check_for_removed_sequences(ts_assign.aln_dir, trimmed_mfa_files, concatenated_msa_files,
-                                                     marker_build_dict, args.min_seq_length)
+                                                     refpkg_dict, args.min_seq_length)
             evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenated_msa_files, tool)
             combined_msa_files.update(qc_ma_dict)
         else:
@@ -969,10 +970,10 @@ def assign(sys_args):
     if ts_assign.stage_status("place"):
         wrapper.launch_evolutionary_placement_queries(ts_assign.executables, split_msa_files, refpkg_dict,
                                                       ts_assign.var_output_dir, args.num_threads)
-        sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, marker_build_dict)
+        sub_indices_for_seq_names_jplace(ts_assign.var_output_dir, numeric_contig_index, refpkg_dict)
 
     if ts_assign.stage_status("classify"):
-        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, marker_build_dict)
+        tree_saps, itol_data = parse_raxml_output(ts_assign.var_output_dir, refpkg_dict)
         select_query_placements(tree_saps)
         filter_placements(tree_saps, refpkg_dict, ts_assign.clf, ts_assign.tree_dir, args.min_likelihood)
         fasta.write_classified_sequences(tree_saps, extracted_seq_dict, ts_assign.classified_aa_seqs)
@@ -1001,13 +1002,13 @@ def assign(sys_args):
                 if args.reverse:
                     abundance_args += ["--reverse", args.reverse]
                 abundance_dict = abundance(abundance_args)
-                summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_assign.final_output_dir)
+                summarize_placements_rpkm(tree_saps, abundance_dict, refpkg_dict, ts_assign.final_output_dir)
 
         abundify_tree_saps(tree_saps, abundance_dict)
         assign_out = ts_assign.final_output_dir + os.sep + "marker_contig_map.tsv"
-        determine_confident_lineage(tree_saps, tree_numbers_translation, marker_build_dict)
+        determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict)
         write_classification_table(tree_saps, ts_assign.sample_prefix, assign_out)
-        produce_itol_inputs(tree_saps, marker_build_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
+        produce_itol_inputs(tree_saps, refpkg_dict, itol_data, ts_assign.output_dir, ts_assign.refpkg_dir)
         delete_files(args.delete, ts_assign.var_output_dir, 4)
 
     delete_files(args.delete, ts_assign.var_output_dir, 5)

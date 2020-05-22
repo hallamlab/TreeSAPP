@@ -98,7 +98,7 @@ def rank_recommender(phylo_dist: float, taxonomic_rank_pfit: list):
     # polyreg = np.poly1d(taxonomic_rank_pfit)
     # depth = int(round(polyreg(phylo_dist)))
 
-    slope, intercept = taxonomic_rank_pfit
+    slope, intercept = [float(i) for i in taxonomic_rank_pfit]
     depth = int(round(phylo_dist*slope + intercept))
 
     return depth

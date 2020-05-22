@@ -9,6 +9,7 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
+import fasta
 from treesapp import file_parsers
 from treesapp import utilities
 from treesapp import wrapper
@@ -488,8 +489,8 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             msa_dict, failed_msa_files, summary_str = file_parsers.validate_alignment_trimming([combined_msa],
                                                                                                set(pruned_ref_fasta_dict.keys()),
                                                                                                True)
-            nrow, ncolumn = file_parsers.multiple_alignment_dimensions(seq_dict=read_fasta_to_dict(combined_msa),
-                                                                       mfa_file=combined_msa)
+            nrow, ncolumn = fasta.multiple_alignment_dimensions(mfa_file=combined_msa,
+                                                                seq_dict=read_fasta_to_dict(combined_msa))
             logging.debug("Columns = " + str(ncolumn) + "\n")
             if combined_msa not in msa_dict.keys():
                 logging.debug("Placements for '" + taxonomy + "' are being skipped after failing MSA validation.\n")

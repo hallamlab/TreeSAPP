@@ -11,7 +11,7 @@ from math import ceil
 import pyfastx
 from pyfastxcli import fastx_format_check
 
-from .utilities import median, reformat_string, rekey_dict, return_sequence_info_groups
+from treesapp.utilities import median, reformat_string, rekey_dict, return_sequence_info_groups
 
 
 # No bioinformatic software would be complete without a contribution from Heng Li.
@@ -1125,3 +1125,27 @@ def split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file) -
     write_new_fasta(combined_fasta.fasta_dict, ref_msa_file, None,
                     [seq_name for seq_name in seq_names if int(seq_name.split('_')[0]) > 0])
     return
+
+
+def multiple_alignment_dimensions(mfa_file, seq_dict=None):
+    """
+    Checks to ensure all sequences are the same length and returns a tuple of (nrow, ncolumn)
+
+    :param seq_dict: A dictionary containing headers as keys and sequences as values
+    :param mfa_file: The name of the multiple alignment FASTA file being validated
+    :return: tuple = (nrow, ncolumn)
+    """
+    if not seq_dict:
+        seq_dict = read_fasta_to_dict(mfa_file)
+    sequence_length = 0
+    for seq_name in seq_dict:
+        sequence = seq_dict[seq_name]
+        if sequence_length == 0:
+            sequence_length = len(sequence)
+        elif sequence_length != len(sequence) and sequence_length > 0:
+            logging.error("Number of aligned columns is inconsistent in " + mfa_file + "!\n")
+            sys.exit(3)
+        else:
+            pass
+            # Sequence is the right length, carrying on
+    return len(seq_dict), sequence_length

@@ -470,7 +470,7 @@ def summarize_reference_taxa(reference_dict: dict, t_hierarchy: TaxonomicHierarc
 
 def lineages_to_dict(fasta_replace_dict: dict, lineage_dict: dict, taxa_lca=False) -> None:
     """
-    Populates the  organism and accession ID, if possible
+    Populates the organism and accession ID, if possible
 
     :param fasta_replace_dict: Dictionary mapping numbers (internal treesapp identifiers) to ReferenceSequence objects
     :param lineage_dict: The name of the output file

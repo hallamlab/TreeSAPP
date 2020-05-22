@@ -2,12 +2,11 @@ import sys
 import os
 import time
 import re
-import glob
 import logging
 from shutil import copy
 
-from .external_command_interface import launch_write_command, setup_progress_bar, CommandLineFarmer
-from .fasta import read_fasta_to_dict
+from treesapp.external_command_interface import launch_write_command, setup_progress_bar, CommandLineFarmer
+from treesapp.fasta import read_fasta_to_dict
 
 
 def select_model(molecule: str, fast=False, raxml_model=None) -> str:
@@ -202,16 +201,16 @@ def launch_evolutionary_placement_queries(executables: dict, split_msa_files: di
 
     epa_calls = 0
     # Maximum-likelihood sequence placement analyses
-    for denominator in sorted(split_msa_files.keys()):
-        if not isinstance(denominator, str):
-            logging.error(str(denominator) + " is not string but " + str(type(denominator)) + "\n")
+    for refpkg_name in sorted(split_msa_files.keys()):
+        if not isinstance(refpkg_name, str):
+            logging.error(str(refpkg_name) + " is not string but " + str(type(refpkg_name)) + "\n")
             raise AssertionError()
-        ref_pkg = refpkg_dict[denominator]
-        for split_msa in split_msa_files[denominator]:
+        ref_pkg = refpkg_dict[refpkg_name]
+        for split_msa in split_msa_files[refpkg_name]:
             query_name = re.sub("_queries.mfa", '', os.path.basename(split_msa.query))
-            query_name = re.sub(ref_pkg.prefix, denominator, query_name)
+            query_name = re.sub(ref_pkg.prefix, refpkg_name, query_name)
             # Find the query names
-            raxml_evolutionary_placement(executables["epa-ng"], ref_pkg.tree, split_msa.ref, ref_pkg.model_info,
+            raxml_evolutionary_placement(executables["epa-ng"], ref_pkg.f__tree, split_msa.ref, ref_pkg.f__model_info,
                                          split_msa.query, query_name, output_dir, num_threads)
             epa_calls += 1
 
@@ -514,35 +513,23 @@ def run_hmmsearch(hmmsearch_exe: str, hmm_profile: str, query_fasta: str, output
     return [domtbl]
 
 
-def hmmsearch_orfs(hmmsearch_exe: str, hmm_dir: str, marker_build_dict: dict,
-                   fasta_file: str, output_dir: str, num_threads=2, e_value=1) -> list:
+def hmmsearch_orfs(hmmsearch_exe: str, refpkg_dict: dict, fasta_file: str, output_dir: str,
+                   num_threads=2, e_value=1) -> list:
     hmm_domtbl_files = list()
     nucl_target_hmm_files = list()
     prot_target_hmm_files = list()
 
-    # Find all of the available HMM profile files
-    try:
-        os.path.isdir(hmm_dir)
-    except IOError:
-        logging.error(hmm_dir + "does not exist!")
-        sys.exit(3)
-    hmm_files = glob.glob(hmm_dir + "*_search.hmm")
-
-    if len(hmm_files) == 0:
-        logging.error(hmm_dir + "does not contain any files with '.hmm' extension... so no HMMs.\n")
-        sys.exit(3)
-
     # Filter the HMM files to only the target markers
-    for marker_code in marker_build_dict:
-        ref_marker = marker_build_dict[marker_code]
-        hmm_profile = hmm_dir + ref_marker.cog + "_search.hmm"
-        if hmm_profile not in hmm_files:
-            logging.error("Unable to locate HMM-profile for " + ref_marker.cog + "(" + marker_code + ").\n")
+    for refpkg_name in refpkg_dict:
+        refpkg = refpkg_dict[refpkg_name]  # type: refpkg.ReferencePackage
+        if not os.path.exists(refpkg.f__search_profile):
+            logging.error("Unable to locate HMM-profile for '{}'.\n".format(refpkg.prefix))
+            sys.exit(3)
         else:
-            if ref_marker.molecule == "prot":
-                prot_target_hmm_files.append(hmm_profile)
+            if refpkg.molecule == "prot":
+                prot_target_hmm_files.append(refpkg.f__search_profile)
             else:
-                nucl_target_hmm_files.append(hmm_profile)
+                nucl_target_hmm_files.append(refpkg.f__search_profile)
 
     acc = 0.0
     logging.info("Searching for marker proteins in ORFs using hmmsearch.\n")
@@ -664,14 +651,14 @@ def filter_multiple_alignments(executables, concatenated_mfa_files, refpkg_dict,
     task_list = list()
     trimmed_output_files = {}
 
-    for denominator in sorted(concatenated_mfa_files.keys()):
-        if denominator not in trimmed_output_files:
-            trimmed_output_files[denominator] = []
-        mfa_files = concatenated_mfa_files[denominator]
+    for refpkg_code in sorted(concatenated_mfa_files.keys()):
+        if refpkg_code not in trimmed_output_files:
+            trimmed_output_files[refpkg_code] = []
+        mfa_files = concatenated_mfa_files[refpkg_code]
         for concatenated_mfa_file in mfa_files:
             trim_command, trimmed_msa_file = get_msa_trim_command(executables, concatenated_mfa_file,
-                                                                  refpkg_dict[denominator].molecule, tool)
-            trimmed_output_files[denominator].append(trimmed_msa_file)
+                                                                  refpkg_dict[refpkg_code].molecule, tool)
+            trimmed_output_files[refpkg_code].append(trimmed_msa_file)
             task_list.append(trim_command)
 
     if len(task_list) > 0:

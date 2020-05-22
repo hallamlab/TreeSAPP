@@ -11,7 +11,7 @@ from ete3 import Tree
 from treesapp.phylo_seq import TreeLeafReference
 from treesapp.entish import annotate_partition_tree
 from treesapp.external_command_interface import launch_write_command
-from treesapp.fasta import get_headers, read_fasta_to_dict, write_new_fasta
+from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.utilities import swap_tree_names, get_hmm_length
 from treesapp.wrapper import model_parameters
@@ -158,14 +158,16 @@ class ReferencePackage:
                 self.__dict__[a] = os.path.join(path, self.prefix + re.sub(self.prefix, '', name))
         return
 
-    def disband(self, output_dir: str):
+    def disband(self, output_dir: str) -> None:
         """
         From a ReferencePackage's JSON file, the individual file components (e.g. profile HMM, MSA, phylogeny) are
         written to their separate files in a new directory, a sub-directory of where the JSON is located.
         The directory name follows the format: self.prefix + '_' self.refpkg_code + '_' + self.date
 
+        Their file paths (e.g. self.f__msa, self.f__tree) are updated with the output_dir as the directory path.
+
         :param output_dir: Output directory to write the individual reference package files
-        :return:
+        :return: None
         """
         try:
             if not os.path.isdir(output_dir):
@@ -309,8 +311,37 @@ class ReferencePackage:
     #     tax_ids_handler.close()
     #     return tree_leaves
 
+    def create_itol_labels(self, output_dir) -> None:
+        """
+        Create the marker_labels.txt file for each marker gene that was used for classification
+
+        :param output_dir: Path to the directory for where these outputs should be written to
+        :return: None
+        """
+        itol_label_file = os.path.join(output_dir, self.prefix, self.prefix + "_labels.txt")
+
+        if os.path.exists(itol_label_file):
+            return
+
+        try:
+            label_f = open(itol_label_file, 'w')
+        except IOError:
+            raise IOError("Unable to open " + itol_label_file + " for writing! Exiting now.")
+
+        leaf_node_lineages = self.generate_tree_leaf_references_from_refpkg()
+        label_f.write("LABELS\nSEPARATOR COMMA\nDATA\n#NODE_ID,LABEL\n")
+        for leaf_node in leaf_node_lineages:  # type: TreeLeafReference
+            label_f.write(leaf_node.number + '_' + self.prefix + ',' + leaf_node.description + "\n")
+
+        label_f.close()
+
+        return
+
     def hmm_length(self):
         self.profile_length = get_hmm_length(self.f__profile)
+
+    def alignment_dims(self):
+        return multiple_alignment_dimensions(self.f__msa)
 
     def remove_taxon_from_lineage_ids(self, target_taxon) -> list:
         """
