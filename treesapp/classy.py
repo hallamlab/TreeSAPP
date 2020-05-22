@@ -269,7 +269,7 @@ class TreeSAPP:
     def __init__(self, cmd):
         # Static values
         self.command = cmd
-        self.refpkg_code_re = re.compile(r'[A-Z][0-9]{4,5}')
+        # self.refpkg_code_re = re.compile(r'[A-Z][0-9]{4,5}')
         self.treesapp_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + os.sep
         self.refpkg_dir = self.treesapp_dir + 'data' + os.sep
         self.tree_dir = self.treesapp_dir + 'data' + os.sep + "tree_data" + os.sep
@@ -748,7 +748,7 @@ class Purity(TreeSAPP):
 
     def summarize_groups_assigned(self, ortholog_map: dict, metadata=None):
         unique_orthologs = dict()
-        tree_leaves = self.ref_pkg.tax_ids_file_to_leaves()
+        tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
         for refpkg, info in self.assignments.items():
             for lineage in info:
                 for seq_name in info[lineage]:
@@ -799,7 +799,7 @@ class Purity(TreeSAPP):
     def assign_leaves_to_orthologs(self, p_queries: list, internal_node_map: dict) -> dict:
         ortholog_map = dict()
         leaf_map = dict()
-        tree_leaves = self.ref_pkg.tax_ids_file_to_leaves()
+        tree_leaves = self.ref_pkg.generate_tree_leaf_references_from_refpkg()
         for leaf in tree_leaves:
             leaf_map[leaf.number + "_" + self.ref_pkg.prefix] = leaf.description
         for p_query in p_queries:  # type: TreeProtein

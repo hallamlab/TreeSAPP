@@ -1097,8 +1097,7 @@ def purity(sys_args):
     logging.info("\n##\t\t\tBeginning purity analysis\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
-    refpkg_dict = file_parsers.gather_ref_packages(ts_purity.refpkg_dir)
-    check_purity_arguments(ts_purity, args, refpkg_dict)
+    check_purity_arguments(ts_purity, args)
     ts_purity.validate_continue(args)
 
     # Load FASTA data
@@ -1111,7 +1110,7 @@ def purity(sys_args):
     if ts_purity.stage_status("assign"):
         assign_args = ["-i", ts_purity.formatted_input, "-o", ts_purity.assign_dir,
                        "-m", ts_purity.molecule_type, "-n", str(args.num_threads),
-                       "-t", ts_purity.refpkg_build.denominator,
+                       "-t", ts_purity.ref_pkg.prefix,
                        "--overwrite", "--delete"]
         try:
             assign(assign_args)
@@ -1130,13 +1129,13 @@ def purity(sys_args):
                           "Please remove this directory and re-run.\n")
             sys.exit(5)
 
-        logging.info("\nSummarizing assignments for reference package " + ts_purity.refpkg_build.cog + "\n")
+        logging.info("\nSummarizing assignments for reference package " + ts_purity.ref_pkg.prefix + "\n")
         # If an information table was provided, map the metadata to classified markers
         if ts_purity.metadata_file:
             metadat_dict.update(ts_purity.load_metadata())
         # Identify the number of sequences that are descendents of each orthologous group
-        jplace_file = os.sep.join([ts_purity.assign_dir, "iTOL_output", ts_purity.refpkg_build.cog,
-                                   ts_purity.refpkg_build.cog + "_complete_profile.jplace"])
+        jplace_file = os.sep.join([ts_purity.assign_dir, "iTOL_output", ts_purity.ref_pkg.prefix,
+                                   ts_purity.ref_pkg.prefix + "_complete_profile.jplace"])
         jplace_data = jplace_parser(jplace_file)
         tree_placement_queries = demultiplex_pqueries(jplace_data)
         placement_tree = jplace_data.tree

@@ -422,13 +422,9 @@ def check_parser_arguments(args, sys_args):
     return
 
 
-def check_purity_arguments(purity_instance: Purity, args, refpkg_dict: dict):
-    try:
-        purity_instance.ref_pkg = refpkg_dict[args.refpkg]
-    except KeyError:
-        logging.error("Unable to find reference package for '{}' in {}.\n".format(args.refpkg, args.pkg_path))
-        sys.exit(3)
-    purity_instance.pkg_path = args.pkg_path
+def check_purity_arguments(purity_instance: Purity, args):
+    purity_instance.ref_pkg.f__json = args.pkg_path
+    purity_instance.ref_pkg.slurp()
 
     ##
     # Define locations of files TreeSAPP outputs
@@ -515,12 +511,6 @@ def check_classify_arguments(assigner: Assigner, args):
     
     if args.targets:
         assigner.target_refpkgs = args.targets.split(',')
-        for marker in assigner.target_refpkgs:
-            if not assigner.refpkg_code_re.match(marker):
-                logging.error("Incorrect format for target: " + str(marker) +
-                              "\nRefer to column 'Denominator' in " + assigner.treesapp_dir +
-                              "data/ref_build_parameters.tsv for identifiers that can be used.\n")
-                sys.exit(3)
     else:
         assigner.target_refpkgs = []
 
