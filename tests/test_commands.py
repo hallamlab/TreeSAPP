@@ -13,7 +13,7 @@ class TreesappTester(unittest.TestCase):
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
-                                "--trim_align", "--no_svm"]
+                                "--trim_align", "--no_svm", "--overwrite"]
         commands.assign(assign_commands_list)
         lines = file_parsers.read_marker_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(15, len(lines))
@@ -36,8 +36,10 @@ class TreesappTester(unittest.TestCase):
 
     def test_create(self):
         from commands import create
+        from refpkg import ReferencePackage
         from . import testing_utils as utils
         create_commands_list = ["--fastx_input", utils.get_test_data("create_test.faa"),
+                                "--accession2taxid", utils.get_test_data("create_test.accession2taxid"),
                                 "--refpkg_name", "Crt",
                                 "--identity", "0.95",
                                 "--bootstraps", str(0),
@@ -48,6 +50,11 @@ class TreesappTester(unittest.TestCase):
                                 "--num_proc", str(2),
                                 "--trim_align", "--cluster", "--fast", "--headless", "--overwrite"]
         create(create_commands_list)
+        test_refpkg = ReferencePackage()
+        test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.json"
+        test_refpkg.slurp()
+        test_refpkg.validate()
+        self.assertEqual(68, test_refpkg.num_seqs)
         return
 
     def test_evaluate(self):
@@ -89,8 +96,8 @@ class TreesappTester(unittest.TestCase):
         purity_command_list = ["--fastx_input", utils.get_treesapp_file("dev_utils/TIGRFAM_seed_named.faa"),
                                "--extra_info", utils.get_treesapp_file("dev_utils/TIGRFAM_info.tsv"),
                                "--output", "./TreeSAPP_purity",
-                               "--reference_marker", "McrA",
-                               "--pkg_path", os.path.join(utils.get_treesapp_path(), "treesapp", "data"),
+                               "--refpkg_path", os.path.join(utils.get_treesapp_path(),
+                                                             "treesapp", "data", "McrA_build.json"),
                                "--trim_align", "--molecule", "prot", "-n", str(2)]
         purity(purity_command_list)
         return
