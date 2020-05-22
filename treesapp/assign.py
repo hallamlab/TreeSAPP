@@ -1297,7 +1297,7 @@ def align_reads_to_nucs(bwa_exe: str, reference_fasta: str, aln_output_dir: str,
     return sam_file
 
 
-def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_build_dict: dict, final_output_dir: str):
+def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, refpkg_dict: dict, final_output_dir: str):
     """
     Recalculates the percentages for each marker gene final output based on the RPKM values
     The abundance_dict contains RPKM values of contigs whereas tree_saps may be fragments of contigs,
@@ -1305,7 +1305,7 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_buil
 
     :param tree_saps: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
     :param abundance_dict: A dictionary mapping predicted (not necessarily classified) seq_names to abundance values
-    :param marker_build_dict:
+    :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param final_output_dir:
     :return: None
     """
@@ -1339,41 +1339,40 @@ def summarize_placements_rpkm(tree_saps: dict, abundance_dict: dict, marker_buil
     orf_rpkms.clear()
 
     # Calculate the percentage contribution of each placed sequence
-    for denominator in tree_saps:
-        marker = marker_build_dict[denominator].cog
+    for refpkg_name in tree_saps:
         marker_rpkm_total = 0
-        marker_rpkm_map[marker] = dict()
-        for placed_sequence in tree_saps[denominator]:
+        marker_rpkm_map[refpkg_name] = dict()
+        for placed_sequence in tree_saps[refpkg_name]:
             if not placed_sequence.classified:
                 continue
             placement_rpkm_map[placed_sequence.inode] += float(placed_sequence.abundance)
             marker_rpkm_total += float(placed_sequence.abundance)
-            marker_rpkm_map[marker][placed_sequence.inode] = 0
-        for placement in marker_rpkm_map[marker]:
+            marker_rpkm_map[refpkg_name][placed_sequence.inode] = 0
+        for placement in marker_rpkm_map[refpkg_name]:
             try:
                 percentage = (placement_rpkm_map[placement]*100)/marker_rpkm_total
             except ZeroDivisionError:
                 percentage = 0
-            marker_rpkm_map[marker][placement] = percentage
+            marker_rpkm_map[refpkg_name][placement] = percentage
 
     # TODO: currently doesn't work as required files are missing. Fix or abandon?
-    for marker in marker_rpkm_map:
-        ref_marker = utilities.fish_refpkg_from_build_params(marker, marker_build_dict)
+    for refpkg_name in marker_rpkm_map:
+        ref_pkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
 
-        final_output_file = final_output_dir + str(ref_marker.denominator) + "_concatenated_RAxML_outputs.txt"
+        final_output_file = final_output_dir + str(ref_pkg.prefix) + "_concatenated_RAxML_outputs.txt"
         # Not all of the genes predicted will have made it to the RAxML stage
         if os.path.isfile(final_output_file):
-            shutil.move(final_output_file, final_output_dir + ref_marker.denominator + "_concatenated_counts.txt")
+            shutil.move(final_output_file, final_output_dir + ref_pkg.prefix + "_concatenated_counts.txt")
             try:
                 cat_output = open(final_output_file, 'w')
             except IOError:
                 raise IOError("Unable to open " + final_output_file + " for writing!")
 
-            description_text = '# ' + str(ref_marker.kind) + '\n\n'
+            description_text = '# ' + str(ref_pkg.kind) + '\n\n'
             cat_output.write(description_text)
 
-            for placement in sorted(marker_rpkm_map[marker].keys(), reverse=True):
-                relative_weight = marker_rpkm_map[marker][placement]
+            for placement in sorted(marker_rpkm_map[refpkg_name].keys(), reverse=True):
+                relative_weight = marker_rpkm_map[refpkg_name][placement]
                 if relative_weight > 0:
                     cat_output.write('Placement weight ')
                     cat_output.write('%.2f' % relative_weight + "%: ")
@@ -1769,7 +1768,7 @@ def produce_itol_inputs(tree_saps, refpkg_dict, itol_data, output_dir: str, tree
     There is a directory for each of the marker genes detected to allow the user to "drag-and-drop" all files easily
 
     :param tree_saps:
-    :param refpkg_dict:
+    :param refpkg_dict: A dictionary of ReferencePackage instances indexed by their prefix values
     :param itol_data:
     :param output_dir:
     :param treesapp_data_dir:

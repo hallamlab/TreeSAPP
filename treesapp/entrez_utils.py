@@ -364,12 +364,19 @@ def match_file_to_dict(file_handler, key_dict, sep="\t", join_by=0):
             yield line
 
 
-def map_accession2taxid(query_accession_list, accession2taxid_list):
+def map_accession2taxid(query_accessions: list, accession2taxid_list: str) -> dict:
+    """
+    Maps NCBI accessions to taxonomy IDs via NCBI .accession2taxid files
+
+    :param query_accessions: A list of EntrezRecord instances with accessions that need to be mapped to NCBI taxids
+    :param accession2taxid_list: A comma-separated list of files
+    :return: A dictionary mapping sequence accessions to EntrezRecord instances
+    """
     er_acc_dict = dict()
     unmapped_queries = list()
 
     # Create a dictionary for O(1) look-ups, load all the query accessions into unmapped queries
-    for e_record in query_accession_list:  # type: EntrezRecord
+    for e_record in query_accessions:  # type: EntrezRecord
         try:
             er_acc_dict[e_record.accession].append(e_record)
         except KeyError:
@@ -421,7 +428,7 @@ def map_accession2taxid(query_accession_list, accession2taxid_list):
         logging.debug("Time required to parse '" + accession2taxid + "': " + str(round(end - start, 1)) + "s.\n")
         # Report the number percentage of query accessions mapped
         logging.debug(
-            str(round(((init_qlen - final_qlen) * 100 / len(query_accession_list)), 2)) +
+            str(round(((init_qlen - final_qlen) * 100 / len(query_accessions)), 2)) +
             "% of query accessions mapped by " + accession2taxid + ".\n")
     logging.info("done.\n")
 

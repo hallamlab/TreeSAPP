@@ -339,6 +339,14 @@ class TreeSAPP:
         self.executables = self.find_executables(args)
         return
 
+    def validate_refpkg_dir(self, refpkg_dir: str):
+        if refpkg_dir:
+            if not os.path.isdir(refpkg_dir):
+                logging.error("Directory containing reference packages ({}) does not exist.\n".format(refpkg_dir))
+                sys.exit(5)
+            self.refpkg_dir = refpkg_dir
+        return
+
     def check_previous_output(self, overwrite=True) -> None:
         """
         Prompts the user to determine how to deal with a pre-existing output directory.
@@ -1281,7 +1289,7 @@ class Abundance(TreeSAPP):
         self.classifications = ""
         self.fq_suffix_re = re.compile(r"([._-])+[pe|fq|fastq|fwd|R1]+$")
 
-    def check_arguments(self):
+    def check_arguments(self, args):
         ##
         # Define locations of files TreeSAPP outputs
         ##
@@ -1295,16 +1303,17 @@ class Abundance(TreeSAPP):
 
         if not os.path.isdir(self.var_output_dir):
             os.makedirs(self.var_output_dir)
+        self.validate_refpkg_dir(args.refpkg_dir)
 
         return
 
-    def assignments_to_treesaps(self, classified_lines: list, marker_build_dict: dict) -> dict:
+    def assignments_to_treesaps(self, classified_lines: list, refpkg_dict: dict) -> dict:
         """
         Used for converting the TreeSAPP-assignment information of classified sequences (found in self.classifications)
         into ItolJplace instances such that these can be reproducibly modified and written again, if needed.
 
         :param classified_lines: A list of lists. Each sub-list represents a line from self.classifications
-        :param marker_build_dict: A dictionary of MarkerBuild instances indexed by their RefPkg codes
+        :param refpkg_dict: A dictionary of MarkerBuild instances indexed by their RefPkg codes
         :return: A dictionary of ItolJplace instances, indexed by their respective RefPkg codes (denominators)
         """
         pqueries = dict()
@@ -1317,11 +1326,11 @@ class Abundance(TreeSAPP):
                 logging.error("Bad line in classification table {}:\n".format(self.classifications) +
                               '\t'.join(fields) + "\n")
                 sys.exit(21)
-            refpkg = fish_refpkg_from_build_params(tree_sap.name, marker_build_dict).denominator
+            refpkg = refpkg_dict[tree_sap.name]  # type: ReferencePackage
             try:
-                pqueries[refpkg].append(tree_sap)
+                pqueries[refpkg.prefix].append(tree_sap)
             except KeyError:
-                pqueries[refpkg] = [tree_sap]
+                pqueries[refpkg.prefix] = [tree_sap]
         return pqueries
 
 

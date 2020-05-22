@@ -198,6 +198,9 @@ def add_abundance_arguments(parser: TreeSAPPArgumentParser):
     parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
+    parser.optopt.add_argument("--refpkg_dir", dest="refpkg_dir", default=None,
+                               help="Path to the directory containing reference package JSON files. "
+                                    "[ DEFAULT = treesapp/data/ ]")
     # TODO: Include an option to append new values to the classification table
     parser.optopt.add_argument("--report", choices=["update", "nothing"], required=False, default="update",
                                help="What should be done with the abundance values? The TreeSAPP classification table "
@@ -514,10 +517,7 @@ def check_classify_arguments(assigner: Assigner, args):
     else:
         assigner.target_refpkgs = []
 
-    if args.refpkg_dir:
-        if not os.path.isdir(args.refpkg_dir):
-            logging.error("Directory containing reference packages ({}) does not exist.\n".format(args.refpkg_dir))
-        assigner.refpkg_dir = args.refpkg_dir
+    assigner.validate_refpkg_dir(args.refpkg_dir)
 
     if args.molecule == "prot":
         assigner.change_stage_status("orf-call", False)

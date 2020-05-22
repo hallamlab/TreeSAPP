@@ -199,7 +199,7 @@ def regenerate_cluster_rep_swaps(args, cluster_dict, fasta_replace_dict):
 
 def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_registry: dict) -> None:
     """
-        Transfer information from the cluster data (representative sequence, identity and cluster taxonomic LCA) to the
+    Transfer information from the cluster data (representative sequence, identity and cluster taxonomic LCA) to the
     dictionary of ReferenceSequence objects. The sequences not representing a cluster will have their `cluster_rep`
     flags set to *False* so as to not be analyzed further.
 
@@ -211,17 +211,19 @@ def finalize_cluster_reps(cluster_dict: dict, refseq_objects: dict, header_regis
     """
     logging.debug("Finalizing representative sequence clusters... ")
 
-    cluster_reps = set()  # A set of unique sequence names (original headers) to rapidly query
+    cluster_reps = dict()  # A set of unique sequence names (original headers) to rapidly query
     for cluster_id in cluster_dict:
-        cluster_reps.add(cluster_dict[cluster_id].representative)
+        cluster_reps[cluster_dict[cluster_id].representative] = cluster_dict[cluster_id]
     for treesapp_id in header_registry:
         header = header_registry[treesapp_id]  # type: fasta.Header
         try:
-            ref_seq = refseq_objects[treesapp_id]  # type: entrez_utils.ReferenceSequence
+            ref_seq = refseq_objects[treesapp_id]  # type: entrez_utils.EntrezRecord
         except KeyError:
             continue
         if header.original not in cluster_reps:
             ref_seq.cluster_rep = False
+        else:
+            ref_seq.cluster_lca = cluster_reps[header.original].lca
 
     logging.debug("done.\n")
     return
@@ -381,20 +383,20 @@ def remove_by_truncated_lineages(fasta_records, min_taxonomic_rank, guarantees=N
     return fasta_replace_dict
 
 
-def order_dict_by_lineage(fasta_object_dict):
+def order_dict_by_lineage(ref_seq_dict):
     """
     Re-order the fasta_record_objects by their lineages (not phylogenetic, just alphabetical sort)
     Remove the cluster members since they will no longer be used
 
-    :param fasta_object_dict: A dictionary mapping `treesapp_id`s (integers) to ReferenceSequence objects
+    :param ref_seq_dict: A dictionary mapping `treesapp_id`s (integers) to ReferenceSequence objects
     :return: An ordered, filtered version of the input dictionary
     """
     # Create a new dictionary with lineages as keys
     logging.debug("Re-enumerating the reference sequences in taxonomic order... ")
     lineage_dict = dict()
     sorted_lineage_dict = dict()
-    for treesapp_id in fasta_object_dict:
-        ref_seq = fasta_object_dict[treesapp_id]
+    for treesapp_id in ref_seq_dict:
+        ref_seq = ref_seq_dict[treesapp_id]
         # Skip the redundant sequences that are not cluster representatives
         if not ref_seq.cluster_rep:
             continue
@@ -403,7 +405,7 @@ def order_dict_by_lineage(fasta_object_dict):
         except KeyError:
             lineage_dict[ref_seq.lineage] = [ref_seq]
 
-    # Now re-write the fasta_object_dict, but the numeric keys are now sorted by lineage
+    # Now re-write the ref_seq_dict, but the numeric keys are now sorted by lineage
     #  AND it doesn't contain redundant fasta objects
     num_key = 1
     for lineage in sorted(lineage_dict.keys(), key=str):
@@ -468,17 +470,16 @@ def summarize_reference_taxa(reference_dict: dict, t_hierarchy: TaxonomicHierarc
     return taxonomic_summary_string
 
 
-def lineages_to_dict(fasta_replace_dict: dict, lineage_dict: dict, taxa_lca=False) -> None:
+def lineages_to_dict(fasta_replace_dict: dict, taxa_lca=False) -> dict:
     """
-    Populates the organism and accession ID, if possible
+    Populates the organism, accession ID and lineage information contained in ReferencePackage.lineage_ids
 
     :param fasta_replace_dict: Dictionary mapping numbers (internal treesapp identifiers) to ReferenceSequence objects
-    :param lineage_dict: The name of the output file
     :param taxa_lca: Flag indicating whether a cluster's lineage is just the representatives or the LCA of all members
-    :return: Nothing
+    :return: A dictionary mapping TreeSAPP reference node IDs to a string with their organism, accession and lineage
     """
     no_lineage = list()
-
+    ref_lineage_map = {}
     for treesapp_id in sorted(fasta_replace_dict.keys(), key=int):
         # Definitely will not uphold phylogenetic relationships but at least sequences
         # will be in the right neighbourhood rather than ordered by their position in the FASTA file
@@ -491,14 +492,15 @@ def lineages_to_dict(fasta_replace_dict: dict, lineage_dict: dict, taxa_lca=Fals
             no_lineage.append(reference_sequence.accession)
             lineage = ''
 
-        lineage_dict[treesapp_id] = "{0} | {1}\t{2}".format(reference_sequence.organism, reference_sequence.accession,
-                                                            lineage)
+        ref_lineage_map[treesapp_id] = "{0} | {1}\t{2}".format(reference_sequence.organism,
+                                                               reference_sequence.accession,
+                                                               lineage)
 
     if len(no_lineage) > 0:
         logging.warning("{0} reference sequences did not have a lineage:\n\t{1}\n".format(len(no_lineage),
                                                                                           "\n\t".join(no_lineage)))
 
-    return
+    return ref_lineage_map
 
 
 def parse_model_parameters(placement_trainer_file):
@@ -613,7 +615,7 @@ def guarantee_ref_seqs(cluster_dict: dict, important_seqs: set) -> dict:
     return nonredundant_guarantee_cluster_dict
 
 
-def cluster_lca(cluster_dict: dict, fasta_record_objects, header_registry: dict):
+def cluster_lca(cluster_dict: dict, fasta_record_objects: dict, header_registry: dict):
     # Create a temporary dictionary for faster mapping
     formatted_to_num_map = dict()
     for num_id in fasta_record_objects:
@@ -634,15 +636,7 @@ def cluster_lca(cluster_dict: dict, fasta_record_objects, header_registry: dict)
                 logging.warning("Unable to map '" + str(member) + "' to a TreeSAPP numeric ID.\n")
         cleaned_lineages = clean_lineage_list(lineages)
         cluster_inst.lca = megan_lca(cleaned_lineages)
-        # For debugging
-        # if len(lineages) != len(cleaned_lineages) and len(lineages) > 1:
-        #     print("Before:")
-        #     for l in lineages:
-        #         print(l)
-        #     print("After:")
-        #     for l in cleaned_lineages:
-        #         print(l)
-        #     print("LCA:", cluster_inst.lca)
+
         lineages.clear()
     formatted_to_num_map.clear()
     return

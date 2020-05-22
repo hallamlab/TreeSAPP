@@ -356,7 +356,7 @@ def create(sys_args):
         ##
         fasta_replace_dict = create_refpkg.order_dict_by_lineage(fasta_records)
 
-        create_refpkg.lineages_to_dict(fasta_replace_dict, ts_create.ref_pkg.lineage_ids, args.taxa_lca)
+        ts_create.ref_pkg.lineage_ids = create_refpkg.lineages_to_dict(fasta_replace_dict, args.taxa_lca)
 
         postfilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
         filtered_ref_seqs = utilities.dict_diff(prefilter_ref_seqs, postfilter_ref_seqs)
@@ -1046,8 +1046,8 @@ def abundance(sys_args):
     logging.info("\n##\t\t\tCalculating abundance of classified sequences\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_abund.treesapp_dir)
-    ts_abund.check_arguments()
+    ts_abund.check_arguments(args)
+    refpkg_dict = file_parsers.gather_ref_packages(ts_abund.refpkg_dir)
     # TODO: Implement check-pointing for abundance
     # ts_abund.validate_continue(args)
 
@@ -1071,8 +1071,8 @@ def abundance(sys_args):
     if args.report != "nothing" and os.path.isfile(ts_abund.classifications):
         assignments = file_parsers.read_marker_classification_table(ts_abund.classifications)
         # Convert assignments to TreeProtein instances
-        tree_saps = ts_abund.assignments_to_treesaps(assignments, marker_build_dict)
-        summarize_placements_rpkm(tree_saps, abundance_dict, marker_build_dict, ts_abund.final_output_dir)
+        tree_saps = ts_abund.assignments_to_treesaps(assignments, refpkg_dict)
+        summarize_placements_rpkm(tree_saps, abundance_dict, refpkg_dict, ts_abund.final_output_dir)
         write_classification_table(tree_saps, ts_abund.sample_prefix, ts_abund.classifications)
 
     return abundance_dict

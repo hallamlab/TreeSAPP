@@ -26,6 +26,9 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     refpkg_dict = dict()
     logging.debug("Gathering reference package files... ")
 
+    if targets is None:
+        targets = []
+
     json_files = glob(refpkg_data_dir + os.sep + "*json")
     if len(json_files) == 0:
         logging.error("No JSON files were found in {}".format(refpkg_data_dir))
