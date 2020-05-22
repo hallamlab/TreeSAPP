@@ -4,8 +4,6 @@ __author__ = "Connor Morgan-Lang"
 __maintainer__ = "Connor Morgan-Lang"
 __license__ = "GPL-3.0"
 
-import fasta
-
 try:
     import profile
     import argparse
@@ -30,17 +28,18 @@ try:
     from treesapp.classy import CommandLineFarmer, NodeRetrieverWorker
     from treesapp.phylo_seq import ItolJplace, TreeProtein, TreeLeafReference
     from treesapp.refpkg import ReferencePackage
-    from .treesapp_args import TreeSAPPArgumentParser
-    from .fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA
-    from .entish import deconvolute_assignments, read_and_understand_the_reference_tree,\
+    from treesapp.treesapp_args import TreeSAPPArgumentParser
+    from treesapp.fasta import format_read_fasta, get_headers, write_new_fasta, read_fasta_to_dict, FASTA,\
+        multiple_alignment_dimensions
+    from treesapp.entish import deconvolute_assignments, read_and_understand_the_reference_tree,\
         get_node, index_tree_edges, map_internal_nodes_leaves
-    from .external_command_interface import launch_write_command
-    from .lca_calculations import lowest_common_taxonomy, weighted_taxonomic_distance
-    from . import jplace_utils
-    from . import file_parsers
-    from . import phylo_dist
-    from . import utilities
-    from . import wrapper
+    from treesapp.external_command_interface import launch_write_command
+    from treesapp.lca_calculations import lowest_common_taxonomy, weighted_taxonomic_distance
+    from treesapp import jplace_utils
+    from treesapp import file_parsers
+    from treesapp import phylo_dist
+    from treesapp import utilities
+    from treesapp import wrapper
 
     import _tree_parser
     import _fasta_reader
@@ -344,7 +343,7 @@ def get_sequence_counts(concatenated_mfa_files: dict, ref_alignment_dimensions: 
             else:
                 logging.error("File type '" + file_type + "' is not recognized.")
                 sys.exit(3)
-            num_seqs, sequence_length = fasta.multiple_alignment_dimensions(msa_file, seq_dict)
+            num_seqs, sequence_length = multiple_alignment_dimensions(msa_file, seq_dict)
             alignment_length_dict[msa_file] = sequence_length
 
             # Warn user if the multiple sequence alignment has grown significantly
@@ -662,7 +661,7 @@ def evaluate_trimming_performance(qc_ma_dict, alignment_length_dict, concatenate
         for multi_align_file in qc_ma_dict[denominator]:
             file_type = multi_align_file.split('.')[-1]
             multi_align = qc_ma_dict[denominator][multi_align_file]
-            num_seqs, trimmed_seq_length = fasta.multiple_alignment_dimensions(multi_align_file, multi_align)
+            num_seqs, trimmed_seq_length = multiple_alignment_dimensions(multi_align_file, multi_align)
 
             original_multi_align = re.sub('-' + tool + '.' + file_type, '.' + of_ext, multi_align_file)
             raw_align_len = alignment_length_dict[original_multi_align]
@@ -1715,8 +1714,8 @@ def determine_confident_lineage(tree_saps, tree_numbers_translation, refpkg_dict
 
             # Based on the calculated distance from the leaves, what rank is most appropriate?
             recommended_rank = phylo_dist.rank_recommender(tree_sap.avg_evo_dist, refpkg_dict[refpkg_name].pfit)
-            if tree_sap.lct.split("; ")[0] != "Root":
-                tree_sap.lct = "Root; " + tree_sap.lct
+            if tree_sap.lct.split("; ")[0] != "r__Root":
+                tree_sap.lct = "r__Root; " + tree_sap.lct
                 recommended_rank += 1
             tree_sap.recommended_lineage = tree_sap.lowest_confident_taxonomy(recommended_rank)
         leaf_taxa_map.clear()

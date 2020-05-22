@@ -34,10 +34,15 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
     for json_file in json_files:
         refpkg = ReferencePackage()
         refpkg.f__json = json_file
-        if targets:
+        refpkg.slurp()
+        if targets:  # type: list
             if refpkg.prefix not in targets and refpkg.refpkg_code not in targets:
                 continue
-        refpkg.slurp()
+            else:
+                try:
+                    targets.remove(refpkg.prefix)
+                except ValueError:
+                    targets.remove(refpkg.refpkg_code)
         refpkg.validate()
         refpkg_dict[refpkg.prefix] = refpkg
     logging.debug("done.\n")
@@ -46,6 +51,10 @@ def gather_ref_packages(refpkg_data_dir: str, targets=None) -> dict:
         logging.error("No reference package data was found.\n" +
                       "Are there reference packages in '{}'?\n".format(refpkg_data_dir))
         sys.exit(3)
+
+    if len(targets) > 0:
+        logging.warning("Reference packages for targets {} could not be found.\n".format(", ".join(targets)))
+
     return refpkg_dict
 
 

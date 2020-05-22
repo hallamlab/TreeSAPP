@@ -5,6 +5,7 @@ import re
 import logging
 from glob import glob
 from datetime import datetime as dt
+
 from treesapp.classy import Assigner, Evaluator, Creator, PhyTrainer, Updater, Purity
 from treesapp.utilities import available_cpu_count
 
@@ -421,13 +422,13 @@ def check_parser_arguments(args, sys_args):
     return
 
 
-def check_purity_arguments(purity_instance: Purity, args, marker_build_dict: dict):
-    purity_instance.ref_pkg.prefix = args.refpkg
-    purity_instance.refpkg_build = get_refpkg_build(purity_instance.ref_pkg.prefix,
-                                                    marker_build_dict,
-                                                    purity_instance.refpkg_code_re)
+def check_purity_arguments(purity_instance: Purity, args, refpkg_dict: dict):
+    try:
+        purity_instance.ref_pkg = refpkg_dict[args.refpkg]
+    except KeyError:
+        logging.error("Unable to find reference package for '{}' in {}.\n".format(args.refpkg, args.pkg_path))
+        sys.exit(3)
     purity_instance.pkg_path = args.pkg_path
-    purity_instance.ref_pkg.gather_package_files(purity_instance.pkg_path, purity_instance.molecule_type)
 
     ##
     # Define locations of files TreeSAPP outputs

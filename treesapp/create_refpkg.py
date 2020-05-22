@@ -16,16 +16,16 @@ try:
 
     from time import gmtime, strftime, sleep
 
-    from .utilities import swap_tree_names, reformat_string
-    from .wrapper import run_odseq, run_mafft
-    from .external_command_interface import launch_write_command
-    from .entish import annotate_partition_tree
-    from .lca_calculations import megan_lca, clean_lineage_list
-    from .taxonomic_hierarchy import TaxonomicHierarchy
-    from . import entrez_utils
-    from . import fasta
-    from . import classy
-    from . import file_parsers
+    from treesapp.utilities import swap_tree_names, reformat_string
+    from treesapp.wrapper import run_odseq, run_mafft
+    from treesapp.external_command_interface import launch_write_command
+    from treesapp.entish import annotate_partition_tree
+    from treesapp.lca_calculations import megan_lca, clean_lineage_list
+    from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
+    from treesapp import entrez_utils
+    from treesapp import fasta
+    from treesapp import classy
+    from treesapp import file_parsers
     from treesapp import refpkg
 
 except ImportError:

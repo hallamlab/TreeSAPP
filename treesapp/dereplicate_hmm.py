@@ -7,7 +7,6 @@ import argparse
 from treesapp import fasta
 from treesapp.refpkg import ReferencePackage
 from treesapp.wrapper import build_hmm_profile, run_mafft
-from treesapp.phylo_dist import trim_lineages_to_rank
 from treesapp.utilities import base_file_prefix, which
 
 

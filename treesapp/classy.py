@@ -885,7 +885,6 @@ class TaxonTest:
 class Evaluator(TreeSAPP):
     def __init__(self):
         super(Evaluator, self).__init__("evaluate")
-        self.targets = []  # Left empty to appease parse_ref_build_parameters()
         self.rank_depth_map = None
         self.ranks = list()
         self.markers = set()

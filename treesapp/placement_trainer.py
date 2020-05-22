@@ -9,11 +9,10 @@ from ete3 import Tree
 import numpy as np
 from glob import glob
 
-import fasta
 from treesapp import file_parsers
 from treesapp import utilities
 from treesapp import wrapper
-from treesapp.fasta import read_fasta_to_dict, write_new_fasta, FASTA, split_combined_ref_query_fasta
+from treesapp import fasta
 from treesapp.phylo_dist import cull_outliers, parent_to_tip_distances, regress_ranks
 from treesapp.external_command_interface import setup_progress_bar, launch_write_command
 from treesapp.jplace_utils import jplace_parser
@@ -200,7 +199,7 @@ def complete_regression(taxonomic_placement_distances, taxonomic_ranks=None) -> 
     return regress_ranks(rarefied_pds, taxonomic_ranks)
 
 
-def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, leaf_taxa_map: dict,
+def prepare_training_data(test_seqs: fasta.FASTA, output_dir: str, executables: dict, leaf_taxa_map: dict,
                           t_hierarchy: TaxonomicHierarchy, accession_lineage_map: dict, taxonomic_ranks: set) -> dict:
     """
     Function for creating a non-redundant inventory of sequences to be used for training the rank-placement distance
@@ -302,7 +301,7 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
     logging.debug("\n".join(test_taxa_summary) + "\n")
 
     test_seqs.change_dict_keys("num")
-    write_new_fasta(test_seqs.fasta_dict, uclust_input)
+    fasta.write_new_fasta(test_seqs.fasta_dict, uclust_input)
     wrapper.cluster_sequences(executables["usearch"], uclust_input, uclust_prefix, similarity)
     cluster_dict = file_parsers.read_uc(uclust_prefix + ".uc")
     test_seqs.keep_only([cluster_dict[clust_id].representative for clust_id in cluster_dict.keys()])
@@ -335,7 +334,7 @@ def prepare_training_data(test_seqs: FASTA, output_dir: str, executables: dict, 
 
 
 def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
-                              test_fasta: FASTA, ref_pkg: ReferencePackage,
+                              test_fasta: fasta.FASTA, ref_pkg: ReferencePackage,
                               leaf_taxa_map: dict, executables: dict,
                               output_dir="./", raxml_threads=4) -> (dict, list):
     """
@@ -374,7 +373,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
     # Read the tree as ete3 Tree instance
     ref_tree = Tree(ref_pkg.f__tree)
-    ref_fasta = FASTA(ref_pkg.f__msa)
+    ref_fasta = fasta.FASTA(ref_pkg.f__msa)
     ref_fasta.load_fasta()
 
     num_training_queries = 0
@@ -424,7 +423,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 query_seq_decrementor -= 1
             logging.debug("\t" + str(len(taxonomy_filtered_query_seqs.keys())) + " query sequences.\n")
             acc += len(taxonomy_filtered_query_seqs.keys())
-            write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
+            fasta.write_new_fasta(taxonomy_filtered_query_seqs, fasta_name=temp_query_fasta_file)
             intermediate_files.append(temp_query_fasta_file)
 
             for node in ref_fasta.fasta_dict.keys():
@@ -466,7 +465,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                 temp_ref_profile = temp_ref_aln_prefix + ".hmm"
                 sto_file = re.sub(r"\.phy$", ".sto", query_multiple_alignment)
                 # Write the pruned reference FASTA file
-                write_new_fasta(pruned_ref_fasta_dict, temp_ref_fasta_file)
+                fasta.write_new_fasta(pruned_ref_fasta_dict, temp_ref_fasta_file)
                 # Build the HMM profile that doesn't include pruned reference sequences
                 wrapper.build_hmm_profile(executables["hmmbuild"], temp_ref_fasta_file, temp_ref_profile)
                 # Currently not supporting rRNA references (phylogenetic_rRNA)
@@ -474,7 +473,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                                                      temp_query_fasta_file, sto_file)
                 # Reformat the Stockholm format created by cmalign or hmmalign to Phylip
                 sto_dict = file_parsers.read_stockholm_to_dict(sto_file)
-                write_new_fasta(sto_dict, query_multiple_alignment)
+                fasta.write_new_fasta(sto_dict, query_multiple_alignment)
                 intermediate_files += [temp_ref_fasta_file, temp_ref_profile, sto_file, query_multiple_alignment]
             else:
                 logging.error("Unrecognised alignment tool '" + aligner + "'. Exiting now.\n")
@@ -490,7 +489,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
                                                                                                set(pruned_ref_fasta_dict.keys()),
                                                                                                True)
             nrow, ncolumn = fasta.multiple_alignment_dimensions(mfa_file=combined_msa,
-                                                                seq_dict=read_fasta_to_dict(combined_msa))
+                                                                seq_dict=fasta.read_fasta_to_dict(combined_msa))
             logging.debug("Columns = " + str(ncolumn) + "\n")
             if combined_msa not in msa_dict.keys():
                 logging.debug("Placements for '" + taxonomy + "' are being skipped after failing MSA validation.\n")
@@ -503,7 +502,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
             # Create the query-only FASTA file required by EPA-ng
             query_msa_file = output_dir + os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_queries.mfa"
             ref_msa_file = output_dir + os.path.basename('.'.join(combined_msa.split('.')[:-1])) + "_references.mfa"
-            split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file)
+            fasta.split_combined_ref_query_fasta(combined_msa, query_msa_file, ref_msa_file)
 
             raxml_files = wrapper.raxml_evolutionary_placement(epa_exe=executables["epa-ng"],
                                                                refpkg_tree=temp_tree_file,
@@ -578,7 +577,7 @@ def train_placement_distances(rank_training_seqs: dict, taxonomic_ranks: dict,
 
 
 def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: ReferencePackage,
-                          accession_lineage_map: dict, output_dir: str, molecule: str,
+                          accession_lineage_map: dict, output_dir: str,
                           training_ranks=None, num_threads=2) -> (tuple, dict, list):
     """
 
@@ -587,7 +586,6 @@ def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: Referenc
     :param ref_pkg: A ReferencePackage instance
     :param accession_lineage_map:
     :param output_dir:
-    :param molecule:
     :param num_threads:
     :param training_ranks:
     :return:
@@ -600,7 +598,7 @@ def regress_rank_distance(fasta_input: str, executables: dict, ref_pkg: Referenc
     for ref_seq in ref_pkg.generate_tree_leaf_references_from_refpkg():
         leaf_taxa_map[ref_seq.number] = ref_seq.lineage
     # Find non-redundant set of diverse sequences to train
-    test_seqs = FASTA(fasta_input)
+    test_seqs = fasta.FASTA(fasta_input)
     test_seqs.load_fasta()
     test_seqs.add_accession_to_headers(ref_pkg.prefix)
     rank_training_seqs = prepare_training_data(test_seqs, output_dir, executables, leaf_taxa_map,

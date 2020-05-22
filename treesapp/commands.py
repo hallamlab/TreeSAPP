@@ -9,7 +9,6 @@ from random import randint
 from collections import namedtuple
 from samsum.commands import ref_sequence_abundances
 
-import fasta
 from treesapp import entrez_utils
 from treesapp import file_parsers
 from treesapp import fasta
@@ -168,7 +167,6 @@ def train(sys_args):
                                                                                        ts_trainer.ref_pkg,
                                                                                        ts_trainer.seq_lineage_map,
                                                                                        ts_trainer.var_output_dir,
-                                                                                       ts_trainer.molecule_type,
                                                                                        ts_trainer.training_ranks,
                                                                                        args.num_threads)
         # Write the tab-delimited file with metadata included for each placement
@@ -879,7 +877,7 @@ def assign(sys_args):
     check_classify_arguments(ts_assign, args)
     ts_assign.validate_continue(args)
 
-    refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir)
+    refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
     prep_reference_packages_for_assign(refpkg_dict, ts_assign.var_output_dir)
     ref_alignment_dimensions = get_alignment_dims(refpkg_dict)
     tree_numbers_translation = read_refpkg_tax_ids(refpkg_dict)
@@ -1099,8 +1097,8 @@ def purity(sys_args):
     logging.info("\n##\t\t\tBeginning purity analysis\t\t\t##\n")
 
     check_parser_arguments(args, sys_args)
-    marker_build_dict = file_parsers.parse_ref_build_params(ts_purity.treesapp_dir)
-    check_purity_arguments(ts_purity, args, marker_build_dict)
+    refpkg_dict = file_parsers.gather_ref_packages(ts_purity.refpkg_dir)
+    check_purity_arguments(ts_purity, args, refpkg_dict)
     ts_purity.validate_continue(args)
 
     # Load FASTA data
