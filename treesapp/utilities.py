@@ -15,7 +15,7 @@ from pygtrie import StringTrie
 
 
 def base_file_prefix(file_path: str) -> str:
-    return '.'.join(os.path.basename(file_path).split('.')[:-1])
+    return os.path.splitext(os.path.basename(file_path))[0]
 
 
 def load_pickle(filename: str):

@@ -305,9 +305,8 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_seq_params()
     parser.add_accession_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-r", "--reference_marker",
-                             help="Short-form name of the marker gene to be tested (e.g. mcrA, pmoA, nosZ)",
-                             required=True)
+    parser.reqs.add_argument("-p", "--refpkg_path", dest="pkg_path", required=True,
+                             help="Path to the reference package.\n")
 
     parser.optopt.add_argument("--fresh", default=False, required=False, action="store_true",
                                help="Recalculate a fresh phylogenetic tree with the target clades removed instead of"
@@ -443,7 +442,7 @@ def check_purity_arguments(purity_instance: Purity, args):
     return
 
 
-def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_dict):
+def check_evaluate_arguments(evaluator_instance: Evaluator, args):
     taxa_choices = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
     args.taxon_rank = args.taxon_rank.split(',')
     for rank in args.taxon_rank:
@@ -452,10 +451,9 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args, marker_build_d
             sys.exit(21)
         else:
             evaluator_instance.ranks.append(rank)
-    evaluator_instance.target_marker = get_refpkg_build(args.reference_marker,
-                                                        marker_build_dict,
-                                                        evaluator_instance.refpkg_code_re)
-    evaluator_instance.targets.append(evaluator_instance.target_marker.denominator)
+
+    evaluator_instance.ref_pkg.f__json = args.pkg_path
+    evaluator_instance.ref_pkg.slurp()
 
     if args.acc_to_lin:
         evaluator_instance.acc_to_lin = args.acc_to_lin

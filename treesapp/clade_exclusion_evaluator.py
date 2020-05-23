@@ -566,7 +566,7 @@ def prep_graftm_ref_files(intermediate_dir: str, target_taxon: str, refpkg: Refe
     # Move the original FASTA, tree and tax_ids files to a temporary location
     off_target_ref_leaves = dict()
     # tax_ids file
-    ref_tree_leaves = refpkg.tax_ids_file_to_leaves()
+    ref_tree_leaves = refpkg.generate_tree_leaf_references_from_refpkg()
     with open(intermediate_dir + "tax_ids_" + refpkg.prefix + ".txt", 'w') as tax_ids_handle:
         tax_ids_strings = list()
         for ref_leaf in ref_tree_leaves:
