@@ -15,10 +15,11 @@ from treesapp.external_command_interface import launch_write_command
 from treesapp.classy import get_header_format, Evaluator
 from treesapp.refpkg import ReferencePackage
 from treesapp.phylo_dist import trim_lineages_to_rank
+from treesapp.entrez_utils import EntrezRecord
 
-_RANK_DEPTH_MAP = {0: "Cellular organisms", 1: "Kingdom",
-                   2: "Phylum", 3: "Class", 4: "Order",
-                   5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+_RANK_DEPTH_MAP = {0: "cellular organisms", 1: "domain",
+                   2: "phylum", 3: "class", 4: "order",
+                   5: "family", 6: "genus", 7: "species", 8: "strain"}
 
 
 def load_rank_depth_map(evaluator: Evaluator):
@@ -107,10 +108,10 @@ def determine_containment(marker_eval_inst: Evaluator):
     rank_assigned_dict = marker_eval_inst.classifications
     # Set up collection for this analysis
     lowest_rank = ""
-    for depth in sorted(_RANK_DEPTH_MAP):
-        if _RANK_DEPTH_MAP[depth] in marker_eval_inst.ranks:
-            if marker_eval_inst.get_sensitivity(_RANK_DEPTH_MAP[depth])[1] > 0:
-                lowest_rank = _RANK_DEPTH_MAP[depth]
+    for depth in sorted(marker_eval_inst.rank_depth_map):
+        if marker_eval_inst.rank_depth_map[depth] in marker_eval_inst.ranks:
+            if marker_eval_inst.get_sensitivity(marker_eval_inst.rank_depth_map[depth])[1] > 0:
+                lowest_rank = marker_eval_inst.rank_depth_map[depth]
     containment_strings = list()
     n_queries, n_classified, _ = marker_eval_inst.get_sensitivity(lowest_rank)
 
@@ -119,12 +120,12 @@ def determine_containment(marker_eval_inst: Evaluator):
                      "\tRank\tCorrect\tToo Shallow (%)\n")
 
     # Begin parsing through the depths
-    if lowest_rank == "Cellular organisms":
+    if lowest_rank == "root":
         return
-    for depth in sorted(_RANK_DEPTH_MAP):
+    for depth in sorted(marker_eval_inst.rank_depth_map):
         incorrect_assignments = dict()
-        rank = _RANK_DEPTH_MAP[depth]
-        if rank in ["Cellular organisms", "Species", "Strain"]:
+        rank = marker_eval_inst.rank_depth_map[depth]
+        if rank in ["root", "species", "strain"]:
             continue
         elif rank == lowest_rank:
             break
@@ -280,37 +281,39 @@ def assign_lineages(complete_ref_seqs, assignments):
     return assignments
 
 
-def map_headers_to_lineage(assignments, ref_sequences):
+def map_headers_to_lineage(assignments: dict, ref_sequences: dict) -> dict:
     """
     The alternative function to map_full_headers. Using ReferenceSequence objects,
 
-    :param assignments:
+    :param assignments: A dictionary of ReferencePackage.prefix keys mapped to a dictionary of assigned lineage keys
+    mapped to the headers of sequences assigned as their respective lineages.
     :param ref_sequences:
-    :return:
+    :return:  A dictionary mapping ReferencePackage.prefix's to a dictionary of assigned lineage keys to a list of
+    reference sequences (values). An example is
     """
     lineage_assignments = dict()
-    for marker in assignments:
-        lineage_assignments[marker] = dict()
-        for assigned_lineage in assignments[marker].keys():
-            classified_headers = assignments[marker][assigned_lineage]
-            lineage_assignments[marker][assigned_lineage] = list()
+    for refpkg_name in assignments:
+        lineage_assignments[refpkg_name] = dict()
+        for assigned_lineage in assignments[refpkg_name].keys():
+            classified_headers = assignments[refpkg_name][assigned_lineage]
+            lineage_assignments[refpkg_name][assigned_lineage] = list()
             for query in classified_headers:
                 mapped = False
-                for treesapp_id, ref_seq in ref_sequences.items():
+                for treesapp_id, ref_seq in ref_sequences.items():  # type: (int, EntrezRecord)
                     if ref_seq.accession == query:
-                        lineage_assignments[marker][assigned_lineage].append(ref_seq.lineage)
+                        lineage_assignments[refpkg_name][assigned_lineage].append(ref_seq.lineage)
                         mapped = True
                         break
                 if not mapped:
                     logging.error("Unable to map classified sequence '" + query + "' to a lineage.\n")
                     sys.exit(3)
-            if len(lineage_assignments[marker][assigned_lineage]) > len(classified_headers):
+            if len(lineage_assignments[refpkg_name][assigned_lineage]) > len(classified_headers):
                 logging.error(str(len(classified_headers)) + " accessions mapped to " +
-                              str(len(lineage_assignments[marker][assigned_lineage])) + " lineages.\n")
+                              str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
                 sys.exit(21)
-            elif len(lineage_assignments[marker][assigned_lineage]) < len(classified_headers):
+            elif len(lineage_assignments[refpkg_name][assigned_lineage]) < len(classified_headers):
                 logging.debug(str(len(classified_headers)) + " accessions mapped to " +
-                              str(len(lineage_assignments[marker][assigned_lineage])) + " lineages.\n")
+                              str(len(lineage_assignments[refpkg_name][assigned_lineage])) + " lineages.\n")
     return lineage_assignments
 
 

@@ -1192,7 +1192,7 @@ def evaluate(sys_args):
 
         # validate_ref_package_files(refpkg, ts_evaluate.output_dir)
 
-        ranks = {"Kingdom": 0, "Phylum": 1, "Class": 2, "Order": 3, "Family": 4, "Genus": 5, "Species": 6}
+        ranks = {"domain": 0, "phylum": 1, "class": 2, "order": 3, "family": 4, "genus": 5, "species": 6}
         for rank in args.taxon_rank:
             depth = ranks[rank]
             for lineage in get_testable_lineages_for_rank(ref_lineages, rep_accession_lineage_map, rank):
@@ -1200,7 +1200,7 @@ def evaluate(sys_args):
                 taxon_rep_seqs = select_rep_seqs(representative_seqs, fasta_records, lineage)
                 # Decide whether to continue analyzing taxon based on number of query sequences
                 if len(taxon_rep_seqs.keys()) == 0:
-                    logging.debug("No query sequences for " + lineage + ".\n")
+                    logging.debug("No query sequences for {}.\n".format(lineage))
                     continue
 
                 # Continuing with classification
@@ -1211,8 +1211,8 @@ def evaluate(sys_args):
                 if not os.path.isdir(intermediates_path):
                     os.makedirs(intermediates_path)
 
-                logging.info("Classifications for the " + rank + " '" + taxon + "' put " + intermediates_path + "\n")
-                test_obj = ts_evaluate.new_taxa_test(rank, lineage)
+                logging.info("Classifications for the {} '{}' put {}\n".format(rank, taxon, intermediates_path))
+                test_obj = ts_evaluate.new_taxa_test(lineage)
                 test_obj.queries = taxon_rep_seqs.keys()
                 test_rep_taxa_fasta = intermediates_path + taxon + ".fa"
                 classifier_output = intermediates_path + args.tool + "_output" + os.sep
@@ -1318,7 +1318,7 @@ def evaluate(sys_args):
                     # Return the number of correct, classified, and total sequences of that taxon at the current rank
                     # Identify the excluded rank for each query sequence
                     if len(marker_assignments) == 0:
-                        logging.debug("No sequences were classified for " + test_obj.taxon + "\n")
+                        logging.debug("No '{}' sequences were classified.\n".format(test_obj.taxon))
                         continue
 
                     for marker in marker_assignments:
@@ -1328,9 +1328,8 @@ def evaluate(sys_args):
                                                                                 ts_evaluate.ref_pkg.prefix)
                     for a_rank in rank_assignments:
                         if a_rank != rank and len(rank_assignments[a_rank]) > 0:
-                            logging.warning(
-                                rank + "-level clade excluded but optimal classification was found to be " + a_rank +
-                                "-level.\nAssignments were: " + str(rank_assignments[a_rank]) + "\n")
+                            logging.warning("{}-level clade excluded but optimal classification found to be {}-level.\n"
+                                            "Assignments were: {}\n".format(rank, a_rank, rank_assignments[a_rank]))
                             continue
                         if a_rank not in ts_evaluate.classifications:
                             ts_evaluate.classifications[a_rank] = list()
@@ -1367,5 +1366,8 @@ def evaluate(sys_args):
         ts_evaluate.summarize_taxonomic_diversity()
         containment_strings = determine_containment(ts_evaluate)
         ts_evaluate.write_containment_table(containment_strings, args.tool)
+
+    if args.delete and os.path.isdir(ts_evaluate.var_output_dir):
+        shutil.rmtree(ts_evaluate.var_output_dir)
 
     return

@@ -58,7 +58,7 @@ def optimal_taxonomic_assignment(trie, query_taxon):
     return query_taxon
 
 
-def identify_excluded_clade(assignment_dict, trie, marker):
+def identify_excluded_clade(assignment_dict: dict, trie: StringTrie, marker: str) -> dict:
     """
     Using the taxonomic information from the sequence headers and the lineages of the reference sequence,
     this function determines the rank at which each sequence's clade is excluded.
@@ -73,9 +73,9 @@ def identify_excluded_clade(assignment_dict, trie, marker):
       E.g. {"Phylum": {"Proteobacteria": ("Proteobacteria", "Proteobacteria; Alphaproteobacteria")}}
     """
     rank_assigned_dict = dict()
-    _RANK_DEPTH_MAP = {0: "Cellular  organisms", 1: "Kingdom",
-                       2: "Phylum", 3: "Class", 4: "Order",
-                       5: "Family", 6: "Genus", 7: "Species", 8: "Strain"}
+    _RANK_DEPTH_MAP = {0: "root", 1: "domain",
+                       2: "phylum", 3: "class", 4: "order",
+                       5: "family", 6: "genus", 7: "species", 8: "strain"}
 
     if marker not in assignment_dict:
         logging.debug("No sequences assigned as " + marker + "\n")
@@ -89,8 +89,8 @@ def identify_excluded_clade(assignment_dict, trie, marker):
     for ref_lineage in assignment_dict[marker]:
         log_stats += "Assigned reference lineage: " + ref_lineage + "\n"
         for query_lineage in assignment_dict[marker][ref_lineage]:  # type: str
-            if query_lineage.split('; ')[0] != "Root":
-                query_lineage = "; ".join(["Root"] + query_lineage.split("; "))
+            if query_lineage.split('; ')[0] != "r__Root":
+                query_lineage = "; ".join(["r__Root"] + query_lineage.split("; "))
             # if query_lineage == ref_lineage:
             #     logging.debug("\tQuery lineage: " + query_lineage + ", " +
             #                   "Optimal lineage: " + ref_lineage + "\n")
@@ -105,8 +105,8 @@ def identify_excluded_clade(assignment_dict, trie, marker):
                     log_stats += "\t\tOptimal lineage: " + contained_taxonomy + "\n"
                 rank_assigned_dict[rank_excluded].append({ref_lineage: (contained_taxonomy, query_lineage)})
             else:
-                logging.warning("Number of ranks in lineage '" + contained_taxonomy + "' is ridiculous.\n" +
-                                "This sequence will be removed from clade exclusion calculations\n")
+                logging.warning("Number of ranks in lineage '{}' is ridiculous.\n"
+                                "This will not be used in clade exclusion calculations\n".format(contained_taxonomy))
     logging.debug(log_stats + "\n")
     return rank_assigned_dict
 

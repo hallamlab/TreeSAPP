@@ -85,7 +85,7 @@ class TaxonomicHierarchy:
         else:
             return set([self.hierarchy[taxon].name for taxon in self.hierarchy])
 
-    def get_taxon(self, prefix_taxon):
+    def get_taxon(self, prefix_taxon) -> Taxon:
         """
         Retrieve the Taxon instance mapped to prefix_taxon in self.hierarchy.
         If prefix_taxon isn't in self.hierarchy, a warning is issued and None returned

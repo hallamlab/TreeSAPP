@@ -115,7 +115,7 @@ def trim_lineages_to_rank(leaf_taxa_map: dict, rank: str):
     """
     trimmed_lineage_map = dict()
     # ranks is offset by 1 (e.g. Kingdom is the first index and therefore should be 1) for the final trimming step
-    ranks = {"Kingdom": 1, "Phylum": 2, "Class": 3, "Order": 4, "Family": 5, "Genus": 6, "Species": 7}
+    ranks = {"domain": 1, "phylum": 2, "class": 3, "order": 4, "family": 5, "genus": 6, "species": 7}
     unknowns_re = re.compile("unclassified|environmental sample", re.IGNORECASE)
     depth = ranks[rank]
     truncated = 0

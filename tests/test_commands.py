@@ -61,16 +61,15 @@ class TreesappTester(unittest.TestCase):
         from commands import evaluate
         from . import testing_utils as utils
         import os
-        test_ranks = ["Class"]
         evaluate_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
                                  "--refpkg_path", utils.get_treesapp_file(os.path.join("treesapp", "data",
                                                                                        "McrA_build.json")),
                                  "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                                  "-o", "./TreeSAPP_evaluate",
                                  "-m", "prot",
-                                 "-t", ','.join(test_ranks),
+                                 "--taxon_rank", "class", "species",
                                  "-n", str(2),
-                                 "--trim_align", "--overwrite"]
+                                 "--trim_align", "--overwrite", "--delete"]
         evaluate(evaluate_command_list)
         return
 

@@ -917,11 +917,23 @@ class Evaluator(TreeSAPP):
         info_string += super(Evaluator, self).get_info() + "\n\t"
         info_string += "\n\t".join(["Accession-to-lineage map = " + self.acc_to_lin,
                                     "Clade-exclusion table = " + self.performance_table,
-                                    "Target marker(s) = " + str(self.targets)]) + "\n"
+                                    "Target marker = " + str(self.ref_pkg.prefix)]) + "\n"
 
         return info_string
 
-    def new_taxa_test(self, rank, lineage) -> TaxonTest:
+    def new_taxa_test(self, lineage) -> TaxonTest:
+        """
+        Creates a new TaxonTest instance for clade exclusion analysis
+
+        :param lineage: The lineage being tested
+        :return: A TaxonTest instance specific to lineage
+        """
+        # Determine the rank
+        rank = self.ref_pkg.taxa_trie.resolved_to(lineage)
+        if not rank:
+            logging.error("Unable to find the rank the '{}' was resolved to.\n".format(lineage))
+            sys.exit(5)
+
         if rank not in self.taxa_tests:
             self.taxa_tests[rank] = list()
         taxa_test_inst = TaxonTest(lineage)
@@ -1210,7 +1222,7 @@ class Evaluator(TreeSAPP):
         taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
         rank_tax = rank[0] + '_' + taxon
 
-        test_obj = self.new_taxa_test(rank, lineage)
+        test_obj = self.new_taxa_test(lineage)
         test_obj.intermediates_dir = self.var_output_dir + refpkg_name + os.sep + rank_tax + os.sep
         if not os.path.isdir(test_obj.intermediates_dir):
             os.makedirs(test_obj.intermediates_dir)

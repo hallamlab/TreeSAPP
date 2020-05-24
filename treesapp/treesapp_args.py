@@ -324,9 +324,9 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
                                choices=["treesapp", "graftm", "diamond"],
                                help="Classify using one of the tools: treesapp [DEFAULT], graftm, or diamond.")
     parser.optopt.add_argument("-t", "--taxon_rank",
-                               help="Comma-separated list of the taxonomic ranks to test " +
-                                    "choices = [Phylum, Class, Order, Family, Genus, Species] (DEFAULT = Species)",
-                               default="Species",
+                               help="Comma-separated list of the taxonomic ranks to test. [ DEFAULT = 'species' ]",
+                               choices=["domain", "phylum", "class", "order", "family", "genus", "species"],
+                               default="species", nargs='+', type=str,
                                required=False)
     parser.optopt.add_argument("-l", "--length",
                                required=False, type=int, default=0,
@@ -449,14 +449,8 @@ def check_purity_arguments(purity_instance: Purity, args):
 
 
 def check_evaluate_arguments(evaluator_instance: Evaluator, args):
-    taxa_choices = ["Phylum", "Class", "Order", "Family", "Genus", "Species"]
-    args.taxon_rank = args.taxon_rank.split(',')
     for rank in args.taxon_rank:
-        if rank not in taxa_choices:
-            logging.error(rank + " not an available option for `--taxon_rank`.\n")
-            sys.exit(21)
-        else:
-            evaluator_instance.ranks.append(rank)
+        evaluator_instance.ranks.append(rank)
 
     evaluator_instance.ref_pkg.f__json = args.pkg_path
     evaluator_instance.ref_pkg.slurp()
@@ -466,7 +460,7 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args):
         if os.path.isfile(evaluator_instance.acc_to_lin):
             evaluator_instance.change_stage_status("lineages", False)
         else:
-            logging.error("Unable to find accession-lineage mapping file '" + evaluator_instance.acc_to_lin + "'\n")
+            logging.error("Unable to find accession-lineage mapping file '{}'\n".format(evaluator_instance.acc_to_lin))
             sys.exit(3)
     else:
         evaluator_instance.acc_to_lin = evaluator_instance.var_output_dir + os.sep + "accession_id_lineage_map.tsv"
