@@ -7,38 +7,7 @@ import logging
 
 from pygtrie import StringTrie
 
-from .utilities import median, load_taxonomic_trie
-
-
-def all_possible_assignments(tax_ids_file):
-    try:
-        cog_tax_ids = open(tax_ids_file, 'r', encoding='utf-8')
-    except IOError:
-        logging.error("Unable to open " + str(tax_ids_file) + " for reading.\n")
-        sys.exit(21)
-
-    lineage_list = list()
-    for line in cog_tax_ids:
-        line = line.strip()
-        try:
-            fields = line.split("\t")
-        except ValueError:
-            logging.error(" split(\'\\t\') on " + str(line) +
-                          " generated " + str(len(line.split("\t"))) + " fields.")
-            sys.exit(21)
-        if len(fields) == 3:
-            number, translation, lineage = fields
-            if lineage:
-                lineage = "r__Root; " + lineage
-        else:
-            logging.error("Unexpected number of fields in " + tax_ids_file +
-                          ".\nInvoked .split(\'\\t\') on line " + str(line))
-            sys.exit(21)
-        lineage_list.append(lineage)
-
-    cog_tax_ids.close()
-
-    return load_taxonomic_trie(lineage_list)
+from .utilities import median
 
 
 def grab_graftm_taxa(tax_ids_file):

@@ -7,11 +7,14 @@ import subprocess
 import logging
 import time
 import joblib
+from glob import glob
 from csv import Sniffer
 from collections import namedtuple
 from shutil import rmtree
-from treesapp.external_command_interface import launch_write_command
+
 from pygtrie import StringTrie
+
+from treesapp.external_command_interface import launch_write_command
 
 
 def base_file_prefix(file_path: str) -> str:
@@ -115,6 +118,26 @@ def which(program: str):
             if is_exe(exe_file):
                 return exe_file
     return None
+
+
+def match_file(glob_pattern) -> str:
+    """
+    Using a valid glob pattern, glob.glob is used to find a single file and
+    return the path to the file that matches the pattern.
+
+    :param glob_pattern: A string representing a glob pattern. Used to search for files.
+    :return: Path to the single file matching the glob pattern
+    """
+    file_matches = glob(glob_pattern)
+
+    if len(file_matches) > 1:
+        logging.error("Multiple files match glob pattern '{}':\n{}".format(glob_pattern, ", ".join(file_matches)))
+        sys.exit(17)
+    elif len(file_matches) == 0:
+        logging.error("Unable to find file matching glob pattern '{}'.\n".format(glob_pattern))
+        sys.exit(19)
+    else:
+        return file_matches.pop()
 
 
 def os_type():
@@ -726,36 +749,6 @@ def find_msa_type(msa_files):
         sys.exit(3)
     else:
         return file_types.pop()
-
-
-def swap_tree_names(tree_to_swap: str, final_newick: str, refpkg_name="") -> None:
-    """
-    Reads a Newick tree (first line of the input tree_to_swap) and writes the tree to a new file (final_newick).
-    Optionally, a refpkg_name (e.g. DsrAB) can be provided so matching strings are not carried into the final_tree.
-
-    :param tree_to_swap:
-    :param final_newick:
-    :param refpkg_name:
-    :return: None
-    """
-    original_tree = open(tree_to_swap, 'r')
-    newick_tree = open(final_newick, 'w')
-
-    tree = original_tree.readlines()
-    original_tree.close()
-    if len(tree) > 1:
-        logging.error(">1 line contained in RAxML tree " + tree_to_swap + "\n")
-        sys.exit(13)
-
-    if refpkg_name:
-        new_tree = re.sub('_' + re.escape(refpkg_name), '', str(tree[0]))
-    else:
-        new_tree = str(tree[0])
-
-    newick_tree.write(new_tree)
-    newick_tree.close()
-
-    return
 
 
 def match_target_marker(refpkg_name: str, headers: list) -> list:

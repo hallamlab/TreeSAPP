@@ -20,14 +20,11 @@ from treesapp import lca_calculations
 from treesapp import placement_trainer
 from treesapp import update_refpkg
 from treesapp import annotate_extra
-from treesapp.treesapp_args import TreeSAPPArgumentParser, add_classify_arguments, add_create_arguments, add_layer_arguments, \
-    add_evaluate_arguments, add_update_arguments, check_parser_arguments, check_evaluate_arguments, \
-    check_classify_arguments, check_create_arguments, add_trainer_arguments, check_trainer_arguments, \
-    check_updater_arguments, check_purity_arguments, add_purity_arguments, add_abundance_arguments
-from treesapp.classy import TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer, \
-    prep_logging, dedup_records, TaxonTest, Purity, Abundance
+from treesapp import treesapp_args
 from treesapp.phylo_seq import TreeProtein
 from treesapp.refpkg import ReferencePackage
+from treesapp.classy import TreeSAPP, Assigner, Evaluator, Creator, PhyTrainer, Updater, Layerer, \
+    prep_logging, dedup_records, TaxonTest, Purity, Abundance
 from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_packages_for_assign,\
     get_alignment_dims, bin_hmm_matches, write_grouped_fastas, create_ref_phy_files,\
     multiple_alignments, get_sequence_counts, check_for_removed_sequences, determine_confident_lineage,\
@@ -36,15 +33,15 @@ from treesapp.assign import abundify_tree_saps, delete_files, prep_reference_pac
 from treesapp.jplace_utils import sub_indices_for_seq_names_jplace, jplace_parser, demultiplex_pqueries
 from treesapp.clade_exclusion_evaluator import pick_taxonomic_representatives, select_rep_seqs,\
     map_seqs_to_lineages, prep_graftm_ref_files, build_graftm_package, map_headers_to_lineage, graftm_classify,\
-    validate_ref_package_files, determine_containment, parse_distances, remove_clade_exclusion_files,\
-    load_rank_depth_map, get_testable_lineages_for_rank
+    determine_containment, parse_distances, load_rank_depth_map, get_testable_lineages_for_rank
 
 
 def info(sys_args):
     """
 
     """
-    parser = TreeSAPPArgumentParser(description="Return package, executable and refpkg information.")
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Return package, executable and refpkg information.")
+    treesapp_args.add_info_arguments(parser)
     args = parser.parse_args(sys_args)
     prep_logging()
     ts_info = TreeSAPP("info")
@@ -79,16 +76,19 @@ def info(sys_args):
 
     # Write the version of executable deps
     ts_info.furnish_with_arguments(args)
+    if args.refpkg_dir:
+        ts_info.refpkg_dir = args.refpkg_dir
     logging.info(utilities.executable_dependency_versions(ts_info.executables))
 
     if args.verbose:
-        marker_build_dict = file_parsers.parse_ref_build_params(ts_info.treesapp_dir, [])
+        refpkg_dict = file_parsers.gather_ref_packages(ts_info.refpkg_dir)
         refpkg_summary_str = "\t".join(["Name", "Code-name", "Molecule", "RefPkg-type", "Description", "Last-updated"])
         refpkg_summary_str += "\n"
-        for refpkg_code in sorted(marker_build_dict, key=lambda x: marker_build_dict[x].cog):
-            refpkg = marker_build_dict[refpkg_code]  # type: MarkerBuild
-            refpkg_summary_str += refpkg_code + " -> " + ", ".join(
-                [refpkg.cog, refpkg.molecule, refpkg.kind, refpkg.description, refpkg.update]
+        for refpkg_name in sorted(refpkg_dict, key=lambda x: refpkg_dict[x].prefix):
+            refpkg = refpkg_dict[refpkg_name]  # type: ReferencePackage
+            refpkg_summary_str += refpkg_name + " -> " + ", ".join(
+                [refpkg.refpkg_code, refpkg.molecule, refpkg.kind, str(refpkg.num_seqs),
+                 refpkg.description, refpkg.update]
             ) + "\n"
         logging.info(refpkg_summary_str)
 
@@ -96,13 +96,13 @@ def info(sys_args):
 
 
 def package(sys_args):
-    parser = TreeSAPPArgumentParser(description='Model evolutionary distances across taxonomic ranks.')
+    parser = treesapp_args.TreeSAPPArgumentParser(description='')
     return
 
 
 def train(sys_args):
-    parser = TreeSAPPArgumentParser(description='Model evolutionary distances across taxonomic ranks.')
-    add_trainer_arguments(parser)
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Model evolutionary distances across taxonomic ranks.')
+    treesapp_args.add_trainer_arguments(parser)
     args = parser.parse_args(sys_args)
 
     ts_trainer = PhyTrainer()
@@ -114,8 +114,8 @@ def train(sys_args):
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tTrain taxonomic rank-placement distance model\t\t\t##\n")
 
-    check_parser_arguments(args, sys_args)
-    check_trainer_arguments(ts_trainer, args)
+    treesapp_args.check_parser_arguments(args, sys_args)
+    treesapp_args.check_trainer_arguments(ts_trainer, args)
     ts_trainer.validate_continue(args)
     ts_trainer.ref_pkg.validate()
     ts_trainer.ref_pkg.disband(os.path.join(ts_trainer.var_output_dir, ts_trainer.ref_pkg.prefix + "_RefPkg"))
@@ -192,8 +192,8 @@ def train(sys_args):
 
 
 def create(sys_args):
-    parser = TreeSAPPArgumentParser(description="Create a reference package for TreeSAPP.")
-    add_create_arguments(parser)
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Create a reference package for TreeSAPP.")
+    treesapp_args.add_create_arguments(parser)
     args = parser.parse_args(sys_args)
 
     ts_create = Creator()
@@ -204,8 +204,8 @@ def create(sys_args):
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCreating TreeSAPP reference package\t\t\t##\n")
 
-    check_parser_arguments(args, sys_args)
-    check_create_arguments(ts_create, args)
+    treesapp_args.check_parser_arguments(args, sys_args)
+    treesapp_args.check_create_arguments(ts_create, args)
     ts_create.validate_continue(args)
 
     # Populate the final TreeSAPP reference file paths with the proper output directory
@@ -218,7 +218,7 @@ def create(sys_args):
     if ts_create.stage_status("search"):
         profile_match_dict = dict()
         # Read the FASTA into a dictionary - homologous sequences will be extracted from this
-        ref_seqs.fasta_dict = fasta.format_read_fasta(args.input, ts_create.molecule_type)
+        ref_seqs.fasta_dict = fasta.format_read_fasta(args.input, ts_create.ref_pkg.molecule)
         ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(args.input))
         logging.debug("Raw, unfiltered sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
@@ -245,7 +245,7 @@ def create(sys_args):
     ref_seqs.header_registry = fasta.register_headers(fasta.get_headers(ref_seqs.file))
     ref_seqs.synchronize_seqs_n_headers()
     # Get rid of ambiguity or unusual characters
-    ref_seqs.replace_ambiguity_chars(ts_create.molecule_type)
+    ref_seqs.replace_ambiguity_chars(ts_create.ref_pkg.molecule)
     logging.info("Sequence summary:\n" + ref_seqs.summarize_fasta_sequences())
 
     ##
@@ -261,7 +261,7 @@ def create(sys_args):
     # Using the accession-lineage-map (if available) map the sequence names to their respective lineages
     # Proceed with creating the Entrez-queries for sequences lacking lineage information
     ##
-    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, args.molecule, args.acc_to_taxid, args.seq_names_to_taxa)
+    fasta_records = ts_create.fetch_entrez_lineages(ref_seqs, ts_create.ref_pkg.molecule, args.acc_to_taxid, args.seq_names_to_taxa)
     entrez_utils.fill_ref_seq_lineages(fasta_records, ts_create.seq_lineage_map)
     prefilter_ref_seqs = entrez_utils.entrez_record_snapshot(fasta_records)
 
@@ -375,7 +375,7 @@ def create(sys_args):
         else:
             create_refpkg.create_new_ref_fasta(ts_create.unaln_ref_fasta, fasta_replace_dict)
 
-        if ts_create.molecule_type == 'rrna':
+        if ts_create.ref_pkg.molecule == 'rrna':
             create_refpkg.generate_cm_data(args, ts_create.unaln_ref_fasta)
             args.multiple_alignment = True
         elif args.multiple_alignment is False:
@@ -397,7 +397,7 @@ def create(sys_args):
         ##
         # Build the HMM profile from the aligned reference FASTA file
         ##
-        if args.molecule == "rrna":
+        if ts_create.ref_pkg.molecule == "rrna":
             # A .cm file has already been generated, no need for HMM
             pass
         else:
@@ -449,29 +449,8 @@ def create(sys_args):
         ##
         # Build the tree using either RAxML-NG or FastTree
         ##
-        ts_create.ref_pkg.sub_model = wrapper.select_model(ts_create.molecule_type, args.fast, args.raxml_model)
-        best_tree = wrapper.construct_tree(ts_create.executables, ts_create.ref_pkg.sub_model, ts_create.phylip_file,
-                                           ts_create.phy_dir, ts_create.ref_pkg.prefix,
-                                           args.bootstraps, args.num_threads, args.fast)
-
-        if args.fast:
-            if int(args.bootstraps) > 0:
-                wrapper.support_tree_raxml(raxml_exe=ts_create.executables["raxml-ng"],
-                                           ref_tree=best_tree, ref_msa=ts_create.phylip_file,
-                                           model=ts_create.ref_pkg.sub_model,
-                                           tree_prefix=ts_create.phy_dir + ts_create.ref_pkg.prefix,
-                                           mre=False, n_bootstraps=args.bootstraps, num_threads=args.num_threads)
-            wrapper.model_parameters(ts_create.executables["raxml-ng"],
-                                     ts_create.phylip_file, best_tree, ts_create.phy_dir + ts_create.ref_pkg.prefix,
-                                     ts_create.ref_pkg.sub_model, args.num_threads)
-
-        ts_create.ref_pkg.clean_up_raxmlng_outputs(ts_create.phy_dir, fasta_replace_dict)
-
-    if args.raxml_model:
-        ts_create.ref_pkg.sub_model = args.raxml_model
-    else:
-        # TODO: Update for compatibility with RAxML-NG outputs
-        ts_create.ref_pkg.sub_model = ts_create.determine_model(args.fast)
+        ts_create.ref_pkg.infer_phylogeny(ts_create.phylip_file, ts_create.executables, ts_create.phy_dir,
+                                          args.bootstraps, args.num_threads, args.raxml_model)
 
     ts_create.ref_pkg.band()
     # Build the regression model of placement distances to taxonomic ranks
@@ -492,10 +471,6 @@ def create(sys_args):
     # Finish validating the file and append the reference package build parameters to the master table
     ##
     if ts_create.stage_status("update"):
-        if args.fast:
-            ts_create.ref_pkg.tree_tool = "FastTree"
-        else:
-            ts_create.ref_pkg.tree_tool = "RAxML-NG"
         ts_create.ref_pkg.pfit = create_refpkg.parse_model_parameters(ts_create.var_output_dir +
                                                                       os.sep.join(["placement_trainer",
                                                                                    "final_outputs",
@@ -516,8 +491,8 @@ def create(sys_args):
 
 
 def update(sys_args):
-    parser = TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with newly identified sequences.')
-    add_update_arguments(parser)
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Update a TreeSAPP reference package with newly identified sequences.')
+    treesapp_args.add_update_arguments(parser)
     args = parser.parse_args(sys_args)
 
     ts_updater = Updater()
@@ -528,8 +503,8 @@ def update(sys_args):
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tUpdating TreeSAPP reference package\t\t\t##\n")
 
-    check_parser_arguments(args, sys_args)
-    check_updater_arguments(ts_updater, args, marker_build_dict)
+    treesapp_args.check_parser_arguments(args, sys_args)
+    treesapp_args.check_updater_arguments(ts_updater, args)
     ts_updater.validate_continue(args)
     ts_updater.ref_pkg.gather_package_files(ts_updater.refpkg_dir, ts_updater.molecule_type, "hierarchical")
     ts_updater.ref_pkg.validate()
@@ -739,11 +714,12 @@ def update(sys_args):
 
 def layer(sys_args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
-    parser = TreeSAPPArgumentParser(description="This script is generally used for layering extra annotations "
-                                                "beyond taxonomy (such as Subgroup or Metabolism) to TreeSAPP outputs."
-                                                " This is accomplished by adding an extra column (to all rows) of an "
-                                                "existing marker_contig_map.tsv and annotating the relevant sequences")
-    add_layer_arguments(parser)
+    parser = treesapp_args.TreeSAPPArgumentParser(description="This script is generally used for layering extra "
+                                                              "annotations such as Subgroup or Metabolism on TreeSAPP "
+                                                              "outputs. This is accomplished by adding an extra column "
+                                                              "(to all rows) of an existing marker_contig_map.tsv and "
+                                                              "annotating the relevant sequences.")
+    treesapp_args.add_layer_arguments(parser)
     args = parser.parse_args(sys_args)
 
     ts_layer = Layerer()
@@ -860,8 +836,8 @@ def layer(sys_args):
 
 def assign(sys_args):
     # STAGE 1: Prompt the user and prepare files and lists for the pipeline
-    parser = TreeSAPPArgumentParser(description='Taxonomically classify sequences through evolutionary placement.')
-    add_classify_arguments(parser)
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Classify sequences through evolutionary placement.')
+    treesapp_args.add_classify_arguments(parser)
     args = parser.parse_args(sys_args)
 
     ts_assign = Assigner()
@@ -872,8 +848,8 @@ def assign(sys_args):
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\t\tAssigning sequences with TreeSAPP\t\t\t\t##\n\n")
 
-    check_parser_arguments(args, sys_args)
-    check_classify_arguments(ts_assign, args)
+    treesapp_args.check_parser_arguments(args, sys_args)
+    treesapp_args.check_classify_arguments(ts_assign, args)
     ts_assign.validate_continue(args)
 
     refpkg_dict = file_parsers.gather_ref_packages(ts_assign.refpkg_dir, ts_assign.target_refpkgs)
@@ -1032,8 +1008,8 @@ def abundance(sys_args):
     :param sys_args: treesapp abundance arguments with the treesapp subcommand removed
     :return: A dictionary containing the abundance values indexed by the reference sequence (e.g. ORF, contig) names
     """
-    parser = TreeSAPPArgumentParser(description="Calculate the abundance of classified sequences from read coverage.")
-    add_abundance_arguments(parser)
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Calculate classified sequence abundances from read coverage.")
+    treesapp_args.add_abundance_arguments(parser)
     args = parser.parse_args(sys_args)
 
     ts_abund = Abundance()
@@ -1044,7 +1020,7 @@ def abundance(sys_args):
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tCalculating abundance of classified sequences\t\t\t##\n")
 
-    check_parser_arguments(args, sys_args)
+    treesapp_args.check_parser_arguments(args, sys_args)
     ts_abund.check_arguments(args)
     refpkg_dict = file_parsers.gather_ref_packages(ts_abund.refpkg_dir)
     # TODO: Implement check-pointing for abundance
@@ -1083,8 +1059,8 @@ def purity(sys_args):
     :param sys_args:
     :return:
     """
-    parser = TreeSAPPArgumentParser(description="Validate the functional purity of a reference package.")
-    add_purity_arguments(parser)
+    parser = treesapp_args.TreeSAPPArgumentParser(description="Validate the functional purity of a reference package.")
+    treesapp_args.add_purity_arguments(parser)
     args = parser.parse_args(sys_args)
 
     ts_purity = Purity()
@@ -1095,8 +1071,8 @@ def purity(sys_args):
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tBeginning purity analysis\t\t\t##\n")
 
-    check_parser_arguments(args, sys_args)
-    check_purity_arguments(ts_purity, args)
+    treesapp_args.check_parser_arguments(args, sys_args)
+    treesapp_args.check_purity_arguments(ts_purity, args)
     ts_purity.validate_continue(args)
 
     # Load FASTA data
@@ -1159,8 +1135,8 @@ def evaluate(sys_args):
 
     :return:
     """
-    parser = TreeSAPPArgumentParser(description='Evaluate classification performance using clade-exclusion analysis.')
-    add_evaluate_arguments(parser)
+    parser = treesapp_args.TreeSAPPArgumentParser(description='Evaluate classification performance using clade-exclusion analysis.')
+    treesapp_args.add_evaluate_arguments(parser)
     args = parser.parse_args(sys_args)
 
     ts_evaluate = Evaluator()
@@ -1171,8 +1147,8 @@ def evaluate(sys_args):
     prep_logging(log_file_name, args.verbose)
     logging.info("\n##\t\t\tBeginning clade exclusion analysis\t\t\t##\n")
 
-    check_parser_arguments(args, sys_args)
-    check_evaluate_arguments(ts_evaluate, args)
+    treesapp_args.check_parser_arguments(args, sys_args)
+    treesapp_args.check_evaluate_arguments(ts_evaluate, args)
     ts_evaluate.validate_continue(args)
     load_rank_depth_map(ts_evaluate)
 
@@ -1231,22 +1207,20 @@ def evaluate(sys_args):
                 # Refpkg input files in ts_evaluate.var_output_dir/refpkg_name/rank_tax/
                 # Refpkg built in ts_evaluate.var_output_dir/refpkg_name/rank_tax/{refpkg_name}_{rank_tax}.gpkg/
                 taxon = re.sub(r"([ /])", '_', lineage.split("; ")[-1])
-                rank_tax = rank[0] + '_' + taxon
-                intermediates_path = os.path.join(ts_evaluate.var_output_dir,
-                                                  ts_evaluate.ref_pkg.prefix, rank_tax) + os.sep
+                intermediates_path = os.path.join(ts_evaluate.var_output_dir, taxon) + os.sep
                 if not os.path.isdir(intermediates_path):
                     os.makedirs(intermediates_path)
 
                 logging.info("Classifications for the " + rank + " '" + taxon + "' put " + intermediates_path + "\n")
                 test_obj = ts_evaluate.new_taxa_test(rank, lineage)
                 test_obj.queries = taxon_rep_seqs.keys()
-                test_rep_taxa_fasta = intermediates_path + rank_tax + ".fa"
+                test_rep_taxa_fasta = intermediates_path + taxon + ".fa"
                 classifier_output = intermediates_path + args.tool + "_output" + os.sep
 
                 if args.tool in ["graftm", "diamond"]:
-                    test_refpkg_prefix = ts_evaluate.ref_pkg.prefix + '_' + rank_tax
+                    test_refpkg_prefix = ts_evaluate.ref_pkg.prefix + '_' + taxon
                     tax_ids_file = intermediates_path + os.sep + ts_evaluate.ref_pkg.prefix + "_taxonomy.csv"
-                    classification_table = classifier_output + rank_tax + os.sep + rank_tax + "_read_tax.tsv"
+                    classification_table = classifier_output + taxon + os.sep + taxon + "_read_tax.tsv"
                     gpkg_path = intermediates_path + test_refpkg_prefix + ".gpkg"
 
                     if not os.path.isfile(classification_table):
@@ -1290,19 +1264,22 @@ def evaluate(sys_args):
                     test_obj.assignments = {ts_evaluate.ref_pkg.prefix: graftm_assignments}
                     test_obj.filter_assignments(ts_evaluate.ref_pkg.prefix)
                 else:
-                    ce_refpkg = ts_evaluate.ref_pkg.clone()
+                    clade_exclusion_json = intermediates_path + ts_evaluate.ref_pkg.prefix + "_build.json"
+                    ce_refpkg = ts_evaluate.ref_pkg.clone(clade_exclusion_json)
                     classification_table = classifier_output + "final_outputs" + os.sep + "marker_contig_map.tsv"
 
                     if not os.path.isfile(classification_table):
                         # Copy reference files, then exclude all clades belonging to the taxon being tested
 
-                        ce_refpkg.exclude_clade_from_ref_files(ts_evaluate.var_output_dir + ce_refpkg.prefix,
-                                                               lineage, ts_evaluate.executables, args.fresh)
+                        ce_refpkg.exclude_clade_from_ref_files(intermediates_path, lineage,
+                                                               ts_evaluate.executables, args.fresh)
                         # Write the query sequences
                         fasta.write_new_fasta(taxon_rep_seqs, test_rep_taxa_fasta)
                         assign_args = ["-i", test_rep_taxa_fasta, "-o", classifier_output,
+                                       "--refpkg_dir", os.path.dirname(ce_refpkg.f__json),
                                        "-m", ts_evaluate.molecule_type, "-n", str(args.num_threads),
-                                       "--min_seq_length", str(min_seq_length), "--overwrite", "--delete"]
+                                       "--min_seq_length", str(min_seq_length),
+                                       "--overwrite", "--delete", "--no_svm"]
                         if args.trim_align:
                             assign_args.append("--trim_align")
                         try:
@@ -1310,17 +1287,16 @@ def evaluate(sys_args):
                         except:  # Just in case treesapp assign fails, just continue
                             pass
 
-                        ts_evaluate.ref_pkg.slurp()
                         if not os.path.isfile(classification_table):
                             # The TaxonTest object is maintained for record-keeping (to track # queries & classifieds)
-                            logging.warning("TreeSAPP did not generate output for " + lineage + ". Skipping.\n")
+                            logging.warning("TreeSAPP did not generate output for '{}'. Skipping.\n".format(lineage))
                             shutil.rmtree(classifier_output)
                             continue
                     else:
                         # Valid number of queries and these sequences have already been classified
                         pass
 
-                    test_obj.taxonomic_tree = lca_calculations.all_possible_assignments(tax_ids_file)
+                    test_obj.taxonomic_tree = ce_refpkg.all_possible_assignments()
                     if os.path.isfile(classification_table):
                         assigned_lines = file_parsers.read_marker_classification_table(classification_table)
                         test_obj.assignments = file_parsers.parse_assignments(assigned_lines)
@@ -1331,8 +1307,6 @@ def evaluate(sys_args):
                                       os.path.dirname(classification_table) + "'\n" +
                                       "Please remove this directory and re-run.\n")
                         sys.exit(21)
-        # TODO: Currently emits warning for GraftM and DIAMOND - only needed when running TreeSAPP
-        remove_clade_exclusion_files(ts_evaluate.var_output_dir + ts_evaluate.ref_pkg.prefix + os.sep)
 
     if ts_evaluate.stage_status("calculate"):
         # everything has been prepared, only need to parse the classifications and map lineages

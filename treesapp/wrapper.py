@@ -9,30 +9,23 @@ from treesapp.external_command_interface import launch_write_command, setup_prog
 from treesapp.fasta import read_fasta_to_dict
 
 
-def select_model(molecule: str, fast=False, raxml_model=None) -> str:
+def select_model(molecule: str, raxml_model=None) -> str:
     """
     Eventually this function will be a wrapper for ModelTest-ng or IQTree's ModelFinder.
 
-    :param fast: Boolean indicating whether the phylogeny was made with FastTree or not
     :param raxml_model: An optional string with the RAxML-NG model used
     :param molecule: A string indicating the molecule-type of the reference package: 'rrna', 'prot' or 'dna'
     :return: A RAxML-ng and EPA-ng compatible string representing the substitution model
     """
-    if fast:
-        if molecule == "rrna" or molecule == "dna":
-            evo_model = "GTR"
-        else:
-            evo_model = "LG"
+    if raxml_model:
+        evo_model = raxml_model
+    elif molecule == "prot":
+        evo_model = "LG+G4"
+    elif molecule == "rrna" or molecule == "dna":
+        evo_model = "GTR+G"
     else:
-        if raxml_model:
-            evo_model = raxml_model
-        elif molecule == "prot":
-            evo_model = "LG+G4"
-        elif molecule == "rrna" or molecule == "dna":
-            evo_model = "GTR+G"
-        else:
-            logging.error("A substitution model could not be specified with the 'molecule' argument: " + molecule)
-            sys.exit(13)
+        logging.error("A substitution model could not be specified from the molecule argument '{}'.\n".format(molecule))
+        sys.exit(13)
     return evo_model
 
 
@@ -119,11 +112,13 @@ def support_tree_raxml(raxml_exe: str, ref_tree: str, ref_msa: str, model: str, 
     return support_file
 
 
-def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: str,
-                   tree_output_dir: str, tree_prefix: str, bootstraps=1000, num_threads=2, fast_mode=False) -> str:
+def construct_tree(tree_builder: str, executables: dict, evo_model: str, multiple_alignment_file: str,
+                   tree_output_dir: str, tree_prefix: str, bootstraps=1000, num_threads=2) -> str:
     """
     Wrapper script for generating phylogenetic trees with either RAxML or FastTree from a multiple alignment
 
+    :param tree_builder: String indicating which phylogeny inference software is to be used. Current options are
+    FastTree and RAxML-NG
     :param executables: Dictionary containing paths to executables, crucially FastTree and RAxML
     :param evo_model: The substitution model (and possible gamma rate heterogeneity) string (e.g. GTR+G4)
     :param multiple_alignment_file: Path to the multiple sequence alignment file
@@ -131,24 +126,26 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
     :param tree_prefix: Prefix to be used for the outputs
     :param bootstraps: The maximum number of bootstraps to be performed with autoMRE (checking convergence)
     :param num_threads: Number of threads to use (for RAxML-NG only)
-    :param fast_mode: Boolean indicating whether FastTree (True) or raxml-ng (False) is used
     :return: Stylized name of the tree-building software used
     """
 
     # Decide on the command to build the tree, make some directories and files when necessary
-    if fast_mode:
-        tree_builder = "FastTree"
-        best_tree = tree_output_dir + tree_prefix + ".FastTree.bestTree"
+    logging.info("Building phylogenetic tree with " + tree_builder + "... ")
+    if tree_builder == "FastTree":
+        best_tree = tree_output_dir + tree_prefix + ".FastTree.nwk"
         tree_build_cmd = [executables["FastTree"]]
         if re.search(r"GTR", evo_model):
             tree_build_cmd += ["-nt", "-gtr"]
         else:
-            tree_build_cmd += ["-lg"]
+            tree_build_cmd += ["-lg", "-gamma", "-cat", str(4)]
         tree_build_cmd += ["-out", best_tree]
         tree_build_cmd.append(multiple_alignment_file)
-    else:
-        tree_builder = "raxml"
-        best_tree = tree_output_dir + tree_prefix + ".raxml.bestTree"
+
+        stdout, returncode = launch_write_command(tree_build_cmd)
+        with open(tree_output_dir + tree_prefix + ".FastTree.log", 'w') as fast_info:
+            fast_info.write(stdout + "\n")
+    elif tree_builder == "RAxML-NG":
+        best_tree = tree_output_dir + tree_prefix + ".raxml.nwk"
         tree_build_cmd = [executables["raxml-ng"], "--all"]
         tree_build_cmd += ["--prefix", tree_output_dir + tree_prefix]
         tree_build_cmd += ["--msa", multiple_alignment_file]
@@ -160,13 +157,11 @@ def construct_tree(executables: dict, evo_model: str, multiple_alignment_file: s
         tree_build_cmd += ["--threads", str(num_threads)]
         # tree_build_cmd += ["--tree", "rand{1},pars{1}"]  # For debugging, alternatively could use '--search1'
 
-    logging.info("Building phylogenetic tree with " + tree_builder + "... ")
-    if fast_mode:
         stdout, returncode = launch_write_command(tree_build_cmd)
-        with open(tree_output_dir + tree_prefix + ".FastTree.log", 'w') as fast_info:
-            fast_info.write(stdout + "\n")
     else:
-        stdout, returncode = launch_write_command(tree_build_cmd)
+        logging.error("Unrecognized software '{}'.\n".format(tree_builder))
+        sys.exit(5)
+
     logging.info("done.\n")
     logging.debug(stdout + "\n")
 

@@ -57,6 +57,15 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
         self.add_delete()
         return
 
+    def add_refpkg_opt(self):
+        self.optopt.add_argument("--refpkg_dir", dest="refpkg_dir", default=None,
+                                 help="Path to the directory containing reference package JSON files. "
+                                      "[ DEFAULT = treesapp/data/ ]")
+
+    def add_refpkg_file_param(self):
+        self.reqs.add_argument("-p", "--refpkg_path", dest="pkg_path", required=True,
+                               help="Path to the reference package JSON file.\n")
+
     def add_seq_params(self):
         self.optopt.add_argument("--trim_align", default=False, action="store_true",
                                  help="Flag to turn on position masking of the multiple sequence alignment"
@@ -136,7 +145,13 @@ class TreeSAPPArgumentParser(argparse.ArgumentParser):
                                          "number of representatives is required.\n")
 
 
+def add_info_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_refpkg_opt()
+    return
+
+
 def add_layer_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_refpkg_opt()
     parser.reqs.add_argument("-o", "--treesapp_output", dest="output", required=True,
                              help="The TreeSAPP output directory.")
     parser.optopt.add_argument("-c", "--colours_style", required=False, nargs='+',
@@ -156,6 +171,7 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     :return: None
     """
     parser.add_io()
+    parser.add_refpkg_opt()
     parser.add_rpkm_params()
     parser.add_seq_params()
     parser.add_search_params()
@@ -168,9 +184,6 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.optopt.add_argument("-l", "--min_likelihood", default=0.1, type=float,
                                help="The minimum likelihood weight ratio required for an EPA placement. "
                                "[DEFAULT = 0.1]")
-    parser.optopt.add_argument("--refpkg_dir", dest="refpkg_dir", default=None,
-                               help="Path to the directory containing reference package JSON files. "
-                                    "[ DEFAULT = treesapp/data/ ]")
     parser.optopt.add_argument('-t', '--targets', default='', type=str,
                                help="A comma-separated list specifying which reference packages to use. "
                                     "They are to be referenced by their 'prefix' attribute. "
@@ -192,15 +205,13 @@ def add_classify_arguments(parser: TreeSAPPArgumentParser) -> None:
 
 
 def add_abundance_arguments(parser: TreeSAPPArgumentParser):
+    parser.add_refpkg_opt()
     parser.add_rpkm_params()
     parser.add_compute_miscellany()
     parser.add_delete()
     parser.reqs.add_argument("--treesapp_output", dest="output", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
-    parser.optopt.add_argument("--refpkg_dir", dest="refpkg_dir", default=None,
-                               help="Path to the directory containing reference package JSON files. "
-                                    "[ DEFAULT = treesapp/data/ ]")
     # TODO: Include an option to append new values to the classification table
     parser.optopt.add_argument("--report", choices=["update", "nothing"], required=False, default="update",
                                help="What should be done with the abundance values? The TreeSAPP classification table "
@@ -282,10 +293,9 @@ def add_purity_arguments(parser: TreeSAPPArgumentParser) -> None:
     :return: None
     """
     parser.add_io()
+    parser.add_refpkg_file_param()
     parser.add_seq_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-p", "--refpkg_path", dest="pkg_path", required=True,
-                             help="Path to the reference package.\n")
     parser.optopt.add_argument("-x", "--extra_info", required=False, default=None,
                                help="File mapping header prefixes to description information.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
@@ -303,10 +313,9 @@ def add_evaluate_arguments(parser: TreeSAPPArgumentParser) -> None:
     """
     parser.add_io()
     parser.add_seq_params()
+    parser.add_refpkg_file_param()
     parser.add_accession_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-p", "--refpkg_path", dest="pkg_path", required=True,
-                             help="Path to the reference package.\n")
 
     parser.optopt.add_argument("--fresh", default=False, required=False, action="store_true",
                                help="Recalculate a fresh phylogenetic tree with the target clades removed instead of"
@@ -338,12 +347,10 @@ def add_update_arguments(parser: TreeSAPPArgumentParser) -> None:
     parser.add_io()
     parser.add_seq_params()
     parser.add_taxa_args()
+    parser.add_refpkg_file_param()
     parser.add_lineage_table_param()
     parser.add_phylogeny_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-c", "--refpkg_name", dest="name", required=True,
-                             help="Unique name to be used by TreeSAPP internally. NOTE: Must be <=6 characters.\n"
-                                  "Examples are 'McrA', 'DsrAB', and 'p_amoA'.")
     parser.reqs.add_argument("--treesapp_output", dest="ts_out", required=True,
                              help="Path to the directory containing TreeSAPP outputs, "
                                   "including sequences to be used for the update.")
@@ -374,11 +381,10 @@ def add_trainer_arguments(parser: TreeSAPPArgumentParser) -> None:
     :return: None
     """
     parser.add_io()
+    parser.add_refpkg_file_param()
     parser.add_seq_params()
     parser.add_accession_params()
     parser.add_compute_miscellany()
-    parser.reqs.add_argument("-p", "--refpkg_path", required=True,
-                             help="Path to the reference package.\n")
     parser.seqops.add_argument("-d", "--profile", required=False, default=False, action="store_true",
                                help="Flag indicating input sequences need to be purified using an HMM profile.")
     parser.optopt.add_argument("--stage", default="continue", required=False,
@@ -481,7 +487,7 @@ def check_evaluate_arguments(evaluator_instance: Evaluator, args):
 
 
 def check_trainer_arguments(trainer_instance: PhyTrainer, args):
-    trainer_instance.ref_pkg.f__json = args.refpkg_path
+    trainer_instance.ref_pkg.f__json = args.pkg_path
     trainer_instance.ref_pkg.slurp()
 
     ##
@@ -547,6 +553,10 @@ def check_classify_arguments(assigner: Assigner, args):
 
 def check_create_arguments(creator: Creator, args) -> None:
     # Populate ReferencePackage attributes from command-line arguments
+    if args.fast:
+        creator.ref_pkg.tree_tool = "FastTree"
+    else:
+        creator.ref_pkg.tree_tool = "RAxML-NG"
     creator.ref_pkg.prefix = args.refpkg_name
     creator.ref_pkg.pid = args.identity
     creator.ref_pkg.molecule = args.molecule
@@ -626,11 +636,12 @@ def check_create_arguments(creator: Creator, args) -> None:
     return
 
 
-def check_updater_arguments(updater: Updater, args, marker_build_dict):
-    updater.ref_pkg.prefix = args.name
+def check_updater_arguments(updater: Updater, args):
+    updater.ref_pkg.f__json = args.pkg_path
+    updater.ref_pkg.slurp()
     updater.seq_names_to_taxa = args.seq_names_to_taxa
     updater.rank_depth_map = {'k': 1, 'p': 2, 'c': 3, 'o': 4, 'f': 5, 'g': 6, 's': 7}
-    updater.target_marker = get_refpkg_build(updater.ref_pkg.prefix, marker_build_dict, updater.refpkg_code_re)
+
     if not args.identity:
         updater.prop_sim = updater.target_marker.pid
     else:

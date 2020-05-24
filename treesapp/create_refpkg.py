@@ -16,7 +16,6 @@ try:
 
     from time import gmtime, strftime, sleep
 
-    from treesapp.utilities import swap_tree_names, reformat_string
     from treesapp.wrapper import run_odseq, run_mafft
     from treesapp.external_command_interface import launch_write_command
     from treesapp.entish import annotate_partition_tree

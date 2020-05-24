@@ -566,7 +566,7 @@ class TreeSAPP:
         if self.command == "abundance":
             dependencies += ["bwa"]
 
-        if self.command in ["create", "update", "train"]:
+        if self.command in ["create", "update", "train", "evaluate"]:
             dependencies += ["usearch", "mafft", "OD-seq"]
             if hasattr(args, "fast") and args.fast:
                 dependencies.append("FastTree")
@@ -640,7 +640,6 @@ class Updater(TreeSAPP):
         self.old_ref_fasta = ""  # Contains only the original reference sequences
         self.cluster_input = ""  # Used only if resolve is True
         self.uclust_prefix = ""  # Used only if resolve is True
-        self.target_marker = None
         self.rank_depth_map = None
         self.prop_sim = 1.0
         self.min_length = 0  # The minimum sequence length for a classified sequence to be included in the refpkg
@@ -868,7 +867,7 @@ class TaxonTest:
         TaxonTest.classifieds only include the headers of the correctly annotated sequences
 
         :param target_marker:
-        :return:
+        :return: None
         """
         off_targets = dict()
         num_classified = 0
@@ -1075,7 +1074,7 @@ class Evaluator(TreeSAPP):
         clade_exclusion_strings = list()
         rank_assigned_dict = self.classifications
 
-        sys.stdout.write("Rank-level performance of " + self.target_marker.cog + ":\n")
+        sys.stdout.write("Rank-level performance of " + self.ref_pkg.prefix + ":\n")
         sys.stdout.write("\tRank\tQueries\tClassified\tCorrect\tD=1\tD=2\tD=3\tD=4\tD=5\tD=6\tD=7\n")
 
         for depth in sorted(self.rank_depth_map):
@@ -1085,7 +1084,7 @@ class Evaluator(TreeSAPP):
             taxonomic_distance = dict()
             n_queries, n_classified, sensitivity = self.get_sensitivity(rank)
             for dist in range(0, 8):
-                taxonomic_distance[dist] = EvaluateStats(self.target_marker.cog, rank, dist)
+                taxonomic_distance[dist] = EvaluateStats(self.ref_pkg.prefix, rank, dist)
                 taxonomic_distance[dist].n_qs = n_queries
             std_out_report_string += "\t" + rank + "\t"
             if rank not in rank_assigned_dict or len(rank_assigned_dict[rank]) == 0:
@@ -1170,7 +1169,7 @@ class Evaluator(TreeSAPP):
         trial_name = os.path.basename(self.output_dir)
         for line in containment_strings:
             # Line has a "\t" prefix already
-            line = trial_name + "\t" + self.target_marker.cog + "\t" + tool + line + "\n"
+            line = trial_name + "\t" + self.ref_pkg.prefix + "\t" + tool + line + "\n"
             output_handler.write(line)
 
         output_handler.close()

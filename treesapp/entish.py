@@ -5,10 +5,12 @@ import re
 import _tree_parser
 import os
 import logging
-from .utilities import Autovivify, mean
+
 from ete3 import Tree
 from scipy import log2
 
+from treesapp.utilities import Autovivify, mean
+from treesapp.phylo_seq import TreeLeafReference
 
 def get_node(tree: str, pos: int) -> (int, int):
     """
@@ -290,25 +292,27 @@ def read_and_understand_the_reference_tree(reference_tree_file, denominator):
         return denominator, terminal_children_of_reference
 
 
-def annotate_partition_tree(code_name, fasta_replace_dict, bipart_tree):
+def annotate_partition_tree(refpkg_name: str, leaf_nodes: list, bipart_tree: str):
     try:
-        tree_txt = open(bipart_tree, 'r')
+        tree_file = open(bipart_tree, 'r')
     except (FileNotFoundError, IOError):
         raise IOError("Unable to open RAxML bipartition tree " + bipart_tree + " for reading.")
 
-    tree = tree_txt.readline()
-    tree_txt.close()
-    for treesapp_id in fasta_replace_dict.keys():
-        if not re.search(r"[,(]{0}_{1}".format(treesapp_id, code_name), tree):
-            logging.warning("Unable to find '" + treesapp_id + '_' + code_name + "' in " + bipart_tree + ".\n" +
-                            "The bipartition tree will not be annotated (no effect on reference package).\n")
+    tree = tree_file.readline()
+    tree_file.close()
+    for leaf_node in leaf_nodes:  # type: TreeLeafReference
+        if not re.search(r"[,(]{0}_{1}".format(leaf_node.number, refpkg_name), tree):
+            logging.warning("Unable to find '{}' in {}.\n"
+                            "The bipartition tree will not be annotated"
+                            " (no effect on reference package).\n".format(leaf_node.number + '_' + refpkg_name,
+                                                                          bipart_tree))
             break
-        tree = re.sub(r"[,(]{0}_{1}".format(treesapp_id, code_name),
-                      '(' + fasta_replace_dict[treesapp_id].organism,
+        tree = re.sub(r"[,(]{0}_{1}".format(leaf_node.number, refpkg_name),
+                      '(' + leaf_node.description,
                       tree)
 
     tree_output_dir = os.path.dirname(bipart_tree)
-    annotated_tree_name = tree_output_dir + os.sep + "RAxML_bipartitions_annotated." + code_name
+    annotated_tree_name = tree_output_dir + os.sep + "RAxML_bipartitions_annotated." + refpkg_name
     try:
         annotated_tree = open(annotated_tree_name, 'w')
     except IOError:

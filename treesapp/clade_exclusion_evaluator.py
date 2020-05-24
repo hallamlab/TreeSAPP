@@ -93,7 +93,7 @@ def write_intermediate_assignments(inter_class_file, assignments):
     return
 
 
-def determine_containment(marker_eval_inst):
+def determine_containment(marker_eval_inst: Evaluator):
     """
     Determines the accuracy of sequence classifications of all sequences contained at different taxonomic ranks
 
@@ -114,7 +114,7 @@ def determine_containment(marker_eval_inst):
     containment_strings = list()
     n_queries, n_classified, _ = marker_eval_inst.get_sensitivity(lowest_rank)
 
-    sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker_eval_inst.target_marker.cog +
+    sys.stdout.write("Accuracy of " + str(n_classified) + ' ' + marker_eval_inst.ref_pkg.prefix +
                      " classifications at " + lowest_rank + ":\n" +
                      "\tRank\tCorrect\tToo Shallow (%)\n")
 
@@ -624,15 +624,6 @@ def validate_ref_package_files(refpkg: ReferencePackage, intermediate_dir):
         except FileNotFoundError:
             logging.info("failed. Redownload data files and start over.\n")
             sys.exit(21)
-    return
-
-
-def remove_clade_exclusion_files(intermediate_dir):
-    remnants = glob(intermediate_dir + "ORIGINAL*", recursive=True)
-    if not remnants:
-        logging.warning("No remaining original reference package files found for destruction.\n")
-    for tmp_file in remnants:
-        os.remove(tmp_file)
     return
 
 

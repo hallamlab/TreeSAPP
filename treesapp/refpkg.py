@@ -2,7 +2,6 @@ import logging
 import os
 import re
 import sys
-from glob import glob
 from shutil import copy
 import json
 
@@ -13,8 +12,8 @@ from treesapp.entish import annotate_partition_tree
 from treesapp.external_command_interface import launch_write_command
 from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
-from treesapp.utilities import swap_tree_names, get_hmm_length, base_file_prefix
-from treesapp.wrapper import model_parameters, run_mafft, build_hmm_profile
+from treesapp.utilities import get_hmm_length, base_file_prefix, load_taxonomic_trie, match_file
+from treesapp import wrapper
 from treesapp import __version__ as ts_version
 
 
@@ -63,10 +62,11 @@ class ReferencePackage:
         for attr, value in self.__dict__.items():
             yield attr, value
 
-    def clone(self):
+    def clone(self, clone_path: str):
         refpkg_clone = ReferencePackage()
         refpkg_clone.f__json = self.f__json
         refpkg_clone.slurp()
+        refpkg_clone.f__json = clone_path
         return refpkg_clone
 
     def band(self):
@@ -284,39 +284,6 @@ class ReferencePackage:
         self.taxa_trie.validate_rank_prefixes()
         return
 
-    # def tax_ids_file_to_leaves(self):
-    #     tree_leaves = list()
-    #     unknown = 0
-    #     try:
-    #         tax_ids_handler = open(self.lineage_ids, 'r', encoding='utf-8')
-    #     except IOError:
-    #         logging.error("Unable to open " + self.lineage_ids + "\n")
-    #         sys.exit(5)
-    #
-    #     for line in tax_ids_handler:
-    #         line = line.strip()
-    #
-    #         try:
-    #             number, seq_name, lineage = line.split("\t")
-    #         except (ValueError, IndexError):
-    #             logging.error("Unexpected number of fields in " + self.lineage_ids +
-    #                           ".\nInvoked .split(\'\\t\') on line " + str(line) + "\n")
-    #             sys.exit(5)
-    #         leaf = TreeLeafReference(number, seq_name)
-    #         if lineage:
-    #             leaf.lineage = lineage
-    #             leaf.complete = True
-    #         else:
-    #             unknown += 1
-    #         tree_leaves.append(leaf)
-    #
-    #     if len(tree_leaves) == unknown:
-    #         logging.error("Lineage information was not properly loaded for " + self.lineage_ids + "\n")
-    #         sys.exit(5)
-    #
-    #     tax_ids_handler.close()
-    #     return tree_leaves
-
     def create_itol_labels(self, output_dir) -> None:
         """
         Create the marker_labels.txt file for each marker gene that was used for classification
@@ -349,27 +316,30 @@ class ReferencePackage:
     def alignment_dims(self):
         return multiple_alignment_dimensions(self.f__msa)
 
-    def remove_taxon_from_lineage_ids(self, target_taxon) -> None:
+    def remove_taxon_from_lineage_ids(self, target_lineage) -> None:
         """
         Removes all sequences/leaves from the reference package that match the target taxon. Leaves with that have a
         taxonomic resolution lower than the target are also removed as their taxonomic provenance is uncertain.
 
-        :param target_taxon: A '; '-separated taxonomic lineage for which all matches and descendents are removed
+        :param target_lineage: A '; '-separated taxonomic lineage for which all matches and descendents are removed
         :return: Nothing
         """
         off_target_ref_leaves = dict()
-        depth = len(target_taxon.split("; "))
+        target_taxon = target_lineage.split(self.taxa_trie.lin_sep)[-1]
+        prefix, name = target_taxon.split(self.taxa_trie.taxon_sep)
+        rank = self.taxa_trie.rank_prefix_map[prefix]
+        depth = self.taxa_trie.accepted_ranks_depths[rank]-1
         n_match = 0
         n_shallow = 0
         n_unclassified = 0
 
         # Find the reference leaf node that need to be removed
         for ref_leaf in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
-            sc_lineage = ref_leaf.lineage.split("; ")
-            if len(sc_lineage) < depth:
+            sc_lineage = ref_leaf.lineage.split(self.taxa_trie.lin_sep)
+            if len(sc_lineage) <= depth:
                 n_shallow += 1
                 continue
-            if target_taxon == '; '.join(sc_lineage[:depth + 1]):
+            if target_taxon == sc_lineage[depth]:
                 n_match += 1
                 continue
             if re.search("unclassified|environmental sample", ref_leaf.lineage, re.IGNORECASE):
@@ -388,6 +358,7 @@ class ReferencePackage:
 
         # Update self.lineage_ids with the remaining reference leaf nodes
         self.lineage_ids = off_target_ref_leaves
+        self.num_seqs = len(self.lineage_ids)
 
         logging.debug("Reference sequence filtering stats for " + target_taxon + "\n" +
                       "\n".join(["Match taxon\t" + str(n_match),
@@ -396,41 +367,66 @@ class ReferencePackage:
                                  "Remaining\t" + str(len(off_target_ref_leaves))]) + "\n")
         return
 
-    def clean_up_raxmlng_outputs(self, phylogeny_dir: str, fasta_replace_dict: dict) -> None:
-        output_prefix = phylogeny_dir + self.prefix
-        # Find the best tree file
-        try:
-            raw_newick_tree = glob(output_prefix + ".*.bestTree")[0]
-        except IndexError:
-            logging.error("Unable to find {}.*.bestTree generated by FastTree or RAxML-NG.\n".format(output_prefix))
-            sys.exit(17)
+    def infer_phylogeny(self, input_msa: str, executables: dict, phylogeny_dir: str, bootstraps,
+                        num_threads=2, sub_model=None) -> None:
+        """
+        Selects the substitution model and parameters for the phylogenetic inference tools,
+        builds a phylogeny using the software specified by the ReferencePackage's tree_tool,
+        uses RAxML-NG to calculate the pertinent model parameters necessary for phylogenetic placement with EPA-NG,
+        and copies the outputs at the end of each step that are destined for the ReferencePackage to their destinations.
+
+        :param input_msa: A multiple sequence alignment (MSA) compatible with any of the supported tree building tools
+        :param executables: A dictionary of executable names mapped to the
+        :param phylogeny_dir: A directory for writing the outputs of this workflow
+        :param bootstraps: The number of bootstraps to use
+        :param num_threads: Number of threads to use while building the tree and bootstrapping
+        :param sub_model: The substitution model to use
+        :return: None
+        """
+        self.sub_model = wrapper.select_model(self.molecule, sub_model)
+        best_tree = wrapper.construct_tree(self.tree_tool, executables, self.sub_model, input_msa,
+                                           phylogeny_dir, self.prefix,
+                                           bootstraps, num_threads)
+
+        if self.tree_tool == "FastTree":
+            if int(bootstraps) != 0:
+                wrapper.support_tree_raxml(raxml_exe=executables["raxml-ng"], ref_tree=best_tree, ref_msa=input_msa,
+                                           model=self.sub_model, tree_prefix=phylogeny_dir + self.prefix,
+                                           mre=False, n_bootstraps=bootstraps, num_threads=num_threads)
+            wrapper.model_parameters(executables["raxml-ng"],
+                                     input_msa, best_tree, phylogeny_dir + self.prefix,
+                                     self.sub_model, num_threads)
+
+        self.format_raxmlng_outputs(phylogeny_dir, bootstraps)
+        return
+
+    def recover_raxmlng_model_outputs(self, phylogeny_dir: str) -> None:
         # Find the best model file
-        try:
-            model_info = glob(output_prefix + ".*.bestModel")[0]
-        except IndexError:
-            logging.error("Unable to find {}.*.bestModel generated by RAxML-NG.\n".format(output_prefix))
-            sys.exit(17)
+        model_info = match_file(phylogeny_dir + "*.bestModel")
 
         # Import the tree and model info files into the reference package
         copy(model_info, self.f__model_info)
-        swap_tree_names(raw_newick_tree, self.f__tree)
-        bootstrap_tree = output_prefix + ".raxml.support"
-        if os.path.isfile(bootstrap_tree):
-            annotate_partition_tree(self.prefix, fasta_replace_dict, bootstrap_tree)
-            swap_tree_names(bootstrap_tree, self.f__boot_tree)
 
-        # Remove intermediate files
-        intermediates = [raw_newick_tree, model_info,
-                         output_prefix + ".raxml.log",
-                         output_prefix + ".raxml.rba",
-                         output_prefix + ".raxml.reduced.phy",
-                         output_prefix + ".raxml.startTree"]
-        for f in intermediates:
-            try:
-                os.remove(f)
-            except OSError:
-                logging.debug("Unable to remove %s as it doesn't exist.\n" % f)
+        return
 
+    def recover_raxmlng_tree_outputs(self, phylogeny_dir: str, bootstraps) -> None:
+        # Find the best tree file
+        raw_newick_tree = match_file(phylogeny_dir + "*.bestTree")
+
+        # Import the tree files into the reference package
+        copy(raw_newick_tree, self.f__tree)
+
+        # Annotate the bootstrapped phylogeny
+        if bootstraps > 0:
+            bootstrap_tree = match_file(phylogeny_dir + "*.raxml.support")
+            annotate_partition_tree(self.prefix, self.generate_tree_leaf_references_from_refpkg(), bootstrap_tree)
+            copy(bootstrap_tree, self.f__boot_tree)
+
+        return
+
+    def format_raxmlng_outputs(self, phylogeny_dir: str, bootstraps) -> None:
+        self.recover_raxmlng_model_outputs(phylogeny_dir)
+        self.recover_raxmlng_tree_outputs(phylogeny_dir, bootstraps)
         return
 
     def exclude_clade_from_ref_files(self, tmp_dir: str, target_clade: str, executables: dict,
@@ -460,7 +456,7 @@ class ReferencePackage:
 
         # fasta
         ref_fasta_dict = read_fasta_to_dict(self.f__msa)
-        off_target_ref_headers = [ref_leaf.number + '_' + self.prefix for ref_leaf in self.lineage_ids]
+        off_target_ref_headers = [ref_num + '_' + self.prefix for ref_num in self.lineage_ids]
         if len(off_target_ref_headers) == 0:
             logging.error("No reference sequences were retained for building testing " + target_clade + "\n")
             sys.exit(19)
@@ -483,7 +479,7 @@ class ReferencePackage:
             if self.molecule == "rrna" or self.molecule == "dna":
                 tree_build_cmd += ["-nt", "-gtr"]
             else:
-                tree_build_cmd += ["-lg", "-wag"]
+                tree_build_cmd += ["-lg", "-gamma"]
             tree_build_cmd += ["-out", self.f__tree]
             tree_build_cmd.append(self.f__msa)
             logging.info("Building Approximately-Maximum-Likelihood tree with FastTree... ")
@@ -498,9 +494,12 @@ class ReferencePackage:
             ref_tree.write(outfile=self.f__tree, format=5)
 
         # Model parameters
-        model_output_prefix = os.path.join(tmp_dir, "tree_data", self.prefix)
-        model_parameters(executables["raxml-ng"], self.f__msa, self.f__tree, model_output_prefix, self.sub_model)
-        self.clean_up_raxmlng_outputs(model_output_prefix, {})
+        model_output_prefix = os.path.join(tmp_dir, "tree_data")
+        # model_parameters(executables["raxml-ng"], self.f__msa, self.f__tree, model_output_prefix, self.sub_model)
+        wrapper.model_parameters(executables["raxml-ng"], self.f__msa, self.f__tree, model_output_prefix, "LG+G4")
+        self.recover_raxmlng_model_outputs(model_output_prefix)
+
+        self.band()
 
         return
 
@@ -565,12 +564,11 @@ class ReferencePackage:
         write_new_fasta(fasta_dict=mfa.fasta_dict, fasta_name=derep_fa)
 
         # Re-align the sequences
-        run_mafft(mafft_exe=mafft_exe, fasta_in=derep_fa,
-                  fasta_out=derep_aln, num_threads=n_threads)
+        wrapper.run_mafft(mafft_exe=mafft_exe, fasta_in=derep_fa, fasta_out=derep_aln, num_threads=n_threads)
 
         # Build the new HMM profile
-        build_hmm_profile(hmmbuild_exe=hmmbuild_exe, msa_in=derep_aln,
-                          output_hmm=self.f__search_profile, name=self.prefix)
+        wrapper.build_hmm_profile(hmmbuild_exe=hmmbuild_exe, msa_in=derep_aln,
+                                  output_hmm=self.f__search_profile, name=self.prefix)
 
         # Clean up intermediates
         for f_path in intermediates:
@@ -580,29 +578,6 @@ class ReferencePackage:
         logging.info("done.\n")
 
         return
-
-    # def restore_reference_package(self, prefix: str, output_dir: str) -> None:
-    #     """
-    #
-    #     :param prefix: Prefix (path and basename) of the stored temporary files
-    #     :param output_dir: Path to the output directory for any temporary files that should be stored
-    #     :return: None
-    #     """
-    #     # The edited tax_ids file with clade excluded is required for performance analysis
-    #     # Copy the edited, clade-excluded tax_ids file to the output directory
-    #     copy(self.lineage_ids, output_dir)
-    #
-    #     # Move the original reference package files back to the proper directories
-    #     copy(prefix + "_tree.txt", self.tree)
-    #     copy(prefix + "_bestModel.txt", self.model_info)
-    #     if os.path.isfile(prefix + "_bipartitions.txt"):
-    #         copy(prefix + "_bipartitions.txt", self.boot_tree)
-    #     copy(prefix + "_tax_ids.txt", self.lineage_ids)
-    #     copy(prefix + ".fa", self.msa)
-    #     copy(prefix + ".hmm", self.profile)
-    #     copy(prefix + "_search.hmm", self.search_profile)
-    #
-    #     return
 
     def load_pfit_params(self, build_param_line):
         build_param_fields = build_param_line.split("\t")
@@ -618,3 +593,18 @@ class ReferencePackage:
                             "Software used to infer phylogeny:                   " + self.tree_tool,
                             "Date of last update:                                " + self.update,
                             "Description:                                        '%s'" % self.description]) + "\n"
+
+    def all_possible_assignments(self):
+        if len(self.lineage_ids) == 0:
+            logging.error("ReferencePackage.lineage_ids is empty - information hasn't been slurped up yet.\n")
+            sys.exit(17)
+
+        lineage_list = list()
+        for ref_leaf_node in self.generate_tree_leaf_references_from_refpkg():  # type: TreeLeafReference
+            lineage = ref_leaf_node.lineage
+            if not re.match(r"^r__Root.*", lineage):
+                lineage = "r__Root" + self.taxa_trie.lin_sep + lineage
+            lineage_list.append(lineage)
+
+        return load_taxonomic_trie(lineage_list)
+

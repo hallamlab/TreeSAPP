@@ -13,7 +13,7 @@ class TreesappTester(unittest.TestCase):
                                 "-m", "prot",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "relaxed",
-                                "--trim_align", "--no_svm", "--overwrite"]
+                                "--trim_align", "--no_svm", "--overwrite", "--delete"]
         commands.assign(assign_commands_list)
         lines = file_parsers.read_marker_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(15, len(lines))
@@ -29,7 +29,7 @@ class TreesappTester(unittest.TestCase):
                                 "-m", "dna",
                                 "--output", "./TreeSAPP_assign/",
                                 "--stringency", "strict",
-                                "--trim_align", "--no_svm", "--overwrite"]
+                                "--trim_align", "--no_svm", "--overwrite", "--delete"]
         commands.assign(assign_commands_list)
         lines = file_parsers.read_marker_classification_table("./TreeSAPP_assign/final_outputs/marker_contig_map.tsv")
         self.assertEqual(6, len(lines))
@@ -48,7 +48,7 @@ class TreesappTester(unittest.TestCase):
                                 "--min_taxonomic_rank", 'p',
                                 "--output", "./TreeSAPP_create",
                                 "--num_proc", str(2),
-                                "--trim_align", "--cluster", "--fast", "--headless", "--overwrite"]
+                                "--trim_align", "--cluster", "--fast", "--headless", "--overwrite", "--delete"]
         create(create_commands_list)
         test_refpkg = ReferencePackage()
         test_refpkg.f__json = "./TreeSAPP_create/final_outputs/Crt_build.json"
@@ -60,14 +60,17 @@ class TreesappTester(unittest.TestCase):
     def test_evaluate(self):
         from commands import evaluate
         from . import testing_utils as utils
-        test_ranks = ["Class", "Species"]
+        import os
+        test_ranks = ["Class"]
         evaluate_command_list = ["--fastx_input", utils.get_test_data("McrA_eval.faa"),
-                                 "--reference_marker", "McrA",
+                                 "--refpkg_path", utils.get_treesapp_file(os.path.join("treesapp", "data",
+                                                                                       "McrA_build.json")),
+                                 "--accession2lin", utils.get_test_data("McrA_eval_accession_id_lineage_map.tsv"),
                                  "-o", "./TreeSAPP_evaluate",
-                                 "--trim_align",
                                  "-m", "prot",
                                  "-t", ','.join(test_ranks),
-                                 "-n", str(2)]
+                                 "-n", str(2),
+                                 "--trim_align", "--overwrite"]
         evaluate(evaluate_command_list)
         return
 

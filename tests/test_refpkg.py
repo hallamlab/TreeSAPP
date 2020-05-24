@@ -28,6 +28,14 @@ class RefPkgTester(unittest.TestCase):
         self.db.disband("./")
         self.assertTrue(os.path.isfile("./McrA__/McrA.fa"))
 
+    def test_remove_taxon_from_lineage_ids(self):
+        self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria")
+        self.assertEqual(119, len(self.db.lineage_ids))
+        self.assertEqual(119, self.db.num_seqs)
+
+        self.db.remove_taxon_from_lineage_ids("d__Archaea")
+        self.assertEqual(0, len(self.db.lineage_ids))
+        self.assertEqual(0, self.db.num_seqs)
 
 if __name__ == '__main__':
     unittest.main()
