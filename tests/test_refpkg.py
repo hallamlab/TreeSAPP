@@ -19,6 +19,8 @@ class RefPkgTester(unittest.TestCase):
         return
 
     def test_slurp(self):
+        from . import testing_utils as utils
+        self.db.f__json = utils.get_test_data("band_test.json")
         self.db.slurp()
         self.assertEqual("McrA", self.db.prefix)
         return
@@ -26,7 +28,7 @@ class RefPkgTester(unittest.TestCase):
     def test_disband(self):
         import os
         self.db.disband("./")
-        self.assertTrue(os.path.isfile("./McrA__/McrA.fa"))
+        self.assertTrue(os.path.isfile("./McrA_M0701_/McrA.fa"))
 
     def test_remove_taxon_from_lineage_ids(self):
         self.db.remove_taxon_from_lineage_ids("d__Archaea; p__Euryarchaeota; c__Methanobacteria")
@@ -36,6 +38,14 @@ class RefPkgTester(unittest.TestCase):
         self.db.remove_taxon_from_lineage_ids("d__Archaea")
         self.assertEqual(0, len(self.db.lineage_ids))
         self.assertEqual(0, self.db.num_seqs)
+
+    def test_get_fasta(self):
+        refpkg_fa = self.db.get_fasta()
+        self.assertEqual(246, len(refpkg_fa.fasta_dict))
+
+    def test_bail(self):
+        self.db.bail()
+
 
 if __name__ == '__main__':
     unittest.main()

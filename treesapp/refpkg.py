@@ -10,7 +10,7 @@ from ete3 import Tree
 from treesapp.phylo_seq import TreeLeafReference
 from treesapp.entish import annotate_partition_tree
 from treesapp.external_command_interface import launch_write_command
-from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA
+from treesapp.fasta import read_fasta_to_dict, write_new_fasta, multiple_alignment_dimensions, FASTA, register_headers
 from treesapp.taxonomic_hierarchy import TaxonomicHierarchy
 from treesapp.utilities import get_hmm_length, base_file_prefix, load_taxonomic_trie, match_file
 from treesapp import wrapper
@@ -71,6 +71,14 @@ class ReferencePackage:
                             "Date of last update:                                " + self.update,
                             "Description:                                        '%s'" % self.description]) + "\n"
 
+    def bail(self, msg=""):
+        """
+        Function to consistently bail on processing from within ReferencePackage operations.
+
+        :return: None
+        """
+        logging.error(msg + "\n" + self.get_info())
+
     def clone(self, clone_path: str):
         refpkg_clone = ReferencePackage()
         if not os.path.isfile(self.f__json):
@@ -82,17 +90,16 @@ class ReferencePackage:
 
     def write_json(self):
         if len(self.f__json) == 0:
-            logging.error("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
-            sys.exit(11)
-
-        refpkg_dict = {}
+            self.bail("ReferencePackage.f__json not set. ReferencePackage band() cannot be completed.\n")
+            raise AttributeError
 
         try:
             refpkg_handler = open(self.f__json, 'w')
         except IOError:
-            logging.error("Unable to open reference package JSON file '{}' for writing.\n".format(self.f__json))
-            sys.exit(11)
+            self.bail("Unable to open reference package JSON file '{}' for writing.\n".format(self.f__json))
+            raise IOError
 
+        refpkg_dict = {}
         non_primitives = ["core_ref_files", "taxa_trie"]
         for a, v in self.__iter__():
             if a not in non_primitives:
@@ -237,25 +244,71 @@ class ReferencePackage:
         :return: Boolean
         """
         # Check to ensure all files exist
+        valid = True
         if check_files:
             for ref_file in self.core_ref_files:
                 if not os.path.isfile(ref_file):
-                    logging.error("File '" + ref_file + "' does not exist for reference package: " + self.prefix + "\n")
-                    sys.exit(17)
-        # TODO: Compare the number of sequences in the multiple sequence alignment
-        # self.num_seqs = len(get_headers(self.f__msa))
+                    self.bail("File '{}' does not exist for ReferencePackage {}\n".format(ref_file, self.prefix))
+                    valid = False
+
+        # Compare the number of sequences in the multiple sequence alignment
+        refpkg_fa = self.get_fasta()
+        if self.num_seqs != refpkg_fa.n_seqs():
+            self.bail("Number of sequences in {} "
+                      "ReferencePackage.num_seqs ({}) and MSA ({}) differ.\n".format(self.prefix,
+                                                                                     self.num_seqs,
+                                                                                     refpkg_fa.n_seqs()))
+            valid = False
+
         # TODO: Compare the number of sequences in the Hidden-Markov model
         # TODO: Compare the number of sequences in the Tree files
-        # TODO: Compare the number of sequences in the tax_ids file
-        # num_taxa = len(self.tax_ids_file_to_leaves())
-        # if num_taxa != num_ref_seqs != self.num_seqs:
-        #     logging.error("Number of reference sequences for reference package '" +
-        #                   self.prefix + "' is inconsistent!\n")
-        #     sys.exit(3)
+        # Compare the number of sequences in lineage IDs
+        n_leaf_nodes = len(self.generate_tree_leaf_references_from_refpkg())
+        if n_leaf_nodes != self.num_seqs:
+            self.bail("Number of sequences in {} "
+                      "ReferencePackage.num_seqs ({}) and leaf nodes ({}) differ.\n".format(self.prefix,
+                                                                                            self.num_seqs,
+                                                                                            n_leaf_nodes))
+            valid = False
+
         if not self.sub_model:
-            logging.error("Unable to find the substitution model used for ReferencePackage '{}'.\n".format(self.prefix))
-            sys.exit(33)
+            self.bail("Unable to find the substitution model used for ReferencePackage '{}'.\n".format(self.prefix))
+            valid = False
+
+        if not valid:
+            raise AttributeError
+
         return True
+
+    def get_fasta(self) -> FASTA:
+        """
+        Used for reading the reference package's self.msa lines to instantiate a FASTA instance
+
+        :return: A FASTA instance populated by the reference package's msa attribute
+        """
+        if not self.msa:
+            logging.error("ReferencePackage MSA hasn't been slurped, unable to read FASTA.\n")
+            sys.exit(3)
+
+        refpkg_fa = FASTA(self.f__msa)
+        name, seq = "", ""
+        for line in self.msa:
+            line = line[:-1]  # Strip the newline character
+            if line[0] == '>':
+                if name:  # This is the first sequence
+                    refpkg_fa.fasta_dict[name] = seq
+                name, seq = "", ""
+                name = line[1:]
+            else:
+                seq += line
+        refpkg_fa.fasta_dict[name] = seq
+        refpkg_fa.header_registry = register_headers(list(refpkg_fa.fasta_dict.keys()), True)
+
+        if len(refpkg_fa.fasta_dict) == 0 and len(refpkg_fa.fasta_dict) == 0:
+            logging.error("ReferencePackage.msa is empty or corrupted - no sequences were found!\n")
+            sys.exit(3)
+
+        return refpkg_fa
 
     def generate_tree_leaf_references_from_refpkg(self) -> list:
         """
